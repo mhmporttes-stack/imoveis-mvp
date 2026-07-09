@@ -26,7 +26,7 @@ export async function PUT(request, { params }) {
     if (!property) {
       return NextResponse.json({ error: "Empreendimento não encontrado." }, { status: 404 });
     }
-    ensureDailyBackup();
+    await ensureDailyBackup();
     return NextResponse.json(property);
   } catch (error) {
     console.error(error);
@@ -41,6 +41,6 @@ export async function DELETE(_request, { params }) {
 
   const { id } = await params;
   const ok = deleteProperty(id);
-  ensureDailyBackup();
+  await ensureDailyBackup();
   return NextResponse.json({ ok }, { status: ok ? 200 : 404 });
 }
