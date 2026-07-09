@@ -1,0 +1,14 @@
+import PropertyForm from "@/components/PropertyForm";
+
+export default function NewPropertyPage() {
+  return (
+    <main className="bg-mist py-14">
+      <section className="container-page mb-8">
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo cadastro</p>
+        <h1 className="mt-3 text-5xl font-black text-navy">Cadastrar empreendimento</h1>
+        <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Preencha manualmente ou use IA para gerar um rascunho a partir de site, PDF ou e-book.</p>
+      </section>
+      <PropertyForm />
+    </main>
+  );
+}
