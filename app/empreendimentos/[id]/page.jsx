@@ -3,12 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, Download, FileText, KeyRound, MapPin, MessageCircle, Ruler, Wallet } from "lucide-react";
 import { coverImage, propertyCity, typeLabel, whatsappLink } from "@/lib/format";
-import { getProperty } from "@/lib/properties";
+import { getPublicProperty, listPublicProperties } from "@/lib/public-properties";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
-export default function PropertyPage({ params }) {
-  const property = getProperty(params.id);
+export function generateStaticParams() {
+  return listPublicProperties().map((property) => ({ id: property.id }));
+}
+
+export default async function PropertyPage({ params }) {
+  const { id } = await params;
+  const property = getPublicProperty(id);
   if (!property) notFound();
   const photos = property.photos?.length ? property.photos : [{ name: property.name, data: coverImage(property) }];
 

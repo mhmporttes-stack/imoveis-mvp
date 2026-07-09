@@ -5,9 +5,9 @@ import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import SectionHeading from "@/components/SectionHeading";
-import { listProperties } from "@/lib/properties";
+import { listPublicProperties } from "@/lib/public-properties";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 const benefits = [
   { icon: ShieldCheck, title: "Compra segura", text: "Acompanhamento consultivo para comparar condições, prazos e documentação." },
@@ -30,7 +30,7 @@ const testimonials = [
 ];
 
 export default function HomePage() {
-  const properties = listProperties();
+  const properties = listPublicProperties();
   const featured = properties.slice(0, 3);
 
   return (

@@ -1,11 +1,27 @@
 import { notFound } from "next/navigation";
 import PropertyForm from "@/components/PropertyForm";
 import { getProperty } from "@/lib/properties";
+import { canUseLocalDatabase } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 
-export default function EditPropertyPage({ params }) {
-  const property = getProperty(params.id);
+export default async function EditPropertyPage({ params }) {
+  if (!canUseLocalDatabase) {
+    return (
+      <main className="bg-mist py-14">
+        <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Edicao</p>
+          <h1 className="mt-3 text-5xl font-black text-navy">Edicao desativada em producao</h1>
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
+            O painel local com SQLite fica disponivel apenas em desenvolvimento nesta versao.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  const { id } = await params;
+  const property = getProperty(id);
   if (!property) notFound();
 
   return (
