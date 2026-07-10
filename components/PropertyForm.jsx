@@ -23,7 +23,8 @@ const emptyProperty = {
   salesText: "",
   photos: [],
   pdfName: "",
-  pdfData: ""
+  pdfData: "",
+  isPublished: true
 };
 
 export default function PropertyForm({ property }) {
@@ -137,6 +138,10 @@ export default function PropertyForm({ property }) {
             <option value="loteamento">Loteamento</option>
             <option value="condominio">Condomínio</option>
           </select>
+        </label>
+        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
+          <input type="checkbox" checked={form.isPublished !== false} onChange={(event) => update("isPublished", event.target.checked)} />
+          Publicar no site
         </label>
         <Field label="Preço inicial" value={form.price} onChange={(value) => update("price", value)} placeholder="R$ 389.000" />
         <Field label="Prazo de entrega" value={form.delivery} onChange={(value) => update("delivery", value)} />

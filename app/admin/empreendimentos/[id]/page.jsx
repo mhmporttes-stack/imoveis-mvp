@@ -1,19 +1,18 @@
 import { notFound } from "next/navigation";
 import PropertyForm from "@/components/PropertyForm";
-import { getProperty } from "@/lib/properties";
-import { canUseLocalDatabase } from "@/lib/runtime";
+import { canManageProperties, getProperty } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditPropertyPage({ params }) {
-  if (!canUseLocalDatabase) {
+  if (!canManageProperties()) {
     return (
       <main className="bg-mist py-14">
         <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Edicao</p>
           <h1 className="mt-3 text-5xl font-black text-navy">Edicao desativada em producao</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-            O painel local com SQLite fica disponivel apenas em desenvolvimento nesta versao.
+            Configure o Supabase para editar empreendimentos em producao.
           </p>
         </section>
       </main>
@@ -21,7 +20,7 @@ export default async function EditPropertyPage({ params }) {
   }
 
   const { id } = await params;
-  const property = getProperty(id);
+  const property = await getProperty(id);
   if (!property) notFound();
 
   return (

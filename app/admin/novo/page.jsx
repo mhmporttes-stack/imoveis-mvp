@@ -1,15 +1,15 @@
 import PropertyForm from "@/components/PropertyForm";
-import { canUseLocalDatabase } from "@/lib/runtime";
+import { canManageProperties } from "@/lib/properties";
 
 export default function NewPropertyPage() {
-  if (!canUseLocalDatabase) {
+  if (!canManageProperties()) {
     return (
       <main className="bg-mist py-14">
         <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo cadastro</p>
           <h1 className="mt-3 text-5xl font-black text-navy">Cadastro desativado em producao</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-            O painel local com SQLite fica disponivel apenas em desenvolvimento nesta versao.
+            Configure o Supabase para cadastrar empreendimentos em producao.
           </p>
         </section>
       </main>

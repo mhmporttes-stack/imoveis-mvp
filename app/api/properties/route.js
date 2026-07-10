@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server";
 import { ensureDailyBackup } from "@/lib/backup";
-import { createProperty, listProperties } from "@/lib/properties";
-import { canUseLocalDatabase } from "@/lib/runtime";
+import { canManageProperties, createProperty, listProperties } from "@/lib/properties";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(listProperties());
+  return NextResponse.json(await listProperties());
 }
 
 export async function POST(request) {
-  if (!canUseLocalDatabase) {
+  if (!canManageProperties()) {
     return NextResponse.json({ error: "Painel administrativo desativado em producao." }, { status: 503 });
   }
 
   try {
-    const property = createProperty(await request.json());
+    const property = await createProperty(await request.json());
     await ensureDailyBackup();
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

@@ -1,16 +1,15 @@
 import Link from "next/link";
 import AdminPropertyList from "@/components/AdminPropertyList";
-import { listProperties } from "@/lib/properties";
-import { canUseLocalDatabase } from "@/lib/runtime";
+import { canManageProperties, listProperties } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminPage() {
-  if (!canUseLocalDatabase) {
+export default async function AdminPage() {
+  if (!canManageProperties()) {
     return <AdminDisabled />;
   }
 
-  const properties = listProperties();
+  const properties = await listProperties();
 
   return (
     <main className="bg-mist py-14">
@@ -34,7 +33,7 @@ function AdminDisabled() {
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Area administrativa</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Painel temporariamente desativado</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-          Para manter o site online na Vercel, o cadastro local com SQLite fica ativo apenas em desenvolvimento.
+          Configure o Supabase para gerenciar empreendimentos em producao ou use SQLite no ambiente local.
         </p>
         <Link href="/" className="mt-8 inline-flex premium-button-primary">Voltar para o site</Link>
       </section>

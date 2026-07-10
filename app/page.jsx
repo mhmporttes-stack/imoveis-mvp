@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Award, CheckCircle2, FileText, Handshake, KeyRound, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, CheckCircle2, FileText, Handshake, ShieldCheck, Sparkles } from "lucide-react";
 import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import SectionHeading from "@/components/SectionHeading";
 import { listPublicProperties } from "@/lib/public-properties";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 const benefits = [
   { icon: ShieldCheck, title: "Compra segura", text: "Acompanhamento consultivo para comparar condições, prazos e documentação." },
@@ -29,23 +29,27 @@ const testimonials = [
   { name: "Investidor local", text: "A curadoria economizou tempo e mostrou oportunidades que faziam sentido para meu objetivo." }
 ];
 
-export default function HomePage() {
-  const properties = listPublicProperties();
+export default async function HomePage() {
+  const properties = await listPublicProperties();
   const featured = properties.slice(0, 3);
 
   return (
     <main>
-      <section className="relative min-h-[calc(100vh-96px)] overflow-hidden bg-navy text-white">
-        <Image src="/assets/hero-marilia.png" alt="Empreendimentos em Marília" fill priority className="object-cover opacity-55" />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/82 to-navy/18" />
-        <div className="container-wide relative z-10 flex min-h-[calc(100vh-96px)] items-center py-20">
-          <div className="max-w-4xl">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Matheus Machado · CRECI 323106</p>
-            <h1 className="mt-6 text-5xl font-black leading-[0.98] tracking-tight md:text-7xl">
-              Encontre seu imóvel em Marília
+      <section className="relative min-h-[calc(100svh-112px)] overflow-hidden bg-[#061A2F] text-white">
+        <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[57%_center] md:object-[66%_center]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,19,35,0.96)_0%,rgba(6,26,47,0.84)_34%,rgba(8,38,68,0.42)_62%,rgba(3,12,24,0.12)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_30%,rgba(31,111,202,0.32),transparent_28%),linear-gradient(180deg,rgba(3,12,24,0.18)_0%,rgba(3,12,24,0.58)_100%)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-44 bg-gradient-to-t from-[#061A2F] to-transparent" />
+        <div className="container-wide relative z-10 flex min-h-[calc(100svh-112px)] items-center py-16 sm:py-20 lg:py-24">
+          <div className="w-full max-w-[1320px]">
+            <p className="inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-3 text-xs font-black uppercase text-blue-100 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:text-sm">
+              Matheus Machado · CRECI 323106
+            </p>
+            <h1 className="mt-7 max-w-none whitespace-nowrap text-[clamp(0.78rem,4.25vw,4.85rem)] font-black leading-none text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)]">
+              ENCONTRE SEU IMÓVEL EM MARÍLIA
             </h1>
-            <p className="mt-7 max-w-2xl text-xl leading-9 text-white/82">
-              Empreendimentos selecionados, atendimento consultivo e condições comerciais organizadas para você comprar com segurança.
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-white/84 sm:text-xl sm:leading-9">
+              Especialistas em imóveis na planta e prontos para morar em Marília. Encontre a oportunidade ideal para realizar o sonho da casa própria com segurança e atendimento personalizado.
             </p>
             <HomeSearch />
           </div>
