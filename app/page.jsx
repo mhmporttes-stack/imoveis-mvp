@@ -35,20 +35,35 @@ export default async function HomePage() {
 
   return (
     <main>
-      <section className="relative min-h-[calc(100svh-112px)] overflow-hidden bg-[#061A2F] text-white">
+      <section className="relative min-h-[calc(100svh-80px)] overflow-hidden bg-[#061A2F] text-white">
         <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[57%_center] md:object-[66%_center]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,19,35,0.96)_0%,rgba(6,26,47,0.84)_34%,rgba(8,38,68,0.42)_62%,rgba(3,12,24,0.12)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_30%,rgba(31,111,202,0.32),transparent_28%),linear-gradient(180deg,rgba(3,12,24,0.18)_0%,rgba(3,12,24,0.58)_100%)]" />
         <div className="absolute bottom-0 left-0 right-0 h-44 bg-gradient-to-t from-[#061A2F] to-transparent" />
-        <div className="container-wide relative z-10 flex min-h-[calc(100svh-112px)] items-center py-16 sm:py-20 lg:py-24">
-          <div className="w-full max-w-[1320px]">
-            <p className="inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-3 text-xs font-black uppercase text-blue-100 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:text-sm">
-              Matheus Machado · CRECI 323106
-            </p>
-            <h1 className="mt-7 max-w-none whitespace-nowrap text-[clamp(0.78rem,4.25vw,4.85rem)] font-black leading-none text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)]">
+        <div className="container-wide relative z-10 flex min-h-[calc(100svh-80px)] items-center py-14 sm:py-20 lg:py-20">
+          <div className="w-full max-w-[calc(100vw-40px)] sm:max-w-[1320px]">
+            <div className="relative h-24 w-[min(74vw,260px)] sm:h-28 sm:w-[300px]">
+              <Image
+                src="/assets/matheus-machado-logo-transparent.png"
+                alt="Matheus Machado - Corretor de Imóveis"
+                fill
+                sizes="(max-width: 640px) 74vw, 300px"
+                className="object-contain object-left"
+                priority
+              />
+            </div>
+            <div className="mt-5">
+              <p className="text-xl font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.32)] sm:text-2xl">
+                MATHEUS MACHADO
+              </p>
+              <p className="mt-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100/90 sm:text-sm">
+                CORRETOR DE IMÓVEIS · CRECI 323106
+              </p>
+            </div>
+            <h1 className="mt-7 max-w-none whitespace-nowrap text-[clamp(0.86rem,3.75vw,4.85rem)] font-black leading-none text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)]">
               ENCONTRE SEU IMÓVEL EM MARÍLIA
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-white/84 sm:text-xl sm:leading-9">
+            <p className="mt-7 max-w-[calc(100vw-40px)] text-lg leading-8 text-white/84 sm:max-w-2xl sm:text-xl sm:leading-9">
               Especialistas em imóveis na planta e prontos para morar em Marília. Encontre a oportunidade ideal para realizar o sonho da casa própria com segurança e atendimento personalizado.
             </p>
             <HomeSearch />
