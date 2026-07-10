@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Award, CheckCircle2, FileText, Handshake, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, CheckCircle2, FileText, Handshake, Mail, MapPin, ShieldCheck, Sparkles } from "lucide-react";
 import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
@@ -29,20 +29,26 @@ const testimonials = [
   { name: "Investidor local", text: "A curadoria economizou tempo e mostrou oportunidades que faziam sentido para meu objetivo." }
 ];
 
+const heroContactCardClass =
+  "inline-flex min-h-[58px] w-full items-center gap-3 rounded-xl border border-blue-200/25 bg-[#08233f]/55 px-5 text-white/90 shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-blue-200/55 hover:bg-[#0a2c4f]/70 hover:text-white";
+
+const heroContactTextClass =
+  "whitespace-nowrap text-[clamp(0.62rem,2.35vw,0.86rem)] font-black leading-none";
+
 export default async function HomePage() {
   const properties = await listPublicProperties();
   const featured = properties.slice(0, 3);
 
   return (
     <main>
-      <section className="relative min-h-[calc(100svh-80px)] overflow-hidden bg-[#061A2F] text-white">
-        <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[57%_center] md:object-[66%_center]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,19,35,0.96)_0%,rgba(6,26,47,0.84)_34%,rgba(8,38,68,0.42)_62%,rgba(3,12,24,0.12)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_30%,rgba(31,111,202,0.32),transparent_28%),linear-gradient(180deg,rgba(3,12,24,0.18)_0%,rgba(3,12,24,0.58)_100%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-44 bg-gradient-to-t from-[#061A2F] to-transparent" />
-        <div className="container-wide relative z-10 flex min-h-[calc(100svh-80px)] items-center py-14 sm:py-20 lg:py-20">
-          <div className="w-full max-w-[calc(100vw-40px)] sm:max-w-[1320px]">
-            <div className="relative h-24 w-[min(74vw,260px)] sm:h-28 sm:w-[300px]">
+      <section className="relative min-h-[calc(100svh-56px)] overflow-hidden bg-[#061A2F] text-white">
+        <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[58%_center] md:object-[62%_center]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,16,31,0.97)_0%,rgba(4,20,38,0.9)_28%,rgba(6,28,52,0.52)_52%,rgba(4,16,31,0.2)_78%,rgba(3,12,24,0.08)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_26%,rgba(30,107,198,0.28),transparent_30%),linear-gradient(180deg,rgba(3,12,24,0.06)_0%,rgba(3,12,24,0.34)_100%)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-[#061A2F]/90 to-transparent" />
+        <div className="relative z-10 flex min-h-[calc(100svh-56px)] items-center px-5 py-12 sm:px-[5.8vw] sm:py-16 lg:py-14 xl:py-16">
+          <div className="w-full max-w-[calc(100vw-40px)] md:max-w-[850px] xl:max-w-[900px] 2xl:max-w-[940px]">
+            <div className="relative h-[105px] w-[min(72vw,285px)] sm:h-32 sm:w-[330px] lg:h-28 lg:w-[300px] xl:h-32 xl:w-[340px]">
               <Image
                 src="/assets/matheus-machado-logo-transparent.png"
                 alt="Matheus Machado - Corretor de Imóveis"
@@ -52,21 +58,28 @@ export default async function HomePage() {
                 priority
               />
             </div>
-            <div className="mt-5">
-              <p className="text-xl font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.32)] sm:text-2xl">
+            <div className="mt-4">
+              <p className="text-xl font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.32)] sm:text-2xl xl:text-[1.65rem]">
                 MATHEUS MACHADO
               </p>
               <p className="mt-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100/90 sm:text-sm">
                 CORRETOR DE IMÓVEIS · CRECI 323106
               </p>
             </div>
-            <h1 className="mt-7 max-w-none whitespace-nowrap text-[clamp(0.86rem,3.75vw,4.85rem)] font-black leading-none text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)]">
-              ENCONTRE SEU IMÓVEL EM MARÍLIA
+            <h1 className="mt-9 max-w-[940px] text-[clamp(1.52rem,3vw,3.4rem)] font-black leading-[1.02] text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)] md:whitespace-nowrap md:leading-[0.96]">
+              <span className="md:hidden">
+                ENCONTRE SEU IMÓVEL EM
+                <br />
+                MARÍLIA
+              </span>
+              <span className="hidden md:inline">ENCONTRE SEU IMÓVEL EM MARÍLIA</span>
             </h1>
-            <p className="mt-7 max-w-[calc(100vw-40px)] text-lg leading-8 text-white/84 sm:max-w-2xl sm:text-xl sm:leading-9">
-              Especialistas em imóveis na planta e prontos para morar em Marília. Encontre a oportunidade ideal para realizar o sonho da casa própria com segurança e atendimento personalizado.
-            </p>
+            <div className="mt-7 max-w-[680px] space-y-2 text-[0.95rem] leading-7 text-white/88 [overflow-wrap:anywhere] sm:text-lg sm:leading-8 sm:[overflow-wrap:normal]">
+              <p>Especialista no mercado imobiliário de Marília.</p>
+              <p>Simulação de financiamento, aprovação de crédito e acompanhamento personalizado durante todo o processo.</p>
+            </div>
             <HomeSearch />
+            <HeroContactCards />
           </div>
         </div>
       </section>
@@ -149,5 +162,48 @@ export default async function HomePage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function HeroContactCards() {
+  return (
+    <div className="mt-8">
+      <div className="flex w-full max-w-[850px] flex-col gap-3 sm:flex-row sm:flex-wrap xl:flex-nowrap">
+        <a
+          href="https://wa.me/5514998407380"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${heroContactCardClass} sm:w-auto sm:min-w-[190px]`}
+        >
+          <WhatsAppIcon className="h-5 w-5 shrink-0 text-[#25D366]" />
+          <span className={heroContactTextClass}>(14) 9 9840-7380</span>
+        </a>
+        <a
+          href="mailto:MATHEUS.MACHADO.MARILIA@GMAIL.COM"
+          className={`${heroContactCardClass} sm:w-auto sm:min-w-[335px]`}
+        >
+          <Mail className="h-5 w-5 shrink-0 text-blue-200" />
+          <span className={heroContactTextClass}>MATHEUS.MACHADO.MARILIA@GMAIL.COM</span>
+        </a>
+        <a
+          href="https://www.google.com/maps/search/?api=1&query=Av.%20Sampaio%20Vidal%20N%C2%BA%20575%2C%20Mar%C3%ADlia%2C%20SP"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${heroContactCardClass} sm:w-auto sm:min-w-[245px]`}
+        >
+          <MapPin className="h-5 w-5 shrink-0 text-blue-200" />
+          <span className={heroContactTextClass}>Av. Sampaio Vidal Nº 575</span>
+        </a>
+      </div>
+      <p className="mt-6 text-base text-blue-100/90 sm:text-lg">Atendimento personalizado</p>
+    </div>
+  );
+}
+
+function WhatsAppIcon({ className }) {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M16.04 3.2A12.74 12.74 0 0 0 5.2 22.65L3.72 28l5.48-1.43A12.75 12.75 0 1 0 16.04 3.2Zm0 2.27a10.47 10.47 0 0 1 8.86 16.04 10.47 10.47 0 0 1-14.96 2.74l-.39-.24-3.25.85.87-3.16-.26-.41A10.46 10.46 0 0 1 16.04 5.47Zm-4.45 5.62c-.22 0-.58.08-.88.42-.3.34-1.15 1.12-1.15 2.74s1.18 3.18 1.34 3.4c.16.22 2.27 3.64 5.63 4.96 2.79 1.1 3.36.88 3.96.82.6-.05 1.94-.79 2.21-1.55.27-.76.27-1.42.19-1.55-.08-.14-.3-.22-.63-.38-.33-.16-1.94-.96-2.24-1.07-.3-.11-.52-.16-.74.16-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.86-1.63-1.93-1.82-2.26-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.16-.74-1.79-1.01-2.45-.27-.64-.54-.55-.74-.56h-.63Z" />
+    </svg>
   );
 }
