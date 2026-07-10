@@ -41,12 +41,12 @@ export default async function HomePage() {
 
   return (
     <main>
-      <section className="relative min-h-[calc(100svh-56px)] overflow-hidden bg-[#061A2F] text-white">
+      <section className="relative min-h-[100svh] overflow-hidden bg-[#061A2F] text-white">
         <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[58%_center] md:object-[62%_center]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,16,31,0.97)_0%,rgba(4,20,38,0.9)_28%,rgba(6,28,52,0.52)_52%,rgba(4,16,31,0.2)_78%,rgba(3,12,24,0.08)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_26%,rgba(30,107,198,0.28),transparent_30%),linear-gradient(180deg,rgba(3,12,24,0.06)_0%,rgba(3,12,24,0.34)_100%)]" />
         <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-[#061A2F]/90 to-transparent" />
-        <div className="relative z-10 flex min-h-[calc(100svh-56px)] items-center px-5 py-12 sm:px-[5.8vw] sm:py-16 lg:py-14 xl:py-16">
+        <div className="relative z-10 flex min-h-[100svh] items-center px-5 py-12 sm:px-[5.8vw] sm:py-16 lg:py-14 xl:py-16">
           <div className="w-full max-w-[calc(100vw-40px)] md:max-w-[850px] xl:max-w-[900px] 2xl:max-w-[940px]">
             <div className="relative h-[105px] w-[min(72vw,285px)] sm:h-32 sm:w-[330px] lg:h-28 lg:w-[300px] xl:h-32 xl:w-[340px]">
               <Image
@@ -81,6 +81,17 @@ export default async function HomePage() {
             <HomeSearch />
             <HeroContactCards />
           </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-6 shadow-[0_-18px_60px_rgba(6,26,47,0.08)] sm:py-8" aria-label="Navegação de imóveis">
+        <div className="container-page flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+          <Link href="/#empreendimentos" className="inline-flex min-h-12 items-center justify-center rounded-full border border-navy/10 bg-white px-6 text-sm font-extrabold text-navy shadow-soft transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:text-brand hover:shadow-premium sm:min-w-48">
+            Imóveis na Planta
+          </Link>
+          <Link href="/#todos" className="inline-flex min-h-12 items-center justify-center rounded-full border border-navy/10 bg-white px-6 text-sm font-extrabold text-navy shadow-soft transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:text-brand hover:shadow-premium sm:min-w-48">
+            Imóveis Prontos
+          </Link>
         </div>
       </section>
 
