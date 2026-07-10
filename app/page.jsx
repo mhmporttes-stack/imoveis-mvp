@@ -50,11 +50,11 @@ export default async function HomePage() {
           <div className="w-full max-w-[calc(100vw-40px)] md:max-w-[850px] xl:max-w-[900px] 2xl:max-w-[940px]">
             <div className="relative h-[105px] w-[min(72vw,285px)] sm:h-32 sm:w-[330px] lg:h-28 lg:w-[300px] xl:h-32 xl:w-[340px]">
               <Image
-                src="/assets/matheus-machado-logo-transparent.png"
+                src="/assets/matheus-machado-symbol-premium.png"
                 alt="Matheus Machado - Corretor de Imóveis"
                 fill
                 sizes="(max-width: 640px) 74vw, 300px"
-                className="object-contain object-left"
+                className="object-contain object-center"
                 priority
               />
             </div>
