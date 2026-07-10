@@ -1,14 +1,20 @@
-import { Mail } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import Link from "next/link";
+
+const contactCardClass =
+  "inline-flex min-h-[60px] w-full max-w-full items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 text-white/75 transition duration-300 hover:border-blue-200/45 hover:bg-white/5 hover:text-white lg:w-[440px]";
+
+const contactTextClass =
+  "min-w-0 whitespace-nowrap text-[clamp(0.72rem,2.65vw,0.92rem)] font-bold leading-none";
 
 export default function Footer() {
   return (
     <footer className="mt-28 border-t border-line bg-[#071f38] text-white">
-      <div className="container-page grid gap-10 py-14 md:grid-cols-[1.1fr_0.7fr_0.8fr]">
+      <div className="container-page grid gap-10 py-14 lg:grid-cols-[1fr_0.55fr_minmax(360px,440px)]">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Matheus Machado · CRECI 323106</p>
-          <h2 className="mt-4 max-w-xl text-3xl font-extrabold leading-tight">Consultoria imobiliária em Marília com padrão profissional.</h2>
-          <p className="mt-4 max-w-xl text-white/70">Empreendimentos, simulação, documentação e atendimento direto para quem busca comprar com mais segurança.</p>
+          <h2 className="mt-4 max-w-xl text-3xl font-extrabold leading-tight">Especialista no mercado imobiliário de Marília.</h2>
+          <p className="mt-4 max-w-xl text-white/70">Simulação de financiamento, aprovação de crédito e acompanhamento personalizado durante todo o processo.</p>
         </div>
 
         <div>
@@ -22,23 +28,31 @@ export default function Footer() {
 
         <div>
           <h3 className="font-extrabold">Contato</h3>
-          <div className="mt-4 grid gap-4 text-white/75">
-            <span>Marília, SP</span>
+          <div className="mt-4 grid max-w-full gap-3 text-white/75">
             <a
               href="https://wa.me/5514998407380"
               target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 transition duration-300 hover:border-[#25D366]/50 hover:bg-white/5 hover:text-white"
+              rel="noopener noreferrer"
+              className={contactCardClass}
             >
               <WhatsAppIcon className="h-5 w-5 shrink-0 text-[#25D366]" />
-              <span className="font-bold">(14) 9 9840-7380</span>
+              <span className={contactTextClass}>(14) 9 9840-7380</span>
             </a>
             <a
               href="mailto:MATHEUS.MACHADO.MARILIA@GMAIL.COM"
-              className="inline-flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 transition duration-300 hover:border-blue-300/50 hover:bg-white/5 hover:text-white"
+              className={contactCardClass}
             >
               <Mail className="h-5 w-5 shrink-0 text-blue-200" />
-              <span className="break-all font-bold">MATHEUS.MACHADO.MARILIA@GMAIL.COM</span>
+              <span className={contactTextClass}>MATHEUS.MACHADO.MARILIA@GMAIL.COM</span>
+            </a>
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Av.%20Sampaio%20Vidal%20N%C2%BA%20575%2C%20Mar%C3%ADlia%2C%20SP"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={contactCardClass}
+            >
+              <MapPin className="h-5 w-5 shrink-0 text-blue-200" />
+              <span className={contactTextClass}>Av. Sampaio Vidal Nº 575</span>
             </a>
             <span>Atendimento personalizado</span>
           </div>
