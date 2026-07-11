@@ -15,7 +15,9 @@ export default function AdminLoginForm({ initialError = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(errorMessages[initialError] || "");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     if (!initialError) return;
@@ -27,6 +29,7 @@ export default function AdminLoginForm({ initialError = "" }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
@@ -74,6 +77,38 @@ export default function AdminLoginForm({ initialError = "" }) {
     }
   }
 
+  async function requestPasswordReset() {
+    setError("");
+    setSuccess("");
+
+    if (!email) {
+      setError("Informe seu e-mail no campo acima para receber o link de recuperacao.");
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setError("Supabase nao configurado. Verifique as variaveis de ambiente.");
+        return;
+      }
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/admin/reset-password`
+      });
+
+      if (resetError) throw resetError;
+
+      setSuccess("Se o e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.");
+    } catch (resetError) {
+      setError(resetError?.message || "Nao foi possivel enviar o link de recuperacao.");
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="grid gap-5">
       <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#E9F2FF] text-brand">
@@ -110,8 +145,23 @@ export default function AdminLoginForm({ initialError = "" }) {
         </p>
       ) : null}
 
+      {success ? (
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+          {success}
+        </p>
+      ) : null}
+
       <button className="premium-button-primary w-full" disabled={loading} type="submit">
         {loading ? "Entrando..." : "Entrar"}
+      </button>
+
+      <button
+        className="text-sm font-extrabold text-brand transition hover:text-navy disabled:cursor-not-allowed disabled:text-muted"
+        disabled={resetLoading || loading}
+        onClick={requestPasswordReset}
+        type="button"
+      >
+        {resetLoading ? "Enviando link..." : "Esqueci minha senha"}
       </button>
     </form>
   );
