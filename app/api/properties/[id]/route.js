@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { ensureDailyBackup } from "@/lib/backup";
-import { canManageProperties, deleteProperty, getProperty, updateProperty } from "@/lib/properties";
+import { requireAdminApi } from "@/lib/admin-auth";
+import { canManageProperties, deleteProperty, updateProperty } from "@/lib/properties";
+import { getPublicProperty } from "@/lib/public-properties";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request, { params }) {
   const { id } = await params;
-  const property = await getProperty(id);
+  const property = await getPublicProperty(id);
   if (!property) {
     return NextResponse.json({ error: "Empreendimento não encontrado." }, { status: 404 });
   }
@@ -15,6 +17,11 @@ export async function GET(_request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   if (!canManageProperties()) {
     return NextResponse.json({ error: "Painel administrativo desativado em producao." }, { status: 503 });
   }
@@ -33,7 +40,12 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(_request, { params }) {
+export async function DELETE(request, { params }) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   if (!canManageProperties()) {
     return NextResponse.json({ error: "Painel administrativo desativado em producao." }, { status: 503 });
   }

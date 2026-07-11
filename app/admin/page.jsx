@@ -1,10 +1,14 @@
 import Link from "next/link";
 import AdminPropertyList from "@/components/AdminPropertyList";
+import AdminLogoutButton from "@/components/AdminLogoutButton";
+import { requireAdminPage } from "@/lib/admin-auth";
 import { canManageProperties, listProperties } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  await requireAdminPage();
+
   if (!canManageProperties()) {
     return <AdminDisabled />;
   }
@@ -19,7 +23,10 @@ export default async function AdminPage() {
           <h1 className="mt-3 text-5xl font-black text-navy">Painel de empreendimentos</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie o portfólio, edite informações comerciais e publique páginas individuais.</p>
         </div>
-        <Link href="/admin/novo" className="premium-button-primary">Novo empreendimento</Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link href="/admin/novo" className="premium-button-primary">Novo empreendimento</Link>
+          <AdminLogoutButton />
+        </div>
       </section>
       <AdminPropertyList properties={properties} />
     </main>

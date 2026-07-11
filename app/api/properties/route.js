@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { ensureDailyBackup } from "@/lib/backup";
-import { canManageProperties, createProperty, listProperties } from "@/lib/properties";
+import { requireAdminApi } from "@/lib/admin-auth";
+import { canManageProperties, createProperty } from "@/lib/properties";
+import { listPublicProperties } from "@/lib/public-properties";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(await listProperties());
+  return NextResponse.json(await listPublicProperties());
 }
 
 export async function POST(request) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   if (!canManageProperties()) {
     return NextResponse.json({ error: "Painel administrativo desativado em producao." }, { status: 503 });
   }
