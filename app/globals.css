@@ -55,26 +55,27 @@ body {
 @keyframes simulation-prompt-in {
   from {
     opacity: 0;
-    transform: translate3d(18px, 0, 0);
+    transform: translate3d(16px, 8px, 0) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
-@keyframes simulation-prompt-pulse {
+@keyframes simulation-prompt-float {
   0%,
   100% {
-    box-shadow: 0 22px 65px rgba(4, 20, 38, 0.32);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    box-shadow: 0 24px 78px rgba(37, 99, 235, 0.28), 0 18px 45px rgba(4, 20, 38, 0.24);
+    transform: translate3d(0, -3px, 0);
   }
 }
 
 .simulation-prompt {
-  animation: simulation-prompt-in 420ms ease-out both, simulation-prompt-pulse 2.8s ease-in-out 1.1s infinite;
+  animation: simulation-prompt-in 420ms ease-out both, simulation-prompt-float 3.8s ease-in-out 900ms infinite;
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
