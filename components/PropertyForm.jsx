@@ -46,7 +46,7 @@ const FEATURE_OPTIONS = [
 ];
 
 const MAX_PHOTOS = 8;
-const MAX_PHOTO_PAYLOAD_BYTES = 2_400_000;
+const MAX_PHOTO_UPLOAD_BYTES = 1_200_000;
 
 const emptyProperty = {
   name: "",
@@ -141,24 +141,35 @@ export default function PropertyForm({ property }) {
 
     setProcessingPhotos(true);
     setSaveError("");
-    setPhotoStatus(`Otimizando ${limitedFiles.length} foto(s) antes de salvar...`);
+    setPhotoStatus(`Otimizando e enviando ${limitedFiles.length} foto(s)...`);
 
     try {
-      let photos = await Promise.all(limitedFiles.map((file) => optimizeImageFile(file)));
-      let totalBytes = totalPhotoBytes(photos);
+      const photos = [];
 
-      if (totalBytes > MAX_PHOTO_PAYLOAD_BYTES) {
-        photos = await Promise.all(limitedFiles.map((file) => optimizeImageFile(file, { maxWidth: 1280, maxHeight: 960, quality: 0.64 })));
-        totalBytes = totalPhotoBytes(photos);
-      }
+      for (let index = 0; index < limitedFiles.length; index += 1) {
+        const file = limitedFiles[index];
+        setPhotoStatus(`Otimizando e enviando foto ${index + 1} de ${limitedFiles.length}...`);
+        let optimized = await optimizeImageFile(file);
 
-      if (totalBytes > MAX_PHOTO_PAYLOAD_BYTES) {
-        throw new Error("As fotos ainda ficaram grandes demais. Tente enviar menos fotos por vez.");
+        if (optimized.blob.size > MAX_PHOTO_UPLOAD_BYTES) {
+          optimized = await optimizeImageFile(file, { maxWidth: 1280, maxHeight: 960, quality: 0.62 });
+        }
+
+        if (optimized.blob.size > MAX_PHOTO_UPLOAD_BYTES) {
+          optimized = await optimizeImageFile(file, { maxWidth: 1024, maxHeight: 768, quality: 0.56 });
+        }
+
+        if (optimized.blob.size > MAX_PHOTO_UPLOAD_BYTES) {
+          throw new Error(`A foto "${file.name}" continua muito grande. Tente uma versão menor.`);
+        }
+
+        const uploadedPhoto = await uploadPhoto(optimized.blob, optimized.name, property?.id || form.name || "novo-imovel");
+        photos.push(uploadedPhoto);
       }
 
       update("photos", photos);
       const limitedText = selectedFiles.length > MAX_PHOTOS ? ` Apenas as ${MAX_PHOTOS} primeiras foram usadas.` : "";
-      setPhotoStatus(`${photos.length} foto(s) otimizadas para envio (${formatBytes(totalBytes)}).${limitedText}`);
+      setPhotoStatus(`${photos.length} foto(s) enviadas para o Supabase Storage.${limitedText}`);
     } catch (error) {
       setPhotoStatus("");
       setSaveError(error.message || "Não foi possível processar as fotos. Tente imagens menores.");
@@ -454,10 +465,32 @@ async function optimizeImageFile(file, options = {}) {
   context.fillRect(0, 0, width, height);
   context.drawImage(image, 0, 0, width, height);
 
-  const data = canvas.toDataURL("image/jpeg", quality);
+  const blob = await canvasToBlob(canvas, quality);
   return {
     name: file.name.replace(/\.[^.]+$/, ".jpg"),
-    data
+    blob
+  };
+}
+
+async function uploadPhoto(blob, name, propertyId) {
+  const formData = new FormData();
+  formData.append("file", blob, name);
+  formData.append("propertyId", propertyId);
+
+  const response = await fetch("/api/uploads/images", {
+    method: "POST",
+    body: formData
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.error || `Não foi possível enviar ${name}.`);
+  }
+
+  return {
+    name: result.name || name,
+    data: result.data,
+    storagePath: result.storagePath
   };
 }
 
@@ -477,16 +510,14 @@ function loadImage(file) {
   });
 }
 
-function totalPhotoBytes(photos) {
-  return photos.reduce((total, photo) => total + dataUrlBytes(photo.data), 0);
-}
-
-function dataUrlBytes(dataUrl = "") {
-  const base64 = dataUrl.split(",")[1] || "";
-  return Math.ceil((base64.length * 3) / 4);
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+      reject(new Error("Não foi possível compactar a imagem."));
+    }, "image/jpeg", quality);
+  });
 }
