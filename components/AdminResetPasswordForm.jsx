@@ -8,6 +8,19 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 const invalidLinkMessage =
   "O link de recuperacao esta expirado ou invalido. Solicite um novo link para redefinir sua senha.";
 
+function getPasswordResetRedirectTo() {
+  const redirectTo = new URL(
+    "/admin/reset-password",
+    window.location.origin
+  ).toString();
+
+  if (process.env.NODE_ENV === "development" && window.location.hostname === "localhost") {
+    console.info("[admin password reset] redirectTo:", redirectTo);
+  }
+
+  return redirectTo;
+}
+
 export default function AdminResetPasswordForm() {
   const router = useRouter();
   const recoveryConfirmedRef = useRef(false);
@@ -199,8 +212,9 @@ export default function AdminResetPasswordForm() {
         return;
       }
 
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/admin/reset-password`
+      const redirectTo = getPasswordResetRedirectTo();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo,
       });
 
       if (resetError) throw resetError;

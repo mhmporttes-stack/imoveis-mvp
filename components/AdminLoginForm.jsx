@@ -10,6 +10,19 @@ const errorMessages = {
   session: "Sua sessao expirou. Entre novamente."
 };
 
+function getPasswordResetRedirectTo() {
+  const redirectTo = new URL(
+    "/admin/reset-password",
+    window.location.origin
+  ).toString();
+
+  if (process.env.NODE_ENV === "development" && window.location.hostname === "localhost") {
+    console.info("[admin password reset] redirectTo:", redirectTo);
+  }
+
+  return redirectTo;
+}
+
 export default function AdminLoginForm({ initialError = "" }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -95,8 +108,9 @@ export default function AdminLoginForm({ initialError = "" }) {
         return;
       }
 
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/admin/reset-password`
+      const redirectTo = getPasswordResetRedirectTo();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo,
       });
 
       if (resetError) throw resetError;
