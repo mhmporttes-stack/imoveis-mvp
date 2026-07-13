@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { whatsappMessageLink } from "@/lib/format";
 
 const whatsappUrl =
-  "https://wa.me/5514998407380?text=Ol%C3%A1%2C%20Matheus%21%20Encontrei%20seu%20contato%20pelo%20site%20e%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20os%20im%C3%B3veis.";
+  whatsappMessageLink("Olá, Matheus! Encontrei seu contato pelo site e gostaria de mais informações sobre os imóveis.");
 
 export default function WhatsAppFloatingButton() {
   const pathname = usePathname();

@@ -5,6 +5,7 @@ import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import SectionHeading from "@/components/SectionHeading";
+import { whatsappMessageLink } from "@/lib/format";
 import { listPublicProperties } from "@/lib/public-properties";
 
 export const dynamic = "force-dynamic";
@@ -176,7 +177,7 @@ function HeroContactCards() {
     <div className="mt-8">
       <div className="flex w-full max-w-[540px] flex-col gap-3 sm:flex-row">
         <a
-          href="https://wa.me/5514998407380"
+          href={whatsappMessageLink()}
           target="_blank"
           rel="noopener noreferrer"
           className={`${heroContactCardClass} sm:w-auto sm:min-w-[190px]`}

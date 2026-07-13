@@ -1,5 +1,6 @@
 import { Mail, MapPin } from "lucide-react";
 import Link from "next/link";
+import { whatsappMessageLink } from "@/lib/format";
 
 const contactCardClass =
   "inline-flex min-h-[60px] w-full max-w-full items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 text-white/75 transition duration-300 hover:border-blue-200/45 hover:bg-white/5 hover:text-white lg:w-[440px]";
@@ -30,7 +31,7 @@ export default function Footer() {
           <h3 className="font-extrabold">Contato</h3>
           <div className="mt-4 grid max-w-full gap-3 text-white/75">
             <a
-              href="https://wa.me/5514998407380"
+              href={whatsappMessageLink()}
               target="_blank"
               rel="noopener noreferrer"
               className={contactCardClass}

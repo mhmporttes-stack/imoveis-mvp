@@ -2,6 +2,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
+import WhatsAppSimulationPrompt from "@/components/WhatsAppSimulationPrompt";
 
 export const metadata = {
   title: "Matheus Machado - Corretor de Imóveis",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
         <Header />
         {children}
         <Footer />
+        <WhatsAppSimulationPrompt />
         <WhatsAppFloatingButton />
       </body>
     </html>
