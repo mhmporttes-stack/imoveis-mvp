@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, RefreshCw } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -10,6 +10,7 @@ const invalidLinkMessage =
 
 export default function AdminResetPasswordForm() {
   const router = useRouter();
+  const recoveryConfirmedRef = useRef(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -32,11 +33,29 @@ export default function AdminResetPasswordForm() {
       return undefined;
     }
 
+    function allowPasswordUpdate() {
+      if (!active) return;
+      recoveryConfirmedRef.current = true;
+      setCanUpdatePassword(true);
+      setError("");
+    }
+
+    function denyPasswordUpdate(message = invalidLinkMessage) {
+      if (!active) return;
+      recoveryConfirmedRef.current = false;
+      setCanUpdatePassword(false);
+      setError(message);
+    }
+
+    function clearRecoveryUrl() {
+      window.history.replaceState({}, document.title, "/admin/reset-password");
+    }
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       if (event === "PASSWORD_RECOVERY" && session?.access_token) {
-        setCanUpdatePassword(true);
-        setError("");
+        allowPasswordUpdate();
+        setCheckingSession(false);
       }
     });
 
@@ -48,8 +67,7 @@ export default function AdminResetPasswordForm() {
         const urlError = hashParams.get("error_description") || queryParams.get("error_description") || hashParams.get("error") || queryParams.get("error");
 
         if (urlError) {
-          setError(decodeURIComponent(urlError));
-          setCanUpdatePassword(false);
+          denyPasswordUpdate(decodeURIComponent(urlError));
           return;
         }
 
@@ -67,9 +85,8 @@ export default function AdminResetPasswordForm() {
           if (sessionError) throw sessionError;
           if (type !== "recovery") throw new Error(invalidLinkMessage);
 
-          setCanUpdatePassword(true);
-          setError("");
-          window.history.replaceState({}, document.title, "/admin/reset-password");
+          allowPasswordUpdate();
+          clearRecoveryUrl();
           return;
         }
 
@@ -79,17 +96,24 @@ export default function AdminResetPasswordForm() {
             throw exchangeError || new Error(invalidLinkMessage);
           }
 
-          setCanUpdatePassword(true);
-          setError("");
-          window.history.replaceState({}, document.title, "/admin/reset-password");
+          allowPasswordUpdate();
+          clearRecoveryUrl();
           return;
         }
 
-        setError(invalidLinkMessage);
-        setCanUpdatePassword(false);
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (recoveryConfirmedRef.current && data.session?.access_token) {
+          allowPasswordUpdate();
+          return;
+        }
+
+        denyPasswordUpdate();
       } catch (recoveryError) {
-        setError(recoveryError?.message || invalidLinkMessage);
-        setCanUpdatePassword(false);
+        denyPasswordUpdate(recoveryError?.message || invalidLinkMessage);
       } finally {
         if (active) setCheckingSession(false);
       }
@@ -127,6 +151,17 @@ export default function AdminResetPasswordForm() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setError("Supabase nao configurado. Verifique as variaveis de ambiente.");
+        return;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.access_token || !recoveryConfirmedRef.current) {
+        setError(invalidLinkMessage);
+        return;
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password
       });
