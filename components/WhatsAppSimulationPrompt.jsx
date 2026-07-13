@@ -56,7 +56,7 @@ export default function WhatsAppSimulationPrompt() {
   return (
     <aside
       aria-label="Convite para simulação de financiamento"
-      className="simulation-prompt fixed bottom-[calc(20px+env(safe-area-inset-bottom))] right-5 z-[110] w-[260px] max-w-[calc(100vw-40px)] sm:bottom-[calc(28px+env(safe-area-inset-bottom))] sm:right-7 sm:w-auto"
+      className="simulation-prompt fixed right-5 top-1/2 z-[90] w-[260px] max-w-[calc(100vw-40px)] -translate-y-1/2 sm:right-7 sm:w-auto"
     >
       <a
         aria-label="Fazer uma simulação de financiamento"

@@ -55,21 +55,21 @@ body {
 @keyframes simulation-prompt-in {
   from {
     opacity: 0;
-    transform: translate3d(16px, 8px, 0) scale(0.98);
+    transform: translate3d(16px, calc(-50% + 8px), 0) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, -50%, 0) scale(1);
   }
 }
 
 @keyframes simulation-prompt-float {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, -50%, 0);
   }
   50% {
-    transform: translate3d(0, -3px, 0);
+    transform: translate3d(0, calc(-50% - 3px), 0);
   }
 }
 
