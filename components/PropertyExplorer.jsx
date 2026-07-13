@@ -18,7 +18,16 @@ export default function PropertyExplorer({ properties }) {
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     return properties.filter((property) => {
-      const haystack = [property.name, property.builder, property.location, property.salesText].join(" ").toLowerCase();
+      const haystack = [
+        property.name,
+        property.builder,
+        property.region,
+        property.location,
+        property.status,
+        property.salesText,
+        ...(Array.isArray(property.features) ? property.features : [])
+      ].join(" ").toLowerCase();
+
       return (!term || haystack.includes(term)) && (!type || property.type === type);
     });
   }, [properties, query, type]);
@@ -33,7 +42,7 @@ export default function PropertyExplorer({ properties }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className="rounded-2xl border border-line px-5 py-4 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-              placeholder="Nome, bairro, cidade ou construtora"
+              placeholder="Nome, região, diferencial ou construtora"
             />
           </label>
           <label className="grid gap-2 font-extrabold text-ink">
@@ -53,11 +62,11 @@ export default function PropertyExplorer({ properties }) {
         </div>
       </div>
 
-      <div className="container-page grid gap-7 md:grid-cols-2 xl:grid-cols-3">
+      <div className="container-wide grid gap-8 md:grid-cols-2 xl:grid-cols-3">
         {filtered.length ? filtered.map((property) => <PropertyCard key={property.id} property={property} />) : (
           <div className="col-span-full rounded-2xl border border-line bg-white p-12 text-center shadow-soft">
             <h3 className="text-2xl font-extrabold text-navy">Nenhum empreendimento encontrado</h3>
-            <p className="mt-3 text-muted">Tente outro bairro, cidade ou tipo de imóvel.</p>
+            <p className="mt-3 text-muted">Tente outra região, diferencial ou tipo de imóvel.</p>
           </div>
         )}
       </div>

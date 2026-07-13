@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, Download, FileText, KeyRound, MapPin, MessageCircle, Ruler, Wallet } from "lucide-react";
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
-import { coverImage, whatsappLink } from "@/lib/format";
+import { coverImage, propertyRegion, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +44,7 @@ export default async function PropertyPage({ params }) {
 
       <section className="container-page grid gap-6 py-12 md:grid-cols-4">
         <Info icon={Building2} label="Construtora" value={property.builder || "A confirmar"} />
-        <Info icon={MapPin} label="Cidade" value={property.location || "Marília"} />
+        <Info icon={MapPin} label="Região" value={propertyRegion(property)} />
         <Info icon={Ruler} label="Metragem" value={property.area || "A confirmar"} />
         <Info icon={KeyRound} label="Quartos" value={property.bedrooms || "A confirmar"} />
       </section>

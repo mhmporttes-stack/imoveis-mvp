@@ -3,6 +3,8 @@ create table if not exists public.properties (
   name text not null,
   builder text default '',
   location text default '',
+  region text default '',
+  status text default '',
   type text default 'apartamento' check (type in ('casa', 'apartamento', 'loteamento', 'condominio')),
   price text default '',
   terms text default '',
@@ -11,6 +13,7 @@ create table if not exists public.properties (
   delivery text default '',
   area text default '',
   bedrooms text default '',
+  features_json jsonb not null default '[]'::jsonb,
   photos_json jsonb not null default '[]'::jsonb,
   pdf_name text default '',
   pdf_data text default '',
@@ -20,12 +23,17 @@ create table if not exists public.properties (
   internal_notes text default '',
   sales_text text default '',
   is_published boolean not null default true,
+  is_featured boolean not null default false,
+  display_order integer default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists properties_published_created_idx
   on public.properties (is_published, created_at desc);
+
+create index if not exists properties_cards_order_idx
+  on public.properties (is_published, display_order, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -52,4 +60,3 @@ create policy "Public can read published properties"
 on public.properties
 for select
 using (is_published = true);
-

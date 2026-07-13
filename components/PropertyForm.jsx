@@ -4,10 +4,53 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
+const REGION_OPTIONS = [
+  "Zona Norte",
+  "Zona Sul",
+  "Zona Leste",
+  "Zona Oeste",
+  "Região Central",
+  "Distrito Industrial",
+  "Próximo ao Centro",
+  "Condomínio Esmeralda",
+  "Jardim Aquarius",
+  "Outra"
+];
+
+const STATUS_OPTIONS = [
+  "Pré-lançamento",
+  "Lançamento",
+  "Em obras",
+  "Pronto para morar",
+  "Venda",
+  "Oportunidade"
+];
+
+const FEATURE_OPTIONS = [
+  "2 quartos",
+  "3 quartos",
+  "1 suíte",
+  "2 suítes",
+  "Varanda gourmet",
+  "Piscina",
+  "Lazer completo",
+  "Churrasqueira",
+  "Área de serviço",
+  "Portaria 24 horas",
+  "Elevador",
+  "Infraestrutura completa",
+  "Aceita financiamento",
+  "Entrada facilitada",
+  "2 vagas",
+  "Pronto para construir"
+];
+
 const emptyProperty = {
   name: "",
   builder: "",
   location: "",
+  region: "",
+  status: "",
   type: "apartamento",
   price: "",
   terms: "",
@@ -16,6 +59,7 @@ const emptyProperty = {
   delivery: "",
   area: "",
   bedrooms: "",
+  features: [],
   builderUrl: "",
   whatsapp: "",
   instagram: "",
@@ -24,12 +68,15 @@ const emptyProperty = {
   photos: [],
   pdfName: "",
   pdfData: "",
-  isPublished: true
+  isPublished: true,
+  isFeatured: false,
+  displayOrder: 0
 };
 
 export default function PropertyForm({ property }) {
   const router = useRouter();
-  const [form, setForm] = useState(property || emptyProperty);
+  const [form, setForm] = useState(() => normalizeInitialProperty(property));
+  const [featureDraft, setFeatureDraft] = useState("");
   const [status, setStatus] = useState("Use IA, site ou PDF para acelerar o cadastro.");
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +96,7 @@ export default function PropertyForm({ property }) {
       body: JSON.stringify({ sourceType: "url", url: form.builderUrl })
     });
     const draft = await response.json();
-    setForm((current) => ({ ...current, ...draft, builderUrl: current.builderUrl || draft.builderUrl }));
+    setForm((current) => normalizeInitialProperty({ ...current, ...draft, builderUrl: current.builderUrl || draft.builderUrl }));
     setStatus("Rascunho preenchido. Revise antes de salvar.");
   }
 
@@ -72,7 +119,7 @@ export default function PropertyForm({ property }) {
       body: JSON.stringify({ sourceType: "pdf", text: pages.join("\n"), fileName: file.name })
     });
     const draft = await response.json();
-    setForm((current) => ({ ...current, ...draft }));
+    setForm((current) => normalizeInitialProperty({ ...current, ...draft }));
     setStatus("Rascunho preenchido. Revise antes de salvar.");
   }
 
@@ -85,6 +132,44 @@ export default function PropertyForm({ property }) {
     if (!file) return;
     const pdf = await fileToDataUrl(file);
     setForm((current) => ({ ...current, pdfName: pdf.name, pdfData: pdf.data }));
+  }
+
+  function toggleFeature(feature) {
+    setForm((current) => {
+      const features = normalizeFeatures(current.features);
+      const nextFeatures = features.includes(feature)
+        ? features.filter((item) => item !== feature)
+        : [...features, feature];
+      return { ...current, features: nextFeatures };
+    });
+  }
+
+  function addCustomFeature() {
+    const feature = featureDraft.trim();
+    if (!feature) return;
+    setForm((current) => {
+      const features = normalizeFeatures(current.features);
+      return features.includes(feature) ? current : { ...current, features: [...features, feature] };
+    });
+    setFeatureDraft("");
+  }
+
+  function removeFeature(feature) {
+    setForm((current) => ({
+      ...current,
+      features: normalizeFeatures(current.features).filter((item) => item !== feature)
+    }));
+  }
+
+  function moveFeature(index, direction) {
+    setForm((current) => {
+      const features = normalizeFeatures(current.features);
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= features.length) return current;
+      const nextFeatures = [...features];
+      [nextFeatures[index], nextFeatures[nextIndex]] = [nextFeatures[nextIndex], nextFeatures[index]];
+      return { ...current, features: nextFeatures };
+    });
   }
 
   async function submit(event) {
@@ -100,6 +185,8 @@ export default function PropertyForm({ property }) {
     router.push("/admin");
     router.refresh();
   }
+
+  const selectedFeatures = normalizeFeatures(form.features);
 
   return (
     <form onSubmit={submit} className="container-page grid gap-8 rounded-[28px] border border-line bg-white p-8 shadow-soft">
@@ -129,7 +216,11 @@ export default function PropertyForm({ property }) {
       <section className="grid gap-5 lg:grid-cols-2">
         <Field label="Nome" value={form.name} onChange={(value) => update("name", value)} required />
         <Field label="Construtora" value={form.builder} onChange={(value) => update("builder", value)} />
-        <Field label="Cidade/bairro" value={form.location} onChange={(value) => update("location", value)} placeholder="Marília, Centro" />
+        <Field label="Região" value={form.region} onChange={(value) => update("region", value)} placeholder="Zona Norte" list="region-options" />
+        <datalist id="region-options">
+          {REGION_OPTIONS.map((option) => <option key={option} value={option} />)}
+        </datalist>
+        <Field label="Cidade, bairro ou endereço completo" value={form.location} onChange={(value) => update("location", value)} placeholder="Marília, Centro" />
         <label className="grid gap-2 font-extrabold text-ink">
           Tipo
           <select className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.type} onChange={(event) => update("type", event.target.value)}>
@@ -139,9 +230,12 @@ export default function PropertyForm({ property }) {
             <option value="condominio">Condomínio</option>
           </select>
         </label>
-        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
-          <input type="checkbox" checked={form.isPublished !== false} onChange={(event) => update("isPublished", event.target.checked)} />
-          Publicar no site
+        <label className="grid gap-2 font-extrabold text-ink">
+          Status do empreendimento
+          <select className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.status || ""} onChange={(event) => update("status", event.target.value)}>
+            <option value="">Usar padrão automático</option>
+            {STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
         </label>
         <Field label="Preço inicial" value={form.price} onChange={(value) => update("price", value)} placeholder="R$ 389.000" />
         <Field label="Prazo de entrega" value={form.delivery} onChange={(value) => update("delivery", value)} />
@@ -150,6 +244,66 @@ export default function PropertyForm({ property }) {
         <Field label="Entrada parcelada" value={form.installmentEntry} onChange={(value) => update("installmentEntry", value)} />
         <Field label="WhatsApp" value={form.whatsapp} onChange={(value) => update("whatsapp", value)} />
         <Field label="Instagram" value={form.instagram} onChange={(value) => update("instagram", value)} />
+      </section>
+
+      <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Características</p>
+          <h3 className="mt-2 text-2xl font-extrabold text-navy">Diferenciais exibidos no card</h3>
+          <p className="mt-2 text-muted">Marque os itens principais, adicione personalizados e ordene os mais importantes primeiro.</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURE_OPTIONS.map((feature) => (
+            <label key={feature} className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-bold text-ink">
+              <input type="checkbox" checked={selectedFeatures.includes(feature)} onChange={() => toggleFeature(feature)} />
+              {feature}
+            </label>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            value={featureDraft}
+            onChange={(event) => setFeatureDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addCustomFeature();
+              }
+            }}
+            className="min-h-12 flex-1 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+            placeholder="Ex.: 160 m², 2 vagas, varanda gourmet"
+          />
+          <button type="button" onClick={addCustomFeature} className="premium-button-secondary">
+            Adicionar diferencial
+          </button>
+        </div>
+
+        {selectedFeatures.length ? (
+          <div className="flex flex-wrap gap-3">
+            {selectedFeatures.map((feature, index) => (
+              <span key={`${feature}-${index}`} className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white px-4 py-2 text-sm font-extrabold text-navy">
+                {feature}
+                <button type="button" onClick={() => moveFeature(index, -1)} disabled={index === 0} className="text-brand disabled:opacity-30" aria-label={`Mover ${feature} para cima`}>↑</button>
+                <button type="button" onClick={() => moveFeature(index, 1)} disabled={index === selectedFeatures.length - 1} className="text-brand disabled:opacity-30" aria-label={`Mover ${feature} para baixo`}>↓</button>
+                <button type="button" onClick={() => removeFeature(feature)} className="text-slate-500 hover:text-navy" aria-label={`Remover ${feature}`}>×</button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="grid gap-5 rounded-3xl border border-line bg-white p-6 lg:grid-cols-3">
+        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
+          <input type="checkbox" checked={form.isPublished !== false} onChange={(event) => update("isPublished", event.target.checked)} />
+          Publicar no site
+        </label>
+        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
+          <input type="checkbox" checked={form.isFeatured === true} onChange={(event) => update("isFeatured", event.target.checked)} />
+          Destaque na vitrine
+        </label>
+        <Field label="Ordem de exibição" type="number" value={form.displayOrder} onChange={(value) => update("displayOrder", value)} />
       </section>
 
       <Textarea label="Resumo para cliente" value={form.salesText} onChange={(value) => update("salesText", value)} />
@@ -184,7 +338,7 @@ function Field({ label, value, onChange, ...props }) {
   return (
     <label className="grid gap-2 font-extrabold text-ink">
       {label}
-      <input {...props} className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={value || ""} onChange={(event) => onChange(event.target.value)} />
+      <input {...props} className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
@@ -196,6 +350,21 @@ function Textarea({ label, value, onChange }) {
       <textarea className="min-h-32 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={value || ""} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
+}
+
+function normalizeInitialProperty(property) {
+  return {
+    ...emptyProperty,
+    ...(property || {}),
+    features: normalizeFeatures(property?.features),
+    isPublished: property?.isPublished === false ? false : true,
+    isFeatured: property?.isFeatured === true,
+    displayOrder: property?.displayOrder ?? 0
+  };
+}
+
+function normalizeFeatures(features) {
+  return Array.isArray(features) ? features.filter(Boolean) : [];
 }
 
 function fileToDataUrl(file) {

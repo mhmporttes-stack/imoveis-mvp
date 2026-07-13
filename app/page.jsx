@@ -38,7 +38,8 @@ const heroContactTextClass =
 
 export default async function HomePage() {
   const properties = await listPublicProperties();
-  const featured = properties.slice(0, 3);
+  const featuredProperties = properties.filter((property) => property.isFeatured);
+  const featured = (featuredProperties.length ? featuredProperties : properties).slice(0, 3);
 
   return (
     <main>
@@ -97,7 +98,7 @@ export default async function HomePage() {
           title="Oportunidades selecionadas para morar ou investir."
           subtitle="Cards grandes, informações essenciais e acesso direto à página individual de cada empreendimento."
         />
-        <div className="container-page grid gap-8 lg:grid-cols-3">
+        <div className="container-wide grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {featured.map((property) => <PropertyCard key={property.id} property={property} large />)}
         </div>
       </section>
