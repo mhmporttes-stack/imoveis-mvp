@@ -27,6 +27,6 @@ export async function POST(request) {
     return NextResponse.json(property, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Não foi possível cadastrar o empreendimento." }, { status: 400 });
+    return NextResponse.json({ error: error.message || "Não foi possível cadastrar o empreendimento." }, { status: 400 });
   }
 }

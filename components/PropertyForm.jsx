@@ -45,6 +45,9 @@ const FEATURE_OPTIONS = [
   "Pronto para construir"
 ];
 
+const MAX_PHOTOS = 8;
+const MAX_PHOTO_PAYLOAD_BYTES = 2_400_000;
+
 const emptyProperty = {
   name: "",
   builder: "",
@@ -78,7 +81,10 @@ export default function PropertyForm({ property }) {
   const [form, setForm] = useState(() => normalizeInitialProperty(property));
   const [featureDraft, setFeatureDraft] = useState("");
   const [status, setStatus] = useState("Use IA, site ou PDF para acelerar o cadastro.");
+  const [photoStatus, setPhotoStatus] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [processingPhotos, setProcessingPhotos] = useState(false);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -124,8 +130,41 @@ export default function PropertyForm({ property }) {
   }
 
   async function handlePhotos(files) {
-    const photos = await Promise.all(Array.from(files).map(fileToDataUrl));
-    update("photos", photos);
+    const selectedFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+    const limitedFiles = selectedFiles.slice(0, MAX_PHOTOS);
+
+    if (!limitedFiles.length) {
+      update("photos", []);
+      setPhotoStatus("");
+      return;
+    }
+
+    setProcessingPhotos(true);
+    setSaveError("");
+    setPhotoStatus(`Otimizando ${limitedFiles.length} foto(s) antes de salvar...`);
+
+    try {
+      let photos = await Promise.all(limitedFiles.map((file) => optimizeImageFile(file)));
+      let totalBytes = totalPhotoBytes(photos);
+
+      if (totalBytes > MAX_PHOTO_PAYLOAD_BYTES) {
+        photos = await Promise.all(limitedFiles.map((file) => optimizeImageFile(file, { maxWidth: 1280, maxHeight: 960, quality: 0.64 })));
+        totalBytes = totalPhotoBytes(photos);
+      }
+
+      if (totalBytes > MAX_PHOTO_PAYLOAD_BYTES) {
+        throw new Error("As fotos ainda ficaram grandes demais. Tente enviar menos fotos por vez.");
+      }
+
+      update("photos", photos);
+      const limitedText = selectedFiles.length > MAX_PHOTOS ? ` Apenas as ${MAX_PHOTOS} primeiras foram usadas.` : "";
+      setPhotoStatus(`${photos.length} foto(s) otimizadas para envio (${formatBytes(totalBytes)}).${limitedText}`);
+    } catch (error) {
+      setPhotoStatus("");
+      setSaveError(error.message || "Não foi possível processar as fotos. Tente imagens menores.");
+    } finally {
+      setProcessingPhotos(false);
+    }
   }
 
   async function handlePdf(file) {
@@ -174,16 +213,30 @@ export default function PropertyForm({ property }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (processingPhotos) return;
     setSaving(true);
+    setSaveError("");
     const url = property?.id ? `/api/properties/${property.id}` : "/api/properties";
     const method = property?.id ? "PUT" : "POST";
-    await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
-    router.push("/admin");
-    router.refresh();
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.error || `Não foi possível salvar. Código ${response.status}.`);
+      }
+
+      router.push("/admin");
+      router.refresh();
+    } catch (error) {
+      setSaving(false);
+      setSaveError(error.message || "Não foi possível salvar o empreendimento.");
+      setStatus("Revise os dados e tente salvar novamente.");
+    }
   }
 
   const selectedFeatures = normalizeFeatures(form.features);
@@ -315,6 +368,7 @@ export default function PropertyForm({ property }) {
         <label className="grid gap-2 font-extrabold text-ink">
           Fotos
           <input type="file" accept="image/*" multiple onChange={(event) => handlePhotos(event.target.files || [])} />
+          {photoStatus ? <span className="text-sm font-semibold text-muted">{photoStatus}</span> : null}
         </label>
         <label className="grid gap-2 font-extrabold text-ink">
           PDF/e-book final
@@ -323,13 +377,18 @@ export default function PropertyForm({ property }) {
       </section>
 
       <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
-        <button disabled={saving} className="premium-button-primary" type="submit">
-          {saving ? "Salvando..." : "Salvar empreendimento"}
+        <button disabled={saving || processingPhotos} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
+          {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "Salvar empreendimento"}
         </button>
         <button type="button" onClick={() => router.push("/admin")} className="premium-button-secondary">
           Cancelar
         </button>
       </div>
+      {saveError ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700">
+          {saveError}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -374,4 +433,60 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function optimizeImageFile(file, options = {}) {
+  const { maxWidth = 1600, maxHeight = 1200, quality = 0.74 } = options;
+  const image = await loadImage(file);
+  const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+
+  if (!context) {
+    throw new Error("Não foi possível otimizar a imagem neste navegador.");
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  const data = canvas.toDataURL("image/jpeg", quality);
+  return {
+    name: file.name.replace(/\.[^.]+$/, ".jpg"),
+    data
+  };
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível carregar uma das imagens selecionadas."));
+    };
+    image.src = url;
+  });
+}
+
+function totalPhotoBytes(photos) {
+  return photos.reduce((total, photo) => total + dataUrlBytes(photo.data), 0);
+}
+
+function dataUrlBytes(dataUrl = "") {
+  const base64 = dataUrl.split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

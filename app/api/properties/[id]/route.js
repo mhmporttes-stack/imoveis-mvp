@@ -36,7 +36,7 @@ export async function PUT(request, { params }) {
     return NextResponse.json(property);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Não foi possível atualizar o empreendimento." }, { status: 400 });
+    return NextResponse.json({ error: error.message || "Não foi possível atualizar o empreendimento." }, { status: 400 });
   }
 }
 
