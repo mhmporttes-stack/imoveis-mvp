@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, Download, FileText, KeyRound, MapPin, MessageCircle, Ruler, Wallet } from "lucide-react";
-import { coverImage, propertyCity, typeLabel, whatsappLink } from "@/lib/format";
+import PropertyImageCarousel from "@/components/PropertyImageCarousel";
+import { coverImage, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
 
 export const dynamic = "force-dynamic";
@@ -12,16 +13,21 @@ export default async function PropertyPage({ params }) {
   const property = await getPublicProperty(id);
   if (!property) notFound();
   const photos = property.photos?.length ? property.photos : [{ name: property.name, data: coverImage(property) }];
+  const titleLength = property.name.length;
+  const titleMinRem = titleLength > 38 ? 0.95 : titleLength > 30 ? 1.05 : 1.15;
+  const titleViewportSize = Math.max(2.1, Math.min(5.2, 96 / Math.max(titleLength, 14)));
 
   return (
     <main className="pb-24">
       <section className="container-wide grid gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="relative min-h-[520px] overflow-hidden rounded-[32px] bg-mist shadow-premium">
-          <Image src={coverImage(property)} alt={property.name} fill className="object-cover" priority />
-        </div>
+        <PropertyImageCarousel photos={photos} propertyName={property.name} />
         <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-8 shadow-soft md:p-12">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{propertyCity(property.location)} · {typeLabel(property.type)}</p>
-          <h1 className="mt-5 text-5xl font-black leading-none text-navy md:text-6xl">{property.name}</h1>
+          <h1
+            className="w-full whitespace-nowrap text-center font-black leading-none text-navy"
+            style={{ fontSize: `clamp(${titleMinRem}rem, ${titleViewportSize}vw, 3.75rem)` }}
+          >
+            {property.name}
+          </h1>
           <p className="mt-6 text-xl leading-9 text-muted">{property.salesText || "Empreendimento selecionado com condições comerciais sob consulta."}</p>
           <div className="mt-8 rounded-3xl bg-mist p-6">
             <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">Preço inicial</p>
