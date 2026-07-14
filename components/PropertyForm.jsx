@@ -19,18 +19,16 @@ import {
   Waves
 } from "lucide-react";
 import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
+import { ADMIN_REGION_OPTIONS, normalizeRegionValue } from "@/lib/property-filter-options";
 
-const REGION_OPTIONS = [
-  "Zona Norte",
-  "Zona Sul",
-  "Zona Leste",
-  "Zona Oeste",
-  "Região Central",
-  "Distrito Industrial",
-  "Próximo ao Centro",
-  "Condomínio Esmeralda",
-  "Jardim Aquarius",
-  "Outra"
+const TYPE_OPTIONS = [
+  { value: "apartamento", label: "Apartamento" },
+  { value: "casa", label: "Casa" },
+  { value: "terreno", label: "Terreno" },
+  { value: "chacara", label: "Chácara" },
+  { value: "casa-condominio", label: "Casa em condomínio" },
+  { value: "loteamento", label: "Loteamento" },
+  { value: "condominio", label: "Condomínio" }
 ];
 
 const STATUS_OPTIONS = [
@@ -294,18 +292,18 @@ export default function PropertyForm({ property }) {
       <section className="grid gap-5 lg:grid-cols-2">
         <Field label="Nome" value={form.name} onChange={(value) => update("name", value)} required />
         <Field label="Construtora" value={form.builder} onChange={(value) => update("builder", value)} />
-        <Field label="Região" value={form.region} onChange={(value) => update("region", value)} placeholder="Zona Norte" list="region-options" />
-        <datalist id="region-options">
-          {REGION_OPTIONS.map((option) => <option key={option} value={option} />)}
-        </datalist>
+        <label className="grid gap-2 font-extrabold text-ink">
+          Região
+          <select className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={normalizeRegionValue(form.region)} onChange={(event) => update("region", event.target.value)}>
+            <option value="">Selecione a região</option>
+            {ADMIN_REGION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
         <Field label="Cidade, bairro ou endereço completo" value={form.location} onChange={(value) => update("location", value)} placeholder="Marília, Centro" />
         <label className="grid gap-2 font-extrabold text-ink">
           Tipo
           <select className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.type} onChange={(event) => update("type", event.target.value)}>
-            <option value="casa">Casa</option>
-            <option value="apartamento">Apartamento</option>
-            <option value="loteamento">Loteamento</option>
-            <option value="condominio">Condomínio</option>
+            {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <label className="grid gap-2 font-extrabold text-ink">
@@ -463,6 +461,7 @@ function normalizeInitialProperty(property) {
   return {
     ...emptyProperty,
     ...(property || {}),
+    region: normalizeRegionValue(property?.region) || "",
     features: normalizeFeatures(property?.features),
     isPublished: property?.isPublished === false ? false : true,
     isFeatured: property?.isFeatured === true,

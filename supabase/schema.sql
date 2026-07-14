@@ -5,7 +5,7 @@ create table if not exists public.properties (
   location text default '',
   region text default '',
   status text default '',
-  type text default 'apartamento' check (type in ('casa', 'apartamento', 'loteamento', 'condominio')),
+  type text default 'apartamento' check (type in ('casa', 'apartamento', 'loteamento', 'condominio', 'terreno', 'chacara', 'casa-condominio')),
   price text default '',
   terms text default '',
   discounts text default '',
@@ -60,3 +60,20 @@ create policy "Public can read published properties"
 on public.properties
 for select
 using (is_published = true);
+
+create table if not exists public.leads (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text not null,
+  source text not null default 'homepage_modal',
+  page_url text default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.leads enable row level security;
+
+create index if not exists leads_created_at_idx
+  on public.leads (created_at desc);
+
+create index if not exists leads_phone_created_at_idx
+  on public.leads (phone, created_at desc);

@@ -105,6 +105,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <PropertyExplorer properties={properties} />
+
       <section className="bg-mist py-24">
         <SectionHeading
           eyebrow="Por que comprar comigo"
@@ -135,13 +137,6 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
-
-      <SectionHeading
-        eyebrow="Todos os empreendimentos"
-        title="Explore o portfólio completo."
-        subtitle="Use filtros e pesquisa para encontrar imóveis por tipo, bairro, cidade ou construtora."
-      />
-      <PropertyExplorer properties={properties} />
 
       <section className="bg-mist py-24">
         <SectionHeading eyebrow="Depoimentos" title="Atendimento pensado para decisões importantes." />
