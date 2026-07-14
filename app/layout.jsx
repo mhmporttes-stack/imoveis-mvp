@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import WhatsAppSimulationPrompt from "@/components/WhatsAppSimulationPrompt";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   title: "Matheus Machado - Corretor de Imóveis",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
         <LeadCaptureModal />
         <WhatsAppSimulationPrompt />
         <WhatsAppFloatingButton />
+        <Analytics />
       </body>
     </html>
   );
