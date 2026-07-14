@@ -94,9 +94,11 @@ export default async function HomePage() {
 
       <section id="empreendimentos" className="py-24">
         <SectionHeading
-          eyebrow="Empreendimentos em destaque"
-          title="Oportunidades selecionadas para morar ou investir."
-          subtitle="Cards grandes, informações essenciais e acesso direto à página individual de cada empreendimento."
+          eyebrow="Imóveis em destaque"
+          title="Oportunidades para morar ou investir."
+          subtitle="Encontre o imóvel ideal com praticidade, segurança e todas as informações necessárias para decidir."
+          titleClassName="max-w-none md:whitespace-nowrap md:text-[clamp(2.25rem,3.4vw,3.35rem)]"
+          subtitleClassName="max-w-none md:whitespace-nowrap"
         />
         <div className="container-wide grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {featured.map((property) => <PropertyCard key={property.id} property={property} large />)}

@@ -2,7 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import {
+  BadgeDollarSign,
+  BedDouble,
+  Building2,
+  CalendarClock,
+  Car,
+  Dumbbell,
+  Home,
+  Percent,
+  Ruler,
+  ShieldCheck,
+  Sparkles,
+  Trees,
+  Wallet,
+  Waves
+} from "lucide-react";
+import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
 
 const REGION_OPTIONS = [
   "Zona Norte",
@@ -24,25 +40,6 @@ const STATUS_OPTIONS = [
   "Pronto para morar",
   "Venda",
   "Oportunidade"
-];
-
-const FEATURE_OPTIONS = [
-  "2 quartos",
-  "3 quartos",
-  "1 suíte",
-  "2 suítes",
-  "Varanda gourmet",
-  "Piscina",
-  "Lazer completo",
-  "Churrasqueira",
-  "Área de serviço",
-  "Portaria 24 horas",
-  "Elevador",
-  "Infraestrutura completa",
-  "Aceita financiamento",
-  "Entrada facilitada",
-  "2 vagas",
-  "Pronto para construir"
 ];
 
 const MAX_PHOTOS = 8;
@@ -80,6 +77,7 @@ export default function PropertyForm({ property }) {
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialProperty(property));
   const [featureDraft, setFeatureDraft] = useState("");
+  const [featureIconDraft, setFeatureIconDraft] = useState(DEFAULT_FEATURE_ICON);
   const [status, setStatus] = useState("Use IA, site ou PDF para acelerar o cadastro.");
   const [photoStatus, setPhotoStatus] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -187,8 +185,9 @@ export default function PropertyForm({ property }) {
   function toggleFeature(feature) {
     setForm((current) => {
       const features = normalizeFeatures(current.features);
-      const nextFeatures = features.includes(feature)
-        ? features.filter((item) => item !== feature)
+      const exists = features.some((item) => item.text === feature.text);
+      const nextFeatures = exists
+        ? features.filter((item) => item.text !== feature.text)
         : [...features, feature];
       return { ...current, features: nextFeatures };
     });
@@ -199,16 +198,31 @@ export default function PropertyForm({ property }) {
     if (!feature) return;
     setForm((current) => {
       const features = normalizeFeatures(current.features);
-      return features.includes(feature) ? current : { ...current, features: [...features, feature] };
+      return features.some((item) => item.text === feature)
+        ? current
+        : { ...current, features: [...features, { text: feature, icon: featureIconDraft }] };
     });
     setFeatureDraft("");
   }
 
-  function removeFeature(feature) {
+  function removeFeature(index) {
     setForm((current) => ({
       ...current,
-      features: normalizeFeatures(current.features).filter((item) => item !== feature)
+      features: normalizeFeatures(current.features).filter((_, itemIndex) => itemIndex !== index)
     }));
+  }
+
+  function updateFeatureIcon(index, icon) {
+    setForm((current) => {
+      const features = normalizeFeatures(current.features);
+      if (!features[index]) return current;
+      return {
+        ...current,
+        features: features.map((feature, itemIndex) => (
+          itemIndex === index ? { ...feature, icon } : feature
+        ))
+      };
+    });
   }
 
   function moveFeature(index, direction) {
@@ -318,15 +332,16 @@ export default function PropertyForm({ property }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURE_OPTIONS.map((feature) => (
-            <label key={feature} className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-bold text-ink">
-              <input type="checkbox" checked={selectedFeatures.includes(feature)} onChange={() => toggleFeature(feature)} />
-              {feature}
+          {SUGGESTED_FEATURES.map((feature) => (
+            <label key={feature.text} className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-bold text-ink">
+              <input type="checkbox" checked={selectedFeatures.some((item) => item.text === feature.text)} onChange={() => toggleFeature(feature)} />
+              <FeaturePreviewIcon icon={feature.icon} />
+              {feature.text}
             </label>
           ))}
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
           <input
             value={featureDraft}
             onChange={(event) => setFeatureDraft(event.target.value)}
@@ -339,20 +354,42 @@ export default function PropertyForm({ property }) {
             className="min-h-12 flex-1 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             placeholder="Ex.: 160 m², 2 vagas, varanda gourmet"
           />
+          <label className="sr-only" htmlFor="custom-feature-icon">Ícone do diferencial</label>
+          <select
+            id="custom-feature-icon"
+            value={featureIconDraft}
+            onChange={(event) => setFeatureIconDraft(event.target.value)}
+            className="min-h-12 rounded-2xl border border-line px-4 py-3 font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+          >
+            {FEATURE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
           <button type="button" onClick={addCustomFeature} className="premium-button-secondary">
             Adicionar diferencial
           </button>
         </div>
 
         {selectedFeatures.length ? (
-          <div className="flex flex-wrap gap-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {selectedFeatures.map((feature, index) => (
-              <span key={`${feature}-${index}`} className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white px-4 py-2 text-sm font-extrabold text-navy">
-                {feature}
-                <button type="button" onClick={() => moveFeature(index, -1)} disabled={index === 0} className="text-brand disabled:opacity-30" aria-label={`Mover ${feature} para cima`}>↑</button>
-                <button type="button" onClick={() => moveFeature(index, 1)} disabled={index === selectedFeatures.length - 1} className="text-brand disabled:opacity-30" aria-label={`Mover ${feature} para baixo`}>↓</button>
-                <button type="button" onClick={() => removeFeature(feature)} className="text-slate-500 hover:text-navy" aria-label={`Remover ${feature}`}>×</button>
-              </span>
+              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_180px_auto] sm:items-center">
+                <span className="inline-flex items-center gap-2 text-sm font-extrabold text-navy">
+                  <FeaturePreviewIcon icon={feature.icon} />
+                  {feature.text}
+                </span>
+                <select
+                  value={feature.icon || DEFAULT_FEATURE_ICON}
+                  onChange={(event) => updateFeatureIcon(index, event.target.value)}
+                  className="rounded-xl border border-line px-3 py-2 text-sm font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  aria-label={`Ícone de ${feature.text}`}
+                >
+                  {FEATURE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <span className="inline-flex items-center gap-2">
+                  <button type="button" onClick={() => moveFeature(index, -1)} disabled={index === 0} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para cima`}>↑</button>
+                  <button type="button" onClick={() => moveFeature(index, 1)} disabled={index === selectedFeatures.length - 1} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para baixo`}>↓</button>
+                  <button type="button" onClick={() => removeFeature(index)} className="rounded-full border border-line px-3 py-2 text-slate-500 hover:text-navy" aria-label={`Remover ${feature.text}`}>×</button>
+                </span>
+              </div>
             ))}
           </div>
         ) : null}
@@ -434,8 +471,30 @@ function normalizeInitialProperty(property) {
 }
 
 function normalizeFeatures(features) {
-  return Array.isArray(features) ? features.filter(Boolean) : [];
+  return normalizePropertyFeatures(features);
 }
+
+function FeaturePreviewIcon({ icon }) {
+  const Icon = FEATURE_ICONS[icon] || Sparkles;
+  return <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
+}
+
+const FEATURE_ICONS = {
+  bed: BedDouble,
+  building: Building2,
+  calendar: CalendarClock,
+  car: Car,
+  dumbbell: Dumbbell,
+  home: Home,
+  money: BadgeDollarSign,
+  percent: Percent,
+  ruler: Ruler,
+  shield: ShieldCheck,
+  sparkles: Sparkles,
+  trees: Trees,
+  wallet: Wallet,
+  waves: Waves
+};
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {

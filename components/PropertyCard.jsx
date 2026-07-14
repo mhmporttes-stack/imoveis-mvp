@@ -1,6 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, Ruler, Sparkles, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  BedDouble,
+  Building2,
+  CalendarClock,
+  Car,
+  Dumbbell,
+  Home,
+  MapPin,
+  Percent,
+  Ruler,
+  ShieldCheck,
+  Sparkles,
+  Trees,
+  Wallet,
+  Waves
+} from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyPrice, propertyRegion, statusLabel } from "@/lib/format";
 
 export default function PropertyCard({ property, large = false }) {
@@ -46,9 +63,9 @@ export default function PropertyCard({ property, large = false }) {
 
           <ul className="grid min-h-[116px] gap-3" aria-label={`Diferenciais de ${property.name}`}>
             {features.length ? features.map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-[15px] font-semibold text-slate-500">
+              <li key={`${feature.text}-${feature.icon}`} className="flex items-center gap-3 text-[15px] font-semibold text-slate-500">
                 <FeatureIcon feature={feature} />
-                <span className="line-clamp-1">{feature}</span>
+                <span className="line-clamp-1">{feature.text}</span>
               </li>
             )) : (
               <li className="flex items-center gap-3 text-[15px] font-semibold text-slate-500">
@@ -87,15 +104,23 @@ export default function PropertyCard({ property, large = false }) {
 }
 
 function FeatureIcon({ feature }) {
-  const value = feature.toLowerCase();
-
-  if (value.includes("m²") || value.includes("m2") || value.includes("metro")) {
-    return <Ruler className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
-  }
-
-  if (value.includes("financi") || value.includes("entrada") || value.includes("condi")) {
-    return <Wallet className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
-  }
-
-  return <Sparkles className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
+  const Icon = FEATURE_ICONS[feature.icon] || Sparkles;
+  return <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
 }
+
+const FEATURE_ICONS = {
+  bed: BedDouble,
+  building: Building2,
+  calendar: CalendarClock,
+  car: Car,
+  dumbbell: Dumbbell,
+  home: Home,
+  money: BadgeDollarSign,
+  percent: Percent,
+  ruler: Ruler,
+  shield: ShieldCheck,
+  sparkles: Sparkles,
+  trees: Trees,
+  wallet: Wallet,
+  waves: Waves
+};

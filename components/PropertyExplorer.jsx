@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PropertyCard from "@/components/PropertyCard";
+import { featureText } from "@/lib/property-features";
 
 export default function PropertyExplorer({ properties }) {
   const [query, setQuery] = useState("");
@@ -25,7 +26,7 @@ export default function PropertyExplorer({ properties }) {
         property.location,
         property.status,
         property.salesText,
-        ...(Array.isArray(property.features) ? property.features : [])
+        ...(Array.isArray(property.features) ? property.features.map(featureText) : [])
       ].join(" ").toLowerCase();
 
       return (!term || haystack.includes(term)) && (!type || property.type === type);
