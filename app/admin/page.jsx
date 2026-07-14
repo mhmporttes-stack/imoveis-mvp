@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AdminPropertyList from "@/components/AdminPropertyList";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
+import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { canManageProperties, listProperties } from "@/lib/properties";
 
@@ -34,6 +35,7 @@ export default async function AdminPage() {
           <AdminLogoutButton />
         </div>
       </section>
+      <AdminSectionNav active="properties" />
       <AdminPropertyList properties={properties} />
     </main>
   );

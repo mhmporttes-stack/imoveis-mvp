@@ -98,7 +98,7 @@ export default function PropertyExplorer({ properties = [] }) {
       <div className="container-page">
         <div className="mb-10 max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-brand">Busca inteligente</p>
-          <h2 className="mt-4 text-4xl font-black leading-tight text-navy md:text-5xl">
+          <h2 className="mt-4 text-[clamp(2rem,3.8vw,3rem)] font-black leading-tight text-navy md:whitespace-nowrap">
             Encontre o imóvel ideal para você
           </h2>
           <p className="mt-4 text-lg leading-8 text-muted">

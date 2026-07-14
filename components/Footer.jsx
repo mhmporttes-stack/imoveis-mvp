@@ -3,10 +3,10 @@ import Link from "next/link";
 import { whatsappMessageLink } from "@/lib/format";
 
 const contactCardClass =
-  "inline-flex min-h-[60px] w-full max-w-full items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 text-white/75 transition duration-300 hover:border-blue-200/45 hover:bg-white/5 hover:text-white lg:w-[440px]";
+  "inline-flex min-h-[60px] w-full max-w-full min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 px-3 py-3 text-white/75 transition duration-300 hover:border-blue-200/45 hover:bg-white/5 hover:text-white sm:px-4 lg:w-[440px]";
 
 const contactTextClass =
-  "min-w-0 whitespace-nowrap text-[clamp(0.72rem,2.65vw,0.92rem)] font-bold leading-none";
+  "min-w-0 whitespace-nowrap text-[clamp(0.58rem,2.35vw,0.92rem)] font-bold leading-none";
 
 export default function Footer() {
   return (

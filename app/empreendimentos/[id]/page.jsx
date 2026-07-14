@@ -52,7 +52,7 @@ export default async function PropertyPage({ params }) {
       <section className="container-page grid gap-8 py-12 lg:grid-cols-[1fr_0.8fr]">
         <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Condições comerciais</p>
-          <h2 className="mt-3 text-4xl font-black text-navy">Compra, financiamento e campanhas.</h2>
+          <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">Compra, financiamento e campanhas.</h2>
           <div className="mt-8 grid gap-6">
             <TextBlock title="Condições" text={property.terms || "Consulte as condições atualizadas."} />
             <TextBlock title="Descontos/subsídios" text={property.discounts || "Campanhas sob consulta."} />
@@ -61,7 +61,7 @@ export default async function PropertyPage({ params }) {
         </div>
         <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Materiais</p>
-          <h2 className="mt-3 text-4xl font-black text-navy">Catálogo e construtora.</h2>
+          <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">Catálogo e construtora.</h2>
           <div className="mt-8 grid gap-3">
             {property.pdfData ? <a className="premium-button-primary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}><Download className="mr-2 h-5 w-5" />Baixar PDF</a> : <span className="rounded-2xl bg-mist p-5 font-bold text-muted">Catálogo ainda não anexado.</span>}
             {property.builderUrl ? <a className="premium-button-secondary" target="_blank" href={property.builderUrl}><FileText className="mr-2 h-5 w-5" />Site da construtora</a> : null}
@@ -71,7 +71,7 @@ export default async function PropertyPage({ params }) {
 
       <section className="container-page py-12">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Galeria</p>
-        <h2 className="mt-3 text-4xl font-black text-navy">Imagens do empreendimento</h2>
+        <h2 className="mt-3 text-[clamp(2rem,3.6vw,2.75rem)] font-black leading-tight text-navy md:whitespace-nowrap">Imagens do empreendimento</h2>
         <div className="mt-8 grid auto-rows-[220px] gap-5 md:grid-cols-4">
           {photos.map((photo, index) => (
             <div key={`${photo.name}-${index}`} className={`relative overflow-hidden rounded-3xl bg-mist ${index === 0 ? "md:col-span-2 md:row-span-2" : ""}`}>
@@ -85,7 +85,7 @@ export default async function PropertyPage({ params }) {
         <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
           <div className="p-8">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Localização</p>
-            <h2 className="mt-3 text-4xl font-black text-navy">Mapa</h2>
+            <h2 className="mt-3 text-[clamp(2rem,3.6vw,2.75rem)] font-black leading-tight text-navy">Mapa</h2>
           </div>
           <iframe className="h-[440px] w-full border-0" title={`Mapa de ${property.name}`} loading="lazy" src={`https://www.google.com/maps?q=${encodeURIComponent(property.location || "Marília, SP")}&output=embed`} />
         </div>

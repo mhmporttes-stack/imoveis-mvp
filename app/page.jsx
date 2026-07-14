@@ -1,12 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Award, CheckCircle2, FileText, Handshake, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, CheckCircle2, FileText, Handshake, ShieldCheck } from "lucide-react";
 import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import SectionHeading from "@/components/SectionHeading";
+import TestimonialsSection from "@/components/TestimonialsSection";
 import { whatsappMessageLink } from "@/lib/format";
 import { listPublicProperties } from "@/lib/public-properties";
+import { listPublicTestimonials } from "@/lib/public-testimonials";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +26,6 @@ const steps = [
   { title: "Entrega das chaves", text: "Acompanhe o processo até a assinatura e recebimento do imóvel." }
 ];
 
-const testimonials = [
-  { name: "Cliente comprador", text: "O atendimento deixou muito mais fácil entender as opções e escolher com segurança." },
-  { name: "Família em busca do primeiro imóvel", text: "Recebemos as informações organizadas, com simulação e condições bem explicadas." },
-  { name: "Investidor local", text: "A curadoria economizou tempo e mostrou oportunidades que faziam sentido para meu objetivo." }
-];
-
 const heroContactCardClass =
   "inline-flex min-h-[58px] w-full items-center gap-3 rounded-xl border border-blue-200/25 bg-[#08233f]/55 px-5 text-white/90 shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-blue-200/55 hover:bg-[#0a2c4f]/70 hover:text-white";
 
@@ -38,6 +34,7 @@ const heroContactTextClass =
 
 export default async function HomePage() {
   const properties = await listPublicProperties();
+  const testimonials = await listPublicTestimonials();
   const featuredProperties = properties.filter((property) => property.isFeatured);
   const featured = (featuredProperties.length ? featuredProperties : properties).slice(0, 3);
 
@@ -97,7 +94,7 @@ export default async function HomePage() {
           eyebrow="Imóveis em destaque"
           title="Oportunidades para morar ou investir."
           subtitle="Encontre o imóvel ideal com praticidade, segurança e todas as informações necessárias para decidir."
-          titleClassName="max-w-none md:whitespace-nowrap md:text-[clamp(2.25rem,3.4vw,3.35rem)]"
+          titleClassName="max-w-none md:whitespace-nowrap md:text-[clamp(2.2rem,3.2vw,3.1rem)]"
           subtitleClassName="max-w-none md:whitespace-nowrap"
         />
         <div className="container-wide grid gap-8 md:grid-cols-2 xl:grid-cols-3">
@@ -110,7 +107,8 @@ export default async function HomePage() {
       <section className="bg-mist py-24">
         <SectionHeading
           eyebrow="Por que comprar comigo"
-          title="Consultoria imobiliária com método, clareza e acompanhamento."
+          title="Consultoria com método, clareza e acompanhamento."
+          titleClassName="xl:whitespace-nowrap"
         />
         <div className="container-page grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {benefits.map(({ icon: Icon, title, text }) => (
@@ -138,26 +136,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-mist py-24">
-        <SectionHeading eyebrow="Depoimentos" title="Atendimento pensado para decisões importantes." />
-        <div className="container-page grid gap-6 md:grid-cols-3">
-          {testimonials.map((testimonial) => (
-            <article key={testimonial.name} className="rounded-2xl border border-line bg-white p-8 shadow-soft">
-              <div className="flex gap-1 text-brand">
-                {Array.from({ length: 5 }).map((_, index) => <Sparkles key={index} className="h-4 w-4" />)}
-              </div>
-              <p className="mt-6 text-lg leading-8 text-ink">“{testimonial.text}”</p>
-              <p className="mt-6 font-extrabold text-navy">{testimonial.name}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <TestimonialsSection testimonials={testimonials} />
 
       <section className="container-page py-24">
         <div className="overflow-hidden rounded-[32px] bg-navy p-10 text-white shadow-premium md:p-16">
           <div className="max-w-3xl">
             <p className="text-sm font-black uppercase tracking-[0.2em] text-blue-200">Pronto para conversar?</p>
-            <h2 className="mt-4 text-4xl font-black leading-tight md:text-6xl">Receba uma curadoria de imóveis para o seu perfil.</h2>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.75rem)] font-black leading-tight">Receba uma curadoria de imóveis para o seu perfil.</h2>
             <p className="mt-6 text-xl leading-9 text-white/75">Fale sobre sua renda, bairro desejado, objetivo de compra e prazo. Eu organizo as melhores opções disponíveis.</p>
             <Link href="#empreendimentos" className="mt-8 inline-flex premium-button bg-white text-navy hover:-translate-y-0.5">
               <CheckCircle2 className="mr-2 h-5 w-5" />

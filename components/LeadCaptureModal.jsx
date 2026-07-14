@@ -162,18 +162,14 @@ export default function LeadCaptureModal() {
             className="object-cover object-[58%_center]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#061A2F]/92 via-[#061A2F]/64 to-[#061A2F]/15" />
-          <div className="absolute bottom-5 left-6 right-16">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-100">Atendimento personalizado</p>
-            <p className="mt-2 text-2xl font-black leading-tight text-white">Curadoria para o seu perfil</p>
-          </div>
         </div>
 
         <div className="p-6 sm:p-8">
-          <h2 id="lead-capture-title" className="text-3xl font-black leading-tight text-navy sm:text-4xl">
+          <h2 id="lead-capture-title" className="whitespace-nowrap text-[clamp(1.45rem,5.4vw,2rem)] font-black leading-tight text-navy">
             Quer ganhar tempo na sua busca?
           </h2>
-          <p className="mt-4 leading-7 text-muted">
-            Deixe seus dados e receba uma seleção de imóveis compatível com o que você procura.
+          <p className="mt-3 max-w-full text-[clamp(0.9rem,2.7vw,1rem)] font-semibold leading-7 text-muted sm:whitespace-nowrap">
+            Deixe seus dados e receba um atendimento rápido e objetivo.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 grid gap-4">
