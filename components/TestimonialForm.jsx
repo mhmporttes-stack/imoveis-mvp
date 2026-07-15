@@ -257,13 +257,15 @@ function Preview({ testimonial }) {
       <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Prévia</p>
       <article className="mt-5 overflow-hidden rounded-[24px] border border-line bg-white shadow-soft">
         {mediaImage ? (
-          <div className="relative h-56 bg-mist">
-            <Image src={mediaImage} alt={`Prévia de ${testimonial.clientName || "depoimento"}`} fill className="object-cover" unoptimized />
+          <div className="bg-[#F8FBFF] px-6 pt-6">
+            <div className="relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[24px] bg-mist shadow-soft">
+              <Image src={mediaImage} alt={`Prévia de ${testimonial.clientName || "depoimento"}`} fill className="object-cover" unoptimized />
             {testimonial.mediaType === "video_upload" || testimonial.mediaType === "video_url" ? (
               <span className="absolute inset-0 grid place-items-center bg-navy/20 text-white">
                 <PlayCircle className="h-14 w-14 drop-shadow-lg" />
               </span>
             ) : null}
+            </div>
           </div>
         ) : (
           <div className="grid h-32 place-items-center bg-mist text-brand">
@@ -284,8 +286,8 @@ async function optimizeImageFile(file) {
   if (!file.type.startsWith("image/")) return file;
 
   const image = await loadImage(file);
-  const maxWidth = 1400;
-  const maxHeight = 1000;
+  const maxWidth = 1080;
+  const maxHeight = 1920;
   const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -323,6 +325,6 @@ function canvasToBlob(canvas) {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error("Não foi possível otimizar a imagem."));
-    }, "image/jpeg", 0.78);
+    }, "image/jpeg", 0.82);
   });
 }

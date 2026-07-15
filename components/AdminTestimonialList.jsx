@@ -26,7 +26,7 @@ export default function AdminTestimonialList({ testimonials = [] }) {
   return (
     <div className="container-page grid gap-5">
       {testimonials.length ? testimonials.map((testimonial) => (
-        <article key={testimonial.id} className="grid gap-5 rounded-2xl border border-line bg-white p-4 shadow-soft lg:grid-cols-[180px_1fr_auto] lg:items-center">
+        <article key={testimonial.id} className="grid gap-5 rounded-2xl border border-line bg-white p-4 shadow-soft lg:grid-cols-[120px_1fr_auto] lg:items-center">
           <MediaPreview testimonial={testimonial} />
           <div>
             <div className="mb-3 flex flex-wrap gap-2">
@@ -71,7 +71,7 @@ function MediaPreview({ testimonial }) {
     : testimonial.videoThumbnailUrl;
 
   return (
-    <div className="relative grid h-44 place-items-center overflow-hidden rounded-2xl bg-mist text-brand lg:h-32">
+    <div className="relative mx-auto grid aspect-[9/16] w-full max-w-[150px] place-items-center overflow-hidden rounded-2xl bg-mist text-brand lg:max-w-[96px]">
       {image ? (
         <Image src={image} alt={`Mídia de ${testimonial.clientName}`} fill className="object-cover" unoptimized />
       ) : testimonial.mediaType === "video_upload" || testimonial.mediaType === "video_url" ? (

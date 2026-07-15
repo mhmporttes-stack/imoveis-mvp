@@ -88,34 +88,36 @@ function TestimonialCard({ testimonial, onPlay }) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-[24px] border border-line bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-premium">
       {hasImage || hasVideo ? (
-        <div className="relative h-56 bg-[#EAF2FB]">
-          {mediaImage ? (
-            <Image
-              src={mediaImage}
-              alt={`Depoimento de ${testimonial.clientName}`}
-              fill
-              sizes="(min-width: 1280px) 370px, (min-width: 768px) 50vw, 100vw"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-brand">
-              <Play className="h-12 w-12" />
-            </div>
-          )}
+        <div className="bg-[#F8FBFF] px-6 pt-6">
+          <div className="relative mx-auto aspect-[9/16] w-full max-w-[260px] overflow-hidden rounded-[22px] bg-[#EAF2FB] shadow-soft">
+            {mediaImage ? (
+              <Image
+                src={mediaImage}
+                alt={`Depoimento de ${testimonial.clientName}`}
+                fill
+                sizes="(min-width: 1280px) 260px, (min-width: 768px) 34vw, 70vw"
+                className="object-cover"
+                unoptimized
+              />
+            ) : (
+              <div className="grid h-full place-items-center text-brand">
+                <Play className="h-12 w-12" />
+              </div>
+            )}
 
-          {hasVideo ? (
-            <button
-              aria-label={`Reproduzir depoimento de ${testimonial.clientName}`}
-              className="absolute inset-0 grid place-items-center bg-navy/18 text-white transition duration-300 hover:bg-navy/28 focus:outline-none focus:ring-4 focus:ring-brand/30"
-              onClick={onPlay}
-              type="button"
-            >
-              <span className="grid h-16 w-16 place-items-center rounded-full border border-white/35 bg-white/20 shadow-soft backdrop-blur">
-                <Play className="ml-1 h-8 w-8 fill-white" />
-              </span>
-            </button>
-          ) : null}
+            {hasVideo ? (
+              <button
+                aria-label={`Reproduzir depoimento de ${testimonial.clientName}`}
+                className="absolute inset-0 grid place-items-center bg-navy/18 text-white transition duration-300 hover:bg-navy/28 focus:outline-none focus:ring-4 focus:ring-brand/30"
+                onClick={onPlay}
+                type="button"
+              >
+                <span className="grid h-16 w-16 place-items-center rounded-full border border-white/35 bg-white/20 shadow-soft backdrop-blur">
+                  <Play className="ml-1 h-8 w-8 fill-white" />
+                </span>
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
