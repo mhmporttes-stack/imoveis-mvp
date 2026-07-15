@@ -96,7 +96,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   useEffect(() => {
     let mounted = true;
-    assetToDataUri("/assets/caixa-logo-cropped.jpg")
+    assetToDataUri("/assets/caixa-logo-transparent.png")
       .then((dataUri) => {
         if (mounted) setCaixaLogoDataUri(dataUri);
       })
