@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, Download, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
@@ -62,6 +62,8 @@ const INITIAL_FORM = {
 export default function SimulationGenerator({ properties = [], initialSimulation = null }) {
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
+  const [caixaLogoDataUri, setCaixaLogoDataUri] = useState("");
+  const [propertyImageDataUris, setPropertyImageDataUris] = useState({});
   const [propertyQuery, setPropertyQuery] = useState("");
   const [activePage, setActivePage] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -92,7 +94,81 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     });
   }, [form.properties, properties, propertyQuery]);
 
-  const pages = useMemo(() => buildPresentationPages(form, totals), [form, totals]);
+  useEffect(() => {
+    let mounted = true;
+    assetToDataUri("/assets/caixa-logo-cropped.jpg")
+      .then((dataUri) => {
+        if (mounted) setCaixaLogoDataUri(dataUri);
+      })
+      .catch(() => {
+        if (mounted) setCaixaLogoDataUri("");
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setForm((current) => {
+      let changed = false;
+      const nextProperties = current.properties.map((item) => {
+        const sourceProperty = properties.find((property) => property.id === item.propertyId);
+        if (!sourceProperty) return item;
+
+        const sourceImage = coverImage(sourceProperty);
+        const shouldHydrateImage = !item.imageUrl || (item.imageUrl === "/assets/hero-marilia.png" && sourceImage !== item.imageUrl);
+        if (!shouldHydrateImage) return item;
+
+        changed = true;
+        return { ...item, imageUrl: sourceImage };
+      });
+
+      return changed ? { ...current, properties: nextProperties } : current;
+    });
+  }, [properties]);
+
+  const propertyImageSourceKey = useMemo(
+    () => form.properties.map((property) => property.imageUrl).filter(Boolean).join("|"),
+    [form.properties]
+  );
+
+  useEffect(() => {
+    const sources = Array.from(new Set(form.properties.map((property) => property.imageUrl).filter(Boolean)));
+    if (!sources.length) return undefined;
+
+    let cancelled = false;
+    Promise.all(
+      sources.map(async (source) => {
+        if (source.startsWith("data:")) return [source, source];
+        try {
+          return [source, await assetToDataUri(source)];
+        } catch {
+          return [source, ""];
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      setPropertyImageDataUris((current) => {
+        const next = { ...current };
+        for (const [source, dataUri] of entries) {
+          if (dataUri) next[source] = dataUri;
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.properties, propertyImageSourceKey]);
+
+  const presentationForm = useMemo(
+    () => withResolvedPropertyImages(form, propertyImageDataUris),
+    [form, propertyImageDataUris]
+  );
+
+  const pages = useMemo(() => buildPresentationPages(presentationForm, totals, caixaLogoDataUri), [caixaLogoDataUri, presentationForm, totals]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -200,7 +276,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function downloadImages() {
     setError("");
     try {
-      const svgs = buildPresentationPages(form, totals);
+      const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
+      const svgs = buildPresentationPages(exportForm, totals, caixaLogoDataUri);
       for (const [index, page] of svgs.entries()) {
         const dataUrl = await svgToPngDataUrl(page.svg);
         downloadDataUrl(dataUrl, `simulacao-${safeFileName(form.clientName)}-${index + 1}.png`);
@@ -213,7 +290,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function downloadPdf() {
     setError("");
     try {
-      const svgs = buildPresentationPages(form, totals);
+      const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
+      const svgs = buildPresentationPages(exportForm, totals, caixaLogoDataUri);
       const images = [];
       for (const page of svgs) images.push(await svgToJpegDataUrl(page.svg));
       const pdfUrl = buildPdfFromJpegs(images, 1080, 1620);
@@ -537,15 +615,41 @@ function serializeForm(form, totals) {
   };
 }
 
-function buildPresentationPages(form, totals) {
-  const pages = [buildSimulationResultSvg(form, totals)];
+function withResolvedPropertyImages(form, imageDataUris = {}) {
+  return {
+    ...form,
+    properties: form.properties.map((property) => ({
+      ...property,
+      imageUrl: imageDataUris[property.imageUrl] || property.imageUrl
+    }))
+  };
+}
+
+async function resolveSimulationImagesForExport(form, imageDataUris = {}) {
+  const entries = await Promise.all(
+    form.properties.map(async (property) => {
+      const source = property.imageUrl;
+      if (!source || source.startsWith("data:")) return [source, source || ""];
+      if (imageDataUris[source]) return [source, imageDataUris[source]];
+      try {
+        return [source, await assetToDataUri(source)];
+      } catch {
+        return [source, source];
+      }
+    })
+  );
+  return withResolvedPropertyImages(form, Object.fromEntries(entries));
+}
+
+function buildPresentationPages(form, totals, caixaLogoDataUri = "") {
+  const pages = [buildSimulationResultSvg(form, totals, caixaLogoDataUri)];
   const propertyPages = form.outputMode === "comparativo"
     ? chunk(form.properties, 2).map((items, index) => buildComparativePropertySvg(items, index))
     : form.properties.map((property, index) => buildPropertySvg(property, index));
   return [...pages, ...propertyPages];
 }
 
-function buildSimulationResultSvg(form, totals) {
+function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   const typeLabelText = form.simulationType === "usado" ? "IMÓVEL USADO" : "IMÓVEL NOVO";
   const mainValue = form.showExpandedPower ? totals.expanded : totals.total;
   const subtitle = form.showExpandedPower ? "Financiamento + subsídio + entrada + FGTS" : "Soma do subsídio + financiamento";
@@ -565,7 +669,7 @@ function buildSimulationResultSvg(form, totals) {
     </filter>
   </defs>
   <rect width="1080" height="1620" fill="url(#bg)"/>
-  <text x="540" y="165" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="116" fill="#0757B8">CAIXA</text>
+  ${caixaLogoDataUri ? `<image href="${caixaLogoDataUri}" x="300" y="80" width="480" height="120" preserveAspectRatio="xMidYMid meet"/>` : ""}
   <text x="540" y="250" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="60" letter-spacing="2" fill="#0757B8">SIMULAÇÃO HABITACIONAL</text>
   <rect x="382" y="310" width="316" height="62" rx="31" fill="#fff"/>
   <circle cx="418" cy="341" r="31" fill="#0757B8"/>
@@ -676,6 +780,18 @@ function wrapSvgText(text, x, y, lineHeight, maxLines, fill, fontSize) {
 async function svgToPngDataUrl(svg) {
   const canvas = await svgToCanvas(svg);
   return canvas.toDataURL("image/png");
+}
+
+async function assetToDataUri(src) {
+  const response = await fetch(src);
+  if (!response.ok) throw new Error("Não foi possível carregar a logo da Caixa.");
+  const blob = await response.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function svgToJpegDataUrl(svg) {
