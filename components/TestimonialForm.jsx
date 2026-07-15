@@ -305,7 +305,7 @@ async function optimizeImageFile(file) {
 function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
-    const image = new Image();
+    const image = new window.Image();
     image.onload = () => {
       URL.revokeObjectURL(url);
       resolve(image);
