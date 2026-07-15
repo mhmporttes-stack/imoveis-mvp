@@ -6,7 +6,6 @@ import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import SectionHeading from "@/components/SectionHeading";
 import TestimonialsSection from "@/components/TestimonialsSection";
-import { whatsappMessageLink } from "@/lib/format";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
 
@@ -25,12 +24,6 @@ const steps = [
   { title: "Aprovação", text: "Avance com documentação e análise de crédito com orientação." },
   { title: "Entrega das chaves", text: "Acompanhe o processo até a assinatura e recebimento do imóvel." }
 ];
-
-const heroContactCardClass =
-  "inline-flex min-h-[58px] w-full items-center gap-3 rounded-xl border border-blue-200/25 bg-[#08233f]/55 px-5 text-white/90 shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-blue-200/55 hover:bg-[#0a2c4f]/70 hover:text-white";
-
-const heroContactTextClass =
-  "whitespace-nowrap text-[clamp(0.62rem,2.35vw,0.86rem)] font-black leading-none";
 
 export default async function HomePage() {
   const properties = await listPublicProperties();
@@ -78,7 +71,7 @@ export default async function HomePage() {
               <p>Simulação de financiamento, aprovação de crédito e acompanhamento personalizado durante todo o processo.</p>
             </div>
             <HomeSearch />
-            <HeroContactCards />
+            <p className="mt-6 text-base text-blue-100/90 sm:text-lg">Atendimento personalizado</p>
             <div className="sm:hidden">
               <HeroPropertyLinks />
             </div>
@@ -155,34 +148,6 @@ export default async function HomePage() {
   );
 }
 
-function HeroContactCards() {
-  return (
-    <div className="mt-8">
-      <div className="flex w-full max-w-[540px] flex-col gap-3 sm:flex-row">
-        <a
-          href={whatsappMessageLink()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${heroContactCardClass} sm:w-auto sm:min-w-[190px]`}
-        >
-          <WhatsAppIcon className="h-5 w-5 shrink-0 text-[#25D366]" />
-          <span className={heroContactTextClass}>(14) 9 9840-7380</span>
-        </a>
-        <a
-          href="https://www.instagram.com/mhm.machado/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${heroContactCardClass} sm:w-auto sm:min-w-[215px]`}
-        >
-          <InstagramIcon className="h-5 w-5 shrink-0" />
-          <span className={heroContactTextClass}>@MHM.MACHADO</span>
-        </a>
-      </div>
-      <p className="mt-6 text-base text-blue-100/90 sm:text-lg">Atendimento personalizado</p>
-    </div>
-  );
-}
-
 function HeroPropertyLinks({ align = "start" }) {
   return (
     <nav
@@ -198,32 +163,5 @@ function HeroPropertyLinks({ align = "start" }) {
         Imóveis Prontos
       </Link>
     </nav>
-  );
-}
-
-function WhatsAppIcon({ className }) {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="currentColor">
-      <path d="M16.04 3.2A12.74 12.74 0 0 0 5.2 22.65L3.72 28l5.48-1.43A12.75 12.75 0 1 0 16.04 3.2Zm0 2.27a10.47 10.47 0 0 1 8.86 16.04 10.47 10.47 0 0 1-14.96 2.74l-.39-.24-3.25.85.87-3.16-.26-.41A10.46 10.46 0 0 1 16.04 5.47Zm-4.45 5.62c-.22 0-.58.08-.88.42-.3.34-1.15 1.12-1.15 2.74s1.18 3.18 1.34 3.4c.16.22 2.27 3.64 5.63 4.96 2.79 1.1 3.36.88 3.96.82.6-.05 1.94-.79 2.21-1.55.27-.76.27-1.42.19-1.55-.08-.14-.3-.22-.63-.38-.33-.16-1.94-.96-2.24-1.07-.3-.11-.52-.16-.74.16-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.86-1.63-1.93-1.82-2.26-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.16-.74-1.79-1.01-2.45-.27-.64-.54-.55-.74-.56h-.63Z" />
-    </svg>
-  );
-}
-
-function InstagramIcon({ className }) {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={className}>
-      <defs>
-        <linearGradient id="instagram-hero-gradient" x1="5" x2="27" y1="27" y2="5" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FEDA75" />
-          <stop offset="0.35" stopColor="#FA7E1E" />
-          <stop offset="0.62" stopColor="#D62976" />
-          <stop offset="0.82" stopColor="#962FBF" />
-          <stop offset="1" stopColor="#4F5BD5" />
-        </linearGradient>
-      </defs>
-      <rect x="6" y="6" width="20" height="20" rx="6" fill="none" stroke="url(#instagram-hero-gradient)" strokeWidth="2.8" />
-      <circle cx="16" cy="16" r="4.5" fill="none" stroke="url(#instagram-hero-gradient)" strokeWidth="2.8" />
-      <circle cx="21.7" cy="10.4" r="1.55" fill="url(#instagram-hero-gradient)" />
-    </svg>
   );
 }

@@ -25,7 +25,14 @@ export default async function AdminTestimonialsPage() {
     );
   }
 
-  const testimonials = await listTestimonials();
+  let testimonials = [];
+  let loadError = "";
+
+  try {
+    testimonials = await listTestimonials();
+  } catch (error) {
+    loadError = error?.message || "Nao foi possivel carregar os depoimentos.";
+  }
 
   return (
     <main className="bg-mist py-14">
@@ -41,7 +48,25 @@ export default async function AdminTestimonialsPage() {
         </div>
       </section>
       <AdminSectionNav active="testimonials" />
-      <AdminTestimonialList testimonials={testimonials} />
+      {loadError ? (
+        <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar depoimentos</p>
+          <h2 className="mt-3 text-3xl font-black text-navy">A pagina abriu, mas o Supabase retornou um erro.</h2>
+          <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">
+            {loadError}
+          </p>
+          <p className="mt-4 max-w-3xl leading-8 text-muted">
+            Confira se a migration da tabela <strong>public.testimonials</strong> foi executada no Supabase e se a chave
+            <strong> SUPABASE_SERVICE_ROLE_KEY</strong> esta correta na Vercel.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/admin/depoimentos" className="premium-button-primary">Tentar novamente</Link>
+            <Link href="/admin" className="premium-button-secondary">Voltar ao painel</Link>
+          </div>
+        </section>
+      ) : (
+        <AdminTestimonialList testimonials={testimonials} />
+      )}
     </main>
   );
 }

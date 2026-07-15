@@ -1,6 +1,7 @@
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import InstagramFloatingButton from "@/components/InstagramFloatingButton";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import WhatsAppSimulationPrompt from "@/components/WhatsAppSimulationPrompt";
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         <Footer />
         <LeadCaptureModal />
         <WhatsAppSimulationPrompt />
+        <InstagramFloatingButton />
         <WhatsAppFloatingButton />
       </body>
     </html>

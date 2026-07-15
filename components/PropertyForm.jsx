@@ -210,6 +210,24 @@ export default function PropertyForm({ property }) {
     }));
   }
 
+  function movePhoto(index, direction) {
+    setForm((current) => {
+      const photos = Array.isArray(current.photos) ? current.photos : [];
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= photos.length) return current;
+      const nextPhotos = [...photos];
+      [nextPhotos[index], nextPhotos[nextIndex]] = [nextPhotos[nextIndex], nextPhotos[index]];
+      return { ...current, photos: nextPhotos };
+    });
+  }
+
+  function removePhoto(index) {
+    setForm((current) => ({
+      ...current,
+      photos: Array.isArray(current.photos) ? current.photos.filter((_, itemIndex) => itemIndex !== index) : []
+    }));
+  }
+
   function updateFeatureIcon(index, icon) {
     setForm((current) => {
       const features = normalizeFeatures(current.features);
@@ -422,6 +440,8 @@ export default function PropertyForm({ property }) {
         </label>
       </section>
 
+      <PhotoOrderEditor photos={form.photos} onMove={movePhoto} onRemove={removePhoto} />
+
       <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
         <button disabled={saving || processingPhotos} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
           {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "Salvar empreendimento"}
@@ -436,6 +456,71 @@ export default function PropertyForm({ property }) {
         </p>
       ) : null}
     </form>
+  );
+}
+
+function PhotoOrderEditor({ photos = [], onMove, onRemove }) {
+  const orderedPhotos = Array.isArray(photos) ? photos.filter((photo) => photo?.data) : [];
+  if (!orderedPhotos.length) return null;
+
+  return (
+    <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
+      <div>
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Ordem das fotos</p>
+        <h3 className="mt-2 text-2xl font-extrabold text-navy">Escolha a capa e a sequência da galeria</h3>
+        <p className="mt-2 text-muted">Use as setas para ordenar. A primeira foto será a capa do imóvel no site.</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {orderedPhotos.map((photo, index) => (
+          <article key={`${photo.storagePath || photo.data}-${index}`} className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
+            <div className="relative aspect-[4/3] overflow-hidden bg-mist">
+              <img
+                src={photo.data}
+                alt={photo.name || `Foto ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute left-3 top-3 rounded-full bg-navy px-3 py-1 text-xs font-black text-white shadow-soft">
+                {index === 0 ? "Capa" : `Foto ${index + 1}`}
+              </span>
+            </div>
+            <div className="grid gap-3 p-4">
+              <p className="truncate text-sm font-bold text-muted" title={photo.name || `Foto ${index + 1}`}>
+                {photo.name || `Foto ${index + 1}`}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onMove(index, -1)}
+                  disabled={index === 0}
+                  className="rounded-full border border-line px-3 py-2 text-sm font-black text-brand transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label={`Mover foto ${index + 1} para cima`}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMove(index, 1)}
+                  disabled={index === orderedPhotos.length - 1}
+                  className="rounded-full border border-line px-3 py-2 text-sm font-black text-brand transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label={`Mover foto ${index + 1} para baixo`}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRemove(index)}
+                  className="rounded-full border border-line px-3 py-2 text-sm font-black text-slate-500 transition hover:border-red-200 hover:text-red-700"
+                  aria-label={`Remover foto ${index + 1}`}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
