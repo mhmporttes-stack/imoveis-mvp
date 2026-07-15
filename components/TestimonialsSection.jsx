@@ -2,13 +2,31 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Play, Quote, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Quote, X } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 
 export default function TestimonialsSection({ testimonials = [] }) {
   const [activeVideo, setActiveVideo] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(3);
   const closeButtonRef = useRef(null);
   const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    function updateVisibleCount() {
+      if (window.innerWidth >= 1280) {
+        setVisibleCount(3);
+      } else if (window.innerWidth >= 768) {
+        setVisibleCount(2);
+      } else {
+        setVisibleCount(1);
+      }
+    }
+
+    updateVisibleCount();
+    window.addEventListener("resize", updateVisibleCount);
+    return () => window.removeEventListener("resize", updateVisibleCount);
+  }, []);
 
   useEffect(() => {
     if (!activeVideo) return undefined;
@@ -30,6 +48,23 @@ export default function TestimonialsSection({ testimonials = [] }) {
       previousFocusRef.current?.focus?.();
     };
   }, [activeVideo]);
+
+  useEffect(() => {
+    if (!testimonials.length) return;
+    setActiveIndex((index) => Math.min(index, testimonials.length - 1));
+  }, [testimonials.length]);
+
+  const canRotate = testimonials.length > visibleCount;
+
+  useEffect(() => {
+    if (!canRotate || activeVideo) return undefined;
+
+    const interval = window.setInterval(() => {
+      setActiveIndex((index) => (index + 1) % testimonials.length);
+    }, 6000);
+
+    return () => window.clearInterval(interval);
+  }, [activeVideo, canRotate, testimonials.length]);
 
   if (!testimonials.length) return null;
 
@@ -57,6 +92,14 @@ export default function TestimonialsSection({ testimonials = [] }) {
     }
   }
 
+  function moveCarousel(direction) {
+    setActiveIndex((index) => (index + direction + testimonials.length) % testimonials.length);
+  }
+
+  const visibleTestimonials = testimonials.length <= visibleCount
+    ? testimonials
+    : Array.from({ length: visibleCount }, (_, offset) => testimonials[(activeIndex + offset) % testimonials.length]);
+
   return (
     <section className="bg-mist py-24">
       <SectionHeading
@@ -67,10 +110,47 @@ export default function TestimonialsSection({ testimonials = [] }) {
         subtitleClassName="max-w-none md:whitespace-nowrap"
       />
 
-      <div className="container-page grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {testimonials.map((testimonial) => (
-          <TestimonialCard key={testimonial.id} testimonial={testimonial} onPlay={() => openVideo(testimonial)} />
-        ))}
+      <div className="container-page">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {visibleTestimonials.map((testimonial) => (
+            <TestimonialCard key={testimonial.id} testimonial={testimonial} onPlay={() => openVideo(testimonial)} />
+          ))}
+        </div>
+
+        {canRotate ? (
+          <div className="mt-8 flex items-center justify-between gap-4">
+            <div className="flex gap-2">
+              {testimonials.map((testimonial, index) => (
+                <button
+                  key={testimonial.id}
+                  aria-label={`Mostrar depoimento ${index + 1}`}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${index === activeIndex ? "w-8 bg-brand" : "w-2.5 bg-navy/18 hover:bg-navy/32"}`}
+                  onClick={() => setActiveIndex(index)}
+                  type="button"
+                />
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                aria-label="Ver depoimentos anteriores"
+                className="grid h-12 w-12 place-items-center rounded-full border border-line bg-white text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
+                onClick={() => moveCarousel(-1)}
+                type="button"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                aria-label="Ver próximos depoimentos"
+                className="grid h-12 w-12 place-items-center rounded-full border border-line bg-white text-navy shadow-soft transition hover:-translate-y-0.5 hover:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
+                onClick={() => moveCarousel(1)}
+                type="button"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {activeVideo ? (
@@ -87,17 +167,17 @@ function TestimonialCard({ testimonial, onPlay }) {
   const hasMedia = hasImage || hasVideo;
 
   return (
-    <article className="group h-full overflow-hidden rounded-[28px] border border-line/80 bg-white shadow-[0_22px_70px_rgba(13,59,102,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(13,59,102,0.14)]">
-      <div className={hasMedia ? "grid min-h-[520px] bg-white sm:grid-cols-[1fr_44%]" : "flex h-full flex-col bg-white"}>
-        {hasMedia ? (
-          <div className="relative order-1 min-h-[420px] overflow-hidden rounded-t-[28px] bg-[#EAF2FB] sm:order-2 sm:min-h-full sm:rounded-l-none sm:rounded-r-[28px]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-line/80 bg-white shadow-[0_22px_70px_rgba(13,59,102,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(13,59,102,0.14)]">
+      {hasMedia ? (
+        <div className="bg-white px-5 pt-5">
+          <div className="relative mx-auto aspect-[9/16] w-full max-w-[270px] overflow-hidden rounded-[24px] border border-line bg-[#F4F8FD] shadow-soft">
             {mediaImage ? (
               <Image
                 src={mediaImage}
                 alt={`Depoimento de ${testimonial.clientName}`}
                 fill
                 sizes="(min-width: 1280px) 260px, (min-width: 768px) 34vw, 70vw"
-                className="testimonial-media-mask object-cover"
+                className="object-contain"
                 unoptimized
               />
             ) : (
@@ -119,17 +199,17 @@ function TestimonialCard({ testimonial, onPlay }) {
               </button>
             ) : null}
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        <div className={`relative z-10 order-2 flex flex-1 flex-col bg-white p-7 sm:order-1 sm:p-8 ${hasMedia ? "sm:pr-2" : ""}`}>
-          <Quote className="h-9 w-9 text-brand" aria-hidden="true" />
-          <p className="mt-6 flex-1 text-[1.08rem] leading-8 text-ink sm:text-lg sm:leading-9">“{testimonial.testimonialText}”</p>
-          <div className="mt-8">
-            <p className="text-xl font-black leading-tight text-navy">{testimonial.clientName}</p>
-            {testimonial.clientDescription ? (
-              <p className="mt-1.5 text-sm font-bold leading-6 text-muted">{testimonial.clientDescription}</p>
-            ) : null}
-          </div>
+      <div className="flex flex-1 flex-col bg-white p-7 sm:p-8">
+        <Quote className="h-9 w-9 text-brand" aria-hidden="true" />
+        <p className="mt-6 flex-1 text-[1.03rem] leading-8 text-ink sm:text-[1.08rem]">“{testimonial.testimonialText}”</p>
+        <div className="mt-8">
+          <p className="text-xl font-black leading-tight text-navy">{testimonial.clientName}</p>
+          {testimonial.clientDescription ? (
+            <p className="mt-1.5 text-sm font-bold leading-6 text-muted">{testimonial.clientDescription}</p>
+          ) : null}
         </div>
       </div>
     </article>
