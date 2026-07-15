@@ -671,33 +671,33 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   <rect width="1080" height="1620" fill="url(#bg)"/>
   ${caixaLogoDataUri ? `<image href="${caixaLogoDataUri}" x="250" y="50" width="580" height="145" preserveAspectRatio="xMidYMid meet"/>` : ""}
   <text x="540" y="250" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="60" letter-spacing="2" fill="#0757B8">SIMULAÇÃO HABITACIONAL</text>
-  <rect x="382" y="310" width="316" height="62" rx="31" fill="#fff"/>
-  <circle cx="418" cy="341" r="31" fill="#0757B8"/>
-  <path d="M402 340 L418 327 L434 340" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M407 338 V354 H429 V338" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M415 354 V345 H421 V354" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
-  <text x="462" y="356" font-family="Inter, Arial" font-weight="900" font-size="28" fill="#0757B8">${typeLabelText}</text>
+  <rect x="398" y="312" width="324" height="58" rx="29" fill="#fff"/>
+  <circle cx="402" cy="341" r="39" fill="#0757B8"/>
+  <path d="M382 341 L402 325 L422 341" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M388 338 V360 H416 V338" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M398 360 V348 H407 V360" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+  <text x="456" y="342" dominant-baseline="middle" font-family="Inter, Arial" font-weight="900" font-size="28" fill="#0757B8">${typeLabelText}</text>
 
   <rect x="42" y="430" width="996" height="520" rx="42" fill="#fff" filter="url(#shadow)"/>
   <text x="540" y="505" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="34" letter-spacing="1.5" fill="#0757B8">PODER TOTAL DE COMPRA:</text>
   <text x="540" y="625" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="84" fill="#072D65">${escapeXml(formatCurrency(mainValue))}</text>
   <text x="540" y="697" text-anchor="middle" font-family="Inter, Arial" font-size="31" fill="#072D65">${escapeXml(subtitle)}</text>
   <line x1="98" x2="982" y1="760" y2="760" stroke="#B8D2F0" stroke-width="2"/>
-  <circle cx="150" cy="850" r="52" fill="#0757B8"/>
-  <path d="M123 862 C135 854 143 854 154 862 L171 872" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
-  <path d="M126 844 H142 C149 844 153 848 153 854 C153 860 149 864 142 864 H132" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M156 831 V870" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-  <path d="M169 838 C165 833 160 831 154 832 C146 833 143 837 143 842 C143 849 150 851 158 853 C166 855 172 859 171 866 C170 872 163 876 154 875 C147 875 141 872 137 867" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
-  <text x="225" y="828" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#0757B8">VALOR DO SUBSÍDIO</text>
-  <text x="225" y="885" font-family="Inter, Arial" font-weight="900" font-size="38" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
+  <circle cx="148" cy="850" r="56" fill="#0757B8"/>
+  <path d="M118 865 C132 856 143 856 156 865 L178 877" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M122 844 H142 C151 844 156 850 156 857 C156 864 151 869 142 869 H130" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M159 827 V873" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M174 835 C169 829 163 827 155 828 C146 829 142 834 142 840 C142 849 151 851 159 854 C169 857 175 861 174 868 C173 876 165 880 155 879 C146 879 139 875 135 870" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <text x="220" y="826" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">VALOR DO SUBSÍDIO</text>
+  <text x="220" y="890" font-family="Inter, Arial" font-weight="900" font-size="43" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
   <line x1="540" x2="540" y1="800" y2="905" stroke="#D8E6F6" stroke-width="3"/>
-  <circle cx="622" cy="850" r="52" fill="#0757B8"/>
-  <path d="M604 820 H632 L646 834 V878 H604 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M632 820 V836 H646" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M613 846 H636 M613 862 H628" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="641" cy="866" r="11" fill="none" stroke="#fff" stroke-width="5"/>
-  <text x="695" y="828" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#0757B8">VALOR DO FINANCIAMENTO</text>
-  <text x="695" y="885" font-family="Inter, Arial" font-weight="900" font-size="38" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
+  <circle cx="620" cy="850" r="56" fill="#0757B8"/>
+  <path d="M600 817 H631 L649 835 V881 H600 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M631 817 V837 H649" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M612 848 H637 M612 865 H628" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="643" cy="868" r="12" fill="none" stroke="#fff" stroke-width="5"/>
+  <text x="697" y="826" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">VALOR DO FINANCIAMENTO</text>
+  <text x="697" y="890" font-family="Inter, Arial" font-weight="900" font-size="43" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
 
   <rect x="60" y="1030" width="960" height="305" rx="38" fill="#0757B8"/>
   <text x="540" y="1115" text-anchor="middle" font-family="Inter, Arial" font-style="italic" font-size="37" fill="#fff">Cliente: ${client}</text>
@@ -710,20 +710,20 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
 
   <text x="540" y="1390" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="34" letter-spacing="5" fill="#fff">WWW.MATHEUSMACHADOIMOVEIS.COM.BR</text>
   <rect x="60" y="1445" width="960" height="125" rx="34" fill="#0757B8"/>
-  <line x1="350" x2="350" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
-  <line x1="705" x2="705" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
-  <path d="M125 1478 L170 1494 V1522 C170 1545 151 1558 125 1566 C99 1558 80 1545 80 1522 V1494 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M106 1522 L120 1536 L146 1508" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="225" y="1504" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">Condições</text>
-  <text x="225" y="1535" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">facilitadas</text>
-  <rect x="402" y="1484" width="58" height="58" rx="16" fill="none" stroke="#fff" stroke-width="6"/>
-  <circle cx="431" cy="1513" r="14" fill="none" stroke="#fff" stroke-width="6"/>
-  <circle cx="451" cy="1495" r="4" fill="#fff"/>
-  <text x="565" y="1522" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#fff">@MHM.MACHADO</text>
-  <circle cx="765" cy="1513" r="34" fill="none" stroke="#fff" stroke-width="6"/>
-  <path d="M747 1514 L760 1527 L786 1499" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="900" y="1504" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">Segurança e</text>
-  <text x="900" y="1535" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">tranquilidade</text>
+  <line x1="346" x2="346" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
+  <line x1="706" x2="706" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
+  <path d="M128 1477 L173 1493 V1522 C173 1546 153 1559 128 1566 C102 1559 83 1546 83 1522 V1493 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M109 1522 L123 1536 L149 1508" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="190" y="1504" font-family="Inter, Arial" font-size="25" fill="#fff">Condições</text>
+  <text x="190" y="1536" font-family="Inter, Arial" font-size="25" fill="#fff">facilitadas</text>
+  <rect x="402" y="1482" width="62" height="62" rx="17" fill="none" stroke="#fff" stroke-width="6"/>
+  <circle cx="433" cy="1513" r="15" fill="none" stroke="#fff" stroke-width="6"/>
+  <circle cx="454" cy="1494" r="4" fill="#fff"/>
+  <text x="493" y="1523" font-family="Inter, Arial" font-weight="900" font-size="25" fill="#fff">@MHM.MACHADO</text>
+  <circle cx="775" cy="1513" r="36" fill="none" stroke="#fff" stroke-width="6"/>
+  <path d="M756 1514 L770 1528 L797 1499" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="845" y="1504" font-family="Inter, Arial" font-size="25" fill="#fff">Segurança e</text>
+  <text x="845" y="1536" font-family="Inter, Arial" font-size="25" fill="#fff">tranquilidade</text>
 </svg>`
   };
 }
@@ -742,15 +742,12 @@ function buildPropertySvg(property, index) {
   <text x="70" y="130" font-family="Inter, Arial" font-weight="900" font-size="42" fill="#0757B8">IMÓVEL SUGERIDO</text>
   <text x="70" y="205" font-family="Inter, Arial" font-weight="900" font-size="58" fill="#072D65">${escapeXml(trimText(property.customName, 28))}</text>
   ${property.imageUrl ? `<image href="${escapeXml(property.imageUrl)}" x="70" y="260" width="940" height="560" preserveAspectRatio="xMidYMid slice" clip-path="url(#photo${index})"/>` : `<rect x="70" y="260" width="940" height="560" rx="42" fill="#E9F2FF"/>`}
-  <rect x="70" y="865" width="940" height="230" rx="34" fill="#fff"/>
-  <text x="115" y="935" font-family="Inter, Arial" font-weight="900" font-size="34" fill="#0757B8">${escapeXml(property.customPrice || "Consulte condições")}</text>
-  <text x="115" y="995" font-family="Inter, Arial" font-size="29" fill="#072D65">${escapeXml(property.customLocation || "Localização a confirmar")}</text>
-  <text x="115" y="1050" font-family="Inter, Arial" font-size="27" fill="#52657C">${escapeXml([property.customType, property.customBedrooms, property.customArea].filter(Boolean).join(" · "))}</text>
-  <rect x="70" y="1135" width="940" height="300" rx="34" fill="#0757B8"/>
-  <text x="115" y="1200" font-family="Inter, Arial" font-weight="900" font-size="30" fill="#fff">Principais benefícios</text>
-  ${benefits.map((benefit, benefitIndex) => `<text x="${benefitIndex < 4 ? 120 : 560}" y="${1255 + (benefitIndex % 4) * 45}" font-family="Inter, Arial" font-size="25" fill="#fff">• ${escapeXml(trimText(benefit.text, 28))}</text>`).join("")}
-  <text x="80" y="1490" font-family="Inter, Arial" font-weight="900" font-size="28" fill="#0757B8">POR QUE ESTE IMÓVEL?</text>
-  ${wrapSvgText(property.recommendationReason, 82, 1535, 30, 2, "#072D65", 23)}
+  <rect x="70" y="875" width="940" height="350" rx="34" fill="#0757B8"/>
+  <text x="115" y="950" font-family="Inter, Arial" font-weight="900" font-size="31" fill="#fff">Principais benefícios</text>
+  ${benefits.map((benefit, benefitIndex) => `<text x="${benefitIndex < 4 ? 120 : 560}" y="${1012 + (benefitIndex % 4) * 48}" font-family="Inter, Arial" font-size="26" fill="#fff">• ${escapeXml(trimText(benefit.text, 28))}</text>`).join("")}
+  <rect x="70" y="1270" width="940" height="215" rx="34" fill="#fff" opacity=".9"/>
+  <text x="115" y="1345" font-family="Inter, Arial" font-weight="900" font-size="28" fill="#0757B8">POR QUE ESTE IMÓVEL?</text>
+  ${wrapSvgText(property.recommendationReason, 115, 1395, 33, 2, "#072D65", 24)}
   <text x="540" y="1585" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#0757B8">@MHM.MACHADO</text>
 </svg>`
   };
