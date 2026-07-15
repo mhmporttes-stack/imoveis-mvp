@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import FinancingSimulationSection from "@/components/FinancingSimulationSection";
 import PropertyCard from "@/components/PropertyCard";
 import {
   REGION_FILTER_OPTIONS,
@@ -105,6 +106,8 @@ export default function PropertyExplorer({ properties = [] }) {
             Selecione suas preferências e veja os imóveis compatíveis com a sua busca.
           </p>
         </div>
+
+        <FinancingSimulationSection />
 
         <form onSubmit={applyFilters} className="rounded-[28px] border border-line bg-white p-5 shadow-soft md:p-7">
           <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr_1fr_1fr_auto] lg:items-end">

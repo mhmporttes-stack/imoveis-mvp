@@ -3,14 +3,11 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
+import { SIMULATION_FORM_URLS } from "@/lib/simulation-links";
 
 const SESSION_STATE_KEY = "mm_whatsapp_simulation_prompt_state";
 const SESSION_ENTERED_AT_KEY = "mm_whatsapp_simulation_prompt_entered_at";
 const DISPLAY_DELAY_MS = 30000;
-const SINGLE_PERSON_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSfDtT53N_WxEHHut1npFSAvqrliXfKgUGJzw3qtU_krKiwlHg/viewform?usp=dialog";
-const TWO_PERSON_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLScbvy0vcCglc-ayHPrqj5sMrvgepxKToRLEaeLKGJqULKDs1w/viewform?usp=dialog";
 
 export default function WhatsAppSimulationPrompt() {
   const pathname = usePathname();
@@ -157,7 +154,7 @@ export default function WhatsAppSimulationPrompt() {
             <div className="mt-10 grid gap-4 sm:grid-cols-2">
               <SimulationChoiceCard
                 description="A simulação será realizada somente em seu nome."
-                href={SINGLE_PERSON_FORM_URL}
+                href={SIMULATION_FORM_URLS.single}
                 icon="👤"
                 isSelected={selectedChoice === "single"}
                 onSelect={() => setSelectedChoice("single")}
@@ -165,7 +162,7 @@ export default function WhatsAppSimulationPrompt() {
               />
               <SimulationChoiceCard
                 description="A simulação será realizada em seu nome e de mais uma pessoa."
-                href={TWO_PERSON_FORM_URL}
+                href={SIMULATION_FORM_URLS.two}
                 icon="👥"
                 isSelected={selectedChoice === "two"}
                 onSelect={() => setSelectedChoice("two")}
