@@ -92,6 +92,27 @@ export default function TestimonialForm({ testimonial }) {
 
       setStatus("Arquivo enviado. Revise a prévia antes de salvar.");
     } catch (error) {
+      if (kind === "images" || kind === "thumbnails") {
+        try {
+          const optimizedFile = await optimizeImageFile(file);
+          const fallbackUrl = await fileToDataUrl(optimizedFile);
+
+          if (kind === "images") {
+            setForm((current) => ({ ...current, imageUrl: fallbackUrl, imageStoragePath: "" }));
+          }
+
+          if (kind === "thumbnails") {
+            setForm((current) => ({ ...current, videoThumbnailUrl: fallbackUrl, videoThumbnailStoragePath: "" }));
+          }
+
+          setSaveError("");
+          setStatus("O Supabase Storage recusou o upload, mas a imagem foi otimizada e anexada ao depoimento. Ainda sera necessario salvar o cadastro.");
+          return;
+        } catch {
+          // Mantem a mensagem original do upload se a imagem tambem nao puder ser otimizada.
+        }
+      }
+
       setStatus("");
       setSaveError(error.message || "Não foi possível enviar o arquivo.");
     } finally {
@@ -215,6 +236,15 @@ function UploadField({ label, accept, onChange }) {
       <input type="file" accept={accept} onChange={(event) => onChange(event.target.files?.[0])} />
     </label>
   );
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function Preview({ testimonial }) {

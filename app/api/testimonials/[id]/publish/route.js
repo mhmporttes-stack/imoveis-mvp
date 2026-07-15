@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { updateTestimonialPublication } from "@/lib/testimonials";
+import { formatTestimonialError, updateTestimonialPublication } from "@/lib/testimonials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,6 @@ export async function PATCH(request, { params }) {
 
     return NextResponse.json(testimonial);
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Nao foi possivel alterar a publicacao." }, { status: 400 });
+    return NextResponse.json({ error: formatTestimonialError(error) || "Nao foi possivel alterar a publicacao." }, { status: 400 });
   }
 }

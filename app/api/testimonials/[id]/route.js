@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { deleteTestimonial, getTestimonial, updateTestimonial } from "@/lib/testimonials";
+import { deleteTestimonial, formatTestimonialError, getTestimonial, updateTestimonial } from "@/lib/testimonials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,13 +11,17 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { id } = await params;
-  const testimonial = await getTestimonial(id);
-  if (!testimonial) {
-    return NextResponse.json({ error: "Depoimento nao encontrado." }, { status: 404 });
-  }
+  try {
+    const { id } = await params;
+    const testimonial = await getTestimonial(id);
+    if (!testimonial) {
+      return NextResponse.json({ error: "Depoimento nao encontrado." }, { status: 404 });
+    }
 
-  return NextResponse.json(testimonial);
+    return NextResponse.json(testimonial);
+  } catch (error) {
+    return NextResponse.json({ error: formatTestimonialError(error) }, { status: 400 });
+  }
 }
 
 export async function PUT(request, { params }) {
@@ -35,7 +39,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(testimonial);
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Nao foi possivel atualizar o depoimento." }, { status: 400 });
+    return NextResponse.json({ error: formatTestimonialError(error) || "Nao foi possivel atualizar o depoimento." }, { status: 400 });
   }
 }
 
@@ -50,6 +54,6 @@ export async function DELETE(request, { params }) {
     const ok = await deleteTestimonial(id);
     return NextResponse.json({ ok }, { status: ok ? 200 : 404 });
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Nao foi possivel excluir o depoimento." }, { status: 400 });
+    return NextResponse.json({ error: formatTestimonialError(error) || "Nao foi possivel excluir o depoimento." }, { status: 400 });
   }
 }

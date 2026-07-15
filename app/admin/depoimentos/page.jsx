@@ -3,7 +3,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminTestimonialList from "@/components/AdminTestimonialList";
 import { requireAdminPage } from "@/lib/admin-auth";
-import { canManageTestimonials, listTestimonials } from "@/lib/testimonials";
+import { canManageTestimonials, formatTestimonialError, listTestimonials } from "@/lib/testimonials";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ export default async function AdminTestimonialsPage() {
   try {
     testimonials = await listTestimonials();
   } catch (error) {
-    loadError = error?.message || "Nao foi possivel carregar os depoimentos.";
+    loadError = formatTestimonialError(error);
   }
 
   return (

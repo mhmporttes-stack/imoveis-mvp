@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { canManageTestimonials, createTestimonial, listTestimonials } from "@/lib/testimonials";
+import { canManageTestimonials, createTestimonial, formatTestimonialError, listTestimonials } from "@/lib/testimonials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +15,11 @@ export async function GET(request) {
     return NextResponse.json({ error: "Supabase nao configurado para gerenciar depoimentos." }, { status: 503 });
   }
 
-  return NextResponse.json(await listTestimonials());
+  try {
+    return NextResponse.json(await listTestimonials());
+  } catch (error) {
+    return NextResponse.json({ error: formatTestimonialError(error) }, { status: 400 });
+  }
 }
 
 export async function POST(request) {
@@ -32,6 +36,6 @@ export async function POST(request) {
     const testimonial = await createTestimonial(await request.json());
     return NextResponse.json(testimonial, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error.message || "Nao foi possivel cadastrar o depoimento." }, { status: 400 });
+    return NextResponse.json({ error: formatTestimonialError(error) || "Nao foi possivel cadastrar o depoimento." }, { status: 400 });
   }
 }
