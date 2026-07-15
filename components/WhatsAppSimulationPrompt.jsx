@@ -16,6 +16,7 @@ export default function WhatsAppSimulationPrompt() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [choiceModalOpen, setChoiceModalOpen] = useState(false);
+  const [selectedChoice, setSelectedChoice] = useState("");
 
   const isAdminRoute = pathname?.startsWith("/admin");
 
@@ -71,6 +72,7 @@ export default function WhatsAppSimulationPrompt() {
   function openSimulationChoices() {
     writeSessionValue(SESSION_STATE_KEY, "clicked");
     setVisible(false);
+    setSelectedChoice("");
     setChoiceModalOpen(true);
   }
 
@@ -125,7 +127,7 @@ export default function WhatsAppSimulationPrompt() {
           }}
           role="dialog"
         >
-          <div className="relative w-full max-w-[560px] overflow-hidden rounded-[28px] border border-white/20 bg-white p-7 text-slate-900 shadow-[0_32px_90px_rgba(2,12,27,0.32)] sm:p-9">
+          <div className="relative w-full max-w-[640px] overflow-hidden rounded-[30px] border border-white/20 bg-white p-7 text-slate-900 shadow-[0_32px_90px_rgba(2,12,27,0.32)] sm:p-10">
             <button
               aria-label="Fechar pergunta da simulação"
               className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition duration-200 hover:border-blue-200 hover:bg-blue-50 hover:text-[#0D3B66] focus:outline-none focus:ring-4 focus:ring-blue-200/60"
@@ -135,7 +137,7 @@ export default function WhatsAppSimulationPrompt() {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-[#2563EB]">
+            <div className="mb-6 grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-[#2563EB]">
               <FinancingIcon className="h-8 w-8" />
             </div>
 
@@ -143,40 +145,77 @@ export default function WhatsAppSimulationPrompt() {
               Simulação de financiamento
             </p>
             <h2
-              className="max-w-[440px] text-[clamp(1.55rem,4.6vw,2.35rem)] font-black leading-[1.08] text-[#0D3B66]"
+              className="max-w-[520px] text-[clamp(1.45rem,3.8vw,2rem)] font-black leading-[1.08] text-[#0D3B66]"
               id="simulation-choice-title"
             >
-              A simulação será feita apenas em seu nome ou você gostaria de simular com mais alguém?
+              Como você prefere fazer sua <span className="text-[#2563EB]">simulação</span>?
             </h2>
+            <p className="mt-5 max-w-[540px] text-base leading-7 text-slate-600">
+              A simulação será feita apenas em seu nome ou você gostaria de simular com mais uma pessoa?
+            </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <a
-                className="group flex min-h-[58px] items-center justify-center rounded-full bg-gradient-to-r from-[#0D2E57] to-[#184A84] px-5 text-center text-sm font-black uppercase tracking-[0.04em] text-white shadow-[0_18px_42px_rgba(13,59,102,0.22)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_56px_rgba(13,59,102,0.3)] focus:outline-none focus:ring-4 focus:ring-blue-300/45"
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              <SimulationChoiceCard
+                description="A simulação será realizada somente em seu nome."
                 href={SINGLE_PERSON_FORM_URL}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                SIM APENAS EM MEU NOME
-                <ArrowRight className="ml-2 h-4 w-4 transition duration-200 group-hover:translate-x-1" />
-              </a>
-              <a
-                className="group flex min-h-[58px] items-center justify-center rounded-full border border-[#0D3B66]/18 bg-white px-5 text-center text-sm font-black uppercase tracking-[0.04em] text-[#0D3B66] shadow-[0_14px_34px_rgba(13,59,102,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#2563EB]/45 hover:bg-blue-50 hover:shadow-[0_20px_46px_rgba(13,59,102,0.14)] focus:outline-none focus:ring-4 focus:ring-blue-200/70"
+                icon="👤"
+                isSelected={selectedChoice === "single"}
+                onSelect={() => setSelectedChoice("single")}
+                title="Sim, apenas em meu nome"
+              />
+              <SimulationChoiceCard
+                description="A simulação será realizada em seu nome e de mais uma pessoa."
                 href={TWO_PERSON_FORM_URL}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                EU E MAIS UMA PESSOA
-                <ArrowRight className="ml-2 h-4 w-4 transition duration-200 group-hover:translate-x-1" />
-              </a>
+                icon="👥"
+                isSelected={selectedChoice === "two"}
+                onSelect={() => setSelectedChoice("two")}
+                title="Eu e mais uma pessoa"
+              />
             </div>
 
-            <p className="mt-5 text-sm leading-6 text-slate-500">
-              Escolha a opção que combina com a sua simulação. O formulário abrirá em uma nova aba.
-            </p>
+            <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50/70 px-5 py-4 text-sm leading-6 text-slate-600">
+              <strong className="block font-black text-[#0D3B66]">Seus dados estão seguros</strong>
+              As informações serão usadas apenas para preparar sua simulação de financiamento.
+            </div>
           </div>
         </div>
       ) : null}
     </>
+  );
+}
+
+function SimulationChoiceCard({ description, href, icon, isSelected, onSelect, title }) {
+  const selectedClasses =
+    "border-[#0D3B66] bg-[#0D3B66] text-white shadow-[0_24px_58px_rgba(13,59,102,0.24)]";
+  const idleClasses =
+    "border-blue-100 bg-white text-[#0D3B66] shadow-[0_12px_34px_rgba(13,59,102,0.07)] hover:-translate-y-0.5 hover:border-[#2563EB] hover:bg-blue-50 hover:shadow-[0_18px_46px_rgba(13,59,102,0.12)] active:translate-y-0";
+
+  return (
+    <a
+      className={`group relative flex min-h-[190px] flex-col rounded-[24px] border p-5 transition duration-[260ms] ease-out focus:outline-none focus:ring-4 focus:ring-blue-200/70 ${isSelected ? selectedClasses : idleClasses}`}
+      href={href}
+      onClick={onSelect}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      <span
+        aria-hidden="true"
+        className={`mb-5 grid h-12 w-12 place-items-center rounded-2xl text-2xl transition duration-[260ms] ${
+          isSelected ? "bg-white/15 text-white" : "bg-blue-50 text-[#2563EB] group-hover:bg-white"
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="pr-8 text-lg font-black leading-tight">{title}</span>
+      <span className={`mt-3 max-w-[220px] text-sm leading-6 ${isSelected ? "text-white/82" : "text-slate-500"}`}>
+        {description}
+      </span>
+      <ArrowRight
+        className={`absolute bottom-5 right-5 h-5 w-5 transition duration-[260ms] group-hover:translate-x-1 ${
+          isSelected ? "text-white" : "text-[#2563EB]"
+        }`}
+      />
+    </a>
   );
 }
 
