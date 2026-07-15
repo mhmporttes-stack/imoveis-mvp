@@ -96,12 +96,12 @@ export default function PropertyExplorer({ properties = [] }) {
   return (
     <section id="todos" className="bg-mist py-24">
       <div className="container-page">
-        <div className="mb-10 max-w-3xl">
+        <div className="mb-12 max-w-[1120px]">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-brand">Busca inteligente</p>
-          <h2 className="mt-4 text-[clamp(2rem,3.8vw,3rem)] font-black leading-tight text-navy md:whitespace-nowrap">
+          <h2 className="mt-3 text-[clamp(2rem,3.1vw,3.15rem)] font-black leading-[1.04] text-navy md:whitespace-nowrap">
             Encontre o imóvel ideal para você
           </h2>
-          <p className="mt-4 text-lg leading-8 text-muted">
+          <p className="mt-4 max-w-[980px] text-[clamp(1rem,1.25vw,1.125rem)] leading-8 text-muted">
             Selecione suas preferências e veja os imóveis compatíveis com a sua busca.
           </p>
         </div>

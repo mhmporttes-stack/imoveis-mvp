@@ -27,12 +27,12 @@ body {
 }
 
 .container-wide {
-  width: min(1440px, calc(100% - 40px));
+  width: min(1440px, calc(100% - clamp(32px, 5vw, 96px)));
   margin-inline: auto;
 }
 
 .container-page {
-  width: min(1200px, calc(100% - 40px));
+  width: min(1360px, calc(100% - clamp(32px, 6vw, 96px)));
   margin-inline: auto;
 }
 

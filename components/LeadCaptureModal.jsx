@@ -142,7 +142,7 @@ export default function LeadCaptureModal() {
     >
       <div
         ref={dialogRef}
-        className="relative max-h-[calc(100svh-48px)] w-full max-w-[540px] overflow-y-auto rounded-[30px] border border-white/20 bg-white shadow-[0_34px_100px_rgba(3,16,31,0.36)] outline-none transition duration-300 motion-reduce:transition-none"
+        className="relative max-h-[calc(100svh-48px)] w-full max-w-[540px] overflow-x-hidden overflow-y-auto rounded-[30px] border border-white/20 bg-white shadow-[0_34px_100px_rgba(3,16,31,0.36)] outline-none transition duration-300 motion-reduce:transition-none"
       >
         <button
           aria-label="Fechar cadastro"
@@ -164,11 +164,11 @@ export default function LeadCaptureModal() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#061A2F]/92 via-[#061A2F]/64 to-[#061A2F]/15" />
         </div>
 
-        <div className="p-6 sm:p-8">
-          <h2 id="lead-capture-title" className="whitespace-nowrap text-[clamp(1.45rem,5.4vw,2rem)] font-black leading-tight text-navy">
+        <div className="min-w-0 p-6 sm:p-8">
+          <h2 id="lead-capture-title" className="max-w-full whitespace-nowrap text-[clamp(1rem,3.85vw,1.55rem)] font-black leading-tight text-navy">
             Quer ganhar tempo na sua busca?
           </h2>
-          <p className="mt-3 max-w-full text-[clamp(0.9rem,2.7vw,1rem)] font-semibold leading-7 text-muted sm:whitespace-nowrap">
+          <p className="mt-3 max-w-full text-[clamp(0.84rem,2.5vw,1rem)] font-semibold leading-7 text-muted sm:whitespace-nowrap">
             Deixe seus dados e receba um atendimento rápido e objetivo.
           </p>
 
