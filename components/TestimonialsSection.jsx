@@ -84,19 +84,20 @@ function TestimonialCard({ testimonial, onPlay }) {
   const hasImage = testimonial.mediaType === "image" && testimonial.imageUrl;
   const hasVideo = (testimonial.mediaType === "video_upload" || testimonial.mediaType === "video_url") && testimonial.videoUrl;
   const mediaImage = hasImage ? testimonial.imageUrl : testimonial.videoThumbnailUrl;
+  const hasMedia = hasImage || hasVideo;
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-[24px] border border-line bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-premium">
-      {hasImage || hasVideo ? (
-        <div className="bg-[#F8FBFF] px-6 pt-6">
-          <div className="relative mx-auto aspect-[9/16] w-full max-w-[260px] overflow-hidden rounded-[22px] bg-[#EAF2FB] shadow-soft">
+    <article className="group h-full overflow-hidden rounded-[28px] border border-line/80 bg-white shadow-[0_22px_70px_rgba(13,59,102,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(13,59,102,0.14)]">
+      <div className={hasMedia ? "grid min-h-[520px] bg-white sm:grid-cols-[1fr_44%]" : "flex h-full flex-col bg-white"}>
+        {hasMedia ? (
+          <div className="relative order-1 min-h-[420px] overflow-hidden rounded-t-[28px] bg-[#EAF2FB] sm:order-2 sm:min-h-full sm:rounded-l-none sm:rounded-r-[28px]">
             {mediaImage ? (
               <Image
                 src={mediaImage}
                 alt={`Depoimento de ${testimonial.clientName}`}
                 fill
                 sizes="(min-width: 1280px) 260px, (min-width: 768px) 34vw, 70vw"
-                className="object-cover"
+                className="testimonial-media-mask object-cover"
                 unoptimized
               />
             ) : (
@@ -108,27 +109,27 @@ function TestimonialCard({ testimonial, onPlay }) {
             {hasVideo ? (
               <button
                 aria-label={`Reproduzir depoimento de ${testimonial.clientName}`}
-                className="absolute inset-0 grid place-items-center bg-navy/18 text-white transition duration-300 hover:bg-navy/28 focus:outline-none focus:ring-4 focus:ring-brand/30"
+                className="absolute inset-0 grid place-items-center bg-navy/10 text-white transition duration-300 hover:bg-navy/20 focus:outline-none focus:ring-4 focus:ring-brand/30"
                 onClick={onPlay}
                 type="button"
               >
-                <span className="grid h-16 w-16 place-items-center rounded-full border border-white/35 bg-white/20 shadow-soft backdrop-blur">
+                <span className="grid h-16 w-16 place-items-center rounded-full border border-white/35 bg-white/20 shadow-soft">
                   <Play className="ml-1 h-8 w-8 fill-white" />
                 </span>
               </button>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="flex flex-1 flex-col p-7">
-        <Quote className="h-8 w-8 text-brand" aria-hidden="true" />
-        <p className="mt-5 flex-1 text-lg leading-8 text-ink">“{testimonial.testimonialText}”</p>
-        <div className="mt-7 border-t border-line pt-5">
-          <p className="text-lg font-extrabold text-navy">{testimonial.clientName}</p>
-          {testimonial.clientDescription ? (
-            <p className="mt-1 text-sm font-bold text-muted">{testimonial.clientDescription}</p>
-          ) : null}
+        <div className={`relative z-10 order-2 flex flex-1 flex-col bg-white p-7 sm:order-1 sm:p-8 ${hasMedia ? "sm:pr-2" : ""}`}>
+          <Quote className="h-9 w-9 text-brand" aria-hidden="true" />
+          <p className="mt-6 flex-1 text-[1.08rem] leading-8 text-ink sm:text-lg sm:leading-9">“{testimonial.testimonialText}”</p>
+          <div className="mt-8">
+            <p className="text-xl font-black leading-tight text-navy">{testimonial.clientName}</p>
+            {testimonial.clientDescription ? (
+              <p className="mt-1.5 text-sm font-bold leading-6 text-muted">{testimonial.clientDescription}</p>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
