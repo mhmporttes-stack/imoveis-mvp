@@ -651,8 +651,8 @@ function buildPresentationPages(form, totals, caixaLogoDataUri = "") {
 
 function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   const typeLabelText = form.simulationType === "usado" ? "IMÓVEL USADO" : "IMÓVEL NOVO";
-  const mainValue = form.showExpandedPower ? totals.expanded : totals.total;
-  const subtitle = form.showExpandedPower ? "Financiamento + subsídio + entrada + FGTS" : "Soma do subsídio + financiamento";
+  const mainValue = totals.total;
+  const subtitle = "Soma do subsídio + financiamento";
   const client = escapeXml(form.clientName || "Cliente");
 
   return {
@@ -669,10 +669,13 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
     </filter>
   </defs>
   <rect width="1080" height="1620" fill="url(#bg)"/>
-  ${caixaLogoDataUri ? `<image href="${caixaLogoDataUri}" x="300" y="80" width="480" height="120" preserveAspectRatio="xMidYMid meet"/>` : ""}
+  ${caixaLogoDataUri ? `<image href="${caixaLogoDataUri}" x="250" y="50" width="580" height="145" preserveAspectRatio="xMidYMid meet"/>` : ""}
   <text x="540" y="250" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="60" letter-spacing="2" fill="#0757B8">SIMULAÇÃO HABITACIONAL</text>
   <rect x="382" y="310" width="316" height="62" rx="31" fill="#fff"/>
   <circle cx="418" cy="341" r="31" fill="#0757B8"/>
+  <path d="M402 340 L418 327 L434 340" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M407 338 V354 H429 V338" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M415 354 V345 H421 V354" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
   <text x="462" y="356" font-family="Inter, Arial" font-weight="900" font-size="28" fill="#0757B8">${typeLabelText}</text>
 
   <rect x="42" y="430" width="996" height="520" rx="42" fill="#fff" filter="url(#shadow)"/>
@@ -681,10 +684,18 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   <text x="540" y="697" text-anchor="middle" font-family="Inter, Arial" font-size="31" fill="#072D65">${escapeXml(subtitle)}</text>
   <line x1="98" x2="982" y1="760" y2="760" stroke="#B8D2F0" stroke-width="2"/>
   <circle cx="150" cy="850" r="52" fill="#0757B8"/>
+  <path d="M123 862 C135 854 143 854 154 862 L171 872" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <path d="M126 844 H142 C149 844 153 848 153 854 C153 860 149 864 142 864 H132" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M156 831 V870" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M169 838 C165 833 160 831 154 832 C146 833 143 837 143 842 C143 849 150 851 158 853 C166 855 172 859 171 866 C170 872 163 876 154 875 C147 875 141 872 137 867" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
   <text x="225" y="828" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#0757B8">VALOR DO SUBSÍDIO</text>
   <text x="225" y="885" font-family="Inter, Arial" font-weight="900" font-size="38" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
   <line x1="540" x2="540" y1="800" y2="905" stroke="#D8E6F6" stroke-width="3"/>
   <circle cx="622" cy="850" r="52" fill="#0757B8"/>
+  <path d="M604 820 H632 L646 834 V878 H604 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M632 820 V836 H646" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M613 846 H636 M613 862 H628" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="641" cy="866" r="11" fill="none" stroke="#fff" stroke-width="5"/>
   <text x="695" y="828" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#0757B8">VALOR DO FINANCIAMENTO</text>
   <text x="695" y="885" font-family="Inter, Arial" font-weight="900" font-size="38" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
 
@@ -699,9 +710,20 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
 
   <text x="540" y="1390" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="34" letter-spacing="5" fill="#fff">WWW.MATHEUSMACHADOIMOVEIS.COM.BR</text>
   <rect x="60" y="1445" width="960" height="125" rx="34" fill="#0757B8"/>
-  <text x="190" y="1518" text-anchor="middle" font-family="Inter, Arial" font-size="25" fill="#fff">Condições facilitadas</text>
-  <text x="540" y="1518" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#fff">@MHM.MACHADO</text>
-  <text x="870" y="1518" text-anchor="middle" font-family="Inter, Arial" font-size="25" fill="#fff">Segurança e tranquilidade</text>
+  <line x1="350" x2="350" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
+  <line x1="705" x2="705" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
+  <path d="M125 1478 L170 1494 V1522 C170 1545 151 1558 125 1566 C99 1558 80 1545 80 1522 V1494 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M106 1522 L120 1536 L146 1508" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="225" y="1504" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">Condições</text>
+  <text x="225" y="1535" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">facilitadas</text>
+  <rect x="402" y="1484" width="58" height="58" rx="16" fill="none" stroke="#fff" stroke-width="6"/>
+  <circle cx="431" cy="1513" r="14" fill="none" stroke="#fff" stroke-width="6"/>
+  <circle cx="451" cy="1495" r="4" fill="#fff"/>
+  <text x="565" y="1522" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="24" fill="#fff">@MHM.MACHADO</text>
+  <circle cx="765" cy="1513" r="34" fill="none" stroke="#fff" stroke-width="6"/>
+  <path d="M747 1514 L760 1527 L786 1499" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="900" y="1504" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">Segurança e</text>
+  <text x="900" y="1535" text-anchor="middle" font-family="Inter, Arial" font-size="24" fill="#fff">tranquilidade</text>
 </svg>`
   };
 }
@@ -818,40 +840,80 @@ async function svgToCanvas(svg) {
 }
 
 function buildPdfFromJpegs(images, width, height) {
-  const objects = [];
-  const pages = [];
-  let objectId = 1;
+  const catalogId = 1;
+  const pagesId = 2;
+  let nextId = 3;
+  const bodies = [];
+  const pageRefs = [];
 
-  for (const image of images) {
-    const binary = atob(image.split(",")[1]);
-    const imageObjectId = objectId++;
-    const pageObjectId = objectId++;
-    const contentObjectId = objectId++;
-    objects[imageObjectId] = `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${binary.length} >>\nstream\n${binary}\nendstream`;
-    objects[contentObjectId] = `<< /Length 45 >>\nstream\nq ${width} 0 0 ${height} 0 0 cm /Im${imageObjectId} Do Q\nendstream`;
-    objects[pageObjectId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im${imageObjectId} ${imageObjectId} 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
-    pages.push(`${pageObjectId} 0 R`);
+  for (const [index, image] of images.entries()) {
+    const imageBytes = dataUrlToBytes(image);
+    const imageId = nextId++;
+    const contentId = nextId++;
+    const pageId = nextId++;
+    const imageName = `Im${index + 1}`;
+    const content = `q\n${width} 0 0 ${height} 0 0 cm\n/${imageName} Do\nQ`;
+
+    bodies[imageId] = concatBytes(
+      asciiBytes(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`),
+      imageBytes,
+      asciiBytes("\nendstream")
+    );
+    bodies[contentId] = asciiBytes(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    bodies[pageId] = asciiBytes(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /${imageName} ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pageRefs.push(`${pageId} 0 R`);
   }
 
-  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  objects[2] = `<< /Type /Pages /Kids [${pages.join(" ")}] /Count ${pages.length} >>`;
+  bodies[catalogId] = asciiBytes(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  bodies[pagesId] = asciiBytes(`<< /Type /Pages /Kids [${pageRefs.join(" ")}] /Count ${pageRefs.length} >>`);
 
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (let index = 1; index < objects.length; index++) {
-    offsets[index] = pdf.length;
-    pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
-  for (let index = 1; index < objects.length; index++) {
-    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const maxId = nextId - 1;
+  const chunks = [asciiBytes("%PDF-1.4\n")];
+  const offsets = new Array(maxId + 1).fill(0);
+  let length = chunks[0].length;
 
-  const bytes = new Uint8Array(pdf.length);
-  for (let index = 0; index < pdf.length; index++) bytes[index] = pdf.charCodeAt(index) & 0xff;
-  return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  for (let id = 1; id <= maxId; id += 1) {
+    offsets[id] = length;
+    const header = asciiBytes(`${id} 0 obj\n`);
+    const footer = asciiBytes("\nendobj\n");
+    chunks.push(header, bodies[id], footer);
+    length += header.length + bodies[id].length + footer.length;
+  }
+
+  const xrefOffset = length;
+  let xref = `xref\n0 ${maxId + 1}\n0000000000 65535 f \n`;
+  for (let id = 1; id <= maxId; id += 1) {
+    xref += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  }
+  xref += `trailer\n<< /Size ${maxId + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  chunks.push(asciiBytes(xref));
+
+  return URL.createObjectURL(new Blob(chunks, { type: "application/pdf" }));
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function asciiBytes(value) {
+  return new TextEncoder().encode(value);
+}
+
+function concatBytes(...parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    merged.set(part, offset);
+    offset += part.length;
+  }
+  return merged;
 }
 
 function downloadDataUrl(dataUrl, fileName) {
