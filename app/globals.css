@@ -52,6 +52,10 @@ body {
   @apply rounded-2xl border border-line bg-white shadow-soft;
 }
 
+.admin-input {
+  @apply min-h-14 w-full rounded-2xl border border-line bg-white px-4 text-base font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/10;
+}
+
 .testimonial-media-mask {
   -webkit-mask-image: linear-gradient(
     to bottom,
