@@ -63,6 +63,11 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
   const [caixaLogoDataUri, setCaixaLogoDataUri] = useState("");
+  const [simulationAssetDataUris, setSimulationAssetDataUris] = useState({
+    financingIconDataUri: "",
+    subsidyIconDataUri: "",
+    footerStripDataUri: ""
+  });
   const [propertyImageDataUris, setPropertyImageDataUris] = useState({});
   const [propertyQuery, setPropertyQuery] = useState("");
   const [activePage, setActivePage] = useState(0);
@@ -96,13 +101,31 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   useEffect(() => {
     let mounted = true;
-    assetToDataUri("/assets/caixa-logo-transparent.png")
-      .then((dataUri) => {
-        if (mounted) setCaixaLogoDataUri(dataUri);
+    const sources = {
+      caixaLogoDataUri: "/assets/caixa-logo-transparent.png",
+      financingIconDataUri: "/assets/simulation-financing-icon.png",
+      subsidyIconDataUri: "/assets/simulation-subsidy-icon.png",
+      footerStripDataUri: "/assets/simulation-footer-strip.png"
+    };
+
+    Promise.all(
+      Object.entries(sources).map(async ([key, source]) => {
+        try {
+          return [key, await assetToDataUri(source)];
+        } catch {
+          return [key, ""];
+        }
       })
-      .catch(() => {
-        if (mounted) setCaixaLogoDataUri("");
+    ).then((entries) => {
+      if (!mounted) return;
+      const next = Object.fromEntries(entries);
+      setCaixaLogoDataUri(next.caixaLogoDataUri || "");
+      setSimulationAssetDataUris({
+        financingIconDataUri: next.financingIconDataUri || "",
+        subsidyIconDataUri: next.subsidyIconDataUri || "",
+        footerStripDataUri: next.footerStripDataUri || ""
       });
+    });
 
     return () => {
       mounted = false;
@@ -168,7 +191,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     [form, propertyImageDataUris]
   );
 
-  const pages = useMemo(() => buildPresentationPages(presentationForm, totals, caixaLogoDataUri), [caixaLogoDataUri, presentationForm, totals]);
+  const simulationAssets = useMemo(
+    () => ({ caixaLogoDataUri, ...simulationAssetDataUris }),
+    [caixaLogoDataUri, simulationAssetDataUris]
+  );
+
+  const pages = useMemo(() => buildPresentationPages(presentationForm, totals, simulationAssets), [presentationForm, simulationAssets, totals]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -277,7 +305,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     setError("");
     try {
       const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
-      const svgs = buildPresentationPages(exportForm, totals, caixaLogoDataUri);
+      const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
       for (const [index, page] of svgs.entries()) {
         const dataUrl = await svgToPngDataUrl(page.svg);
         downloadDataUrl(dataUrl, `simulacao-${safeFileName(form.clientName)}-${index + 1}.png`);
@@ -291,7 +319,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     setError("");
     try {
       const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
-      const svgs = buildPresentationPages(exportForm, totals, caixaLogoDataUri);
+      const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
       const images = [];
       for (const page of svgs) images.push(await svgToJpegDataUrl(page.svg));
       const pdfUrl = buildPdfFromJpegs(images, 1080, 1620);
@@ -641,18 +669,24 @@ async function resolveSimulationImagesForExport(form, imageDataUris = {}) {
   return withResolvedPropertyImages(form, Object.fromEntries(entries));
 }
 
-function buildPresentationPages(form, totals, caixaLogoDataUri = "") {
-  const pages = [buildSimulationResultSvg(form, totals, caixaLogoDataUri)];
+function buildPresentationPages(form, totals, simulationAssets = {}) {
+  const pages = [buildSimulationResultSvg(form, totals, simulationAssets)];
   const propertyPages = form.outputMode === "comparativo"
     ? chunk(form.properties, 2).map((items, index) => buildComparativePropertySvg(items, index))
     : form.properties.map((property, index) => buildPropertySvg(property, index));
   return [...pages, ...propertyPages];
 }
 
-function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
+function buildSimulationResultSvg(form, totals, simulationAssets = {}) {
+  const {
+    caixaLogoDataUri = "",
+    financingIconDataUri = "",
+    subsidyIconDataUri = "",
+    footerStripDataUri = ""
+  } = simulationAssets;
   const typeLabelText = form.simulationType === "usado" ? "IMÓVEL USADO" : "IMÓVEL NOVO";
   const mainValue = totals.total;
-  const subtitle = "Soma do subsídio + financiamento";
+  const subtitle = "Soma do financiamento + subsídio";
   const client = escapeXml(form.clientName || "Cliente");
 
   return {
@@ -683,21 +717,13 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   <text x="540" y="625" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="84" fill="#072D65">${escapeXml(formatCurrency(mainValue))}</text>
   <text x="540" y="697" text-anchor="middle" font-family="Inter, Arial" font-size="31" fill="#072D65">${escapeXml(subtitle)}</text>
   <line x1="98" x2="982" y1="760" y2="760" stroke="#B8D2F0" stroke-width="2"/>
-  <circle cx="148" cy="850" r="56" fill="#0757B8"/>
-  <path d="M118 865 C132 856 143 856 156 865 L178 877" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
-  <path d="M122 844 H142 C151 844 156 850 156 857 C156 864 151 869 142 869 H130" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M159 827 V873" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-  <path d="M174 835 C169 829 163 827 155 828 C146 829 142 834 142 840 C142 849 151 851 159 854 C169 857 175 861 174 868 C173 876 165 880 155 879 C146 879 139 875 135 870" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
-  <text x="220" y="826" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">VALOR DO SUBSÍDIO</text>
-  <text x="220" y="890" font-family="Inter, Arial" font-weight="900" font-size="43" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
+  ${financingIconDataUri ? `<image href="${financingIconDataUri}" x="98" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="156" cy="850" r="56" fill="#0757B8"/><path d="M136 817 H167 L185 835 V881 H136 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M167 817 V837 H185" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M148 848 H173 M148 865 H164" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="179" cy="868" r="12" fill="none" stroke="#fff" stroke-width="5"/>`}
+  <text x="360" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">FINANCIAMENTO</text>
+  <text x="360" y="890" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="41" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
   <line x1="540" x2="540" y1="800" y2="905" stroke="#D8E6F6" stroke-width="3"/>
-  <circle cx="620" cy="850" r="56" fill="#0757B8"/>
-  <path d="M600 817 H631 L649 835 V881 H600 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M631 817 V837 H649" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M612 848 H637 M612 865 H628" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="643" cy="868" r="12" fill="none" stroke="#fff" stroke-width="5"/>
-  <text x="697" y="826" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">VALOR DO FINANCIAMENTO</text>
-  <text x="697" y="890" font-family="Inter, Arial" font-weight="900" font-size="43" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
+  ${subsidyIconDataUri ? `<image href="${subsidyIconDataUri}" x="578" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="636" cy="850" r="56" fill="#0757B8"/><path d="M606 865 C620 856 631 856 644 865 L666 877" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M610 844 H630 C639 844 644 850 644 857 C644 864 639 869 630 869 H618" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M647 827 V873" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M662 835 C657 829 651 827 643 828 C634 829 630 834 630 840 C630 849 639 851 647 854 C657 857 663 861 662 868 C661 876 653 880 643 879 C634 879 627 875 623 870" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`}
+  <text x="830" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">SUBSÍDIO</text>
+  <text x="830" y="890" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="41" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
 
   <rect x="60" y="1030" width="960" height="305" rx="38" fill="#0757B8"/>
   <text x="540" y="1115" text-anchor="middle" font-family="Inter, Arial" font-style="italic" font-size="37" fill="#fff">Cliente: ${client}</text>
@@ -709,21 +735,7 @@ function buildSimulationResultSvg(form, totals, caixaLogoDataUri = "") {
   <text x="765" y="1282" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="56" fill="#fff">${escapeXml(formatCurrency(moneyNumber(form.lastInstallment)))}</text>
 
   <text x="540" y="1390" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="34" letter-spacing="5" fill="#fff">WWW.MATHEUSMACHADOIMOVEIS.COM.BR</text>
-  <rect x="60" y="1445" width="960" height="125" rx="34" fill="#0757B8"/>
-  <line x1="346" x2="346" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
-  <line x1="706" x2="706" y1="1475" y2="1540" stroke="#8CC4FF" stroke-width="3"/>
-  <path d="M128 1477 L173 1493 V1522 C173 1546 153 1559 128 1566 C102 1559 83 1546 83 1522 V1493 Z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M109 1522 L123 1536 L149 1508" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="190" y="1504" font-family="Inter, Arial" font-size="25" fill="#fff">Condições</text>
-  <text x="190" y="1536" font-family="Inter, Arial" font-size="25" fill="#fff">facilitadas</text>
-  <rect x="402" y="1482" width="62" height="62" rx="17" fill="none" stroke="#fff" stroke-width="6"/>
-  <circle cx="433" cy="1513" r="15" fill="none" stroke="#fff" stroke-width="6"/>
-  <circle cx="454" cy="1494" r="4" fill="#fff"/>
-  <text x="493" y="1523" font-family="Inter, Arial" font-weight="900" font-size="25" fill="#fff">@MHM.MACHADO</text>
-  <circle cx="775" cy="1513" r="36" fill="none" stroke="#fff" stroke-width="6"/>
-  <path d="M756 1514 L770 1528 L797 1499" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="845" y="1504" font-family="Inter, Arial" font-size="25" fill="#fff">Segurança e</text>
-  <text x="845" y="1536" font-family="Inter, Arial" font-size="25" fill="#fff">tranquilidade</text>
+  ${footerStripDataUri ? `<image href="${footerStripDataUri}" x="60" y="1410" width="960" height="195" preserveAspectRatio="xMidYMid meet"/>` : `<rect x="60" y="1445" width="960" height="125" rx="34" fill="#0757B8"/>`}
 </svg>`
   };
 }
