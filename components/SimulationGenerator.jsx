@@ -276,6 +276,19 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     }));
   }
 
+  function removeBenefit(propertyIndex, benefitIndex) {
+    setForm((current) => ({
+      ...current,
+      properties: current.properties.map((property, itemIndex) => {
+        if (itemIndex !== propertyIndex) return property;
+        const benefits = property.benefits
+          .filter((_, index) => index !== benefitIndex)
+          .map((benefit, displayOrder) => ({ ...benefit, displayOrder }));
+        return { ...property, benefits };
+      })
+    }));
+  }
+
   async function saveSimulation() {
     setSaving(true);
     setError("");
@@ -470,6 +483,14 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     <span className="flex gap-2">
                       <button className="rounded-full border border-line bg-white px-3 py-1 text-brand disabled:opacity-30" disabled={benefitIndex === 0} onClick={() => moveBenefit(propertyIndex, benefitIndex, -1)} type="button">↑</button>
                       <button className="rounded-full border border-line bg-white px-3 py-1 text-brand disabled:opacity-30" disabled={benefitIndex === property.benefits.length - 1} onClick={() => moveBenefit(propertyIndex, benefitIndex, 1)} type="button">↓</button>
+                      <button
+                        aria-label={`Remover ${benefit.text}`}
+                        className="rounded-full border border-red-100 bg-white px-3 py-1 text-red-600 transition hover:border-red-200 hover:bg-red-50"
+                        onClick={() => removeBenefit(propertyIndex, benefitIndex)}
+                        type="button"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </span>
                   </div>
                 ))}
@@ -688,6 +709,30 @@ function buildSimulationResultSvg(form, totals, simulationAssets = {}) {
   const mainValue = totals.total;
   const subtitle = "Soma do financiamento + subsídio";
   const client = escapeXml(form.clientName || "Cliente");
+  const mainValueSvg = fittedSvgText(formatCurrency(mainValue), {
+    x: 540,
+    y: 625,
+    maxWidth: 900,
+    maxFontSize: 84,
+    minFontSize: 64,
+    fill: "#072D65"
+  });
+  const financingValueSvg = fittedSvgText(formatCurrency(totals.financing), {
+    x: 365,
+    y: 890,
+    maxWidth: 315,
+    maxFontSize: 39,
+    minFontSize: 30,
+    fill: "#072D65"
+  });
+  const subsidyValueSvg = fittedSvgText(formatCurrency(totals.subsidy), {
+    x: 835,
+    y: 890,
+    maxWidth: 290,
+    maxFontSize: 39,
+    minFontSize: 30,
+    fill: "#072D65"
+  });
 
   return {
     title: "Resultado",
@@ -714,16 +759,16 @@ function buildSimulationResultSvg(form, totals, simulationAssets = {}) {
 
   <rect x="42" y="430" width="996" height="520" rx="42" fill="#fff" filter="url(#shadow)"/>
   <text x="540" y="505" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="34" letter-spacing="1.5" fill="#0757B8">PODER TOTAL DE COMPRA:</text>
-  <text x="540" y="625" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="84" fill="#072D65">${escapeXml(formatCurrency(mainValue))}</text>
+  ${mainValueSvg}
   <text x="540" y="697" text-anchor="middle" font-family="Inter, Arial" font-size="31" fill="#072D65">${escapeXml(subtitle)}</text>
   <line x1="98" x2="982" y1="760" y2="760" stroke="#B8D2F0" stroke-width="2"/>
-  ${financingIconDataUri ? `<image href="${financingIconDataUri}" x="98" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="156" cy="850" r="56" fill="#0757B8"/><path d="M136 817 H167 L185 835 V881 H136 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M167 817 V837 H185" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M148 848 H173 M148 865 H164" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="179" cy="868" r="12" fill="none" stroke="#fff" stroke-width="5"/>`}
-  <text x="360" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">FINANCIAMENTO</text>
-  <text x="360" y="890" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="41" fill="#072D65">${escapeXml(formatCurrency(totals.financing))}</text>
+  ${financingIconDataUri ? `<image href="${financingIconDataUri}" x="78" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="136" cy="850" r="56" fill="#0757B8"/><path d="M116 817 H147 L165 835 V881 H116 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M147 817 V837 H165" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="M128 848 H153 M128 865 H144" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="159" cy="868" r="12" fill="none" stroke="#fff" stroke-width="5"/>`}
+  <text x="365" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">FINANCIAMENTO</text>
+  ${financingValueSvg}
   <line x1="540" x2="540" y1="800" y2="905" stroke="#D8E6F6" stroke-width="3"/>
-  ${subsidyIconDataUri ? `<image href="${subsidyIconDataUri}" x="578" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="636" cy="850" r="56" fill="#0757B8"/><path d="M606 865 C620 856 631 856 644 865 L666 877" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M610 844 H630 C639 844 644 850 644 857 C644 864 639 869 630 869 H618" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M647 827 V873" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M662 835 C657 829 651 827 643 828 C634 829 630 834 630 840 C630 849 639 851 647 854 C657 857 663 861 662 868 C661 876 653 880 643 879 C634 879 627 875 623 870" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`}
-  <text x="830" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">SUBSÍDIO</text>
-  <text x="830" y="890" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="41" fill="#072D65">${escapeXml(formatCurrency(totals.subsidy))}</text>
+  ${subsidyIconDataUri ? `<image href="${subsidyIconDataUri}" x="570" y="792" width="116" height="116" preserveAspectRatio="xMidYMid meet"/>` : `<circle cx="628" cy="850" r="56" fill="#0757B8"/><path d="M598 865 C612 856 623 856 636 865 L658 877" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M602 844 H622 C631 844 636 850 636 857 C636 864 631 869 622 869 H610" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M639 827 V873" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M654 835 C649 829 643 827 635 828 C626 829 622 834 622 840 C622 849 631 851 639 854 C649 857 655 861 654 868 C653 876 645 880 635 879 C626 879 619 875 615 870" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`}
+  <text x="835" y="826" text-anchor="middle" font-family="Inter, Arial" font-weight="900" font-size="26" fill="#0757B8">SUBSÍDIO</text>
+  ${subsidyValueSvg}
 
   <rect x="60" y="1030" width="960" height="305" rx="38" fill="#0757B8"/>
   <text x="540" y="1115" text-anchor="middle" font-family="Inter, Arial" font-style="italic" font-size="37" fill="#fff">Cliente: ${client}</text>
@@ -806,6 +851,32 @@ function wrapSvgText(text, x, y, lineHeight, maxLines, fill, fontSize) {
   }
   if (line && lines.length < maxLines) lines.push(line);
   return lines.map((item, index) => `<text x="${x}" y="${y + index * lineHeight}" font-family="Inter, Arial" font-size="${fontSize}" fill="${fill}">${escapeXml(item)}</text>`).join("");
+}
+
+function fittedSvgText(text, { x, y, maxWidth, maxFontSize, minFontSize, fill, weight = "900", anchor = "middle" }) {
+  const value = String(text || "");
+  const estimatedWidth = estimateSvgTextWidth(value, maxFontSize);
+  const fontSize = estimatedWidth > maxWidth
+    ? Math.max(minFontSize, Math.floor(maxFontSize * (maxWidth / estimatedWidth)))
+    : maxFontSize;
+  const fittedWidth = estimateSvgTextWidth(value, fontSize);
+  const fitAttrs = fittedWidth > maxWidth
+    ? ` textLength="${maxWidth}" lengthAdjust="spacingAndGlyphs"`
+    : "";
+
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Inter, Arial" font-weight="${weight}" font-size="${fontSize}" fill="${fill}"${fitAttrs}>${escapeXml(value)}</text>`;
+}
+
+function estimateSvgTextWidth(text, fontSize) {
+  const widthUnits = Array.from(String(text || "")).reduce((total, char) => {
+    if (char === " ") return total + 0.32;
+    if (char === "." || char === ",") return total + 0.24;
+    if (char === "$") return total + 0.62;
+    if (/[0-9]/.test(char)) return total + 0.58;
+    return total + 0.6;
+  }, 0);
+
+  return widthUnits * fontSize;
 }
 
 async function svgToPngDataUrl(svg) {
