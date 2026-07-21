@@ -2,30 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  BadgeDollarSign,
-  Bath,
-  BedDouble,
-  Building2,
-  CalendarClock,
-  Car,
-  CheckCircle2,
-  Dumbbell,
-  Hammer,
-  Home,
-  KeyRound,
-  Leaf,
-  MapPin,
-  Percent,
-  Ruler,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Trees,
-  UsersRound,
-  Wallet,
-  Waves
-} from "lucide-react";
+import { Sparkles } from "lucide-react";
+import PropertyFeatureIcon, { getPropertyFeatureIcon } from "@/components/PropertyFeatureIcon";
 import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
 import { ADMIN_REGION_OPTIONS, normalizeRegionValue } from "@/lib/property-filter-options";
 
@@ -563,7 +541,7 @@ function normalizeFeatures(features) {
 function FeatureIconPicker({ value, onChange, ariaLabel, compact = false }) {
   const [open, setOpen] = useState(false);
   const currentOption = FEATURE_ICON_OPTIONS.find((option) => option.value === value) || FEATURE_ICON_OPTIONS[0];
-  const CurrentIcon = FEATURE_ICONS[currentOption?.value] || Sparkles;
+  const CurrentIcon = getPropertyFeatureIcon(currentOption?.value);
 
   return (
     <div className={`relative ${compact ? "inline-flex" : "inline-flex min-h-12 items-center"}`}>
@@ -580,12 +558,12 @@ function FeatureIconPicker({ value, onChange, ariaLabel, compact = false }) {
 
       {open ? (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 flex w-[min(19rem,calc(100vw-3rem))] flex-wrap gap-2 rounded-2xl border border-line bg-white p-3 shadow-premium"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 flex max-h-80 w-[min(22rem,calc(100vw-3rem))] flex-wrap gap-2 overflow-y-auto rounded-2xl border border-line bg-white p-3 shadow-premium"
           role="radiogroup"
           aria-label={ariaLabel || "Escolher ícone do diferencial"}
         >
           {FEATURE_ICON_OPTIONS.map((option) => {
-            const Icon = FEATURE_ICONS[option.value] || Sparkles;
+            const Icon = getPropertyFeatureIcon(option.value);
             const selected = value === option.value;
 
             return (
@@ -616,34 +594,8 @@ function FeatureIconPicker({ value, onChange, ariaLabel, compact = false }) {
 }
 
 function FeaturePreviewIcon({ icon }) {
-  const Icon = FEATURE_ICONS[icon] || Sparkles;
-  return <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
+  return <PropertyFeatureIcon icon={icon} className="h-4 w-4 shrink-0 text-brand" />;
 }
-
-const FEATURE_ICONS = {
-  bath: Bath,
-  bed: BedDouble,
-  building: Building2,
-  calendar: CalendarClock,
-  car: Car,
-  check: CheckCircle2,
-  dumbbell: Dumbbell,
-  hammer: Hammer,
-  home: Home,
-  key: KeyRound,
-  leaf: Leaf,
-  map: MapPin,
-  money: BadgeDollarSign,
-  percent: Percent,
-  ruler: Ruler,
-  shield: ShieldCheck,
-  sparkles: Sparkles,
-  store: Store,
-  trees: Trees,
-  users: UsersRound,
-  wallet: Wallet,
-  waves: Waves
-};
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {

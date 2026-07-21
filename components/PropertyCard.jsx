@@ -1,30 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BadgeDollarSign,
-  Bath,
-  BedDouble,
-  Building2,
-  CalendarClock,
-  Car,
-  CheckCircle2,
-  Dumbbell,
-  Hammer,
-  Home,
-  KeyRound,
-  Leaf,
-  MapPin,
-  Percent,
-  Ruler,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Trees,
-  UsersRound,
-  Wallet,
-  Waves
-} from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
+import PropertyFeatureIcon from "@/components/PropertyFeatureIcon";
 import { coverImage, propertyCardFeatures, propertyPrice, propertyRegion, statusLabel } from "@/lib/format";
 
 export default function PropertyCard({ property, large = false }) {
@@ -76,7 +53,7 @@ export default function PropertyCard({ property, large = false }) {
               </li>
             )) : (
               <li className="flex items-center gap-3 text-[15px] font-semibold text-slate-500">
-                <Sparkles className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                <PropertyFeatureIcon icon="sparkles" className="h-4 w-4 shrink-0 text-brand" />
                 <span>Condições sob consulta</span>
               </li>
             )}
@@ -111,31 +88,5 @@ export default function PropertyCard({ property, large = false }) {
 }
 
 function FeatureIcon({ feature }) {
-  const Icon = FEATURE_ICONS[feature.icon] || Sparkles;
-  return <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
+  return <PropertyFeatureIcon icon={feature.icon} className="h-4 w-4 shrink-0 text-brand" />;
 }
-
-const FEATURE_ICONS = {
-  bath: Bath,
-  bed: BedDouble,
-  building: Building2,
-  calendar: CalendarClock,
-  car: Car,
-  check: CheckCircle2,
-  dumbbell: Dumbbell,
-  hammer: Hammer,
-  home: Home,
-  key: KeyRound,
-  leaf: Leaf,
-  map: MapPin,
-  money: BadgeDollarSign,
-  percent: Percent,
-  ruler: Ruler,
-  shield: ShieldCheck,
-  sparkles: Sparkles,
-  store: Store,
-  trees: Trees,
-  users: UsersRound,
-  wallet: Wallet,
-  waves: Waves
-};
