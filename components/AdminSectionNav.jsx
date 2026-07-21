@@ -4,6 +4,7 @@ export default function AdminSectionNav({ active = "properties" }) {
   const links = [
     { href: "/admin", label: "Empreendimentos", key: "properties" },
     { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
+    { href: "/admin/cadastros", label: "Cadastros", key: "registrations" },
     { href: "/admin/simulacoes", label: "Gerador de Simulações", key: "simulations" }
   ];
 

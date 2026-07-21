@@ -192,8 +192,6 @@ function SimulationChoiceCard({ description, href, icon, isSelected, onSelect, t
       className={`group relative flex min-h-[190px] flex-col rounded-[24px] border p-5 transition duration-[260ms] ease-out focus:outline-none focus:ring-4 focus:ring-blue-200/70 ${isSelected ? selectedClasses : idleClasses}`}
       href={href}
       onClick={onSelect}
-      rel="noopener noreferrer"
-      target="_blank"
     >
       <span
         aria-hidden="true"

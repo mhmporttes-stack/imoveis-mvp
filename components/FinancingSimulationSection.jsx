@@ -70,8 +70,6 @@ function SimulationOptionCard({ ariaLabel, description, href, icon: Icon, title 
       aria-label={ariaLabel}
       className="group relative flex min-h-[124px] items-start gap-4 rounded-2xl border border-line bg-white p-5 shadow-[0_12px_30px_rgba(13,59,102,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-blue-50/70 hover:shadow-[0_18px_46px_rgba(13,59,102,0.11)] focus:outline-none focus:ring-4 focus:ring-brand/15"
       href={href}
-      rel="noopener noreferrer"
-      target="_blank"
     >
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#E9F2FF] text-brand transition duration-300 group-hover:bg-white">
         <Icon className="h-6 w-6" aria-hidden="true" />

@@ -35,7 +35,7 @@ export default async function PropertyPage({ params }) {
           </div>
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero agendar uma visita no ${property.name}.`)}>Agendar visita</a>
-            <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero simular o financiamento do ${property.name}.`)}>Simular financiamento</a>
+            <Link className="premium-button-secondary" href="/simulacao">Simular financiamento</Link>
             <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property)}>Conversar no WhatsApp</a>
             {property.pdfData ? <a className="premium-button-secondary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}>Receber catálogo</a> : <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero receber o catálogo do ${property.name}.`)}>Receber catálogo</a>}
           </div>
