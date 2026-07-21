@@ -5,6 +5,7 @@ import {
   formatSimulationRegistrationError,
   SimulationRegistrationValidationError
 } from "@/lib/simulation-registrations";
+import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +26,15 @@ export async function POST(request) {
   }
 
   try {
-    await createSimulationRegistration(payload);
+    const registration = await createSimulationRegistration(payload);
+    try {
+      const notification = await sendSimulationRegistrationNotification(registration);
+      if (notification?.skipped) {
+        console.warn("Simulation notification email skipped:", notification.reason);
+      }
+    } catch (notificationError) {
+      console.warn("Simulation notification email failed:", notificationError?.message || notificationError);
+    }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     if (error instanceof SimulationRegistrationValidationError) {
