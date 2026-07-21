@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
   "Oportunidade"
 ];
 
-const MAX_PHOTOS = 8;
+const MAX_PHOTOS = 20;
 const MAX_PHOTO_UPLOAD_BYTES = 1_200_000;
 
 const emptyProperty = {
@@ -267,27 +267,35 @@ export default function PropertyForm({ property }) {
   }
 
   const selectedFeatures = normalizeFeatures(form.features);
+  const photoPickerText = form.photos.length
+    ? `${form.photos.length} foto(s) carregada(s)`
+    : `Até ${MAX_PHOTOS} fotos`;
+  const finalPdfText = form.pdfName || "Nenhum arquivo selecionado";
 
   return (
-    <form onSubmit={submit} className="container-page grid gap-8 rounded-[28px] border border-line bg-white p-8 shadow-soft">
-      <section className="rounded-3xl border border-blue-100 bg-[#F4F9FF] p-6">
+    <form onSubmit={submit} className="container-page grid min-w-0 gap-6 rounded-[24px] border border-line bg-white p-4 shadow-soft sm:gap-8 sm:rounded-[28px] sm:p-8">
+      <section className="min-w-0 rounded-3xl border border-blue-100 bg-[#F4F9FF] p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Cadastro inteligente</p>
-            <h2 className="mt-2 text-3xl font-extrabold text-navy">Preencher com IA</h2>
+            <h2 className="mt-2 text-2xl font-extrabold text-navy sm:text-3xl">Preencher com IA</h2>
             <p className="mt-2 text-muted">{status}</p>
           </div>
           <Sparkles className="h-10 w-10 text-brand" />
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <div className="grid gap-3 rounded-2xl bg-white p-4">
+          <div className="grid min-w-0 gap-3 rounded-2xl bg-white p-4">
             <label className="font-extrabold text-ink">Link da construtora</label>
-            <input className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.builderUrl || ""} onChange={(event) => update("builderUrl", event.target.value)} placeholder="https://..." />
+            <input className="min-w-0 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.builderUrl || ""} onChange={(event) => update("builderUrl", event.target.value)} placeholder="https://..." />
             <button type="button" onClick={analyzeUrl} className="premium-button-primary">Ler site com IA</button>
           </div>
-          <div className="grid gap-3 rounded-2xl bg-white p-4">
-            <label className="font-extrabold text-ink">PDF ou e-book</label>
-            <input type="file" accept="application/pdf" onChange={(event) => analyzePdf(event.target.files?.[0])} />
+          <div className="grid min-w-0 gap-3 rounded-2xl bg-white p-4">
+            <FilePicker
+              accept="application/pdf"
+              label="PDF ou e-book"
+              onChange={(files) => analyzePdf(files?.[0])}
+              selectedText="Nenhum arquivo selecionado"
+            />
             <span className="text-sm font-semibold text-muted">O PDF gera um rascunho para revisão.</span>
           </div>
         </div>
@@ -409,15 +417,21 @@ export default function PropertyForm({ property }) {
       <Textarea label="Observações internas" value={form.internalNotes} onChange={(value) => update("internalNotes", value)} />
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <label className="grid gap-2 font-extrabold text-ink">
-          Fotos
-          <input type="file" accept="image/*" multiple onChange={(event) => handlePhotos(event.target.files || [])} />
+        <FilePicker
+          accept="image/*"
+          label="Fotos"
+          multiple
+          onChange={(files) => handlePhotos(files || [])}
+          selectedText={photoPickerText}
+        >
           {photoStatus ? <span className="text-sm font-semibold text-muted">{photoStatus}</span> : null}
-        </label>
-        <label className="grid gap-2 font-extrabold text-ink">
-          PDF/e-book final
-          <input type="file" accept="application/pdf" onChange={(event) => handlePdf(event.target.files?.[0])} />
-        </label>
+        </FilePicker>
+        <FilePicker
+          accept="application/pdf"
+          label="PDF/e-book final"
+          onChange={(files) => handlePdf(files?.[0])}
+          selectedText={finalPdfText}
+        />
       </section>
 
       <PhotoOrderEditor photos={form.photos} onMove={movePhoto} onRemove={removePhoto} />
@@ -439,26 +453,50 @@ export default function PropertyForm({ property }) {
   );
 }
 
+function FilePicker({ accept, children, label, multiple = false, onChange, selectedText }) {
+  return (
+    <label className="grid min-w-0 gap-2 font-extrabold text-ink">
+      {label}
+      <span className="grid min-w-0 gap-3 rounded-2xl border border-line bg-white p-3 sm:grid-cols-[auto_1fr] sm:items-center">
+        <span className="inline-flex min-h-12 items-center justify-center rounded-full bg-mist px-5 text-sm font-black text-navy transition hover:bg-[#E9F2FF]">
+          Escolher arquivo{multiple ? "s" : ""}
+        </span>
+        <span className="min-w-0 truncate text-sm font-bold text-muted" title={selectedText}>
+          {selectedText}
+        </span>
+        <input
+          type="file"
+          accept={accept}
+          multiple={multiple}
+          className="sr-only"
+          onChange={(event) => onChange(event.target.files)}
+        />
+      </span>
+      {children}
+    </label>
+  );
+}
+
 function PhotoOrderEditor({ photos = [], onMove, onRemove }) {
   const orderedPhotos = Array.isArray(photos) ? photos.filter((photo) => photo?.data) : [];
   if (!orderedPhotos.length) return null;
 
   return (
-    <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
-      <div>
+    <section className="grid min-w-0 gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-4 sm:p-6">
+      <div className="min-w-0">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Ordem das fotos</p>
-        <h3 className="mt-2 text-2xl font-extrabold text-navy">Escolha a capa e a sequência da galeria</h3>
+        <h3 className="mt-2 text-[clamp(1.45rem,7vw,1.75rem)] font-extrabold leading-tight text-navy">Escolha a capa e a sequência da galeria</h3>
         <p className="mt-2 text-muted">Use as setas para ordenar. A primeira foto será a capa do imóvel no site.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {orderedPhotos.map((photo, index) => (
-          <article key={`${photo.storagePath || photo.data}-${index}`} className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
+          <article key={`${photo.storagePath || photo.data}-${index}`} className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
             <div className="relative aspect-[4/3] overflow-hidden bg-mist">
               <img
                 src={photo.data}
                 alt={photo.name || `Foto ${index + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
               <span className="absolute left-3 top-3 rounded-full bg-navy px-3 py-1 text-xs font-black text-white shadow-soft">
                 {index === 0 ? "Capa" : `Foto ${index + 1}`}

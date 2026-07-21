@@ -29,12 +29,12 @@ export default async function EditPropertyPage({ params }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8">
+      <section className="container-page mb-6 sm:mb-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Edição</p>
-            <h1 className="mt-3 text-5xl font-black text-navy">Editar empreendimento</h1>
-            <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Atualize dados, fotos, catálogo e condições comerciais.</p>
+            <h1 className="mt-3 text-[clamp(2.35rem,11vw,3.75rem)] font-black leading-[0.95] text-navy">Editar empreendimento</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-muted sm:text-lg sm:leading-8">Atualize dados, fotos, catálogo e condições comerciais.</p>
           </div>
           <AdminLogoutButton />
         </div>
