@@ -24,14 +24,12 @@ export default function RegistrationDetails({ registration }) {
 
       <DetailsBlock title="Renda do titular">
         <DetailsItem label="Tipo de renda" value={incomeTypeLabel(registration.primaryIncomeType)} />
-        <DetailsItem label="Profissão" value={registration.primaryProfession} />
         <DetailsItem label="Renda mensal" value={formatCurrency(registration.primaryMonthlyIncome)} />
       </DetailsBlock>
 
       {registration.simulationType === "joint" ? (
         <DetailsBlock title="Segunda pessoa">
           <DetailsItem label="Tipo de renda" value={incomeTypeLabel(registration.secondaryIncomeType)} />
-          <DetailsItem label="Profissão" value={registration.secondaryProfession} />
           <DetailsItem label="Renda mensal" value={formatCurrency(registration.secondaryMonthlyIncome)} />
           <DetailsItem label="Estado civil" value={maritalStatusLabel(registration.secondaryMaritalStatus)} />
         </DetailsBlock>

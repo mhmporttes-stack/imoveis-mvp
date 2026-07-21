@@ -12,7 +12,6 @@ import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
 import {
   buildRegistrationSteps,
-  formatPersonName,
   getDefaultSimulationRegistration,
   sanitizeText,
   validateSimulationRegistration,
@@ -65,7 +64,6 @@ export default function SimulationForm() {
 
       if (field === "simulationType" && value === "individual") {
         next.secondaryIncomeType = "";
-        next.secondaryProfession = "";
         next.secondaryMonthlyIncome = "";
         next.secondaryMaritalStatus = "";
       }
@@ -86,7 +84,7 @@ export default function SimulationForm() {
   function normalizeTextField(field) {
     setForm((previous) => ({
       ...previous,
-      [field]: field === "fullName" ? formatPersonName(previous[field]) : sanitizeText(previous[field])
+      [field]: sanitizeText(previous[field])
     }));
   }
 
@@ -260,6 +258,6 @@ function StepRenderer({ error, form, onBlurText, onChange, onChoiceChange, step 
 function normalizeCurrentTextStep(form, step) {
   if (step.kind !== "text") return form;
 
-  const nextValue = step.id === "fullName" ? formatPersonName(form[step.id]) : sanitizeText(form[step.id]);
+  const nextValue = sanitizeText(form[step.id]);
   return nextValue === form[step.id] ? form : { ...form, [step.id]: nextValue };
 }
