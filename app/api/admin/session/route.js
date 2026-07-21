@@ -15,7 +15,13 @@ export async function GET(request) {
     return authErrorResponse(result, request);
   }
 
-  return NextResponse.json({ ok: true, user: { email: result.user.email } });
+  const response = NextResponse.json({ ok: true, user: { email: result.user.email } });
+
+  if (result.session) {
+    setAdminSessionCookies(response, request, result.session);
+  }
+
+  return response;
 }
 
 export async function POST(request) {

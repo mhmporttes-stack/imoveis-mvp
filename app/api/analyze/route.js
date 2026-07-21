@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const payload = await request.json();
     const text = payload.sourceType === "url" ? await loadWebsiteText(payload.url) : String(payload.text || "");
