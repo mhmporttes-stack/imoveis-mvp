@@ -365,7 +365,7 @@ export default function PropertyForm({ property }) {
           ))}
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[1fr_360px_auto]">
+        <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto]">
           <input
             value={featureDraft}
             onChange={(event) => setFeatureDraft(event.target.value)}
@@ -391,7 +391,7 @@ export default function PropertyForm({ property }) {
         {selectedFeatures.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {selectedFeatures.map((feature, index) => (
-              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_minmax(220px,auto)_auto] sm:items-center">
+              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
                 <span className="inline-flex items-center gap-2 text-sm font-extrabold text-navy">
                   <FeaturePreviewIcon icon={feature.icon} />
                   {feature.text}
@@ -561,34 +561,56 @@ function normalizeFeatures(features) {
 }
 
 function FeatureIconPicker({ value, onChange, ariaLabel, compact = false }) {
-  return (
-    <div
-      className={`flex flex-wrap gap-2 ${compact ? "" : "rounded-2xl border border-line bg-white p-2"}`}
-      role="radiogroup"
-      aria-label={ariaLabel || "Escolher ícone do diferencial"}
-    >
-      {FEATURE_ICON_OPTIONS.map((option) => {
-        const Icon = FEATURE_ICONS[option.value] || Sparkles;
-        const selected = value === option.value;
+  const [open, setOpen] = useState(false);
+  const currentOption = FEATURE_ICON_OPTIONS.find((option) => option.value === value) || FEATURE_ICON_OPTIONS[0];
+  const CurrentIcon = FEATURE_ICONS[currentOption?.value] || Sparkles;
 
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition duration-200 focus:outline-none focus:ring-4 focus:ring-brand/20 ${
-              selected
-                ? "border-brand bg-brand text-white shadow-soft"
-                : "border-line bg-white text-brand hover:-translate-y-0.5 hover:border-brand hover:bg-[#F4F9FF]"
-            }`}
-            aria-label={`Usar ícone ${option.label}`}
-            aria-pressed={selected}
-            title={option.label}
-          >
-            <Icon className="h-5 w-5" aria-hidden="true" />
-          </button>
-        );
-      })}
+  return (
+    <div className={`relative ${compact ? "inline-flex" : "inline-flex min-h-12 items-center"}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-premium focus:outline-none focus:ring-4 focus:ring-brand/20"
+        aria-label={ariaLabel || "Abrir opções de ícones"}
+        aria-expanded={open}
+        title={currentOption?.label || "Escolher ícone"}
+      >
+        <CurrentIcon className="h-5 w-5" aria-hidden="true" />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 flex w-[min(19rem,calc(100vw-3rem))] flex-wrap gap-2 rounded-2xl border border-line bg-white p-3 shadow-premium"
+          role="radiogroup"
+          aria-label={ariaLabel || "Escolher ícone do diferencial"}
+        >
+          {FEATURE_ICON_OPTIONS.map((option) => {
+            const Icon = FEATURE_ICONS[option.value] || Sparkles;
+            const selected = value === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition duration-200 focus:outline-none focus:ring-4 focus:ring-brand/20 ${
+                  selected
+                    ? "border-brand bg-brand text-white shadow-soft"
+                    : "border-line bg-white text-brand hover:-translate-y-0.5 hover:border-brand hover:bg-[#F4F9FF]"
+                }`}
+                aria-label={`Usar ícone ${option.label}`}
+                aria-pressed={selected}
+                title={option.label}
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
