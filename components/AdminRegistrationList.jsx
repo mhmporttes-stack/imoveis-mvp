@@ -41,7 +41,7 @@ export default function AdminRegistrationList({ registrations = [] }) {
         <span className="sr-only">Buscar cadastro por nome ou telefone</span>
         <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
         <input
-          className="admin-input h-14 rounded-2xl pl-14"
+          className="admin-input admin-search-input h-14 rounded-2xl"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Buscar por nome ou telefone"
           type="search"

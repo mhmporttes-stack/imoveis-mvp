@@ -391,7 +391,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           <label className="relative block">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" />
             <input
-              className="admin-input pl-12"
+              className="admin-input admin-search-input"
               value={propertyQuery}
               onChange={(event) => setPropertyQuery(event.target.value)}
               placeholder="Pesquisar imóvel por nome, região, valor ou construtora"
@@ -562,14 +562,14 @@ function Panel({ children, eyebrow, title }) {
   );
 }
 
-function Field({ label, onChange, textarea = false, type = "text", value }) {
+function Field({ label, onChange, textarea = false, type = "text", value, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
     <label className="mt-4 grid gap-2 text-sm font-extrabold text-ink">
       {label}
       <Component
         className={`admin-input ${textarea ? "min-h-28 py-3" : ""}`}
-        type={textarea ? undefined : type}
+        {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -581,6 +581,11 @@ function MoneyField({ label, onChange, value }) {
   return (
     <Field
       label={label}
+      type="tel"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      enterKeyHint="next"
+      autoComplete="off"
       value={value}
       onChange={(nextValue) => onChange(formatCurrencyInput(nextValue))}
     />

@@ -9,10 +9,11 @@ export default function CurrencyInputStep({ error, onChange, step, value }) {
       <input
         className="admin-input h-16 rounded-2xl text-lg shadow-[0_10px_28px_rgba(13,59,102,0.04)] focus:border-brand focus:ring-4 focus:ring-brand/10"
         id={inputId}
-        inputMode="decimal"
+        inputMode="numeric"
         onChange={(event) => onChange(formatCurrencyFromDigits(event.target.value))}
+        pattern="[0-9]*"
         placeholder={step.placeholder}
-        type="text"
+        type="tel"
         value={value || ""}
       />
       {step.help ? <p className="mt-3 text-sm leading-6 text-muted">{step.help}</p> : null}

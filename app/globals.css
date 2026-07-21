@@ -12,6 +12,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: calc(5rem + env(safe-area-inset-top));
   min-height: 100%;
   background: #ffffff;
   -webkit-text-size-adjust: 100%;
@@ -73,6 +74,31 @@ textarea {
 
 .admin-input {
   @apply min-h-14 w-full rounded-2xl border border-line bg-white px-4 text-base font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/10;
+  scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
+}
+
+.admin-search-input {
+  padding-left: 3.75rem;
+}
+
+main.bg-mist.py-14 {
+  padding-top: calc(3.5rem + env(safe-area-inset-top));
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 640px) {
+  .container-page {
+    width: min(1360px, calc(100% - 28px));
+  }
+
+  .admin-search-input {
+    padding-left: 4rem;
+  }
+
+  main.bg-mist.py-14 {
+    padding-top: calc(4.75rem + env(safe-area-inset-top));
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
 }
 
 .testimonial-media-mask {
