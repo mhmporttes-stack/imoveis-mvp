@@ -12,6 +12,7 @@ import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
 import {
   buildRegistrationSteps,
+  formatPersonName,
   getDefaultSimulationRegistration,
   sanitizeText,
   validateSimulationRegistration,
@@ -83,7 +84,10 @@ export default function SimulationForm() {
   }
 
   function normalizeTextField(field) {
-    setForm((previous) => ({ ...previous, [field]: sanitizeText(previous[field]) }));
+    setForm((previous) => ({
+      ...previous,
+      [field]: field === "fullName" ? formatPersonName(previous[field]) : sanitizeText(previous[field])
+    }));
   }
 
   function goBack() {
@@ -93,7 +97,10 @@ export default function SimulationForm() {
   }
 
   async function goNext() {
-    const validationMessage = validateStepValue(currentStep, form);
+    const normalizedForm = normalizeCurrentTextStep(form, currentStep);
+    if (normalizedForm !== form) setForm(normalizedForm);
+
+    const validationMessage = validateStepValue(currentStep, normalizedForm);
     if (validationMessage) {
       setStepError(validationMessage);
       return;
@@ -248,4 +255,11 @@ function StepRenderer({ error, form, onBlurText, onChange, onChoiceChange, step 
       <TextInputStep error={error} onChange={(nextValue) => onChange(step.id, nextValue)} step={step} value={value} />
     </div>
   );
+}
+
+function normalizeCurrentTextStep(form, step) {
+  if (step.kind !== "text") return form;
+
+  const nextValue = step.id === "fullName" ? formatPersonName(form[step.id]) : sanitizeText(form[step.id]);
+  return nextValue === form[step.id] ? form : { ...form, [step.id]: nextValue };
 }

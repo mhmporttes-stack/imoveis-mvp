@@ -31,7 +31,14 @@ export default function ChoiceStep({ error, onChange, options = [], value }) {
             >
               <Icon className="h-6 w-6" aria-hidden="true" />
             </span>
-            <span className="block min-w-0 pr-8 text-[1.02rem] font-black leading-tight">{option.label}</span>
+            <span className="block min-w-0 pr-8">
+              <span className="block text-[1.02rem] font-black leading-tight">{option.label}</span>
+              {option.description ? (
+                <span className={`mt-1 block text-sm font-bold leading-5 ${selected ? "text-white/80" : "text-muted"}`}>
+                  {option.description}
+                </span>
+              ) : null}
+            </span>
             <Check
               className={`absolute right-5 top-5 h-5 w-5 transition duration-300 ${selected ? "opacity-100" : "opacity-0"}`}
               aria-hidden="true"
