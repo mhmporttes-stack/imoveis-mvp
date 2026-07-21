@@ -25,10 +25,11 @@ export default function LeadCaptureModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdminRoute = pathname?.startsWith("/admin");
+  const isSimulationRoute = pathname?.startsWith("/simulacao");
   const whatsappUrl = whatsappMessageLink(WHATSAPP_HELP_MESSAGE);
 
   useEffect(() => {
-    if (isAdminRoute || typeof window === "undefined") return undefined;
+    if (isAdminRoute || isSimulationRoute || typeof window === "undefined") return undefined;
     if (readSessionValue(SESSION_KEY)) return undefined;
 
     const openModal = () => {
@@ -58,7 +59,7 @@ export default function LeadCaptureModal() {
       window.clearTimeout(timer);
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [isAdminRoute, pathname]);
+  }, [isAdminRoute, isSimulationRoute, pathname]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -128,7 +129,7 @@ export default function LeadCaptureModal() {
     }
   }
 
-  if (!isOpen || isAdminRoute) return null;
+  if (!isOpen || isAdminRoute || isSimulationRoute) return null;
 
   return (
     <div

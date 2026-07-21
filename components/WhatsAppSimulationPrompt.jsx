@@ -16,9 +16,10 @@ export default function WhatsAppSimulationPrompt() {
   const [selectedChoice, setSelectedChoice] = useState("");
 
   const isAdminRoute = pathname?.startsWith("/admin");
+  const isSimulationRoute = pathname?.startsWith("/simulacao");
 
   useEffect(() => {
-    if (isAdminRoute || typeof window === "undefined") {
+    if (isAdminRoute || isSimulationRoute || typeof window === "undefined") {
       setVisible(false);
       return undefined;
     }
@@ -39,7 +40,7 @@ export default function WhatsAppSimulationPrompt() {
     }, remainingDelay);
 
     return () => window.clearTimeout(timer);
-  }, [isAdminRoute, pathname]);
+  }, [isAdminRoute, isSimulationRoute, pathname]);
 
   useEffect(() => {
     if (!choiceModalOpen || typeof document === "undefined") return undefined;
@@ -73,7 +74,7 @@ export default function WhatsAppSimulationPrompt() {
     setChoiceModalOpen(true);
   }
 
-  if (isAdminRoute) return null;
+  if (isAdminRoute || isSimulationRoute) return null;
 
   return (
     <>
