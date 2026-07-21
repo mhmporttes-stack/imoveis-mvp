@@ -3,12 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Check, Download, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 
 const CLIENT_WHATSAPP_NOTE_PREFIX = "WhatsApp do cadastro:";
-const WHATSAPP_SIMULATION_MESSAGE = "Olá! Sua simulação de financiamento ficou pronta. Estou enviando o arquivo por aqui.";
+
+const WHATSAPP_SIMULATION_MESSAGES = {
+  pdf: "Ola! Sua simulacao de financiamento ficou pronta. Segue o PDF da apresentacao.",
+  image: "Ola! Sua simulacao de financiamento ficou pronta. Seguem as imagens da apresentacao."
+};
+
+const SEND_FORMAT_OPTIONS = [
+  { value: "pdf", label: "PDF" },
+  { value: "image", label: "Imagem" }
+];
 
 const BENEFIT_OPTIONS = [
   "Documentação gratuita",
@@ -75,6 +84,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [propertyImageDataUris, setPropertyImageDataUris] = useState({});
   const [propertyQuery, setPropertyQuery] = useState("");
   const [activePage, setActivePage] = useState(0);
+  const [sendFormat, setSendFormat] = useState("pdf");
   const [saving, setSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
   const [message, setMessage] = useState("");
@@ -322,12 +332,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function downloadImages() {
     setError("");
     try {
-      const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
-      const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
-      for (const [index, page] of svgs.entries()) {
-        const dataUrl = await svgToPngDataUrl(page.svg);
-        downloadDataUrl(dataUrl, `simulacao-${safeFileName(form.clientName)}-${index + 1}.png`);
-      }
+      const downloads = await createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris);
+      for (const item of downloads) downloadDataUrl(item.dataUrl, item.fileName);
     } catch (downloadError) {
       setError(downloadError.message || "Não foi possível gerar as imagens.");
     }
@@ -357,9 +363,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     const whatsappWindow = window.open("about:blank", "_blank");
 
     try {
-      const pdfUrl = await createSimulationPdfUrl(form, totals, simulationAssets, propertyImageDataUris);
-      downloadDataUrl(pdfUrl, `simulacao-${safeFileName(form.clientName)}.pdf`);
-      const whatsappUrl = buildClientWhatsAppUrl(phone);
+      const format = sendFormat === "image" ? "image" : "pdf";
+      if (format === "image") {
+        const downloads = await createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris);
+        for (const item of downloads) downloadDataUrl(item.dataUrl, item.fileName);
+      } else {
+        const pdfUrl = await createSimulationPdfUrl(form, totals, simulationAssets, propertyImageDataUris);
+        downloadDataUrl(pdfUrl, `simulacao-${safeFileName(form.clientName)}.pdf`);
+      }
+
+      const whatsappUrl = buildClientWhatsAppUrl(phone, format);
 
       if (whatsappWindow) {
         whatsappWindow.opener = null;
@@ -368,7 +381,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       }
 
-      setMessage("PDF baixado. O WhatsApp do cliente foi aberto para você anexar e enviar a simulação.");
+      setMessage(`${format === "image" ? "Imagem baixada" : "PDF baixado"}. O WhatsApp do cliente foi aberto para voce anexar e enviar a simulacao.`);
     } catch (sendError) {
       if (whatsappWindow) whatsappWindow.close();
       setError(sendError.message || "Não foi possível preparar o envio da simulação.");
@@ -378,8 +391,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   }
 
   return (
-    <div className="container-page grid gap-8 xl:grid-cols-[minmax(0,1fr)_460px]">
-      <div className="grid gap-6">
+    <div className="container-page grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_460px]">
+      <div className="grid min-w-0 gap-6">
         <Panel title="Dados do cliente" eyebrow="Etapa A">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
@@ -546,7 +559,29 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert tone="success">{message}</Alert> : null}
 
-        <div className="sticky bottom-4 z-20 flex flex-wrap gap-3 rounded-3xl border border-line bg-white/92 p-4 shadow-premium backdrop-blur">
+        <div className="grid gap-4 rounded-3xl border border-line bg-white p-4 shadow-soft sm:p-5">
+          <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
+              <p className="mt-1 text-sm font-semibold text-muted">Escolha se deseja preparar PDF ou imagem para anexar no WhatsApp.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {SEND_FORMAT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  className={`rounded-full px-5 py-3 text-sm font-black transition ${
+                    sendFormat === option.value
+                      ? "bg-navy text-white shadow-soft"
+                      : "border border-line bg-white text-navy hover:border-brand"
+                  }`}
+                  onClick={() => setSendFormat(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <button className="premium-button-primary" disabled={saving} onClick={saveSimulation} type="button">
             <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : "Salvar simulação"}
           </button>
@@ -568,7 +603,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         </div>
       </div>
 
-      <aside className="xl:sticky xl:top-6 xl:self-start">
+      <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
         <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -606,9 +641,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
 function Panel({ children, eyebrow, title }) {
   return (
-    <section className="rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
+    <section className="min-w-0 rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-6 md:p-8">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
-      <h2 className="mt-2 text-3xl font-black text-navy">{title}</h2>
+      <h2 className="mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy">{title}</h2>
       <div className="mt-6">{children}</div>
     </section>
   );
@@ -617,10 +652,10 @@ function Panel({ children, eyebrow, title }) {
 function Field({ label, onChange, textarea = false, type = "text", value, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
-    <label className="mt-4 grid gap-2 text-sm font-extrabold text-ink">
+    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
       {label}
       <Component
-        className={`admin-input ${textarea ? "min-h-28 py-3" : ""}`}
+        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""}`}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
@@ -633,9 +668,9 @@ function MoneyField({ label, onChange, value }) {
   return (
     <Field
       label={label}
-      type="tel"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      type="text"
+      inputMode="decimal"
+      pattern="[0-9,.]*"
       enterKeyHint="next"
       autoComplete="off"
       value={value}
@@ -646,9 +681,9 @@ function MoneyField({ label, onChange, value }) {
 
 function Metric({ label, value }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">{label}</p>
-      <p className="mt-1 text-3xl font-black text-navy">{value}</p>
+      <p className="mt-1 break-words text-[clamp(1.5rem,8vw,1.875rem)] font-black leading-tight text-navy">{value}</p>
     </div>
   );
 }
@@ -757,6 +792,20 @@ async function createSimulationPdfUrl(form, totals, simulationAssets, propertyIm
   const images = [];
   for (const page of svgs) images.push(await svgToJpegDataUrl(page.svg));
   return buildPdfFromJpegs(images, 1080, 1620);
+}
+
+async function createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris) {
+  const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
+  const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
+  const fileBase = safeFileName(form.clientName);
+  const downloads = [];
+  for (const [index, page] of svgs.entries()) {
+    downloads.push({
+      dataUrl: await svgToPngDataUrl(page.svg),
+      fileName: `simulacao-${fileBase}-${index + 1}.png`
+    });
+  }
+  return downloads;
 }
 
 function buildPresentationPages(form, totals, simulationAssets = {}) {
@@ -1104,8 +1153,9 @@ function normalizeClientWhatsApp(value) {
   return "";
 }
 
-function buildClientWhatsAppUrl(phone) {
-  return `https://wa.me/${phone}?text=${encodeURIComponent(WHATSAPP_SIMULATION_MESSAGE)}`;
+function buildClientWhatsAppUrl(phone, format = "pdf") {
+  const message = WHATSAPP_SIMULATION_MESSAGES[format] || WHATSAPP_SIMULATION_MESSAGES.pdf;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 function extractClientWhatsApp(note) {

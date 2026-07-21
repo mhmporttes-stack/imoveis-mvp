@@ -14,13 +14,18 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: calc(5rem + env(safe-area-inset-top));
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   background: #ffffff;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100svh;
+  overflow-x: hidden;
   background: #ffffff;
   color: #1f2937;
   font-family: Inter, Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -98,6 +103,11 @@ main.bg-mist.py-14 {
   main.bg-mist.py-14 {
     padding-top: calc(4.75rem + env(safe-area-inset-top));
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  main.bg-mist h1.text-5xl {
+    font-size: clamp(2.35rem, 11vw, 3.75rem);
+    line-height: 0.95;
   }
 }
 
