@@ -6,6 +6,7 @@ import {
   SimulationRegistrationValidationError
 } from "@/lib/simulation-registrations";
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
+import { createPendingSimulationFromRegistration } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,6 +28,12 @@ export async function POST(request) {
 
   try {
     const registration = await createSimulationRegistration(payload);
+    try {
+      await createPendingSimulationFromRegistration(registration);
+    } catch (simulationError) {
+      console.warn("Pending simulation creation failed:", simulationError?.message || simulationError);
+    }
+
     try {
       const notification = await sendSimulationRegistrationNotification(registration);
       if (notification?.skipped) {

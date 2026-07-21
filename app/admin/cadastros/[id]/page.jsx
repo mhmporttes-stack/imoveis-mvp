@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
+import DeleteRegistrationButton from "@/components/DeleteRegistrationButton";
 import RegistrationDetails from "@/components/RegistrationDetails";
 import { requireAdminPage } from "@/lib/admin-auth";
 import {
@@ -47,6 +48,9 @@ export default async function AdminRegistrationDetailsPage({ params }) {
       </section>
 
       <RegistrationDetails registration={registration} />
+      <div className="mt-6">
+        <DeleteRegistrationButton registrationId={registration.id} registrationName={registration.fullName} />
+      </div>
     </main>
   );
 }
