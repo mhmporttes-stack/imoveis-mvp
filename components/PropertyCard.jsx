@@ -3,18 +3,25 @@ import Link from "next/link";
 import {
   ArrowRight,
   BadgeDollarSign,
+  Bath,
   BedDouble,
   Building2,
   CalendarClock,
   Car,
+  CheckCircle2,
   Dumbbell,
+  Hammer,
   Home,
+  KeyRound,
+  Leaf,
   MapPin,
   Percent,
   Ruler,
   ShieldCheck,
   Sparkles,
+  Store,
   Trees,
+  UsersRound,
   Wallet,
   Waves
 } from "lucide-react";
@@ -109,18 +116,26 @@ function FeatureIcon({ feature }) {
 }
 
 const FEATURE_ICONS = {
+  bath: Bath,
   bed: BedDouble,
   building: Building2,
   calendar: CalendarClock,
   car: Car,
+  check: CheckCircle2,
   dumbbell: Dumbbell,
+  hammer: Hammer,
   home: Home,
+  key: KeyRound,
+  leaf: Leaf,
+  map: MapPin,
   money: BadgeDollarSign,
   percent: Percent,
   ruler: Ruler,
   shield: ShieldCheck,
   sparkles: Sparkles,
+  store: Store,
   trees: Trees,
+  users: UsersRound,
   wallet: Wallet,
   waves: Waves
 };

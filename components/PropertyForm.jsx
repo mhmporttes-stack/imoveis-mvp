@@ -4,17 +4,25 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   BadgeDollarSign,
+  Bath,
   BedDouble,
   Building2,
   CalendarClock,
   Car,
+  CheckCircle2,
   Dumbbell,
+  Hammer,
   Home,
+  KeyRound,
+  Leaf,
+  MapPin,
   Percent,
   Ruler,
   ShieldCheck,
   Sparkles,
+  Store,
   Trees,
+  UsersRound,
   Wallet,
   Waves
 } from "lucide-react";
@@ -357,7 +365,7 @@ export default function PropertyForm({ property }) {
           ))}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+        <div className="grid gap-3 xl:grid-cols-[1fr_360px_auto]">
           <input
             value={featureDraft}
             onChange={(event) => setFeatureDraft(event.target.value)}
@@ -370,15 +378,11 @@ export default function PropertyForm({ property }) {
             className="min-h-12 flex-1 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             placeholder="Ex.: 160 m², 2 vagas, varanda gourmet"
           />
-          <label className="sr-only" htmlFor="custom-feature-icon">Ícone do diferencial</label>
-          <select
-            id="custom-feature-icon"
+          <FeatureIconPicker
             value={featureIconDraft}
-            onChange={(event) => setFeatureIconDraft(event.target.value)}
-            className="min-h-12 rounded-2xl border border-line px-4 py-3 font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-          >
-            {FEATURE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
+            onChange={setFeatureIconDraft}
+            ariaLabel="Escolher ícone do novo diferencial"
+          />
           <button type="button" onClick={addCustomFeature} className="premium-button-secondary">
             Adicionar diferencial
           </button>
@@ -387,19 +391,17 @@ export default function PropertyForm({ property }) {
         {selectedFeatures.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {selectedFeatures.map((feature, index) => (
-              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_180px_auto] sm:items-center">
+              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_minmax(220px,auto)_auto] sm:items-center">
                 <span className="inline-flex items-center gap-2 text-sm font-extrabold text-navy">
                   <FeaturePreviewIcon icon={feature.icon} />
                   {feature.text}
                 </span>
-                <select
+                <FeatureIconPicker
+                  compact
                   value={feature.icon || DEFAULT_FEATURE_ICON}
-                  onChange={(event) => updateFeatureIcon(index, event.target.value)}
-                  className="rounded-xl border border-line px-3 py-2 text-sm font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-                  aria-label={`Ícone de ${feature.text}`}
-                >
-                  {FEATURE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+                  onChange={(icon) => updateFeatureIcon(index, icon)}
+                  ariaLabel={`Ícone de ${feature.text}`}
+                />
                 <span className="inline-flex items-center gap-2">
                   <button type="button" onClick={() => moveFeature(index, -1)} disabled={index === 0} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para cima`}>↑</button>
                   <button type="button" onClick={() => moveFeature(index, 1)} disabled={index === selectedFeatures.length - 1} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para baixo`}>↓</button>
@@ -444,7 +446,7 @@ export default function PropertyForm({ property }) {
 
       <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
         <button disabled={saving || processingPhotos} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
-          {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "Salvar empreendimento"}
+          {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "cadastrar imóvel"}
         </button>
         <button type="button" onClick={() => router.push("/admin")} className="premium-button-secondary">
           Cancelar
@@ -558,24 +560,65 @@ function normalizeFeatures(features) {
   return normalizePropertyFeatures(features);
 }
 
+function FeatureIconPicker({ value, onChange, ariaLabel, compact = false }) {
+  return (
+    <div
+      className={`flex flex-wrap gap-2 ${compact ? "" : "rounded-2xl border border-line bg-white p-2"}`}
+      role="radiogroup"
+      aria-label={ariaLabel || "Escolher ícone do diferencial"}
+    >
+      {FEATURE_ICON_OPTIONS.map((option) => {
+        const Icon = FEATURE_ICONS[option.value] || Sparkles;
+        const selected = value === option.value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition duration-200 focus:outline-none focus:ring-4 focus:ring-brand/20 ${
+              selected
+                ? "border-brand bg-brand text-white shadow-soft"
+                : "border-line bg-white text-brand hover:-translate-y-0.5 hover:border-brand hover:bg-[#F4F9FF]"
+            }`}
+            aria-label={`Usar ícone ${option.label}`}
+            aria-pressed={selected}
+            title={option.label}
+          >
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function FeaturePreviewIcon({ icon }) {
   const Icon = FEATURE_ICONS[icon] || Sparkles;
   return <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />;
 }
 
 const FEATURE_ICONS = {
+  bath: Bath,
   bed: BedDouble,
   building: Building2,
   calendar: CalendarClock,
   car: Car,
+  check: CheckCircle2,
   dumbbell: Dumbbell,
+  hammer: Hammer,
   home: Home,
+  key: KeyRound,
+  leaf: Leaf,
+  map: MapPin,
   money: BadgeDollarSign,
   percent: Percent,
   ruler: Ruler,
   shield: ShieldCheck,
   sparkles: Sparkles,
+  store: Store,
   trees: Trees,
+  users: UsersRound,
   wallet: Wallet,
   waves: Waves
 };

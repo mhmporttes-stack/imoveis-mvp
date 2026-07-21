@@ -38,7 +38,7 @@ export default async function AdminTestimonialsPage() {
     <main className="bg-mist py-14">
       <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área administrativa</p>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
           <h1 className="mt-3 text-5xl font-black text-navy">Depoimentos</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie relatos, imagens, vídeos, publicação e ordem de exibição.</p>
         </div>

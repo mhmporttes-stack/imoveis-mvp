@@ -26,12 +26,12 @@ export default async function AdminPage() {
     <main className="bg-mist py-14">
       <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área administrativa</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Painel de empreendimentos</h1>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
+          <h1 className="mt-3 text-5xl font-black text-navy">Painel Administrativo</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie o portfólio, edite informações comerciais e publique páginas individuais.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/novo" className="premium-button-primary">Novo empreendimento</Link>
+          <Link href="/admin/novo" className="premium-button-primary">Cadastrar novo Imóvel</Link>
           <AdminLogoutButton />
         </div>
       </section>
@@ -45,7 +45,7 @@ function AdminDisabled() {
   return (
     <main className="bg-mist py-14">
       <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Area administrativa</p>
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Painel temporariamente desativado</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
           Configure o Supabase para gerenciar empreendimentos em producao ou use SQLite no ambiente local.
@@ -63,7 +63,7 @@ function AdminDataError({ error }) {
   return (
     <main className="bg-mist py-14">
       <section className="container-page rounded-[28px] border border-red-200 bg-white p-10 shadow-soft">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-red-600">Area administrativa</p>
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-red-600">Área restrita</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Nao foi possivel carregar o painel</h1>
         <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
           O login funcionou, mas o Supabase retornou um erro ao carregar os empreendimentos.
