@@ -9,11 +9,6 @@ import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 
 const CLIENT_WHATSAPP_NOTE_PREFIX = "WhatsApp do cadastro:";
 
-const WHATSAPP_SIMULATION_MESSAGES = {
-  pdf: "Ola! Sua simulacao de financiamento ficou pronta. Segue o PDF da apresentacao.",
-  image: "Ola! Sua simulacao de financiamento ficou pronta. Seguem as imagens da apresentacao."
-};
-
 const SEND_FORMAT_OPTIONS = [
   { value: "pdf", label: "PDF" },
   { value: "image", label: "Imagem" }
@@ -372,7 +367,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         downloadDataUrl(pdfUrl, `simulacao-${safeFileName(form.clientName)}.pdf`);
       }
 
-      const whatsappUrl = buildClientWhatsAppUrl(phone, format);
+      const whatsappUrl = buildClientWhatsAppUrl(phone, form.clientName);
 
       if (whatsappWindow) {
         whatsappWindow.opener = null;
@@ -703,12 +698,12 @@ function normalizeInitialSimulation(simulation) {
     ...simulation,
     clientWhatsApp: formatPhoneInput(extractClientWhatsApp(internalNote)),
     internalNote: removeClientWhatsAppLine(internalNote),
-    financingValue: formatCurrencyInput(String(simulation.financingValue || "")),
-    subsidyValue: formatCurrencyInput(String(simulation.subsidyValue || "")),
-    firstInstallment: formatCurrencyInput(String(simulation.firstInstallment || "")),
-    lastInstallment: formatCurrencyInput(String(simulation.lastInstallment || "")),
-    downPaymentValue: formatCurrencyInput(String(simulation.downPaymentValue || "")),
-    fgtsValue: formatCurrencyInput(String(simulation.fgtsValue || "")),
+    financingValue: formatStoredCurrencyInput(simulation.financingValue),
+    subsidyValue: formatStoredCurrencyInput(simulation.subsidyValue),
+    firstInstallment: formatStoredCurrencyInput(simulation.firstInstallment),
+    lastInstallment: formatStoredCurrencyInput(simulation.lastInstallment),
+    downPaymentValue: formatStoredCurrencyInput(simulation.downPaymentValue),
+    fgtsValue: formatStoredCurrencyInput(simulation.fgtsValue),
     properties: (simulation.properties || []).map((property, index) => ({
       ...property,
       displayOrder: index,
@@ -1134,6 +1129,20 @@ function formatCurrencyInput(value) {
   return formatCurrency(Number(digits) / 100);
 }
 
+function formatStoredCurrencyInput(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number" && Number.isFinite(value)) return formatCurrency(value);
+
+  const text = String(value).trim();
+  if (!text) return "";
+  if (/^-?\d+(\.\d+)?$/.test(text) && !text.includes(",")) {
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? formatCurrency(parsed) : "";
+  }
+
+  return formatCurrencyInput(text);
+}
+
 function formatPhoneInput(value) {
   let digits = String(value || "").replace(/\D/g, "");
   if (digits.startsWith("55") && digits.length > 11) digits = digits.slice(2);
@@ -1153,9 +1162,15 @@ function normalizeClientWhatsApp(value) {
   return "";
 }
 
-function buildClientWhatsAppUrl(phone, format = "pdf") {
-  const message = WHATSAPP_SIMULATION_MESSAGES[format] || WHATSAPP_SIMULATION_MESSAGES.pdf;
+function buildClientWhatsAppUrl(phone, clientName = "") {
+  const firstName = getFirstName(clientName);
+  const greeting = firstName ? `Olá ${firstName}!` : "Olá!";
+  const message = `${greeting}\nSua simulação de financiamento ficou pronta.`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function getFirstName(value) {
+  return String(value || "").trim().split(/\s+/).filter(Boolean)[0] || "";
 }
 
 function extractClientWhatsApp(note) {
@@ -1183,13 +1198,13 @@ function mergeClientWhatsAppIntoInternalNote(note, phone) {
 }
 
 function moneyNumber(value) {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "number") return Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
   const normalized = String(value || "")
     .replace(/[^\d,.-]/g, "")
     .replace(/\./g, "")
     .replace(",", ".");
   const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : 0;
 }
 
 function escapeXml(value) {

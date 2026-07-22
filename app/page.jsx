@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Award, CheckCircle2, FileText, Handshake, ShieldCheck } from "lucide-react";
+import { Award, FileText, Handshake, ShieldCheck } from "lucide-react";
 import HomeSearch from "@/components/HomeSearch";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyExplorer from "@/components/PropertyExplorer";
@@ -130,20 +130,6 @@ export default async function HomePage() {
       </section>
 
       <TestimonialsSection testimonials={testimonials} />
-
-      <section className="container-page py-24">
-        <div className="overflow-hidden rounded-[32px] bg-navy p-10 text-white shadow-premium md:p-16">
-          <div className="max-w-3xl">
-            <p className="text-sm font-black uppercase tracking-[0.2em] text-blue-200">Pronto para conversar?</p>
-            <h2 className="mt-4 text-[clamp(2rem,4vw,3.75rem)] font-black leading-tight">Receba uma curadoria de imóveis para o seu perfil.</h2>
-            <p className="mt-6 text-xl leading-9 text-white/75">Fale sobre sua renda, bairro desejado, objetivo de compra e prazo. Eu organizo as melhores opções disponíveis.</p>
-            <Link href="#empreendimentos" className="mt-8 inline-flex premium-button bg-white text-navy hover:-translate-y-0.5">
-              <CheckCircle2 className="mr-2 h-5 w-5" />
-              Ver empreendimentos
-            </Link>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
