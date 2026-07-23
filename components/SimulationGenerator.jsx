@@ -6,6 +6,17 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
+import {
+  SIMULATION_MODEL_TYPES,
+  extractSimulationModelsFromNote,
+  getPrimarySimulationModel,
+  getRenderableSimulationModels,
+  mergeSimulationModelsIntoNote,
+  normalizeSimulationModels,
+  removeSimulationModelsFromNote,
+  simulationModelLabel,
+  simulationModelTotals
+} from "@/lib/simulation-models";
 
 const CLIENT_WHATSAPP_NOTE_PREFIX = "WhatsApp do cadastro:";
 
@@ -54,6 +65,7 @@ const INITIAL_FORM = {
   clientWhatsApp: "",
   simulationDate: new Date().toISOString().slice(0, 10),
   simulationType: "usado",
+  simulationModels: normalizeSimulationModels(),
   financingValue: "",
   subsidyValue: "",
   firstInstallment: "",
@@ -85,20 +97,18 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const totals = useMemo(() => {
-    const financing = moneyNumber(form.financingValue);
-    const subsidy = moneyNumber(form.subsidyValue);
-    const downPayment = moneyNumber(form.downPaymentValue);
-    const fgts = moneyNumber(form.fgtsValue);
-    return {
-      financing,
-      subsidy,
-      downPayment,
-      fgts,
-      total: financing + subsidy,
-      expanded: financing + subsidy + downPayment + fgts
-    };
-  }, [form.downPaymentValue, form.fgtsValue, form.financingValue, form.subsidyValue]);
+  const normalizedModels = useMemo(() => normalizeSimulationModels(form.simulationModels, form), [form]);
+  const modelTotals = useMemo(
+    () => Object.fromEntries(
+      SIMULATION_MODEL_TYPES.map(({ key }) => [key, simulationModelTotals(normalizedModels[key], form)])
+    ),
+    [form, normalizedModels]
+  );
+  const renderableModels = useMemo(
+    () => getRenderableSimulationModels({ ...form, simulationModels: normalizedModels }),
+    [form, normalizedModels]
+  );
+  const totals = renderableModels[0]?.totals || modelTotals.usado;
 
   const filteredProperties = useMemo(() => {
     const term = propertyQuery.trim().toLowerCase();
@@ -206,10 +216,27 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     [caixaLogoDataUri, simulationAssetDataUris]
   );
 
-  const pages = useMemo(() => buildPresentationPages(presentationForm, totals, simulationAssets), [presentationForm, simulationAssets, totals]);
+  const pages = useMemo(() => buildPresentationPages(presentationForm, simulationAssets), [presentationForm, simulationAssets]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateSimulationModel(type, field, value) {
+    setForm((current) => {
+      const models = normalizeSimulationModels(current.simulationModels, current);
+      return {
+        ...current,
+        simulationType: type,
+        simulationModels: {
+          ...models,
+          [type]: {
+            ...models[type],
+            [field]: value
+          }
+        }
+      };
+    });
   }
 
   function addProperty(property) {
@@ -309,7 +336,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     const response = await fetch(endpoint, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(serializeForm(form, totals))
+      body: JSON.stringify(serializeForm(form))
     });
     const data = await response.json();
     setSaving(false);
@@ -327,7 +354,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function downloadImages() {
     setError("");
     try {
-      const downloads = await createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris);
+      const downloads = await createSimulationImageDownloads(form, simulationAssets, propertyImageDataUris);
       for (const item of downloads) downloadDataUrl(item.dataUrl, item.fileName);
     } catch (downloadError) {
       setError(downloadError.message || "Não foi possível gerar as imagens.");
@@ -337,7 +364,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function downloadPdf() {
     setError("");
     try {
-      const pdfUrl = await createSimulationPdfUrl(form, totals, simulationAssets, propertyImageDataUris);
+      const pdfUrl = await createSimulationPdfUrl(form, simulationAssets, propertyImageDataUris);
       downloadDataUrl(pdfUrl, `simulacao-${safeFileName(form.clientName)}.pdf`);
     } catch (pdfError) {
       setError(pdfError.message || "Não foi possível gerar o PDF.");
@@ -360,10 +387,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     try {
       const format = sendFormat === "image" ? "image" : "pdf";
       if (format === "image") {
-        const downloads = await createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris);
+        const downloads = await createSimulationImageDownloads(form, simulationAssets, propertyImageDataUris);
         for (const item of downloads) downloadDataUrl(item.dataUrl, item.fileName);
       } else {
-        const pdfUrl = await createSimulationPdfUrl(form, totals, simulationAssets, propertyImageDataUris);
+        const pdfUrl = await createSimulationPdfUrl(form, simulationAssets, propertyImageDataUris);
         downloadDataUrl(pdfUrl, `simulacao-${safeFileName(form.clientName)}.pdf`);
       }
 
@@ -406,14 +433,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         </Panel>
 
         <Panel title="Dados da simulação" eyebrow="Etapa B">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-extrabold text-ink">
-              Tipo da simulação
-              <select className="admin-input" value={form.simulationType} onChange={(event) => update("simulationType", event.target.value)}>
-                <option value="novo">Imóvel novo</option>
-                <option value="usado">Imóvel usado</option>
-              </select>
-            </label>
+          <div className="grid gap-4">
             <label className="grid gap-2 text-sm font-extrabold text-ink">
               Modo de páginas dos imóveis
               <select className="admin-input" value={form.outputMode} onChange={(event) => update("outputMode", event.target.value)}>
@@ -421,10 +441,50 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 <option value="comparativo">Comparativo</option>
               </select>
             </label>
-            <MoneyField label="Valor do financiamento" value={form.financingValue} onChange={(value) => update("financingValue", value)} />
-            <MoneyField label="Valor do subsídio" value={form.subsidyValue} onChange={(value) => update("subsidyValue", value)} />
-            <MoneyField label="Primeira parcela" value={form.firstInstallment} onChange={(value) => update("firstInstallment", value)} />
-            <MoneyField label="Última parcela" value={form.lastInstallment} onChange={(value) => update("lastInstallment", value)} />
+          </div>
+
+          <div className="mt-5 grid gap-5">
+            {SIMULATION_MODEL_TYPES.map(({ key, label }) => (
+              <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">
+                      Modelo de simulação
+                    </p>
+                    <h3 className="mt-1 text-2xl font-black text-navy">{label}</h3>
+                  </div>
+                  <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-navy shadow-soft">
+                    {formatCurrency(modelTotals[key]?.total || 0)}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <MoneyField
+                    label="Valor do financiamento"
+                    value={normalizedModels[key]?.financingValue || ""}
+                    onChange={(value) => updateSimulationModel(key, "financingValue", value)}
+                  />
+                  <MoneyField
+                    label="Valor do subsídio"
+                    value={normalizedModels[key]?.subsidyValue || ""}
+                    onChange={(value) => updateSimulationModel(key, "subsidyValue", value)}
+                  />
+                  <MoneyField
+                    label="Primeira parcela"
+                    value={normalizedModels[key]?.firstInstallment || ""}
+                    onChange={(value) => updateSimulationModel(key, "firstInstallment", value)}
+                  />
+                  <MoneyField
+                    label="Última parcela"
+                    value={normalizedModels[key]?.lastInstallment || ""}
+                    onChange={(value) => updateSimulationModel(key, "lastInstallment", value)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <MoneyField label="Entrada disponível" value={form.downPaymentValue} onChange={(value) => update("downPaymentValue", value)} />
             <MoneyField label="FGTS disponível" value={form.fgtsValue} onChange={(value) => update("fgtsValue", value)} />
           </div>
@@ -433,8 +493,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             Mostrar poder de compra ampliado na apresentação
           </label>
           <div className="mt-5 grid gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 md:grid-cols-2">
-            <Metric label="Poder total de compra" value={formatCurrency(totals.total)} />
-            <Metric label="Poder total ampliado" value={formatCurrency(totals.expanded)} />
+            {renderableModels.map((model) => (
+              <Metric
+                key={model.type}
+                label={`Poder total - ${simulationModelLabel(model.type)}`}
+                value={formatCurrency(model.totals.total)}
+              />
+            ))}
           </div>
           <Field label="Observação pública" textarea value={form.publicNote} onChange={(value) => update("publicNote", value)} />
         </Panel>
@@ -693,11 +758,20 @@ function Alert({ children, tone }) {
 function normalizeInitialSimulation(simulation) {
   if (!simulation) return INITIAL_FORM;
   const internalNote = simulation.internalNote || "";
+  const legacyModels = normalizeSimulationModels(null, {
+    simulationType: simulation.simulationType,
+    financingValue: formatStoredCurrencyInput(simulation.financingValue),
+    subsidyValue: formatStoredCurrencyInput(simulation.subsidyValue),
+    firstInstallment: formatStoredCurrencyInput(simulation.firstInstallment),
+    lastInstallment: formatStoredCurrencyInput(simulation.lastInstallment)
+  });
+  const savedModels = simulation.simulationModels || extractSimulationModelsFromNote(internalNote);
   return {
     ...INITIAL_FORM,
     ...simulation,
     clientWhatsApp: formatPhoneInput(extractClientWhatsApp(internalNote)),
-    internalNote: removeClientWhatsAppLine(internalNote),
+    internalNote: removeSimulationModelsFromNote(removeClientWhatsAppLine(internalNote)),
+    simulationModels: formatSimulationModelsForForm(savedModels || legacyModels),
     financingValue: formatStoredCurrencyInput(simulation.financingValue),
     subsidyValue: formatStoredCurrencyInput(simulation.subsidyValue),
     firstInstallment: formatStoredCurrencyInput(simulation.firstInstallment),
@@ -739,18 +813,26 @@ function propertySnapshot(property, displayOrder) {
   };
 }
 
-function serializeForm(form, totals) {
+function serializeForm(form) {
+  const models = normalizeSimulationModels(form.simulationModels, form);
+  const primaryModel = getPrimarySimulationModel({ ...form, simulationModels: models });
+  const internalNote = mergeSimulationModelsIntoNote(
+    mergeClientWhatsAppIntoInternalNote(form.internalNote, form.clientWhatsApp),
+    models
+  );
+
   return {
     ...form,
-    internalNote: mergeClientWhatsAppIntoInternalNote(form.internalNote, form.clientWhatsApp),
-    financingValue: totals.financing,
-    subsidyValue: totals.subsidy,
-    firstInstallment: moneyNumber(form.firstInstallment),
-    lastInstallment: moneyNumber(form.lastInstallment),
-    downPaymentValue: totals.downPayment,
-    fgtsValue: totals.fgts,
-    totalPurchasePower: totals.total,
-    expandedPurchasePower: totals.expanded,
+    internalNote,
+    simulationType: primaryModel.type,
+    financingValue: primaryModel.totals.financing,
+    subsidyValue: primaryModel.totals.subsidy,
+    firstInstallment: moneyNumber(primaryModel.values.firstInstallment),
+    lastInstallment: moneyNumber(primaryModel.values.lastInstallment),
+    downPaymentValue: primaryModel.totals.downPayment,
+    fgtsValue: primaryModel.totals.fgts,
+    totalPurchasePower: primaryModel.totals.total,
+    expandedPurchasePower: primaryModel.totals.expanded,
     properties: form.properties.map(({ customBenefitDraft, ...property }) => property)
   };
 }
@@ -781,30 +863,37 @@ async function resolveSimulationImagesForExport(form, imageDataUris = {}) {
   return withResolvedPropertyImages(form, Object.fromEntries(entries));
 }
 
-async function createSimulationPdfUrl(form, totals, simulationAssets, propertyImageDataUris) {
+async function createSimulationPdfUrl(form, simulationAssets, propertyImageDataUris) {
   const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
-  const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
+  const svgs = buildPresentationPages(exportForm, simulationAssets);
   const images = [];
   for (const page of svgs) images.push(await svgToJpegDataUrl(page.svg));
   return buildPdfFromJpegs(images, 1080, 1620);
 }
 
-async function createSimulationImageDownloads(form, totals, simulationAssets, propertyImageDataUris) {
+async function createSimulationImageDownloads(form, simulationAssets, propertyImageDataUris) {
   const exportForm = await resolveSimulationImagesForExport(form, propertyImageDataUris);
-  const svgs = buildPresentationPages(exportForm, totals, simulationAssets);
+  const svgs = buildPresentationPages(exportForm, simulationAssets);
   const fileBase = safeFileName(form.clientName);
   const downloads = [];
   for (const [index, page] of svgs.entries()) {
     downloads.push({
       dataUrl: await svgToPngDataUrl(page.svg),
-      fileName: `simulacao-${fileBase}-${index + 1}.png`
+      fileName: `simulacao-${fileBase}-${safeFileName(page.title || `pagina-${index + 1}`)}.png`
     });
   }
   return downloads;
 }
 
-function buildPresentationPages(form, totals, simulationAssets = {}) {
-  const pages = [buildSimulationResultSvg(form, totals, simulationAssets)];
+function buildPresentationPages(form, simulationAssets = {}) {
+  const pages = getRenderableSimulationModels(form).map((model) => buildSimulationResultSvg({
+    ...form,
+    simulationType: model.type,
+    financingValue: model.values.financingValue,
+    subsidyValue: model.values.subsidyValue,
+    firstInstallment: model.values.firstInstallment,
+    lastInstallment: model.values.lastInstallment
+  }, model.totals, simulationAssets));
   const propertyPages = form.outputMode === "comparativo"
     ? chunk(form.properties, 2).map((items, index) => buildComparativePropertySvg(items, index))
     : form.properties.map((property, index) => buildPropertySvg(property, index));
@@ -848,7 +937,7 @@ function buildSimulationResultSvg(form, totals, simulationAssets = {}) {
   });
 
   return {
-    title: "Resultado",
+    title: simulationModelLabel(form.simulationType),
     svg: `
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1620" viewBox="0 0 1080 1620">
   <defs>
@@ -1141,6 +1230,21 @@ function formatStoredCurrencyInput(value) {
   }
 
   return formatCurrencyInput(text);
+}
+
+function formatSimulationModelsForForm(models) {
+  const normalized = normalizeSimulationModels(models);
+  return Object.fromEntries(
+    SIMULATION_MODEL_TYPES.map(({ key }) => [
+      key,
+      {
+        financingValue: formatStoredCurrencyInput(normalized[key]?.financingValue),
+        subsidyValue: formatStoredCurrencyInput(normalized[key]?.subsidyValue),
+        firstInstallment: formatStoredCurrencyInput(normalized[key]?.firstInstallment),
+        lastInstallment: formatStoredCurrencyInput(normalized[key]?.lastInstallment)
+      }
+    ])
+  );
 }
 
 function formatPhoneInput(value) {

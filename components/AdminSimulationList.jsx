@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getRenderableSimulationModels, simulationModelLabel } from "@/lib/simulation-models";
 
 const SITE_REGISTRATION_SIMULATION_SOURCE = "Cadastro do site";
 
@@ -56,6 +57,13 @@ export default function AdminSimulationList({ simulations = [] }) {
 
 function SimulationCard({ duplicateSimulation, removeSimulation, simulation }) {
   const pendingSiteSimulation = isPendingSiteSimulation(simulation);
+  const simulationModels = getRenderableSimulationModels(simulation);
+  const modelBadge = simulationModels.length > 1
+    ? "Imóvel novo + usado"
+    : simulationModels[0]?.label || simulationModelLabel(simulation.simulationType);
+  const modelSummary = simulationModels
+    .map((model) => `${model.label}: ${formatCurrency(model.totals.total)} (Financiamento: ${formatCurrency(model.totals.financing)} · Subsídio: ${formatCurrency(model.totals.subsidy)})`)
+    .join(" · ");
 
   return (
     <article className="rounded-2xl border border-line bg-white p-6 shadow-soft">
@@ -63,7 +71,7 @@ function SimulationCard({ duplicateSimulation, removeSimulation, simulation }) {
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-[#E9F2FF] px-3 py-1 text-sm font-extrabold text-navy">
-              Imóvel {simulation.simulationType === "usado" ? "usado" : "novo"}
+              {modelBadge}
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-sm font-bold text-muted">
               {formatDate(simulation.simulationDate)}
@@ -73,11 +81,7 @@ function SimulationCard({ duplicateSimulation, removeSimulation, simulation }) {
           {pendingSiteSimulation ? (
             <p className="mt-2 text-base font-black text-red-700">Simulação não realizada</p>
           ) : (
-            <p className="mt-2 text-muted">
-              Poder de compra: <strong className="text-navy">{formatCurrency(simulation.totalPurchasePower)}</strong>
-              {" "}· Financiamento: {formatCurrency(simulation.financingValue)}
-              {" "}· Subsídio: {formatCurrency(simulation.subsidyValue)}
-            </p>
+            <p className="mt-2 text-muted">{modelSummary}</p>
           )}
         </div>
 
