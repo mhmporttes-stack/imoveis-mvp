@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import InstagramFloatingButton from "@/components/InstagramFloatingButton";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import PwaLifecycle from "@/components/PwaLifecycle";
+import ViewportZoomLock from "@/components/ViewportZoomLock";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import WhatsAppSimulationPrompt from "@/components/WhatsAppSimulationPrompt";
 
@@ -19,6 +20,7 @@ export default function AppChrome({ children }) {
   return (
     <>
       <PwaLifecycle />
+      <ViewportZoomLock />
       {isAdminRoute ? (
         <>
           <AdminSessionKeeper />

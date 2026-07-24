@@ -16,6 +16,8 @@ html {
   min-height: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   background: #ffffff;
   -webkit-text-size-adjust: 100%;
 }
@@ -26,6 +28,8 @@ body {
   max-width: 100%;
   min-height: 100svh;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   background: #ffffff;
   color: #1f2937;
   font-family: Inter, Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -74,7 +78,7 @@ textarea {
 }
 
 .client-action-button {
-  @apply inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-brand/25 bg-white px-2 text-xs font-black text-brand transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-[#EEF6FF] hover:shadow-soft focus:outline-none focus:ring-4 focus:ring-brand/15 sm:text-sm;
+  @apply inline-flex h-11 min-w-0 items-center justify-center gap-1 rounded-2xl border border-brand/25 bg-white px-1.5 text-[11px] font-black text-brand transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-[#EEF6FF] hover:shadow-soft focus:outline-none focus:ring-4 focus:ring-brand/15 sm:gap-1.5 sm:px-2 sm:text-sm;
 }
 
 .premium-card {
@@ -97,7 +101,8 @@ main.bg-mist.py-14 {
 
 @media (max-width: 640px) {
   .container-page {
-    width: min(1360px, calc(100% - 28px));
+    width: min(1360px, calc(100% - 24px));
+    max-width: calc(100vw - 24px);
   }
 
   .admin-search-input {

@@ -111,8 +111,8 @@ export default function AdminSimulationList({ registrations = [], simulations = 
   }
 
   return (
-    <section className="container-page" ref={listTopRef}>
-      <div className="rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
+    <section className="container-page max-w-full overflow-hidden" ref={listTopRef}>
+      <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <label className="relative block w-full lg:max-w-xl">
             <span className="sr-only">Buscar cliente</span>
@@ -136,14 +136,14 @@ export default function AdminSimulationList({ registrations = [], simulations = 
           </button>
         </div>
 
-        <div id="simulation-status-filters" className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        <div id="simulation-status-filters" className="mt-4 grid gap-2 sm:grid-cols-3">
           {STATUS_FILTERS.map((filter) => {
             const active = statusFilter === filter.key;
             const pending = filter.key === "pending";
 
             return (
               <button
-                className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-extrabold transition duration-300 ${
+                className={`inline-flex min-h-10 w-full min-w-0 items-center justify-center gap-2 rounded-full border px-3 text-center text-sm font-extrabold transition duration-300 ${
                   active
                     ? "border-brand bg-[#EAF3FF] text-brand"
                     : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
@@ -228,8 +228,8 @@ function ClientCard({ client, removeSimulation }) {
   const date = formatDateBR(simulation.simulationDate || simulation.updatedAt || simulation.createdAt);
 
   return (
-    <article className="rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
-      <div className="flex items-start justify-between gap-3">
+    <article className="max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <h2 className="min-w-0 flex-1 truncate text-lg font-black text-navy sm:text-xl" title={simulation.clientName}>
           {simulation.clientName || "Cliente sem nome"}
         </h2>
@@ -240,11 +240,11 @@ function ClientCard({ client, removeSimulation }) {
 
       {completed ? (
         <div className="mt-2 space-y-1.5">
-          <p className="text-sm leading-6 text-muted">
+          <p className="break-words text-sm leading-6 text-muted [overflow-wrap:anywhere]">
             Poder total de compra: <strong className="text-navy">{formatMoneyBR(summary.purchasePower)}</strong>
           </p>
           {summary.components.length ? (
-            <p className="text-sm leading-6 text-muted">{summary.components.join(" · ")}</p>
+            <p className="break-words text-sm leading-6 text-muted [overflow-wrap:anywhere]">{summary.components.join(" · ")}</p>
           ) : null}
         </div>
       ) : (
@@ -284,7 +284,7 @@ function ClientCard({ client, removeSimulation }) {
 
 function StatusBadge({ completed }) {
   return (
-    <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black ${
+    <span className={`w-fit max-w-full rounded-full px-3 py-1 text-[11px] font-black ${
       completed
         ? "bg-[#EAF3FF] text-brand"
         : "bg-red-50 text-red-700"
