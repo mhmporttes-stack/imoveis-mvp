@@ -3,6 +3,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { requireAdminPage } from "@/lib/admin-auth";
+import { listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { canManageSimulations, formatSimulationError, listSimulations } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function AdminSimulationsPage() {
   }
 
   let simulations = [];
+  let registrations = [];
   let loadError = "";
 
   try {
@@ -23,14 +25,22 @@ export default async function AdminSimulationsPage() {
     loadError = formatSimulationError(error);
   }
 
+  if (!loadError) {
+    try {
+      registrations = await listSimulationRegistrations();
+    } catch {
+      registrations = [];
+    }
+  }
+
   return (
     <main className="bg-mist py-14">
       <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Gerador de Simulações</h1>
+          <h1 className="mt-3 text-5xl font-black text-navy">Clientes</h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Crie apresentações habitacionais com cálculo de poder de compra, imóveis sugeridos, imagens e PDF.
+            Acompanhe cadastros recebidos, simulações realizadas e clientes aguardando atendimento.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -39,7 +49,7 @@ export default async function AdminSimulationsPage() {
         </div>
       </section>
       <AdminSectionNav active="simulations" />
-      {loadError ? <SimulationError error={loadError} /> : <AdminSimulationList simulations={simulations} />}
+      {loadError ? <SimulationError error={loadError} /> : <AdminSimulationList registrations={registrations} simulations={simulations} />}
     </main>
   );
 }

@@ -73,6 +73,10 @@ textarea {
   @apply premium-button border border-navy/15 bg-white text-navy hover:-translate-y-0.5 hover:border-brand hover:shadow-soft;
 }
 
+.client-action-button {
+  @apply inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-brand/25 bg-white px-2 text-xs font-black text-brand transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-[#EEF6FF] hover:shadow-soft focus:outline-none focus:ring-4 focus:ring-brand/15 sm:text-sm;
+}
+
 .premium-card {
   @apply rounded-2xl border border-line bg-white shadow-soft;
 }
