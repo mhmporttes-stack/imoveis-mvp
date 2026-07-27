@@ -4,7 +4,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listTags } from "@/lib/client-tags";
-import { listSimulationRegistrations } from "@/lib/simulation-registrations";
+import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { canManageSimulations, formatSimulationError, listSimulations } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
@@ -19,29 +19,30 @@ export default async function AdminSimulationsPage() {
   let simulations = [];
   let registrations = [];
   let tags = [];
-  let loadError = "";
+  let simulationsError = "";
+  let registrationsError = "";
 
   try {
     simulations = await listSimulations();
   } catch (error) {
-    loadError = formatSimulationError(error);
+    simulationsError = formatSimulationError(error);
   }
 
-  if (!loadError) {
-    try {
-      registrations = await listSimulationRegistrations();
-    } catch (error) {
-      loadError = formatSimulationError(error);
-    }
+  try {
+    registrations = await listSimulationRegistrations();
+  } catch (error) {
+    registrationsError = formatSimulationRegistrationError(error);
   }
 
-  if (!loadError) {
-    try {
-      tags = await listTags();
-    } catch {
-      tags = [];
-    }
+  try {
+    tags = await listTags();
+  } catch {
+    tags = [];
   }
+
+  const hasAnyData = registrations.length > 0 || simulations.length > 0;
+  const blockingError = !hasAnyData ? (registrationsError || simulationsError) : "";
+  const loadWarning = hasAnyData ? [registrationsError, simulationsError].filter(Boolean).join(" ") : "";
 
   return (
     <main className="bg-mist py-14">
@@ -59,7 +60,16 @@ export default async function AdminSimulationsPage() {
         </div>
       </section>
       <AdminSectionNav active="simulations" />
-      {loadError ? <SimulationError error={loadError} /> : <AdminSimulationList registrations={registrations} simulations={simulations} tags={tags} />}
+      {blockingError ? (
+        <SimulationError error={blockingError} />
+      ) : (
+        <AdminSimulationList
+          loadWarning={loadWarning}
+          registrations={registrations}
+          simulations={simulations}
+          tags={tags}
+        />
+      )}
     </main>
   );
 }

@@ -39,7 +39,7 @@ import {
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const TAG_COLORS = ["#0D4F8B", "#1D4ED8", "#047857", "#B91C1C", "#7C3AED", "#334155", "#0F766E", "#BE123C"];
 
-export default function AdminSimulationList({ registrations = [], simulations = [], tags = [] }) {
+export default function AdminSimulationList({ loadWarning = "", registrations = [], simulations = [], tags = [] }) {
   const router = useRouter();
   const listTopRef = useRef(null);
   const [query, setQuery] = useState("");
@@ -426,6 +426,11 @@ export default function AdminSimulationList({ registrations = [], simulations = 
       </div>
 
       <div className="mt-4 grid gap-3">
+        {loadWarning ? (
+          <div className="rounded-[18px] border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-900">
+            Alguns dados complementares nao puderam ser carregados, mas os clientes encontrados continuam listados. Detalhe: {loadWarning}
+          </div>
+        ) : null}
         {clientsResult.error ? (
           <div className="rounded-[18px] border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-800">
             {clientsResult.error}
