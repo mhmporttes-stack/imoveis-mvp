@@ -28,6 +28,7 @@ import {
   maritalStatusLabel,
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
+import { normalizePersonName } from "@/lib/name-utils";
 import {
   extractSimulationPhone,
   formatMoneyBR,
@@ -158,14 +159,15 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       return;
     }
 
-    if (!client.registration?.id) return;
+    const registration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!registration?.id) return;
 
     setBusyClientId(client.id);
     try {
       const response = await fetch("/api/simulations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildDraftSimulationPayload(client.registration))
+        body: JSON.stringify(buildDraftSimulationPayload(registration))
       });
       const data = await response.json().catch(() => ({}));
 

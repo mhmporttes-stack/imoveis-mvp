@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
+import { normalizePersonName } from "@/lib/name-utils";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
+import {
+  MARITAL_STATUS_OPTIONS,
+  PRIMARY_INCOME_OPTIONS,
+  SIMULATION_TYPE_OPTIONS
+} from "@/lib/simulation-registration-schema";
 import {
   SIMULATION_MODEL_TYPES,
   extractSimulationModelsFromNote,
@@ -61,6 +67,8 @@ const RECOMMENDATION_REASONS = [
 ];
 
 const INITIAL_FORM = {
+  registrationId: "",
+  registration: null,
   clientName: "",
   clientWhatsApp: "",
   simulationDate: new Date().toISOString().slice(0, 10),
@@ -101,6 +109,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [activePage, setActivePage] = useState(0);
   const [sendFormat, setSendFormat] = useState("pdf");
   const [saving, setSaving] = useState(false);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState(form.id ? "saved" : "idle");
   const [message, setMessage] = useState("");
@@ -272,7 +281,38 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const pages = useMemo(() => buildPresentationPages(presentationForm, simulationAssets), [presentationForm, simulationAssets]);
 
   function update(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === "clientName") {
+        next.registration = {
+          ...normalizeRegistrationDraft(current.registration, current),
+          fullName: value
+        };
+      }
+      if (field === "clientWhatsApp") {
+        next.registration = {
+          ...normalizeRegistrationDraft(current.registration, current),
+          phone: value
+        };
+      }
+      return next;
+    });
+  }
+
+  function updateRegistration(field, value) {
+    setForm((current) => {
+      const registration = {
+        ...normalizeRegistrationDraft(current.registration, current),
+        [field]: value
+      };
+
+      return {
+        ...current,
+        registration,
+        ...(field === "fullName" ? { clientName: value } : {}),
+        ...(field === "phone" ? { clientWhatsApp: formatPhoneInput(value) } : {})
+      };
+    });
   }
 
   function updateSimulationModel(type, field, value) {
@@ -491,10 +531,24 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       setAutoSaveStatus("saved");
       if (!silent) setMessage("Simulacao salva com sucesso.");
 
+      if (data?.id || data?.registrationId || data?.registration) {
+        setForm((current) => {
+          const nextRegistration = data.registration
+            ? normalizeRegistrationDraft(data.registration, data, current.clientWhatsApp)
+            : current.registration;
+          const next = {
+            ...current,
+            id: data.id || current.id,
+            registrationId: data.registrationId || current.registrationId,
+            registration: nextRegistration,
+            clientName: data.clientName || current.clientName
+          };
+          return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+        });
+      }
+
       if (!currentForm.id && data.id) {
         router.replace(`/admin/simulacoes/${data.id}`);
-      } else if (!silent) {
-        router.refresh();
       }
 
       return data;
@@ -508,6 +562,49 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     } finally {
       if (autoSaveRequestRef.current === request) autoSaveRequestRef.current = null;
       if (!silent) setSaving(false);
+    }
+  }
+
+  async function saveClientRegistration() {
+    const currentForm = formRef.current;
+    const registration = normalizeRegistrationDraft(currentForm.registration, currentForm, currentForm.clientWhatsApp);
+    setRegistrationSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/simulation-registrations/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...registration,
+          registrationId: currentForm.registrationId,
+          fullName: currentForm.clientName || registration.fullName,
+          phone: currentForm.clientWhatsApp || registration.phone,
+          includeDetails: true
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(data.error || "Nao foi possivel salvar o cadastro do cliente.");
+        return null;
+      }
+
+      setForm((current) => ({
+        ...current,
+        registrationId: data.id,
+        registration: normalizeRegistrationDraft(data, current, current.clientWhatsApp),
+        clientName: data.fullName || current.clientName,
+        clientWhatsApp: formatPhoneInput(data.phoneNormalized || data.phone || current.clientWhatsApp)
+      }));
+      setMessage("Cadastro do cliente salvo.");
+      return data;
+    } catch {
+      setError("Nao foi possivel salvar o cadastro do cliente.");
+      return null;
+    } finally {
+      setRegistrationSaving(false);
     }
   }
 
@@ -604,6 +701,93 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             <Field label="Data da simulação" type="date" value={form.simulationDate} onChange={(value) => update("simulationDate", value)} />
           </div>
           <Field label="Observação interna" textarea value={form.internalNote} onChange={(value) => update("internalNote", value)} />
+
+          <div className="mt-6 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastro do cliente</p>
+                <h3 className="mt-1 text-2xl font-black text-navy">Ficha completa</h3>
+                <p className="mt-1 text-sm font-semibold text-muted">
+                  Use estes campos para criar ou atualizar manualmente o cadastro vinculado a esta simulação.
+                </p>
+              </div>
+              <button
+                className="premium-button-secondary shrink-0"
+                disabled={registrationSaving}
+                onClick={saveClientRegistration}
+                type="button"
+              >
+                {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="Nome no cadastro" value={form.registration?.fullName || form.clientName} onChange={(value) => updateRegistration("fullName", value)} />
+              <Field
+                autoComplete="tel"
+                inputMode="numeric"
+                label="WhatsApp no cadastro"
+                placeholder="(14) 99999-9999"
+                type="tel"
+                value={form.registration?.phone || form.clientWhatsApp}
+                onChange={(value) => updateRegistration("phone", formatPhoneInput(value))}
+              />
+              <Field label="Data de nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
+              <SelectField
+                label="Tipo de simulação"
+                options={SIMULATION_TYPE_OPTIONS}
+                value={form.registration?.simulationType || "individual"}
+                onChange={(value) => updateRegistration("simulationType", value)}
+              />
+              <SelectField
+                label="Regime de trabalho"
+                options={PRIMARY_INCOME_OPTIONS}
+                value={form.registration?.primaryIncomeType || "self_employed_unregistered"}
+                onChange={(value) => updateRegistration("primaryIncomeType", value)}
+              />
+              <MoneyField label="Renda mensal" value={form.registration?.primaryMonthlyIncome || ""} onChange={(value) => updateRegistration("primaryMonthlyIncome", value)} />
+              <SelectField
+                label="Estado civil"
+                options={MARITAL_STATUS_OPTIONS}
+                value={form.registration?.primaryMaritalStatus || "single"}
+                onChange={(value) => updateRegistration("primaryMaritalStatus", value)}
+              />
+              <MoneyField label="Recurso próprio / entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
+              <BooleanField
+                label="Mais de 3 anos de registro?"
+                value={form.registration?.hasOverThreeYearsRegisteredWork}
+                onChange={(value) => updateRegistration("hasOverThreeYearsRegisteredWork", value)}
+              />
+              <BooleanField
+                label="Filhos menores de 18 anos?"
+                value={form.registration?.hasChildrenUnder18}
+                onChange={(value) => updateRegistration("hasChildrenUnder18", value)}
+              />
+              <BooleanField
+                label="Possui imóvel residencial?"
+                value={form.registration?.hasResidentialProperty}
+                onChange={(value) => updateRegistration("hasResidentialProperty", value)}
+              />
+            </div>
+
+            {form.registration?.simulationType === "joint" ? (
+              <div className="mt-5 grid gap-4 border-t border-blue-100 pt-5 md:grid-cols-2">
+                <SelectField
+                  label="Regime da segunda pessoa"
+                  options={PRIMARY_INCOME_OPTIONS}
+                  value={form.registration?.secondaryIncomeType || "self_employed_unregistered"}
+                  onChange={(value) => updateRegistration("secondaryIncomeType", value)}
+                />
+                <MoneyField label="Renda da segunda pessoa" value={form.registration?.secondaryMonthlyIncome || ""} onChange={(value) => updateRegistration("secondaryMonthlyIncome", value)} />
+                <SelectField
+                  label="Estado civil da segunda pessoa"
+                  options={MARITAL_STATUS_OPTIONS}
+                  value={form.registration?.secondaryMaritalStatus || "single"}
+                  onChange={(value) => updateRegistration("secondaryMaritalStatus", value)}
+                />
+              </div>
+            ) : null}
+          </div>
         </Panel>
 
         <Panel title="Dados da simulação" eyebrow="Etapa B">
@@ -908,6 +1092,35 @@ function Field({ label, onChange, textarea = false, type = "text", value, ...pro
   );
 }
 
+function SelectField({ label, onChange, options = [], value }) {
+  return (
+    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+      {label}
+      <select className="admin-input min-w-0" value={value || ""} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function BooleanField({ label, onChange, value }) {
+  return (
+    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+      {label}
+      <select
+        className="admin-input min-w-0"
+        value={value === true ? "true" : value === false ? "false" : ""}
+        onChange={(event) => onChange(event.target.value === "true")}
+      >
+        <option value="false">Não</option>
+        <option value="true">Sim</option>
+      </select>
+    </label>
+  );
+}
+
 function MoneyField({ label, onChange, value }) {
   return (
     <Field
@@ -942,6 +1155,9 @@ function Alert({ children, tone }) {
 function normalizeInitialSimulation(simulation) {
   if (!simulation) return INITIAL_FORM;
   const internalNote = simulation.internalNote || "";
+  const registration = normalizeRegistrationDraft(simulation.registration, simulation, extractClientWhatsApp(internalNote));
+  const clientName = normalizePersonName(simulation.clientName || registration.fullName || "");
+  const clientWhatsApp = formatPhoneInput(registration.phone || registration.phoneNormalized || extractClientWhatsApp(internalNote));
   const legacyModels = normalizeSimulationModels(null, {
     simulationType: simulation.simulationType,
     financingValue: formatStoredCurrencyInput(simulation.financingValue),
@@ -953,7 +1169,10 @@ function normalizeInitialSimulation(simulation) {
   return {
     ...INITIAL_FORM,
     ...simulation,
-    clientWhatsApp: formatPhoneInput(extractClientWhatsApp(internalNote)),
+    registrationId: simulation.registrationId || registration.id || "",
+    registration,
+    clientName,
+    clientWhatsApp,
     internalNote: removeSimulationModelsFromNote(removeClientWhatsAppLine(internalNote)),
     simulationModels: formatSimulationModelsForForm(savedModels || legacyModels),
     financingValue: formatStoredCurrencyInput(simulation.financingValue),
@@ -968,6 +1187,33 @@ function normalizeInitialSimulation(simulation) {
       customBenefitDraft: ""
     }))
   };
+}
+
+function normalizeRegistrationDraft(registration = null, simulation = {}, fallbackPhone = "") {
+  const source = registration || {};
+  return {
+    id: source.id || "",
+    simulationType: source.simulationType === "joint" ? "joint" : "individual",
+    fullName: normalizePersonName(source.fullName || simulation.clientName || ""),
+    phone: formatPhoneInput(source.phone || source.phoneNormalized || fallbackPhone || ""),
+    phoneNormalized: source.phoneNormalized || "",
+    oldestBirthDate: normalizeDateInput(source.oldestBirthDate),
+    primaryIncomeType: source.primaryIncomeType || "self_employed_unregistered",
+    primaryMonthlyIncome: formatStoredCurrencyInput(source.primaryMonthlyIncome),
+    secondaryIncomeType: source.secondaryIncomeType || "self_employed_unregistered",
+    secondaryMonthlyIncome: formatStoredCurrencyInput(source.secondaryMonthlyIncome),
+    hasOverThreeYearsRegisteredWork: source.hasOverThreeYearsRegisteredWork === true,
+    hasChildrenUnder18: source.hasChildrenUnder18 === true,
+    primaryMaritalStatus: source.primaryMaritalStatus || "single",
+    secondaryMaritalStatus: source.secondaryMaritalStatus || "single",
+    hasResidentialProperty: source.hasResidentialProperty === true,
+    availablePurchaseResource: formatStoredCurrencyInput(source.availablePurchaseResource)
+  };
+}
+
+function normalizeDateInput(value) {
+  const text = String(value || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) && text !== "1900-01-01" ? text : "";
 }
 
 function propertySnapshot(property, displayOrder) {
