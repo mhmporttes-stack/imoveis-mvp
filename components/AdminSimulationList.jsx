@@ -49,44 +49,57 @@ export default function AdminSimulationList({ registrations = [], simulations = 
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedClientId, setExpandedClientId] = useState("");
   const [editingTagsClientId, setEditingTagsClientId] = useState("");
-  const [localRegistrations, setLocalRegistrations] = useState(registrations);
-  const [localTags, setLocalTags] = useState(tags);
+  const [localRegistrations, setLocalRegistrations] = useState(() => ensureArray(registrations));
+  const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [tagDraft, setTagDraft] = useState("");
   const [tagColor, setTagColor] = useState(TAG_COLORS[0]);
   const [busyClientId, setBusyClientId] = useState("");
 
   useEffect(() => {
-    setLocalRegistrations(registrations);
+    setLocalRegistrations(ensureArray(registrations));
   }, [registrations]);
 
   useEffect(() => {
-    setLocalTags(tags);
+    setLocalTags(ensureArray(tags));
   }, [tags]);
 
-  const clients = useMemo(() => {
-    const usedRegistrationIds = new Set();
-    const simulationClients = simulations.map((simulation) => {
-      const summary = getSimulationListSummary(simulation);
-      const registration = findRegistrationForSimulation(simulation, localRegistrations);
-      if (registration?.id) usedRegistrationIds.add(registration.id);
+  const clientsResult = useMemo(() => {
+    try {
+      const safeSimulations = ensureArray(simulations);
+      const safeRegistrations = ensureArray(localRegistrations);
+      const usedRegistrationIds = new Set();
+      const simulationClients = safeSimulations.map((simulation) => {
+        const summary = getSimulationListSummary(simulation);
+        const registration = findRegistrationForSimulation(simulation, safeRegistrations);
+        if (registration?.id) usedRegistrationIds.add(registration.id);
 
-      return buildClientItem({
-        registration,
-        simulation,
-        summary
+        return buildClientItem({
+          registration,
+          simulation,
+          summary
+        });
       });
-    });
 
-    const registrationOnlyClients = localRegistrations
-      .filter((registration) => !usedRegistrationIds.has(registration.id))
-      .map((registration) => buildClientItem({ registration }));
+      const registrationOnlyClients = safeRegistrations
+        .filter((registration) => !usedRegistrationIds.has(registration.id))
+        .map((registration) => buildClientItem({ registration }));
 
-    return [...simulationClients, ...registrationOnlyClients].sort((a, b) => {
-      const dateA = new Date(a.sortDate || 0).getTime();
-      const dateB = new Date(b.sortDate || 0).getTime();
-      return dateB - dateA;
-    });
+      const items = [...simulationClients, ...registrationOnlyClients].sort((a, b) => {
+        const dateA = safeTimestamp(a.sortDate);
+        const dateB = safeTimestamp(b.sortDate);
+        return dateB - dateA;
+      });
+
+      return { error: "", items };
+    } catch (error) {
+      console.error("Erro ao montar a lista de clientes:", error);
+      return {
+        error: error?.message || "Nao foi possivel montar a lista de clientes.",
+        items: []
+      };
+    }
   }, [localRegistrations, simulations]);
+  const clients = clientsResult.items;
 
   const counters = useMemo(() => {
     const base = {
@@ -109,7 +122,7 @@ export default function AdminSimulationList({ registrations = [], simulations = 
 
     return clients.filter((client) => {
       if (statusFilter !== "all" && client.status !== statusFilter) return false;
-      if (tagFilter !== "all" && !client.tags.some((tagItem) => tagItem.id === tagFilter)) return false;
+      if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
       if (!textQuery && !phoneQuery) return true;
 
       return (
@@ -282,7 +295,7 @@ export default function AdminSimulationList({ registrations = [], simulations = 
         return [...current, tag].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
       });
       setTagDraft("");
-      await saveClientTags(client, [...client.tags.map((item) => item.id), tag.id]);
+      await saveClientTags(client, [...ensureArray(client.tags).map((item) => item.id), tag.id]);
     } finally {
       setBusyClientId("");
     }
@@ -413,6 +426,11 @@ export default function AdminSimulationList({ registrations = [], simulations = 
       </div>
 
       <div className="mt-4 grid gap-3">
+        {clientsResult.error ? (
+          <div className="rounded-[18px] border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-800">
+            {clientsResult.error}
+          </div>
+        ) : null}
         {currentClients.length ? currentClients.map((client) => (
           <ClientCard
             busy={busyClientId === client.id}
@@ -494,7 +512,8 @@ function ClientCard({
   tagDraft
 }) {
   const hasRegistration = Boolean(client.registration?.id);
-  const currentTagIds = client.tags.map((tagItem) => tagItem.id);
+  const clientTags = ensureArray(client.tags);
+  const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
 
   return (
     <article className="max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
@@ -523,11 +542,11 @@ function ClientCard({
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">
-          {client.tags.slice(0, 4).map((tagItem) => (
+          {clientTags.slice(0, 4).map((tagItem) => (
             <TagPill key={tagItem.id} tag={tagItem} />
           ))}
-          {client.tags.length > 4 ? (
-            <span className="rounded-full bg-[#EEF4FB] px-2 py-1 text-[11px] font-black text-navy">+{client.tags.length - 4}</span>
+          {clientTags.length > 4 ? (
+            <span className="rounded-full bg-[#EEF4FB] px-2 py-1 text-[11px] font-black text-navy">+{clientTags.length - 4}</span>
           ) : null}
           {hasRegistration ? (
             <button
@@ -824,7 +843,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
   return {
     id: registration?.id || `simulation-${simulation?.id || name}`,
     completed: status === CLIENT_STATUS.COMPLETED || status === CLIENT_STATUS.APPROVED,
-    dateLabel: formatDateLabel(registration, simulation),
+    dateLabel: safeFormatDateLabel(registration, simulation),
     name,
     registration,
     searchText: buildSearchText(simulation, registration),
@@ -832,7 +851,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     sortDate,
     status,
     summary: safeSummary,
-    tags: registration?.tags || []
+    tags: ensureArray(registration?.tags)
   };
 }
 
@@ -896,7 +915,7 @@ function buildSearchText(simulation = {}, registration = null) {
     registration?.phoneNormalized
   ].map(normalizePhone).join(" ");
 
-  const tags = (registration?.tags || []).map((tagItem) => tagItem.name).join(" ");
+  const tags = ensureArray(registration?.tags).map((tagItem) => tagItem.name).join(" ");
   const text = normalizeText([
     simulation?.clientName,
     registration?.fullName,
@@ -935,4 +954,22 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function ensureArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
+function safeTimestamp(value) {
+  const time = new Date(value || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function safeFormatDateLabel(registration, simulation) {
+  try {
+    return formatDateLabel(registration, simulation);
+  } catch {
+    const value = simulation?.simulationDate || registration?.createdAt || simulation?.updatedAt || simulation?.createdAt;
+    return value ? String(value).slice(0, 10) : "Sem data";
+  }
 }

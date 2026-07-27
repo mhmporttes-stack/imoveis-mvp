@@ -8,6 +8,8 @@ export default function AdminSimulationsError({ error, reset }) {
     console.error("Erro no Gerador de Simulacoes:", error);
   }, [error]);
 
+  const detail = error?.message ? String(error.message) : "";
+
   return (
     <main className="bg-mist py-14">
       <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
@@ -20,6 +22,11 @@ export default function AdminSimulationsError({ error, reset }) {
         <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">
           Recarregue a pagina. Se continuar, confira se as migrations do Supabase foram aplicadas.
         </p>
+        {detail ? (
+          <p className="mt-3 rounded-2xl border border-line bg-[#F8FBFF] px-5 py-4 text-sm font-bold text-muted">
+            Detalhe: {detail}
+          </p>
+        ) : null}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <button className="premium-button-primary" onClick={reset} type="button">
             Tentar novamente
