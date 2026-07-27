@@ -214,7 +214,8 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
   }
 
   async function updateClientStatus(client, status) {
-    if (!client.registration?.id) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) {
       alert("Este cliente ainda não possui cadastro vinculado para alterar o status.");
       return;
     }
@@ -222,7 +223,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
     const nextStatus = normalizeClientStatus(status);
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
+      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus })
@@ -235,7 +236,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       }
 
       setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === client.registration.id
+        registration.id === data.id
           ? { ...registration, status: nextStatus, approvedAt: data.approvedAt || registration.approvedAt }
           : registration
       )));
@@ -245,7 +246,8 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
   }
 
   async function saveClientTags(client, nextTagIds) {
-    if (!client.registration?.id) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) {
       alert("Este cliente ainda não possui cadastro vinculado para receber tags.");
       return;
     }
@@ -253,7 +255,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
     const cleanIds = Array.from(new Set(nextTagIds.filter(Boolean)));
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/tags`, {
+      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}/tags`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tagIds: cleanIds })
@@ -267,8 +269,37 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
 
       const nextTags = localTags.filter((tagItem) => cleanIds.includes(tagItem.id));
       setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === client.registration.id ? { ...registration, tags: nextTags } : registration
+        registration.id === data.id ? { ...registration, tags: nextTags } : registration
       )));
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function ensureClientRegistration(client) {
+    if (client.registration?.id) return client.registration;
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch("/api/simulation-registrations/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: client.name,
+          phone: extractClientPhone(client),
+          status: client.status,
+          includeDetails: false
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || "NÃ£o foi possÃ­vel criar o cadastro deste cliente.");
+        return null;
+      }
+
+      setLocalRegistrations((current) => upsertById(current, data));
+      return data;
     } finally {
       setBusyClientId("");
     }
