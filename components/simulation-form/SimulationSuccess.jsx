@@ -4,15 +4,17 @@ import { Camera } from "lucide-react";
 
 export default function SimulationSuccess() {
   return (
-    <article className="mx-auto w-full max-w-4xl rounded-[36px] border border-line bg-white p-6 text-center shadow-[0_24px_70px_rgba(13,59,102,0.12)] sm:p-10 lg:p-12">
-      <Image
-        alt="Caixa"
-        className="mx-auto h-auto w-[min(70vw,330px)] object-contain"
-        height={96}
-        priority
-        src="/assets/caixa-logo-cropped.jpg"
-        width={360}
-      />
+    <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-[36px] border border-line bg-white p-6 text-center shadow-[0_24px_70px_rgba(13,59,102,0.12)] sm:p-10 lg:p-12">
+      <div className="relative mx-auto h-20 w-full max-w-[340px] sm:h-24">
+        <Image
+          alt="Caixa"
+          className="object-contain"
+          fill
+          priority
+          sizes="(max-width: 640px) 70vw, 340px"
+          src="/assets/caixa-logo-transparent.png"
+        />
+      </div>
 
       <h1 className="mx-auto mt-8 max-w-3xl text-[clamp(1.9rem,4.3vw,3.25rem)] font-black leading-[1.08] tracking-[-0.02em] text-navy">
         Recebemos suas informações com sucesso!
@@ -27,15 +29,15 @@ export default function SimulationSuccess() {
       </p>
 
       <div className="relative mx-auto mt-12 max-w-3xl overflow-hidden border-t border-line px-1 pt-10">
-        <DecorativeBubble className="pointer-events-none absolute left-0 top-[170px] hidden h-24 w-24 text-brand sm:block" />
-        <DecorativeHouse className="pointer-events-none absolute right-3 top-[155px] hidden h-28 w-28 text-brand sm:block" />
-        <DecorativeArrow className="pointer-events-none absolute bottom-[88px] left-[9%] hidden h-16 w-16 text-brand sm:block" />
-        <DecorativeHeart className="pointer-events-none absolute bottom-0 right-[24%] hidden h-8 w-8 text-brand sm:block" />
-        <p className="text-[clamp(0.78rem,1.5vw,1rem)] font-black uppercase tracking-[0.34em] text-brand">
+        <DecorativeBubble className="pointer-events-none absolute left-0 top-[145px] z-0 hidden h-20 w-20 text-brand lg:block" />
+        <DecorativeHouse className="pointer-events-none absolute right-0 top-[135px] z-0 hidden h-24 w-24 text-brand lg:block" />
+        <DecorativeArrow className="pointer-events-none absolute bottom-[86px] left-[9%] z-0 hidden h-14 w-14 text-brand lg:block" />
+        <DecorativeHeart className="pointer-events-none absolute bottom-0 right-[24%] z-0 hidden h-7 w-7 text-brand lg:block" />
+        <p className="relative z-10 text-[clamp(0.72rem,1.5vw,1rem)] font-black uppercase tracking-[0.28em] text-brand">
           Enquanto sua simulação é preparada...
         </p>
         <h2
-          className="relative mt-4 inline-block pb-3 text-[clamp(2.35rem,7vw,5rem)] font-black leading-[0.9] tracking-[-0.06em] text-navy after:absolute after:bottom-0 after:left-7 after:right-7 after:h-1.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-['']"
+          className="relative z-10 mx-auto mt-4 inline-block max-w-[720px] pb-3 text-[clamp(2.25rem,6.2vw,4.4rem)] font-black leading-[0.92] tracking-[-0.055em] text-navy after:absolute after:bottom-0 after:left-7 after:right-7 after:h-1.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-['']"
           style={{ fontFamily: '"Trebuchet MS", "Comic Sans MS", "Arial Rounded MT Bold", system-ui, sans-serif' }}
         >
           Conheça melhor o seu corretor.

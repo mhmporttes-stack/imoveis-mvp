@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
@@ -79,9 +79,17 @@ const INITIAL_FORM = {
   properties: []
 };
 
+const SYNCED_MODEL_FIELDS = ["financingValue", "firstInstallment", "lastInstallment"];
+const MODEL_PEER = { novo: "usado", usado: "novo" };
+
 export default function SimulationGenerator({ properties = [], initialSimulation = null }) {
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
+  const formRef = useRef(form);
+  const autoSaveTimerRef = useRef(null);
+  const autoSaveRequestRef = useRef(null);
+  const lastSavedPayloadRef = useRef(JSON.stringify(serializeForm(form)));
+  const syncingFieldsRef = useRef(createModelSyncState(form));
   const [caixaLogoDataUri, setCaixaLogoDataUri] = useState("");
   const [simulationAssetDataUris, setSimulationAssetDataUris] = useState({
     financingIconDataUri: "",
@@ -94,6 +102,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [sendFormat, setSendFormat] = useState("pdf");
   const [saving, setSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState(form.id ? "saved" : "idle");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -118,6 +127,50 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       return !term || haystack.includes(term);
     });
   }, [form.properties, properties, propertyQuery]);
+
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
+    if (!form.id) return undefined;
+
+    const payload = JSON.stringify(serializeForm(form));
+    if (payload === lastSavedPayloadRef.current) return undefined;
+
+    setAutoSaveStatus("saving");
+    if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      persistSimulation({ silent: true });
+    }, 1000);
+
+    return () => {
+      if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [form]);
+
+  useEffect(() => {
+    if (!form.id) return undefined;
+
+    function flushAutosave() {
+      if (document.visibilityState === "hidden") {
+        flushAutoSave(formRef.current);
+      }
+    }
+
+    function beforeUnload() {
+      flushAutoSave(formRef.current);
+    }
+
+    document.addEventListener("visibilitychange", flushAutosave);
+    window.addEventListener("beforeunload", beforeUnload);
+
+    return () => {
+      document.removeEventListener("visibilitychange", flushAutosave);
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [form.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -225,6 +278,53 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   function updateSimulationModel(type, field, value) {
     setForm((current) => {
       const models = normalizeSimulationModels(current.simulationModels, current);
+      const peerType = MODEL_PEER[type];
+      const syncState = syncingFieldsRef.current[field] || { linked: true, lastSource: "", lastValue: "" };
+      const currentValue = models[type]?.[field] || "";
+      const peerValue = peerType ? (models[peerType]?.[field] || "") : "";
+      const editingSyncedPeer =
+        isSyncedModelField(field) &&
+        syncState.linked &&
+        syncState.lastSource &&
+        syncState.lastSource !== type &&
+        currentValue === peerValue &&
+        currentValue === syncState.lastValue &&
+        value !== currentValue;
+
+      if (editingSyncedPeer) {
+        syncingFieldsRef.current[field] = { ...syncState, linked: false };
+        return {
+          ...current,
+          simulationType: type,
+          simulationModels: {
+            ...models,
+            [type]: {
+              ...models[type],
+              [field]: value
+            }
+          }
+        };
+      }
+
+      if (isSyncedModelField(field) && peerType && syncState.linked) {
+        syncingFieldsRef.current[field] = { linked: true, lastSource: type, lastValue: value };
+        return {
+          ...current,
+          simulationType: type,
+          simulationModels: {
+            ...models,
+            [type]: {
+              ...models[type],
+              [field]: value
+            },
+            [peerType]: {
+              ...models[peerType],
+              [field]: value
+            }
+          }
+        };
+      }
+
       return {
         ...current,
         simulationType: type,
@@ -327,6 +427,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   }
 
   async function saveSimulation() {
+    return persistSimulation();
     setSaving(true);
     setError("");
     setMessage("");
@@ -349,6 +450,79 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     setMessage("Simulação salva com sucesso.");
     if (!form.id && data.id) router.replace(`/admin/simulacoes/${data.id}`);
     router.refresh();
+  }
+
+  async function persistSimulation({ silent = false } = {}) {
+    const currentForm = formRef.current;
+    const payload = JSON.stringify(serializeForm(currentForm));
+    const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
+    const method = currentForm.id ? "PUT" : "POST";
+
+    if (!silent) {
+      setSaving(true);
+      setError("");
+      setMessage("");
+    }
+
+    const request = fetch(endpoint, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: payload
+    }).then(async (response) => ({
+      data: await response.json().catch(() => ({})),
+      response
+    }));
+
+    autoSaveRequestRef.current = request;
+
+    try {
+      const { data, response } = await request;
+
+      if (!response.ok) {
+        if (silent) {
+          setAutoSaveStatus("error");
+        } else {
+          setError(data.error || "Nao foi possivel salvar a simulacao.");
+        }
+        return null;
+      }
+
+      lastSavedPayloadRef.current = payload;
+      setAutoSaveStatus("saved");
+      if (!silent) setMessage("Simulacao salva com sucesso.");
+
+      if (!currentForm.id && data.id) {
+        router.replace(`/admin/simulacoes/${data.id}`);
+      } else if (!silent) {
+        router.refresh();
+      }
+
+      return data;
+    } catch {
+      if (silent) {
+        setAutoSaveStatus("error");
+      } else {
+        setError("Nao foi possivel salvar a simulacao.");
+      }
+      return null;
+    } finally {
+      if (autoSaveRequestRef.current === request) autoSaveRequestRef.current = null;
+      if (!silent) setSaving(false);
+    }
+  }
+
+  function flushAutoSave(currentForm) {
+    if (!currentForm?.id) return;
+    const payload = JSON.stringify(serializeForm(currentForm));
+    if (payload === lastSavedPayloadRef.current) return;
+    lastSavedPayloadRef.current = payload;
+
+    fetch(`/api/simulations/${currentForm.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true
+    }).catch(() => {});
   }
 
   async function downloadImages() {
@@ -645,6 +819,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           <button className="premium-button-primary" disabled={saving} onClick={saveSimulation} type="button">
             <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : "Salvar simulação"}
           </button>
+          {form.id ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-extrabold text-navy">
+              <span>{autoSaveStatusLabel(autoSaveStatus)}</span>
+              {autoSaveStatus === "error" ? (
+                <button className="text-brand underline-offset-4 hover:underline" onClick={() => persistSimulation({ silent: true })} type="button">
+                  Tentar novamente
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <button className="premium-button-secondary" onClick={downloadImages} type="button">
             <ImageDown className="mr-2 h-5 w-5" /> Baixar imagens
           </button>
@@ -1245,6 +1429,34 @@ function formatSimulationModelsForForm(models) {
       }
     ])
   );
+}
+
+function createModelSyncState(form) {
+  const models = normalizeSimulationModels(form.simulationModels, form);
+  return Object.fromEntries(SYNCED_MODEL_FIELDS.map((field) => {
+    const novoValue = models.novo?.[field] || "";
+    const usadoValue = models.usado?.[field] || "";
+    const sharedValue = novoValue && novoValue === usadoValue ? novoValue : "";
+    return [
+      field,
+      {
+        linked: !novoValue || !usadoValue || novoValue === usadoValue,
+        lastSource: sharedValue ? "novo" : "",
+        lastValue: sharedValue
+      }
+    ];
+  }));
+}
+
+function isSyncedModelField(field) {
+  return SYNCED_MODEL_FIELDS.includes(field);
+}
+
+function autoSaveStatusLabel(status) {
+  if (status === "saving") return "Salvando automaticamente...";
+  if (status === "saved") return "Alteracoes salvas automaticamente";
+  if (status === "error") return "Erro ao salvar automaticamente";
+  return "Salvamento automatico ativo";
 }
 
 function formatPhoneInput(value) {

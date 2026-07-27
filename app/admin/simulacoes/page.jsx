@@ -3,6 +3,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { requireAdminPage } from "@/lib/admin-auth";
+import { listTags } from "@/lib/client-tags";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { canManageSimulations, formatSimulationError, listSimulations } from "@/lib/simulations";
 
@@ -17,6 +18,7 @@ export default async function AdminSimulationsPage() {
 
   let simulations = [];
   let registrations = [];
+  let tags = [];
   let loadError = "";
 
   try {
@@ -28,8 +30,16 @@ export default async function AdminSimulationsPage() {
   if (!loadError) {
     try {
       registrations = await listSimulationRegistrations();
+    } catch (error) {
+      loadError = formatSimulationError(error);
+    }
+  }
+
+  if (!loadError) {
+    try {
+      tags = await listTags();
     } catch {
-      registrations = [];
+      tags = [];
     }
   }
 
@@ -49,7 +59,7 @@ export default async function AdminSimulationsPage() {
         </div>
       </section>
       <AdminSectionNav active="simulations" />
-      {loadError ? <SimulationError error={loadError} /> : <AdminSimulationList registrations={registrations} simulations={simulations} />}
+      {loadError ? <SimulationError error={loadError} /> : <AdminSimulationList registrations={registrations} simulations={simulations} tags={tags} />}
     </main>
   );
 }
