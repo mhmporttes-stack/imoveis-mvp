@@ -595,9 +595,18 @@ function ClientCard({
   const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
 
   return (
-    <article className="max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
+    <article className="relative max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
+      {client.lastAdminLabel ? (
+        <span
+          className="absolute right-4 top-3 max-w-[45%] truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted sm:right-[18px]"
+          title="Ultimo responsavel administrativo"
+        >
+          {client.lastAdminLabel}
+        </span>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <div className="min-w-0">
+        <div className="min-w-0 pr-20 sm:pr-0">
           <h2 className="truncate text-lg font-black text-navy sm:text-xl" title={client.name}>
             {client.name || "Cliente sem nome"}
           </h2>
@@ -617,14 +626,6 @@ function ClientCard({
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">
-          {client.lastAdminLabel ? (
-            <span
-              className="w-full text-left text-[11px] font-black uppercase tracking-[0.12em] text-muted sm:text-right"
-              title="Ultimo responsavel administrativo"
-            >
-              {client.lastAdminLabel}
-            </span>
-          ) : null}
           {clientTags.slice(0, 4).map((tagItem) => (
             <TagPill key={tagItem.id} tag={tagItem} />
           ))}
@@ -670,7 +671,11 @@ function ClientCard({
 
       <div className="mt-2 space-y-1 text-sm font-bold text-muted">
         <p>Data do cadastro: {client.dateLabel}</p>
-        <p>Último contato: {client.lastContactLabel}</p>
+        {client.lastWhatsappContactAt ? (
+          <p>Último contato: {client.lastContactLabel}</p>
+        ) : (
+          <p>{client.lastContactLabel}</p>
+        )}
       </div>
 
       {client.completed ? (
@@ -1020,7 +1025,7 @@ function combineClientItems(currentItem, nextItem) {
     lastAdminLabel: preferred.lastAdminLabel || fallback.lastAdminLabel || "",
     lastContactLabel: (preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
       ? formatLastContactLabel(preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
-      : "sem contato",
+      : "Nenhum contato realizado",
     lastWhatsappContactAt: preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt || "",
     registration: preferred.registration || fallback.registration,
     searchText: {
@@ -1160,31 +1165,55 @@ function buildSearchText(simulation = {}, registration = null) {
 
 function formatDateLabel(registration, simulation) {
   const value = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt;
-  if (!value) return "Sem data";
-  if (String(value).includes("T")) return formatDateTimeBR(value).split(" às ")[0] || formatDateBR(value);
-  return formatDateBR(value);
+  return formatRelativeDateTimeLabel(value, "Sem data");
 }
 
 function formatLastContactLabel(value) {
-  const contactTime = new Date(value || "").getTime();
-  if (!Number.isFinite(contactTime)) return "sem contato";
+  return formatRelativeDateTimeLabel(value, "Nenhum contato realizado");
+}
 
-  const today = startOfLocalDay(new Date());
-  const contactDate = startOfLocalDay(new Date(contactTime));
-  const diffDays = Math.max(0, Math.floor((today.getTime() - contactDate.getTime()) / 86400000));
+function formatRelativeDateTimeLabel(value, fallbackLabel) {
+  const date = new Date(value || "");
+  if (!Number.isFinite(date.getTime())) return fallbackLabel;
 
-  if (diffDays === 0) return "hoje";
-  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? "dia" : "dias"}`;
+  const todayParts = getSaoPauloDateParts(new Date());
+  const valueParts = getSaoPauloDateParts(date);
+  const diffDays = Math.max(0, getDatePartDayNumber(todayParts) - getDatePartDayNumber(valueParts));
 
-  const diffMonths = Math.max(1, Math.floor(diffDays / 30));
-  if (diffMonths < 12) return `${diffMonths} ${diffMonths === 1 ? "mês" : "meses"}`;
+  if (diffDays === 0) return `Hoje às ${valueParts.hour}:${valueParts.minute}`;
+  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? "dia" : "dias"} atrás`;
+
+  const diffMonths = Math.max(1, ((todayParts.year - valueParts.year) * 12) + todayParts.month - valueParts.month);
+  if (diffMonths < 12) return diffMonths === 1 ? "1 mês atrás" : `${diffMonths} meses`;
 
   const diffYears = Math.max(1, Math.floor(diffMonths / 12));
   return `${diffYears} ${diffYears === 1 ? "ano" : "anos"}`;
 }
 
-function startOfLocalDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function getSaoPauloDateParts(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+    year: "numeric"
+  }).formatToParts(date);
+
+  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    day: Number(partMap.day),
+    hour: partMap.hour === "24" ? "00" : partMap.hour,
+    minute: partMap.minute,
+    month: Number(partMap.month),
+    year: Number(partMap.year)
+  };
+}
+
+function getDatePartDayNumber(parts) {
+  return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / 86400000);
 }
 
 function getPaginationLabel(start, end, total) {
