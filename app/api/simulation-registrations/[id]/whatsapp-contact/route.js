@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
-  ensureManualSimulationRegistration,
-  formatSimulationRegistrationError
+  formatSimulationRegistrationError,
+  markSimulationRegistrationWhatsAppContact
 } from "@/lib/simulation-registrations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request) {
+export async function POST(request, { params }) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -20,12 +20,8 @@ export async function POST(request) {
   }
 
   try {
-    const body = await request.json();
-    const registration = await ensureManualSimulationRegistration({
-      ...body,
-      adminEmail: auth.user?.email
-    });
-    return NextResponse.json(registration, { status: 201 });
+    const registration = await markSimulationRegistrationWhatsAppContact((await params).id, auth.user?.email);
+    return NextResponse.json(registration);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
   }

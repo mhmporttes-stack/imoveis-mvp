@@ -247,7 +247,13 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
 
       setLocalRegistrations((current) => current.map((registration) => (
         registration.id === data.id
-          ? { ...registration, status: nextStatus, approvedAt: data.approvedAt || registration.approvedAt }
+          ? {
+              ...registration,
+              ...data,
+              tags: registration.tags || data.tags || [],
+              status: nextStatus,
+              approvedAt: data.approvedAt || registration.approvedAt
+            }
           : registration
       )));
     } finally {
@@ -278,8 +284,11 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       }
 
       const nextTags = localTags.filter((tagItem) => cleanIds.includes(tagItem.id));
+      const updatedRegistration = data.registration || {};
       setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id ? { ...registration, tags: nextTags } : registration
+        registration.id === linkedRegistration.id
+          ? { ...registration, ...updatedRegistration, tags: nextTags }
+          : registration
       )));
     } finally {
       setBusyClientId("");
@@ -375,6 +384,24 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
     }
 
     window.open(whatsapp, "_blank", "noopener,noreferrer");
+
+    if (!client.registration?.id) return;
+
+    fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, {
+      method: "POST"
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!data?.id) return;
+        setLocalRegistrations((current) => current.map((registration) => (
+          registration.id === data.id
+            ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
+            : registration
+        )));
+      })
+      .catch((error) => {
+        console.error("Nao foi possivel registrar o contato via WhatsApp:", error);
+      });
   }
 
   return (
@@ -590,6 +617,14 @@ function ClientCard({
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">
+          {client.lastAdminLabel ? (
+            <span
+              className="w-full text-left text-[11px] font-black uppercase tracking-[0.12em] text-muted sm:text-right"
+              title="Ultimo responsavel administrativo"
+            >
+              {client.lastAdminLabel}
+            </span>
+          ) : null}
           {clientTags.slice(0, 4).map((tagItem) => (
             <TagPill key={tagItem.id} tag={tagItem} />
           ))}
@@ -633,7 +668,10 @@ function ClientCard({
         />
       ) : null}
 
-      <p className="mt-2 text-sm font-bold text-muted">Data: {client.dateLabel}</p>
+      <div className="mt-2 space-y-1 text-sm font-bold text-muted">
+        <p>Data do cadastro: {client.dateLabel}</p>
+        <p>Último contato: {client.lastContactLabel}</p>
+      </div>
 
       {client.completed ? (
         <div className="mt-2 space-y-1.5">
@@ -939,6 +977,9 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     id: registration?.id || `simulation-${simulation?.id || name}`,
     completed: isCompletedClientStatus(status),
     dateLabel: safeFormatDateLabel(registration, simulation),
+    lastAdminLabel: registration?.lastAdminName || "",
+    lastContactLabel: formatLastContactLabel(registration?.lastWhatsappContactAt),
+    lastWhatsappContactAt: registration?.lastWhatsappContactAt || "",
     name,
     registration,
     searchText: buildSearchText(simulation || {}, registration),
@@ -976,6 +1017,11 @@ function combineClientItems(currentItem, nextItem) {
   return {
     ...preferred,
     completed: preferred.completed || fallback.completed || isCompletedClientStatus(status),
+    lastAdminLabel: preferred.lastAdminLabel || fallback.lastAdminLabel || "",
+    lastContactLabel: (preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
+      ? formatLastContactLabel(preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
+      : "sem contato",
+    lastWhatsappContactAt: preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt || "",
     registration: preferred.registration || fallback.registration,
     searchText: {
       phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
@@ -1113,10 +1159,32 @@ function buildSearchText(simulation = {}, registration = null) {
 }
 
 function formatDateLabel(registration, simulation) {
-  const value = simulation?.simulationDate || registration?.createdAt || simulation?.updatedAt || simulation?.createdAt;
+  const value = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt;
   if (!value) return "Sem data";
   if (String(value).includes("T")) return formatDateTimeBR(value).split(" às ")[0] || formatDateBR(value);
   return formatDateBR(value);
+}
+
+function formatLastContactLabel(value) {
+  const contactTime = new Date(value || "").getTime();
+  if (!Number.isFinite(contactTime)) return "sem contato";
+
+  const today = startOfLocalDay(new Date());
+  const contactDate = startOfLocalDay(new Date(contactTime));
+  const diffDays = Math.max(0, Math.floor((today.getTime() - contactDate.getTime()) / 86400000));
+
+  if (diffDays === 0) return "hoje";
+  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? "dia" : "dias"}`;
+
+  const diffMonths = Math.max(1, Math.floor(diffDays / 30));
+  if (diffMonths < 12) return `${diffMonths} ${diffMonths === 1 ? "mês" : "meses"}`;
+
+  const diffYears = Math.max(1, Math.floor(diffMonths / 12));
+  return `${diffYears} ${diffYears === 1 ? "ano" : "anos"}`;
+}
+
+function startOfLocalDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function getPaginationLabel(start, end, total) {
@@ -1167,7 +1235,7 @@ function safeFormatDateLabel(registration, simulation) {
   try {
     return formatDateLabel(registration, simulation);
   } catch {
-    const value = simulation?.simulationDate || registration?.createdAt || simulation?.updatedAt || simulation?.createdAt;
+    const value = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt;
     return value ? String(value).slice(0, 10) : "Sem data";
   }
 }

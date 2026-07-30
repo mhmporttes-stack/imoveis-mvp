@@ -21,7 +21,11 @@ export async function PATCH(request, { params }) {
   }
 
   try {
-    const registration = await updateSimulationRegistration((await params).id, await request.json());
+    const body = await request.json();
+    const registration = await updateSimulationRegistration((await params).id, {
+      ...body,
+      adminEmail: auth.user?.email
+    });
     return NextResponse.json(registration);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
