@@ -468,6 +468,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   async function saveSimulation() {
     return persistSimulation();
+  }
+
+  /*
     setSaving(true);
     setError("");
     setMessage("");
@@ -492,11 +495,23 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     router.refresh();
   }
 
+  */
+
   async function persistSimulation({ silent = false } = {}) {
     const currentForm = formRef.current;
     const payload = JSON.stringify(serializeForm(currentForm));
     const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
     const method = currentForm.id ? "PUT" : "POST";
+
+    if (payload === lastSavedPayloadRef.current) {
+      setAutoSaveStatus("saved");
+      if (!silent) setMessage("Simulacao salva com sucesso.");
+      return currentForm;
+    }
+
+    if (silent && autoSaveRequestRef.current) {
+      return null;
+    }
 
     if (!silent) {
       setSaving(true);
@@ -1191,10 +1206,11 @@ function normalizeInitialSimulation(simulation) {
 
 function normalizeRegistrationDraft(registration = null, simulation = {}, fallbackPhone = "") {
   const source = registration || {};
+  const safeSimulation = simulation || {};
   return {
     id: source.id || "",
     simulationType: source.simulationType === "joint" ? "joint" : "individual",
-    fullName: normalizePersonName(source.fullName || simulation.clientName || ""),
+    fullName: normalizePersonName(source.fullName || safeSimulation.clientName || ""),
     phone: formatPhoneInput(source.phone || source.phoneNormalized || fallbackPhone || ""),
     phoneNormalized: source.phoneNormalized || "",
     oldestBirthDate: normalizeDateInput(source.oldestBirthDate),

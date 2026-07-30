@@ -69,23 +69,25 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       const safeSimulations = ensureArray(simulations);
       const safeRegistrations = ensureArray(localRegistrations);
       const usedRegistrationIds = new Set();
-      const simulationClients = safeSimulations.map((simulation) => {
+      const groupedClients = new Map();
+
+      safeSimulations.forEach((simulation) => {
         const summary = getSimulationListSummary(simulation);
         const registration = findRegistrationForSimulation(simulation, safeRegistrations);
         if (registration?.id) usedRegistrationIds.add(registration.id);
 
-        return buildClientItem({
+        mergeClientItem(groupedClients, buildClientItem({
           registration,
           simulation,
           summary
-        });
+        }));
       });
 
-      const registrationOnlyClients = safeRegistrations
+      safeRegistrations
         .filter((registration) => !usedRegistrationIds.has(registration.id))
-        .map((registration) => buildClientItem({ registration }));
+        .forEach((registration) => mergeClientItem(groupedClients, buildClientItem({ registration })));
 
-      const items = [...simulationClients, ...registrationOnlyClients].sort((a, b) => {
+      const items = Array.from(groupedClients.values()).sort((a, b) => {
         const dateA = safeTimestamp(a.sortDate);
         const dateB = safeTimestamp(b.sortDate);
         return dateB - dateA;
@@ -207,7 +209,6 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       }
 
       setLocalRegistrations((current) => current.filter((registration) => registration.id !== client.registration?.id));
-      router.refresh();
     } finally {
       setBusyClientId("");
     }
@@ -479,6 +480,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
             key={client.id}
             localTags={localTags}
             onCreateTag={createTagForClient}
+            onEnsureRegistration={ensureClientRegistration}
             onOpenSimulation={openSimulation}
             onOpenWhatsApp={openWhatsApp}
             onRemoveClient={removeClient}
@@ -537,6 +539,7 @@ function ClientCard({
   expanded,
   localTags,
   onCreateTag,
+  onEnsureRegistration,
   onOpenSimulation,
   onOpenWhatsApp,
   onRemoveClient,
@@ -561,21 +564,17 @@ function ClientCard({
             {client.name || "Cliente sem nome"}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {hasRegistration ? (
-              <select
-                aria-label={`Alterar status de ${client.name}`}
-                className={`rounded-full border-0 px-3 py-1 text-[11px] font-black outline-none transition focus:ring-4 focus:ring-brand/15 ${CLIENT_STATUS_META[client.status]?.badgeClass || CLIENT_STATUS_META.pending.badgeClass}`}
-                disabled={busy}
-                onChange={(event) => onUpdateStatus(client, event.target.value)}
-                value={client.status}
-              >
-                {CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all").map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            ) : (
-              <StatusBadge status={client.status} />
-            )}
+            <select
+              aria-label={`Alterar status de ${client.name}`}
+              className={`rounded-full border-0 px-3 py-1 text-[11px] font-black outline-none transition focus:ring-4 focus:ring-brand/15 ${CLIENT_STATUS_META[client.status]?.badgeClass || CLIENT_STATUS_META.pending.badgeClass}`}
+              disabled={busy}
+              onChange={(event) => onUpdateStatus(client, event.target.value)}
+              value={client.status}
+            >
+              {CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all").map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -586,16 +585,21 @@ function ClientCard({
           {clientTags.length > 4 ? (
             <span className="rounded-full bg-[#EEF4FB] px-2 py-1 text-[11px] font-black text-navy">+{clientTags.length - 4}</span>
           ) : null}
-          {hasRegistration ? (
-            <button
-              className="inline-flex h-8 items-center gap-1 rounded-full border border-brand/25 bg-white px-3 text-[11px] font-black text-brand transition hover:border-brand hover:bg-[#EEF6FF]"
-              onClick={onToggleTagEditor}
-              type="button"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Tags
-            </button>
-          ) : null}
+          <button
+            className="inline-flex h-8 items-center gap-1 rounded-full border border-brand/25 bg-white px-3 text-[11px] font-black text-brand transition hover:border-brand hover:bg-[#EEF6FF]"
+            disabled={busy}
+            onClick={async () => {
+              if (!hasRegistration) {
+                const registration = await onEnsureRegistration(client);
+                if (!registration?.id) return;
+              }
+              onToggleTagEditor();
+            }}
+            type="button"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Tags
+          </button>
         </div>
       </div>
 
@@ -633,7 +637,14 @@ function ClientCard({
         <PendingClientInfo registration={client.registration} />
       )}
 
-      {expanded ? <InlineRegistrationDetails registration={client.registration} simulation={client.simulation} /> : null}
+      {expanded ? (
+        <InlineRegistrationDetails
+          busy={busy}
+          onEnsureRegistration={() => onEnsureRegistration(client)}
+          registration={client.registration}
+          simulation={client.simulation}
+        />
+      ) : null}
 
       <div className="mt-4 grid grid-cols-4 gap-2">
         <button
@@ -649,7 +660,14 @@ function ClientCard({
         <button
           aria-label={`Ver cadastro de ${client.name || "cliente"}`}
           className="client-action-button"
-          onClick={onToggleDetails}
+          disabled={busy}
+          onClick={async () => {
+            if (!hasRegistration) {
+              const registration = await onEnsureRegistration(client);
+              if (!registration?.id) return;
+            }
+            onToggleDetails();
+          }}
           type="button"
         >
           <UserRound className="h-4 w-4" aria-hidden="true" />
@@ -771,7 +789,7 @@ function PendingClientInfo({ registration }) {
   );
 }
 
-function InlineRegistrationDetails({ registration, simulation }) {
+function InlineRegistrationDetails({ busy, onEnsureRegistration, registration, simulation }) {
   if (!registration) {
     return (
       <div className="mt-4 rounded-2xl border border-line bg-[#F8FBFF] p-4 text-sm font-bold text-muted">
@@ -875,7 +893,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     components: []
   };
   const status = resolveClientStatus(registration, safeSummary);
-  const name = registration?.fullName || simulation?.clientName || "Cliente sem nome";
+  const name = normalizePersonName(registration?.fullName || simulation?.clientName || "Cliente sem nome");
   const sortDate = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt || "";
 
   return {
@@ -884,13 +902,89 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     dateLabel: safeFormatDateLabel(registration, simulation),
     name,
     registration,
-    searchText: buildSearchText(simulation, registration),
+    searchText: buildSearchText(simulation || {}, registration),
     simulation,
     sortDate,
     status,
     summary: safeSummary,
     tags: ensureArray(registration?.tags)
   };
+}
+
+function mergeClientItem(groupedClients, nextItem) {
+  const key = getClientIdentityKey(nextItem);
+  const currentItem = groupedClients.get(key);
+
+  if (!currentItem) {
+    groupedClients.set(key, nextItem);
+    return;
+  }
+
+  groupedClients.set(key, combineClientItems(currentItem, nextItem));
+}
+
+function combineClientItems(currentItem, nextItem) {
+  const preferred = getClientScore(nextItem) > getClientScore(currentItem) ? nextItem : currentItem;
+  const fallback = preferred === currentItem ? nextItem : currentItem;
+  const summary = getSummaryScore(preferred.summary) >= getSummaryScore(fallback.summary)
+    ? preferred.summary
+    : fallback.summary;
+  const status = getStatusPriority(preferred.status) >= getStatusPriority(fallback.status)
+    ? preferred.status
+    : fallback.status;
+  const tags = ensureArray(preferred.tags).length ? ensureArray(preferred.tags) : ensureArray(fallback.tags);
+
+  return {
+    ...preferred,
+    completed: preferred.completed || fallback.completed || status === CLIENT_STATUS.COMPLETED || status === CLIENT_STATUS.APPROVED,
+    registration: preferred.registration || fallback.registration,
+    searchText: {
+      phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
+      text: [preferred.searchText?.text, fallback.searchText?.text].filter(Boolean).join(" ")
+    },
+    simulation: preferred.simulation || fallback.simulation,
+    status,
+    summary,
+    tags
+  };
+}
+
+function getClientIdentityKey(client) {
+  const phone = getPhoneIdentity(extractClientPhone(client));
+  if (phone) return `phone:${phone}`;
+  if (client.registration?.id) return `registration:${client.registration.id}`;
+  if (client.simulation?.registrationId) return `registration:${client.simulation.registrationId}`;
+
+  const name = normalizeText(client.name);
+  return name ? `name:${name}` : client.id;
+}
+
+function getPhoneIdentity(value) {
+  const whatsappDigits = toWhatsAppDigits(value);
+  if (whatsappDigits) return whatsappDigits;
+
+  let digits = normalizePhone(value);
+  if (digits.startsWith("0055")) digits = digits.slice(4);
+  if (digits.startsWith("55") && digits.length > 11) digits = digits.slice(2);
+  return digits;
+}
+
+function getClientScore(client) {
+  return getStatusPriority(client.status) * 1000
+    + (client.registration?.id ? 200 : 0)
+    + (client.simulation?.id ? 100 : 0)
+    + getSummaryScore(client.summary)
+    + Math.min(safeTimestamp(client.sortDate) / 1000000000000, 10);
+}
+
+function getSummaryScore(summary = {}) {
+  return (summary?.completed ? 100 : 0) + Math.min(normalizeMoneyValue(summary?.purchasePower) / 10000, 100);
+}
+
+function getStatusPriority(status) {
+  if (status === CLIENT_STATUS.APPROVED) return 3;
+  if (status === CLIENT_STATUS.COMPLETED) return 2;
+  return 1;
 }
 
 function resolveClientStatus(registration, summary) {
@@ -925,6 +1019,8 @@ function buildDraftSimulationPayload(registration = {}) {
 }
 
 function findRegistrationForSimulation(simulation = {}, registrations = []) {
+  if (!simulation) return null;
+
   if (simulation.registrationId) {
     const byId = registrations.find((registration) => registration.id === simulation.registrationId);
     if (byId) return byId;
@@ -947,20 +1043,21 @@ function findRegistrationForSimulation(simulation = {}, registrations = []) {
 }
 
 function buildSearchText(simulation = {}, registration = null) {
+  const safeSimulation = simulation || {};
   const phone = [
-    extractSimulationPhone(simulation),
+    extractSimulationPhone(safeSimulation),
     registration?.phone,
     registration?.phoneNormalized
   ].map(normalizePhone).join(" ");
 
   const tags = ensureArray(registration?.tags).map((tagItem) => tagItem.name).join(" ");
   const text = normalizeText([
-    simulation?.clientName,
+    safeSimulation.clientName,
     registration?.fullName,
     registration?.primaryIncomeType,
     tags,
-    simulation?.createdBy,
-    simulation?.internalNote
+    safeSimulation.createdBy,
+    safeSimulation.internalNote
   ].filter(Boolean).join(" "));
 
   return { phone, text };
@@ -976,6 +1073,20 @@ function formatDateLabel(registration, simulation) {
 function getPaginationLabel(start, end, total) {
   if (!total) return "Mostrando 0 de 0 clientes";
   return `Mostrando ${start + 1} a ${end} de ${total} clientes`;
+}
+
+function extractClientPhone(client) {
+  return client?.registration?.phoneNormalized
+    || client?.registration?.phone
+    || extractSimulationPhone(client?.simulation || {})
+    || "";
+}
+
+function upsertById(items, nextItem) {
+  if (!nextItem?.id) return items;
+  const exists = items.some((item) => item.id === nextItem.id);
+  if (!exists) return [nextItem, ...items];
+  return items.map((item) => (item.id === nextItem.id ? { ...item, ...nextItem } : item));
 }
 
 function getPageNumbers(currentPage, totalPages) {
