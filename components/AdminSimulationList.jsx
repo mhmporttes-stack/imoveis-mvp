@@ -38,7 +38,18 @@ import {
 } from "@/lib/simulation-list-utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
-const TAG_COLORS = ["#0D4F8B", "#1D4ED8", "#047857", "#B91C1C", "#7C3AED", "#334155", "#0F766E", "#BE123C"];
+const TAG_COLORS = [
+  { label: "Azul institucional", value: "#0D4F8B" },
+  { label: "Azul vivo", value: "#1D4ED8" },
+  { label: "Verde", value: "#047857" },
+  { label: "Vermelho", value: "#B91C1C" },
+  { label: "Amarelo", value: "#CA8A04" },
+  { label: "Cinza", value: "#475569" },
+  { label: "Roxo", value: "#7C3AED" },
+  { label: "Ciano", value: "#0891B2" },
+  { label: "Rosa", value: "#BE185D" },
+  { label: "Preto suave", value: "#1F2937" }
+];
 
 export default function AdminSimulationList({ loadWarning = "", registrations = [], simulations = [], tags = [] }) {
   const router = useRouter();
@@ -53,7 +64,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
   const [localRegistrations, setLocalRegistrations] = useState(() => ensureArray(registrations));
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [tagDraft, setTagDraft] = useState("");
-  const [tagColor, setTagColor] = useState(TAG_COLORS[0]);
+  const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
   const [busyClientId, setBusyClientId] = useState("");
 
   useEffect(() => {
@@ -105,12 +116,10 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
   const clients = clientsResult.items;
 
   const counters = useMemo(() => {
-    const base = {
-      all: clients.length,
-      [CLIENT_STATUS.PENDING]: 0,
-      [CLIENT_STATUS.COMPLETED]: 0,
-      [CLIENT_STATUS.APPROVED]: 0
-    };
+    const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
+      acc[option.value] = option.value === "all" ? clients.length : 0;
+      return acc;
+    }, {});
 
     for (const client of clients) {
       base[client.status] = (base[client.status] || 0) + 1;
@@ -416,6 +425,8 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
             const meta = filter.value === "all" ? null : CLIENT_STATUS_META[filter.value];
             const counterClass = filter.value === CLIENT_STATUS.PENDING
               ? "bg-red-50 text-red-700"
+              : filter.value === CLIENT_STATUS.DOCUMENTATION
+                ? "bg-yellow-50 text-yellow-800"
               : filter.value === CLIENT_STATUS.APPROVED
                 ? "bg-emerald-50 text-emerald-700"
                 : active
@@ -726,38 +737,66 @@ function TagEditor({
                 style={active ? { backgroundColor: tagItem.color } : undefined}
                 type="button"
               >
-                {active ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                {active ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
                 {tagItem.name}
               </button>
+              {active ? (
+                <button
+                  aria-label={`Remover tag ${tagItem.name} deste cliente`}
+                  className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted transition hover:bg-blue-50 hover:text-brand"
+                  onClick={() => onToggleTag(tagItem.id)}
+                  title="Remover deste cliente"
+                  type="button"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              ) : null}
               <button
-                aria-label={`Excluir tag ${tagItem.name}`}
+                aria-label={`Excluir tag ${tagItem.name} do sistema`}
                 className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted transition hover:bg-red-50 hover:text-red-700"
                 onClick={() => onDeleteTag(tagItem)}
+                title="Excluir tag do sistema"
                 type="button"
               >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </span>
           );
         })}
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <div className="mt-3 grid gap-2">
         <input
           className="h-10 rounded-2xl border border-line bg-white px-4 text-sm font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
           onChange={(event) => setTagDraft(event.target.value)}
           placeholder="Nova tag"
           value={tagDraft}
         />
-        <select
-          className="h-10 rounded-2xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-          onChange={(event) => setTagColor(event.target.value)}
-          value={tagColor}
+        <div
+          aria-label="Escolha a cor da tag"
+          className="flex flex-wrap gap-2 rounded-2xl border border-line bg-white p-2"
+          role="radiogroup"
         >
           {TAG_COLORS.map((color) => (
-            <option key={color} value={color}>{color}</option>
+            <button
+              aria-checked={tagColor === color.value}
+              aria-label={color.label}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-brand/15 ${
+                tagColor === color.value ? "border-brand bg-[#EEF6FF]" : "border-line bg-white"
+              }`}
+              key={color.value}
+              onClick={() => setTagColor(color.value)}
+              role="radio"
+              title={color.label}
+              type="button"
+            >
+              <span
+                className="h-5 w-5 rounded-md border border-white shadow-[0_4px_10px_rgba(13,59,102,0.18)]"
+                style={{ backgroundColor: color.value }}
+              />
+            </button>
           ))}
-        </select>
+        </div>
         <button
           className="inline-flex h-10 items-center justify-center rounded-2xl bg-navy px-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#082f55]"
           onClick={onCreateTag}
@@ -898,7 +937,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
 
   return {
     id: registration?.id || `simulation-${simulation?.id || name}`,
-    completed: status === CLIENT_STATUS.COMPLETED || status === CLIENT_STATUS.APPROVED,
+    completed: isCompletedClientStatus(status),
     dateLabel: safeFormatDateLabel(registration, simulation),
     name,
     registration,
@@ -936,7 +975,7 @@ function combineClientItems(currentItem, nextItem) {
 
   return {
     ...preferred,
-    completed: preferred.completed || fallback.completed || status === CLIENT_STATUS.COMPLETED || status === CLIENT_STATUS.APPROVED,
+    completed: preferred.completed || fallback.completed || isCompletedClientStatus(status),
     registration: preferred.registration || fallback.registration,
     searchText: {
       phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
@@ -982,7 +1021,8 @@ function getSummaryScore(summary = {}) {
 }
 
 function getStatusPriority(status) {
-  if (status === CLIENT_STATUS.APPROVED) return 3;
+  if (status === CLIENT_STATUS.APPROVED) return 4;
+  if (status === CLIENT_STATUS.DOCUMENTATION) return 3;
   if (status === CLIENT_STATUS.COMPLETED) return 2;
   return 1;
 }
@@ -990,8 +1030,17 @@ function getStatusPriority(status) {
 function resolveClientStatus(registration, summary) {
   const storedStatus = normalizeClientStatus(registration?.status);
   if (storedStatus === CLIENT_STATUS.APPROVED) return CLIENT_STATUS.APPROVED;
+  if (storedStatus === CLIENT_STATUS.DOCUMENTATION) return CLIENT_STATUS.DOCUMENTATION;
   if (storedStatus === CLIENT_STATUS.COMPLETED) return CLIENT_STATUS.COMPLETED;
   return summary?.completed ? CLIENT_STATUS.COMPLETED : CLIENT_STATUS.PENDING;
+}
+
+function isCompletedClientStatus(status) {
+  return [
+    CLIENT_STATUS.COMPLETED,
+    CLIENT_STATUS.DOCUMENTATION,
+    CLIENT_STATUS.APPROVED
+  ].includes(status);
 }
 
 function buildDraftSimulationPayload(registration = {}) {
