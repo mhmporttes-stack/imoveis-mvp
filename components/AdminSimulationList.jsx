@@ -166,11 +166,12 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
 
   async function openSimulation(client) {
     if (client.simulation?.id) {
+      await touchClientRegistration(client);
       router.push(`/admin/simulacoes/${client.simulation.id}`);
       return;
     }
 
-    const registration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    const registration = client.registration?.id ? await touchClientRegistration(client) : await ensureClientRegistration(client);
     if (!registration?.id) return;
 
     setBusyClientId(client.id);
@@ -218,6 +219,37 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
       }
 
       setLocalRegistrations((current) => current.filter((registration) => registration.id !== client.registration?.id));
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function touchClientRegistration(client) {
+    if (!client.registration?.id) return ensureClientRegistration(client);
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        console.error("Nao foi possivel registrar a atividade administrativa:", data.error || response.statusText);
+        return client.registration;
+      }
+
+      setLocalRegistrations((current) => current.map((registration) => (
+        registration.id === data.id
+          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
+          : registration
+      )));
+      return data;
+    } catch (error) {
+      console.error("Nao foi possivel registrar a atividade administrativa:", error);
+      return client.registration;
     } finally {
       setBusyClientId("");
     }
@@ -295,8 +327,10 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
     }
   }
 
-  async function ensureClientRegistration(client) {
-    if (client.registration?.id) return client.registration;
+  async function ensureClientRegistration(client, options = {}) {
+    if (client.registration?.id) {
+      return options.markActivity ? touchClientRegistration(client) : client.registration;
+    }
 
     setBusyClientId(client.id);
     try {
@@ -716,10 +750,8 @@ function ClientCard({
           className="client-action-button"
           disabled={busy}
           onClick={async () => {
-            if (!hasRegistration) {
-              const registration = await onEnsureRegistration(client);
-              if (!registration?.id) return;
-            }
+            const registration = await onEnsureRegistration(client, { markActivity: true });
+            if (!registration?.id) return;
             onToggleDetails();
           }}
           type="button"
