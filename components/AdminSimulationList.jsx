@@ -490,6 +490,8 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
                 ? "bg-yellow-50 text-yellow-800"
               : filter.value === CLIENT_STATUS.APPROVED
                 ? "bg-emerald-50 text-emerald-700"
+              : filter.value === CLIENT_STATUS.ARCHIVED
+                ? "bg-slate-100 text-slate-700"
                 : active
                   ? "bg-brand text-white"
                   : "bg-[#EEF4FB] text-navy";
@@ -505,7 +507,7 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
                 onClick={() => setStatusFilter(filter.value)}
                 type="button"
               >
-                {filter.label}
+                {filter.filterLabel || filter.label}
                 <span className={`rounded-full px-2 py-0.5 text-xs ${counterClass}`}>
                   {counters[filter.value] || 0}
                 </span>
@@ -1011,7 +1013,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
 
   return {
     id: registration?.id || `simulation-${simulation?.id || name}`,
-    completed: isCompletedClientStatus(status),
+    completed: safeSummary.completed || isCompletedClientStatus(status),
     dateLabel: safeFormatDateLabel(registration, simulation),
     lastAdminLabel: registration?.lastAdminName || "",
     lastContactLabel: formatLastContactLabel(registration?.lastWhatsappContactAt),
@@ -1103,6 +1105,7 @@ function getSummaryScore(summary = {}) {
 }
 
 function getStatusPriority(status) {
+  if (status === CLIENT_STATUS.ARCHIVED) return 5;
   if (status === CLIENT_STATUS.APPROVED) return 4;
   if (status === CLIENT_STATUS.DOCUMENTATION) return 3;
   if (status === CLIENT_STATUS.COMPLETED) return 2;
@@ -1111,6 +1114,7 @@ function getStatusPriority(status) {
 
 function resolveClientStatus(registration, summary) {
   const storedStatus = normalizeClientStatus(registration?.status);
+  if (storedStatus === CLIENT_STATUS.ARCHIVED) return CLIENT_STATUS.ARCHIVED;
   if (storedStatus === CLIENT_STATUS.APPROVED) return CLIENT_STATUS.APPROVED;
   if (storedStatus === CLIENT_STATUS.DOCUMENTATION) return CLIENT_STATUS.DOCUMENTATION;
   if (storedStatus === CLIENT_STATUS.COMPLETED) return CLIENT_STATUS.COMPLETED;
