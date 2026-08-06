@@ -630,17 +630,16 @@ function ClientCard({
 
   return (
     <article className="relative max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
-      {client.lastAdminLabel ? (
-        <span
-          className="absolute right-4 top-3 max-w-[45%] truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted sm:right-[18px]"
-          title="Ultimo responsavel administrativo"
-        >
-          {client.lastAdminLabel}
-        </span>
-      ) : null}
-
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <div className="min-w-0 pr-20 sm:pr-0">
+        <div className="min-w-0">
+          {client.lastAdminLabel ? (
+            <p
+              className="mb-1 truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted"
+              title="Ultimo responsavel administrativo"
+            >
+              Responsavel: {client.lastAdminLabel}
+            </p>
+          ) : null}
           <h2 className="truncate text-lg font-black text-navy sm:text-xl" title={client.name}>
             {client.name || "Cliente sem nome"}
           </h2>
