@@ -32,7 +32,7 @@ create table if not exists public.captacoes (
   details_json jsonb not null default '{}'::jsonb,
   photos_json jsonb not null default '[]'::jsonb,
   status text not null default 'nova',
-  property_id uuid null references public.properties(id) on delete set null,
+  property_id text null references public.properties(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint captacoes_property_type_check check (
