@@ -147,7 +147,10 @@ function InfoLine({ label, value }) {
 }
 
 function DetailsList({ details = {} }) {
-  const rows = [
+  const differentials = Array.isArray(details.differentials)
+    ? details.differentials.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  let rows = [
     ["Área", details.area],
     ["Área construída", details.builtArea],
     ["Área total", details.totalArea],
@@ -161,6 +164,10 @@ function DetailsList({ details = {} }) {
     ["Elevador", details.hasElevator ? "Sim" : ""],
     ["Lazer completo", details.hasLeisure ? "Sim" : ""]
   ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+
+  if (differentials.length) {
+    rows = [...rows, ["Diferenciais", differentials.join(", ")]];
+  }
 
   if (!rows.length) return <p className="text-muted">Nenhuma característica específica foi informada.</p>;
 

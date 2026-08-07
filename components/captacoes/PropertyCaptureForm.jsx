@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Home, ImagePlus, Loader2, MapPin, UploadCloud, UserRound } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, Home, ImagePlus, Loader2, Plus, UploadCloud, X } from "lucide-react";
 import {
   CAPTACAO_TYPE_OPTIONS,
   CURRENT_SITUATION_OPTIONS,
@@ -28,9 +28,58 @@ const INITIAL_FORM = {
   saleReason: "",
   notes: "",
   details: {},
+  customDifferential: "",
   photoFiles: [],
   photos: []
 };
+
+const AUTO_ADVANCE_DELAY = 220;
+
+const HOUSE_DIFFERENTIALS = [
+  "Piscina",
+  "Área gourmet",
+  "Churrasqueira",
+  "Móveis planejados",
+  "Ar-condicionado",
+  "Portão eletrônico",
+  "Garagem coberta",
+  "Energia solar",
+  "Aquecimento solar",
+  "Pé-direito alto",
+  "Piso em porcelanato",
+  "Banheira / hidromassagem",
+  "Cozinha com ilha",
+  "Quintal amplo",
+  "Fechadura eletrônica",
+  "Iluminação em LED",
+  "Despensa",
+  "Escritório / home office",
+  "Sistema de segurança / câmeras",
+  "Cerca elétrica"
+];
+
+const APARTMENT_DIFFERENTIALS = [
+  "Sacada",
+  "Varanda gourmet",
+  "Churrasqueira na varanda",
+  "Móveis planejados",
+  "Ar-condicionado",
+  "Fechadura eletrônica",
+  "Vaga de garagem coberta",
+  "Duas vagas de garagem",
+  "Suíte",
+  "Piso em porcelanato",
+  "Cozinha integrada",
+  "Cozinha com ilha",
+  "Vista privilegiada",
+  "Andar alto",
+  "Sol da manhã",
+  "Elevador",
+  "Condomínio com piscina",
+  "Academia no condomínio",
+  "Salão de festas",
+  "Portaria 24 horas"
+];
 
 export default function PropertyCaptureForm() {
   const [form, setForm] = useState(INITIAL_FORM);
@@ -38,10 +87,24 @@ export default function PropertyCaptureForm() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const autoAdvanceTimer = useRef(null);
 
-  const steps = useMemo(() => buildSteps(form.propertyType), [form.propertyType]);
+  const steps = useMemo(() => buildCaptureSteps(form.propertyType), [form.propertyType]);
   const currentStep = steps[stepIndex] || steps[0];
   const progress = Math.round(((stepIndex + 1) / steps.length) * 100);
+
+  useEffect(() => {
+    return () => {
+      clearAutoAdvanceTimer();
+    };
+  }, []);
+
+  function clearAutoAdvanceTimer() {
+    if (autoAdvanceTimer.current) {
+      clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = null;
+    }
+  }
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -70,17 +133,72 @@ export default function PropertyCaptureForm() {
     setError("");
   }
 
-  function selectPropertyType(value) {
-    setForm((current) => ({
-      ...current,
-      propertyType: value,
-      propertyTypeOther: value === "outro" ? current.propertyTypeOther : "",
-      details: {}
-    }));
+  function toggleDifferential(label) {
+    setForm((current) => {
+      const currentList = Array.isArray(current.details?.differentials) ? current.details.differentials : [];
+      const exists = currentList.includes(label);
+      const nextList = exists ? currentList.filter((item) => item !== label) : [...currentList, label];
+
+      return {
+        ...current,
+        details: {
+          ...current.details,
+          differentials: nextList
+        }
+      };
+    });
     setError("");
   }
 
+  function addCustomDifferential() {
+    const label = form.customDifferential.trim().replace(/\s+/g, " ");
+    if (!label) return;
+
+    setForm((current) => {
+      const currentList = Array.isArray(current.details?.differentials) ? current.details.differentials : [];
+      const alreadyExists = currentList.some((item) => item.toLocaleLowerCase("pt-BR") === label.toLocaleLowerCase("pt-BR"));
+      return {
+        ...current,
+        customDifferential: "",
+        details: {
+          ...current.details,
+          differentials: alreadyExists ? currentList : [...currentList, label]
+        }
+      };
+    });
+    setError("");
+  }
+
+  function selectPropertyType(value) {
+    const nextForm = {
+      ...form,
+      propertyType: value,
+      propertyTypeOther: value === "outro" ? form.propertyTypeOther : "",
+      details: {}
+    };
+    setForm(nextForm);
+    setError("");
+    if (value !== "outro") {
+      scheduleAutoAdvance(nextForm, stepIndex);
+    }
+  }
+
+  function scheduleAutoAdvance(nextForm, currentIndex) {
+    const nextSteps = buildCaptureSteps(nextForm.propertyType);
+    const step = nextSteps[currentIndex] || nextSteps[0];
+    const message = validateStep(step, nextForm);
+    if (message || step.id === "photos" || step.multiSelect) return;
+
+    clearAutoAdvanceTimer();
+    autoAdvanceTimer.current = setTimeout(() => {
+      autoAdvanceTimer.current = null;
+      setStepIndex((current) => Math.min(current + 1, buildCaptureSteps(nextForm.propertyType).length - 1));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, AUTO_ADVANCE_DELAY);
+  }
+
   function continueStep() {
+    clearAutoAdvanceTimer();
     const message = validateStep(currentStep, form);
     if (message) {
       setError(message);
@@ -93,6 +211,7 @@ export default function PropertyCaptureForm() {
   }
 
   function previousStep() {
+    clearAutoAdvanceTimer();
     setError("");
     setStepIndex((current) => Math.max(current - 1, 0));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -116,11 +235,14 @@ export default function PropertyCaptureForm() {
 
     try {
       const photos = await uploadPhotos(form.photoFiles);
+      const submissionForm = { ...form };
+      delete submissionForm.customDifferential;
+      delete submissionForm.photoFiles;
       const response = await fetch("/api/captacoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          ...submissionForm,
           photos,
           details: normalizeDetails(form.details)
         })
@@ -182,6 +304,8 @@ export default function PropertyCaptureForm() {
           update,
           updateDetail,
           toggleDetail,
+          toggleDifferential,
+          addCustomDifferential,
           selectPropertyType,
           handleFiles
         })}
@@ -225,7 +349,7 @@ export default function PropertyCaptureForm() {
   );
 }
 
-function renderStep({ step, form, update, updateDetail, toggleDetail, selectPropertyType, handleFiles }) {
+function renderStep({ step, form, update, updateDetail, toggleDetail, toggleDifferential, addCustomDifferential, selectPropertyType, handleFiles }) {
   if (step.id === "type") {
     return (
       <div className="grid gap-4 md:grid-cols-2">
@@ -268,6 +392,19 @@ function renderStep({ step, form, update, updateDetail, toggleDetail, selectProp
 
   if (step.id === "details") {
     return <DetailsFields type={form.propertyType} details={form.details} updateDetail={updateDetail} toggleDetail={toggleDetail} />;
+  }
+
+  if (step.id === "differentials") {
+    return (
+      <DifferentialsStep
+        type={form.propertyType}
+        details={form.details}
+        customDifferential={form.customDifferential}
+        update={update}
+        toggleDifferential={toggleDifferential}
+        addCustomDifferential={addCustomDifferential}
+      />
+    );
   }
 
   if (step.id === "sale") {
@@ -376,6 +513,73 @@ function DetailsFields({ type, details, updateDetail, toggleDetail }) {
   );
 }
 
+function DifferentialsStep({ type, details = {}, customDifferential, update, toggleDifferential, addCustomDifferential }) {
+  const selected = Array.isArray(details.differentials) ? details.differentials : [];
+  const baseOptions = getDifferentialOptions(type);
+  const customSelected = selected.filter((item) => !baseOptions.includes(item));
+
+  return (
+    <div className="grid gap-6">
+      {baseOptions.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {baseOptions.map((option) => {
+            const isSelected = selected.includes(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => toggleDifferential(option)}
+                className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left font-black transition duration-200 hover:-translate-y-0.5 hover:border-brand hover:bg-[#F4F9FF] ${
+                  isSelected ? "border-brand bg-[#E9F2FF] text-navy shadow-soft" : "border-line bg-white text-ink"
+                }`}
+              >
+                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isSelected ? "bg-brand text-white" : "bg-[#E9F2FF] text-brand"}`}>
+                  <Check className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span>{option}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="rounded-2xl border border-blue-100 bg-[#F4F9FF] p-5 font-bold text-muted">
+          Adicione abaixo os diferenciais mais importantes desse imóvel.
+        </p>
+      )}
+
+      {customSelected.length ? (
+        <div className="flex flex-wrap gap-2">
+          {customSelected.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => toggleDifferential(item)}
+              className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-[#E9F2FF] px-4 py-2 text-sm font-black text-navy transition hover:border-brand"
+              aria-label={`Remover diferencial ${item}`}
+            >
+              {item}
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 rounded-3xl border border-line bg-[#F7FAFF] p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        <Input
+          label="Adicionar outro diferencial"
+          value={customDifferential}
+          onChange={(value) => update("customDifferential", value)}
+          placeholder="Ex.: edícula, pomar, depósito, vista livre"
+        />
+        <button type="button" onClick={addCustomDifferential} className="premium-button-secondary justify-center">
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          Adicionar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Input({ label, value, onChange, type = "text", placeholder = "", inputMode = "text", autoComplete = "off" }) {
   return (
     <label className="grid gap-2 text-sm font-extrabold text-ink">
@@ -445,6 +649,31 @@ function buildSteps(propertyType) {
   ];
 }
 
+function buildCaptureSteps(propertyType) {
+  const steps = buildSteps(propertyType);
+  const saleIndex = steps.findIndex((step) => step.id === "sale");
+  const differentialStep = {
+    id: "differentials",
+    eyebrow: "Diferenciais do imÃ³vel",
+    title: "Quais diferenciais valorizam o imÃ³vel?",
+    description: "Selecione quantas opÃ§Ãµes quiser e adicione algum detalhe relevante para a captaÃ§Ã£o.",
+    multiSelect: true
+  };
+
+  if (saleIndex === -1) return [...steps, differentialStep];
+  return [
+    ...steps.slice(0, saleIndex),
+    differentialStep,
+    ...steps.slice(saleIndex)
+  ];
+}
+
+function getDifferentialOptions(type) {
+  if (type === "apartamento") return APARTMENT_DIFFERENTIALS;
+  if (type === "casa") return HOUSE_DIFFERENTIALS;
+  return [];
+}
+
 function validateStep(step, form) {
   if (step.id === "type") {
     if (!form.propertyType) return "Escolha o tipo do imóvel.";
@@ -464,7 +693,7 @@ function validateStep(step, form) {
 }
 
 function validateAll(form) {
-  for (const step of buildSteps(form.propertyType)) {
+  for (const step of buildCaptureSteps(form.propertyType)) {
     const message = validateStep(step, form);
     if (message) return message;
   }
@@ -489,8 +718,16 @@ async function uploadPhotos(files = []) {
 function normalizeDetails(details = {}) {
   return Object.fromEntries(
     Object.entries(details)
-      .map(([key, value]) => [key, typeof value === "string" ? value.trim() : value])
+      .map(([key, value]) => [
+        key,
+        Array.isArray(value)
+          ? [...new Set(value.map((item) => String(item || "").trim()).filter(Boolean))]
+          : typeof value === "string"
+            ? value.trim()
+            : value
+      ])
       .filter(([, value]) => value !== "" && value !== undefined && value !== null)
+      .filter(([, value]) => !Array.isArray(value) || value.length > 0)
   );
 }
 
