@@ -8,6 +8,7 @@ import {
   maritalStatusLabel,
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
+import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 
 export default function RegistrationDetails({ registration }) {
   const familyIncome = calculateFamilyIncome(registration);
@@ -46,7 +47,36 @@ export default function RegistrationDetails({ registration }) {
         <DetailsItem label="Valor disponível para a compra" value={formatCurrency(registration.availablePurchaseResource)} />
         <DetailsItem label="Renda familiar total" value={formatCurrency(familyIncome)} />
       </DetailsBlock>
+
+      <PropertyPreferencesBlock preferences={registration.propertyPreferences} />
     </div>
+  );
+}
+
+function PropertyPreferencesBlock({ preferences }) {
+  const summary = getPropertyPreferenceSummary(preferences);
+  const details = getPropertyPreferenceDetails(preferences);
+
+  return (
+    <DetailsBlock title="Preferências do imóvel">
+      {details.length ? (
+        <>
+          {summary ? (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-5 py-4 md:col-span-2 xl:col-span-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Resumo</p>
+              <p className="mt-2 text-lg font-black leading-tight text-navy">{summary}</p>
+            </div>
+          ) : null}
+          {details.map((item) => (
+            <DetailsItem key={item.label} label={item.label} value={item.value} />
+          ))}
+        </>
+      ) : (
+        <div className="rounded-2xl border border-line bg-slate-50 px-5 py-4 md:col-span-2 xl:col-span-3">
+          <p className="text-lg font-black leading-tight text-navy">Preferências ainda não preenchidas.</p>
+        </div>
+      )}
+    </DetailsBlock>
   );
 }
 

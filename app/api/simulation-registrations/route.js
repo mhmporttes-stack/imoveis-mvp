@@ -42,7 +42,14 @@ export async function POST(request) {
     } catch (notificationError) {
       console.warn("Simulation notification email failed:", notificationError?.message || notificationError);
     }
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        registrationId: registration.id,
+        preferencesAccessToken: registration.preferencesAccessToken || ""
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof SimulationRegistrationValidationError) {
       return NextResponse.json(

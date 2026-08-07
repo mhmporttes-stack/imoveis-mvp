@@ -7,9 +7,12 @@ import ChoiceStep from "@/components/simulation-form/ChoiceStep";
 import CurrencyInputStep from "@/components/simulation-form/CurrencyInputStep";
 import DateInputStep from "@/components/simulation-form/DateInputStep";
 import PhoneInputStep from "@/components/simulation-form/PhoneInputStep";
+import PropertyPreferencesFlow from "@/components/simulation-form/PropertyPreferencesFlow";
+import PropertyPreferencesInvite from "@/components/simulation-form/PropertyPreferencesInvite";
 import SimulationProgress from "@/components/simulation-form/SimulationProgress";
 import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
+import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preferences";
 import {
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
@@ -36,7 +39,11 @@ export default function SimulationForm() {
   const [stepError, setStepError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [completed, setCompleted] = useState(false);
+  const [completionView, setCompletionView] = useState("form");
+  const [registrationContext, setRegistrationContext] = useState({
+    id: "",
+    preferencesAccessToken: ""
+  });
   const advanceTimer = useRef(null);
 
   const steps = useMemo(() => buildRegistrationSteps(form), [form.simulationType]);
@@ -141,12 +148,39 @@ export default function SimulationForm() {
         return;
       }
 
-      setCompleted(true);
+      const nextContext = {
+        id: data.registrationId || "",
+        preferencesAccessToken: data.preferencesAccessToken || ""
+      };
+
+      setRegistrationContext(nextContext);
+      setCompletionView(nextContext.id && nextContext.preferencesAccessToken ? "invite" : "success");
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function skipPreferences() {
+    const { id, preferencesAccessToken } = registrationContext;
+
+    if (id && preferencesAccessToken) {
+      try {
+        await fetch(`/api/simulation-registrations/${id}/preferences`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: PROPERTY_PREFERENCE_STATUS.IGNORED,
+            token: preferencesAccessToken
+          })
+        });
+      } catch {
+        // A etapa de preferências é opcional; o cadastro principal já foi salvo.
+      }
+    }
+
+    setCompletionView("success");
   }
 
   function moveToFirstInvalidStep(fieldErrors) {
@@ -157,7 +191,22 @@ export default function SimulationForm() {
     }
   }
 
-  if (completed) return <SimulationSuccess />;
+  if (completionView === "invite") {
+    return <PropertyPreferencesInvite onSkip={skipPreferences} onStart={() => setCompletionView("preferences")} />;
+  }
+
+  if (completionView === "preferences") {
+    return (
+      <PropertyPreferencesFlow
+        onComplete={() => setCompletionView("success")}
+        onSkip={skipPreferences}
+        registrationId={registrationContext.id}
+        token={registrationContext.preferencesAccessToken}
+      />
+    );
+  }
+
+  if (completionView === "success") return <SimulationSuccess />;
 
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 shadow-soft sm:p-8 lg:p-10">

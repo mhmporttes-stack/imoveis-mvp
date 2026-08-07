@@ -28,6 +28,7 @@ import {
   maritalStatusLabel,
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
+import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 import { normalizePersonName } from "@/lib/name-utils";
 import {
   extractSimulationPhone,
@@ -940,6 +941,30 @@ function InlineRegistrationDetails({ busy, onEnsureRegistration, registration, s
         <Detail label="Recurso próprio" value={formatCurrency(registration.availablePurchaseResource)} />
         {simulation?.id ? <Detail label="Simulação vinculada" value="Sim" /> : <Detail label="Simulação vinculada" value="Não" />}
       </div>
+      <InlinePropertyPreferences preferences={registration.propertyPreferences} />
+    </div>
+  );
+}
+
+function InlinePropertyPreferences({ preferences }) {
+  const summary = getPropertyPreferenceSummary(preferences);
+  const details = getPropertyPreferenceDetails(preferences);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white p-4">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Preferencias do imovel</p>
+      {details.length ? (
+        <>
+          {summary ? <p className="mt-2 text-sm font-extrabold leading-6 text-navy">{summary}</p> : null}
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            {details.map((item) => (
+              <Detail key={item.label} label={item.label} value={item.value} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-sm font-bold text-muted">Preferencias ainda nao preenchidas.</p>
+      )}
     </div>
   );
 }
