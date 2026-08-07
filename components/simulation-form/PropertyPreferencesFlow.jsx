@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 import ChoiceStep from "@/components/simulation-form/ChoiceStep";
 import SimulationProgress from "@/components/simulation-form/SimulationProgress";
 import {
-  NO_PREFERENCE_VALUE,
   PROPERTY_PREFERENCE_STATUS,
   buildPropertyPreferenceSteps,
   getDefaultPropertyPreferences,
@@ -17,7 +16,11 @@ const booleanOptions = [
   { value: false, label: "Não" }
 ];
 
-export default function PropertyPreferencesFlow({ onComplete, onSkip, registrationId, token }) {
+function getVisiblePreferenceSteps(values) {
+  return buildPropertyPreferenceSteps(values).filter((step) => step.kind !== "textarea");
+}
+
+export default function PropertyPreferencesFlow({ onComplete, registrationId, token }) {
   const [form, setForm] = useState(() => getDefaultPropertyPreferences());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stepError, setStepError] = useState("");
@@ -27,9 +30,8 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
   const advanceTimer = useRef(null);
   const startedRef = useRef(false);
 
-  const steps = useMemo(() => buildPropertyPreferenceSteps(form), [form.rentsCurrently]);
+  const steps = useMemo(() => getVisiblePreferenceSteps(form), [form.rentsCurrently]);
   const currentStep = steps[currentIndex] || steps[0];
-  const isLastStep = currentIndex === steps.length - 1;
 
   useEffect(() => {
     if (currentIndex > steps.length - 1) {
@@ -54,16 +56,25 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
     };
   }, []);
 
-  function updateField(field, value) {
-    setStepError("");
-    setSubmitError("");
+  useEffect(() => {
+    if (!saved) return undefined;
 
-    setForm((previous) => {
-      const next = { ...previous, [field]: value };
-      if (field === "rentsCurrently" && value !== true) next.rentPriceRange = "";
-      return next;
-    });
-  }
+    const completionTimer = window.setTimeout(() => {
+      onComplete();
+    }, 1200);
+
+    return () => window.clearTimeout(completionTimer);
+  }, [onComplete, saved]);
+
+  useEffect(() => {
+    if (registrationId && token) return undefined;
+
+    const fallbackTimer = window.setTimeout(() => {
+      onComplete();
+    }, 1600);
+
+    return () => window.clearTimeout(fallbackTimer);
+  }, [onComplete, registrationId, token]);
 
   function handleChoiceChange(value) {
     const nextForm = { ...form, [currentStep.id]: value };
@@ -72,77 +83,55 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
     setForm(nextForm);
     setStepError("");
     setSubmitError("");
-
-    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-    advanceTimer.current = window.setTimeout(() => {
-      const nextSteps = buildPropertyPreferenceSteps(nextForm);
-      setCurrentIndex((index) => Math.min(index + 1, nextSteps.length - 1));
-    }, 220);
+    scheduleAutomaticAdvance(nextForm);
   }
 
   function handleMultiChange(field, value) {
+    const nextForm = { ...form, [field]: [value] };
+
+    setForm(nextForm);
     setStepError("");
     setSubmitError("");
+    scheduleAutomaticAdvance(nextForm);
+  }
 
-    setForm((previous) => {
-      const currentValues = Array.isArray(previous[field]) ? previous[field] : [];
-      let nextValues = currentValues.includes(value)
-        ? currentValues.filter((item) => item !== value)
-        : [...currentValues, value];
+  function scheduleAutomaticAdvance(nextForm) {
+    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
 
-      if (value === NO_PREFERENCE_VALUE && !currentValues.includes(value)) {
-        nextValues = [NO_PREFERENCE_VALUE];
-      } else {
-        nextValues = nextValues.filter((item) => item !== NO_PREFERENCE_VALUE);
+    advanceTimer.current = window.setTimeout(() => {
+      const nextSteps = getVisiblePreferenceSteps(nextForm);
+      const activeStep = nextSteps[currentIndex] || nextSteps[0];
+      const validationMessage = validatePropertyPreferenceStep(activeStep, nextForm);
+
+      if (validationMessage) {
+        setStepError(validationMessage);
+        return;
       }
 
-      if (field === "propertyPriorities" && nextValues.length > 2) {
-        setStepError("Você pode selecionar até duas opções.");
-        return previous;
+      if (currentIndex >= nextSteps.length - 1) {
+        submitPreferences(nextForm, nextSteps);
+        return;
       }
 
-      return { ...previous, [field]: nextValues };
-    });
+      setCurrentIndex((index) => Math.min(index + 1, nextSteps.length - 1));
+    }, 260);
   }
 
-  function goBack() {
-    setStepError("");
-    setSubmitError("");
-    setCurrentIndex((index) => Math.max(index - 1, 0));
-  }
-
-  async function goNext() {
-    const validationMessage = validatePropertyPreferenceStep(currentStep, form);
-    if (validationMessage) {
-      setStepError(validationMessage);
-      return;
-    }
-
-    if (!isLastStep) {
-      setStepError("");
-      setSubmitError("");
-      setCurrentIndex((index) => Math.min(index + 1, steps.length - 1));
-      return;
-    }
-
-    await submitPreferences();
-  }
-
-  async function submitPreferences() {
+  async function submitPreferences(preferences = form, activeSteps = steps) {
     if (submitting) return;
     setSubmitting(true);
     setSubmitError("");
 
     try {
       const response = await fetch(`/api/simulation-registrations/${registrationId}/preferences`, {
-        body: JSON.stringify({ preferences: form, token }),
+        body: JSON.stringify({ preferences, token }),
         headers: { "Content-Type": "application/json" },
         method: "PATCH"
       });
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        if (data.fieldErrors) moveToFirstInvalidStep(data.fieldErrors);
+        if (data.fieldErrors) moveToFirstInvalidStep(data.fieldErrors, activeSteps);
         setSubmitError(data.error || "Não foi possível salvar suas preferências. Tente novamente.");
         return;
       }
@@ -155,11 +144,11 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
     }
   }
 
-  function moveToFirstInvalidStep(fieldErrors) {
-    const firstInvalidIndex = steps.findIndex((step) => fieldErrors?.[step.id]?.length);
+  function moveToFirstInvalidStep(fieldErrors, activeSteps = steps) {
+    const firstInvalidIndex = activeSteps.findIndex((step) => fieldErrors?.[step.id]?.length);
     if (firstInvalidIndex >= 0) {
       setCurrentIndex(firstInvalidIndex);
-      setStepError(fieldErrors[steps[firstInvalidIndex].id][0]);
+      setStepError(fieldErrors[activeSteps[firstInvalidIndex].id][0]);
     }
   }
 
@@ -170,9 +159,9 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
         <p className="mx-auto mt-4 max-w-xl text-base font-semibold leading-7 text-muted">
           Não foi possível abrir as preferências agora, mas suas informações principais foram enviadas.
         </p>
-        <button className="premium-button-primary mx-auto mt-7 justify-center" onClick={onComplete} type="button">
-          Continuar
-        </button>
+        <p className="mt-6 text-sm font-black uppercase tracking-[0.18em] text-brand">
+          Finalizando...
+        </p>
       </article>
     );
   }
@@ -184,15 +173,14 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
           <Check className="h-8 w-8" aria-hidden="true" />
         </div>
         <h1 className="mx-auto mt-7 max-w-2xl text-[clamp(2rem,4.4vw,3.3rem)] font-black leading-[1.04] text-navy">
-          Preferências salvas com sucesso! ✅
+          Preferências salvas com sucesso!
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-8 text-muted sm:text-lg">
           Agora seu corretor poderá selecionar opções mais compatíveis com o que você procura.
         </p>
-        <button className="premium-button-primary mx-auto mt-8 justify-center" onClick={onComplete} type="button">
-          Continuar
-          <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
-        </button>
+        <p className="mt-6 text-sm font-black uppercase tracking-[0.18em] text-brand">
+          Finalizando...
+        </p>
       </article>
     );
   }
@@ -214,7 +202,6 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
             error={stepError}
             form={form}
             onChoiceChange={handleChoiceChange}
-            onChange={updateField}
             onMultiChange={handleMultiChange}
             step={currentStep}
           />
@@ -230,49 +217,24 @@ export default function PropertyPreferencesFlow({ onComplete, onSkip, registrati
           </p>
         </div>
 
+        {submitting ? (
+          <p className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-brand">
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+            Salvando preferências
+          </p>
+        ) : null}
+
         {submitError ? (
           <p className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">
             {submitError}
           </p>
         ) : null}
       </div>
-
-      <div className="mt-8 flex flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          className="premium-button-secondary justify-center disabled:pointer-events-none disabled:opacity-40"
-          disabled={currentIndex === 0 || submitting}
-          onClick={goBack}
-          type="button"
-        >
-          <ArrowLeft className="mr-2 h-5 w-5" aria-hidden="true" />
-          Voltar
-        </button>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            className="premium-button-secondary justify-center disabled:pointer-events-none disabled:opacity-60"
-            disabled={submitting}
-            onClick={onSkip}
-            type="button"
-          >
-            Falar com o corretor
-          </button>
-          <button
-            className="premium-button-primary justify-center disabled:pointer-events-none disabled:opacity-70"
-            disabled={submitting}
-            onClick={goNext}
-            type="button"
-          >
-            {submitting ? "Salvando..." : isLastStep ? "Salvar preferências" : "Continuar"}
-            {!submitting ? <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" /> : null}
-          </button>
-        </div>
-      </div>
     </article>
   );
 }
 
-function StepRenderer({ error, form, onChange, onChoiceChange, onMultiChange, step }) {
+function StepRenderer({ error, form, onChoiceChange, onMultiChange, step }) {
   const value = form[step.id];
 
   if (step.kind === "choice") {
@@ -283,35 +245,13 @@ function StepRenderer({ error, form, onChange, onChoiceChange, onMultiChange, st
     return <ChoiceStep error={error} onChange={onChoiceChange} options={booleanOptions} value={value} />;
   }
 
-  if (step.kind === "multi") {
-    return (
-      <MultiChoiceStep
-        error={error}
-        onChange={(nextValue) => onMultiChange(step.id, nextValue)}
-        options={step.options}
-        value={Array.isArray(value) ? value : []}
-      />
-    );
-  }
-
   return (
-    <div>
-      <label className="sr-only" htmlFor={`property-preference-${step.id}`}>
-        {step.title}
-      </label>
-      <textarea
-        className="admin-input min-h-[150px] resize-y rounded-2xl text-base leading-7 shadow-[0_10px_28px_rgba(13,59,102,0.04)] focus:border-brand focus:ring-4 focus:ring-brand/10"
-        id={`property-preference-${step.id}`}
-        maxLength={step.maxLength}
-        onChange={(event) => onChange(step.id, event.target.value)}
-        placeholder={step.placeholder}
-        value={value || ""}
-      />
-      <div className="mt-2 flex items-center justify-between gap-3 text-sm font-bold">
-        {error ? <p className="text-red-700">{error}</p> : <span />}
-        <span className="text-muted">{String(value || "").length}/{step.maxLength}</span>
-      </div>
-    </div>
+    <MultiChoiceStep
+      error={error}
+      onChange={(nextValue) => onMultiChange(step.id, nextValue)}
+      options={step.options}
+      value={Array.isArray(value) ? value : []}
+    />
   );
 }
 

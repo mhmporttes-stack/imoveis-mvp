@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
-export default function PropertyPreferencesInvite({ onSkip, onStart }) {
+export default function PropertyPreferencesInvite({ onStart }) {
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 text-center shadow-soft sm:p-8 lg:p-10">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-blue-50 text-brand">
@@ -21,23 +21,14 @@ export default function PropertyPreferencesInvite({ onSkip, onStart }) {
         Leva menos de 1 minuto.
       </p>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      <div className="mx-auto mt-8 max-w-md">
         <button
-          className="premium-button-primary justify-center"
+          className="premium-button-primary w-full justify-center"
           onClick={onStart}
           type="button"
         >
           Responder agora
           <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
-        </button>
-
-        <button
-          className="premium-button-secondary justify-center"
-          onClick={onSkip}
-          type="button"
-        >
-          <MessageCircle className="mr-2 h-5 w-5" aria-hidden="true" />
-          Prefiro falar com o corretor
         </button>
       </div>
     </article>
