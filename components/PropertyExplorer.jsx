@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import FinancingSimulationSection from "@/components/FinancingSimulationSection";
+import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyCard from "@/components/PropertyCard";
 import {
   REGION_FILTER_OPTIONS,
@@ -98,6 +99,7 @@ export default function PropertyExplorer({ properties = [] }) {
     <section id="todos" className="bg-mist py-24">
       <div className="container-page">
         <FinancingSimulationSection />
+        <PropertyCaptureSection />
 
         <div className="mb-8 mt-12 max-w-[1120px]">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-brand">Busca inteligente</p>
