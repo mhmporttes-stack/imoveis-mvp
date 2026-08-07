@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Handshake } from "lucide-react";
 
 export default function PropertyPreferencesInvite({ onStart }) {
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 text-center shadow-soft sm:p-8 lg:p-10">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-blue-50 text-brand">
-        <Sparkles className="h-8 w-8" aria-hidden="true" />
+        <Handshake className="h-8 w-8" aria-hidden="true" />
       </div>
 
       <h1 className="mx-auto mt-7 max-w-2xl text-[clamp(2rem,4.4vw,3.4rem)] font-black leading-[1.04] text-navy">
