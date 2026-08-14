@@ -39,6 +39,12 @@ import {
 } from "@/lib/simulation-list-utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
+const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
+  .filter((option) => option.value !== "all")
+  .reduce((acc, option, index) => {
+    acc[option.value] = index + 1;
+    return acc;
+  }, {});
 const TAG_COLORS = [
   { label: "Azul institucional", value: "#0D4F8B" },
   { label: "Azul vivo", value: "#1D4ED8" },
@@ -485,17 +491,9 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
           {CLIENT_STATUS_OPTIONS.map((filter) => {
             const active = statusFilter === filter.value;
             const meta = filter.value === "all" ? null : CLIENT_STATUS_META[filter.value];
-            const counterClass = filter.value === CLIENT_STATUS.PENDING
-              ? "bg-red-50 text-red-700"
-              : filter.value === CLIENT_STATUS.DOCUMENTATION
-                ? "bg-yellow-50 text-yellow-800"
-              : filter.value === CLIENT_STATUS.APPROVED
-                ? "bg-emerald-50 text-emerald-700"
-              : filter.value === CLIENT_STATUS.ARCHIVED
-                ? "bg-slate-100 text-slate-700"
-                : active
-                  ? "bg-brand text-white"
-                  : "bg-[#EEF4FB] text-navy";
+            const counterClass = filter.value === "all"
+              ? (active ? "bg-brand text-white" : "bg-[#EEF4FB] text-navy")
+              : (meta?.counterClass || "bg-[#EEF4FB] text-navy");
 
             return (
               <button
@@ -1130,19 +1128,12 @@ function getSummaryScore(summary = {}) {
 }
 
 function getStatusPriority(status) {
-  if (status === CLIENT_STATUS.ARCHIVED) return 5;
-  if (status === CLIENT_STATUS.APPROVED) return 4;
-  if (status === CLIENT_STATUS.DOCUMENTATION) return 3;
-  if (status === CLIENT_STATUS.COMPLETED) return 2;
-  return 1;
+  return CLIENT_STATUS_ORDER[normalizeClientStatus(status)] || 1;
 }
 
 function resolveClientStatus(registration, summary) {
   const storedStatus = normalizeClientStatus(registration?.status);
-  if (storedStatus === CLIENT_STATUS.ARCHIVED) return CLIENT_STATUS.ARCHIVED;
-  if (storedStatus === CLIENT_STATUS.APPROVED) return CLIENT_STATUS.APPROVED;
-  if (storedStatus === CLIENT_STATUS.DOCUMENTATION) return CLIENT_STATUS.DOCUMENTATION;
-  if (storedStatus === CLIENT_STATUS.COMPLETED) return CLIENT_STATUS.COMPLETED;
+  if (registration?.status && storedStatus !== CLIENT_STATUS.PENDING) return storedStatus;
   return summary?.completed ? CLIENT_STATUS.COMPLETED : CLIENT_STATUS.PENDING;
 }
 
@@ -1150,7 +1141,11 @@ function isCompletedClientStatus(status) {
   return [
     CLIENT_STATUS.COMPLETED,
     CLIENT_STATUS.DOCUMENTATION,
-    CLIENT_STATUS.APPROVED
+    CLIENT_STATUS.DOCUMENTS_PENDING,
+    CLIENT_STATUS.APPROVAL_PENDING,
+    CLIENT_STATUS.APPROVED,
+    CLIENT_STATUS.REJECTED,
+    CLIENT_STATUS.SALE_COMPLETED
   ].includes(status);
 }
 
