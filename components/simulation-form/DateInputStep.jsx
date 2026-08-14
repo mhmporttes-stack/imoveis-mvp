@@ -1,6 +1,8 @@
+import { getMaximumBirthDateForMinimumAge } from "@/lib/simulation-registration-schema";
+
 export default function DateInputStep({ error, onChange, step, value }) {
   const inputId = `simulation-${step.id}`;
-  const today = new Date().toISOString().slice(0, 10);
+  const maximumBirthDate = getMaximumBirthDateForMinimumAge();
 
   return (
     <div>
@@ -8,7 +10,7 @@ export default function DateInputStep({ error, onChange, step, value }) {
       <input
         className="admin-input h-16 rounded-2xl text-lg shadow-[0_10px_28px_rgba(13,59,102,0.04)] focus:border-brand focus:ring-4 focus:ring-brand/10"
         id={inputId}
-        max={today}
+        max={maximumBirthDate}
         onChange={(event) => onChange(event.target.value)}
         type="date"
         value={value || ""}
