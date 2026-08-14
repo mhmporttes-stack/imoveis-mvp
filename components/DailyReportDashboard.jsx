@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -12,7 +12,6 @@ import {
   FileCheck2,
   Filter,
   RefreshCw,
-  ShieldCheck,
   TrendingUp,
   Users
 } from "lucide-react";
@@ -103,19 +102,9 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, startDate, endDate]);
 
-  const periodLabel = report?.range?.primaryLabel || "Período";
   const metrics = report?.metrics || {};
   const funnel = report?.funnel || [];
   const timeline = report?.timeline || [];
-
-  const mainMetric = useMemo(() => {
-    const approved = Number(metrics.approved || 0);
-    const sent = Number(metrics.sentForApproval || 0);
-    return {
-      value: approved,
-      label: sent ? `${formatPercent(approved / sent)} dos enviados foram aprovados` : "Aguardando novas aprovações"
-    };
-  }, [metrics.approved, metrics.sentForApproval]);
 
   async function loadReport(signal) {
     setLoading(true);
@@ -214,23 +203,12 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
       )}
 
       <div className="grid gap-5 xl:grid-cols-[1.05fr_1.95fr]">
-        <article className="rounded-[28px] border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-white shadow-soft md:p-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-white/70">Resumo</p>
-              <h3 className="mt-3 text-5xl font-extrabold md:text-6xl">{mainMetric.value}</h3>
-              <p className="mt-3 text-sm font-bold text-white/80">{mainMetric.label}</p>
-            </div>
-            <span className="grid size-14 place-items-center rounded-2xl bg-white/12">
-              <ShieldCheck size={28} />
-            </span>
-          </div>
-          <div className="mt-8 rounded-3xl border border-white/15 bg-white/10 p-4">
-            <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-white/70">Período</p>
-            <p className="mt-2 text-xl font-extrabold">{periodLabel}</p>
-            {report?.generatedAt && (
-              <p className="mt-1 text-xs text-white/65">Atualizado em {formatDateTime(report.generatedAt)}</p>
-            )}
+        <article className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-center text-white shadow-soft md:p-8">
+          <div>
+            <h3 className="text-7xl font-black leading-none md:text-8xl">{formatInteger(metrics.newRegistrations)}</h3>
+            <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.35em] text-white/80 md:text-base">
+              Cadastros realizados
+            </p>
           </div>
         </article>
 
