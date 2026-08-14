@@ -47,13 +47,13 @@ export default function Footer() {
               <span className={contactTextClass}>MATHEUS.MACHADO.MARILIA@GMAIL.COM</span>
             </a>
             <a
-              href="https://www.google.com/maps/search/?api=1&query=Av.%20Sampaio%20Vidal%20N%C2%BA%20575%2C%20Mar%C3%ADlia%2C%20SP"
+              href="https://www.google.com/maps/search/?api=1&query=Rua%20Cel.%20Jos%C3%A9%20Br%C3%A1s%2C%20144%2C%20Mar%C3%ADlia%2C%20SP"
               target="_blank"
               rel="noopener noreferrer"
               className={contactCardClass}
             >
               <MapPin className="h-5 w-5 shrink-0 text-blue-200" />
-              <span className={contactTextClass}>Av. Sampaio Vidal Nº 575</span>
+              <span className={contactTextClass}>Rua Cel. José Brás Nº 144</span>
             </a>
             <span>Atendimento personalizado</span>
           </div>
