@@ -19,8 +19,8 @@ const benefits = [
 ];
 
 const steps = [
-  { title: "Escolha", text: "Compare empreendimentos, bairros, plantas e diferenciais." },
   { title: "Simulação", text: "Entenda valores, entrada, financiamento e subsídios possíveis." },
+  { title: "Escolha", text: "Compare empreendimentos, bairros, plantas e diferenciais." },
   { title: "Aprovação", text: "Avance com documentação e análise de crédito com orientação." },
   { title: "Entrega das chaves", text: "Acompanhe o processo até a assinatura e recebimento do imóvel." }
 ];
