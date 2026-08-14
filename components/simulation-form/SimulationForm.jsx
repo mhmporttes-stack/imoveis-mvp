@@ -67,24 +67,28 @@ export default function SimulationForm() {
     setSubmitError("");
 
     setForm((previous) => {
-      const next = { ...previous, [field]: value };
-
-      if (field === "simulationType" && value === "individual") {
-        next.secondaryIncomeType = "";
-        next.secondaryMonthlyIncome = "";
-        next.secondaryMaritalStatus = "";
-      }
-
-      return next;
+      return applyRegistrationFieldUpdate(previous, field, value);
     });
   }
 
   function handleChoiceChange(value) {
+    const nextForm = applyRegistrationFieldUpdate(form, currentStep.id, value);
+    const nextSteps = buildRegistrationSteps(nextForm);
+
     updateField(currentStep.id, value);
 
     if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
     advanceTimer.current = window.setTimeout(() => {
-      setCurrentIndex((index) => Math.min(index + 1, buildRegistrationSteps({ ...form, [currentStep.id]: value }).length - 1));
+      setCurrentIndex((index) => {
+        if (currentStep.id === "primaryMaritalStatus" && value === "married" && form.simulationType !== "joint") {
+          const secondaryIncomeIndex = nextSteps.findIndex((step) => step.id === "secondaryIncomeType");
+          if (secondaryIncomeIndex >= 0) return secondaryIncomeIndex;
+        }
+
+        const currentStepIndex = nextSteps.findIndex((step) => step.id === currentStep.id);
+        const baseIndex = currentStepIndex >= 0 ? currentStepIndex : index;
+        return Math.min(baseIndex + 1, nextSteps.length - 1);
+      });
     }, 220);
   }
 
@@ -309,4 +313,25 @@ function normalizeCurrentTextStep(form, step) {
 
   const nextValue = sanitizeText(form[step.id]);
   return nextValue === form[step.id] ? form : { ...form, [step.id]: nextValue };
+}
+
+function applyRegistrationFieldUpdate(previous, field, value) {
+  const next = { ...previous, [field]: value };
+
+  if (field === "primaryMaritalStatus" && value === "married") {
+    next.simulationType = "joint";
+  }
+
+  if (field === "simulationType" && value === "individual") {
+    if (previous.primaryMaritalStatus === "married") {
+      next.simulationType = "joint";
+      return next;
+    }
+
+    next.secondaryIncomeType = "";
+    next.secondaryMonthlyIncome = "";
+    next.secondaryMaritalStatus = "";
+  }
+
+  return next;
 }
