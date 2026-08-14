@@ -5,7 +5,8 @@ export default function AdminSectionNav({ active = "properties" }) {
     { href: "/admin", label: "IMÓVEIS", key: "properties" },
     { href: "/admin/depoimentos", label: "DEPOIMENTOS", key: "testimonials" },
     { href: "/admin/simulacoes", label: "CLIENTES", key: "simulations" },
-    { href: "/admin/captacoes", label: "CAPTAÇÕES", key: "captacoes" }
+    { href: "/admin/captacoes", label: "CAPTAÇÕES", key: "captacoes" },
+    { href: "/admin/relatorio-diario", label: "RELATÓRIO DIÁRIO", key: "daily-report" }
   ];
 
   return (
