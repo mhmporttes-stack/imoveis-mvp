@@ -1166,7 +1166,7 @@ function buildDraftSimulationPayload(registration = {}) {
     publicNote: "",
     internalNote: [
       `WhatsApp do cadastro: ${toWhatsAppDigits(registration.phoneNormalized || registration.phone)}`,
-      "Simulação não realizada"
+      "Aguardando simulação"
     ].filter(Boolean).join("\n"),
     outputMode: "individual",
     properties: []
