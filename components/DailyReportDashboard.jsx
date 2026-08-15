@@ -11,6 +11,7 @@ import {
   Clock,
   FileCheck2,
   Filter,
+  Handshake,
   RefreshCw,
   TrendingUp,
   Users
@@ -68,6 +69,14 @@ const METRIC_CARDS = [
     tone: "red"
   }
 ];
+
+const SALES_CARD = {
+  key: "salesCompleted",
+  title: "Vendas realizadas",
+  description: "Clientes com venda concluída",
+  icon: Handshake,
+  tone: "green"
+};
 
 const TONE_CLASSES = {
   blue: "border-blue-100 bg-blue-50 text-blue-700",
@@ -132,14 +141,22 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <div
+        className={`rounded-[28px] border p-5 shadow-soft transition-colors md:p-7 ${
+          presentationMode
+            ? "border-brand/30 bg-gradient-to-br from-navy to-[#184a84] text-white"
+            : "border-navy/10 bg-white"
+        }`}
+      >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Painel diário</p>
-            <h2 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">
+            <p className={`text-xs font-extrabold uppercase tracking-[0.35em] ${presentationMode ? "text-blue-100" : "text-brand"}`}>
+              Painel diário
+            </p>
+            <h2 className={`mt-2 text-3xl font-extrabold md:text-4xl ${presentationMode ? "text-white" : "text-navy"}`}>
               {report?.range?.title || "Relatório diário"}
             </h2>
-            <p className="mt-2 max-w-3xl text-base text-slate-600">
+            <p className={`mt-2 max-w-3xl text-base ${presentationMode ? "text-white/75" : "text-slate-600"}`}>
               Acompanhe cadastros, documentação, aprovações e conversões com dados reais do Supabase.
             </p>
           </div>
@@ -148,14 +165,15 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
             <button
               type="button"
               onClick={() => setPresentationMode((current) => !current)}
+              aria-pressed={presentationMode}
               className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-extrabold transition ${
                 presentationMode
-                  ? "border-brand bg-brand text-white"
+                  ? "border-white/25 bg-white text-navy"
                   : "border-navy/15 bg-white text-navy hover:border-brand"
               }`}
             >
               <BarChart3 size={16} />
-              Modo apresentação
+              {presentationMode ? "Sair da apresentação" : "Modo apresentação"}
             </button>
             <button
               type="button"
@@ -202,6 +220,15 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
         </div>
       )}
 
+      {presentationMode && (
+        <div className="rounded-[28px] border border-brand/15 bg-white p-5 shadow-soft md:p-6">
+          <p className="text-xs font-extrabold uppercase tracking-[0.3em] text-brand">Apresentação ativa</p>
+          <p className="mt-2 text-lg font-extrabold text-navy">
+            Visual limpo para compartilhar o desempenho sem exibir nomes de clientes.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-5 xl:grid-cols-[1.05fr_1.95fr]">
         <article className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-center text-white shadow-soft md:p-8">
           <div>
@@ -212,24 +239,11 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
           </div>
         </article>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {METRIC_CARDS.map((metric) => {
-            const Icon = metric.icon;
-            return (
-              <article key={metric.key} className="rounded-[24px] border border-navy/10 bg-white p-5 shadow-soft">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-extrabold text-navy">{metric.title}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">{metric.description}</p>
-                  </div>
-                  <span className={`grid size-11 place-items-center rounded-2xl border ${TONE_CLASSES[metric.tone]}`}>
-                    <Icon size={20} />
-                  </span>
-                </div>
-                <p className="mt-5 text-4xl font-extrabold text-navy">{formatInteger(metrics[metric.key])}</p>
-              </article>
-            );
-          })}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {METRIC_CARDS.map((metric) => (
+            <MetricCard key={metric.key} metric={metric} value={metrics[metric.key]} />
+          ))}
+          <MetricCard metric={SALES_CARD} value={metrics.salesCompleted} className="sm:col-span-2" />
         </div>
       </div>
 
@@ -312,12 +326,26 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
         </article>
       )}
 
-      {presentationMode && (
-        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5 text-sm font-bold text-blue-800">
-          Modo apresentação ativo: nomes de clientes e linha do tempo ficam ocultos para evitar exposição de dados pessoais.
-        </div>
-      )}
     </section>
+  );
+}
+
+function MetricCard({ metric, value, className = "" }) {
+  const Icon = metric.icon;
+
+  return (
+    <article className={`rounded-[24px] border border-navy/10 bg-white p-5 shadow-soft ${className}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-extrabold text-navy">{metric.title}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{metric.description}</p>
+        </div>
+        <span className={`grid size-11 place-items-center rounded-2xl border ${TONE_CLASSES[metric.tone]}`}>
+          <Icon size={20} />
+        </span>
+      </div>
+      <p className="mt-5 text-4xl font-extrabold text-navy">{formatInteger(value)}</p>
+    </article>
   );
 }
 
