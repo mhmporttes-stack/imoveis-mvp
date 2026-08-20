@@ -1,11 +1,15 @@
 import Link from "next/link";
+import { getAdminFromCookies, isPrimaryAdminEmail } from "@/lib/admin-auth";
 
-export default function AdminSectionNav({ active = "properties" }) {
+export default async function AdminSectionNav({ active = "properties" }) {
+  const admin = await getAdminFromCookies();
+  const canAccessFinancial = admin.ok && isPrimaryAdminEmail(admin.user?.email);
   const links = [
     { href: "/admin", label: "IMÓVEIS", key: "properties" },
     { href: "/admin/depoimentos", label: "DEPOIMENTOS", key: "testimonials" },
     { href: "/admin/simulacoes", label: "CLIENTES", key: "simulations" },
     { href: "/admin/captacoes", label: "CAPTAÇÕES", key: "captacoes" },
+    ...(canAccessFinancial ? [{ href: "/admin/financeiro", label: "FINANCEIRO", key: "financial" }] : []),
     { href: "/admin/relatorio-diario", label: "RELATÓRIO DIÁRIO", key: "daily-report" }
   ];
 
