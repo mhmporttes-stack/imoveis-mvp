@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -95,21 +95,36 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit"
 });
 
-export default function DailyReportDashboard({ initialReport, initialError = "" }) {
+export default function DailyReportDashboard({
+  adminProfiles = [],
+  canFilterBrokers = false,
+  initialReport,
+  initialError = ""
+}) {
   const [period, setPeriod] = useState(initialReport?.range?.period || "today");
   const [startDate, setStartDate] = useState(initialReport?.range?.startDate || "");
   const [endDate, setEndDate] = useState(initialReport?.range?.endDate || "");
+  const [selectedBrokerIds, setSelectedBrokerIds] = useState([]);
   const [report, setReport] = useState(initialReport);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+  const brokerOptions = useMemo(() => (
+    adminProfiles
+      .filter((profile) => profile?.id && profile.status !== "inactive")
+      .map((profile) => ({
+        id: profile.id,
+        name: profile.name || profile.email || "Corretor"
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+  ), [adminProfiles]);
 
   useEffect(() => {
     const controller = new AbortController();
     if (initialReport) loadReport(controller.signal);
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, startDate, endDate]);
+  }, [period, startDate, endDate, selectedBrokerIds]);
 
   const metrics = report?.metrics || {};
   const funnel = report?.funnel || [];
@@ -124,6 +139,7 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
     }
+    if (selectedBrokerIds.length) params.set("brokerIds", selectedBrokerIds.join(","));
 
     try {
       const response = await fetch(`/api/daily-report?${params.toString()}`, { signal });
@@ -212,6 +228,56 @@ export default function DailyReportDashboard({ initialReport, initialError = "" 
             </div>
           )}
         </div>
+
+        {canFilterBrokers && brokerOptions.length > 0 && (
+          <div className={`mt-5 rounded-3xl border p-4 ${presentationMode ? "border-white/20 bg-white/10" : "border-navy/10 bg-blue-50/50"}`}>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className={`text-xs font-extrabold uppercase tracking-[0.25em] ${presentationMode ? "text-blue-100" : "text-brand"}`}>
+                  Corretores
+                </p>
+                <p className={`mt-1 text-sm font-bold ${presentationMode ? "text-white/75" : "text-slate-600"}`}>
+                  Escolha um, vários ou todos os corretores para calcular o relatório.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedBrokerIds([])}
+                className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
+                  selectedBrokerIds.length === 0
+                    ? "border-brand bg-white text-brand"
+                    : "border-navy/10 bg-white text-navy hover:border-brand"
+                }`}
+              >
+                Todos os corretores
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {brokerOptions.map((broker) => {
+                const selected = selectedBrokerIds.includes(broker.id);
+
+                return (
+                  <button
+                    key={broker.id}
+                    type="button"
+                    onClick={() => setSelectedBrokerIds((current) => (
+                      current.includes(broker.id)
+                        ? current.filter((id) => id !== broker.id)
+                        : [...current, broker.id]
+                    ))}
+                    className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
+                      selected
+                        ? "border-brand bg-brand text-white"
+                        : "border-navy/10 bg-white text-navy hover:border-brand"
+                    }`}
+                  >
+                    {broker.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (

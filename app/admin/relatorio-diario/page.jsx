@@ -1,6 +1,7 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import DailyReportDashboard from "@/components/DailyReportDashboard";
 import Footer from "@/components/Footer";
+import { isGeneralAdminProfile, listAdminProfiles } from "@/lib/admin-profiles";
 import { canLoadDailyReport, formatDailyReportError, getDailyReport } from "@/lib/daily-report";
 import { requireAdminPage } from "@/lib/admin-auth";
 
@@ -15,6 +16,7 @@ export default async function DailyReportPage() {
 
   let report = null;
   let error = "";
+  let adminProfiles = [];
 
   if (canLoadDailyReport()) {
     try {
@@ -24,6 +26,14 @@ export default async function DailyReportPage() {
     }
   } else {
     error = "Configure o Supabase para carregar o relatório diário.";
+  }
+
+  if (isGeneralAdminProfile(auth.profile)) {
+    try {
+      adminProfiles = await listAdminProfiles();
+    } catch {
+      adminProfiles = [];
+    }
   }
 
   return (
@@ -41,7 +51,12 @@ export default async function DailyReportPage() {
       </section>
 
       <AdminSectionNav active="daily-report" />
-      <DailyReportDashboard initialReport={report} initialError={error} />
+      <DailyReportDashboard
+        adminProfiles={adminProfiles}
+        canFilterBrokers={isGeneralAdminProfile(auth.profile)}
+        initialReport={report}
+        initialError={error}
+      />
       <Footer />
     </main>
   );

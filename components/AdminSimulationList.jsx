@@ -58,7 +58,14 @@ const TAG_COLORS = [
   { label: "Preto suave", value: "#1F2937" }
 ];
 
-export default function AdminSimulationList({ loadWarning = "", registrations = [], simulations = [], tags = [] }) {
+export default function AdminSimulationList({
+  adminProfiles = [],
+  canManageResponsibleUsers = false,
+  loadWarning = "",
+  registrations = [],
+  simulations = [],
+  tags = []
+}) {
   const router = useRouter();
   const listTopRef = useRef(null);
   const [query, setQuery] = useState("");
@@ -73,6 +80,12 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
   const [tagDraft, setTagDraft] = useState("");
   const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
   const [busyClientId, setBusyClientId] = useState("");
+  const responsibleProfiles = useMemo(() => (
+    ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
+  ), [adminProfiles]);
+  const responsibleProfileMap = useMemo(() => new Map(
+    responsibleProfiles.map((profile) => [profile.id, profile])
+  ), [responsibleProfiles]);
 
   useEffect(() => {
     setLocalRegistrations(ensureArray(registrations));
@@ -293,6 +306,39 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
               status: nextStatus,
               approvedAt: data.approvedAt || registration.approvedAt
             }
+          : registration
+      )));
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function updateClientResponsibleUser(client, responsibleUserId) {
+    if (!canManageResponsibleUsers) return;
+
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) {
+      alert("Este cliente ainda não possui cadastro vinculado para alterar o responsável.");
+      return;
+    }
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responsibleUserId })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || "Não foi possível alterar o corretor responsável.");
+        return;
+      }
+
+      setLocalRegistrations((current) => current.map((registration) => (
+        registration.id === data.id
+          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
           : registration
       )));
     } finally {
@@ -560,7 +606,11 @@ export default function AdminSimulationList({ loadWarning = "", registrations = 
             onSaveTags={saveClientTags}
             onToggleDetails={() => setExpandedClientId((current) => current === client.id ? "" : client.id)}
             onToggleTagEditor={() => setEditingTagsClientId((current) => current === client.id ? "" : client.id)}
+            onUpdateResponsibleUser={updateClientResponsibleUser}
             onUpdateStatus={updateClientStatus}
+            responsibleProfileMap={responsibleProfileMap}
+            responsibleProfiles={responsibleProfiles}
+            showResponsibleSelector={canManageResponsibleUsers}
             setTagColor={setTagColor}
             setTagDraft={setTagDraft}
             tagColor={tagColor}
@@ -619,7 +669,11 @@ function ClientCard({
   onSaveTags,
   onToggleDetails,
   onToggleTagEditor,
+  onUpdateResponsibleUser,
   onUpdateStatus,
+  responsibleProfileMap,
+  responsibleProfiles,
+  showResponsibleSelector,
   setTagColor,
   setTagDraft,
   tagColor,
@@ -628,19 +682,37 @@ function ClientCard({
   const hasRegistration = Boolean(client.registration?.id);
   const clientTags = ensureArray(client.tags);
   const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
+  const responsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
+  const responsibleName = responsibleProfileMap?.get(responsibleUserId)?.name || client.lastAdminLabel || "Sem corretor";
 
   return (
     <article className="relative max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
-          {client.lastAdminLabel ? (
+          <div className="mb-1 flex max-w-full flex-wrap items-center gap-2">
             <p
-              className="mb-1 truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted"
-              title="Ultimo responsavel administrativo"
+              className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted"
+              title="Corretor responsável"
             >
-              Responsavel: {client.lastAdminLabel}
+              Responsável: {responsibleName}
             </p>
-          ) : null}
+            {showResponsibleSelector ? (
+              <select
+                aria-label={`Alterar corretor responsável de ${client.name || "cliente"}`}
+                className="h-7 max-w-[220px] rounded-full border border-brand/20 bg-white px-2 text-[11px] font-black text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                disabled={busy}
+                onChange={(event) => onUpdateResponsibleUser(client, event.target.value)}
+                value={responsibleUserId}
+              >
+                <option value="">Sem corretor</option>
+                {responsibleProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
           <h2 className="truncate text-lg font-black text-navy sm:text-xl" title={client.name}>
             {client.name || "Cliente sem nome"}
           </h2>
