@@ -65,6 +65,39 @@ where not exists (
   where lower(existing.email) = 'forbencke@gmail.com'
 );
 
+update public.admin_users
+set
+  name = coalesce(nullif(name, ''), 'Matheus Machado'),
+  role = 'admin',
+  status = 'active',
+  simulation_ref = 'matheus',
+  captacao_ref = 'matheus-captacao',
+  disabled_at = null,
+  updated_at = now()
+where lower(email) = 'mhmporttes@gmail.com';
+
+update public.admin_users
+set
+  name = coalesce(nullif(name, ''), 'Matheus Machado'),
+  role = 'admin',
+  status = 'active',
+  simulation_ref = 'matheus-icloud',
+  captacao_ref = 'matheus-icloud-captacao',
+  disabled_at = null,
+  updated_at = now()
+where lower(email) = 'mhmporttes@icloud.com';
+
+update public.admin_users
+set
+  name = coalesce(nullif(name, ''), 'Benck'),
+  role = 'broker',
+  status = 'active',
+  simulation_ref = 'benck',
+  captacao_ref = 'benck-captacao',
+  disabled_at = null,
+  updated_at = now()
+where lower(email) = 'forbencke@gmail.com';
+
 update public.admin_users admin_user
 set auth_user_id = auth_user.id
 from auth.users auth_user
