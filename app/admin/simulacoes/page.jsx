@@ -9,8 +9,10 @@ import { canManageSimulations, formatSimulationError, listSimulations } from "@/
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSimulationsPage() {
-  await requireAdminPage();
+export default async function AdminSimulationsPage({ searchParams }) {
+  const auth = await requireAdminPage();
+  const resolvedSearchParams = await searchParams;
+  const responsibleUserId = resolvedSearchParams?.responsavel || "";
 
   if (!canManageSimulations()) {
     return <SimulationDisabled />;
@@ -23,13 +25,13 @@ export default async function AdminSimulationsPage() {
   let registrationsError = "";
 
   try {
-    simulations = await listSimulations();
+    simulations = await listSimulations(auth);
   } catch (error) {
     simulationsError = formatSimulationError(error);
   }
 
   try {
-    registrations = await listSimulationRegistrations();
+    registrations = await listSimulationRegistrations({ auth, responsibleUserId });
   } catch (error) {
     registrationsError = formatSimulationRegistrationError(error);
   }
@@ -96,7 +98,7 @@ function SimulationError({ error }) {
       <h2 className="mt-3 text-3xl font-black text-navy">A página abriu, mas o Supabase retornou um erro.</h2>
       <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
       <p className="mt-4 max-w-3xl leading-8 text-muted">
-        Confira se a migration <strong>supabase/migrations/20260715_simulations.sql</strong> foi executada no SQL Editor do Supabase.
+        Confira se as migrations do Supabase foram executadas, incluindo as colunas de usuário responsável quando usar corretores.
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Link href="/admin/simulacoes" className="premium-button-primary">Tentar novamente</Link>

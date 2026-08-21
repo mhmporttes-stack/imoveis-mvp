@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminRegistrationList from "@/components/AdminRegistrationList";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistrationsPage() {
-  await requireAdminPage();
+  await requireGeneralAdminPage();
 
   if (!canManageSimulationRegistrations()) {
     return <RegistrationsDisabled />;

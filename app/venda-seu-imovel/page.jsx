@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import PropertyCaptureForm from "@/components/captacoes/PropertyCaptureForm";
 
 export const metadata = {
@@ -24,7 +25,9 @@ export default function VendaSeuImovelPage() {
         </Link>
       </section>
 
-      <PropertyCaptureForm />
+      <Suspense fallback={<div className="container-page rounded-[24px] bg-white p-8 text-navy shadow-soft">Carregando formulário...</div>}>
+        <PropertyCaptureForm />
+      </Suspense>
     </main>
   );
 }

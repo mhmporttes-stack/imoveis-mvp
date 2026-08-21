@@ -2,13 +2,13 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminTestimonialList from "@/components/AdminTestimonialList";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import { canManageTestimonials, formatTestimonialError, listTestimonials } from "@/lib/testimonials";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminTestimonialsPage() {
-  await requireAdminPage();
+  await requireGeneralAdminPage();
 
   if (!canManageTestimonials()) {
     return (

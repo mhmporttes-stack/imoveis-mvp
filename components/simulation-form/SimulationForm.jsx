@@ -33,6 +33,7 @@ export default function SimulationForm() {
     : searchParams.get("tipo") === "individual"
       ? "individual"
       : "";
+  const brokerRef = searchParams.get("ref") || "";
 
   const [form, setForm] = useState(() => getDefaultSimulationRegistration(initialType));
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -142,7 +143,7 @@ export default function SimulationForm() {
       const response = await fetch("/api/simulation-registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, brokerRef })
       });
       const data = await response.json().catch(() => ({}));
 

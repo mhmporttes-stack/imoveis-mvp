@@ -24,7 +24,7 @@ export async function POST(request) {
     const registration = await ensureManualSimulationRegistration({
       ...body,
       adminEmail: auth.user?.email
-    });
+    }, auth);
     return NextResponse.json(registration, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

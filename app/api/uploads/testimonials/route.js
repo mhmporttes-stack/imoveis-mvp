@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
+import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { uploadTestimonialMedia } from "@/lib/media-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
-  const auth = await requireAdminApi(request);
+  const auth = await requireGeneralAdminApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

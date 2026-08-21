@@ -1,14 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import AdminPropertyList from "@/components/AdminPropertyList";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { isGeneralAdmin, requireAdminPage } from "@/lib/admin-auth";
 import { canManageProperties, listProperties } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
+
+  if (!isGeneralAdmin(auth)) {
+    redirect("/admin/simulacoes");
+  }
 
   if (!canManageProperties()) {
     return <AdminDisabled />;

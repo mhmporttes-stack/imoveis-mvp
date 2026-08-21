@@ -8,13 +8,13 @@ import { getSimulation } from "@/lib/simulations";
 export const dynamic = "force-dynamic";
 
 export default async function EditSimulationPage({ params }) {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
+  const { id } = await params;
 
-  const [{ id }, properties] = await Promise.all([
-    params,
-    listProperties()
+  const [properties, simulation] = await Promise.all([
+    listProperties(),
+    getSimulation(id, auth)
   ]);
-  const simulation = await getSimulation(id);
 
   if (!simulation) notFound();
 

@@ -21,7 +21,7 @@ export async function GET(request) {
   }
 
   try {
-    return NextResponse.json(await listSimulations());
+    return NextResponse.json(await listSimulations(auth));
   } catch (error) {
     return NextResponse.json({ error: formatSimulationError(error) }, { status: 400 });
   }
@@ -38,7 +38,7 @@ export async function POST(request) {
   }
 
   try {
-    const simulation = await createSimulation(await request.json(), auth.user?.email || "");
+    const simulation = await createSimulation(await request.json(), auth.user?.email || "", auth);
     return NextResponse.json(simulation, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: formatSimulationError(error) }, { status: 400 });

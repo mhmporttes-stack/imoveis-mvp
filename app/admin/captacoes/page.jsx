@@ -2,13 +2,13 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminCaptacoesList from "@/components/captacoes/AdminCaptacoesList";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import { canManageCaptacoes, formatCaptacaoError, listCaptacoes } from "@/lib/captacoes";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCaptacoesPage() {
-  await requireAdminPage();
+  const auth = await requireGeneralAdminPage();
 
   if (!canManageCaptacoes()) {
     return <CaptacoesDisabled />;
@@ -17,7 +17,7 @@ export default async function AdminCaptacoesPage() {
   let captacoes = [];
 
   try {
-    captacoes = await listCaptacoes();
+    captacoes = await listCaptacoes(auth);
   } catch (error) {
     return <CaptacoesError error={formatCaptacaoError(error)} />;
   }
@@ -33,7 +33,7 @@ export default async function AdminCaptacoesPage() {
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/venda-seu-imovel" className="premium-button-primary">Ver formulário público</Link>
+          <Link href="/captacao" className="premium-button-primary">Ver formulário público</Link>
           <AdminLogoutButton />
         </div>
       </section>
@@ -67,7 +67,7 @@ function CaptacoesError({ error }) {
         <h1 className="mt-3 text-5xl font-black text-navy">A página abriu, mas o Supabase retornou um erro.</h1>
         <p className="mt-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
         <p className="mt-4 max-w-3xl leading-8 text-muted">
-          Confira se a migration <strong>supabase/migrations/20260807_captacoes.sql</strong> foi executada no SQL Editor do Supabase.
+          Confira se a migration <strong>supabase/migrations/20260807_captacoes.sql</strong> e a migration de corretores foram executadas no SQL Editor do Supabase.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/admin/captacoes" className="premium-button-primary">Tentar novamente</Link>

@@ -11,14 +11,14 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DailyReportPage() {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
 
   let report = null;
   let error = "";
 
   if (canLoadDailyReport()) {
     try {
-      report = await getDailyReport({ period: "today" });
+      report = await getDailyReport({ period: "today" }, auth);
     } catch (reportError) {
       error = formatDailyReportError(reportError);
     }

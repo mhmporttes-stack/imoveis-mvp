@@ -25,7 +25,7 @@ export async function PATCH(request, { params }) {
     const registration = await updateSimulationRegistration((await params).id, {
       ...body,
       adminEmail: auth.user?.email
-    });
+    }, auth);
     return NextResponse.json(registration);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
@@ -43,7 +43,7 @@ export async function DELETE(request, { params }) {
   }
 
   try {
-    await deleteSimulationRegistration((await params).id);
+    await deleteSimulationRegistration((await params).id, auth);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const simulation = await getSimulation((await params).id);
+    const simulation = await getSimulation((await params).id, auth);
     if (!simulation) {
       return NextResponse.json({ error: "Simulação não encontrada." }, { status: 404 });
     }
@@ -43,7 +43,7 @@ export async function PUT(request, { params }) {
   }
 
   try {
-    const simulation = await updateSimulation((await params).id, await request.json(), auth.user?.email || "");
+    const simulation = await updateSimulation((await params).id, await request.json(), auth.user?.email || "", auth);
     return NextResponse.json(simulation);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationError(error) }, { status: 400 });
@@ -61,7 +61,7 @@ export async function DELETE(request, { params }) {
   }
 
   try {
-    await deleteSimulation((await params).id);
+    await deleteSimulation((await params).id, auth);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: formatSimulationError(error) }, { status: 400 });

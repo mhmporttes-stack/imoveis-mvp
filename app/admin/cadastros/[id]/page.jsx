@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import DeleteRegistrationButton from "@/components/DeleteRegistrationButton";
 import RegistrationDetails from "@/components/RegistrationDetails";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -13,7 +13,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistrationDetailsPage({ params }) {
-  await requireAdminPage();
+  await requireGeneralAdminPage();
   const { id } = await params;
 
   if (!canManageSimulationRegistrations()) {

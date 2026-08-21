@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
+import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { formatTestimonialError, updateTestimonialPublication } from "@/lib/testimonials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request, { params }) {
-  const auth = await requireAdminApi(request);
+  const auth = await requireGeneralAdminApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import PropertyForm from "@/components/PropertyForm";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import { canManageProperties, getProperty } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditPropertyPage({ params }) {
-  await requireAdminPage();
+  await requireGeneralAdminPage();
 
   if (!canManageProperties()) {
     return (

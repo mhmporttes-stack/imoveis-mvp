@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Home, ImagePlus, Loader2, Plus, UploadCloud, X } from "lucide-react";
 import {
   CAPTACAO_TYPE_OPTIONS,
@@ -82,6 +83,8 @@ const APARTMENT_DIFFERENTIALS = [
 ];
 
 export default function PropertyCaptureForm() {
+  const searchParams = useSearchParams();
+  const brokerRef = searchParams.get("ref") || "";
   const [form, setForm] = useState(INITIAL_FORM);
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState("");
@@ -243,6 +246,7 @@ export default function PropertyCaptureForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...submissionForm,
+          brokerRef,
           photos,
           details: normalizeDetails(form.details)
         })
@@ -654,9 +658,9 @@ function buildCaptureSteps(propertyType) {
   const saleIndex = steps.findIndex((step) => step.id === "sale");
   const differentialStep = {
     id: "differentials",
-    eyebrow: "Diferenciais do imÃ³vel",
-    title: "Quais diferenciais valorizam o imÃ³vel?",
-    description: "Selecione quantas opÃ§Ãµes quiser e adicione algum detalhe relevante para a captaÃ§Ã£o.",
+    eyebrow: "Diferenciais do imóvel",
+    title: "Quais diferenciais valorizam o imóvel?",
+    description: "Selecione quantas opções quiser e adicione algum detalhe relevante para a captação.",
     multiSelect: true
   };
 

@@ -22,7 +22,7 @@ export async function POST(request) {
   }
 
   try {
-    const property = await createProperty(await request.json());
+    const property = await createProperty(await request.json(), auth);
     await ensureDailyBackup();
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

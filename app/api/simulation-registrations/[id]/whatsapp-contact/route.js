@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
   }
 
   try {
-    const registration = await markSimulationRegistrationWhatsAppContact((await params).id, auth.user?.email);
+    const registration = await markSimulationRegistrationWhatsAppContact((await params).id, auth.user?.email, auth);
     return NextResponse.json(registration);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

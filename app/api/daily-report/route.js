@@ -17,7 +17,7 @@ export async function GET(request) {
       period: url.searchParams.get("period") || "today",
       startDate: url.searchParams.get("startDate") || "",
       endDate: url.searchParams.get("endDate") || ""
-    });
+    }, auth);
 
     return NextResponse.json({ report });
   } catch (error) {

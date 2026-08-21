@@ -1,9 +1,9 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import TestimonialForm from "@/components/TestimonialForm";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireGeneralAdminPage } from "@/lib/admin-auth";
 
 export default async function NewTestimonialPage() {
-  await requireAdminPage();
+  await requireGeneralAdminPage();
 
   return (
     <main className="bg-mist py-14">
