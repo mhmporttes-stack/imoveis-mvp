@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
-import { isGeneralAdminProfile, listAdminProfiles } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listTags } from "@/lib/client-tags";
 import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
@@ -44,7 +44,9 @@ export default async function AdminSimulationsPage({ searchParams }) {
     tags = [];
   }
 
-  if (isGeneralAdminProfile(auth.profile)) {
+  const isGeneralAdmin = isGeneralAdminAuth(auth);
+
+  if (isGeneralAdmin) {
     try {
       adminProfiles = await listAdminProfiles();
     } catch {
@@ -80,7 +82,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
           registrations={registrations}
           simulations={simulations}
           adminProfiles={adminProfiles}
-          canManageResponsibleUsers={isGeneralAdminProfile(auth.profile)}
+          canManageResponsibleUsers={isGeneralAdmin}
           tags={tags}
         />
       )}
