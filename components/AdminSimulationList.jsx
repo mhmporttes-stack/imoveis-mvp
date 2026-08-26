@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   Filter,
   MessageCircle,
@@ -80,6 +82,8 @@ export default function AdminSimulationList({
   const [tagDraft, setTagDraft] = useState("");
   const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
   const [busyClientId, setBusyClientId] = useState("");
+  const [schedulingClientId, setSchedulingClientId] = useState("");
+  const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", note: "" });
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
@@ -346,6 +350,102 @@ export default function AdminSimulationList({
     }
   }
 
+  async function openScheduleEditor(client) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) {
+      alert("Este cliente ainda não possui cadastro vinculado para agendar uma atividade.");
+      return;
+    }
+
+    setScheduleDraft(getScheduleDraft(linkedRegistration));
+    setSchedulingClientId(client.id);
+  }
+
+  async function saveClientSchedule(client) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) return;
+
+    const date = String(scheduleDraft.date || "").trim();
+    const time = String(scheduleDraft.time || "").trim();
+    const note = String(scheduleDraft.note || "").replace(/\s+/g, " ").trim();
+
+    if (!date) {
+      alert("Selecione o dia da atividade.");
+      return;
+    }
+
+    if (!time) {
+      alert("Selecione o horário da atividade.");
+      return;
+    }
+
+    if (!note) {
+      alert("Explique rapidamente qual é a atividade.");
+      return;
+    }
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledActivityDate: date,
+          scheduledActivityTime: time,
+          scheduledActivityNote: note
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || "Não foi possível agendar a atividade.");
+        return;
+      }
+
+      setLocalRegistrations((current) => current.map((registration) => (
+        registration.id === data.id
+          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
+          : registration
+      )));
+      setSchedulingClientId("");
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function clearClientSchedule(client) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) return;
+    if (!confirm(`Remover a atividade agendada de "${client.name || "cliente"}"?`)) return;
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledActivityAt: null,
+          scheduledActivityNote: ""
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || "Não foi possível remover a atividade.");
+        return;
+      }
+
+      setLocalRegistrations((current) => current.map((registration) => (
+        registration.id === data.id
+          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
+          : registration
+      )));
+      setSchedulingClientId("");
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
   async function saveClientTags(client, nextTagIds) {
     const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
     if (!linkedRegistration?.id) {
@@ -601,15 +701,22 @@ export default function AdminSimulationList({
             onCreateTag={createTagForClient}
             onEnsureRegistration={ensureClientRegistration}
             onOpenSimulation={openSimulation}
+            onOpenSchedule={openScheduleEditor}
             onOpenWhatsApp={openWhatsApp}
             onRemoveClient={removeClient}
+            onSaveSchedule={saveClientSchedule}
+            onClearSchedule={clearClientSchedule}
             onSaveTags={saveClientTags}
+            onCloseSchedule={() => setSchedulingClientId("")}
             onToggleDetails={() => setExpandedClientId((current) => current === client.id ? "" : client.id)}
             onToggleTagEditor={() => setEditingTagsClientId((current) => current === client.id ? "" : client.id)}
             onUpdateResponsibleUser={updateClientResponsibleUser}
             onUpdateStatus={updateClientStatus}
             responsibleProfileMap={responsibleProfileMap}
             responsibleProfiles={responsibleProfiles}
+            scheduleDraft={scheduleDraft}
+            scheduling={schedulingClientId === client.id}
+            setScheduleDraft={setScheduleDraft}
             showResponsibleSelector={canManageResponsibleUsers}
             setTagColor={setTagColor}
             setTagDraft={setTagDraft}
@@ -662,10 +769,14 @@ function ClientCard({
   expanded,
   localTags,
   onCreateTag,
+  onClearSchedule,
+  onCloseSchedule,
   onEnsureRegistration,
   onOpenSimulation,
+  onOpenSchedule,
   onOpenWhatsApp,
   onRemoveClient,
+  onSaveSchedule,
   onSaveTags,
   onToggleDetails,
   onToggleTagEditor,
@@ -673,6 +784,9 @@ function ClientCard({
   onUpdateStatus,
   responsibleProfileMap,
   responsibleProfiles,
+  scheduleDraft,
+  scheduling,
+  setScheduleDraft,
   showResponsibleSelector,
   setTagColor,
   setTagDraft,
@@ -782,6 +896,12 @@ function ClientCard({
         ) : (
           <p>{client.lastContactLabel}</p>
         )}
+        {client.scheduledActivityAt ? (
+          <p className="text-navy">
+            Atividade: {formatScheduledActivityLabel(client.scheduledActivityAt)}
+            {client.scheduledActivityNote ? ` · ${client.scheduledActivityNote}` : ""}
+          </p>
+        ) : null}
       </div>
 
       {client.completed ? (
@@ -806,7 +926,19 @@ function ClientCard({
         />
       ) : null}
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
+      {scheduling ? (
+        <ScheduleEditor
+          busy={busy}
+          draft={scheduleDraft}
+          hasSchedule={Boolean(client.scheduledActivityAt)}
+          onChange={setScheduleDraft}
+          onClear={() => onClearSchedule(client)}
+          onClose={onCloseSchedule}
+          onSave={() => onSaveSchedule(client)}
+        />
+      ) : null}
+
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
         <button
           aria-label={`Abrir simulação de ${client.name || "cliente"}`}
           className="client-action-button"
@@ -832,6 +964,20 @@ function ClientCard({
           Cadastro
         </button>
         <button
+          aria-label={`${client.scheduledActivityAt ? "Editar atividade agendada" : "Agendar atividade"} de ${client.name || "cliente"}`}
+          className="client-action-button"
+          disabled={busy}
+          onClick={() => onOpenSchedule(client)}
+          type="button"
+        >
+          {client.scheduledActivityAt ? (
+            <Clock className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+          )}
+          {client.scheduledActivityAt ? "Agenda" : "Agendar"}
+        </button>
+        <button
           aria-label={`Abrir WhatsApp de ${client.name || "cliente"}`}
           className="client-action-button"
           onClick={() => onOpenWhatsApp(client)}
@@ -852,6 +998,63 @@ function ClientCard({
         </button>
       </div>
     </article>
+  );
+}
+
+function ScheduleEditor({ busy, draft, hasSchedule, onChange, onClear, onClose, onSave }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-blue-100 bg-[#F5FAFF] p-3">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+        <label className="text-xs font-black text-navy">
+          Dia da atividade
+          <input
+            className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+            disabled={busy}
+            onChange={(event) => onChange((current) => ({ ...current, date: event.target.value }))}
+            type="date"
+            value={draft.date}
+          />
+        </label>
+        {draft.date ? (
+          <label className="text-xs font-black text-navy">
+            Horário
+            <input
+              className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+              disabled={busy}
+              onChange={(event) => onChange((current) => ({ ...current, time: event.target.value }))}
+              type="time"
+              value={draft.time}
+            />
+          </label>
+        ) : null}
+      </div>
+      {draft.date && draft.time ? (
+        <label className="mt-3 block text-xs font-black text-navy">
+          O que será feito?
+          <textarea
+            className="mt-1 min-h-[84px] w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+            disabled={busy}
+            maxLength={240}
+            onChange={(event) => onChange((current) => ({ ...current, note: event.target.value }))}
+            placeholder="Ex.: cobrar documentação, retornar ligação, enviar opções de imóveis..."
+            value={draft.note}
+          />
+        </label>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="client-action-button h-10 px-4" disabled={busy} onClick={onSave} type="button">
+          Salvar atividade
+        </button>
+        {hasSchedule ? (
+          <button className="client-action-button h-10 px-4" disabled={busy} onClick={onClear} type="button">
+            Remover
+          </button>
+        ) : null}
+        <button className="client-action-button h-10 px-4" disabled={busy} onClick={onClose} type="button">
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1120,6 +1323,8 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     sortDate,
     status,
     summary: safeSummary,
+    scheduledActivityAt: registration?.scheduledActivityAt || "",
+    scheduledActivityNote: registration?.scheduledActivityNote || "",
     tags: ensureArray(registration?.tags)
   };
 }
@@ -1156,6 +1361,8 @@ function combineClientItems(currentItem, nextItem) {
       : "Nenhum contato realizado",
     lastWhatsappContactAt: preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt || "",
     registration: preferred.registration || fallback.registration,
+    scheduledActivityAt: preferred.scheduledActivityAt || fallback.scheduledActivityAt || "",
+    scheduledActivityNote: preferred.scheduledActivityNote || fallback.scheduledActivityNote || "",
     searchText: {
       phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
       text: [preferred.searchText?.text, fallback.searchText?.text].filter(Boolean).join(" ")
@@ -1297,6 +1504,32 @@ function formatDateLabel(registration, simulation) {
 
 function formatLastContactLabel(value) {
   return formatRelativeDateTimeLabel(value, "Nenhum contato realizado");
+}
+
+function formatScheduledActivityLabel(value) {
+  const date = new Date(value || "");
+  if (!Number.isFinite(date.getTime())) return "Data a confirmar";
+
+  const parts = getSaoPauloDateParts(date);
+  return `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}/${parts.year} às ${parts.hour}:${parts.minute}`;
+}
+
+function getScheduleDraft(registration = {}) {
+  const date = new Date(registration.scheduledActivityAt || "");
+  if (!Number.isFinite(date.getTime())) {
+    return {
+      date: "",
+      time: "",
+      note: registration.scheduledActivityNote || ""
+    };
+  }
+
+  const parts = getSaoPauloDateParts(date);
+  return {
+    date: `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`,
+    time: `${parts.hour}:${parts.minute}`,
+    note: registration.scheduledActivityNote || ""
+  };
 }
 
 function formatRelativeDateTimeLabel(value, fallbackLabel) {
