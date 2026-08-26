@@ -25,6 +25,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
         { href: "/admin/captacoes", label: "CAPTAÇÕES", key: "captacoes" },
         { href: "/admin/financeiro", label: "FINANCEIRO", key: "financial" },
         { href: "/admin/relatorio-diario", label: "RELATÓRIO DIÁRIO", key: "daily-report" },
+        { href: "/admin/calendario", label: "CALENDÁRIO", key: "calendar" },
         { href: "/admin/corretores", label: "CORRETORES", key: "brokers" }
       ];
 
