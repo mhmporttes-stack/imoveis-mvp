@@ -1,0 +1,2 @@
+deploy-check=2026-08-26T17:01:16-03:00
+reason=force-vercel-git-deployment-after-calendar-tab
