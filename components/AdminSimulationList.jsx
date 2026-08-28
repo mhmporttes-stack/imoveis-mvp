@@ -51,7 +51,7 @@ const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "all", label: "Todos", statuses: [] },
   { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
-  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
+  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
   { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED] },
   { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED] }
 ];
@@ -1465,6 +1465,7 @@ function isCompletedClientStatus(status) {
     CLIENT_STATUS.DOCUMENTATION,
     CLIENT_STATUS.DOCUMENTS_PENDING,
     CLIENT_STATUS.APPROVAL_PENDING,
+    CLIENT_STATUS.SHIELDING,
     CLIENT_STATUS.APPROVED,
     CLIENT_STATUS.REJECTED,
     CLIENT_STATUS.SALE_COMPLETED
