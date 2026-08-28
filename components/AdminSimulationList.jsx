@@ -645,8 +645,8 @@ export default function AdminSimulationList({
           </div>
         </div>
 
-        <div className="mt-4 space-y-2">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-3 lg:grid-cols-6">
             {CLIENT_STATUS_FILTER_GROUPS.map((group) => {
               const active = statusGroup === group.key;
               const count = group.key === "all"
@@ -655,10 +655,10 @@ export default function AdminSimulationList({
 
               return (
                 <button
-                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-3 text-center text-xs font-extrabold uppercase tracking-[0.04em] transition duration-300 sm:text-sm ${
+                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-3 text-center text-xs font-extrabold uppercase tracking-[0.04em] transition duration-300 sm:text-sm ${
                     active
-                      ? "border-brand bg-brand text-white shadow-soft"
-                      : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
+                      ? "bg-navy text-white shadow-[0_10px_24px_rgba(13,46,87,0.18)]"
+                      : "bg-transparent text-navy/80 hover:bg-[#F5FAFF] hover:text-navy"
                   }`}
                   key={group.key}
                   onClick={() => {
