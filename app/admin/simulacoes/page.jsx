@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
+import AdminClientsToggle from "@/components/AdminClientsToggle";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
@@ -74,6 +75,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
         </div>
       </section>
       <AdminSectionNav active="simulations" />
+      <AdminClientsToggle active="list" />
       {blockingError ? (
         <SimulationError error={blockingError} />
       ) : (
