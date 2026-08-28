@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const buttonBase =
   "inline-flex min-h-12 items-center justify-center rounded-full px-6 text-sm font-extrabold transition duration-300";
@@ -18,31 +18,50 @@ function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
 }
 
+const adminGroups = [
+  {
+    key: "clientes",
+    label: "CLIENTES",
+    href: "/admin/simulacoes",
+    items: [
+      { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/calendario", label: "Calendário", key: "calendar" }
+    ]
+  },
+  {
+    key: "cadastros",
+    label: "CADASTROS",
+    items: [
+      { href: "/admin", label: "Imóveis", key: "properties" },
+      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
+      { href: "/admin/captacoes", label: "Captações", key: "captacoes" }
+    ]
+  },
+  {
+    key: "administrativo",
+    label: "ADMINISTRATIVO",
+    items: [
+      { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
+      { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
+      { href: "/admin/corretores", label: "Corretores", key: "brokers" }
+    ]
+  }
+];
+
+function getGroupKeyForActive(active) {
+  return adminGroups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || "clientes";
+}
+
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false }) {
-  const [openMenu, setOpenMenu] = useState("");
-  const navRef = useRef(null);
+  const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active));
 
   useEffect(() => {
-    function handlePointerDown(event) {
-      if (navRef.current && !navRef.current.contains(event.target)) {
-        setOpenMenu("");
-      }
-    }
+    setVisibleGroup(getGroupKeyForActive(active));
+  }, [active]);
 
-    function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        setOpenMenu("");
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  const visibleItems = useMemo(() => {
+    return adminGroups.find((group) => group.key === visibleGroup)?.items || [];
+  }, [visibleGroup]);
 
   if (isBroker && !isAdmin) {
     const brokerLinks = [
@@ -62,75 +81,54 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
     );
   }
 
-  const clientActive = ["simulations", "registrations", "calendar"].includes(active);
-  const menus = [
-    {
-      key: "cadastros",
-      label: "CADASTROS",
-      items: [
-        { href: "/admin", label: "Imóveis", key: "properties" },
-        { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
-        { href: "/admin/captacoes", label: "Captações", key: "captacoes" }
-      ]
-    },
-    {
-      key: "administrativo",
-      label: "ADMINISTRATIVO",
-      items: [
-        { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
-        { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
-        { href: "/admin/corretores", label: "Corretores", key: "brokers" }
-      ]
-    }
-  ];
-
   return (
-    <nav ref={navRef} className="flex flex-wrap gap-3" aria-label="Categorias administrativas">
-      <Link href="/admin/simulacoes" className={buttonClass(clientActive)}>
-        CLIENTES
-      </Link>
+    <div className="space-y-3">
+      <nav className="flex flex-wrap gap-3" aria-label="Categorias administrativas">
+        {adminGroups.map((group) => {
+          const groupActive = group.items.some((item) => isActiveItem(item, active));
+          const highlighted = groupActive || visibleGroup === group.key;
 
-      {menus.map((menu) => {
-        const menuActive = menu.items.some((item) => isActiveItem(item, active));
-        const isOpen = openMenu === menu.key;
-
-        return (
-          <div key={menu.key} className="relative">
-            <button
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={isOpen}
-              className={buttonClass(menuActive)}
-              onClick={() => setOpenMenu(isOpen ? "" : menu.key)}
-            >
-              {menu.label}
-            </button>
-
-            {isOpen ? (
-              <div
-                role="menu"
-                className="absolute left-0 z-50 mt-2 w-max min-w-44 max-w-[calc(100vw-2rem)] rounded-2xl border border-navy/10 bg-white p-2 shadow-[0_18px_45px_rgba(13,46,87,0.14)]"
+          if (group.href) {
+            return (
+              <Link
+                key={group.key}
+                href={group.href}
+                className={buttonClass(highlighted)}
+                onClick={() => setVisibleGroup(group.key)}
               >
-                {menu.items.map((item) => (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    role="menuitem"
-                    className={`block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-extrabold transition duration-200 ${
-                      isActiveItem(item, active)
-                        ? "bg-brand text-white"
-                        : "text-navy hover:bg-brand/10 hover:text-brand"
-                    }`}
-                    onClick={() => setOpenMenu("")}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-    </nav>
+                {group.label}
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              key={group.key}
+              type="button"
+              className={buttonClass(highlighted)}
+              onClick={() => setVisibleGroup(group.key)}
+            >
+              {group.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="inline-flex max-w-full flex-wrap rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
+        {visibleItems.map((item) => (
+          <Link
+            key={item.key}
+            href={item.href}
+            className={`rounded-full px-5 py-2 text-sm font-extrabold transition duration-200 ${
+              isActiveItem(item, active)
+                ? "bg-navy text-white shadow-soft"
+                : "text-navy hover:bg-brand/10 hover:text-brand"
+            }`}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
-import AdminClientsToggle from "@/components/AdminClientsToggle";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import ActivityCalendar from "@/components/ActivityCalendar";
 import Footer from "@/components/Footer";
@@ -28,7 +27,6 @@ export default async function AdminCalendarPage() {
       </section>
 
       <AdminSectionNav active="calendar" />
-      <AdminClientsToggle active="calendar" />
       <ActivityCalendar />
       <Footer />
     </main>
