@@ -47,6 +47,14 @@ const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
     acc[option.value] = index + 1;
     return acc;
   }, {});
+const CLIENT_STATUS_FILTER_GROUPS = [
+  { key: "all", label: "Todos", statuses: [] },
+  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED] },
+  { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
+  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
+  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED] },
+  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED] }
+];
 const TAG_COLORS = [
   { label: "Azul institucional", value: "#0D4F8B" },
   { label: "Azul vivo", value: "#1D4ED8" },
@@ -71,6 +79,7 @@ export default function AdminSimulationList({
   const router = useRouter();
   const listTopRef = useRef(null);
   const [query, setQuery] = useState("");
+  const [statusGroup, setStatusGroup] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
   const [pageSize, setPageSize] = useState(5);
@@ -155,8 +164,11 @@ export default function AdminSimulationList({
   const filteredClients = useMemo(() => {
     const textQuery = normalizeText(query);
     const phoneQuery = normalizePhone(query);
+    const activeGroup = CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup);
+    const groupStatuses = activeGroup?.statuses || [];
 
     return clients.filter((client) => {
+      if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
       if (statusFilter !== "all" && client.status !== statusFilter) return false;
       if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
       if (!textQuery && !phoneQuery) return true;
@@ -166,7 +178,7 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, query, statusFilter, tagFilter]);
+  }, [clients, query, statusGroup, statusFilter, tagFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
   const pageStart = filteredClients.length ? (currentPage - 1) * pageSize : 0;
@@ -176,7 +188,7 @@ export default function AdminSimulationList({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, query, statusFilter, tagFilter]);
+  }, [pageSize, query, statusGroup, statusFilter, tagFilter]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -633,32 +645,63 @@ export default function AdminSimulationList({
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {CLIENT_STATUS_OPTIONS.map((filter) => {
-            const active = statusFilter === filter.value;
-            const meta = filter.value === "all" ? null : CLIENT_STATUS_META[filter.value];
-            const counterClass = filter.value === "all"
-              ? (active ? "bg-brand text-white" : "bg-[#EEF4FB] text-navy")
-              : (meta?.counterClass || "bg-[#EEF4FB] text-navy");
+        <div className="mt-4 space-y-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {CLIENT_STATUS_FILTER_GROUPS.map((group) => {
+              const active = statusGroup === group.key;
+              const count = group.key === "all"
+                ? clients.length
+                : group.statuses.reduce((total, status) => total + (counters[status] || 0), 0);
 
-            return (
-              <button
-                className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-center text-sm font-extrabold transition duration-300 ${
-                  active
-                    ? (meta?.activeClass || "border-brand bg-[#EAF3FF] text-brand")
-                    : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
-                }`}
-                key={filter.value}
-                onClick={() => setStatusFilter(filter.value)}
-                type="button"
-              >
-                {filter.filterLabel || filter.label}
-                <span className={`rounded-full px-2 py-0.5 text-xs ${counterClass}`}>
-                  {counters[filter.value] || 0}
-                </span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-3 text-center text-xs font-extrabold uppercase tracking-[0.04em] transition duration-300 sm:text-sm ${
+                    active
+                      ? "border-brand bg-brand text-white shadow-soft"
+                      : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
+                  }`}
+                  key={group.key}
+                  onClick={() => {
+                    setStatusGroup(group.key);
+                    setStatusFilter("all");
+                  }}
+                  type="button"
+                >
+                  {group.label}
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-white/20 text-white" : "bg-[#EEF4FB] text-navy"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {statusGroup !== "all" ? (
+            <div className="flex flex-wrap gap-2">
+              {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup)?.statuses || []).map((status) => {
+                const active = statusFilter === status;
+                const meta = CLIENT_STATUS_META[status];
+
+                return (
+                  <button
+                    className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border px-3 text-center text-xs font-extrabold transition duration-300 sm:px-4 sm:text-sm ${
+                      active
+                        ? (meta?.activeClass || "border-brand bg-[#EAF3FF] text-brand")
+                        : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
+                    }`}
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    type="button"
+                  >
+                    {meta?.label || status}
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${meta?.counterClass || "bg-[#EEF4FB] text-navy"}`}>
+                      {counters[status] || 0}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -724,7 +767,7 @@ export default function AdminSimulationList({
             tagDraft={tagDraft}
           />
         )) : (
-          <EmptyState hasClients={clients.length > 0} hasQuery={query.trim().length > 0} statusFilter={statusFilter} tagFilter={tagFilter} />
+          <EmptyState hasClients={clients.length > 0} hasFilter={statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all"} hasQuery={query.trim().length > 0} />
         )}
       </div>
 
@@ -1267,12 +1310,12 @@ function StatusBadge({ status }) {
   return <span className={`w-fit rounded-full px-3 py-1 text-[11px] font-black ${meta.badgeClass}`}>{meta.label}</span>;
 }
 
-function EmptyState({ hasClients, hasQuery, statusFilter, tagFilter }) {
+function EmptyState({ hasClients, hasFilter, hasQuery }) {
   let message = "Nenhum cliente cadastrado.";
 
   if (hasClients && hasQuery) {
     message = "Nenhum cliente encontrado para esta busca.";
-  } else if (hasClients && (statusFilter !== "all" || tagFilter !== "all")) {
+  } else if (hasClients && hasFilter) {
     message = "Nenhum cliente encontrado neste filtro.";
   }
 
