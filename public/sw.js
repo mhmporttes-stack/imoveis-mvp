@@ -1,4 +1,4 @@
-const CACHE_VERSION = "painel-matheus-v1";
+const CACHE_VERSION = "painel-matheus-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
@@ -16,6 +16,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => Promise.allSettled(STATIC_ASSETS.map((asset) => cache.add(asset))))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
