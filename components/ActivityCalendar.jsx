@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -16,6 +16,13 @@ export default function ActivityCalendar() {
   const [error, setError] = useState("");
   const [completeLoadingId, setCompleteLoadingId] = useState("");
   const [completeError, setCompleteError] = useState("");
+  const [activeLateActivityId, setActiveLateActivityId] = useState("");
+  const [rescheduleActivity, setRescheduleActivity] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleNote, setRescheduleNote] = useState("");
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState("");
 
   useEffect(() => {
     let ignore = false;
@@ -58,12 +65,27 @@ export default function ActivityCalendar() {
   }, [activities]);
 
   const selectedActivities = activitiesByDate.get(selectedDate) || [];
+  const selectedActivityGroups = useMemo(() => {
+    const groups = {
+      pending: [],
+      scheduled: [],
+      completed: []
+    };
+
+    for (const activity of selectedActivities) {
+      groups[getActivityState(activity)].push(activity);
+    }
+
+    return [
+      { key: "pending", title: "Atividades pendentes", items: groups.pending },
+      { key: "scheduled", title: "Atividades agendadas", items: groups.scheduled },
+      { key: "completed", title: "Atividades concluídas", items: groups.completed }
+    ].filter((group) => group.items.length);
+  }, [selectedActivities]);
   const monthDays = buildMonthDays(visibleMonth);
 
   async function completeActivity(activity) {
     if (!activity?.id || activity.scheduledActivityCompletedAt || completeLoadingId) return;
-    const confirmed = window.confirm(`Marcar a atividade de ${activity.clientName} como realizada?`);
-    if (!confirmed) return;
 
     setCompleteError("");
     setCompleteLoadingId(activity.id);
@@ -88,10 +110,62 @@ export default function ActivityCalendar() {
           ? { ...current, scheduledActivityCompleted: true, scheduledActivityCompletedAt: completedAt }
           : current
       ));
+      setActiveLateActivityId("");
     } catch (completeActivityError) {
       setCompleteError(completeActivityError.message || "Não foi possível concluir a atividade.");
     } finally {
       setCompleteLoadingId("");
+    }
+  }
+
+  function openReschedule(activity) {
+    setRescheduleActivity(activity);
+    setRescheduleDate(toSaoPauloDateKey(activity.scheduledActivityAt));
+    setRescheduleTime(formatInputTime(activity.scheduledActivityAt));
+    setRescheduleNote(activity.scheduledActivityNote || "");
+    setRescheduleError("");
+    setActiveLateActivityId("");
+  }
+
+  async function submitReschedule(event) {
+    event.preventDefault();
+    if (!rescheduleActivity?.id || rescheduleLoading) return;
+
+    setRescheduleError("");
+    setRescheduleLoading(true);
+    try {
+      const response = await fetch(`/api/simulation-registrations/${rescheduleActivity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledActivityDate: rescheduleDate,
+          scheduledActivityTime: rescheduleTime,
+          scheduledActivityNote: rescheduleNote
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível reagendar a atividade.");
+
+      const nextActivity = {
+        ...rescheduleActivity,
+        scheduledActivityAt: payload.scheduledActivityAt,
+        scheduledActivityNote: payload.scheduledActivityNote || "",
+        scheduledActivityCompleted: false,
+        scheduledActivityCompletedAt: "",
+        scheduledActivityCompletedBy: ""
+      };
+
+      setActivities((current) => current.map((item) => (
+        item.id === rescheduleActivity.id ? { ...item, ...nextActivity } : item
+      )));
+      setSelectedActivity((current) => (
+        current?.id === rescheduleActivity.id ? { ...current, ...nextActivity } : current
+      ));
+      setRescheduleActivity(null);
+    } catch (rescheduleActivityError) {
+      setRescheduleError(rescheduleActivityError.message || "Não foi possível reagendar a atividade.");
+    } finally {
+      setRescheduleLoading(false);
     }
   }
 
@@ -182,49 +256,71 @@ export default function ActivityCalendar() {
                     {completeError}
                   </p>
                 ) : null}
-                {selectedActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
-                      activity.scheduledActivityCompletedAt
-                        ? "border-emerald-200 bg-emerald-50/70"
-                        : "border-brand/15 hover:border-brand"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => setSelectedActivity(activity)}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-black text-brand">
-                        <Clock size={16} /> {formatTime(activity.scheduledActivityAt)}
-                        {activity.scheduledActivityCompletedAt ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700">
-                            Realizada
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="mt-2 block font-black text-navy">
-                        {activity.responsibleName} - {activity.clientName}
-                      </span>
-                      {activity.scheduledActivityNote ? (
-                        <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      className={`grid h-12 w-12 shrink-0 place-items-center rounded-full border transition ${
-                        activity.scheduledActivityCompletedAt
-                          ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                          : "border-brand/20 bg-white text-brand hover:border-brand hover:bg-brand hover:text-white"
-                      }`}
-                      aria-label={`Marcar atividade de ${activity.clientName} como realizada`}
-                      title={activity.scheduledActivityCompletedAt ? "Atividade realizada" : "Marcar como realizada"}
-                      disabled={Boolean(activity.scheduledActivityCompletedAt) || completeLoadingId === activity.id}
-                      onClick={() => completeActivity(activity)}
-                    >
-                      <CheckCircle2 size={22} />
-                    </button>
+                {selectedActivityGroups.map((group) => (
+                  <div key={group.key} className="space-y-2">
+                    <p className="px-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate">{group.title}</p>
+                    {group.items.map((activity) => {
+                      const state = getActivityState(activity);
+                      const isLateOpen = activeLateActivityId === activity.id;
+                      return (
+                        <div
+                          key={activity.id}
+                          className={`rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
+                            state === "completed"
+                              ? "border-emerald-200 bg-emerald-50/70"
+                              : state === "pending"
+                                ? "border-red-200 bg-red-50/70"
+                                : "border-brand/15 hover:border-brand"
+                          }`}
+                        >
+                          <div className="flex w-full items-center gap-3">
+                            <button
+                              type="button"
+                              className="min-w-0 flex-1 text-left"
+                              onClick={() => setSelectedActivity(activity)}
+                            >
+                              <span className={`flex items-center gap-2 text-sm font-black ${
+                                state === "pending" ? "text-red-700" : state === "completed" ? "text-emerald-700" : "text-brand"
+                              }`}>
+                                <Clock size={16} /> {formatTime(activity.scheduledActivityAt)}
+                              </span>
+                              <span className="mt-2 block font-black text-navy">
+                                {activity.responsibleName} - {activity.clientName}
+                              </span>
+                              {activity.scheduledActivityNote ? (
+                                <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
+                              ) : null}
+                            </button>
+                            <ActivityStateButton
+                              activity={activity}
+                              state={state}
+                              loading={completeLoadingId === activity.id}
+                              onOpenLateActions={() => setActiveLateActivityId(isLateOpen ? "" : activity.id)}
+                            />
+                          </div>
+
+                          {state === "pending" && isLateOpen ? (
+                            <div className="mt-4 grid gap-2 border-t border-red-100 pt-4 sm:grid-cols-2">
+                              <button
+                                type="button"
+                                className="rounded-full border border-brand/20 bg-white px-4 py-3 text-sm font-black text-brand transition hover:bg-brand hover:text-white"
+                                onClick={() => openReschedule(activity)}
+                              >
+                                Reagendar atividade
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition hover:bg-emerald-600 hover:text-white"
+                                disabled={completeLoadingId === activity.id}
+                                onClick={() => completeActivity(activity)}
+                              >
+                                Atividade concluída
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
@@ -238,7 +334,53 @@ export default function ActivityCalendar() {
       {selectedActivity ? (
         <ActivityModal activity={selectedActivity} onClose={() => setSelectedActivity(null)} />
       ) : null}
+      {rescheduleActivity ? (
+        <RescheduleActivityModal
+          activity={rescheduleActivity}
+          date={rescheduleDate}
+          time={rescheduleTime}
+          note={rescheduleNote}
+          error={rescheduleError}
+          loading={rescheduleLoading}
+          onDateChange={setRescheduleDate}
+          onTimeChange={setRescheduleTime}
+          onNoteChange={setRescheduleNote}
+          onClose={() => setRescheduleActivity(null)}
+          onSubmit={submitReschedule}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function ActivityStateButton({ activity, state, loading, onOpenLateActions }) {
+  if (state === "completed") {
+    return (
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-emerald-200 bg-emerald-100 text-emerald-700" title="Atividade concluída">
+        <CheckCircle2 size={22} />
+      </span>
+    );
+  }
+
+  if (state === "pending") {
+    return (
+      <button
+        type="button"
+        className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-red-200 bg-red-100 text-red-700 transition hover:border-red-300 hover:bg-red-600 hover:text-white"
+        aria-label={`Abrir opções da atividade atrasada de ${activity.clientName}`}
+        title="Atividade pendente"
+        disabled={loading}
+        onClick={onOpenLateActions}
+      >
+        <AlertTriangle size={22} />
+      </button>
+    );
+  }
+
+  return (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-brand/20 bg-brand/10 text-brand" title="Atividade agendada">
+      <CalendarClock size={22} />
+    </span>
   );
 }
 
@@ -294,6 +436,92 @@ function ActivityModal({ activity, onClose }) {
   );
 }
 
+function RescheduleActivityModal({
+  activity,
+  date,
+  time,
+  note,
+  error,
+  loading,
+  onDateChange,
+  onTimeChange,
+  onNoteChange,
+  onClose,
+  onSubmit
+}) {
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
+      <form className="w-full max-w-xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Reagendar atividade</p>
+            <h3 className="mt-2 text-2xl font-black text-navy">{activity.clientName}</h3>
+          </div>
+          <button type="button" className="rounded-full border border-line p-3 text-navy transition hover:bg-mist" aria-label="Fechar reagendamento" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {error ? (
+          <p className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">{error}</p>
+        ) : null}
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="font-black text-navy">
+            Data
+            <input
+              type="date"
+              className="mt-2 w-full rounded-2xl border border-line px-4 py-3 font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+              value={date}
+              required
+              onChange={(event) => onDateChange(event.target.value)}
+            />
+          </label>
+          <label className="font-black text-navy">
+            Horário
+            <input
+              type="time"
+              className="mt-2 w-full rounded-2xl border border-line px-4 py-3 font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+              value={time}
+              required
+              onChange={(event) => onTimeChange(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 block font-black text-navy">
+          Descrição
+          <textarea
+            className="mt-2 min-h-28 w-full rounded-2xl border border-line px-4 py-3 font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+            value={note}
+            maxLength={240}
+            onChange={(event) => onNoteChange(event.target.value)}
+          />
+        </label>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button type="submit" className="premium-button-primary" disabled={loading}>
+            {loading ? "Salvando..." : "Salvar reagendamento"}
+          </button>
+          <button type="button" className="premium-button-secondary" onClick={onClose}>Cancelar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function Detail({ icon = null, label, value }) {
   return (
     <div className="rounded-2xl border border-line bg-white p-4">
@@ -338,6 +566,24 @@ function toSaoPauloDateKey(value) {
   }).formatToParts(date);
   const part = (type) => parts.find((item) => item.type === type)?.value || "";
   return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function getActivityState(activity) {
+  if (activity?.scheduledActivityCompletedAt) return "completed";
+  const scheduledAt = new Date(activity?.scheduledActivityAt || "");
+  if (Number.isFinite(scheduledAt.getTime()) && scheduledAt.getTime() < Date.now()) return "pending";
+  return "scheduled";
+}
+
+function formatInputTime(value) {
+  const date = new Date(value || "");
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/Sao_Paulo"
+  }).format(date);
 }
 
 function formatMonthTitle(date) {
