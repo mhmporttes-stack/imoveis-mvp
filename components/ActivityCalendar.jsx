@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -14,6 +14,8 @@ export default function ActivityCalendar() {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [completeLoadingId, setCompleteLoadingId] = useState("");
+  const [completeError, setCompleteError] = useState("");
 
   useEffect(() => {
     let ignore = false;
@@ -57,6 +59,41 @@ export default function ActivityCalendar() {
 
   const selectedActivities = activitiesByDate.get(selectedDate) || [];
   const monthDays = buildMonthDays(visibleMonth);
+
+  async function completeActivity(activity) {
+    if (!activity?.id || activity.scheduledActivityCompletedAt || completeLoadingId) return;
+    const confirmed = window.confirm(`Marcar a atividade de ${activity.clientName} como realizada?`);
+    if (!confirmed) return;
+
+    setCompleteError("");
+    setCompleteLoadingId(activity.id);
+
+    try {
+      const response = await fetch(`/api/simulation-registrations/${activity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledActivityCompleted: true })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível concluir a atividade.");
+
+      const completedAt = payload?.scheduledActivityCompletedAt || new Date().toISOString();
+      setActivities((current) => current.map((item) => (
+        item.id === activity.id
+          ? { ...item, scheduledActivityCompleted: true, scheduledActivityCompletedAt: completedAt }
+          : item
+      )));
+      setSelectedActivity((current) => (
+        current?.id === activity.id
+          ? { ...current, scheduledActivityCompleted: true, scheduledActivityCompletedAt: completedAt }
+          : current
+      ));
+    } catch (completeActivityError) {
+      setCompleteError(completeActivityError.message || "Não foi possível concluir a atividade.");
+    } finally {
+      setCompleteLoadingId("");
+    }
+  }
 
   return (
     <section className="container-page pb-14">
@@ -140,23 +177,55 @@ export default function ActivityCalendar() {
               <p className="mt-5 rounded-2xl bg-white px-4 py-5 font-bold text-slate">Carregando atividades...</p>
             ) : selectedActivities.length ? (
               <div className="mt-5 space-y-3">
+                {completeError ? (
+                  <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+                    {completeError}
+                  </p>
+                ) : null}
                 {selectedActivities.map((activity) => (
-                  <button
+                  <div
                     key={activity.id}
-                    type="button"
-                    className="w-full rounded-2xl border border-brand/15 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-soft"
-                    onClick={() => setSelectedActivity(activity)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
+                      activity.scheduledActivityCompletedAt
+                        ? "border-emerald-200 bg-emerald-50/70"
+                        : "border-brand/15 hover:border-brand"
+                    }`}
                   >
-                    <span className="flex items-center gap-2 text-sm font-black text-brand">
-                      <Clock size={16} /> {formatTime(activity.scheduledActivityAt)}
-                    </span>
-                    <span className="mt-2 block font-black text-navy">
-                      {activity.responsibleName} - {activity.clientName}
-                    </span>
-                    {activity.scheduledActivityNote ? (
-                      <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
-                    ) : null}
-                  </button>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setSelectedActivity(activity)}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-black text-brand">
+                        <Clock size={16} /> {formatTime(activity.scheduledActivityAt)}
+                        {activity.scheduledActivityCompletedAt ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700">
+                            Realizada
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-2 block font-black text-navy">
+                        {activity.responsibleName} - {activity.clientName}
+                      </span>
+                      {activity.scheduledActivityNote ? (
+                        <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      className={`grid h-12 w-12 shrink-0 place-items-center rounded-full border transition ${
+                        activity.scheduledActivityCompletedAt
+                          ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                          : "border-brand/20 bg-white text-brand hover:border-brand hover:bg-brand hover:text-white"
+                      }`}
+                      aria-label={`Marcar atividade de ${activity.clientName} como realizada`}
+                      title={activity.scheduledActivityCompletedAt ? "Atividade realizada" : "Marcar como realizada"}
+                      disabled={Boolean(activity.scheduledActivityCompletedAt) || completeLoadingId === activity.id}
+                      onClick={() => completeActivity(activity)}
+                    >
+                      <CheckCircle2 size={22} />
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -202,6 +271,7 @@ function ActivityModal({ activity, onClose }) {
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Detail icon={<Clock size={18} />} label="Data e horário" value={`${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityAt))} às ${formatTime(activity.scheduledActivityAt)}`} />
           <Detail icon={<UserRound size={18} />} label="Corretor" value={activity.responsibleName} />
+          <Detail icon={<CheckCircle2 size={18} />} label="Status" value={activity.scheduledActivityCompletedAt ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}` : "Atividade agendada"} />
           <Detail label="Cliente" value={activity.clientName} />
           <Detail label="WhatsApp" value={activity.phone || "Não informado"} />
         </div>

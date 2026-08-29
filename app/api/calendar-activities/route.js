@@ -39,6 +39,9 @@ export async function GET(request) {
         status: registration.status,
         scheduledActivityAt: registration.scheduledActivityAt,
         scheduledActivityNote: registration.scheduledActivityNote || "",
+        scheduledActivityCompletedAt: registration.scheduledActivityCompletedAt || "",
+        scheduledActivityCompletedBy: registration.scheduledActivityCompletedBy || "",
+        scheduledActivityCompleted: Boolean(registration.scheduledActivityCompletedAt),
         responsibleUserId: registration.responsibleUserId || "",
         responsibleName: responsible?.name || (registration.responsibleUserId ? "Corretor" : "Sem corretor"),
         createdAt: registration.createdAt || ""
