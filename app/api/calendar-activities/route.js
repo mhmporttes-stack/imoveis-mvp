@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireAdminApi } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import {
   formatSimulationRegistrationError,
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireAdminApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

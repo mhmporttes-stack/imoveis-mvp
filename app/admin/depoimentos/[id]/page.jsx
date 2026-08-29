@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import TestimonialForm from "@/components/TestimonialForm";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireAdminPage } from "@/lib/admin-auth";
 import { getTestimonial } from "@/lib/testimonials";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditTestimonialPage({ params }) {
-  await requireGeneralAdminPage();
+  await requireAdminPage();
 
   const { id } = await params;
   const testimonial = await getTestimonial(id);

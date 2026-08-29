@@ -18,15 +18,17 @@ function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
 }
 
+const clientItems = [
+  { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
+  { href: "/admin/calendario", label: "Calendário", key: "calendar" }
+];
+
 const adminGroups = [
   {
     key: "clientes",
     label: "CLIENTES",
     href: "/admin/simulacoes",
-    items: [
-      { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
-      { href: "/admin/calendario", label: "Calendário", key: "calendar" }
-    ]
+    items: clientItems
   },
   {
     key: "cadastros",
@@ -48,43 +50,43 @@ const adminGroups = [
   }
 ];
 
-function getGroupKeyForActive(active) {
-  return adminGroups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || "clientes";
+const brokerGroups = [
+  {
+    key: "clientes",
+    label: "CLIENTES",
+    href: "/admin/simulacoes",
+    items: clientItems
+  },
+  {
+    key: "cadastros",
+    label: "CADASTROS",
+    items: [
+      { href: "/admin/novo", label: "Imóveis", key: "new-property" },
+      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
+    ]
+  }
+];
+
+function getGroupKeyForActive(active, groups = adminGroups) {
+  return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || "clientes";
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false }) {
-  const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active));
+  const groups = isBroker && !isAdmin ? brokerGroups : adminGroups;
+  const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
-    setVisibleGroup(getGroupKeyForActive(active));
-  }, [active]);
+    setVisibleGroup(getGroupKeyForActive(active, groups));
+  }, [active, groups]);
 
   const visibleItems = useMemo(() => {
-    return adminGroups.find((group) => group.key === visibleGroup)?.items || [];
-  }, [visibleGroup]);
-
-  if (isBroker && !isAdmin) {
-    const brokerLinks = [
-      { href: "/admin/simulacoes", label: "CLIENTES", key: "simulations", activeKeys: ["registrations"] },
-      { href: "/admin/novo", label: "CADASTRAR IMÓVEL", key: "new-property" },
-      { href: "/admin/relatorio-diario", label: "RELATÓRIO DIÁRIO", key: "daily-report" }
-    ];
-
-    return (
-      <nav className="flex flex-wrap gap-3" aria-label="Categorias administrativas">
-        {brokerLinks.map((link) => (
-          <Link key={link.key} href={link.href} className={buttonClass(isActiveItem(link, active))}>
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-    );
-  }
+    return groups.find((group) => group.key === visibleGroup)?.items || [];
+  }, [groups, visibleGroup]);
 
   return (
     <div className="space-y-3">
       <nav className="flex flex-wrap gap-3" aria-label="Categorias administrativas">
-        {adminGroups.map((group) => {
+        {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
 
