@@ -18,6 +18,7 @@ export async function POST(request) {
 
   try {
     const result = await processWhatsappWebhook(JSON.parse(rawBody));
+    console.info("Webhook WhatsApp Master processado:", result);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     console.error("Falha no webhook WhatsApp Master:", error?.message || "erro desconhecido");
