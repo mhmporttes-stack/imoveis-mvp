@@ -1,27 +1,21 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
+import AutomationRulesManager from "@/components/AutomationRulesManager";
 import { requireGeneralAdminPage } from "@/lib/admin-auth";
-import { listCrmAutomationRules } from "@/lib/crm";
+import { listAdminProfiles } from "@/lib/admin-profiles";
+import { listAutomationRules } from "@/lib/crm-automations";
 
 export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage() {
   await requireGeneralAdminPage("/admin/simulacoes");
-  const rules = await listCrmAutomationRules();
+  const [rules, users] = await Promise.all([listAutomationRules(), listAdminProfiles()]);
 
   return (
     <main className="min-h-screen bg-mist py-14">
       <Header />
       <AdminSectionNav active="automations" />
-      <section className="container-page rounded-[28px] border border-line bg-white p-8 shadow-soft">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">Regras configuráveis</p>
-            <p className="mt-2 text-3xl font-black text-navy">{rules.length}</p>
-          </div>
-          <span className="rounded-full bg-mist px-4 py-2 text-sm font-black text-muted">Todas desativadas por padrão</span>
-        </div>
-      </section>
+      <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
     </main>
   );
 }

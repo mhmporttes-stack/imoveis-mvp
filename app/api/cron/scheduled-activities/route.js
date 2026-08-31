@@ -5,6 +5,7 @@ import {
   markScheduledActivityNotificationSent
 } from "@/lib/simulation-registrations";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
+import { runCrmAutomations } from "@/lib/crm-automations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,13 +38,22 @@ export async function GET(request) {
       }
     }
 
+    let automations = [];
+    try {
+      automations = await runCrmAutomations();
+    } catch (automationError) {
+      console.error("Falha ao executar automações configuráveis.", automationError);
+      automations = [{ error: automationError?.message || "Falha no motor de regras." }];
+    }
+
     return NextResponse.json({
       ok: true,
       checked: dueRegistrations.length,
       sent: results.filter((item) => item.sent).length,
       skipped: results.filter((item) => item.skipped).length,
       failed: results.filter((item) => item.error).length,
-      results
+      results,
+      automations
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);
