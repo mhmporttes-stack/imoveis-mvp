@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { processWhatsappWebhook, verifyWhatsappWebhookChallenge, verifyWhatsappWebhookSignature } from "@/lib/whatsapp-master";
+import { diagnoseWhatsappMetaRuntime, processWhatsappWebhook, verifyWhatsappWebhookChallenge, verifyWhatsappWebhookSignature } from "@/lib/whatsapp-master";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +48,10 @@ export async function POST(request) {
 
   const summary = summarizePayload(payload);
   try {
+    if (process.env.WHATSAPP_WEBHOOK_DIAGNOSTICS === "true") {
+      const diagnostics = await diagnoseWhatsappMetaRuntime();
+      logWebhook("meta_runtime_diagnostics", { method: "POST", status: 200, ...diagnostics });
+    }
     const result = await processWhatsappWebhook(payload);
     logWebhook("event_processed", {
       method: "POST",
