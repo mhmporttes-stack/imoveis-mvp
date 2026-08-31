@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
-  Filter,
   MessageCircle,
   Plus,
   Search,
@@ -641,7 +640,7 @@ export default function AdminSimulationList({
         </button>
       </div>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
-        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_minmax(210px,0.65fr)_auto]" : "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_auto]"}`}>
+        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_minmax(210px,0.65fr)]" : "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)]"}`}>
           <label className="relative block w-full">
             <span className="sr-only">Buscar cliente</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
@@ -687,14 +686,6 @@ export default function AdminSimulationList({
                 ))}
               </select>
             </label>
-            <button
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-brand/30 bg-white px-5 text-sm font-extrabold text-brand transition duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-[#EEF6FF] focus:outline-none focus:ring-4 focus:ring-brand/15"
-              onClick={() => listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              type="button"
-            >
-              <Filter className="h-4 w-4" aria-hidden="true" />
-              Filtros
-            </button>
           </div>
         </div>
 
