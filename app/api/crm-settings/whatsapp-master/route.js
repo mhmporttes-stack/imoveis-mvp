@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { getWhatsappMasterSettings, updateWhatsappMasterSettings } from "@/lib/crm";
+import { getWhatsappMasterDisplaySettings } from "@/lib/whatsapp-master";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ export async function GET(request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    return NextResponse.json({ settings: await getWhatsappMasterSettings() });
+    return NextResponse.json({ settings: getWhatsappMasterDisplaySettings(await getWhatsappMasterSettings()) });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Não foi possível carregar a configuração." }, { status: 400 });
   }
@@ -21,7 +22,7 @@ export async function PATCH(request) {
 
   try {
     const payload = await request.json();
-    return NextResponse.json({ settings: await updateWhatsappMasterSettings(payload, auth) });
+    return NextResponse.json({ settings: getWhatsappMasterDisplaySettings(await updateWhatsappMasterSettings(payload, auth)) });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Não foi possível salvar a configuração." }, { status: 400 });
   }

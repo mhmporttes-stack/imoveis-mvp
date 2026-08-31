@@ -3,12 +3,14 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import { getWhatsappMasterSettings } from "@/lib/crm";
+import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus } from "@/lib/whatsapp-master";
 
 export const dynamic = "force-dynamic";
 
 export default async function WhatsappMasterPage() {
   await requireGeneralAdminPage("/admin/simulacoes");
-  const settings = await getWhatsappMasterSettings();
+  const settings = getWhatsappMasterDisplaySettings(await getWhatsappMasterSettings());
+  const environment = getWhatsappMasterEnvironmentStatus();
 
   return (
     <main className="min-h-screen bg-mist py-14">
@@ -21,7 +23,7 @@ export default async function WhatsappMasterPage() {
         <AdminLogoutButton />
       </section>
       <AdminSectionNav active="whatsapp-master" />
-      <WhatsappMasterForm initialSettings={settings} />
+      <WhatsappMasterForm initialSettings={settings} environment={environment} />
     </main>
   );
 }
