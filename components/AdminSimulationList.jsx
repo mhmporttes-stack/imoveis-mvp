@@ -654,7 +654,7 @@ export default function AdminSimulationList({
           </label>
 
           {canManageResponsibleUsers ? (
-            <label className="relative block">
+            <label className="relative block min-w-0">
               <span className="sr-only">Filtrar por corretor</span>
               <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
               <select
@@ -672,11 +672,11 @@ export default function AdminSimulationList({
           ) : null}
 
           <div className="contents">
-            <label className="relative block">
+            <label className="relative block min-w-0">
               <span className="sr-only">Filtrar por tag</span>
               <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
               <select
-                className="h-12 min-w-[210px] rounded-2xl border border-brand/25 bg-white pl-11 pr-4 text-sm font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                className="h-12 w-full min-w-0 max-w-full rounded-2xl border border-brand/25 bg-white pl-11 pr-4 text-sm font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
                 onChange={(event) => setTagFilter(event.target.value)}
                 value={tagFilter}
               >
