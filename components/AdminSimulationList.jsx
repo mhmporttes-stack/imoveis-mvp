@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Tag,
+  TriangleAlert,
   Trash2,
   UserRound,
   X
@@ -90,6 +91,7 @@ export default function AdminSimulationList({
   const [statusGroup, setStatusGroup] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedClientId, setExpandedClientId] = useState("");
@@ -155,6 +157,7 @@ export default function AdminSimulationList({
     }
   }, [localRegistrations, simulations]);
   const clients = clientsResult.items;
+  const pendingClientsCount = useMemo(() => clients.filter(isPendingClient).length, [clients]);
 
   const counters = useMemo(() => {
     const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
@@ -176,6 +179,7 @@ export default function AdminSimulationList({
     const groupStatuses = activeGroup?.statuses || [];
 
     return clients.filter((client) => {
+      if (pendingOnly && !isPendingClient(client)) return false;
       if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
       if (statusFilter !== "all" && client.status !== statusFilter) return false;
       if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
@@ -186,7 +190,7 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, query, statusGroup, statusFilter, tagFilter]);
+  }, [clients, pendingOnly, query, statusGroup, statusFilter, tagFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
   const pageStart = filteredClients.length ? (currentPage - 1) * pageSize : 0;
@@ -196,7 +200,7 @@ export default function AdminSimulationList({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, query, statusGroup, statusFilter, tagFilter]);
+  }, [pageSize, pendingOnly, query, statusGroup, statusFilter, tagFilter]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -616,6 +620,22 @@ export default function AdminSimulationList({
 
   return (
     <section className="container-page max-w-full overflow-hidden" ref={listTopRef}>
+      <div className="mb-4 flex justify-center">
+        <button
+          aria-label="Clientes pendentes"
+          className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black shadow-soft transition ${pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
+          onClick={() => {
+            setPendingOnly((current) => !current);
+            setStatusGroup("all");
+            setStatusFilter("all");
+          }}
+          title="Clientes pendentes"
+          type="button"
+        >
+          <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
+          {pendingClientsCount}
+        </button>
+      </div>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <label className="relative block w-full lg:max-w-xl">
@@ -1381,6 +1401,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     scheduledActivityAt: registration?.scheduledActivityAt || "",
     scheduledActivityType: registration?.scheduledActivityType || "follow_up",
     scheduledActivityNote: registration?.scheduledActivityNote || "",
+    createdAt: sortDate,
     tags: ensureArray(registration?.tags)
   };
 }
@@ -1439,6 +1460,17 @@ function getClientIdentityKey(client) {
 
   const name = normalizeText(client.name);
   return name ? `name:${name}` : client.id;
+}
+
+function isPendingClient(client) {
+  if (client.status === CLIENT_STATUS.ARCHIVED) return false;
+
+  const now = Date.now();
+  const scheduledAt = new Date(client.scheduledActivityAt || "").getTime();
+  if (Number.isFinite(scheduledAt) && scheduledAt > now) return false;
+
+  const referenceAt = new Date(client.lastWhatsappContactAt || client.createdAt || "").getTime();
+  return Number.isFinite(referenceAt) && referenceAt < now - (3 * 24 * 60 * 60 * 1000);
 }
 
 function getPhoneIdentity(value) {
