@@ -624,7 +624,7 @@ export default function AdminSimulationList({
 
   return (
     <section className="container-page relative max-w-full overflow-visible" ref={listTopRef}>
-      <div className="mb-3 flex justify-center md:absolute md:-top-16 md:right-28 md:mb-0">
+      <div className="mb-3 flex justify-center md:absolute md:-top-24 md:right-24 md:mb-0">
         <button
           aria-label="Clientes pendentes"
           className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black shadow-soft transition ${pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}

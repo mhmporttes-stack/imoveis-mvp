@@ -67,7 +67,7 @@ export default async function AdminSimulationsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/simulacoes/nova" className="premium-button-primary">Nova simulação</Link>
+          <Link href="/admin/simulacoes/nova" className="premium-button-primary">Novo cliente</Link>
           <AdminLogoutButton />
         </div>
       </section>
