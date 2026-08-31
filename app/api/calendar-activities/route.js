@@ -38,6 +38,7 @@ export async function GET(request) {
         phoneNormalized: registration.phoneNormalized || "",
         status: registration.status,
         scheduledActivityAt: registration.scheduledActivityAt,
+        scheduledActivityType: registration.scheduledActivityType || "follow_up",
         scheduledActivityNote: registration.scheduledActivityNote || "",
         scheduledActivityCompletedAt: registration.scheduledActivityCompletedAt || "",
         scheduledActivityCompletedBy: registration.scheduledActivityCompletedBy || "",

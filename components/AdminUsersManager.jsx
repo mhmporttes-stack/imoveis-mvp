@@ -100,7 +100,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
         <div className="mt-6 grid gap-4 lg:grid-cols-5">
           <Field label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
           <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
-          <Field label="Telefone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
+          <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
           <Field label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
           <label className="grid gap-2 text-sm font-black text-navy">
             Status

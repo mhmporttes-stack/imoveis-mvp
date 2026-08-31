@@ -28,24 +28,43 @@ const adminGroups = [
     key: "clientes",
     label: "CLIENTES",
     href: "/admin/simulacoes",
-    items: clientItems
-  },
-  {
-    key: "cadastros",
-    label: "CADASTROS",
     items: [
+      ...clientItems.slice(0, 1),
       { href: "/admin", label: "Imóveis", key: "properties" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
-      { href: "/admin/captacoes", label: "Captações", key: "captacoes" }
+      { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
+      { href: "/admin/corretores", label: "Corretores", key: "brokers" }
     ]
   },
   {
-    key: "administrativo",
-    label: "ADMINISTRATIVO",
+    key: "agenda",
+    label: "AGENDA",
+    href: "/admin/calendario",
+    items: [clientItems[1]]
+  },
+  {
+    key: "automacoes",
+    label: "AUTOMAÇÕES",
+    href: "/admin/automacoes",
+    items: [{ href: "/admin/automacoes", label: "Regras", key: "automations" }]
+  },
+  {
+    key: "notificacoes",
+    label: "NOTIFICAÇÕES",
+    href: "/admin/notificacoes",
     items: [
-      { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
+      { href: "/admin/notificacoes", label: "Central", key: "notifications" },
+      { href: "/admin/whatsapp-master", label: "WhatsApp Master", key: "whatsapp-master" }
+    ]
+  },
+  {
+    key: "desempenho",
+    label: "DESEMPENHO",
+    href: "/admin/desempenho",
+    items: [
+      { href: "/admin/desempenho", label: "Visão geral", key: "performance" },
       { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
-      { href: "/admin/corretores", label: "Corretores", key: "brokers" }
+      { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
     ]
   }
 ];
@@ -58,11 +77,17 @@ const brokerGroups = [
     items: clientItems
   },
   {
+    key: "agenda",
+    label: "AGENDA",
+    href: "/admin/calendario",
+    items: [clientItems[1]]
+  },
+  {
     key: "cadastros",
     label: "CADASTROS",
     items: [
-      { href: "/admin/novo", label: "Imóveis", key: "new-property" },
-      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
+      { href: "/admin/novo", label: "Cadastrar imóvel", key: "new-property" },
+      { href: "/admin/depoimentos/novo", label: "Cadastrar depoimento", key: "new-testimonial", activeKeys: ["testimonials"] }
     ]
   }
 ];

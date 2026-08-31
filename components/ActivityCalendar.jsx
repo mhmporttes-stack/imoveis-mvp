@@ -287,6 +287,7 @@ export default function ActivityCalendar() {
                               <span className="mt-2 block font-black text-navy">
                                 {activity.responsibleName} - {activity.clientName}
                               </span>
+                              <span className="mt-1 block text-xs font-black uppercase tracking-[0.1em] text-brand">{formatActivityType(activity.scheduledActivityType)}</span>
                               {activity.scheduledActivityNote ? (
                                 <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
                               ) : null}
@@ -412,6 +413,7 @@ function ActivityModal({ activity, onClose }) {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Detail icon={<Clock size={18} />} label="Data e horário" value={`${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityAt))} às ${formatTime(activity.scheduledActivityAt)}`} />
+          <Detail icon={<CalendarClock size={18} />} label="Tipo" value={formatActivityType(activity.scheduledActivityType)} />
           <Detail icon={<UserRound size={18} />} label="Corretor" value={activity.responsibleName} />
           <Detail icon={<CheckCircle2 size={18} />} label="Status" value={activity.scheduledActivityCompletedAt ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}` : "Atividade agendada"} />
           <Detail label="Cliente" value={activity.clientName} />
@@ -573,6 +575,17 @@ function getActivityState(activity) {
   const scheduledAt = new Date(activity?.scheduledActivityAt || "");
   if (Number.isFinite(scheduledAt.getTime()) && scheduledAt.getTime() < Date.now()) return "pending";
   return "scheduled";
+}
+
+function formatActivityType(value) {
+  return ({
+    follow_up: "Follow-up",
+    documentacao: "Documentação",
+    ligacao: "Ligação",
+    reuniao: "Reunião",
+    visita: "Visita",
+    outro: "Outro"
+  })[value] || "Atividade";
 }
 
 function formatInputTime(value) {

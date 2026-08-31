@@ -41,6 +41,14 @@ import {
 } from "@/lib/simulation-list-utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
+const ACTIVITY_TYPE_OPTIONS = [
+  { value: "follow_up", label: "Follow-up" },
+  { value: "documentacao", label: "Documentação" },
+  { value: "ligacao", label: "Ligação" },
+  { value: "reuniao", label: "Reunião" },
+  { value: "visita", label: "Visita" },
+  { value: "outro", label: "Outro" }
+];
 const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
   .filter((option) => option.value !== "all")
   .reduce((acc, option, index) => {
@@ -49,7 +57,7 @@ const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
   }, {});
 const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "all", label: "Todos", statuses: [] },
-  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED] },
+  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT, CLIENT_STATUS.IN_SERVICE, CLIENT_STATUS.AWAITING_RETURN] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
   { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
   { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED] },
@@ -92,7 +100,7 @@ export default function AdminSimulationList({
   const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
   const [busyClientId, setBusyClientId] = useState("");
   const [schedulingClientId, setSchedulingClientId] = useState("");
-  const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", note: "" });
+  const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
@@ -380,6 +388,7 @@ export default function AdminSimulationList({
     const date = String(scheduleDraft.date || "").trim();
     const time = String(scheduleDraft.time || "").trim();
     const note = String(scheduleDraft.note || "").replace(/\s+/g, " ").trim();
+    const type = String(scheduleDraft.type || "follow_up");
 
     if (!date) {
       alert("Selecione o dia da atividade.");
@@ -404,6 +413,7 @@ export default function AdminSimulationList({
         body: JSON.stringify({
           scheduledActivityDate: date,
           scheduledActivityTime: time,
+          scheduledActivityType: type,
           scheduledActivityNote: note
         })
       });
@@ -437,6 +447,7 @@ export default function AdminSimulationList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scheduledActivityAt: null,
+          scheduledActivityType: "follow_up",
           scheduledActivityNote: ""
         })
       });
@@ -1072,17 +1083,18 @@ function ScheduleEditor({ busy, draft, hasSchedule, onChange, onClear, onClose, 
         ) : null}
       </div>
       {draft.date && draft.time ? (
-        <label className="mt-3 block text-xs font-black text-navy">
-          O que será feito?
-          <textarea
-            className="mt-1 min-h-[84px] w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-            disabled={busy}
-            maxLength={240}
-            onChange={(event) => onChange((current) => ({ ...current, note: event.target.value }))}
-            placeholder="Ex.: cobrar documentação, retornar ligação, enviar opções de imóveis..."
-            value={draft.note}
-          />
-        </label>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+          <label className="text-xs font-black text-navy">
+            Tipo
+            <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand" disabled={busy} onChange={(event) => onChange((current) => ({ ...current, type: event.target.value }))} value={draft.type || "follow_up"}>
+              {ACTIVITY_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-black text-navy">
+            O que será feito?
+            <textarea className="mt-1 min-h-[84px] w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" disabled={busy} maxLength={240} onChange={(event) => onChange((current) => ({ ...current, note: event.target.value }))} placeholder="Ex.: cobrar documentação, retornar ligação, enviar opções de imóveis..." value={draft.note} />
+          </label>
+        </div>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="client-action-button h-10 px-4" disabled={busy} onClick={onSave} type="button">
@@ -1367,6 +1379,7 @@ function buildClientItem({ registration = null, simulation = null, summary = nul
     status,
     summary: safeSummary,
     scheduledActivityAt: registration?.scheduledActivityAt || "",
+    scheduledActivityType: registration?.scheduledActivityType || "follow_up",
     scheduledActivityNote: registration?.scheduledActivityNote || "",
     tags: ensureArray(registration?.tags)
   };
@@ -1405,6 +1418,7 @@ function combineClientItems(currentItem, nextItem) {
     lastWhatsappContactAt: preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt || "",
     registration: preferred.registration || fallback.registration,
     scheduledActivityAt: preferred.scheduledActivityAt || fallback.scheduledActivityAt || "",
+    scheduledActivityType: preferred.scheduledActivityType || fallback.scheduledActivityType || "follow_up",
     scheduledActivityNote: preferred.scheduledActivityNote || fallback.scheduledActivityNote || "",
     searchText: {
       phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
@@ -1462,6 +1476,9 @@ function resolveClientStatus(registration, summary) {
 function isCompletedClientStatus(status) {
   return [
     CLIENT_STATUS.COMPLETED,
+    CLIENT_STATUS.SIMULATION_SENT,
+    CLIENT_STATUS.IN_SERVICE,
+    CLIENT_STATUS.AWAITING_RETURN,
     CLIENT_STATUS.DOCUMENTATION,
     CLIENT_STATUS.DOCUMENTS_PENDING,
     CLIENT_STATUS.APPROVAL_PENDING,
@@ -1564,6 +1581,7 @@ function getScheduleDraft(registration = {}) {
     return {
       date: "",
       time: "",
+      type: registration.scheduledActivityType || "follow_up",
       note: registration.scheduledActivityNote || ""
     };
   }
@@ -1572,6 +1590,7 @@ function getScheduleDraft(registration = {}) {
   return {
     date: `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`,
     time: `${parts.hour}:${parts.minute}`,
+    type: registration.scheduledActivityType || "follow_up",
     note: registration.scheduledActivityNote || ""
   };
 }
