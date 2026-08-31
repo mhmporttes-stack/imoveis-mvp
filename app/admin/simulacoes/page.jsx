@@ -10,10 +10,8 @@ import { canManageSimulations, formatSimulationError, listSimulations } from "@/
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSimulationsPage({ searchParams }) {
+export default async function AdminSimulationsPage() {
   const auth = await requireAdminPage();
-  const resolvedSearchParams = await searchParams;
-  const responsibleUserId = resolvedSearchParams?.responsavel || "";
 
   if (!canManageSimulations()) {
     return <SimulationDisabled />;
@@ -33,7 +31,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
   }
 
   try {
-    registrations = await listSimulationRegistrations({ auth, responsibleUserId });
+    registrations = await listSimulationRegistrations({ auth });
   } catch (error) {
     registrationsError = formatSimulationRegistrationError(error);
   }

@@ -91,6 +91,7 @@ export default function AdminSimulationList({
   const [statusGroup, setStatusGroup] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [responsibleFilter, setResponsibleFilter] = useState("all");
   const [pendingOnly, setPendingOnly] = useState(false);
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,6 +181,9 @@ export default function AdminSimulationList({
 
     return clients.filter((client) => {
       if (pendingOnly && !isPendingClient(client)) return false;
+      const clientResponsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
+      if (responsibleFilter === "unassigned" && clientResponsibleUserId) return false;
+      if (responsibleFilter !== "all" && responsibleFilter !== "unassigned" && clientResponsibleUserId !== responsibleFilter) return false;
       if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
       if (statusFilter !== "all" && client.status !== statusFilter) return false;
       if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
@@ -190,7 +194,7 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, pendingOnly, query, statusGroup, statusFilter, tagFilter]);
+  }, [clients, pendingOnly, query, responsibleFilter, statusGroup, statusFilter, tagFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
   const pageStart = filteredClients.length ? (currentPage - 1) * pageSize : 0;
@@ -200,7 +204,7 @@ export default function AdminSimulationList({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, pendingOnly, query, statusGroup, statusFilter, tagFilter]);
+  }, [pageSize, pendingOnly, query, responsibleFilter, statusGroup, statusFilter, tagFilter]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -637,8 +641,8 @@ export default function AdminSimulationList({
         </button>
       </div>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative block w-full lg:max-w-xl">
+        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_minmax(210px,0.65fr)_auto]" : "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_auto]"}`}>
+          <label className="relative block w-full">
             <span className="sr-only">Buscar cliente</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
             <input
@@ -650,7 +654,25 @@ export default function AdminSimulationList({
             />
           </label>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          {canManageResponsibleUsers ? (
+            <label className="relative block">
+              <span className="sr-only">Filtrar por corretor</span>
+              <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
+              <select
+                className="h-12 w-full rounded-2xl border border-brand/25 bg-white pl-11 pr-4 text-sm font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                onChange={(event) => setResponsibleFilter(event.target.value)}
+                value={responsibleFilter}
+              >
+                <option value="all">Todos os corretores</option>
+                {responsibleProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+                <option value="unassigned">Sem corretor</option>
+              </select>
+            </label>
+          ) : null}
+
+          <div className="contents">
             <label className="relative block">
               <span className="sr-only">Filtrar por tag</span>
               <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
@@ -798,7 +820,7 @@ export default function AdminSimulationList({
             tagDraft={tagDraft}
           />
         )) : (
-          <EmptyState hasClients={clients.length > 0} hasFilter={statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all"} hasQuery={query.trim().length > 0} />
+          <EmptyState hasClients={clients.length > 0} hasFilter={responsibleFilter !== "all" || statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all"} hasQuery={query.trim().length > 0} />
         )}
       </div>
 
