@@ -12,7 +12,7 @@ import {
   optionLabel
 } from "@/lib/crm-automation-options";
 
-const AUTOMATION_EMAIL = "mhmporttes@icloud.com";
+const AUTOMATION_EMAIL = "mhmporttes@gmail.com";
 
 export default function AutomationRulesManager({ initialRules = [], users = [] }) {
   const [rules, setRules] = useState(initialRules);
