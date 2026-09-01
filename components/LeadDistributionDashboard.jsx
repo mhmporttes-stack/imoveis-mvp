@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Pause, Play, UsersRound } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Copy, Pause, Play, UsersRound } from "lucide-react";
 
 export default function LeadDistributionDashboard({ initialData }) {
   const [brokers, setBrokers] = useState(initialData?.brokers || []);
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState("");
+  const [copied, setCopied] = useState(false);
   const queue = useMemo(() => brokers.filter((broker) => broker.enabled && broker.status === "active"), [brokers]);
   const outside = useMemo(() => brokers.filter((broker) => !broker.enabled || broker.status !== "active"), [brokers]);
   const lastIndex = queue.findIndex((broker) => broker.id === initialData?.lastBrokerId);
@@ -43,6 +44,12 @@ export default function LeadDistributionDashboard({ initialData }) {
     finally { setSavingId(""); }
   }
 
+  async function copySimulationLink() {
+    await navigator.clipboard.writeText(`${window.location.origin}/simulacao/equipe`);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
   return <section className="container-page space-y-5">
     <div className="grid gap-3 sm:grid-cols-4">
       <Metric label="Na fila" value={queue.length} />
@@ -56,6 +63,7 @@ export default function LeadDistributionDashboard({ initialData }) {
       <div className="mt-5 space-y-2">{queue.map((broker, index) => <BrokerRow broker={broker} index={index} key={broker.id} onMove={move} onToggle={toggle} saving={savingId === broker.id} total={queue.length} />)}{!queue.length ? <Empty text="Nenhum corretor participa da roleta." /> : null}</div>
     </div>
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
+    <div className="flex justify-end"><button className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-navy shadow-soft" onClick={copySimulationLink} type="button">{copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-brand" />}{copied ? "Link copiado" : "Copiar link da roleta"}</button></div>
   </section>;
 }
 
