@@ -36,6 +36,11 @@ export default async function AdminSimulationsPage() {
     registrationsError = formatSimulationRegistrationError(error);
   }
 
+  const visibleRegistrationIds = new Set(registrations.map((registration) => registration.id));
+  simulations = simulations.filter(
+    (simulation) => !simulation.registrationId || visibleRegistrationIds.has(simulation.registrationId)
+  );
+
   try {
     tags = await listTags();
   } catch {

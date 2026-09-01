@@ -13,7 +13,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistrationDetailsPage({ params }) {
-  await requireGeneralAdminPage();
+  const auth = await requireGeneralAdminPage();
   const { id } = await params;
 
   if (!canManageSimulationRegistrations()) {
@@ -22,7 +22,7 @@ export default async function AdminRegistrationDetailsPage({ params }) {
 
   let registration = null;
   try {
-    registration = await getSimulationRegistration(id);
+    registration = await getSimulationRegistration(id, auth);
   } catch (error) {
     return <RegistrationDetailsError error={formatSimulationRegistrationError(error)} />;
   }

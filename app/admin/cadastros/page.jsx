@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistrationsPage() {
-  await requireGeneralAdminPage();
+  const auth = await requireGeneralAdminPage();
 
   if (!canManageSimulationRegistrations()) {
     return <RegistrationsDisabled />;
@@ -22,7 +22,7 @@ export default async function AdminRegistrationsPage() {
   let loadError = "";
 
   try {
-    registrations = await listSimulationRegistrations();
+    registrations = await listSimulationRegistrations({ auth });
   } catch (error) {
     loadError = formatSimulationRegistrationError(error);
   }
