@@ -111,7 +111,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
 
   return (
     <div className="space-y-3">
-      <nav className="flex flex-wrap gap-3" aria-label="Categorias administrativas">
+      <nav className="flex flex-wrap justify-center gap-3" aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
@@ -142,7 +142,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      <div className="inline-flex max-w-full flex-wrap rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
+      <div className="mx-auto flex w-fit max-w-full flex-wrap justify-center rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={item.key}
