@@ -61,8 +61,8 @@ const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
   { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
-  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_ITBI, CLIENT_STATUS.SALE_REGISTRY, CLIENT_STATUS.SALE_PAYMENT] },
-  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED] },
+  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_REGISTRY] },
+  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT] },
   { key: "restrictions", label: "Restrições", statuses: [CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING] }
 ];
 const TAG_COLORS = [
@@ -735,12 +735,8 @@ export default function AdminSimulationList({
             })}
           </div>
 
-          {["approval", "restrictions"].includes(statusGroup) ? <div className="flex flex-wrap gap-2">
-            <button className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button>
-          </div> : null}
-
           {statusGroup !== "all" ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 lg:flex-nowrap">
               {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup)?.statuses || []).map((status) => {
                 const active = statusFilter === status;
                 const meta = CLIENT_STATUS_META[status];
@@ -763,6 +759,7 @@ export default function AdminSimulationList({
                   </button>
                 );
               })}
+              {["approval", "restrictions"].includes(statusGroup) ? <button className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button> : null}
             </div>
           ) : null}
         </div>
@@ -1505,7 +1502,7 @@ function getClientIdentityKey(client) {
 }
 
 function isPendingClient(client) {
-  if (client.status === CLIENT_STATUS.ARCHIVED) return false;
+  if ([CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)) return false;
 
   const now = Date.now();
   const scheduledAt = new Date(client.scheduledActivityAt || "").getTime();
