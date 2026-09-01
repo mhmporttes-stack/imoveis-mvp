@@ -31,7 +31,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [] }
       name: `${source.name} - cópia`,
       enabled: false,
       conditions: source.conditions.map((item) => ({ ...item })),
-      actions: source.actions.map((item) => ({ ...item }))
+      actions: ensureEmailAction(source.actions.map((item) => ({ ...item })))
     } : emptyRule());
   }
 
@@ -126,30 +126,42 @@ export default function AutomationRulesManager({ initialRules = [], users = [] }
 }
 
 function RuleEditor({ draft, onChange, onClose, onSave, saving, users }) {
+  const [showFilters, setShowFilters] = useState(draft.conditions.length > 0);
   const update = (patch) => onChange((current) => ({ ...current, ...patch }));
+  const emailAction = draft.actions.find((action) => action.type === "send_trigger_email") || defaultAction("send_trigger_email");
+  const updateEmail = (patch) => update({ actions: [...draft.actions.filter((action) => action.type !== "send_trigger_email"), { ...emailAction, ...patch }] });
+  const timingMode = draft.triggerConfig?.timingMode || (Number(draft.delayValue) ? "after" : "immediate");
+  const setTimingMode = (mode) => update({
+    triggerConfig: { ...draft.triggerConfig, timingMode: mode },
+    ...(mode === "immediate" ? { delayValue: 0 } : {})
+  });
   return (
-    <div className="rounded-[28px] border border-brand/20 bg-white p-6 shadow-premium [&_input]:min-h-12 [&_input]:w-full [&_input]:rounded-2xl [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:px-4 [&_select]:min-h-12 [&_select]:w-full [&_select]:rounded-2xl [&_select]:border [&_select]:border-line [&_select]:bg-white [&_select]:px-4 [&_textarea]:min-h-24 [&_textarea]:w-full [&_textarea]:rounded-2xl [&_textarea]:border [&_textarea]:border-line [&_textarea]:bg-white [&_textarea]:p-4">
+    <div className="rounded-[28px] border border-brand/20 bg-white p-6 shadow-premium [&_input]:min-h-12 [&_input]:w-full [&_input]:rounded-2xl [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:px-4 [&_select]:min-h-12 [&_select]:w-full [&_select]:rounded-2xl [&_select]:border [&_select]:border-line [&_select]:bg-white [&_select]:px-4 [&_textarea]:min-h-28 [&_textarea]:w-full [&_textarea]:rounded-2xl [&_textarea]:border [&_textarea]:border-line [&_textarea]:bg-white [&_textarea]:p-4">
       <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-navy">{draft.id ? "Editar regra" : "Nova regra"}</h2><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X className="h-5 w-5" /></button></div>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid max-w-3xl gap-5">
         <Field label="Nome da regra"><input value={draft.name} onChange={(event) => update({ name: event.target.value })} /></Field>
-        <Field label="Gatilho"><select value={draft.triggerType} onChange={(event) => update({ triggerType: event.target.value, triggerConfig: {} })}>{AUTOMATION_TRIGGERS.map(option)}</select></Field>
-        {["status_changed"].includes(draft.triggerType) ? <Field label="Status que dispara"><select value={draft.triggerConfig.status || ""} onChange={(event) => update({ triggerConfig: { status: event.target.value } })}><option value="">Qualquer alteração</option>{AUTOMATION_STATUS_OPTIONS.map(option)}</select></Field> : null}
-        <Field label="Tempo de espera"><div className="grid grid-cols-[1fr_1.4fr] gap-2"><input min="0" type="number" value={draft.delayValue} onChange={(event) => update({ delayValue: event.target.value })} /><select value={draft.delayUnit} onChange={(event) => update({ delayUnit: event.target.value })}>{AUTOMATION_DELAY_UNITS.map(option)}</select></div></Field>
+        <Field label="Quando acontecer"><select value={draft.triggerType} onChange={(event) => update({ triggerType: event.target.value, triggerConfig: {} })}>{AUTOMATION_TRIGGERS.map(option)}</select></Field>
+        {["status_changed", "stage_changed"].includes(draft.triggerType) ? <Field label="Status ou etapa"><select value={draft.triggerConfig.status || ""} onChange={(event) => update({ triggerConfig: { ...draft.triggerConfig, status: event.target.value } })}><option value="">Qualquer alteração</option>{AUTOMATION_STATUS_OPTIONS.map(option)}</select></Field> : null}
       </div>
 
-      <EditorGroup title="Condições" onAdd={() => update({ conditions: [...draft.conditions, { type: "not_archived", value: true }] })}>
-        {draft.conditions.map((condition, index) => <ConditionEditor condition={condition} key={index} onChange={(next) => update({ conditions: replaceAt(draft.conditions, index, next) })} onRemove={() => update({ conditions: removeAt(draft.conditions, index) })} users={users} />)}
-      </EditorGroup>
+      <div className="mt-7 max-w-3xl">
+        <div className="flex items-center justify-between"><h3 className="text-lg font-black text-navy">Filtros opcionais</h3><button className="inline-flex items-center gap-1 text-sm font-black text-brand" onClick={() => { setShowFilters(true); update({ conditions: [...draft.conditions, defaultCondition("not_archived")] }); }} type="button"><Plus className="h-4 w-4" />Adicionar filtro</button></div>
+        {showFilters && draft.conditions.length ? <div className="mt-3 space-y-3">{draft.conditions.map((condition, index) => <ConditionEditor condition={condition} key={index} onChange={(next) => update({ conditions: replaceAt(draft.conditions, index, next) })} onRemove={() => update({ conditions: removeAt(draft.conditions, index) })} users={users} />)}</div> : <p className="mt-2 text-sm font-bold text-muted">Nenhum filtro adicional.</p>}
+      </div>
 
-      <EditorGroup title="Ações" onAdd={() => update({ actions: [...draft.actions, defaultAction("create_notification")] })}>
-        {draft.actions.map((action, index) => <ActionEditor action={action} key={index} onChange={(next) => update({ actions: replaceAt(draft.actions, index, next) })} onRemove={() => draft.actions.length > 1 && update({ actions: removeAt(draft.actions, index) })} users={users} />)}
-      </EditorGroup>
+      <div className="mt-7 max-w-3xl"><h3 className="text-lg font-black text-navy">Quando avisar</h3><div className="mt-3 grid gap-3 md:grid-cols-2"><select value={timingMode} onChange={(event) => setTimingMode(event.target.value)}><option value="immediate">Imediatamente</option><option value="after">Depois de</option>{["activity_created", "activity_upcoming"].includes(draft.triggerType) ? <option value="before_activity">Antes da atividade</option> : null}{draft.triggerType === "activity_overdue" ? <option value="after_overdue">Após a atividade vencer</option> : null}</select>{timingMode !== "immediate" ? <div className="grid grid-cols-2 gap-2"><input min="1" type="number" value={draft.delayValue || 1} onChange={(event) => update({ delayValue: event.target.value })} /><select value={draft.delayUnit} onChange={(event) => update({ delayUnit: event.target.value })}>{AUTOMATION_DELAY_UNITS.map(option)}</select></div> : null}</div></div>
 
-      <label className="mt-5 flex items-center gap-3 font-black text-navy"><input className="h-5 w-5 accent-brand" type="checkbox" checked={draft.enabled} onChange={(event) => update({ enabled: event.target.checked })} />Regra ativa</label>
+      <div className="mt-7 max-w-3xl"><h3 className="text-lg font-black text-navy">E-mail de alerta</h3><div className="mt-3 grid gap-4"><Field label="E-mail destinatário"><input type="email" value={emailAction.recipientEmail || ""} onChange={(event) => updateEmail({ recipientEmail: event.target.value })} /></Field><Field label="Assunto"><input placeholder="CRM | NOVO_CLIENTE | {corretor_codigo}" value={emailAction.subject || ""} onChange={(event) => updateEmail({ subject: event.target.value })} /></Field><Field label="Mensagem"><textarea value={emailAction.message || ""} onChange={(event) => updateEmail({ message: event.target.value })} /></Field><VariableButtons onInsert={(variable) => updateEmail({ message: `${emailAction.message || ""}${emailAction.message ? " " : ""}${variable}` })} /></div></div>
+
+      <div className="mt-7 max-w-3xl"><h3 className="text-lg font-black text-navy">Repetir alerta?</h3><p className="mt-2 text-sm font-bold text-muted">Não. O histórico impede o envio duplicado do mesmo evento.</p></div>
+      <label className="mt-7 inline-flex items-center gap-3 font-black text-navy"><button aria-pressed={draft.enabled} className={`relative h-7 w-12 rounded-full transition ${draft.enabled ? "bg-brand" : "bg-slate-300"}`} onClick={() => update({ enabled: !draft.enabled })} type="button"><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${draft.enabled ? "left-6" : "left-1"}`} /></button>Regra ativa</label>
       <div className="mt-6 flex flex-wrap justify-end gap-3"><button className="premium-button-secondary" onClick={onClose} type="button">Cancelar</button><button className="premium-button-primary" disabled={saving} onClick={onSave} type="button"><Save className="h-5 w-5" />{saving ? "Salvando..." : "Salvar regra"}</button></div>
     </div>
   );
 }
+
+const EMAIL_VARIABLES = ["{cliente_nome}", "{cliente_id}", "{cliente_telefone}", "{corretor_nome}", "{corretor_codigo}", "{corretor_telefone}", "{atividade}", "{atividade_data}", "{atividade_hora}", "{status_cliente}", "{etapa_cliente}"];
+function VariableButtons({ onInsert }) { return <div><p className="text-sm font-black text-navy">Variáveis disponíveis</p><div className="mt-2 flex flex-wrap gap-2">{EMAIL_VARIABLES.map((variable) => <button className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-brand" key={variable} onClick={() => onInsert(variable)} type="button">{variable}</button>)}</div></div>; }
 
 function ConditionEditor({ condition, onChange, onRemove, users }) {
   return <div className="grid gap-2 rounded-2xl border border-line bg-mist/40 p-3 md:grid-cols-[1fr_1.2fr_auto]">
@@ -184,9 +196,10 @@ function SmallButton({ children, danger, onClick }) { return <button className={
 function option(item) { return <option key={item.value} value={item.value}>{item.label}</option>; }
 function replaceAt(items, index, value) { return items.map((item, itemIndex) => itemIndex === index ? value : item); }
 function removeAt(items, index) { return items.filter((_, itemIndex) => itemIndex !== index); }
-function cloneRule(rule) { return { ...rule, conditions: rule.conditions.map((item) => ({ ...item })), actions: rule.actions.map((item) => ({ ...item })) }; }
+function cloneRule(rule) { return { ...rule, conditions: rule.conditions.map((item) => ({ ...item })), actions: ensureEmailAction(rule.actions.map((item) => ({ ...item }))) }; }
+function ensureEmailAction(actions) { return actions.some((action) => action.type === "send_trigger_email") ? actions : [...actions, defaultAction("send_trigger_email")]; }
 function defaultCondition(type) { if (type === "status_equals") return { type, value: "pending" }; if (type === "responsible_equals") return { type, value: "any" }; if (type === "has_future_activity") return { type, value: false }; if (type === "last_contact_older_than") return { type, amount: 1, unit: "days" }; return { type: "not_archived", value: true }; }
 function defaultAction(type) { if (type === "send_trigger_email") return { type, recipientEmail: "", subject: "" }; if (type === "create_activity") return { type, activityType: "follow_up", note: "", offsetValue: 0, offsetUnit: "minutes", target: "client_broker" }; if (type === "change_status") return { type, status: "pending" }; return { type: "create_notification", title: "", message: "", target: "client_broker" }; }
-function emptyRule() { return { id: "", name: "", enabled: false, triggerType: "client_created", triggerConfig: {}, conditions: [{ type: "not_archived", value: true }], delayValue: 0, delayUnit: "minutes", actions: [defaultAction("create_notification")] }; }
+function emptyRule() { return { id: "", name: "", enabled: false, triggerType: "client_created", triggerConfig: { timingMode: "immediate" }, conditions: [], delayValue: 0, delayUnit: "minutes", actions: [defaultAction("send_trigger_email")] }; }
 function delayLabel(rule) { return Number(rule.delayValue) === 0 ? "Imediatamente" : `${rule.delayValue} ${optionLabel(AUTOMATION_DELAY_UNITS, rule.delayUnit)}`; }
 function formatDate(value) { if (!value) return "Nunca"; const date = new Date(value); return Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR") : "Nunca"; }
