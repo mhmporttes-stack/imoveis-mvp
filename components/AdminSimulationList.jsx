@@ -1049,7 +1049,6 @@ function ClientCard({
       {client.registration?.prospectingContactId && [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status) ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
-          <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "return")} type="button">Devolver para prospecção</button>
           <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar</button>
         </div>
       ) : null}
