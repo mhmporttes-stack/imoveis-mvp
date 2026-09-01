@@ -162,7 +162,7 @@ function RuleEditor({ draft, onChange, onClose, onSave, saving, users }) {
   );
 }
 
-const EMAIL_VARIABLES = ["{cliente_nome}", "{cliente_id}", "{cliente_telefone}", "{corretor_nome}", "{corretor_codigo}", "{corretor_telefone}", "{atividade}", "{atividade_data}", "{atividade_hora}", "{status_cliente}", "{etapa_cliente}"];
+const EMAIL_VARIABLES = ["{cliente_nome}", "{cliente_id}", "{cliente_telefone}", "{corretor_nome}", "{corretor_codigo}", "{corretor_telefone}", "{corretor_anterior}", "{atividade}", "{atividade_data}", "{atividade_hora}", "{status_cliente}", "{etapa_cliente}"];
 function VariableButtons({ onInsert }) { return <div><p className="text-sm font-black text-navy">Variáveis disponíveis</p><div className="mt-2 flex flex-wrap gap-2">{EMAIL_VARIABLES.map((variable) => <button className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-brand" key={variable} onClick={() => onInsert(variable)} type="button">{variable}</button>)}</div></div>; }
 
 function ConditionEditor({ condition, onChange, onRemove, users }) {
