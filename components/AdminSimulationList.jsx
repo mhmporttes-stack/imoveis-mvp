@@ -57,11 +57,13 @@ const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
   }, {});
 const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "all", label: "Todos", statuses: [] },
-  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT, CLIENT_STATUS.IN_SERVICE, CLIENT_STATUS.AWAITING_RETURN] },
+  { key: "service", label: "Atendimentos", statuses: [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE] },
+  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
-  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
+  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
   { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_ITBI, CLIENT_STATUS.SALE_REGISTRY, CLIENT_STATUS.SALE_PAYMENT] },
-  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED] }
+  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED] },
+  { key: "restrictions", label: "Restrições", statuses: [CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING] }
 ];
 const TAG_COLORS = [
   { label: "Azul institucional", value: "#0D4F8B" },
@@ -377,6 +379,19 @@ export default function AdminSimulationList({
     }
   }
 
+  async function handleProspectingAction(client, action) {
+    if (!client.registration?.id) return;
+    if (action === "do_not_contact" && !confirm("Confirma que este cliente pediu para não receber novos contatos?")) return;
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { alert(data.error || "Não foi possível atualizar a prospecção."); return; }
+      if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
+      else setLocalRegistrations((current) => current.map((item) => item.id === client.registration.id ? { ...item, status: data.status } : item));
+    } finally { setBusyClientId(""); }
+  }
+
   async function openScheduleEditor(client) {
     const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
     if (!linkedRegistration?.id) {
@@ -690,8 +705,8 @@ export default function AdminSimulationList({
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-3 lg:grid-cols-6">
-            {CLIENT_STATUS_FILTER_GROUPS.map((group) => {
+          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-3 lg:grid-cols-7">
+            {CLIENT_STATUS_FILTER_GROUPS.filter((group) => group.key !== "restrictions").map((group) => {
               const active = statusGroup === group.key;
               const count = group.key === "all"
                 ? clients.length
@@ -718,6 +733,10 @@ export default function AdminSimulationList({
                 </button>
               );
             })}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button>
           </div>
 
           {statusGroup !== "all" ? (
@@ -799,6 +818,7 @@ export default function AdminSimulationList({
             onToggleTagEditor={() => setEditingTagsClientId((current) => current === client.id ? "" : client.id)}
             onUpdateResponsibleUser={updateClientResponsibleUser}
             onUpdateStatus={updateClientStatus}
+            onProspectingAction={handleProspectingAction}
             responsibleProfileMap={responsibleProfileMap}
             responsibleProfiles={responsibleProfiles}
             scheduleDraft={scheduleDraft}
@@ -869,6 +889,7 @@ function ClientCard({
   onToggleTagEditor,
   onUpdateResponsibleUser,
   onUpdateStatus,
+  onProspectingAction,
   responsibleProfileMap,
   responsibleProfiles,
   scheduleDraft,
@@ -1023,6 +1044,14 @@ function ClientCard({
           onClose={onCloseSchedule}
           onSave={() => onSaveSchedule(client)}
         />
+      ) : null}
+
+      {client.registration?.prospectingContactId && [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status) ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
+          <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "return")} type="button">Devolver para prospecção</button>
+          <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar</button>
+        </div>
       ) : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">

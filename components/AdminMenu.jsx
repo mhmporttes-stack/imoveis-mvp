@@ -33,7 +33,8 @@ const adminGroups = [
       { href: "/admin", label: "Imóveis", key: "properties" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
       { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
-      { href: "/admin/corretores", label: "Corretores", key: "brokers" }
+      { href: "/admin/corretores", label: "Corretores", key: "brokers" },
+      { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
     ]
   },
   {
@@ -74,7 +75,7 @@ const brokerGroups = [
     key: "clientes",
     label: "CLIENTES",
     href: "/admin/simulacoes",
-    items: clientItems
+    items: [...clientItems, { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "agenda",
