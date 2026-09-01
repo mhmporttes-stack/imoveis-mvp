@@ -29,12 +29,13 @@ export async function POST(request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
 
   try {
-    const payload = await request.json();
-    if (payload?.action === "register") {
+    const payload = await request.json().catch(() => ({}));
+    const action = payload?.action || new URL(request.url).searchParams.get("action");
+    if (action === "register") {
       const result = await registerWhatsappMasterPhone(process.env.WHATSAPP_REGISTRATION_PIN);
       return NextResponse.json({ ok: true, registered: result.success });
     }
-    if (payload?.action === "createReminderTemplate") {
+    if (action === "createReminderTemplate") {
       const result = await createWhatsappReminderTemplate();
       return NextResponse.json({ ok: true, template: result });
     }
