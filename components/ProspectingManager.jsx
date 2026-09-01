@@ -107,6 +107,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
             <label className="text-sm font-black text-navy">Coluna do nome<select className="mt-2 h-12 w-full rounded-2xl border border-line bg-white px-4 font-bold outline-none focus:border-brand" value={importDraft.nameColumn} onChange={(event) => setImportDraft((current) => ({ ...current, nameColumn: event.target.value }))}><option value="">Selecione</option>{importDraft.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>
             <label className="text-sm font-black text-navy">Coluna do WhatsApp<select className="mt-2 h-12 w-full rounded-2xl border border-line bg-white px-4 font-bold outline-none focus:border-brand" value={importDraft.phoneColumn} onChange={(event) => setImportDraft((current) => ({ ...current, phoneColumn: event.target.value }))}><option value="">Selecione</option>{importDraft.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>
           </div>
+          {importDraft.nameColumn && importDraft.phoneColumn ? <div className="mt-4 rounded-2xl bg-mist px-4 py-3 text-sm text-muted"><strong className="text-navy">Prévia:</strong> {String(importDraft.rows[0]?.[importDraft.nameColumn] || "-")} · {String(importDraft.rows[0]?.[importDraft.phoneColumn] || "-")}</div> : null}
           <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={busy === "import"} onClick={confirmImport} type="button">Confirmar importação</button><button className="premium-button-secondary" disabled={busy === "import"} onClick={() => setImportDraft(null)} type="button">Cancelar</button></div>
         </div>
       ) : null}
@@ -132,7 +133,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   );
 }
 
-function guessColumn(headers, names) { return headers.find((header) => names.includes(String(header).trim().toLowerCase())) || ""; }
+function guessColumn(headers, names) { return headers.find((header) => { const normalized = String(header).trim().toLowerCase(); return names.some((name) => normalized === name || normalized.startsWith(name)); }) || ""; }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(value)) : ""; }
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : ""; }
 function historyLabel(value) { return ({ claimed: "Contato assumido", in_service: "Em atendimento", returned: "Devolvido por 30 dias", do_not_contact: "Não contactar", unblocked: "Bloqueio removido", edited: "Contato editado" })[value] || value; }
