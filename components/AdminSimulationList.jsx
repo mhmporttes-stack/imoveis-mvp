@@ -638,24 +638,8 @@ export default function AdminSimulationList({
 
   return (
     <section className="container-page relative max-w-full overflow-visible" ref={listTopRef}>
-      <div className="mb-3 flex justify-center md:absolute md:-top-24 md:right-24 md:mb-0">
-        <button
-          aria-label="Clientes pendentes"
-          className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black shadow-soft transition ${pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
-          onClick={() => {
-            setPendingOnly((current) => !current);
-            setStatusGroup("all");
-            setStatusFilter("all");
-          }}
-          title="Clientes pendentes"
-          type="button"
-        >
-          <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
-          {pendingClientsCount}
-        </button>
-      </div>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
-        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)_minmax(210px,0.65fr)]" : "lg:grid-cols-[minmax(260px,1fr)_minmax(210px,0.65fr)]"}`}>
+        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_220px_130px_auto]" : "lg:grid-cols-[minmax(260px,1fr)_130px_auto]"}`}>
           <label className="relative block w-full">
             <span className="sr-only">Buscar cliente</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
@@ -669,7 +653,7 @@ export default function AdminSimulationList({
           </label>
 
           {canManageResponsibleUsers ? (
-            <label className="relative block min-w-0">
+            <label className="relative block min-w-0 lg:w-[220px]">
               <span className="sr-only">Filtrar por corretor</span>
               <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
               <select
@@ -687,7 +671,7 @@ export default function AdminSimulationList({
           ) : null}
 
           <div className="contents">
-            <label className="relative block min-w-0">
+            <label className="relative block min-w-0 lg:w-[130px]">
               <span className="sr-only">Filtrar por tag</span>
               <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
               <select
@@ -695,13 +679,27 @@ export default function AdminSimulationList({
                 onChange={(event) => setTagFilter(event.target.value)}
                 value={tagFilter}
               >
-                <option value="all">Todas as tags</option>
+                <option value="all">Tags</option>
                 {localTags.map((tagItem) => (
                   <option key={tagItem.id} value={tagItem.id}>{tagItem.name}</option>
                 ))}
               </select>
             </label>
           </div>
+          <button
+            aria-label="Clientes pendentes"
+            className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
+            onClick={() => {
+              setPendingOnly((current) => !current);
+              setStatusGroup("all");
+              setStatusFilter("all");
+            }}
+            title="Clientes pendentes"
+            type="button"
+          >
+            <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
+            {pendingClientsCount}
+          </button>
         </div>
 
         <div className="mt-4 space-y-3">
