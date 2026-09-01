@@ -26,12 +26,12 @@ export async function GET(request) {
       try {
         const notification = await sendScheduledActivityNotification(registration);
         if (notification.skipped) {
-          results.push({ id: registration.id, skipped: true, reason: notification.reason });
+          results.push({ id: registration.id, skipped: true, reason: notification.reason, channels: notification.channels });
           continue;
         }
 
         await markScheduledActivityNotificationSent(registration.id);
-        results.push({ id: registration.id, sent: true });
+        results.push({ id: registration.id, sent: true, channels: notification.channels });
       } catch (error) {
         console.error("Falha ao enviar notificacao de atividade agendada.", error);
         results.push({ id: registration.id, error: error?.message || "Falha ao enviar." });
