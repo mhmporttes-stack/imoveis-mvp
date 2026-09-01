@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { listApprovedWhatsappTemplates, sendWhatsappTemplateMessage } from "@/lib/whatsapp-master";
+import {
+  createWhatsappReminderTemplate,
+  listApprovedWhatsappTemplates,
+  registerWhatsappMasterPhone,
+  sendWhatsappTemplateMessage
+} from "@/lib/whatsapp-master";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +30,14 @@ export async function POST(request) {
 
   try {
     const payload = await request.json();
+    if (payload?.action === "register") {
+      const result = await registerWhatsappMasterPhone(process.env.WHATSAPP_REGISTRATION_PIN);
+      return NextResponse.json({ ok: true, registered: result.success });
+    }
+    if (payload?.action === "createReminderTemplate") {
+      const result = await createWhatsappReminderTemplate();
+      return NextResponse.json({ ok: true, template: result });
+    }
     const result = await sendWhatsappTemplateMessage({
       to: payload?.to,
       templateName: payload?.templateName,
