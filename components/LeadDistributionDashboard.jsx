@@ -63,7 +63,7 @@ function BrokerRow({ broker, index, total, onMove, onToggle, saving }) {
   const active = broker.status === "active";
   return <div className="grid items-center gap-3 rounded-2xl border border-line px-4 py-3 md:grid-cols-[52px_1fr_auto_auto]">
     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-mist font-black text-navy">{index === undefined ? "-" : index + 1}</div>
-    <div className="min-w-0"><p className="truncate font-black text-navy">{broker.name}</p><p className="truncate text-xs font-bold text-muted">{active ? `${broker.clientCount} clientes` : "Usuário inativo"}</p></div>
+    <div className="min-w-0"><p className="truncate font-black text-navy">{broker.name}</p><p className="truncate text-xs font-bold text-muted">{roleLabel(broker.role)} · {active ? `${broker.clientCount} clientes` : "Usuário inativo"}</p></div>
     {index !== undefined ? <div className="flex gap-1"><IconButton disabled={index === 0} label="Subir na fila" onClick={() => onMove(index, -1)}><ArrowUp /></IconButton><IconButton disabled={index === total - 1} label="Descer na fila" onClick={() => onMove(index, 1)}><ArrowDown /></IconButton></div> : <span className={`rounded-full px-3 py-1 text-xs font-black ${active ? "bg-slate-100 text-slate-600" : "bg-red-50 text-red-700"}`}>{active ? "Disponível" : "Inativo"}</span>}
     <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line px-4 text-sm font-black text-navy disabled:opacity-50" disabled={!active || saving} onClick={() => onToggle(broker)} type="button">{broker.enabled ? <><Pause className="h-4 w-4" />Retirar</> : <><Play className="h-4 w-4" />Adicionar</>}</button>
   </div>;
@@ -71,3 +71,4 @@ function BrokerRow({ broker, index, total, onMove, onToggle, saving }) {
 function IconButton({ children, disabled, label, onClick }) { return <button aria-label={label} className="icon-button disabled:opacity-30" disabled={disabled} onClick={onClick} title={label} type="button">{children}</button>; }
 function Metric({ label, value, text }) { return <div className="rounded-[22px] border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
 function Empty({ text }) { return <p className="rounded-2xl bg-mist/50 p-5 text-center font-bold text-muted">{text}</p>; }
+function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : "Corretor"; }
