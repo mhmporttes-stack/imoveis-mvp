@@ -142,7 +142,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      <div className="mx-auto flex w-full flex-wrap justify-center rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
+      {active !== "automations" ? <div className="mx-auto flex w-full flex-wrap justify-center rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={item.key}
@@ -156,7 +156,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             {item.label}
           </Link>
         ))}
-      </div>
+      </div> : null}
     </div>
   );
 }
