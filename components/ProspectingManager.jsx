@@ -9,21 +9,45 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   const [busy, setBusy] = useState("");
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState({ id: "", items: [] });
+  const [importDraft, setImportDraft] = useState(null);
 
-  async function importExcel(event) {
+  async function loadExcel(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setBusy("import");
     try {
       const XLSX = await import("xlsx");
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
-      const rows = raw.map((row) => ({ name: findValue(row, ["nome", "name"]), phone: findValue(row, ["whatsapp", "telefone", "phone", "celular"]) }));
+      const headers = Array.from(new Set(raw.flatMap((row) => Object.keys(row))));
+      if (!headers.length || !raw.length) throw new Error("A primeira aba da planilha está vazia.");
+      setImportDraft({
+        headers,
+        rows: raw,
+        nameColumn: guessColumn(headers, ["nome", "name", "cliente"]),
+        phoneColumn: guessColumn(headers, ["whatsapp", "telefone", "phone", "celular", "numero", "número"])
+      });
+      setSummary(null);
+    } catch (error) { alert(error.message || "Não foi possível ler a planilha."); }
+  }
+
+  async function confirmImport() {
+    if (!importDraft?.nameColumn || !importDraft?.phoneColumn) {
+      alert("Selecione as colunas de nome e WhatsApp.");
+      return;
+    }
+    if (importDraft.nameColumn === importDraft.phoneColumn) {
+      alert("Nome e WhatsApp devem usar colunas diferentes.");
+      return;
+    }
+    setBusy("import");
+    try {
+      const rows = importDraft.rows.map((row) => ({ name: row[importDraft.nameColumn], phone: row[importDraft.phoneColumn] }));
       const response = await fetch("/api/prospecting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setSummary(data);
+      setImportDraft(null);
       await reload();
     } catch (error) { alert(error.message || "Não foi possível importar a planilha."); }
     finally { setBusy(""); }
@@ -73,8 +97,19 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
     <section className="container-page space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-sm font-black uppercase tracking-[0.16em] text-brand">Fila compartilhada</p><h2 className="mt-2 text-3xl font-black text-navy">Prospecção</h2></div>
-        {isAdmin ? <label className="premium-button-primary cursor-pointer"><Upload className="h-4 w-4" /> Importar Excel<input className="hidden" type="file" accept=".xlsx" onChange={importExcel} disabled={busy === "import"} /></label> : null}
+        {isAdmin ? <label className="premium-button-primary cursor-pointer"><Upload className="h-4 w-4" /> Importar Excel<input className="hidden" type="file" accept=".xlsx" onChange={loadExcel} disabled={busy === "import"} /></label> : null}
       </div>
+      {importDraft ? (
+        <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+          <h3 className="text-xl font-black text-navy">Identifique as colunas</h3>
+          <p className="mt-1 text-sm font-bold text-muted">{importDraft.rows.length} linhas encontradas na primeira aba.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-black text-navy">Coluna do nome<select className="mt-2 h-12 w-full rounded-2xl border border-line bg-white px-4 font-bold outline-none focus:border-brand" value={importDraft.nameColumn} onChange={(event) => setImportDraft((current) => ({ ...current, nameColumn: event.target.value }))}><option value="">Selecione</option>{importDraft.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>
+            <label className="text-sm font-black text-navy">Coluna do WhatsApp<select className="mt-2 h-12 w-full rounded-2xl border border-line bg-white px-4 font-bold outline-none focus:border-brand" value={importDraft.phoneColumn} onChange={(event) => setImportDraft((current) => ({ ...current, phoneColumn: event.target.value }))}><option value="">Selecione</option>{importDraft.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={busy === "import"} onClick={confirmImport} type="button">Confirmar importação</button><button className="premium-button-secondary" disabled={busy === "import"} onClick={() => setImportDraft(null)} type="button">Cancelar</button></div>
+        </div>
+      ) : null}
       {summary ? <div className="rounded-2xl border border-line bg-white px-5 py-4 font-bold text-navy">Importados: {summary.imported} | Duplicados ignorados: {summary.duplicates} | Inválidos: {summary.invalid} | Não contactar ignorados: {summary.doNotContact}</div> : null}
       <div className="grid gap-3">
         {contacts.map((contact) => {
@@ -97,7 +132,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   );
 }
 
-function findValue(row, names) { const entry = Object.entries(row).find(([key]) => names.includes(String(key).trim().toLowerCase())); return entry?.[1] || ""; }
+function guessColumn(headers, names) { return headers.find((header) => names.includes(String(header).trim().toLowerCase())) || ""; }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(value)) : ""; }
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : ""; }
 function historyLabel(value) { return ({ claimed: "Contato assumido", in_service: "Em atendimento", returned: "Devolvido por 30 dias", do_not_contact: "Não contactar", unblocked: "Bloqueio removido", edited: "Contato editado" })[value] || value; }
