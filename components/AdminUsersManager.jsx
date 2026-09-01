@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Clipboard, Eye, Plus, UserRound, UserRoundCheck, UserRoundX } from "lucide-react";
+import { Check, Clipboard, Eye, Pencil, Plus, Save, UserRoundCheck, UserRoundX, X } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
   email: "",
   phone: "",
   password: "",
+  role: "broker",
+  linkedBrokerId: "",
   status: "active"
 };
 
@@ -24,8 +26,34 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editForm, setEditForm] = useState(null);
 
   const sortedUsers = useMemo(() => [...users].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")), [users]);
+  const brokers = useMemo(() => sortedUsers.filter((user) => user.role === "broker" && user.status === "active"), [sortedUsers]);
+
+  function beginEdit(user) {
+    setEditingId(user.id);
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", status: user.status });
+    setError("");
+    setMessage("");
+  }
+
+  async function saveUser(event) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin-users/${editingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editForm) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível atualizar o usuário.");
+      setUsers((current) => current.map((item) => item.id === editingId ? payload.user : item));
+      setEditingId("");
+      setEditForm(null);
+      setMessage("Usuário atualizado com sucesso.");
+    } catch (saveError) { setError(saveError.message || "Não foi possível atualizar o usuário."); }
+    finally { setIsSaving(false); }
+  }
 
   async function createUser(event) {
     event.preventDefault();
@@ -89,7 +117,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo usuário</p>
-            <h2 className="mt-2 text-3xl font-black text-navy">Cadastrar corretor</h2>
+            <h2 className="mt-2 text-3xl font-black text-navy">Cadastrar usuário</h2>
           </div>
           <button type="submit" disabled={isSaving} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">
             <Plus className="h-5 w-5" aria-hidden="true" />
@@ -97,11 +125,12 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-5">
+        <div className="mt-6 grid gap-4 lg:grid-cols-6">
           <Field label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
           <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
           <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
           <Field label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
+          <RoleField value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "" }))} />
           <label className="grid gap-2 text-sm font-black text-navy">
             Status
             <select
@@ -113,6 +142,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
               <option value="inactive">Inativo</option>
             </select>
           </label>
+          {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
         </div>
 
         {message ? <p className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 font-bold text-brand">{message}</p> : null}
@@ -125,6 +155,18 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
           const isActive = user.status !== "inactive";
           return (
             <article key={user.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+              {editingId === user.id && editForm ? <form className="mb-6 rounded-[20px] border border-brand/20 bg-mist p-4" onSubmit={saveUser}>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <Field label="Nome completo" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} />
+                  <Field label="E-mail" type="email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} />
+                  <Field label="WhatsApp" value={editForm.phone} onChange={(value) => setEditForm((current) => ({ ...current, phone: value }))} />
+                  <Field label="Nova senha (opcional)" type="password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} />
+                  <RoleField value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "" }))} />
+                  <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
+                  {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
+              </form> : null}
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -133,18 +175,20 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                       {STATUS_LABELS[user.status] || "Ativo"}
                     </span>
                     <span className="rounded-full bg-mist px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-muted">
-                      {user.role === "admin" ? "Administrador geral" : "Corretor"}
+                      {roleLabel(user.role)}
                     </span>
                   </div>
                   <h3 className="mt-3 truncate text-2xl font-black text-navy">{user.name}</h3>
                   <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
                   {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
+                  {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Corretor vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
                   <p className="mt-3 text-sm font-bold text-muted">
                     Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
                   </p>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[460px]">
+                  <button type="button" onClick={() => beginEdit(user)} className="premium-button-secondary justify-center"><Pencil className="h-5 w-5" /> Editar</button>
                   <Link href={`/admin/simulacoes?responsavel=${user.id}`} className="premium-button-secondary justify-center">
                     <Eye className="h-5 w-5" aria-hidden="true" />
                     Ver clientes
@@ -180,6 +224,20 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
     </section>
   );
 }
+
+function RoleField({ value, onChange }) {
+  return <label className="grid gap-2 text-sm font-black text-navy">Categoria<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="admin">Administrador geral</option></select></label>;
+}
+
+function BrokerField({ brokers, value, onChange }) {
+  return <label className="grid gap-2 text-sm font-black text-navy">Corretor vinculado<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um corretor</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}</option>)}</select></label>;
+}
+
+function StatusField({ value, onChange }) {
+  return <label className="grid gap-2 text-sm font-black text-navy">Status<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
+}
+
+function roleLabel(role) { return role === "admin" ? "Administrador geral" : role === "associate" ? "Associado" : "Corretor"; }
 
 function Field({ label, value, onChange, type = "text" }) {
   return (
