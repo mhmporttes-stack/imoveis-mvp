@@ -33,7 +33,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [] }
       name: `${source.name} - cópia`,
       enabled: false,
       conditions: source.conditions.map((item) => ({ ...item })),
-      actions: ensureEmailAction(source.actions.map((item) => ({ ...item })))
+      actions: source.actions.map((item) => ({ ...item }))
     } : emptyRule());
   }
 
