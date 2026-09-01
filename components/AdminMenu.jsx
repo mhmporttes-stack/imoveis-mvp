@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const buttonBase =
-  "inline-flex min-h-12 items-center justify-center rounded-full px-6 text-sm font-extrabold transition duration-300";
+  "inline-flex min-h-12 min-w-[140px] flex-1 items-center justify-center rounded-full px-6 text-sm font-extrabold transition duration-300";
 
 function buttonClass(isActive) {
   return `${buttonBase} ${
@@ -111,7 +111,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
 
   return (
     <div className="space-y-3">
-      <nav className="flex flex-wrap justify-center gap-3" aria-label="Categorias administrativas">
+      <nav className="flex w-full flex-wrap justify-center gap-3" aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
@@ -142,12 +142,12 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      <div className="mx-auto flex w-fit max-w-full flex-wrap justify-center rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
+      <div className="mx-auto flex w-full flex-wrap justify-center rounded-full border border-navy/10 bg-white p-1 shadow-sm" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={item.key}
             href={item.href}
-            className={`rounded-full px-5 py-2 text-sm font-extrabold transition duration-200 ${
+            className={`min-w-[120px] flex-1 rounded-full px-5 py-2 text-center text-sm font-extrabold transition duration-200 ${
               isActiveItem(item, active)
                 ? "bg-navy text-white shadow-soft"
                 : "text-navy hover:bg-brand/10 hover:text-brand"
