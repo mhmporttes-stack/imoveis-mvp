@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "crypto";
 import {
   formatSimulationRegistrationError,
   listDueScheduledActivityNotifications,
@@ -10,11 +11,17 @@ import { runCrmAutomations } from "@/lib/crm-automations";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const SUPABASE_CRON_TOKEN_HASH = "5e2fa12ce833e00d35a03930f18afc69cef35288172388ca12961e461d588b0f";
+
 export async function GET(request) {
   const secret = process.env.CRON_SECRET || "";
   const authorization = request.headers.get("authorization") || "";
 
-  if (!secret || authorization !== `Bearer ${secret}`) {
+  const suppliedToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const suppliedHash = createHash("sha256").update(suppliedToken).digest("hex");
+  const validSupabaseToken = timingSafeEqual(Buffer.from(suppliedHash), Buffer.from(SUPABASE_CRON_TOKEN_HASH));
+
+  if ((!secret || authorization !== `Bearer ${secret}`) && !validSupabaseToken) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 
