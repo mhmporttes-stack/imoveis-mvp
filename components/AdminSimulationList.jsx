@@ -714,7 +714,7 @@ export default function AdminSimulationList({
 
               return (
                 <button
-                  className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-full px-1 text-center text-[10px] font-extrabold uppercase transition duration-300 xl:px-2 xl:text-xs ${
+                  className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full px-1 text-center text-[11px] font-extrabold uppercase transition duration-300 xl:px-2 xl:text-[13px] ${
                     active
                       ? "bg-navy text-white shadow-[0_10px_24px_rgba(13,46,87,0.18)]"
                       : "bg-transparent text-navy/80 hover:bg-[#F5FAFF] hover:text-navy"
@@ -743,7 +743,7 @@ export default function AdminSimulationList({
 
                 return (
                   <button
-                    className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border px-3 text-center text-xs font-extrabold transition duration-300 sm:px-4 sm:text-sm ${
+                    className={`inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-center text-[11px] font-extrabold transition duration-300 sm:text-xs ${
                       active
                         ? (meta?.activeClass || "border-brand bg-[#EAF3FF] text-brand")
                         : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
@@ -753,13 +753,13 @@ export default function AdminSimulationList({
                     type="button"
                   >
                     {meta?.label || status}
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${meta?.counterClass || "bg-[#EEF4FB] text-navy"}`}>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${meta?.counterClass || "bg-[#EEF4FB] text-navy"}`}>
                       {counters[status] || 0}
                     </span>
                   </button>
                 );
               })}
-              {["approval", "restrictions"].includes(statusGroup) ? <button className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button> : null}
+              {["approval", "restrictions"].includes(statusGroup) ? <button className={`inline-flex min-h-8 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button> : null}
             </div>
           ) : null}
         </div>
