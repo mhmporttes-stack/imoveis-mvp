@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Check, Clipboard, Eye, Pencil, Plus, Save, UserRoundCheck, UserRoundX, X } from "lucide-react";
+import { Pencil, Plus, Save, UserRoundCheck, UserRoundX, X } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
@@ -25,7 +24,6 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [copied, setCopied] = useState("");
   const [editingId, setEditingId] = useState("");
   const [editForm, setEditForm] = useState(null);
 
@@ -100,17 +98,6 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
     }
   }
 
-  async function copyLink(value, key) {
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(key);
-      window.setTimeout(() => setCopied(""), 1800);
-    } catch {
-      setError("Não foi possível copiar o link neste navegador.");
-    }
-  }
-
   return (
     <section className="container-page grid gap-6">
       <form onSubmit={createUser} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
@@ -125,7 +112,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-6">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Field label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
           <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
           <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
@@ -187,12 +174,8 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   </p>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[460px]">
+                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[380px]">
                   <button type="button" onClick={() => beginEdit(user)} className="premium-button-secondary justify-center"><Pencil className="h-5 w-5" /> Editar</button>
-                  <Link href={`/admin/simulacoes?responsavel=${user.id}`} className="premium-button-secondary justify-center">
-                    <Eye className="h-5 w-5" aria-hidden="true" />
-                    Ver clientes
-                  </Link>
                   <button
                     type="button"
                     onClick={() => updateStatus(user, isActive ? "inactive" : "active")}
@@ -200,14 +183,6 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   >
                     {isActive ? <UserRoundX className="h-5 w-5" aria-hidden="true" /> : <UserRoundCheck className="h-5 w-5" aria-hidden="true" />}
                     {isActive ? "Desativar" : "Ativar"}
-                  </button>
-                  <button type="button" onClick={() => copyLink(user.simulationLink, `${user.id}-sim`)} className="premium-button-secondary justify-center">
-                    {copied === `${user.id}-sim` ? <Check className="h-5 w-5" aria-hidden="true" /> : <Clipboard className="h-5 w-5" aria-hidden="true" />}
-                    Link de simulação
-                  </button>
-                  <button type="button" onClick={() => copyLink(user.captacaoLink, `${user.id}-cap`)} className="premium-button-secondary justify-center">
-                    {copied === `${user.id}-cap` ? <Check className="h-5 w-5" aria-hidden="true" /> : <Clipboard className="h-5 w-5" aria-hidden="true" />}
-                    Link de captação
                   </button>
                 </div>
               </div>
