@@ -10,6 +10,7 @@ const EMPTY_FORM = {
   password: "",
   role: "broker",
   linkedBrokerId: "",
+  leadDistributionEnabled: false,
   status: "active"
 };
 
@@ -32,7 +33,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -130,6 +131,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
             </select>
           </label>
           {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+          {form.role !== "associate" ? <DistributionField checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} /> : null}
         </div>
 
         {message ? <p className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 font-bold text-brand">{message}</p> : null}
@@ -151,6 +153,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   <RoleField value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "" }))} />
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
                   {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+                  {editForm.role !== "associate" ? <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} /> : null}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
               </form> : null}
@@ -210,6 +213,10 @@ function BrokerField({ brokers, value, onChange }) {
 
 function StatusField({ value, onChange }) {
   return <label className="grid gap-2 text-sm font-black text-navy">Status<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
+}
+
+function DistributionField({ checked, onChange }) {
+  return <label className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy"><input className="h-5 w-5 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />Participa da distribuição de leads</label>;
 }
 
 function roleLabel(role) { return role === "admin" ? "Administrador geral" : role === "associate" ? "Associado" : "Corretor"; }

@@ -7,6 +7,10 @@ export const metadata = {
 };
 
 export default function SimulationPage() {
+  return <SimulationPageContent />;
+}
+
+export function SimulationPageContent({ brokerRef = "" }) {
   return (
     <main className="bg-mist py-12 sm:py-16">
       <section className="container-page">
@@ -21,7 +25,7 @@ export default function SimulationPage() {
         </div>
 
         <Suspense fallback={<SimulationFormFallback />}>
-          <SimulationForm />
+          <SimulationForm brokerRefOverride={brokerRef} />
         </Suspense>
       </section>
     </main>

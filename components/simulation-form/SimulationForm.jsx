@@ -26,14 +26,14 @@ const booleanOptions = [
   { value: false, label: "Não" }
 ];
 
-export default function SimulationForm() {
+export default function SimulationForm({ brokerRefOverride = "" }) {
   const searchParams = useSearchParams();
   const initialType = searchParams.get("tipo") === "joint"
     ? "joint"
     : searchParams.get("tipo") === "individual"
       ? "individual"
       : "";
-  const brokerRef = searchParams.get("ref") || "";
+  const brokerRef = brokerRefOverride || searchParams.get("ref") || "";
 
   const [form, setForm] = useState(() => getDefaultSimulationRegistration(initialType));
   const [currentIndex, setCurrentIndex] = useState(0);
