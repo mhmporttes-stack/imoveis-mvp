@@ -30,7 +30,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
   const [editForm, setEditForm] = useState(null);
 
   const sortedUsers = useMemo(() => [...users].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")), [users]);
-  const brokers = useMemo(() => sortedUsers.filter((user) => user.role === "broker" && user.status === "active"), [sortedUsers]);
+  const brokers = useMemo(() => sortedUsers.filter((user) => ["admin", "broker"].includes(user.role) && user.status === "active"), [sortedUsers]);
 
   function beginEdit(user) {
     setEditingId(user.id);
@@ -181,7 +181,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   <h3 className="mt-3 truncate text-2xl font-black text-navy">{user.name}</h3>
                   <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
                   {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
-                  {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Corretor vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
+                  {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Responsável vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
                   <p className="mt-3 text-sm font-bold text-muted">
                     Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
                   </p>
@@ -230,7 +230,7 @@ function RoleField({ value, onChange }) {
 }
 
 function BrokerField({ brokers, value, onChange }) {
-  return <label className="grid gap-2 text-sm font-black text-navy">Corretor vinculado<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um corretor</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}</option>)}</select></label>;
+  return <label className="grid gap-2 text-sm font-black text-navy">Responsável vinculado<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um responsável</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}{broker.role === "admin" ? " (Master)" : ""}</option>)}</select></label>;
 }
 
 function StatusField({ value, onChange }) {
