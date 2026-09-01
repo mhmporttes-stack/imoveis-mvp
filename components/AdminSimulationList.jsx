@@ -607,7 +607,7 @@ export default function AdminSimulationList({
     })));
   }
 
-  function openWhatsApp(client) {
+  async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone || extractSimulationPhone(client.simulation);
     const whatsapp = buildWhatsAppUrl(value);
     if (!whatsapp || !toWhatsAppDigits(value)) {
@@ -615,25 +615,30 @@ export default function AdminSimulationList({
       return;
     }
 
-    window.open(whatsapp, "_blank", "noopener,noreferrer");
+    const whatsappWindow = window.open("about:blank", "_blank");
 
-    if (!client.registration?.id) return;
-
-    fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, {
-      method: "POST"
-    })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => {
-        if (!data?.id) return;
+    try {
+      if (client.registration?.id) {
+        const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
         setLocalRegistrations((current) => current.map((registration) => (
           registration.id === data.id
             ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
             : registration
         )));
-      })
-      .catch((error) => {
-        console.error("Nao foi possivel registrar o contato via WhatsApp:", error);
-      });
+      }
+
+      if (whatsappWindow) {
+        whatsappWindow.opener = null;
+        whatsappWindow.location.href = whatsapp;
+      } else {
+        window.open(whatsapp, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      if (whatsappWindow) whatsappWindow.close();
+      alert(error.message || "Não foi possível registrar o contato via WhatsApp.");
+    }
   }
 
   return (
