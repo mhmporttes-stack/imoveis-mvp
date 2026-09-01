@@ -707,14 +707,14 @@ export default function AdminSimulationList({
         <div className="mt-4 space-y-3">
           <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-3 lg:grid-cols-7">
             {CLIENT_STATUS_FILTER_GROUPS.filter((group) => group.key !== "restrictions").map((group) => {
-              const active = statusGroup === group.key;
+              const active = statusGroup === group.key || (group.key === "approval" && statusGroup === "restrictions");
               const count = group.key === "all"
                 ? clients.length
                 : group.statuses.reduce((total, status) => total + (counters[status] || 0), 0);
 
               return (
                 <button
-                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-3 text-center text-xs font-extrabold uppercase tracking-[0.04em] transition duration-300 sm:text-sm ${
+                  className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-full px-1 text-center text-[10px] font-extrabold uppercase transition duration-300 xl:px-2 xl:text-xs ${
                     active
                       ? "bg-navy text-white shadow-[0_10px_24px_rgba(13,46,87,0.18)]"
                       : "bg-transparent text-navy/80 hover:bg-[#F5FAFF] hover:text-navy"
@@ -727,7 +727,7 @@ export default function AdminSimulationList({
                   type="button"
                 >
                   {group.label}
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-white/20 text-white" : "bg-[#EEF4FB] text-navy"}`}>
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-white/20 text-white" : "bg-[#EEF4FB] text-navy"}`}>
                     {count}
                   </span>
                 </button>
@@ -735,9 +735,9 @@ export default function AdminSimulationList({
             })}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {["approval", "restrictions"].includes(statusGroup) ? <div className="flex flex-wrap gap-2">
             <button className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button>
-          </div>
+          </div> : null}
 
           {statusGroup !== "all" ? (
             <div className="flex flex-wrap gap-2">
