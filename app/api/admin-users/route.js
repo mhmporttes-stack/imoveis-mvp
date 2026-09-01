@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { sendAdminUserInvitation } from "@/lib/admin-user-invitation";
 import {
   buildBrokerCaptacaoLink,
   buildBrokerSimulationLink,
@@ -34,7 +35,17 @@ export async function POST(request) {
 
   try {
     const user = await createAdminProfile(await request.json());
-    return NextResponse.json({ user: withLinks(user) }, { status: 201 });
+    let invitationSent = false;
+    let invitationError = "";
+    try {
+      const invitation = await sendAdminUserInvitation(user);
+      invitationSent = !invitation.skipped;
+      if (invitation.skipped) invitationError = "Envio de e-mail não configurado.";
+    } catch (emailError) {
+      console.error("Nao foi possivel enviar o convite do aplicativo.", emailError);
+      invitationError = "Usuário criado, mas não foi possível enviar o e-mail do aplicativo.";
+    }
+    return NextResponse.json({ user: withLinks(user), invitationSent, invitationError }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: formatBrokerSchemaError(error) }, { status: 400 });

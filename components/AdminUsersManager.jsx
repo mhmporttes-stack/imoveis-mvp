@@ -72,7 +72,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
 
       setUsers((current) => [payload.user, ...current]);
       setForm(EMPTY_FORM);
-      setMessage("Usuário cadastrado com sucesso.");
+      setMessage(payload.invitationSent ? "Usuário cadastrado e link do aplicativo enviado por e-mail." : (payload.invitationError || "Usuário cadastrado com sucesso."));
     } catch (createError) {
       setError(createError.message || "Não foi possível cadastrar o usuário.");
     } finally {
