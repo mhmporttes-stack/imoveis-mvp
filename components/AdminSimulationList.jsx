@@ -382,13 +382,15 @@ export default function AdminSimulationList({
   async function handleProspectingAction(client, action) {
     if (!client.registration?.id) return;
     if (action === "do_not_contact" && !confirm("Confirma que este cliente pediu para não receber novos contatos?")) return;
+    const whatsappWindow = action === "prospect" ? window.open("about:blank", "_blank") : null;
     setBusyClientId(client.id);
     try {
       const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) { alert(data.error || "Não foi possível atualizar a prospecção."); return; }
+      if (!response.ok) { whatsappWindow?.close(); alert(data.error || "Não foi possível atualizar a prospecção."); return; }
+      if (data.whatsappUrl && whatsappWindow) whatsappWindow.location.href = data.whatsappUrl;
       if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
-      else setLocalRegistrations((current) => current.map((item) => item.id === client.registration.id ? { ...item, status: data.status } : item));
+      else setLocalRegistrations((current) => current.map((item) => item.id === client.registration.id ? { ...item, status: data.status, prospectingAssignedPending: data.prospectingAssignedPending ?? item.prospectingAssignedPending } : item));
     } finally { setBusyClientId(""); }
   }
 
@@ -1046,10 +1048,11 @@ function ClientCard({
         />
       ) : null}
 
-      {client.registration?.prospectingContactId && [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status) ? (
+      {client.registration?.prospectingContactId && (client.registration.prospectingAssignedPending || [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status)) ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          {client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
-          <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar</button>
+          {client.registration.prospectingAssignedPending ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "prospect")} type="button">Prospectar</button> : null}
+          {client.registration.prospectingAssignedPending || client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
+          <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar novamente</button>
         </div>
       ) : null}
 
