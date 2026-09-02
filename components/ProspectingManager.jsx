@@ -13,6 +13,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   const [dddMode, setDddMode] = useState("all");
   const [dddValue, setDddValue] = useState("14");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBrokerId, setBulkBrokerId] = useState("");
   const visibleContacts = useMemo(() => contacts.filter((contact) => {
     if (dddMode === "equal" && dddValue.length === 2) return getPhoneDdd(contact.phone) === dddValue;
     if (dddMode === "different" && dddValue.length === 2) return getPhoneDdd(contact.phone) !== dddValue;
@@ -113,6 +114,21 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   }
   async function reload() { const response = await fetch("/api/prospecting"); if (response.ok) setContacts(await response.json()); }
 
+  async function bulkAction(action) {
+    if (!selectedIds.length) return;
+    if (action === "assign" && !bulkBrokerId) return alert("Selecione um corretor.");
+    if (action === "delete" && !confirm(`Excluir permanentemente ${selectedIds.length} contato${selectedIds.length === 1 ? "" : "s"} selecionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
+    setBusy("bulk");
+    try {
+      const response = await fetch("/api/prospecting/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ids: selectedIds, assignedUserId: bulkBrokerId }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível atualizar os contatos.");
+      setSelectedIds([]);
+      await reload();
+    } catch (error) { alert(error.message); }
+    finally { setBusy(""); }
+  }
+
   return (
     <section className="container-page space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -137,6 +153,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
         {dddMode !== "all" ? <label className="w-24"><span className="sr-only">Número do DDD</span><input className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-center text-sm font-extrabold text-navy outline-none focus:border-brand" inputMode="numeric" maxLength={2} onChange={(event) => setDddValue(event.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="DDD" value={dddValue} /></label> : null}
         <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button>
         {selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
+        {selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
       </div> : null}
       <div className="grid gap-3">
         {visibleContacts.map((contact) => {
@@ -163,4 +180,4 @@ function guessColumn(headers, names) { return headers.find((header) => { const n
 function getPhoneDdd(value) { const digits = String(value || "").replace(/\D/g, ""); const national = digits.startsWith("55") ? digits.slice(2) : digits; return national.slice(0, 2); }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(value)) : ""; }
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : ""; }
-function historyLabel(value) { return ({ claimed: "Contato assumido", in_service: "Em atendimento", returned: "Devolvido por 30 dias", auto_returned: "Devolvido automaticamente por 30 dias", do_not_contact: "Não contactar", unblocked: "Bloqueio removido", edited: "Contato editado" })[value] || value; }
+function historyLabel(value) { return ({ claimed: "Contato assumido", bulk_assigned: "Atribuído em massa", in_service: "Em atendimento", returned: "Devolvido por 30 dias", auto_returned: "Devolvido automaticamente por 30 dias", do_not_contact: "Não contactar", unblocked: "Bloqueio removido", edited: "Contato editado" })[value] || value; }
