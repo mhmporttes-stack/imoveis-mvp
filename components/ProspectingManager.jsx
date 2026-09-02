@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckSquare, History, MessageCircle, Pencil, RotateCcw, Trash2, Upload } from "lucide-react";
 import { formatBrazilianPhone } from "@/lib/phone-utils";
 
@@ -14,15 +14,21 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
   const [dddValue, setDddValue] = useState("14");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkBrokerId, setBulkBrokerId] = useState("");
-  const visibleContacts = useMemo(() => contacts.filter((contact) => {
+  const [pageSize, setPageSize] = useState("10");
+  const [currentPage, setCurrentPage] = useState(1);
+  const filteredContacts = useMemo(() => contacts.filter((contact) => {
     if (dddMode === "equal" && dddValue.length === 2) return getPhoneDdd(contact.phone) === dddValue;
     if (dddMode === "different" && dddValue.length === 2) return getPhoneDdd(contact.phone) !== dddValue;
     return true;
   }), [contacts, dddMode, dddValue]);
-  const allVisibleSelected = visibleContacts.length > 0 && visibleContacts.every((contact) => selectedIds.includes(contact.id));
+  const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(filteredContacts.length / Number(pageSize)));
+  const visibleContacts = useMemo(() => pageSize === "all" ? filteredContacts : filteredContacts.slice((currentPage - 1) * Number(pageSize), currentPage * Number(pageSize)), [filteredContacts, pageSize, currentPage]);
+  const allVisibleSelected = filteredContacts.length > 0 && filteredContacts.every((contact) => selectedIds.includes(contact.id));
+
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
 
   function toggleSelectAll() {
-    const visibleIds = visibleContacts.map((contact) => contact.id);
+    const visibleIds = filteredContacts.map((contact) => contact.id);
     setSelectedIds((current) => allVisibleSelected
       ? current.filter((id) => !visibleIds.includes(id))
       : Array.from(new Set([...current, ...visibleIds])));
@@ -151,6 +157,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
       {isAdmin ? <div className="flex flex-wrap items-center gap-3 rounded-[20px] border border-line bg-white p-3 shadow-soft">
         <label className="min-w-[210px] flex-1 sm:flex-none"><span className="sr-only">Tipo de filtro por DDD</span><select className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy outline-none focus:border-brand" value={dddMode} onChange={(event) => setDddMode(event.target.value)}><option value="all">Todos os DDDs</option><option value="equal">DDD igual a</option><option value="different">DDD diferente de</option></select></label>
         {dddMode !== "all" ? <label className="w-24"><span className="sr-only">Número do DDD</span><input className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-center text-sm font-extrabold text-navy outline-none focus:border-brand" inputMode="numeric" maxLength={2} onChange={(event) => setDddValue(event.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="DDD" value={dddValue} /></label> : null}
+        <label><span className="sr-only">Quantidade por página</span><select className="h-11 rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={pageSize} onChange={(event) => { setPageSize(event.target.value); setCurrentPage(1); }}><option value="10">10 por página</option><option value="20">20 por página</option><option value="50">50 por página</option><option value="100">100 por página</option><option value="all">Todos</option></select></label>
         <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button>
         {selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
         {selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
@@ -172,6 +179,7 @@ export default function ProspectingManager({ initialContacts = [], isAdmin = fal
         })}
         {!visibleContacts.length ? <div className="rounded-[24px] border border-line bg-white p-10 text-center font-black text-navy">Nenhum contato disponível para este filtro.</div> : null}
       </div>
+      {pageSize !== "all" && totalPages > 1 ? <div className="flex items-center justify-center gap-3"><button className="premium-button-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} type="button">Anterior</button><span className="text-sm font-black text-muted">Página {currentPage} de {totalPages}</span><button className="premium-button-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} type="button">Próxima</button></div> : null}
     </section>
   );
 }
