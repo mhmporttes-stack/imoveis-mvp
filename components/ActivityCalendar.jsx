@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
+import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Plus, UserRound, X } from "lucide-react";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -11,6 +11,8 @@ export default function ActivityCalendar() {
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
   const [activities, setActivities] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,6 +25,7 @@ export default function ActivityCalendar() {
   const [rescheduleNote, setRescheduleNote] = useState("");
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [rescheduleError, setRescheduleError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -37,7 +40,11 @@ export default function ActivityCalendar() {
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o calendário.");
-        if (!ignore) setActivities(payload.activities || []);
+        if (!ignore) {
+          setActivities(payload.activities || []);
+          setClients(payload.clients || []);
+          setUsers(payload.users || []);
+        }
       } catch (loadError) {
         if (!ignore) setError(loadError.message || "Não foi possível carregar o calendário.");
       } finally {
@@ -69,6 +76,7 @@ export default function ActivityCalendar() {
     const groups = {
       pending: [],
       scheduled: [],
+      rescheduled: [],
       completed: []
     };
 
@@ -79,6 +87,7 @@ export default function ActivityCalendar() {
     return [
       { key: "pending", title: "Atividades pendentes", items: groups.pending },
       { key: "scheduled", title: "Atividades agendadas", items: groups.scheduled },
+      { key: "rescheduled", title: "Atividades reagendadas", items: groups.rescheduled },
       { key: "completed", title: "Atividades concluídas", items: groups.completed }
     ].filter((group) => group.items.length);
   }, [selectedActivities]);
@@ -91,15 +100,15 @@ export default function ActivityCalendar() {
     setCompleteLoadingId(activity.id);
 
     try {
-      const response = await fetch(`/api/simulation-registrations/${activity.id}`, {
+      const response = await fetch(`/api/calendar-activities/${activity.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduledActivityCompleted: true })
+        body: JSON.stringify({ action: "complete", source: activity.source })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Não foi possível concluir a atividade.");
 
-      const completedAt = payload?.scheduledActivityCompletedAt || new Date().toISOString();
+      const completedAt = payload?.activity?.completedAt || payload?.activity?.scheduledActivityCompletedAt || new Date().toISOString();
       setActivities((current) => current.map((item) => (
         item.id === activity.id
           ? { ...item, scheduledActivityCompleted: true, scheduledActivityCompletedAt: completedAt }
@@ -134,33 +143,24 @@ export default function ActivityCalendar() {
     setRescheduleError("");
     setRescheduleLoading(true);
     try {
-      const response = await fetch(`/api/simulation-registrations/${rescheduleActivity.id}`, {
+      const scheduledAt = `${rescheduleDate}T${rescheduleTime}:00-03:00`;
+      const response = await fetch(`/api/calendar-activities/${rescheduleActivity.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scheduledActivityDate: rescheduleDate,
-          scheduledActivityTime: rescheduleTime,
-          scheduledActivityNote: rescheduleNote
+          action: "reschedule",
+          source: rescheduleActivity.source,
+          scheduledAt,
+          note: rescheduleNote
         })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Não foi possível reagendar a atividade.");
 
-      const nextActivity = {
-        ...rescheduleActivity,
-        scheduledActivityAt: payload.scheduledActivityAt,
-        scheduledActivityNote: payload.scheduledActivityNote || "",
-        scheduledActivityCompleted: false,
-        scheduledActivityCompletedAt: "",
-        scheduledActivityCompletedBy: ""
-      };
-
-      setActivities((current) => current.map((item) => (
-        item.id === rescheduleActivity.id ? { ...item, ...nextActivity } : item
-      )));
-      setSelectedActivity((current) => (
-        current?.id === rescheduleActivity.id ? { ...current, ...nextActivity } : current
-      ));
+      const previousActivity = normalizeReturnedActivity(payload.previous, rescheduleActivity, users, clients);
+      const nextActivity = normalizeReturnedActivity(payload.next, rescheduleActivity, users, clients);
+      setActivities((current) => [...current.filter((item) => !(item.id === rescheduleActivity.id && item.source === rescheduleActivity.source)), previousActivity, nextActivity]);
+      setSelectedActivity(null);
       setRescheduleActivity(null);
     } catch (rescheduleActivityError) {
       setRescheduleError(rescheduleActivityError.message || "Não foi possível reagendar a atividade.");
@@ -222,7 +222,7 @@ export default function ActivityCalendar() {
                     ) : null}
                     <span className="mt-2 hidden space-y-1 md:block">
                       {dayActivities.slice(0, 2).map((activity) => (
-                        <span key={activity.id} className="block truncate rounded-full bg-brand/10 px-2 py-1 text-[11px] font-bold text-navy">
+                        <span key={`${activity.source}-${activity.id}`} className={`block truncate rounded-full px-2 py-1 text-[11px] font-bold ${activityChipClass(activity)}`}>
                           {formatTime(activity.scheduledActivityAt)} · {activity.isBirthday ? activity.title : activity.responsibleName}
                         </span>
                       ))}
@@ -246,6 +246,7 @@ export default function ActivityCalendar() {
                 <h3 className="text-xl font-black text-navy">{formatDateLabel(selectedDate)}</h3>
               </div>
             </div>
+            <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-black text-white" onClick={() => setCreateOpen(true)} type="button"><Plus size={17} />Agendar atividade</button>
 
             {loading ? (
               <p className="mt-5 rounded-2xl bg-white px-4 py-5 font-bold text-slate">Carregando atividades...</p>
@@ -268,6 +269,8 @@ export default function ActivityCalendar() {
                           className={`rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
                             state === "completed"
                               ? "border-emerald-200 bg-emerald-50/70"
+                              : state === "rescheduled"
+                                ? "border-slate-200 bg-slate-50"
                               : state === "pending"
                                 ? "border-red-200 bg-red-50/70"
                                 : "border-brand/15 hover:border-brand"
@@ -287,7 +290,8 @@ export default function ActivityCalendar() {
                               <span className="mt-2 block font-black text-navy">
                                 {activity.title || `${activity.responsibleName} - ${activity.clientName}`}
                               </span>
-                              <span className="mt-1 block text-xs font-black uppercase tracking-[0.1em] text-brand">{formatActivityType(activity.scheduledActivityType)}</span>
+                              <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-brand">{formatActivityType(activity.scheduledActivityType)}<PriorityBadge priority={activity.priority} /></span>
+                              {state === "rescheduled" && activity.rescheduledToAt ? <span className="mt-1 block text-sm font-bold text-slate">Reagendada para {formatDateLabel(toSaoPauloDateKey(activity.rescheduledToAt))} às {formatTime(activity.rescheduledToAt)}</span> : null}
                               {activity.scheduledActivityNote ? (
                                 <span className="mt-1 block line-clamp-2 text-sm font-semibold text-slate">{activity.scheduledActivityNote}</span>
                               ) : null}
@@ -350,6 +354,7 @@ export default function ActivityCalendar() {
           onSubmit={submitReschedule}
         />
       ) : null}
+      {createOpen ? <CreateActivityModal clients={clients} date={selectedDate} users={users} onClose={() => setCreateOpen(false)} onCreated={(activity) => { setActivities((current) => [...current, normalizeReturnedActivity(activity, {}, users, clients)]); setCreateOpen(false); }} /> : null}
     </section>
   );
 }
@@ -364,6 +369,10 @@ function ActivityStateButton({ activity, state, loading, onOpenLateActions }) {
         <CheckCircle2 size={22} />
       </span>
     );
+  }
+
+  if (state === "rescheduled") {
+    return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-slate-100 text-slate-600" title="Atividade reagendada"><CalendarClock size={22} /></span>;
   }
 
   if (state === "pending") {
@@ -431,15 +440,60 @@ function ActivityModal({ activity, onClose }) {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link href={`/admin/simulacoes/${activity.clientId || activity.id}`} className="premium-button-primary text-center">
-            Abrir cliente
-          </Link>
+          {activity.clientId || activity.source === "legacy" ? <Link href={`/admin/simulacoes/${activity.clientId || activity.id}`} className="premium-button-primary text-center">Abrir cliente</Link> : null}
           <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
         </div>
       </div>
     </div>
   );
 }
+
+function CreateActivityModal({ clients, date, users, onClose, onCreated }) {
+  const [form, setForm] = useState({ title: "", date, time: "", clientId: "", responsibleUserId: users.length === 1 ? users[0].id : "", note: "", priority: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  async function submit(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/calendar-activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, scheduledAt: `${form.date}T${form.time}:00-03:00` }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível criar a atividade.");
+      onCreated(payload.activity);
+    } catch (submitError) { setError(submitError.message); }
+    finally { setSaving(false); }
+  }
+
+  function selectClient(clientId) {
+    const client = clients.find((item) => item.id === clientId);
+    setForm((current) => ({ ...current, clientId, responsibleUserId: client?.responsibleUserId || current.responsibleUserId }));
+  }
+
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+    <div className="flex items-center justify-between gap-4"><h3 className="text-2xl font-black text-navy">Agendar atividade</h3><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X size={20} /></button></div>
+    {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
+    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <ModalField label="Título da atividade"><input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></ModalField>
+      <ModalField label="Cliente (opcional)"><select value={form.clientId} onChange={(event) => selectClient(event.target.value)}><option value="">Sem cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></ModalField>
+      <ModalField label="Data"><input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></ModalField>
+      <ModalField label="Hora"><input required type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></ModalField>
+      <ModalField label="Responsável"><select value={form.responsibleUserId} onChange={(event) => setForm({ ...form, responsibleUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></ModalField>
+      <ModalField label="Prioridade (opcional)"><select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}><option value="">Sem classificação</option><option value="standard">Padrão</option><option value="important">Importante</option><option value="priority">Prioridade</option></select></ModalField>
+    </div>
+    <ModalField label="Observação (opcional)" wide><textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></ModalField>
+    <div className="mt-6 flex justify-end gap-3"><button className="premium-button-secondary" onClick={onClose} type="button">Cancelar</button><button className="premium-button-primary" disabled={saving} type="submit">{saving ? "Salvando..." : "Salvar atividade"}</button></div>
+  </form></div>;
+}
+
+function ModalField({ label, children, wide }) { return <label className={`${wide ? "mt-4" : ""} grid gap-2 font-black text-navy [&_input]:min-h-12 [&_input]:rounded-2xl [&_input]:border [&_input]:border-line [&_input]:px-4 [&_select]:min-h-12 [&_select]:rounded-2xl [&_select]:border [&_select]:border-line [&_select]:px-4 [&_textarea]:min-h-24 [&_textarea]:rounded-2xl [&_textarea]:border [&_textarea]:border-line [&_textarea]:p-4`}>{label}{children}</label>; }
+function PriorityBadge({ priority }) { const labels = { standard: "Padrão", important: "Importante", priority: "Prioridade" }; if (!labels[priority]) return null; return <span className={`rounded-full px-2 py-0.5 text-[10px] ${priority === "priority" ? "bg-red-100 text-red-700" : priority === "important" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{labels[priority]}</span>; }
 
 function RescheduleActivityModal({
   activity,
@@ -575,10 +629,40 @@ function toSaoPauloDateKey(value) {
 
 function getActivityState(activity) {
   if (activity?.isBirthday) return "scheduled";
+  if (activity?.activityStatus === "rescheduled") return "rescheduled";
+  if (activity?.activityStatus === "completed") return "completed";
   if (activity?.scheduledActivityCompletedAt) return "completed";
   const scheduledAt = new Date(activity?.scheduledActivityAt || "");
   if (Number.isFinite(scheduledAt.getTime()) && scheduledAt.getTime() < Date.now()) return "pending";
   return "scheduled";
+}
+
+function normalizeReturnedActivity(activity = {}, fallback = {}, users = [], clients = []) {
+  const clientId = activity.clientId || fallback.clientId || "";
+  const responsibleUserId = activity.responsibleUserId || fallback.responsibleUserId || "";
+  return {
+    ...fallback,
+    ...activity,
+    clientId,
+    responsibleUserId,
+    clientName: clients.find((client) => client.id === clientId)?.name || fallback.clientName || "",
+    responsibleName: users.find((user) => user.id === responsibleUserId)?.name || fallback.responsibleName || "Sem responsável",
+    scheduledActivityType: activity.activityType || activity.scheduledActivityType || fallback.scheduledActivityType || "outro",
+    scheduledActivityNote: activity.note ?? activity.scheduledActivityNote ?? fallback.scheduledActivityNote ?? "",
+    scheduledActivityCompletedAt: activity.completedAt || activity.scheduledActivityCompletedAt || "",
+    activityStatus: activity.status || activity.activityStatus || "pending",
+    rescheduledToAt: activity.rescheduledToAt || "",
+    source: activity.source || fallback.source || "calendar"
+  };
+}
+
+function activityChipClass(activity) {
+  const state = getActivityState(activity);
+  if (state === "pending") return "bg-red-100 text-red-700";
+  if (state === "rescheduled") return "bg-slate-100 text-slate-600";
+  if (activity.priority === "priority") return "bg-red-50 text-red-700";
+  if (activity.priority === "important") return "bg-amber-100 text-amber-800";
+  return "bg-brand/10 text-navy";
 }
 
 function formatActivityType(value) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
+import { createCalendarActivity, listCalendarActivities, listCalendarClientOptions } from "@/lib/calendar-activities";
 import {
   formatSimulationRegistrationError,
   listBirthdayRegistrations,
@@ -20,9 +21,11 @@ export async function GET(request) {
     const url = new URL(request.url);
     const from = url.searchParams.get("from") || "";
     const to = url.searchParams.get("to") || "";
-    const [registrations, birthdayRegistrations] = await Promise.all([
+    const [registrations, birthdayRegistrations, savedActivities, clients] = await Promise.all([
       listScheduledActivityRegistrations({ from, to, auth }),
-      listBirthdayRegistrations({ auth })
+      listBirthdayRegistrations({ auth }),
+      listCalendarActivities({ from, to, auth }),
+      listCalendarClientOptions(auth)
     ]);
     let profiles = [];
 
@@ -33,10 +36,13 @@ export async function GET(request) {
     }
 
     const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+    const clientById = new Map(clients.map((client) => [client.id, client]));
     const activities = registrations.map((registration) => {
       const responsible = profileById.get(registration.responsibleUserId);
       return {
         id: registration.id,
+        source: "legacy",
+        clientId: registration.id,
         clientName: registration.fullName || "Cliente sem nome",
         phone: registration.phone || "",
         phoneNormalized: registration.phoneNormalized || "",
@@ -53,13 +59,42 @@ export async function GET(request) {
       };
     });
 
+    activities.push(...savedActivities.map((activity) => {
+      const client = clientById.get(activity.clientId);
+      const responsible = profileById.get(activity.responsibleUserId);
+      return {
+        ...activity,
+        clientName: client?.name || "",
+        phone: "",
+        scheduledActivityType: activity.activityType,
+        scheduledActivityNote: activity.note,
+        scheduledActivityCompletedAt: activity.completedAt,
+        scheduledActivityCompleted: activity.status === "completed",
+        activityStatus: activity.status,
+        responsibleName: responsible?.name || (activity.responsibleUserId ? "Corretor" : "Sem responsável")
+      };
+    }));
+
     activities.push(...buildBirthdayActivities(birthdayRegistrations, profileById, from, to));
     activities.sort((a, b) => new Date(a.scheduledActivityAt) - new Date(b.scheduledActivityAt));
 
-    return NextResponse.json({ activities });
+    const allowedProfiles = auth.profile?.role === "admin"
+      ? profiles
+      : profiles.filter((profile) => [auth.profile?.id, auth.profile?.linkedBrokerId].filter(Boolean).includes(profile.id));
+    return NextResponse.json({ activities, clients, users: allowedProfiles.filter((profile) => profile.status === "active").map((profile) => ({ id: profile.id, name: profile.name })) });
   } catch (error) {
     console.error("Erro ao carregar calendario de atividades:", error);
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
+  }
+}
+
+export async function POST(request) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  try {
+    return NextResponse.json({ activity: await createCalendarActivity(await request.json(), auth) }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: error.message || "Não foi possível criar a atividade." }, { status: 400 });
   }
 }
 
