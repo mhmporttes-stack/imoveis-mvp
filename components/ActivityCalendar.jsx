@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
+import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, UserRound, X } from "lucide-react";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -223,7 +223,7 @@ export default function ActivityCalendar() {
                     <span className="mt-2 hidden space-y-1 md:block">
                       {dayActivities.slice(0, 2).map((activity) => (
                         <span key={activity.id} className="block truncate rounded-full bg-brand/10 px-2 py-1 text-[11px] font-bold text-navy">
-                          {formatTime(activity.scheduledActivityAt)} · {activity.responsibleName}
+                          {formatTime(activity.scheduledActivityAt)} · {activity.isBirthday ? activity.title : activity.responsibleName}
                         </span>
                       ))}
                       {dayActivities.length > 2 ? <span className="block text-[11px] font-bold text-brand">+{dayActivities.length - 2}</span> : null}
@@ -285,7 +285,7 @@ export default function ActivityCalendar() {
                                 <Clock size={16} /> {formatTime(activity.scheduledActivityAt)}
                               </span>
                               <span className="mt-2 block font-black text-navy">
-                                {activity.responsibleName} - {activity.clientName}
+                                {activity.title || `${activity.responsibleName} - ${activity.clientName}`}
                               </span>
                               <span className="mt-1 block text-xs font-black uppercase tracking-[0.1em] text-brand">{formatActivityType(activity.scheduledActivityType)}</span>
                               {activity.scheduledActivityNote ? (
@@ -355,6 +355,9 @@ export default function ActivityCalendar() {
 }
 
 function ActivityStateButton({ activity, state, loading, onOpenLateActions }) {
+  if (activity.isBirthday) {
+    return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-pink-200 bg-pink-50 text-pink-600" title="Aniversário do cliente"><Cake size={22} /></span>;
+  }
   if (state === "completed") {
     return (
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-emerald-200 bg-emerald-100 text-emerald-700" title="Atividade concluída">
@@ -403,8 +406,8 @@ function ActivityModal({ activity, onClose }) {
       <div className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Atividade agendada</p>
-            <h3 className="mt-2 text-3xl font-black text-navy">{activity.clientName}</h3>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">{activity.isBirthday ? "Aniversário" : "Atividade agendada"}</p>
+            <h3 className="mt-2 text-3xl font-black text-navy">{activity.title || activity.clientName}</h3>
           </div>
           <button type="button" className="rounded-full border border-line p-3 text-navy transition hover:bg-mist" aria-label="Fechar detalhes da atividade" onClick={onClose}>
             <X size={20} />
@@ -415,7 +418,7 @@ function ActivityModal({ activity, onClose }) {
           <Detail icon={<Clock size={18} />} label="Data e horário" value={`${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityAt))} às ${formatTime(activity.scheduledActivityAt)}`} />
           <Detail icon={<CalendarClock size={18} />} label="Tipo" value={formatActivityType(activity.scheduledActivityType)} />
           <Detail icon={<UserRound size={18} />} label="Corretor" value={activity.responsibleName} />
-          <Detail icon={<CheckCircle2 size={18} />} label="Status" value={activity.scheduledActivityCompletedAt ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}` : "Atividade agendada"} />
+          <Detail icon={<CheckCircle2 size={18} />} label="Status" value={activity.isBirthday ? "Evento anual" : activity.scheduledActivityCompletedAt ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}` : "Atividade agendada"} />
           <Detail label="Cliente" value={activity.clientName} />
           <Detail label="WhatsApp" value={activity.phone || "Não informado"} />
         </div>
@@ -428,7 +431,7 @@ function ActivityModal({ activity, onClose }) {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link href={`/admin/simulacoes/${activity.id}`} className="premium-button-primary text-center">
+          <Link href={`/admin/simulacoes/${activity.clientId || activity.id}`} className="premium-button-primary text-center">
             Abrir cliente
           </Link>
           <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
@@ -571,6 +574,7 @@ function toSaoPauloDateKey(value) {
 }
 
 function getActivityState(activity) {
+  if (activity?.isBirthday) return "scheduled";
   if (activity?.scheduledActivityCompletedAt) return "completed";
   const scheduledAt = new Date(activity?.scheduledActivityAt || "");
   if (Number.isFinite(scheduledAt.getTime()) && scheduledAt.getTime() < Date.now()) return "pending";
@@ -584,7 +588,8 @@ function formatActivityType(value) {
     ligacao: "Ligação",
     reuniao: "Reunião",
     visita: "Visita",
-    outro: "Outro"
+    outro: "Outro",
+    birthday: "Aniversário"
   })[value] || "Atividade";
 }
 
