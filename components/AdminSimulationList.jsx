@@ -81,6 +81,7 @@ const TAG_COLORS = [
 export default function AdminSimulationList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
+  canReturnAssignedProspecting = false,
   loadWarning = "",
   registrations = [],
   simulations = [],
@@ -382,6 +383,7 @@ export default function AdminSimulationList({
   async function handleProspectingAction(client, action) {
     if (!client.registration?.id) return;
     if (action === "do_not_contact" && !confirm("Confirma que este cliente pediu para não receber novos contatos?")) return;
+    if (action === "return_to_queue" && !confirm("Devolver este cliente imediatamente para a fila de prospecção?")) return;
     const whatsappWindow = action === "prospect" ? window.open("about:blank", "_blank") : null;
     setBusyClientId(client.id);
     try {
@@ -821,6 +823,7 @@ export default function AdminSimulationList({
             onUpdateResponsibleUser={updateClientResponsibleUser}
             onUpdateStatus={updateClientStatus}
             onProspectingAction={handleProspectingAction}
+            canReturnAssignedProspecting={canReturnAssignedProspecting}
             responsibleProfileMap={responsibleProfileMap}
             responsibleProfiles={responsibleProfiles}
             scheduleDraft={scheduleDraft}
@@ -892,6 +895,7 @@ function ClientCard({
   onUpdateResponsibleUser,
   onUpdateStatus,
   onProspectingAction,
+  canReturnAssignedProspecting,
   responsibleProfileMap,
   responsibleProfiles,
   scheduleDraft,
@@ -1053,6 +1057,7 @@ function ClientCard({
           {client.registration.prospectingAssignedPending ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "prospect")} type="button">Prospectar</button> : null}
           {client.registration.prospectingAssignedPending || client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
           <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar novamente</button>
+          {canReturnAssignedProspecting && client.registration.prospectingAssignedByUserId ? <button className="premium-button-secondary px-4 py-2 text-sm" disabled={busy} onClick={() => onProspectingAction(client, "return_to_queue")} type="button">Devolver à fila</button> : null}
         </div>
       ) : null}
 
