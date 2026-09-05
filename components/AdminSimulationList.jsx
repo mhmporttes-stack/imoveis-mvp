@@ -61,10 +61,38 @@ const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
   { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
-  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CONTRACT, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_REGISTRY] },
+  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CONTRACT, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_ITBI, CLIENT_STATUS.SALE_REGISTRY, CLIENT_STATUS.SALE_PAYMENT] },
   { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT] },
   { key: "restrictions", label: "Restrições", statuses: [CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING] }
 ];
+const SALE_STATUS_OPTIONS = [
+  CLIENT_STATUS.SALE_COMPLETED,
+  CLIENT_STATUS.SALE_FORMS,
+  CLIENT_STATUS.SALE_RESERVATION,
+  CLIENT_STATUS.SALE_CONTRACT,
+  CLIENT_STATUS.SALE_CAIXA_SIGNATURE,
+  CLIENT_STATUS.SALE_ITBI,
+  CLIENT_STATUS.SALE_REGISTRY,
+  CLIENT_STATUS.SALE_PAYMENT
+].map((value) => ({ value, label: CLIENT_STATUS_META[value].label }));
+const SALE_STATUS_VALUES = new Set(SALE_STATUS_OPTIONS.map((option) => option.value));
+const MAIN_STATUS_VALUES = [
+  CLIENT_STATUS.PENDING,
+  CLIENT_STATUS.COMPLETED,
+  CLIENT_STATUS.SIMULATION_SENT,
+  CLIENT_STATUS.AWAITING_RETURN,
+  CLIENT_STATUS.IN_SERVICE,
+  CLIENT_STATUS.DOCUMENTATION,
+  CLIENT_STATUS.DOCUMENTS_PENDING,
+  CLIENT_STATUS.APPROVAL_PENDING,
+  CLIENT_STATUS.RESTRICTION,
+  CLIENT_STATUS.SHIELDING,
+  CLIENT_STATUS.APPROVED,
+  CLIENT_STATUS.REJECTED,
+  CLIENT_STATUS.ARCHIVED,
+  CLIENT_STATUS.DO_NOT_CONTACT
+];
+const MAIN_STATUS_OPTIONS = MAIN_STATUS_VALUES.map((value) => ({ value, label: CLIENT_STATUS_META[value].label }));
 const TAG_COLORS = [
   { label: "Azul institucional", value: "#0D4F8B" },
   { label: "Azul vivo", value: "#1D4ED8" },
@@ -914,7 +942,7 @@ function ClientCard({
   const responsibleName = responsibleProfileMap?.get(responsibleUserId)?.name || client.lastAdminLabel || "Sem corretor";
 
   return (
-    <article className="relative max-w-full overflow-hidden rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
+    <article className="relative max-w-full overflow-visible rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 focus-within:z-50 hover:z-50 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <div className="mb-1 flex max-w-full flex-wrap items-center gap-2">
@@ -945,17 +973,7 @@ function ClientCard({
             {client.name || "Cliente sem nome"}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select
-              aria-label={`Alterar status de ${client.name}`}
-              className={`rounded-full border-0 px-3 py-1 text-[11px] font-black outline-none transition focus:ring-4 focus:ring-brand/15 ${CLIENT_STATUS_META[client.status]?.badgeClass || CLIENT_STATUS_META.pending.badgeClass}`}
-              disabled={busy}
-              onChange={(event) => onUpdateStatus(client, event.target.value)}
-              value={client.status}
-            >
-              {CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all").map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+            <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
           </div>
         </div>
 
@@ -1122,6 +1140,79 @@ function ClientCard({
       </div>
     </article>
   );
+}
+
+function ClientStatusSelector({ busy, client, onChange }) {
+  const containerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [level, setLevel] = useState("main");
+  const currentStatus = client.status;
+  const currentMeta = CLIENT_STATUS_META[currentStatus] || CLIENT_STATUS_META.pending;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => {
+      if (event.key === "Escape" || (event.type === "mousedown" && !containerRef.current?.contains(event.target))) {
+        setOpen(false);
+        setLevel("main");
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  function choose(status) {
+    setOpen(false);
+    setLevel("main");
+    if (status !== currentStatus) onChange(status);
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Alterar status de ${client.name}`}
+        className={`inline-flex min-h-7 items-center gap-1.5 rounded-full border-0 px-3 py-1 text-[11px] font-black outline-none transition focus:ring-4 focus:ring-brand/15 disabled:opacity-60 ${currentMeta.badgeClass}`}
+        disabled={busy}
+        onClick={() => { setOpen((value) => !value); setLevel("main"); }}
+        type="button"
+      >
+        {currentMeta.label}
+        <ChevronRight className={`h-3 w-3 transition ${open ? "rotate-90" : ""}`} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="fixed inset-x-4 bottom-4 z-40 max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-[calc(100%+6px)] sm:w-[286px]" role="menu">
+          {level === "sale" ? (
+            <>
+              <button className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-black text-brand hover:bg-mist" onClick={() => setLevel("main")} role="menuitem" type="button">
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Voltar
+              </button>
+              <div className="my-1 border-t border-line" />
+              {SALE_STATUS_OPTIONS.map((option) => <StatusMenuItem current={currentStatus} key={option.value} onClick={() => choose(option.value)} option={option} />)}
+            </>
+          ) : (
+            <>
+              {MAIN_STATUS_OPTIONS.map((option) => <StatusMenuItem current={currentStatus} key={option.value} onClick={() => choose(option.value)} option={option} />)}
+              <button className={`flex h-9 w-full items-center justify-between rounded-lg px-2.5 text-left text-xs font-extrabold hover:bg-mist ${SALE_STATUS_VALUES.has(currentStatus) ? "bg-green-50 text-green-700" : "text-navy"}`} onClick={() => setLevel("sale")} role="menuitem" type="button">
+                <span className="flex items-center gap-2">{SALE_STATUS_VALUES.has(currentStatus) ? <Check className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4" />}Venda</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StatusMenuItem({ current, onClick, option }) {
+  const selected = current === option.value;
+  return <button aria-checked={selected} className={`flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold hover:bg-mist ${selected ? "bg-[#EEF6FF] text-brand" : "text-navy"}`} onClick={onClick} role="menuitemradio" type="button">{selected ? <Check className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4" />}{option.label}</button>;
 }
 
 function ScheduleEditor({ busy, draft, hasSchedule, onChange, onClear, onClose, onSave }) {
@@ -1566,7 +1657,14 @@ function isCompletedClientStatus(status) {
     CLIENT_STATUS.SHIELDING,
     CLIENT_STATUS.APPROVED,
     CLIENT_STATUS.REJECTED,
-    CLIENT_STATUS.SALE_COMPLETED
+    CLIENT_STATUS.SALE_COMPLETED,
+    CLIENT_STATUS.SALE_FORMS,
+    CLIENT_STATUS.SALE_RESERVATION,
+    CLIENT_STATUS.SALE_CONTRACT,
+    CLIENT_STATUS.SALE_CAIXA_SIGNATURE,
+    CLIENT_STATUS.SALE_ITBI,
+    CLIENT_STATUS.SALE_REGISTRY,
+    CLIENT_STATUS.SALE_PAYMENT
   ].includes(status);
 }
 
