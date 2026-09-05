@@ -83,7 +83,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [] }) {
+export default function AdminFinancialDashboard({ initialSales = [], loadOnMount = false }) {
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [period, setPeriod] = useState("month");
@@ -98,6 +98,35 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(loadOnMount);
+
+  useEffect(() => {
+    if (!loadOnMount) return;
+    let active = true;
+
+    fetch("/api/financeiro", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Não foi possível carregar o financeiro.");
+        return ensureArray(payload.sales);
+      })
+      .then((loadedSales) => {
+        if (!active) return;
+        setSales(loadedSales);
+        setSelectedSaleId(loadedSales[0]?.id || "");
+        setDraftSale(createDraftSale(loadedSales[0]));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Não foi possível carregar o financeiro.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadOnMount]);
 
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) || null,
@@ -305,6 +334,9 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
 
   return (
     <section className="container-page space-y-6">
+      {loading ? (
+        <div className="premium-card p-8 text-center text-lg font-black text-navy">Carregando financeiro...</div>
+      ) : null}
       <div className="premium-card p-5 md:p-7">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
