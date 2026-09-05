@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Copy, Pause, Play, UsersRound } from "lucide-react";
 
 export default function LeadDistributionDashboard({ initialData }) {
@@ -10,8 +10,18 @@ export default function LeadDistributionDashboard({ initialData }) {
   const [copied, setCopied] = useState(false);
   const queue = useMemo(() => brokers.filter((broker) => broker.enabled && broker.status === "active"), [brokers]);
   const outside = useMemo(() => brokers.filter((broker) => !broker.enabled || broker.status !== "active"), [brokers]);
-  const lastIndex = queue.findIndex((broker) => broker.id === initialData?.lastBrokerId);
-  const nextBroker = queue.length ? queue[(lastIndex + 1 + queue.length) % queue.length] : null;
+  const nextBroker = queue[0] || null;
+
+  useEffect(() => {
+    const refresh = async () => {
+      const response = await fetch("/api/lead-distribution", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json().catch(() => null);
+      if (payload?.brokers) setBrokers(payload.brokers);
+    };
+    const timer = window.setInterval(refresh, 10000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function saveOrder(nextQueue) {
     const response = await fetch("/api/lead-distribution", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order: nextQueue.map((broker) => broker.id) }) });
@@ -59,7 +69,7 @@ export default function LeadDistributionDashboard({ initialData }) {
     </div>
     {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
-      <div className="flex items-center gap-3"><UsersRound className="h-6 w-6 text-brand" /><div><h2 className="text-xl font-black text-navy">Ordem da fila</h2><p className="text-sm font-bold text-muted">O primeiro da lista será atendido respeitando o último sorteio realizado.</p></div></div>
+      <div className="flex items-center gap-3"><UsersRound className="h-6 w-6 text-brand" /><div><h2 className="text-xl font-black text-navy">Ordem da fila</h2><p className="text-sm font-bold text-muted">O primeiro recebe o próximo lead e depois vai automaticamente para o fim da fila.</p></div></div>
       <div className="mt-5 space-y-2">{queue.map((broker, index) => <BrokerRow broker={broker} index={index} key={broker.id} onMove={move} onToggle={toggle} saving={savingId === broker.id} total={queue.length} />)}{!queue.length ? <Empty text="Nenhum corretor participa da roleta." /> : null}</div>
     </div>
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
