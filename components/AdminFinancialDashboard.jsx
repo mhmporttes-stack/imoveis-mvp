@@ -260,7 +260,6 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
           commissionInputMode: draftSale.commissionInputMode,
           financialStatus: draftSale.financialStatus,
           manualStatus: draftSale.manualStatus,
-          invoiceIssued: draftSale.invoiceIssued,
           notes: draftSale.notes,
           expenses: draftSale.expenses,
           payments: draftSale.payments
@@ -516,11 +515,6 @@ function SaleEditor({
           Recebido: <strong className="text-navy"> {formatCurrency(draftTotals.receivedTotal)}</strong> ·
           A receber: <strong className="text-navy"> {formatCurrency(draftTotals.receivableTotal)}</strong>
         </p>
-        {draftSale.invoiceIssued ? (
-          <p className="mt-1 text-sm font-bold text-amber-700">
-            Emissão de notas: desconto de {formatCurrency(draftTotals.invoiceDeduction)} (15%)
-          </p>
-        ) : null}
       </div>
 
       <div className="space-y-6 p-5 md:p-6">
@@ -532,16 +526,6 @@ function SaleEditor({
           <MoneyField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} />
           <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" />
           <MoneyField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} />
-          <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
-            <input
-              type="checkbox"
-              checked={Boolean(draftSale.invoiceIssued)}
-              onChange={(event) => onFieldChange("invoiceIssued", event.target.checked)}
-              className="h-5 w-5 accent-brand"
-            />
-            Emissão de notas
-            <span className="ml-auto text-xs font-bold text-muted">Abate 15% da comissão</span>
-          </label>
         </div>
 
         <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
@@ -797,16 +781,14 @@ function calculateDashboardMetrics(sales) {
 function calculateSaleTotals(sale = {}) {
   const saleValue = normalizeMoneyValue(sale.saleValue);
   const grossCommission = normalizeMoneyValue(sale.grossCommission);
-  const invoiceDeduction = sale.invoiceIssued ? roundMoney(grossCommission * 0.15) : 0;
   const expenseTotal = ensureArray(sale.expenses).reduce((sum, expense) => sum + normalizeMoneyValue(expense.amount), 0);
   const receivedTotal = ensureArray(sale.payments)
     .filter((payment) => payment.status === "received")
     .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0);
-  const freeCommission = Math.max(0, grossCommission - invoiceDeduction - expenseTotal);
+  const freeCommission = Math.max(0, grossCommission - expenseTotal);
   return {
     saleValue,
     grossCommission,
-    invoiceDeduction,
     expenseTotal,
     freeCommission,
     receivedTotal,
