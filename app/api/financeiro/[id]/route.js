@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requirePrimaryAdminApi } from "@/lib/admin-auth";
+import { requirePerformanceApi } from "@/lib/admin-auth";
 import {
   canManageFinancial,
   deleteFinancialSale,
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request, { params }) {
-  const auth = await requirePrimaryAdminApi(request);
+  const auth = await requirePerformanceApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const sale = await getFinancialSale((await params).id);
+    const sale = await getFinancialSale((await params).id, auth);
     if (!sale) {
       return NextResponse.json({ error: "Venda financeira nao encontrada." }, { status: 404 });
     }
@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const auth = await requirePrimaryAdminApi(request);
+  const auth = await requirePerformanceApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
 
   try {
     const body = await request.json();
-    const sale = await updateFinancialSale((await params).id, body, auth.user?.email);
+    const sale = await updateFinancialSale((await params).id, body, auth.user?.email, auth);
     return NextResponse.json(sale);
   } catch (error) {
     return NextResponse.json({ error: formatFinancialError(error) }, { status: 400 });
@@ -52,7 +52,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const auth = await requirePrimaryAdminApi(request);
+  const auth = await requirePerformanceApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -62,7 +62,7 @@ export async function DELETE(request, { params }) {
   }
 
   try {
-    await deleteFinancialSale((await params).id);
+    await deleteFinancialSale((await params).id, auth);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: formatFinancialError(error) }, { status: 400 });

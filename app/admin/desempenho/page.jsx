@@ -1,16 +1,16 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
-import { listAdminProfiles } from "@/lib/admin-profiles";
+import { requirePerformancePage } from "@/lib/admin-auth";
+import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
 import { calculateCrmMetrics } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
 
 export const dynamic = "force-dynamic";
 
 export default async function PerformancePage() {
-  const auth = await requireGeneralAdminPage("/admin/simulacoes");
+  const auth = await requirePerformancePage();
   const [profiles, registrations] = await Promise.all([
-    listAdminProfiles(),
+    isGeneralAdminAuth(auth) ? listAdminProfiles() : Promise.resolve([auth.profile]),
     listSimulationRegistrations({ auth })
   ]);
 

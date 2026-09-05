@@ -3,7 +3,7 @@ import DailyReportDashboard from "@/components/DailyReportDashboard";
 import Footer from "@/components/Footer";
 import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
 import { canLoadDailyReport, formatDailyReportError, getDailyReport } from "@/lib/daily-report";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requirePerformancePage } from "@/lib/admin-auth";
 
 export const metadata = {
   title: "Relatório diário | Matheus Machado"
@@ -12,7 +12,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DailyReportPage() {
-  const auth = await requireAdminPage();
+  const auth = await requirePerformancePage();
 
   let report = null;
   let error = "";
