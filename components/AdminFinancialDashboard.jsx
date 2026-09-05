@@ -150,22 +150,22 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
       if (field === "commissionPercentage") {
         const percentage = normalizeMoneyValue(value);
         next.commissionInputMode = "percentage";
-        next.grossCommission = saleValue > 0 ? roundMoney((saleValue * percentage) / 100) : "";
+        next.grossCommission = saleValue > 0 ? formatCurrencyInput(roundMoney((saleValue * percentage) / 100)) : "";
       }
 
       if (field === "grossCommission") {
         const amount = normalizeMoneyValue(value);
         next.commissionInputMode = "amount";
-        next.commissionPercentage = saleValue > 0 ? roundMoney((amount / saleValue) * 100, 4) : "";
+        next.commissionPercentage = saleValue > 0 ? formatPercentInput(roundMoney((amount / saleValue) * 100, 4)) : "";
       }
 
       if (field === "saleValue") {
         if (next.commissionInputMode === "percentage") {
           const percentage = normalizeMoneyValue(next.commissionPercentage);
-          next.grossCommission = saleValue > 0 ? roundMoney((saleValue * percentage) / 100) : "";
+          next.grossCommission = saleValue > 0 ? formatCurrencyInput(roundMoney((saleValue * percentage) / 100)) : "";
         } else {
           const amount = normalizeMoneyValue(next.grossCommission);
-          next.commissionPercentage = saleValue > 0 ? roundMoney((amount / saleValue) * 100, 4) : "";
+          next.commissionPercentage = saleValue > 0 ? formatPercentInput(roundMoney((amount / saleValue) * 100, 4)) : "";
         }
       }
 
@@ -260,6 +260,7 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
           commissionInputMode: draftSale.commissionInputMode,
           financialStatus: draftSale.financialStatus,
           manualStatus: draftSale.manualStatus,
+          invoiceIssued: draftSale.invoiceIssued,
           notes: draftSale.notes,
           expenses: draftSale.expenses,
           payments: draftSale.payments
@@ -515,6 +516,9 @@ function SaleEditor({
           Recebido: <strong className="text-navy"> {formatCurrency(draftTotals.receivedTotal)}</strong> ·
           A receber: <strong className="text-navy"> {formatCurrency(draftTotals.receivableTotal)}</strong>
         </p>
+        {draftSale.invoiceIssued ? (
+          <p className="mt-1 text-sm font-bold text-amber-700">Nota fiscal: desconto de {formatCurrency(draftTotals.invoiceDeduction)} (15%)</p>
+        ) : null}
       </div>
 
       <div className="space-y-6 p-5 md:p-6">
@@ -523,9 +527,19 @@ function SaleEditor({
           <TextField label="Corretor responsável" value={draftSale.brokerName} onChange={(value) => onFieldChange("brokerName", value)} />
           <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
           <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
-          <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" />
-          <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" />
-          <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" />
+          <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
+          <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
+          <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
+          <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
+            <input
+              type="checkbox"
+              checked={Boolean(draftSale.invoiceIssued)}
+              onChange={(event) => onFieldChange("invoiceIssued", event.target.checked)}
+              className="h-5 w-5 accent-brand"
+            />
+            Gerar nota
+            <span className="ml-auto text-xs font-bold text-muted">Abater 15%</span>
+          </label>
         </div>
 
         <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
@@ -641,7 +655,7 @@ function SmallMetric({ title, value }) {
   );
 }
 
-function TextField({ label, value, onChange, type = "text", placeholder = "", inputMode }) {
+function TextField({ label, value, onChange, type = "text", placeholder = "", inputMode, formatOnBlur }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-black text-navy">{label}</span>
@@ -650,7 +664,9 @@ function TextField({ label, value, onChange, type = "text", placeholder = "", in
         value={value ?? ""}
         placeholder={placeholder}
         inputMode={inputMode}
+        onFocus={formatOnBlur ? (event) => event.target.select() : undefined}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={formatOnBlur ? (event) => onChange(formatOnBlur(event.target.value)) : undefined}
         className="admin-input min-h-12 rounded-2xl"
       />
     </label>
@@ -743,14 +759,16 @@ function calculateDashboardMetrics(sales) {
 function calculateSaleTotals(sale = {}) {
   const saleValue = normalizeMoneyValue(sale.saleValue);
   const grossCommission = normalizeMoneyValue(sale.grossCommission);
+  const invoiceDeduction = sale.invoiceIssued ? roundMoney(grossCommission * 0.15) : 0;
   const expenseTotal = ensureArray(sale.expenses).reduce((sum, expense) => sum + normalizeMoneyValue(expense.amount), 0);
   const receivedTotal = ensureArray(sale.payments)
     .filter((payment) => payment.status === "received")
     .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0);
-  const freeCommission = Math.max(0, grossCommission - expenseTotal);
+  const freeCommission = Math.max(0, grossCommission - invoiceDeduction - expenseTotal);
   return {
     saleValue,
     grossCommission,
+    invoiceDeduction,
     expenseTotal,
     freeCommission,
     receivedTotal,
@@ -800,9 +818,9 @@ function createDraftSale(sale) {
   if (!sale) return null;
   return {
     ...sale,
-    saleValue: valueToInput(sale.saleValue),
-    commissionPercentage: valueToInput(sale.commissionPercentage),
-    grossCommission: valueToInput(sale.grossCommission),
+    saleValue: formatCurrencyInput(sale.saleValue),
+    commissionPercentage: formatPercentInput(sale.commissionPercentage),
+    grossCommission: formatCurrencyInput(sale.grossCommission),
     expenses: ensureArray(sale.expenses).map((expense, index) => ({
       ...expense,
       localId: expense.id || `expense-${sale.id}-${index}`,
@@ -910,6 +928,14 @@ function normalizeMoneyValue(value) {
 
 function formatCurrency(value) {
   return MONEY_FORMATTER.format(normalizeMoneyValue(value));
+}
+
+function formatCurrencyInput(value) {
+  return formatCurrency(value);
+}
+
+function formatPercentInput(value) {
+  return `${formatPercent(normalizeMoneyValue(value))}%`;
 }
 
 function formatDate(value) {
