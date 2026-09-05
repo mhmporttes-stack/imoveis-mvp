@@ -83,7 +83,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [] }) {
+export default function AdminFinancialDashboard({ initialSales = [], canEdit = false }) {
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [period, setPeriod] = useState("month");
@@ -348,7 +348,7 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
       <div className="flex flex-wrap gap-2">
         {[
           { key: "dashboard", label: "DASHBOARD", icon: BarChart3 },
-          { key: "vendas", label: "VENDAS", icon: ReceiptText },
+          ...(canEdit ? [{ key: "vendas", label: "VENDAS", icon: ReceiptText }] : []),
           { key: "recebimentos", label: "RECEBIMENTOS", icon: WalletCards }
         ].map((tab) => {
           const Icon = tab.icon;
@@ -378,7 +378,7 @@ export default function AdminFinancialDashboard({ initialSales = [] }) {
         <DashboardTab metrics={metrics} salesCount={filteredSales.length} />
       )}
 
-      {activeTab === "vendas" && (
+      {canEdit && activeTab === "vendas" && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
           <SalesList sales={filteredSales} selectedSaleId={selectedSaleId} onSelect={selectSale} />
           <SaleEditor
