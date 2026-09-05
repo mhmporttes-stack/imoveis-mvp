@@ -10,6 +10,10 @@ const EMPTY_FORM = {
   password: "",
   role: "broker",
   linkedBrokerId: "",
+  managerId: "",
+  brokerCommissionPercentage: 50,
+  agencyCommissionPercentage: 50,
+  defaultManagerPercentage: 10,
   leadDistributionEnabled: false,
   status: "active"
 };
@@ -29,11 +33,12 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
   const [editForm, setEditForm] = useState(null);
 
   const sortedUsers = useMemo(() => [...users].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")), [users]);
-  const brokers = useMemo(() => sortedUsers.filter((user) => ["admin", "broker"].includes(user.role) && user.status === "active"), [sortedUsers]);
+  const brokers = useMemo(() => sortedUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [sortedUsers]);
+  const managers = useMemo(() => sortedUsers.filter((user) => ["admin", "manager"].includes(user.role) && user.status === "active"), [sortedUsers]);
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -118,7 +123,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
           <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
           <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
           <Field label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
-          <RoleField value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "" }))} />
+          <RoleField value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
           <label className="grid gap-2 text-sm font-black text-navy">
             Status
             <select
@@ -131,6 +136,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
             </select>
           </label>
           {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+          {["admin", "manager", "broker"].includes(form.role) ? <FinancialRuleFields form={form} managers={managers} onChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))} /> : null}
           <DistributionField checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
         </div>
 
@@ -150,9 +156,10 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   <Field label="E-mail" type="email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} />
                   <Field label="WhatsApp" value={editForm.phone} onChange={(value) => setEditForm((current) => ({ ...current, phone: value }))} />
                   <Field label="Nova senha (opcional)" type="password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} />
-                  <RoleField value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "" }))} />
+                  <RoleField value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
                   {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+                  {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
                   <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
@@ -172,6 +179,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
                   {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
                   {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Responsável vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
+                  {["admin", "manager", "broker"].includes(user.role) ? <p className="mt-1 text-sm font-bold text-muted">Divisão padrão: <strong className="text-navy">{user.brokerCommissionPercentage ?? 50}% corretor / {user.agencyCommissionPercentage ?? 50}% imobiliária</strong>{user.managerId ? ` · Gestor ${user.defaultManagerPercentage ?? 10}%` : ""}</p> : null}
                   <p className="mt-3 text-sm font-bold text-muted">
                     Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
                   </p>
@@ -217,6 +225,15 @@ function StatusField({ value, onChange }) {
 
 function DistributionField({ checked, onChange }) {
   return <label className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy"><input className="h-5 w-5 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />Participa da distribuição de leads</label>;
+}
+
+function FinancialRuleFields({ form, managers, onChange }) {
+  return <>
+    <Field label="% Corretor" type="number" value={form.brokerCommissionPercentage} onChange={(value) => onChange("brokerCommissionPercentage", value)} />
+    <Field label="% Imobiliária" type="number" value={form.agencyCommissionPercentage} onChange={(value) => onChange("agencyCommissionPercentage", value)} />
+    <label className="grid gap-2 text-sm font-black text-navy">Gestor padrão<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold" value={form.managerId || ""} onChange={(event) => onChange("managerId", event.target.value)}><option value="">Sem gestor padrão</option>{managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}</select></label>
+    <Field label="% Gestor padrão" type="number" value={form.defaultManagerPercentage} onChange={(value) => onChange("defaultManagerPercentage", value)} />
+  </>;
 }
 
 function roleLabel(role) { return role === "admin" ? "Administrador geral" : role === "manager" ? "Gestor" : role === "associate" ? "Associado" : "Corretor"; }

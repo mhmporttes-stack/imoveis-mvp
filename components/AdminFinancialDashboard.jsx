@@ -15,6 +15,7 @@ import {
   Trash2,
   WalletCards
 } from "lucide-react";
+import { calculateCommissionDistribution } from "@/lib/financial-calculations";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -83,7 +84,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [], canEdit = false }) {
+export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false }) {
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [period, setPeriod] = useState("month");
@@ -98,6 +99,9 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [resultView, setResultView] = useState("separated");
+  const brokers = useMemo(() => financialUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [financialUsers]);
+  const managers = useMemo(() => financialUsers.filter((user) => ["admin", "manager"].includes(user.role) && user.status === "active"), [financialUsers]);
 
   const selectedSale = useMemo(
     () => sales.find((sale) => sale.id === selectedSaleId) || null,
@@ -145,6 +149,26 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
 
       if (field === "financialStatus") {
         next.manualStatus = true;
+      }
+
+      if (field === "brokerId") {
+        const broker = brokers.find((user) => user.id === value);
+        if (broker) {
+          next.brokerName = broker.name;
+          next.brokerEmail = broker.email;
+          next.brokerSharePercentage = formatPercentInput(broker.brokerCommissionPercentage ?? 50);
+          next.agencySharePercentage = formatPercentInput(broker.agencyCommissionPercentage ?? 50);
+          next.managerId = broker.managerId || "";
+          next.managerPercentage = formatPercentInput(broker.defaultManagerPercentage ?? 10);
+        }
+      }
+
+      if (field === "hasManagerCommission" && value) {
+        const broker = brokers.find((user) => user.id === next.brokerId);
+        next.managerId = next.managerId || broker?.managerId || "";
+        if (!normalizeMoneyValue(next.managerPercentage)) {
+          next.managerPercentage = formatPercentInput(broker?.defaultManagerPercentage ?? 10);
+        }
       }
 
       if (field === "commissionPercentage") {
@@ -261,6 +285,12 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
           financialStatus: draftSale.financialStatus,
           manualStatus: draftSale.manualStatus,
           invoiceIssued: draftSale.invoiceIssued,
+          brokerId: draftSale.brokerId,
+          hasManagerCommission: draftSale.hasManagerCommission,
+          managerId: draftSale.managerId,
+          managerPercentage: draftSale.managerPercentage,
+          brokerSharePercentage: draftSale.brokerSharePercentage,
+          agencySharePercentage: draftSale.agencySharePercentage,
           notes: draftSale.notes,
           expenses: draftSale.expenses,
           payments: draftSale.payments
@@ -375,7 +405,7 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
       {error && <Feedback tone="error">{error}</Feedback>}
 
       {activeTab === "dashboard" && (
-        <DashboardTab metrics={metrics} salesCount={filteredSales.length} />
+        <DashboardTab metrics={metrics} salesCount={filteredSales.length} resultView={resultView} onResultViewChange={setResultView} currentUser={currentUser} />
       )}
 
       {canEdit && activeTab === "vendas" && (
@@ -395,6 +425,8 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
             onPaymentChange={updatePayment}
             onPaymentAdd={addPayment}
             onPaymentRemove={removePayment}
+            brokers={brokers}
+            managers={managers}
           />
         </div>
       )}
@@ -406,12 +438,22 @@ export default function AdminFinancialDashboard({ initialSales = [], canEdit = f
   );
 }
 
-function DashboardTab({ metrics, salesCount }) {
+function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, currentUser }) {
+  const ownBroker = metrics.byBrokerId?.[currentUser?.id] || 0;
+  const ownManager = metrics.byManagerId?.[currentUser?.id] || 0;
+  const consolidated = metrics.agencyCommission + ownBroker + ownManager;
   const cards = [
     { title: "VGV total", value: formatCurrency(metrics.saleValue), icon: DollarSign },
     { title: "Comissão bruta", value: formatCurrency(metrics.grossCommission), icon: ReceiptText },
     { title: "Despesas e repasses", value: formatCurrency(metrics.expenseTotal), icon: Trash2 },
     { title: "Comissão livre", value: formatCurrency(metrics.freeCommission), icon: CheckCircle2 },
+    { title: "Receita da imobiliária", value: formatCurrency(metrics.agencyCommission), icon: DollarSign },
+    { title: "Comissão de corretores", value: formatCurrency(metrics.brokerCommission), icon: ReceiptText },
+    { title: "Comissão de gestores", value: formatCurrency(metrics.managerCommission), icon: WalletCards },
+    ...(resultView === "separated" ? [
+      { title: "Minha produção como corretor", value: formatCurrency(ownBroker), icon: ReceiptText },
+      { title: "Meu resultado como gestor", value: formatCurrency(ownManager), icon: WalletCards }
+    ] : [{ title: "Resultado consolidado", value: formatCurrency(consolidated), icon: BarChart3 }]),
     { title: "Comissão recebida", value: formatCurrency(metrics.receivedTotal), icon: WalletCards },
     { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal), icon: Clock3 },
     { title: "Total de vendas", value: String(salesCount), icon: BarChart3 },
@@ -419,7 +461,11 @@ function DashboardTab({ metrics, salesCount }) {
     { title: "Margem líquida", value: `${formatPercent(metrics.marginPercentage)}%`, icon: BarChart3 }
   ];
 
-  return (
+  return (<>
+    <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
+      <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "separated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("separated")}>Separado por função</button>
+      <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "consolidated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("consolidated")}>Consolidado</button>
+    </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => {
         const Icon = card.icon;
@@ -438,7 +484,7 @@ function DashboardTab({ metrics, salesCount }) {
         );
       })}
     </div>
-  );
+  </>);
 }
 
 function SalesList({ sales, selectedSaleId, onSelect }) {
@@ -496,7 +542,9 @@ function SaleEditor({
   onExpenseRemove,
   onPaymentChange,
   onPaymentAdd,
-  onPaymentRemove
+  onPaymentRemove,
+  brokers,
+  managers
 }) {
   if (!sale?.id || !draftSale?.id) {
     return (
@@ -524,7 +572,7 @@ function SaleEditor({
       <div className="space-y-6 p-5 md:p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Imóvel / empreendimento" value={draftSale.propertyName} onChange={(value) => onFieldChange("propertyName", value)} />
-          <TextField label="Corretor responsável" value={draftSale.brokerName} onChange={(value) => onFieldChange("brokerName", value)} />
+          <SelectField label="Corretor responsável" value={draftSale.brokerId} onChange={(value) => onFieldChange("brokerId", value)} options={[{ value: "", label: "Selecione o corretor" }, ...brokers.map((user) => ({ value: user.id, label: user.name }))]} />
           <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
           <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
           <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
@@ -540,6 +588,23 @@ function SaleEditor({
             Gerar nota
             <span className="ml-auto text-xs font-bold text-muted">Abater 15%</span>
           </label>
+          <TextField label="% Corretor" value={draftSale.brokerSharePercentage} onChange={(value) => onFieldChange("brokerSharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+          <TextField label="% Imobiliária" value={draftSale.agencySharePercentage} onChange={(value) => onFieldChange("agencySharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+          <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
+            <input type="checkbox" checked={Boolean(draftSale.hasManagerCommission)} onChange={(event) => onFieldChange("hasManagerCommission", event.target.checked)} className="h-5 w-5 accent-brand" />
+            Possui comissão de gestor
+          </label>
+          {draftSale.hasManagerCommission ? <>
+            <SelectField label="Gestor" value={draftSale.managerId} onChange={(value) => onFieldChange("managerId", value)} options={[{ value: "", label: "Selecione o gestor" }, ...managers.map((user) => ({ value: user.id, label: user.name }))]} />
+            <TextField label="% Gestor" value={draftSale.managerPercentage} onChange={(value) => onFieldChange("managerPercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+          </> : null}
+        </div>
+
+        <div className="grid gap-3 rounded-2xl border border-line bg-mist/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SmallMetric title="Gestor" value={formatCurrency(draftTotals.managerCommission)} />
+          <SmallMetric title="Base após gestor" value={formatCurrency(draftTotals.distributionBase)} />
+          <SmallMetric title="Corretor" value={formatCurrency(draftTotals.brokerCommission)} />
+          <SmallMetric title="Imobiliária" value={formatCurrency(draftTotals.agencyCommission)} />
         </div>
 
         <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
@@ -737,6 +802,11 @@ function calculateDashboardMetrics(sales) {
     acc.grossCommission += saleTotals.grossCommission;
     acc.expenseTotal += saleTotals.expenseTotal;
     acc.freeCommission += saleTotals.freeCommission;
+    acc.agencyCommission += saleTotals.agencyCommission;
+    acc.brokerCommission += saleTotals.brokerCommission;
+    acc.managerCommission += saleTotals.managerCommission;
+    if (sale.brokerId) acc.byBrokerId[sale.brokerId] = (acc.byBrokerId[sale.brokerId] || 0) + saleTotals.brokerCommission;
+    if (sale.managerId) acc.byManagerId[sale.managerId] = (acc.byManagerId[sale.managerId] || 0) + saleTotals.managerCommission;
     acc.receivedTotal += saleTotals.receivedTotal;
     acc.receivableTotal += saleTotals.receivableTotal;
     return acc;
@@ -745,6 +815,11 @@ function calculateDashboardMetrics(sales) {
     grossCommission: 0,
     expenseTotal: 0,
     freeCommission: 0,
+    agencyCommission: 0,
+    brokerCommission: 0,
+    managerCommission: 0,
+    byBrokerId: {},
+    byManagerId: {},
     receivedTotal: 0,
     receivableTotal: 0
   });
@@ -765,12 +840,25 @@ function calculateSaleTotals(sale = {}) {
     .filter((payment) => payment.status === "received")
     .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0);
   const freeCommission = Math.max(0, grossCommission - invoiceDeduction - expenseTotal);
+  let distribution;
+  try {
+    distribution = calculateCommissionDistribution({
+      freeCommission,
+      hasManagerCommission: sale.hasManagerCommission,
+      managerPercentage: sale.managerPercentage,
+      brokerPercentage: sale.brokerSharePercentage ?? 50,
+      agencyPercentage: sale.agencySharePercentage ?? 50
+    });
+  } catch {
+    distribution = { managerCommission: 0, distributionBase: freeCommission, brokerCommission: 0, agencyCommission: 0 };
+  }
   return {
     saleValue,
     grossCommission,
     invoiceDeduction,
     expenseTotal,
     freeCommission,
+    ...distribution,
     receivedTotal,
     receivableTotal: Math.max(0, freeCommission - receivedTotal)
   };
@@ -821,6 +909,9 @@ function createDraftSale(sale) {
     saleValue: formatCurrencyInput(sale.saleValue),
     commissionPercentage: formatPercentInput(sale.commissionPercentage),
     grossCommission: formatCurrencyInput(sale.grossCommission),
+    managerPercentage: formatPercentInput(sale.managerPercentage || 0),
+    brokerSharePercentage: formatPercentInput(sale.brokerSharePercentage ?? 50),
+    agencySharePercentage: formatPercentInput(sale.agencySharePercentage ?? 50),
     expenses: ensureArray(sale.expenses).map((expense, index) => ({
       ...expense,
       localId: expense.id || `expense-${sale.id}-${index}`,

@@ -4,7 +4,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requirePerformancePage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, listFinancialSales } from "@/lib/financial";
-import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,10 @@ export default async function AdminFinancialPage() {
   }
 
   let sales = [];
+  let financialUsers = [];
 
   try {
-    sales = await listFinancialSales(auth);
+    [sales, financialUsers] = await Promise.all([listFinancialSales(auth), listAdminProfiles()]);
   } catch (error) {
     return <FinancialError error={formatFinancialError(error)} />;
   }
@@ -37,7 +38,7 @@ export default async function AdminFinancialPage() {
       </section>
 
       <AdminSectionNav active="financial" />
-      <AdminFinancialDashboard initialSales={sales} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
+      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
     </main>
   );
 }
