@@ -1179,7 +1179,10 @@ function ClientStatusSelector({ busy, client, onChange }) {
         aria-label={`Alterar status de ${client.name}`}
         className={`inline-flex min-h-7 items-center gap-1.5 rounded-full border-0 px-3 py-1 text-[11px] font-black outline-none transition focus:ring-4 focus:ring-brand/15 disabled:opacity-60 ${currentMeta.badgeClass}`}
         disabled={busy}
-        onClick={() => { setOpen((value) => !value); setLevel("main"); }}
+        onClick={() => {
+          setOpen((value) => !value);
+          setLevel(SALE_STATUS_VALUES.has(currentStatus) ? "sale" : "main");
+        }}
         type="button"
       >
         {currentMeta.label}
@@ -1190,7 +1193,7 @@ function ClientStatusSelector({ busy, client, onChange }) {
           {level === "sale" ? (
             <>
               <button className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-black text-brand hover:bg-mist" onClick={() => setLevel("main")} role="menuitem" type="button">
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Voltar
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Retroceder
               </button>
               <div className="my-1 border-t border-line" />
               {SALE_STATUS_OPTIONS.map((option) => <StatusMenuItem current={currentStatus} key={option.value} onClick={() => choose(option.value)} option={option} />)}
