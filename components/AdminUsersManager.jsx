@@ -204,7 +204,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
 }
 
 function RoleField({ value, onChange }) {
-  return <label className="grid gap-2 text-sm font-black text-navy">Categoria<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="admin">Administrador geral</option></select></label>;
+  return <label className="grid gap-2 text-sm font-black text-navy">Categoria<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="manager">Gestor</option><option value="admin">Administrador geral</option></select></label>;
 }
 
 function BrokerField({ brokers, value, onChange }) {
@@ -219,7 +219,7 @@ function DistributionField({ checked, onChange }) {
   return <label className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy"><input className="h-5 w-5 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />Participa da distribuição de leads</label>;
 }
 
-function roleLabel(role) { return role === "admin" ? "Administrador geral" : role === "associate" ? "Associado" : "Corretor"; }
+function roleLabel(role) { return role === "admin" ? "Administrador geral" : role === "manager" ? "Gestor" : role === "associate" ? "Associado" : "Corretor"; }
 
 function Field({ label, value, onChange, type = "text" }) {
   return (

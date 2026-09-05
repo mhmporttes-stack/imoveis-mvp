@@ -4,7 +4,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requirePerformancePage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, listFinancialSales } from "@/lib/financial";
-import { isGeneralAdminAuth } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ export default async function AdminFinancialPage() {
       </section>
 
       <AdminSectionNav active="financial" />
-      <AdminFinancialDashboard initialSales={sales} canEdit={isGeneralAdminAuth(auth)} />
+      <AdminFinancialDashboard initialSales={sales} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
     </main>
   );
 }

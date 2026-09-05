@@ -7,7 +7,8 @@ import {
   buildBrokerSimulationLink,
   isGeneralAdminProfile,
   isBrokerProfile,
-  isAssociateProfile
+  isAssociateProfile,
+  isManagerProfile
 } from "@/lib/admin-profiles";
 import { calculateCrmMetrics, countUnreadCrmNotifications } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
@@ -18,6 +19,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
   const isAdmin = isGeneralAdminProfile(profile);
   const isBroker = isBrokerProfile(profile);
   const isAssociate = isAssociateProfile(profile);
+  const isManager = isManagerProfile(profile);
   let brokerSummary = null;
   let unreadNotifications = 0;
 
@@ -36,7 +38,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
 
   return (
     <div className="container-page mb-8 space-y-3">
-      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} />
+      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
       {isBroker && !isAdmin ? (
         <div className="space-y-3">

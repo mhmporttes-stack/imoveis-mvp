@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi, requirePerformanceApi } from "@/lib/admin-auth";
+import { requireFinancialManagerApi, requirePerformanceApi } from "@/lib/admin-auth";
 import {
   canManageFinancial,
   deleteFinancialSale,
@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const auth = await requireGeneralAdminApi(request, "Apenas gerente ou administrador pode alterar o financeiro.");
+  const auth = await requireFinancialManagerApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -52,7 +52,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const auth = await requireGeneralAdminApi(request, "Apenas gerente ou administrador pode excluir dados financeiros.");
+  const auth = await requireFinancialManagerApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
