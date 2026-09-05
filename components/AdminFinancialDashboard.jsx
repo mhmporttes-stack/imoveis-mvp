@@ -523,9 +523,9 @@ function SaleEditor({
           <TextField label="Corretor responsável" value={draftSale.brokerName} onChange={(value) => onFieldChange("brokerName", value)} />
           <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
           <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
-          <MoneyField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} />
+          <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" />
           <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" />
-          <MoneyField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} />
+          <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" />
         </div>
 
         <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
@@ -651,44 +651,6 @@ function TextField({ label, value, onChange, type = "text", placeholder = "", in
         placeholder={placeholder}
         inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
-        className="admin-input min-h-12 rounded-2xl"
-      />
-    </label>
-  );
-}
-
-function MoneyField({ label, value, onChange }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  useEffect(() => {
-    if (!editing) setDraft(formatMoneyInput(value));
-  }, [editing, value]);
-
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-navy">{label}</span>
-      <input
-        type="text"
-        value={editing ? draft : formatMoneyInput(value)}
-        placeholder="0,00"
-        inputMode="numeric"
-        pattern="[0-9.,]*"
-        onFocus={(event) => {
-          const editableValue = moneyValueToEditable(value);
-          setEditing(true);
-          setDraft(editableValue);
-          requestAnimationFrame(() => event.target.select());
-        }}
-        onChange={(event) => {
-          const numericValue = event.target.value.replace(/\D/g, "");
-          setDraft(numericValue);
-          onChange(numericValue);
-        }}
-        onBlur={() => {
-          setEditing(false);
-          onChange(formatMoneyInput(draft));
-        }}
         className="admin-input min-h-12 rounded-2xl"
       />
     </label>
@@ -948,21 +910,6 @@ function normalizeMoneyValue(value) {
 
 function formatCurrency(value) {
   return MONEY_FORMATTER.format(normalizeMoneyValue(value));
-}
-
-function formatMoneyInput(value) {
-  const text = String(value ?? "").trim();
-  if (!text) return "";
-  const number = normalizeMoneyValue(text);
-  return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(number);
-}
-
-function moneyValueToEditable(value) {
-  const number = normalizeMoneyValue(value);
-  return number ? String(Math.round(number)) : "";
 }
 
 function formatDate(value) {
