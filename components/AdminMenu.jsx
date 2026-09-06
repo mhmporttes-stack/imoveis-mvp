@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const buttonBase =
-  "inline-flex min-h-11 min-w-[130px] flex-1 items-center justify-center rounded-full px-5 text-sm font-extrabold transition duration-300";
+  "inline-flex min-h-10 min-w-[130px] flex-1 items-center justify-center rounded-full px-5 text-sm font-extrabold transition duration-300";
 
 function buttonClass(isActive) {
   return `${buttonBase} ${
@@ -153,12 +153,12 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      {active !== "automations" ? <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/10 bg-white p-0.5" aria-label="Opções da categoria administrativa">
+      {active !== "automations" ? <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={item.key}
             href={item.href}
-            className={`min-w-[110px] flex-1 rounded-xl px-4 py-1.5 text-center text-[13px] font-extrabold transition duration-200 ${
+            className={`min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
               isActiveItem(item, active)
                 ? "bg-navy text-white shadow-soft"
                 : "text-navy hover:bg-brand/10 hover:text-brand"
