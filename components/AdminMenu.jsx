@@ -58,16 +58,10 @@ const adminGroups = [
 
 const brokerGroups = [
   {
-    key: "clientes",
-    label: "CLIENTES",
+    key: "crm",
+    label: "CRM",
     href: "/admin/simulacoes",
     items: [...clientItems, { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
-  },
-  {
-    key: "agenda",
-    label: "AGENDA",
-    href: "/admin/calendario",
-    items: [clientItems[1]]
   },
   {
     key: "cadastros",
@@ -78,23 +72,22 @@ const brokerGroups = [
     ]
   },
   {
-    key: "desempenho",
-    label: "DESEMPENHO",
+    key: "gestao",
+    label: "GESTÃO",
     href: "/admin/relatorio-diario",
     items: [
-      { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
-      { href: "/admin/financeiro", label: "Financeiro", key: "financial" }
+      { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
     ]
   }
 ];
 
 const managerGroups = [
   {
-    key: "desempenho",
-    label: "DESEMPENHO",
+    key: "gestao",
+    label: "GESTÃO",
     href: "/admin/financeiro",
     items: [
-      { href: "/admin/financeiro", label: "Financeiro", key: "financial" }
+      { href: "/admin/financeiro", label: "Desempenho", key: "financial" }
     ]
   }
 ];
@@ -104,7 +97,7 @@ function getGroupKeyForActive(active, groups = adminGroups) {
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
-  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? brokerGroups.slice(0, 3) : brokerGroups) : adminGroups;
+  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? brokerGroups.filter((group) => group.key !== "gestao") : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
