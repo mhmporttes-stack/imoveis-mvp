@@ -119,22 +119,22 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
         </div>
 
         <div className="mt-5 divide-y divide-line">
-          <FormGroup title="Dados do usuário">
-            <Field className="lg:col-span-4" label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
-            <Field className="lg:col-span-4" label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
-            <Field className="lg:col-span-2" label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
-            <Field className="lg:col-span-2" label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
+          <FormGroup layout="user" title="Dados do usuário">
+            <Field label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
+            <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
+            <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
+            <Field label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
           </FormGroup>
 
-          <FormGroup title="Perfil e acesso">
-            <RoleField className="lg:col-span-3" value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
-            <StatusField className="lg:col-span-2" value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
-            <DistributionField className="lg:col-span-4 lg:self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
-            {form.role === "associate" ? <BrokerField className="lg:col-span-3" brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
+          <FormGroup layout="profile" title="Perfil e acesso">
+            <RoleField value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
+            <StatusField value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
+            <DistributionField className="self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
+            {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
           </FormGroup>
 
           {["admin", "manager", "broker"].includes(form.role) ? (
-            <FormGroup title="Comissão e gestão">
+            <FormGroup layout="financial" title="Comissão e gestão">
               <FinancialRuleFields compact form={form} managers={managers} onChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))} />
             </FormGroup>
           ) : null}
@@ -211,32 +211,38 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
   );
 }
 
-function FormGroup({ title, children }) {
-  return <fieldset className="py-4 first:pt-0 last:pb-0"><legend className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-muted">{title}</legend><div className="grid gap-3 md:grid-cols-2 lg:grid-cols-12">{children}</div></fieldset>;
+function FormGroup({ title, children, layout = "default" }) {
+  const layouts = {
+    user: "md:grid-cols-2 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,0.9fr)]",
+    profile: "md:grid-cols-2 lg:grid-cols-[minmax(0,270px)_minmax(0,180px)_minmax(0,max-content)_minmax(0,270px)]",
+    financial: "md:grid-cols-2 lg:grid-cols-[minmax(0,150px)_minmax(0,150px)_minmax(280px,340px)_minmax(0,150px)]",
+    default: "md:grid-cols-2"
+  };
+  return <fieldset className="min-w-0 py-4 first:pt-0 last:pb-0"><legend className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-muted">{title}</legend><div className={`grid min-w-0 gap-3 ${layouts[layout]}`}>{children}</div></fieldset>;
 }
 
 function RoleField({ value, onChange, className = "" }) {
-  return <label className={`grid gap-2 text-sm font-black text-navy ${className}`}>Categoria<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="manager">Gestor</option><option value="admin">Administrador geral</option></select></label>;
+  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Categoria<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="manager">Gestor</option><option value="admin">Administrador geral</option></select></label>;
 }
 
 function BrokerField({ brokers, value, onChange, className = "" }) {
-  return <label className={`grid gap-2 text-sm font-black text-navy ${className}`}>Responsável vinculado<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um responsável</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}{broker.role === "admin" ? " (Master)" : ""}</option>)}</select></label>;
+  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Responsável vinculado<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um responsável</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}{broker.role === "admin" ? " (Master)" : ""}</option>)}</select></label>;
 }
 
 function StatusField({ value, onChange, className = "" }) {
-  return <label className={`grid gap-2 text-sm font-black text-navy ${className}`}>Status<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
+  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Status<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
 }
 
 function DistributionField({ checked, onChange, className = "" }) {
-  return <label className={`flex min-h-11 items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy ${className}`}><input className="h-5 w-5 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />Participa da distribuição de leads</label>;
+  return <label className={`flex min-h-11 min-w-0 max-w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy lg:w-fit ${className}`}><input className="h-5 w-5 shrink-0 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><span>Participa da distribuição de leads</span></label>;
 }
 
 function FinancialRuleFields({ form, managers, onChange, compact = false }) {
   return <>
-    <Field className={compact ? "lg:col-span-2" : ""} label="% Corretor" type="number" value={form.brokerCommissionPercentage} onChange={(value) => onChange("brokerCommissionPercentage", value)} />
-    <Field className={compact ? "lg:col-span-2" : ""} label="% Imobiliária" type="number" value={form.agencyCommissionPercentage} onChange={(value) => onChange("agencyCommissionPercentage", value)} />
-    <label className={`grid gap-2 text-sm font-black text-navy ${compact ? "lg:col-span-5" : ""}`}>Gestor padrão<select className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold" value={form.managerId || ""} onChange={(event) => onChange("managerId", event.target.value)}><option value="">Sem gestor padrão</option>{managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}</select></label>
-    <Field className={compact ? "lg:col-span-2" : ""} label="% Gestor" type="number" value={form.defaultManagerPercentage} onChange={(value) => onChange("defaultManagerPercentage", value)} />
+    <Field label="% Corretor" type="number" value={form.brokerCommissionPercentage} onChange={(value) => onChange("brokerCommissionPercentage", value)} />
+    <Field label="% Imobiliária" type="number" value={form.agencyCommissionPercentage} onChange={(value) => onChange("agencyCommissionPercentage", value)} />
+    <label className="grid min-w-0 gap-2 text-sm font-black text-navy">Gestor padrão<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold" value={form.managerId || ""} onChange={(event) => onChange("managerId", event.target.value)}><option value="">Sem gestor padrão</option>{managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}</select></label>
+    <Field label="% Gestor" type="number" value={form.defaultManagerPercentage} onChange={(value) => onChange("defaultManagerPercentage", value)} />
   </>;
 }
 
@@ -244,13 +250,13 @@ function roleLabel(role) { return role === "admin" ? "Administrador geral" : rol
 
 function Field({ label, value, onChange, type = "text", className = "" }) {
   return (
-    <label className={`grid gap-2 text-sm font-black text-navy ${className}`}>
+    <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>
       {label}
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-14 rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+        className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
       />
     </label>
   );
