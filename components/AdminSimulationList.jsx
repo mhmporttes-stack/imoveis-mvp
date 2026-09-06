@@ -772,7 +772,7 @@ export default function AdminSimulationList({
 
           {statusGroup !== "all" ? (
             <div className="flex flex-wrap gap-2 lg:flex-nowrap">
-              {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup)?.statuses || []).map((status) => {
+              {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup)?.statuses || []).filter((status) => status !== CLIENT_STATUS.SIMULATION_SENT).map((status) => {
                 const active = statusFilter === status;
                 const meta = CLIENT_STATUS_META[status];
 
