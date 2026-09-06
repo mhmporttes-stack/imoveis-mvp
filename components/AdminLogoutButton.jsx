@@ -19,7 +19,7 @@ export default function AdminLogoutButton() {
 
   return (
     <button
-      className="premium-button-secondary"
+      className="admin-logout-button premium-button-secondary"
       disabled={loading}
       onClick={signOut}
       type="button"

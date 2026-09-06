@@ -30,9 +30,9 @@ export default async function AutomationsPage({ searchParams }) {
 }
 
 function AutomationSubmenu({ active }) {
-  return <nav className="container-page mb-5 grid grid-cols-2 rounded-2xl border border-line bg-white p-1 shadow-soft">
-    <Link className={`rounded-xl px-5 py-3 text-center text-sm font-black ${active === "rules" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes">Regras</Link>
-    <Link className={`rounded-xl px-5 py-3 text-center text-sm font-black ${active === "roulette" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=roulette">Roleta</Link>
+  return <nav className="container-page mb-4 grid grid-cols-2 rounded-xl border border-line bg-white p-0.5">
+    <Link className={`rounded-[10px] px-4 py-2 text-center text-[13px] font-black ${active === "rules" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes">Regras</Link>
+    <Link className={`rounded-[10px] px-4 py-2 text-center text-[13px] font-black ${active === "roulette" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=roulette">Roleta</Link>
   </nav>;
 }
 

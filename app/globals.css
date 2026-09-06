@@ -95,8 +95,43 @@ textarea {
 }
 
 main.bg-mist.py-14 {
-  padding-top: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: calc(2.5rem + env(safe-area-inset-top));
   padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+}
+
+main.bg-mist.py-14 > section.container-page.mb-8 {
+  position: relative;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+main.bg-mist.py-14 > section.container-page.mb-8 h1.text-5xl {
+  margin-top: 0.4rem;
+  font-size: 2.5rem;
+  line-height: 1.05;
+}
+
+main.bg-mist.py-14 > section.container-page.mb-8 p:first-child {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
+  margin-top: 0.65rem;
+  font-size: 0.95rem;
+  line-height: 1.5rem;
+}
+
+.admin-logout-button {
+  min-height: 2.5rem;
+  padding-inline: 1rem;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+
+.admin-logout-button svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 @media (max-width: 640px) {
@@ -110,13 +145,13 @@ main.bg-mist.py-14 {
   }
 
   main.bg-mist.py-14 {
-    padding-top: calc(4.75rem + env(safe-area-inset-top));
+    padding-top: calc(3.25rem + env(safe-area-inset-top));
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
-  main.bg-mist h1.text-5xl {
-    font-size: clamp(2.35rem, 11vw, 3.75rem);
-    line-height: 0.95;
+  main.bg-mist.py-14 > section.container-page.mb-8 h1.text-5xl {
+    font-size: 2.15rem;
+    line-height: 1;
   }
 }
 

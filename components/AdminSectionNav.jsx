@@ -37,7 +37,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
   }
 
   return (
-    <div className="container-page mb-8 space-y-3">
+    <div className="container-page mb-6 space-y-2">
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
       {isBroker && !isAdmin ? (
