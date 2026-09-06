@@ -25,38 +25,33 @@ const clientItems = [
 
 const adminGroups = [
   {
-    key: "clientes",
-    label: "CLIENTES",
+    key: "crm",
+    label: "CRM",
     href: "/admin/simulacoes",
     items: [
-      ...clientItems.slice(0, 1),
-      { href: "/admin", label: "Imóveis", key: "properties" },
-      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
-      { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
-      { href: "/admin/corretores", label: "Corretores", key: "brokers" },
+      { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/calendario", label: "Agenda", key: "calendar" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
     ]
   },
   {
-    key: "agenda",
-    label: "AGENDA",
-    href: "/admin/calendario",
-    items: [clientItems[1]]
-  },
-  {
-    key: "automacoes",
-    label: "AUTOMAÇÕES",
-    href: "/admin/automacoes",
-    items: [{ href: "/admin/automacoes", label: "Regras", key: "automations" }]
-  },
-  {
-    key: "desempenho",
-    label: "DESEMPENHO",
-    href: "/admin/desempenho",
+    key: "cadastros",
+    label: "CADASTROS",
+    href: "/admin",
     items: [
-      { href: "/admin/desempenho", label: "Visão geral", key: "performance" },
-      { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
-      { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
+      { href: "/admin", label: "Imóveis", key: "properties" },
+      { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
+      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
+    ]
+  },
+  {
+    key: "gestao",
+    label: "GESTÃO",
+    href: "/admin/corretores",
+    items: [
+      { href: "/admin/corretores", label: "Corretores", key: "brokers" },
+      { href: "/admin/automacoes", label: "Automações", key: "automations" },
+      { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial"] }
     ]
   }
 ];
@@ -105,7 +100,7 @@ const managerGroups = [
 ];
 
 function getGroupKeyForActive(active, groups = adminGroups) {
-  return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || "clientes";
+  return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
@@ -153,7 +148,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      {active !== "automations" ? <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
+      <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={item.key}
@@ -167,7 +162,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             {item.label}
           </Link>
         ))}
-      </div> : null}
+      </div>
     </div>
   );
 }
