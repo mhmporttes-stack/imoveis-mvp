@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   clearAdminSessionCookies,
+  clearAdminViewAsCookie,
   requireAdminApi,
   setAdminSessionCookies,
   verifyAdminAccessToken
@@ -35,6 +36,7 @@ export async function POST(request) {
 
     const response = NextResponse.json({ ok: true, user: { email: result.user.email } });
     setAdminSessionCookies(response, request, { accessToken, refreshToken });
+    clearAdminViewAsCookie(response, request);
     return response;
   } catch {
     return NextResponse.json({ error: "Nao foi possivel iniciar a sessao administrativa." }, { status: 400 });
