@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import AdminPwaInstallHint from "@/components/AdminPwaInstallHint";
 import AdminSessionKeeper from "@/components/AdminSessionKeeper";
+import MobileAdminEntryRedirect from "@/components/MobileAdminEntryRedirect";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import InstagramFloatingButton from "@/components/InstagramFloatingButton";
@@ -23,6 +24,7 @@ export default function AppChrome({ children }) {
       <ViewportZoomLock />
       {isAdminRoute ? (
         <>
+          <MobileAdminEntryRedirect />
           <AdminSessionKeeper />
           <AdminPwaInstallHint />
         </>

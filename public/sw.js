@@ -1,4 +1,4 @@
-const CACHE_VERSION = "painel-matheus-v2";
+const CACHE_VERSION = "painel-matheus-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
@@ -66,7 +66,6 @@ function isStaticAsset(pathname) {
     pathname.startsWith("/_next/static/") ||
     pathname.startsWith("/assets/") ||
     pathname.startsWith("/icons/") ||
-    pathname === "/manifest.webmanifest" ||
     pathname === "/offline.html"
   );
 }
