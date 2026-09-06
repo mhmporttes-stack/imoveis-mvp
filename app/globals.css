@@ -163,6 +163,17 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
   }
 }
 
+@media (max-width: 767px) {
+  .admin-properties-heading-copy {
+    display: none;
+  }
+
+  main.bg-mist.py-14 > section.container-page.mb-8:has(.admin-properties-heading-copy) {
+    align-items: flex-end;
+    margin-bottom: 1rem;
+  }
+}
+
 .testimonial-media-mask {
   -webkit-mask-image: linear-gradient(
     to bottom,

@@ -83,7 +83,10 @@ export default function AdminLoginForm({ initialError = "" }) {
         return;
       }
 
-      router.replace("/admin");
+      const mobileApp = window.navigator.standalone === true
+        || window.matchMedia("(display-mode: standalone)").matches
+        || window.matchMedia("(max-width: 767px)").matches;
+      router.replace(mobileApp ? "/admin/simulacoes" : "/admin");
       router.refresh();
     } finally {
       setLoading(false);
