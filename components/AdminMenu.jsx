@@ -72,11 +72,12 @@ const brokerGroups = [
     ]
   },
   {
-    key: "gestao",
-    label: "GESTÃO",
+    key: "desempenho",
+    label: "DESEMPENHO",
     href: "/admin/relatorio-diario",
     items: [
-      { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
+      { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
+      { href: "/admin/financeiro", label: "Financeiro", key: "financial" }
     ]
   }
 ];
@@ -97,7 +98,7 @@ function getGroupKeyForActive(active, groups = adminGroups) {
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
-  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? brokerGroups.filter((group) => group.key !== "gestao") : brokerGroups) : adminGroups;
+  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? brokerGroups.filter((group) => group.key !== "desempenho") : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
