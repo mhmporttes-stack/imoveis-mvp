@@ -40,6 +40,14 @@ export default async function AdminSectionNav({ active = "properties" }) {
     <div className="container-page mb-6 space-y-2">
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
+      {isAdmin && ["performance", "daily-report", "financial"].includes(active) ? (
+        <nav className="grid grid-cols-3 rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções de desempenho">
+          <PerformanceLink active={active === "performance"} href="/admin/desempenho">Visão geral</PerformanceLink>
+          <PerformanceLink active={active === "daily-report"} href="/admin/relatorio-diario">Relatório Diário</PerformanceLink>
+          <PerformanceLink active={active === "financial"} href="/admin/financeiro">Financeiro</PerformanceLink>
+        </nav>
+      ) : null}
+
       {isBroker && !isAdmin ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate">
@@ -62,6 +70,10 @@ export default async function AdminSectionNav({ active = "properties" }) {
       ) : null}
     </div>
   );
+}
+
+function PerformanceLink({ active, href, children }) {
+  return <Link className={`rounded-[10px] px-3 py-1.5 text-center text-[13px] font-black ${active ? "bg-navy text-white" : "text-navy hover:bg-brand/10"}`} href={href}>{children}</Link>;
 }
 
 function Metric({ label, value, tone = "default" }) {
