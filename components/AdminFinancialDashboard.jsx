@@ -85,6 +85,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
 });
 
 export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false }) {
+  const isAssociate = currentUser?.role === "associate";
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [period, setPeriod] = useState("month");
@@ -375,7 +376,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {!isAssociate && <div className="flex flex-wrap gap-2">
         {[
           { key: "dashboard", label: "DASHBOARD", icon: BarChart3 },
           ...(canEdit ? [{ key: "vendas", label: "VENDAS", icon: ReceiptText }] : []),
@@ -399,13 +400,16 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {message && <Feedback tone="success">{message}</Feedback>}
       {error && <Feedback tone="error">{error}</Feedback>}
 
       {activeTab === "dashboard" && (
-        <DashboardTab metrics={metrics} salesCount={filteredSales.length} resultView={resultView} onResultViewChange={setResultView} currentUser={currentUser} />
+        <>
+          <DashboardTab metrics={metrics} salesCount={filteredSales.length} resultView={resultView} onResultViewChange={setResultView} currentUser={currentUser} isAssociate={isAssociate} />
+          {isAssociate ? <div className="mt-6"><h2 className="mb-3 text-xl font-black text-navy">Vendas com participação</h2><SalesList sales={filteredSales} /></div> : null}
+        </>
       )}
 
       {canEdit && activeTab === "vendas" && (
@@ -438,11 +442,17 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   );
 }
 
-function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, currentUser }) {
+function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, currentUser, isAssociate = false }) {
   const ownBroker = metrics.byBrokerId?.[currentUser?.id] || 0;
   const ownManager = metrics.byManagerId?.[currentUser?.id] || 0;
   const consolidated = metrics.agencyCommission + ownBroker + ownManager;
-  const cards = [
+  const cards = isAssociate ? [
+    { title: "VGV das vendas", value: formatCurrency(metrics.saleValue), icon: DollarSign },
+    { title: "Minha comissão", value: formatCurrency(metrics.freeCommission), icon: CheckCircle2 },
+    { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal), icon: Clock3 },
+    { title: "Total de vendas", value: String(salesCount), icon: BarChart3 },
+    { title: "Média por venda", value: formatCurrency(metrics.averageCommission), icon: DollarSign }
+  ] : [
     { title: "VGV total", value: formatCurrency(metrics.saleValue), icon: DollarSign },
     { title: "Comissão bruta", value: formatCurrency(metrics.grossCommission), icon: ReceiptText },
     { title: "Despesas e repasses", value: formatCurrency(metrics.expenseTotal), icon: Trash2 },
@@ -462,10 +472,10 @@ function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, cur
   ];
 
   return (<>
-    <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
+    {!isAssociate && <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
       <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "separated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("separated")}>Separado por função</button>
       <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "consolidated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("consolidated")}>Consolidado</button>
-    </div>
+    </div>}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => {
         const Icon = card.icon;
@@ -506,7 +516,7 @@ function SalesList({ sales, selectedSaleId, onSelect }) {
           <button
             key={sale.id}
             type="button"
-            onClick={() => onSelect(sale)}
+            onClick={onSelect ? () => onSelect(sale) : undefined}
             className={`w-full rounded-[22px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
               active ? "border-brand bg-blue-50/60 shadow-soft" : "border-line bg-white"
             }`}
