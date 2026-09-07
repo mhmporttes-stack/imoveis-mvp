@@ -8,6 +8,7 @@ export default function LeadDistributionDashboard({ initialData }) {
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState(initialData?.history || []);
   const queue = useMemo(() => brokers.filter((broker) => broker.enabled && broker.status === "active"), [brokers]);
   const outside = useMemo(() => brokers.filter((broker) => !broker.enabled || broker.status !== "active"), [brokers]);
   const nextBroker = queue[0] || null;
@@ -18,6 +19,7 @@ export default function LeadDistributionDashboard({ initialData }) {
       if (!response.ok) return;
       const payload = await response.json().catch(() => null);
       if (payload?.brokers) setBrokers(payload.brokers);
+      if (payload?.history) setHistory(payload.history);
     };
     const timer = window.setInterval(refresh, 10000);
     return () => window.clearInterval(timer);
@@ -73,6 +75,13 @@ export default function LeadDistributionDashboard({ initialData }) {
       <div className="mt-5 space-y-2">{queue.map((broker, index) => <BrokerRow broker={broker} index={index} key={broker.id} onMove={move} onToggle={toggle} saving={savingId === broker.id} total={queue.length} />)}{!queue.length ? <Empty text="Nenhum corretor participa da roleta." /> : null}</div>
     </div>
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
+    <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+      <h2 className="text-xl font-black text-navy">Histórico da roleta</h2>
+      <div className="mt-4 divide-y divide-line">
+        {history.map((item) => <HistoryRow item={item} key={item.id} />)}
+        {!history.length ? <Empty text="Nenhum movimento registrado na roleta." /> : null}
+      </div>
+    </div>
     <div className="flex justify-end"><button className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-navy shadow-soft" onClick={copySimulationLink} type="button">{copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-brand" />}{copied ? "Link copiado" : "Copiar link da roleta"}</button></div>
   </section>;
 }
@@ -90,3 +99,20 @@ function IconButton({ children, disabled, label, onClick }) { return <button ari
 function Metric({ label, value, text }) { return <div className="rounded-[22px] border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
 function Empty({ text }) { return <p className="rounded-2xl bg-mist/50 p-5 text-center font-bold text-muted">{text}</p>; }
 function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : role === "manager" ? "Gestor" : "Corretor"; }
+
+function HistoryRow({ item }) {
+  const moment = formatHistoryMoment(item.createdAt);
+  const text = item.eventType === "auto_transferred"
+    ? `${item.clientName} foi transferido automaticamente${item.fromUserName ? ` de ${item.fromUserName}` : ""} para ${item.toUserName}`
+    : `${item.clientName} entrou na roleta e foi enviado para ${item.toUserName}`;
+  return <p className="py-3 text-sm font-bold text-navy"><span>{text}</span><span className="ml-2 text-muted">em {moment.date} às {moment.time}</span></p>;
+}
+
+function formatHistoryMoment(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "data não informada", time: "--:--" };
+  return {
+    date: new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(date),
+    time: new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(date)
+  };
+}
