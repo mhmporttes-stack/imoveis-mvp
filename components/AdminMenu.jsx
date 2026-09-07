@@ -84,11 +84,29 @@ const brokerGroups = [
 
 const managerGroups = [
   {
+    key: "crm",
+    label: "CRM",
+    href: "/admin/simulacoes",
+    items: [
+      { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/calendario", label: "Agenda", key: "calendar" },
+      { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
+    ]
+  },
+  {
+    key: "cadastros",
+    label: "CADASTROS",
+    href: "/admin/depoimentos",
+    items: [
+      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
+    ]
+  },
+  {
     key: "gestao",
     label: "GESTÃO",
-    href: "/admin/financeiro",
+    href: "/admin/relatorio-diario",
     items: [
-      { href: "/admin/financeiro", label: "Desempenho", key: "financial" }
+      { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
     ]
   }
 ];

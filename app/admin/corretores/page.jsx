@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminBrokersPage({ searchParams }) {
   const auth = await requireGeneralAdminPage();
   const params = await searchParams;
-  const activeTab = params?.tab === "view-as" ? "view-as" : "users";
+  const activeTab = params?.tab === "account" ? "account" : "users";
 
   let users = [];
   let registrations = [];
@@ -58,9 +58,9 @@ export default async function AdminBrokersPage({ searchParams }) {
       <AdminSectionNav active="brokers" />
       <nav className="container-page mb-5 grid grid-cols-2 rounded-xl border border-navy/[0.07] bg-white p-0.5" aria-label="Opcoes de corretores">
         <TabLink active={activeTab === "users"} href="/admin/corretores">Usuários</TabLink>
-        <TabLink active={activeTab === "view-as"} href="/admin/corretores?tab=view-as">Visualizar como</TabLink>
+        <TabLink active={activeTab === "account"} href="/admin/corretores?tab=account">Alterar conta</TabLink>
       </nav>
-      {error ? <BrokersError error={error} /> : activeTab === "view-as" ? (
+      {error ? <BrokersError error={error} /> : activeTab === "account" ? (
         <AdminViewAsSelector users={users.filter((user) => user.status === "active" && user.id !== auth.profile.id)} />
       ) : (
         <AdminUsersManager initialUsers={usersWithLinks} counts={counts} />

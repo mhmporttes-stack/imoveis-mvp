@@ -42,7 +42,7 @@ function cookieOptions(request) {
 }
 
 function landingPath(role) {
-  if (role === "manager") return "/admin/financeiro";
+  if (role === "manager") return "/admin/simulacoes";
   if (role === "admin") return "/admin/corretores";
   return "/admin/simulacoes";
 }

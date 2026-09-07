@@ -41,9 +41,9 @@ export default async function AdminSectionNav({ active = "properties" }) {
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
       {(isAdmin || isManager) && ["performance", "daily-report", "financial"].includes(active) ? (
-        <nav className={`grid rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)] ${isAdmin ? "grid-cols-3" : isManager ? "grid-cols-1" : "grid-cols-2"}`} aria-label="Opções de desempenho">
+        <nav className={`grid rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)] ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`} aria-label="Opções de desempenho">
           {isAdmin ? <PerformanceLink active={active === "performance"} href="/admin/desempenho">Visão geral</PerformanceLink> : null}
-          {!isManager ? <PerformanceLink active={active === "daily-report"} href="/admin/relatorio-diario">Relatório Diário</PerformanceLink> : null}
+          <PerformanceLink active={active === "daily-report"} href="/admin/relatorio-diario">Relatório Diário</PerformanceLink>
           <PerformanceLink active={active === "financial"} href="/admin/financeiro">Financeiro</PerformanceLink>
         </nav>
       ) : null}

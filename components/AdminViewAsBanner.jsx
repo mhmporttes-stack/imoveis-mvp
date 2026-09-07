@@ -11,7 +11,7 @@ export default function AdminViewAsBanner({ name, category }) {
     setLeaving(true);
     const response = await fetch("/api/admin/view-as", { method: "DELETE" });
     if (response.ok) {
-      router.replace("/admin/corretores?tab=view-as");
+      router.replace("/admin/corretores?tab=account");
       router.refresh();
       return;
     }
@@ -22,11 +22,10 @@ export default function AdminViewAsBanner({ name, category }) {
     <aside className="sticky top-0 z-[150] border-b border-amber-300 bg-amber-100 px-4 py-2 text-amber-950 shadow-md">
       <div className="container-page flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <div>
-          <p className="font-black">Visualizando como {name} — {category}</p>
-          <p className="text-sm font-bold">Modo somente leitura</p>
+          <p className="font-black">Conta atual: {name} — {category}</p>
         </div>
         <button className="rounded-full border border-amber-700 bg-white px-4 py-2 text-sm font-black disabled:opacity-60" disabled={leaving} onClick={leaveView} type="button">
-          {leaving ? "Restaurando..." : "Voltar para meu perfil"}
+          {leaving ? "Restaurando..." : "Voltar para minha conta"}
         </button>
       </div>
     </aside>

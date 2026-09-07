@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }) {
 
   return (
     <>
-      {auth.ok && auth.auditMode ? (
+      {auth.ok && auth.accountSwitchMode ? (
         <AdminViewAsBanner name={auth.profile.name} category={roleLabel(auth.profile.role)} />
       ) : null}
       {children}

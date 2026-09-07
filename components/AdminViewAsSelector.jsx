@@ -24,7 +24,7 @@ export default function AdminViewAsSelector({ users }) {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      setError(payload.error || "Nao foi possivel iniciar a visualizacao.");
+      setError(payload.error || "Nao foi possivel alterar a conta.");
       setLoading(false);
       return;
     }
@@ -35,9 +35,9 @@ export default function AdminViewAsSelector({ users }) {
 
   return (
     <section className="container-page rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Auditoria de acesso</p>
-      <h2 className="mt-2 text-3xl font-black text-navy">Visualizar como</h2>
-      <p className="mt-3 max-w-2xl font-semibold text-muted">Confira menus, dados e acessos de um usuario ativo sem entrar na conta dele.</p>
+      <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Acesso rápido</p>
+      <h2 className="mt-2 text-3xl font-black text-navy">Alterar conta</h2>
+      <p className="mt-3 max-w-2xl font-semibold text-muted">Acesse uma conta ativa sem informar novamente login e senha.</p>
 
       <form className="mt-6 flex flex-col gap-4 md:flex-row md:items-end" onSubmit={startView}>
         <label className="grid flex-1 gap-2 text-sm font-black text-navy">
@@ -48,7 +48,7 @@ export default function AdminViewAsSelector({ users }) {
           </select>
         </label>
         <button className="premium-button-primary min-h-14 disabled:cursor-not-allowed disabled:opacity-50" disabled={!selected || loading} type="submit">
-          {loading ? "Iniciando..." : "Iniciar visualizacao"}
+          {loading ? "Alterando..." : "Alterar conta"}
         </button>
       </form>
       {selected ? <p className="mt-4 text-sm font-bold text-muted">Selecionado: <strong className="text-navy">{selected.name} — {roleLabel(selected.role)}</strong></p> : null}
