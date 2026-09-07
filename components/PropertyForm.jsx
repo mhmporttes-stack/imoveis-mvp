@@ -57,7 +57,7 @@ const emptyProperty = {
   displayOrder: 0
 };
 
-export default function PropertyForm({ property }) {
+export default function PropertyForm({ property, canPublish = false }) {
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialProperty(property));
   const [featureDraft, setFeatureDraft] = useState("");
@@ -400,10 +400,10 @@ export default function PropertyForm({ property }) {
       </section>
 
       <section className="grid gap-5 rounded-3xl border border-line bg-white p-6 lg:grid-cols-3">
-        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
+        {canPublish ? <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
           <input type="checkbox" checked={form.isPublished !== false} onChange={(event) => update("isPublished", event.target.checked)} />
           Publicar no site
-        </label>
+        </label> : <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 font-extrabold text-amber-800">Em moderação até a aprovação do gestor ou administrador.</p>}
         <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink">
           <input type="checkbox" checked={form.isFeatured === true} onChange={(event) => update("isFeatured", event.target.checked)} />
           Destaque na vitrine

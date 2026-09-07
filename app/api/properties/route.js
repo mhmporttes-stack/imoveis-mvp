@@ -3,6 +3,7 @@ import { ensureDailyBackup } from "@/lib/backup";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { canManageProperties, createProperty } from "@/lib/properties";
 import { listPublicProperties } from "@/lib/public-properties";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,9 @@ export async function POST(request) {
   }
 
   try {
-    const property = await createProperty(await request.json(), auth);
+    const payload = await request.json();
+    const canPublish = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
+    const property = await createProperty({ ...payload, isPublished: canPublish && payload.isPublished === true }, auth);
     await ensureDailyBackup();
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

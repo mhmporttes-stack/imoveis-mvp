@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureDailyBackup } from "@/lib/backup";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireFinancialManagerApi } from "@/lib/admin-auth";
 import { canManageProperties, deleteProperty, updateProperty } from "@/lib/properties";
 import { getPublicProperty } from "@/lib/public-properties";
 
@@ -17,7 +17,7 @@ export async function GET(_request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireFinancialManagerApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -41,7 +41,7 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireFinancialManagerApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

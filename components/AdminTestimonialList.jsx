@@ -31,7 +31,7 @@ export default function AdminTestimonialList({ testimonials = [] }) {
           <div>
             <div className="mb-3 flex flex-wrap gap-2">
               <span className="rounded-full bg-[#E9F2FF] px-3 py-1 text-sm font-extrabold text-navy">
-                {testimonial.isPublished ? "Publicado" : "Rascunho"}
+                {testimonial.isPublished ? "Publicado" : "Em moderação"}
               </span>
               <span className="rounded-full border border-line px-3 py-1 text-sm font-bold text-muted">
                 Ordem {testimonial.displayOrder}

@@ -25,7 +25,7 @@ export default async function EditTestimonialPage({ params }) {
           <AdminLogoutButton />
         </div>
       </section>
-      <TestimonialForm testimonial={testimonial} />
+      <TestimonialForm testimonial={testimonial} canPublish />
     </main>
   );
 }

@@ -28,7 +28,7 @@ const emptyTestimonial = {
   authorizationConfirmed: false
 };
 
-export default function TestimonialForm({ testimonial }) {
+export default function TestimonialForm({ testimonial, canPublish = false }) {
   const router = useRouter();
   const [form, setForm] = useState(() => ({ ...emptyTestimonial, ...(testimonial || {}) }));
   const [status, setStatus] = useState("");
@@ -184,10 +184,10 @@ export default function TestimonialForm({ testimonial }) {
       ) : null}
 
       <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6 lg:grid-cols-[1fr_1fr]">
-        <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink">
+        {canPublish ? <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink">
           <input type="checkbox" checked={form.isPublished === true} onChange={(event) => update("isPublished", event.target.checked)} />
           Publicar na página inicial
-        </label>
+        </label> : <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 font-extrabold text-amber-800">Em moderação até a aprovação do gestor ou administrador.</p>}
         <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink">
           <input type="checkbox" checked={form.authorizationConfirmed === true} onChange={(event) => update("authorizationConfirmed", event.target.checked)} />
           Cliente autorizou o uso do conteúdo

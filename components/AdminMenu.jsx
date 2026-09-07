@@ -98,6 +98,7 @@ const managerGroups = [
     label: "CADASTROS",
     href: "/admin/depoimentos",
     items: [
+      { href: "/admin", label: "Imóveis", key: "properties" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
     ]
   },

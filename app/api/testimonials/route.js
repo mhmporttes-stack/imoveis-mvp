@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { canManageTestimonials, createTestimonial, formatTestimonialError, listTestimonials } from "@/lib/testimonials";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,9 @@ export async function POST(request) {
   }
 
   try {
-    const testimonial = await createTestimonial(await request.json());
+    const payload = await request.json();
+    const canPublish = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
+    const testimonial = await createTestimonial({ ...payload, isPublished: canPublish && payload.isPublished === true });
     return NextResponse.json(testimonial, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: formatTestimonialError(error) || "Nao foi possivel cadastrar o depoimento." }, { status: 400 });

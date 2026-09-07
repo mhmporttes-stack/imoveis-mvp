@@ -23,6 +23,7 @@ export default function AdminPropertyList({ properties }) {
           </div>
           <div>
             <div className="mb-3 flex flex-wrap gap-2">
+              <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${property.isPublished ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{property.isPublished ? "Publicado" : "Em moderação"}</span>
               <span className="rounded-full bg-[#E9F2FF] px-3 py-1 text-sm font-extrabold text-navy">{typeLabel(property.type)}</span>
               <span className="rounded-full border border-line px-3 py-1 text-sm font-bold text-muted">{propertyCity(property.location)}</span>
             </div>

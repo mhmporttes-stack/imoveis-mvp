@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import AdminPropertyList from "@/components/AdminPropertyList";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import { isGeneralAdmin, requireAdminPage } from "@/lib/admin-auth";
+import { requireAdminPage } from "@/lib/admin-auth";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { canManageProperties, listProperties } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const auth = await requireAdminPage();
 
-  if (!isGeneralAdmin(auth)) {
+  if (!isGeneralAdminAuth(auth) && !isManagerProfile(auth.profile)) {
     redirect("/admin/simulacoes");
   }
 

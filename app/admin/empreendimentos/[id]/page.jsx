@@ -1,13 +1,16 @@
 import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import PropertyForm from "@/components/PropertyForm";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { redirect } from "next/navigation";
+import { requireAdminPage } from "@/lib/admin-auth";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { canManageProperties, getProperty } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditPropertyPage({ params }) {
-  await requireGeneralAdminPage();
+  const auth = await requireAdminPage();
+  if (!isGeneralAdminAuth(auth) && !isManagerProfile(auth.profile)) redirect("/admin/simulacoes");
 
   if (!canManageProperties()) {
     return (
@@ -39,7 +42,7 @@ export default async function EditPropertyPage({ params }) {
           <AdminLogoutButton />
         </div>
       </section>
-      <PropertyForm property={property} />
+      <PropertyForm property={property} canPublish />
     </main>
   );
 }

@@ -2,9 +2,11 @@ import PropertyForm from "@/components/PropertyForm";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { canManageProperties } from "@/lib/properties";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
 export default async function NewPropertyPage() {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
+  const canPublish = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
 
   if (!canManageProperties()) {
     return (
@@ -32,7 +34,7 @@ export default async function NewPropertyPage() {
           <AdminLogoutButton />
         </div>
       </section>
-      <PropertyForm />
+      <PropertyForm canPublish={canPublish} />
     </main>
   );
 }
