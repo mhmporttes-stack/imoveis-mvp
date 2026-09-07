@@ -89,4 +89,4 @@ function BrokerRow({ broker, index, total, onMove, onToggle, saving }) {
 function IconButton({ children, disabled, label, onClick }) { return <button aria-label={label} className="icon-button disabled:opacity-30" disabled={disabled} onClick={onClick} title={label} type="button">{children}</button>; }
 function Metric({ label, value, text }) { return <div className="rounded-[22px] border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
 function Empty({ text }) { return <p className="rounded-2xl bg-mist/50 p-5 text-center font-bold text-muted">{text}</p>; }
-function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : "Corretor"; }
+function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : role === "manager" ? "Gestor" : "Corretor"; }
