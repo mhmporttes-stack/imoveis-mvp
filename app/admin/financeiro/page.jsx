@@ -2,14 +2,14 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
-import { requirePerformancePage } from "@/lib/admin-auth";
+import { requireAdminPage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, listFinancialSales } from "@/lib/financial";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminFinancialPage() {
-  const auth = await requirePerformancePage();
+  const auth = await requireAdminPage();
 
   if (!canManageFinancial()) {
     return <FinancialDisabled />;
@@ -19,7 +19,8 @@ export default async function AdminFinancialPage() {
   let financialUsers = [];
 
   try {
-    [sales, financialUsers] = await Promise.all([listFinancialSales(auth), listAdminProfiles()]);
+    const canEdit = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
+    [sales, financialUsers] = await Promise.all([listFinancialSales(auth), canEdit ? listAdminProfiles() : Promise.resolve([])]);
   } catch (error) {
     return <FinancialError error={formatFinancialError(error)} />;
   }

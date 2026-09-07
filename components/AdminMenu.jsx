@@ -112,12 +112,16 @@ const managerGroups = [
   }
 ];
 
+const associateGroups = brokerGroups.map((group) => group.key === "desempenho"
+  ? { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" }
+  : group);
+
 function getGroupKeyForActive(active, groups = adminGroups) {
   return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
-  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? brokerGroups.filter((group) => group.key !== "desempenho") : brokerGroups) : adminGroups;
+  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
