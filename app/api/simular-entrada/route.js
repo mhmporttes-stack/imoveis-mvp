@@ -42,11 +42,7 @@ export async function POST(request) {
       if (parcelasManuais && regras.regraEntrada?.tipo === "ato_mais_parcelas") {
         regras.regraEntrada.limites.numeroParcelasPreferido = parcelasManuais;
       }
-      const resultado = simularEntrada({ ...cliente, fgtsDisponivel: cliente.fgtsDisponivel + atoManual }, regras);
-      if (atoManual > 0) {
-        resultado.entradaTotal += atoManual;
-        resultado.detalhePagamento.ato += atoManual;
-      }
+      const resultado = simularEntrada(cliente, regras, { atoDesejado: atoManual });
       resultados.push({
         ...resultado,
         clienteSnapshot: cliente,

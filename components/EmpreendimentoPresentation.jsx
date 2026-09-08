@@ -81,6 +81,12 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
     return () => { current = false; };
   }, [appliedAct, appliedInstallments, client, selectedId]);
 
+  useEffect(() => {
+    const calculatedAct = result?.detalhePagamento?.ato;
+    if (calculatedAct === undefined || loading) return;
+    setManualAct(formatNumberInput(calculatedAct));
+  }, [loading, result]);
+
   if (!properties.length) {
     return <section className="container-page rounded-2xl border border-line bg-white p-8 font-bold text-muted">Nenhum empreendimento publicado com regras disponíveis.</section>;
   }
@@ -141,6 +147,7 @@ function Result({ result, loading, financingInstallments, propertyFeatures = [],
   const freeDocuments = hasFreeDocuments([...(result.beneficiosInformativos || []), ...featureBenefits]);
   const documentSavings = freeDocuments ? result.valorImovel * 0.05 : 0;
   const totalSavings = result.totalDescontos + result.subsidioMcmv + result.casaPaulista + documentSavings;
+  const installmentPrincipal = detail.blocos.reduce((total, block) => total + block.valorParcela * block.parcelas, 0);
   return <div className="grid gap-5">
     <div className="rounded-2xl bg-navy px-5 py-6 text-center text-white"><p className="text-xs font-black uppercase tracking-[0.16em] text-white/75">Valor total do imóvel</p><p className="mt-2 text-4xl font-black">{money(result.valorImovel)}</p></div>
     {(result.descontosAplicados?.length || result.subsidioMcmv > 0 || result.casaPaulista > 0 || freeDocuments) ? <div className="rounded-xl border border-line bg-white p-4">
@@ -148,7 +155,7 @@ function Result({ result, loading, financingInstallments, propertyFeatures = [],
       <div className="mt-2 grid gap-2 text-sm font-bold text-navy">{result.descontosAplicados?.map((discount, index) => <p className="flex justify-between gap-3" key={`${discount.tipo}-${index}`}><span>{discount.label}</span><span>{money(discount.valor)}</span></p>)}
       {result.subsidioMcmv > 0 ? <p className="flex justify-between gap-3"><span>Subsídio MCMV</span><span>{money(result.subsidioMcmv)}</span></p> : null}
       {result.casaPaulista > 0 ? <p className="flex justify-between gap-3"><span>Casa Paulista</span><span>{money(result.casaPaulista)}</span></p> : null}
-      {freeDocuments ? <p className="flex justify-between gap-3 border-t border-line pt-2"><span>Documentação gratuita</span><span><span className="mr-2 text-red-600 line-through">{money(documentSavings)}</span><span className="text-emerald-700">Grátis</span></span></p> : null}</div>
+      {freeDocuments ? <p className="flex justify-between gap-3 border-t border-line pt-2"><span>Documentação gratuita</span><span>{money(documentSavings)}</span></p> : null}</div>
       <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos e benefícios</span><span>{money(totalSavings)}</span></p>
     </div> : null}
     <div className="grid gap-5 sm:grid-cols-2">
@@ -162,8 +169,9 @@ function Result({ result, loading, financingInstallments, propertyFeatures = [],
       <p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Composição da entrada</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Metric label="Entrada total" value={money(result.entradaTotal)} />
+        <Metric label="Valor parcelado" value={money(installmentPrincipal)} />
         {entryBlock ? <Metric label="Parcela calculada" value={`${entryBlock.parcelas}x de ${money(entryBlock.valorParcelaComJuros ?? entryBlock.valorParcela)}`} /> : null}
-        <label className="grid gap-2 text-sm font-black text-navy">Ato<input className="admin-input bg-white" inputMode="decimal" placeholder="R$ 0,00" value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
+        <label className="grid gap-2 text-sm font-black text-navy">Ato total<input className="admin-input bg-white" inputMode="decimal" placeholder={money(detail.ato)} value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
         <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input bg-white" inputMode="numeric" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "Melhor cenário"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
       </div>
       <label className="mt-4 flex items-center gap-3 text-sm font-black text-navy"><input checked={useFgts} onChange={(event) => setUseFgts(event.target.checked)} type="checkbox" />Usar saldo de FGTS/entrada disponível</label>
@@ -194,6 +202,10 @@ function Metric({ label, value }) {
 
 function money(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) || 0);
+}
+
+function formatNumberInput(value) {
+  return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function propertyImages(property) {

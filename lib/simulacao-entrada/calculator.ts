@@ -19,7 +19,8 @@ import type {
  */
 export function simularEntrada(
   cliente: DadosCliente,
-  empreendimento: Empreendimento
+  empreendimento: Empreendimento,
+  ajustes: { atoDesejado?: number } = {}
 ): ResultadoSimulacao {
   const avisos: string[] = [];
 
@@ -74,6 +75,7 @@ export function simularEntrada(
     );
   }
   aplicarRegraAto(detalhePagamento, entradaAposFgts, empreendimento, avisos);
+  aplicarAtoDesejado(detalhePagamento, ajustes.atoDesejado, entradaAposFgts);
   const motivos = validarCenario(detalhePagamento, entradaAposFgts, empreendimento, cliente);
   const classificacao = motivos.length ? "inviavel" : avisos.length ? "ajuste" : "viavel";
 
@@ -104,6 +106,14 @@ export function simularEntrada(
   }
 
   return resultado;
+}
+
+function aplicarAtoDesejado(detalhe: DetalhePagamento, atoDesejado: number | undefined, entrada: number) {
+  const alvo = Math.min(entrada, Math.max(0, atoDesejado || 0));
+  if (alvo <= detalhe.ato) return;
+  const diferenca = alvo - detalhe.ato;
+  detalhe.ato = alvo;
+  reduzirBlocos(detalhe.blocos, diferenca);
 }
 
 function calcularDetalhePagamento(
