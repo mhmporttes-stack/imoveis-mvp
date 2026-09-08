@@ -37,7 +37,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
       rendaTotal: calculateFamilyIncome(simulation.registration || {}),
       financiamentoAprovado: Number(totals.financing) || 0,
       subsidioMcmv: Number(totals.subsidy) || 0,
-      casaPaulista: 0,
+      casaPaulista: 10000,
       parcelaFinanciamento: parseCurrencyNumber(simulation.firstInstallment),
       fgtsDisponivel: useFgts ? parseCurrencyNumber(simulation.downPaymentValue) + parseCurrencyNumber(simulation.fgtsValue) : 0,
       temDependente: Boolean(simulation.registration?.hasChildrenUnder18),
@@ -114,7 +114,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
-            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
+            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} propertyFeatures={selected.features} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
             {selected.features?.length ? <div className="mt-6 border-t border-line pt-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Benefícios do empreendimento</p><div className="mt-3 flex flex-wrap gap-2">{selected.features.map((feature, index) => <span className="rounded-full border border-brand/20 bg-[#F4F9FF] px-4 py-2 text-sm font-black text-navy" key={`${typeof feature === "string" ? feature : feature.text}-${index}`}>{typeof feature === "string" ? feature : feature.text}</span>)}</div></div> : null}
           </div>
         </div>
@@ -131,25 +131,27 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
   );
 }
 
-function Result({ result, loading, financingInstallments, manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts, onRecalculate }) {
+function Result({ result, loading, financingInstallments, propertyFeatures = [], manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts, onRecalculate }) {
   if (loading && !result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Atualizando valores...</p>;
   if (!result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Este empreendimento ainda não possui regras de entrada completas.</p>;
   const detail = result.detalhePagamento || { ato: 0, blocos: [] };
   const status = { viavel: ["VIÁVEL", "bg-emerald-50 text-emerald-800"], ajuste: ["VIÁVEL COM AJUSTE", "bg-amber-50 text-amber-800"], inviavel: ["INVIÁVEL", "bg-red-50 text-red-800"] }[result.classificacao] || ["EM ANÁLISE", "bg-mist text-navy"];
   const entryBlock = detail.blocos.find((block) => /parcela/i.test(block.label));
-  const freeDocuments = hasFreeDocuments(result.beneficiosInformativos);
+  const featureBenefits = propertyFeatures.map((feature) => ({ tipo: "diferencial", label: typeof feature === "string" ? feature : feature.text || "" }));
+  const freeDocuments = hasFreeDocuments([...(result.beneficiosInformativos || []), ...featureBenefits]);
   const documentSavings = freeDocuments ? result.valorImovel * 0.05 : 0;
+  const totalSavings = result.totalDescontos + result.subsidioMcmv + result.casaPaulista + documentSavings;
   return <div className="grid gap-5">
     <div className="rounded-2xl bg-navy px-5 py-6 text-center text-white"><p className="text-xs font-black uppercase tracking-[0.16em] text-white/75">Valor total do imóvel</p><p className="mt-2 text-4xl font-black">{money(result.valorImovel)}</p></div>
-    {(result.descontosAplicados?.length || freeDocuments) ? <div className="rounded-xl border border-line bg-white p-4">
+    {(result.descontosAplicados?.length || result.subsidioMcmv > 0 || result.casaPaulista > 0 || freeDocuments) ? <div className="rounded-xl border border-line bg-white p-4">
       <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos aplicados</p>
       <div className="mt-2 grid gap-2 text-sm font-bold text-navy">{result.descontosAplicados?.map((discount, index) => <p className="flex justify-between gap-3" key={`${discount.tipo}-${index}`}><span>{discount.label}</span><span>{money(discount.valor)}</span></p>)}
+      {result.subsidioMcmv > 0 ? <p className="flex justify-between gap-3"><span>Subsídio MCMV</span><span>{money(result.subsidioMcmv)}</span></p> : null}
+      {result.casaPaulista > 0 ? <p className="flex justify-between gap-3"><span>Casa Paulista</span><span>{money(result.casaPaulista)}</span></p> : null}
       {freeDocuments ? <p className="flex justify-between gap-3 border-t border-line pt-2"><span>Documentação gratuita</span><span><span className="mr-2 text-red-600 line-through">{money(documentSavings)}</span><span className="text-emerald-700">Grátis</span></span></p> : null}</div>
-      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos no imóvel</span><span>{money(result.totalDescontos)}</span></p>
+      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos e benefícios</span><span>{money(totalSavings)}</span></p>
     </div> : null}
     <div className="grid gap-5 sm:grid-cols-2">
-      {result.subsidioMcmv > 0 ? <Metric label="Subsídio MCMV" value={money(result.subsidioMcmv)} /> : null}
-      {result.casaPaulista > 0 ? <Metric label="Casa Paulista" value={money(result.casaPaulista)} /> : null}
       <Metric label="Financiamento aprovado" value={money(result.financiamentoAprovado)} />
     </div>
     {(financingInstallments.first > 0 || financingInstallments.last > 0) ? <div className="grid gap-5 rounded-xl border border-line bg-mist/60 p-4 sm:grid-cols-2">

@@ -55,12 +55,24 @@ export function simularEntrada(
     );
   }
 
+  const limiteGlobal = empreendimento.limiteMaximoEntradaParcelavel;
+  const excedenteParaAto = limiteGlobal && limiteGlobal > 0
+    ? Math.max(0, entradaAposFgts - limiteGlobal)
+    : 0;
+  const valorParaParcelar = entradaAposFgts - excedenteParaAto;
+
   const detalhePagamento = calcularDetalhePagamento(
-    entradaAposFgts,
+    valorParaParcelar,
     empreendimento,
     cliente,
     avisos
   );
+  detalhePagamento.ato += excedenteParaAto;
+  if (excedenteParaAto > 0) {
+    avisos.push(
+      `R$ ${moeda(excedenteParaAto)} excedem o limite parcelável e foram direcionados automaticamente para o ato.`
+    );
+  }
   aplicarRegraAto(detalhePagamento, entradaAposFgts, empreendimento, avisos);
   const motivos = validarCenario(detalhePagamento, entradaAposFgts, empreendimento, cliente);
   const classificacao = motivos.length ? "inviavel" : avisos.length ? "ajuste" : "viavel";
