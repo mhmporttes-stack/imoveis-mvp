@@ -30,14 +30,25 @@ export async function POST(request) {
 
   const cliente = normalizeCliente(payload?.cliente);
   const propertyIds = Array.isArray(payload?.propertyIds) ? payload.propertyIds.filter(Boolean) : [];
+  const atoManual = Math.max(0, num(payload?.atoManual));
+  const parcelasManuais = Math.max(0, Math.floor(num(payload?.parcelasManuais)));
 
   const resultados = [];
   for (const propertyId of propertyIds) {
     try {
       const row = await getEmpreendimentoRegras(propertyId);
       if (!row || row.ativo === false || !row.regras) continue;
+      const regras = structuredClone(row.regras);
+      if (parcelasManuais && regras.regraEntrada?.tipo === "ato_mais_parcelas") {
+        regras.regraEntrada.limites.numeroParcelasPreferido = parcelasManuais;
+      }
+      const resultado = simularEntrada({ ...cliente, fgtsDisponivel: cliente.fgtsDisponivel + atoManual }, regras);
+      if (atoManual > 0) {
+        resultado.entradaTotal += atoManual;
+        resultado.detalhePagamento.ato += atoManual;
+      }
       resultados.push({
-        ...simularEntrada(cliente, row.regras),
+        ...resultado,
         clienteSnapshot: cliente,
         regrasAtualizadasEm: row.atualizado_em || row.regras.atualizadoEm || "",
         calculadoEm: new Date().toISOString()

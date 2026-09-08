@@ -59,6 +59,8 @@ export type ParcelaMaxima =
 export interface LimitesParcela {
   /** Número máximo de parcelas. */
   numeroMaximoParcelas?: number;
+  /** Preferência temporária da apresentação; não é persistida nas regras. */
+  numeroParcelasPreferido?: number;
   /** Valor mínimo de parcela — se a conta desse um valor menor, reduz o nº de parcelas em vez de gerar parcela pequena. */
   parcelaMinima?: number;
   /** Teto da parcela — valor fixo OU percentual da renda do cliente. */
@@ -236,6 +238,9 @@ export interface ResultadoSimulacao {
   empreendimentoNome: string;
   valorImovel: number;
   totalDescontos: number;
+  descontosAplicados: Desconto[];
+  subsidioMcmv: number;
+  casaPaulista: number;
   valorFinalImovel: number;
   /** Financiamento + MCMV + Casa Paulista (o que o banco/governo cobre). */
   totalCoberto: number;

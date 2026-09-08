@@ -70,6 +70,9 @@ export function simularEntrada(
     empreendimentoNome: empreendimento.nome,
     valorImovel: empreendimento.valorImovel,
     totalDescontos,
+    descontosAplicados: empreendimento.descontos,
+    subsidioMcmv: cliente.subsidioMcmv,
+    casaPaulista,
     valorFinalImovel,
     totalCoberto,
     entradaTotal: entradaAposFgts,
@@ -152,10 +155,9 @@ function resolverBlocoLinear(
   } else {
     const parcelaMinima = limites?.parcelaMinima ?? 0;
     const numeroMaximoParcelas = limites?.numeroMaximoParcelas ?? Infinity;
-    parcelas = Math.min(
-      numeroMaximoParcelas,
-      parcelaMinima > 0 ? Math.floor(valor / parcelaMinima) : numeroMaximoParcelas
-    );
+    const preferido = limites?.numeroParcelasPreferido;
+    const tetoParcelas = preferido && preferido > 0 ? Math.min(preferido, numeroMaximoParcelas) : numeroMaximoParcelas;
+    parcelas = maiorPrazoValido(valor, tetoParcelas, parcelaMinima, limites?.taxaJurosMensal ?? 0);
     if (!isFinite(parcelas) || parcelas < 1) parcelas = 1;
   }
 
@@ -181,11 +183,25 @@ function resolverBlocoLinear(
     const i = limites.taxaJurosMensal;
     const n = parcelas;
     const principal = valor - sobra;
-    valorParcelaComJuros =
-      (principal * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+    valorParcelaComJuros = calcularParcelaComJuros(principal, i, n);
   }
 
   return { parcelas, valorParcela, valorParcelaComJuros, sobra };
+}
+
+function maiorPrazoValido(valor: number, maximo: number, minimo: number, juros: number) {
+  const teto = Number.isFinite(maximo) ? Math.max(1, Math.floor(maximo)) : 1;
+  for (let parcelas = teto; parcelas >= 1; parcelas -= 1) {
+    const parcela = juros > 0 ? calcularParcelaComJuros(valor, juros, parcelas) : valor / parcelas;
+    if (minimo <= 0 || parcela + 0.01 >= minimo) return parcelas;
+  }
+  return 1;
+}
+
+function calcularParcelaComJuros(principal: number, taxa: number, parcelas: number) {
+  if (taxa <= 0 || parcelas <= 0) return parcelas ? principal / parcelas : 0;
+  const fator = Math.pow(1 + taxa, parcelas);
+  return (principal * taxa * fator) / (fator - 1);
 }
 
 function resolverValorParcelaMaxima(
