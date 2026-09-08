@@ -106,6 +106,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{selected.builder || "Empreendimento"}</p>
             <h2 className="mt-2 text-4xl font-black text-navy">{selected.name}</h2>
             <p className="mt-2 font-semibold text-muted">{selected.location || "Localização sob consulta"}</p>
+            {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input" inputMode="numeric" min="1" placeholder="Melhor cenário" type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
               <label className="grid gap-2 text-sm font-black text-navy">Ato adicional<input className="admin-input" inputMode="decimal" placeholder="R$ 0,00" value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>

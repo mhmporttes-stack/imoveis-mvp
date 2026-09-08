@@ -25,7 +25,7 @@ export default async function EmpreendimentosPage() {
           <p className="text-sm font-semibold text-muted">{property.location || "Localização sob consulta"}</p>
           <p className="text-sm text-muted">Entrega: {property.delivery || "a confirmar"}</p>
           <p className="line-clamp-3 text-sm leading-6 text-muted">{property.salesText || property.terms || "Condições comerciais sob consulta."}</p>
-          <div className="flex flex-wrap gap-2 pt-2"><Link className="premium-button-secondary px-4 py-2 text-sm" href={`/empreendimentos/${property.id}`}>Ver detalhes</Link>{property.pdfData ? <a className="premium-button-secondary px-4 py-2 text-sm" href={property.pdfData} download={property.pdfName || `${property.name}.pdf`}>Baixar book</a> : null}</div>
+          <div className="flex flex-wrap gap-2 pt-2"><Link className="premium-button-secondary px-4 py-2 text-sm" href={`/admin/empreendimentos/consulta/${property.id}`}>Consulta interna</Link>{property.pdfData ? <a className="premium-button-secondary px-4 py-2 text-sm" href={property.pdfData} download={property.pdfName || `${property.name}.pdf`}>Baixar book</a> : null}</div>
         </div>
       </article>)}
       {!properties.length ? <p className="rounded-2xl border border-line bg-white p-8 font-bold text-muted">Nenhum empreendimento disponível para consulta.</p> : null}
