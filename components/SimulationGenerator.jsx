@@ -1264,6 +1264,7 @@ function propertySnapshot(property, displayOrder) {
 }
 
 function serializeForm(form) {
+  const { registration: _registration, ...simulationForm } = form;
   const models = normalizeSimulationModels(form.simulationModels, form);
   const primaryModel = getPrimarySimulationModel({ ...form, simulationModels: models });
   const internalNote = mergeSimulationModelsIntoNote(
@@ -1272,7 +1273,7 @@ function serializeForm(form) {
   );
 
   return {
-    ...form,
+    ...simulationForm,
     internalNote,
     simulationType: primaryModel.type,
     financingValue: primaryModel.totals.financing,
