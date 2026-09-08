@@ -471,20 +471,15 @@ function CreateActivityModal({ clients, date, users, onClose, onCreated }) {
     finally { setSaving(false); }
   }
 
-  function selectClient(clientId) {
-    const client = clients.find((item) => item.id === clientId);
-    setForm((current) => ({ ...current, clientId, responsibleUserId: client?.responsibleUserId || current.responsibleUserId }));
-  }
-
   return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
     <div className="flex items-center justify-between gap-4"><h3 className="text-2xl font-black text-navy">Agendar atividade</h3><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X size={20} /></button></div>
     {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
     <div className="mt-5 grid gap-4 sm:grid-cols-2">
       <ModalField label="Título da atividade"><input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></ModalField>
-      <ModalField label="Cliente (opcional)"><select value={form.clientId} onChange={(event) => selectClient(event.target.value)}><option value="">Sem cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></ModalField>
+      <ModalField label="Cliente (opcional)"><select value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })}><option value="">Sem cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></ModalField>
       <ModalField label="Data"><input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></ModalField>
       <ModalField label="Hora"><input required type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></ModalField>
-      <ModalField label="Responsável"><select value={form.responsibleUserId} onChange={(event) => setForm({ ...form, responsibleUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></ModalField>
+      <ModalField label="Responsável"><input readOnly value={users[0]?.name || "Meu usuário"} /></ModalField>
       <ModalField label="Prioridade (opcional)"><select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}><option value="">Sem classificação</option><option value="standard">Padrão</option><option value="important">Importante</option><option value="priority">Prioridade</option></select></ModalField>
     </div>
     <ModalField label="Observação (opcional)" wide><textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></ModalField>

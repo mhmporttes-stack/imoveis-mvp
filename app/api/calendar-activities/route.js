@@ -22,8 +22,8 @@ export async function GET(request) {
     const from = url.searchParams.get("from") || "";
     const to = url.searchParams.get("to") || "";
     const [registrations, birthdayRegistrations, savedActivities, clients] = await Promise.all([
-      listScheduledActivityRegistrations({ from, to, auth }),
-      listBirthdayRegistrations({ auth }),
+      listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: auth.profile?.id }),
+      listBirthdayRegistrations({ auth, responsibleUserId: auth.profile?.id }),
       listCalendarActivities({ from, to, auth }),
       listCalendarClientOptions(auth)
     ]);
@@ -78,10 +78,9 @@ export async function GET(request) {
     activities.push(...buildBirthdayActivities(birthdayRegistrations, profileById, from, to));
     activities.sort((a, b) => new Date(a.scheduledActivityAt) - new Date(b.scheduledActivityAt));
 
-    const allowedProfiles = auth.profile?.role === "admin"
-      ? profiles
-      : profiles.filter((profile) => [auth.profile?.id, auth.profile?.linkedBrokerId].filter(Boolean).includes(profile.id));
-    return NextResponse.json({ activities, clients, users: allowedProfiles.filter((profile) => profile.status === "active").map((profile) => ({ id: profile.id, name: profile.name })) });
+    const currentProfile = profiles.find((profile) => profile.id === auth.profile?.id) || auth.profile;
+    const users = currentProfile?.id ? [{ id: currentProfile.id, name: currentProfile.name || "Meu usuário" }] : [];
+    return NextResponse.json({ activities, clients, users });
   } catch (error) {
     console.error("Erro ao carregar calendario de atividades:", error);
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

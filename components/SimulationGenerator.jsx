@@ -748,6 +748,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 onChange={(value) => updateRegistration("phone", formatPhoneInput(value))}
               />
               <Field label="Data de nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
+              <Field label="Início do atendimento" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
+              <Field label="Venda concluída em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
               <SelectField
                 label="Tipo de simulação"
                 options={SIMULATION_TYPE_OPTIONS}
@@ -1214,6 +1216,8 @@ function normalizeRegistrationDraft(registration = null, simulation = {}, fallba
     phone: formatPhoneInput(source.phone || source.phoneNormalized || fallbackPhone || ""),
     phoneNormalized: source.phoneNormalized || "",
     oldestBirthDate: normalizeDateInput(source.oldestBirthDate),
+    serviceStartedAt: normalizeDateInput(source.serviceStartedAt),
+    saleCompletedAt: normalizeDateInput(source.saleCompletedAt),
     primaryIncomeType: source.primaryIncomeType || "self_employed_unregistered",
     primaryMonthlyIncome: formatStoredCurrencyInput(source.primaryMonthlyIncome),
     secondaryIncomeType: source.secondaryIncomeType || "self_employed_unregistered",
