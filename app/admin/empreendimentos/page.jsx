@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EmpreendimentosPage() {
   await requireAdminPage();
-  const properties = (await listProperties()).filter((property) => property.isPublished);
+  const properties = (await listProperties()).filter((property) => property.isPublished && property.isDevelopment);
 
   return <main className="min-h-screen bg-mist py-14">
     <section className="container-page mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">

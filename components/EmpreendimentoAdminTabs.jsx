@@ -8,7 +8,7 @@ export default function EmpreendimentoAdminTabs({ property, canPublish, showRegr
   const [tab, setTab] = useState(initialTab === "regras" ? "regras" : "dados");
 
   if (!showRegrasEntradaTab) {
-    return <PropertyForm property={property} canPublish={canPublish} />;
+    return <PropertyForm property={property} canPublish={canPublish} isDevelopment />;
   }
 
   return (
@@ -24,7 +24,7 @@ export default function EmpreendimentoAdminTabs({ property, canPublish, showRegr
         </div>
       </div>
 
-      {tab === "dados" ? <PropertyForm property={property} canPublish={canPublish} /> : null}
+      {tab === "dados" ? <PropertyForm property={property} canPublish={canPublish} isDevelopment /> : null}
       {tab === "regras" ? <EmpreendimentoRegrasEntradaForm propertyId={property.id} /> : null}
     </div>
   );

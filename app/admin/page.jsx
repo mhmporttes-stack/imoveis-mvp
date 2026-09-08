@@ -25,7 +25,7 @@ export default async function AdminPage({ searchParams }) {
   let properties = [];
 
   try {
-    properties = await listProperties();
+    properties = (await listProperties()).filter((property) => property.isDevelopment === managementView);
   } catch (error) {
     return <AdminDataError error={error} />;
   }
@@ -39,7 +39,9 @@ export default async function AdminPage({ searchParams }) {
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie o portfólio, edite informações comerciais e publique páginas individuais.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/novo" className="premium-button-primary">Cadastrar novo Imóvel</Link>
+          <Link href={managementView ? "/admin/empreendimentos/novo" : "/admin/novo"} className="premium-button-primary">
+            {managementView ? "Cadastrar empreendimento" : "Cadastrar novo Imóvel"}
+          </Link>
           <AdminLogoutButton />
         </div>
       </section>

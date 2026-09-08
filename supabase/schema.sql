@@ -24,6 +24,7 @@ create table if not exists public.properties (
   sales_text text default '',
   is_published boolean not null default true,
   is_featured boolean not null default false,
+  is_development boolean not null default false,
   display_order integer default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

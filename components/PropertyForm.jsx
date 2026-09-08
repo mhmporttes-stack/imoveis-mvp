@@ -57,7 +57,7 @@ const emptyProperty = {
   displayOrder: 0
 };
 
-export default function PropertyForm({ property, canPublish = false }) {
+export default function PropertyForm({ property, canPublish = false, isDevelopment = false }) {
   const router = useRouter();
   const [form, setForm] = useState(() => normalizeInitialProperty(property));
   const [featureDraft, setFeatureDraft] = useState("");
@@ -249,7 +249,7 @@ export default function PropertyForm({ property, canPublish = false }) {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, isDevelopment: property?.isDevelopment ?? isDevelopment })
       });
       const result = await response.json().catch(() => ({}));
 
@@ -257,7 +257,7 @@ export default function PropertyForm({ property, canPublish = false }) {
         throw new Error(result.error || `Não foi possível salvar. Código ${response.status}.`);
       }
 
-      router.push("/admin");
+      router.push(isDevelopment || property?.isDevelopment ? "/admin?area=gestao" : "/admin");
       router.refresh();
     } catch (error) {
       setSaving(false);
@@ -440,7 +440,7 @@ export default function PropertyForm({ property, canPublish = false }) {
         <button disabled={saving || processingPhotos} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
           {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "cadastrar imóvel"}
         </button>
-        <button type="button" onClick={() => router.push("/admin")} className="premium-button-secondary">
+        <button type="button" onClick={() => router.push(isDevelopment || property?.isDevelopment ? "/admin?area=gestao" : "/admin")} className="premium-button-secondary">
           Cancelar
         </button>
       </div>
