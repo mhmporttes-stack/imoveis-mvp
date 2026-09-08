@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { coverImage } from "@/lib/format";
 import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-schema";
 import { getRenderableSimulationModels, normalizeSimulationModels } from "@/lib/simulation-models";
@@ -106,14 +106,10 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{selected.builder || "Empreendimento"}</p>
             <h2 className="mt-2 text-4xl font-black text-navy">{selected.name}</h2>
             <p className="mt-2 font-semibold text-muted">{selected.location || "Localização sob consulta"}</p>
+            <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input" inputMode="numeric" min="1" placeholder="Melhor cenário" type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
-              <label className="grid gap-2 text-sm font-black text-navy">Ato adicional<input className="admin-input" inputMode="decimal" placeholder="R$ 0,00" value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
-              <label className="flex items-center gap-3 self-end rounded-xl border border-line px-4 py-3 text-sm font-black text-navy"><input checked={useFgts} onChange={(event) => setUseFgts(event.target.checked)} type="checkbox" />Usar saldo de FGTS/entrada</label>
-            </div>
             {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
-            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} /></div>
+            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} /></div>
           </div>
         </div>
       </article> : null}
@@ -123,24 +119,34 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
   );
 }
 
-function Result({ result, loading, financingInstallments }) {
+function Result({ result, loading, financingInstallments, manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts }) {
   if (loading) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Atualizando valores...</p>;
   if (!result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Este empreendimento ainda não possui regras de entrada completas.</p>;
   const detail = result.detalhePagamento || { ato: 0, blocos: [] };
   const status = { viavel: ["VIÁVEL", "bg-emerald-50 text-emerald-800"], ajuste: ["VIÁVEL COM AJUSTE", "bg-amber-50 text-amber-800"], inviavel: ["INVIÁVEL", "bg-red-50 text-red-800"] }[result.classificacao] || ["EM ANÁLISE", "bg-mist text-navy"];
+  const entryBlock = detail.blocos.find((block) => /parcela/i.test(block.label));
   return <div className="grid gap-5">
-    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2">
       <Metric label="Valor do imóvel" value={money(result.valorImovel)} />
-      <Metric label="Desconto" value={money(result.totalDescontos)} />
+      <Metric label="Total de descontos" value={money(result.totalDescontos)} />
       {result.subsidioMcmv > 0 ? <Metric label="Subsídio MCMV" value={money(result.subsidioMcmv)} /> : null}
       {result.casaPaulista > 0 ? <Metric label="Casa Paulista" value={money(result.casaPaulista)} /> : null}
-      <Metric label="Preço efetivo" value={money(result.valorFinalImovel)} />
-      <Metric label="Financiamento e benefícios" value={money(result.totalCoberto)} />
+      <Metric label="Financiamento aprovado" value={money(result.financiamentoAprovado)} />
+    </div>
+    {(financingInstallments.first > 0 || financingInstallments.last > 0) ? <div className="grid gap-5 rounded-xl border border-line bg-mist/60 p-4 sm:grid-cols-2">
       {financingInstallments.first > 0 ? <Metric label="Primeira parcela do financiamento" value={money(financingInstallments.first)} /> : null}
       {financingInstallments.last > 0 ? <Metric label="Última parcela do financiamento" value={money(financingInstallments.last)} /> : null}
-      <Metric label="Entrada total" value={money(result.entradaTotal)} />
-      <Metric label="Ato" value={money(detail.ato)} />
-      {detail.blocos.map((block, index) => <Metric key={`${block.label}-${index}`} label={block.label} value={`${block.parcelas}x de ${money(block.valorParcelaComJuros ?? block.valorParcela)}`} />)}
+    </div> : null}
+    <div className="rounded-xl border border-brand/20 bg-[#F4F9FF] p-4 sm:p-5">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Composição da entrada</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Metric label="Entrada total" value={money(result.entradaTotal)} />
+        {entryBlock ? <Metric label="Parcela calculada" value={`${entryBlock.parcelas}x de ${money(entryBlock.valorParcelaComJuros ?? entryBlock.valorParcela)}`} /> : null}
+        <label className="grid gap-2 text-sm font-black text-navy">Ato<input className="admin-input bg-white" inputMode="decimal" placeholder="R$ 0,00" value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
+        <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input bg-white" inputMode="numeric" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "Melhor cenário"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
+      </div>
+      <label className="mt-4 flex items-center gap-3 text-sm font-black text-navy"><input checked={useFgts} onChange={(event) => setUseFgts(event.target.checked)} type="checkbox" />Usar saldo de FGTS/entrada disponível</label>
+      {detail.blocos.filter((block) => block !== entryBlock).map((block, index) => <div className="mt-4" key={`${block.label}-${index}`}><Metric label={block.label} value={`${block.parcelas}x de ${money(block.valorParcelaComJuros ?? block.valorParcela)}`} /></div>)}
     </div>
     {result.descontosAplicados?.length ? <div className="rounded-xl border border-line bg-white p-4">
       <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos aplicados</p>
@@ -174,4 +180,9 @@ function propertyImages(property) {
   const photos = Array.isArray(property?.photos) ? property.photos : [];
   const urls = photos.map((photo) => typeof photo === "string" ? photo : photo?.data || photo?.url || photo?.src || photo?.publicUrl).filter(Boolean);
   return urls.length ? urls : property ? [coverImage(property)] : [];
+}
+
+function mapsUrl(property) {
+  const query = [property.location, property.name].filter(Boolean).join(" - ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

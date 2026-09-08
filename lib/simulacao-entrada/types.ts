@@ -244,6 +244,7 @@ export interface ResultadoSimulacao {
   valorFinalImovel: number;
   /** Financiamento + MCMV + Casa Paulista (o que o banco/governo cobre). */
   totalCoberto: number;
+  financiamentoAprovado: number;
   /** Entrada total necessária (valor final do imóvel − total coberto). */
   entradaTotal: number;
   /** Detalhamento do parcelamento da entrada (depende da estratégia usada). */

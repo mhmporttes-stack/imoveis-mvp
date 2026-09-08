@@ -75,6 +75,7 @@ export function simularEntrada(
     casaPaulista,
     valorFinalImovel,
     totalCoberto,
+    financiamentoAprovado: cliente.financiamentoAprovado,
     entradaTotal: entradaAposFgts,
     detalhePagamento,
     beneficiosInformativos: empreendimento.beneficiosInformativos ?? [],
