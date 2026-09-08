@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
-import { isGeneralAdminAuth, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listTags } from "@/lib/client-tags";
 import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
@@ -48,10 +48,14 @@ export default async function AdminSimulationsPage() {
   }
 
   const isGeneralAdmin = isGeneralAdminAuth(auth);
+  const isManager = isManagerProfile(auth.profile);
 
-  if (isGeneralAdmin) {
+  if (isGeneralAdmin || isManager) {
     try {
-      adminProfiles = await listAdminProfiles();
+      const profiles = await listAdminProfiles();
+      adminProfiles = isManager
+        ? profiles.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
+        : profiles;
     } catch {
       adminProfiles = [];
     }
@@ -85,7 +89,7 @@ export default async function AdminSimulationsPage() {
           registrations={registrations}
           simulations={simulations}
           adminProfiles={adminProfiles}
-          canManageResponsibleUsers={isGeneralAdmin}
+          canManageResponsibleUsers={isGeneralAdmin || isManager}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           tags={tags}
         />
