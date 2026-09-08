@@ -4,8 +4,8 @@ import { useState } from "react";
 import PropertyForm from "@/components/PropertyForm";
 import EmpreendimentoRegrasEntradaForm from "@/components/EmpreendimentoRegrasEntradaForm";
 
-export default function EmpreendimentoAdminTabs({ property, canPublish, showRegrasEntradaTab }) {
-  const [tab, setTab] = useState("dados");
+export default function EmpreendimentoAdminTabs({ property, canPublish, showRegrasEntradaTab, initialTab = "dados" }) {
+  const [tab, setTab] = useState(initialTab === "regras" ? "regras" : "dados");
 
   if (!showRegrasEntradaTab) {
     return <PropertyForm property={property} canPublish={canPublish} />;

@@ -33,6 +33,7 @@ export default function AdminPropertyList({ properties }) {
           <div className="flex flex-wrap gap-3">
             <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
             <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
+            <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
             <button className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft" onClick={() => removeProperty(property)}>
               Excluir
             </button>

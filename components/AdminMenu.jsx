@@ -51,7 +51,7 @@ const adminGroups = [
     href: "/admin/corretores",
     items: [
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
-      { href: "/admin", label: "Empreendimentos", key: "properties" },
+      { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
       { href: "/admin/automacoes", label: "Automações", key: "automations" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial"] }
     ]
@@ -110,7 +110,7 @@ const managerGroups = [
     label: "GESTÃO",
     href: "/admin/relatorio-diario",
     items: [
-      { href: "/admin", label: "Empreendimentos", key: "properties" },
+      { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
       { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
     ]
   }

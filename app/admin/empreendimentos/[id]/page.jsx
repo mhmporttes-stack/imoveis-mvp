@@ -8,7 +8,7 @@ import { canManageProperties, getProperty } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditPropertyPage({ params }) {
+export default async function EditPropertyPage({ params, searchParams }) {
   const auth = await requireAdminPage();
   if (!isGeneralAdminAuth(auth) && !isManagerProfile(auth.profile)) redirect("/admin/simulacoes");
 
@@ -27,6 +27,7 @@ export default async function EditPropertyPage({ params }) {
   }
 
   const { id } = await params;
+  const query = await searchParams;
   const property = await getProperty(id);
   if (!property) notFound();
 
@@ -42,7 +43,7 @@ export default async function EditPropertyPage({ params }) {
           <AdminLogoutButton />
         </div>
       </section>
-      <EmpreendimentoAdminTabs property={property} canPublish showRegrasEntradaTab />
+      <EmpreendimentoAdminTabs property={property} canPublish showRegrasEntradaTab initialTab={query?.aba} />
     </main>
   );
 }
