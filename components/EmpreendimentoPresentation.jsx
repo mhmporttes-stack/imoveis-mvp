@@ -16,7 +16,6 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
   const [manualAct, setManualAct] = useState("");
   const [appliedInstallments, setAppliedInstallments] = useState("");
   const [appliedAct, setAppliedAct] = useState("");
-  const [useFgts, setUseFgts] = useState(true);
   const [expandedImage, setExpandedImage] = useState(false);
   const selected = properties.find((property) => property.id === selectedId);
   const images = useMemo(() => propertyImages(selected), [selected]);
@@ -39,12 +38,12 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
       subsidioMcmv: Number(totals.subsidy) || 0,
       casaPaulista: 10000,
       parcelaFinanciamento: parseCurrencyNumber(simulation.firstInstallment),
-      fgtsDisponivel: useFgts ? parseCurrencyNumber(simulation.downPaymentValue) + parseCurrencyNumber(simulation.fgtsValue) : 0,
+      fgtsDisponivel: parseCurrencyNumber(simulation.downPaymentValue) + parseCurrencyNumber(simulation.fgtsValue),
       temDependente: Boolean(simulation.registration?.hasChildrenUnder18),
       fgtsMaisDe3Anos: Boolean(simulation.registration?.hasOverThreeYearsRegisteredWork),
       tipoRenda: simulation.registration?.primaryIncomeType || ""
     };
-  }, [simulation, useFgts]);
+  }, [simulation]);
 
   useEffect(() => {
     setImageIndex(0);
@@ -120,7 +119,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
-            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} propertyFeatures={selected.features} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
+            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} propertyFeatures={selected.features} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
             {selected.features?.length ? <div className="mt-6 border-t border-line pt-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Benefícios do empreendimento</p><div className="mt-3 flex flex-wrap gap-2">{selected.features.map((feature, index) => <span className="rounded-full border border-brand/20 bg-[#F4F9FF] px-4 py-2 text-sm font-black text-navy" key={`${typeof feature === "string" ? feature : feature.text}-${index}`}>{typeof feature === "string" ? feature : feature.text}</span>)}</div></div> : null}
           </div>
         </div>
@@ -137,7 +136,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
   );
 }
 
-function Result({ result, loading, financingInstallments, propertyFeatures = [], manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts, onRecalculate }) {
+function Result({ result, loading, financingInstallments, propertyFeatures = [], manualInstallments, setManualInstallments, manualAct, setManualAct, onRecalculate }) {
   if (loading && !result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Atualizando valores...</p>;
   if (!result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Este empreendimento ainda não possui regras de entrada completas.</p>;
   const detail = result.detalhePagamento || { ato: 0, blocos: [] };
@@ -174,7 +173,6 @@ function Result({ result, loading, financingInstallments, propertyFeatures = [],
         <label className="grid gap-2 text-sm font-black text-navy">Ato total<input className="admin-input bg-white" inputMode="decimal" placeholder={money(detail.ato)} value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
         <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input bg-white" inputMode="numeric" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "Melhor cenário"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
       </div>
-      <label className="mt-4 flex items-center gap-3 text-sm font-black text-navy"><input checked={useFgts} onChange={(event) => setUseFgts(event.target.checked)} type="checkbox" />Usar saldo de FGTS/entrada disponível</label>
       <button className="premium-button-primary mt-4 w-full" disabled={loading} onClick={onRecalculate} type="button">{loading ? "Recalculando..." : "Recalcular valores"}</button>
       {detail.blocos.filter((block) => block !== entryBlock).map((block, index) => <div className="mt-4" key={`${block.label}-${index}`}><Metric label={block.label} value={`${block.parcelas}x de ${money(block.valorParcelaComJuros ?? block.valorParcela)}`} /></div>)}
     </div>
