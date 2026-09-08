@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Expand, MapPin, X } from "lucide-react";
 import { coverImage } from "@/lib/format";
 import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-schema";
 import { getRenderableSimulationModels, normalizeSimulationModels } from "@/lib/simulation-models";
@@ -14,7 +14,10 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
   const [imageIndex, setImageIndex] = useState(0);
   const [manualInstallments, setManualInstallments] = useState("");
   const [manualAct, setManualAct] = useState("");
+  const [appliedInstallments, setAppliedInstallments] = useState("");
+  const [appliedAct, setAppliedAct] = useState("");
   const [useFgts, setUseFgts] = useState(true);
+  const [expandedImage, setExpandedImage] = useState(false);
   const selected = properties.find((property) => property.id === selectedId);
   const images = useMemo(() => propertyImages(selected), [selected]);
   const financingInstallments = useMemo(() => {
@@ -47,6 +50,8 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
     setImageIndex(0);
     setManualInstallments("");
     setManualAct("");
+    setAppliedInstallments("");
+    setAppliedAct("");
   }, [selectedId]);
 
   useEffect(() => {
@@ -59,15 +64,14 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
     if (!selectedId) return;
     let current = true;
     setLoading(true);
-    setResult(null);
     fetch("/api/simular-entrada", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cliente: client,
         propertyIds: [selectedId],
-        atoManual: parseCurrencyNumber(manualAct),
-        parcelasManuais: Number(manualInstallments) || 0
+        atoManual: parseCurrencyNumber(appliedAct),
+        parcelasManuais: Number(appliedInstallments) || 0
       })
     })
       .then((response) => response.json())
@@ -75,7 +79,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
       .catch(() => { if (current) setResult(null); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [client, manualAct, manualInstallments, selectedId]);
+  }, [appliedAct, appliedInstallments, client, selectedId]);
 
   if (!properties.length) {
     return <section className="container-page rounded-2xl border border-line bg-white p-8 font-bold text-muted">Nenhum empreendimento publicado com regras disponíveis.</section>;
@@ -101,6 +105,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
               <button aria-label="Próxima imagem" className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-navy shadow" onClick={() => setImageIndex((imageIndex + 1) % images.length)} type="button"><ChevronRight /></button>
               <span className="absolute bottom-3 right-3 rounded-full bg-navy/85 px-3 py-1 text-xs font-black text-white">{imageIndex + 1} / {images.length}</span>
             </> : null}
+            <button aria-label="Expandir imagem" className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-navy shadow" onClick={() => setExpandedImage(true)} type="button"><Expand className="h-5 w-5" /></button>
           </div>
           <div className="p-6 sm:p-8">
             <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{selected.builder || "Empreendimento"}</p>
@@ -109,26 +114,40 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
-            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} /></div>
+            <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
           </div>
         </div>
       </article> : null}
+
+      {expandedImage ? <div className="fixed inset-0 z-[200] grid place-items-center bg-black/90 p-4" role="dialog" aria-modal="true">
+        <button aria-label="Fechar imagem" className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-white text-navy" onClick={() => setExpandedImage(false)} type="button"><X /></button>
+        <img className="max-h-[90vh] max-w-[95vw] object-contain" src={images[imageIndex]} alt={`${selected.name} ampliado`} />
+        {images.length > 1 ? <><button aria-label="Imagem anterior" className="absolute left-5 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white text-navy" onClick={() => setImageIndex((imageIndex - 1 + images.length) % images.length)} type="button"><ChevronLeft /></button><button aria-label="Próxima imagem" className="absolute right-5 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white text-navy" onClick={() => setImageIndex((imageIndex + 1) % images.length)} type="button"><ChevronRight /></button></> : null}
+      </div> : null}
 
       <Link className="premium-button-secondary justify-self-start" href={`/admin/simulacoes/${simulation.id}`}>Editar simulação completa</Link>
     </section>
   );
 }
 
-function Result({ result, loading, financingInstallments, manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts }) {
-  if (loading) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Atualizando valores...</p>;
+function Result({ result, loading, financingInstallments, manualInstallments, setManualInstallments, manualAct, setManualAct, useFgts, setUseFgts, onRecalculate }) {
+  if (loading && !result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Atualizando valores...</p>;
   if (!result) return <p className="rounded-2xl bg-mist p-5 font-bold text-muted">Este empreendimento ainda não possui regras de entrada completas.</p>;
   const detail = result.detalhePagamento || { ato: 0, blocos: [] };
   const status = { viavel: ["VIÁVEL", "bg-emerald-50 text-emerald-800"], ajuste: ["VIÁVEL COM AJUSTE", "bg-amber-50 text-amber-800"], inviavel: ["INVIÁVEL", "bg-red-50 text-red-800"] }[result.classificacao] || ["EM ANÁLISE", "bg-mist text-navy"];
   const entryBlock = detail.blocos.find((block) => /parcela/i.test(block.label));
+  const freeDocuments = hasFreeDocuments(result.beneficiosInformativos);
+  const documentSavings = freeDocuments ? result.valorImovel * 0.05 : 0;
+  const totalSavings = result.totalDescontos + documentSavings;
   return <div className="grid gap-5">
+    <div className="rounded-2xl bg-navy px-5 py-6 text-center text-white"><p className="text-xs font-black uppercase tracking-[0.16em] text-white/75">Valor total do imóvel</p><p className="mt-2 text-4xl font-black">{money(result.valorImovel)}</p></div>
+    {(result.descontosAplicados?.length || freeDocuments) ? <div className="rounded-xl border border-line bg-white p-4">
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos e benefícios</p>
+      <div className="mt-2 grid gap-2 text-sm font-bold text-navy">{result.descontosAplicados?.map((discount, index) => <p className="flex justify-between gap-3" key={`${discount.tipo}-${index}`}><span>{discount.label}</span><span>{money(discount.valor)}</span></p>)}
+      {freeDocuments ? <p className="flex justify-between gap-3"><span>Documentação gratuita</span><span><span className="mr-2 text-red-600 line-through">{money(documentSavings)}</span><span className="text-emerald-700">Grátis</span></span></p> : null}</div>
+      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos e benefícios</span><span>{money(totalSavings)}</span></p>
+    </div> : null}
     <div className="grid gap-5 sm:grid-cols-2">
-      <Metric label="Valor do imóvel" value={money(result.valorImovel)} />
-      <Metric label="Total de descontos" value={money(result.totalDescontos)} />
       {result.subsidioMcmv > 0 ? <Metric label="Subsídio MCMV" value={money(result.subsidioMcmv)} /> : null}
       {result.casaPaulista > 0 ? <Metric label="Casa Paulista" value={money(result.casaPaulista)} /> : null}
       <Metric label="Financiamento aprovado" value={money(result.financiamentoAprovado)} />
@@ -146,13 +165,9 @@ function Result({ result, loading, financingInstallments, manualInstallments, se
         <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input bg-white" inputMode="numeric" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "Melhor cenário"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
       </div>
       <label className="mt-4 flex items-center gap-3 text-sm font-black text-navy"><input checked={useFgts} onChange={(event) => setUseFgts(event.target.checked)} type="checkbox" />Usar saldo de FGTS/entrada disponível</label>
+      <button className="premium-button-primary mt-4 w-full" disabled={loading} onClick={onRecalculate} type="button">{loading ? "Recalculando..." : "Recalcular valores"}</button>
       {detail.blocos.filter((block) => block !== entryBlock).map((block, index) => <div className="mt-4" key={`${block.label}-${index}`}><Metric label={block.label} value={`${block.parcelas}x de ${money(block.valorParcelaComJuros ?? block.valorParcela)}`} /></div>)}
     </div>
-    {result.descontosAplicados?.length ? <div className="rounded-xl border border-line bg-white p-4">
-      <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos aplicados</p>
-      <div className="mt-2 grid gap-2 text-sm font-bold text-navy">{result.descontosAplicados.map((discount, index) => <p className="flex justify-between gap-3" key={`${discount.tipo}-${index}`}><span>{discount.label}</span><span>{money(discount.valor)}</span></p>)}</div>
-      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos</span><span>{money(result.totalDescontos)}</span></p>
-    </div> : null}
     {result.beneficiosInformativos?.length ? <Benefits benefits={result.beneficiosInformativos} propertyValue={result.valorImovel} /> : null}
     <div className={`rounded-xl px-4 py-3 text-sm font-black ${status[1]}`}>{status[0]}</div>
     {result.motivos?.length ? <div className="grid gap-1 text-sm font-bold text-red-800">{result.motivos.map((reason, index) => <p key={index}>{reason}</p>)}</div> : null}
@@ -160,12 +175,15 @@ function Result({ result, loading, financingInstallments, manualInstallments, se
 }
 
 function Benefits({ benefits, propertyValue }) {
-  const freeDocuments = benefits.some((benefit) => /document/i.test(`${benefit.label} ${benefit.tipo}`) && /gr[aá]tis|gratuita|isenta/i.test(`${benefit.label} ${benefit.tipo}`));
+  const freeDocuments = hasFreeDocuments(benefits);
   return <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
     <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-800">Benefícios</p>
-    {freeDocuments ? <p className="mt-2 font-black text-emerald-900"><span className="mr-2 text-red-600 line-through">Documentação {money(propertyValue * 0.05)}</span> Documentação gratuita</p> : null}
     <div className="mt-2 grid gap-1 text-sm font-bold text-emerald-900">{benefits.filter((benefit) => !freeDocuments || !/document/i.test(`${benefit.label} ${benefit.tipo}`)).map((benefit, index) => <p key={`${benefit.tipo}-${index}`}>{benefit.label}{benefit.valor > 0 ? `: ${money(benefit.valor)}` : ""}</p>)}</div>
   </div>;
+}
+
+function hasFreeDocuments(benefits = []) {
+  return benefits.some((benefit) => /document/i.test(`${benefit.label} ${benefit.tipo}`) && /gr[aá]tis|gratuita|isenta/i.test(`${benefit.label} ${benefit.tipo}`));
 }
 
 function Metric({ label, value }) {
