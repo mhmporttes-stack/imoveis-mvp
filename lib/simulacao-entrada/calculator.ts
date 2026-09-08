@@ -75,7 +75,7 @@ export function simularEntrada(
     );
   }
   aplicarRegraAto(detalhePagamento, entradaAposFgts, empreendimento, avisos);
-  aplicarAtoDesejado(detalhePagamento, ajustes.atoDesejado, entradaAposFgts);
+  aplicarAtoDesejado(detalhePagamento, ajustes.atoDesejado, entradaAposFgts, empreendimento, cliente);
   const motivos = validarCenario(detalhePagamento, entradaAposFgts, empreendimento, cliente);
   const classificacao = motivos.length ? "inviavel" : avisos.length ? "ajuste" : "viavel";
 
@@ -108,9 +108,34 @@ export function simularEntrada(
   return resultado;
 }
 
-function aplicarAtoDesejado(detalhe: DetalhePagamento, atoDesejado: number | undefined, entrada: number) {
+function aplicarAtoDesejado(
+  detalhe: DetalhePagamento,
+  atoDesejado: number | undefined,
+  entrada: number,
+  empreendimento: Empreendimento,
+  cliente: DadosCliente
+) {
   const alvo = Math.min(entrada, Math.max(0, atoDesejado || 0));
   if (alvo <= detalhe.ato) return;
+
+  if (empreendimento.regraEntrada.tipo === "ato_mais_parcelas") {
+    const saldoParcelavel = Math.max(0, entrada - alvo);
+    const bloco = resolverBlocoLinear(
+      saldoParcelavel,
+      empreendimento.regraEntrada.limites,
+      cliente.rendaTotal
+    );
+    detalhe.ato = alvo + bloco.sobra;
+    detalhe.blocos = bloco.parcelas > 0 ? [{
+      label: "Parcelas da entrada",
+      parcelas: bloco.parcelas,
+      valorParcela: bloco.valorParcela,
+      valorParcelaComJuros: bloco.valorParcelaComJuros,
+      periodicidadeMeses: 1,
+    }] : [];
+    return;
+  }
+
   const diferenca = alvo - detalhe.ato;
   detalhe.ato = alvo;
   reduzirBlocos(detalhe.blocos, diferenca);
