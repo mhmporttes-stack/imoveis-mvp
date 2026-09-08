@@ -166,12 +166,17 @@ function Result({ result, loading, financingInstallments, propertyFeatures = [],
     </div> : null}
     <div className="rounded-xl border border-brand/20 bg-[#F4F9FF] p-4 sm:p-5">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Composição da entrada</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 border-b border-brand/15 pb-4 sm:grid-cols-2">
         <Metric label="Entrada total" value={money(result.entradaTotal)} />
         <Metric label="Valor parcelado" value={money(installmentPrincipal)} />
-        {entryBlock ? <Metric label="Parcela calculada" value={`${entryBlock.parcelas}x de ${money(entryBlock.valorParcelaComJuros ?? entryBlock.valorParcela)}`} /> : null}
-        <label className="grid gap-2 text-sm font-black text-navy">Ato total<input className="admin-input bg-white" inputMode="decimal" placeholder={money(detail.ato)} value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
-        <label className="grid gap-2 text-sm font-black text-navy">Quantidade de parcelas<input className="admin-input bg-white" inputMode="numeric" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "Melhor cenário"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} /></label>
+      </div>
+      <div className="mt-4 grid items-end gap-4 rounded-xl border border-brand/15 bg-white p-4 sm:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)]">
+        <label className="grid min-w-0 gap-2 text-sm font-black text-navy">Ato<input className="admin-input min-w-0 bg-white" inputMode="decimal" placeholder={money(detail.ato)} value={manualAct} onChange={(event) => setManualAct(event.target.value)} /></label>
+        <div className="flex items-center justify-start gap-2 pb-1 sm:justify-center">
+          <input aria-label="Parcelas" className="h-14 w-20 rounded-2xl border border-line bg-white px-3 text-center text-xl font-black text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" inputMode="numeric" max="999" min="1" placeholder={entryBlock ? String(entryBlock.parcelas) : "1"} type="number" value={manualInstallments} onChange={(event) => setManualInstallments(event.target.value)} />
+          <span className="text-xl font-black text-navy">x</span>
+        </div>
+        {entryBlock ? <Metric label="Valor da parcela" value={money(entryBlock.valorParcelaComJuros ?? entryBlock.valorParcela)} /> : null}
       </div>
       <button className="premium-button-primary mt-4 w-full" disabled={loading} onClick={onRecalculate} type="button">{loading ? "Recalculando..." : "Recalcular valores"}</button>
       {detail.blocos.filter((block) => block !== entryBlock).map((block, index) => <div className="mt-4" key={`${block.label}-${index}`}><Metric label={block.label} value={`${block.parcelas}x de ${money(block.valorParcelaComJuros ?? block.valorParcela)}`} /></div>)}
