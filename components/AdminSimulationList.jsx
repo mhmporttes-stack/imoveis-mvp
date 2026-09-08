@@ -249,7 +249,7 @@ export default function AdminSimulationList({
   async function openSimulation(client) {
     if (client.simulation?.id) {
       await touchClientRegistration(client);
-      router.push(`/admin/simulacoes/${client.simulation.id}`);
+      router.push(`/admin/simulacoes/${client.simulation.id}/empreendimentos`);
       return;
     }
 
@@ -270,7 +270,7 @@ export default function AdminSimulationList({
         return;
       }
 
-      router.push(`/admin/simulacoes/${data.id}`);
+      router.push(`/admin/simulacoes/${data.id}/empreendimentos`);
     } finally {
       setBusyClientId("");
     }
