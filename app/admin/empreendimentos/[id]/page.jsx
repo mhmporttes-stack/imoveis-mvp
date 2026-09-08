@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
-import PropertyForm from "@/components/PropertyForm";
+import EmpreendimentoAdminTabs from "@/components/EmpreendimentoAdminTabs";
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
@@ -42,7 +42,7 @@ export default async function EditPropertyPage({ params }) {
           <AdminLogoutButton />
         </div>
       </section>
-      <PropertyForm property={property} canPublish />
+      <EmpreendimentoAdminTabs property={property} canPublish showRegrasEntradaTab />
     </main>
   );
 }

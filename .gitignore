@@ -41,3 +41,7 @@ Thumbs.db
 
 # codex scratch
 work/
+mcmv-calculator/
+
+# supabase cli local cache
+supabase/.temp/

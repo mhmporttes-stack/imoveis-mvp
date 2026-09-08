@@ -10,7 +10,9 @@ import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import {
   MARITAL_STATUS_OPTIONS,
   PRIMARY_INCOME_OPTIONS,
-  SIMULATION_TYPE_OPTIONS
+  SIMULATION_TYPE_OPTIONS,
+  calculateFamilyIncome,
+  parseCurrencyNumber
 } from "@/lib/simulation-registration-schema";
 import {
   SIMULATION_MODEL_TYPES,
@@ -136,6 +138,57 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       return !term || haystack.includes(term);
     });
   }, [form.properties, properties, propertyQuery]);
+
+  const [entradaResultados, setEntradaResultados] = useState({});
+  const [entradaLoading, setEntradaLoading] = useState(false);
+
+  const clienteParaEntrada = useMemo(() => {
+    const registration = form.registration || {};
+    return {
+      rendaTotal: calculateFamilyIncome(registration),
+      financiamentoAprovado: Number(totals.financing) || 0,
+      subsidioMcmv: Number(totals.subsidy) || 0,
+      casaPaulista: 0,
+      parcelaFinanciamento: parseCurrencyNumber(form.firstInstallment),
+      fgtsDisponivel: parseCurrencyNumber(form.downPaymentValue) + parseCurrencyNumber(form.fgtsValue),
+      temDependente: Boolean(registration.hasChildrenUnder18),
+      fgtsMaisDe3Anos: Boolean(registration.hasOverThreeYearsRegisteredWork),
+      tipoRenda: registration.primaryIncomeType || ""
+    };
+  }, [form.registration, form.firstInstallment, form.downPaymentValue, form.fgtsValue, totals]);
+
+  const propertyIdsParaEntrada = useMemo(
+    () => form.properties.map((item) => item.propertyId).filter(Boolean),
+    [form.properties]
+  );
+
+  useEffect(() => {
+    if (!propertyIdsParaEntrada.length) {
+      setEntradaResultados({});
+      return undefined;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setEntradaLoading(true);
+      try {
+        const response = await fetch("/api/simular-entrada", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cliente: clienteParaEntrada, propertyIds: propertyIdsParaEntrada })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) return;
+        const byId = Object.fromEntries((data.resultados || []).map((item) => [item.empreendimentoId, item]));
+        setEntradaResultados(byId);
+      } catch {
+        // Simulação de entrada é um complemento informativo — falha aqui não bloqueia o gerador.
+      } finally {
+        setEntradaLoading(false);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [clienteParaEntrada, propertyIdsParaEntrada]);
 
   useEffect(() => {
     formRef.current = form;
@@ -924,7 +977,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               </button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <EntradaSimuladaCard resultado={entradaResultados[property.propertyId]} loading={entradaLoading} />
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
               <Field label="Nome na apresentação" value={property.customName} onChange={(value) => updateSelectedProperty(propertyIndex, "customName", value)} />
               <Field label="Valor na apresentação" value={property.customPrice} onChange={(value) => updateSelectedProperty(propertyIndex, "customPrice", value)} />
               <Field label="Localização" value={property.customLocation} onChange={(value) => updateSelectedProperty(propertyIndex, "customLocation", value)} />
@@ -1158,6 +1213,45 @@ function Metric({ label, value }) {
     <div className="min-w-0">
       <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">{label}</p>
       <p className="mt-1 break-words text-[clamp(1.5rem,8vw,1.875rem)] font-black leading-tight text-navy">{value}</p>
+    </div>
+  );
+}
+
+function EntradaSimuladaCard({ resultado, loading }) {
+  if (!resultado) {
+    return (
+      <div className="rounded-2xl border border-dashed border-line bg-mist px-5 py-4 text-sm font-bold text-muted">
+        {loading ? "Calculando entrada sugerida..." : "Este empreendimento ainda não tem regras de entrada configuradas (aba \"Regras de Entrada\" na ficha do empreendimento)."}
+      </div>
+    );
+  }
+
+  const { detalhePagamento, entradaTotal, avisos } = resultado;
+
+  return (
+    <div className="grid gap-4 rounded-2xl border border-brand/20 bg-[#F4F9FF] p-5">
+      <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Entrada sugerida (simulação automática)</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Metric label="Entrada total" value={formatCurrency(entradaTotal)} />
+        {detalhePagamento.ato > 0 ? <Metric label="ATO (à vista)" value={formatCurrency(detalhePagamento.ato)} /> : null}
+        {detalhePagamento.blocos.map((bloco, index) => (
+          <Metric
+            key={`${bloco.label}-${index}`}
+            label={bloco.label}
+            value={`${bloco.parcelas}x de ${formatCurrency(bloco.valorParcelaComJuros ?? bloco.valorParcela)}`}
+          />
+        ))}
+      </div>
+      {avisos.length ? (
+        <ul className="grid gap-1 text-sm text-amber-800">
+          {avisos.map((aviso, index) => (
+            <li key={index}>⚠️ {aviso}</li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-xs text-muted">
+        Simulação estimada — valores finais dependem da análise de crédito do banco e confirmação da incorporadora.
+      </p>
     </div>
   );
 }

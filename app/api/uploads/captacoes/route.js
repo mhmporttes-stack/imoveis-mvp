@@ -4,8 +4,33 @@ import { uploadPropertyImage } from "@/lib/media-storage";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const uploadAttempts = new Map();
+const MAX_UPLOADS_PER_WINDOW = 10;
+const WINDOW_MS = 5 * 60_000;
+
+function isRateLimited(request) {
+  const key = request.headers.get("x-forwarded-for") || "local";
+  const now = Date.now();
+  const entry = uploadAttempts.get(key);
+
+  if (!entry || now - entry.windowStart > WINDOW_MS) {
+    uploadAttempts.set(key, { windowStart: now, count: 1 });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > MAX_UPLOADS_PER_WINDOW;
+}
+
 export async function POST(request) {
   try {
+    if (isRateLimited(request)) {
+      return NextResponse.json(
+        { error: "Muitos envios em pouco tempo. Aguarde alguns minutos e tente novamente." },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 
