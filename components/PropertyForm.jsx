@@ -336,9 +336,9 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
 
       <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Características</p>
-          <h3 className="mt-2 text-2xl font-extrabold text-navy">Diferenciais exibidos no card</h3>
-          <p className="mt-2 text-muted">Marque os itens principais, adicione personalizados e ordene os mais importantes primeiro.</p>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{isDevelopment ? "Benefícios e diferenciais" : "Características"}</p>
+          <h3 className="mt-2 text-2xl font-extrabold text-navy">{isDevelopment ? "Benefícios exibidos na apresentação" : "Diferenciais exibidos no card"}</h3>
+          <p className="mt-2 text-muted">Marque os itens, adicione opções personalizadas e ordene os mais importantes primeiro.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -362,7 +362,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
               }
             }}
             className="min-h-12 flex-1 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-            placeholder="Ex.: 160 m², 2 vagas, varanda gourmet"
+            placeholder={isDevelopment ? "Ex.: entrada facilitada, lazer completo" : "Ex.: 160 m², 2 vagas, varanda gourmet"}
           />
           <FeatureIconPicker
             value={featureIconDraft}
@@ -370,7 +370,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
             ariaLabel="Escolher ícone do novo diferencial"
           />
           <button type="button" onClick={addCustomFeature} className="premium-button-secondary">
-            Adicionar diferencial
+            {isDevelopment ? "Adicionar benefício" : "Adicionar diferencial"}
           </button>
         </div>
 

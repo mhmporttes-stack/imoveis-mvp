@@ -115,6 +115,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
             <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} useFgts={useFgts} setUseFgts={setUseFgts} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
+            {selected.features?.length ? <div className="mt-6 border-t border-line pt-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Benefícios do empreendimento</p><div className="mt-3 flex flex-wrap gap-2">{selected.features.map((feature, index) => <span className="rounded-full border border-brand/20 bg-[#F4F9FF] px-4 py-2 text-sm font-black text-navy" key={`${typeof feature === "string" ? feature : feature.text}-${index}`}>{typeof feature === "string" ? feature : feature.text}</span>)}</div></div> : null}
           </div>
         </div>
       </article> : null}
@@ -138,14 +139,13 @@ function Result({ result, loading, financingInstallments, manualInstallments, se
   const entryBlock = detail.blocos.find((block) => /parcela/i.test(block.label));
   const freeDocuments = hasFreeDocuments(result.beneficiosInformativos);
   const documentSavings = freeDocuments ? result.valorImovel * 0.05 : 0;
-  const totalSavings = result.totalDescontos + documentSavings;
   return <div className="grid gap-5">
     <div className="rounded-2xl bg-navy px-5 py-6 text-center text-white"><p className="text-xs font-black uppercase tracking-[0.16em] text-white/75">Valor total do imóvel</p><p className="mt-2 text-4xl font-black">{money(result.valorImovel)}</p></div>
     {(result.descontosAplicados?.length || freeDocuments) ? <div className="rounded-xl border border-line bg-white p-4">
-      <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos e benefícios</p>
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-brand">Descontos aplicados</p>
       <div className="mt-2 grid gap-2 text-sm font-bold text-navy">{result.descontosAplicados?.map((discount, index) => <p className="flex justify-between gap-3" key={`${discount.tipo}-${index}`}><span>{discount.label}</span><span>{money(discount.valor)}</span></p>)}
-      {freeDocuments ? <p className="flex justify-between gap-3"><span>Documentação gratuita</span><span><span className="mr-2 text-red-600 line-through">{money(documentSavings)}</span><span className="text-emerald-700">Grátis</span></span></p> : null}</div>
-      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos e benefícios</span><span>{money(totalSavings)}</span></p>
+      {freeDocuments ? <p className="flex justify-between gap-3 border-t border-line pt-2"><span>Documentação gratuita</span><span><span className="mr-2 text-red-600 line-through">{money(documentSavings)}</span><span className="text-emerald-700">Grátis</span></span></p> : null}</div>
+      <p className="mt-3 flex justify-between gap-3 border-t border-line pt-3 font-black text-navy"><span>Total de descontos no imóvel</span><span>{money(result.totalDescontos)}</span></p>
     </div> : null}
     <div className="grid gap-5 sm:grid-cols-2">
       {result.subsidioMcmv > 0 ? <Metric label="Subsídio MCMV" value={money(result.subsidioMcmv)} /> : null}

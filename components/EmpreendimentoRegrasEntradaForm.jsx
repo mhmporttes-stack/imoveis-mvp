@@ -56,6 +56,7 @@ function emptyFormState() {
     atoMinimo: "",
     atoMaximo: "",
     aceitaCasaPaulista: false,
+    documentacaoGratuita: false,
     descontos: [],
     observacoes: "",
     regra: emptyRegraState()
@@ -162,6 +163,11 @@ export default function EmpreendimentoRegrasEntradaForm({ propertyId }) {
       </section>
 
       <DescontosEditor value={form.descontos} onChange={(descontos) => update({ descontos })} />
+
+      <label className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 font-extrabold text-emerald-900">
+        <input type="checkbox" checked={form.documentacaoGratuita} onChange={(event) => update({ documentacaoGratuita: event.target.checked })} />
+        Documentação gratuita (economia calculada em 5% do valor cheio do imóvel)
+      </label>
 
       <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
         <p className="text-sm font-black uppercase tracking-[0.1em] text-brand">Limites gerais e ato</p>
@@ -636,6 +642,11 @@ function formStateToEmpreendimento(form) {
       ...(form.atoMaximo !== "" ? { maximo: num(form.atoMaximo) } : {})
     },
     descontos,
+    beneficiosInformativos: form.documentacaoGratuita ? [{
+      tipo: "documentacao_gratuita",
+      label: "Documentação gratuita",
+      valor: num(form.valorImovel) * 0.05
+    }] : [],
     aceitaCasaPaulista: Boolean(form.aceitaCasaPaulista),
     regraEntrada,
     observacoes: form.observacoes || "",
@@ -698,6 +709,7 @@ function rowToFormState(row) {
     atoMinimo: String(regras.ato?.minimo ?? ""),
     atoMaximo: String(regras.ato?.maximo ?? ""),
     aceitaCasaPaulista: Boolean(regras.aceitaCasaPaulista),
+    documentacaoGratuita: (regras.beneficiosInformativos || []).some((item) => item.tipo === "documentacao_gratuita"),
     descontos: (regras.descontos || []).map((item) => ({ tipo: item.tipo || "outro", label: item.label || "", valor: String(item.valor ?? "") })),
     observacoes: regras.observacoes || "",
     regra
