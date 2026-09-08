@@ -36,7 +36,12 @@ export async function POST(request) {
     try {
       const row = await getEmpreendimentoRegras(propertyId);
       if (!row || row.ativo === false || !row.regras) continue;
-      resultados.push(simularEntrada(cliente, row.regras));
+      resultados.push({
+        ...simularEntrada(cliente, row.regras),
+        clienteSnapshot: cliente,
+        regrasAtualizadasEm: row.atualizado_em || row.regras.atualizadoEm || "",
+        calculadoEm: new Date().toISOString()
+      });
     } catch (error) {
       console.error(`Falha ao simular entrada para ${propertyId}:`, error?.message || error);
     }

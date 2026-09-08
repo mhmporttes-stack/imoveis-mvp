@@ -30,6 +30,7 @@ const adminGroups = [
     href: "/admin/simulacoes",
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
     ]
@@ -50,6 +51,7 @@ const adminGroups = [
     href: "/admin/corretores",
     items: [
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
+      { href: "/admin", label: "Empreendimentos", key: "properties" },
       { href: "/admin/automacoes", label: "Automações", key: "automations" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial"] }
     ]
@@ -61,7 +63,7 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [...clientItems, { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [clientItems[0], { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
@@ -89,6 +91,7 @@ const managerGroups = [
     href: "/admin/simulacoes",
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
     ]
@@ -107,6 +110,7 @@ const managerGroups = [
     label: "GESTÃO",
     href: "/admin/relatorio-diario",
     items: [
+      { href: "/admin", label: "Empreendimentos", key: "properties" },
       { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
     ]
   }

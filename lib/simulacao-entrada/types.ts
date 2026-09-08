@@ -102,7 +102,19 @@ export interface ConfigBalao {
   /** Periodicidade em meses (6 = semestral, 12 = anual). */
   periodicidadeMeses: number;
   /** Valor máximo permitido por balão — acima disso, o excedente vai para o ATO. */
-  valorMaximoPorBalao: number;
+  valorMaximoPorBalao?: number;
+  /** Limite flexível por balão, fixo ou proporcional à renda. */
+  limite?: ParcelaMaxima;
+}
+
+export interface ConfigAto {
+  ativo: boolean;
+  obrigatorio?: boolean;
+  tipo?: "valor_fixo" | "percentual_entrada";
+  valor?: number;
+  percentual?: number;
+  minimo?: number;
+  maximo?: number;
 }
 
 /**
@@ -118,6 +130,8 @@ export interface RegraPeriodoObraBalao {
   tipo: "periodo_obra_pos_obra_balao";
   /** Duração da obra em meses (nº de parcelas "período obra") — prazo fixo, não uma estimativa. */
   mesesPeriodoObra: number;
+  /** Data prevista de entrega; limita o número de mensais que ainda cabem na obra. */
+  dataEntrega?: string;
   /** Teto de parcela (mínima/máxima/juros) específico do período de obra. */
   limitesObra?: LimitesParcela;
   /** Duração do período pós-obra em meses (0 se o empreendimento não tiver essa fase) — prazo fixo. */
@@ -200,6 +214,12 @@ export interface Empreendimento {
   beneficiosInformativos?: Desconto[];
   /** Este empreendimento aceita subsídio Casa Paulista? */
   aceitaCasaPaulista: boolean;
+  /** Data de entrega usada para limitar automaticamente as parcelas de obra. */
+  dataEntrega?: string;
+  /** Limite global que pode ser distribuído em parcelas. */
+  limiteMaximoEntradaParcelavel?: number;
+  /** Regras comuns do pagamento no ato. */
+  ato?: ConfigAto;
   /** Regra de parcelamento da entrada deste empreendimento. */
   regraEntrada: RegraEntrada;
   /** Regra alternativa via engenharia, se o empreendimento permitir essa via. */
@@ -232,6 +252,8 @@ export interface ResultadoSimulacao {
     custosAdicionais: number;
   };
   avisos: string[];
+  classificacao: "viavel" | "ajuste" | "inviavel";
+  motivos: string[];
 }
 
 export interface DetalhePagamento {

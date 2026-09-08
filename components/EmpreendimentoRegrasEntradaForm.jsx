@@ -15,6 +15,7 @@ function emptyLimites() {
     parcelaMaximaTipo: "valor_fixo",
     parcelaMaximaValor: "",
     parcelaMaximaPercentual: "",
+    jurosAtivo: false,
     taxaJurosMensal: ""
   };
 }
@@ -26,6 +27,8 @@ function emptyRegraState() {
     numeroParcelasQuandoExcedeLimite: "",
     limites: emptyLimites(),
     mesesPeriodoObra: "",
+    dataEntrega: "",
+    posObraAtivo: false,
     mesesPosObra: "",
     limitesObra: emptyLimites(),
     limitesPosObra: emptyLimites(),
@@ -33,6 +36,8 @@ function emptyRegraState() {
     balaoQuantidade: "",
     balaoPeriodicidadeMeses: "6",
     balaoValorMaximoPorBalao: "",
+    balaoLimiteTipo: "valor_fixo",
+    balaoPercentualRenda: "",
     valorUnidadeReferencia: "",
     condicoes: []
   };
@@ -42,6 +47,14 @@ function emptyFormState() {
   return {
     ativo: true,
     valorImovel: "",
+    limiteMaximoEntradaParcelavel: "",
+    atoAtivo: false,
+    atoObrigatorio: false,
+    atoTipo: "valor_fixo",
+    atoValor: "",
+    atoPercentual: "",
+    atoMinimo: "",
+    atoMaximo: "",
     aceitaCasaPaulista: false,
     descontos: [],
     observacoes: "",
@@ -151,6 +164,21 @@ export default function EmpreendimentoRegrasEntradaForm({ propertyId }) {
       <DescontosEditor value={form.descontos} onChange={(descontos) => update({ descontos })} />
 
       <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
+        <p className="text-sm font-black uppercase tracking-[0.1em] text-brand">Limites gerais e ato</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <MoneyField label="Máximo de entrada parcelável (R$)" value={form.limiteMaximoEntradaParcelavel} onChange={(value) => update({ limiteMaximoEntradaParcelavel: value })} />
+          <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink"><input type="checkbox" checked={form.atoAtivo} onChange={(event) => update({ atoAtivo: event.target.checked })} />Permite ato</label>
+          <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink"><input type="checkbox" checked={form.atoObrigatorio} disabled={!form.atoAtivo} onChange={(event) => update({ atoObrigatorio: event.target.checked })} />Ato obrigatório</label>
+        </div>
+        {form.atoAtivo ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="grid gap-2 font-extrabold text-ink">Regra do ato<select className="rounded-2xl border border-line px-4 py-3" value={form.atoTipo} onChange={(event) => update({ atoTipo: event.target.value })}><option value="valor_fixo">Valor fixo</option><option value="percentual_entrada">% da entrada</option></select></label>
+          {form.atoTipo === "valor_fixo" ? <MoneyField label="Valor do ato (R$)" value={form.atoValor} onChange={(value) => update({ atoValor: value })} /> : <NumberField label="Percentual do ato (%)" value={form.atoPercentual} step="0.1" onChange={(value) => update({ atoPercentual: value })} />}
+          <MoneyField label="Ato mínimo (R$)" value={form.atoMinimo} onChange={(value) => update({ atoMinimo: value })} />
+          <MoneyField label="Ato máximo (R$)" value={form.atoMaximo} onChange={(value) => update({ atoMaximo: value })} />
+        </div> : null}
+      </section>
+
+      <section className="grid gap-5 rounded-3xl border border-line bg-[#F8FBFF] p-6">
         <label className="grid gap-2 font-extrabold text-ink">
           Modelo de parcelamento
           <select
@@ -229,18 +257,21 @@ function ObraPosObraFields({ regra, onChange }) {
         <NumberField
           label="Duração do pós-obra (meses)"
           value={regra.mesesPosObra}
+          disabled={!regra.posObraAtivo}
           onChange={(value) => onChange({ mesesPosObra: value })}
         />
+        <Field label="Previsão de entrega" type="date" value={regra.dataEntrega} onChange={(value) => onChange({ dataEntrega: value })} />
+        <label className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 font-extrabold text-ink"><input type="checkbox" checked={regra.posObraAtivo} onChange={(event) => onChange({ posObraAtivo: event.target.checked })} />Existem parcelas pós-obra</label>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-line bg-white p-4">
+        {regra.posObraAtivo ? <div className="rounded-2xl border border-line bg-white p-4">
           <LimitesParcelaFields
             title="Durante a obra"
             value={regra.limitesObra}
             onChange={(limitesObra) => onChange({ limitesObra })}
           />
-        </div>
+        </div> : null}
         <div className="rounded-2xl border border-line bg-white p-4">
           <LimitesParcelaFields
             title="Pós-obra"
@@ -256,7 +287,7 @@ function ObraPosObraFields({ regra, onChange }) {
           Este empreendimento tem pagamento em balão
         </label>
         {regra.balaoAtivo ? (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <NumberField
               label="Quantidade de balões"
               value={regra.balaoQuantidade}
@@ -270,14 +301,12 @@ function ObraPosObraFields({ regra, onChange }) {
                 onChange={(event) => onChange({ balaoPeriodicidadeMeses: event.target.value })}
               >
                 <option value="6">Semestral</option>
+                <option value="3">Trimestral</option>
                 <option value="12">Anual</option>
               </select>
             </label>
-            <MoneyField
-              label="Valor máximo por balão (R$)"
-              value={regra.balaoValorMaximoPorBalao}
-              onChange={(value) => onChange({ balaoValorMaximoPorBalao: value })}
-            />
+            <label className="grid gap-2 font-extrabold text-ink">Limite do balão<select className="rounded-2xl border border-line px-4 py-3" value={regra.balaoLimiteTipo} onChange={(event) => onChange({ balaoLimiteTipo: event.target.value })}><option value="valor_fixo">Valor fixo</option><option value="percentual_renda">% da renda</option></select></label>
+            {regra.balaoLimiteTipo === "valor_fixo" ? <MoneyField label="Máximo por balão (R$)" value={regra.balaoValorMaximoPorBalao} onChange={(value) => onChange({ balaoValorMaximoPorBalao: value })} /> : <NumberField label="Máximo por balão (% da renda)" step="0.1" value={regra.balaoPercentualRenda} onChange={(value) => onChange({ balaoPercentualRenda: value })} />}
           </div>
         ) : null}
       </div>
@@ -408,12 +437,8 @@ function LimitesParcelaFields({ title, value, onChange }) {
             step="0.1"
           />
         )}
-        <NumberField
-          label="Taxa de juros mensal (%, opcional)"
-          value={value.taxaJurosMensal}
-          onChange={(taxaJurosMensal) => onChange({ ...value, taxaJurosMensal })}
-          step="0.01"
-        />
+        <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 font-extrabold text-ink"><input type="checkbox" checked={value.jurosAtivo} onChange={(event) => onChange({ ...value, jurosAtivo: event.target.checked })} />Aplica juros/correção</label>
+        {value.jurosAtivo ? <NumberField label="Taxa mensal (%)" value={value.taxaJurosMensal} onChange={(taxaJurosMensal) => onChange({ ...value, taxaJurosMensal })} step="0.01" /> : null}
       </div>
     </div>
   );
@@ -460,12 +485,13 @@ function Field({ label, value, onChange, ...props }) {
   );
 }
 
-function NumberField({ label, value, onChange, step = "1" }) {
+function NumberField({ label, value, onChange, step = "1", ...props }) {
   return (
     <label className="grid gap-2 font-extrabold text-ink">
       {label}
       <input
         type="number"
+        {...props}
         step={step}
         className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
         value={value ?? ""}
@@ -518,7 +544,7 @@ function limitesFromState(state) {
   const taxaJurosMensal = numOrUndefined(state.taxaJurosMensal);
   if (numeroMaximoParcelas !== undefined) limites.numeroMaximoParcelas = numeroMaximoParcelas;
   if (parcelaMinima !== undefined) limites.parcelaMinima = parcelaMinima;
-  if (taxaJurosMensal !== undefined) limites.taxaJurosMensal = taxaJurosMensal / 100;
+  if (state.jurosAtivo && taxaJurosMensal !== undefined) limites.taxaJurosMensal = taxaJurosMensal / 100;
 
   if (state.parcelaMaximaTipo === "valor_fixo") {
     const valor = numOrUndefined(state.parcelaMaximaValor);
@@ -535,7 +561,10 @@ function limitesToState(limites = {}) {
   const state = emptyLimites();
   if (limites.numeroMaximoParcelas !== undefined) state.numeroMaximoParcelas = String(limites.numeroMaximoParcelas);
   if (limites.parcelaMinima !== undefined) state.parcelaMinima = String(limites.parcelaMinima);
-  if (limites.taxaJurosMensal !== undefined) state.taxaJurosMensal = String(limites.taxaJurosMensal * 100);
+  if (limites.taxaJurosMensal !== undefined) {
+    state.jurosAtivo = true;
+    state.taxaJurosMensal = String(limites.taxaJurosMensal * 100);
+  }
   if (limites.parcelaMaxima?.tipo === "valor_fixo") {
     state.parcelaMaximaTipo = "valor_fixo";
     state.parcelaMaximaValor = String(limites.parcelaMaxima.valor);
@@ -565,15 +594,18 @@ function formStateToEmpreendimento(form) {
     regraEntrada = {
       tipo: "periodo_obra_pos_obra_balao",
       mesesPeriodoObra: num(regra.mesesPeriodoObra),
+      ...(regra.dataEntrega ? { dataEntrega: regra.dataEntrega } : {}),
       limitesObra: limitesFromState(regra.limitesObra),
-      mesesPosObra: num(regra.mesesPosObra),
+      mesesPosObra: regra.posObraAtivo ? num(regra.mesesPosObra) : 0,
       limitesPosObra: limitesFromState(regra.limitesPosObra)
     };
     if (regra.balaoAtivo) {
       regraEntrada.balao = {
         quantidade: num(regra.balaoQuantidade),
         periodicidadeMeses: num(regra.balaoPeriodicidadeMeses, 6),
-        valorMaximoPorBalao: num(regra.balaoValorMaximoPorBalao)
+        limite: regra.balaoLimiteTipo === "percentual_renda"
+          ? { tipo: "percentual_renda", percentual: num(regra.balaoPercentualRenda) / 100 }
+          : { tipo: "valor_fixo", valor: num(regra.balaoValorMaximoPorBalao) }
       };
     }
   } else {
@@ -594,6 +626,15 @@ function formStateToEmpreendimento(form) {
 
   return {
     valorImovel: num(form.valorImovel),
+    ...(form.limiteMaximoEntradaParcelavel !== "" ? { limiteMaximoEntradaParcelavel: num(form.limiteMaximoEntradaParcelavel) } : {}),
+    ato: {
+      ativo: Boolean(form.atoAtivo),
+      obrigatorio: Boolean(form.atoObrigatorio),
+      tipo: form.atoTipo,
+      ...(form.atoTipo === "valor_fixo" ? { valor: num(form.atoValor) } : { percentual: num(form.atoPercentual) / 100 }),
+      ...(form.atoMinimo !== "" ? { minimo: num(form.atoMinimo) } : {}),
+      ...(form.atoMaximo !== "" ? { maximo: num(form.atoMaximo) } : {})
+    },
     descontos,
     aceitaCasaPaulista: Boolean(form.aceitaCasaPaulista),
     regraEntrada,
@@ -614,14 +655,23 @@ function rowToFormState(row) {
     regra.limites = limitesToState(regraEntrada.limites);
   } else if (regraEntrada.tipo === "periodo_obra_pos_obra_balao") {
     regra.mesesPeriodoObra = String(regraEntrada.mesesPeriodoObra ?? "");
+    regra.dataEntrega = regraEntrada.dataEntrega || "";
     regra.mesesPosObra = String(regraEntrada.mesesPosObra ?? "");
+    regra.posObraAtivo = Number(regraEntrada.mesesPosObra || 0) > 0;
     regra.limitesObra = limitesToState(regraEntrada.limitesObra);
     regra.limitesPosObra = limitesToState(regraEntrada.limitesPosObra);
     if (regraEntrada.balao) {
       regra.balaoAtivo = true;
       regra.balaoQuantidade = String(regraEntrada.balao.quantidade ?? "");
       regra.balaoPeriodicidadeMeses = String(regraEntrada.balao.periodicidadeMeses ?? "6");
-      regra.balaoValorMaximoPorBalao = String(regraEntrada.balao.valorMaximoPorBalao ?? "");
+      const limite = regraEntrada.balao.limite;
+      if (limite?.tipo === "percentual_renda") {
+        regra.balaoLimiteTipo = "percentual_renda";
+        regra.balaoPercentualRenda = String((limite.percentual || 0) * 100);
+      } else {
+        regra.balaoLimiteTipo = "valor_fixo";
+        regra.balaoValorMaximoPorBalao = String(limite?.valor ?? regraEntrada.balao.valorMaximoPorBalao ?? "");
+      }
     }
   } else if (regraEntrada.tipo === "tabela_condicoes") {
     regra.valorUnidadeReferencia = String(regraEntrada.valorUnidadeReferencia ?? "");
@@ -639,6 +689,14 @@ function rowToFormState(row) {
   return {
     ativo: row.ativo !== false,
     valorImovel: String(regras.valorImovel ?? ""),
+    limiteMaximoEntradaParcelavel: String(regras.limiteMaximoEntradaParcelavel ?? ""),
+    atoAtivo: Boolean(regras.ato?.ativo),
+    atoObrigatorio: Boolean(regras.ato?.obrigatorio),
+    atoTipo: regras.ato?.tipo || "valor_fixo",
+    atoValor: String(regras.ato?.valor ?? ""),
+    atoPercentual: regras.ato?.percentual ? String(regras.ato.percentual * 100) : "",
+    atoMinimo: String(regras.ato?.minimo ?? ""),
+    atoMaximo: String(regras.ato?.maximo ?? ""),
     aceitaCasaPaulista: Boolean(regras.aceitaCasaPaulista),
     descontos: (regras.descontos || []).map((item) => ({ tipo: item.tipo || "outro", label: item.label || "", valor: String(item.valor ?? "") })),
     observacoes: regras.observacoes || "",

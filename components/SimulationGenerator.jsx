@@ -86,7 +86,8 @@ const INITIAL_FORM = {
   publicNote: "",
   internalNote: "",
   outputMode: "individual",
-  properties: []
+  properties: [],
+  entrySimulationSnapshots: []
 };
 
 const SYNCED_MODEL_FIELDS = ["financingValue", "firstInstallment", "lastInstallment"];
@@ -520,7 +521,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   }
 
   async function saveSimulation() {
-    return persistSimulation();
+    return persistSimulation({ entrySimulationSnapshots: Object.values(entradaResultados) });
   }
 
   /*
@@ -550,9 +551,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   */
 
-  async function persistSimulation({ silent = false } = {}) {
+  async function persistSimulation({ silent = false, entrySimulationSnapshots } = {}) {
     const currentForm = formRef.current;
-    const payload = JSON.stringify(serializeForm(currentForm));
+    const formToSave = Array.isArray(entrySimulationSnapshots)
+      ? { ...currentForm, entrySimulationSnapshots }
+      : currentForm;
+    const payload = JSON.stringify(serializeForm(formToSave));
     const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
     const method = currentForm.id ? "PUT" : "POST";
 
@@ -609,7 +613,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             id: data.id || current.id,
             registrationId: data.registrationId || current.registrationId,
             registration: nextRegistration,
-            clientName: data.clientName || current.clientName
+            clientName: data.clientName || current.clientName,
+            ...(Array.isArray(entrySimulationSnapshots) ? { entrySimulationSnapshots } : {})
           };
           return JSON.stringify(next) === JSON.stringify(current) ? current : next;
         });
@@ -1226,12 +1231,21 @@ function EntradaSimuladaCard({ resultado, loading }) {
     );
   }
 
-  const { detalhePagamento, entradaTotal, avisos } = resultado;
+  const { detalhePagamento, entradaTotal, avisos, motivos = [], classificacao = "ajuste" } = resultado;
+  const status = {
+    viavel: { label: "VIÁVEL", className: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+    ajuste: { label: "VIÁVEL COM AJUSTE", className: "border-amber-200 bg-amber-50 text-amber-800" },
+    inviavel: { label: "INVIÁVEL", className: "border-red-200 bg-red-50 text-red-800" }
+  }[classificacao];
 
   return (
     <div className="grid gap-4 rounded-2xl border border-brand/20 bg-[#F4F9FF] p-5">
       <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Entrada sugerida (simulação automática)</p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Metric label="Valor do imóvel" value={formatCurrency(resultado.valorImovel)} />
+        <Metric label="Desconto" value={formatCurrency(resultado.totalDescontos)} />
+        <Metric label="Preço efetivo" value={formatCurrency(resultado.valorFinalImovel)} />
+        <Metric label="Financiamento e benefícios" value={formatCurrency(resultado.totalCoberto)} />
         <Metric label="Entrada total" value={formatCurrency(entradaTotal)} />
         {detalhePagamento.ato > 0 ? <Metric label="ATO (à vista)" value={formatCurrency(detalhePagamento.ato)} /> : null}
         {detalhePagamento.blocos.map((bloco, index) => (
@@ -1242,6 +1256,8 @@ function EntradaSimuladaCard({ resultado, loading }) {
           />
         ))}
       </div>
+      <div className={`rounded-xl border px-4 py-3 text-sm font-black ${status.className}`}>{status.label}</div>
+      {motivos.length ? <ul className="grid gap-1 text-sm font-bold text-red-800">{motivos.map((motivo, index) => <li key={index}>{motivo}</li>)}</ul> : null}
       {avisos.length ? (
         <ul className="grid gap-1 text-sm text-amber-800">
           {avisos.map((aviso, index) => (

@@ -1,4 +1,4 @@
-import {
+import type {
   DadosCliente,
   Empreendimento,
   ResultadoSimulacao,
@@ -61,6 +61,9 @@ export function simularEntrada(
     cliente,
     avisos
   );
+  aplicarRegraAto(detalhePagamento, entradaAposFgts, empreendimento, avisos);
+  const motivos = validarCenario(detalhePagamento, entradaAposFgts, empreendimento, cliente);
+  const classificacao = motivos.length ? "inviavel" : avisos.length ? "ajuste" : "viavel";
 
   const resultado: ResultadoSimulacao = {
     empreendimentoId: empreendimento.id,
@@ -73,6 +76,8 @@ export function simularEntrada(
     detalhePagamento,
     beneficiosInformativos: empreendimento.beneficiosInformativos ?? [],
     avisos,
+    classificacao,
+    motivos,
   };
 
   if (empreendimento.regraEngenharia) {
@@ -139,6 +144,7 @@ function resolverBlocoLinear(
     limites?.parcelaMaxima,
     rendaCliente
   );
+  if (parcelaMaximaValor <= 0) return { parcelas: 0, valorParcela: 0, sobra: valor };
 
   let parcelas: number;
   if (parcelasFixas !== undefined) {
@@ -250,9 +256,15 @@ function calcularPeriodoObraBalao(
 
   // 1) Balão(ões)
   if (regra.balao && regra.balao.quantidade > 0) {
+    const limiteBalao = resolverValorParcelaMaxima(
+      regra.balao.limite || (regra.balao.valorMaximoPorBalao !== undefined
+        ? { tipo: "valor_fixo", valor: regra.balao.valorMaximoPorBalao }
+        : undefined),
+      cliente.rendaTotal
+    );
     const valorBalaoDesejado = Math.min(
       restante,
-      regra.balao.valorMaximoPorBalao * regra.balao.quantidade
+      limiteBalao * regra.balao.quantidade
     );
     if (valorBalaoDesejado > 0) {
       const valorPorBalao = valorBalaoDesejado / regra.balao.quantidade;
@@ -272,9 +284,10 @@ function calcularPeriodoObraBalao(
   }
 
   // 2) Parcelas durante a obra — prazo fixo (mesesPeriodoObra); parcela mínima/máxima/juros vêm de limitesObra
-  if (regra.mesesPeriodoObra > 0 && restante > 0) {
+  const mesesObra = resolverMesesObra(regra.mesesPeriodoObra, regra.dataEntrega);
+  if (mesesObra > 0 && restante > 0) {
     const { parcelas, valorParcela, valorParcelaComJuros, sobra } =
-      resolverBlocoLinear(restante, regra.limitesObra, cliente.rendaTotal, regra.mesesPeriodoObra);
+      resolverBlocoLinear(restante, regra.limitesObra, cliente.rendaTotal, mesesObra);
 
     blocos.push({
       label: "Parcelas durante a obra",
@@ -322,6 +335,90 @@ function calcularPeriodoObraBalao(
   }
 
   return { ato, blocos };
+}
+
+function aplicarRegraAto(
+  detalhe: DetalhePagamento,
+  entrada: number,
+  empreendimento: Empreendimento,
+  avisos: string[]
+) {
+  const regra = empreendimento.ato;
+  if (!regra?.ativo) return;
+  const alvo = regra.tipo === "percentual_entrada"
+    ? entrada * Math.max(0, regra.percentual || 0)
+    : Math.max(0, regra.valor || 0);
+  const minimo = Math.max(0, regra.minimo || 0, regra.obrigatorio ? alvo : 0);
+  if (detalhe.ato < minimo) {
+    const diferenca = minimo - detalhe.ato;
+    detalhe.ato = minimo;
+    reduzirBlocos(detalhe.blocos, diferenca);
+  }
+  if (regra.maximo && detalhe.ato > regra.maximo) {
+    avisos.push(`O ato calculado supera o máximo configurado de R$ ${moeda(regra.maximo)}.`);
+  }
+}
+
+function reduzirBlocos(blocos: BlocoPagamento[], valor: number) {
+  let restante = valor;
+  for (let index = blocos.length - 1; index >= 0 && restante > 0; index -= 1) {
+    const bloco = blocos[index];
+    const total = bloco.valorParcela * bloco.parcelas;
+    const retirada = Math.min(total, restante);
+    const novoTotal = total - retirada;
+    bloco.valorParcela = bloco.parcelas ? novoTotal / bloco.parcelas : 0;
+    if (bloco.valorParcelaComJuros !== undefined && total > 0) {
+      bloco.valorParcelaComJuros *= novoTotal / total;
+    }
+    restante -= retirada;
+  }
+}
+
+function validarCenario(
+  detalhe: DetalhePagamento,
+  entrada: number,
+  empreendimento: Empreendimento,
+  cliente: DadosCliente
+) {
+  const motivos: string[] = [];
+  const ato = empreendimento.ato;
+  if (detalhe.ato > 0 && ato?.ativo === false) {
+    motivos.push(`R$ ${moeda(detalhe.ato)} precisariam ser pagos no ato, mas este empreendimento não permite ato.`);
+  }
+  if (ato?.maximo && detalhe.ato > ato.maximo) {
+    motivos.push(`Ato necessário de R$ ${moeda(detalhe.ato)}, acima do máximo de R$ ${moeda(ato.maximo)}.`);
+  }
+  const parcelado = Math.max(0, entrada - detalhe.ato);
+  if (empreendimento.limiteMaximoEntradaParcelavel && parcelado > empreendimento.limiteMaximoEntradaParcelavel + 0.01) {
+    motivos.push(`Entrada parcelada de R$ ${moeda(parcelado)}, mas o empreendimento permite no máximo R$ ${moeda(empreendimento.limiteMaximoEntradaParcelavel)}.`);
+  }
+  if (empreendimento.regraEntrada.tipo === "tabela_condicoes" && detalhe.blocos.length === 0 && entrada > 0) {
+    motivos.push("Não existe uma condição cadastrada para o perfil financeiro deste cliente.");
+  }
+  if (cliente.rendaTotal <= 0 && usaLimitePorRenda(empreendimento)) {
+    motivos.push("A renda do cliente precisa estar preenchida para validar os limites percentuais.");
+  }
+  return motivos;
+}
+
+function usaLimitePorRenda(empreendimento: Empreendimento) {
+  const regra = empreendimento.regraEntrada;
+  if (regra.tipo === "ato_mais_parcelas") return regra.limites.parcelaMaxima?.tipo === "percentual_renda";
+  if (regra.tipo !== "periodo_obra_pos_obra_balao") return false;
+  return [regra.limitesObra?.parcelaMaxima, regra.limitesPosObra?.parcelaMaxima, regra.balao?.limite]
+    .some((limite) => limite?.tipo === "percentual_renda");
+}
+
+function resolverMesesObra(configurado: number, dataEntrega?: string) {
+  if (!dataEntrega || !/^\d{4}-\d{2}-\d{2}$/.test(dataEntrega)) return configurado;
+  const hoje = new Date();
+  const entrega = new Date(`${dataEntrega}T12:00:00`);
+  const meses = Math.max(0, (entrega.getFullYear() - hoje.getFullYear()) * 12 + entrega.getMonth() - hoje.getMonth());
+  return configurado > 0 ? Math.min(configurado, meses) : meses;
+}
+
+function moeda(valor: number) {
+  return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Estratégia "tabela de condições" — busca direta, sem cálculo (ex.: Vera Cruz). */

@@ -1081,14 +1081,14 @@ function ClientCard({
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
         <button
-          aria-label={`Abrir simulação de ${client.name || "cliente"}`}
+          aria-label={`Simular empreendimentos para ${client.name || "cliente"}`}
           className="client-action-button"
           disabled={busy}
           onClick={() => onOpenSimulation(client)}
           type="button"
         >
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          Abrir
+          Empreendimentos
         </button>
         <button
           aria-label={`Ver cadastro de ${client.name || "cliente"}`}
