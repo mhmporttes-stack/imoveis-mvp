@@ -135,8 +135,6 @@ export default function AdminSimulationList({
   const [busyClientId, setBusyClientId] = useState("");
   const [schedulingClientId, setSchedulingClientId] = useState("");
   const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
-  const [valuesClientId, setValuesClientId] = useState("");
-  const [valuesSimulationId, setValuesSimulationId] = useState("");
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
@@ -284,17 +282,10 @@ export default function AdminSimulationList({
     router.push(`/admin/simulacoes/${id}/empreendimentos`);
   }
 
-  async function openValuesEditor(client) {
-    if (valuesClientId === client.id) {
-      setValuesClientId("");
-      setValuesSimulationId("");
-      return;
-    }
-
+  async function openValues(client) {
     const id = await ensureSimulationId(client);
     if (!id) return;
-    setValuesSimulationId(id);
-    setValuesClientId(client.id);
+    router.push(`/admin/simulacoes/${id}`);
   }
 
   async function removeClient(client) {
@@ -867,9 +858,7 @@ export default function AdminSimulationList({
             onClearSchedule={clearClientSchedule}
             onSaveTags={saveClientTags}
             onCloseSchedule={() => setSchedulingClientId("")}
-            onOpenValues={() => openValuesEditor(client)}
-            valuesEditing={valuesClientId === client.id}
-            valuesSimulationId={valuesClientId === client.id ? valuesSimulationId : ""}
+            onOpenValues={() => openValues(client)}
             onToggleDetails={() => setExpandedClientId((current) => current === client.id ? "" : client.id)}
             onToggleTagEditor={() => setEditingTagsClientId((current) => current === client.id ? "" : client.id)}
             onUpdateResponsibleUser={updateClientResponsibleUser}
@@ -939,8 +928,6 @@ function ClientCard({
   onOpenSimulation,
   onOpenSchedule,
   onOpenValues,
-  valuesEditing,
-  valuesSimulationId,
   onOpenWhatsApp,
   onRemoveClient,
   onSaveSchedule,
@@ -1083,10 +1070,6 @@ function ClientCard({
           registration={client.registration}
           simulation={client.simulation}
         />
-      ) : null}
-
-      {valuesEditing ? (
-        <SimulationValuesEditor simulationId={valuesSimulationId} onClose={onOpenValues} />
       ) : null}
 
       {scheduling ? (
@@ -1257,122 +1240,6 @@ function ClientStatusSelector({ busy, client, onChange }) {
 function StatusMenuItem({ current, onClick, option }) {
   const selected = current === option.value;
   return <button aria-checked={selected} className={`flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold hover:bg-mist ${selected ? "bg-[#EEF6FF] text-brand" : "text-navy"}`} onClick={onClick} role="menuitemradio" type="button">{selected ? <Check className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4" />}{option.label}</button>;
-}
-
-const EMPTY_SIMULATION_VALUES = { financingValue: "", subsidyValue: "", downPaymentValue: "", fgtsValue: "" };
-
-function SimulationValuesEditor({ simulationId, onClose }) {
-  const [fullSimulation, setFullSimulation] = useState(null);
-  const [values, setValues] = useState(EMPTY_SIMULATION_VALUES);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [savedAt, setSavedAt] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch(`/api/simulations/${simulationId}`);
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Não foi possível carregar os valores.");
-        if (!cancelled) {
-          setFullSimulation(data);
-          setValues({
-            financingValue: data.financingValue || "",
-            subsidyValue: data.subsidyValue || "",
-            downPaymentValue: data.downPaymentValue || "",
-            fgtsValue: data.fgtsValue || ""
-          });
-        }
-      } catch (loadError) {
-        if (!cancelled) setError(loadError.message || "Não foi possível carregar os valores.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    if (simulationId) load();
-    return () => { cancelled = true; };
-  }, [simulationId]);
-
-  function update(field, value) {
-    setValues((current) => ({ ...current, [field]: value }));
-  }
-
-  async function save() {
-    setSaving(true);
-    setError("");
-    setSavedAt("");
-    try {
-      // Manda a simulação completa (carregada no fetch acima) com só os 4
-      // campos alterados — um PUT parcial apagaria empreendimentos ja
-      // selecionados, nome do cliente etc, porque o backend monta o registro
-      // inteiro a partir do payload recebido, sem mesclar com o que ja existe.
-      const response = await fetch(`/api/simulations/${simulationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...fullSimulation, ...values })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível salvar os valores.");
-      setFullSimulation(data);
-      setSavedAt(new Date().toLocaleTimeString("pt-BR"));
-    } catch (saveError) {
-      setError(saveError.message || "Não foi possível salvar os valores.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="mt-4 rounded-2xl border border-blue-100 bg-[#F5FAFF] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">Valores da simulação</p>
-        <button aria-label="Fechar valores da simulação" className="rounded-full border border-line bg-white px-3 py-1 text-sm font-bold text-muted hover:text-navy" onClick={onClose} type="button">Fechar</button>
-      </div>
-
-      {loading ? (
-        <p className="mt-3 text-sm font-bold text-muted">Carregando...</p>
-      ) : (
-        <>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <SimulationValueField label="Financiamento aprovado (R$)" value={values.financingValue} onChange={(value) => update("financingValue", value)} />
-            <SimulationValueField label="Subsídio MCMV (R$)" value={values.subsidyValue} onChange={(value) => update("subsidyValue", value)} />
-            <SimulationValueField label="Entrada disponível (R$)" value={values.downPaymentValue} onChange={(value) => update("downPaymentValue", value)} />
-            <SimulationValueField label="FGTS disponível (R$)" value={values.fgtsValue} onChange={(value) => update("fgtsValue", value)} />
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button className="premium-button-primary px-5 py-2 text-sm" disabled={saving} onClick={save} type="button">
-              {saving ? "Salvando..." : "Salvar valores"}
-            </button>
-            {savedAt ? <span className="text-sm font-bold text-emerald-700">Salvo às {savedAt}.</span> : null}
-          </div>
-        </>
-      )}
-      {error ? <p className="mt-3 text-sm font-bold text-red-700">{error}</p> : null}
-    </div>
-  );
-}
-
-function SimulationValueField({ label, value, onChange }) {
-  return (
-    <label className="text-xs font-black text-navy">
-      {label}
-      <input
-        className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-        inputMode="decimal"
-        onChange={(event) => onChange(event.target.value)}
-        type="number"
-        min="0"
-        step="0.01"
-        value={value}
-      />
-    </label>
-  );
 }
 
 function ScheduleEditor({ busy, draft, hasSchedule, onChange, onClear, onClose, onSave }) {
