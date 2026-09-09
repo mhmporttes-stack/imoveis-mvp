@@ -191,32 +191,18 @@ export default function AdminSimulationList({
   const clients = clientsResult.items;
   const pendingClientsCount = useMemo(() => clients.filter(isPendingClient).length, [clients]);
 
-  const counters = useMemo(() => {
-    const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
-      acc[option.value] = option.value === "all" ? clients.length : 0;
-      return acc;
-    }, {});
-
-    for (const client of clients) {
-      base[client.status] = (base[client.status] || 0) + 1;
-    }
-
-    return base;
-  }, [clients]);
-
-  const filteredClients = useMemo(() => {
+  // Clientes já filtrados por tudo, MENOS status — é a base tanto dos
+  // contadores das abas (Todos/Atendimentos/...) quanto da lista final,
+  // pra esses números baterem com o corretor/tag/busca selecionados.
+  const scopedClients = useMemo(() => {
     const textQuery = normalizeText(query);
     const phoneQuery = normalizePhone(query);
-    const activeGroup = CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup);
-    const groupStatuses = activeGroup?.statuses || [];
 
     return clients.filter((client) => {
       if (pendingOnly && !isPendingClient(client)) return false;
       const clientResponsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
       if (responsibleFilter === "unassigned" && clientResponsibleUserId) return false;
       if (responsibleFilter !== "all" && responsibleFilter !== "unassigned" && clientResponsibleUserId !== responsibleFilter) return false;
-      if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
-      if (statusFilter !== "all" && client.status !== statusFilter) return false;
       if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
       if (!textQuery && !phoneQuery) return true;
 
@@ -225,7 +211,31 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, pendingOnly, query, responsibleFilter, statusGroup, statusFilter, tagFilter]);
+  }, [clients, pendingOnly, query, responsibleFilter, tagFilter]);
+
+  const counters = useMemo(() => {
+    const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
+      acc[option.value] = option.value === "all" ? scopedClients.length : 0;
+      return acc;
+    }, {});
+
+    for (const client of scopedClients) {
+      base[client.status] = (base[client.status] || 0) + 1;
+    }
+
+    return base;
+  }, [scopedClients]);
+
+  const filteredClients = useMemo(() => {
+    const activeGroup = CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup);
+    const groupStatuses = activeGroup?.statuses || [];
+
+    return scopedClients.filter((client) => {
+      if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
+      if (statusFilter !== "all" && client.status !== statusFilter) return false;
+      return true;
+    });
+  }, [scopedClients, statusGroup, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
   const pageStart = filteredClients.length ? (currentPage - 1) * pageSize : 0;
