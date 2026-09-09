@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { deleteAutomationRule, setAutomationRuleEnabled, updateAutomationRule } from "@/lib/crm-automations";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request, { params }) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const { id } = await params;
@@ -20,7 +20,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const { id } = await params;

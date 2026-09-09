@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { getWhatsappMasterSettings, updateWhatsappMasterSettings } from "@/lib/crm";
 import { getWhatsappMasterDisplaySettings } from "@/lib/whatsapp-master";
 
 export const runtime = "nodejs";
 
 export async function GET(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
@@ -17,7 +17,7 @@ export async function GET(request) {
 }
 
 export async function PATCH(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {

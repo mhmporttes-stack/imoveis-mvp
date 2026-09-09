@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { createAutomationRule, listAutomationRules } from "@/lib/crm-automations";
 
 export const runtime = "nodejs";
 
 export async function GET(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     return NextResponse.json({ rules: await listAutomationRules() });
@@ -15,7 +15,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     return NextResponse.json({ rule: await createAutomationRule(await request.json(), auth) }, { status: 201 });

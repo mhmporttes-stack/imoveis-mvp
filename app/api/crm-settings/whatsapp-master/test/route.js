@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireGeneralAdminApi } from "@/lib/admin-auth";
+import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { testWhatsappMasterConnection } from "@/lib/whatsapp-master";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
-  const auth = await requireGeneralAdminApi(request);
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireFinancialManagerApi, requirePerformanceApi } from "@/lib/admin-auth";
+import { requireGeneralAdminApi, requirePerformanceApi } from "@/lib/admin-auth";
+import { isManagerProfile } from "@/lib/admin-profiles";
 import {
   canManageFinancial,
   deleteFinancialSale,
@@ -15,6 +16,9 @@ export async function GET(request, { params }) {
   const auth = await requirePerformanceApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (isManagerProfile(auth.profile)) {
+    return NextResponse.json({ error: "Gestores não têm acesso ao financeiro da imobiliária." }, { status: 403 });
   }
 
   if (!canManageFinancial()) {
@@ -33,7 +37,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const auth = await requireFinancialManagerApi(request);
+  const auth = await requireGeneralAdminApi(request, "Apenas o administrador geral pode alterar o financeiro.");
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -52,7 +56,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const auth = await requireFinancialManagerApi(request);
+  const auth = await requireGeneralAdminApi(request, "Apenas o administrador geral pode alterar o financeiro.");
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

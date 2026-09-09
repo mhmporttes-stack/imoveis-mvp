@@ -2,14 +2,14 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireFinancialAccessPage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, listFinancialSales } from "@/lib/financial";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminFinancialPage() {
-  const auth = await requireAdminPage();
+  const auth = await requireFinancialAccessPage();
 
   if (!canManageFinancial()) {
     return <FinancialDisabled />;

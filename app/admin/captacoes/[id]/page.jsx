@@ -4,7 +4,7 @@ import { ArrowLeft, ExternalLink, MessageCircle } from "lucide-react";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import CaptacaoStatusSelect from "@/components/captacoes/CaptacaoStatusSelect";
 import PublishCaptacaoButton from "@/components/captacoes/PublishCaptacaoButton";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { formatDateTimeSaoPaulo } from "@/lib/date-utils";
 import { getCaptacao } from "@/lib/captacoes";
 import {
@@ -20,7 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function CaptacaoDetailPage({ params }) {
-  const auth = await requireGeneralAdminPage();
+  const auth = await requireBrokerManagementPage();
 
   const { id } = await params;
   const captacao = await getCaptacao(id, auth);

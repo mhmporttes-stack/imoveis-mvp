@@ -1,14 +1,14 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getWhatsappMasterSettings } from "@/lib/crm";
 import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus } from "@/lib/whatsapp-master";
 
 export const dynamic = "force-dynamic";
 
 export default async function WhatsappMasterPage() {
-  await requireGeneralAdminPage("/admin/simulacoes");
+  await requireBrokerManagementPage("/admin/simulacoes");
   const settings = getWhatsappMasterDisplaySettings(await getWhatsappMasterSettings());
   const environment = getWhatsappMasterEnvironmentStatus();
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminRegistrationList from "@/components/AdminRegistrationList";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistrationsPage() {
-  const auth = await requireGeneralAdminPage();
+  const auth = await requireBrokerManagementPage();
 
   if (!canManageSimulationRegistrations()) {
     return <RegistrationsDisabled />;

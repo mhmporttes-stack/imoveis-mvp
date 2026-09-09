@@ -2,7 +2,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
@@ -11,7 +11,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage({ searchParams }) {
-  await requireGeneralAdminPage("/admin/simulacoes");
+  await requireBrokerManagementPage("/admin/simulacoes");
   const tab = (await searchParams)?.tab === "roulette" ? "roulette" : "rules";
   const [rules, users, distribution] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),

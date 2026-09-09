@@ -2,13 +2,13 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminCaptacoesList from "@/components/captacoes/AdminCaptacoesList";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { canManageCaptacoes, formatCaptacaoError, listCaptacoes } from "@/lib/captacoes";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCaptacoesPage() {
-  const auth = await requireGeneralAdminPage();
+  const auth = await requireBrokerManagementPage();
 
   if (!canManageCaptacoes()) {
     return <CaptacoesDisabled />;
