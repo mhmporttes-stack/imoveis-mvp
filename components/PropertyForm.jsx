@@ -64,9 +64,11 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
   const [featureIconDraft, setFeatureIconDraft] = useState(DEFAULT_FEATURE_ICON);
   const [status, setStatus] = useState("Use IA, site ou PDF para acelerar o cadastro.");
   const [photoStatus, setPhotoStatus] = useState("");
+  const [pdfStatus, setPdfStatus] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [processingPhotos, setProcessingPhotos] = useState(false);
+  const [processingPdf, setProcessingPdf] = useState(false);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -162,8 +164,26 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
 
   async function handlePdf(file) {
     if (!file) return;
-    const pdf = await fileToDataUrl(file);
-    setForm((current) => ({ ...current, pdfName: pdf.name, pdfData: pdf.data }));
+
+    if (file.type !== "application/pdf") {
+      setSaveError("Envie um arquivo PDF.");
+      return;
+    }
+
+    setProcessingPdf(true);
+    setSaveError("");
+    setPdfStatus("Enviando PDF...");
+
+    try {
+      const uploaded = await uploadDocument(file, property?.id || form.name || "novo-imovel");
+      setForm((current) => ({ ...current, pdfName: uploaded.name, pdfData: uploaded.data }));
+      setPdfStatus("PDF enviado para o Supabase Storage.");
+    } catch (error) {
+      setPdfStatus("");
+      setSaveError(error.message || "Não foi possível enviar o PDF. Tente um arquivo menor.");
+    } finally {
+      setProcessingPdf(false);
+    }
   }
 
   function toggleFeature(feature) {
@@ -240,7 +260,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
 
   async function submit(event) {
     event.preventDefault();
-    if (processingPhotos) return;
+    if (processingPhotos || processingPdf) return;
     setSaving(true);
     setSaveError("");
     const url = property?.id ? `/api/properties/${property.id}` : "/api/properties";
@@ -431,14 +451,16 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
           label="PDF/e-book final"
           onChange={(files) => handlePdf(files?.[0])}
           selectedText={finalPdfText}
-        />
+        >
+          {pdfStatus ? <span className="text-sm font-semibold text-muted">{pdfStatus}</span> : null}
+        </FilePicker>
       </section>
 
       <PhotoOrderEditor photos={form.photos} onMove={movePhoto} onRemove={removePhoto} />
 
       <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
-        <button disabled={saving || processingPhotos} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
-          {processingPhotos ? "Otimizando fotos..." : saving ? "Salvando..." : "cadastrar imóvel"}
+        <button disabled={saving || processingPhotos || processingPdf} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" type="submit">
+          {processingPhotos ? "Otimizando fotos..." : processingPdf ? "Enviando PDF..." : saving ? "Salvando..." : "cadastrar imóvel"}
         </button>
         <button type="button" onClick={() => router.push(isDevelopment || property?.isDevelopment ? "/admin?area=gestao" : "/admin")} className="premium-button-secondary">
           Cancelar
@@ -635,13 +657,26 @@ function FeaturePreviewIcon({ icon }) {
   return <PropertyFeatureIcon icon={icon} className="h-4 w-4 shrink-0 text-brand" />;
 }
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, data: reader.result });
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+async function uploadDocument(file, propertyId) {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  formData.append("propertyId", propertyId);
+
+  const response = await fetch("/api/uploads/documents", {
+    method: "POST",
+    body: formData
   });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.error || `Não foi possível enviar ${file.name}.`);
+  }
+
+  return {
+    name: result.name || file.name,
+    data: result.data,
+    storagePath: result.storagePath
+  };
 }
 
 async function optimizeImageFile(file, options = {}) {

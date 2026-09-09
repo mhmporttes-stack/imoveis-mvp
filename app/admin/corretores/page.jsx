@@ -3,7 +3,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminUsersManager from "@/components/AdminUsersManager";
 import AdminViewAsSelector from "@/components/AdminViewAsSelector";
 import Link from "next/link";
-import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { isGeneralAdmin, requireBrokerManagementPage } from "@/lib/admin-auth";
 import {
   buildBrokerCaptacaoLink,
   buildBrokerSimulationLink,
@@ -15,7 +15,7 @@ import { formatSimulationRegistrationError, listSimulationRegistrations } from "
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrokersPage({ searchParams }) {
-  const auth = await requireGeneralAdminPage();
+  const auth = await requireBrokerManagementPage();
   const params = await searchParams;
   const activeTab = params?.tab === "account" ? "account" : "users";
 
@@ -63,7 +63,7 @@ export default async function AdminBrokersPage({ searchParams }) {
       {error ? <BrokersError error={error} /> : activeTab === "account" ? (
         <AdminViewAsSelector users={users.filter((user) => user.status === "active" && user.id !== auth.profile.id)} />
       ) : (
-        <AdminUsersManager initialUsers={usersWithLinks} counts={counts} />
+        <AdminUsersManager initialUsers={usersWithLinks} counts={counts} canManageAllRoles={isGeneralAdmin(auth)} />
       )}
     </main>
   );

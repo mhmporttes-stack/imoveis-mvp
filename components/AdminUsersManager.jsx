@@ -23,7 +23,7 @@ const STATUS_LABELS = {
   inactive: "Inativo"
 };
 
-export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
+export default function AdminUsersManager({ initialUsers = [], counts = {}, canManageAllRoles = true }) {
   const [users, setUsers] = useState(initialUsers);
   const [form, setForm] = useState(EMPTY_FORM);
   const [message, setMessage] = useState("");
@@ -127,7 +127,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
           </FormGroup>
 
           <FormGroup layout="profile" title="Perfil e acesso">
-            <RoleField value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
+            <RoleField restricted={!canManageAllRoles} value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
             <StatusField value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
             <DistributionField className="self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
             {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
@@ -156,7 +156,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                   <Field label="E-mail" type="email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} />
                   <Field label="WhatsApp" value={editForm.phone} onChange={(value) => setEditForm((current) => ({ ...current, phone: value }))} />
                   <Field label="Nova senha (opcional)" type="password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} />
-                  <RoleField value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
+                  <RoleField restricted={!canManageAllRoles} value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
                   {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
                   {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
@@ -186,15 +186,19 @@ export default function AdminUsersManager({ initialUsers = [], counts = {} }) {
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[380px]">
-                  <button type="button" onClick={() => beginEdit(user)} className="premium-button-secondary justify-center"><Pencil className="h-5 w-5" /> Editar</button>
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(user, isActive ? "inactive" : "active")}
-                    className="premium-button-secondary justify-center"
-                  >
-                    {isActive ? <UserRoundX className="h-5 w-5" aria-hidden="true" /> : <UserRoundCheck className="h-5 w-5" aria-hidden="true" />}
-                    {isActive ? "Desativar" : "Ativar"}
-                  </button>
+                  {canManageAllRoles || ["broker", "associate"].includes(user.role) ? (
+                    <>
+                      <button type="button" onClick={() => beginEdit(user)} className="premium-button-secondary justify-center"><Pencil className="h-5 w-5" /> Editar</button>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(user, isActive ? "inactive" : "active")}
+                        className="premium-button-secondary justify-center"
+                      >
+                        {isActive ? <UserRoundX className="h-5 w-5" aria-hidden="true" /> : <UserRoundCheck className="h-5 w-5" aria-hidden="true" />}
+                        {isActive ? "Desativar" : "Ativar"}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </article>
@@ -221,8 +225,8 @@ function FormGroup({ title, children, layout = "default" }) {
   return <fieldset className="min-w-0 py-4 first:pt-0 last:pb-0"><legend className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-muted">{title}</legend><div className={`grid min-w-0 gap-3 ${layouts[layout]}`}>{children}</div></fieldset>;
 }
 
-function RoleField({ value, onChange, className = "" }) {
-  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Categoria<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option><option value="manager">Gestor</option><option value="admin">Administrador geral</option></select></label>;
+function RoleField({ value, onChange, className = "", restricted = false }) {
+  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Categoria<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="broker">Corretor</option><option value="associate">Associado</option>{restricted ? null : <><option value="manager">Gestor</option><option value="admin">Administrador geral</option></>}</select></label>;
 }
 
 function BrokerField({ brokers, value, onChange, className = "" }) {
