@@ -13,6 +13,7 @@ import SimulationProgress from "@/components/simulation-form/SimulationProgress"
 import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
 import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preferences";
+import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
 import {
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
@@ -34,6 +35,12 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
       ? "individual"
       : "";
   const brokerRef = brokerRefOverride || searchParams.get("ref") || "";
+  const campaignIdFromUrl = searchParams.get("c") || "";
+  const campaignId = campaignIdFromUrl || readStoredCampaignId();
+
+  useEffect(() => {
+    if (campaignIdFromUrl) persistCampaignId(campaignIdFromUrl);
+  }, [campaignIdFromUrl]);
 
   const [form, setForm] = useState(() => getDefaultSimulationRegistration(initialType));
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -143,7 +150,7 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
       const response = await fetch("/api/simulation-registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, brokerRef })
+        body: JSON.stringify({ ...form, brokerRef, campaignId })
       });
       const data = await response.json().catch(() => ({}));
 

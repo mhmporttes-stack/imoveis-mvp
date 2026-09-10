@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import AdminPwaInstallHint from "@/components/AdminPwaInstallHint";
 import AdminSessionKeeper from "@/components/AdminSessionKeeper";
+import CampaignLinkCapture from "@/components/CampaignLinkCapture";
 import MobileAdminEntryRedirect from "@/components/MobileAdminEntryRedirect";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -22,6 +23,7 @@ export default function AppChrome({ children }) {
     <>
       <PwaLifecycle />
       <ViewportZoomLock />
+      {!isAdminRoute ? <CampaignLinkCapture /> : null}
       {isAdminRoute ? (
         <>
           <MobileAdminEntryRedirect />
