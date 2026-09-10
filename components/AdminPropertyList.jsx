@@ -14,6 +14,26 @@ export default function AdminPropertyList({ properties }) {
     router.refresh();
   }
 
+  async function togglePublished(property) {
+    const nextPublished = !property.isPublished;
+    const action = nextPublished ? "aprovar e publicar" : "reprovar (tirar do site)";
+    if (!confirm(`Confirma ${action} "${property.name}" no site público?`)) return;
+
+    const response = await fetch(`/api/properties/${property.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPublished: nextPublished })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      alert(data.error || "Não foi possível atualizar a publicação.");
+      return;
+    }
+
+    router.refresh();
+  }
+
   return (
     <div className="container-page grid gap-5">
       {properties.length ? properties.map((property) => (
@@ -34,6 +54,12 @@ export default function AdminPropertyList({ properties }) {
             <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
             <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
             <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
+            <button
+              className={`premium-button border hover:shadow-soft ${property.isPublished ? "border-amber-200 bg-white text-amber-700" : "border-emerald-200 bg-white text-emerald-700"}`}
+              onClick={() => togglePublished(property)}
+            >
+              {property.isPublished ? "Reprovar (tirar do site)" : "Aprovar e publicar"}
+            </button>
             <button className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft" onClick={() => removeProperty(property)}>
               Excluir
             </button>

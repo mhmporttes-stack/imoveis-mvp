@@ -13,7 +13,7 @@ export default async function InternalDevelopmentPage({ params }) {
   await requireAdminPage();
   const { id } = await params;
   const property = await getProperty(id);
-  if (!property?.isDevelopment || !property.isPublished) notFound();
+  if (!property?.isDevelopment) notFound();
 
   return <main className="min-h-screen bg-mist py-10 sm:py-14">
     <section className="container-page mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">

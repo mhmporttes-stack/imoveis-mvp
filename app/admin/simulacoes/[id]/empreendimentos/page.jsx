@@ -24,7 +24,7 @@ export default async function EmpreendimentosPresentationPage({ params }) {
         </div>
         <AdminLogoutButton />
       </section>
-      <EmpreendimentoPresentation simulation={simulation} properties={properties.filter((property) => property.isDevelopment && property.isPublished)} />
+      <EmpreendimentoPresentation simulation={simulation} properties={properties.filter((property) => property.isDevelopment)} />
     </main>
   );
 }
