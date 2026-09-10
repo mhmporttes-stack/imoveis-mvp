@@ -85,41 +85,6 @@ const brokerGroups = [
   }
 ];
 
-const managerGroups = [
-  {
-    key: "crm",
-    label: "CRM",
-    href: "/admin/simulacoes",
-    items: [
-      { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
-      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
-      { href: "/admin/calendario", label: "Agenda", key: "calendar" },
-      { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
-    ]
-  },
-  {
-    key: "cadastros",
-    label: "CADASTROS",
-    href: "/admin/depoimentos",
-    items: [
-      { href: "/admin", label: "Imóveis", key: "properties" },
-      { href: "/admin?area=gestao", label: "Empreendimentos", key: "development-registration" },
-      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
-    ]
-  },
-  {
-    key: "gestao",
-    label: "GESTÃO",
-    href: "/admin/relatorio-diario",
-    items: [
-      { href: "/admin/corretores", label: "Corretores", key: "brokers" },
-      { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
-      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
-      { href: "/admin/relatorio-diario", label: "Desempenho", key: "daily-report", activeKeys: ["financial"] }
-    ]
-  }
-];
-
 const associateGroups = brokerGroups.map((group) => group.key === "desempenho"
   ? { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" }
   : group);
@@ -129,7 +94,10 @@ function getGroupKeyForActive(active, groups = adminGroups) {
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
-  const groups = isManager ? managerGroups : isBroker && !isAdmin ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  // Gestor enxerga exatamente o mesmo menu do administrador geral — o que
+  // ele nao deve ver (financeiro da imobiliaria, clientes do dono) e barrado
+  // nas proprias paginas/consultas, nao escondendo o item de menu.
+  const groups = isManager || isAdmin ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
