@@ -173,7 +173,14 @@ export default function AdminSimulationList({
         .filter((registration) => !usedRegistrationIds.has(registration.id))
         .forEach((registration) => mergeClientItem(groupedClients, buildClientItem({ registration })));
 
+      // "Tentando contato" vai para o final da fila (na aba Todos) — cliente
+      // já em tentativa não deve furar a frente de quem ainda nem foi
+      // contactado uma vez.
       const items = Array.from(groupedClients.values()).sort((a, b) => {
+        const trailingA = a.status === CLIENT_STATUS.AWAITING_RETURN ? 1 : 0;
+        const trailingB = b.status === CLIENT_STATUS.AWAITING_RETURN ? 1 : 0;
+        if (trailingA !== trailingB) return trailingA - trailingB;
+
         const dateA = safeTimestamp(a.sortDate);
         const dateB = safeTimestamp(b.sortDate);
         return dateB - dateA;
