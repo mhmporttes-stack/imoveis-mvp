@@ -178,7 +178,7 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                 </form>
               ) : null}
 
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black ${isActive ? "bg-blue-50 text-brand" : "bg-red-50 text-red-700"}`}>
@@ -199,7 +199,7 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                   </p>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
+                <div className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={() => copyLink(campaign)} className="premium-button-secondary justify-center">
                     {copiedId === campaign.id ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                     {copiedId === campaign.id ? "Copiado!" : "Copiar link"}
