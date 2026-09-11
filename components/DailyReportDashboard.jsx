@@ -129,6 +129,7 @@ export default function DailyReportDashboard({
   const metrics = report?.metrics || {};
   const funnel = report?.funnel || [];
   const timeline = report?.timeline || [];
+  const brokerBreakdown = report?.brokerBreakdown || [];
 
   async function loadReport(signal) {
     setLoading(true);
@@ -361,6 +362,38 @@ export default function DailyReportDashboard({
         </article>
       </div>
 
+      {!presentationMode && brokerBreakdown.length > 1 && (
+        <article className="overflow-hidden rounded-[28px] border border-navy/10 bg-white shadow-soft">
+          <div className="flex items-center justify-between gap-4 p-5 md:p-7 md:pb-0">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Detalhamento</p>
+              <h3 className="mt-2 text-2xl font-extrabold text-navy">Por corretor</h3>
+            </div>
+          </div>
+          <div className="mt-5 overflow-x-auto p-5 pt-0 md:p-7 md:pt-0">
+            <table className="w-full min-w-[720px] text-left">
+              <thead className="bg-navy text-sm text-white">
+                <tr>
+                  <Th>Corretor</Th><Th>Clientes hoje</Th><Th>Aguardando ação</Th><Th>Atividades hoje</Th><Th>Atrasadas</Th><Th>Concluídas</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {brokerBreakdown.map((row) => (
+                  <tr key={row.brokerId} className="border-t border-line text-sm font-bold text-navy">
+                    <Td>{row.brokerName}</Td>
+                    <Td>{formatInteger(row.metrics.clientsToday)}</Td>
+                    <Td>{formatInteger(row.metrics.awaitingAction)}</Td>
+                    <Td>{formatInteger(row.metrics.activitiesToday)}</Td>
+                    <Td>{formatInteger(row.metrics.overdueActivities)}</Td>
+                    <Td>{formatInteger(row.metrics.completedActivities)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      )}
+
       {!presentationMode && (
         <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <div className="flex items-center justify-between gap-4">
@@ -443,6 +476,9 @@ function ConversionRow({ label, value }) {
     </div>
   );
 }
+
+function Th({ children }) { return <th className="px-5 py-4 font-black">{children}</th>; }
+function Td({ children }) { return <td className="px-5 py-4">{children}</td>; }
 
 function formatInteger(value) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Number(value || 0));

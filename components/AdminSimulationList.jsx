@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Calculator,
   CalendarDays,
@@ -32,6 +32,7 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
+import { isAwaitingFutureActivityClient, isStaleContactClient } from "@/lib/client-status";
 import { normalizePersonName } from "@/lib/name-utils";
 import {
   extractSimulationPhone,
@@ -117,13 +118,18 @@ export default function AdminSimulationList({
   tags = []
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const listTopRef = useRef(null);
   const [query, setQuery] = useState("");
-  const [statusGroup, setStatusGroup] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // Estado inicial de status/corretor/pendências pode vir de um link externo
+  // (ex.: painel de Desempenho), preservando o filtro de onde o clique partiu.
+  const [statusGroup, setStatusGroup] = useState(() => searchParams.get("statusGroup") || "all");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "all");
   const [tagFilter, setTagFilter] = useState("all");
-  const [responsibleFilter, setResponsibleFilter] = useState("all");
-  const [pendingOnly, setPendingOnly] = useState(false);
+  const [responsibleFilter, setResponsibleFilter] = useState(() => searchParams.get("responsibleUserId") || "all");
+  const [pendingOnly, setPendingOnly] = useState(() => searchParams.get("pending") === "1");
+  const [staleContactOnly, setStaleContactOnly] = useState(() => searchParams.get("staleContact") === "1");
+  const [noFutureActivityOnly, setNoFutureActivityOnly] = useState(() => searchParams.get("noFutureActivity") === "1");
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedClientId, setExpandedClientId] = useState("");
@@ -207,6 +213,8 @@ export default function AdminSimulationList({
 
     return clients.filter((client) => {
       if (pendingOnly && !isPendingClient(client)) return false;
+      if (staleContactOnly && !isStaleContactClient(client)) return false;
+      if (noFutureActivityOnly && !isAwaitingFutureActivityClient(client)) return false;
       const clientResponsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
       if (responsibleFilter === "unassigned" && clientResponsibleUserId) return false;
       if (responsibleFilter !== "all" && responsibleFilter !== "unassigned" && clientResponsibleUserId !== responsibleFilter) return false;
@@ -218,7 +226,7 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, pendingOnly, query, responsibleFilter, tagFilter]);
+  }, [clients, noFutureActivityOnly, pendingOnly, query, responsibleFilter, staleContactOnly, tagFilter]);
 
   const counters = useMemo(() => {
     const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
@@ -252,7 +260,7 @@ export default function AdminSimulationList({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, pendingOnly, query, responsibleFilter, statusGroup, statusFilter, tagFilter]);
+  }, [noFutureActivityOnly, pageSize, pendingOnly, query, responsibleFilter, staleContactOnly, statusGroup, statusFilter, tagFilter]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -894,7 +902,7 @@ export default function AdminSimulationList({
             tagDraft={tagDraft}
           />
         )) : (
-          <EmptyState hasClients={clients.length > 0} hasFilter={responsibleFilter !== "all" || statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all"} hasQuery={query.trim().length > 0} />
+          <EmptyState hasClients={clients.length > 0} hasFilter={responsibleFilter !== "all" || statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all" || pendingOnly || staleContactOnly || noFutureActivityOnly} hasQuery={query.trim().length > 0} />
         )}
       </div>
 
