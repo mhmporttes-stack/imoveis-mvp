@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Copy, Pencil, Plus, Save, Users, X, Zap, ZapOff } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Save, Trash2, Users, X, Zap, ZapOff } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
@@ -105,6 +105,22 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
     }
   }
 
+  async function removeCampaign(campaign) {
+    if (!confirm(`Excluir a campanha "${campaign.name}"? O link deixa de funcionar. Os cadastros que já vieram por ele continuam no CRM normalmente.`)) return;
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaign.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível excluir a campanha.");
+      setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
+      setMessage("Campanha excluída.");
+    } catch (removeError) {
+      setError(removeError.message || "Não foi possível excluir a campanha.");
+    }
+  }
+
   async function copyLink(campaign) {
     try {
       await navigator.clipboard.writeText(campaign.link);
@@ -197,6 +213,9 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                   <button type="button" onClick={() => toggleStatus(campaign)} className="premium-button-secondary justify-center">
                     {isActive ? <ZapOff className="h-5 w-5" aria-hidden="true" /> : <Zap className="h-5 w-5" aria-hidden="true" />}
                     {isActive ? "Desativar" : "Ativar"}
+                  </button>
+                  <button type="button" onClick={() => removeCampaign(campaign)} className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft justify-center">
+                    <Trash2 className="h-5 w-5" aria-hidden="true" /> Excluir
                   </button>
                 </div>
               </div>
