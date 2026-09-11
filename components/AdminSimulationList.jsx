@@ -246,6 +246,9 @@ export default function AdminSimulationList({
     const groupStatuses = activeGroup?.statuses || [];
 
     return scopedClients.filter((client) => {
+      // "Não contactar" só deve aparecer dentro de Arquivados > Não contactar,
+      // nunca na aba Todos (statusGroup "all").
+      if (statusGroup === "all" && client.status === CLIENT_STATUS.DO_NOT_CONTACT) return false;
       if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
       if (statusFilter !== "all" && client.status !== statusFilter) return false;
       return true;
@@ -781,7 +784,7 @@ export default function AdminSimulationList({
             {CLIENT_STATUS_FILTER_GROUPS.filter((group) => group.key !== "restrictions").map((group) => {
               const active = statusGroup === group.key || (group.key === "approval" && statusGroup === "restrictions");
               const count = group.key === "all"
-                ? clients.length
+                ? clients.filter((client) => client.status !== CLIENT_STATUS.DO_NOT_CONTACT).length
                 : group.statuses.reduce((total, status) => total + (counters[status] || 0), 0);
 
               return (
