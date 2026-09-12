@@ -16,7 +16,8 @@ export async function GET(request) {
     const params = {
       period: url.searchParams.get("period") || "today",
       startDate: url.searchParams.get("startDate") || "",
-      endDate: url.searchParams.get("endDate") || ""
+      endDate: url.searchParams.get("endDate") || "",
+      brokerIds: url.searchParams.get("brokerIds") || ""
     };
     const brokerId = url.searchParams.get("brokerId") || "";
 

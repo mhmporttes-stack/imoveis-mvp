@@ -55,6 +55,13 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const [loading, setLoading] = useState(false);
   const [expandedBrokerId, setExpandedBrokerId] = useState("");
 
+  // Filtro exclusivo do bloco "Funil comercial": Todos os corretores (padrão,
+  // reaproveita o overview já carregado), um corretor específico, ou um
+  // conjunto arbitrário de corretores — não afeta KPIs, ranking ou equipe.
+  const [funnelBrokerIds, setFunnelBrokerIds] = useState([]);
+  const [funnelOverview, setFunnelOverview] = useState(null);
+  const [funnelLoading, setFunnelLoading] = useState(false);
+
   useEffect(() => {
     const controller = new AbortController();
     if (initialOverview) loadOverview(controller.signal);
@@ -62,11 +69,25 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, startDate, endDate]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    if (funnelBrokerIds.length) loadFunnelOverview(controller.signal);
+    else setFunnelOverview(null);
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [funnelBrokerIds, period, startDate, endDate]);
+
   const metrics = overview?.metrics || {};
-  const funnel = overview?.funnel || [];
   const attention = overview?.attention || {};
   const ranking = overview?.ranking || [];
   const team = overview?.team || [];
+  const funnel = (funnelBrokerIds.length ? funnelOverview?.funnel : overview?.funnel) || [];
+  const brokerOptions = useMemo(() => (
+    team
+      .map((row) => row.profile)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+  ), [team]);
   const periodQuery = useMemo(() => buildPeriodQuery(period, startDate, endDate), [period, startDate, endDate]);
 
   async function loadOverview(signal) {
@@ -91,6 +112,35 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
+  }
+
+  async function loadFunnelOverview(signal) {
+    setFunnelLoading(true);
+
+    const params = new URLSearchParams({ period, brokerIds: funnelBrokerIds.join(",") });
+    if (period === "custom") {
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+    }
+
+    try {
+      const response = await fetch(`/api/performance-overview?${params.toString()}`, { signal });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o funil filtrado.");
+      setFunnelOverview(payload.overview);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setError(requestError.message || "Não foi possível carregar o funil filtrado.");
+      }
+    } finally {
+      if (!signal?.aborted) setFunnelLoading(false);
+    }
+  }
+
+  function toggleFunnelBroker(brokerId) {
+    setFunnelBrokerIds((current) => (
+      current.includes(brokerId) ? current.filter((id) => id !== brokerId) : [...current, brokerId]
+    ));
   }
 
   return (
@@ -227,6 +277,41 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
           <CalendarDays className="text-brand" size={22} />
         </div>
+
+        {brokerOptions.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">Corretores:</span>
+            <button
+              type="button"
+              onClick={() => setFunnelBrokerIds([])}
+              className={`min-h-8 rounded-full border px-3 text-xs font-extrabold transition ${
+                funnelBrokerIds.length === 0
+                  ? "border-brand bg-blue-50 text-brand"
+                  : "border-navy/10 bg-white text-navy hover:border-brand"
+              }`}
+            >
+              Todos
+            </button>
+            {brokerOptions.map((broker) => {
+              const selected = funnelBrokerIds.includes(broker.id);
+              return (
+                <button
+                  key={broker.id}
+                  type="button"
+                  onClick={() => toggleFunnelBroker(broker.id)}
+                  className={`min-h-8 rounded-full border px-3 text-xs font-extrabold transition ${
+                    selected
+                      ? "border-brand bg-brand text-white"
+                      : "border-navy/10 bg-white text-navy hover:border-brand"
+                  }`}
+                >
+                  {broker.name}
+                </button>
+              );
+            })}
+            {funnelLoading && <span className="text-xs font-bold text-slate-400">Atualizando…</span>}
+          </div>
+        )}
 
         <FunnelChart funnel={funnel} />
       </article>
