@@ -12,7 +12,7 @@ O painel administrativo pode ser instalado no iPhone pelo Safari usando **Compar
 - Metadados Apple no layout principal.
 - Service worker em `public/sw.js`.
 - Página offline segura em `public/offline.html`.
-- Aviso discreto de instalação para iPhone/Safari.
+- Botão de instalar o app para corretores acessando pelo navegador do celular: no Android/Chrome captura o evento `beforeinstallprompt` e mostra um botão real ("Instalar app") que dispara a instalação nativa; no iPhone/Safari (que não dispara esse evento) mantém a orientação manual de Compartilhar > Adicionar à Tela de Início, com a mesma apresentação visual.
 - Detecção de atualização disponível.
 - Renovação periódica da sessão administrativa via `/api/admin/session`.
 
@@ -68,7 +68,7 @@ Quando o access token expira, o servidor tenta renovar a sessão com o refresh t
 
 ## Limitações
 
-- O iOS não oferece botão automático de instalação. A instalação precisa ser feita pelo menu Compartilhar do Safari.
+- O iOS não oferece o evento `beforeinstallprompt`, então não é possível instalar com um clique como no Android. O botão exibido no iPhone continua sendo uma orientação (Compartilhar > Adicionar à Tela de Início), não uma instalação automática.
 - A tela de splash do iPhone é controlada pelo iOS a partir dos metadados e do ícone configurado.
 - A PWA não mantém dados privados offline por decisão de segurança.
 
