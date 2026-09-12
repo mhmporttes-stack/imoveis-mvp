@@ -5,6 +5,7 @@ import {
   listDueScheduledActivityNotifications,
   markScheduledActivityNotificationSent
 } from "@/lib/simulation-registrations";
+import { listDueCalendarActivityNotifications, markCalendarActivityNotified } from "@/lib/calendar-activities";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
 
@@ -46,6 +47,28 @@ export async function GET(request) {
       }
     }
 
+    // Atividades novas (calendar_activities, cliente pode ter várias ao mesmo
+    // tempo) têm seu próprio lembrete, independente do mecanismo legado acima
+    // — cada uma dispara e é marcada individualmente, sem interferir nas outras.
+    const dueCalendarActivities = await listDueCalendarActivityNotifications({ limit: 50 });
+    const calendarResults = [];
+
+    for (const item of dueCalendarActivities) {
+      try {
+        const notification = await sendScheduledActivityNotification(item);
+        if (notification.skipped) {
+          calendarResults.push({ id: item.activityId, skipped: true, reason: notification.reason, channels: notification.channels });
+          continue;
+        }
+
+        await markCalendarActivityNotified(item.activityId);
+        calendarResults.push({ id: item.activityId, sent: true, channels: notification.channels });
+      } catch (error) {
+        console.error("Falha ao enviar notificacao de atividade (calendar_activities).", error);
+        calendarResults.push({ id: item.activityId, error: error?.message || "Falha ao enviar." });
+      }
+    }
+
     let automations = [];
     try {
       automations = await runCrmAutomations();
@@ -54,13 +77,14 @@ export async function GET(request) {
       automations = [{ error: automationError?.message || "Falha no motor de regras." }];
     }
 
+    const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
-      checked: dueRegistrations.length,
-      sent: results.filter((item) => item.sent).length,
-      skipped: results.filter((item) => item.skipped).length,
-      failed: results.filter((item) => item.error).length,
-      results,
+      checked: dueRegistrations.length + dueCalendarActivities.length,
+      sent: allResults.filter((item) => item.sent).length,
+      skipped: allResults.filter((item) => item.skipped).length,
+      failed: allResults.filter((item) => item.error).length,
+      results: allResults,
       automations
     });
   } catch (error) {

@@ -4,6 +4,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { requireAdminPage } from "@/lib/admin-auth";
+import { listCalendarActivitiesForClients } from "@/lib/calendar-activities";
 import { listTags } from "@/lib/client-tags";
 import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { canManageSimulations, formatSimulationError, listSimulations } from "@/lib/simulations";
@@ -65,6 +66,14 @@ export default async function AdminSimulationsPage() {
   const blockingError = !hasAnyData ? (registrationsError || simulationsError) : "";
   const loadWarning = hasAnyData ? [registrationsError, simulationsError].filter(Boolean).join(" ") : "";
 
+  let clientActivities = {};
+  try {
+    const activitiesByClient = await listCalendarActivitiesForClients(registrations.map((registration) => registration.id), auth);
+    clientActivities = Object.fromEntries(activitiesByClient);
+  } catch {
+    clientActivities = {};
+  }
+
   return (
     <main className="bg-mist py-14">
       <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -89,6 +98,7 @@ export default async function AdminSimulationsPage() {
           registrations={registrations}
           simulations={simulations}
           adminProfiles={adminProfiles}
+          clientActivities={clientActivities}
           canManageResponsibleUsers={isGeneralAdmin || isManager}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           tags={tags}

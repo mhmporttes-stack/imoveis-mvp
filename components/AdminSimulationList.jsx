@@ -32,7 +32,7 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
-import { isAwaitingFutureActivityClient, isStaleContactClient } from "@/lib/client-status";
+import { isAwaitingFutureActivityClient, isStaleContactClient, mergeActivitySignal } from "@/lib/client-status";
 import { normalizePersonName } from "@/lib/name-utils";
 import {
   extractSimulationPhone,
@@ -114,6 +114,7 @@ export default function AdminSimulationList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
   canReturnAssignedProspecting = false,
+  clientActivities = {},
   loadWarning = "",
   registrations = [],
   simulations = [],
@@ -143,6 +144,12 @@ export default function AdminSimulationList({
   const [busyClientId, setBusyClientId] = useState("");
   const [schedulingClientId, setSchedulingClientId] = useState("");
   const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
+  // Atividades extras (calendar_activities) por cliente — o cliente pode ter
+  // várias ao mesmo tempo, além (não em vez) da atividade legada única acima.
+  const [localClientActivities, setLocalClientActivities] = useState(() => clientActivities);
+  const [addingActivityClientId, setAddingActivityClientId] = useState("");
+  const [newActivityDraft, setNewActivityDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
+  const [expandedActivitiesClientId, setExpandedActivitiesClientId] = useState("");
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
@@ -153,6 +160,10 @@ export default function AdminSimulationList({
   useEffect(() => {
     setLocalRegistrations(ensureArray(registrations));
   }, [registrations]);
+
+  useEffect(() => {
+    setLocalClientActivities(clientActivities);
+  }, [clientActivities]);
 
   useEffect(() => {
     setLocalTags(ensureArray(tags));
@@ -204,7 +215,13 @@ export default function AdminSimulationList({
     }
   }, [localRegistrations, simulations]);
   const clients = clientsResult.items;
-  const pendingClientsCount = useMemo(() => clients.filter(isPendingClient).length, [clients]);
+  // Cliente pode ter atividades extras (calendar_activities) além da legada
+  // única — as regras de "pendente"/"sem atividade futura" precisam olhar as
+  // duas fontes juntas (mergeActivitySignal), senão uma atividade extra futura
+  // não impediria o cliente de aparecer como pendente/sem atividade.
+  const pendingClientsCount = useMemo(() => (
+    clients.filter((client) => isPendingClient(client, localClientActivities[client.id])).length
+  ), [clients, localClientActivities]);
 
   // Clientes já filtrados por tudo, MENOS status — é a base tanto dos
   // contadores das abas (Todos/Atendimentos/...) quanto da lista final,
@@ -214,9 +231,10 @@ export default function AdminSimulationList({
     const phoneQuery = normalizePhone(query);
 
     return clients.filter((client) => {
-      if (pendingOnly && !isPendingClient(client)) return false;
+      const extraActivities = localClientActivities[client.id];
+      if (pendingOnly && !isPendingClient(client, extraActivities)) return false;
       if (staleContactOnly && !isStaleContactClient(client)) return false;
-      if (noFutureActivityOnly && !isAwaitingFutureActivityClient(client)) return false;
+      if (noFutureActivityOnly && !isAwaitingFutureActivityClient(mergeActivitySignal(client, extraActivities))) return false;
       const clientResponsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
       if (responsibleFilter === "unassigned" && clientResponsibleUserId) return false;
       if (responsibleFilter !== "all" && responsibleFilter !== "unassigned" && clientResponsibleUserId !== responsibleFilter) return false;
@@ -228,7 +246,7 @@ export default function AdminSimulationList({
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
-  }, [clients, noFutureActivityOnly, pendingOnly, query, responsibleFilter, staleContactOnly, tagFilter]);
+  }, [clients, localClientActivities, noFutureActivityOnly, pendingOnly, query, responsibleFilter, staleContactOnly, tagFilter]);
 
   const counters = useMemo(() => {
     const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
@@ -565,6 +583,107 @@ export default function AdminSimulationList({
     }
   }
 
+  // Atividades extras (calendar_activities): diferente do agendamento único
+  // acima, criar uma nova NUNCA substitui as existentes — o cliente pode ter
+  // quantas atividades futuras precisar ao mesmo tempo.
+  function clientActivitiesFor(client) {
+    return localClientActivities[client.id] || [];
+  }
+
+  async function createClientActivity(client) {
+    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
+    if (!linkedRegistration?.id) {
+      alert("Este cliente ainda não possui cadastro vinculado para agendar uma atividade.");
+      return;
+    }
+
+    const date = String(newActivityDraft.date || "").trim();
+    const time = String(newActivityDraft.time || "").trim();
+    const note = String(newActivityDraft.note || "").replace(/\s+/g, " ").trim();
+    const type = String(newActivityDraft.type || "follow_up");
+
+    if (!date) { alert("Selecione o dia da atividade."); return; }
+    if (!time) { alert("Selecione o horário da atividade."); return; }
+    if (!note) { alert("Explique rapidamente qual é a atividade."); return; }
+
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch("/api/calendar-activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: linkedRegistration.id,
+          responsibleUserId: linkedRegistration.responsibleUserId || "",
+          title: note,
+          activityType: type,
+          note,
+          scheduledAt: `${date}T${time}:00`
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || "Não foi possível agendar a atividade.");
+        return;
+      }
+
+      setLocalClientActivities((current) => ({
+        ...current,
+        [client.id]: [...(current[client.id] || []), data.activity].sort(
+          (a, b) => new Date(a.scheduledActivityAt) - new Date(b.scheduledActivityAt)
+        )
+      }));
+      setAddingActivityClientId("");
+      setNewActivityDraft({ date: "", time: "", type: "follow_up", note: "" });
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function completeClientActivity(client, activityId) {
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/calendar-activities/${activityId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || "Não foi possível concluir a atividade.");
+        return;
+      }
+      updateClientActivity(client.id, activityId, data.activity);
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  async function cancelClientActivity(client, activityId) {
+    if (!confirm("Cancelar esta atividade?")) return;
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/calendar-activities/${activityId}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || "Não foi possível cancelar a atividade.");
+        return;
+      }
+      setLocalClientActivities((current) => ({
+        ...current,
+        [client.id]: (current[client.id] || []).filter((activity) => activity.id !== activityId)
+      }));
+    } finally {
+      setBusyClientId("");
+    }
+  }
+
+  function updateClientActivity(clientId, activityId, nextActivity) {
+    setLocalClientActivities((current) => ({
+      ...current,
+      [clientId]: (current[clientId] || []).map((activity) => (activity.id === activityId ? nextActivity : activity))
+    }));
+  }
+
   async function saveClientTags(client, nextTagIds) {
     const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
     if (!linkedRegistration?.id) {
@@ -870,6 +989,17 @@ export default function AdminSimulationList({
         ) : null}
         {currentClients.length ? currentClients.map((client) => (
           <ClientCard
+            activities={clientActivitiesFor(client)}
+            addingActivity={addingActivityClientId === client.id}
+            expandedActivities={expandedActivitiesClientId === client.id}
+            newActivityDraft={newActivityDraft}
+            setNewActivityDraft={setNewActivityDraft}
+            onAddActivityStart={() => setAddingActivityClientId(client.id)}
+            onAddActivityCancel={() => setAddingActivityClientId("")}
+            onCreateActivity={() => createClientActivity(client)}
+            onCompleteActivity={(activityId) => completeClientActivity(client, activityId)}
+            onCancelActivity={(activityId) => cancelClientActivity(client, activityId)}
+            onToggleExpandActivities={() => setExpandedActivitiesClientId((current) => (current === client.id ? "" : client.id))}
             busy={busyClientId === client.id}
             client={client}
             deleteTagFromSystem={deleteTagFromSystem}
@@ -944,6 +1074,17 @@ export default function AdminSimulationList({
 }
 
 function ClientCard({
+  activities,
+  addingActivity,
+  expandedActivities,
+  newActivityDraft,
+  setNewActivityDraft,
+  onAddActivityStart,
+  onAddActivityCancel,
+  onCreateActivity,
+  onCompleteActivity,
+  onCancelActivity,
+  onToggleExpandActivities,
   busy,
   client,
   deleteTagFromSystem,
@@ -1112,6 +1253,21 @@ function ClientCard({
           onSave={() => onSaveSchedule(client)}
         />
       ) : null}
+
+      <ClientActivitiesPanel
+        activities={activities}
+        adding={addingActivity}
+        busy={busy}
+        draft={newActivityDraft}
+        expanded={expandedActivities}
+        onAddCancel={onAddActivityCancel}
+        onAddStart={onAddActivityStart}
+        onCancel={onCancelActivity}
+        onComplete={onCompleteActivity}
+        onCreate={onCreateActivity}
+        onDraftChange={setNewActivityDraft}
+        onToggleExpand={onToggleExpandActivities}
+      />
 
       {client.registration?.prospectingContactId && (client.registration.prospectingAssignedPending || [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status)) ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1325,6 +1481,116 @@ function ScheduleEditor({ busy, draft, hasSchedule, onChange, onClear, onClose, 
           Cancelar
         </button>
       </div>
+    </div>
+  );
+}
+
+const ACTIVITY_DISPLAY_LIMIT = 3;
+
+// Atividades extras do cliente (calendar_activities): ao contrário do
+// agendamento único acima, o cliente pode ter várias simultâneas — criar uma
+// nova nunca substitui as demais, e cada uma é concluída/cancelada sozinha.
+function ClientActivitiesPanel({
+  activities,
+  adding,
+  busy,
+  draft,
+  expanded,
+  onAddCancel,
+  onAddStart,
+  onCancel,
+  onComplete,
+  onCreate,
+  onDraftChange,
+  onToggleExpand
+}) {
+  const pending = activities.filter((activity) => activity.status === "pending");
+  const now = Date.now();
+  const overdue = pending.filter((activity) => new Date(activity.scheduledActivityAt).getTime() < now);
+  const upcoming = pending.filter((activity) => new Date(activity.scheduledActivityAt).getTime() >= now);
+  const ordered = [...overdue, ...upcoming];
+  const visible = expanded ? ordered : ordered.slice(0, ACTIVITY_DISPLAY_LIMIT);
+  const hiddenCount = ordered.length - visible.length;
+
+  if (!ordered.length && !adding) {
+    return (
+      <div className="mt-3">
+        <button className="text-xs font-black text-brand hover:underline" disabled={busy} onClick={onAddStart} type="button">
+          + Outra atividade
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl border border-line bg-white p-3">
+      <p className="text-xs font-black uppercase tracking-[0.1em] text-muted">Próximas atividades</p>
+      <div className="mt-2 space-y-2">
+        {visible.map((activity) => {
+          const isOverdue = new Date(activity.scheduledActivityAt).getTime() < now;
+          return (
+            <div key={activity.id} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${isOverdue ? "border-red-200 bg-red-50" : "border-line bg-mist/40"}`}>
+              <div className="min-w-0">
+                <p className={`font-extrabold ${isOverdue ? "text-red-700" : "text-navy"}`}>{formatScheduledActivityLabel(activity.scheduledActivityAt)}</p>
+                <p className="truncate text-xs font-bold text-muted">{activity.note || activity.title}</p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button aria-label="Concluir atividade" className="rounded-lg border border-line px-2 py-1 text-[11px] font-black text-navy hover:border-brand" disabled={busy} onClick={() => onComplete(activity.id)} type="button">
+                  Concluir
+                </button>
+                <button aria-label="Cancelar atividade" className="rounded-lg border border-line px-2 py-1 text-[11px] font-black text-red-700 hover:border-red-300" disabled={busy} onClick={() => onCancel(activity.id)} type="button">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {hiddenCount > 0 ? (
+          <button className="text-xs font-black text-brand hover:underline" onClick={onToggleExpand} type="button">
+            Ver todas ({ordered.length})
+          </button>
+        ) : null}
+        {expanded && ordered.length > ACTIVITY_DISPLAY_LIMIT ? (
+          <button className="text-xs font-black text-brand hover:underline" onClick={onToggleExpand} type="button">
+            Ver menos
+          </button>
+        ) : null}
+      </div>
+
+      {adding ? (
+        <div className="mt-3 rounded-xl border border-blue-100 bg-[#F5FAFF] p-3">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
+            <label className="text-xs font-black text-navy">
+              Dia
+              <input className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand" disabled={busy} onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))} type="date" value={draft.date} />
+            </label>
+            <label className="text-xs font-black text-navy">
+              Horário
+              <input className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand" disabled={busy} onChange={(event) => onDraftChange((current) => ({ ...current, time: event.target.value }))} type="time" value={draft.time} />
+            </label>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+            <label className="text-xs font-black text-navy">
+              Tipo
+              <select className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand" disabled={busy} onChange={(event) => onDraftChange((current) => ({ ...current, type: event.target.value }))} value={draft.type || "follow_up"}>
+                {ACTIVITY_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-black text-navy">
+              O que será feito?
+              <textarea className="mt-1 min-h-[70px] w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand" disabled={busy} maxLength={240} onChange={(event) => onDraftChange((current) => ({ ...current, note: event.target.value }))} value={draft.note} />
+            </label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button className="client-action-button h-9 px-4" disabled={busy} onClick={onCreate} type="button">Salvar</button>
+            <button className="client-action-button h-9 px-4" disabled={busy} onClick={onAddCancel} type="button">Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button className="mt-3 text-xs font-black text-brand hover:underline" disabled={busy} onClick={onAddStart} type="button">
+          + Outra atividade
+        </button>
+      )}
     </div>
   );
 }
@@ -1658,11 +1924,12 @@ function getClientIdentityKey(client) {
   return name ? `name:${name}` : client.id;
 }
 
-function isPendingClient(client) {
+function isPendingClient(client, extraActivities) {
   if ([CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)) return false;
 
+  const merged = mergeActivitySignal(client, extraActivities);
   const now = Date.now();
-  const scheduledAt = new Date(client.scheduledActivityAt || "").getTime();
+  const scheduledAt = new Date(merged.scheduledActivityAt || "").getTime();
   if (Number.isFinite(scheduledAt) && scheduledAt > now) return false;
 
   const referenceAt = new Date(client.lastWhatsappContactAt || client.createdAt || "").getTime();
