@@ -511,11 +511,28 @@ function getFunnelBoundaries(count) {
   return Array.from({ length: count + 1 }, (_, index) => 100 - step * index);
 }
 
+// Maior gargalo do período: a menor conversão entre etapas consecutivas
+// (ignora a base "Prospecção", que não tem etapa anterior) — só um destaque
+// informativo, sem alerta exagerado.
+function findFunnelBottleneck(funnel) {
+  let worst = null;
+  for (let index = 1; index < funnel.length; index += 1) {
+    const stage = funnel[index];
+    if (stage.conversion === null || stage.conversion === undefined) continue;
+    if (!worst || stage.conversion < worst.conversion) {
+      worst = { from: funnel[index - 1].label, to: stage.label, conversion: stage.conversion };
+    }
+  }
+  return worst;
+}
+
 function FunnelChart({ funnel }) {
   const boundaries = useMemo(() => getFunnelBoundaries(funnel.length), [funnel.length]);
+  const bottleneck = useMemo(() => findFunnelBottleneck(funnel), [funnel]);
   if (!funnel.length) return null;
 
   return (
+    <>
     <div className="mt-6 grid grid-cols-1 gap-y-4 sm:grid-cols-[minmax(88px,1fr)_minmax(0,3.2fr)_minmax(64px,0.8fr)] sm:items-center sm:gap-x-5 sm:gap-y-2.5">
       <span className="hidden sm:block" aria-hidden="true" />
       <span className="hidden sm:block" aria-hidden="true" />
@@ -565,6 +582,13 @@ function FunnelChart({ funnel }) {
         );
       })}
     </div>
+    {bottleneck && (
+      <p className="mt-5 text-xs font-bold text-slate-500">
+        <span className="font-extrabold uppercase tracking-[0.08em] text-amber-700">Maior gargalo</span>
+        {" — "}{bottleneck.from} → {bottleneck.to}: <span className="font-extrabold text-navy">{formatPercent(bottleneck.conversion)}</span> de conversão
+      </p>
+    )}
+    </>
   );
 }
 
@@ -573,7 +597,9 @@ function buildFunnelStageHref(key) {
   if (key === "service") return "/admin/simulacoes?status=in_service";
   if (key === "simulation") return "/admin/simulacoes?statusGroup=simulation";
   if (key === "documentation") return "/admin/simulacoes?statusGroup=documentation";
-  if (key === "approval") return "/admin/simulacoes?status=approved";
+  if (key === "approval") return "/admin/simulacoes?statusGroup=approval";
+  if (key === "approved") return "/admin/simulacoes?statusGroup=approved";
+  if (key === "meeting") return "/admin/simulacoes?statusGroup=meeting";
   if (key === "sale") return "/admin/simulacoes?statusGroup=sale";
   return "/admin/simulacoes";
 }

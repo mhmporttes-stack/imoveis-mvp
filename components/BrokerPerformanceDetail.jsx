@@ -179,11 +179,11 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
 
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil individual</p>
-        <h3 className="mt-2 text-2xl font-extrabold text-navy">Atendimentos → Simulações → Aprovações → Vendas</h3>
+        <h3 className="mt-2 text-2xl font-extrabold text-navy">Atendimento → Simulação → Documentação → Aprovação → Aprovado → Reunião → Venda</h3>
 
         <div className="mt-6 space-y-4">
           {funnel
-            .filter((stage) => ["service", "simulation", "approval", "sale"].includes(stage.key))
+            .filter((stage) => ["service", "simulation", "documentation", "approval", "approved", "meeting", "sale"].includes(stage.key))
             .map((stage, index, list) => {
               const max = Math.max(...list.map((entry) => entry.value), 1);
               return (

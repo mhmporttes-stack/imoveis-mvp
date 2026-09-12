@@ -19,7 +19,7 @@ import {
   UserRound,
   X
 } from "lucide-react";
-import { CLIENT_STATUS, CLIENT_STATUS_META, CLIENT_STATUS_OPTIONS, normalizeClientStatus } from "@/lib/client-status";
+import { CLIENT_FUNNEL_SALE_STATUS_VALUES, CLIENT_STATUS, CLIENT_STATUS_META, CLIENT_STATUS_OPTIONS, normalizeClientStatus } from "@/lib/client-status";
 import { buildWhatsAppUrl, formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
 import {
   booleanLabel,
@@ -57,27 +57,27 @@ const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
     acc[option.value] = index + 1;
     return acc;
   }, {});
+// Reorganização do funil (2026-09-12): macroetapas fixas — Restrição/Blindagem/
+// Reprovado NÃO são mais um grupo à parte ("Restrições"): pertencem à etapa
+// "Aprovação" (regra do negócio: reprovar/restringir não tira o cliente do
+// funil). "Venda" agrupa os 8 status legados de venda como uma única etapa.
 const CLIENT_STATUS_FILTER_GROUPS = [
   { key: "all", label: "Todos", statuses: [] },
-  { key: "service", label: "Atendimentos", statuses: [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE] },
+  { key: "prospecting", label: "Prospecção", statuses: [CLIENT_STATUS.AWAITING_RETURN] },
+  { key: "service", label: "Atendimento", statuses: [CLIENT_STATUS.IN_SERVICE] },
   { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT] },
   { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
-  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED] },
-  { key: "sale", label: "Venda", statuses: [CLIENT_STATUS.SALE_CONTRACT, CLIENT_STATUS.SALE_COMPLETED, CLIENT_STATUS.SALE_FORMS, CLIENT_STATUS.SALE_RESERVATION, CLIENT_STATUS.SALE_CAIXA_SIGNATURE, CLIENT_STATUS.SALE_ITBI, CLIENT_STATUS.SALE_REGISTRY, CLIENT_STATUS.SALE_PAYMENT] },
-  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT] },
-  { key: "restrictions", label: "Restrições", statuses: [CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING] }
+  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.REJECTED] },
+  { key: "approved", label: "Aprovados", statuses: [CLIENT_STATUS.APPROVED] },
+  { key: "meeting", label: "Reunião", statuses: [CLIENT_STATUS.MEETING_PENDING, CLIENT_STATUS.MEETING_DONE] },
+  { key: "sale", label: "Venda", statuses: CLIENT_FUNNEL_SALE_STATUS_VALUES },
+  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT] }
 ];
-const SALE_STATUS_OPTIONS = [
-  CLIENT_STATUS.SALE_CONTRACT,
-  CLIENT_STATUS.SALE_COMPLETED,
-  CLIENT_STATUS.SALE_FORMS,
-  CLIENT_STATUS.SALE_RESERVATION,
-  CLIENT_STATUS.SALE_CAIXA_SIGNATURE,
-  CLIENT_STATUS.SALE_ITBI,
-  CLIENT_STATUS.SALE_REGISTRY,
-  CLIENT_STATUS.SALE_PAYMENT
-].map((value) => ({ value, label: CLIENT_STATUS_META[value].label }));
-const SALE_STATUS_VALUES = new Set(SALE_STATUS_OPTIONS.map((option) => option.value));
+// Os 7 status legados de subetapa de venda continuam válidos (clientes
+// antigos preservam o status/label real), mas deixam de ser oferecidos como
+// opção de novo lançamento — a partir de agora só existe "Venda realizada".
+const SALE_STATUS_OPTIONS = [{ value: CLIENT_STATUS.SALE_COMPLETED, label: "Venda realizada" }];
+const SALE_STATUS_VALUES = new Set(CLIENT_FUNNEL_SALE_STATUS_VALUES);
 const MAIN_STATUS_VALUES = [
   CLIENT_STATUS.PENDING,
   CLIENT_STATUS.COMPLETED,
@@ -91,6 +91,8 @@ const MAIN_STATUS_VALUES = [
   CLIENT_STATUS.SHIELDING,
   CLIENT_STATUS.APPROVED,
   CLIENT_STATUS.REJECTED,
+  CLIENT_STATUS.MEETING_PENDING,
+  CLIENT_STATUS.MEETING_DONE,
   CLIENT_STATUS.ARCHIVED,
   CLIENT_STATUS.DO_NOT_CONTACT
 ];
@@ -780,9 +782,9 @@ export default function AdminSimulationList({
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-3 lg:grid-cols-7">
-            {CLIENT_STATUS_FILTER_GROUPS.filter((group) => group.key !== "restrictions").map((group) => {
-              const active = statusGroup === group.key || (group.key === "approval" && statusGroup === "restrictions");
+          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-5 lg:grid-cols-10">
+            {CLIENT_STATUS_FILTER_GROUPS.map((group) => {
+              const active = statusGroup === group.key;
               const count = group.key === "all"
                 ? clients.filter((client) => client.status !== CLIENT_STATUS.DO_NOT_CONTACT).length
                 : group.statuses.reduce((total, status) => total + (counters[status] || 0), 0);
@@ -834,7 +836,6 @@ export default function AdminSimulationList({
                   </button>
                 );
               })}
-              {["approval", "restrictions"].includes(statusGroup) ? <button className={`inline-flex min-h-8 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-extrabold ${statusGroup === "restrictions" ? "border-red-200 bg-red-50 text-red-700" : "border-line bg-white text-navy"}`} onClick={() => { setStatusGroup("restrictions"); setStatusFilter("all"); }} type="button">Restrições <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">{(counters[CLIENT_STATUS.RESTRICTION] || 0) + (counters[CLIENT_STATUS.SHIELDING] || 0)}</span></button> : null}
             </div>
           ) : null}
         </div>
