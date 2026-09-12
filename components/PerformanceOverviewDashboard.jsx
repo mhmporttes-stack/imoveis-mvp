@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Calculator,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Handshake,
   MessageCircle,
   RefreshCw,
+  Search,
   TrendingUp,
   Users
 } from "lucide-react";
@@ -137,11 +139,6 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
     }
   }
 
-  function toggleFunnelBroker(brokerId) {
-    setFunnelBrokerIds((current) => (
-      current.includes(brokerId) ? current.filter((id) => id !== brokerId) : [...current, brokerId]
-    ));
-  }
 
   return (
     <section className="container-page space-y-6">
@@ -275,43 +272,18 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil comercial</p>
             <h3 className="mt-2 text-2xl font-extrabold text-navy">Fluxo dos clientes no período</h3>
           </div>
-          <CalendarDays className="text-brand" size={22} />
-        </div>
-
-        {brokerOptions.length > 0 && (
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">Corretores:</span>
-            <button
-              type="button"
-              onClick={() => setFunnelBrokerIds([])}
-              className={`min-h-8 rounded-full border px-3 text-xs font-extrabold transition ${
-                funnelBrokerIds.length === 0
-                  ? "border-brand bg-blue-50 text-brand"
-                  : "border-navy/10 bg-white text-navy hover:border-brand"
-              }`}
-            >
-              Todos
-            </button>
-            {brokerOptions.map((broker) => {
-              const selected = funnelBrokerIds.includes(broker.id);
-              return (
-                <button
-                  key={broker.id}
-                  type="button"
-                  onClick={() => toggleFunnelBroker(broker.id)}
-                  className={`min-h-8 rounded-full border px-3 text-xs font-extrabold transition ${
-                    selected
-                      ? "border-brand bg-brand text-white"
-                      : "border-navy/10 bg-white text-navy hover:border-brand"
-                  }`}
-                >
-                  {broker.name}
-                </button>
-              );
-            })}
-            {funnelLoading && <span className="text-xs font-bold text-slate-400">Atualizando…</span>}
+          <div className="flex items-center gap-3">
+            {brokerOptions.length > 0 && (
+              <BrokerFilterDropdown
+                brokers={brokerOptions}
+                loading={funnelLoading}
+                selectedIds={funnelBrokerIds}
+                onChange={setFunnelBrokerIds}
+              />
+            )}
+            <CalendarDays className="text-brand" size={22} />
           </div>
-        )}
+        </div>
 
         <FunnelChart funnel={funnel} />
       </article>
@@ -350,6 +322,100 @@ function KpiCard({ card, value }) {
       </div>
       <p className="mt-3 text-3xl font-extrabold text-navy">{formatInteger(value)}</p>
     </Link>
+  );
+}
+
+// Filtro compacto de corretores do Funil comercial: um único botão (com
+// resumo da seleção) que abre um painel com busca + checkboxes — substitui a
+// lista de chips, que cresceria demais com muitos corretores.
+function BrokerFilterDropdown({ brokers, selectedIds, onChange, loading }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredBrokers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return brokers;
+    return brokers.filter((broker) => broker.name.toLowerCase().includes(query));
+  }, [brokers, search]);
+
+  const summaryLabel = selectedIds.length === 0
+    ? "Todos os corretores"
+    : selectedIds.length === 1
+      ? (brokers.find((broker) => broker.id === selectedIds[0])?.name || "1 corretor")
+      : `${selectedIds.length} corretores selecionados`;
+
+  function toggleBroker(brokerId) {
+    onChange(selectedIds.includes(brokerId) ? selectedIds.filter((id) => id !== brokerId) : [...selectedIds, brokerId]);
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex min-h-9 items-center gap-2 rounded-full border border-navy/15 bg-white px-3 text-xs font-extrabold text-navy transition hover:border-brand"
+      >
+        <span className="max-w-[160px] truncate sm:max-w-[220px]">{summaryLabel}</span>
+        {loading ? <span className="text-slate-400">···</span> : <ChevronDown size={14} />}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-navy/10 bg-white p-3 shadow-[0_18px_48px_rgba(13,59,102,0.18)]">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar corretor..."
+              className="h-9 w-full rounded-xl border border-navy/10 bg-mist pl-8 pr-3 text-xs font-bold text-navy outline-none focus:border-brand"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className={`mt-2 flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-left text-xs font-extrabold transition ${
+              selectedIds.length === 0 ? "bg-blue-50 text-brand" : "text-navy hover:bg-mist"
+            }`}
+          >
+            Todos os corretores
+            {selectedIds.length === 0 && <span>✓</span>}
+          </button>
+
+          <div className="mt-1 max-h-56 overflow-y-auto">
+            {filteredBrokers.map((broker) => {
+              const selected = selectedIds.includes(broker.id);
+              return (
+                <button
+                  key={broker.id}
+                  type="button"
+                  onClick={() => toggleBroker(broker.id)}
+                  className={`flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-left text-xs font-bold transition ${
+                    selected ? "bg-brand/10 text-brand" : "text-navy hover:bg-mist"
+                  }`}
+                >
+                  <span className="truncate">{broker.name}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+            {!filteredBrokers.length && (
+              <p className="px-2 py-2 text-xs font-semibold text-slate-400">Nenhum corretor encontrado.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
