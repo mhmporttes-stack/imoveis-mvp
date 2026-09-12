@@ -47,7 +47,7 @@ const ATTENTION_ITEMS = [
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default function PerformanceOverviewDashboard({ initialOverview, initialError = "" }) {
-  const [period, setPeriod] = useState(initialOverview?.range?.period || "today");
+  const [period, setPeriod] = useState(initialOverview?.range?.period || "month");
   const [startDate, setStartDate] = useState(initialOverview?.range?.startDate || "");
   const [endDate, setEndDate] = useState(initialOverview?.range?.endDate || "");
   const [overview, setOverview] = useState(initialOverview);
@@ -228,37 +228,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           <CalendarDays className="text-brand" size={22} />
         </div>
 
-        <div className="mt-6 space-y-4">
-          {funnel.map((stage, index) => {
-            const max = Math.max(...funnel.map((entry) => entry.value), 1);
-            return (
-              <Link
-                key={stage.key}
-                href={buildFunnelStageHref(stage.key)}
-                className="block space-y-2 rounded-2xl p-2 transition hover:bg-blue-50/40"
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-extrabold text-navy">{stage.label}</span>
-                  <span className="font-extrabold text-brand">
-                    {formatInteger(stage.value)}
-                    {stage.conversion !== null && stage.conversion !== undefined && (
-                      <span className="ml-2 text-slate-500">({formatPercent(stage.conversion)})</span>
-                    )}
-                    {index > 0 && (stage.conversion === null || stage.conversion === undefined) && (
-                      <span className="ml-2 text-slate-400">(—)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="h-3 overflow-hidden rounded-full bg-blue-50">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-navy to-brand transition-all"
-                    style={{ width: `${Math.max(6, (stage.value / max) * 100)}%` }}
-                  />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <FunnelChart funnel={funnel} />
       </article>
 
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
@@ -365,6 +335,85 @@ function DateField({ label, value, onChange }) {
         className="mt-2 min-h-11 rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
       />
     </label>
+  );
+}
+
+// Tons do azul institucional (navy -> brand -> claro), do topo (mais escuro)
+// até o fundo do funil (mais claro). As duas últimas camadas usam texto navy
+// em vez de branco para manter contraste sobre o azul claro.
+const FUNNEL_LAYER_COLORS = [
+  { bg: "#0A2E52", text: "text-white" },
+  { bg: "#0D3B66", text: "text-white" },
+  { bg: "#14508C", text: "text-white" },
+  { bg: "#1769D1", text: "text-white" },
+  { bg: "#6FA8E6", text: "text-navy" },
+  { bg: "#B7D8F7", text: "text-navy" }
+];
+const FUNNEL_MIN_WIDTH_PERCENT = 30;
+
+// Larguras (em % da coluna do funil) que delimitam o topo/fundo de cada camada
+// — só definem a SILHUETA (etapas nunca somem visualmente), os números e as
+// conversões continuam vindo 100% dos dados reais.
+function getFunnelBoundaries(count) {
+  if (!count) return [];
+  const step = (100 - FUNNEL_MIN_WIDTH_PERCENT) / count;
+  return Array.from({ length: count + 1 }, (_, index) => 100 - step * index);
+}
+
+function FunnelChart({ funnel }) {
+  const boundaries = useMemo(() => getFunnelBoundaries(funnel.length), [funnel.length]);
+  if (!funnel.length) return null;
+
+  return (
+    <div className="mt-6 grid grid-cols-1 gap-y-4 sm:grid-cols-[minmax(88px,1fr)_minmax(0,3.2fr)_minmax(64px,0.8fr)] sm:items-center sm:gap-x-5 sm:gap-y-2.5">
+      <span className="hidden sm:block" aria-hidden="true" />
+      <span className="hidden sm:block" aria-hidden="true" />
+      <p className="hidden text-right text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400 sm:block">
+        Conversão
+      </p>
+
+      {funnel.map((stage, index) => {
+        const topWidth = boundaries[index];
+        const bottomWidth = boundaries[index + 1];
+        const insetTop = (100 - topWidth) / 2;
+        const insetBottom = (100 - bottomWidth) / 2;
+        const color = FUNNEL_LAYER_COLORS[index] || FUNNEL_LAYER_COLORS[FUNNEL_LAYER_COLORS.length - 1];
+        const hasConversion = stage.conversion !== null && stage.conversion !== undefined;
+        const conversionLabel = index === 0 ? "Base" : (hasConversion ? formatPercent(stage.conversion) : "—");
+
+        return (
+          <Link key={stage.key} href={buildFunnelStageHref(stage.key)} className="group contents">
+            <span className="text-sm font-extrabold text-navy transition group-hover:text-brand">
+              {stage.label}
+            </span>
+
+            <span className="relative flex h-[64px] items-center justify-center sm:h-[70px]">
+              <span
+                className="absolute inset-0 flex items-center justify-center transition duration-300 group-hover:brightness-110"
+                style={{
+                  backgroundColor: color.bg,
+                  clipPath: `polygon(${insetTop}% 0, ${100 - insetTop}% 0, ${100 - insetBottom}% 100%, ${insetBottom}% 100%)`
+                }}
+              >
+                <span className={`text-xl font-black tracking-tight sm:text-2xl ${color.text}`}>
+                  {formatInteger(stage.value)}
+                </span>
+              </span>
+            </span>
+
+            <span className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center">
+              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 sm:hidden">Conversão</span>
+              <span
+                className="text-base font-black text-navy"
+                title="Conversão da etapa anterior"
+              >
+                {conversionLabel}
+              </span>
+            </span>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 

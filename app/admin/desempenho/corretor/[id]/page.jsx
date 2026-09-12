@@ -23,7 +23,7 @@ export default async function BrokerPerformancePage({ params }) {
 
   if (canLoadPerformanceOverview()) {
     try {
-      overview = await getBrokerPerformanceOverview(id, { period: "today" }, auth);
+      overview = await getBrokerPerformanceOverview(id, { period: "month" }, auth);
     } catch (overviewError) {
       if (isAdminPermissionError(overviewError)) notFound();
       error = formatPerformanceOverviewError(overviewError);

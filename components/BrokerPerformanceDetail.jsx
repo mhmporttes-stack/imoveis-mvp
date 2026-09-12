@@ -24,7 +24,7 @@ const KPI_ITEMS = [
 ];
 
 export default function BrokerPerformanceDetail({ brokerId, brokerName, initialOverview, initialError = "" }) {
-  const [period, setPeriod] = useState(initialOverview?.range?.period || "today");
+  const [period, setPeriod] = useState(initialOverview?.range?.period || "month");
   const [startDate, setStartDate] = useState(initialOverview?.range?.startDate || "");
   const [endDate, setEndDate] = useState(initialOverview?.range?.endDate || "");
   const [overview, setOverview] = useState(initialOverview);

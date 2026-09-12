@@ -15,7 +15,7 @@ export default async function PerformancePage() {
 
   if (canLoadPerformanceOverview()) {
     try {
-      overview = await getPerformanceOverview({ period: "today" }, auth);
+      overview = await getPerformanceOverview({ period: "month" }, auth);
     } catch (overviewError) {
       error = formatPerformanceOverviewError(overviewError);
     }
