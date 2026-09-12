@@ -53,6 +53,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const [overview, setOverview] = useState(initialOverview);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
+  const [expandedBrokerId, setExpandedBrokerId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,22 +169,30 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
               </p>
             )}
             {ranking.map((row, index) => (
-              <Link
-                key={row.profile.id}
-                href={`/admin/desempenho/corretor/${row.profile.id}?${periodQuery}`}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-navy/10 p-4 transition hover:border-brand hover:bg-blue-50/40"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl leading-none">{MEDALS[index] || `${index + 1}º`}</span>
-                  <div>
-                    <p className="font-extrabold text-navy">{row.profile.name}</p>
-                    <p className="text-xs font-bold text-slate-500">
-                      {row.newClients} novos clientes · {row.prospecting} prospecções · {row.simulation} simulações · {row.sale} vendas
-                    </p>
-                  </div>
+              <div key={row.profile.id} className="rounded-2xl border border-navy/10 transition hover:border-brand">
+                <div className="flex items-center justify-between gap-4 p-4">
+                  <Link
+                    href={`/admin/desempenho/corretor/${row.profile.id}?${periodQuery}`}
+                    className="flex min-w-0 items-center gap-3 hover:bg-blue-50/40"
+                  >
+                    <span className="text-2xl leading-none">{MEDALS[index] || `${index + 1}º`}</span>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-navy">{row.profile.name}</p>
+                      <p className="text-xs font-bold text-slate-500">
+                        {row.newClients} novos clientes · {row.prospecting} prospecções · {row.simulation} simulações · {row.sale} vendas
+                      </p>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedBrokerId((current) => (current === row.profile.id ? "" : row.profile.id))}
+                    className="whitespace-nowrap rounded-full px-2 text-lg font-black text-brand underline decoration-dotted underline-offset-4"
+                  >
+                    {formatInteger(row.points)} pts
+                  </button>
                 </div>
-                <span className="whitespace-nowrap text-lg font-black text-brand">{formatInteger(row.points)} pts</span>
-              </Link>
+                {expandedBrokerId === row.profile.id && <PointsBreakdown row={row} />}
+              </div>
             ))}
           </div>
         </article>
@@ -286,6 +295,39 @@ function KpiCard({ card, value }) {
       </div>
       <p className="mt-3 text-3xl font-extrabold text-navy">{formatInteger(value)}</p>
     </Link>
+  );
+}
+
+function PointsBreakdown({ row }) {
+  const breakdown = (row.pointsBreakdown || []).filter((entry) => entry.count > 0 || entry.points !== 0);
+
+  return (
+    <div className="border-t border-navy/10 bg-blue-50/30 p-4">
+      <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-brand">Pontuação — {row.profile.name}</p>
+      <div className="mt-3 space-y-1.5 text-sm">
+        {breakdown.map((entry) => (
+          <div key={entry.key} className="flex items-center justify-between gap-3">
+            <span className="font-bold text-navy">
+              {formatInteger(entry.count)} {entry.label.toLowerCase()}
+            </span>
+            <span className="font-extrabold text-brand">{formatInteger(entry.points)} pts</span>
+          </div>
+        ))}
+        {!breakdown.length && <p className="text-slate-500">Nenhuma atividade pontuada neste período.</p>}
+        {row.manualAdjustmentPoints !== 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-bold text-navy">Ajustes manuais</span>
+            <span className={`font-extrabold ${row.manualAdjustmentPoints >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+              {row.manualAdjustmentPoints >= 0 ? "+" : ""}{formatInteger(row.manualAdjustmentPoints)} pts
+            </span>
+          </div>
+        )}
+        <div className="mt-2 flex items-center justify-between border-t border-navy/10 pt-2">
+          <span className="font-black uppercase tracking-[0.08em] text-navy">Total</span>
+          <span className="font-black text-navy">{formatInteger(row.points)} pts</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

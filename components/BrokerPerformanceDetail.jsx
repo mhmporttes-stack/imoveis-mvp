@@ -149,6 +149,34 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
         })}
       </div>
 
+      {broker && (
+        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+          <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Pontuação</p>
+          <h3 className="mt-2 text-2xl font-extrabold text-navy">De onde vieram os {formatInteger(broker.points)} pontos</h3>
+
+          <div className="mt-6 space-y-2">
+            {(broker.pointsBreakdown || []).map((entry) => (
+              <div key={entry.key} className="flex items-center justify-between gap-3 rounded-2xl border border-navy/5 px-4 py-3 text-sm">
+                <span className="font-bold text-navy">{formatInteger(entry.count)} {entry.label.toLowerCase()}</span>
+                <span className="font-extrabold text-brand">{formatInteger(entry.points)} pts</span>
+              </div>
+            ))}
+            {broker.manualAdjustmentPoints !== 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-navy/5 px-4 py-3 text-sm">
+                <span className="font-bold text-navy">Ajustes manuais</span>
+                <span className={`font-extrabold ${broker.manualAdjustmentPoints >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  {broker.manualAdjustmentPoints >= 0 ? "+" : ""}{formatInteger(broker.manualAdjustmentPoints)} pts
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-navy px-4 py-3 text-sm text-white">
+              <span className="font-black uppercase tracking-[0.1em]">Total</span>
+              <span className="font-black">{formatInteger(broker.points)} pts</span>
+            </div>
+          </div>
+        </article>
+      )}
+
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil individual</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Atendimentos → Simulações → Aprovações → Vendas</h3>
