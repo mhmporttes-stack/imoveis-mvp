@@ -76,7 +76,7 @@ O que foi implementado:
 - `lib/push-subscriptions.js`: salva/lista/remove assinaturas no Supabase e envia notificações para todas as assinaturas de um corretor (`sendPushToUser`), removendo automaticamente assinaturas que o navegador já invalidou (respostas 404/410).
 - Tabela `push_subscriptions` no Supabase (migration `20260913_push_subscriptions.sql`): guarda `user_id`, `endpoint`, `p256dh`, `auth` por assinatura (um corretor pode ter mais de um aparelho).
 - `public/sw.js`: o service worker agora escuta os eventos `push` (mostra a notificação) e `notificationclick` (abre/foca o painel na URL indicada pela notificação).
-- `components/AdminPushSubscription.jsx`: ao abrir qualquer página `/admin` (exceto login), pede permissão de notificação e registra a assinatura automaticamente, sem exigir nenhum botão extra.
+- `components/AdminPushSubscription.jsx`: mostra um banner discreto "Ativar notificações" nas páginas `/admin` (exceto login) quando a permissão ainda não foi decidida. **Importante:** no iOS/Safari, `Notification.requestPermission()` só funciona quando chamado de forma síncrona dentro de um toque real do usuário — chamá-lo dentro de um `useEffect`/`setTimeout` é silenciosamente ignorado pelo WebKit (a Promise resolve sem mostrar nada e a permissão nunca sai de "default"). Por isso o pedido de permissão só acontece no clique do botão; se a permissão já tiver sido concedida antes, a (re)assinatura acontece sozinha, sem precisar de botão.
 - Endpoints:
   - `POST /api/push/subscribe` — salva a assinatura do corretor logado.
   - `POST /api/push/unsubscribe` — remove uma assinatura.
