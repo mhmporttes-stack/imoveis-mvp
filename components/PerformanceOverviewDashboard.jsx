@@ -533,10 +533,10 @@ function FunnelChart({ funnel }) {
 
   return (
     <>
-    <div className="mt-6 grid grid-cols-1 gap-y-4 sm:grid-cols-[minmax(88px,1fr)_minmax(0,3.2fr)_minmax(64px,0.8fr)] sm:items-center sm:gap-x-5 sm:gap-y-2.5">
-      <span className="hidden sm:block" aria-hidden="true" />
-      <span className="hidden sm:block" aria-hidden="true" />
-      <p className="hidden text-right text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400 sm:block">
+    <div className="mt-4 grid grid-cols-[minmax(64px,1fr)_minmax(0,3fr)_minmax(34px,0.55fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(120px,1fr)_minmax(0,3.2fr)_minmax(64px,0.8fr)] sm:gap-x-5 sm:gap-y-1.5">
+      <span aria-hidden="true" />
+      <span aria-hidden="true" />
+      <p className="text-right text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-400 sm:text-[11px] sm:tracking-[0.16em]">
         Conversão
       </p>
 
@@ -551,11 +551,11 @@ function FunnelChart({ funnel }) {
 
         return (
           <Link key={stage.key} href={buildFunnelStageHref(stage.key)} className="group contents">
-            <span className="text-sm font-extrabold text-navy transition group-hover:text-brand">
+            <span className="text-[11px] font-extrabold leading-tight text-navy transition group-hover:text-brand sm:text-sm sm:leading-normal">
               {stage.label}
             </span>
 
-            <span className="relative flex h-[64px] items-center justify-center sm:h-[70px]">
+            <span className="relative flex h-8 items-center justify-center sm:h-11">
               <span
                 className="absolute inset-0 flex items-center justify-center transition duration-300 group-hover:brightness-110"
                 style={{
@@ -563,27 +563,24 @@ function FunnelChart({ funnel }) {
                   clipPath: `polygon(${insetTop}% 0, ${100 - insetTop}% 0, ${100 - insetBottom}% 100%, ${insetBottom}% 100%)`
                 }}
               >
-                <span className={`text-xl font-black tracking-tight sm:text-2xl ${color.text}`}>
+                <span className={`text-xs font-black tracking-tight sm:text-lg ${color.text}`}>
                   {formatInteger(stage.value)}
                 </span>
               </span>
             </span>
 
-            <span className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center">
-              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 sm:hidden">Conversão</span>
-              <span
-                className="text-base font-black text-navy"
-                title="Conversão da etapa anterior"
-              >
-                {conversionLabel}
-              </span>
+            <span
+              className="text-right text-[11px] font-black text-navy sm:text-sm"
+              title="Conversão da etapa anterior"
+            >
+              {conversionLabel}
             </span>
           </Link>
         );
       })}
     </div>
     {bottleneck && (
-      <p className="mt-5 text-xs font-bold text-slate-500">
+      <p className="mt-3 text-xs font-bold text-slate-500">
         <span className="font-extrabold uppercase tracking-[0.08em] text-amber-700">Maior gargalo</span>
         {" — "}{bottleneck.from} → {bottleneck.to}: <span className="font-extrabold text-navy">{formatPercent(bottleneck.conversion)}</span> de conversão
       </p>
