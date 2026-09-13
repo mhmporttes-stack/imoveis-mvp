@@ -167,13 +167,13 @@ function RuleEditor({ draft, onChange, onClose, onSave, saving, users }) {
           <Field label="Mensagem"><textarea value={selectedAction.message || ""} onChange={(event) => updateSelectedAction({ message: event.target.value })} /></Field>
           <div>
             <p className="text-sm font-black text-navy">Quem recebe a notificação</p>
-            <div className="mt-2 grid gap-2">
-              <label className="flex items-center gap-2 text-sm font-bold text-navy"><input type="checkbox" checked={selectedAction.notifyResponsible !== false} onChange={(event) => updateSelectedAction({ notifyResponsible: event.target.checked })} />Corretor responsável pelo cliente no momento do gatilho</label>
-              <label className="flex items-center gap-2 text-sm font-bold text-navy"><input type="checkbox" checked={selectedAction.notifyManager === true} onChange={(event) => updateSelectedAction({ notifyManager: event.target.checked })} />Gestor do corretor responsável</label>
-              <label className="flex items-center gap-2 text-sm font-bold text-navy"><input type="checkbox" checked={selectedAction.notifyOwner === true} onChange={(event) => updateSelectedAction({ notifyOwner: event.target.checked })} />Eu (administrador/dono da conta)</label>
+            <div className="mt-3 flex flex-col gap-3">
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyResponsible !== false} onChange={(event) => updateSelectedAction({ notifyResponsible: event.target.checked })} /><span>Corretor responsável pelo cliente no momento do gatilho</span></label>
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyManager === true} onChange={(event) => updateSelectedAction({ notifyManager: event.target.checked })} /><span>Gestor do corretor responsável</span></label>
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyOwner === true} onChange={(event) => updateSelectedAction({ notifyOwner: event.target.checked })} /><span>Eu (administrador/dono da conta)</span></label>
             </div>
           </div>
-          <p className="text-sm font-bold text-muted">Em transferências de cliente, quem perdeu o cliente nunca recebe este aviso, mesmo que se enquadre em outro critério marcado.</p>
+          <p className="mt-2 text-sm font-bold text-muted">Em transferências de cliente, quem perdeu o cliente nunca recebe este aviso, mesmo que se enquadre em outro critério marcado.</p>
         </> : null}
       </div></div>
 
