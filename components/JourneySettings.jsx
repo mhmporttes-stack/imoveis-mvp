@@ -22,7 +22,7 @@ export default function JourneySettings({ initial }) {
     } catch (e) { setFeedback(e.message); } finally { setBusy(false); }
   }
   const labels = { public_name: "Nome público", title: "Título da mensagem", subtitle: "Subtítulo", body: "Mensagem", cta_label: "Texto do botão", notification: "Mensagem de aviso no WhatsApp" };
-  const globals = { brand: "Nome da experiência", celebration_title: "Título da celebração", celebration_subtitle: "Subtítulo da celebração", greeting: "Saudação após 24 horas", greeting_subtitle: "Subtítulo após 24 horas", progress_label: "Rótulo do progresso", contact: "Mensagem para o corretor" };
+  const globals = { brand: "Nome da experiência", celebration_title: "Título da celebração", celebration_subtitle: "Subtítulo da celebração", greeting: "Saudação após 24 horas", greeting_subtitle: "Subtítulo após 24 horas", progress_label: "Rótulo do progresso", contact: "Mensagem para o corretor", closing_quote: "Frase / versículo de encerramento", closing_author: "Referência / autor do encerramento" };
   return <section className="container-page pb-10">
     <div className="mb-6 flex flex-wrap items-end gap-4 border-b border-line pb-5">
       <label className="min-w-0 flex-1 text-sm font-bold">Status interno<select className="mt-2 w-full rounded-lg border border-line bg-white p-3" value={status} onChange={e => setStatus(e.target.value)}>{Object.keys(settings.statuses).map(key => <option key={key} value={key}>{CLIENT_STATUS_META[key]?.label || key}</option>)}</select></label>

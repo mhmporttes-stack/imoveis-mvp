@@ -1,8 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Cormorant_Garamond } from "next/font/google";
 import { UserRound, KeyRound, House, MessageCircle } from "lucide-react";
 import { isJourneyCelebrating } from "@/lib/journey-presentation";
 import styles from "./ClientJourney.module.css";
+
+// Usada apenas na frase de encerramento (ver .closingQuote no CSS) — o
+// restante da página mantém a tipografia padrão da aplicação.
+const closingFont = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], style: ["normal", "italic"], display: "swap", variable: "--font-closing" });
 
 export default function ClientJourney({ data, preview = false }) {
   const [celebrating, setCelebrating] = useState(() => isJourneyCelebrating(data.changedAt));
@@ -22,7 +27,7 @@ export default function ClientJourney({ data, preview = false }) {
     return () => { clearTimeout(start); clearTimeout(finish); clearTimeout(expiry); };
   }, [data.changedAt, data.progress]);
   const progress = celebrating && !moving && !arrived ? data.previousProgress : data.progress;
-  return <main className={styles.page}>
+  return <main className={`${styles.page} ${closingFont.variable}`}>
     <div className={styles.inner}>
       <p className={styles.brand}>{data.copy.brand}</p>
       <header className={styles.header}>
@@ -46,6 +51,11 @@ export default function ClientJourney({ data, preview = false }) {
         <p className={styles.body}>{data.body}</p>
         {data.ctaUrl ? <a className={styles.cta} href={preview ? undefined : data.ctaUrl} target="_blank" rel="noopener noreferrer" aria-disabled={preview || !arrived} tabIndex={!arrived ? -1 : undefined}><MessageCircle size={20} aria-hidden="true" />{data.ctaLabel}</a> : null}
       </section>
+      {data.copy.closing_quote ? <footer className={`${styles.closing} ${!arrived ? styles.hidden : ""}`}>
+        <hr className={styles.closingDivider} aria-hidden="true" />
+        <p className={styles.closingQuote}>&ldquo;{data.copy.closing_quote}&rdquo;</p>
+        {data.copy.closing_author ? <p className={styles.closingAuthor}>{data.copy.closing_author}</p> : null}
+      </footer> : null}
     </div>
   </main>;
 }
