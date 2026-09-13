@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import AdminPushSubscription from "@/components/AdminPushSubscription";
 import AdminPwaInstallHint from "@/components/AdminPwaInstallHint";
 import AdminSessionKeeper from "@/components/AdminSessionKeeper";
 import CampaignLinkCapture from "@/components/CampaignLinkCapture";
@@ -29,6 +30,7 @@ export default function AppChrome({ children }) {
           <MobileAdminEntryRedirect />
           <AdminSessionKeeper />
           <AdminPwaInstallHint />
+          <AdminPushSubscription />
         </>
       ) : null}
       {!isAdminRoute ? <Header /> : null}
