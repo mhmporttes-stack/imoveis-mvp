@@ -105,7 +105,7 @@ function HistoryRow({ item }) {
   const text = item.eventType === "auto_transferred"
     ? `${item.clientName} foi transferido automaticamente${item.fromUserName ? ` de ${item.fromUserName}` : ""} para ${item.toUserName}`
     : `${item.clientName} entrou na roleta e foi enviado para ${item.toUserName}`;
-  return <p className="py-3 text-sm font-bold text-navy"><span>{text}</span><span className="ml-2 text-muted">em {moment.date} às {moment.time}</span></p>;
+  return <div className="py-3 text-sm font-bold text-navy"><p>{text}<span className="ml-2 text-muted">em {moment.date} às {moment.time}</span></p><p className="mt-1 text-xs font-normal text-muted">Origem: {item.sourceLabel || "Origem não identificada"}</p></div>;
 }
 
 function formatHistoryMoment(value) {

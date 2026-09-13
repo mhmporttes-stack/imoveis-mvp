@@ -53,6 +53,7 @@ const adminGroups = [
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
       { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
+      { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
       { href: "/admin/automacoes", label: "Automações", key: "automations" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring"] }
     ]

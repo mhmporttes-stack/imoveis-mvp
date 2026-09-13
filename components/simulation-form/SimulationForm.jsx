@@ -150,7 +150,7 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
       const response = await fetch("/api/simulation-registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, brokerRef, campaignId })
+        body: JSON.stringify({ ...form, brokerRef, campaignId, attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])) })
       });
       const data = await response.json().catch(() => ({}));
 

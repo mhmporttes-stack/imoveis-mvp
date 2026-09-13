@@ -20,6 +20,8 @@ export default function AppChrome({ children }) {
   const isAdminRoute = pathname?.startsWith("/admin");
   const isSimulationRoute = pathname?.startsWith("/simulacao");
 
+  if (pathname?.startsWith("/minha-jornada/")) return children;
+
   return (
     <>
       <PwaLifecycle />

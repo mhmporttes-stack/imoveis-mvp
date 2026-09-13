@@ -1,4 +1,5 @@
 "use client";
+import ClientJourneyActions from "@/components/ClientJourneyActions";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1155,10 +1156,12 @@ function ClientCard({
           </div>
           <h2 className="truncate text-lg font-black text-navy sm:text-xl" title={client.name}>
             {client.name || "Cliente sem nome"}
+            {client.registration?.clientCode ? <span className="ml-2 text-xs font-bold text-muted">{client.registration.clientCode}</span> : null}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
           </div>
+          {hasRegistration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} /> : null}
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">
@@ -2051,6 +2054,7 @@ function buildSearchText(simulation = {}, registration = null) {
   const text = normalizeText([
     safeSimulation.clientName,
     registration?.fullName,
+    registration?.clientCode,
     registration?.primaryIncomeType,
     tags,
     safeSimulation.createdBy,
