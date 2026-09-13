@@ -1,4 +1,4 @@
-const CACHE_VERSION = "painel-matheus-v3";
+const CACHE_VERSION = "painel-matheus-v4";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
@@ -56,16 +56,30 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/admin/simulacoes";
+  const rawUrl = event.notification.data?.url || "/admin/simulacoes";
+  const targetUrl = new URL(rawUrl, self.location.origin).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
-      for (const client of clientsList) {
-        if (client.url.includes(url) && "focus" in client) return client.focus();
+    (async () => {
+      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+      const exact = clientsList.find((client) => client.url === targetUrl);
+      if (exact && "focus" in exact) return exact.focus();
+
+      // O app já pode estar aberto (PWA em modo standalone) em outra página —
+      // clients.openWindow() não navega de forma confiável uma janela
+      // standalone já aberta em alguns navegadores, então navegamos essa
+      // janela explicitamente em vez de só focar (o que deixava o app parado
+      // na tela em que já estava, parecendo abrir "o painel inicial").
+      const reusable = clientsList.find((client) => "navigate" in client && "focus" in client);
+      if (reusable) {
+        await reusable.navigate(targetUrl);
+        return reusable.focus();
       }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
+
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
       return undefined;
-    })
+    })()
   );
 });
 
