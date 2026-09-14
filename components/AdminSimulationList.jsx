@@ -124,7 +124,10 @@ export default function AdminSimulationList({
   const router = useRouter();
   const searchParams = useSearchParams();
   const listTopRef = useRef(null);
-  const [query, setQuery] = useState("");
+  // "query" também pode vir de um link externo (ex.: notificação push de um
+  // cliente específico) — abre a lista já com esse cliente buscado, sem
+  // precisar de uma rota própria por cliente.
+  const [query, setQuery] = useState(() => searchParams.get("query") || "");
   // Estado inicial de status/corretor/pendências pode vir de um link externo
   // (ex.: painel de Desempenho), preservando o filtro de onde o clique partiu.
   const [statusGroup, setStatusGroup] = useState(() => searchParams.get("statusGroup") || "all");
