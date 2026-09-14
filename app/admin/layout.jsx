@@ -1,4 +1,5 @@
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
+import TopRankingBadge from "@/components/TopRankingBadge";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function AdminLayout({ children }) {
       {auth.ok && auth.accountSwitchMode ? (
         <AdminViewAsBanner name={auth.profile.name} category={roleLabel(auth.profile.role)} />
       ) : null}
+      {auth.ok ? <TopRankingBadge /> : null}
       {children}
     </>
   );
