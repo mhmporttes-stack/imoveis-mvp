@@ -2,9 +2,10 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
+import NewClientNotificationOriginSettings from "@/components/NewClientNotificationOriginSettings";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
-import { listAutomationRules } from "@/lib/crm-automations";
+import { getNewClientNotificationSettings, listAutomationRules } from "@/lib/crm-automations";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
 import Link from "next/link";
 
@@ -13,10 +14,11 @@ export const dynamic = "force-dynamic";
 export default async function AutomationsPage({ searchParams }) {
   await requireBrokerManagementPage("/admin/simulacoes");
   const tab = (await searchParams)?.tab === "roulette" ? "roulette" : "rules";
-  const [rules, users, distribution] = await Promise.all([
+  const [rules, users, distribution, newClientNotificationSettings] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
     tab === "rules" ? listAdminProfiles() : Promise.resolve([]),
-    tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null)
+    tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null),
+    tab === "rules" ? getNewClientNotificationSettings() : Promise.resolve(null)
   ]);
 
   return (
@@ -24,7 +26,16 @@ export default async function AutomationsPage({ searchParams }) {
       <Header />
       <AdminSectionNav active="automations" />
       <AutomationSubmenu active={tab} />
-      {tab === "rules" ? <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} /> : <LeadDistributionDashboard initialData={distribution} />}
+      {tab === "rules" ? (
+        <>
+          <div className="mb-6">
+            <NewClientNotificationOriginSettings initialSettings={newClientNotificationSettings} />
+          </div>
+          <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
+        </>
+      ) : (
+        <LeadDistributionDashboard initialData={distribution} />
+      )}
     </main>
   );
 }
