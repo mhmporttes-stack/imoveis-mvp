@@ -23,6 +23,11 @@ export default function ProspectingManager({
   // admin/gestor (mesma regra de hoje na Base da Imobiliária) — não amplia
   // permissões além do estritamente pedido (importar na base própria).
   const canManage = isAdmin && scope === "company";
+  // Filtro por DDD e paginação são controles de visualização (não de gestão)
+  // — devem existir também no drill-down somente leitura de "Bases dos
+  // Corretores"; seleção em massa/atribuição continuam exclusivas de
+  // canManage, pois esse modo é somente leitura.
+  const canFilter = canManage || scope === "broker";
   const canImport = readOnly ? false : scope === "mine" ? true : isAdmin;
   const listEndpoint = scope === "broker" ? `/api/prospecting/broker-bases/${brokerId}` : `/api/prospecting${scope === "mine" ? "?scope=mine" : ""}`;
   const [contacts, setContacts] = useState(initialContacts);
@@ -174,13 +179,13 @@ export default function ProspectingManager({
         </div>
       ) : null}
       {summary ? <div className="rounded-2xl border border-line bg-white px-5 py-4 font-bold text-navy">Importados: {summary.imported} | Duplicados ignorados: {summary.duplicates} | Inválidos: {summary.invalid} | Não contactar ignorados: {summary.doNotContact}</div> : null}
-      {canManage ? <div className="flex flex-wrap items-center gap-3 rounded-[20px] border border-line bg-white p-3 shadow-soft">
+      {canFilter ? <div className="flex flex-wrap items-center gap-3 rounded-[20px] border border-line bg-white p-3 shadow-soft">
         <label className="min-w-[210px] flex-1 sm:flex-none"><span className="sr-only">Tipo de filtro por DDD</span><select className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy outline-none focus:border-brand" value={dddMode} onChange={(event) => setDddMode(event.target.value)}><option value="all">Todos os DDDs</option><option value="equal">DDD igual a</option><option value="different">DDD diferente de</option></select></label>
         {dddMode !== "all" ? <label className="w-24"><span className="sr-only">Número do DDD</span><input className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-center text-sm font-extrabold text-navy outline-none focus:border-brand" inputMode="numeric" maxLength={2} onChange={(event) => setDddValue(event.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="DDD" value={dddValue} /></label> : null}
         <label><span className="sr-only">Quantidade por página</span><select className="h-11 rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={pageSize} onChange={(event) => { setPageSize(event.target.value); setCurrentPage(1); }}><option value="10">10 por página</option><option value="20">20 por página</option><option value="50">50 por página</option><option value="100">100 por página</option><option value="all">Todos</option></select></label>
-        <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button>
-        {selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
-        {selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
+        {canManage ? <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button> : null}
+        {canManage && selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
+        {canManage && selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
       </div> : null}
       <div className="grid gap-3">
         {visibleContacts.map((contact) => {
