@@ -4,6 +4,7 @@ import {
   ADMIN_ROLE,
   buildBrokerCaptacaoLink,
   buildBrokerSimulationLink,
+  deleteAdminProfile,
   formatBrokerSchemaError,
   getAdminProfileById,
   updateAdminProfile
@@ -38,6 +39,29 @@ export async function PATCH(request, { params }) {
 
     const user = await updateAdminProfile(id, payload);
     return NextResponse.json({ user: withLinks(user) });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: formatBrokerSchemaError(error) }, { status: 400 });
+  }
+}
+
+// Exclusão é mais sensível que editar/desativar (some com o cadastro), por
+// isso restrita ao administrador geral — gestores continuam podendo editar/
+// desativar corretores e associados (PATCH acima, inalterado), mas não
+// excluir.
+export async function DELETE(request, { params }) {
+  const auth = await requireBrokerManagementApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!isGeneralAdmin(auth)) {
+    return NextResponse.json({ error: "Apenas o administrador geral pode excluir usuários." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  try {
+    await deleteAdminProfile(id);
+    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: formatBrokerSchemaError(error) }, { status: 400 });

@@ -122,6 +122,23 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
     }
   }
 
+  async function deleteUser(user) {
+    if (!confirm(`Excluir definitivamente "${user.name}"? Os clientes/contatos dele ficarão sem responsável (não serão apagados), mas o histórico de metas diárias e notificações dele será perdido. Esta ação não pode ser desfeita.`)) return;
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin-users/${user.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível excluir o usuário.");
+
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      setMessage("Usuário excluído.");
+    } catch (deleteError) {
+      setError(deleteError.message || "Não foi possível excluir o usuário.");
+    }
+  }
+
   async function updateStatus(user, status) {
     setError("");
     setMessage("");
@@ -269,6 +286,15 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                         {isActive ? <UserRoundX className="h-5 w-5" aria-hidden="true" /> : <UserRoundCheck className="h-5 w-5" aria-hidden="true" />}
                         {isActive ? "Desativar" : "Ativar"}
                       </button>
+                      {!isActive && canManageAllRoles ? (
+                        <button
+                          type="button"
+                          onClick={() => deleteUser(user)}
+                          className="premium-button-secondary justify-center text-red-700"
+                        >
+                          <Trash2 className="h-5 w-5" aria-hidden="true" /> Excluir
+                        </button>
+                      ) : null}
                     </>
                   ) : null}
                 </div>
