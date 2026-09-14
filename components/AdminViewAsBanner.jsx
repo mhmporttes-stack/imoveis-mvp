@@ -19,7 +19,7 @@ export default function AdminViewAsBanner({ name, category }) {
   }
 
   return (
-    <aside className="sticky top-0 z-[150] border-b border-amber-300 bg-amber-100 px-4 py-2 text-amber-950 shadow-md">
+    <aside className="border-b border-amber-300 bg-amber-100 px-4 py-2 text-amber-950 shadow-md">
       <div className="container-page flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <div>
           <p className="font-black">Conta atual: {name} — {category}</p>
