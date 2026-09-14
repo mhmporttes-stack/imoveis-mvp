@@ -37,6 +37,17 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* overflow-x: hidden no body promove overflow-y para "auto" (regra do CSSOM
+   de overflow), o que faz o body virar um scroll container "fantasma" e
+   quebra position: sticky de qualquer descendente (o elemento gruda no body,
+   que nunca rola de fato, em vez da janela). Escopado só às rotas /admin
+   (classe alternada por AppChrome) para não alterar o comportamento das
+   páginas públicas — troca hidden por clip, que bloqueia o overflow
+   horizontal do mesmo jeito sem disparar essa promoção. */
+body.admin-scroll-fix {
+  overflow-x: clip;
+}
+
 input,
 select,
 textarea,

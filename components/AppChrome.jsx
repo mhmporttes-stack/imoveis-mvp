@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AdminPushSubscription from "@/components/AdminPushSubscription";
 import AdminPwaInstallHint from "@/components/AdminPwaInstallHint";
@@ -19,6 +20,15 @@ export default function AppChrome({ children }) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith("/admin");
   const isSimulationRoute = pathname?.startsWith("/simulacao");
+
+  // overflow-x:hidden no body (regra global, ver globals.css) promove
+  // overflow-y para "auto" e quebra position: sticky de qualquer elemento —
+  // é o que a barra fixa do Top 1 do ranking (app/admin/layout.jsx) usa.
+  // Escopado só às rotas /admin para não alterar o comportamento das
+  // páginas públicas do site.
+  useEffect(() => {
+    document.body.classList.toggle("admin-scroll-fix", Boolean(isAdminRoute));
+  }, [isAdminRoute]);
 
   if (pathname?.startsWith("/minha-jornada/")) return children;
 
