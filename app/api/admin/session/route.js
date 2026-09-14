@@ -50,10 +50,7 @@ export async function DELETE(request) {
 }
 
 function authErrorResponse(result, request) {
-  // diag: diagnostico temporario de investigacao do login em producao,
-  // sem nenhum valor secreto (ver lib/supabase.js supabaseDiag) — remover
-  // junto com o restante do diagnostico apos a causa ser confirmada.
-  const response = NextResponse.json({ error: result.error, diag: result.diag || null }, { status: result.status });
+  const response = NextResponse.json({ error: result.error }, { status: result.status });
   clearAdminSessionCookies(response, request);
   return response;
 }
