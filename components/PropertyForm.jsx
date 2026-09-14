@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import PropertyFeatureIcon, { getPropertyFeatureIcon } from "@/components/PropertyFeatureIcon";
 import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
 import { ADMIN_REGION_OPTIONS, normalizeRegionValue } from "@/lib/property-filter-options";
@@ -166,7 +167,11 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
     if (!file) return;
 
     if (file.type !== "application/pdf") {
-      setSaveError("Envie um arquivo PDF.");
+      setSaveError("Formato não suportado. Envie um arquivo PDF.");
+      return;
+    }
+    if (file.size > 20_000_000) {
+      setSaveError("Arquivo acima do tamanho permitido (20 MB).");
       return;
     }
 
@@ -175,15 +180,36 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
     setPdfStatus("Enviando PDF...");
 
     try {
+      const previousUrl = form.pdfData;
       const uploaded = await uploadDocument(file, property?.id || form.name || "novo-imovel");
       setForm((current) => ({ ...current, pdfName: uploaded.name, pdfData: uploaded.data }));
-      setPdfStatus("PDF enviado para o Supabase Storage.");
+      setPdfStatus("Book enviado.");
+      if (previousUrl) removeRemoteDocument(previousUrl);
     } catch (error) {
+      console.error(error);
       setPdfStatus("");
-      setSaveError(error.message || "Não foi possível enviar o PDF. Tente um arquivo menor.");
+      setSaveError("Não foi possível enviar o arquivo.");
     } finally {
       setProcessingPdf(false);
     }
+  }
+
+  async function removeBook() {
+    if (!confirm("Remover o Book deste empreendimento?")) return;
+    const previousUrl = form.pdfData;
+    setForm((current) => ({ ...current, pdfName: "", pdfData: "" }));
+    setPdfStatus("");
+    if (previousUrl) removeRemoteDocument(previousUrl);
+  }
+
+  function removeRemoteDocument(url) {
+    // Best-effort: se falhar, só sobra um arquivo órfão no Storage — não deve
+    // impedir o corretor/admin de continuar editando o empreendimento.
+    fetch("/api/uploads/documents", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    }).catch(() => {});
   }
 
   function toggleFeature(feature) {
@@ -448,11 +474,18 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
         </FilePicker>
         <FilePicker
           accept="application/pdf"
-          label="PDF/e-book final"
+          label="Book (PDF/e-book final)"
           onChange={(files) => handlePdf(files?.[0])}
           selectedText={finalPdfText}
         >
           {pdfStatus ? <span className="text-sm font-semibold text-muted">{pdfStatus}</span> : null}
+          {form.pdfData ? (
+            <div className="mt-2 flex flex-wrap gap-3 text-sm font-bold">
+              <a href={form.pdfData} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">Abrir</a>
+              <a href={`${form.pdfData}?download=${encodeURIComponent(form.pdfName || "book.pdf")}`} className="text-brand hover:underline">Baixar</a>
+              <button type="button" onClick={removeBook} className="text-red-600 hover:underline">Remover</button>
+            </div>
+          ) : null}
         </FilePicker>
       </section>
 
@@ -657,26 +690,30 @@ function FeaturePreviewIcon({ icon }) {
   return <PropertyFeatureIcon icon={icon} className="h-4 w-4 shrink-0 text-brand" />;
 }
 
+// Envia direto para o Supabase Storage (URL assinada de uso único obtida do
+// servidor) — o arquivo nunca passa pela função da Vercel, que tem um limite
+// de corpo bem menor que os 20 MB permitidos para o Book (era a causa real do
+// erro em arquivos grandes).
 async function uploadDocument(file, propertyId) {
-  const formData = new FormData();
-  formData.append("file", file, file.name);
-  formData.append("propertyId", propertyId);
-
-  const response = await fetch("/api/uploads/documents", {
+  const signResponse = await fetch("/api/uploads/documents", {
     method: "POST",
-    body: formData
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ propertyId, fileName: file.name, mimeType: file.type, fileSize: file.size })
   });
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(result.error || `Não foi possível enviar ${file.name}.`);
+  const target = await signResponse.json().catch(() => ({}));
+  if (!signResponse.ok) {
+    throw new Error(target.error || `Não foi possível enviar ${file.name}.`);
   }
 
-  return {
-    name: result.name || file.name,
-    data: result.data,
-    storagePath: result.storagePath
-  };
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase não configurado.");
+
+  const { error: uploadError } = await supabase.storage
+    .from("property-documents")
+    .uploadToSignedUrl(target.path, target.token, file, { contentType: "application/pdf" });
+  if (uploadError) throw new Error(uploadError.message || `Não foi possível enviar ${file.name}.`);
+
+  return { name: target.name || file.name, data: target.publicUrl, storagePath: target.path };
 }
 
 async function optimizeImageFile(file, options = {}) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, ChevronRight, Expand, MapPin, X } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Download, Expand, MapPin, X } from "lucide-react";
 import { coverImage } from "@/lib/format";
 import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-schema";
 import { getRenderableSimulationModels, normalizeSimulationModels } from "@/lib/simulation-models";
@@ -120,7 +120,12 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <p className="mt-2 font-semibold text-muted">{selected.location || "Localização sob consulta"}</p>
             <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
-            {selected.pdfData ? <a className="premium-button-secondary mt-4 inline-flex" href={selected.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir e-book</a> : null}
+            {selected.pdfData ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a className="premium-button-secondary inline-flex" href={selected.pdfData} target="_blank" rel="noopener noreferrer"><BookOpen className="mr-2 h-5 w-5" />Abrir Book</a>
+                <a className="premium-button-secondary inline-flex" href={`${selected.pdfData}?download=${encodeURIComponent(`${selected.name || "book"}.pdf`)}`}><Download className="mr-2 h-5 w-5" />Baixar</a>
+              </div>
+            ) : null}
             <div className="mt-7"><Result result={result} loading={loading} financingInstallments={financingInstallments} propertyFeatures={selected.features} manualInstallments={manualInstallments} setManualInstallments={setManualInstallments} manualAct={manualAct} setManualAct={setManualAct} onRecalculate={() => { setAppliedInstallments(manualInstallments); setAppliedAct(manualAct); }} /></div>
             {selected.features?.length ? <div className="mt-6 border-t border-line pt-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-brand">Benefícios do empreendimento</p><div className="mt-3 flex flex-wrap gap-2">{selected.features.map((feature, index) => <span className="rounded-full border border-brand/20 bg-[#F4F9FF] px-4 py-2 text-sm font-black text-navy" key={`${typeof feature === "string" ? feature : feature.text}-${index}`}>{typeof feature === "string" ? feature : feature.text}</span>)}</div></div> : null}
           </div>
