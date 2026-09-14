@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 
@@ -31,9 +31,19 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
 
+  // Mesma lógica de PerformanceOverviewDashboard: evita refazer no cliente,
+  // logo após montar, a mesma consulta que o servidor já fez para o
+  // período/data padrão — só busca de novo quando o usuário realmente troca
+  // o filtro.
+  const isFirstOverviewRender = useRef(true);
   useEffect(() => {
     const controller = new AbortController();
-    if (initialOverview) loadOverview(controller.signal);
+    if (isFirstOverviewRender.current) {
+      isFirstOverviewRender.current = false;
+      if (!initialOverview) loadOverview(controller.signal);
+    } else {
+      loadOverview(controller.signal);
+    }
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, startDate, endDate]);

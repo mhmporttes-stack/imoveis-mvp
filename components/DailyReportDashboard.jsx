@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -119,9 +119,18 @@ export default function DailyReportDashboard({
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
   ), [adminProfiles]);
 
+  // Evita refazer no cliente, assim que a página monta, a mesma consulta que
+  // o servidor já fez para o período padrão — só busca de novo quando o
+  // usuário realmente troca período/data/corretores.
+  const isFirstReportRender = useRef(true);
   useEffect(() => {
     const controller = new AbortController();
-    if (initialReport) loadReport(controller.signal);
+    if (isFirstReportRender.current) {
+      isFirstReportRender.current = false;
+      if (!initialReport) loadReport(controller.signal);
+    } else {
+      loadReport(controller.signal);
+    }
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, startDate, endDate, selectedBrokerIds]);

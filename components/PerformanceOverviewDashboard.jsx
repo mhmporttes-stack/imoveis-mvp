@@ -64,9 +64,20 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const [funnelOverview, setFunnelOverview] = useState(null);
   const [funnelLoading, setFunnelLoading] = useState(false);
 
+  // O servidor já carregou initialOverview para o período/data padrão — sem
+  // essa guarda, este efeito refaz a mesma consulta inteira (todas as
+  // queries do painel) assim que a página termina de montar, dobrando à toa
+  // o trabalho no banco e o tempo até a tela ficar "pronta" a cada acesso.
+  // Refetch continua acontecendo normalmente quando o usuário troca período/data.
+  const isFirstOverviewRender = useRef(true);
   useEffect(() => {
     const controller = new AbortController();
-    if (initialOverview) loadOverview(controller.signal);
+    if (isFirstOverviewRender.current) {
+      isFirstOverviewRender.current = false;
+      if (!initialOverview) loadOverview(controller.signal);
+    } else {
+      loadOverview(controller.signal);
+    }
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, startDate, endDate]);
