@@ -29,6 +29,7 @@ const adminGroups = [
     label: "CRM",
     href: "/admin/simulacoes",
     items: [
+      { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
       { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
@@ -55,6 +56,7 @@ const adminGroups = [
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
       { href: "/admin/automacoes", label: "Automações", key: "automations" },
+      { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring"] }
     ]
   }
@@ -65,7 +67,7 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [clientItems[0], { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
