@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Users
 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -233,7 +234,14 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
                     href={`/admin/desempenho/corretor/${row.profile.id}?${periodQuery}`}
                     className="flex min-w-0 items-center gap-3 hover:bg-blue-50/40"
                   >
-                    <span className="text-2xl leading-none">{MEDALS[index] || `${index + 1}º`}</span>
+                    <span className="relative shrink-0">
+                      <Avatar name={row.profile.name} photoUrl={row.profile.photoUrl} size={40} />
+                      {MEDALS[index] ? (
+                        <span className="absolute -bottom-1 -right-1 text-base leading-none">{MEDALS[index]}</span>
+                      ) : (
+                        <span className="absolute -bottom-1 -right-1 rounded-full bg-white px-1 text-[10px] font-black text-muted shadow">{index + 1}º</span>
+                      )}
+                    </span>
                     <div className="min-w-0">
                       <p className="font-extrabold text-navy">{row.profile.name}</p>
                       <p className="text-xs font-bold text-slate-500">
@@ -467,7 +475,10 @@ function BrokerCard({ row, periodQuery }) {
   const overdue = row.overdueActivities > 0;
   return (
     <article className="rounded-2xl border border-navy/10 p-4">
-      <p className="text-sm font-extrabold uppercase tracking-[0.08em] text-navy">{row.profile.name}</p>
+      <div className="flex items-center gap-2.5">
+        <Avatar name={row.profile.name} photoUrl={row.profile.photoUrl} size={32} />
+        <p className="text-sm font-extrabold uppercase tracking-[0.08em] text-navy">{row.profile.name}</p>
+      </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-bold text-slate-600">
         <span>{formatInteger(row.newClients)} novos clientes</span>
         <span>{formatInteger(row.prospecting)} prospecções</span>
