@@ -3,7 +3,8 @@ import { createHash, timingSafeEqual } from "crypto";
 import {
   formatSimulationRegistrationError,
   listDueScheduledActivityNotifications,
-  markScheduledActivityNotificationSent
+  markScheduledActivityNotificationSent,
+  reassignOrphanedClientsToOwner
 } from "@/lib/simulation-registrations";
 import { listDueCalendarActivityNotifications, markCalendarActivityNotified } from "@/lib/calendar-activities";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
@@ -77,6 +78,18 @@ export async function GET(request) {
       automations = [{ error: automationError?.message || "Falha no motor de regras." }];
     }
 
+    // Rede de segurança da regra "nenhum cliente sem responsável": pega
+    // qualquer registro que tenha ficado com responsible_user_id nulo por
+    // qualquer caminho (não só o de exclusão de corretor, já tratado na hora)
+    // e devolve ao administrador principal.
+    let orphanReassignment = { reassigned: 0 };
+    try {
+      orphanReassignment = await reassignOrphanedClientsToOwner();
+    } catch (orphanError) {
+      console.error("Falha ao reatribuir clientes sem responsável.", orphanError);
+      orphanReassignment = { error: orphanError?.message || "Falha ao reatribuir." };
+    }
+
     const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
@@ -85,7 +98,8 @@ export async function GET(request) {
       skipped: allResults.filter((item) => item.skipped).length,
       failed: allResults.filter((item) => item.error).length,
       results: allResults,
-      automations
+      automations,
+      orphanReassignment
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);
