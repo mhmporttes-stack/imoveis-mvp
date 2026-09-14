@@ -170,8 +170,8 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
       setSaveError("Formato não suportado. Envie um arquivo PDF.");
       return;
     }
-    if (file.size > 20_000_000) {
-      setSaveError("Arquivo acima do tamanho permitido (20 MB).");
+    if (file.size > 50_000_000) {
+      setSaveError("Arquivo acima do tamanho permitido (50 MB).");
       return;
     }
 
@@ -692,7 +692,7 @@ function FeaturePreviewIcon({ icon }) {
 
 // Envia direto para o Supabase Storage (URL assinada de uso único obtida do
 // servidor) — o arquivo nunca passa pela função da Vercel, que tem um limite
-// de corpo bem menor que os 20 MB permitidos para o Book (era a causa real do
+// de corpo bem menor que os 50 MB permitidos para o Book (era a causa real do
 // erro em arquivos grandes).
 async function uploadDocument(file, propertyId) {
   const signResponse = await fetch("/api/uploads/documents", {
