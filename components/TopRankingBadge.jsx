@@ -45,19 +45,21 @@ export default function TopRankingBadge() {
       type="button"
       onClick={() => router.push("/admin/meta-diaria")}
       title="Ver Desempenho Diário"
-      className="flex min-w-0 max-w-[220px] items-center gap-2 rounded-full border border-amber-200 bg-amber-50/70 py-1 pl-1 pr-3 transition hover:border-amber-300 hover:bg-amber-50 sm:max-w-[260px]"
+      className="flex min-w-0 max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border border-amber-200 bg-amber-50/70 py-1 pl-1 pr-3 transition hover:border-amber-300 hover:bg-amber-50 sm:max-w-[280px]"
     >
       <span className="relative shrink-0">
         <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={32} />
         <span className="absolute -right-1 -top-1.5 text-sm leading-none">🏆</span>
       </span>
+      {/* Só o nome pode truncar (caso extremamente longo); o rótulo "Top 1
+          do dia" e a pontuação nunca são cortados. */}
       <span className="min-w-0 text-left leading-tight">
         <span className="block truncate text-xs font-extrabold text-navy">{data.top1.name}</span>
-        <span className="block truncate text-[10px] font-bold text-amber-700">
+        <span className="block whitespace-nowrap text-[10px] font-bold text-amber-700">
           Top 1 do dia · {formatPoints(data.top1.points)} pts
         </span>
         {!data.isMeTop1 && data.myRank ? (
-          <span className="block truncate text-[10px] font-bold text-muted">Sua posição hoje: {data.myRank}º lugar</span>
+          <span className="block whitespace-nowrap text-[10px] font-bold text-muted">Sua posição: {data.myRank}º lugar</span>
         ) : null}
       </span>
     </button>
