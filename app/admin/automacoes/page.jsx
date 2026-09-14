@@ -2,6 +2,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
+import NewClientSoundSettings from "@/components/NewClientSoundSettings";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
@@ -25,7 +26,10 @@ export default async function AutomationsPage({ searchParams }) {
       <AdminSectionNav active="automations" />
       <AutomationSubmenu active={tab} />
       {tab === "rules" ? (
-        <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
+        <>
+          <div className="container-page mb-4"><NewClientSoundSettings /></div>
+          <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
+        </>
       ) : (
         <LeadDistributionDashboard initialData={distribution} />
       )}
