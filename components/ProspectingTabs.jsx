@@ -55,7 +55,7 @@ export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin =
       {tab === "company" ? (
         <ProspectingManager key="company" initialContacts={initialCompanyContacts} isAdmin={isAdmin} users={users} scope="company" label="Fila compartilhada" />
       ) : isOwner ? (
-        <BrokerBasesOverview />
+        <BrokerBasesOverview isOwner={isOwner} users={users} />
       ) : mineError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mineError}</p>
       ) : mineContacts === null ? (

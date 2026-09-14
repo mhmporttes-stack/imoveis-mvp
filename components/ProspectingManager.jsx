@@ -12,6 +12,7 @@ import { formatBrazilianPhone } from "@/lib/phone-utils";
 export default function ProspectingManager({
   initialContacts = [],
   isAdmin = false,
+  isOwner = false,
   users = [],
   scope = "company",
   label = "Fila compartilhada",
@@ -25,9 +26,13 @@ export default function ProspectingManager({
   const canManage = isAdmin && scope === "company";
   // Filtro por DDD e paginação são controles de visualização (não de gestão)
   // — devem existir também no drill-down somente leitura de "Bases dos
-  // Corretores"; seleção em massa/atribuição continuam exclusivas de
-  // canManage, pois esse modo é somente leitura.
+  // Corretores".
   const canFilter = canManage || scope === "broker";
+  // Excluir/transferir contatos de OUTRO corretor (drill-down de "Bases dos
+  // Corretores") é sensível o bastante para ficar restrito exclusivamente ao
+  // administrador principal (isOwnerAdminEmail) — nunca a qualquer admin
+  // geral/gestor, diferente da fila compartilhada (canManage, inalterado).
+  const canBulkManage = canManage || (scope === "broker" && isOwner);
   const canImport = readOnly ? false : scope === "mine" ? true : isAdmin;
   const listEndpoint = scope === "broker" ? `/api/prospecting/broker-bases/${brokerId}` : `/api/prospecting${scope === "mine" ? "?scope=mine" : ""}`;
   const [contacts, setContacts] = useState(initialContacts);
@@ -151,7 +156,7 @@ export default function ProspectingManager({
     if (action === "delete" && !confirm(`Excluir permanentemente ${selectedIds.length} contato${selectedIds.length === 1 ? "" : "s"} selecionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
     setBusy("bulk");
     try {
-      const response = await fetch("/api/prospecting/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ids: selectedIds, assignedUserId: bulkBrokerId }) });
+      const response = await fetch("/api/prospecting/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ids: selectedIds, assignedUserId: bulkBrokerId, context: scope === "broker" ? "broker" : undefined }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível atualizar os contatos.");
       setSelectedIds([]);
@@ -183,9 +188,9 @@ export default function ProspectingManager({
         <label className="min-w-[210px] flex-1 sm:flex-none"><span className="sr-only">Tipo de filtro por DDD</span><select className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy outline-none focus:border-brand" value={dddMode} onChange={(event) => setDddMode(event.target.value)}><option value="all">Todos os DDDs</option><option value="equal">DDD igual a</option><option value="different">DDD diferente de</option></select></label>
         {dddMode !== "all" ? <label className="w-24"><span className="sr-only">Número do DDD</span><input className="h-11 w-full rounded-2xl border border-brand/25 bg-white px-4 text-center text-sm font-extrabold text-navy outline-none focus:border-brand" inputMode="numeric" maxLength={2} onChange={(event) => setDddValue(event.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="DDD" value={dddValue} /></label> : null}
         <label><span className="sr-only">Quantidade por página</span><select className="h-11 rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={pageSize} onChange={(event) => { setPageSize(event.target.value); setCurrentPage(1); }}><option value="10">10 por página</option><option value="20">20 por página</option><option value="50">50 por página</option><option value="100">100 por página</option><option value="all">Todos</option></select></label>
-        {canManage ? <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button> : null}
-        {canManage && selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
-        {canManage && selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
+        {canBulkManage ? <button className="premium-button-secondary" onClick={toggleSelectAll} type="button"><CheckSquare className="h-4 w-4" /> {allVisibleSelected ? "Desmarcar tudo" : "Selecionar tudo"}</button> : null}
+        {canBulkManage && selectedIds.length ? <span className="text-sm font-extrabold text-muted">{selectedIds.length} selecionado{selectedIds.length === 1 ? "" : "s"}</span> : null}
+        {canBulkManage && selectedIds.length ? <><select className="h-11 min-w-[190px] rounded-2xl border border-brand/25 bg-white px-4 text-sm font-extrabold text-navy" value={bulkBrokerId} onChange={(event) => setBulkBrokerId(event.target.value)}><option value="">Selecionar corretor</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><button className="premium-button-secondary" disabled={busy === "bulk"} onClick={() => bulkAction("assign")} type="button">Atribuir selecionados</button><button className="inline-flex h-11 items-center gap-2 rounded-full border border-red-200 bg-white px-4 text-sm font-black text-red-700" disabled={busy === "bulk"} onClick={() => bulkAction("delete")} type="button"><Trash2 className="h-4 w-4" />Excluir selecionados</button></> : null}
       </div> : null}
       <div className="grid gap-3">
         {visibleContacts.map((contact) => {
@@ -193,7 +198,7 @@ export default function ProspectingManager({
           const statusLabel = contact.status === "recent_attempt" ? "Tentativa recente" : contact.status === "do_not_contact" ? "Não contactar" : contact.status === "claimed" ? "Em atendimento" : "Disponível";
           return <article key={contact.id} className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="flex min-w-0 items-start gap-3">{canManage ? <input aria-label={`Selecionar ${contact.name}`} checked={selectedIds.includes(contact.id)} className="mt-1 h-5 w-5 shrink-0 accent-brand" onChange={() => toggleContact(contact.id)} type="checkbox" /> : null}<div><h3 className="text-xl font-black text-navy">{contact.name}</h3><p className="mt-1 font-bold text-muted">{formatBrazilianPhone(contact.phone)}</p><p className={`mt-2 text-sm font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>{statusLabel}</p>{contact.status === "recent_attempt" ? <p className="text-sm font-bold text-muted">Disponível novamente em {formatDate(contact.availableAfter)}</p> : null}{canManage && contact.registrationId ? <select className="mt-3 h-9 rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy" value={contact.assignedUserId} onChange={(event) => mutate(contact.id, "PATCH", { assignedUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select> : null}</div></div>
+              <div className="flex min-w-0 items-start gap-3">{canBulkManage ? <input aria-label={`Selecionar ${contact.name}`} checked={selectedIds.includes(contact.id)} className="mt-1 h-5 w-5 shrink-0 accent-brand" onChange={() => toggleContact(contact.id)} type="checkbox" /> : null}<div><h3 className="text-xl font-black text-navy">{contact.name}</h3><p className="mt-1 font-bold text-muted">{formatBrazilianPhone(contact.phone)}</p><p className={`mt-2 text-sm font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>{statusLabel}</p>{contact.status === "recent_attempt" ? <p className="text-sm font-bold text-muted">Disponível novamente em {formatDate(contact.availableAfter)}</p> : null}{canManage && contact.registrationId ? <select className="mt-3 h-9 rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy" value={contact.assignedUserId} onChange={(event) => mutate(contact.id, "PATCH", { assignedUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select> : null}</div></div>
               <div className="flex flex-wrap gap-2">
                 {!readOnly ? <button className="premium-button-secondary" disabled={blocked || busy === contact.id} onClick={() => claim(contact)} type="button"><MessageCircle className="h-4 w-4" /> WhatsApp</button> : null}
                 {canManage ? <><button className="icon-button" title="Histórico" onClick={() => showHistory(contact)}><History className="h-4 w-4" /></button><button className="icon-button" title="Editar" onClick={() => edit(contact)}><Pencil className="h-4 w-4" /></button>{["recent_attempt", "do_not_contact"].includes(contact.status) ? <button className="icon-button" title="Retirar bloqueio" onClick={() => unblock(contact)}><RotateCcw className="h-4 w-4" /></button> : null}<button className="icon-button text-red-600" title="Excluir" onClick={() => remove(contact)}><Trash2 className="h-4 w-4" /></button></> : null}

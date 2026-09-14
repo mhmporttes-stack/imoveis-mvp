@@ -8,7 +8,7 @@ import ProspectingManager from "@/components/ProspectingManager";
 // Visão gerencial exclusiva do administrador principal: lista os corretores
 // e o tamanho da base individual de cada um; ao clicar, abre a base daquele
 // corretor em modo somente leitura (o mesmo ProspectingManager reutilizado).
-export default function BrokerBasesOverview() {
+export default function BrokerBasesOverview({ isOwner = false, users = [] }) {
   const [brokers, setBrokers] = useState(null);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
@@ -62,6 +62,8 @@ export default function BrokerBasesOverview() {
             brokerId={selected.brokerId}
             label={`Base da(o) ${selected.name}`}
             initialContacts={selectedContacts}
+            isOwner={isOwner}
+            users={users}
           />
         ) : null}
       </section>
