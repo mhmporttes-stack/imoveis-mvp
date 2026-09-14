@@ -7,22 +7,22 @@ import { isNewClientSoundEnabled, playNewClientSound, setNewClientSoundEnabled }
 // Controle vive em Gestão > Automações (não é uma tela própria) porque o
 // alerta está diretamente ligado ao gatilho "Cliente se cadastrou pelo
 // formulário" (client_form_submitted) — nunca a "Corretor adicionou cliente".
-// A preferência Ativado/Desativado é por dispositivo/navegador (localStorage,
-// ver lib/new-client-sound.js), não por conta: o mesmo usuário pode ter o
-// som ligado no computador da imobiliária e desligado no celular.
-export default function NewClientSoundSettings() {
+// A preferência Ativado/Desativado é por dispositivo/navegador E por usuário
+// (localStorage namespaced por userId, ver lib/new-client-sound.js) — num
+// computador compartilhado, cada login mantém o próprio Ativado/Desativado.
+export default function NewClientSoundSettings({ userId }) {
   const [enabled, setEnabled] = useState(false);
   const [testStatus, setTestStatus] = useState(null);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    setEnabled(isNewClientSoundEnabled());
-  }, []);
+    setEnabled(isNewClientSoundEnabled(userId));
+  }, [userId]);
 
   function toggle() {
     const next = !enabled;
     setEnabled(next);
-    setNewClientSoundEnabled(next);
+    setNewClientSoundEnabled(userId, next);
   }
 
   async function testSound() {

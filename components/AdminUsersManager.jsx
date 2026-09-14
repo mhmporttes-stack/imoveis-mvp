@@ -267,7 +267,6 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                     <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
                     {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
                     {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Responsável vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
-                    {["admin", "manager", "broker"].includes(user.role) ? <p className="mt-1 text-sm font-bold text-muted">Divisão padrão: <strong className="text-navy">{user.brokerCommissionPercentage ?? 50}% corretor / {user.agencyCommissionPercentage ?? 50}% imobiliária</strong>{user.managerId ? ` · Gestor ${user.defaultManagerPercentage ?? 10}%` : ""}</p> : null}
                     <p className="mt-3 text-sm font-bold text-muted">
                       Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
                     </p>

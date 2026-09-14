@@ -12,7 +12,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage({ searchParams }) {
-  await requireBrokerManagementPage("/admin/simulacoes");
+  const auth = await requireBrokerManagementPage("/admin/simulacoes");
   const tab = (await searchParams)?.tab === "roulette" ? "roulette" : "rules";
   const [rules, users, distribution] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
@@ -27,7 +27,7 @@ export default async function AutomationsPage({ searchParams }) {
       <AutomationSubmenu active={tab} />
       {tab === "rules" ? (
         <>
-          <div className="container-page mb-4"><NewClientSoundSettings /></div>
+          <div className="container-page mb-4"><NewClientSoundSettings userId={auth.profile?.id} /></div>
           <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
         </>
       ) : (

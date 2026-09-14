@@ -10,7 +10,7 @@ export default async function AdminLayout({ children }) {
 
   return (
     <>
-      {auth.ok ? <NewClientSoundListener /> : null}
+      {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? (
         // Uma única faixa fixa no topo (sticky, não flutuante — participa do
         // fluxo normal do layout, por isso nunca cobre o conteúdo abaixo).

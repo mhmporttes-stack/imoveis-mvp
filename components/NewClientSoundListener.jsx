@@ -15,7 +15,7 @@ const POLL_INTERVAL_MS = 20000;
 // ativa/configurada de um jeito particular — o alerta é sobre o evento
 // "cliente novo pelo formulário atribuído a mim", não sobre o sistema de
 // notificações em si.
-export default function NewClientSoundListener() {
+export default function NewClientSoundListener({ userId }) {
   const sinceRef = useRef(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function NewClientSoundListener() {
         if (!data?.ok) return;
 
         if (data.serverTime) sinceRef.current = data.serverTime;
-        if (data.clients?.length && isNewClientSoundEnabled()) {
+        if (data.clients?.length && isNewClientSoundEnabled(userId)) {
           playNewClientSound().catch(() => {
             // Autoplay bloqueado silenciosamente (usuário nunca clicou em
             // "Testar som" neste dispositivo) — não há UI aqui para avisar,
@@ -49,7 +49,7 @@ export default function NewClientSoundListener() {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [userId]);
 
   return null;
 }
