@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus, Save, UserRoundCheck, UserRoundX, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Pencil, Plus, Save, Trash2, UserRoundCheck, UserRoundX, Upload, X } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 const EMPTY_FORM = {
   name: "",
@@ -31,6 +32,9 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [editForm, setEditForm] = useState(null);
+  const [photoBusyId, setPhotoBusyId] = useState("");
+  const [photoError, setPhotoError] = useState("");
+  const photoInputRef = useRef(null);
 
   const sortedUsers = useMemo(() => [...users].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")), [users]);
   const brokers = useMemo(() => sortedUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [sortedUsers]);
@@ -81,6 +85,40 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
       setError(createError.message || "Não foi possível cadastrar o usuário.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function uploadPhoto(userId, file) {
+    if (!file) return;
+    setPhotoError("");
+    setPhotoBusyId(userId);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch(`/api/admin-users/${userId}/photo`, { method: "POST", body });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível enviar a foto.");
+      setUsers((current) => current.map((item) => (item.id === userId ? { ...item, photoUrl: payload.user.photoUrl } : item)));
+    } catch (uploadError) {
+      setPhotoError(uploadError.message || "Não foi possível enviar a foto.");
+    } finally {
+      setPhotoBusyId("");
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
+
+  async function removePhoto(userId) {
+    setPhotoError("");
+    setPhotoBusyId(userId);
+    try {
+      const response = await fetch(`/api/admin-users/${userId}/photo`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível remover a foto.");
+      setUsers((current) => current.map((item) => (item.id === userId ? { ...item, photoUrl: "" } : item)));
+    } catch (removeError) {
+      setPhotoError(removeError.message || "Não foi possível remover a foto.");
+    } finally {
+      setPhotoBusyId("");
     }
   }
 
@@ -151,6 +189,37 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
           return (
             <article key={user.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
               {editingId === user.id && editForm ? <form className="mb-6 rounded-[20px] border border-brand/20 bg-mist p-4" onSubmit={saveUser}>
+                <div className="mb-4 flex flex-wrap items-center gap-4">
+                  <Avatar name={user.name} photoUrl={user.photoUrl} size={64} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="premium-button-secondary"
+                      disabled={photoBusyId === user.id}
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4" /> {photoBusyId === user.id ? "Enviando..." : user.photoUrl ? "Substituir foto" : "Enviar foto"}
+                    </button>
+                    {user.photoUrl ? (
+                      <button
+                        type="button"
+                        className="premium-button-secondary"
+                        disabled={photoBusyId === user.id}
+                        onClick={() => removePhoto(user.id)}
+                      >
+                        <Trash2 className="h-4 w-4" /> Remover foto
+                      </button>
+                    ) : null}
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(event) => uploadPhoto(user.id, event.target.files?.[0])}
+                    />
+                  </div>
+                </div>
+                {photoError ? <p className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 font-bold text-red-700">{photoError}</p> : null}
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <Field label="Nome completo" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} />
                   <Field label="E-mail" type="email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} />
@@ -165,24 +234,27 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                 <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
               </form> : null}
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black ${isActive ? "bg-blue-50 text-brand" : "bg-red-50 text-red-700"}`}>
-                      {isActive ? <UserRoundCheck className="h-4 w-4" aria-hidden="true" /> : <UserRoundX className="h-4 w-4" aria-hidden="true" />}
-                      {STATUS_LABELS[user.status] || "Ativo"}
-                    </span>
-                    <span className="rounded-full bg-mist px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-muted">
-                      {roleLabel(user.role)}
-                    </span>
+                <div className="flex min-w-0 gap-4">
+                  <Avatar name={user.name} photoUrl={user.photoUrl} size={56} className="mt-1" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black ${isActive ? "bg-blue-50 text-brand" : "bg-red-50 text-red-700"}`}>
+                        {isActive ? <UserRoundCheck className="h-4 w-4" aria-hidden="true" /> : <UserRoundX className="h-4 w-4" aria-hidden="true" />}
+                        {STATUS_LABELS[user.status] || "Ativo"}
+                      </span>
+                      <span className="rounded-full bg-mist px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-muted">
+                        {roleLabel(user.role)}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 truncate text-2xl font-black text-navy">{user.name}</h3>
+                    <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
+                    {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
+                    {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Responsável vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
+                    {["admin", "manager", "broker"].includes(user.role) ? <p className="mt-1 text-sm font-bold text-muted">Divisão padrão: <strong className="text-navy">{user.brokerCommissionPercentage ?? 50}% corretor / {user.agencyCommissionPercentage ?? 50}% imobiliária</strong>{user.managerId ? ` · Gestor ${user.defaultManagerPercentage ?? 10}%` : ""}</p> : null}
+                    <p className="mt-3 text-sm font-bold text-muted">
+                      Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
+                    </p>
                   </div>
-                  <h3 className="mt-3 truncate text-2xl font-black text-navy">{user.name}</h3>
-                  <p className="mt-1 break-words font-bold text-muted">{user.email}</p>
-                  {user.phone ? <p className="mt-1 font-bold text-muted">{user.phone}</p> : null}
-                  {user.role === "associate" ? <p className="mt-1 text-sm font-bold text-muted">Responsável vinculado: <strong className="text-navy">{users.find((item) => item.id === user.linkedBrokerId)?.name || "Não definido"}</strong></p> : null}
-                  {["admin", "manager", "broker"].includes(user.role) ? <p className="mt-1 text-sm font-bold text-muted">Divisão padrão: <strong className="text-navy">{user.brokerCommissionPercentage ?? 50}% corretor / {user.agencyCommissionPercentage ?? 50}% imobiliária</strong>{user.managerId ? ` · Gestor ${user.defaultManagerPercentage ?? 10}%` : ""}</p> : null}
-                  <p className="mt-3 text-sm font-bold text-muted">
-                    Cadastro: {formatDate(user.createdAt)} · Total de clientes: <strong className="text-navy">{userCounts.total}</strong> · Hoje: <strong className="text-navy">{userCounts.today}</strong>
-                  </p>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[380px]">
