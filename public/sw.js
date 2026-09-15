@@ -1,4 +1,11 @@
-const CACHE_VERSION = "painel-matheus-v4";
+// O sufixo depois de "v4-" é reescrito a cada build (scripts/stamp-service-worker.mjs,
+// rodado via "prebuild") só para os BYTES deste arquivo mudarem a cada deploy —
+// sem isso, um deploy que só muda código do app (sem tocar neste arquivo) nunca
+// muda o sw.js, o navegador nunca detecta atualização, e o aviso de "nova versão
+// disponível" (components/PwaLifecycle.jsx) nunca aparece. Bônus: cada build
+// também ganha um cache novo de verdade (o cleanup do "activate" abaixo já
+// apaga o anterior), em vez de depender de alguém lembrar de bumpar "v4" à mão.
+const CACHE_VERSION = "painel-matheus-v4-mu35k3m0";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
