@@ -230,6 +230,11 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
             </div>
 
             <div>
+              <h4 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-navy">Contatos por tentativa</h4>
+              <AttemptBreakdown porMensagem={detail.broker.porMensagem} totalContatos={detail.broker.funnel.contatos} />
+            </div>
+
+            <div>
               <h4 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-navy">Funil do dia</h4>
               <FunnelStep label="Contatos realizados" value={detail.broker.funnel.contatos} />
               <FunnelArrow rate={detail.broker.funnel.taxaAtendimento} />
@@ -249,6 +254,43 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+const ATTEMPT_LABELS = { 1: "1ª tentativa", 2: "2ª tentativa", 3: "3ª tentativa" };
+
+// Reaproveita porMensagem, já calculado no backend (getDailyGoalPerformance)
+// a partir de daily_goal_attempts — respeita o mesmo período selecionado no
+// topo da tela (Hoje/Ontem/7 dias/30 dias), sem cálculo próprio aqui.
+function AttemptBreakdown({ porMensagem, totalContatos }) {
+  const attempts = [1, 2, 3].map((number) => ({ number, ...(porMensagem?.[number] || { abordados: 0, convertidos: 0 }) }));
+  const abordadosSoma = attempts.reduce((sum, item) => sum + item.abordados, 0);
+  // Contatos via Prospecção manual (fora da cadência estruturada de 3
+  // tentativas) também entram em "Contatos realizados" — mostrados à parte
+  // para o total continuar batendo com o funil abaixo.
+  const manualProspeccao = Math.max(0, (totalContatos || 0) - abordadosSoma);
+
+  return (
+    <div className="space-y-2">
+      {attempts.map((attempt) => (
+        <div key={attempt.number} className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-mist/40 px-4 py-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted">{ATTEMPT_LABELS[attempt.number]}</p>
+            <p className="text-lg font-black text-navy">{attempt.abordados} contatos</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted">Conversão</p>
+            <p className="text-sm font-black text-brand">{attempt.convertidos} ({formatRate(attempt.abordados ? attempt.convertidos / attempt.abordados : null)})</p>
+          </div>
+        </div>
+      ))}
+      {manualProspeccao > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3">
+          <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted">Prospecção manual (fora da cadência)</p>
+          <p className="text-lg font-black text-navy">{manualProspeccao}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
