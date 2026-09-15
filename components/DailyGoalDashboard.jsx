@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Pencil } from "lucide-react";
+import { Check, MessageCircle, Pencil } from "lucide-react";
 
 // Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
 // tela continua usando a identidade azul/navy padrão do CRM.
@@ -51,6 +51,26 @@ export default function DailyGoalDashboard({ initialGoal }) {
     if (refreshed.ok) setGoal(await refreshed.json());
   }
 
+  // Salvar o texto editado como padrão pessoal do corretor é uma ação própria,
+  // separada de enviar — sem isso, só saberíamos que a edição "pegou" enviando
+  // de verdade, o que não dá pra testar antes de decidir.
+  async function handleSaveTemplate(roundId, text) {
+    setError("");
+    const response = await fetch("/api/daily-goal/message-override", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roundId, text })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(data.error || "Não foi possível salvar a mensagem.");
+      return false;
+    }
+    const refreshed = await fetch("/api/daily-goal");
+    if (refreshed.ok) setGoal(await refreshed.json());
+    return true;
+  }
+
   return (
     <section className="container-page space-y-8">
       <div className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
@@ -93,20 +113,20 @@ export default function DailyGoalDashboard({ initialGoal }) {
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
       {GROUPS.map((group) => (
-        <ClientGroup key={group.key} title={group.title} clients={goal.groups[group.key].clients} onSend={handleAttempt} />
+        <ClientGroup key={group.key} title={group.title} clients={goal.groups[group.key].clients} onSend={handleAttempt} onSaveTemplate={handleSaveTemplate} />
       ))}
     </section>
   );
 }
 
-function ClientGroup({ title, clients, onSend }) {
+function ClientGroup({ title, clients, onSend, onSaveTemplate }) {
   return (
     <div>
       <h2 className="mb-3 text-lg font-black uppercase tracking-[0.08em] text-navy">{title}</h2>
       {clients.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
-            <ClientCard key={client.roundId} client={client} onSend={onSend} />
+            <ClientCard key={client.roundId} client={client} onSend={onSend} onSaveTemplate={onSaveTemplate} />
           ))}
         </div>
       ) : (
@@ -124,10 +144,12 @@ function emptyStateLabel(title) {
   return "Nenhuma última tentativa pendente hoje.";
 }
 
-function ClientCard({ client, onSend }) {
+function ClientCard({ client, onSend, onSaveTemplate }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(client.previewMessage);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   async function send() {
     setBusy(true);
@@ -138,6 +160,20 @@ function ClientCard({ client, onSend }) {
     }
   }
 
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const ok = await onSaveTemplate(client.roundId, text);
+      if (ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <article className="rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)]">
       <h3 className="truncate text-base font-black text-navy">{client.fullName}</h3>
@@ -145,12 +181,23 @@ function ClientCard({ client, onSend }) {
       <p className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand">{client.attemptNumber}º contato</p>
 
       {editing ? (
-        <textarea
-          className="mt-3 w-full rounded-xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"
-          rows={4}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-        />
+        <>
+          <textarea
+            className="mt-3 w-full rounded-xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"
+            rows={4}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+          <button
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-extrabold text-brand disabled:opacity-50"
+            disabled={saving || !text.trim()}
+            onClick={save}
+            type="button"
+          >
+            {saved ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : null}
+            {saved ? "Salvo como seu padrão" : saving ? "Salvando…" : "Salvar como meu padrão"}
+          </button>
+        </>
       ) : null}
 
       <div className="mt-3 flex items-center gap-2">
