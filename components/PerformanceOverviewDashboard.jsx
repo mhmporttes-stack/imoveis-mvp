@@ -462,6 +462,12 @@ function PointsBreakdown({ row }) {
             </span>
           </div>
         )}
+        {row.dailyGoalBonusPoints > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-bold text-navy">Bônus Meta Diária (100%+)</span>
+            <span className="font-extrabold text-emerald-700">+{formatInteger(row.dailyGoalBonusPoints)} pts</span>
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between border-t border-navy/10 pt-2">
           <span className="font-black uppercase tracking-[0.08em] text-navy">Total</span>
           <span className="font-black text-navy">{formatInteger(row.points)} pts</span>

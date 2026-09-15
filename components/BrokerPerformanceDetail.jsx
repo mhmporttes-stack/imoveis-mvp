@@ -179,6 +179,12 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
                 </span>
               </div>
             )}
+            {broker.dailyGoalBonusPoints > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-navy/5 px-4 py-3 text-sm">
+                <span className="font-bold text-navy">Bônus Meta Diária (100%+)</span>
+                <span className="font-extrabold text-emerald-700">+{formatInteger(broker.dailyGoalBonusPoints)} pts</span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-navy px-4 py-3 text-sm text-white">
               <span className="font-black uppercase tracking-[0.1em]">Total</span>
               <span className="font-black">{formatInteger(broker.points)} pts</span>
