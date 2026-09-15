@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBrokerManagementApi } from "@/lib/admin-auth";
-import { buildManualWhatsappSummary } from "@/lib/whatsapp-manual-summary";
+import { buildManualWhatsappSummary, buildManualWhatsappSummaryForAll } from "@/lib/whatsapp-manual-summary";
 
 export const runtime = "nodejs";
 
@@ -10,8 +10,14 @@ export async function GET(request) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const brokerId = searchParams.get("brokerId") || "";
     const period = searchParams.get("period") || "today";
+
+    if (searchParams.get("all") === "true") {
+      const summary = await buildManualWhatsappSummaryForAll({ period });
+      return NextResponse.json(summary);
+    }
+
+    const brokerId = searchParams.get("brokerId") || "";
     if (!brokerId) return NextResponse.json({ error: "Selecione um corretor." }, { status: 400 });
 
     const summary = await buildManualWhatsappSummary({ brokerId, period });

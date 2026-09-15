@@ -20,19 +20,20 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "whatsapp-master"];
+const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "whatsapp-manual"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
   const tabParam = (await searchParams)?.tab;
   const tab = TABS.includes(tabParam) ? tabParam : "rules";
-  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates] = await Promise.all([
+  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates, manualBrokers] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
     tab === "rules" ? listAdminProfiles() : Promise.resolve([]),
     tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null),
     tab === "daily-message" ? getDailyMessageSettings() : Promise.resolve(null),
     tab === "whatsapp-master" ? loadWhatsappMasterData() : Promise.resolve(null),
-    tab === "rules" ? listWhatsappMessageTemplates().catch(() => []) : Promise.resolve([])
+    tab === "rules" ? listWhatsappMessageTemplates().catch(() => []) : Promise.resolve([]),
+    tab === "whatsapp-manual" ? loadActiveBrokers() : Promise.resolve([])
   ]);
 
   return (
@@ -50,10 +51,11 @@ export default async function AutomationsPage({ searchParams }) {
       ) : tab === "whatsapp-master" ? (
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
-          <WhatsappManualSender brokers={whatsappData.brokers} />
           <WhatsappTemplateManager initialStatus={whatsappData.dailyPerformanceStatus} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
+      ) : tab === "whatsapp-manual" ? (
+        <WhatsappManualSender brokers={manualBrokers} />
       ) : (
         <LeadDistributionDashboard initialData={distribution} />
       )}
@@ -79,22 +81,38 @@ async function loadWhatsappMasterData() {
     dailyPerformanceStatus = { templates: [], templatesError: "Falha ao carregar status.", lastSentDate: "", lastResults: [] };
   }
 
-  const profiles = await listAdminProfiles();
-  const brokers = profiles
-    .filter((profile) => profile.status === "active" && !isOwnerAdminEmail(profile.email))
-    .map((profile) => ({ id: profile.id, name: profile.name, phone: profile.phone || "" }))
-    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-
-  return { settings, environment, events, dailyPerformanceStatus, brokers };
+  return { settings, environment, events, dailyPerformanceStatus };
 }
 
+// Mesma população elegível já usada em Desempenho/Ranking/Meta Diária
+// (ativo, com id, nunca o dono da operação) — não é uma lista de usuários
+// paralela, só o resultado já filtrado de listAdminProfiles.
+async function loadActiveBrokers() {
+  const profiles = await listAdminProfiles();
+  return profiles
+    .filter((profile) => profile.id && profile.status === "active" && !isOwnerAdminEmail(profile.email))
+    .map((profile) => ({ id: profile.id, name: profile.name, phone: profile.phone || "" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+const SUBMENU_ITEMS = [
+  { key: "rules", label: "Regras", href: "/admin/automacoes" },
+  { key: "roulette", label: "Roleta", href: "/admin/automacoes?tab=roulette" },
+  { key: "daily-message", label: "Mensagem do Dia", href: "/admin/automacoes?tab=daily-message" },
+  { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
+  { key: "whatsapp-manual", label: "WhatsApp Manual", href: "/admin/automacoes?tab=whatsapp-manual" }
+];
+
 function AutomationSubmenu({ active }) {
-  return <nav className="container-page mb-4 grid grid-cols-4 rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
-    <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "rules" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes">Regras</Link>
-    <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "roulette" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=roulette">Roleta</Link>
-    <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "daily-message" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=daily-message">Mensagem do Dia</Link>
-    <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "whatsapp-master" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=whatsapp-master">WhatsApp Master</Link>
-  </nav>;
+  return (
+    <nav className="container-page mb-4 flex flex-wrap justify-center gap-1.5 rounded-xl border border-navy/[0.07] bg-white p-1 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
+      {SUBMENU_ITEMS.map((item) => (
+        <Link key={item.key} href={item.href} className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === item.key ? "bg-navy text-white" : "text-navy"}`}>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
 }
 
 function Header() {
