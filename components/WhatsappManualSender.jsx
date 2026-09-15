@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Clipboard, ExternalLink, History, LoaderCircle, MessageCircle, Settings, Sparkles, Users } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, ChevronUp, Clipboard, ExternalLink, History, LoaderCircle, MessageCircle, Send, Sparkles, Users } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/phone-utils";
 
 const PERIOD_OPTIONS = [
@@ -12,6 +12,22 @@ const PERIOD_OPTIONS = [
 
 const ACTION_LABEL = { opened: "WhatsApp aberto", marked_sent: "Marcado manualmente como enviado" };
 
+// Único ponto que abre o WhatsApp de verdade — usado tanto pelo modo "Um
+// corretor" quanto por cada linha do modo "Todos", pra nunca duplicar essa
+// lógica. Reaproveita o MESMO endpoint de histórico já existente (só
+// registra "opened"; "enviado de fato" o CRM nunca sabe).
+function openWhatsappAndLog({ brokerId, phone, message, period }) {
+  const waUrl = buildWhatsAppUrl(phone);
+  if (!waUrl) return false;
+  fetch("/api/admin/whatsapp-master/manual-log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ brokerId, summaryType: period, action: "opened" })
+  }).catch(() => {});
+  window.open(`${waUrl}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 export default function WhatsappManualSender({ brokers = [] }) {
   const [period, setPeriod] = useState("today");
   const [mode, setMode] = useState("single");
@@ -20,7 +36,6 @@ export default function WhatsappManualSender({ brokers = [] }) {
   const [error, setError] = useState("");
   const [single, setSingle] = useState(null);
   const [allItems, setAllItems] = useState(null);
-  const [showConfig, setShowConfig] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
   function resetResults() {
@@ -115,30 +130,28 @@ export default function WhatsappManualSender({ brokers = [] }) {
 
       {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
 
-      {single ? <SingleMessageCard result={single} period={period} brokerId={brokerId} onLogged={() => {}} /> : null}
+      {single ? <SingleMessageCard result={single} period={period} brokerId={brokerId} /> : null}
       {allItems ? <AllMessagesList data={allItems} period={period} /> : null}
 
       <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-        <button type="button" onClick={() => setShowConfig((value) => !value)} className="premium-button-secondary">
-          <Settings className="h-5 w-5" />Configurar mensagens
-        </button>
         <button type="button" onClick={() => setShowHistory((value) => !value)} className="premium-button-secondary">
           <History className="h-5 w-5" />Histórico
         </button>
       </div>
 
-      {showConfig ? <TemplatesConfigurator /> : null}
       {showHistory ? <RecentHistory /> : null}
     </section>
   );
 }
 
+// Modo "Um corretor" — inalterado nesta rodada (prévia editável, copiar,
+// abrir no WhatsApp, marcar como enviado).
 function SingleMessageCard({ result, period, brokerId }) {
   const [text, setText] = useState(result.message);
   const [copied, setCopied] = useState(false);
   const [opened, setOpened] = useState(false);
   const [markedSent, setMarkedSent] = useState(false);
-  const waUrl = buildWhatsAppUrl(result.phone);
+  const hasPhone = Boolean(buildWhatsAppUrl(result.phone));
 
   useEffect(() => { setText(result.message); setOpened(false); setMarkedSent(false); }, [result]);
 
@@ -149,14 +162,7 @@ function SingleMessageCard({ result, period, brokerId }) {
   }
 
   function openWhatsapp() {
-    if (!waUrl) return;
-    fetch("/api/admin/whatsapp-master/manual-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brokerId, summaryType: period, action: "opened" })
-    }).catch(() => {});
-    setOpened(true);
-    window.open(`${waUrl}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    if (openWhatsappAndLog({ brokerId, phone: result.phone, message: text, period })) setOpened(true);
   }
 
   async function markSent() {
@@ -172,13 +178,13 @@ function SingleMessageCard({ result, period, brokerId }) {
     <div className="space-y-3">
       <p className="text-xs font-black uppercase tracking-wide text-muted">{result.periodLabel} — {result.brokerName}, pode editar antes de enviar</p>
       <textarea className="min-h-40 w-full rounded-2xl border border-line p-4 font-normal" value={text} onChange={(event) => setText(event.target.value)} />
-      {!waUrl ? <p className="text-sm font-bold text-muted">WhatsApp não cadastrado para este corretor.</p> : null}
+      {!hasPhone ? <p className="text-sm font-bold text-muted">WhatsApp não cadastrado para este corretor.</p> : null}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={copyMessage} className="premium-button-secondary">
           {copied ? <Check className="h-5 w-5" /> : <Clipboard className="h-5 w-5" />}
           {copied ? "Mensagem copiada." : "Copiar mensagem"}
         </button>
-        <button type="button" onClick={openWhatsapp} disabled={!waUrl} className="premium-button-primary">
+        <button type="button" onClick={openWhatsapp} disabled={!hasPhone} className="premium-button-primary">
           <ExternalLink className="h-5 w-5" />Abrir no WhatsApp
         </button>
         {opened && !markedSent ? (
@@ -190,95 +196,87 @@ function SingleMessageCard({ result, period, brokerId }) {
   );
 }
 
+// Modo "Todos" — lista de controle de envio: nome expande/recolhe a
+// mensagem (uma por vez, preserva edição), botão de ação à direita
+// (Enviar mensagem / ✓ Mensagem enviada / WhatsApp não cadastrado) e
+// contador de progresso. Estado de "enviado" é só desta rodada (reseta
+// sempre que os dados mudam — nova geração ou novo período), nunca grava
+// nada além do já existente "WhatsApp aberto" no histórico.
 function AllMessagesList({ data, period }) {
   const [expandedId, setExpandedId] = useState("");
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-black uppercase tracking-wide text-muted">{data.periodLabel} — {data.items.length} corretor(es)</p>
-      <div className="divide-y divide-line rounded-2xl border border-line">
-        {data.items.map((item) => (
-          <div key={item.brokerId} className="p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-black text-navy">{item.brokerName}</p>
-              <button type="button" onClick={() => setExpandedId((current) => current === item.brokerId ? "" : item.brokerId)} className="text-sm font-black text-brand">
-                {expandedId === item.brokerId ? "Fechar" : "Visualizar"}
-              </button>
-            </div>
-            {expandedId === item.brokerId ? (
-              <div className="mt-3">
-                <SingleMessageCard result={{ message: item.message, brokerName: item.brokerName, phone: item.phone, periodLabel: data.periodLabel }} period={period} brokerId={item.brokerId} />
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TemplatesConfigurator() {
-  const [templates, setTemplates] = useState(null);
-  const [variables, setVariables] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState({});
+  const [sentIds, setSentIds] = useState(() => new Set());
 
   useEffect(() => {
-    fetch("/api/admin/whatsapp-master/manual-templates")
-      .then((response) => response.json())
-      .then((payload) => { setTemplates(payload.templates); setVariables(payload.variables || []); })
-      .catch(() => setError("Não foi possível carregar os modelos."));
-  }, []);
+    setExpandedId("");
+    setSentIds(new Set());
+    setMessages(Object.fromEntries(data.items.map((item) => [item.brokerId, item.message])));
+  }, [data]);
 
-  async function save(periodKey) {
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/whatsapp-master/manual-templates", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ period: periodKey, template: templates[periodKey] })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Não foi possível salvar.");
-      setMessage("Modelo salvo.");
-    } catch (saveError) {
-      setError(saveError.message);
-    } finally {
-      setBusy(false);
-    }
+  const total = data.items.length;
+  const sentCount = sentIds.size;
+
+  function send(item) {
+    const message = messages[item.brokerId] ?? item.message;
+    const opened = openWhatsappAndLog({ brokerId: item.brokerId, phone: item.phone, message, period });
+    if (opened) setSentIds((current) => new Set(current).add(item.brokerId));
   }
 
-  if (!templates) return <p className="text-sm text-muted">Carregando modelos...</p>;
-
   return (
-    <div className="space-y-4 rounded-2xl border border-line bg-mist/30 p-4">
-      <p className="text-sm font-black text-navy">Variáveis disponíveis</p>
-      <div className="flex flex-wrap gap-2">
-        {variables.map((variable) => (
-          <span key={variable.key} title={variable.label} className="rounded-full border border-line bg-white px-3 py-1 text-xs font-black text-brand">{`{${variable.key}}`}</span>
-        ))}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-wide text-muted">{data.periodLabel} — {total} corretor(es)</p>
+        <p className="text-sm font-black text-navy">
+          {total > 0 && sentCount === total ? "✓ Todos os corretores foram processados." : `${sentCount} de ${total} enviados`}
+        </p>
       </div>
 
-      {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
-      {message ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{message}</p> : null}
+      <div className="divide-y divide-line rounded-2xl border border-line">
+        {data.items.map((item) => {
+          const expanded = expandedId === item.brokerId;
+          const sent = sentIds.has(item.brokerId);
+          const hasPhone = Boolean(buildWhatsAppUrl(item.phone));
 
-      {PERIOD_OPTIONS.map((option) => (
-        <div key={option.value}>
-          <p className="mb-1 text-sm font-black text-navy">Resumo {option.label.toLowerCase()}</p>
-          <textarea
-            className="min-h-24 w-full rounded-2xl border border-line p-3 font-normal"
-            value={templates[option.value] || ""}
-            onChange={(event) => setTemplates((current) => ({ ...current, [option.value]: event.target.value }))}
-          />
-          <button type="button" disabled={busy} onClick={() => save(option.value)} className="premium-button-secondary mt-2">
-            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-            Salvar
-          </button>
-        </div>
-      ))}
+          return (
+            <div key={item.brokerId} className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId((current) => current === item.brokerId ? "" : item.brokerId)}
+                  className="inline-flex items-center gap-1 font-black text-navy"
+                >
+                  {item.brokerName}
+                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+
+                {!hasPhone ? (
+                  <span className="rounded-full bg-mist px-3 py-1.5 text-xs font-black text-muted">WhatsApp não cadastrado</span>
+                ) : sent ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />Mensagem enviada
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => send(item)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1.5 text-xs font-black text-white transition hover:-translate-y-0.5"
+                  >
+                    <Send className="h-3.5 w-3.5" />Enviar mensagem
+                  </button>
+                )}
+              </div>
+
+              {expanded ? (
+                <textarea
+                  className="mt-3 min-h-32 w-full rounded-2xl border border-line p-3 font-normal"
+                  value={messages[item.brokerId] ?? item.message}
+                  onChange={(event) => setMessages((current) => ({ ...current, [item.brokerId]: event.target.value }))}
+                />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
