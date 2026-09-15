@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, ChevronUp, Clipboard, ExternalLink, History, LoaderCircle, MessageCircle, Send, Sparkles, Users } from "lucide-react";
-import { buildWhatsAppUrl } from "@/lib/phone-utils";
+import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
 
 const PERIOD_OPTIONS = [
   { value: "today", label: "Diário" },
@@ -16,15 +16,30 @@ const ACTION_LABEL = { opened: "WhatsApp aberto", marked_sent: "Marcado manualme
 // corretor" quanto por cada linha do modo "Todos", pra nunca duplicar essa
 // lógica. Reaproveita o MESMO endpoint de histórico já existente (só
 // registra "opened"; "enviado de fato" o CRM nunca sabe).
+//
+// Usa api.whatsapp.com/send em vez de wa.me: o encurtador wa.me faz um
+// redirect 302 que corrompe emoji fora do plano básico (🚀🔥👏💪 etc,
+// 4 bytes em UTF-8) para o caractere de substituição U+FFFD durante o
+// próprio redirecionamento — confirmado direto no cabeçalho Location da
+// Meta (acentos sobrevivem, só o emoji quebra). Chamar api.whatsapp.com/send
+// direto pula esse salto e entrega o texto intacto; encodeURIComponent
+// continua sendo aplicado uma única vez, aqui, e nada mais no fluxo
+// decodifica/recodifica a mensagem antes disso.
 function openWhatsappAndLog({ brokerId, phone, message, period }) {
-  const waUrl = buildWhatsAppUrl(phone);
-  if (!waUrl) return false;
+  const digits = toWhatsAppDigits(phone);
+  if (!digits) return false;
+  // Proteção adicional: nunca abrir o WhatsApp com um caractere de
+  // substituição já presente na mensagem (sinal de que algo, em algum
+  // ponto anterior, corrompeu um emoji) — a causa raiz é corrigida acima,
+  // isto é só uma rede de segurança.
+  if (/�/.test(message)) return false;
+
   fetch("/api/admin/whatsapp-master/manual-log", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brokerId, summaryType: period, action: "opened" })
   }).catch(() => {});
-  window.open(`${waUrl}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  window.open(`https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   return true;
 }
 
@@ -152,6 +167,7 @@ function SingleMessageCard({ result, period, brokerId }) {
   const [opened, setOpened] = useState(false);
   const [markedSent, setMarkedSent] = useState(false);
   const hasPhone = Boolean(buildWhatsAppUrl(result.phone));
+  const hasInvalidChar = /�/.test(text);
 
   useEffect(() => { setText(result.message); setOpened(false); setMarkedSent(false); }, [result]);
 
@@ -179,12 +195,13 @@ function SingleMessageCard({ result, period, brokerId }) {
       <p className="text-xs font-black uppercase tracking-wide text-muted">{result.periodLabel} — {result.brokerName}, pode editar antes de enviar</p>
       <textarea className="min-h-40 w-full rounded-2xl border border-line p-4 font-normal" value={text} onChange={(event) => setText(event.target.value)} />
       {!hasPhone ? <p className="text-sm font-bold text-muted">WhatsApp não cadastrado para este corretor.</p> : null}
+      {hasInvalidChar ? <p className="text-sm font-bold text-red-700">A mensagem tem um caractere inválido (�) — corrija o texto antes de abrir o WhatsApp.</p> : null}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={copyMessage} className="premium-button-secondary">
           {copied ? <Check className="h-5 w-5" /> : <Clipboard className="h-5 w-5" />}
           {copied ? "Mensagem copiada." : "Copiar mensagem"}
         </button>
-        <button type="button" onClick={openWhatsapp} disabled={!hasPhone} className="premium-button-primary">
+        <button type="button" onClick={openWhatsapp} disabled={!hasPhone || hasInvalidChar} className="premium-button-primary">
           <ExternalLink className="h-5 w-5" />Abrir no WhatsApp
         </button>
         {opened && !markedSent ? (
@@ -236,6 +253,8 @@ function AllMessagesList({ data, period }) {
           const expanded = expandedId === item.brokerId;
           const sent = sentIds.has(item.brokerId);
           const hasPhone = Boolean(buildWhatsAppUrl(item.phone));
+          const currentMessage = messages[item.brokerId] ?? item.message;
+          const hasInvalidChar = /�/.test(currentMessage);
 
           return (
             <div key={item.brokerId} className="p-4">
@@ -259,7 +278,9 @@ function AllMessagesList({ data, period }) {
                   <button
                     type="button"
                     onClick={() => send(item)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1.5 text-xs font-black text-white transition hover:-translate-y-0.5"
+                    disabled={hasInvalidChar}
+                    title={hasInvalidChar ? "Mensagem com caractere inválido — abra e corrija antes de enviar." : undefined}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1.5 text-xs font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                   >
                     <Send className="h-3.5 w-3.5" />Enviar mensagem
                   </button>
