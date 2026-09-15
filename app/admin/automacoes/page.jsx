@@ -4,11 +4,12 @@ import AutomationRulesManager from "@/components/AutomationRulesManager";
 import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
+import WhatsappManualSender from "@/components/WhatsappManualSender";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
 import WhatsappTemplateManager from "@/components/WhatsappTemplateManager";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
-import { listAdminProfiles } from "@/lib/admin-profiles";
+import { isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
 import { getWhatsappMasterSettings } from "@/lib/crm";
 import { getDailyGoalPerformanceWhatsappStatus } from "@/lib/daily-goal-performance-whatsapp";
@@ -49,6 +50,7 @@ export default async function AutomationsPage({ searchParams }) {
       ) : tab === "whatsapp-master" ? (
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
+          <WhatsappManualSender brokers={whatsappData.brokers} />
           <WhatsappTemplateManager initialStatus={whatsappData.dailyPerformanceStatus} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
@@ -77,7 +79,13 @@ async function loadWhatsappMasterData() {
     dailyPerformanceStatus = { templates: [], templatesError: "Falha ao carregar status.", lastSentDate: "", lastResults: [] };
   }
 
-  return { settings, environment, events, dailyPerformanceStatus };
+  const profiles = await listAdminProfiles();
+  const brokers = profiles
+    .filter((profile) => profile.status === "active" && !isOwnerAdminEmail(profile.email))
+    .map((profile) => ({ id: profile.id, name: profile.name, phone: profile.phone || "" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  return { settings, environment, events, dailyPerformanceStatus, brokers };
 }
 
 function AutomationSubmenu({ active }) {
