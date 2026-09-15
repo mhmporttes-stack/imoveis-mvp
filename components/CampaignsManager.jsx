@@ -195,7 +195,10 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                   ) : null}
                   <p className="mt-1 break-all font-bold text-brand">{campaign.link}</p>
                   <p className="mt-3 text-sm font-bold text-muted">
-                    Criado em: {formatDate(campaign.createdAt)} · Cadastros: <strong className="text-navy">{campaign.clientCount || 0}</strong>
+                    Criado em: {formatDate(campaign.createdAt)} · Aberturas: <strong className="text-navy">{campaign.viewCount || 0}</strong> · Cadastros: <strong className="text-navy">{campaign.clientCount || 0}</strong>
+                    {campaign.viewCount > 0 ? (
+                      <> · Conversão: <strong className="text-navy">{Math.round(((campaign.clientCount || 0) / campaign.viewCount) * 100)}%</strong></>
+                    ) : null}
                   </p>
                 </div>
 
