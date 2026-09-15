@@ -105,6 +105,11 @@ export default function DailyGoalDashboard({ initialGoal }) {
             <div key={group.key} className="rounded-2xl border border-line bg-mist/40 px-4 py-3 text-center">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">{group.chipLabel}</p>
               <p className="mt-1 text-xl font-black text-navy">{goal.groups[group.key].done} / {goal.groups[group.key].total}</p>
+              {group.key === "new" && goal.groups.new.pendingCarriedOver > 0 ? (
+                <p className="mt-1 text-[11px] font-bold text-muted">
+                  {goal.groups.new.pendingToday} de hoje · {goal.groups.new.pendingCarriedOver} de dias anteriores
+                </p>
+              ) : null}
             </div>
           ))}
         </div>
