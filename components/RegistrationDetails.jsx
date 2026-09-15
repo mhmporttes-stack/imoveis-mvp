@@ -21,6 +21,12 @@ export default function RegistrationDetails({ registration }) {
         <DetailsItem label="Data de nascimento" value={formatDateBR(registration.oldestBirthDate)} />
         <DetailsItem label="Tipo de simulação" value={simulationTypeLabel(registration.simulationType)} />
         <DetailsItem label="Data e hora do cadastro" value={formatDateTimeBR(registration.createdAt)} />
+        {registration.contactPreference ? (
+          <DetailsItem
+            label="Preferência de contato"
+            value={registration.contactPreference === "call" ? "📞 Ligação" : "💬 WhatsApp"}
+          />
+        ) : null}
       </DetailsBlock>
 
       <DetailsBlock title="Renda do titular">

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import SimulationForm from "@/components/simulation-form/SimulationForm";
+import LinkJourneyGate from "@/components/simulation-form/LinkJourneyGate";
 
 export const metadata = {
   title: "Simulação de financiamento | Matheus Machado",
@@ -10,22 +10,16 @@ export default function SimulationPage() {
   return <SimulationPageContent />;
 }
 
+// O cabeçalho fixo "Simulação de financiamento" foi para dentro de
+// LinkJourneyGate (só aparece quando o visitante escolhe essa jornada) — a
+// tela de escolha e o Atendimento Rápido têm seu próprio título contextual,
+// então um cabeçalho fixo aqui ficaria repetido/errado nessas duas etapas.
 export function SimulationPageContent({ brokerRef = "" }) {
   return (
     <main className="bg-mist py-12 sm:py-16">
       <section className="container-page">
-        <div className="mx-auto mb-9 max-w-4xl text-center">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-brand">Financiamento imobiliário</p>
-          <h1 className="mt-4 text-[clamp(2.4rem,5vw,4.75rem)] font-black leading-[0.98] text-navy">
-            Simulação de financiamento
-          </h1>
-          <p className="mx-auto mt-5 max-w-3xl text-[clamp(1rem,1.8vw,1.25rem)] leading-8 text-muted">
-            Responda algumas perguntas para entendermos o seu perfil e avaliarmos as melhores possibilidades de financiamento.
-          </p>
-        </div>
-
         <Suspense fallback={<SimulationFormFallback />}>
-          <SimulationForm brokerRefOverride={brokerRef} />
+          <LinkJourneyGate brokerRefOverride={brokerRef} />
         </Suspense>
       </section>
     </main>

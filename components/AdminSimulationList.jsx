@@ -12,6 +12,7 @@ import {
   Clock,
   ExternalLink,
   MessageCircle,
+  Phone,
   Plus,
   Search,
   Tag,
@@ -1227,6 +1228,7 @@ function ClientCard({
             {client.scheduledActivityNote ? ` · ${client.scheduledActivityNote}` : ""}
           </p>
         ) : null}
+        <ContactPreferenceBadge registration={client.registration} />
       </div>
 
       {client.completed ? (
@@ -2079,6 +2081,25 @@ function formatDateLabel(registration, simulation) {
 
 function formatLastContactLabel(value) {
   return formatRelativeDateTimeLabel(value, "Nenhum contato realizado");
+}
+
+// Preferência de contato do Atendimento Rápido (link público) — visível no
+// card, nunca só no histórico. Cadastros antigos/de outras origens não têm
+// contactPreference, então o badge simplesmente não aparece (sem afetar
+// nenhum cliente já existente).
+function ContactPreferenceBadge({ registration }) {
+  const preference = registration?.contactPreference;
+  if (preference !== "whatsapp" && preference !== "call") return null;
+
+  const Icon = preference === "call" ? Phone : MessageCircle;
+  const label = preference === "call" ? "Prefere contato por ligação" : "Prefere contato por WhatsApp";
+
+  return (
+    <p className="inline-flex items-center gap-1.5 text-navy">
+      <Icon className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
+      {label}
+    </p>
+  );
 }
 
 function formatScheduledActivityLabel(value) {
