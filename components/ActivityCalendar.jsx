@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Plus, UserRound, X } from "lucide-react";
+import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, MessageCircle, Plus, UserRound, X } from "lucide-react";
+import { toWhatsAppDigits } from "@/lib/phone-utils";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -439,11 +440,65 @@ function ActivityModal({ activity, onClose }) {
           </p>
         </div>
 
+        {activity.isBirthday ? <BirthdayGreeting activity={activity} /> : null}
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          {activity.clientId || activity.source === "legacy" ? <Link href={`/admin/simulacoes/${activity.clientId || activity.id}`} className="premium-button-primary text-center">Abrir cliente</Link> : null}
+          {activity.clientId || activity.source === "legacy" ? (
+            <Link href={clientDeepLink(activity)} className="premium-button-primary text-center">Abrir cliente</Link>
+          ) : null}
           <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// A lista de Clientes (/admin/simulacoes) não tem uma URL própria por
+// cliente — abre com o filtro de busca já preenchido (mesmo padrão usado
+// pelas notificações push de automação), pelo client_code (único) quando
+// disponível, senão pelo nome. Link direto para /admin/simulacoes/<id> não
+// funciona: essa rota é do Gerador de Simulações (entidade "simulations"),
+// não da lista de clientes — abrir um cliente por ali sempre dava 404.
+function clientDeepLink(activity) {
+  const query = activity.clientCode || activity.clientName || "";
+  return `/admin/simulacoes${query ? `?query=${encodeURIComponent(query)}` : ""}`;
+}
+
+function firstName(fullName) {
+  return String(fullName || "").trim().split(/\s+/)[0] || "";
+}
+
+function buildBirthdayMessage(activity) {
+  const name = firstName(activity.clientName);
+  return `Feliz aniversário${name ? `, ${name}` : ""}! 🎉🎂 Que seu novo ano de vida seja repleto de alegrias, saúde e realizações. Um abraço da equipe Matheus Machado!`;
+}
+
+function BirthdayGreeting({ activity }) {
+  const [message, setMessage] = useState(() => buildBirthdayMessage(activity));
+  const whatsappDigits = toWhatsAppDigits(activity.phoneNormalized || activity.phone);
+
+  return (
+    <div className="mt-5 rounded-2xl border border-pink-100 bg-pink-50/60 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-pink-600">Mensagem de parabéns</p>
+      <textarea
+        className="mt-2 w-full rounded-xl border border-pink-100 bg-white p-3 text-base font-semibold leading-7 text-navy outline-none focus:border-pink-300"
+        onChange={(event) => setMessage(event.target.value)}
+        rows={3}
+        value={message}
+      />
+      {whatsappDigits ? (
+        <a
+          className="premium-button-primary mt-3 inline-flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700"
+          href={`https://wa.me/${whatsappDigits}?text=${encodeURIComponent(message)}`}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <MessageCircle size={18} />
+          Enviar parabéns
+        </a>
+      ) : (
+        <p className="mt-3 text-sm font-bold text-red-700">Cliente sem WhatsApp cadastrado.</p>
+      )}
     </div>
   );
 }

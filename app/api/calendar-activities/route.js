@@ -43,6 +43,7 @@ export async function GET(request) {
         id: registration.id,
         source: "legacy",
         clientId: registration.id,
+        clientCode: registration.clientCode || "",
         clientName: registration.fullName || "Cliente sem nome",
         phone: registration.phone || "",
         phoneNormalized: registration.phoneNormalized || "",
@@ -65,6 +66,7 @@ export async function GET(request) {
       return {
         ...activity,
         clientName: client?.name || "",
+        clientCode: client?.code || "",
         phone: "",
         scheduledActivityType: activity.activityType,
         scheduledActivityNote: activity.note,
@@ -117,6 +119,7 @@ function buildBirthdayActivities(registrations, profileById, from, to) {
       return [{
         id: `birthday-${registration.id}-${year}`,
         clientId: registration.id,
+        clientCode: registration.clientCode || "",
         clientName: registration.fullName || "Cliente sem nome",
         title: `Aniversário do cliente ${shortName}`,
         phone: registration.phone || "",
