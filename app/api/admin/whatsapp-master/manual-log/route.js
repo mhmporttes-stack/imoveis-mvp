@@ -27,7 +27,7 @@ export async function POST(request) {
     await logManualWhatsappAction({
       brokerId: body.brokerId,
       performedBy: auth.profile?.id || null,
-      summaryType: body.summaryType,
+      messageKind: body.messageKind,
       action: body.action
     });
     return NextResponse.json({ ok: true });

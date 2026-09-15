@@ -16,6 +16,7 @@ import { getDailyGoalPerformanceWhatsappStatus } from "@/lib/daily-goal-performa
 import { getDailyMessageSettings } from "@/lib/daily-message";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
 import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, listWhatsappMasterEvents, listWhatsappMessageTemplates } from "@/lib/whatsapp-master";
+import { JOURNEY_STAGES } from "@/lib/whatsapp-manual-summary";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export default async function AutomationsPage({ searchParams }) {
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
       ) : tab === "whatsapp-manual" ? (
-        <WhatsappManualSender brokers={manualBrokers} />
+        <WhatsappManualSender brokers={manualBrokers} journeyStages={JOURNEY_STAGES} />
       ) : (
         <LeadDistributionDashboard initialData={distribution} />
       )}
