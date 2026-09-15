@@ -1,9 +1,10 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
+import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getWhatsappMasterSettings } from "@/lib/crm";
-import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus } from "@/lib/whatsapp-master";
+import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, listWhatsappMasterEvents } from "@/lib/whatsapp-master";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,13 @@ export default async function WhatsappMasterPage() {
   await requireBrokerManagementPage("/admin/simulacoes");
   const settings = getWhatsappMasterDisplaySettings(await getWhatsappMasterSettings());
   const environment = getWhatsappMasterEnvironmentStatus();
+
+  let events = [];
+  try {
+    events = await listWhatsappMasterEvents({ limit: 30 });
+  } catch {
+    events = [];
+  }
 
   return (
     <main className="min-h-screen bg-mist py-14">
@@ -24,6 +32,7 @@ export default async function WhatsappMasterPage() {
       </section>
       <AdminSectionNav active="whatsapp-master" />
       <WhatsappMasterForm initialSettings={settings} environment={environment} />
+      <WhatsappMasterInbox initialEvents={events} />
     </main>
   );
 }
