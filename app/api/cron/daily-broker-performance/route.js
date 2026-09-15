@@ -38,7 +38,7 @@ export async function GET(request) {
     }
 
     const results = await sendDailyGoalPerformanceWhatsappToAllBrokers();
-    await markDailyGoalPerformanceWhatsappSentOn(today);
+    await markDailyGoalPerformanceWhatsappSentOn(today, results);
 
     return NextResponse.json({
       ok: true,

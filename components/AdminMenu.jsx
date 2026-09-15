@@ -55,8 +55,7 @@ const adminGroups = [
       { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
-      { href: "/admin/automacoes", label: "Automações", key: "automations" },
-      { href: "/admin/whatsapp-master", label: "WhatsApp Master", key: "whatsapp-master" },
+      { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring"] }
     ]
