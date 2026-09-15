@@ -30,6 +30,8 @@
 @keyframes celebrate { 10% { opacity: .9; } 100% { opacity: 0; transform: translate(calc(var(--direction) * (65px + var(--i) * 7px)), calc(50px + var(--i) * 9px)) rotate(240deg); } }
 @media(max-width: 540px) { .inner { padding: 28px 22px 40px; } .header { margin-top: 34px; } .header h1 { font-size: 27px; } .header p { font-size: 16px; } .message h2 { font-size: 23px; } .journey { margin: 55px 20px 30px; } .cta { width: 100%; } }
 @media(prefers-reduced-motion: reduce) { .fill,.key,.message,.closing { transition: none; } .confetti { display: none; } }
+.cta:disabled { opacity: .65; cursor: not-allowed; }
+.contactUnavailable { margin-top: 10px; font-size: 13px; color: #536b83; }
 .closing { text-align: center; margin-top: 64px; padding-bottom: 6px; opacity: 1; transition: opacity .6s ease, transform .6s ease; }
 .closingDivider { width: 48px; height: 1px; margin: 0 auto 30px; border: none; background: #d7e2ef; }
 .closingQuote { font-family: var(--font-closing), Georgia, serif; font-weight: 500; font-style: italic; font-size: 25px; line-height: 1.55; color: #0d3b66; max-width: 500px; margin: 0 auto; overflow-wrap: anywhere; }

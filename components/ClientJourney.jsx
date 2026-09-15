@@ -49,8 +49,9 @@ export default function ClientJourney({ data, preview = false }) {
         <h2>{data.title}</h2>
         {data.subtitle ? <h3>{data.subtitle}</h3> : null}
         <p className={styles.body}>{data.body}</p>
-        {data.ctaUrl ? <a className={styles.cta} href={preview ? undefined : data.ctaUrl} target="_blank" rel="noopener noreferrer" aria-disabled={preview || !arrived} tabIndex={!arrived ? -1 : undefined}><MessageCircle size={20} aria-hidden="true" />{data.ctaLabel}</a> : null}
       </section>
+      {data.ctaUrl && !preview ? <a className={styles.cta} href={data.ctaUrl} target="_blank" rel="noopener noreferrer"><MessageCircle size={20} aria-hidden="true" />{data.ctaLabel}</a> : <button type="button" className={styles.cta} disabled><MessageCircle size={20} aria-hidden="true" />{data.ctaLabel}</button>}
+      {!data.ctaUrl && !preview ? <p className={styles.contactUnavailable}>WhatsApp do corretor indisponível.</p> : null}
       {data.copy.closing_quote ? <footer className={`${styles.closing} ${!arrived ? styles.hidden : ""}`}>
         <hr className={styles.closingDivider} aria-hidden="true" />
         <p className={styles.closingQuote}>&ldquo;{data.copy.closing_quote}&rdquo;</p>

@@ -23,6 +23,8 @@ test("public DTO is an allowlist, with current responsible phone and no private 
   const dto = publicJourneyDTO(client, state, config, "11999999999", copy);
   assert.equal(dto.firstName, "João");
   assert.match(dto.ctaUrl, /wa.me\/5511999999999/);
+  assert.equal(dto.ctaLabel, "Falar com meu corretor");
+  assert.match(publicJourneyDTO(client, state, { ...config, cta: "none" }, "11999999999", copy).ctaUrl, /wa.me\/5511999999999/);
   for (const value of ["private-id", "private-phone", "private-cpf", "private-note", "secret", "Henrique", "9000"]) assert.ok(!JSON.stringify(dto).includes(value));
   assert.equal(publicJourneyDTO(client, state, config, "bad", copy).ctaUrl, null);
   assert.match(publicJourneyDTO(client, state, config, "18988888888", copy).ctaUrl, /5518988888888/);
