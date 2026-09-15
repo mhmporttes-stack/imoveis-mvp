@@ -4,6 +4,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import DeleteRegistrationButton from "@/components/DeleteRegistrationButton";
 import RegistrationDetails from "@/components/RegistrationDetails";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
+import { isOwnerAdminEmail } from "@/lib/admin-profiles";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -48,9 +49,11 @@ export default async function AdminRegistrationDetailsPage({ params }) {
       </section>
 
       <RegistrationDetails registration={registration} />
-      <div className="mt-6">
-        <DeleteRegistrationButton registrationId={registration.id} registrationName={registration.fullName} />
-      </div>
+      {isOwnerAdminEmail(auth?.user?.email) ? (
+        <div className="mt-6">
+          <DeleteRegistrationButton registrationId={registration.id} registrationName={registration.fullName} />
+        </div>
+      ) : null}
     </main>
   );
 }

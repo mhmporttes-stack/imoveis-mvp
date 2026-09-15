@@ -12,7 +12,7 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 
-export default function AdminRegistrationList({ registrations = [] }) {
+export default function AdminRegistrationList({ registrations = [], isOwner = false }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
 
@@ -68,7 +68,7 @@ export default function AdminRegistrationList({ registrations = [] }) {
       {filteredRegistrations.length ? (
         <div className="grid gap-5">
           {filteredRegistrations.map((registration) => (
-            <RegistrationCard key={registration.id} registration={registration} removeRegistration={removeRegistration} />
+            <RegistrationCard key={registration.id} registration={registration} removeRegistration={removeRegistration} isOwner={isOwner} />
           ))}
         </div>
       ) : (
@@ -81,7 +81,7 @@ export default function AdminRegistrationList({ registrations = [] }) {
   );
 }
 
-function RegistrationCard({ registration, removeRegistration }) {
+function RegistrationCard({ registration, removeRegistration, isOwner }) {
   const familyIncome = calculateFamilyIncome(registration);
 
   return (
@@ -118,14 +118,16 @@ function RegistrationCard({ registration, removeRegistration }) {
           <Link href={`/admin/cadastros/${registration.id}`} className="premium-button-primary justify-center">
             Abrir cadastro
           </Link>
-          <button
-            className="premium-button border border-red-200 bg-white text-red-700 hover:bg-red-50 hover:shadow-soft"
-            onClick={() => removeRegistration(registration)}
-            type="button"
-          >
-            <Trash2 className="mr-2 h-5 w-5" aria-hidden="true" />
-            Excluir
-          </button>
+          {isOwner ? (
+            <button
+              className="premium-button border border-red-200 bg-white text-red-700 hover:bg-red-50 hover:shadow-soft"
+              onClick={() => removeRegistration(registration)}
+              type="button"
+            >
+              <Trash2 className="mr-2 h-5 w-5" aria-hidden="true" />
+              Excluir
+            </button>
+          ) : null}
         </div>
       </div>
     </article>

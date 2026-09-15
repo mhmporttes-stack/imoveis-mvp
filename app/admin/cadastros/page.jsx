@@ -3,6 +3,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminRegistrationList from "@/components/AdminRegistrationList";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
+import { isOwnerAdminEmail } from "@/lib/admin-profiles";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -41,7 +42,7 @@ export default async function AdminRegistrationsPage() {
       </section>
 
       <AdminSectionNav active="registrations" />
-      {loadError ? <RegistrationsError error={loadError} /> : <AdminRegistrationList registrations={registrations} />}
+      {loadError ? <RegistrationsError error={loadError} /> : <AdminRegistrationList registrations={registrations} isOwner={isOwnerAdminEmail(auth?.user?.email)} />}
     </main>
   );
 }

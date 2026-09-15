@@ -101,6 +101,7 @@ export default async function AdminSimulationsPage() {
           clientActivities={clientActivities}
           canManageResponsibleUsers={isGeneralAdmin || isManager}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
+          isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           tags={tags}
         />
       )}

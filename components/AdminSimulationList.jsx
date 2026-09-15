@@ -116,6 +116,7 @@ export default function AdminSimulationList({
   canManageResponsibleUsers = false,
   canReturnAssignedProspecting = false,
   clientActivities = {},
+  isOwner = false,
   loadWarning = "",
   registrations = [],
   simulations = [],
@@ -1028,6 +1029,7 @@ export default function AdminSimulationList({
             onUpdateStatus={updateClientStatus}
             onProspectingAction={handleProspectingAction}
             canReturnAssignedProspecting={canReturnAssignedProspecting}
+            isOwner={isOwner}
             responsibleProfileMap={responsibleProfileMap}
             responsibleProfiles={responsibleProfiles}
             scheduleDraft={scheduleDraft}
@@ -1112,6 +1114,7 @@ function ClientCard({
   onUpdateStatus,
   onProspectingAction,
   canReturnAssignedProspecting,
+  isOwner,
   responsibleProfileMap,
   responsibleProfiles,
   scheduleDraft,
@@ -1342,16 +1345,18 @@ function ClientCard({
           <MessageCircle className="h-4 w-4" aria-hidden="true" />
           Whats
         </button>
-        <button
-          aria-label={`Excluir cliente ${client.name || ""}`.trim()}
-          className="client-action-button"
-          disabled={busy}
-          onClick={() => onRemoveClient(client)}
-          type="button"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-          Excluir
-        </button>
+        {isOwner ? (
+          <button
+            aria-label={`Excluir cliente ${client.name || ""}`.trim()}
+            className="client-action-button"
+            disabled={busy}
+            onClick={() => onRemoveClient(client)}
+            type="button"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Excluir
+          </button>
+        ) : null}
       </div>
     </article>
   );
