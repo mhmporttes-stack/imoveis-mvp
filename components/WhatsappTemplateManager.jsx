@@ -10,6 +10,19 @@ const STATUS_LABEL = {
   not_created: { label: "Ainda não criado", tone: "text-muted bg-mist" }
 };
 
+// Sugestões prontas de modelos pra usar em Regras de automação (aba
+// "Regras" → ação "Enviar WhatsApp"), além dos 3 do resumo diário. Cada uma
+// vira 1 clique aqui em vez do formulário avançado — o exemplo pedido
+// ("Corretor, você recebeu um novo cliente...") é a primeira da lista.
+const SUGGESTED_TEMPLATES = [
+  {
+    name: "corretor_novo_cliente_aguardando",
+    label: "Novo cliente aguardando atendimento",
+    bodyText: "Olá {{1}}! Você recebeu um novo cliente: {{2}}. Ele está aguardando seu atendimento — não deixe esperando!",
+    bodyExample: ["Ana", "João Silva"]
+  }
+];
+
 export default function WhatsappTemplateManager({ initialStatus }) {
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
@@ -70,6 +83,26 @@ export default function WhatsappTemplateManager({ initialStatus }) {
       setCustomBody("");
       setCustomExample("");
       await refreshStatus();
+    } catch (createError) {
+      setError(createError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createSuggestedTemplate(template) {
+    setBusy(true);
+    setMessage("");
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-master/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: template.name, bodyText: template.bodyText, bodyExample: template.bodyExample.join(",") })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Falha ao criar o modelo.");
+      setMessage(`Modelo "${template.label}" enviado para revisão da Meta. Depois é só escolher ele na ação "Enviar WhatsApp" de uma regra em Automações → Regras.`);
     } catch (createError) {
       setError(createError.message);
     } finally {
@@ -157,6 +190,26 @@ export default function WhatsappTemplateManager({ initialStatus }) {
       ) : (
         <p className="text-sm text-muted">Ainda não houve nenhum envio.</p>
       )}
+
+      <div className="border-t border-line pt-6">
+        <p className="text-sm font-black uppercase tracking-[0.12em] text-navy">Modelos para usar em Regras de automação</p>
+        <p className="mt-1 text-sm text-muted">
+          Pra usar num gatilho (ex.: &quot;corretor recebeu cliente novo&quot;), crie o modelo aqui e depois escolha ele na
+          ação &quot;Enviar WhatsApp&quot; em Automações → Regras.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {SUGGESTED_TEMPLATES.map((template) => (
+            <div key={template.name} className="rounded-2xl border border-line p-4">
+              <p className="font-black text-navy">{template.label}</p>
+              <p className="mt-1 text-xs text-muted">&quot;{template.bodyText}&quot;</p>
+              <button type="button" disabled={busy} onClick={() => createSuggestedTemplate(template)} className="premium-button-secondary mt-3">
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                Criar este modelo
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <details className="rounded-2xl border border-line p-4">
         <summary className="cursor-pointer font-black text-navy">Criar um novo modelo (avançado)</summary>

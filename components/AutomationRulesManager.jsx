@@ -9,12 +9,14 @@ import {
   AUTOMATION_STATUS_OPTIONS,
   AUTOMATION_TARGETS,
   AUTOMATION_TRIGGERS,
+  AUTOMATION_WHATSAPP_VARIABLES,
   optionLabel
 } from "@/lib/crm-automation-options";
 
 const AUTOMATION_EMAIL = "mhmporttes@gmail.com";
+const TEMPLATE_STATUS_LABEL = { APPROVED: "aprovado", PENDING: "em análise", REJECTED: "rejeitado" };
 
-export default function AutomationRulesManager({ initialRules = [], users = [] }) {
+export default function AutomationRulesManager({ initialRules = [], users = [], whatsappTemplates = [] }) {
   const [rules, setRules] = useState(initialRules);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -93,7 +95,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [] }
       </div>
 
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
-      {draft ? <RuleEditor draft={draft} onChange={setDraft} onClose={() => setDraft(null)} onSave={saveRule} saving={saving} users={users} /> : null}
+      {draft ? <RuleEditor draft={draft} onChange={setDraft} onClose={() => setDraft(null)} onSave={saveRule} saving={saving} users={users} whatsappTemplates={whatsappTemplates} /> : null}
 
       <div className="space-y-3">
         {rules.map((rule) => (
@@ -127,7 +129,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [] }
   );
 }
 
-function RuleEditor({ draft, onChange, onClose, onSave, saving, users }) {
+function RuleEditor({ draft, onChange, onClose, onSave, saving, users, whatsappTemplates }) {
   const [showFilters, setShowFilters] = useState(draft.conditions.length > 0);
   const update = (patch) => onChange((current) => ({ ...current, ...patch }));
   const selectedAction = draft.actions[0] || defaultAction("send_trigger_email");
@@ -174,6 +176,47 @@ function RuleEditor({ draft, onChange, onClose, onSave, saving, users }) {
             </div>
           </div>
           <p className="mt-2 text-sm font-bold text-muted">Em transferências de cliente, quem perdeu o cliente nunca recebe este aviso, mesmo que se enquadre em outro critério marcado.</p>
+        </> : null}
+        {selectedAction.type === "send_whatsapp_template" ? <>
+          <Field label="Modelo aprovado do WhatsApp">
+            <select value={selectedAction.templateName || ""} onChange={(event) => updateSelectedAction({ templateName: event.target.value })}>
+              <option value="">Selecione um modelo</option>
+              {whatsappTemplates.map((template) => (
+                <option key={template.name} value={template.name}>
+                  {template.name} ({TEMPLATE_STATUS_LABEL[template.status] || template.status})
+                </option>
+              ))}
+            </select>
+            <span className="text-xs font-bold text-muted">
+              Só modelos já aprovados pela Meta enviam de verdade. Crie novos na aba WhatsApp Master.
+            </span>
+          </Field>
+          <div>
+            <p className="text-sm font-black text-navy">Parâmetros do modelo, na ordem</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(selectedAction.paramVariables || []).length ? (selectedAction.paramVariables || []).map((variable, index) => (
+                <span key={`${variable}-${index}`} className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-black text-brand">
+                  {`{{${index + 1}}}`} {optionLabel(AUTOMATION_WHATSAPP_VARIABLES, variable)}
+                  <button type="button" onClick={() => updateSelectedAction({ paramVariables: removeAt(selectedAction.paramVariables, index) })} aria-label="Remover parâmetro"><X className="h-3 w-3" /></button>
+                </span>
+              )) : <span className="text-sm font-bold text-muted">Nenhum parâmetro adicionado ainda.</span>}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {AUTOMATION_WHATSAPP_VARIABLES.map((variable) => (
+                <button key={variable.value} type="button" className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-brand" onClick={() => updateSelectedAction({ paramVariables: [...(selectedAction.paramVariables || []), variable.value] })}>
+                  + {variable.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-black text-navy">Quem recebe a mensagem</p>
+            <div className="mt-3 flex flex-col gap-3">
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyResponsible !== false} onChange={(event) => updateSelectedAction({ notifyResponsible: event.target.checked })} /><span>Corretor responsável pelo cliente no momento do gatilho</span></label>
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyManager === true} onChange={(event) => updateSelectedAction({ notifyManager: event.target.checked })} /><span>Gestor do corretor responsável</span></label>
+              <label className="flex items-center gap-2.5 text-sm font-bold text-navy"><input type="checkbox" className="!h-4 !w-4 !min-h-0 !min-w-0 shrink-0 !rounded !border !border-line !bg-white !p-0" checked={selectedAction.notifyOwner === true} onChange={(event) => updateSelectedAction({ notifyOwner: event.target.checked })} /><span>Eu (administrador/dono da conta)</span></label>
+            </div>
+          </div>
         </> : null}
       </div></div>
 
@@ -222,7 +265,7 @@ function replaceAt(items, index, value) { return items.map((item, itemIndex) => 
 function removeAt(items, index) { return items.filter((_, itemIndex) => itemIndex !== index); }
 function cloneRule(rule) { return { ...rule, conditions: rule.conditions.map((item) => ({ ...item })), actions: rule.actions.map((item) => ({ ...item })) }; }
 function defaultCondition(type) { if (type === "status_equals") return { type, value: "pending" }; if (type === "responsible_equals") return { type, value: "any" }; if (type === "has_future_activity") return { type, value: false }; if (type === "last_contact_older_than") return { type, amount: 1, unit: "days" }; return { type: "not_archived", value: true }; }
-function defaultAction(type) { if (type === "send_trigger_email") return { type, recipientEmail: AUTOMATION_EMAIL, subject: "" }; if (type === "create_activity") return { type, activityType: "follow_up", note: "", offsetValue: 0, offsetUnit: "minutes", target: "client_broker" }; if (type === "change_status") return { type, status: "pending" }; if (type === "return_to_round_robin") return { type }; if (type === "send_push") return { type, title: "", message: "", notifyResponsible: true, notifyManager: false, notifyOwner: true }; return { type: "create_notification", title: "", message: "", target: "client_broker" }; }
+function defaultAction(type) { if (type === "send_trigger_email") return { type, recipientEmail: AUTOMATION_EMAIL, subject: "" }; if (type === "create_activity") return { type, activityType: "follow_up", note: "", offsetValue: 0, offsetUnit: "minutes", target: "client_broker" }; if (type === "change_status") return { type, status: "pending" }; if (type === "return_to_round_robin") return { type }; if (type === "send_push") return { type, title: "", message: "", notifyResponsible: true, notifyManager: false, notifyOwner: true }; if (type === "send_whatsapp_template") return { type, templateName: "", paramVariables: [], notifyResponsible: true, notifyManager: false, notifyOwner: false }; return { type: "create_notification", title: "", message: "", target: "client_broker" }; }
 function emptyRule() { return { id: "", name: "", enabled: false, triggerType: "client_form_submitted", triggerConfig: { timingMode: "immediate" }, conditions: [], delayValue: 0, delayUnit: "minutes", actions: [defaultAction("send_trigger_email")] }; }
 function delayLabel(rule) { return Number(rule.delayValue) === 0 ? "Imediatamente" : `${rule.delayValue} ${optionLabel(AUTOMATION_DELAY_UNITS, rule.delayUnit)}`; }
 function formatDate(value) { if (!value) return "Nunca"; const date = new Date(value); return Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR") : "Nunca"; }
