@@ -1,11 +1,13 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
+import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
+import { getDailyMessageSettings } from "@/lib/daily-message";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
 import Link from "next/link";
 
@@ -13,11 +15,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
-  const tab = (await searchParams)?.tab === "roulette" ? "roulette" : "rules";
-  const [rules, users, distribution] = await Promise.all([
+  const tabParam = (await searchParams)?.tab;
+  const tab = tabParam === "roulette" ? "roulette" : tabParam === "daily-message" ? "daily-message" : "rules";
+  const [rules, users, distribution, dailyMessageSettings] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
     tab === "rules" ? listAdminProfiles() : Promise.resolve([]),
-    tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null)
+    tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null),
+    tab === "daily-message" ? getDailyMessageSettings() : Promise.resolve(null)
   ]);
 
   return (
@@ -30,6 +34,8 @@ export default async function AutomationsPage({ searchParams }) {
           <div className="container-page mb-4"><NewClientSoundSettings userId={auth.profile?.id} /></div>
           <AutomationRulesManager initialRules={rules} users={users.filter((user) => user.status === "active")} />
         </>
+      ) : tab === "daily-message" ? (
+        <DailyMessageAdmin initialSettings={dailyMessageSettings} />
       ) : (
         <LeadDistributionDashboard initialData={distribution} />
       )}
@@ -38,9 +44,10 @@ export default async function AutomationsPage({ searchParams }) {
 }
 
 function AutomationSubmenu({ active }) {
-  return <nav className="container-page mb-4 grid grid-cols-2 rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
+  return <nav className="container-page mb-4 grid grid-cols-3 rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
     <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "rules" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes">Regras</Link>
     <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "roulette" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=roulette">Roleta</Link>
+    <Link className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === "daily-message" ? "bg-navy text-white" : "text-navy"}`} href="/admin/automacoes?tab=daily-message">Mensagem do Dia</Link>
   </nav>;
 }
 
