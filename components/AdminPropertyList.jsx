@@ -51,7 +51,16 @@ export default function AdminPropertyList({ properties }) {
             <p className="mt-2 text-muted">{property.builder || "Construtora a confirmar"} · {property.price || "Preço sob consulta"}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
+            {property.isPublished ? (
+              <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
+            ) : (
+              <span
+                className="premium-button-secondary cursor-not-allowed opacity-50"
+                title="Publique este imóvel para poder visualizá-lo no site."
+              >
+                Abrir
+              </span>
+            )}
             <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
             <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
             <button
