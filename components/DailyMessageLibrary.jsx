@@ -170,9 +170,22 @@ export default function DailyMessageLibrary() {
                 <p className="mt-1 text-sm text-muted">{card.sourceText}</p>
                 <p className="mt-2 text-xs font-bold uppercase tracking-wide text-muted">{card.openingMessage}</p>
               </div>
-              <div className="flex shrink-0 flex-col gap-2">
+              <div className="flex shrink-0 flex-col items-end gap-2">
                 <button type="button" onClick={() => beginEdit(card)} className="premium-button-secondary h-9 px-3 text-xs">Editar</button>
-                <button type="button" onClick={() => toggleActive(card)} disabled={busy} className="premium-button-secondary h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-60">{card.active ? "Desativar" : "Ativar"}</button>
+                <label className="flex items-center gap-2 text-xs font-black text-navy">
+                  {card.active ? "Ativo" : "Inativo"}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={card.active}
+                    aria-label={card.active ? "Desativar card" : "Ativar card"}
+                    onClick={() => toggleActive(card)}
+                    disabled={busy}
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${card.active ? "bg-brand" : "bg-slate-300"}`}
+                  >
+                    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${card.active ? "left-6" : "left-1"}`} />
+                  </button>
+                </label>
               </div>
             </div>
           </article>
