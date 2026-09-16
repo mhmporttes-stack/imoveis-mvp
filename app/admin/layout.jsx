@@ -1,3 +1,4 @@
+import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
@@ -11,6 +12,7 @@ export default async function AdminLayout({ children }) {
 
   return (
     <>
+      {auth.ok ? <AdminPresenceHeartbeat userId={auth.profile?.id} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? (
