@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 const TYPE_FILTERS = [
   { key: "all", label: "Todos" },
   { key: "biblical", label: "Bíblicos" },
+  { key: "custom", label: "Meus" },
   { key: "reflection", label: "Reflexivos" }
 ];
 const STATUS_FILTERS = [
@@ -12,6 +13,7 @@ const STATUS_FILTERS = [
   { key: "inactive", label: "Inativos" }
 ];
 const EMPTY_FORM = { editorialId: "", type: "biblical", mainText: "", sourceText: "", openingMessage: "" };
+const TYPE_LABELS = { biblical: "Bíblico", custom: "Meus", reflection: "Reflexivo" };
 
 export default function DailyMessageLibrary() {
   const [cards, setCards] = useState([]);
@@ -81,6 +83,34 @@ export default function DailyMessageLibrary() {
     }
   }
 
+  // "Desativar todos" aplica exatamente o filtro atual (o mesmo que está na
+  // tela) — só fica disponível com uma categoria específica selecionada
+  // (Bíblicos/Meus/Reflexivos), nunca com "Todos", pra não desligar a
+  // biblioteca inteira sem querer.
+  async function bulkDeactivate() {
+    if (typeFilter === "all" || !cards.length) return;
+    const label = TYPE_FILTERS.find((filter) => filter.key === typeFilter)?.label || "";
+    if (!confirm(`Desativar todos os ${cards.length} card(s) de "${label}" nesta seleção? Eles deixam de entrar na roleta diária.`)) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/daily-message/cards", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ search, type: typeFilter, status: statusFilter, active: false })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível desativar os cards.");
+      setMessage(`${data.updated} card(s) desativado(s).`);
+      await load();
+    } catch (bulkError) {
+      setError(bulkError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleActive(card) {
     setBusy(true);
     setError("");
@@ -121,6 +151,19 @@ export default function DailyMessageLibrary() {
         ))}
       </div>
 
+      {typeFilter !== "all" ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={bulkDeactivate}
+            disabled={busy || !cards.length}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full border border-red-200 bg-white px-4 text-xs font-black text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Desativar todos os {TYPE_FILTERS.find((filter) => filter.key === typeFilter)?.label}
+          </button>
+        </div>
+      ) : null}
+
       {message ? <p className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-brand">{message}</p> : null}
       {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
@@ -134,6 +177,7 @@ export default function DailyMessageLibrary() {
             <label className="text-xs font-black text-navy">Tipo
               <select className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold" value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}>
                 <option value="biblical">Bíblico</option>
+                <option value="custom">Meus</option>
                 <option value="reflection">Reflexivo</option>
               </select>
             </label>
@@ -163,7 +207,7 @@ export default function DailyMessageLibrary() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-mist px-2 py-0.5 text-[11px] font-black text-navy">{card.editorialId}</span>
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-black text-brand">{card.type === "biblical" ? "Bíblico" : "Reflexivo"}</span>
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-black text-brand">{TYPE_LABELS[card.type] || "Reflexivo"}</span>
                   {!card.active ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-black text-red-700">Inativo</span> : null}
                 </div>
                 <p className="mt-2 font-bold text-navy">{card.mainText}</p>

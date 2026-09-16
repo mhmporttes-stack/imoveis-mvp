@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBrokerManagementApi } from "@/lib/admin-auth";
-import { createDailyMessageCard, listDailyMessageCards } from "@/lib/daily-message";
+import { bulkSetDailyMessageCardsActive, createDailyMessageCard, listDailyMessageCards } from "@/lib/daily-message";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +19,23 @@ export async function GET(request) {
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: error.message || "Não foi possível listar os cards." }, { status: error?.status || 400 });
+  }
+}
+
+export async function PATCH(request) {
+  const auth = await requireBrokerManagementApi(request);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  try {
+    const body = await request.json();
+    const result = await bulkSetDailyMessageCardsActive(
+      { search: body.search || "", type: body.type || "all", status: body.status || "all" },
+      body.active,
+      auth
+    );
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: error.message || "Não foi possível atualizar os cards." }, { status: error?.status || 400 });
   }
 }
 
