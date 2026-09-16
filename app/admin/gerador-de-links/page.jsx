@@ -15,11 +15,14 @@ export default async function AdminCampaignLinksPage() {
   }
 
   let campaigns = [];
+  let summary = { views: 0, clients: 0, simulation: 0, sale: 0, conversion: null };
   let brokers = [];
   let error = "";
 
   try {
-    campaigns = (await listCampaigns()).map((campaign) => ({ ...campaign, link: buildCampaignLink(campaign) }));
+    const result = await listCampaigns();
+    campaigns = result.campaigns.map((campaign) => ({ ...campaign, link: buildCampaignLink(campaign) }));
+    summary = result.summary;
   } catch (loadError) {
     error = formatCampaignError(loadError);
   }
@@ -46,7 +49,7 @@ export default async function AdminCampaignLinksPage() {
 
       <AdminSectionNav active="campaign-links" />
 
-      {error ? <CampaignsError error={error} /> : <CampaignsManager initialCampaigns={campaigns} brokers={brokers} />}
+      {error ? <CampaignsError error={error} /> : <CampaignsManager initialCampaigns={campaigns} initialSummary={summary} brokers={brokers} />}
     </main>
   );
 }

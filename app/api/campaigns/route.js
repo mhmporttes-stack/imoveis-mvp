@@ -16,8 +16,15 @@ export async function GET(request) {
   }
 
   try {
-    const campaigns = await listCampaigns();
-    return NextResponse.json({ campaigns: campaigns.map(withLink) });
+    const url = new URL(request.url);
+    const result = await listCampaigns({
+      period: url.searchParams.get("period") || "",
+      startDate: url.searchParams.get("startDate") || "",
+      endDate: url.searchParams.get("endDate") || "",
+      type: url.searchParams.get("type") || "all",
+      search: url.searchParams.get("search") || ""
+    });
+    return NextResponse.json({ ...result, campaigns: result.campaigns.map(withLink) });
   } catch (error) {
     return NextResponse.json({ error: formatCampaignError(error) }, { status: 400 });
   }

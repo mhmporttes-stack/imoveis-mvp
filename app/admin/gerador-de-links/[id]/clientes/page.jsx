@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
-import { formatCampaignError, getCampaign, listCampaignClients } from "@/lib/campaigns";
+import { formatCampaignError, getCampaign, getCampaignStatusBreakdown, listCampaignClients } from "@/lib/campaigns";
 import { clientStatusLabel } from "@/lib/client-status";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export default async function CampaignClientsPage({ params }) {
 
   let campaign = null;
   let clients = [];
+  let statusBreakdown = [];
   let error = "";
 
   try {
@@ -26,20 +27,22 @@ export default async function CampaignClientsPage({ params }) {
 
   if (!error) {
     try {
-      clients = await listCampaignClients(id);
+      [clients, statusBreakdown] = await Promise.all([listCampaignClients(id), getCampaignStatusBreakdown(id)]);
     } catch (loadError) {
       error = formatCampaignError(loadError);
     }
   }
+
+  const conversion = campaign?.viewCount > 0 ? (campaign.clientCount / campaign.viewCount) * 100 : null;
 
   return (
     <main className="bg-mist py-14">
       <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Gerador de Links</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">{campaign?.name || "Clientes da campanha"}</h1>
+          <h1 className="mt-3 text-5xl font-black text-navy">{campaign?.name || "Performance do link"}</h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Cadastros que chegaram através deste link de campanha.
+            Desempenho e funil dos cadastros que chegaram através deste link.
           </p>
         </div>
         <AdminLogoutButton />
@@ -58,7 +61,32 @@ export default async function CampaignClientsPage({ params }) {
             <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
           </article>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-6">
+            <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
+              <StatCard label="Cliques" value={campaign?.viewCount || 0} />
+              <StatCard label="Cadastros" value={campaign?.clientCount || 0} />
+              <StatCard label="Conversão" value={conversion === null ? "—" : `${conversion.toFixed(1)}%`} />
+            </div>
+
+            {statusBreakdown.length ? (
+              <article className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Funil deste link</p>
+                <h2 className="mt-2 text-2xl font-black text-navy">Onde os clientes estão hoje</h2>
+                <p className="mt-2 text-sm font-bold text-muted">
+                  Baseado nos {clients.length} cadastro{clients.length === 1 ? "" : "s"} ainda ativos no CRM — o total histórico de cadastros ({campaign?.clientCount || 0}) inclui também quem já foi excluído/arquivado e não some da estatística.
+                </p>
+                <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {statusBreakdown.map((stage) => (
+                    <div key={stage.status} className="flex items-center justify-between rounded-2xl border border-line bg-mist px-4 py-3">
+                      <span className="font-bold text-navy">{stage.label}</span>
+                      <span className="text-xl font-black text-brand">{stage.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ) : null}
+
+            <div className="grid gap-4">
             {clients.map((client) => (
               <Link
                 key={client.originId}
@@ -83,10 +111,20 @@ export default async function CampaignClientsPage({ params }) {
                 Nenhum cadastro chegou por este link ainda.
               </article>
             ) : null}
+            </div>
           </div>
         )}
       </section>
     </main>
+  );
+}
+
+function StatCard({ label, value }) {
+  return (
+    <article className="rounded-2xl border border-line bg-white p-4 text-center shadow-soft">
+      <p className="text-2xl font-black text-navy">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
+    </article>
   );
 }
 

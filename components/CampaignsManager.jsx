@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Check, Copy, Pencil, Plus, Save, Trash2, Users, X, Zap, ZapOff } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BadgeCheck, Check, Copy, MousePointerClick, Pencil, Percent, Plus, Save, Trash2, UserRound, Users, X, Zap, ZapOff } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
@@ -15,8 +15,24 @@ const STATUS_LABELS = {
   inactive: "Inativa"
 };
 
-export default function CampaignsManager({ initialCampaigns = [], brokers = [] }) {
+const TYPE_FILTERS = [
+  { value: "all", label: "Todos" },
+  { value: "official", label: "Oficiais" },
+  { value: "custom", label: "Personalizados" }
+];
+
+const PERIODS = [
+  { value: "", label: "Todo período" },
+  { value: "today", label: "Hoje" },
+  { value: "last7", label: "7 dias" },
+  { value: "last30", label: "30 dias" },
+  { value: "month", label: "Este mês" },
+  { value: "custom", label: "Personalizado" }
+];
+
+export default function CampaignsManager({ initialCampaigns = [], initialSummary = {}, brokers = [] }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [summary, setSummary] = useState(initialSummary);
   const [form, setForm] = useState(EMPTY_FORM);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -24,6 +40,48 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
   const [editingId, setEditingId] = useState("");
   const [editForm, setEditForm] = useState(null);
   const [copiedId, setCopiedId] = useState("");
+
+  const [type, setType] = useState("all");
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      return;
+    }
+    const timeoutId = setTimeout(loadCampaigns, search ? 350 : 0);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, search, period, startDate, endDate]);
+
+  async function loadCampaigns() {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ type, search });
+      if (period) {
+        params.set("period", period);
+        if (period === "custom") {
+          if (startDate) params.set("startDate", startDate);
+          if (endDate) params.set("endDate", endDate);
+        }
+      }
+      const response = await fetch(`/api/campaigns?${params.toString()}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível carregar os links.");
+      setCampaigns(payload.campaigns || []);
+      setSummary(payload.summary || {});
+    } catch (loadError) {
+      setError(loadError.message || "Não foi possível carregar os links.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const sortedCampaigns = useMemo(
     () => [...campaigns].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
@@ -133,10 +191,67 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
 
   return (
     <section className="container-page grid gap-6">
+      <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tipo de link">
+            {TYPE_FILTERS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setType(option.value)}
+                className={`min-h-11 rounded-full border px-4 text-sm font-extrabold transition ${
+                  type === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nome do link ou corretor..."
+            className="h-11 w-full min-w-0 rounded-2xl border border-line bg-white px-4 font-bold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 lg:max-w-xs"
+          />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Período">
+            {PERIODS.map((option) => (
+              <button
+                key={option.value || "all-time"}
+                type="button"
+                onClick={() => setPeriod(option.value)}
+                className={`min-h-10 rounded-full border px-3.5 text-xs font-extrabold uppercase tracking-wide transition ${
+                  period === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-muted hover:border-brand"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {period === "custom" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DateField label="Início" value={startDate} onChange={setStartDate} />
+              <DateField label="Final" value={endDate} onChange={setEndDate} />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <SummaryCard icon={MousePointerClick} label="Cliques" value={summary.views || 0} tone="blue" />
+        <SummaryCard icon={Users} label="Cadastros" value={summary.clients || 0} tone="amber" />
+        <SummaryCard icon={Percent} label="Conversão" value={formatPercent(summary.conversion)} tone="green" />
+        <SummaryCard icon={UserRound} label="Simulações" value={summary.simulation || 0} tone="slate" />
+        <SummaryCard icon={BadgeCheck} label="Vendas" value={summary.sale || 0} tone="green" />
+      </div>
+
       <form onSubmit={createCampaign} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Nova campanha</p>
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo link personalizado</p>
             <h2 className="mt-2 text-3xl font-black text-navy">Gerar link</h2>
           </div>
           <button type="submit" disabled={isSaving} className="premium-button-primary min-h-11 px-5 py-2.5 disabled:cursor-not-allowed disabled:opacity-60">
@@ -157,9 +272,11 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
         {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
       </form>
 
-      <div className="grid gap-4">
+      <div className={`grid gap-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
         {sortedCampaigns.map((campaign) => {
           const isActive = campaign.status === "active";
+          const isOfficial = campaign.kind === "official";
+          const conversion = campaign.viewCount > 0 ? (campaign.clientCount / campaign.viewCount) * 100 : null;
           return (
             <article key={campaign.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
               {editingId === campaign.id && editForm ? (
@@ -185,21 +302,28 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                       {isActive ? <Zap className="h-4 w-4" aria-hidden="true" /> : <ZapOff className="h-4 w-4" aria-hidden="true" />}
                       {STATUS_LABELS[campaign.status] || "Ativa"}
                     </span>
-                    <span className="rounded-full bg-mist px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-muted">
-                      {campaign.destinationType === "broker" ? "Corretor específico" : "Roleta"}
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] ${isOfficial ? "bg-navy text-white" : "bg-mist text-muted"}`}>
+                      {isOfficial ? <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                      {isOfficial ? "Link Oficial" : "Link Personalizado"}
                     </span>
+                    {!isOfficial ? (
+                      <span className="rounded-full bg-mist px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-muted">
+                        {campaign.destinationType === "broker" ? "Corretor específico" : "Roleta"}
+                      </span>
+                    ) : null}
                   </div>
                   <h3 className="mt-3 truncate text-2xl font-black text-navy">{campaign.name}</h3>
-                  {campaign.destinationType === "broker" ? (
-                    <p className="mt-1 font-bold text-muted">Corretor: <strong className="text-navy">{campaign.brokerName || "Não definido"}</strong></p>
+                  {campaign.brokerName ? (
+                    <p className="mt-1 font-bold text-muted">Corretor: <strong className="text-navy">{campaign.brokerName}</strong></p>
                   ) : null}
                   <p className="mt-1 break-all font-bold text-brand">{campaign.link}</p>
-                  <p className="mt-3 text-sm font-bold text-muted">
-                    Criado em: {formatDate(campaign.createdAt)} · Aberturas: <strong className="text-navy">{campaign.viewCount || 0}</strong> · Cadastros: <strong className="text-navy">{campaign.clientCount || 0}</strong>
-                    {campaign.viewCount > 0 ? (
-                      <> · Conversão: <strong className="text-navy">{Math.round(((campaign.clientCount || 0) / campaign.viewCount) * 100)}%</strong></>
-                    ) : null}
-                  </p>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-md">
+                    <MiniStat label="Cliques" value={campaign.viewCount || 0} />
+                    <MiniStat label="Cadastros" value={campaign.clientCount || 0} />
+                    <MiniStat label="Conversão" value={conversion === null ? "—" : `${conversion.toFixed(1)}%`} />
+                  </div>
+                  <p className="mt-3 text-xs font-bold text-muted">Criado em: {formatDate(campaign.createdAt)}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -208,18 +332,22 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
                     {copiedId === campaign.id ? "Copiado!" : "Copiar link"}
                   </button>
                   <Link href={`/admin/gerador-de-links/${campaign.id}/clientes`} className="premium-button-secondary justify-center">
-                    <Users className="h-5 w-5" /> Ver clientes
+                    <Users className="h-5 w-5" /> Ver performance
                   </Link>
-                  <button type="button" onClick={() => beginEdit(campaign)} className="premium-button-secondary justify-center">
-                    <Pencil className="h-5 w-5" /> Editar
-                  </button>
-                  <button type="button" onClick={() => toggleStatus(campaign)} className="premium-button-secondary justify-center">
-                    {isActive ? <ZapOff className="h-5 w-5" aria-hidden="true" /> : <Zap className="h-5 w-5" aria-hidden="true" />}
-                    {isActive ? "Desativar" : "Ativar"}
-                  </button>
-                  <button type="button" onClick={() => removeCampaign(campaign)} className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft justify-center">
-                    <Trash2 className="h-5 w-5" aria-hidden="true" /> Excluir
-                  </button>
+                  {!isOfficial ? (
+                    <>
+                      <button type="button" onClick={() => beginEdit(campaign)} className="premium-button-secondary justify-center">
+                        <Pencil className="h-5 w-5" /> Editar
+                      </button>
+                      <button type="button" onClick={() => toggleStatus(campaign)} className="premium-button-secondary justify-center">
+                        {isActive ? <ZapOff className="h-5 w-5" aria-hidden="true" /> : <Zap className="h-5 w-5" aria-hidden="true" />}
+                        {isActive ? "Desativar" : "Ativar"}
+                      </button>
+                      <button type="button" onClick={() => removeCampaign(campaign)} className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft justify-center">
+                        <Trash2 className="h-5 w-5" aria-hidden="true" /> Excluir
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </article>
@@ -228,11 +356,36 @@ export default function CampaignsManager({ initialCampaigns = [], brokers = [] }
 
         {!sortedCampaigns.length ? (
           <article className="rounded-[28px] border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
-            Nenhuma campanha criada ainda.
+            Nenhum link encontrado para esse filtro.
           </article>
         ) : null}
       </div>
     </section>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value, tone }) {
+  const toneClasses = {
+    blue: "border-blue-100 bg-blue-50 text-blue-700",
+    amber: "border-amber-100 bg-amber-50 text-amber-700",
+    slate: "border-slate-100 bg-slate-50 text-slate-700",
+    green: "border-emerald-100 bg-emerald-50 text-emerald-700"
+  };
+  return (
+    <article className={`rounded-2xl border bg-white p-4 shadow-soft ${toneClasses[tone] || toneClasses.slate}`}>
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <p className="mt-2 text-2xl font-black text-navy">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
+    </article>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="rounded-xl border border-line bg-mist px-3 py-2 text-center">
+      <p className="text-lg font-black text-navy">{value}</p>
+      <p className="text-[10px] font-black uppercase tracking-wide text-muted">{label}</p>
+    </div>
   );
 }
 
@@ -284,6 +437,25 @@ function Field({ label, value, onChange, type = "text", className = "", placehol
       />
     </label>
   );
+}
+
+function DateField({ label, value, onChange }) {
+  return (
+    <label className="text-sm font-extrabold text-navy">
+      {label}
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 min-h-11 rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
+      />
+    </label>
+  );
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined) return "—";
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function formatDate(value) {

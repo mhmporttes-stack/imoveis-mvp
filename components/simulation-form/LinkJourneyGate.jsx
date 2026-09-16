@@ -18,22 +18,23 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   const [journey, setJourney] = useState("");
   const searchParams = useSearchParams();
   const campaignIdFromUrl = searchParams.get("c") || "";
+  const refFromUrl = brokerRefOverride || searchParams.get("ref") || "";
 
   // Conta a ABERTURA do link (Gerador de Links > contador de aberturas) — só
-  // quando a URL já chega com ?c= (o link de campanha em si, não navegação
-  // interna carregando o id persistido do localStorage). Best-effort/
+  // quando a URL já chega com ?c= (campanha) ou ?ref= (link pessoal/oficial
+  // do corretor/gestor/admin), nunca em navegação interna. Best-effort/
   // fire-and-forget: nunca deve atrasar nem quebrar a experiência do
   // visitante caso a rede falhe.
   useEffect(() => {
-    if (!campaignIdFromUrl) return;
+    if (!campaignIdFromUrl && !refFromUrl) return;
     fetch("/api/campaigns/track-view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId: campaignIdFromUrl }),
+      body: JSON.stringify(campaignIdFromUrl ? { campaignId: campaignIdFromUrl } : { ref: refFromUrl }),
       keepalive: true
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignIdFromUrl]);
+  }, [campaignIdFromUrl, refFromUrl]);
 
   if (journey === "quick_service") {
     return <QuickAttendanceForm brokerRefOverride={brokerRefOverride} onBack={() => setJourney("")} />;
