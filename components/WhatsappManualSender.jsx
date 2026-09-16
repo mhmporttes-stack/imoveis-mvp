@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, ChevronDown, ChevronUp, Clipboard, ExternalLink, History, LoaderCircle, MessageCircle, Send, Settings, Sparkles, Users } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, ChevronUp, Clipboard, Eye, ExternalLink, History, LoaderCircle, MessageCircle, Send, Settings, Sparkles, Users } from "lucide-react";
 import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
 
 const ACTION_LABEL = { opened: "WhatsApp aberto", marked_sent: "Marcado manualmente como enviado" };
@@ -296,10 +296,14 @@ function AllMessagesList({ data }) {
                 <button
                   type="button"
                   onClick={() => setExpandedId((current) => current === item.brokerId ? "" : item.brokerId)}
-                  className="inline-flex items-center gap-1 font-black text-navy"
+                  className="inline-flex items-center gap-2 font-black text-navy"
                 >
-                  {item.brokerName}
-                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span>{item.brokerName}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] font-black text-brand">
+                    <Eye className="h-3.5 w-3.5" />
+                    {expanded ? "Ocultar" : "Visualizar"}
+                    {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </span>
                 </button>
 
                 {!hasPhone ? (
@@ -322,11 +326,14 @@ function AllMessagesList({ data }) {
               </div>
 
               {expanded ? (
-                <textarea
-                  className="mt-3 min-h-32 w-full rounded-2xl border border-line p-3 font-normal"
-                  value={messages[item.brokerId] ?? item.message}
-                  onChange={(event) => setMessages((current) => ({ ...current, [item.brokerId]: event.target.value }))}
-                />
+                <div className="mt-3">
+                  <p className="mb-1 text-[11px] font-black uppercase tracking-wide text-muted">Prévia da mensagem — pode editar antes de enviar</p>
+                  <textarea
+                    className="min-h-32 w-full rounded-2xl border border-line p-3 font-normal"
+                    value={messages[item.brokerId] ?? item.message}
+                    onChange={(event) => setMessages((current) => ({ ...current, [item.brokerId]: event.target.value }))}
+                  />
+                </div>
               ) : null}
             </div>
           );
