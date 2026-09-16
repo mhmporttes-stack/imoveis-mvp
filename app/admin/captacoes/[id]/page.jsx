@@ -1,20 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, MessageCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
+import CaptacaoInternalInfoCard from "@/components/captacoes/CaptacaoInternalInfoCard";
 import CaptacaoStatusSelect from "@/components/captacoes/CaptacaoStatusSelect";
 import PublishCaptacaoButton from "@/components/captacoes/PublishCaptacaoButton";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
+import { isGeneralAdminAuth } from "@/lib/admin-profiles";
 import { formatDateTimeSaoPaulo } from "@/lib/date-utils";
-import { getCaptacao } from "@/lib/captacoes";
+import { canViewCaptacaoInternalInfo, getCaptacao } from "@/lib/captacoes";
 import {
   CURRENT_SITUATION_OPTIONS,
   EXCHANGE_OPTIONS,
   SALE_TIMELINE_OPTIONS,
-  formatCaptacaoMoney,
-  formatCaptacaoPhone,
-  formatCaptacaoType,
-  getCaptacaoWhatsApp
+  formatCaptacaoType
 } from "@/lib/captacoes-schema";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +25,7 @@ export default async function CaptacaoDetailPage({ params }) {
   const captacao = await getCaptacao(id, auth);
   if (!captacao) notFound();
 
-  const whatsappUrl = getCaptacaoWhatsApp(captacao.ownerPhone);
+  const canViewInternal = canViewCaptacaoInternalInfo(auth);
   const typeLabel = formatCaptacaoType(captacao.propertyType, captacao.propertyTypeOther);
 
   return (
@@ -39,7 +38,7 @@ export default async function CaptacaoDetailPage({ params }) {
           </Link>
           <p className="mt-6 text-sm font-black uppercase tracking-[0.18em] text-brand">Captação recebida</p>
           <h1 className="mt-3 truncate text-[clamp(2.25rem,6vw,4.5rem)] font-black leading-[0.95] text-navy">
-            {captacao.ownerName}
+            {canViewInternal ? captacao.ownerName : typeLabel}
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
             {typeLabel} enviado em {formatDateTimeSaoPaulo(captacao.createdAt)}.
@@ -52,12 +51,6 @@ export default async function CaptacaoDetailPage({ params }) {
         <div className="grid gap-4 rounded-[28px] border border-line bg-white p-6 shadow-soft lg:grid-cols-[1fr_auto] lg:items-center">
           <CaptacaoStatusSelect captacaoId={captacao.id} initialStatus={captacao.status} />
           <div className="flex flex-col gap-3 sm:flex-row">
-            {whatsappUrl ? (
-              <a className="premium-button-secondary" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="h-5 w-5" aria-hidden="true" />
-                WhatsApp
-              </a>
-            ) : null}
             {captacao.propertyId ? (
               <Link className="premium-button-secondary" href={`/admin/empreendimentos/${captacao.propertyId}`}>
                 <ExternalLink className="h-5 w-5" aria-hidden="true" />
@@ -68,21 +61,16 @@ export default async function CaptacaoDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <InfoCard title="Proprietário">
-            <InfoLine label="Nome" value={captacao.ownerName} />
-            <InfoLine label="WhatsApp" value={formatCaptacaoPhone(captacao.ownerPhone)} />
-            <InfoLine label="E-mail" value={captacao.ownerEmail || "Não informado"} />
-          </InfoCard>
+        {canViewInternal ? <CaptacaoInternalInfoCard captacaoId={captacao.id} initial={captacao} /> : null}
 
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <InfoCard title="Imóvel">
             <InfoLine label="Tipo" value={typeLabel} />
-            <InfoLine label="Endereço" value={formatAddress(captacao)} />
+            <InfoLine label="Bairro" value={captacao.neighborhood || "Não informado"} />
             <InfoLine label="Cidade" value={[captacao.city, captacao.state].filter(Boolean).join(" / ")} />
           </InfoCard>
 
           <InfoCard title="Venda">
-            <InfoLine label="Valor pretendido" value={captacao.requestsEvaluation ? "Solicitou avaliação" : (formatCaptacaoMoney(captacao.intendedPrice) || "Não informado")} />
             <InfoLine label="Prazo" value={optionLabel(SALE_TIMELINE_OPTIONS, captacao.saleTimeline) || "Não informado"} />
             <InfoLine label="Permuta" value={optionLabel(EXCHANGE_OPTIONS, captacao.exchangeAcceptance) || "Não informado"} />
             <InfoLine label="Situação atual" value={optionLabel(CURRENT_SITUATION_OPTIONS, captacao.currentSituation) || "Não informado"} />
@@ -113,7 +101,7 @@ export default async function CaptacaoDetailPage({ params }) {
                 >
                   <img
                     src={photo.data}
-                    alt={`Foto ${index + 1} da captação de ${captacao.ownerName}`}
+                    alt={`Foto ${index + 1} da captação (${typeLabel})`}
                     className="h-56 w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                   />
                 </a>
@@ -178,12 +166,4 @@ function DetailsList({ details = {} }) {
 
 function optionLabel(options, value) {
   return options.find((option) => option.value === value)?.label || "";
-}
-
-function formatAddress(captacao) {
-  return [
-    captacao.street,
-    captacao.number,
-    captacao.neighborhood
-  ].filter(Boolean).join(", ") || "Endereço a confirmar";
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBrokerManagementApi } from "@/lib/admin-auth";
-import { deleteCaptacao, formatCaptacaoError, getCaptacao, updateCaptacao } from "@/lib/captacoes";
+import { canViewCaptacaoInternalInfo, deleteCaptacao, formatCaptacaoError, getCaptacao, redactCaptacaoInternalFields, updateCaptacao } from "@/lib/captacoes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,8 @@ export async function GET(request, { params }) {
   const { id } = await params;
   try {
     const captacao = await getCaptacao(id, auth);
-    return NextResponse.json(captacao);
+    const safe = canViewCaptacaoInternalInfo(auth) ? captacao : redactCaptacaoInternalFields(captacao);
+    return NextResponse.json(safe);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: formatCaptacaoError(error) }, { status: 404 });
@@ -30,7 +31,8 @@ export async function PATCH(request, { params }) {
   const { id } = await params;
   try {
     const captacao = await updateCaptacao(id, await request.json(), auth);
-    return NextResponse.json(captacao);
+    const safe = canViewCaptacaoInternalInfo(auth) ? captacao : redactCaptacaoInternalFields(captacao);
+    return NextResponse.json(safe);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: formatCaptacaoError(error) }, { status: 400 });
