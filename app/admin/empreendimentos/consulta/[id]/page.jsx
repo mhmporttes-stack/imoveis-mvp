@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BookOpen, Download, MapPin } from "lucide-react";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireAdminPage } from "@/lib/admin-auth";
-import { coverImage } from "@/lib/format";
+import { buildGoogleMapsUrl, coverImage } from "@/lib/format";
 import { getProperty } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,12 @@ export default async function InternalDevelopmentPage({ params }) {
         <Info label="Informações comerciais" value={property.terms || property.salesText} />
         <Info label="Diferenciais" value={(property.features || []).map((item) => typeof item === "string" ? item : item.text).filter(Boolean).join(" • ")} />
         {property.internalNotes ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line font-semibold leading-7 text-amber-950">{property.internalNotes}</p></div> : null}
-        <div className="flex flex-wrap gap-3">{property.pdfData ? <a className="premium-button-primary" href={property.pdfData} target="_blank" rel="noreferrer">Abrir e-book</a> : null}<Link className="premium-button-secondary" href="/admin/empreendimentos">Voltar</Link></div>
+        <div className="flex flex-wrap gap-3">
+          <a className="premium-button-secondary" href={buildGoogleMapsUrl(property)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-5 w-5" aria-hidden="true" />Localização</a>
+          {property.pdfData ? <a className="premium-button-primary" href={property.pdfData} target="_blank" rel="noreferrer"><BookOpen className="mr-2 h-5 w-5" aria-hidden="true" />Abrir e-book</a> : null}
+          {property.pdfData ? <a className="premium-button-secondary" href={property.pdfData} download={property.pdfName || `${property.name || "book"}.pdf`}><Download className="mr-2 h-5 w-5" aria-hidden="true" />Baixar book</a> : null}
+          <Link className="premium-button-secondary" href="/admin/empreendimentos">Voltar</Link>
+        </div>
       </div>
     </section>
   </main>;

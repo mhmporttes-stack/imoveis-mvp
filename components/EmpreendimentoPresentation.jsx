@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ChevronLeft, ChevronRight, Download, Expand, MapPin, X } from "lucide-react";
-import { coverImage } from "@/lib/format";
+import { buildGoogleMapsUrl, coverImage } from "@/lib/format";
 import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-schema";
 import { getRenderableSimulationModels, normalizeSimulationModels } from "@/lib/simulation-models";
 
@@ -118,7 +118,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
             <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{selected.builder || "Empreendimento"}</p>
             <h2 className="mt-2 text-4xl font-black text-navy">{selected.name}</h2>
             <p className="mt-2 font-semibold text-muted">{selected.location || "Localização sob consulta"}</p>
-            <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={mapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
+            <a className="premium-button-secondary mt-4 inline-flex px-4 py-2 text-sm" href={buildGoogleMapsUrl(selected)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-4 w-4" />Abrir localização</a>
             {selected.internalNotes ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-[0.12em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-amber-950">{selected.internalNotes}</p></div> : null}
             {selected.pdfData ? (
               <div className="mt-4 flex flex-wrap gap-3">
@@ -225,7 +225,3 @@ function propertyImages(property) {
   return urls.length ? urls : property ? [coverImage(property)] : [];
 }
 
-function mapsUrl(property) {
-  const query = [property.location, property.name].filter(Boolean).join(" - ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
