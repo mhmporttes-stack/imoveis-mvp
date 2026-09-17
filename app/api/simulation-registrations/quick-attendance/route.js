@@ -5,6 +5,7 @@ import {
   formatSimulationRegistrationError
 } from "@/lib/simulation-registrations";
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
+import { extractRequestMetadata } from "@/lib/meta-conversions-api";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,7 +32,7 @@ export async function POST(request) {
   }
 
   try {
-    const registration = await createQuickAttendanceRegistration(payload);
+    const registration = await createQuickAttendanceRegistration(payload, extractRequestMetadata(request));
 
     try {
       const notification = await sendSimulationRegistrationNotification(registration);

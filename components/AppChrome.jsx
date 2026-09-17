@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import InstagramFloatingButton from "@/components/InstagramFloatingButton";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
+import MetaPixel from "@/components/MetaPixel";
 import PwaLifecycle from "@/components/PwaLifecycle";
 import ViewportZoomLock from "@/components/ViewportZoomLock";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
@@ -36,6 +37,7 @@ export default function AppChrome({ children }) {
     <>
       <PwaLifecycle />
       <ViewportZoomLock />
+      {!isAdminRoute ? <MetaPixel /> : null}
       {!isAdminRoute ? <CampaignLinkCapture /> : null}
       {isAdminRoute ? (
         <>

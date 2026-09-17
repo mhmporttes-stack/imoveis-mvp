@@ -5,9 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, MessageCircle, Phone } from "lucide-react";
 import PhoneInputStep from "@/components/simulation-form/PhoneInputStep";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
-import { isValidBrazilianMobile } from "@/lib/phone-utils";
+import { isValidBrazilianMobile, toBrazilianE164 } from "@/lib/phone-utils";
 import { normalizePersonName } from "@/lib/name-utils";
 import { readStoredCampaignId } from "@/lib/campaign-link-client";
+import { trackMetaLead } from "@/lib/meta-pixel-client";
 
 const NAME_STEP = { id: "fullName", title: "Nome", placeholder: "Seu nome completo", autoComplete: "name" };
 const PHONE_STEP = { id: "phone", title: "WhatsApp", placeholder: "(00) 00000-0000", autoComplete: "tel" };
@@ -42,6 +43,10 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) 
     setSubmitting(true);
     setSubmitError("");
 
+    // eventId compartilhado entre o pixel do navegador e o envio server-side
+    // (Conversions API) — mesma lógica de SimulationForm.jsx.
+    const eventId = crypto.randomUUID();
+
     try {
       const response = await fetch("/api/simulation-registrations/quick-attendance", {
         method: "POST",
@@ -52,6 +57,7 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) 
           contactPreference,
           brokerRef,
           campaignId,
+          metaEventId: eventId,
           attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((key) => [key, searchParams.get(key) || ""]))
         })
       });
@@ -64,6 +70,7 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) 
       }
 
       setDone(true);
+      trackMetaLead({ phone: toBrazilianE164(phone), eventId });
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
       setSubmitting(false);

@@ -14,6 +14,8 @@ import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
 import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preferences";
 import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
+import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
+import { trackMetaLead } from "@/lib/meta-pixel-client";
 import {
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
@@ -146,11 +148,16 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
     setSubmitting(true);
     setSubmitError("");
 
+    // eventId compartilhado entre o pixel do navegador e o envio server-side
+    // (Conversions API) — a Meta usa isso para deduplicar o mesmo evento
+    // vindo dos dois canais, em vez de contar a conversão duas vezes.
+    const eventId = crypto.randomUUID();
+
     try {
       const response = await fetch("/api/simulation-registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, brokerRef, campaignId, attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])) })
+        body: JSON.stringify({ ...form, brokerRef, campaignId, metaEventId: eventId, attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])) })
       });
       const data = await response.json().catch(() => ({}));
 
@@ -167,6 +174,9 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
 
       setRegistrationContext(nextContext);
       setCompletionView(nextContext.id && nextContext.preferencesAccessToken ? "invite" : "success");
+
+      const totalIncome = validation.data.primaryMonthlyIncome + (validation.data.secondaryMonthlyIncome || 0);
+      trackMetaLead({ phone: validation.data.phoneNormalized, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
     } finally {
