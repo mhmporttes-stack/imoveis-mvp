@@ -1168,7 +1168,7 @@ function ClientCard({
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
           </div>
-          {hasRegistration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} /> : null}
+          {hasRegistration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} responsibleName={responsibleName} tags={clientTags} /> : null}
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">

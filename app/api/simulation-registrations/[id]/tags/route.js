@@ -20,7 +20,7 @@ export async function PUT(request, { params }) {
     const tagIds = Array.isArray(body.tagIds) ? body.tagIds : [];
     const id = (await params).id;
     await getSimulationRegistration(id, auth);
-    await setClientTags(id, tagIds);
+    await setClientTags(id, tagIds, auth);
     const registration = await markSimulationRegistrationAdminActivity(id, auth.user?.email, auth);
     return NextResponse.json({ ok: true, tagIds, registration });
   } catch (error) {
