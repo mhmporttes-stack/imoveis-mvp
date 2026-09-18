@@ -251,7 +251,7 @@ export default function AdminSimulationList({
 
       return (
         client.searchText.text.includes(textQuery) ||
-        (clientCodeQuery ? client.searchText.clientCode.includes(clientCodeQuery) : false) ||
+        (clientCodeQuery ? String(client.searchText.clientCode || "").includes(clientCodeQuery) : false) ||
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
