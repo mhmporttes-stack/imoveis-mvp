@@ -158,6 +158,13 @@ function BrokerCard({ broker, onClick }) {
         {broker.meta.done} / {broker.meta.total} atividades
       </p>
 
+      {broker.wallet ? (
+        <p className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}>
+          Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
+          <span className="ml-1 font-bold text-muted">(1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
+        </p>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         <MiniStat label="Contatos" value={broker.funnel.contatos} />
         <MiniStat label="Atend." value={broker.funnel.atendimentos} />

@@ -91,7 +91,7 @@ export default function DailyGoalDashboard({ initialGoal }) {
             </div>
           </div>
           <p className="text-center text-sm font-bold text-muted">
-            {goal.done} de {goal.total} atividades concluídas
+            {goal.realizedToday ?? goal.done} ações reais hoje · cota diária {goal.quota ?? goal.total}
           </p>
           {goal.percent >= 100 ? (
             <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-black text-emerald-700">
@@ -99,6 +99,23 @@ export default function DailyGoalDashboard({ initialGoal }) {
             </p>
           ) : null}
         </div>
+
+        {goal.wallet ? (
+          <div className="mt-5 rounded-2xl border border-line bg-mist/40 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">Carteira ativa</p>
+              <p className={`text-sm font-black ${goal.wallet.atLimit ? "text-red-600" : "text-navy"}`}>{goal.wallet.current}/{goal.wallet.limit}</p>
+            </div>
+            <p className="mt-1 text-[11px] font-bold text-muted">
+              1ª: {goal.wallet.byAttempt.first} · 2ª: {goal.wallet.byAttempt.second} · 3ª: {goal.wallet.byAttempt.third}
+            </p>
+            {goal.wallet.atLimit ? (
+              <p className="mt-2 text-xs font-bold text-red-700">
+                Sua carteira atingiu o limite configurado ({goal.wallet.limit}). Conclua ou encerre atendimentos pendentes para liberar espaço para novos contatos.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {GROUPS.map((group) => (

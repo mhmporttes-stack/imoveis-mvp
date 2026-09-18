@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { formatDailyGoalError, getDailyGoalSettings, updateDailyGoalMessages, updateDailyGoalQuota } from "@/lib/daily-goal";
+import { formatDailyGoalError, getDailyGoalSettings, updateDailyGoalMessages, updateDailyGoalQuota, updateDailyGoalWalletConfig } from "@/lib/daily-goal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +22,7 @@ export async function PATCH(request) {
     const body = await request.json().catch(() => ({}));
     if (body.quota !== undefined) await updateDailyGoalQuota(body.quota, auth);
     if (body.messages !== undefined) await updateDailyGoalMessages(body.messages, auth);
+    if (body.wallet !== undefined) await updateDailyGoalWalletConfig(body.wallet, auth);
     return NextResponse.json(await getDailyGoalSettings(auth));
   } catch (error) {
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: error?.status || 400 });

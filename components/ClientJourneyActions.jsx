@@ -130,7 +130,7 @@ function eventTitleAndDescription(event, context = {}) {
     case "prospecting:returned_to_queue":
       return { title: "CONTATO DEVOLVIDO À FILA", description: [] };
     case "prospecting:do_not_contact":
-      return { title: "CONTATO BLOQUEADO", description: ["Status: Não contactar novamente"] };
+      return { title: "CONTATO BLOQUEADO", description: ["Status: Não contactar novamente", d.reasonText ? `Motivo: ${d.reasonText}` : ""].filter(Boolean) };
     case "prospecting:daily_goal_attempt":
       return { title: `${d.attempt ? `${d.attempt}ª TENTATIVA` : "TENTATIVA"} REALIZADA`, description: [d.channel === "whatsapp" ? "Canal: WhatsApp" : d.channel || "", "✓ Contabilizada na meta"].filter(Boolean) };
     case "prospecting:daily_goal_converted":

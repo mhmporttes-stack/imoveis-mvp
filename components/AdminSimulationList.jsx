@@ -148,6 +148,7 @@ export default function AdminSimulationList({
   const [tagDraft, setTagDraft] = useState("");
   const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
   const [busyClientId, setBusyClientId] = useState("");
+  const [dncTarget, setDncTarget] = useState(null);
   const [schedulingClientId, setSchedulingClientId] = useState("");
   const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
   // Atividades extras (calendar_activities) por cliente — o cliente pode ter
@@ -474,19 +475,32 @@ export default function AdminSimulationList({
     }
   }
 
-  async function handleProspectingAction(client, action) {
+  async function handleProspectingAction(client, action, extraPayload = {}) {
     if (!client.registration?.id) return;
-    if (action === "do_not_contact" && !confirm("Confirma que este cliente pediu para não receber novos contatos?")) return;
+    if (action === "do_not_contact") { setDncTarget(client); return; }
     if (action === "return_to_queue" && !confirm("Devolver este cliente imediatamente para a fila de prospecção?")) return;
     const whatsappWindow = action === "prospect" ? window.open("about:blank", "_blank") : null;
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...extraPayload }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) { whatsappWindow?.close(); alert(data.error || "Não foi possível atualizar a prospecção."); return; }
       if (data.whatsappUrl && whatsappWindow) whatsappWindow.location.href = data.whatsappUrl;
       if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
       else setLocalRegistrations((current) => current.map((item) => item.id === client.registration.id ? { ...item, status: data.status, prospectingAssignedPending: data.prospectingAssignedPending ?? item.prospectingAssignedPending } : item));
+    } finally { setBusyClientId(""); }
+  }
+
+  async function confirmDoNotContact(reasonKey, reasonText) {
+    const client = dncTarget;
+    if (!client) return;
+    setDncTarget(null);
+    setBusyClientId(client.id);
+    try {
+      const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "do_not_contact", reasonKey, reasonText }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { alert(data.error || "Não foi possível registrar \"não contactar novamente\"."); return; }
+      if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
     } finally { setBusyClientId(""); }
   }
 
@@ -1076,7 +1090,68 @@ export default function AdminSimulationList({
           </PaginationButton>
         </div>
       ) : null}
+
+      {dncTarget ? (
+        <DoNotContactModal
+          clientName={dncTarget.fullName || dncTarget.registration?.fullName || "este cliente"}
+          onCancel={() => setDncTarget(null)}
+          onConfirm={confirmDoNotContact}
+        />
+      ) : null}
     </section>
+  );
+}
+
+const DO_NOT_CONTACT_REASONS = [
+  { key: "client_requested", label: "Cliente solicitou" },
+  { key: "invalid_number", label: "Número inválido" },
+  { key: "already_purchased", label: "Já adquiriu imóvel" },
+  { key: "not_interested", label: "Sem interesse" },
+  { key: "wrong_contact", label: "Contato incorreto" },
+  { key: "other", label: "Outro" }
+];
+
+// Motivo obrigatório para "Não contactar novamente" (pente-fino Meta Diária):
+// nunca uma ação silenciosa/sem justificativa — registrada com auditoria
+// completa no servidor (lib/daily-goal-wallet.js), inclusive com trava
+// anti-abuso contra remoções em massa.
+function DoNotContactModal({ clientName, onCancel, onConfirm }) {
+  const [reasonKey, setReasonKey] = useState("client_requested");
+  const [reasonText, setReasonText] = useState("");
+
+  function handleConfirm() {
+    if (reasonKey === "other" && !reasonText.trim()) return;
+    onConfirm(reasonKey, reasonText.trim());
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4">
+      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-soft">
+        <h3 className="text-lg font-black text-navy">Não contactar novamente</h3>
+        <p className="mt-1 text-sm font-bold text-muted">Selecione o motivo para {clientName}. Essa ação é registrada e auditável.</p>
+        <div className="mt-4 space-y-2">
+          {DO_NOT_CONTACT_REASONS.map((option) => (
+            <label key={option.key} className="flex items-center gap-2 text-sm font-bold text-navy">
+              <input checked={reasonKey === option.key} name="dnc-reason" onChange={() => setReasonKey(option.key)} type="radio" value={option.key} />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        {reasonKey === "other" ? (
+          <textarea
+            className="mt-3 w-full rounded-2xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"
+            onChange={(event) => setReasonText(event.target.value)}
+            placeholder="Descreva o motivo"
+            rows={3}
+            value={reasonText}
+          />
+        ) : null}
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button className="premium-button-secondary" onClick={onCancel} type="button">Cancelar</button>
+          <button className="premium-button-primary bg-red-600 hover:bg-red-700" disabled={reasonKey === "other" && !reasonText.trim()} onClick={handleConfirm} type="button">Confirmar</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
