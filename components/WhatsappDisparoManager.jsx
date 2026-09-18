@@ -104,7 +104,7 @@ function TemplatesSection({ templates, onReload }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-bold text-muted">Modelos aprovados pela Meta podem ser usados em campanhas. Modelos criados fora daqui aparecem depois de sincronizar.</p>
         <div className="flex gap-2">
-          <button type="button" onClick={syncFromMeta} disabled={busy} className="premium-button-secondary">
+          <button type="button" onClick={syncFromMeta} disabled={busy} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sincronizar com a Meta
           </button>
@@ -262,7 +262,7 @@ function CreateTemplateForm({ onCreated, onError }) {
         {buttonText ? <><br /><span className="mt-1 inline-block rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-brand">{buttonText}</span></> : null}
       </div>
 
-      <button type="submit" disabled={busy} className="premium-button-primary">
+      <button type="submit" disabled={busy} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">
         {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         Enviar para aprovação da Meta
       </button>
@@ -395,7 +395,15 @@ function NewCampaignSection({ approvedTemplates, templatesLoaded }) {
               ))}
             </div>
           )}
-          <button type="button" disabled={!campaignName.trim() || !templateId} onClick={() => setStep("contacts")} className="premium-button-primary">Continuar</button>
+          <button
+            type="button"
+            disabled={!campaignName.trim() || !templateId}
+            onClick={() => setStep("contacts")}
+            className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Continuar
+          </button>
+          {!campaignName.trim() ? <p className="text-xs font-bold text-red-600">Preencha o nome interno da campanha acima para continuar.</p> : !templateId ? <p className="text-xs font-bold text-red-600">Selecione um template para continuar.</p> : null}
         </div>
       ) : null}
 
@@ -430,7 +438,7 @@ function NewCampaignSection({ approvedTemplates, templatesLoaded }) {
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setStep("contacts")} className="premium-button-secondary">Voltar</button>
-            <button type="button" disabled={busy} onClick={goToReview} className="premium-button-primary">
+            <button type="button" disabled={busy} onClick={goToReview} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">
               {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null} Revisar campanha
             </button>
           </div>
@@ -456,9 +464,10 @@ function NewCampaignSection({ approvedTemplates, templatesLoaded }) {
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setStep("destination")} className="premium-button-secondary">Voltar</button>
-            <button type="button" disabled={busy || !preview.totalToSend} onClick={confirmDispatch} className="premium-button-primary">
+            <button type="button" disabled={busy || !preview.totalToSend} onClick={confirmDispatch} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">
               {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Disparar agora
             </button>
+            {!busy && !preview.totalToSend ? <p className="self-center text-xs font-bold text-red-600">Nenhum contato válido para disparo.</p> : null}
           </div>
         </div>
       ) : null}
@@ -558,8 +567,8 @@ function ContactsStep({ sourceType, setSourceType, selectedContacts, setSelected
             {!loading && !results.length ? <p className="p-4 text-center text-sm text-muted">Nenhum contato encontrado.</p> : null}
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={offset === 0} onClick={() => search(Math.max(offset - pageSize, 0))} className="premium-button-secondary">Anterior</button>
-            <button type="button" disabled={offset + pageSize >= total} onClick={() => search(offset + pageSize)} className="premium-button-secondary">Próxima</button>
+            <button type="button" disabled={offset === 0} onClick={() => search(Math.max(offset - pageSize, 0))} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">Anterior</button>
+            <button type="button" disabled={offset + pageSize >= total} onClick={() => search(offset + pageSize)} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">Próxima</button>
           </div>
         </div>
       ) : (
@@ -572,9 +581,10 @@ function ContactsStep({ sourceType, setSourceType, selectedContacts, setSelected
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onBack} className="premium-button-secondary">Voltar</button>
-        <button type="button" disabled={!totalSelected} onClick={onContinue} className="premium-button-primary">Continuar</button>
+        <button type="button" disabled={!totalSelected} onClick={onContinue} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">Continuar</button>
+        {!totalSelected ? <p className="text-xs font-bold text-red-600">Selecione ao menos um contato para continuar.</p> : null}
       </div>
     </div>
   );
