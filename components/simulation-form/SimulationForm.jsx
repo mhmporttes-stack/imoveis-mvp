@@ -29,7 +29,7 @@ const booleanOptions = [
   { value: false, label: "Não" }
 ];
 
-export default function SimulationForm({ brokerRefOverride = "" }) {
+export default function SimulationForm({ brokerRefOverride = "", journeySelected = "" }) {
   const searchParams = useSearchParams();
   const initialType = searchParams.get("tipo") === "joint"
     ? "joint"
@@ -157,7 +157,16 @@ export default function SimulationForm({ brokerRefOverride = "" }) {
       const response = await fetch("/api/simulation-registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, brokerRef, campaignId, metaEventId: eventId, attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])) })
+        body: JSON.stringify({
+          ...form,
+          brokerRef,
+          campaignId,
+          metaEventId: eventId,
+          attribution: {
+            ...Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])),
+            ...(journeySelected ? { journey_selected: journeySelected } : {})
+          }
+        })
       });
       const data = await response.json().catch(() => ({}));
 

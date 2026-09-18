@@ -5,6 +5,7 @@ import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
 import WhatsappManualSender from "@/components/WhatsappManualSender";
+import WhatsappDisparoManager from "@/components/WhatsappDisparoManager";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
 import WhatsappTemplateManager from "@/components/WhatsappTemplateManager";
@@ -53,6 +54,7 @@ export default async function AutomationsPage({ searchParams }) {
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
           <WhatsappTemplateManager initialStatus={whatsappData.dailyPerformanceStatus} />
+          <WhatsappDisparoManager />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
       ) : tab === "whatsapp-manual" ? (

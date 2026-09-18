@@ -18,7 +18,7 @@ const PREFERENCE_OPTIONS = [
   { value: "call", label: "Ligação", icon: Phone }
 ];
 
-export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) {
+export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, journeySelected = "" }) {
   const searchParams = useSearchParams();
   const brokerRef = brokerRefOverride || searchParams.get("ref") || "";
   const campaignId = searchParams.get("c") || readStoredCampaignId();
@@ -58,7 +58,10 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) 
           brokerRef,
           campaignId,
           metaEventId: eventId,
-          attribution: Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((key) => [key, searchParams.get(key) || ""]))
+          attribution: {
+            ...Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((key) => [key, searchParams.get(key) || ""])),
+            ...(journeySelected ? { journey_selected: journeySelected } : {})
+          }
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -95,14 +98,16 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack }) 
 
   return (
     <article className="mx-auto w-full max-w-2xl rounded-[32px] border border-line bg-white p-6 shadow-soft sm:p-8 lg:p-10">
-      <button
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-muted transition hover:text-brand"
-        onClick={onBack}
-        type="button"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Voltar
-      </button>
+      {onBack ? (
+        <button
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-muted transition hover:text-brand"
+          onClick={onBack}
+          type="button"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Voltar
+        </button>
+      ) : null}
 
       <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-brand">Atendimento rápido</p>
       <h1 className="mt-3 text-[clamp(1.7rem,4vw,2.5rem)] font-black leading-[1.05] text-navy">
