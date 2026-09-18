@@ -235,6 +235,7 @@ export default function AdminSimulationList({
   // pra esses números baterem com o corretor/tag/busca selecionados.
   const scopedClients = useMemo(() => {
     const textQuery = normalizeText(query);
+    const clientCodeQuery = normalizeClientCode(query);
     const phoneQuery = normalizePhone(query);
 
     return clients.filter((client) => {
@@ -250,6 +251,7 @@ export default function AdminSimulationList({
 
       return (
         client.searchText.text.includes(textQuery) ||
+        (clientCodeQuery ? client.searchText.clientCode.includes(clientCodeQuery) : false) ||
         (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
       );
     });
@@ -2136,17 +2138,17 @@ function buildSearchText(simulation = {}, registration = null) {
   ].map(normalizePhone).join(" ");
 
   const tags = ensureArray(registration?.tags).map((tagItem) => tagItem.name).join(" ");
+  const clientCode = normalizeClientCode(registration?.clientCode);
   const text = normalizeText([
     safeSimulation.clientName,
     registration?.fullName,
-    registration?.clientCode,
     registration?.primaryIncomeType,
     tags,
     safeSimulation.createdBy,
     safeSimulation.internalNote
   ].filter(Boolean).join(" "));
 
-  return { phone, text };
+  return { phone, text, clientCode };
 }
 
 function formatDateLabel(registration, simulation) {
@@ -2282,6 +2284,10 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function normalizeClientCode(value) {
+  return normalizeText(value).replace(/^#+/, "");
 }
 
 function ensureArray(value) {

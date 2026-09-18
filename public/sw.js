@@ -5,7 +5,7 @@
 // disponível" (components/PwaLifecycle.jsx) nunca aparece. Bônus: cada build
 // também ganha um cache novo de verdade (o cleanup do "activate" abaixo já
 // apaga o anterior), em vez de depender de alguém lembrar de bumpar "v4" à mão.
-const CACHE_VERSION = "painel-matheus-v4-mu35k3m0";
+const CACHE_VERSION = "painel-matheus-v4-mu70r0so";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
