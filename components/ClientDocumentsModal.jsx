@@ -321,7 +321,7 @@ function BatchRow({ batch, isActive, onOpen }) {
       </div>
       {batch.status === "analyzed" ? (
         <p className="mt-1 text-xs font-bold text-muted">
-          {summary.conform || 0} conforme · {summary.pending || 0} pendência(s) · {summary.absent || 0} ausente(s) · {summary.needsConfirmation || 0} p/ confirmar
+          {summary.conform || 0} arquivo(s) conforme · {summary.pending || 0} pendência(s) · {summary.needsConfirmation || 0} p/ confirmar neste envio
         </p>
       ) : null}
       {batch.status === "failed" ? <p className="mt-1 text-xs font-bold text-red-700">{batch.errorMessage}</p> : null}
@@ -454,12 +454,12 @@ function ChecklistItemCard({ item, documents, canManage, onView, onDelete, onCor
 
 function CcaSubmissionFlow({ clientId, batchId, onClose }) {
   const [ccaOptions, setCcaOptions] = useState(null);
+  const [propertyOptions, setPropertyOptions] = useState(null);
   const [ccaId, setCcaId] = useState("");
   const [propertyType, setPropertyType] = useState("");
   const [propertyValue, setPropertyValue] = useState("");
+  const [propertyId, setPropertyId] = useState("");
   const [propertyName, setPropertyName] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [pis, setPis] = useState("");
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -467,7 +467,14 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
 
   useEffect(() => {
     fetch("/api/admin/cca?onlyActive=1").then((response) => response.json()).then((data) => setCcaOptions(data.cca || []));
+    fetch("/api/properties").then((response) => response.json()).then((data) => setPropertyOptions(Array.isArray(data) ? data : []));
   }, []);
+
+  // CPF/PIS nunca são digitados aqui — são resolvidos automaticamente pelo
+  // servidor a partir do cadastro do cliente (item 33/41 do pedido).
+  function buildPayload(extra) {
+    return { clientId, batchId, ccaId, propertyType, propertyValue, propertyId: propertyId || null, propertyName: propertyId ? "" : propertyName, ...extra };
+  }
 
   async function handlePreview() {
     if (!ccaId) { setError("Selecione a CCA."); return; }
@@ -477,7 +484,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
       const response = await fetch("/api/admin/client-documents/cca-submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, batchId, ccaId, propertyType, propertyValue, propertyName, cpf, pis })
+        body: JSON.stringify(buildPayload())
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error);
@@ -496,7 +503,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
       const response = await fetch("/api/admin/client-documents/cca-submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, batchId, ccaId, propertyType, propertyValue, propertyName, cpf, pis, action: "submit" })
+        body: JSON.stringify(buildPayload({ action: "submit" }))
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error);
@@ -557,9 +564,19 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
                 <option value="usado">Usado</option>
               </select>
               <input className="rounded-lg border border-line p-2 text-sm" placeholder="Valor (opcional)" value={propertyValue} onChange={(event) => setPropertyValue(event.target.value)} />
-              <input className="col-span-2 rounded-lg border border-line p-2 text-sm" placeholder="Empreendimento (opcional)" value={propertyName} onChange={(event) => setPropertyName(event.target.value)} />
-              <input className="rounded-lg border border-line p-2 text-sm" placeholder="CPF" value={cpf} onChange={(event) => setCpf(event.target.value)} />
-              <input className="rounded-lg border border-line p-2 text-sm" placeholder="PIS" value={pis} onChange={(event) => setPis(event.target.value)} />
+              {propertyType === "novo" ? (
+                <div className="col-span-2 space-y-2">
+                  <select className="w-full rounded-lg border border-line p-2 text-sm" value={propertyId} onChange={(event) => setPropertyId(event.target.value)}>
+                    <option value="">Empreendimento (selecione ou digite abaixo)</option>
+                    {(propertyOptions || []).map((property) => (
+                      <option key={property.id} value={property.id}>{property.name}</option>
+                    ))}
+                  </select>
+                  {!propertyId ? (
+                    <input className="w-full rounded-lg border border-line p-2 text-sm" placeholder="Ou digite o nome do empreendimento" value={propertyName} onChange={(event) => setPropertyName(event.target.value)} />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="mt-4 flex gap-2">
               <button type="button" className="premium-button-secondary" onClick={onClose}>Cancelar</button>

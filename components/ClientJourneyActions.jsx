@@ -154,14 +154,15 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "LOTE DE DOCUMENTOS ENVIADO", description: [d.fileCount ? `Arquivos: ${d.fileCount}` : ""].filter(Boolean) };
     case "document_batch_analyzed":
       return { title: "ANÁLISE DOCUMENTAL CONCLUÍDA", description: [
-        `Identificados: ${(d.conform || 0) + (d.pending || 0) + (d.illegible || 0) + (d.divergence || 0) + (d.needsConfirmation || 0)}`,
-        `Conforme: ${d.conform || 0}`,
-        d.pending ? `Pendências: ${d.pending}` : "",
-        d.absent ? `Ausentes: ${d.absent}` : "",
-        d.needsConfirmation ? `Necessitam confirmação: ${d.needsConfirmation}` : ""
+        d.newFiles ? `Arquivos classificados: ${d.newFiles}` : "",
+        d.divergenceCount ? `Divergências: ${d.divergenceCount}` : "",
+        d.absent ? `Documentos faltando: ${d.absent}` : "",
+        d.pending ? `Pendências de quantidade: ${d.pending}` : ""
       ].filter(Boolean) };
     case "document_batch_analysis_failed":
       return { title: "FALHA NA ANÁLISE DOCUMENTAL", description: [d.error ? String(d.error).slice(0, 160) : ""].filter(Boolean) };
+    case "document_checklist_recomputed":
+      return { title: "CHECKLIST RECALCULADO", description: ["Cadastro do cliente foi alterado — requisitos recalculados sem nova leitura de IA."] };
     case "document_checklist_corrected":
       return { title: "CLASSIFICAÇÃO CORRIGIDA MANUALMENTE", description: [] };
     case "document_deleted":
