@@ -17,7 +17,9 @@ import {
   MessageCircle,
   Phone,
   RefreshCw,
+  Send,
   Tag as TagIcon,
+  Trash2,
   UserPlus,
   Users,
   X
@@ -50,7 +52,9 @@ const CATEGORY_BY_TYPE = {
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
   "prospecting:returned": "atividades", "prospecting:do_not_contact": "status", "prospecting:bulk_assigned": "atribuicao",
-  "prospecting:daily_goal_attempt": "atividades", "prospecting:daily_goal_converted": "atividades", "prospecting:daily_goal_round_ended": "atividades"
+  "prospecting:daily_goal_attempt": "atividades", "prospecting:daily_goal_converted": "atividades", "prospecting:daily_goal_round_ended": "atividades",
+  document_batch_uploaded: "atividades", document_batch_analyzed: "atividades", document_batch_analysis_failed: "atividades",
+  document_checklist_corrected: "atividades", document_deleted: "atividades", document_sent_to_cca: "atividades"
 };
 
 const FILTERS = [
@@ -76,6 +80,9 @@ function EventIcon({ type }) {
   if (type === "sale_registered") return <KeyRound {...props} />;
   if (type === "prospecting:do_not_contact") return <Ban {...props} />;
   if (type.startsWith("prospecting:")) return <Phone {...props} />;
+  if (type === "document_deleted") return <Trash2 {...props} />;
+  if (type === "document_sent_to_cca") return <Send {...props} />;
+  if (type.startsWith("document_")) return <FileText {...props} />;
   return <History {...props} />;
 }
 
@@ -143,6 +150,24 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "CONTATO EDITADO", description: [] };
     case "prospecting:unblocked":
       return { title: "CONTATO DESBLOQUEADO", description: [] };
+    case "document_batch_uploaded":
+      return { title: "LOTE DE DOCUMENTOS ENVIADO", description: [d.fileCount ? `Arquivos: ${d.fileCount}` : ""].filter(Boolean) };
+    case "document_batch_analyzed":
+      return { title: "ANÁLISE DOCUMENTAL CONCLUÍDA", description: [
+        `Identificados: ${(d.conform || 0) + (d.pending || 0) + (d.illegible || 0) + (d.divergence || 0) + (d.needsConfirmation || 0)}`,
+        `Conforme: ${d.conform || 0}`,
+        d.pending ? `Pendências: ${d.pending}` : "",
+        d.absent ? `Ausentes: ${d.absent}` : "",
+        d.needsConfirmation ? `Necessitam confirmação: ${d.needsConfirmation}` : ""
+      ].filter(Boolean) };
+    case "document_batch_analysis_failed":
+      return { title: "FALHA NA ANÁLISE DOCUMENTAL", description: [d.error ? String(d.error).slice(0, 160) : ""].filter(Boolean) };
+    case "document_checklist_corrected":
+      return { title: "CLASSIFICAÇÃO CORRIGIDA MANUALMENTE", description: [] };
+    case "document_deleted":
+      return { title: "DOCUMENTO EXCLUÍDO", description: [] };
+    case "document_sent_to_cca":
+      return { title: "DOCUMENTAÇÃO ENVIADA PARA CCA", description: [d.ccaName ? `CCA: ${d.ccaName}` : "", d.documentCount ? `Arquivos: ${d.documentCount}` : ""].filter(Boolean) };
     default:
       return { title: event.type.replace(/^prospecting:|^distribution:/, "").replace(/_/g, " ").toUpperCase(), description: [] };
   }

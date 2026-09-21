@@ -1,4 +1,5 @@
 "use client";
+import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
+  FileText,
   MessageCircle,
   Phone,
   Plus,
@@ -1205,6 +1207,7 @@ function ClientCard({
   tagDraft
 }) {
   const hasRegistration = Boolean(client.registration?.id);
+  const [showDocuments, setShowDocuments] = useState(false);
   const clientTags = ensureArray(client.tags);
   const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
   const responsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
@@ -1424,6 +1427,22 @@ function ClientCard({
           <MessageCircle className="h-4 w-4" aria-hidden="true" />
           Whats
         </button>
+        <button
+          aria-label={`Documentação de ${client.name || "cliente"}`}
+          className="client-action-button"
+          disabled={busy}
+          onClick={async () => {
+            if (!hasRegistration) {
+              const registration = await onEnsureRegistration(client);
+              if (!registration?.id) return;
+            }
+            setShowDocuments(true);
+          }}
+          type="button"
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          Documentação
+        </button>
         {isOwner ? (
           <button
             aria-label={`Excluir cliente ${client.name || ""}`.trim()}
@@ -1437,6 +1456,13 @@ function ClientCard({
           </button>
         ) : null}
       </div>
+      {showDocuments && client.registration?.id ? (
+        <ClientDocumentsModal
+          client={{ id: client.registration.id, fullName: client.name || "Cliente" }}
+          canSendToCca={showResponsibleSelector}
+          onClose={() => setShowDocuments(false)}
+        />
+      ) : null}
     </article>
   );
 }

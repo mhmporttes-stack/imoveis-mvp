@@ -2,6 +2,7 @@ import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminUsersManager from "@/components/AdminUsersManager";
 import AdminViewAsSelector from "@/components/AdminViewAsSelector";
+import CcaManager from "@/components/CcaManager";
 import Link from "next/link";
 import { isGeneralAdmin, requireBrokerManagementPage } from "@/lib/admin-auth";
 import {
@@ -11,16 +12,18 @@ import {
   listAdminProfiles
 } from "@/lib/admin-profiles";
 import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
+import { listCca } from "@/lib/cca";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrokersPage({ searchParams }) {
   const auth = await requireBrokerManagementPage();
   const params = await searchParams;
-  const activeTab = params?.tab === "account" ? "account" : "users";
+  const activeTab = params?.tab === "account" ? "account" : params?.tab === "cca" ? "cca" : "users";
 
   let users = [];
   let registrations = [];
+  let ccaList = [];
   let error = "";
 
   try {
@@ -33,6 +36,15 @@ export default async function AdminBrokersPage({ searchParams }) {
     registrations = await listSimulationRegistrations({ auth });
   } catch (loadError) {
     if (!error) error = formatSimulationRegistrationError(loadError);
+  }
+
+  // CCA nunca deve derrubar a tela de corretores — é uma área independente,
+  // só compartilhando o mesmo local de navegação (item 9 do pedido: "adicionar
+  // na área onde atualmente existem cadastros de corretores").
+  try {
+    ccaList = await listCca(auth);
+  } catch {
+    ccaList = [];
   }
 
   const counts = buildCounts(registrations);
@@ -56,12 +68,15 @@ export default async function AdminBrokersPage({ searchParams }) {
       </section>
 
       <AdminSectionNav active="brokers" />
-      <nav className="container-page mb-5 grid grid-cols-2 rounded-xl border border-navy/[0.07] bg-white p-0.5" aria-label="Opcoes de corretores">
+      <nav className="container-page mb-5 grid grid-cols-3 rounded-xl border border-navy/[0.07] bg-white p-0.5" aria-label="Opcoes de corretores">
         <TabLink active={activeTab === "users"} href="/admin/corretores">Usuários</TabLink>
         <TabLink active={activeTab === "account"} href="/admin/corretores?tab=account">Alterar conta</TabLink>
+        <TabLink active={activeTab === "cca"} href="/admin/corretores?tab=cca">CCA</TabLink>
       </nav>
-      {error ? <BrokersError error={error} /> : activeTab === "account" ? (
+      {error && activeTab !== "cca" ? <BrokersError error={error} /> : activeTab === "account" ? (
         <AdminViewAsSelector users={users.filter((user) => user.status === "active" && user.id !== auth.profile.id)} />
+      ) : activeTab === "cca" ? (
+        <CcaManager initialCca={ccaList} />
       ) : (
         <AdminUsersManager initialUsers={usersWithLinks} counts={counts} canManageAllRoles={isGeneralAdmin(auth)} />
       )}
