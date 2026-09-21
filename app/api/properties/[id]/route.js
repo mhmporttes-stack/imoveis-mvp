@@ -50,8 +50,13 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Painel administrativo desativado em producao." }, { status: 503 });
   }
 
-  const { id } = await params;
-  const ok = await deleteProperty(id);
-  await ensureDailyBackup();
-  return NextResponse.json({ ok }, { status: ok ? 200 : 404 });
+  try {
+    const { id } = await params;
+    const ok = await deleteProperty(id);
+    await ensureDailyBackup();
+    return NextResponse.json({ ok }, { status: ok ? 200 : 404 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: error.message || "Não foi possível excluir o empreendimento." }, { status: 400 });
+  }
 }

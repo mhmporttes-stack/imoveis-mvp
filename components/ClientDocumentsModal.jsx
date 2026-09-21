@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { DOCUMENT_TYPE_OPTIONS, CHECKLIST_STATUS_OPTIONS } from "@/lib/document-type-options";
+import { DOCUMENT_STATUS_LABELS, PERSON_ROLE_LABELS } from "@/lib/document-status-labels";
 
 const CLIENT_DOCS_BUCKET = "client-documents";
 
@@ -31,13 +32,13 @@ const PROCESSING_LABELS = [
 ];
 
 const STATUS_STYLE = {
-  conforme: { icon: CheckCircle2, tone: "text-emerald-700 bg-emerald-50", label: "Conforme" },
-  pendencia: { icon: AlertTriangle, tone: "text-amber-700 bg-amber-50", label: "Pendência" },
-  ilegivel: { icon: FileWarning, tone: "text-amber-700 bg-amber-50", label: "Ilegível" },
-  ausente: { icon: X, tone: "text-red-700 bg-red-50", label: "Ausente" },
-  divergencia: { icon: AlertTriangle, tone: "text-amber-700 bg-amber-50", label: "Divergência" },
-  precisa_confirmacao: { icon: CircleHelp, tone: "text-brand bg-blue-50", label: "Necessita confirmação" },
-  em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: "Em análise" }
+  conforme: { icon: CheckCircle2, tone: "text-emerald-700 bg-emerald-50", label: DOCUMENT_STATUS_LABELS.conforme },
+  pendencia: { icon: AlertTriangle, tone: "text-amber-700 bg-amber-50", label: DOCUMENT_STATUS_LABELS.pendencia },
+  ilegivel: { icon: FileWarning, tone: "text-amber-700 bg-amber-50", label: DOCUMENT_STATUS_LABELS.ilegivel },
+  ausente: { icon: X, tone: "text-red-700 bg-red-50", label: DOCUMENT_STATUS_LABELS.ausente },
+  divergencia: { icon: AlertTriangle, tone: "text-amber-700 bg-amber-50", label: DOCUMENT_STATUS_LABELS.divergencia },
+  precisa_confirmacao: { icon: CircleHelp, tone: "text-brand bg-blue-50", label: DOCUMENT_STATUS_LABELS.precisa_confirmacao },
+  em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: DOCUMENT_STATUS_LABELS.em_analise }
 };
 
 export default function ClientDocumentsModal({ client, canSendToCca, canManage, onClose }) {
@@ -565,10 +566,21 @@ function BatchRow({ batch, isActive, onOpen }) {
 
 function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
   const [showDivergences, setShowDivergences] = useState(false);
+  // Agrupa por person_role (identidade estável: titular/conjuge/dependente/
+  // outro), nunca por person_label — é texto livre extraído pela IA a cada
+  // lote e pode variar (acento, "João" vs "Joao"), o que já causou o mesmo
+  // problema de duplicidade que o motor de requisitos corrigiu no banco.
   const byPerson = new Map();
   for (const item of batch.checklist || []) {
-    if (!byPerson.has(item.personLabel)) byPerson.set(item.personLabel, []);
-    byPerson.get(item.personLabel).push(item);
+    const role = item.personRole || "outro";
+    if (!byPerson.has(role)) byPerson.set(role, { label: PERSON_ROLE_LABELS[role] || role, items: [] });
+    const group = byPerson.get(role);
+    // Prefere um nome real extraído (personLabel) ao rótulo genérico do papel,
+    // quando disponível — mantém a identificação amigável sem voltar a usar
+    // o texto livre como chave de agrupamento.
+    const genericLabel = PERSON_ROLE_LABELS[role] || role;
+    if (item.personLabel && item.personLabel !== genericLabel && !group.namedLabel) group.namedLabel = item.personLabel;
+    group.items.push(item);
   }
 
   return (
@@ -616,11 +628,13 @@ function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocu
       ) : null}
 
       <div className="mt-3 space-y-4">
-        {Array.from(byPerson.entries()).map(([person, items]) => (
-          <div key={person}>
-            <p className="text-sm font-black uppercase tracking-wide text-muted">{person}</p>
+        {Array.from(byPerson.entries()).map(([role, group]) => (
+          <div key={role}>
+            <p className="text-sm font-black uppercase tracking-wide text-muted">
+              {group.namedLabel ? `${group.label} · ${group.namedLabel}` : group.label}
+            </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {items.map((item) => (
+              {group.items.map((item) => (
                 <ChecklistItemCard
                   key={item.id}
                   item={item}

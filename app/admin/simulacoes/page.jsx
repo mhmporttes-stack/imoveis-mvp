@@ -25,41 +25,38 @@ export default async function AdminSimulationsPage() {
   let simulationsError = "";
   let registrationsError = "";
 
-  try {
-    simulations = await listSimulations(auth);
-  } catch (error) {
-    simulationsError = formatSimulationError(error);
-  }
+  const isGeneralAdmin = isGeneralAdminAuth(auth);
+  const isManager = isManagerProfile(auth.profile);
+  const needsAdminProfiles = isGeneralAdmin || isManager;
 
-  try {
-    registrations = await listSimulationRegistrations({ auth });
-  } catch (error) {
-    registrationsError = formatSimulationRegistrationError(error);
-  }
+  // As quatro buscas abaixo são independentes entre si (nenhuma usa o
+  // resultado de outra) — rodar em paralelo em vez de sequencialmente evita
+  // somar a latência de cada uma na carga desta página, a mais visitada do
+  // admin.
+  const [simulationsResult, registrationsResult, tagsResult, adminProfilesResult] = await Promise.allSettled([
+    listSimulations(auth),
+    listSimulationRegistrations({ auth }),
+    listTags(),
+    needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])
+  ]);
+
+  if (simulationsResult.status === "fulfilled") simulations = simulationsResult.value;
+  else simulationsError = formatSimulationError(simulationsResult.reason);
+
+  if (registrationsResult.status === "fulfilled") registrations = registrationsResult.value;
+  else registrationsError = formatSimulationRegistrationError(registrationsResult.reason);
+
+  if (tagsResult.status === "fulfilled") tags = tagsResult.value;
 
   const visibleRegistrationIds = new Set(registrations.map((registration) => registration.id));
   simulations = simulations.filter(
     (simulation) => !simulation.registrationId || visibleRegistrationIds.has(simulation.registrationId)
   );
 
-  try {
-    tags = await listTags();
-  } catch {
-    tags = [];
-  }
-
-  const isGeneralAdmin = isGeneralAdminAuth(auth);
-  const isManager = isManagerProfile(auth.profile);
-
-  if (isGeneralAdmin || isManager) {
-    try {
-      const profiles = await listAdminProfiles();
-      adminProfiles = isManager
-        ? profiles.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
-        : profiles;
-    } catch {
-      adminProfiles = [];
-    }
+  if (needsAdminProfiles && adminProfilesResult.status === "fulfilled") {
+    adminProfiles = isManager
+      ? adminProfilesResult.value.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
+      : adminProfilesResult.value;
   }
 
   const hasAnyData = registrations.length > 0 || simulations.length > 0;

@@ -9,7 +9,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(await listPublicProperties());
+  try {
+    return NextResponse.json(await listPublicProperties());
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: error.message || "Não foi possível carregar os imóveis." }, { status: 500 });
+  }
 }
 
 export async function POST(request) {

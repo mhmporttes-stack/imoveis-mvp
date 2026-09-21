@@ -12,15 +12,19 @@ export async function POST(request) {
   const auth = await requireRealGeneralAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { profileId } = await request.json();
-  const profile = await getAdminProfileById(profileId);
-  if (!profile || !isActiveAdminProfile(profile)) {
-    return NextResponse.json({ error: "Selecione um usuario ativo." }, { status: 400 });
-  }
+  try {
+    const { profileId } = await request.json();
+    const profile = await getAdminProfileById(profileId);
+    if (!profile || !isActiveAdminProfile(profile)) {
+      return NextResponse.json({ error: "Selecione um usuario ativo." }, { status: 400 });
+    }
 
-  const response = NextResponse.json({ ok: true, redirectTo: landingPath(profile.role) });
-  response.cookies.set(ADMIN_VIEW_AS_COOKIE, profile.id, cookieOptions(request));
-  return response;
+    const response = NextResponse.json({ ok: true, redirectTo: landingPath(profile.role) });
+    response.cookies.set(ADMIN_VIEW_AS_COOKIE, profile.id, cookieOptions(request));
+    return response;
+  } catch (error) {
+    return NextResponse.json({ error: error?.message || "Não foi possível trocar de visão." }, { status: 400 });
+  }
 }
 
 export async function DELETE(request) {
