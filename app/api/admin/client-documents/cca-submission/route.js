@@ -21,6 +21,8 @@ export async function POST(request) {
     }
     return NextResponse.json(await prepareCcaSubmission(body.clientId, body.batchId, body, auth));
   } catch (error) {
-    return NextResponse.json({ error: formatClientDocumentsError(error) }, { status: error?.status || 400 });
+    const body = { error: formatClientDocumentsError(error) };
+    if (error?.code === "MISSING_CLIENT_FIELDS") body.missingFields = error.missingFields;
+    return NextResponse.json(body, { status: error?.status || 400 });
   }
 }

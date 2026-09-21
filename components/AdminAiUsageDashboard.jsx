@@ -11,9 +11,10 @@ const PERIODS = [
   { value: "all", label: "Tudo" }
 ];
 
-export default function AdminAiUsageDashboard({ initialEntries }) {
+export default function AdminAiUsageDashboard({ initialEntries, usdBrlRate = 5.3 }) {
   const [period, setPeriod] = useState("month");
   const entries = initialEntries || [];
+  const toBrl = (usd) => formatBrl((usd || 0) * usdBrlRate);
 
   const filtered = useMemo(() => filterByPeriod(entries, period), [entries, period]);
 
@@ -50,13 +51,13 @@ export default function AdminAiUsageDashboard({ initialEntries }) {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card label="Gasto estimado no período" value={formatUsd(summary.totalCost)} />
+          <Card label="Gasto estimado no período" value={toBrl(summary.totalCost)} />
           <Card label="Análises concluídas" value={summary.count} />
-          <Card label="Custo médio por análise" value={formatUsd(summary.avgCost)} />
+          <Card label="Custo médio por análise" value={toBrl(summary.avgCost)} />
           <Card label="Falhas (sem cobrança estimada)" value={summary.failedCount} tone={summary.failedCount ? "danger" : "default"} />
         </div>
         <p className="mt-3 text-xs font-bold text-muted">
-          Tokens no período: {summary.totalInput.toLocaleString("pt-BR")} de entrada · {summary.totalOutput.toLocaleString("pt-BR")} de saída. Valor estimado com base no preço público do modelo — o valor exato de cobrança é o do console.anthropic.com.
+          Tokens no período: {summary.totalInput.toLocaleString("pt-BR")} de entrada · {summary.totalOutput.toLocaleString("pt-BR")} de saída. Valores convertidos de USD pela cotação fixa de R$ {usdBrlRate.toFixed(2)}/US$ (configurável via variável de ambiente USD_BRL_RATE) — o valor exato de cobrança, em dólar, é o do console.anthropic.com.
         </p>
       </div>
 
@@ -83,7 +84,7 @@ export default function AdminAiUsageDashboard({ initialEntries }) {
                 <td className="px-4 py-3 text-xs">
                   {entry.cacheReadTokens ? <span className="font-black text-emerald-700">{entry.cacheReadTokens.toLocaleString("pt-BR")} lidos</span> : entry.cacheCreationTokens ? <span className="text-muted">{entry.cacheCreationTokens.toLocaleString("pt-BR")} criados</span> : "—"}
                 </td>
-                <td className="px-4 py-3 font-black text-navy">{entry.success ? formatUsd(entry.costUsd) : "—"}</td>
+                <td className="px-4 py-3 font-black text-navy">{entry.success ? toBrl(entry.costUsd) : "—"}</td>
                 <td className="px-4 py-3">
                   {entry.success ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Sucesso</span>
@@ -129,8 +130,8 @@ function filterByPeriod(entries, period) {
   return entries.filter((entry) => new Date(entry.createdAt) >= start);
 }
 
-function formatUsd(value) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value || 0);
+function formatBrl(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value || 0);
 }
 
 function formatDateTime(value) {

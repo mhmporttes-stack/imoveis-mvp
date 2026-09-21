@@ -6,6 +6,12 @@ import { getAiUsageReport } from "@/lib/ai-usage";
 
 export const dynamic = "force-dynamic";
 
+// Cotação fixa configurável (item 3 do pedido) — mais simples e mais
+// previsível que buscar uma cotação ao vivo pra um painel só informativo;
+// ajustar via env var sempre que a cotação real mudar muito, sem precisar
+// alterar código nem fazer deploy de novo.
+const USD_BRL_RATE = Number(process.env.USD_BRL_RATE) || 5.3;
+
 export default async function AdminAiUsagePage() {
   const auth = await requireGeneralAdminPage();
 
@@ -38,7 +44,7 @@ export default async function AdminAiUsagePage() {
           <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
         </section>
       ) : (
-        <AdminAiUsageDashboard initialEntries={entries} />
+        <AdminAiUsageDashboard initialEntries={entries} usdBrlRate={USD_BRL_RATE} />
       )}
     </main>
   );

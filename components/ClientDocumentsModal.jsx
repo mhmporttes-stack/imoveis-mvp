@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  Bell,
   CheckCircle2,
   CircleHelp,
+  Copy,
   Eye,
   FileWarning,
   LoaderCircle,
@@ -43,6 +45,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
   const [error, setError] = useState("");
   const [uploadState, setUploadState] = useState(null); // { label } while a batch is being processed
   const [ccaFlow, setCcaFlow] = useState(null); // { batchId } opens the CCA submission drawer
+  const [brokerAlertFlow, setBrokerAlertFlow] = useState(null); // null | "loading" | { message, whatsappUrl } | { empty: true }
   const dropRef = useRef(null);
   const labelIndexRef = useRef(0);
   const labelTimerRef = useRef(null);
@@ -183,6 +186,23 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
     }
   }
 
+  async function handleBrokerAlert() {
+    setBrokerAlertFlow("loading");
+    try {
+      const response = await fetch("/api/admin/client-documents/broker-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: client.id })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      setBrokerAlertFlow(data.alert || { empty: true });
+    } catch (alertError) {
+      setBrokerAlertFlow(null);
+      setError(alertError.message || "Não foi possível montar o aviso.");
+    }
+  }
+
   async function deleteDocument(documentId) {
     if (!confirm("Remover este documento do lote?")) return;
     try {
@@ -289,6 +309,8 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
               onViewDocument={viewDocument}
               onCorrectItem={correctItem}
               onSendToCca={() => setCcaFlow({ batchId: activeBatch.id })}
+              onBrokerAlert={handleBrokerAlert}
+              brokerAlertBusy={brokerAlertFlow === "loading"}
             />
           ) : null}
         </div>
@@ -301,8 +323,56 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
           onClose={() => setCcaFlow(null)}
         />
       ) : null}
+
+      {brokerAlertFlow && brokerAlertFlow !== "loading" ? (
+        <BrokerAlertModal alert={brokerAlertFlow} onClose={() => setBrokerAlertFlow(null)} />
+      ) : null}
     </div>,
     document.body
+  );
+}
+
+function BrokerAlertModal({ alert, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyMessage() {
+    try {
+      await navigator.clipboard.writeText(alert.message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard indisponível (ex.: contexto não seguro) — corretor/gestor ainda pode selecionar o texto manualmente
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
+      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        {alert.empty ? (
+          <div className="text-center">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+            <p className="mt-3 font-black text-navy">Nada pendente para avisar — checklist deste cliente está em dia.</p>
+            <button type="button" className="premium-button-secondary mt-4" onClick={onClose}>Fechar</button>
+          </div>
+        ) : (
+          <div>
+            <h3 className="text-lg font-black text-navy">Avisar corretor{alert.brokerName ? ` — ${alert.brokerName}` : ""}</h3>
+            <p className="mt-2 whitespace-pre-line rounded-xl bg-mist/60 p-3 text-sm text-navy">{alert.message}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
+              <button type="button" className="client-action-button" onClick={copyMessage}>
+                <Copy className="h-4 w-4" /> {copied ? "Copiado!" : "Copiar mensagem"}
+              </button>
+              {alert.whatsappUrl ? (
+                <a className="premium-button-primary" href={alert.whatsappUrl} target="_blank" rel="noreferrer">
+                  <Send className="h-4 w-4" /> Abrir WhatsApp
+                </a>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -329,7 +399,7 @@ function BatchRow({ batch, isActive, onOpen }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca }) {
+function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy }) {
   const [showDivergences, setShowDivergences] = useState(false);
   const byPerson = new Map();
   for (const item of batch.checklist || []) {
@@ -344,6 +414,11 @@ function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocu
         <div className="flex flex-wrap gap-2">
           {batch.status === "analyzed" || batch.status === "failed" ? (
             <button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onReanalyze}>Reanalisar</button>
+          ) : null}
+          {canManage && batch.status === "analyzed" ? (
+            <button type="button" disabled={brokerAlertBusy} className="premium-button-secondary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60" onClick={onBrokerAlert}>
+              {brokerAlertBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} Avisar corretor
+            </button>
           ) : null}
           {canSendToCca && batch.status === "analyzed" ? (
             <button type="button" className="premium-button-primary px-4 py-2 text-sm" onClick={onSendToCca}>
@@ -464,6 +539,8 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
+  const [missingFields, setMissingFields] = useState(null); // ["fullName","email","pis"] quando o envio exige preencher antes
+  const [fieldValues, setFieldValues] = useState({ fullName: "", email: "", pis: "" });
 
   useEffect(() => {
     fetch("/api/admin/cca?onlyActive=1").then((response) => response.json()).then((data) => setCcaOptions(data.cca || []));
@@ -506,12 +583,48 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
         body: JSON.stringify(buildPayload({ action: "submit" }))
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) {
+        // Item 2/4 do 3º pedido: nome/e-mail/PIS são obrigatórios pra gerar
+        // o PDF consolidado — pede só os que realmente faltam, pré-preenche
+        // com o que já se sabe (da prévia), e nunca deixa prosseguir sem
+        // eles.
+        if (data.missingFields?.length) {
+          setMissingFields(data.missingFields);
+          setFieldValues({
+            fullName: preview?.detail?.clientName || "",
+            email: preview?.detail?.email || "",
+            pis: preview?.detail?.pis || ""
+          });
+          return;
+        }
+        throw new Error(data.error);
+      }
       setDone(data);
       window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
     } catch (submitError) {
       setError(submitError.message || "Não foi possível enviar.");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveMissingFieldsAndRetry() {
+    setBusy(true);
+    setError("");
+    try {
+      const payload = {};
+      for (const field of missingFields) payload[field] = fieldValues[field];
+      const response = await fetch(`/api/simulation-registrations/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      setMissingFields(null);
+      await handleConfirm();
+    } catch (saveError) {
+      setError(saveError.message || "Não foi possível salvar os dados do cliente.");
       setBusy(false);
     }
   }
@@ -522,8 +635,52 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
         {done ? (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-            <p className="mt-3 font-black text-navy">Documentação preparada e WhatsApp aberto.</p>
+            <p className="mt-3 font-black text-navy">Documentação preparada, PDF gerado e WhatsApp aberto.</p>
+            <p className="mt-1 text-xs font-bold text-muted">Status do cliente atualizado para "Aguardando aprovação".</p>
+            {done.pdfUrl ? (
+              <a className="premium-button-secondary mt-4 inline-flex" href={done.pdfUrl} target="_blank" rel="noreferrer">Baixar PDF consolidado</a>
+            ) : null}
+            {done.pdfSkipped?.length ? (
+              <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-left text-xs font-bold text-amber-800">
+                {done.pdfSkipped.length} arquivo(s) não entraram no PDF (formato não suportado para mesclagem): {done.pdfSkipped.join(", ")}. Baixe-os manualmente pelo checklist se precisar anexar.
+              </p>
+            ) : null}
+            <p className="mt-3 text-xs font-bold text-muted">O WhatsApp abriu só com a mensagem — anexe o PDF manualmente lá, o link não vai grudado automaticamente.</p>
             <button type="button" className="premium-button-secondary mt-4" onClick={onClose}>Fechar</button>
+          </div>
+        ) : missingFields ? (
+          <div>
+            <h3 className="text-lg font-black text-navy">Complete o cadastro antes de gerar o PDF</h3>
+            <p className="mt-2 text-sm text-muted">Nome, e-mail e PIS vão escritos na capa do PDF consolidado — preencha o que estiver faltando.</p>
+            {error ? <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
+            <div className="mt-3 space-y-2">
+              {missingFields.includes("fullName") ? (
+                <label className="block text-sm font-bold text-navy">Nome
+                  <input className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.fullName} onChange={(event) => setFieldValues((value) => ({ ...value, fullName: event.target.value }))} />
+                </label>
+              ) : null}
+              {missingFields.includes("email") ? (
+                <label className="block text-sm font-bold text-navy">E-mail
+                  <input type="email" className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.email} onChange={(event) => setFieldValues((value) => ({ ...value, email: event.target.value }))} />
+                </label>
+              ) : null}
+              {missingFields.includes("pis") ? (
+                <label className="block text-sm font-bold text-navy">PIS
+                  <input className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.pis} onChange={(event) => setFieldValues((value) => ({ ...value, pis: event.target.value }))} />
+                </label>
+              ) : null}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button type="button" className="premium-button-secondary" onClick={() => setMissingFields(null)}>Voltar</button>
+              <button
+                type="button"
+                disabled={busy || missingFields.some((field) => !String(fieldValues[field] || "").trim())}
+                className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={saveMissingFieldsAndRetry}
+              >
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null} Salvar e continuar
+              </button>
+            </div>
           </div>
         ) : preview ? (
           <div>
