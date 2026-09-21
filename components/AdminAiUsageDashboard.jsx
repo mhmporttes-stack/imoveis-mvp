@@ -68,6 +68,7 @@ export default function AdminAiUsageDashboard({ initialEntries }) {
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Corretor</th>
               <th className="px-4 py-3">Tokens (in/out)</th>
+              <th className="px-4 py-3">Cache</th>
               <th className="px-4 py-3">Custo estimado</th>
               <th className="px-4 py-3">Status</th>
             </tr>
@@ -79,6 +80,9 @@ export default function AdminAiUsageDashboard({ initialEntries }) {
                 <td className="px-4 py-3">{entry.clientName || "—"}</td>
                 <td className="px-4 py-3">{entry.brokerName || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted">{entry.inputTokens.toLocaleString("pt-BR")} / {entry.outputTokens.toLocaleString("pt-BR")}</td>
+                <td className="px-4 py-3 text-xs">
+                  {entry.cacheReadTokens ? <span className="font-black text-emerald-700">{entry.cacheReadTokens.toLocaleString("pt-BR")} lidos</span> : entry.cacheCreationTokens ? <span className="text-muted">{entry.cacheCreationTokens.toLocaleString("pt-BR")} criados</span> : "—"}
+                </td>
                 <td className="px-4 py-3 font-black text-navy">{entry.success ? formatUsd(entry.costUsd) : "—"}</td>
                 <td className="px-4 py-3">
                   {entry.success ? (
@@ -90,7 +94,7 @@ export default function AdminAiUsageDashboard({ initialEntries }) {
               </tr>
             ))}
             {!filtered.length ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm font-bold text-muted">Nenhuma análise registrada neste período.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm font-bold text-muted">Nenhuma análise registrada neste período.</td></tr>
             ) : null}
           </tbody>
         </table>
