@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CircleHelp,
   Copy,
+  Download,
   Eye,
   FileWarning,
   LoaderCircle,
@@ -46,6 +47,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
   const [uploadState, setUploadState] = useState(null); // { label } while a batch is being processed
   const [ccaFlow, setCcaFlow] = useState(null); // { batchId } opens the CCA submission drawer
   const [brokerAlertFlow, setBrokerAlertFlow] = useState(null); // null | "loading" | { message, whatsappUrl } | { empty: true }
+  const [pdfFlow, setPdfFlow] = useState(null); // null | true (abre o PdfDownloadModal)
   const dropRef = useRef(null);
   const labelIndexRef = useRef(0);
   const labelTimerRef = useRef(null);
@@ -337,6 +339,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
               onSendToCca={() => setCcaFlow({ batchId: activeBatch.id })}
               onBrokerAlert={handleBrokerAlert}
               brokerAlertBusy={brokerAlertFlow === "loading"}
+              onDownloadPdf={() => setPdfFlow(true)}
             />
           ) : null}
         </div>
@@ -353,8 +356,143 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
       {brokerAlertFlow && brokerAlertFlow !== "loading" ? (
         <BrokerAlertModal alert={brokerAlertFlow} onClose={() => setBrokerAlertFlow(null)} />
       ) : null}
+
+      {pdfFlow ? (
+        <PdfDownloadModal clientId={client.id} onClose={() => setPdfFlow(null)} />
+      ) : null}
     </div>,
     document.body
+  );
+}
+
+// Botão avulso "Baixar PDF" — gera o mesmo PDF consolidado do envio pra CCA
+// (capa com dados do cadastro + tabela de conferência documental), sem
+// precisar passar pelo fluxo de seleção de CCA. Mesma trava de nome/e-mail/
+// PIS: se faltar, pede pra preencher antes de tentar gerar de novo.
+function PdfDownloadModal({ clientId, onClose }) {
+  const [state, setState] = useState("loading"); // "loading" | { url, skipped } | { missingFields }
+  const [fieldValues, setFieldValues] = useState({ fullName: "", email: "", pis: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function generate() {
+    setState("loading");
+    setError("");
+    try {
+      const response = await fetch("/api/admin/client-documents/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (data.missingFields?.length) {
+          setFieldValues({ fullName: "", email: "", pis: "" });
+          setState({ missingFields: data.missingFields });
+          return;
+        }
+        throw new Error(data.error);
+      }
+      setState(data);
+    } catch (generateError) {
+      setError(generateError.message || "Não foi possível gerar o PDF.");
+      setState(null);
+    }
+  }
+
+  async function saveMissingFieldsAndRetry() {
+    setBusy(true);
+    setError("");
+    try {
+      const payload = {};
+      for (const field of state.missingFields) payload[field] = fieldValues[field];
+      const response = await fetch(`/api/simulation-registrations/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      await generate();
+    } catch (saveError) {
+      setError(saveError.message || "Não foi possível salvar os dados do cliente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
+      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        {state === "loading" ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <LoaderCircle className="h-8 w-8 animate-spin text-brand" />
+            <p className="font-black text-navy">Montando o PDF consolidado...</p>
+          </div>
+        ) : state?.missingFields ? (
+          <div>
+            <h3 className="text-lg font-black text-navy">Complete o cadastro antes de gerar o PDF</h3>
+            <p className="mt-2 text-sm text-muted">Nome, e-mail e PIS vão escritos na capa do PDF.</p>
+            {error ? <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
+            <div className="mt-3 space-y-2">
+              {state.missingFields.includes("fullName") ? (
+                <label className="block text-sm font-bold text-navy">Nome
+                  <input className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.fullName} onChange={(event) => setFieldValues((value) => ({ ...value, fullName: event.target.value }))} />
+                </label>
+              ) : null}
+              {state.missingFields.includes("email") ? (
+                <label className="block text-sm font-bold text-navy">E-mail
+                  <input type="email" className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.email} onChange={(event) => setFieldValues((value) => ({ ...value, email: event.target.value }))} />
+                </label>
+              ) : null}
+              {state.missingFields.includes("pis") ? (
+                <label className="block text-sm font-bold text-navy">PIS
+                  <input className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={fieldValues.pis} onChange={(event) => setFieldValues((value) => ({ ...value, pis: event.target.value }))} />
+                </label>
+              ) : null}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button type="button" className="premium-button-secondary" onClick={onClose}>Cancelar</button>
+              <button
+                type="button"
+                disabled={busy || state.missingFields.some((field) => !String(fieldValues[field] || "").trim())}
+                className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={saveMissingFieldsAndRetry}
+              >
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null} Salvar e gerar PDF
+              </button>
+            </div>
+          </div>
+        ) : state?.url ? (
+          <div className="text-center">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+            <p className="mt-3 font-black text-navy">PDF consolidado pronto.</p>
+            {state.skipped?.length ? (
+              <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-left text-xs font-bold text-amber-800">
+                {state.skipped.length} arquivo(s) não entraram (formato não suportado): {state.skipped.join(", ")}.
+              </p>
+            ) : null}
+            <div className="mt-4 flex justify-center gap-2">
+              <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
+              <a className="premium-button-primary" href={state.url} target="_blank" rel="noreferrer">Baixar PDF</a>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error || "Não foi possível gerar o PDF."}</p>
+            <div className="mt-4 flex justify-center gap-2">
+              <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
+              <button type="button" className="premium-button-primary" onClick={generate}>Tentar novamente</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -425,7 +563,7 @@ function BatchRow({ batch, isActive, onOpen }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy }) {
+function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
   const [showDivergences, setShowDivergences] = useState(false);
   const byPerson = new Map();
   for (const item of batch.checklist || []) {
@@ -444,6 +582,11 @@ function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocu
           {canManage && batch.status === "analyzed" ? (
             <button type="button" disabled={brokerAlertBusy} className="premium-button-secondary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60" onClick={onBrokerAlert}>
               {brokerAlertBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} Avisar corretor
+            </button>
+          ) : null}
+          {canManage && batch.status === "analyzed" ? (
+            <button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onDownloadPdf}>
+              <Download className="h-4 w-4" /> Baixar PDF
             </button>
           ) : null}
           {canSendToCca && batch.status === "analyzed" ? (

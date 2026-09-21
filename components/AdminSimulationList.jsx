@@ -1867,6 +1867,8 @@ function InlineRegistrationDetails({ busy, onEnsureRegistration, registration, s
         <Detail label="Possui imóvel no nome" value={booleanLabel(registration.hasResidentialProperty)} />
         <Detail label="Recurso próprio" value={formatCurrency(registration.availablePurchaseResource)} />
         {simulation?.id ? <Detail label="Simulação vinculada" value="Sim" /> : <Detail label="Simulação vinculada" value="Não" />}
+        <EditableDetail label="E-mail" registrationId={registration.id} field="email" initialValue={registration.email} placeholder="cliente@exemplo.com" />
+        <EditableDetail label="PIS" registrationId={registration.id} field="pis" initialValue={registration.pis} placeholder="Número do PIS" />
       </div>
       <InlinePropertyPreferences preferences={registration.propertyPreferences} />
     </div>
@@ -1902,6 +1904,66 @@ function Detail({ label, value }) {
       <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{label}</p>
       <p className="mt-1 break-words font-extrabold text-navy">{value || "Não informado"}</p>
     </div>
+  );
+}
+
+// E-mail e PIS não vêm de nenhum formulário público (a simulação não coleta
+// isso) — o corretor precisa poder preencher direto aqui, no cadastro, pra
+// já estar pronto quando a documentação for analisada e enviada pra CCA (em
+// vez de só descobrir que falta na hora de gerar o PDF consolidado).
+function EditableDetail({ label, registrationId, field, initialValue, placeholder }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initialValue || "");
+  const [saved, setSaved] = useState(initialValue || "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      setSaved(value);
+      setEditing(false);
+    } catch (saveError) {
+      setError(saveError.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-2xl border border-brand/30 bg-white px-3 py-2">
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{label}</p>
+        <input
+          autoFocus
+          className="mt-1 w-full rounded-lg border border-line px-2 py-1 text-sm font-bold text-navy"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter") save(); if (event.key === "Escape") { setValue(saved); setEditing(false); } }}
+        />
+        {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
+        <div className="mt-1 flex gap-2">
+          <button type="button" disabled={busy} className="text-[11px] font-black text-brand disabled:opacity-60" onClick={save}>{busy ? "Salvando..." : "Salvar"}</button>
+          <button type="button" className="text-[11px] font-bold text-muted" onClick={() => { setValue(saved); setEditing(false); }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className="rounded-2xl border border-line bg-white px-3 py-2 text-left hover:border-brand/40" onClick={() => { setValue(saved); setEditing(true); }}>
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{label}</p>
+      <p className="mt-1 break-words font-extrabold text-navy">{saved || <span className="text-muted">Clique para preencher</span>}</p>
+    </button>
   );
 }
 
