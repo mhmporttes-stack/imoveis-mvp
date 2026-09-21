@@ -135,18 +135,33 @@ export default function DailyGoalDashboard({ initialGoal }) {
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
       {GROUPS.map((group) => (
-        <ClientGroup key={group.key} title={group.title} clients={goal.groups[group.key].clients} onSend={handleAttempt} onSaveTemplate={handleSaveTemplate} />
+        <ClientGroup
+          key={group.key}
+          title={group.title}
+          clients={goal.groups[group.key].clients}
+          doneToday={goal.groups[group.key].doneToday}
+          onSend={handleAttempt}
+          onSaveTemplate={handleSaveTemplate}
+        />
       ))}
     </section>
   );
 }
 
-function ClientGroup({ title, clients, onSend, onSaveTemplate }) {
+// Sugestão do dono: quem já recebeu a tentativa de hoje não deve sumir nem
+// pular de seção — fica visível aqui mesmo, com um "realizado hoje", e só
+// migra pra próxima etapa amanhã (regra que já existia no cálculo de
+// pendências, ver lib/daily-goal.js — isto só deixa o resultado visível).
+function ClientGroup({ title, clients, doneToday = [], onSend, onSaveTemplate }) {
+  const hasAny = clients.length > 0 || doneToday.length > 0;
   return (
     <div>
       <h2 className="mb-3 text-lg font-black uppercase tracking-[0.08em] text-navy">{title}</h2>
-      {clients.length ? (
+      {hasAny ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {doneToday.map((client) => (
+            <DoneTodayCard key={client.roundId} client={client} />
+          ))}
           {clients.map((client) => (
             <ClientCard key={client.roundId} client={client} onSend={onSend} onSaveTemplate={onSaveTemplate} />
           ))}
@@ -157,6 +172,19 @@ function ClientGroup({ title, clients, onSend, onSaveTemplate }) {
         </p>
       )}
     </div>
+  );
+}
+
+function DoneTodayCard({ client }) {
+  return (
+    <article className="rounded-[18px] border border-dashed border-emerald-200 bg-emerald-50/50 p-4">
+      <h3 className="truncate text-base font-black text-navy">{client.fullName}</h3>
+      <p className="text-xs font-bold text-muted">{client.clientCode}</p>
+      <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-emerald-700">
+        <Check className="h-3.5 w-3.5" /> {client.attemptNumber}º contato realizado hoje
+      </p>
+      <p className="mt-1 text-[11px] font-bold text-muted">Segue pra próxima etapa amanhã.</p>
+    </article>
   );
 }
 

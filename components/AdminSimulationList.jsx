@@ -38,6 +38,7 @@ import {
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 import { isAwaitingFutureActivityClient, isStaleContactClient, mergeActivitySignal } from "@/lib/client-status";
 import { normalizePersonName } from "@/lib/name-utils";
+import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
 import {
   extractSimulationPhone,
   formatMoneyBR,
@@ -1106,14 +1107,7 @@ export default function AdminSimulationList({
   );
 }
 
-const DO_NOT_CONTACT_REASONS = [
-  { key: "client_requested", label: "Cliente solicitou" },
-  { key: "invalid_number", label: "Número inválido" },
-  { key: "already_purchased", label: "Já adquiriu imóvel" },
-  { key: "not_interested", label: "Sem interesse" },
-  { key: "wrong_contact", label: "Contato incorreto" },
-  { key: "other", label: "Outro" }
-];
+const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 
 // Motivo obrigatório para "Não contactar novamente" (pente-fino Meta Diária):
 // nunca uma ação silenciosa/sem justificativa — registrada com auditoria
