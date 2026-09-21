@@ -1460,6 +1460,7 @@ function ClientCard({
         <ClientDocumentsModal
           client={{ id: client.registration.id, fullName: client.name || "Cliente" }}
           canSendToCca={showResponsibleSelector}
+          canManage={showResponsibleSelector}
           onClose={() => setShowDocuments(false)}
         />
       ) : null}

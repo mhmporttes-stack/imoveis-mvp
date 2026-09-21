@@ -37,7 +37,7 @@ const STATUS_STYLE = {
   em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: "Em análise" }
 };
 
-export default function ClientDocumentsModal({ client, canSendToCca, onClose }) {
+export default function ClientDocumentsModal({ client, canSendToCca, canManage, onClose }) {
   const [batches, setBatches] = useState(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [error, setError] = useState("");
@@ -283,6 +283,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, onClose }) 
             <BatchDetail
               batch={activeBatch}
               canSendToCca={canSendToCca}
+              canManage={canManage}
               onReanalyze={() => reanalyze(activeBatch.id)}
               onDeleteDocument={deleteDocument}
               onViewDocument={viewDocument}
@@ -328,7 +329,8 @@ function BatchRow({ batch, isActive, onOpen }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca }) {
+function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca }) {
+  const [showDivergences, setShowDivergences] = useState(false);
   const byPerson = new Map();
   for (const item of batch.checklist || []) {
     if (!byPerson.has(item.personLabel)) byPerson.set(item.personLabel, []);
@@ -352,11 +354,20 @@ function BatchDetail({ batch, canSendToCca, onReanalyze, onDeleteDocument, onVie
       </div>
 
       {batch.divergences?.length ? (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-black uppercase tracking-wide text-amber-800">Divergências para conferência</p>
-          <ul className="mt-1 space-y-1 text-sm font-bold text-amber-900">
-            {batch.divergences.map((divergence, index) => <li key={index}>• {divergence.description}</li>)}
-          </ul>
+        <div className="mt-3 rounded-lg border border-line">
+          <button
+            type="button"
+            onClick={() => setShowDivergences((value) => !value)}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-black text-amber-800"
+          >
+            <span className="inline-flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {batch.divergences.length} divergência(s) para conferência</span>
+            <span className="text-muted">{showDivergences ? "ocultar" : "ver"}</span>
+          </button>
+          {showDivergences ? (
+            <ul className="space-y-1.5 border-t border-line px-3 py-2 text-xs font-bold text-muted">
+              {batch.divergences.map((divergence, index) => <li key={index}>• {divergence.description}</li>)}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 
@@ -370,6 +381,7 @@ function BatchDetail({ batch, canSendToCca, onReanalyze, onDeleteDocument, onVie
                   key={item.id}
                   item={item}
                   documents={batch.documents}
+                  canManage={canManage}
                   onView={onViewDocument}
                   onDelete={onDeleteDocument}
                   onCorrect={onCorrectItem}
@@ -383,8 +395,13 @@ function BatchDetail({ batch, canSendToCca, onReanalyze, onDeleteDocument, onVie
   );
 }
 
-function ChecklistItemCard({ item, documents, onView, onDelete, onCorrect }) {
+function ChecklistItemCard({ item, documents, canManage, onView, onDelete, onCorrect }) {
   const [editing, setEditing] = useState(false);
+  // precisa_confirmacao/ausente: qualquer um com acesso ao modal pode resolver
+  // (é o fluxo normal do corretor terminando o próprio checklist). Corrigir um
+  // status que a IA já deu como conforme/pendência/ilegível/divergência é uma
+  // ação de override — só gestor/admin (canManage), nunca o corretor comum.
+  const canCorrect = item.status === "precisa_confirmacao" || item.status === "ausente" || canManage;
   const style = STATUS_STYLE[item.status] || STATUS_STYLE.em_analise;
   const Icon = style.icon;
   const document = documents?.find((doc) => doc.id === item.documentId);
@@ -409,7 +426,7 @@ function ChecklistItemCard({ item, documents, onView, onDelete, onCorrect }) {
             <button type="button" className="client-action-button text-red-700" onClick={() => onDelete(document.id)}><Trash2 className="h-4 w-4" /> Excluir</button>
           </>
         ) : null}
-        {item.status === "precisa_confirmacao" || item.status === "ausente" ? (
+        {canCorrect ? (
           <button type="button" className="client-action-button" onClick={() => setEditing((value) => !value)}>Corrigir</button>
         ) : null}
       </div>
