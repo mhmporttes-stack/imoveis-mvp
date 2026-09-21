@@ -186,6 +186,27 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
     }
   }
 
+  async function handleResetAll() {
+    if (!confirm(`Apagar TODA a documentação de ${client.fullName}? Isso remove todos os arquivos, o checklist e o histórico de envio pra CCA — não tem como desfazer.`)) return;
+    if (!confirm("Tem certeza mesmo? Essa ação é definitiva.")) return;
+    setUploadState({ label: "Apagando tudo..." });
+    try {
+      const response = await fetch("/api/admin/client-documents/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: client.id })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      setActiveBatch(null);
+      await loadBatches();
+    } catch (resetError) {
+      setError(resetError.message || "Não foi possível apagar a documentação.");
+    } finally {
+      setUploadState(null);
+    }
+  }
+
   async function handleBrokerAlert() {
     setBrokerAlertFlow("loading");
     try {
@@ -254,6 +275,11 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Documentação</p>
             <h2 className="mt-1 text-xl font-black text-navy sm:text-2xl">{client.fullName}</h2>
+            {canManage ? (
+              <button type="button" className="mt-1 text-xs font-bold text-muted hover:text-red-700" onClick={handleResetAll}>
+                Excluir tudo e recomeçar
+              </button>
+            ) : null}
           </div>
           <button type="button" aria-label="Fechar documentação" className="icon-button shrink-0" onClick={onClose}>
             <X className="h-5 w-5" />
