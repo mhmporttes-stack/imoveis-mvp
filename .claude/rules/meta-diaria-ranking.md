@@ -40,6 +40,12 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 
 `getPerformanceOverview` carrega os eventos brutos (`teamRegistrations`, `history`, `prospectingEvents`) **sempre da mesma forma, nunca filtrados pelo escopo de quem está perguntando** — a permissão de visualização (quem aparece na lista) é aplicada só depois, em `listVisibleTeamProfiles`. Isso é proposital: o mesmo corretor no mesmo período tem que somar os mesmos pontos não importa quem está olhando o dashboard.
 
+## Percentual da meta exibido (card do corretor, resumo diário WhatsApp)
+
+**[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-22]** Bater a meta é 100%; cada contato adicional além da meta soma exatamente **+1 ponto percentual** (não é uma razão contínua) — 122 contatos numa meta de 31 é **191%**, nunca 394% (122/31×100) nem qualquer outro valor proporcional acima de 100%. `dailyGoalPercent(done, target)` (`lib/daily-goal-progress.mjs`, com testes em `tests/daily-goal-progress.test.mjs`) centraliza essa fórmula — nunca recalcule `Math.round((done/target)*100)` sem teto em nenhum lugar novo, reaproveite essa função.
+
+O denominador (`target`) desse cálculo é a **carteira ativa de hoje** (`wallet.current` — rodadas com `status='active'` agora), não `wallet.requiredToday`/`getDailyGoalTarget` (que soma rodadas carregadas de dias anteriores e serve a um propósito diferente: liberar prospecção extra, `getDailyGoalCompletionStatus`). Confundir os dois já foi um bug real corrigido duas vezes na mesma tarde (2026-09-22): primeiro a fórmula proporcional sem teto (394%), depois o denominador errado usando `requiredToday` (123% em vez de 191%) — ambos em `buildDailyGoalSnapshot` e `buildOwnerTeamOverview` (`lib/daily-goal.js`). Se o percentual exibido algum dia não bater com "meta = carteira ativa de hoje, +1%/contato extra", comece verificando esses dois pontos antes de qualquer outra hipótese.
+
 ## Carteira ativa (wallet)
 
 Limite global configurável (Gestão > Meta Diária > Configurações), com arquitetura já pronta (`daily_goal_wallet_broker_overrides`) para limite individual por corretor no futuro — mas ainda sem tela para editar override individual. A prospecção "extra" (além da carteira já cheia) só libera depois que a carteira INTEIRA já recebeu a obrigação do dia (`getDailyGoalCompletionStatus`), calculado sempre contra tabelas de fato (tentativas/reivindicações reais), nunca um contador visual do frontend.
