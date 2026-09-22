@@ -179,6 +179,15 @@ export default function AdminSimulationList({
     setLocalTags(ensureArray(tags));
   }, [tags]);
 
+  // Vindo de outra tela (ex.: Central de Oportunidades, "Abrir cliente" ->
+  // /admin/simulacoes?clientId=X) — expande o card desse cliente ao montar,
+  // sem mexer no filtro/paginação atual da lista.
+  useEffect(() => {
+    const clientId = new URLSearchParams(window.location.search).get("clientId");
+    if (clientId) setExpandedClientId(clientId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const clientsResult = useMemo(() => {
     try {
       const safeSimulations = ensureArray(simulations);

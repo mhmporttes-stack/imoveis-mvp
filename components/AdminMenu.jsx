@@ -31,6 +31,7 @@ const adminGroups = [
     items: [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
       { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
@@ -67,7 +68,7 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" }, { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
@@ -88,9 +89,14 @@ const brokerGroups = [
   }
 ];
 
-const associateGroups = brokerGroups.map((group) => group.key === "desempenho"
-  ? { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" }
-  : group);
+// Central de Oportunidades é escopo corretor/gestor/admin (associado fora
+// do pedido original) — some do grupo "crm" só pra associado, sem afetar
+// corretor/gestor que compartilham o mesmo brokerGroups.
+const associateGroups = brokerGroups.map((group) => {
+  if (group.key === "desempenho") return { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" };
+  if (group.key === "crm") return { ...group, items: group.items.filter((item) => item.key !== "opportunities") };
+  return group;
+});
 
 function getGroupKeyForActive(active, groups = adminGroups) {
   return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
