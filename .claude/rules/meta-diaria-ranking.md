@@ -1,0 +1,45 @@
+# Meta Diária, carteira ativa e ranking
+
+Arquivos principais: `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `lib/performance-overview.js`, `lib/scoring-rules.js`. Componentes: `components/DailyGoalDashboard.jsx` (visão do corretor), `components/TeamDailyPerformance.jsx` (visão do gestor/dono), `components/PerformanceOverviewDashboard.jsx` (ranking/funil).
+
+## Modelo de dados
+
+- `daily_goal_rounds`: uma "rodada" de cadência de até 3 tentativas para um contato de prospecção. `attempt_count` (0/1/2/3) é o número de tentativas já feitas; `status` (`active`/`converted`/`ended_no_conversion`); `round_started_at` é a data (plain date) em que a rodada começou e **nunca muda**.
+- `daily_goal_attempts`: uma linha por tentativa REAL enviada (clique de mandar mensagem), com `attempt_number` (1/2/3) e `goal_date` (dia em que foi enviada, fuso America/Sao_Paulo). É a fonte de verdade de "o que aconteceu em qual dia" — não `round_started_at`, que só marca o início da rodada (uma rodada atrasada pode ter a 2ª/3ª tentativa feita dias depois do início).
+- `daily_goals`: uma linha por (corretor, dia), gerada sob demanda (ver abaixo).
+- Reaproveita a mesma fila/tabelas da Prospecção manual (`prospecting_contacts`, `prospecting_history`, trava de 30 dias) — **não é um pool de clientes paralelo**.
+
+## Conceito da Meta Diária
+
+**[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-22]** A Meta Diária é conceitualmente uma **rotina diária independente**. Consequências diretas desta regra:
+- **Pendências de um dia NÃO devem ser carregadas como meta pendente para o dia seguinte.** Cada dia é sua própria unidade.
+- **Cliente não trabalhado deve retornar à fila de prospecção**, conforme as regras já aplicáveis de retorno (ver `.claude/rules/roleta-prospeccao-campanhas.md`), em vez de continuar acumulado como pendência da Meta Diária.
+- **Cliente arquivado ou marcado "não contactar novamente" não deve voltar a aparecer como pendência/alerta** na Meta Diária.
+
+**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — diverge da regra oficial acima no primeiro ponto, confirmar antes de corrigir]** `buildDailyGoalSnapshot` (`lib/daily-goal.js`) hoje faz o oposto do primeiro ponto de propósito: `pendingSecondRounds`/`pendingThirdRounds` usam `round_started_at <= ontem/anteontem` (não `=== ontem/anteontem`), e o comentário no código diz explicitamente "Pendentes... NUNCA ficam restritos ao dia exato da coorte... pegam QUALQUER rodada ainda ativa... não importa há quantos dias. É isso que garante que nada suma de vista." Ou seja, hoje uma pendência de dias atrás **continua** aparecendo como pendência de hoje (acumulada), e o próprio `pendingCarriedOver`/`pendingFirstCarriedOver` existe pra mostrar visualmente esse acúmulo — o oposto do que a regra oficial pede agora. Isso foi uma correção deliberada de um bug anterior (rodadas sumindo de vista), então mudar isso de volta precisa reconciliar com aquele motivo original antes de implementar — não é um ajuste trivial de uma condição.
+
+Quanto ao retorno à fila (2º ponto) e à exclusão de arquivado/não-contactar (3º ponto): `reconcileDailyGoalRounds` já encerra a rodada quando o status do cliente muda para algo diferente de "aguardando retorno"/"em atendimento" (o que cobre arquivado e não-contactar), e `lib/prospecting-auto-return.js` já devolve o contato à fila depois de inatividade. **[PENDENTE DE VALIDAÇÃO]** se essa implementação já atende exatamente a regra oficial ou tem lacunas — não confirmei isso a fundo, só que a estrutura existe e vai na direção certa.
+
+## Geração da cota diária
+
+**[IMPLEMENTAÇÃO, não regra de negócio — a menos que o dono determine o contrário]** Novas rodadas do dia (cota de "1ª tentativa") só são criadas quando o PRÓPRIO corretor abre sua tela de Meta Diária (`ensureDailyGoalGenerated`, chamado dentro de `getBrokerDailyGoal`). Não existe cron que gere isso de madrugada. Isso é uma característica técnica da implementação atual, não uma regra de negócio confirmada — qualquer horário, cron ou estratégia técnica de geração fica classificado como implementação até o dono decidir o contrário. Consequência observada: cedo no dia, antes de os corretores abrirem o app, a visão do gestor (`TeamDailyPerformance.jsx`) mostra "1ª: 0" para quem ainda não começou. Se o pedido futuro for mudar essa estratégia (ex.: gerar via cron), trate como mudança de implementação a avaliar tecnicamente (impacto no pool compartilhado de contatos de um corretor ausente), não como correção de bug nem como regra de negócio pré-definida.
+
+## Regra "fica realizado até amanhã" (pedido explícito do dono, 2026-09-21/22)
+
+Quando o corretor registra uma tentativa (1ª, 2ª ou 3ª), o card **não deve pular imediatamente** para a próxima etapa — ele permanece na mesma seção com um indicador de "realizado hoje" até o fim do dia, e só migra para a próxima etapa no dia seguinte.
+
+Implementação (já feita, replicar o mesmo padrão em qualquer tela nova que mostre esse estado):
+- A gate de "quando fica ACIONÁVEL de novo" já existia em `buildDailyGoalSnapshot` (`round_started_at <= ontem/anteontem`).
+- O que faltava era a **visibilidade**: `lib/daily-goal.js` consulta `daily_goal_attempts` do dia e monta uma lista `doneToday` por grupo (mostrada como card com selo verde em `DailyGoalDashboard.jsx`).
+- `lib/daily-goal-wallet.js` (`getDailyGoalWalletStatus`, usado tanto no chip "Carteira ativa" do corretor quanto na visão do gestor) faz a mesma coisa na contagem `byAttempt.{first,second,third}`: uma rodada cuja tentativa mais recente foi HOJE conta na etapa que ela ACABOU de concluir, não na próxima.
+- **Armadilha real já corrigida**: nunca assuma que uma rodada recebe no máximo 1 tentativa por dia. Um corretor atrasado pode legitimamente fazer a 2ª E a 3ª tentativa da mesma rodada no mesmo dia (catching up). Ao decidir "essa rodada está descansando em qual etapa", use sempre o `attempt_count` ATUAL da rodada (o estágio mais avançado), nunca o `attempt_number` de uma linha específica de `daily_goal_attempts` — se você indexar por `round_id` num `Map` a partir de `daily_goal_attempts`, uma rodada com duas tentativas no mesmo dia vai sobrescrever a entrada e você perde uma delas.
+
+## Ranking / pontuação (`lib/scoring-rules.js`, `lib/performance-overview.js`)
+
+Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazenada por evento), aplicando a regra vigente no instante exato de cada evento (`loadScoringRulesTimeline`, vigência por período — mesmo padrão de "linha do tempo de regras" usado em outros lugares do sistema). "Prospecção" para fins de pontuação/ranking conta **1ª/2ª/3ª tentativa igual**, mais reivindicações manuais reais — a reserva automática da própria Meta Diária (`prospecting_history` com `event_type: "claimed"` e `details.source === "daily_goal"`) é excluída por ser a RESERVA do contato, não uma ação do corretor.
+
+`getPerformanceOverview` carrega os eventos brutos (`teamRegistrations`, `history`, `prospectingEvents`) **sempre da mesma forma, nunca filtrados pelo escopo de quem está perguntando** — a permissão de visualização (quem aparece na lista) é aplicada só depois, em `listVisibleTeamProfiles`. Isso é proposital: o mesmo corretor no mesmo período tem que somar os mesmos pontos não importa quem está olhando o dashboard.
+
+## Carteira ativa (wallet)
+
+Limite global configurável (Gestão > Meta Diária > Configurações), com arquitetura já pronta (`daily_goal_wallet_broker_overrides`) para limite individual por corretor no futuro — mas ainda sem tela para editar override individual. A prospecção "extra" (além da carteira já cheia) só libera depois que a carteira INTEIRA já recebeu a obrigação do dia (`getDailyGoalCompletionStatus`), calculado sempre contra tabelas de fato (tentativas/reivindicações reais), nunca um contador visual do frontend.
