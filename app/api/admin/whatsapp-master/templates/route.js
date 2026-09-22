@@ -5,8 +5,7 @@ import { createWhatsappMessageTemplate, listWhatsappMessageTemplates } from "@/l
 
 export const runtime = "nodejs";
 
-// Gerenciamento genérico de modelos do WhatsApp (além dos 3 do resumo
-// diário, ver /provision-daily-performance-templates) — pra criar futuros
+// Gerenciamento genérico de modelos do WhatsApp — pra criar futuros
 // modelos direto pelo site, sem precisar editar código. Só o dono: cria
 // registro permanente na conta comercial da Meta.
 export async function GET(request) {

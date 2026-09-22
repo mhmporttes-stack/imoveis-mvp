@@ -14,7 +14,6 @@ import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
 import { getWhatsappMasterSettings } from "@/lib/crm";
-import { getDailyGoalPerformanceWhatsappStatus } from "@/lib/daily-goal-performance-whatsapp";
 import { getDailyMessageSettings } from "@/lib/daily-message";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
 import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, listWhatsappMasterEvents, listWhatsappMessageTemplates } from "@/lib/whatsapp-master";
@@ -55,7 +54,7 @@ export default async function AutomationsPage({ searchParams }) {
       ) : tab === "whatsapp-master" ? (
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
-          <WhatsappTemplateManager initialStatus={whatsappData.dailyPerformanceStatus} />
+          <WhatsappTemplateManager />
           <WhatsappDisparoManager />
           <WhatsappAutomationRepliesManager initialRules={whatsappData.automationReplies} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
@@ -80,13 +79,6 @@ async function loadWhatsappMasterData() {
     events = [];
   }
 
-  let dailyPerformanceStatus = { templates: [], templatesError: "", lastSentDate: "", lastResults: [] };
-  try {
-    dailyPerformanceStatus = await getDailyGoalPerformanceWhatsappStatus();
-  } catch {
-    dailyPerformanceStatus = { templates: [], templatesError: "Falha ao carregar status.", lastSentDate: "", lastResults: [] };
-  }
-
   let automationReplies = [];
   try {
     automationReplies = await listWhatsappAutomationReplies();
@@ -94,7 +86,7 @@ async function loadWhatsappMasterData() {
     automationReplies = [];
   }
 
-  return { settings, environment, events, dailyPerformanceStatus, automationReplies };
+  return { settings, environment, events, automationReplies };
 }
 
 // Mesma população elegível já usada em Desempenho/Ranking/Meta Diária

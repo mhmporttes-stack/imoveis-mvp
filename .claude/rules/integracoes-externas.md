@@ -23,7 +23,7 @@ Clique de "abrir WhatsApp" na UI (deep link `wa.me/...`) sempre chama uma API pr
 
 ## Cron (Vercel)
 
-Rotas em `app/api/cron/*`: `daily-broker-performance`, `daily-goal-close`, `daily-report`, `scheduled-activities`, `whatsapp-broadcast-dispatch`. Todas exigem `Authorization: Bearer <token>` comparado com `timingSafeEqual` contra `CRON_SECRET`/`SUPABASE_CRON_TOKEN_HASH` — **falha fechado se a variável não estiver configurada** (nunca aceita chamada sem segredo configurado). Confirme se `vercel.json` (ou a config de cron do painel Vercel) realmente agenda cada rota antes de assumir que ela roda sozinha — a existência do endpoint não garante agendamento ativo.
+Rotas em `app/api/cron/*`: `daily-goal-close`, `daily-report`, `scheduled-activities`, `whatsapp-broadcast-dispatch`. Todas exigem `Authorization: Bearer <token>` comparado com `timingSafeEqual` contra `CRON_SECRET`/`SUPABASE_CRON_TOKEN_HASH` — **falha fechado se a variável não estiver configurada** (nunca aceita chamada sem segredo configurado). Confirme se `vercel.json` (ou a config de cron do painel Vercel) realmente agenda cada rota antes de assumir que ela roda sozinha — a existência do endpoint não garante agendamento ativo.
 
 ## Push
 
