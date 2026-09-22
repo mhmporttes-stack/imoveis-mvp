@@ -5,6 +5,7 @@ import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
 import WhatsappManualSender from "@/components/WhatsappManualSender";
+import WhatsappAutomationRepliesManager from "@/components/WhatsappAutomationRepliesManager";
 import WhatsappDisparoManager from "@/components/WhatsappDisparoManager";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
@@ -17,6 +18,7 @@ import { getDailyGoalPerformanceWhatsappStatus } from "@/lib/daily-goal-performa
 import { getDailyMessageSettings } from "@/lib/daily-message";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
 import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, listWhatsappMasterEvents, listWhatsappMessageTemplates } from "@/lib/whatsapp-master";
+import { listWhatsappAutomationReplies } from "@/lib/whatsapp-automation-replies";
 import { JOURNEY_STAGES } from "@/lib/whatsapp-manual-summary";
 import Link from "next/link";
 
@@ -55,6 +57,7 @@ export default async function AutomationsPage({ searchParams }) {
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
           <WhatsappTemplateManager initialStatus={whatsappData.dailyPerformanceStatus} />
           <WhatsappDisparoManager />
+          <WhatsappAutomationRepliesManager initialRules={whatsappData.automationReplies} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
       ) : tab === "whatsapp-manual" ? (
@@ -84,7 +87,14 @@ async function loadWhatsappMasterData() {
     dailyPerformanceStatus = { templates: [], templatesError: "Falha ao carregar status.", lastSentDate: "", lastResults: [] };
   }
 
-  return { settings, environment, events, dailyPerformanceStatus };
+  let automationReplies = [];
+  try {
+    automationReplies = await listWhatsappAutomationReplies();
+  } catch {
+    automationReplies = [];
+  }
+
+  return { settings, environment, events, dailyPerformanceStatus, automationReplies };
 }
 
 // Mesma população elegível já usada em Desempenho/Ranking/Meta Diária
