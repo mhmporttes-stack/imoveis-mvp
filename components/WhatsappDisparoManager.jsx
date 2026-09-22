@@ -14,7 +14,8 @@ const TEMPLATE_STATUS_TONE = {
   PENDING: { icon: Clock, tone: "text-amber-700 bg-amber-50" },
   REJECTED: { icon: CircleX, tone: "text-red-700 bg-red-50" },
   PAUSED: { icon: Clock, tone: "text-amber-700 bg-amber-50" },
-  DISABLED: { icon: CircleX, tone: "text-muted bg-mist" }
+  DISABLED: { icon: CircleX, tone: "text-muted bg-mist" },
+  NOT_FOUND: { icon: CircleX, tone: "text-muted bg-mist" }
 };
 
 const DESTINATION_OPTIONS = [
