@@ -3,7 +3,7 @@ import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Calculator,
   CalendarDays,
@@ -14,16 +14,26 @@ import {
   ExternalLink,
   FileText,
   MessageCircle,
+  MoreHorizontal,
   Phone,
   Plus,
   Search,
-  Tag,
+  SlidersHorizontal,
   TriangleAlert,
   Trash2,
   UserRound,
   X
 } from "lucide-react";
-import { CLIENT_FUNNEL_SALE_STATUS_VALUES, CLIENT_STATUS, CLIENT_STATUS_META, CLIENT_STATUS_OPTIONS, normalizeClientStatus } from "@/lib/client-status";
+import {
+  CLIENT_FUNNEL_SALE_STATUS_VALUES,
+  CLIENT_STATUS,
+  CLIENT_STATUS_FILTER_GROUPS,
+  CLIENT_STATUS_META,
+  isOverdueActivityClient,
+  isStaleContactClient,
+  mergeActivitySignal,
+  normalizeClientStatus
+} from "@/lib/client-status";
 import { buildWhatsAppUrl, formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
 import {
   booleanLabel,
@@ -36,16 +46,8 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
-import { isAwaitingFutureActivityClient, isStaleContactClient, mergeActivitySignal } from "@/lib/client-status";
-import { normalizePersonName } from "@/lib/name-utils";
 import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
-import {
-  extractSimulationPhone,
-  formatMoneyBR,
-  getSimulationListSummary,
-  normalizeMoneyValue,
-  normalizePhone
-} from "@/lib/simulation-list-utils";
+import { formatMoneyBR } from "@/lib/simulation-list-utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const ACTIVITY_TYPE_OPTIONS = [
@@ -56,31 +58,6 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: "visita", label: "Visita" },
   { value: "outro", label: "Outro" }
 ];
-const CLIENT_STATUS_ORDER = CLIENT_STATUS_OPTIONS
-  .filter((option) => option.value !== "all")
-  .reduce((acc, option, index) => {
-    acc[option.value] = index + 1;
-    return acc;
-  }, {});
-// Reorganização do funil (2026-09-12): macroetapas fixas — Restrição/Blindagem/
-// Reprovado NÃO são mais um grupo à parte ("Restrições"): pertencem à etapa
-// "Aprovação" (regra do negócio: reprovar/restringir não tira o cliente do
-// funil). "Venda" agrupa os 8 status legados de venda como uma única etapa.
-const CLIENT_STATUS_FILTER_GROUPS = [
-  { key: "all", label: "Todos", statuses: [] },
-  { key: "prospecting", label: "Prospecção", statuses: [CLIENT_STATUS.AWAITING_RETURN] },
-  { key: "service", label: "Atendimento", statuses: [CLIENT_STATUS.IN_SERVICE] },
-  { key: "simulation", label: "Simulação", statuses: [CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT] },
-  { key: "documentation", label: "Documentação", statuses: [CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING] },
-  { key: "approval", label: "Aprovação", statuses: [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.REJECTED] },
-  { key: "approved", label: "Aprovados", statuses: [CLIENT_STATUS.APPROVED] },
-  { key: "meeting", label: "Reunião", statuses: [CLIENT_STATUS.MEETING_PENDING, CLIENT_STATUS.MEETING_DONE] },
-  { key: "sale", label: "Venda", statuses: CLIENT_FUNNEL_SALE_STATUS_VALUES },
-  { key: "archived", label: "Arquivados", statuses: [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT] }
-];
-// Os 7 status legados de subetapa de venda continuam válidos (clientes
-// antigos preservam o status/label real), mas deixam de ser oferecidos como
-// opção de novo lançamento — a partir de agora só existe "Venda realizada".
 const SALE_STATUS_OPTIONS = [{ value: CLIENT_STATUS.SALE_COMPLETED, label: "Venda realizada" }];
 const SALE_STATUS_VALUES = new Set(CLIENT_FUNNEL_SALE_STATUS_VALUES);
 const MAIN_STATUS_VALUES = [
@@ -115,51 +92,86 @@ const TAG_COLORS = [
   { label: "Preto suave", value: "#1F2937" }
 ];
 
+const DEFAULT_FILTERS = {
+  query: "",
+  responsibleUserId: "all",
+  tagId: "all",
+  pendingOnly: false,
+  staleContactOnly: false,
+  noFutureActivityOnly: false,
+  statusGroup: "all",
+  status: "all"
+};
+
+// Cliente não arquivado sem atividade futura (legada ou extra) e sem contato
+// há mais de 3 dias — mesma regra que decidia o selo vermelho "Pendentes" no
+// topo, agora também reaproveitada para o indicador de urgência do card.
+function isPendingClient(client, extraActivities) {
+  if ([CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)) return false;
+  const merged = mergeActivitySignal(client, extraActivities);
+  const now = Date.now();
+  const scheduledAt = new Date(merged.scheduledActivityAt || "").getTime();
+  if (Number.isFinite(scheduledAt) && scheduledAt > now) return false;
+  const referenceAt = new Date(client.lastWhatsappContactAt || client.createdAt || "").getTime();
+  return Number.isFinite(referenceAt) && referenceAt < now - (3 * 24 * 60 * 60 * 1000);
+}
+
+// Único indicador de urgência do card — usa só sinais que já existem no CRM
+// (atividade atrasada > sem contato recente > pendente), sem criar um score
+// novo. Ordem = prioridade: o primeiro que bater é o único mostrado.
+function getUrgencySignal(client, extraActivities) {
+  if (isOverdueActivityClient(client)) {
+    return { key: "overdue", label: "Atividade atrasada" };
+  }
+  if (isStaleContactClient(client)) {
+    return { key: "stale", label: "Sem contato há +3 dias" };
+  }
+  if (isPendingClient(client, extraActivities)) {
+    return { key: "pending", label: "Aguardando ação" };
+  }
+  return null;
+}
+
 export default function AdminSimulationList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
   canReturnAssignedProspecting = false,
-  clientActivities = {},
   isOwner = false,
-  loadWarning = "",
-  registrations = [],
-  simulations = [],
+  initialData,
+  initialFilters,
   tags = []
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const listTopRef = useRef(null);
-  // "query" também pode vir de um link externo (ex.: notificação push de um
-  // cliente específico) — abre a lista já com esse cliente buscado, sem
-  // precisar de uma rota própria por cliente.
-  const [query, setQuery] = useState(() => searchParams.get("query") || "");
-  // Estado inicial de status/corretor/pendências pode vir de um link externo
-  // (ex.: painel de Desempenho), preservando o filtro de onde o clique partiu.
-  const [statusGroup, setStatusGroup] = useState(() => searchParams.get("statusGroup") || "all");
-  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "all");
-  const [tagFilter, setTagFilter] = useState("all");
-  const [responsibleFilter, setResponsibleFilter] = useState(() => searchParams.get("responsibleUserId") || "all");
-  const [pendingOnly, setPendingOnly] = useState(() => searchParams.get("pending") === "1");
-  const [staleContactOnly, setStaleContactOnly] = useState(() => searchParams.get("staleContact") === "1");
-  const [noFutureActivityOnly, setNoFutureActivityOnly] = useState(() => searchParams.get("noFutureActivity") === "1");
-  const [pageSize, setPageSize] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [expandedClientId, setExpandedClientId] = useState("");
-  const [editingTagsClientId, setEditingTagsClientId] = useState("");
-  const [localRegistrations, setLocalRegistrations] = useState(() => ensureArray(registrations));
+
+  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...initialFilters }));
+  const [searchInput, setSearchInput] = useState(() => initialFilters?.query || "");
+  const [pageSize, setPageSize] = useState(() => (PAGE_SIZE_OPTIONS.includes(initialData?.pageSize) ? initialData.pageSize : PAGE_SIZE_OPTIONS[0]));
+  const [page, setPage] = useState(() => initialData?.page || 1);
+
+  const [items, setItems] = useState(() => initialData?.items || []);
+  const [total, setTotal] = useState(() => initialData?.total || 0);
+  const [totalPages, setTotalPages] = useState(() => initialData?.totalPages || 1);
+  const [counters, setCounters] = useState(() => initialData?.counters || { all: 0, byStatus: {}, byGroup: {} });
+  const [pendingClientsCount, setPendingClientsCount] = useState(() => initialData?.pendingClientsCount || 0);
+  const [localClientActivities, setLocalClientActivities] = useState(() => initialData?.clientActivities || {});
+  const [loading, setLoading] = useState(false);
+  const [loadWarning, setLoadWarning] = useState("");
+
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [tagDraft, setTagDraft] = useState("");
   const [tagColor, setTagColor] = useState(TAG_COLORS[0].value);
+  const [expandedClientId, setExpandedClientId] = useState("");
+  const [editingTagsClientId, setEditingTagsClientId] = useState("");
   const [busyClientId, setBusyClientId] = useState("");
   const [dncTarget, setDncTarget] = useState(null);
   const [schedulingClientId, setSchedulingClientId] = useState("");
   const [scheduleDraft, setScheduleDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
-  // Atividades extras (calendar_activities) por cliente — o cliente pode ter
-  // várias ao mesmo tempo, além (não em vez) da atividade legada única acima.
-  const [localClientActivities, setLocalClientActivities] = useState(() => clientActivities);
   const [addingActivityClientId, setAddingActivityClientId] = useState("");
   const [newActivityDraft, setNewActivityDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
   const [expandedActivitiesClientId, setExpandedActivitiesClientId] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
@@ -167,17 +179,25 @@ export default function AdminSimulationList({
     responsibleProfiles.map((profile) => [profile.id, profile])
   ), [responsibleProfiles]);
 
+  // Debounce da busca: só entra como filtro (e refaz a consulta) 350ms depois
+  // de o usuário parar de digitar — evita uma consulta ao banco por tecla.
   useEffect(() => {
-    setLocalRegistrations(ensureArray(registrations));
-  }, [registrations]);
+    const handle = setTimeout(() => {
+      if (searchInput !== filters.query) updateFilters({ query: searchInput });
+    }, 350);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    setLocalClientActivities(clientActivities);
-  }, [clientActivities]);
-
-  useEffect(() => {
-    setLocalTags(ensureArray(tags));
-  }, [tags]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    fetchClients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, page, pageSize]);
 
   // Vindo de outra tela (ex.: Central de Oportunidades, "Abrir cliente" ->
   // /admin/simulacoes?clientId=X) — expande o card desse cliente ao montar,
@@ -188,132 +208,69 @@ export default function AdminSimulationList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const clientsResult = useMemo(() => {
+  function updateFilters(patch) {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPage(1);
+  }
+
+  async function fetchClients() {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filters.query) params.set("query", filters.query);
+    if (filters.responsibleUserId !== "all") params.set("responsibleUserId", filters.responsibleUserId);
+    if (filters.tagId !== "all") params.set("tagId", filters.tagId);
+    if (filters.pendingOnly) params.set("pending", "1");
+    if (filters.staleContactOnly) params.set("staleContact", "1");
+    if (filters.noFutureActivityOnly) params.set("noFutureActivity", "1");
+    if (filters.statusGroup !== "all") params.set("statusGroup", filters.statusGroup);
+    if (filters.status !== "all") params.set("status", filters.status);
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+
     try {
-      const safeSimulations = ensureArray(simulations);
-      const safeRegistrations = ensureArray(localRegistrations);
-      const usedRegistrationIds = new Set();
-      const groupedClients = new Map();
-
-      safeSimulations.forEach((simulation) => {
-        const summary = getSimulationListSummary(simulation);
-        const registration = findRegistrationForSimulation(simulation, safeRegistrations);
-        if (registration?.id) usedRegistrationIds.add(registration.id);
-
-        mergeClientItem(groupedClients, buildClientItem({
-          registration,
-          simulation,
-          summary
-        }));
-      });
-
-      safeRegistrations
-        .filter((registration) => !usedRegistrationIds.has(registration.id))
-        .forEach((registration) => mergeClientItem(groupedClients, buildClientItem({ registration })));
-
-      // "Tentando contato" vai para o final da fila (na aba Todos) — cliente
-      // já em tentativa não deve furar a frente de quem ainda nem foi
-      // contactado uma vez.
-      const items = Array.from(groupedClients.values()).sort((a, b) => {
-        const trailingA = a.status === CLIENT_STATUS.AWAITING_RETURN ? 1 : 0;
-        const trailingB = b.status === CLIENT_STATUS.AWAITING_RETURN ? 1 : 0;
-        if (trailingA !== trailingB) return trailingA - trailingB;
-
-        const dateA = safeTimestamp(a.sortDate);
-        const dateB = safeTimestamp(b.sortDate);
-        return dateB - dateA;
-      });
-
-      return { error: "", items };
-    } catch (error) {
-      console.error("Erro ao montar a lista de clientes:", error);
-      return {
-        error: error?.message || "Nao foi possivel montar a lista de clientes.",
-        items: []
-      };
+      const response = await fetch(`/api/simulation-registrations/list?${params.toString()}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setLoadWarning(data.error || "Não foi possível carregar os clientes.");
+        return;
+      }
+      setLoadWarning("");
+      setItems(data.items || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+      setCounters(data.counters || { all: 0, byStatus: {}, byGroup: {} });
+      setPendingClientsCount(data.pendingClientsCount || 0);
+      setLocalClientActivities(data.clientActivities || {});
+    } catch {
+      setLoadWarning("Não foi possível carregar os clientes.");
+    } finally {
+      setLoading(false);
     }
-  }, [localRegistrations, simulations]);
-  const clients = clientsResult.items;
-  // Cliente pode ter atividades extras (calendar_activities) além da legada
-  // única — as regras de "pendente"/"sem atividade futura" precisam olhar as
-  // duas fontes juntas (mergeActivitySignal), senão uma atividade extra futura
-  // não impediria o cliente de aparecer como pendente/sem atividade.
-  const pendingClientsCount = useMemo(() => (
-    clients.filter((client) => isPendingClient(client, localClientActivities[client.id])).length
-  ), [clients, localClientActivities]);
+  }
 
-  // Clientes já filtrados por tudo, MENOS status — é a base tanto dos
-  // contadores das abas (Todos/Atendimentos/...) quanto da lista final,
-  // pra esses números baterem com o corretor/tag/busca selecionados.
-  const scopedClients = useMemo(() => {
-    const textQuery = normalizeText(query);
-    const clientCodeQuery = normalizeClientCode(query);
-    const phoneQuery = normalizePhone(query);
-
-    return clients.filter((client) => {
-      const extraActivities = localClientActivities[client.id];
-      if (pendingOnly && !isPendingClient(client, extraActivities)) return false;
-      if (staleContactOnly && !isStaleContactClient(client)) return false;
-      if (noFutureActivityOnly && !isAwaitingFutureActivityClient(mergeActivitySignal(client, extraActivities))) return false;
-      const clientResponsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
-      if (responsibleFilter === "unassigned" && clientResponsibleUserId) return false;
-      if (responsibleFilter !== "all" && responsibleFilter !== "unassigned" && clientResponsibleUserId !== responsibleFilter) return false;
-      if (tagFilter !== "all" && !ensureArray(client.tags).some((tagItem) => tagItem.id === tagFilter)) return false;
-      if (!textQuery && !phoneQuery) return true;
-
-      return (
-        client.searchText.text.includes(textQuery) ||
-        (clientCodeQuery ? String(client.searchText.clientCode || "").includes(clientCodeQuery) : false) ||
-        (phoneQuery ? client.searchText.phone.includes(phoneQuery) : false)
-      );
-    });
-  }, [clients, localClientActivities, noFutureActivityOnly, pendingOnly, query, responsibleFilter, staleContactOnly, tagFilter]);
-
-  const counters = useMemo(() => {
-    const base = CLIENT_STATUS_OPTIONS.reduce((acc, option) => {
-      acc[option.value] = option.value === "all" ? scopedClients.length : 0;
-      return acc;
-    }, {});
-
-    for (const client of scopedClients) {
-      base[client.status] = (base[client.status] || 0) + 1;
-    }
-
-    return base;
-  }, [scopedClients]);
-
-  const filteredClients = useMemo(() => {
-    const activeGroup = CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup);
-    const groupStatuses = activeGroup?.statuses || [];
-
-    return scopedClients.filter((client) => {
-      // "Não contactar" só deve aparecer dentro de Arquivados > Não contactar,
-      // nunca na aba Todos (statusGroup "all").
-      if (statusGroup === "all" && client.status === CLIENT_STATUS.DO_NOT_CONTACT) return false;
-      if (statusGroup !== "all" && !groupStatuses.includes(client.status)) return false;
-      if (statusFilter !== "all" && client.status !== statusFilter) return false;
-      return true;
-    });
-  }, [scopedClients, statusGroup, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
-  const pageStart = filteredClients.length ? (currentPage - 1) * pageSize : 0;
-  const pageEnd = Math.min(pageStart + pageSize, filteredClients.length);
-  const currentClients = filteredClients.slice(pageStart, pageEnd);
-  const pageNumbers = getPageNumbers(currentPage, totalPages);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [noFutureActivityOnly, pageSize, pendingOnly, query, responsibleFilter, staleContactOnly, statusGroup, statusFilter, tagFilter]);
-
-  useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
-
-  function goToPage(page) {
-    const nextPage = Math.min(Math.max(page, 1), totalPages);
-    setCurrentPage(nextPage);
+  function goToPage(nextPage) {
+    const clamped = Math.min(Math.max(nextPage, 1), totalPages);
+    setPage(clamped);
     listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Atualização otimista de um cliente já carregado nesta página — deixa a UI
+  // reagir na hora, sem esperar o refetch. Quando o campo alterado pode mudar
+  // a que aba/filtro o cliente pertence, refreshAfter mantém a paginação e os
+  // contadores corretos buscando a página de novo logo em seguida.
+  function patchClientRegistration(clientId, patch, { refreshAfter = false } = {}) {
+    setItems((current) => current.map((item) => {
+      if (item.id !== clientId) return item;
+      const nextRegistration = { ...item.registration, ...patch, tags: item.registration.tags || patch.tags || [] };
+      const nextStatus = patch.status !== undefined ? normalizeClientStatus(patch.status) : item.status;
+      return { ...item, registration: nextRegistration, status: nextStatus };
+    }));
+    if (refreshAfter) fetchClients();
+  }
+
+  function removeClientLocally(clientId) {
+    setItems((current) => current.filter((item) => item.id !== clientId));
+    fetchClients();
   }
 
   async function ensureSimulationId(client) {
@@ -322,15 +279,12 @@ export default function AdminSimulationList({
       return client.simulation.id;
     }
 
-    const registration = client.registration?.id ? await touchClientRegistration(client) : await ensureClientRegistration(client);
-    if (!registration?.id) return "";
-
     setBusyClientId(client.id);
     try {
       const response = await fetch("/api/simulations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildDraftSimulationPayload(registration))
+        body: JSON.stringify(buildDraftSimulationPayload(client.registration))
       });
       const data = await response.json().catch(() => ({}));
 
@@ -372,24 +326,20 @@ export default function AdminSimulationList({
         }
       }
 
-      if (client.registration?.id) {
-        const registrationResponse = await fetch(`/api/simulation-registrations/${client.registration.id}`, { method: "DELETE" });
-        if (!registrationResponse.ok) {
-          const data = await registrationResponse.json().catch(() => ({}));
-          alert(data.error || "Não foi possível excluir o cadastro.");
-          return;
-        }
+      const registrationResponse = await fetch(`/api/simulation-registrations/${client.registration.id}`, { method: "DELETE" });
+      if (!registrationResponse.ok) {
+        const data = await registrationResponse.json().catch(() => ({}));
+        alert(data.error || "Não foi possível excluir o cadastro.");
+        return;
       }
 
-      setLocalRegistrations((current) => current.filter((registration) => registration.id !== client.registration?.id));
+      removeClientLocally(client.id);
     } finally {
       setBusyClientId("");
     }
   }
 
   async function touchClientRegistration(client) {
-    if (!client.registration?.id) return ensureClientRegistration(client);
-
     setBusyClientId(client.id);
     try {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
@@ -404,11 +354,7 @@ export default function AdminSimulationList({
         return client.registration;
       }
 
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id
-          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
-          : registration
-      )));
+      patchClientRegistration(client.id, data);
       return data;
     } catch (error) {
       console.error("Nao foi possivel registrar a atividade administrativa:", error);
@@ -419,16 +365,10 @@ export default function AdminSimulationList({
   }
 
   async function updateClientStatus(client, status) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) {
-      alert("Este cliente ainda não possui cadastro vinculado para alterar o status.");
-      return;
-    }
-
     const nextStatus = normalizeClientStatus(status);
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus })
@@ -440,17 +380,7 @@ export default function AdminSimulationList({
         return;
       }
 
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id
-          ? {
-              ...registration,
-              ...data,
-              tags: registration.tags || data.tags || [],
-              status: nextStatus,
-              approvedAt: data.approvedAt || registration.approvedAt
-            }
-          : registration
-      )));
+      patchClientRegistration(client.id, { ...data, status: nextStatus }, { refreshAfter: true });
     } finally {
       setBusyClientId("");
     }
@@ -459,15 +389,9 @@ export default function AdminSimulationList({
   async function updateClientResponsibleUser(client, responsibleUserId) {
     if (!canManageResponsibleUsers) return;
 
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) {
-      alert("Este cliente ainda não possui cadastro vinculado para alterar o responsável.");
-      return;
-    }
-
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ responsibleUserId })
@@ -479,18 +403,13 @@ export default function AdminSimulationList({
         return;
       }
 
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id
-          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
-          : registration
-      )));
+      patchClientRegistration(client.id, data, { refreshAfter: true });
     } finally {
       setBusyClientId("");
     }
   }
 
   async function handleProspectingAction(client, action, extraPayload = {}) {
-    if (!client.registration?.id) return;
     if (action === "do_not_contact") { setDncTarget(client); return; }
     if (action === "return_to_queue" && !confirm("Devolver este cliente imediatamente para a fila de prospecção?")) return;
     const whatsappWindow = action === "prospect" ? window.open("about:blank", "_blank") : null;
@@ -500,8 +419,8 @@ export default function AdminSimulationList({
       const data = await response.json().catch(() => ({}));
       if (!response.ok) { whatsappWindow?.close(); alert(data.error || "Não foi possível atualizar a prospecção."); return; }
       if (data.whatsappUrl && whatsappWindow) whatsappWindow.location.href = data.whatsappUrl;
-      if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
-      else setLocalRegistrations((current) => current.map((item) => item.id === client.registration.id ? { ...item, status: data.status, prospectingAssignedPending: data.prospectingAssignedPending ?? item.prospectingAssignedPending } : item));
+      if (data.removed) removeClientLocally(client.id);
+      else patchClientRegistration(client.id, { status: data.status, prospectingAssignedPending: data.prospectingAssignedPending ?? client.registration.prospectingAssignedPending }, { refreshAfter: true });
     } finally { setBusyClientId(""); }
   }
 
@@ -514,48 +433,29 @@ export default function AdminSimulationList({
       const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "do_not_contact", reasonKey, reasonText }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) { alert(data.error || "Não foi possível registrar \"não contactar novamente\"."); return; }
-      if (data.removed) setLocalRegistrations((current) => current.filter((item) => item.id !== client.registration.id));
+      if (data.removed) removeClientLocally(client.id);
+      else fetchClients();
     } finally { setBusyClientId(""); }
   }
 
-  async function openScheduleEditor(client) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) {
-      alert("Este cliente ainda não possui cadastro vinculado para agendar uma atividade.");
-      return;
-    }
-
-    setScheduleDraft(getScheduleDraft(linkedRegistration));
+  function openScheduleEditor(client) {
+    setScheduleDraft(getScheduleDraft(client.registration));
     setSchedulingClientId(client.id);
   }
 
   async function saveClientSchedule(client) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) return;
-
     const date = String(scheduleDraft.date || "").trim();
     const time = String(scheduleDraft.time || "").trim();
     const note = String(scheduleDraft.note || "").replace(/\s+/g, " ").trim();
     const type = String(scheduleDraft.type || "follow_up");
 
-    if (!date) {
-      alert("Selecione o dia da atividade.");
-      return;
-    }
-
-    if (!time) {
-      alert("Selecione o horário da atividade.");
-      return;
-    }
-
-    if (!note) {
-      alert("Explique rapidamente qual é a atividade.");
-      return;
-    }
+    if (!date) { alert("Selecione o dia da atividade."); return; }
+    if (!time) { alert("Selecione o horário da atividade."); return; }
+    if (!note) { alert("Explique rapidamente qual é a atividade."); return; }
 
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -572,11 +472,7 @@ export default function AdminSimulationList({
         return;
       }
 
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id
-          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
-          : registration
-      )));
+      patchClientRegistration(client.id, data, { refreshAfter: filters.noFutureActivityOnly || filters.pendingOnly });
       setSchedulingClientId("");
     } finally {
       setBusyClientId("");
@@ -584,13 +480,11 @@ export default function AdminSimulationList({
   }
 
   async function clearClientSchedule(client) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) return;
     if (!confirm(`Remover a atividade agendada de "${client.name || "cliente"}"?`)) return;
 
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}`, {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -606,31 +500,18 @@ export default function AdminSimulationList({
         return;
       }
 
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === data.id
-          ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
-          : registration
-      )));
+      patchClientRegistration(client.id, data, { refreshAfter: filters.noFutureActivityOnly || filters.pendingOnly });
       setSchedulingClientId("");
     } finally {
       setBusyClientId("");
     }
   }
 
-  // Atividades extras (calendar_activities): diferente do agendamento único
-  // acima, criar uma nova NUNCA substitui as existentes — o cliente pode ter
-  // quantas atividades futuras precisar ao mesmo tempo.
   function clientActivitiesFor(client) {
     return localClientActivities[client.id] || [];
   }
 
   async function createClientActivity(client) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) {
-      alert("Este cliente ainda não possui cadastro vinculado para agendar uma atividade.");
-      return;
-    }
-
     const date = String(newActivityDraft.date || "").trim();
     const time = String(newActivityDraft.time || "").trim();
     const note = String(newActivityDraft.note || "").replace(/\s+/g, " ").trim();
@@ -646,8 +527,8 @@ export default function AdminSimulationList({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: linkedRegistration.id,
-          responsibleUserId: linkedRegistration.responsibleUserId || "",
+          clientId: client.registration.id,
+          responsibleUserId: client.registration.responsibleUserId || "",
           title: note,
           activityType: type,
           note,
@@ -668,6 +549,7 @@ export default function AdminSimulationList({
       }));
       setAddingActivityClientId("");
       setNewActivityDraft({ date: "", time: "", type: "follow_up", note: "" });
+      if (filters.noFutureActivityOnly || filters.pendingOnly) fetchClients();
     } finally {
       setBusyClientId("");
     }
@@ -687,6 +569,7 @@ export default function AdminSimulationList({
         return;
       }
       updateClientActivity(client.id, activityId, data.activity);
+      if (filters.noFutureActivityOnly || filters.pendingOnly) fetchClients();
     } finally {
       setBusyClientId("");
     }
@@ -706,6 +589,7 @@ export default function AdminSimulationList({
         ...current,
         [client.id]: (current[client.id] || []).filter((activity) => activity.id !== activityId)
       }));
+      if (filters.noFutureActivityOnly || filters.pendingOnly) fetchClients();
     } finally {
       setBusyClientId("");
     }
@@ -719,16 +603,10 @@ export default function AdminSimulationList({
   }
 
   async function saveClientTags(client, nextTagIds) {
-    const linkedRegistration = client.registration?.id ? client.registration : await ensureClientRegistration(client);
-    if (!linkedRegistration?.id) {
-      alert("Este cliente ainda não possui cadastro vinculado para receber tags.");
-      return;
-    }
-
     const cleanIds = Array.from(new Set(nextTagIds.filter(Boolean)));
     setBusyClientId(client.id);
     try {
-      const response = await fetch(`/api/simulation-registrations/${linkedRegistration.id}/tags`, {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/tags`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tagIds: cleanIds })
@@ -741,43 +619,7 @@ export default function AdminSimulationList({
       }
 
       const nextTags = localTags.filter((tagItem) => cleanIds.includes(tagItem.id));
-      const updatedRegistration = data.registration || {};
-      setLocalRegistrations((current) => current.map((registration) => (
-        registration.id === linkedRegistration.id
-          ? { ...registration, ...updatedRegistration, tags: nextTags }
-          : registration
-      )));
-    } finally {
-      setBusyClientId("");
-    }
-  }
-
-  async function ensureClientRegistration(client, options = {}) {
-    if (client.registration?.id) {
-      return options.markActivity ? touchClientRegistration(client) : client.registration;
-    }
-
-    setBusyClientId(client.id);
-    try {
-      const response = await fetch("/api/simulation-registrations/manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: client.name,
-          phone: extractClientPhone(client),
-          status: client.status,
-          includeDetails: false
-        })
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        alert(data.error || "NÃ£o foi possÃ­vel criar o cadastro deste cliente.");
-        return null;
-      }
-
-      setLocalRegistrations((current) => upsertById(current, data));
-      return data;
+      patchClientRegistration(client.id, { ...(data.registration || {}), tags: nextTags }, { refreshAfter: filters.tagId !== "all" });
     } finally {
       setBusyClientId("");
     }
@@ -806,18 +648,15 @@ export default function AdminSimulationList({
         return [...current, tag].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
       });
       setTagDraft("");
-      await saveClientTags(client, [...ensureArray(client.tags).map((item) => item.id), tag.id]);
+      const currentItem = items.find((item) => item.id === client.id);
+      await saveClientTags(client, [...ensureArray(currentItem?.tags).map((item) => item.id), tag.id]);
     } finally {
       setBusyClientId("");
     }
   }
 
   async function deleteTagFromSystem(tagItem) {
-    const linkedCount = localRegistrations.filter((registration) => (
-      (registration.tags || []).some((item) => item.id === tagItem.id)
-    )).length;
-
-    if (!confirm(`Excluir a tag "${tagItem.name}"? Ela será removida de ${linkedCount} cliente(s).`)) return;
+    if (!confirm(`Excluir a tag "${tagItem.name}"? Ela será removida de todos os clientes que a usarem.`)) return;
 
     const response = await fetch(`/api/client-tags/${tagItem.id}`, { method: "DELETE" });
     const data = await response.json().catch(() => ({}));
@@ -828,14 +667,15 @@ export default function AdminSimulationList({
     }
 
     setLocalTags((current) => current.filter((item) => item.id !== tagItem.id));
-    setLocalRegistrations((current) => current.map((registration) => ({
-      ...registration,
-      tags: (registration.tags || []).filter((item) => item.id !== tagItem.id)
+    setItems((current) => current.map((item) => ({
+      ...item,
+      tags: (item.tags || []).filter((tagRow) => tagRow.id !== tagItem.id)
     })));
+    if (filters.tagId === tagItem.id) updateFilters({ tagId: "all" });
   }
 
   async function openWhatsApp(client) {
-    const value = client.registration?.phoneNormalized || client.registration?.phone || extractSimulationPhone(client.simulation);
+    const value = client.registration?.phoneNormalized || client.registration?.phone;
     const whatsapp = buildWhatsAppUrl(value);
     if (!whatsapp || !toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
@@ -845,16 +685,10 @@ export default function AdminSimulationList({
     const whatsappWindow = window.open("about:blank", "_blank");
 
     try {
-      if (client.registration?.id) {
-        const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
-        setLocalRegistrations((current) => current.map((registration) => (
-          registration.id === data.id
-            ? { ...registration, ...data, tags: registration.tags || data.tags || [] }
-            : registration
-        )));
-      }
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
+      patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
 
       if (whatsappWindow) {
         whatsappWindow.opener = null;
@@ -868,92 +702,82 @@ export default function AdminSimulationList({
     }
   }
 
+  const pageStart = total ? (page - 1) * pageSize : 0;
+  const pageEnd = pageStart + items.length;
+  const activeChips = buildActiveFilterChips(filters, responsibleProfileMap, localTags, updateFilters);
+  const hasActiveExtraFilters = activeChips.length > 0;
+
   return (
     <section className="container-page relative max-w-full overflow-visible" ref={listTopRef}>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
-        <div className={`grid gap-3 lg:items-center ${canManageResponsibleUsers ? "lg:grid-cols-[minmax(260px,1fr)_220px_130px_auto]" : "lg:grid-cols-[minmax(260px,1fr)_130px_auto]"}`}>
-          <label className="relative block w-full">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label className="relative block w-full flex-1">
             <span className="sr-only">Buscar cliente</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
             <input
               className="h-12 w-full rounded-2xl border border-line bg-white pl-12 pr-4 text-base font-bold text-navy outline-none transition duration-300 placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/10"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Buscar cliente..."
               type="search"
-              value={query}
+              value={searchInput}
             />
           </label>
 
-          {canManageResponsibleUsers ? (
-            <label className="relative block min-w-0 lg:w-[220px]">
-              <span className="sr-only">Filtrar por corretor</span>
-              <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
-              <select
-                className="h-12 w-full rounded-2xl border border-brand/25 bg-white pl-11 pr-4 text-sm font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
-                onChange={(event) => setResponsibleFilter(event.target.value)}
-                value={responsibleFilter}
-              >
-                <option value="all">Todos os corretores</option>
-                {responsibleProfiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>{profile.name}</option>
-                ))}
-                <option value="unassigned">Sem corretor</option>
-              </select>
-            </label>
-          ) : null}
-
-          <div className="contents">
-            <label className="relative block min-w-0 lg:w-[130px]">
-              <span className="sr-only">Filtrar por tag</span>
-              <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
-              <select
-                className="h-12 w-full min-w-0 max-w-full rounded-2xl border border-brand/25 bg-white pl-11 pr-4 text-sm font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
-                onChange={(event) => setTagFilter(event.target.value)}
-                value={tagFilter}
-              >
-                <option value="all">Tags</option>
-                {localTags.map((tagItem) => (
-                  <option key={tagItem.id} value={tagItem.id}>{tagItem.name}</option>
-                ))}
-              </select>
-            </label>
+          <div className="flex items-center gap-2">
+            <FiltersPopover
+              open={filtersOpen}
+              onOpenChange={setFiltersOpen}
+              filters={filters}
+              onChange={updateFilters}
+              canManageResponsibleUsers={canManageResponsibleUsers}
+              responsibleProfiles={responsibleProfiles}
+              localTags={localTags}
+              activeCount={activeChips.filter((chip) => chip.key === "responsibleUserId" || chip.key === "tagId" || chip.key === "staleContactOnly" || chip.key === "noFutureActivityOnly").length}
+            />
+            <button
+              aria-label="Clientes pendentes"
+              className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${filters.pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
+              onClick={() => updateFilters({ pendingOnly: !filters.pendingOnly, statusGroup: "all", status: "all" })}
+              title="Clientes pendentes"
+              type="button"
+            >
+              <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
+              {pendingClientsCount}
+            </button>
           </div>
-          <button
-            aria-label="Clientes pendentes"
-            className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
-            onClick={() => {
-              setPendingOnly((current) => !current);
-              setStatusGroup("all");
-              setStatusFilter("all");
-            }}
-            title="Clientes pendentes"
-            type="button"
-          >
-            <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
-            {pendingClientsCount}
-          </button>
         </div>
 
+        {hasActiveExtraFilters ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-brand/25 bg-[#EAF3FF] px-3 text-[11px] font-black text-brand transition hover:border-brand"
+                onClick={chip.onRemove}
+                type="button"
+              >
+                {chip.label}
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-1.5 rounded-[26px] border border-line bg-white p-1.5 shadow-soft sm:grid-cols-5 lg:grid-cols-10">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-10 lg:overflow-visible lg:pb-0">
             {CLIENT_STATUS_FILTER_GROUPS.map((group) => {
-              const active = statusGroup === group.key;
-              const count = group.key === "all"
-                ? clients.filter((client) => client.status !== CLIENT_STATUS.DO_NOT_CONTACT).length
-                : group.statuses.reduce((total, status) => total + (counters[status] || 0), 0);
+              const active = filters.statusGroup === group.key;
+              const count = counters.byGroup?.[group.key] || 0;
 
               return (
                 <button
-                  className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full px-1 text-center text-[11px] font-extrabold uppercase transition duration-300 xl:px-2 xl:text-[13px] ${
+                  className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 text-center text-[11px] font-extrabold uppercase transition duration-300 lg:shrink lg:whitespace-normal lg:px-1 xl:px-2 xl:text-[13px] ${
                     active
                       ? "bg-navy text-white shadow-[0_10px_24px_rgba(13,46,87,0.18)]"
                       : "bg-transparent text-navy/80 hover:bg-[#F5FAFF] hover:text-navy"
                   }`}
                   key={group.key}
-                  onClick={() => {
-                    setStatusGroup(group.key);
-                    setStatusFilter("all");
-                  }}
+                  onClick={() => updateFilters({ statusGroup: group.key, status: "all", pendingOnly: false })}
                   type="button"
                 >
                   {group.label}
@@ -965,26 +789,26 @@ export default function AdminSimulationList({
             })}
           </div>
 
-          {statusGroup !== "all" ? (
-            <div className="flex flex-wrap gap-2 lg:flex-nowrap">
-              {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === statusGroup)?.statuses || []).filter((status) => status !== CLIENT_STATUS.SIMULATION_SENT).map((status) => {
-                const active = statusFilter === status;
+          {filters.statusGroup !== "all" ? (
+            <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible lg:pb-0">
+              {(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === filters.statusGroup)?.statuses || []).filter((status) => status !== CLIENT_STATUS.SIMULATION_SENT).map((status) => {
+                const active = filters.status === status;
                 const meta = CLIENT_STATUS_META[status];
 
                 return (
                   <button
-                    className={`inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-center text-[11px] font-extrabold transition duration-300 sm:text-xs ${
+                    className={`inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-center text-[11px] font-extrabold transition duration-300 sm:text-xs ${
                       active
                         ? (meta?.activeClass || "border-brand bg-[#EAF3FF] text-brand")
                         : "border-line bg-white text-navy hover:border-brand/40 hover:bg-[#F5FAFF]"
                     }`}
                     key={status}
-                    onClick={() => setStatusFilter(status)}
+                    onClick={() => updateFilters({ status: active ? "all" : status })}
                     type="button"
                   >
                     {meta?.label || status}
                     <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${meta?.counterClass || "bg-[#EEF4FB] text-navy"}`}>
-                      {counters[status] || 0}
+                      {counters.byStatus?.[status] || 0}
                     </span>
                   </button>
                 );
@@ -995,33 +819,16 @@ export default function AdminSimulationList({
       </div>
 
       <div className="mt-4 flex flex-col gap-3 text-sm font-bold text-muted sm:flex-row sm:items-center sm:justify-between">
-        <p>{getPaginationLabel(pageStart, pageEnd, filteredClients.length)}</p>
-        <label className="inline-flex items-center gap-2">
-          <span className="sr-only">Clientes por página</span>
-          <select
-            className="h-10 rounded-2xl border border-line bg-white px-4 font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
-            onChange={(event) => setPageSize(Number(event.target.value))}
-            value={pageSize}
-          >
-            {PAGE_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>{option} por página</option>
-            ))}
-          </select>
-        </label>
+        <p className={loading ? "opacity-60" : ""}>{getPaginationLabel(pageStart, pageEnd, total)}</p>
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <div className={`mt-4 grid gap-3 transition-opacity [grid-template-columns:repeat(auto-fit,minmax(460px,1fr))] ${loading ? "opacity-70" : ""}`}>
         {loadWarning ? (
           <div className="rounded-[18px] border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-900">
-            Alguns dados complementares nao puderam ser carregados, mas os clientes encontrados continuam listados. Detalhe: {loadWarning}
+            {loadWarning}
           </div>
         ) : null}
-        {clientsResult.error ? (
-          <div className="rounded-[18px] border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-800">
-            {clientsResult.error}
-          </div>
-        ) : null}
-        {currentClients.length ? currentClients.map((client) => (
+        {items.length ? items.map((client) => (
           <ClientCard
             activities={clientActivitiesFor(client)}
             addingActivity={addingActivityClientId === client.id}
@@ -1042,7 +849,6 @@ export default function AdminSimulationList({
             key={client.id}
             localTags={localTags}
             onCreateTag={createTagForClient}
-            onEnsureRegistration={ensureClientRegistration}
             onOpenSimulation={openSimulation}
             onOpenSchedule={openScheduleEditor}
             onOpenWhatsApp={openWhatsApp}
@@ -1071,48 +877,176 @@ export default function AdminSimulationList({
             tagDraft={tagDraft}
           />
         )) : (
-          <EmptyState hasClients={clients.length > 0} hasFilter={responsibleFilter !== "all" || statusGroup !== "all" || statusFilter !== "all" || tagFilter !== "all" || pendingOnly || staleContactOnly || noFutureActivityOnly} hasQuery={query.trim().length > 0} />
+          <EmptyState hasClients={total > 0 || hasActiveExtraFilters} hasFilter={hasActiveExtraFilters || filters.statusGroup !== "all" || filters.status !== "all"} hasQuery={filters.query.trim().length > 0} />
         )}
       </div>
 
-      {filteredClients.length > 0 ? (
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <PaginationButton disabled={currentPage === 1} onClick={() => goToPage(currentPage - 1)}>
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            Anterior
-          </PaginationButton>
-
-          {pageNumbers.map((page) => (
-            <button
-              aria-current={page === currentPage ? "page" : undefined}
-              className={`h-10 min-w-10 rounded-full border px-3 text-sm font-extrabold transition duration-300 ${
-                page === currentPage
-                  ? "border-brand bg-brand text-white"
-                  : "border-line bg-white text-navy hover:border-brand hover:bg-[#F5FAFF]"
-              }`}
-              key={page}
-              onClick={() => goToPage(page)}
-              type="button"
+      {total > 0 ? (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <label className="inline-flex items-center gap-2 text-sm font-bold text-muted">
+            <span className="sr-only">Clientes por página</span>
+            <select
+              className="h-10 rounded-2xl border border-line bg-white px-4 font-extrabold text-navy outline-none transition duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10"
+              onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+              value={pageSize}
             >
-              {page}
-            </button>
-          ))}
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option} por página</option>
+              ))}
+            </select>
+          </label>
 
-          <PaginationButton disabled={currentPage === totalPages} onClick={() => goToPage(currentPage + 1)}>
-            Próxima
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </PaginationButton>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <PaginationButton disabled={page === 1} onClick={() => goToPage(page - 1)}>
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              Anterior
+            </PaginationButton>
+
+            {getPageNumbers(page, totalPages).map((pageNumber) => (
+              <button
+                aria-current={pageNumber === page ? "page" : undefined}
+                className={`h-10 min-w-10 rounded-full border px-3 text-sm font-extrabold transition duration-300 ${
+                  pageNumber === page
+                    ? "border-brand bg-brand text-white"
+                    : "border-line bg-white text-navy hover:border-brand hover:bg-[#F5FAFF]"
+                }`}
+                key={pageNumber}
+                onClick={() => goToPage(pageNumber)}
+                type="button"
+              >
+                {pageNumber}
+              </button>
+            ))}
+
+            <PaginationButton disabled={page === totalPages} onClick={() => goToPage(page + 1)}>
+              Próxima
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </PaginationButton>
+          </div>
         </div>
       ) : null}
 
       {dncTarget ? (
         <DoNotContactModal
-          clientName={dncTarget.fullName || dncTarget.registration?.fullName || "este cliente"}
+          clientName={dncTarget.name || dncTarget.registration?.fullName || "este cliente"}
           onCancel={() => setDncTarget(null)}
           onConfirm={confirmDoNotContact}
         />
       ) : null}
     </section>
+  );
+}
+
+// Monta os chips removíveis de filtro ativo — cobre tanto filtro escolhido na
+// própria tela quanto filtro que chegou pronto por link externo (ex.: painel
+// de Desempenho), para nunca deixar um filtro "invisível" aplicado.
+function buildActiveFilterChips(filters, responsibleProfileMap, localTags, updateFilters) {
+  const chips = [];
+
+  if (filters.responsibleUserId !== "all") {
+    const label = filters.responsibleUserId === "unassigned"
+      ? "Sem corretor"
+      : (responsibleProfileMap.get(filters.responsibleUserId)?.name || "Corretor selecionado");
+    chips.push({ key: "responsibleUserId", label: `Corretor: ${label}`, onRemove: () => updateFilters({ responsibleUserId: "all" }) });
+  }
+
+  if (filters.tagId !== "all") {
+    const label = localTags.find((tagItem) => tagItem.id === filters.tagId)?.name || "Tag selecionada";
+    chips.push({ key: "tagId", label: `Tag: ${label}`, onRemove: () => updateFilters({ tagId: "all" }) });
+  }
+
+  if (filters.staleContactOnly) {
+    chips.push({ key: "staleContactOnly", label: "Sem contato há +3 dias", onRemove: () => updateFilters({ staleContactOnly: false }) });
+  }
+
+  if (filters.noFutureActivityOnly) {
+    chips.push({ key: "noFutureActivityOnly", label: "Sem atividade futura", onRemove: () => updateFilters({ noFutureActivityOnly: false }) });
+  }
+
+  return chips;
+}
+
+function FiltersPopover({ open, onOpenChange, filters, onChange, canManageResponsibleUsers, responsibleProfiles, localTags, activeCount }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) onOpenChange(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open, onOpenChange]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${activeCount ? "border-brand bg-[#EAF3FF] text-brand" : "border-line bg-white text-navy hover:border-brand"}`}
+        onClick={() => onOpenChange(!open)}
+        type="button"
+      >
+        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+        Filtros
+        {activeCount ? <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] text-white">{activeCount}</span> : null}
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 z-30 mt-2 w-72 space-y-3 rounded-2xl border border-navy/10 bg-white p-4 shadow-[0_18px_48px_rgba(13,59,102,0.18)]">
+          {canManageResponsibleUsers ? (
+            <label className="block text-xs font-black text-navy">
+              Corretor
+              <select
+                className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand"
+                onChange={(event) => onChange({ responsibleUserId: event.target.value })}
+                value={filters.responsibleUserId}
+              >
+                <option value="all">Todos os corretores</option>
+                {responsibleProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+                <option value="unassigned">Sem corretor</option>
+              </select>
+            </label>
+          ) : null}
+
+          <label className="block text-xs font-black text-navy">
+            Tag
+            <select
+              className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand"
+              onChange={(event) => onChange({ tagId: event.target.value })}
+              value={filters.tagId}
+            >
+              <option value="all">Todas as tags</option>
+              {localTags.map((tagItem) => (
+                <option key={tagItem.id} value={tagItem.id}>{tagItem.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center justify-between gap-3 text-xs font-black text-navy">
+            Sem contato há +3 dias
+            <input
+              checked={filters.staleContactOnly}
+              className="h-5 w-5 accent-brand"
+              onChange={(event) => onChange({ staleContactOnly: event.target.checked })}
+              type="checkbox"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-3 text-xs font-black text-navy">
+            Sem atividade futura
+            <input
+              checked={filters.noFutureActivityOnly}
+              className="h-5 w-5 accent-brand"
+              onChange={(event) => onChange({ noFutureActivityOnly: event.target.checked })}
+              type="checkbox"
+            />
+          </label>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1183,7 +1117,6 @@ function ClientCard({
   onCreateTag,
   onClearSchedule,
   onCloseSchedule,
-  onEnsureRegistration,
   onOpenSimulation,
   onOpenSchedule,
   onOpenValues,
@@ -1209,12 +1142,15 @@ function ClientCard({
   tagColor,
   tagDraft
 }) {
-  const hasRegistration = Boolean(client.registration?.id);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const clientTags = ensureArray(client.tags);
   const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
-  const responsibleUserId = client.registration?.responsibleUserId || client.simulation?.createdByUserId || "";
+  const responsibleUserId = client.registration?.responsibleUserId || "";
   const responsibleName = responsibleProfileMap?.get(responsibleUserId)?.name || client.lastAdminLabel || "Sem corretor";
+  const urgency = getUrgencySignal(client, activities);
+  const dateLabel = safeFormatDateLabel(client.registration);
+  const lastContactLabel = client.lastWhatsappContactAt ? formatLastContactLabel(client.lastWhatsappContactAt) : "Nenhum contato realizado";
 
   return (
     <article className="relative max-w-full overflow-visible rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 focus-within:z-50 hover:z-50 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
@@ -1250,8 +1186,13 @@ function ClientCard({
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
+            {urgency ? (
+              <span className="inline-flex h-6 items-center rounded-full bg-amber-50 px-2.5 text-[10px] font-black uppercase tracking-[0.06em] text-amber-800">
+                {urgency.label}
+              </span>
+            ) : null}
           </div>
-          {hasRegistration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} responsibleName={responsibleName} tags={clientTags} /> : null}
+          {client.registration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} responsibleName={responsibleName} tags={clientTags} /> : null}
         </div>
 
         <div className="flex flex-wrap items-start justify-start gap-1.5 sm:max-w-xs sm:justify-end">
@@ -1264,13 +1205,7 @@ function ClientCard({
           <button
             className="inline-flex h-8 items-center gap-1 rounded-full border border-brand/25 bg-white px-3 text-[11px] font-black text-brand transition hover:border-brand hover:bg-[#EEF6FF]"
             disabled={busy}
-            onClick={async () => {
-              if (!hasRegistration) {
-                const registration = await onEnsureRegistration(client);
-                if (!registration?.id) return;
-              }
-              onToggleTagEditor();
-            }}
+            onClick={onToggleTagEditor}
             type="button"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1298,15 +1233,11 @@ function ClientCard({
         />
       ) : null}
 
-      <div className="mt-2 space-y-1 text-sm font-bold text-muted">
-        <p>Data do cadastro: {client.dateLabel}</p>
-        {client.lastWhatsappContactAt ? (
-          <p>Último contato: {client.lastContactLabel}</p>
-        ) : (
-          <p>{client.lastContactLabel}</p>
-        )}
+      <div className="mt-2 space-y-1 text-sm text-muted">
+        <p className={urgency ? "font-bold" : "font-bold"}>Data do cadastro: {dateLabel}</p>
+        <p className={!client.lastWhatsappContactAt ? "font-extrabold text-amber-800" : "font-bold"}>Último contato: {lastContactLabel}</p>
         {client.scheduledActivityAt ? (
-          <p className="text-navy">
+          <p className="font-bold text-navy">
             Atividade: {formatScheduledActivityLabel(client.scheduledActivityAt)}
             {client.scheduledActivityNote ? ` · ${client.scheduledActivityNote}` : ""}
           </p>
@@ -1328,12 +1259,7 @@ function ClientCard({
       )}
 
       {expanded ? (
-        <InlineRegistrationDetails
-          busy={busy}
-          onEnsureRegistration={() => onEnsureRegistration(client)}
-          registration={client.registration}
-          simulation={client.simulation}
-        />
+        <InlineRegistrationDetails registration={client.registration} simulation={client.simulation} />
       ) : null}
 
       {scheduling ? (
@@ -1363,53 +1289,35 @@ function ClientCard({
         onToggleExpand={onToggleExpandActivities}
       />
 
-      {client.registration?.prospectingContactId && (client.registration.prospectingAssignedPending || [CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE].includes(client.status)) ? (
+      {client.registration?.prospectingContactId && (client.registration.prospectingAssignedPending || client.status === CLIENT_STATUS.AWAITING_RETURN || (client.status === CLIENT_STATUS.IN_SERVICE && canReturnAssignedProspecting && client.registration.prospectingAssignedByUserId)) ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {client.registration.prospectingAssignedPending ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "prospect")} type="button">Prospectar</button> : null}
           {client.registration.prospectingAssignedPending || client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary" disabled={busy} onClick={() => onProspectingAction(client, "in_service")} type="button">Em atendimento</button> : null}
-          <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar novamente</button>
+          {client.status === CLIENT_STATUS.AWAITING_RETURN ? <button className="premium-button-secondary text-red-700" disabled={busy} onClick={() => onProspectingAction(client, "do_not_contact")} type="button">Não contactar novamente</button> : null}
           {canReturnAssignedProspecting && client.registration.prospectingAssignedByUserId ? <button className="premium-button-secondary px-4 py-2 text-sm" disabled={busy} onClick={() => onProspectingAction(client, "return_to_queue")} type="button">Devolver à fila</button> : null}
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Ações principais: WhatsApp e Agenda ficam sempre visíveis (as mais
+          usadas no dia a dia). Cadastro some para dentro de "Mais ações" só
+          no mobile, pra não empilhar 3+ linhas de botão em telas estreitas —
+          no desktop continua visível junto das outras. Empreendimentos,
+          Valores, Documentação e Excluir vivem só em "Mais ações"; Excluir
+          fica visualmente separado por uma divisória e mantém a mesma
+          confirmação nativa de antes. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
-          aria-label={`Simular empreendimentos para ${client.name || "cliente"}`}
-          className="client-action-button"
-          disabled={busy}
-          onClick={() => onOpenSimulation(client)}
+          aria-label={`Abrir WhatsApp de ${client.name || "cliente"}`}
+          className="premium-button-primary h-11 flex-1 gap-2 px-4 text-sm sm:flex-none"
+          onClick={() => onOpenWhatsApp(client)}
           type="button"
         >
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          Empreendimentos
-        </button>
-        <button
-          aria-label={`Inserir valores da simulação de ${client.name || "cliente"}`}
-          className="client-action-button"
-          disabled={busy}
-          onClick={() => onOpenValues(client)}
-          type="button"
-        >
-          <Calculator className="h-4 w-4" aria-hidden="true" />
-          Valores
-        </button>
-        <button
-          aria-label={`Ver cadastro de ${client.name || "cliente"}`}
-          className="client-action-button"
-          disabled={busy}
-          onClick={async () => {
-            const registration = await onEnsureRegistration(client, { markActivity: true });
-            if (!registration?.id) return;
-            onToggleDetails();
-          }}
-          type="button"
-        >
-          <UserRound className="h-4 w-4" aria-hidden="true" />
-          Cadastro
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+          WhatsApp
         </button>
         <button
           aria-label={`${client.scheduledActivityAt ? "Editar atividade agendada" : "Agendar atividade"} de ${client.name || "cliente"}`}
-          className="client-action-button"
+          className="client-action-button h-11 flex-1 px-4 text-sm sm:flex-none"
           disabled={busy}
           onClick={() => onOpenSchedule(client)}
           type="button"
@@ -1422,42 +1330,76 @@ function ClientCard({
           {client.scheduledActivityAt ? "Agenda" : "Agendar"}
         </button>
         <button
-          aria-label={`Abrir WhatsApp de ${client.name || "cliente"}`}
-          className="client-action-button"
-          onClick={() => onOpenWhatsApp(client)}
-          type="button"
-        >
-          <MessageCircle className="h-4 w-4" aria-hidden="true" />
-          Whats
-        </button>
-        <button
-          aria-label={`Documentação de ${client.name || "cliente"}`}
-          className="client-action-button"
+          aria-label={`Ver cadastro de ${client.name || "cliente"}`}
+          className="client-action-button hidden h-11 px-4 text-sm sm:inline-flex"
           disabled={busy}
-          onClick={async () => {
-            if (!hasRegistration) {
-              const registration = await onEnsureRegistration(client);
-              if (!registration?.id) return;
-            }
-            setShowDocuments(true);
-          }}
+          onClick={onToggleDetails}
           type="button"
         >
-          <FileText className="h-4 w-4" aria-hidden="true" />
-          Documentação
+          <UserRound className="h-4 w-4" aria-hidden="true" />
+          Cadastro
         </button>
-        {isOwner ? (
+
+        <MoreActionsMenu
+          open={moreActionsOpen}
+          onOpenChange={setMoreActionsOpen}
+        >
           <button
-            aria-label={`Excluir cliente ${client.name || ""}`.trim()}
-            className="client-action-button"
+            aria-label={`Ver cadastro de ${client.name || "cliente"}`}
+            className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold text-navy hover:bg-mist sm:hidden"
             disabled={busy}
-            onClick={() => onRemoveClient(client)}
+            onClick={() => { setMoreActionsOpen(false); onToggleDetails(); }}
+            role="menuitem"
             type="button"
           >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            Excluir
+            <UserRound className="h-4 w-4" aria-hidden="true" /> Cadastro
           </button>
-        ) : null}
+          <button
+            aria-label={`Simular empreendimentos para ${client.name || "cliente"}`}
+            className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold text-navy hover:bg-mist"
+            disabled={busy}
+            onClick={() => { setMoreActionsOpen(false); onOpenSimulation(client); }}
+            role="menuitem"
+            type="button"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden="true" /> Empreendimentos
+          </button>
+          <button
+            aria-label={`Inserir valores da simulação de ${client.name || "cliente"}`}
+            className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold text-navy hover:bg-mist"
+            disabled={busy}
+            onClick={() => { setMoreActionsOpen(false); onOpenValues(client); }}
+            role="menuitem"
+            type="button"
+          >
+            <Calculator className="h-4 w-4" aria-hidden="true" /> Valores
+          </button>
+          <button
+            aria-label={`Documentação de ${client.name || "cliente"}`}
+            className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold text-navy hover:bg-mist"
+            disabled={busy}
+            onClick={() => { setMoreActionsOpen(false); setShowDocuments(true); }}
+            role="menuitem"
+            type="button"
+          >
+            <FileText className="h-4 w-4" aria-hidden="true" /> Documentação
+          </button>
+          {isOwner ? (
+            <>
+              <div className="my-1 border-t border-line" />
+              <button
+                aria-label={`Excluir cliente ${client.name || ""}`.trim()}
+                className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-extrabold text-red-700 hover:bg-red-50"
+                disabled={busy}
+                onClick={() => { setMoreActionsOpen(false); onRemoveClient(client); }}
+                role="menuitem"
+                type="button"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" /> Excluir
+              </button>
+            </>
+          ) : null}
+        </MoreActionsMenu>
       </div>
       {showDocuments && client.registration?.id ? (
         <ClientDocumentsModal
@@ -1468,6 +1410,39 @@ function ClientCard({
         />
       ) : null}
     </article>
+  );
+}
+
+function MoreActionsMenu({ open, onOpenChange, children }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) onOpenChange(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open, onOpenChange]);
+
+  return (
+    <div className="relative ml-auto" ref={containerRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Mais ações"
+        className="client-action-button h-11 w-11 px-0"
+        onClick={() => onOpenChange(!open)}
+        type="button"
+      >
+        <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-40 mt-2 w-60 rounded-xl border border-line bg-white p-1.5 shadow-xl" role="menu">
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1822,9 +1797,9 @@ function PendingClientInfo({ registration }) {
   }
 
   const lines = [
-    normalizeMoneyValue(registration.primaryMonthlyIncome) > 0 ? `Renda: ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
+    Number(registration.primaryMonthlyIncome) > 0 ? `Renda: ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
     registration.primaryIncomeType ? `Regime de trabalho: ${incomeTypeLabel(registration.primaryIncomeType)}` : "",
-    normalizeMoneyValue(registration.availablePurchaseResource) > 0 ? `Recurso próprio: ${formatCurrency(registration.availablePurchaseResource)}` : ""
+    Number(registration.availablePurchaseResource) > 0 ? `Recurso próprio: ${formatCurrency(registration.availablePurchaseResource)}` : ""
   ].filter(Boolean);
 
   return (
@@ -1835,7 +1810,7 @@ function PendingClientInfo({ registration }) {
   );
 }
 
-function InlineRegistrationDetails({ busy, onEnsureRegistration, registration, simulation }) {
+function InlineRegistrationDetails({ registration, simulation }) {
   if (!registration) {
     return (
       <div className="mt-4 rounded-2xl border border-line bg-[#F8FBFF] p-4 text-sm font-bold text-muted">
@@ -1981,9 +1956,19 @@ function TagPill({ tag }) {
   );
 }
 
-function StatusBadge({ status }) {
-  const meta = CLIENT_STATUS_META[normalizeClientStatus(status)] || CLIENT_STATUS_META.pending;
-  return <span className={`w-fit rounded-full px-3 py-1 text-[11px] font-black ${meta.badgeClass}`}>{meta.label}</span>;
+function ContactPreferenceBadge({ registration }) {
+  const preference = registration?.contactPreference;
+  if (preference !== "whatsapp" && preference !== "call") return null;
+
+  const Icon = preference === "call" ? Phone : MessageCircle;
+  const label = preference === "call" ? "Prefere contato por ligação" : "Prefere contato por WhatsApp";
+
+  return (
+    <p className="inline-flex items-center gap-1.5 text-navy">
+      <Icon className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
+      {label}
+    </p>
+  );
 }
 
 function EmptyState({ hasClients, hasFilter, hasQuery }) {
@@ -2015,164 +2000,6 @@ function PaginationButton({ children, disabled, onClick }) {
   );
 }
 
-function buildClientItem({ registration = null, simulation = null, summary = null }) {
-  const safeSummary = summary || {
-    completed: false,
-    financing: 0,
-    ownResource: 0,
-    subsidy: 0,
-    purchasePower: 0,
-    components: []
-  };
-  const status = resolveClientStatus(registration, safeSummary);
-  const name = normalizePersonName(registration?.fullName || simulation?.clientName || "Cliente sem nome");
-  const sortDate = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt || "";
-
-  return {
-    id: registration?.id || `simulation-${simulation?.id || name}`,
-    completed: safeSummary.completed || isCompletedClientStatus(status),
-    dateLabel: safeFormatDateLabel(registration, simulation),
-    lastAdminLabel: registration?.lastAdminName || "",
-    lastContactLabel: formatLastContactLabel(registration?.lastWhatsappContactAt),
-    lastWhatsappContactAt: registration?.lastWhatsappContactAt || "",
-    name,
-    registration,
-    searchText: buildSearchText(simulation || {}, registration),
-    simulation,
-    sortDate,
-    status,
-    summary: safeSummary,
-    scheduledActivityAt: registration?.scheduledActivityAt || "",
-    scheduledActivityType: registration?.scheduledActivityType || "follow_up",
-    scheduledActivityNote: registration?.scheduledActivityNote || "",
-    createdAt: sortDate,
-    tags: ensureArray(registration?.tags)
-  };
-}
-
-function mergeClientItem(groupedClients, nextItem) {
-  const key = getClientIdentityKey(nextItem);
-  const currentItem = groupedClients.get(key);
-
-  if (!currentItem) {
-    groupedClients.set(key, nextItem);
-    return;
-  }
-
-  groupedClients.set(key, combineClientItems(currentItem, nextItem));
-}
-
-function combineClientItems(currentItem, nextItem) {
-  const preferred = getClientScore(nextItem) > getClientScore(currentItem) ? nextItem : currentItem;
-  const fallback = preferred === currentItem ? nextItem : currentItem;
-  const summary = getSummaryScore(preferred.summary) >= getSummaryScore(fallback.summary)
-    ? preferred.summary
-    : fallback.summary;
-  const status = getStatusPriority(preferred.status) >= getStatusPriority(fallback.status)
-    ? preferred.status
-    : fallback.status;
-  const tags = ensureArray(preferred.tags).length ? ensureArray(preferred.tags) : ensureArray(fallback.tags);
-
-  return {
-    ...preferred,
-    completed: preferred.completed || fallback.completed || isCompletedClientStatus(status),
-    lastAdminLabel: preferred.lastAdminLabel || fallback.lastAdminLabel || "",
-    lastContactLabel: (preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
-      ? formatLastContactLabel(preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt)
-      : "Nenhum contato realizado",
-    lastWhatsappContactAt: preferred.lastWhatsappContactAt || fallback.lastWhatsappContactAt || "",
-    registration: preferred.registration || fallback.registration,
-    scheduledActivityAt: preferred.scheduledActivityAt || fallback.scheduledActivityAt || "",
-    scheduledActivityType: preferred.scheduledActivityType || fallback.scheduledActivityType || "follow_up",
-    scheduledActivityNote: preferred.scheduledActivityNote || fallback.scheduledActivityNote || "",
-    searchText: {
-      phone: [preferred.searchText?.phone, fallback.searchText?.phone].filter(Boolean).join(" "),
-      text: [preferred.searchText?.text, fallback.searchText?.text].filter(Boolean).join(" ")
-    },
-    simulation: preferred.simulation || fallback.simulation,
-    status,
-    summary,
-    tags
-  };
-}
-
-function getClientIdentityKey(client) {
-  const phone = getPhoneIdentity(extractClientPhone(client));
-  if (phone) return `phone:${phone}`;
-  if (client.registration?.id) return `registration:${client.registration.id}`;
-  if (client.simulation?.registrationId) return `registration:${client.simulation.registrationId}`;
-
-  const name = normalizeText(client.name);
-  return name ? `name:${name}` : client.id;
-}
-
-function isPendingClient(client, extraActivities) {
-  if ([CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)) return false;
-
-  const merged = mergeActivitySignal(client, extraActivities);
-  const now = Date.now();
-  const scheduledAt = new Date(merged.scheduledActivityAt || "").getTime();
-  if (Number.isFinite(scheduledAt) && scheduledAt > now) return false;
-
-  const referenceAt = new Date(client.lastWhatsappContactAt || client.createdAt || "").getTime();
-  return Number.isFinite(referenceAt) && referenceAt < now - (3 * 24 * 60 * 60 * 1000);
-}
-
-function getPhoneIdentity(value) {
-  const whatsappDigits = toWhatsAppDigits(value);
-  if (whatsappDigits) return whatsappDigits;
-
-  let digits = normalizePhone(value);
-  if (digits.startsWith("0055")) digits = digits.slice(4);
-  if (digits.startsWith("55") && digits.length > 11) digits = digits.slice(2);
-  return digits;
-}
-
-function getClientScore(client) {
-  return getStatusPriority(client.status) * 1000
-    + (client.registration?.id ? 200 : 0)
-    + (client.simulation?.id ? 100 : 0)
-    + getSummaryScore(client.summary)
-    + Math.min(safeTimestamp(client.sortDate) / 1000000000000, 10);
-}
-
-function getSummaryScore(summary = {}) {
-  return (summary?.completed ? 100 : 0) + Math.min(normalizeMoneyValue(summary?.purchasePower) / 10000, 100);
-}
-
-function getStatusPriority(status) {
-  return CLIENT_STATUS_ORDER[normalizeClientStatus(status)] || 1;
-}
-
-function resolveClientStatus(registration, summary) {
-  const storedStatus = normalizeClientStatus(registration?.status);
-  if (registration?.status && storedStatus !== CLIENT_STATUS.PENDING) return storedStatus;
-  return summary?.completed ? CLIENT_STATUS.COMPLETED : CLIENT_STATUS.PENDING;
-}
-
-function isCompletedClientStatus(status) {
-  return [
-    CLIENT_STATUS.COMPLETED,
-    CLIENT_STATUS.SIMULATION_SENT,
-    CLIENT_STATUS.IN_SERVICE,
-    CLIENT_STATUS.AWAITING_RETURN,
-    CLIENT_STATUS.DOCUMENTATION,
-    CLIENT_STATUS.DOCUMENTS_PENDING,
-    CLIENT_STATUS.APPROVAL_PENDING,
-    CLIENT_STATUS.SHIELDING,
-    CLIENT_STATUS.APPROVED,
-    CLIENT_STATUS.REJECTED,
-    CLIENT_STATUS.SALE_COMPLETED,
-    CLIENT_STATUS.SALE_FORMS,
-    CLIENT_STATUS.SALE_RESERVATION,
-    CLIENT_STATUS.SALE_CONTRACT,
-    CLIENT_STATUS.SALE_CAIXA_SIGNATURE,
-    CLIENT_STATUS.SALE_ITBI,
-    CLIENT_STATUS.SALE_REGISTRY,
-    CLIENT_STATUS.SALE_PAYMENT
-  ].includes(status);
-}
-
 function buildDraftSimulationPayload(registration = {}) {
   return {
     registrationId: registration.id,
@@ -2195,80 +2022,6 @@ function buildDraftSimulationPayload(registration = {}) {
     outputMode: "individual",
     properties: []
   };
-}
-
-function findRegistrationForSimulation(simulation = {}, registrations = []) {
-  if (!simulation) return null;
-
-  if (simulation.registrationId) {
-    const byId = registrations.find((registration) => registration.id === simulation.registrationId);
-    if (byId) return byId;
-  }
-
-  const phone = extractSimulationPhone(simulation);
-  const name = normalizeText(simulation.clientName);
-
-  if (phone) {
-    const byPhone = registrations.find((registration) => {
-      const registrationPhone = normalizePhone(registration.phoneNormalized || registration.phone);
-      return registrationPhone && (registrationPhone.endsWith(phone) || phone.endsWith(registrationPhone));
-    });
-    if (byPhone) return byPhone;
-  }
-
-  if (!name) return null;
-
-  return registrations.find((registration) => normalizeText(registration.fullName) === name) || null;
-}
-
-function buildSearchText(simulation = {}, registration = null) {
-  const safeSimulation = simulation || {};
-  const phone = [
-    extractSimulationPhone(safeSimulation),
-    registration?.phone,
-    registration?.phoneNormalized
-  ].map(normalizePhone).join(" ");
-
-  const tags = ensureArray(registration?.tags).map((tagItem) => tagItem.name).join(" ");
-  const clientCode = normalizeClientCode(registration?.clientCode);
-  const text = normalizeText([
-    safeSimulation.clientName,
-    registration?.fullName,
-    registration?.primaryIncomeType,
-    tags,
-    safeSimulation.createdBy,
-    safeSimulation.internalNote
-  ].filter(Boolean).join(" "));
-
-  return { phone, text, clientCode };
-}
-
-function formatDateLabel(registration, simulation) {
-  const value = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt;
-  return formatRelativeDateTimeLabel(value, "Sem data");
-}
-
-function formatLastContactLabel(value) {
-  return formatRelativeDateTimeLabel(value, "Nenhum contato realizado");
-}
-
-// Preferência de contato do Atendimento Rápido (link público) — visível no
-// card, nunca só no histórico. Cadastros antigos/de outras origens não têm
-// contactPreference, então o badge simplesmente não aparece (sem afetar
-// nenhum cliente já existente).
-function ContactPreferenceBadge({ registration }) {
-  const preference = registration?.contactPreference;
-  if (preference !== "whatsapp" && preference !== "call") return null;
-
-  const Icon = preference === "call" ? Phone : MessageCircle;
-  const label = preference === "call" ? "Prefere contato por ligação" : "Prefere contato por WhatsApp";
-
-  return (
-    <p className="inline-flex items-center gap-1.5 text-navy">
-      <Icon className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
-      {label}
-    </p>
-  );
 }
 
 function formatScheduledActivityLabel(value) {
@@ -2348,20 +2101,6 @@ function getPaginationLabel(start, end, total) {
   return `Mostrando ${start + 1} a ${end} de ${total} clientes`;
 }
 
-function extractClientPhone(client) {
-  return client?.registration?.phoneNormalized
-    || client?.registration?.phone
-    || extractSimulationPhone(client?.simulation || {})
-    || "";
-}
-
-function upsertById(items, nextItem) {
-  if (!nextItem?.id) return items;
-  const exists = items.some((item) => item.id === nextItem.id);
-  if (!exists) return [nextItem, ...items];
-  return items.map((item) => (item.id === nextItem.id ? { ...item, ...nextItem } : item));
-}
-
 function getPageNumbers(currentPage, totalPages) {
   const maxVisible = 5;
   const start = Math.max(1, Math.min(currentPage - 2, totalPages - maxVisible + 1));
@@ -2370,32 +2109,19 @@ function getPageNumbers(currentPage, totalPages) {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);
 }
 
-function normalizeText(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function normalizeClientCode(value) {
-  return normalizeText(value).replace(/^#+/, "");
-}
-
 function ensureArray(value) {
   return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
-function safeTimestamp(value) {
-  const time = new Date(value || 0).getTime();
-  return Number.isFinite(time) ? time : 0;
-}
-
-function safeFormatDateLabel(registration, simulation) {
+function safeFormatDateLabel(registration) {
   try {
-    return formatDateLabel(registration, simulation);
+    return formatRelativeDateTimeLabel(registration?.createdAt, "Sem data");
   } catch {
-    const value = registration?.createdAt || simulation?.simulationDate || simulation?.updatedAt || simulation?.createdAt;
+    const value = registration?.createdAt;
     return value ? String(value).slice(0, 10) : "Sem data";
   }
+}
+
+function formatLastContactLabel(value) {
+  return formatRelativeDateTimeLabel(value, "Nenhum contato realizado");
 }

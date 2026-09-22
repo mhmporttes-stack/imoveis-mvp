@@ -6,69 +6,76 @@ import { isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfi
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listCalendarActivitiesForClients } from "@/lib/calendar-activities";
 import { listTags } from "@/lib/client-tags";
-import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
-import { canManageSimulations, formatSimulationError, listSimulations } from "@/lib/simulations";
+import {
+  getPendingClientsCount,
+  getSimulationClientCounters,
+  listSimulationClientsPage
+} from "@/lib/simulation-list-query";
+import { canManageSimulations } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSimulationsPage() {
+// Filtros que a tela aceita vindo por link externo (ex.: painel de
+// Desempenho) — preservados aqui para a primeira renderização (SSR) já
+// abrir com o mesmo recorte, igual ao comportamento anterior.
+function filtersFromSearchParams(searchParams) {
+  return {
+    query: searchParams?.query || "",
+    responsibleUserId: searchParams?.responsibleUserId || "all",
+    tagId: "all",
+    pendingOnly: searchParams?.pending === "1",
+    staleContactOnly: searchParams?.staleContact === "1",
+    noFutureActivityOnly: searchParams?.noFutureActivity === "1",
+    statusGroup: searchParams?.statusGroup || "all",
+    status: searchParams?.status || "all"
+  };
+}
+
+export default async function AdminSimulationsPage({ searchParams }) {
   const auth = await requireAdminPage();
+  const resolvedSearchParams = (await searchParams) || {};
 
   if (!canManageSimulations()) {
     return <SimulationDisabled />;
   }
 
-  let simulations = [];
-  let registrations = [];
   let adminProfiles = [];
   let tags = [];
-  let simulationsError = "";
-  let registrationsError = "";
+  let initialData = null;
+  let loadError = "";
 
   const isGeneralAdmin = isGeneralAdminAuth(auth);
   const isManager = isManagerProfile(auth.profile);
   const needsAdminProfiles = isGeneralAdmin || isManager;
+  const filters = filtersFromSearchParams(resolvedSearchParams);
 
-  // As quatro buscas abaixo são independentes entre si (nenhuma usa o
-  // resultado de outra) — rodar em paralelo em vez de sequencialmente evita
-  // somar a latência de cada uma na carga desta página, a mais visitada do
-  // admin.
-  const [simulationsResult, registrationsResult, tagsResult, adminProfilesResult] = await Promise.allSettled([
-    listSimulations(auth),
-    listSimulationRegistrations({ auth }),
-    listTags(),
-    needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])
-  ]);
-
-  if (simulationsResult.status === "fulfilled") simulations = simulationsResult.value;
-  else simulationsError = formatSimulationError(simulationsResult.reason);
-
-  if (registrationsResult.status === "fulfilled") registrations = registrationsResult.value;
-  else registrationsError = formatSimulationRegistrationError(registrationsResult.reason);
-
-  if (tagsResult.status === "fulfilled") tags = tagsResult.value;
-
-  const visibleRegistrationIds = new Set(registrations.map((registration) => registration.id));
-  simulations = simulations.filter(
-    (simulation) => !simulation.registrationId || visibleRegistrationIds.has(simulation.registrationId)
-  );
-
-  if (needsAdminProfiles && adminProfilesResult.status === "fulfilled") {
-    adminProfiles = isManager
-      ? adminProfilesResult.value.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
-      : adminProfilesResult.value;
-  }
-
-  const hasAnyData = registrations.length > 0 || simulations.length > 0;
-  const blockingError = !hasAnyData ? (registrationsError || simulationsError) : "";
-  const loadWarning = hasAnyData ? [registrationsError, simulationsError].filter(Boolean).join(" ") : "";
-
-  let clientActivities = {};
   try {
-    const activitiesByClient = await listCalendarActivitiesForClients(registrations.map((registration) => registration.id), auth);
-    clientActivities = Object.fromEntries(activitiesByClient);
-  } catch {
-    clientActivities = {};
+    const [pageResult, counters, pendingClientsCount, tagsResult, adminProfilesResult] = await Promise.all([
+      listSimulationClientsPage({ auth, filters, page: 1 }),
+      getSimulationClientCounters({ auth, filters }),
+      getPendingClientsCount({ auth }),
+      listTags(),
+      needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])
+    ]);
+
+    tags = tagsResult;
+    adminProfiles = needsAdminProfiles
+      ? (isManager
+        ? adminProfilesResult.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
+        : adminProfilesResult)
+      : [];
+
+    let clientActivities = {};
+    try {
+      const activitiesByClient = await listCalendarActivitiesForClients(pageResult.items.map((client) => client.id), auth);
+      clientActivities = Object.fromEntries(activitiesByClient);
+    } catch {
+      clientActivities = {};
+    }
+
+    initialData = { ...pageResult, counters, pendingClientsCount, clientActivities };
+  } catch (error) {
+    loadError = error?.message || "Não foi possível carregar a lista de clientes.";
   }
 
   return (
@@ -87,15 +94,13 @@ export default async function AdminSimulationsPage() {
         </div>
       </section>
       <AdminSectionNav active="simulations" />
-      {blockingError ? (
-        <SimulationError error={blockingError} />
+      {!initialData ? (
+        <SimulationError error={loadError} />
       ) : (
         <AdminSimulationList
-          loadWarning={loadWarning}
-          registrations={registrations}
-          simulations={simulations}
+          initialData={initialData}
+          initialFilters={filters}
           adminProfiles={adminProfiles}
-          clientActivities={clientActivities}
           canManageResponsibleUsers={isGeneralAdmin || isManager}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
