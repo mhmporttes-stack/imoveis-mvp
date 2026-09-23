@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRealGeneralAdminApi } from "@/lib/admin-auth";
 import { listSimulationClientsPage, getSimulationClientCounters, getPendingClientsCount } from "@/lib/simulation-list-query";
+import { getSupabaseAdminClient } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,27 @@ export async function GET(request) {
     const pending = await getPendingClientsCount({ auth });
     results.pending = { ok: true, pending };
   } catch (error) {
-    results.pending = { ok: false, message: error?.message, stack: String(error?.stack || "").split("\n").slice(0, 6) };
+    results.pending = describe(error);
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    let q = supabase.from("simulation_registrations").select("id", { count: "exact", head: true });
+    q = q.neq("status", "do_not_contact").neq("status", "awaiting_return");
+    const { error, count } = await q;
+    results.rawCount = error ? describe(error) : { ok: true, count };
+  } catch (error) {
+    results.rawCount = { ok: false, caught: true, ...describe(error) };
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    let q = supabase.from("simulation_registrations").select("*, client_tags(tag:tags(*)), simulations(*)", { count: "exact" });
+    q = q.neq("status", "do_not_contact").order("created_at", { ascending: false }).range(0, 4);
+    const { error, count, data } = await q;
+    results.rawPage = error ? describe(error) : { ok: true, count, rows: data?.length };
+  } catch (error) {
+    results.rawPage = { ok: false, caught: true, ...describe(error) };
   }
 
   return NextResponse.json(results);
