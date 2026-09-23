@@ -16,6 +16,7 @@ const KPI_ITEMS = [
   { key: "prospecting", label: "Prospecções", href: () => "/admin/prospeccao" },
   { key: "service", label: "Atendimentos", href: (id) => `/admin/simulacoes?status=in_service&responsibleUserId=${id}` },
   { key: "simulation", label: "Simulações", href: (id) => `/admin/simulacoes?statusGroup=simulation&responsibleUserId=${id}` },
+  { key: "approvalPending", label: "Documentações completas / Aguardando aprovação", href: (id) => `/admin/simulacoes?statusGroup=approval&responsibleUserId=${id}` },
   { key: "approval", label: "Aprovações", href: (id) => `/admin/simulacoes?status=approved&responsibleUserId=${id}` },
   { key: "sale", label: "Vendas", href: (id) => `/admin/simulacoes?statusGroup=sale&responsibleUserId=${id}` },
   { key: "completedActivities", label: "Atividades concluídas", href: null },

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  FileCheck,
   Handshake,
   MessageCircle,
   RefreshCw,
@@ -28,6 +29,7 @@ const KPI_CARDS = [
   { key: "prospecting", title: "Prospecções", icon: MessageCircle, tone: "amber", href: "/admin/prospeccao" },
   { key: "service", title: "Em atendimento", icon: Handshake, tone: "blue", href: "/admin/simulacoes?status=in_service" },
   { key: "simulation", title: "Simulações", icon: Calculator, tone: "slate", href: "/admin/simulacoes?statusGroup=simulation" },
+  { key: "approvalPending", title: "Documentações completas / Aguardando aprovação", icon: FileCheck, tone: "amber", href: "/admin/simulacoes?statusGroup=approval" },
   { key: "approval", title: "Aprovações", icon: TrendingUp, tone: "green", href: "/admin/simulacoes?status=approved" },
   { key: "sale", title: "Vendas", icon: CheckCircle2, tone: "green", href: "/admin/simulacoes?statusGroup=sale" }
 ];
@@ -210,7 +212,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {KPI_CARDS.map((card) => (
           <KpiCard key={card.key} card={card} value={metrics[card.key]} />
         ))}
