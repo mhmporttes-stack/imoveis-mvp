@@ -25,8 +25,8 @@ const PERIODS = [
 ];
 
 const KPI_CARDS = [
-  { key: "newClients", title: "Novos clientes", icon: Users, tone: "blue", href: "/admin/simulacoes" },
   { key: "prospecting", title: "Prospecções", icon: MessageCircle, tone: "amber", href: "/admin/prospeccao" },
+  { key: "newClients", title: "Novos clientes", icon: Users, tone: "blue", href: "/admin/simulacoes" },
   { key: "service", title: "Em atendimento", icon: Handshake, tone: "blue", href: "/admin/simulacoes?status=in_service" },
   { key: "simulation", title: "Simulações", icon: Calculator, tone: "slate", href: "/admin/simulacoes?statusGroup=simulation" },
   { key: "approvalPending", title: "Documentações completas / Aguardando aprovação", icon: FileCheck, tone: "amber", href: "/admin/simulacoes?statusGroup=approval" },

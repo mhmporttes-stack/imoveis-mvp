@@ -12,8 +12,8 @@ const PERIODS = [
 ];
 
 const KPI_ITEMS = [
-  { key: "newClients", label: "Novos clientes", href: (id) => `/admin/simulacoes?responsibleUserId=${id}` },
   { key: "prospecting", label: "Prospecções", href: () => "/admin/prospeccao" },
+  { key: "newClients", label: "Novos clientes", href: (id) => `/admin/simulacoes?responsibleUserId=${id}` },
   { key: "service", label: "Atendimentos", href: (id) => `/admin/simulacoes?status=in_service&responsibleUserId=${id}` },
   { key: "simulation", label: "Simulações", href: (id) => `/admin/simulacoes?statusGroup=simulation&responsibleUserId=${id}` },
   { key: "approvalPending", label: "Documentações completas / Aguardando aprovação", href: (id) => `/admin/simulacoes?statusGroup=approval&responsibleUserId=${id}` },
