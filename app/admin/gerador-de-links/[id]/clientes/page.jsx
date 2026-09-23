@@ -33,7 +33,7 @@ export default async function CampaignClientsPage({ params }) {
     }
   }
 
-  const conversion = campaign?.viewCount > 0 ? (campaign.clientCount / campaign.viewCount) * 100 : null;
+  const conversion = campaign?.viewCount > 0 ? (campaign.submissionCount / campaign.viewCount) * 100 : null;
 
   return (
     <main className="bg-mist py-14">
@@ -62,9 +62,10 @@ export default async function CampaignClientsPage({ params }) {
           </article>
         ) : (
           <div className="grid gap-6">
-            <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
+            <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-4">
               <StatCard label="Cliques" value={campaign?.viewCount || 0} />
-              <StatCard label="Cadastros" value={campaign?.clientCount || 0} />
+              <StatCard label="Cadastros" value={campaign?.submissionCount || 0} />
+              <StatCard label="Únicos" value={campaign?.clientCount || 0} />
               <StatCard label="Conversão" value={conversion === null ? "—" : `${conversion.toFixed(1)}%`} />
             </div>
 

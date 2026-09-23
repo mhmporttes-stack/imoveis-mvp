@@ -242,7 +242,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <SummaryCard icon={MousePointerClick} label="Cliques" value={summary.views || 0} tone="blue" />
-        <SummaryCard icon={Users} label="Cadastros" value={summary.clients || 0} tone="amber" />
+        <SummaryCard icon={Users} label="Cadastros" value={summary.submissions || 0} tone="amber" />
         <SummaryCard icon={Percent} label="Conversão" value={formatPercent(summary.conversion)} tone="green" />
         <SummaryCard icon={UserRound} label="Simulações" value={summary.simulation || 0} tone="slate" />
         <SummaryCard icon={BadgeCheck} label="Vendas" value={summary.sale || 0} tone="green" />
@@ -276,7 +276,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
         {sortedCampaigns.map((campaign) => {
           const isActive = campaign.status === "active";
           const isOfficial = campaign.kind === "official";
-          const conversion = campaign.viewCount > 0 ? (campaign.clientCount / campaign.viewCount) * 100 : null;
+          const conversion = campaign.viewCount > 0 ? (campaign.submissionCount / campaign.viewCount) * 100 : null;
           return (
             <article key={campaign.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
               {editingId === campaign.id && editForm ? (
@@ -318,9 +318,10 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
                   ) : null}
                   <p className="mt-1 break-all font-bold text-brand">{campaign.link}</p>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-md">
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-xl sm:grid-cols-4">
                     <MiniStat label="Cliques" value={campaign.viewCount || 0} />
-                    <MiniStat label="Cadastros" value={campaign.clientCount || 0} />
+                    <MiniStat label="Cadastros" value={campaign.submissionCount || 0} />
+                    <MiniStat label="Únicos" value={campaign.clientCount || 0} />
                     <MiniStat label="Conversão" value={conversion === null ? "—" : `${conversion.toFixed(1)}%`} />
                   </div>
                   <p className="mt-3 text-xs font-bold text-muted">Criado em: {formatDate(campaign.createdAt)}</p>
