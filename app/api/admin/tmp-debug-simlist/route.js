@@ -11,18 +11,33 @@ export async function GET(request) {
   const filters = { query: "", responsibleUserId: "all", tagId: "all", pendingOnly: false, staleContactOnly: false, noFutureActivityOnly: false, statusGroup: "all", status: "all" };
   const results = {};
 
+  function describe(error) {
+    return {
+      ok: false,
+      type: typeof error,
+      isError: error instanceof Error,
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      name: error?.name,
+      full: (() => { try { return JSON.stringify(error, Object.getOwnPropertyNames(error || {})); } catch { return String(error); } })(),
+      stack: String(error?.stack || "").split("\n").slice(0, 10)
+    };
+  }
+
   try {
     const page = await listSimulationClientsPage({ auth, filters, page: 1 });
     results.page = { ok: true, items: page.items.length, total: page.total };
   } catch (error) {
-    results.page = { ok: false, message: error?.message, stack: String(error?.stack || "").split("\n").slice(0, 6) };
+    results.page = describe(error);
   }
 
   try {
     const counters = await getSimulationClientCounters({ auth, filters });
     results.counters = { ok: true, counters };
   } catch (error) {
-    results.counters = { ok: false, message: error?.message, stack: String(error?.stack || "").split("\n").slice(0, 6) };
+    results.counters = describe(error);
   }
 
   try {
