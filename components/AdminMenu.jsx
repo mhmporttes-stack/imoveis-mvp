@@ -98,6 +98,65 @@ const associateGroups = brokerGroups.map((group) => {
   return group;
 });
 
+// Menu do administrador geral, organizado em torno de supervisionar o time.
+// Gestor continua com adminGroups (acima), sem alteração.
+const ownerGroups = [
+  {
+    key: "supervisao",
+    label: "SUPERVISÃO",
+    href: "/admin/meta-diaria",
+    items: [
+      { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
+      { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report"] },
+      { href: "/admin/desempenho/online", label: "Online", key: "online" }
+    ]
+  },
+  {
+    key: "clientes",
+    label: "CLIENTES",
+    href: "/admin/simulacoes",
+    items: [
+      { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
+      { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" },
+      { href: "/admin/calendario", label: "Agenda", key: "calendar" }
+    ]
+  },
+  {
+    key: "cadastros",
+    label: "CADASTROS",
+    href: "/admin",
+    items: [
+      { href: "/admin", label: "Imóveis", key: "properties" },
+      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
+      { href: "/admin?area=gestao", label: "Cadastro de empreendimentos", key: "management-properties" },
+      { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
+      { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
+      { href: "/admin/corretores", label: "Corretores", key: "brokers" },
+      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" }
+    ]
+  },
+  {
+    key: "financeiro",
+    label: "FINANCEIRO",
+    href: "/admin/financeiro",
+    items: [
+      { href: "/admin/financeiro", label: "Financeiro", key: "financial" },
+      { href: "/admin/gastos-ia", label: "Gastos de IA", key: "ai-usage" }
+    ]
+  },
+  {
+    key: "configuracoes",
+    label: "CONFIGURAÇÕES",
+    items: [
+      { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
+      { href: "/admin/desempenho/pontuacao", label: "Pontuação", key: "scoring" },
+      { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
+      { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" }
+    ]
+  }
+];
+
 function getGroupKeyForActive(active, groups = adminGroups) {
   return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
 }
@@ -106,7 +165,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   // Gestor enxerga exatamente o mesmo menu do administrador geral — o que
   // ele nao deve ver (financeiro da imobiliaria, clientes do dono) e barrado
   // nas proprias paginas/consultas, nao escondendo o item de menu.
-  const groups = isManager || isAdmin ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  const groups = isAdmin ? ownerGroups : isManager ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
 
   useEffect(() => {
