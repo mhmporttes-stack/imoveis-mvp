@@ -82,7 +82,207 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
           )}
         </div>
       </article>
+
+      <HoursReport />
     </div>
+  );
+}
+
+const REPORT_PERIODS = [
+  { value: "today", label: "Hoje" },
+  { value: "yesterday", label: "Ontem" },
+  { value: "week", label: "Esta semana" },
+  { value: "month", label: "Este mês" },
+  { value: "custom", label: "Personalizado" }
+];
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" });
+
+function formatMinutes(total) {
+  const minutes = Math.max(0, Math.round(total || 0));
+  if (!minutes) return "0min";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest}min`;
+  return rest ? `${hours}h ${String(rest).padStart(2, "0")}min` : `${hours}h`;
+}
+
+function formatDayLabel(plainDate) {
+  const [year, month, day] = plainDate.split("-").map(Number);
+  const weekday = WEEKDAY_FORMATTER.format(new Date(Date.UTC(year, month - 1, day))).replace(".", "");
+  return `${weekday} ${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+}
+
+// Horas no CRM por corretor: tempo online (com interação real) e ausente,
+// a partir do histórico de atividade gravado pelo heartbeat. Cruza com os
+// contatos da Meta Diária para separar "online e produzindo" de "online sem
+// produzir".
+function HoursReport() {
+  const [period, setPeriod] = useState("today");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState("");
+
+  useEffect(() => {
+    if (period === "custom" && (!startDate || !endDate)) return undefined;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+
+    const params = new URLSearchParams({ period });
+    if (period === "custom") {
+      params.set("startDate", startDate);
+      params.set("endDate", endDate);
+    }
+
+    fetch(`/api/admin/presence/report?${params.toString()}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || "Não foi possível carregar as horas.");
+        setReport(data);
+      })
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") setError(requestError.message || "Não foi possível carregar as horas.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [period, startDate, endDate]);
+
+  const members = report?.members || [];
+  const teamActive = members.reduce((sum, member) => sum + member.activeMinutes, 0);
+  const teamAway = members.reduce((sum, member) => sum + member.awayMinutes, 0);
+  const multiDay = report?.range && report.range.startDate !== report.range.endDate;
+
+  return (
+    <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Horas no CRM</p>
+      <h3 className="mt-2 text-2xl font-extrabold text-navy">Quanto tempo cada corretor trabalhou</h3>
+      <p className="mt-2 text-sm font-bold text-slate-500">
+        Conta só o tempo com interação real no CRM (clique, digitação, rolagem, toque). Sem interagir por 5 minutos o tempo online pausa e vira ausente.
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Período das horas">
+        {REPORT_PERIODS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setPeriod(option.value)}
+            className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
+              period === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {period === "custom" ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-extrabold text-navy">
+            Início
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand" />
+          </label>
+          <label className="text-sm font-extrabold text-navy">
+            Final
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand" />
+          </label>
+        </div>
+      ) : null}
+
+      {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</p> : null}
+
+      {report && !report.ready ? (
+        <p className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
+          O histórico de horas ainda não foi ativado no banco de dados (falta criar a tabela de atividade). Assim que for criada, os números começam a aparecer aqui conforme a equipe usa o CRM.
+        </p>
+      ) : null}
+
+      {report?.ready ? (
+        <>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-emerald-700">
+              <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamActive)}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide">Online (equipe)</p>
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-700">
+              <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamAway)}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide">Ausente (equipe)</p>
+            </div>
+          </div>
+
+          <div className={`mt-5 space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
+            {members.map((member) => (
+              <div key={member.id} className="rounded-2xl border border-navy/10">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId((current) => (current === member.id ? "" : member.id))}
+                  className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left"
+                  aria-expanded={expandedId === member.id}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-extrabold text-navy">{member.name}</span>
+                      <span className="block text-xs font-bold text-slate-500">
+                        {member.daysWithPresence} {member.daysWithPresence === 1 ? "dia" : "dias"} com atividade
+                        {multiDay ? ` · média ${formatMinutes(member.averageActiveMinutesPerDay)}/dia` : ""}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 text-sm font-black">
+                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-700">Online {formatMinutes(member.activeMinutes)}</span>
+                    <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-700">Ausente {formatMinutes(member.awayMinutes)}</span>
+                    <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-brand">{member.contacts} {member.contacts === 1 ? "contato" : "contatos"}</span>
+                  </span>
+                </button>
+
+                {expandedId === member.id ? (
+                  <div className="border-t border-navy/10 bg-blue-50/30 p-4">
+                    {member.days.length ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[520px] text-left text-sm">
+                          <thead className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                            <tr>
+                              <th className="pb-2">Dia</th>
+                              <th className="pb-2">Primeiro</th>
+                              <th className="pb-2">Último</th>
+                              <th className="pb-2">Online</th>
+                              <th className="pb-2">Ausente</th>
+                              <th className="pb-2">Contatos</th>
+                            </tr>
+                          </thead>
+                          <tbody className="font-bold text-navy">
+                            {member.days.map((day) => (
+                              <tr key={day.date} className="border-t border-navy/10">
+                                <td className="py-2">{formatDayLabel(day.date)}</td>
+                                <td className="py-2">{day.firstAt ? TIME_FORMATTER.format(new Date(day.firstAt)) : "—"}</td>
+                                <td className="py-2">{day.lastAt ? TIME_FORMATTER.format(new Date(day.lastAt)) : "—"}</td>
+                                <td className="py-2 text-emerald-700">{formatMinutes(day.activeMinutes)}</td>
+                                <td className="py-2 text-amber-700">{formatMinutes(day.awayMinutes)}</td>
+                                <td className="py-2">{day.contacts}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-bold text-slate-500">Sem atividade registrada neste período.</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {!members.length ? <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Nenhum corretor na sua equipe.</p> : null}
+          </div>
+        </>
+      ) : null}
+    </article>
   );
 }
 

@@ -2,22 +2,18 @@
 
 import { useEffect, useRef } from "react";
 
-// Intervalo mínimo entre heartbeats reais (mesmo com clique/navegação
-// contínuos) — evita polling agressivo/writes excessivos. Bem abaixo da
-// janela "Online" (5 min) para garantir que quem está de fato usando o CRM
-// nunca apareça como ausente por atraso do heartbeat.
+// Intervalo mínimo entre heartbeats — mesmo com interação contínua, no máximo
+// 1 por minuto (evita escritas excessivas).
 const MIN_INTERVAL_MS = 60000;
 
 // Componente global (montado em app/admin/layout.jsx para TODO usuário
-// autenticado, não só quem vê a aba Online) — só ele precisa existir para a
-// presença funcionar; a leitura/exibição fica isolada em OnlinePresenceBoard.
-// Sem UI própria, sem Realtime: um heartbeat simples que só dispara quando
-// existe atividade real (carga da página, volta de segundo plano, navegação,
-// clique/tecla) ou o timer periódico — nunca por segundo, nunca por clique
-// individual (throttle abaixo). Fechar o navegador sem logout simplesmente
-// para de gerar heartbeats; o status "offline" vem sozinho pela idade do
-// último heartbeat (lib/admin-presence.js), sem depender de nenhum evento de
-// saída.
+// autenticado) — sem UI própria, sem Realtime.
+//
+// Regra de presença: só INTERAÇÃO real conta (clique, tecla, rolagem, toque,
+// movimento do mouse, carregar/voltar para a página). NÃO existe timer
+// periódico: um CRM aberto e abandonado não gera nenhum sinal, então em 5 min
+// sem interagir o usuário passa a "ausente" e o tempo online pausa (o cálculo
+// fica em lib/admin-presence.js). Cada sinal vale no máximo 1 por minuto.
 export default function AdminPresenceHeartbeat({ userId }) {
   const lastSentRef = useRef(0);
   const inFlightRef = useRef(false);
@@ -38,7 +34,7 @@ export default function AdminPresenceHeartbeat({ userId }) {
       try {
         await fetch("/api/admin/heartbeat", { method: "POST" });
       } catch {
-        // Falha de rede pontual — o próximo gatilho de atividade tenta de novo.
+        // Falha de rede pontual — a próxima interação tenta de novo.
       } finally {
         inFlightRef.current = false;
       }
@@ -46,23 +42,22 @@ export default function AdminPresenceHeartbeat({ userId }) {
 
     ping();
 
+    const interactionEvents = ["pointerdown", "keydown", "scroll", "touchstart", "mousemove", "wheel"];
+    const options = { passive: true, capture: true };
+
     function handleVisibility() {
       if (document.visibilityState === "visible") ping();
     }
 
-    const intervalId = setInterval(ping, MIN_INTERVAL_MS);
+    for (const eventName of interactionEvents) window.addEventListener(eventName, ping, options);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleVisibility);
-    window.addEventListener("pointerdown", ping, { passive: true });
-    window.addEventListener("keydown", ping);
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      for (const eventName of interactionEvents) window.removeEventListener(eventName, ping, options);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleVisibility);
-      window.removeEventListener("pointerdown", ping);
-      window.removeEventListener("keydown", ping);
     };
   }, [userId]);
 

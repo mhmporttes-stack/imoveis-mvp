@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { recordAdminGrace } from "@/lib/admin-presence";
 import {
   canManageSimulationRegistrations,
   formatSimulationRegistrationError,
@@ -21,6 +22,7 @@ export async function POST(request, { params }) {
 
   try {
     const registration = await markSimulationRegistrationWhatsAppContact((await params).id, auth.user?.email, auth);
+    await recordAdminGrace(auth);
     return NextResponse.json(registration);
   } catch (error) {
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

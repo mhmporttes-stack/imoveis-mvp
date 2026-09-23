@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { recordAdminGrace } from "@/lib/admin-presence";
 import { formatDailyGoalError, registerDailyGoalAttempt } from "@/lib/daily-goal";
 
 export const runtime = "nodejs";
@@ -10,7 +11,9 @@ export async function POST(request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await request.json().catch(() => ({}));
-    return NextResponse.json(await registerDailyGoalAttempt(body?.roundId, body?.message, auth));
+    const result = await registerDailyGoalAttempt(body?.roundId, body?.message, auth);
+    await recordAdminGrace(auth);
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: error?.status || 400 });
   }
