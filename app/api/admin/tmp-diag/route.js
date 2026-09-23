@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listCalendarActivitiesForClients } from "@/lib/calendar-activities";
 import { listTags } from "@/lib/client-tags";
@@ -11,12 +12,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const FAKE_OWNER_AUTH = {
-  ok: true,
-  user: { email: "mhmporttes@gmail.com" },
-  profile: { id: "smoke-test", role: "admin", email: "mhmporttes@gmail.com" }
-};
-
 function describeError(error) {
   return {
     message: error?.message ?? null,
@@ -28,13 +23,25 @@ function describeError(error) {
   };
 }
 
-export async function GET() {
-  const checks = {};
+export async function GET(request) {
+  const auth = await requireAdminApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ authError: auth.error, status: auth.status }, { status: 200 });
+  }
+
+  const checks = {
+    authProfile: {
+      role: auth.profile?.role ?? null,
+      hasManagedUserIds: Array.isArray(auth.profile?.managedUserIds),
+      isFallback: auth.profile?.isFallback ?? null,
+      accountSwitchMode: auth.accountSwitchMode ?? null
+    }
+  };
 
   const steps = [
-    ["listSimulationClientsPage", () => listSimulationClientsPage({ auth: FAKE_OWNER_AUTH, filters: {}, page: 1 })],
-    ["getSimulationClientCounters", () => getSimulationClientCounters({ auth: FAKE_OWNER_AUTH, filters: {} })],
-    ["getPendingClientsCount", () => getPendingClientsCount({ auth: FAKE_OWNER_AUTH })],
+    ["listSimulationClientsPage", () => listSimulationClientsPage({ auth, filters: {}, page: 1 })],
+    ["getSimulationClientCounters", () => getSimulationClientCounters({ auth, filters: {} })],
+    ["getPendingClientsCount", () => getPendingClientsCount({ auth })],
     ["listTags", () => listTags()],
     ["listAdminProfiles", () => listAdminProfiles()]
   ];
@@ -46,7 +53,7 @@ export async function GET() {
       if (name === "listSimulationClientsPage") {
         checks.listCalendarActivitiesForClients = await (async () => {
           try {
-            const activitiesByClient = await listCalendarActivitiesForClients(result.items.map((c) => c.id), FAKE_OWNER_AUTH);
+            const activitiesByClient = await listCalendarActivitiesForClients(result.items.map((c) => c.id), auth);
             return { ok: true, shape: `map(${activitiesByClient.size ?? "?"})` };
           } catch (activityError) {
             return { ok: false, error: describeError(activityError) };
