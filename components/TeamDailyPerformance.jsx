@@ -56,6 +56,8 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
     return () => controller.abort();
   }, [period]);
 
+  const presenceById = useTeamPresence();
+
   return (
     <section className="container-page space-y-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -82,7 +84,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {overview.brokers.map((broker) => (
-              <BrokerCard key={broker.brokerId} broker={broker} onClick={() => setSelectedBrokerId(broker.brokerId)} />
+              <BrokerCard key={broker.brokerId} broker={broker} presenceStatus={presenceById[broker.brokerId]} onClick={() => setSelectedBrokerId(broker.brokerId)} />
             ))}
           </div>
 
@@ -122,7 +124,48 @@ function TeamSummary({ summary }) {
   );
 }
 
-function BrokerCard({ broker, onClick }) {
+const PRESENCE_DOT = {
+  online: "bg-emerald-500",
+  away: "bg-amber-500",
+  offline: "bg-slate-400"
+};
+
+// Mesma fonte e mesmo intervalo da tela Online (/api/admin/presence): o
+// status é recalculado no servidor a cada leitura, então a bolinha nunca
+// fica presa num "online" antigo. Só consulta com a aba visível.
+function useTeamPresence() {
+  const [presenceById, setPresenceById] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (cancelled || document.visibilityState !== "visible") return;
+      try {
+        const response = await fetch("/api/admin/presence");
+        const data = await response.json().catch(() => null);
+        if (cancelled || !response.ok || !data?.members) return;
+        setPresenceById(Object.fromEntries(data.members.map((member) => [member.id, member.status])));
+      } catch {
+        // Falha pontual de rede — tenta de novo no próximo ciclo.
+      }
+    }
+
+    load();
+    const intervalId = setInterval(load, 20000);
+    document.addEventListener("visibilitychange", load);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, []);
+
+  return presenceById;
+}
+
+function BrokerCard({ broker, presenceStatus, onClick }) {
   const colors = progressColor(broker.meta.percent);
 
   return (
@@ -133,7 +176,13 @@ function BrokerCard({ broker, onClick }) {
     >
       <div className="flex items-center gap-3">
         <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
-        <h3 className="min-w-0 truncate text-base font-black text-navy">{broker.name}</h3>
+        <h3 className="flex min-w-0 items-center gap-2 text-base font-black text-navy">
+          <span
+            aria-hidden="true"
+            className={`h-3 w-3 shrink-0 rounded-full ${PRESENCE_DOT[presenceStatus] || PRESENCE_DOT.offline}`}
+          />
+          <span className="min-w-0 truncate">{broker.name}</span>
+        </h3>
       </div>
 
       <div className="mt-4 flex items-center justify-center">
