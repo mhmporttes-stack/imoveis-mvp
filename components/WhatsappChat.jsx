@@ -428,6 +428,12 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
   }
 
   async function assume() {
+    const client = conversation.client;
+    // Admin/gestor assumindo conversa de cliente de outro corretor: o cliente vai junto.
+    if (canManage && client?.responsibleId && client.responsibleId !== currentUserId
+      && !window.confirm(`Assumir esta conversa também transfere o cliente ${client.name || ""} de ${client.responsibleName || "outro corretor"} para você. Continuar?`)) {
+      return;
+    }
     setAssuming(true);
     await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/assign`, { method: "POST" }).catch(() => {});
     setAssuming(false);
@@ -631,6 +637,11 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
   const [assigning, setAssigning] = useState(false);
 
   async function assignTo(userId) {
+    const target = brokers.find((broker) => broker.id === userId);
+    if (target && conversation.client && conversation.client.responsibleId !== userId
+      && !window.confirm(`Atribuir esta conversa a ${target.name} também transfere o cliente ${conversation.client.name || ""} de ${conversation.client.responsibleName || "sem corretor"} para ${target.name}. Continuar?`)) {
+      return;
+    }
     setAssigning(true);
     await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/assign`, {
       method: "POST",

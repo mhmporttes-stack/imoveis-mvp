@@ -15,8 +15,8 @@ export async function POST(request, { params }) {
   try {
     const body = await request.json().catch(() => ({}));
     const userId = Object.prototype.hasOwnProperty.call(body || {}, "userId") ? body.userId : undefined;
-    await assignChatConversation((await params).id, userId, auth);
-    return NextResponse.json({ ok: true });
+    const result = await assignChatConversation((await params).id, userId, auth);
+    return NextResponse.json({ ok: true, transferred: Boolean(result?.transferred) });
   } catch (error) {
     return chatErrorResponse(error);
   }

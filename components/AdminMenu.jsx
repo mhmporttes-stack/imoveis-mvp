@@ -120,7 +120,6 @@ const ownerGroups = [
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
       { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
-      { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" }
     ]
