@@ -1,0 +1,5 @@
+ogg-opus-decoder 1.7.5 (wasm-audio-decoders) — Copyright 2021-2026 Ethan Halsall — licença MIT.
+https://github.com/eshaz/wasm-audio-decoders
+Contém o decodificador Opus (libopus, licença BSD-3-Clause) compilado para WebAssembly.
+Arquivo distribuído sem alterações (dist/ogg-opus-decoder.min.js). Usado somente no navegador para tocar
+áudios OGG/Opus do WhatsApp quando o navegador não os reproduz nativamente (ex.: Safari/iPhone).

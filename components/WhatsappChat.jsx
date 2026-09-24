@@ -13,6 +13,7 @@ import {
   LayoutList,
   Loader2,
   MessageCircle,
+  MessageSquareText,
   Mic,
   Paperclip,
   Search,
@@ -22,6 +23,7 @@ import {
   X
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import ChatAudioPlayer from "@/components/ChatAudioPlayer";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
@@ -274,6 +276,11 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
                   refreshSummary();
                 }}
                 onToggleInfo={() => setInfoOpen((open) => !open)}
+                onDeleted={() => {
+                  closeConversation();
+                  loadList({ silent: true });
+                  refreshSummary();
+                }}
               />
             ) : (
               <div className="grid flex-1 place-items-center p-8 text-center">
@@ -403,8 +410,11 @@ function ConversationRow({ conversation, selected, onSelect }) {
   );
 }
 
-function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onChanged, onToggleInfo }) {
+function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onChanged, onDeleted, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
@@ -431,6 +441,22 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
       body: JSON.stringify({ status })
     }).catch(() => {});
     onChanged();
+  }
+
+  async function deleteConversation() {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível excluir a conversa.");
+      setConfirmingDelete(false);
+      onDeleted();
+    } catch (deleteFailure) {
+      setDeleteError(deleteFailure.message);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function assume() {
@@ -489,6 +515,18 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
           ) : (
             <button type="button" onClick={() => changeStatus("open")} className="rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand">Reabrir</button>
           )}
+          {conversation.canInternal ? (
+            <button
+              type="button"
+              onClick={() => { setDeleteError(""); setConfirmingDelete(true); }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+              title="Excluir conversa"
+              aria-label="Excluir conversa"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Excluir conversa</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onToggleInfo}
@@ -513,11 +551,40 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
       </div>
 
       <Composer canManage={canManage} conversation={conversation} onSent={onChanged} />
+
+      {confirmingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
+          <div className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
+            <p id="delete-conversation-title" className="text-lg font-black text-navy">Excluir esta conversa?</p>
+            <p className="mt-2 text-sm font-semibold leading-5 text-slate-600">A conversa será removida da caixa de atendimento. Essa ação não excluirá o cadastro do cliente.</p>
+            {deleteError ? <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{deleteError}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting} className="rounded-full border border-line px-4 py-2 text-sm font-extrabold text-navy hover:border-brand disabled:opacity-50">Cancelar</button>
+              <button type="button" onClick={deleteConversation} disabled={deleting} className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-red-700 disabled:opacity-60">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Excluir conversa
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
 
 function MessageBubble({ message }) {
+  if (message.internal) {
+    return (
+      <div className="flex justify-end">
+        <div data-internal-message className="max-w-[85%] rounded-2xl rounded-br-md border border-dashed border-brand/35 bg-[#F3F7FE] px-3.5 py-2 text-navy shadow-sm sm:max-w-[70%]">
+          <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">Interno • {message.sentByName || "Equipe"}</p>
+          <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p>
+          <div className="mt-1 flex items-center justify-end text-[10px] font-bold text-slate-400">
+            <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const outbound = message.direction === "outbound";
   const failed = message.status === "failed";
   const isMedia = message.type !== "text" && message.type !== "button" && message.type !== "interactive";
@@ -576,7 +643,7 @@ function MediaPreview({ media, type }) {
       </a>
     );
   }
-  if (type === "audio") return <audio controls preload="none" src={media.url} className="mb-1 h-10 w-full max-w-[260px]" />;
+  if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} />;
   return (
     <a href={media.url} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm font-extrabold text-brand">
       <FileText className="h-4 w-4 shrink-0" />
@@ -614,6 +681,7 @@ function Composer({ canManage, conversation, onSent }) {
   const fileInput = useRef(null);
   const recorder = useAudioRecorder();
   const canRecord = useMemo(() => audioRecordingSupported(), []);
+  const [internalMode, setInternalMode] = useState(false);
 
   useEffect(() => {
     setText("");
@@ -623,11 +691,32 @@ function Composer({ canManage, conversation, onSent }) {
       return null;
     });
     recorder.cancel();
+    setInternalMode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
 
+  const canInternal = Boolean(conversation.canInternal);
+
+  // MODO INTERNO: mensagem só para a equipe (nunca vai ao WhatsApp). Funciona também com a janela de 24h fechada.
+  if (internalMode && canInternal) {
+    return <InternalComposer conversationId={conversation.id} onExit={() => setInternalMode(false)} onSent={onSent} />;
+  }
+
   if (!conversation.window.open) {
-    return <WhatsappChatTemplateSender conversation={conversation} onSent={onSent} />;
+    return (
+      <div>
+        <WhatsappChatTemplateSender conversation={conversation} onSent={onSent} />
+        {canInternal ? (
+          <button
+            type="button"
+            onClick={() => setInternalMode(true)}
+            className="flex w-full items-center justify-center gap-2 border-t border-line bg-white px-4 py-2 text-xs font-extrabold text-slate-500 transition-colors duration-200 hover:bg-blue-50 hover:text-brand"
+          >
+            <MessageSquareText className="h-4 w-4" /> Escrever mensagem interna (o cliente não verá)
+          </button>
+        ) : null}
+      </div>
+    );
   }
 
   async function postMedia(file, caption = "") {
@@ -754,6 +843,7 @@ function Composer({ canManage, conversation, onSent }) {
             <Paperclip className="h-5 w-5" />
           </button>
           <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending} onSent={onSent} />
+          {canInternal ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
           <textarea
             className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             disabled={sending}
@@ -786,6 +876,90 @@ function Composer({ canManage, conversation, onSent }) {
         </div>
       )}
       {closingSoon ? <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">Atenção: a janela de resposta livre fecha em {timeLeftLabel} (às {expires}). Depois disso só é possível enviar um modelo aprovado.</p> : expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
+    </div>
+  );
+}
+
+// Botão do modo interno: cinza (envio normal ao cliente) -> azul (modo interno ativo), com transição suave.
+function InternalToggle({ active, disabled = false, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={active ? "Desativar modo interno" : "Ativar modo interno (mensagem só para a equipe)"}
+      title={active ? "Modo interno ativo — clique para voltar ao WhatsApp" : "Mensagem interna (o cliente não verá)"}
+      className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors duration-200 disabled:opacity-40 ${active ? "bg-blue-100 text-brand" : "text-slate-400 hover:bg-mist hover:text-slate-600"}`}
+    >
+      <MessageSquareText className="h-5 w-5" />
+    </button>
+  );
+}
+
+function InternalComposer({ conversationId, onExit, onSent }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function send() {
+    const value = text.trim();
+    if (!value || sending) return;
+    setSending(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/internal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: value })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar a mensagem interna.");
+      setText("");
+    } catch (sendError) {
+      setError(sendError.message);
+    } finally {
+      setSending(false);
+      onSent();
+    }
+  }
+
+  return (
+    <div data-internal-composer className="border-t border-brand/25 bg-blue-50/60 p-3 transition-colors duration-200">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+          <MessageSquareText className="h-3 w-3" /> Modo interno
+        </span>
+        <span className="text-[11px] font-bold text-brand">Só a equipe vê estas mensagens.</span>
+      </div>
+      {error ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
+      <div className="flex items-end gap-1">
+        <InternalToggle active onClick={onExit} />
+        <textarea
+          autoFocus
+          className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+          disabled={sending}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              send();
+            }
+          }}
+          placeholder="Mensagem interna — o cliente não verá esta mensagem"
+          rows={1}
+          value={text}
+        />
+        <button
+          type="button"
+          onClick={send}
+          disabled={sending || !text.trim()}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-white transition hover:bg-[#082f55] disabled:opacity-40"
+          aria-label="Salvar mensagem interna"
+        >
+          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+        </button>
+      </div>
     </div>
   );
 }

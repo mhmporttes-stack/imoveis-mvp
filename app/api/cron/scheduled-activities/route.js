@@ -9,6 +9,7 @@ import {
 import { listDueCalendarActivityNotifications, markCalendarActivityNotified } from "@/lib/calendar-activities";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
+import { reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,6 +79,16 @@ export async function GET(request) {
       automations = [{ error: automationError?.message || "Falha no motor de regras." }];
     }
 
+    // Rede de segurança do lead patrocinado (Click to WhatsApp): conversa de anúncio das últimas 24h que
+    // ainda não virou cliente (falha momentânea no webhook) volta a tentar entrar na roleta. O banco
+    // garante que nunca duplica.
+    let sponsoredLeads = 0;
+    try {
+      sponsoredLeads = (await reconcileSponsoredLeads()).filter((item) => item?.created).length;
+    } catch (sponsoredError) {
+      console.error("Falha ao reconciliar leads patrocinados.", sponsoredError);
+    }
+
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
     // qualquer registro que tenha ficado com responsible_user_id nulo por
     // qualquer caminho (não só o de exclusão de corretor, já tratado na hora)
@@ -99,6 +110,7 @@ export async function GET(request) {
       failed: allResults.filter((item) => item.error).length,
       results: allResults,
       automations,
+      sponsoredLeads,
       orphanReassignment
     });
   } catch (error) {
