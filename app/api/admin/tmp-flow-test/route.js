@@ -59,6 +59,25 @@ export async function POST(request) {
     out.conversationStatusAfter = conv?.status;
     out.triggeredCount = flowRow?.triggered_count;
 
+    const junk = { sender_phone: phone, message_type: "text", message_text: "blablabla", raw_payload: { message: { type: "text" } } };
+    out.junk = [];
+    for (let index = 0; index < 3; index += 1) {
+      out.junk.push(await processFlowInbound(junk));
+    }
+    const { data: afterJunk } = await db.from("whatsapp_flow_sessions").select("status, end_reason, retries").eq("flow_id", flow.id);
+    const { data: convAfterJunk } = await db.from("whatsapp_conversations").select("status").eq("id", conversation.id).single();
+    out.afterJunk = afterJunk;
+    out.convAfterJunk = convAfterJunk?.status;
+
+    // Nova sessão (cooldown 0) e toque de botão válido: m2/b1 não tem ligação -> conclui.
+    await processFlowInbound({ sender_phone: phone, message_type: "text", message_text: "zzteste", raw_payload: { message: { type: "text" } } });
+    const tap = { sender_phone: phone, message_type: "interactive", message_text: "Ok", raw_payload: { message: { type: "interactive", interactive: { button_reply: { id: "fl:" + flow.id + ":m2:b1", title: "Ok" } } } } };
+    out.tap = await processFlowInbound(tap);
+    const { data: finalSessions } = await db.from("whatsapp_flow_sessions").select("status, end_reason").eq("flow_id", flow.id).order("started_at");
+    out.finalSessions = finalSessions;
+    const { data: chatMsgs } = await db.from("whatsapp_messages").select("sender_type, body, metadata").eq("conversation_id", conversation.id).eq("direction", "outbound");
+    out.chatMessages = (chatMsgs || []).map((m) => [m.sender_type, m.body, m.metadata?.kind, JSON.stringify(m.metadata?.buttons)]);
+
     // Segunda mensagem igual: sessão anterior terminou (failed) -> deve poder iniciar de novo (cooldown 0).
     out.cron = await processDueFlowSessions();
   } catch (error) {
