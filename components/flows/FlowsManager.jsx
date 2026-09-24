@@ -22,6 +22,7 @@ const KIND_LABELS = {
   timeout: "Prazo sem resposta",
   handoff: "Passou para atendente",
   end: "Fluxo terminou",
+  skipped: "Não iniciou",
   error: "Erro"
 };
 
