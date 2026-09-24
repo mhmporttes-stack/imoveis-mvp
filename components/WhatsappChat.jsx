@@ -89,6 +89,7 @@ export default function WhatsappChat() {
   const [detailError, setDetailError] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
 
+  const sectionRef = useRef(null);
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);
@@ -150,6 +151,9 @@ export default function WhatsappChat() {
   }, [filter, search, loadList]);
 
   function openConversation(id) {
+    // Leva o painel para o topo da tela: a conversa e o campo de mensagem
+    // ocupam a altura inteira da janela, sem precisar rolar a página.
+    sectionRef.current?.scrollIntoView({ block: "start" });
     setSelectedId(id);
     selectedRef.current = id;
     setDetail(null);
@@ -167,9 +171,9 @@ export default function WhatsappChat() {
   const totalUnread = summary.unreadMessages || 0;
 
   return (
-    <section className="container-page">
+    <section className="container-page scroll-mt-3" ref={sectionRef}>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
-        <div className="grid h-[calc(100dvh-230px)] min-h-[560px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
+        <div className="grid h-[calc(100dvh-24px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "flex"}
             conversations={conversations}
