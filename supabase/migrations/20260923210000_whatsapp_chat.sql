@@ -71,9 +71,12 @@ create table if not exists public.whatsapp_messages (
 );
 
 -- Idempotência: a Meta reenvia webhooks — o mesmo ID de mensagem nunca vira
--- duas linhas.
+-- duas linhas. Índice único COMPLETO (não parcial): o upsert do PostgREST
+-- (ON CONFLICT (meta_message_id)) não consegue usar índice parcial; NULLs
+-- (mensagem ainda sem ID da Meta) continuam permitidos em qualquer quantidade.
+drop index if exists public.whatsapp_messages_meta_message_id_uidx;
 create unique index if not exists whatsapp_messages_meta_message_id_uidx
-  on public.whatsapp_messages (meta_message_id) where meta_message_id is not null;
+  on public.whatsapp_messages (meta_message_id);
 create index if not exists whatsapp_messages_conversation_idx
   on public.whatsapp_messages (conversation_id, message_at desc);
 create index if not exists whatsapp_messages_sender_user_idx
@@ -179,4 +182,4 @@ select
 from public.whatsapp_master_events e
 join public.whatsapp_conversations c on c.contact_phone = e.sender_phone
 where e.event_type = 'message' and e.direction = 'inbound' and e.message_id is not null
-on conflict (meta_message_id) where meta_message_id is not null do nothing;
+on conflict (meta_message_id) do nothing;
