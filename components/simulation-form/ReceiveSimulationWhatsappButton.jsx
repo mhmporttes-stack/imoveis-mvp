@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
-const MESSAGE = "Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.";
+import { FORM_COMPLETION_MESSAGE as MESSAGE } from "@/lib/whatsapp-form-completion.mjs";
 
 // Botão da tela final do formulário: abre o WhatsApp oficial com a mensagem
 // pronta. Quando o cliente escreve primeiro, a janela de 24h abre e o CRM
