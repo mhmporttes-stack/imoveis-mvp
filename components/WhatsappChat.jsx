@@ -8,17 +8,23 @@ import {
   Check,
   CheckCheck,
   ExternalLink,
+  FileText,
   Info,
   LayoutList,
   Loader2,
   MessageCircle,
+  Mic,
+  Paperclip,
   Search,
   Send,
+  Trash2,
   UserPlus,
   X
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
+import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
+import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
 import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
 import { BrokerChip, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
@@ -506,7 +512,7 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
         {!rows.length ? <p className="py-8 text-center text-sm font-bold text-muted">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
 
-      <Composer conversation={conversation} onSent={onChanged} />
+      <Composer canManage={canManage} conversation={conversation} onSent={onChanged} />
     </>
   );
 }
@@ -525,9 +531,10 @@ function MessageBubble({ message }) {
         {outbound && message.senderType === "automation" ? (
           <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">{message.automationKind === "flow" ? "Automação · Fluxo" : "Automação"}</p>
         ) : null}
-        {isMedia ? (
+        {message.media ? <MediaPreview media={message.media} type={message.type} /> : isMedia ? (
           <p className="text-sm font-bold italic text-slate-500">[{label}] — abra no WhatsApp para visualizar</p>
         ) : null}
+        {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Atalho · {message.shortcut}</p> : null}
         {message.body ? <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p> : null}
         {message.linkLabel ? <p className="mt-1.5 border-t border-navy/10 pt-1.5 text-center text-xs font-extrabold text-brand">🔗 {message.linkLabel}</p> : null}
         {message.buttons?.length ? (
@@ -561,33 +568,119 @@ function StatusTicks({ status }) {
   return <Loader2 className="h-3 w-3 animate-spin" aria-label="Enviando" />;
 }
 
-function Composer({ conversation, onSent }) {
+function MediaPreview({ media, type }) {
+  if (type === "image") {
+    return (
+      <a href={media.url} target="_blank" rel="noreferrer" className="mb-1 block">
+        <img src={media.url} alt={media.name || "Imagem"} className="max-h-64 w-full rounded-xl object-cover" loading="lazy" />
+      </a>
+    );
+  }
+  if (type === "audio") return <audio controls preload="none" src={media.url} className="mb-1 h-10 w-full max-w-[260px]" />;
+  return (
+    <a href={media.url} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm font-extrabold text-brand">
+      <FileText className="h-4 w-4 shrink-0" />
+      <span className="truncate">{media.name || "Documento"}</span>
+    </a>
+  );
+}
+
+// Reduz fotos (máx. 1600 px, JPEG) para caber no limite de envio e no do WhatsApp.
+async function prepareImageFile(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  if (!blob) throw new Error("Não foi possível preparar a imagem.");
+  return new File([blob], (file.name || "foto").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+}
+
+function formatDuration(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function Composer({ canManage, conversation, onSent }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [attachment, setAttachment] = useState(null); // { file, previewUrl }
+  const fileInput = useRef(null);
+  const recorder = useAudioRecorder();
+  const canRecord = useMemo(() => audioRecordingSupported(), []);
 
   useEffect(() => {
     setText("");
     setError("");
+    setAttachment((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+    recorder.cancel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
 
   if (!conversation.window.open) {
     return <WhatsappChatTemplateSender conversation={conversation} onSent={onSent} />;
   }
 
+  async function postMedia(file, caption = "") {
+    const form = new FormData();
+    form.append("file", file);
+    if (caption) form.append("caption", caption);
+    const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/media`, { method: "POST", body: form });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Não foi possível enviar o arquivo.");
+  }
+
+  async function pickFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    try {
+      const prepared = file.type.startsWith("image/") ? await prepareImageFile(file) : file;
+      if (prepared.size > 4 * 1024 * 1024) throw new Error("O arquivo passa de 4 MB. Envie um menor.");
+      setAttachment((current) => {
+        if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+        return { file: prepared, previewUrl: prepared.type.startsWith("image/") ? URL.createObjectURL(prepared) : "" };
+      });
+    } catch (pickError) {
+      setError(pickError.message);
+    }
+  }
+
+  function clearAttachment() {
+    setAttachment((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+  }
+
   async function send() {
     const value = text.trim();
-    if (!value || sending) return;
+    if ((!value && !attachment) || sending) return;
     setSending(true);
     setError("");
     try {
-      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
+      if (attachment) {
+        await postMedia(attachment.file, value);
+        clearAttachment();
+      } else {
+        const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: value })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
+      }
       setText("");
     } catch (sendError) {
       setError(sendError.message);
@@ -597,36 +690,97 @@ function Composer({ conversation, onSent }) {
     }
   }
 
+  async function sendAudio() {
+    const result = await recorder.finish();
+    if (!result) {
+      setError(recorder.error || "Não foi possível preparar o áudio.");
+      return;
+    }
+    setSending(true);
+    setError("");
+    try {
+      await postMedia(new File([result.blob], result.fileName, { type: result.blob.type }));
+    } catch (audioError) {
+      setError(audioError.message);
+    } finally {
+      setSending(false);
+      onSent();
+    }
+  }
+
   const expires = conversation.window.expiresAt ? TIME_FORMATTER.format(new Date(conversation.window.expiresAt)) : "";
+  const recording = recorder.state === "recording";
+  const processing = recorder.state === "processing";
+  const hasContent = Boolean(text.trim()) || Boolean(attachment);
+  const shownError = error || recorder.error;
 
   return (
     <div className="border-t border-line bg-white p-3">
-      {error ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
-      <div className="flex items-end gap-2">
-        <textarea
-          className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-          disabled={sending}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              send();
-            }
-          }}
-          placeholder="Digite uma mensagem…"
-          rows={1}
-          value={text}
-        />
-        <button
-          type="button"
-          onClick={send}
-          disabled={sending || !text.trim()}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40"
-          aria-label="Enviar mensagem"
-        >
-          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        </button>
-      </div>
+      {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{shownError}</p> : null}
+
+      {attachment ? (
+        <div className="mb-2 flex items-center gap-3 rounded-2xl border border-line bg-mist/60 p-2">
+          {attachment.previewUrl ? <img src={attachment.previewUrl} alt="" className="h-14 w-14 rounded-xl object-cover" /> : <span className="grid h-14 w-14 place-items-center rounded-xl bg-white text-brand"><FileText className="h-6 w-6" /></span>}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-extrabold text-navy">{attachment.file.name}</span>
+            <span className="block text-[11px] font-bold text-muted">{Math.max(1, Math.round(attachment.file.size / 1024))} KB · a mensagem digitada vai como legenda</span>
+          </span>
+          <button type="button" onClick={clearAttachment} aria-label="Remover anexo" className="grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-white"><X className="h-4 w-4" /></button>
+        </div>
+      ) : null}
+
+      {recording || processing ? (
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={recorder.cancel} disabled={processing} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-red-500 hover:bg-red-50 disabled:opacity-40" aria-label="Cancelar gravação">
+            <Trash2 className="h-5 w-5" />
+          </button>
+          <div className="flex h-11 flex-1 items-center gap-3 rounded-2xl bg-red-50 px-4">
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+            <span className="text-sm font-black tabular-nums text-red-700">{formatDuration(recorder.seconds)}</span>
+            <span className="text-xs font-bold text-red-600">{processing ? "Preparando…" : "Gravando…"}</span>
+          </div>
+          <button type="button" onClick={sendAudio} disabled={processing || sending} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40" aria-label="Enviar áudio">
+            {processing || sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-end gap-1">
+          <input ref={fileInput} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending} aria-label="Anexar foto ou arquivo" title="Anexar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
+            <Paperclip className="h-5 w-5" />
+          </button>
+          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending} onSent={onSent} />
+          <textarea
+            className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+            disabled={sending}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                send();
+              }
+            }}
+            placeholder={attachment ? "Legenda (opcional)…" : "Digite uma mensagem…"}
+            rows={1}
+            value={text}
+          />
+          {hasContent || !canRecord ? (
+            <button
+              type="button"
+              onClick={send}
+              disabled={sending || !hasContent}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40"
+              aria-label="Enviar mensagem"
+            >
+              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            </button>
+          ) : (
+            <button type="button" onClick={recorder.start} disabled={sending} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40" aria-label="Gravar áudio" title="Gravar áudio">
+              <Mic className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+      )}
       {expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
     </div>
   );
