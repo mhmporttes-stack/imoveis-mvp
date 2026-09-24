@@ -235,10 +235,20 @@ begin
 
   select u.name into v_broker_name from public.admin_users u where u.id = v_broker_id;
 
+  -- A tabela exige os campos da simulação (NOT NULL, sem default): mesmos valores padrão do
+  -- cadastro manual do CRM (lib/simulation-registrations.js, MANUAL_DEFAULT_* /
+  -- LEGACY_PROFESSION_PLACEHOLDER). O insert antigo (feito no código) nunca os enviava e
+  -- falharia sempre que o telefone fosse desconhecido.
   insert into public.simulation_registrations (
-    full_name, phone, phone_normalized, status, responsible_user_id, distribution_type, acquisition_context
+    simulation_type, full_name, phone, phone_normalized, oldest_birth_date, primary_income_type,
+    primary_profession, primary_monthly_income, has_over_three_years_registered_work,
+    has_children_under_18, primary_marital_status, has_residential_property,
+    status, responsible_user_id, distribution_type, acquisition_context
   ) values (
-    p_full_name, p_phone, p_phone_normalized, 'pending', v_broker_id, 'round_robin',
+    'individual', p_full_name, p_phone, p_phone_normalized, date '1900-01-01', 'self_employed_unregistered',
+    'Nao informado', 0, false,
+    false, 'single', false,
+    'pending', v_broker_id, 'round_robin',
     coalesce(p_context, '{}'::jsonb) || jsonb_build_object(
       'metadata', jsonb_build_object('brokerId', v_broker_id, 'brokerName', coalesce(v_broker_name, ''))
     )
