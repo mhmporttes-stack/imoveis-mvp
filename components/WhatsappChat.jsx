@@ -171,9 +171,9 @@ export default function WhatsappChat() {
   const totalUnread = summary.unreadMessages || 0;
 
   return (
-    <section className="container-page scroll-mt-3" ref={sectionRef}>
+    <section className="container-page scroll-mt-[72px]" ref={sectionRef}>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
-        <div className="grid h-[calc(100dvh-24px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
+        <div className="grid h-[calc(100dvh-100px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "flex"}
             conversations={conversations}
