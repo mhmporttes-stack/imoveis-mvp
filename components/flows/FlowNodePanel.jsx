@@ -147,7 +147,7 @@ function TriggerForm({ trigger, onChange }) {
         <input type="number" min="0" max="720" value={trigger.cooldownHours ?? 0} onChange={(event) => set({ cooldownHours: Number(event.target.value) })} className={inputClass} />
       </Field>
       <p className="rounded-lg bg-mist px-3 py-2 text-xs font-semibold text-muted">
-        Se um atendente já estiver conversando com o cliente, só o gatilho por palavra-chave inicia o fluxo. Quando um atendente responde no Chat, o fluxo em andamento para.
+        Se um atendente respondeu a este cliente nas últimas 2 horas, só o gatilho por palavra-chave inicia o fluxo (os outros esperam). Quando um atendente responde no Chat, o fluxo em andamento para.
       </p>
     </>
   );
