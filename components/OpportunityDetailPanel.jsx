@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, LoaderCircle, Phone, CalendarPlus, ExternalLink } from "lucide-react";
 import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
+import { resolveClientWhatsappDestination } from "@/lib/whatsapp-contact-channel";
 
 const STAGE_LABELS = {
   service: "Atendimento",
@@ -46,18 +47,21 @@ export default function OpportunityDetailPanel({ clientId, onClose, onActionComp
   async function handleWhatsApp() {
     if (!opportunity) return;
     const value = opportunity.phoneNormalized;
-    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
-    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
-    // no Chat, não mais o WhatsApp pessoal do corretor.
-    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(opportunity.id)}` : "";
-    if (!whatsapp) {
+    // Dentro da janela de 24h o atendimento abre no Chat (número oficial); fora
+    // dela abre o WhatsApp do próprio corretor. Em ambos os casos o botão
+    // continua registrando o contato (mesma API de sempre).
+    if (!toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
     const whatsappWindow = window.open("about:blank", "_blank");
     setBusy(true);
     try {
-      const response = await fetch(`/api/simulation-registrations/${opportunity.id}/whatsapp-contact`, { method: "POST" });
+      const [response, destination] = await Promise.all([
+        fetch(`/api/simulation-registrations/${opportunity.id}/whatsapp-contact`, { method: "POST" }),
+        resolveClientWhatsappDestination(opportunity.id, value)
+      ]);
+      const whatsapp = destination.url;
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       if (whatsappWindow) { whatsappWindow.opener = null; whatsappWindow.location.href = whatsapp; }

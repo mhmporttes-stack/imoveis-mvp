@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderCircle, RefreshCw, ChevronDown, ChevronUp, Phone } from "lucide-react";
 import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
+import { resolveClientWhatsappDestination } from "@/lib/whatsapp-contact-channel";
 import OpportunityDetailPanel from "@/components/OpportunityDetailPanel";
 
 const STAGE_OPTIONS = [
@@ -110,14 +111,17 @@ export default function OpportunitiesCenter({ initialData, canSeeTeam }) {
 
   async function handleQuickWhatsApp(item) {
     const value = item.phoneNormalized;
-    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
-    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
-    // no Chat, não mais o WhatsApp pessoal do corretor.
-    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(item.id)}` : "";
-    if (!whatsapp) { alert("Este cliente não possui um WhatsApp válido."); return; }
+    // Dentro da janela de 24h o atendimento abre no Chat (número oficial); fora
+    // dela abre o WhatsApp do próprio corretor. Em ambos os casos o botão
+    // continua registrando o contato (mesma API de sempre).
+    if (!toWhatsAppDigits(value)) { alert("Este cliente não possui um WhatsApp válido."); return; }
     const whatsappWindow = window.open("about:blank", "_blank");
     try {
-      const response = await fetch(`/api/simulation-registrations/${item.id}/whatsapp-contact`, { method: "POST" });
+      const [response, destination] = await Promise.all([
+        fetch(`/api/simulation-registrations/${item.id}/whatsapp-contact`, { method: "POST" }),
+        resolveClientWhatsappDestination(item.id, value)
+      ]);
+      const whatsapp = destination.url;
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Não foi possível registrar o contato.");
       if (whatsappWindow) { whatsappWindow.opener = null; whatsappWindow.location.href = whatsapp; }

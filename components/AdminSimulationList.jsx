@@ -35,6 +35,7 @@ import {
   normalizeClientStatus
 } from "@/lib/client-status";
 import { buildWhatsAppUrl, formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
+import { resolveClientWhatsappDestination } from "@/lib/whatsapp-contact-channel";
 import {
   booleanLabel,
   calculateFamilyIncome,
@@ -676,11 +677,10 @@ export default function AdminSimulationList({
 
   async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
-    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
-    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
-    // no Chat, não mais o WhatsApp pessoal do corretor.
-    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(client.registration.id)}` : "";
-    if (!whatsapp) {
+    // Dentro da janela de 24h o atendimento abre no Chat (número oficial); fora
+    // dela abre o WhatsApp do próprio corretor. Em ambos os casos o botão
+    // continua registrando o contato (mesma API de sempre).
+    if (!toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
@@ -688,7 +688,11 @@ export default function AdminSimulationList({
     const whatsappWindow = window.open("about:blank", "_blank");
 
     try {
-      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
+      const [response, destination] = await Promise.all([
+        fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" }),
+        resolveClientWhatsappDestination(client.registration.id, value)
+      ]);
+      const whatsapp = destination.url;
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
