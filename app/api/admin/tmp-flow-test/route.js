@@ -40,6 +40,18 @@ export async function POST(request) {
     out.sessions = sessions;
     out.logs = (logs || []).map((log) => `${log.kind}:${log.node_id || ""}:${JSON.stringify(log.detail).slice(0, 100)}`);
     out.flowsBefore = before;
+    const { data: ev } = await db.from("whatsapp_master_events").select("sender_phone, message_type, message_text, direction, event_type").like("sender_phone", "%5500900000002%");
+    const { data: cv } = await db.from("whatsapp_conversations").select("contact_phone, status").like("contact_phone", "%5500900000002%");
+    out.events = ev;
+    out.convs = cv;
+    try {
+      const { processFlowInbound } = await import("@/lib/whatsapp-flows");
+      out.direct = await processFlowInbound({ sender_phone: ev?.[0]?.sender_phone, message_type: "text", message_text: "Olá boa noite", raw_payload: { message: { type: "text" } } });
+    } catch (error) {
+      out.directError = String(error?.message || error);
+    }
+    const { data: s2 } = await db.from("whatsapp_flow_sessions").select("status, end_reason, error").like("contact_phone", "%5500900000002%");
+    out.sessionsAfterDirect = s2;
   } catch (error) {
     out.error = String(error?.message || error);
   } finally {
