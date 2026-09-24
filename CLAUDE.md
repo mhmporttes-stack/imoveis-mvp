@@ -4,6 +4,10 @@ CRM imobiliário completo: site público (imóveis, empreendimentos, simulação
 
 Produção: https://www.matheusmachadoimoveis.com.br (Vercel, projeto `imoveis-mvp`) · Banco: Supabase Postgres (`tshhasbbchjcvhoyizoo`).
 
+## Camada central de contexto (leia primeiro)
+
+`AGENTS.md` (raiz) é o manual obrigatório para qualquer agente e aponta para `docs/`: `CRM_CONTEXT.md` (visão funcional), `BUSINESS_RULES.md` (regras confirmadas no código), `SYSTEM_ARCHITECTURE.md` (arquitetura, divergências e problemas conhecidos), `PERMISSIONS.md`, `DATABASE.md`, `WHATSAPP.md`, `TRAFEGO_META.md` e `CHANGELOG_AI.md` (registrar alterações importantes). Estes documentos foram verificados contra o código em 2026-09-24; quando divergirem de `.claude/rules/*`, vale o código e, depois dele, `docs/` (divergências listadas em `docs/SYSTEM_ARCHITECTURE.md` §12).
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · Supabase JS · Tailwind · Zod · pdf-lib · xlsx. Sem TypeScript no app em geral — só `lib/simulacao-entrada/*.ts` (motor de cálculo de entrada) usa TS. `pnpm` é o gerenciador (lockfile no repo).

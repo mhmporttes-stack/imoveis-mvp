@@ -1,0 +1,46 @@
+# CHANGELOG_AI — registro de alterações importantes feitas por agentes
+
+> Este arquivo registra **alterações importantes futuras** feitas por agentes de IA (e por pessoas que usem agentes) neste projeto. **Não contém histórico anterior**: o histórico de código está no Git e o das regras de negócio em `.claude/rules/*.md` e `docs/`.
+> Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
+
+## Quando registrar
+
+Registre uma entrada **sempre que a sua alteração**:
+
+- muda uma **regra de negócio** ou o comportamento visível de um módulo;
+- cria/altera **tabela, coluna, função, trigger, migration, cron** ou política de acesso;
+- cria/altera **rota de API**, guard/permissão ou contrato de payload;
+- mexe em **integração** (WhatsApp, Meta, Anthropic, Resend, push) ou em variável de ambiente;
+- altera uma **área compartilhada** (ver lista em `SYSTEM_ARCHITECTURE.md` §10);
+- **corrige uma divergência** entre a documentação e o código (atualize também o documento afetado);
+- ou quando você **encontra um problema fora do escopo e não o corrigiu** (registre em “Risco/observação” e avise o dono).
+
+Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível, tarefas só de leitura/auditoria sem alteração.
+
+## Como registrar
+
+1. Acrescente a entrada **no topo** da seção “Registro” (mais recente primeiro).
+2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
+3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
+4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
+5. Se algo não pôde ser provado no código, escreva **A CONFIRMAR** — não invente.
+6. Não apague entradas antigas. Para corrigir uma, acrescente uma nova referenciando a anterior.
+
+## Formato
+
+Copie o modelo abaixo (uma entrada por bloco):
+
+```markdown
+### AAAA-MM-DD — <título curto>
+- **Data:** AAAA-MM-DD
+- **Área:** <Clientes | Roleta | Funil | Agenda | Meta Diária | Ranking | WhatsApp | Meta/Tráfego | Documentação/CCA | Financeiro | Permissões | Banco | Infra | Docs | …>
+- **Alteração:** <o que mudou, em 1–3 linhas>
+- **Motivo:** <por que; pedido do dono, bug, incidente…>
+- **Arquivos afetados:** `caminho/arquivo1`, `caminho/arquivo2` (e migrations, se houver)
+- **Risco/observação:** <impacto possível em outros módulos, o que foi validado e como, o que ficou A CONFIRMAR, problemas encontrados e não corrigidos>
+- **Autor:** <agente/ferramenta ou pessoa>
+```
+
+## Registro
+
+_(nenhuma alteração registrada ainda — a primeira entrada vai aqui, acima desta linha)_
