@@ -39,7 +39,8 @@ export default function FlowPreview({ graph, flowId, onClose }) {
       now: () => Date.now(),
       log: () => {},
       send: async (outgoing) => { local.push({ side: "bot", ...outgoing.display }); },
-      evaluateCondition: async (data) => {
+      evaluateCondition: async (data, vars = {}) => {
+        if (data.kind === "has_name") return Boolean(vars.nome);
         if (data.kind === "business_hours") return isWithinBusinessHours(data);
         if (data.kind === "is_client" || data.kind === "has_broker") return isClientRef.current;
         return false;

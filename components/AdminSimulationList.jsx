@@ -676,8 +676,11 @@ export default function AdminSimulationList({
 
   async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
-    const whatsapp = buildWhatsAppUrl(value);
-    if (!whatsapp || !toWhatsAppDigits(value)) {
+    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
+    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
+    // no Chat, não mais o WhatsApp pessoal do corretor.
+    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(client.registration.id)}` : "";
+    if (!whatsapp) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }

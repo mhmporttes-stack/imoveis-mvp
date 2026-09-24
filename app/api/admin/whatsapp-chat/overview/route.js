@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { listChatConversations } from "@/lib/whatsapp-chat";
+import { getChatOverview } from "@/lib/whatsapp-chat";
 import { chatErrorResponse } from "../chat-errors";
 
 export const runtime = "nodejs";
@@ -12,12 +12,11 @@ export async function GET(request) {
 
   const params = new URL(request.url).searchParams;
   try {
-    const conversations = await listChatConversations({
-      filter: params.get("filter") || "all",
-      query: params.get("q") || "",
-      before: params.get("before") || ""
-    }, auth);
-    return NextResponse.json({ conversations });
+    return NextResponse.json(await getChatOverview({
+      brokerId: params.get("broker") || "",
+      situation: params.get("situation") || "",
+      query: params.get("q") || ""
+    }, auth));
   } catch (error) {
     return chatErrorResponse(error);
   }

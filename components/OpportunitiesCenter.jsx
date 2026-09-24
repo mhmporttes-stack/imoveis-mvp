@@ -110,8 +110,11 @@ export default function OpportunitiesCenter({ initialData, canSeeTeam }) {
 
   async function handleQuickWhatsApp(item) {
     const value = item.phoneNormalized;
-    const whatsapp = buildWhatsAppUrl(value);
-    if (!whatsapp || !toWhatsAppDigits(value)) { alert("Este cliente não possui um WhatsApp válido."); return; }
+    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
+    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
+    // no Chat, não mais o WhatsApp pessoal do corretor.
+    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(item.id)}` : "";
+    if (!whatsapp) { alert("Este cliente não possui um WhatsApp válido."); return; }
     const whatsappWindow = window.open("about:blank", "_blank");
     try {
       const response = await fetch(`/api/simulation-registrations/${item.id}/whatsapp-contact`, { method: "POST" });

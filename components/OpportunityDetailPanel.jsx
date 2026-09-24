@@ -46,8 +46,11 @@ export default function OpportunityDetailPanel({ clientId, onClose, onActionComp
   async function handleWhatsApp() {
     if (!opportunity) return;
     const value = opportunity.phoneNormalized;
-    const whatsapp = buildWhatsAppUrl(value);
-    if (!whatsapp || !toWhatsAppDigits(value)) {
+    // O atendimento agora sai pelo número OFICIAL (Chat): o botão continua
+    // registrando o contato (mesma API de sempre) e abre a conversa do cliente
+    // no Chat, não mais o WhatsApp pessoal do corretor.
+    const whatsapp = toWhatsAppDigits(value) ? `/admin/chat?client=${encodeURIComponent(opportunity.id)}` : "";
+    if (!whatsapp) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }

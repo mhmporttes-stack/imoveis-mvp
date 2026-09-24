@@ -40,7 +40,8 @@ export const CONDITION_LABELS = {
   business_hours: "Está no horário comercial?",
   is_client: "Já é cliente cadastrado?",
   has_broker: "Cliente já tem corretor?",
-  ad_origin: "Veio de um anúncio?"
+  ad_origin: "Veio de um anúncio?",
+  has_name: "Já sabemos o nome do contato?"
 };
 
 export const TRIGGER_LABELS = {

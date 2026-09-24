@@ -9,6 +9,7 @@ import {
   CheckCheck,
   ExternalLink,
   Info,
+  LayoutList,
   Loader2,
   MessageCircle,
   Search,
@@ -17,6 +18,9 @@ import {
   X
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import WhatsappChatOverview from "@/components/WhatsappChatOverview";
+import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
+import { BrokerChip, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 
 // Filtros da lista — para acrescentar outro no futuro basta uma linha aqui
@@ -24,7 +28,9 @@ import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 const FILTERS = [
   { key: "all", label: "Todas" },
   { key: "unread", label: "Não lidas" },
+  { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
+  { key: "silent", label: "Sem retorno" },
   { key: "finished", label: "Finalizadas" }
 ];
 
@@ -77,7 +83,10 @@ function formatPhone(phone) {
   return phone || "";
 }
 
-export default function WhatsappChat() {
+export default function WhatsappChat({ canManage = false, currentUserId = "", initialClientId = "" }) {
+  const [tab, setTab] = useState("conversations");
+  const [openError, setOpenError] = useState("");
+  const [brokers, setBrokers] = useState([]);
   const [filter, setFilter] = useState("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -150,6 +159,38 @@ export default function WhatsappChat() {
     loadList();
   }, [filter, search, loadList]);
 
+  useEffect(() => {
+    if (!canManage) return;
+    fetch("/api/admin/whatsapp-chat/brokers", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload) => setBrokers(payload.brokers || []))
+      .catch(() => {});
+  }, [canManage]);
+
+  // Vindo do botão "WhatsApp" de um cliente (?client=): abre/cria a conversa
+  // dele no número oficial e já seleciona.
+  useEffect(() => {
+    if (!initialClientId) return;
+    let cancelled = false;
+    fetch("/api/admin/whatsapp-chat/open-client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: initialClientId })
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Não foi possível abrir a conversa deste cliente.");
+        if (cancelled) return;
+        window.history.replaceState(null, "", "/admin/chat");
+        setTab("conversations");
+        await loadList({ silent: true });
+        openConversation(data.conversationId);
+      })
+      .catch((error) => { if (!cancelled) setOpenError(error.message); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialClientId]);
+
   function openConversation(id) {
     // Leva o painel para o topo da tela: a conversa e o campo de mensagem
     // ocupam a altura inteira da janela, sem precisar rolar a página.
@@ -172,8 +213,32 @@ export default function WhatsappChat() {
 
   return (
     <section className="container-page scroll-mt-[72px]" ref={sectionRef}>
-      <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
-        <div className="grid h-[calc(100dvh-100px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
+      {openError ? <p className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
+      <div className="mb-3 flex items-center gap-2">
+        <button type="button" onClick={() => setTab("conversations")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "conversations" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
+          <MessageCircle className="h-4 w-4" />Conversas
+          {totalUnread > 0 ? <span className="rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{totalUnread}</span> : null}
+        </button>
+        <button type="button" onClick={() => setTab("overview")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "overview" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
+          <LayoutList className="h-4 w-4" />Visão geral
+          {summary.awaitingLate > 0 ? <span className="rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-5 text-white" title="Conversas sem resposta há mais de 30 min">{summary.awaitingLate}</span> : null}
+        </button>
+      </div>
+
+      {tab === "overview" ? (
+        <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+          <WhatsappChatOverview
+            canManage={canManage}
+            onOpen={(id) => {
+              setTab("conversations");
+              setTimeout(() => openConversation(id), 0);
+            }}
+          />
+        </div>
+      ) : null}
+
+      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" ? "hidden" : ""}`}>
+        <div className="grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "flex"}
             conversations={conversations}
@@ -191,6 +256,8 @@ export default function WhatsappChat() {
           <div className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
             {selectedId ? (
               <Thread
+                canManage={canManage}
+                currentUserId={currentUserId}
                 detail={detail}
                 error={detailError}
                 infoOpen={infoOpen}
@@ -217,7 +284,7 @@ export default function WhatsappChat() {
 
           {selectedId && detail ? (
             <aside className="hidden min-h-0 overflow-y-auto border-l border-line xl:block">
-              <ContactPanel detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
+              <ContactPanel brokers={brokers} canManage={canManage} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
             </aside>
           ) : null}
         </div>
@@ -232,7 +299,7 @@ export default function WhatsappChat() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <ContactPanel detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
+            <ContactPanel brokers={brokers} canManage={canManage} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
           </div>
         </div>
       ) : null}
@@ -322,13 +389,16 @@ function ConversationRow({ conversation, selected, onSelect }) {
         <span className="mt-1 flex flex-wrap gap-1">
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">{STATUS_LABELS[conversation.status] || conversation.status}</span>
           {!conversation.client ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span> : null}
+          {conversation.broker ? <BrokerChip broker={conversation.broker} className="max-w-[140px]" /> : null}
+          <WaitingBadge waiting={conversation.waiting} />
         </span>
       </span>
     </button>
   );
 }
 
-function Thread({ detail, error, infoOpen, onBack, onChanged, onToggleInfo }) {
+function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onChanged, onToggleInfo }) {
+  const [assuming, setAssuming] = useState(false);
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
@@ -354,6 +424,13 @@ function Thread({ detail, error, infoOpen, onBack, onChanged, onToggleInfo }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status })
     }).catch(() => {});
+    onChanged();
+  }
+
+  async function assume() {
+    setAssuming(true);
+    await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/assign`, { method: "POST" }).catch(() => {});
+    setAssuming(false);
     onChanged();
   }
 
@@ -383,11 +460,18 @@ function Thread({ detail, error, infoOpen, onBack, onChanged, onToggleInfo }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-black text-navy">{displayName(conversation)}</p>
           <p className="truncate text-xs font-bold text-muted">{formatPhone(conversation.phone)} · {STATUS_LABELS[conversation.status]}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <BrokerChip broker={conversation.broker} />
+            <WaitingBadge waiting={conversation.waiting} />
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {conversation.status !== "in_service" ? (
-            <button type="button" onClick={() => changeStatus("in_service")} className="hidden rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand sm:inline-block">Em atendimento</button>
+          {conversation.assignedUserId !== currentUserId && conversation.status !== "finished" ? (
+            <button type="button" onClick={assume} disabled={assuming} className="rounded-full bg-navy px-3 py-1.5 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60">
+              {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
+            </button>
           ) : null}
+
           {conversation.status !== "finished" ? (
             <button type="button" onClick={() => changeStatus("finished")} className="rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand">Finalizar</button>
           ) : (
@@ -482,14 +566,7 @@ function Composer({ conversation, onSent }) {
   }, [conversation.id]);
 
   if (!conversation.window.open) {
-    return (
-      <div className="border-t border-line bg-amber-50 px-4 py-3">
-        <p className="text-sm font-extrabold text-amber-800">Janela de atendimento encerrada</p>
-        <p className="mt-0.5 text-xs font-bold text-amber-700">
-          Já se passaram mais de 24h desde a última mensagem deste contato. Pela regra do WhatsApp, agora só é possível enviar um modelo (template) aprovado — em breve disponível aqui. O contato volta a poder receber mensagem livre assim que ele escrever de novo.
-        </p>
-      </div>
-    );
+    return <WhatsappChatTemplateSender conversation={conversation} onSent={onSent} />;
   }
 
   async function send() {
@@ -549,8 +626,20 @@ function Composer({ conversation, onSent }) {
   );
 }
 
-function ContactPanel({ detail, onChanged }) {
+function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
   const { conversation } = detail;
+  const [assigning, setAssigning] = useState(false);
+
+  async function assignTo(userId) {
+    setAssigning(true);
+    await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: userId || null })
+    }).catch(() => {});
+    setAssigning(false);
+    onChanged();
+  }
   const client = conversation.client;
   const [name, setName] = useState(conversation.name || "");
   const [adding, setAdding] = useState(false);
@@ -594,7 +683,8 @@ function ContactPanel({ detail, onChanged }) {
       {client ? (
         <div className="space-y-2 rounded-2xl border border-line bg-mist/40 p-4 text-sm">
           <InfoRow label="Cliente" value={client.name ? `${client.name}${client.code ? ` · ${client.code}` : ""}` : "Vinculado"} />
-          <InfoRow label="Corretor" value={client.responsibleName || "Sem corretor"} />
+          <InfoRow label="Corretor do cliente" value={client.responsibleName || "Sem corretor"} />
+          <InfoRow label="Atendendo agora" value={conversation.assignedUserId ? conversation.broker?.name || "—" : "Ninguém"} />
           <InfoRow label="Etapa" value={client.funnelStage || client.statusLabel} />
           <InfoRow label="Situação" value={client.statusLabel} />
           <InfoRow label="Origem" value={client.origin || (conversation.origin?.kind === "meta_ad" ? "Anúncio Meta" : "—")} />
@@ -626,6 +716,21 @@ function ContactPanel({ detail, onChanged }) {
           </button>
         </div>
       )}
+
+      {canManage ? (
+        <label className="block rounded-2xl border border-line p-4 text-xs font-black text-navy">
+          Atribuir conversa a
+          <select
+            className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand"
+            disabled={assigning}
+            onChange={(event) => assignTo(event.target.value)}
+            value={conversation.assignedUserId || ""}
+          >
+            <option value="">Ninguém (liberar)</option>
+            {brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}</option>)}
+          </select>
+        </label>
+      ) : null}
 
       {conversation.origin?.kind === "meta_ad" ? (
         <p className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold text-blue-700">Conversa iniciada por anúncio da Meta.</p>

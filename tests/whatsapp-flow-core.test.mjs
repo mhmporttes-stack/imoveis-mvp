@@ -149,7 +149,10 @@ test("mensagem de lista e de link", () => {
 });
 
 test("interpolate troca variáveis e apaga as desconhecidas", () => {
-  assert.equal(interpolate("Oi {{nome}} {{x}}!", { nome: "Ana" }), "Oi Ana !");
+  assert.equal(interpolate("Oi {{nome}} {{x}}!", { nome: "Ana" }), "Oi Ana!");
+  // variável vazia não deixa "Olá, !"
+  assert.equal(interpolate("Olá, {{primeiro_nome}}! 👋 Tudo bem?", { primeiro_nome: "" }), "Olá! 👋 Tudo bem?");
+  assert.equal(interpolate("Prazer, {{primeiro_nome}}! Você será atendido.", { primeiro_nome: "Ana" }), "Prazer, Ana! Você será atendido.");
 });
 
 test("executor: início envia botões e fica esperando (com prazo de 'se não responder')", async () => {
@@ -314,4 +317,57 @@ test("modelos prontos do editor passam na validação de ativação", async () =
     assert.deepEqual(graphResult.errors, [], `modelo ${key}`);
     assert.deepEqual(triggerErrors, [], `gatilho do modelo ${key}`);
   }
+});
+
+test("modelo 'Menu principal': dois caminhos — simulação (link direto) e corretor (roleta + passagem)", async () => {
+  const { buildFlowFromTemplate } = await import("../components/flows/flow-templates.js");
+  const { graph } = buildFlowFromTemplate("menu-principal");
+
+  // horário comercial: sim
+  const run = async (input, session = null, opts = {}) => {
+    const deps = makeDeps({
+      evaluateCondition: async (data, vars) => (data.kind === "has_name" ? Boolean(vars.nome) : true),
+      runActions: async (actions) => {
+        if (actions.some((action) => action.type === "handoff")) return { handoff: true };
+        return { vars: { corretor: "Ana", link_simulacao: "https://x.com/simulacao?ref=ana&jornada=simulacao" } };
+      },
+      ...opts
+    });
+    const result = await runFlow({ graph, flowId: "f", session: session || { ...freshSession, vars: { primeiro_nome: "", link_simulacao: "https://x.com/simulacao?ref=ana&jornada=simulacao" } }, input, deps });
+    return { result, deps };
+  };
+
+  let { result, deps } = await run(null);
+  assert.equal(result.status, "waiting");
+  assert.match(deps.calls.sent[0].outgoing.display.text, /^Olá! 👋 Bem-vindo/);
+  assert.deepEqual(deps.calls.sent[0].outgoing.display.buttons, ["Fazer simulação", "Falar com corretor"]);
+  const menuNode = result.session.awaiting.nodeId;
+
+  // caminho 1: simulação -> link com o parâmetro
+  const tapSim = { kind: "reply", text: "Fazer simulação", replyId: encodeReplyId("f", menuNode, "b1") };
+  const sim = await run(tapSim, result.session);
+  assert.equal(sim.result.status, "completed");
+  const linkMsg = sim.deps.calls.sent.find((item) => item.outgoing.message.interactive?.type === "cta_url");
+  assert.ok(linkMsg.outgoing.message.interactive.action.parameters.url.includes("jornada=simulacao"));
+
+  // caminho 2: corretor -> (sem nome) pergunta o nome -> roleta -> passa para atendente
+  const tapBroker = { kind: "reply", text: "Falar com corretor", replyId: encodeReplyId("f", menuNode, "b2") };
+  const broker = await run(tapBroker, result.session, { evaluateCondition: async (data, vars) => (data.kind === "has_name" ? Boolean(vars.nome) : true) });
+  assert.equal(broker.result.status, "waiting");
+  assert.equal(broker.result.session.awaiting.type, "text");
+  const named = await run({ kind: "reply", text: "Joana Silva" }, broker.result.session);
+  assert.equal(named.result.status, "handoff");
+  assert.match(named.deps.calls.sent.at(-1).outgoing.display.text, /por Ana, nosso especialista/);
+});
+
+test("condição 'has_name' recebe as variáveis da sessão", async () => {
+  const graph = {
+    nodes: [node("start", "start", {}), node("c", "condition", { kind: "has_name" }), node("y", "message", { mode: "text", text: "sabemos" }), node("n", "message", { mode: "text", text: "não sabemos" })],
+    edges: [edge("start", "next", "c"), edge("c", "yes", "y"), edge("c", "no", "n")]
+  };
+  const seen = [];
+  const deps = makeDeps({ evaluateCondition: async (data, vars) => { seen.push(vars.nome); return Boolean(vars.nome); } });
+  await runFlow({ graph, flowId: "f", session: { ...freshSession, vars: { nome: "Ana" } }, deps });
+  assert.deepEqual(seen, ["Ana"]);
+  assert.equal(deps.calls.sent[0].nodeId, "y");
 });

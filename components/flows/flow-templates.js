@@ -1,10 +1,114 @@
-import { emptyGraph } from "../../lib/whatsapp-flow-core.mjs";
+import { emptyGraph, getOutputPorts } from "../../lib/whatsapp-flow-core.mjs";
 
-// Modelos para começar um fluxo sem partir do zero. Cada um devolve
-// { name, trigger, graph } já válido para ativar (o usuário só ajusta os textos).
+// Modelos de fluxo para começar sem partir do zero. Todos seguem a mesma meta
+// de atendimento: levar o cliente por UM de dois caminhos —
+//   1) fazer a simulação (link direto para o formulário), ou
+//   2) ser atendido por um corretor (roleta → conversa atribuída ao corretor
+//      no Chat, que continua pelo número oficial).
+// Cada builder devolve { name, trigger, graph } já válido para ativar.
+
+const FOLLOW_UP_OFF = { enabled: false, amount: 2, unit: "hours" };
+const BLANK = { footer: "", imageUrl: "", buttons: [], listButton: "Ver opções", items: [], linkLabel: "", linkUrl: "", followUp: FOLLOW_UP_OFF };
 
 function edge(from, port, to) {
-  return { id: `${from}-${port}-${to}`, from, port, to };
+  return { id: `e-${from}-${port}-${to}`, from, port, to };
+}
+
+const text = (id, body) => ({ id, type: "message", x: 0, y: 0, data: { ...BLANK, mode: "text", text: body } });
+const buttons = (id, body, titles, { followUp = FOLLOW_UP_OFF, footer = "" } = {}) => ({
+  id, type: "message", x: 0, y: 0,
+  data: { ...BLANK, mode: "buttons", text: body, footer, buttons: titles.map((title, index) => ({ id: `b${index + 1}`, title })), followUp }
+});
+const link = (id, body, label) => ({ id, type: "message", x: 0, y: 0, data: { ...BLANK, mode: "link", text: body, linkLabel: label, linkUrl: "{{link_simulacao}}" } });
+const ask = (id, body, variable) => ({ id, type: "input", x: 0, y: 0, data: { text: body, variable, followUp: FOLLOW_UP_OFF } });
+const act = (id, actions) => ({ id, type: "action", x: 0, y: 0, data: { actions } });
+const cond = (id, data) => ({ id, type: "condition", x: 0, y: 0, data });
+const START = { id: "start", type: "start", x: 0, y: 0, data: {} };
+
+const BUSINESS_HOURS = { kind: "business_hours", start: "08:00", end: "19:00", days: [1, 2, 3, 4, 5, 6] };
+
+// Caminho 1 — simulação: link direto + convite para falar com corretor.
+function simulationPath(prefix, nodes, edges) {
+  const sim = `${prefix}sim`;
+  nodes.push(link(sim, "Ótimo! 🏡 Aqui está o link para fazer a sua simulação de financiamento. Leva poucos minutos e é sem compromisso. Assim que você terminar, um corretor da nossa equipe entra em contato com você por aqui mesmo.", "Fazer simulação"));
+  nodes.push(text(`${prefix}simfim`, "Se preferir falar com um corretor agora, é só me avisar por aqui. 😉"));
+  edges.push(edge(sim, "next", `${prefix}simfim`));
+  return sim;
+}
+
+// Caminho 2 — corretor: confirma o nome, encaminha pela roleta, avisa o cliente
+// e passa a conversa (já atribuída ao corretor) para o Chat.
+function brokerPath(prefix, nodes, edges) {
+  const hasName = `${prefix}hn`;
+  const question = `${prefix}q`;
+  const action = `${prefix}act`;
+  const hasBroker = `${prefix}hb`;
+  nodes.push(cond(hasName, { kind: "has_name" }));
+  nodes.push(ask(question, "Perfeito! Para eu te encaminhar ao corretor certo, qual é o seu nome?", "nome"));
+  nodes.push(act(action, [{ type: "roulette" }, { type: "tag", tag: "Atendimento WhatsApp" }]));
+  nodes.push(cond(hasBroker, { kind: "has_broker" }));
+  nodes.push(text(`${prefix}ok`, "Prazer, {{primeiro_nome}}! 🙌 Você vai ser atendido(a) por {{corretor}}, nosso especialista em financiamento imobiliário. Ele(a) já foi avisado(a) e continua a conversa com você por aqui, neste mesmo número."));
+  nodes.push(text(`${prefix}nobroker`, "Prazer, {{primeiro_nome}}! 🙌 Um dos nossos corretores vai continuar o seu atendimento por aqui, neste mesmo número, em instantes."));
+  nodes.push(act(`${prefix}h1`, [{ type: "handoff" }]));
+  nodes.push(act(`${prefix}h2`, [{ type: "handoff" }]));
+  edges.push(
+    edge(hasName, "yes", action), edge(hasName, "no", question), edge(question, "next", action),
+    edge(action, "next", hasBroker), edge(hasBroker, "yes", `${prefix}ok`), edge(hasBroker, "no", `${prefix}nobroker`),
+    edge(`${prefix}ok`, "next", `${prefix}h1`), edge(`${prefix}nobroker`, "next", `${prefix}h2`)
+  );
+  return hasName;
+}
+
+// Menu de duas opções (com lembrete se o cliente não responder).
+function choiceMenu(prefix, body, nodes, edges, simEntry, brokerEntry) {
+  const menu = `${prefix}menu`;
+  const nudge = `${prefix}nudge`;
+  nodes.push(buttons(menu, body, ["Fazer simulação", "Falar com corretor"], { followUp: { enabled: true, amount: 2, unit: "hours" }, footer: "Atendimento virtual" }));
+  nodes.push(buttons(nudge, "Ainda por aí, {{primeiro_nome}}? 🙂 Posso te ajudar de duas formas:", ["Fazer simulação", "Falar com corretor"]));
+  edges.push(
+    edge(menu, "b1", simEntry), edge(menu, "b2", brokerEntry), edge(menu, "no_reply", nudge),
+    edge(nudge, "b1", simEntry), edge(nudge, "b2", brokerEntry)
+  );
+  return menu;
+}
+
+// Organiza em colunas (profundidade a partir do gatilho), com alturas estimadas
+// iguais às do editor.
+function layout(graph) {
+  const heightOf = (node) => {
+    const body = { start: 64, message: 78, input: 64, condition: 44, delay: 40 }[node.type] ?? 20 + 22 * Math.max(1, (node.data?.actions || []).length);
+    return 40 + body + getOutputPorts(node).length * 30 + 8;
+  };
+  const depth = new Map([["start", 0]]);
+  const queue = ["start"];
+  while (queue.length) {
+    const id = queue.shift();
+    for (const item of graph.edges.filter((entry) => entry.from === id)) {
+      if (!depth.has(item.to)) {
+        depth.set(item.to, depth.get(id) + 1);
+        queue.push(item.to);
+      }
+    }
+  }
+  const columns = new Map();
+  for (const node of graph.nodes) {
+    const column = depth.get(node.id) ?? 0;
+    if (!columns.has(column)) columns.set(column, []);
+    columns.get(column).push(node);
+  }
+  const positions = new Map();
+  for (const [column, list] of columns) {
+    let y = 40;
+    for (const node of list) {
+      positions.set(node.id, { x: 40 + column * 360, y });
+      y += heightOf(node) + 36;
+    }
+  }
+  return { ...graph, nodes: graph.nodes.map((node) => ({ ...node, ...positions.get(node.id) })) };
+}
+
+function build(nodes, edges) {
+  return layout({ nodes: [START, ...nodes], edges });
 }
 
 const TEMPLATES = [
@@ -15,112 +119,74 @@ const TEMPLATES = [
     build: () => ({ name: "Novo fluxo", trigger: { type: "keyword", keywords: [], match: "contains", cooldownHours: 0 }, graph: emptyGraph() })
   },
   {
-    key: "welcome",
-    title: "Boas-vindas com botões",
-    description: "Recebe o contato novo, oferece simular ou falar com um corretor.",
-    build: () => ({
-      name: "Boas-vindas",
-      trigger: { type: "first_message", keywords: [], match: "contains", cooldownHours: 24 },
-      graph: {
-        nodes: [
-          { id: "start", type: "start", x: 40, y: 120, data: {} },
-          {
-            id: "m1", type: "message", x: 380, y: 60,
-            data: {
-              mode: "buttons",
-              text: "Olá, {{primeiro_nome}}! 👋 Sou da equipe do Matheus Machado Imóveis. Como posso te ajudar?",
-              footer: "", imageUrl: "", listButton: "Ver opções", items: [], linkLabel: "", linkUrl: "",
-              buttons: [{ id: "b1", title: "Quero simular" }, { id: "b2", title: "Falar com corretor" }],
-              followUp: { enabled: false, amount: 2, unit: "hours" }
-            }
-          },
-          { id: "a1", type: "action", x: 740, y: 20, data: { actions: [{ type: "roulette" }] } },
-          {
-            id: "m2", type: "message", x: 1100, y: 20,
-            data: {
-              mode: "link",
-              text: "Perfeito! Faça sua simulação por aqui — é rápido e sem compromisso. Um corretor vai te acompanhar.",
-              footer: "", imageUrl: "", buttons: [], listButton: "Ver opções", items: [],
-              linkLabel: "Fazer simulação", linkUrl: "{{link_simulacao}}",
-              followUp: { enabled: false, amount: 2, unit: "hours" }
-            }
-          },
-          { id: "a2", type: "action", x: 740, y: 300, data: { actions: [{ type: "roulette" }, { type: "handoff" }] } }
-        ],
-        edges: [edge("start", "next", "m1"), edge("m1", "b1", "a1"), edge("a1", "next", "m2"), edge("m1", "b2", "a2")]
-      }
-    })
+    key: "menu-principal",
+    title: "Menu principal (qualquer mensagem)",
+    description: "Recebe qualquer contato, avisa se estiver fora do horário e oferece dois caminhos: fazer a simulação ou falar com um corretor.",
+    build: () => {
+      const nodes = [];
+      const edges = [];
+      const simEntry = simulationPath("s", nodes, edges);
+      const brokerEntry = brokerPath("b", nodes, edges);
+      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! 👋 Bem-vindo(a) ao atendimento do Matheus Machado Imóveis. Como você prefere seguir?", nodes, edges, simEntry, brokerEntry);
+      nodes.push(cond("hours", BUSINESS_HOURS));
+      nodes.push(text("after", "Olá, {{primeiro_nome}}! 👋 Nosso time atende de segunda a sábado, das 8h às 19h, mas você não precisa esperar: já dá para adiantar tudo por aqui."));
+      edges.push(edge("start", "next", "hours"), edge("hours", "yes", menu), edge("hours", "no", "after"), edge("after", "next", menu));
+      return {
+        name: "Menu principal",
+        trigger: { type: "any_message", keywords: [], match: "contains", cooldownHours: 6 },
+        graph: build(nodes, edges)
+      };
+    }
   },
   {
-    key: "after-hours",
-    title: "Fora do horário comercial",
-    description: "Avisa que o time responde no próximo dia útil e já adianta o link de simulação.",
-    build: () => ({
-      name: "Fora do horário",
-      trigger: { type: "any_message", keywords: [], match: "contains", cooldownHours: 12 },
-      graph: {
-        nodes: [
-          { id: "start", type: "start", x: 40, y: 120, data: {} },
-          { id: "c1", type: "condition", x: 380, y: 100, data: { kind: "business_hours", start: "09:00", end: "18:00", days: [1, 2, 3, 4, 5] } },
-          {
-            id: "m1", type: "message", x: 740, y: 200,
-            data: {
-              mode: "link",
-              text: "Olá, {{primeiro_nome}}! Nosso time responde em horário comercial (seg a sex, 9h às 18h). Enquanto isso, você já pode fazer sua simulação:",
-              footer: "", imageUrl: "", buttons: [], listButton: "Ver opções", items: [],
-              linkLabel: "Fazer simulação", linkUrl: "{{link_simulacao}}",
-              followUp: { enabled: false, amount: 2, unit: "hours" }
-            }
-          }
-        ],
-        edges: [edge("start", "next", "c1"), edge("c1", "no", "m1")]
-      }
-    })
+    key: "anuncio",
+    title: "Anúncio (Click to WhatsApp)",
+    description: "Para quem chega clicando no anúncio: agradece o interesse e oferece os dois caminhos.",
+    build: () => {
+      const nodes = [];
+      const edges = [];
+      const simEntry = simulationPath("s", nodes, edges);
+      const brokerEntry = brokerPath("b", nodes, edges);
+      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! 👋 Que bom que você se interessou pelo nosso anúncio. Como prefere seguir?", nodes, edges, simEntry, brokerEntry);
+      edges.push(edge("start", "next", menu));
+      return {
+        name: "Anúncio (Click to WhatsApp)",
+        trigger: { type: "ad_referral", keywords: [], match: "contains", cooldownHours: 0 },
+        graph: build(nodes, edges)
+      };
+    }
   },
   {
-    key: "qualify",
-    title: "Qualificação por lista",
-    description: "Pergunta o interesse em uma lista e encaminha para a roleta.",
-    build: () => ({
-      name: "Qualificação",
-      trigger: { type: "ad_referral", keywords: [], match: "contains", cooldownHours: 0 },
-      graph: {
-        nodes: [
-          { id: "start", type: "start", x: 40, y: 120, data: {} },
-          {
-            id: "m1", type: "message", x: 380, y: 80,
-            data: {
-              mode: "list",
-              text: "Oi, {{primeiro_nome}}! Que bom que você chamou. Qual é o seu objetivo?",
-              footer: "", imageUrl: "", buttons: [], linkLabel: "", linkUrl: "",
-              listButton: "Escolher",
-              items: [
-                { id: "i1", title: "Comprar meu 1º imóvel", description: "Financiamento e subsídio" },
-                { id: "i2", title: "Trocar de imóvel", description: "" },
-                { id: "i3", title: "Investir", description: "" }
-              ],
-              followUp: { enabled: true, amount: 2, unit: "hours" }
-            }
-          },
-          { id: "a1", type: "action", x: 760, y: 40, data: { actions: [{ type: "roulette" }, { type: "tag", tag: "Lead de anúncio" }] } },
-          {
-            id: "m2", type: "message", x: 1120, y: 40,
-            data: {
-              mode: "link",
-              text: "Ótimo! Faça a simulação para eu já preparar as melhores opções:",
-              footer: "", imageUrl: "", buttons: [], listButton: "Ver opções", items: [],
-              linkLabel: "Fazer simulação", linkUrl: "{{link_simulacao}}",
-              followUp: { enabled: false, amount: 2, unit: "hours" }
-            }
-          },
-          { id: "m3", type: "message", x: 760, y: 340, data: { mode: "text", text: "Ainda por aí? Quando quiser, é só responder essa mensagem. 🙂", footer: "", imageUrl: "", buttons: [], listButton: "Ver opções", items: [], linkLabel: "", linkUrl: "", followUp: { enabled: false, amount: 2, unit: "hours" } } }
-        ],
-        edges: [
-          edge("start", "next", "m1"), edge("m1", "i1", "a1"), edge("m1", "i2", "a1"), edge("m1", "i3", "a1"),
-          edge("a1", "next", "m2"), edge("m1", "no_reply", "m3")
-        ]
-      }
-    })
+    key: "palavra-simulacao",
+    title: "Palavra-chave: simulação",
+    description: "Quando o cliente pede simulação/financiamento, manda direto o link.",
+    build: () => {
+      const nodes = [];
+      const edges = [];
+      const simEntry = simulationPath("s", nodes, edges);
+      edges.push(edge("start", "next", simEntry));
+      return {
+        name: "Palavra-chave: simulação",
+        trigger: { type: "keyword", keywords: ["simulação", "simulacao", "simular", "financiamento", "financiar", "quero financiar", "minha casa minha vida", "mcmv"], match: "contains", cooldownHours: 0 },
+        graph: build(nodes, edges)
+      };
+    }
+  },
+  {
+    key: "palavra-corretor",
+    title: "Palavra-chave: falar com corretor",
+    description: "Quando o cliente pede um corretor/atendente, encaminha pela roleta e passa para o Chat.",
+    build: () => {
+      const nodes = [];
+      const edges = [];
+      const brokerEntry = brokerPath("b", nodes, edges);
+      edges.push(edge("start", "next", brokerEntry));
+      return {
+        name: "Palavra-chave: falar com corretor",
+        trigger: { type: "keyword", keywords: ["corretor", "corretora", "atendente", "humano", "falar com alguém", "falar com alguem", "falar com uma pessoa"], match: "contains", cooldownHours: 0 },
+        graph: build(nodes, edges)
+      };
+    }
   }
 ];
 
