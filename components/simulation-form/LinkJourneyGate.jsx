@@ -15,15 +15,19 @@ import SimulationForm from "@/components/simulation-form/SimulationForm";
 // nada é criado só por abrir uma etapa — o cliente só entra no CRM quando
 // realmente confirma um dos dois formulários.
 export default function LinkJourneyGate({ brokerRefOverride = "" }) {
-  const [journey, setJourney] = useState("");
+  const searchParams = useSearchParams();
+  // ?jornada=simulacao (links dos Fluxos do WhatsApp): abre direto o formulário
+  // de simulação, sem a tela de escolha com "Atendimento rápido". Sem esse
+  // parâmetro nada muda — todo link existente continua mostrando a escolha.
+  const directSimulation = searchParams.get("jornada") === "simulacao";
+  const [journey, setJourney] = useState(directSimulation ? "simulation" : "");
   // Quando a jornada foi definida automaticamente pelo link (Disparo do
   // WhatsApp Master com destino "Atendimento rápido"/"Simulação completa",
   // item 15-18 do pedido) o botão "Voltar" não deve existir — não há tela de
   // escolha anterior para voltar. "chosen" = veio do clique explícito na
   // tela de duas opções.
-  const [journeySource, setJourneySource] = useState("");
+  const [journeySource, setJourneySource] = useState(directSimulation ? "direct_link" : "");
   const [resolvingLink, setResolvingLink] = useState(false);
-  const searchParams = useSearchParams();
   const campaignIdFromUrl = searchParams.get("c") || "";
   const refFromUrl = brokerRefOverride || searchParams.get("ref") || "";
 
