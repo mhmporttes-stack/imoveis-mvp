@@ -1262,7 +1262,7 @@ function ClientCard({
           ) : null}
         </div>
       ) : (
-        <PendingClientInfo registration={client.registration} />
+        <PendingClientInfo registration={client.registration} status={client.status} />
       )}
 
       {expanded ? (
@@ -1798,9 +1798,18 @@ function TagEditor({
   );
 }
 
-function PendingClientInfo({ registration }) {
+// O alerta vermelho só vale para quem está na etapa "Aguardando simulação". Em
+// qualquer outra etapa sem simulação preenchida (ex.: corretor cadastrou o
+// cliente e já está atendendo), o texto é só informativo — antes ele
+// contradizia a etapa escolhida ("Em atendimento" + "aguardando simulação").
+function PendingClientInfo({ registration, status }) {
+  const awaitingSimulation = normalizeClientStatus(status) === CLIENT_STATUS.PENDING;
+  const headline = awaitingSimulation
+    ? <p className="text-sm font-extrabold text-red-700">Cliente aguardando simulação</p>
+    : <p className="text-sm font-bold text-muted">Simulação ainda não realizada</p>;
+
   if (!registration) {
-    return <p className="mt-2 text-sm font-extrabold text-red-700">Cliente aguardando simulação</p>;
+    return <div className="mt-2">{headline}</div>;
   }
 
   const lines = [
@@ -1811,7 +1820,7 @@ function PendingClientInfo({ registration }) {
 
   return (
     <div className="mt-2 space-y-1.5">
-      <p className="text-sm font-extrabold text-red-700">Cliente aguardando simulação</p>
+      {headline}
       {lines.length ? <p className="break-words text-sm leading-6 text-muted [overflow-wrap:anywhere]">{lines.join(" · ")}</p> : null}
     </div>
   );
