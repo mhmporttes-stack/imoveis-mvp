@@ -3,11 +3,13 @@
 import { useMemo, useRef, useState } from "react";
 import { Pencil, Plus, Save, Trash2, UserRoundCheck, UserRoundX, Upload, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { GENDER_OPTIONS } from "@/lib/broker-gender";
 
 const EMPTY_FORM = {
   name: "",
   email: "",
   phone: "",
+  gender: "",
   password: "",
   role: "broker",
   linkedBrokerId: "",
@@ -42,7 +44,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -178,6 +180,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
             <Field label="Nome completo" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
             <Field label="E-mail" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
             <Field label="WhatsApp para notificações" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
+            <GenderField value={form.gender} onChange={(value) => setForm((current) => ({ ...current, gender: value }))} />
             <Field label="Senha inicial" type="password" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} />
           </FormGroup>
 
@@ -241,6 +244,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                   <Field label="Nome completo" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} />
                   <Field label="E-mail" type="email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} />
                   <Field label="WhatsApp" value={editForm.phone} onChange={(value) => setEditForm((current) => ({ ...current, phone: value }))} />
+                  <GenderField value={editForm.gender} onChange={(value) => setEditForm((current) => ({ ...current, gender: value }))} />
                   <Field label="Nova senha (opcional)" type="password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} />
                   <RoleField restricted={!canManageAllRoles} value={editForm.role} onChange={(value) => setEditForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
@@ -328,6 +332,10 @@ function RoleField({ value, onChange, className = "", restricted = false }) {
 
 function BrokerField({ brokers, value, onChange, className = "" }) {
   return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Responsável vinculado<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" required value={value} onChange={(event) => onChange(event.target.value)}><option value="">Selecione um responsável</option>{brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}{broker.role === "admin" ? " (Master)" : ""}</option>)}</select></label>;
+}
+
+function GenderField({ value, onChange, className = "" }) {
+  return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Sexo<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value || ""} onChange={(event) => onChange(event.target.value)}><option value="">Não informado</option>{GENDER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
 }
 
 function StatusField({ value, onChange, className = "" }) {

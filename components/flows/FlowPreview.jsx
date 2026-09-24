@@ -11,7 +11,11 @@ const SAMPLE_VARS = {
   primeiro_nome: "Cliente",
   telefone: "+55 14 90000-0000",
   link_simulacao: "https://www.matheusmachadoimoveis.com.br/simulacao?ref=exemplo&jornada=simulacao",
-  corretor: "Corretor Exemplo"
+  corretor: "Corretor Exemplo",
+  cargo_corretor: "corretor",
+  nosso_cargo: "nosso corretor",
+  o_a: "o",
+  ele_ela: "ele"
 };
 
 function initialSession() {
