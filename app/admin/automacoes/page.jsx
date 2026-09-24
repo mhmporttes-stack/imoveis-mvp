@@ -11,6 +11,8 @@ import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
 import WhatsappProfileEditor from "@/components/WhatsappProfileEditor";
 import WhatsappTemplateManager from "@/components/WhatsappTemplateManager";
+import FlowsManager from "@/components/flows/FlowsManager";
+import { listWhatsappFlows } from "@/lib/whatsapp-flows";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { listAutomationRules } from "@/lib/crm-automations";
@@ -25,7 +27,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "whatsapp-manual"];
+const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "flows", "whatsapp-manual"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
@@ -34,14 +36,15 @@ export default async function AutomationsPage({ searchParams }) {
   // antigo continua funcionando.
   if (tabParam === "whatsapp-chat") redirect("/admin/chat");
   const tab = TABS.includes(tabParam) ? tabParam : "rules";
-  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates, manualBrokers] = await Promise.all([
+  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates, manualBrokers, flows] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
     tab === "rules" ? listAdminProfiles() : Promise.resolve([]),
     tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null),
     tab === "daily-message" ? getDailyMessageSettings() : Promise.resolve(null),
     tab === "whatsapp-master" ? loadWhatsappMasterData() : Promise.resolve(null),
     tab === "rules" ? listWhatsappMessageTemplates().catch(() => []) : Promise.resolve([]),
-    tab === "whatsapp-manual" ? loadActiveBrokers() : Promise.resolve([])
+    tab === "whatsapp-manual" ? loadActiveBrokers() : Promise.resolve([]),
+    tab === "flows" ? listWhatsappFlows().catch(() => null) : Promise.resolve(null)
   ]);
 
   return (
@@ -65,6 +68,8 @@ export default async function AutomationsPage({ searchParams }) {
           <WhatsappAutomationRepliesManager initialRules={whatsappData.automationReplies} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
+      ) : tab === "flows" ? (
+        flows ? <FlowsManager initialFlows={flows} /> : <p className="container-page rounded-2xl bg-red-50 px-4 py-3 font-bold text-red-700">Não foi possível carregar os fluxos. Verifique se a migration dos Fluxos foi aplicada no banco.</p>
       ) : tab === "whatsapp-manual" ? (
         <WhatsappManualSender brokers={manualBrokers} journeyStages={JOURNEY_STAGES} />
       ) : (
@@ -111,6 +116,7 @@ const SUBMENU_ITEMS = [
   { key: "roulette", label: "Roleta", href: "/admin/automacoes?tab=roulette" },
   { key: "daily-message", label: "Mensagem do Dia", href: "/admin/automacoes?tab=daily-message" },
   { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
+  { key: "flows", label: "Fluxos", href: "/admin/automacoes?tab=flows" },
   { key: "whatsapp-manual", label: "WhatsApp Manual", href: "/admin/automacoes?tab=whatsapp-manual" }
 ];
 

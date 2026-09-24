@@ -433,12 +433,20 @@ function MessageBubble({ message }) {
         outbound ? "rounded-br-md bg-[#DCEBFF] text-navy" : "rounded-bl-md bg-white text-navy"
       } ${failed ? "ring-1 ring-red-300" : ""}`}>
         {outbound && message.senderType === "automation" ? (
-          <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">Automação</p>
+          <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">{message.automationKind === "flow" ? "Automação · Fluxo" : "Automação"}</p>
         ) : null}
         {isMedia ? (
           <p className="text-sm font-bold italic text-slate-500">[{label}] — abra no WhatsApp para visualizar</p>
         ) : null}
         {message.body ? <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p> : null}
+        {message.linkLabel ? <p className="mt-1.5 border-t border-navy/10 pt-1.5 text-center text-xs font-extrabold text-brand">🔗 {message.linkLabel}</p> : null}
+        {message.buttons?.length ? (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {message.buttons.map((label, index) => (
+              <span key={index} className="rounded-full border border-brand/30 bg-white/70 px-2.5 py-0.5 text-[11px] font-extrabold text-brand">{label}</span>
+            ))}
+          </div>
+        ) : null}
         <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
           {outbound && message.senderType === "user" && message.sentByName ? <span className="truncate">Enviada por {message.sentByName}</span> : null}
           <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
