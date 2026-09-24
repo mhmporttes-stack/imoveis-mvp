@@ -709,6 +709,10 @@ function Composer({ canManage, conversation, onSent }) {
   }
 
   const expires = conversation.window.expiresAt ? TIME_FORMATTER.format(new Date(conversation.window.expiresAt)) : "";
+  const msLeft = conversation.window.expiresAt ? new Date(conversation.window.expiresAt).getTime() - Date.now() : 0;
+  const closingSoon = conversation.window.open && msLeft > 0 && msLeft <= 2 * 60 * 60 * 1000;
+  const minutesLeft = Math.max(1, Math.round(msLeft / 60000));
+  const timeLeftLabel = minutesLeft >= 60 ? `${Math.floor(minutesLeft / 60)}h${String(minutesLeft % 60).padStart(2, "0")}` : `${minutesLeft} min`;
   const recording = recorder.state === "recording";
   const processing = recorder.state === "processing";
   const hasContent = Boolean(text.trim()) || Boolean(attachment);
@@ -781,7 +785,7 @@ function Composer({ canManage, conversation, onSent }) {
           )}
         </div>
       )}
-      {expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
+      {closingSoon ? <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">Atenção: a janela de resposta livre fecha em {timeLeftLabel} (às {expires}). Depois disso só é possível enviar um modelo aprovado.</p> : expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
     </div>
   );
 }

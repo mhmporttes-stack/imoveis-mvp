@@ -113,6 +113,31 @@ function build(nodes, edges) {
 
 const TEMPLATES = [
   {
+    key: "formulario-concluido",
+    title: "Formulário concluído (Receber minha simulação)",
+    description: "Para quem toca em \"Receber minha simulação\" ao terminar o formulário: encaminha a conversa ao corretor do cadastro (ou à roleta) e avisa o prazo.",
+    build: () => {
+      const nodes = [
+        cond("hours", BUSINESS_HOURS),
+        act("act", [{ type: "roulette" }, { type: "tag", tag: "Simulação pelo WhatsApp" }]),
+        text("open", "Olá, {{primeiro_nome}}! 👋 Recebemos o seu cadastro. Em alguns minutos, um dos nossos associados já enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
+        text("closed", "Olá, {{primeiro_nome}}! 👋 Recebemos o seu cadastro. Nosso time atende de segunda a sábado, das 8h às 19h. Assim que o atendimento começar, um dos nossos associados enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
+        act("h1", [{ type: "handoff" }]),
+        act("h2", [{ type: "handoff" }])
+      ];
+      const edges = [
+        edge("start", "next", "act"), edge("act", "next", "hours"),
+        edge("hours", "yes", "open"), edge("hours", "no", "closed"),
+        edge("open", "next", "h1"), edge("closed", "next", "h2")
+      ];
+      return {
+        name: "Formulário concluído (Receber minha simulação)",
+        trigger: { type: "keyword", keywords: ["preenchi meu cadastro", "receber a minha simulação", "receber minha simulação"], match: "contains", cooldownHours: 12 },
+        graph: build(nodes, edges)
+      };
+    }
+  },
+  {
     key: "blank",
     title: "Em branco",
     description: "Comece do zero e monte do seu jeito.",

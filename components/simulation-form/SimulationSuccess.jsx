@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Camera } from "lucide-react";
+import ReceiveSimulationWhatsappButton from "@/components/simulation-form/ReceiveSimulationWhatsappButton";
 
 export default function SimulationSuccess() {
   return (
@@ -27,6 +28,8 @@ export default function SimulationSuccess() {
         Assim que a análise for concluída, entraremos em contato para apresentar as melhores
         condições disponíveis para o seu perfil.
       </p>
+
+      <ReceiveSimulationWhatsappButton />
 
       <div className="relative mx-auto mt-12 max-w-3xl overflow-hidden border-t border-line px-1 pt-10">
         <DecorativeBubble className="pointer-events-none absolute left-0 top-[145px] z-0 hidden h-20 w-20 text-brand lg:block" />
