@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 
 const buttonBase =
   "inline-flex min-h-10 min-w-[130px] flex-1 items-center justify-center rounded-full px-5 text-sm font-extrabold transition duration-300";
@@ -31,6 +32,7 @@ const adminGroups = [
     items: [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
       { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
       { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
@@ -117,6 +119,7 @@ const ownerGroups = [
     href: "/admin/simulacoes",
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
+      { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
       { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" }
@@ -192,6 +195,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                 onClick={() => setVisibleGroup(group.key)}
               >
                 {group.label}
+                {group.items.some((item) => item.badge === "chat") ? <WhatsappChatNavBadge className="ml-2" /> : null}
               </Link>
             );
           }
@@ -221,6 +225,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             }`}
           >
             {item.label}
+            {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
           </Link>
         ))}
       </div>
