@@ -70,6 +70,7 @@ export async function GET(request) {
   const url = new URL(request.url);
   if (createHash("sha256").update(url.searchParams.get("k") || "").digest("hex") !== SECRET_HASH) return NextResponse.json({ error: "no" }, { status: 404 });
   const phase = url.searchParams.get("phase") || "";
+  const part = url.searchParams.get("part") || "a";
   const startedAt = Date.now();
   const second = new Date().getSeconds();
   if ((phase === "roleta" || phase === "diag") && (second < WINDOW.from || second > WINDOW.to)) return NextResponse.json({ ok: false, reason: "fora_da_janela_do_cron", serverSecond: second });
@@ -97,7 +98,7 @@ export async function GET(request) {
 
   // Cada etapa com limite de tempo: se algo travar, sabemos QUAL e a limpeza ainda roda.
   const timings = [];
-  const step = async (label, fn, ms = 14000) => {
+  const step = async (label, fn, ms = 25000) => {
     const t0 = Date.now();
     let timer;
     const out = await Promise.race([Promise.resolve().then(fn), new Promise((resolve) => { timer = setTimeout(() => resolve({ __timeout: label }), ms); })]);
@@ -123,13 +124,15 @@ export async function GET(request) {
     const authAssociate = { user: { email: "associada@teste.invalid" }, profile: { id: randomUUID(), name: "TESTE Associada", role: "associate", status: "active", email: "associada@teste.invalid", linkedBrokerId: brokerA.id } };
 
     if (phase === "roleta") {
-      // R1) anúncio + cliente novo -> roleta
       const adReferral = { source_type: "ad", source_id: "TESTEAD001", ctwa_clid: "TESTECLID001", headline: "Anúncio de teste", source_url: "https://example.test/anuncio", media_type: "image" };
+      let client1 = null, c1 = null;
+      if (part === "a") {
+      // R1) anúncio + cliente novo -> roleta
       const w1 = wamid("R1");
       await hook(pay("5500999991001", w1, { text: "Olá! Posso ter mais informações sobre isso?", referral: adReferral }));
-      const c1 = await convByPhone("5500999991001");
+      c1 = await convByPhone("5500999991001");
       const cl1 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991001"));
-      const client1 = cl1[0];
+      client1 = cl1[0];
       const origin1 = client1 ? (await db.from("client_origins").select("source_kind, source_label, initial_destination, source_metadata").eq("client_id", client1.id).maybeSingle()).data : null;
       const hist1 = client1 ? (await db.from("lead_distribution_history").select("event_type, to_user_id, details").eq("registration_id", client1.id)).data : [];
       stateAfterMine = await snapState();
@@ -150,6 +153,8 @@ export async function GET(request) {
       const hist1b = (await db.from("lead_distribution_history").select("id").eq("registration_id", client1.id)).data;
       results.R2_webhook_duplicado_nao_duplica = { pass: r2.inserted === 0 && cl1b.length === 1 && hist1b.length === 1, inserted: r2.inserted, clientes: cl1b.length, atribuicoes: hist1b.length };
 
+      }
+      if (part === "b") {
       // R3) cliente existente (número SEM 9 no webhook) -> não duplica, não volta à roleta, responsável preservado
       const { data: existing } = await db.from("simulation_registrations").insert({ ...BASE_CLIENT, full_name: "TESTE CRITICO Existente", phone: "(00) 99999-1003", phone_normalized: E164("5500999991003"), status: "archived", responsible_user_id: brokerB.id, distribution_type: "" }).select("id").single();
       const stateBeforeR3 = await snapState();
@@ -176,6 +181,8 @@ export async function GET(request) {
         results.R4_dois_processos_simultaneos = { pass: cl4.length === 1 && hist4.length === 1 && c4?.assigned_user_id === cl4[0]?.responsible_user_id, clientes: cl4.length, atribuicoes: hist4.length, mesmoCorretor: c4?.assigned_user_id === cl4[0]?.responsible_user_id };
       }
 
+      }
+      if (part === "c") {
       // R5) lead orgânico (sem referral) -> regra atual (não cria cliente nem entra na roleta)
       await hook(pay("5500999991004", wamid("R5"), { text: "Olá, boa tarde" }));
       const cl5 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991004"));
@@ -192,6 +199,8 @@ export async function GET(request) {
         results.R6_nomes_do_anuncio_quando_sincronizado = { pass: origin6?.source_metadata?.ad_name === realAd.name, anuncio: Boolean(origin6?.source_metadata?.ad_name), conjunto: Boolean(origin6?.source_metadata?.adset_name), campanha: Boolean(origin6?.source_metadata?.campaign_name) };
       }
 
+      }
+      if (part === "a") {
       // R7) gestora vê e admin responde -> ninguém vira responsável
       const beforeR7 = (await db.from("simulation_registrations").select("responsible_user_id").eq("id", client1.id).maybeSingle()).data.responsible_user_id;
       const viewM = await getChatConversation(c1.id, {}, authManager);
@@ -209,6 +218,7 @@ export async function GET(request) {
         pass: full1.distribution_type === "round_robin" && full1.status === "pending" && !full1.last_whatsapp_contact_at && !full1.prospecting_contact_id && full1.acquisition_context?.kind !== "manual",
         observacao: "regra real de 5 min NÃO executada (só verificados os campos que ela usa)"
       };
+      }
       results.duracao_ms = Date.now() - startedAt;
     }
 

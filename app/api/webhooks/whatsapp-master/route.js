@@ -3,6 +3,9 @@ import { processWhatsappWebhook, verifyWhatsappWebhookChallenge, verifyWhatsappW
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// O processamento do webhook agora também roda o lead patrocinado (roleta) e baixa áudio recebido: com o banco
+// em horário de pico isso passa de alguns segundos — evita a função ser cortada no meio.
+export const maxDuration = 30;
 
 export async function GET(request) {
   const challenge = verifyWhatsappWebhookChallenge(request.nextUrl.searchParams);
