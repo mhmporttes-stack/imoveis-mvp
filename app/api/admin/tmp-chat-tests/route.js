@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { processWhatsappWebhook } from "@/lib/whatsapp-master";
+import { routeSponsoredLead } from "@/lib/whatsapp-sponsored-lead";
+import { findConversationByPhone } from "@/lib/client-phone-lookup";
+import { projectChatFromEvents } from "@/lib/whatsapp-chat";
 import {
   deleteChatConversation,
   getChatConversation,
@@ -69,8 +72,8 @@ export async function GET(request) {
   const phase = url.searchParams.get("phase") || "";
   const startedAt = Date.now();
   const second = new Date().getSeconds();
-  if (phase === "roleta" && (second < WINDOW.from || second > WINDOW.to)) return NextResponse.json({ ok: false, reason: "fora_da_janela_do_cron", serverSecond: second });
-  if (!["roleta", "chat", "audio", "cleanup", "snap", "restore"].includes(phase)) return NextResponse.json({ error: "phase" }, { status: 400 });
+  if ((phase === "roleta" || phase === "diag") && (second < WINDOW.from || second > WINDOW.to)) return NextResponse.json({ ok: false, reason: "fora_da_janela_do_cron", serverSecond: second });
+  if (!["roleta", "chat", "audio", "cleanup", "snap", "restore", "diag"].includes(phase)) return NextResponse.json({ error: "phase" }, { status: 400 });
 
   const db = getSupabaseAdminClient();
   const results = {};
@@ -207,6 +210,16 @@ export async function GET(request) {
         observacao: "regra real de 5 min NÃO executada (só verificados os campos que ela usa)"
       };
       results.duracao_ms = Date.now() - startedAt;
+    }
+
+    if (phase === "diag") {
+      // Isola a etapa que trava: (1) conversa orgânica, (2) roleta direta, (3) resto do webhook com cliente existente
+      const digits = "5500999994001";
+      const referral = { source_type: "ad", source_id: "TESTEAD004", ctwa_clid: "TESTECLID004", headline: "diag" };
+      await hook(pay(digits, wamid("D1"), { text: "oi" }));
+      const conversation = await step("buscar_conversa", () => findConversationByPhone(E164(digits), "id, contact_name, client_id"));
+      results.diag_rpc = await step("rpc_roleta", () => routeSponsoredLead({ phone: E164(digits), contactName: "TESTE CRITICO diag", referral, conversation }), 20000);
+      results.diag_webhook_com_cliente_existente = await step("webhook_cliente_existente", () => hook(pay(digits, wamid("D2"), { text: "segunda", referral })), 20000);
     }
 
     if (phase === "chat") {
