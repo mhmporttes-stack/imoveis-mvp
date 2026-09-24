@@ -70,15 +70,41 @@ export async function GET(request) {
   const startedAt = Date.now();
   const second = new Date().getSeconds();
   if (phase === "roleta" && (second < WINDOW.from || second > WINDOW.to)) return NextResponse.json({ ok: false, reason: "fora_da_janela_do_cron", serverSecond: second });
-  if (!["roleta", "chat", "audio", "cleanup"].includes(phase)) return NextResponse.json({ error: "phase" }, { status: 400 });
+  if (!["roleta", "chat", "audio", "cleanup", "snap", "restore"].includes(phase)) return NextResponse.json({ error: "phase" }, { status: 400 });
 
   const db = getSupabaseAdminClient();
   const results = {};
   globalThis.__waDryRun = [];
-  const snapshotState = phase === "roleta" ? {
-    users: (await db.from("admin_users").select("id, lead_distribution_position")).data,
-    state: (await db.from("lead_distribution_state").select("*").eq("id", "default").maybeSingle()).data
-  } : null;
+
+  // Fila da roleta: foto/restauração sob controle externo (nunca depende de a rota terminar).
+  if (phase === "snap") {
+    return NextResponse.json({
+      users: (await db.from("admin_users").select("id, lead_distribution_position")).data,
+      state: (await db.from("lead_distribution_state").select("*").eq("id", "default").maybeSingle()).data
+    });
+  }
+  if (phase === "restore") {
+    const snap = JSON.parse(Buffer.from(url.searchParams.get("data") || "", "base64").toString("utf8"));
+    const stateNow = (await db.from("lead_distribution_state").select("*").eq("id", "default").maybeSingle()).data;
+    if (snap.expectUpdatedAt && stateNow?.updated_at !== snap.expectUpdatedAt) return NextResponse.json({ restored: false, reason: "outro lead mexeu na fila depois dos testes", stateNow: stateNow?.updated_at });
+    for (const user of snap.users || []) await db.from("admin_users").update({ lead_distribution_position: user.lead_distribution_position }).eq("id", user.id);
+    if (snap.state) await db.from("lead_distribution_state").upsert(snap.state);
+    return NextResponse.json({ restored: true });
+  }
+
+  // Cada etapa com limite de tempo: se algo travar, sabemos QUAL e a limpeza ainda roda.
+  const timings = [];
+  const step = async (label, fn, ms = 14000) => {
+    const t0 = Date.now();
+    let timer;
+    const out = await Promise.race([Promise.resolve().then(fn), new Promise((resolve) => { timer = setTimeout(() => resolve({ __timeout: label }), ms); })]);
+    clearTimeout(timer);
+    timings.push({ label, ms: Date.now() - t0, timeout: Boolean(out?.__timeout) });
+    if (out?.__timeout) throw new Error(`TIMEOUT na etapa: ${label}`);
+    return out;
+  };
+  const hook = (body) => step("webhook", () => processWhatsappWebhook(body));
+  const snapshotState = null;
   let stateAfterMine = null;
   const snapState = async () => (await db.from("lead_distribution_state").select("*").eq("id", "default").maybeSingle()).data;
   const overBudget = () => Date.now() - startedAt > BUDGET_MS;
@@ -97,7 +123,7 @@ export async function GET(request) {
       // R1) anúncio + cliente novo -> roleta
       const adReferral = { source_type: "ad", source_id: "TESTEAD001", ctwa_clid: "TESTECLID001", headline: "Anúncio de teste", source_url: "https://example.test/anuncio", media_type: "image" };
       const w1 = wamid("R1");
-      await processWhatsappWebhook(pay("5500999991001", w1, { text: "Olá! Posso ter mais informações sobre isso?", referral: adReferral }));
+      await hook(pay("5500999991001", w1, { text: "Olá! Posso ter mais informações sobre isso?", referral: adReferral }));
       const c1 = await convByPhone("5500999991001");
       const cl1 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991001"));
       const client1 = cl1[0];
@@ -116,7 +142,7 @@ export async function GET(request) {
       };
 
       // R2) webhook duplicado
-      const r2 = await processWhatsappWebhook(pay("5500999991001", w1, { text: "Olá! Posso ter mais informações sobre isso?", referral: adReferral }));
+      const r2 = await hook(pay("5500999991001", w1, { text: "Olá! Posso ter mais informações sobre isso?", referral: adReferral }));
       const cl1b = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991001"));
       const hist1b = (await db.from("lead_distribution_history").select("id").eq("registration_id", client1.id)).data;
       results.R2_webhook_duplicado_nao_duplica = { pass: r2.inserted === 0 && cl1b.length === 1 && hist1b.length === 1, inserted: r2.inserted, clientes: cl1b.length, atribuicoes: hist1b.length };
@@ -124,7 +150,7 @@ export async function GET(request) {
       // R3) cliente existente (número SEM 9 no webhook) -> não duplica, não volta à roleta, responsável preservado
       const { data: existing } = await db.from("simulation_registrations").insert({ ...BASE_CLIENT, full_name: "TESTE CRITICO Existente", phone: "(00) 99999-1003", phone_normalized: E164("5500999991003"), status: "archived", responsible_user_id: brokerB.id, distribution_type: "" }).select("id").single();
       const stateBeforeR3 = await snapState();
-      await processWhatsappWebhook(pay("550099991003", wamid("R3"), { text: "Oi, vi o anúncio", referral: adReferral }));
+      await hook(pay("550099991003", wamid("R3"), { text: "Oi, vi o anúncio", referral: adReferral }));
       const cl3 = (await clientsLike()).filter((row) => row.phone_normalized.includes("99991003") || row.phone_normalized.includes("9991003"));
       const c3 = (await db.from("whatsapp_conversations").select("*").in("contact_phone", [E164("5500999991003"), E164("550099991003")])).data;
       const hist3 = (await db.from("lead_distribution_history").select("id").eq("registration_id", existing.id)).data;
@@ -137,8 +163,8 @@ export async function GET(request) {
       // R4) dois processos simultâneos para o mesmo número novo
       if (!overBudget()) {
         await Promise.all([
-          processWhatsappWebhook(pay("5500999991002", wamid("R4a"), { text: "Oi", referral: adReferral })),
-          processWhatsappWebhook(pay("5500999991002", wamid("R4b"), { text: "Oi de novo", referral: adReferral }))
+          hook(pay("5500999991002", wamid("R4a"), { text: "Oi", referral: adReferral })),
+          hook(pay("5500999991002", wamid("R4b"), { text: "Oi de novo", referral: adReferral }))
         ]);
         const cl4 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991002"));
         const c4 = await convByPhone("5500999991002");
@@ -148,7 +174,7 @@ export async function GET(request) {
       }
 
       // R5) lead orgânico (sem referral) -> regra atual (não cria cliente nem entra na roleta)
-      await processWhatsappWebhook(pay("5500999991004", wamid("R5"), { text: "Olá, boa tarde" }));
+      await hook(pay("5500999991004", wamid("R5"), { text: "Olá, boa tarde" }));
       const cl5 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991004"));
       const c5 = await convByPhone("5500999991004");
       results.R5_lead_organico_preserva_regra_atual = { pass: cl5.length === 0 && Boolean(c5) && !c5.client_id && !c5.assigned_user_id, clientes: cl5.length, conversaSemCliente: !c5?.client_id };
@@ -156,7 +182,7 @@ export async function GET(request) {
       // R6) nomes de campanha/conjunto/anúncio quando o anúncio já foi sincronizado da Meta
       const { data: realAd } = await db.from("meta_ad_entities").select("entity_id, name, parent_id").eq("entity_type", "ad").not("parent_id", "is", null).limit(1).maybeSingle();
       if (realAd && !overBudget()) {
-        await processWhatsappWebhook(pay("5500999991005", wamid("R6"), { text: "Quero saber mais", referral: { ...adReferral, source_id: realAd.entity_id } }));
+        await hook(pay("5500999991005", wamid("R6"), { text: "Quero saber mais", referral: { ...adReferral, source_id: realAd.entity_id } }));
         const cl6 = (await clientsLike()).filter((row) => row.phone_normalized === E164("5500999991005"));
         const origin6 = cl6[0] ? (await db.from("client_origins").select("source_metadata").eq("client_id", cl6[0].id).maybeSingle()).data : null;
         stateAfterMine = await snapState();
@@ -262,7 +288,7 @@ export async function GET(request) {
       };
 
       // C7) cliente escreve de novo -> conversa volta; e o botão do cliente também restaura
-      await processWhatsappWebhook(pay(phoneDigits, wamid("C7"), { text: "Oi, ainda estou aqui" }));
+      await hook(pay(phoneDigits, wamid("C7"), { text: "Oi, ainda estou aqui" }));
       const restored = (await db.from("whatsapp_conversations").select("deleted_at").eq("id", conv.id).maybeSingle()).data;
       await deleteChatConversation(conv.id, authB);
       await openChatForClient(K.id, authAdmin);
@@ -275,11 +301,11 @@ export async function GET(request) {
       const digits = "5500999993001";
       const ids = ["TESTE_MEDIA_INEXISTENTE_1", "TESTE_MEDIA_INEXISTENTE_2", "TESTE_MEDIA_INEXISTENTE_3"];
       const w1 = wamid("A1");
-      await processWhatsappWebhook(pay(digits, w1, { audioId: ids[0] }));
-      const dup = await processWhatsappWebhook(pay(digits, w1, { audioId: ids[0] }));
-      await processWhatsappWebhook(pay(digits, wamid("A2"), { text: "segue o áudio acima" }));
-      await processWhatsappWebhook(pay(digits, wamid("A3"), { audioId: ids[1] }));
-      await processWhatsappWebhook(pay(digits, wamid("A4"), { audioId: ids[2] }));
+      await hook(pay(digits, w1, { audioId: ids[0] }));
+      const dup = await hook(pay(digits, w1, { audioId: ids[0] }));
+      await hook(pay(digits, wamid("A2"), { text: "segue o áudio acima" }));
+      await hook(pay(digits, wamid("A3"), { audioId: ids[1] }));
+      await hook(pay(digits, wamid("A4"), { audioId: ids[2] }));
       const conv = await convByPhone(digits);
       const { data: msgs } = await db.from("whatsapp_messages").select("id, message_type, meta_message_id, metadata, payload").eq("conversation_id", conv.id).order("message_at");
       const audios = (msgs || []).filter((row) => row.message_type === "audio");
@@ -307,9 +333,11 @@ export async function GET(request) {
   } catch (error) {
     results.ERRO = String(error?.stack || error).slice(0, 1800);
   } finally {
-    const cleanup = {};
+    const cleanup = { passos: [] };
+    const mark = (name) => cleanup.passos.push(name);
     try {
       const clients = await clientsLike();
+      mark("lista_clientes");
       const clientIds = clients.map((row) => row.id);
       const { data: convRows } = await db.from("whatsapp_conversations").select("id").like("contact_phone", "+5500%");
       const convIds = (convRows || []).map((row) => row.id);
@@ -317,16 +345,23 @@ export async function GET(request) {
         await db.from("whatsapp_flow_sessions").delete().in("conversation_id", convIds);
         await db.from("whatsapp_conversation_audit").delete().in("conversation_id", convIds);
       }
+      mark("sessoes_e_auditoria");
       await db.from("whatsapp_flow_logs").delete().like("contact_phone", "+5500%");
       await db.from("whatsapp_master_events").delete().like("message_id", "wamid.TESTECRIT2.%");
+      mark("eventos");
       await db.from("crm_notifications").delete().ilike("description", "%TESTE CRITICO%");
+      mark("notificacoes");
       if (convIds.length) await db.from("whatsapp_conversations").delete().in("id", convIds);
+      mark("conversas");
       if (clientIds.length) {
         for (const table of ["lead_distribution_history", "client_origins", "crm_notifications", "client_attribution_touches", "client_meta_attribution", "calendar_activities"]) {
           await db.from(table).delete().in(table === "lead_distribution_history" ? "registration_id" : "client_id", clientIds);
         }
+        mark("tabelas_dependentes");
         await db.from("crm_attendances").delete().in("legacy_registration_id", clientIds);
+        mark("atendimentos");
         const { error } = await db.from("simulation_registrations").delete().in("id", clientIds);
+        mark("clientes");
         cleanup.clientesApagados = error ? `ERRO ${error.message}` : clientIds.length;
       }
       if (snapshotState) {
@@ -341,6 +376,7 @@ export async function GET(request) {
       cleanup.erroLimpeza = String(cleanupError?.message || cleanupError);
     }
     results.limpeza = cleanup;
+    results.tempos = timings;
     results.envios_simulados = (globalThis.__waDryRun || []).map((item) => `${item.kind}→…${String(item.recipient).slice(-4)}`);
     results.duracao_ms = Date.now() - startedAt;
     results.segundo_de_inicio = new Date(startedAt).getSeconds();
