@@ -240,7 +240,8 @@ export default function FlowEditor({ initialFlow }) {
       const startNode = graph.nodes.find((node) => node.type === "start");
       if (startNode) for (const message of triggerErrors) bucket(startNode.id).errors.push(message);
     }
-    const counts = new Map([...byNode].map(([id, value]) => [id, { errors: value.errors.length, warnings: value.warnings.length }]));
+    // Na bolinha do mapa só entram erros e blocos soltos; "esta saída termina o fluxo" é normal e só aparece no painel.
+    const counts = new Map([...byNode].map(([id, value]) => [id, { errors: value.errors.length, warnings: value.warnings.filter((message) => message.includes("não está ligado")).length }]));
     const generalErrors = result.errors.filter((error) => !error.nodeId).map((error) => error.message);
     return { byNode, counts, generalErrors, total: result.errors.length + triggerErrors.length };
   }, [graph, trigger]);
@@ -358,7 +359,7 @@ export default function FlowEditor({ initialFlow }) {
       {validation.generalErrors.length ? <div className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{validation.generalErrors.join(" ")}</div> : null}
 
       {/* Área de trabalho */}
-      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_370px]" style={{ height: "calc(100dvh - 250px)", minHeight: 560 }}>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_370px]" style={{ height: "calc(100dvh - 235px)", minHeight: 560 }}>
         <div className="min-h-0">
           {view === "map" ? (
             <FlowCanvas

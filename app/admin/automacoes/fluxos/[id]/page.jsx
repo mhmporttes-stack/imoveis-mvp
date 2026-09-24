@@ -22,11 +22,11 @@ export default async function FlowEditorPage({ params }) {
   }
 
   return (
-    <main className="min-h-screen bg-mist py-14">
-      <section className="container-page mb-6 flex items-center justify-between gap-4">
+    <main className="min-h-screen bg-mist py-8">
+      <section className="container-page mb-4 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Automações · Fluxos do WhatsApp</p>
-          <h1 className="mt-2 text-3xl font-black text-navy md:text-4xl">Editor de fluxo</h1>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Automações · Fluxos do WhatsApp</p>
+          <h1 className="mt-1 text-2xl font-black text-navy md:text-3xl">Editor de fluxo</h1>
         </div>
         <AdminLogoutButton />
       </section>
