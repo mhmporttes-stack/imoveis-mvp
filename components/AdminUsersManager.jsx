@@ -10,6 +10,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   gender: "",
+  hasCreci: false,
   password: "",
   role: "broker",
   linkedBrokerId: "",
@@ -44,7 +45,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", hasCreci: user.hasCreci === true, password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -187,6 +188,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
           <FormGroup layout="profile" title="Perfil e acesso">
             <RoleField restricted={!canManageAllRoles} value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
             <StatusField value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
+            <CreciField className="self-end" checked={form.hasCreci} onChange={(value) => setForm((current) => ({ ...current, hasCreci: value }))} />
             <DistributionField className="self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
             {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
           </FormGroup>
@@ -250,6 +252,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
                   {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
                   {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
+                  <CreciField checked={editForm.hasCreci} onChange={(value) => setEditForm((current) => ({ ...current, hasCreci: value }))} />
                   <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
@@ -340,6 +343,10 @@ function GenderField({ value, onChange, className = "" }) {
 
 function StatusField({ value, onChange, className = "" }) {
   return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Status<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
+}
+
+function CreciField({ checked, onChange, className = "" }) {
+  return <label className={`flex min-h-11 min-w-0 max-w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy lg:w-fit ${className}`}><input className="h-5 w-5 shrink-0 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><span>Possui CRECI <span className="font-bold text-muted">(sem CRECI, o WhatsApp o chama de associado do corretor Matheus Machado)</span></span></label>;
 }
 
 function DistributionField({ checked, onChange, className = "" }) {

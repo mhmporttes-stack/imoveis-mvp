@@ -12,8 +12,8 @@ const SAMPLE_VARS = {
   telefone: "+55 14 90000-0000",
   link_simulacao: "https://www.matheusmachadoimoveis.com.br/simulacao?ref=exemplo&jornada=simulacao",
   corretor: "Corretor Exemplo",
-  cargo_corretor: "corretor",
-  nosso_cargo: "nosso corretor",
+  cargo_corretor: "associado do corretor Matheus Machado",
+  nosso_cargo: "nosso associado do corretor Matheus Machado",
   o_a: "o",
   ele_ela: "ele"
 };

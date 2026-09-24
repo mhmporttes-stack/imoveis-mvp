@@ -47,7 +47,7 @@ function brokerPath(prefix, nodes, edges) {
   nodes.push(ask(question, "Perfeito! Para eu te encaminhar ao corretor certo, qual é o seu nome?", "nome"));
   nodes.push(act(action, [{ type: "roulette" }, { type: "tag", tag: "Atendimento WhatsApp" }]));
   nodes.push(cond(hasBroker, { kind: "has_broker" }));
-  nodes.push(text(`${prefix}ok`, "Prazer, {{primeiro_nome}}! 🙌 Você vai ser atendido(a) por {{corretor}}, {{nosso_cargo}} especialista em financiamento imobiliário. Já avisamos {{o_a}} {{corretor}}, que continua a conversa com você por aqui, neste mesmo número."));
+  nodes.push(text(`${prefix}ok`, "Prazer, {{primeiro_nome}}! 🙌 Você vai ser atendido(a) por {{corretor}}, {{nosso_cargo}}. Já avisamos {{o_a}} {{corretor}}, que continua a conversa com você por aqui, neste mesmo número."));
   nodes.push(text(`${prefix}nobroker`, "Prazer, {{primeiro_nome}}! 🙌 Um dos nossos corretores vai continuar o seu atendimento por aqui, neste mesmo número, em instantes."));
   nodes.push(act(`${prefix}h1`, [{ type: "handoff" }]));
   nodes.push(act(`${prefix}h2`, [{ type: "handoff" }]));

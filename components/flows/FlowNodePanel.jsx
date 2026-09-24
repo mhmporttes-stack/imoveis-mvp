@@ -9,8 +9,8 @@ const VARIABLES = [
   ["{{primeiro_nome}}", "Primeiro nome"],
   ["{{nome}}", "Nome completo"],
   ["{{corretor}}", "Corretor"],
-  ["{{cargo_corretor}}", "Cargo (corretor/corretora)"],
-  ["{{nosso_cargo}}", "Nosso/nossa + cargo"],
+  ["{{cargo_corretor}}", "Cargo (corretor ou associado)"],
+  ["{{nosso_cargo}}", "Nosso(a) + cargo"],
   ["{{o_a}}", "o / a"],
   ["{{ele_ela}}", "ele / ela"],
   ["{{link_simulacao}}", "Link de simulação"]

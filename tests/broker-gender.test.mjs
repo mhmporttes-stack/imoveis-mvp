@@ -2,21 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildBrokerGenderVars, normalizeGender } from "../lib/broker-gender.js";
 
-test("feminino: cargo, nossa e artigo no feminino, por categoria", () => {
-  assert.deepEqual(buildBrokerGenderVars({ gender: "female", role: "associate" }), { cargo_corretor: "associada", nosso_cargo: "nossa associada", o_a: "a", ele_ela: "ela" });
-  assert.equal(buildBrokerGenderVars({ gender: "female", role: "broker" }).nosso_cargo, "nossa corretora");
-  assert.equal(buildBrokerGenderVars({ gender: "female", role: "manager" }).cargo_corretor, "gestora");
+test("com CRECI: corretor/corretora, nosso/nossa e artigo conforme o gênero", () => {
+  assert.deepEqual(buildBrokerGenderVars({ gender: "female", hasCreci: true }), { cargo_corretor: "corretora", nosso_cargo: "nossa corretora", o_a: "a", ele_ela: "ela" });
+  assert.deepEqual(buildBrokerGenderVars({ gender: "male", hasCreci: true }), { cargo_corretor: "corretor", nosso_cargo: "nosso corretor", o_a: "o", ele_ela: "ele" });
 });
 
-test("masculino: cargo, nosso e artigo no masculino", () => {
-  assert.deepEqual(buildBrokerGenderVars({ gender: "male", role: "broker" }), { cargo_corretor: "corretor", nosso_cargo: "nosso corretor", o_a: "o", ele_ela: "ele" });
+test("sem CRECI: sempre associado(a) do corretor Matheus Machado, qualquer categoria", () => {
+  assert.equal(buildBrokerGenderVars({ gender: "female", hasCreci: false, role: "broker" }).cargo_corretor, "associada do corretor Matheus Machado");
+  assert.equal(buildBrokerGenderVars({ gender: "male", role: "manager" }).nosso_cargo, "nosso associado do corretor Matheus Machado");
+  assert.equal(buildBrokerGenderVars({ gender: "female", role: "associate" }).nosso_cargo, "nossa associada do corretor Matheus Machado");
 });
 
 test("sem sexo informado usa (a), nunca assume masculino", () => {
-  const vars = buildBrokerGenderVars({ role: "associate" });
-  assert.equal(vars.nosso_cargo, "nosso(a) associado(a)");
-  assert.equal(vars.o_a, "o(a)");
-  assert.equal(buildBrokerGenderVars(null).cargo_corretor, "corretor(a)");
+  assert.equal(buildBrokerGenderVars({ hasCreci: true }).nosso_cargo, "nosso(a) corretor(a)");
+  assert.equal(buildBrokerGenderVars({}).cargo_corretor, "associado(a) do corretor Matheus Machado");
+  assert.equal(buildBrokerGenderVars(null).o_a, "o(a)");
 });
 
 test("normalizeGender só aceita male/female", () => {
