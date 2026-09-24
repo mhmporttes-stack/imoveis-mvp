@@ -6,6 +6,8 @@ import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
 import WhatsappManualSender from "@/components/WhatsappManualSender";
 import WhatsappAutomationRepliesManager from "@/components/WhatsappAutomationRepliesManager";
+import WhatsappChat from "@/components/WhatsappChat";
+import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import WhatsappDisparoManager from "@/components/WhatsappDisparoManager";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
@@ -23,7 +25,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "whatsapp-manual"];
+const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "whatsapp-chat", "whatsapp-manual"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
@@ -59,6 +61,8 @@ export default async function AutomationsPage({ searchParams }) {
           <WhatsappAutomationRepliesManager initialRules={whatsappData.automationReplies} />
           <WhatsappMasterInbox initialEvents={whatsappData.events} />
         </>
+      ) : tab === "whatsapp-chat" ? (
+        <WhatsappChat />
       ) : tab === "whatsapp-manual" ? (
         <WhatsappManualSender brokers={manualBrokers} journeyStages={JOURNEY_STAGES} />
       ) : (
@@ -105,13 +109,16 @@ const SUBMENU_ITEMS = [
   { key: "roulette", label: "Roleta", href: "/admin/automacoes?tab=roulette" },
   { key: "daily-message", label: "Mensagem do Dia", href: "/admin/automacoes?tab=daily-message" },
   { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
+  { key: "whatsapp-chat", label: "Chat", href: "/admin/automacoes?tab=whatsapp-chat" },
   { key: "whatsapp-manual", label: "WhatsApp Manual", href: "/admin/automacoes?tab=whatsapp-manual" }
 ];
 
 function AutomationSubmenu({ active }) {
   return (
     <nav className="container-page mb-4 flex flex-wrap justify-center gap-1.5 rounded-xl border border-navy/[0.07] bg-white p-1 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
-      {SUBMENU_ITEMS.map((item) => (
+      {SUBMENU_ITEMS.map((item) => item.key === "whatsapp-chat" ? (
+        <WhatsappChatNavBadge key={item.key} active={active === item.key} />
+      ) : (
         <Link key={item.key} href={item.href} className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === item.key ? "bg-navy text-white" : "text-navy"}`}>
           {item.label}
         </Link>
