@@ -11,7 +11,8 @@ export default function LeadDistributionDashboard({ initialData }) {
   const [history, setHistory] = useState(initialData?.history || []);
   const queue = useMemo(() => brokers.filter((broker) => broker.enabled && broker.status === "active"), [brokers]);
   const outside = useMemo(() => brokers.filter((broker) => !broker.enabled || broker.status !== "active"), [brokers]);
-  const nextBroker = queue[0] || null;
+  // Mesma regra da roleta: o primeiro da fila que está ONLINE agora (quem está offline é pulado e mantém o lugar).
+  const nextBroker = queue.find((broker) => broker.presence === "online") || queue[0] || null;
 
   useEffect(() => {
     const refresh = async () => {
@@ -71,7 +72,7 @@ export default function LeadDistributionDashboard({ initialData }) {
     </div>
     {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
-      <div className="flex items-center gap-3"><UsersRound className="h-6 w-6 text-brand" /><div><h2 className="text-xl font-black text-navy">Ordem da fila</h2><p className="text-sm font-bold text-muted">O primeiro recebe o próximo lead e depois vai automaticamente para o fim da fila.</p></div></div>
+      <div className="flex items-center gap-3"><UsersRound className="h-6 w-6 text-brand" /><div><h2 className="text-xl font-black text-navy">Ordem da fila</h2><p className="text-sm font-bold text-muted">Só quem está online recebe lead, na ordem da fila. Quem está offline é pulado e mantém o lugar; quem recebe vai para o fim.</p></div></div>
       <div className="mt-5 space-y-2">{queue.map((broker, index) => <BrokerRow broker={broker} index={index} key={broker.id} onMove={move} onToggle={toggle} saving={savingId === broker.id} total={queue.length} />)}{!queue.length ? <Empty text="Nenhum corretor participa da roleta." /> : null}</div>
     </div>
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
@@ -90,10 +91,14 @@ function BrokerRow({ broker, index, total, onMove, onToggle, saving }) {
   const active = broker.status === "active";
   return <div className="grid items-center gap-3 rounded-2xl border border-line px-4 py-3 md:grid-cols-[52px_1fr_auto_auto]">
     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-mist font-black text-navy">{index === undefined ? "-" : index + 1}</div>
-    <div className="min-w-0"><p className="truncate font-black text-navy">{broker.name}</p><p className="truncate text-xs font-bold text-muted">{roleLabel(broker.role)} · {active ? `${broker.clientCount} clientes` : "Usuário inativo"}</p></div>
+    <div className="min-w-0"><p className="flex items-center gap-2 truncate font-black text-navy">{broker.name}<PresenceBadge presence={broker.presence} /></p><p className="truncate text-xs font-bold text-muted">{roleLabel(broker.role)} · {active ? `${broker.clientCount} clientes` : "Usuário inativo"}</p></div>
     {index !== undefined ? <div className="flex gap-1"><IconButton disabled={index === 0} label="Subir na fila" onClick={() => onMove(index, -1)}><ArrowUp /></IconButton><IconButton disabled={index === total - 1} label="Descer na fila" onClick={() => onMove(index, 1)}><ArrowDown /></IconButton></div> : <span className={`rounded-full px-3 py-1 text-xs font-black ${active ? "bg-slate-100 text-slate-600" : "bg-red-50 text-red-700"}`}>{active ? "Disponível" : "Inativo"}</span>}
     <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line px-4 text-sm font-black text-navy disabled:opacity-50" disabled={!active || saving} onClick={() => onToggle(broker)} type="button">{broker.enabled ? <><Pause className="h-4 w-4" />Retirar</> : <><Play className="h-4 w-4" />Adicionar</>}</button>
   </div>;
+}
+function PresenceBadge({ presence }) {
+  const config = presence === "online" ? { label: "Online", className: "bg-emerald-50 text-emerald-700" } : presence === "away" ? { label: "Ausente", className: "bg-amber-50 text-amber-700" } : { label: "Offline", className: "bg-slate-100 text-slate-500" };
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${config.className}`}>{config.label}</span>;
 }
 function IconButton({ children, disabled, label, onClick }) { return <button aria-label={label} className="icon-button disabled:opacity-30" disabled={disabled} onClick={onClick} title={label} type="button">{children}</button>; }
 function Metric({ label, value, text }) { return <div className="rounded-[22px] border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
@@ -105,7 +110,7 @@ function HistoryRow({ item }) {
   const text = item.eventType === "auto_transferred"
     ? `${item.clientName} foi transferido automaticamente${item.fromUserName ? ` de ${item.fromUserName}` : ""} para ${item.toUserName}`
     : `${item.clientName} entrou na roleta e foi enviado para ${item.toUserName}`;
-  return <div className="py-3 text-sm font-bold text-navy"><p>{text}<span className="ml-2 text-muted">em {moment.date} às {moment.time}</span></p><p className="mt-1 text-xs font-normal text-muted">Origem: {item.sourceLabel || "Origem não identificada"}</p></div>;
+  return <div className="py-3 text-sm font-bold text-navy"><p>{text}<span className="ml-2 text-muted">em {moment.date} às {moment.time}</span></p><p className="mt-1 text-xs font-normal text-muted">Origem: {item.sourceLabel || "Origem não identificada"}{item.skipped?.length ? ` · Pulados (offline/ocupados): ${item.skipped.join(", ")}` : ""}{item.presenceTier && item.presenceTier !== "online" ? ` · Ninguém online livre: enviado como ${item.presenceTier === "online_ocupado" ? "online ocupado" : item.presenceTier}` : ""}</p></div>;
 }
 
 function formatHistoryMoment(value) {
