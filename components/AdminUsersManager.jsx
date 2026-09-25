@@ -38,6 +38,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
   const [photoBusyId, setPhotoBusyId] = useState("");
   const [photoError, setPhotoError] = useState("");
   const photoInputRef = useRef(null);
+  const [deleteDialog, setDeleteDialog] = useState(null);
 
   const sortedUsers = useMemo(() => [...users].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")), [users]);
   const brokers = useMemo(() => sortedUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [sortedUsers]);
@@ -125,20 +126,46 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
     }
   }
 
+  // Excluir: abre um painel que pergunta para qual corretor os clientes vão.
   async function deleteUser(user) {
-    if (!confirm(`Excluir definitivamente "${user.name}"? Os clientes/contatos dele ficarão sem responsável (não serão apagados), mas o histórico de metas diárias e notificações dele será perdido. Esta ação não pode ser desfeita.`)) return;
     setError("");
     setMessage("");
-
+    setDeleteDialog({ user, clientCount: null, targetId: "", busy: false, error: "" });
     try {
-      const response = await fetch(`/api/admin-users/${user.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/admin-users/${user.id}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível verificar os clientes do usuário.");
+      setDeleteDialog((current) => (current && current.user.id === user.id ? { ...current, clientCount: payload.clientCount || 0 } : current));
+    } catch (countError) {
+      setDeleteDialog((current) => (current && current.user.id === user.id ? { ...current, clientCount: 0, error: countError.message } : current));
+    }
+  }
+
+  async function confirmDelete() {
+    const dialog = deleteDialog;
+    if (!dialog || dialog.busy) return;
+    if (dialog.clientCount > 0 && !dialog.targetId) {
+      setDeleteDialog({ ...dialog, error: "Escolha o corretor que vai receber os clientes." });
+      return;
+    }
+    setDeleteDialog({ ...dialog, busy: true, error: "" });
+    try {
+      const response = await fetch(`/api/admin-users/${dialog.user.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transferToUserId: dialog.targetId })
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Não foi possível excluir o usuário.");
 
-      setUsers((current) => current.filter((item) => item.id !== user.id));
-      setMessage("Usuário excluído.");
+      setUsers((current) => current.filter((item) => item.id !== dialog.user.id));
+      const targetName = users.find((item) => item.id === dialog.targetId)?.name;
+      setMessage(payload.transferred
+        ? `Usuário excluído. ${payload.transferred} cliente(s) transferido(s) para ${targetName || "o corretor escolhido"} com a tag "${payload.tagName}".`
+        : "Usuário excluído.");
+      setDeleteDialog(null);
     } catch (deleteError) {
-      setError(deleteError.message || "Não foi possível excluir o usuário.");
+      setDeleteDialog((current) => (current ? { ...current, busy: false, error: deleteError.message || "Não foi possível excluir o usuário." } : current));
     }
   }
 
@@ -315,6 +342,57 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
           </article>
         ) : null}
       </div>
+
+      {deleteDialog ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 p-3 sm:items-center sm:p-4" onPointerDown={(event) => event.target === event.currentTarget && !deleteDialog.busy && setDeleteDialog(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Excluir usuário" className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-line bg-white p-5 shadow-soft sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Excluir usuário</p>
+                <h3 className="mt-1 text-2xl font-black text-navy">{deleteDialog.user.name}</h3>
+              </div>
+              <button type="button" onClick={() => setDeleteDialog(null)} disabled={deleteDialog.busy} aria-label="Fechar" className="rounded-full p-2 text-muted hover:bg-mist"><X className="h-5 w-5" /></button>
+            </div>
+
+            {deleteDialog.clientCount === null ? (
+              <p className="mt-5 text-sm font-bold text-muted">Verificando os clientes deste usuário…</p>
+            ) : deleteDialog.clientCount > 0 ? (
+              <div className="mt-4 grid gap-3">
+                <p className="text-sm font-bold text-navy">
+                  Este usuário tem <strong>{deleteDialog.clientCount}</strong> cliente(s). Para qual corretor eles devem ser transferidos?
+                </p>
+                <select
+                  value={deleteDialog.targetId}
+                  onChange={(event) => setDeleteDialog({ ...deleteDialog, targetId: event.target.value, error: "" })}
+                  disabled={deleteDialog.busy}
+                  className="h-12 w-full rounded-xl border border-line bg-white px-3 text-base font-bold text-navy outline-none focus:border-brand"
+                >
+                  <option value="">Selecione o corretor…</option>
+                  {brokers.filter((item) => item.id !== deleteDialog.user.id).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} — {roleLabel(item.role)}</option>
+                  ))}
+                </select>
+                <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-brand">
+                  Os clientes transferidos recebem a tag <strong>“{deleteDialog.user.name}”</strong> (o corretor anterior) e a transferência fica registrada no histórico de cada cliente. Nenhum cliente é apagado.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm font-bold text-navy">Este usuário não tem clientes para transferir.</p>
+            )}
+
+            <p className="mt-3 text-xs font-bold text-muted">O histórico de metas diárias e as notificações deste usuário serão perdidos. Esta ação não pode ser desfeita.</p>
+            {deleteDialog.error ? <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{deleteDialog.error}</p> : null}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setDeleteDialog(null)} disabled={deleteDialog.busy} className="premium-button-secondary justify-center">Cancelar</button>
+              <button type="button" onClick={confirmDelete} disabled={deleteDialog.busy || deleteDialog.clientCount === null} className="premium-button-primary justify-center bg-red-700 hover:bg-red-800 disabled:opacity-60">
+                <Trash2 className="h-5 w-5" aria-hidden="true" />
+                {deleteDialog.busy ? "Excluindo..." : deleteDialog.clientCount > 0 ? "Transferir e excluir" : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

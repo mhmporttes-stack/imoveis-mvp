@@ -43,4 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
-_(nenhuma alteração registrada ainda — a primeira entrada vai aqui, acima desta linha)_
+### 2026-09-25 — Excluir corretor pergunta para quem transferir os clientes
+- **Data:** 2026-09-25
+- **Área:** Clientes / Permissões (Usuários)
+- **Alteração:** ao excluir um usuário (já desativado), abre-se um painel pedindo o corretor que receberá os clientes dele. Os clientes transferidos ganham uma tag com o nome do corretor anterior e um evento na linha do tempo. Antes, os clientes iam automaticamente ao administrador principal. Novo `GET /api/admin-users/[id]` devolve a contagem de clientes; `DELETE` aceita `transferToUserId` (obrigatório se houver clientes).
+- **Motivo:** pedido do dono (escolher o destino e identificar a origem dos clientes).
+- **Arquivos afetados:** `lib/admin-profiles.js` (`deleteAdminProfile`, `countClientsOfProfile`), `app/api/admin-users/[id]/route.js`, `components/AdminUsersManager.jsx`; `docs/BUSINESS_RULES.md` (CLI-6).
+- **Risco/observação:** não altera `previous_responsible_user_id`/`responsible_changed_at` (evita disparar a automação "client_transferred" em massa e o campo seria zerado pela exclusão). A conversa do WhatsApp acompanha o novo responsável pelo trigger existente. Associados vinculados ao corretor excluído, contatos da Prospecção e carteira da Meta Diária continuam com o comportamento anterior do banco (ficam sem vínculo/dono). Compilação validada (`next build`); a exclusão real não foi exercitada em produção.
+- **Autor:** Claude Code

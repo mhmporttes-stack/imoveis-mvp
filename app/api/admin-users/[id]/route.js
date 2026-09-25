@@ -4,6 +4,7 @@ import {
   ADMIN_ROLE,
   buildBrokerCaptacaoLink,
   buildBrokerSimulationLink,
+  countClientsOfProfile,
   deleteAdminProfile,
   formatBrokerSchemaError,
   getAdminProfileById,
@@ -16,6 +17,27 @@ export const dynamic = "force-dynamic";
 // Mesma trava do cadastro: gestor mexe só em corretores/associados, nunca em
 // administradores ou outros gestores, e não pode promover ninguém a esses papéis.
 const MANAGER_ASSIGNABLE_ROLES = [ADMIN_ROLE.BROKER, ADMIN_ROLE.ASSOCIATE];
+
+// Pré-visualização da exclusão: quantos clientes precisam ser transferidos.
+// Mesma trava da exclusão (só administrador geral).
+export async function GET(request, { params }) {
+  const auth = await requireBrokerManagementApi(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!isGeneralAdmin(auth)) {
+    return NextResponse.json({ error: "Apenas o administrador geral pode excluir usuários." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  try {
+    const clientCount = await countClientsOfProfile(id);
+    return NextResponse.json({ clientCount });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Não foi possível contar os clientes." }, { status: 400 });
+  }
+}
 
 export async function PATCH(request, { params }) {
   const auth = await requireBrokerManagementApi(request);
@@ -48,7 +70,8 @@ export async function PATCH(request, { params }) {
 // Exclusão é mais sensível que editar/desativar (some com o cadastro), por
 // isso restrita ao administrador geral — gestores continuam podendo editar/
 // desativar corretores e associados (PATCH acima, inalterado), mas não
-// excluir.
+// excluir. Se o usuário tem clientes, o corpo precisa trazer
+// `transferToUserId` (corretor que recebe os clientes).
 export async function DELETE(request, { params }) {
   const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) {
@@ -60,8 +83,9 @@ export async function DELETE(request, { params }) {
 
   const { id } = await params;
   try {
-    await deleteAdminProfile(id);
-    return NextResponse.json({ ok: true });
+    const body = await request.json().catch(() => ({}));
+    const result = await deleteAdminProfile(id, { transferToUserId: String(body?.transferToUserId || ""), auth });
+    return NextResponse.json({ ok: true, transferred: result.transferred, tagName: result.tagName });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: formatBrokerSchemaError(error) }, { status: 400 });
