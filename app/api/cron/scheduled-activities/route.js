@@ -9,7 +9,7 @@ import {
 import { listDueCalendarActivityNotifications, markCalendarActivityNotified } from "@/lib/calendar-activities";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
-import { reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
+import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -87,6 +87,14 @@ export async function GET(request) {
       sponsoredLeads = (await reconcileSponsoredLeads()).filter((item) => item?.created).length;
     } catch (sponsoredError) {
       console.error("Falha ao reconciliar leads patrocinados.", sponsoredError);
+    }
+
+    // Mesma rede de segurança para contato direto (sem anúncio): conversa das últimas 24h sem cliente e sem
+    // ninguém atendendo entra na roleta e vira cliente.
+    try {
+      await reconcileOrganicLeads();
+    } catch (organicError) {
+      console.error("Falha ao reconciliar contatos diretos do WhatsApp.", organicError);
     }
 
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
