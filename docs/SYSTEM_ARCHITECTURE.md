@@ -52,7 +52,7 @@ Integrações: WhatsApp Cloud API (webhook ⇄) · Meta Pixel/CAPI/Marketing API
 
 - **Legado**: `lib/db.js`/`lib/backup.js` (SQLite, `ENABLE_SQLITE`) só rodam fora da Vercel e só para `properties`; em produção estão desligados. `mcmv-calculator/` (motor antigo) está no `.gitignore` e **não existe no repositório**; o motor real é `lib/simulacao-entrada/*`.
 
-## 4. APIs (`app/api`, 152 arquivos de rota)
+## 4. APIs (`app/api`, 151 arquivos de rota)
 
 Todas seguem `guard → try/catch → JSON`. Inventário por domínio (guards em [`PERMISSIONS.md`](PERMISSIONS.md) §6):
 
@@ -71,7 +71,7 @@ Todas seguem `guard → try/catch → JSON`. Inventário por domínio (guards em
 | Meta | `admin/meta-ads/backfill`, `admin/meta-ads/sync-status` |
 | Cron | `cron/scheduled-activities`, `cron/daily-goal-close`, `cron/daily-report`, `cron/whatsapp-broadcast-dispatch`, `cron/whatsapp-flows`, `cron/meta-ads-intraday-sync`, `cron/meta-ads-daily-consolidation` |
 
-`maxDuration = 55` nos crons de Disparo/Fluxos; `30` no webhook do WhatsApp e na rota de mídia; `60` em `media/recover`. Existe **uma rota temporária** de testes (`admin/tmp-chat-tests`, ver P-21).
+`maxDuration = 55` nos crons de Disparo/Fluxos; `30` no webhook do WhatsApp e na rota de mídia; `60` em `media/recover`. A rota temporária de testes `admin/tmp-chat-tests` **foi removida** (P-21, resolvido no commit `9bcae0c`); o `maxDuration = 30` do webhook é comportamento legítimo atual.
 
 ## 5. Autenticação e autorização
 
@@ -187,6 +187,6 @@ Estas divergências **não** foram corrigidas nos arquivos originais (rótulos d
 | **P-18** | Higiene do repositório: `README.md` obsoleto; `supabase/schema.sql` só cria `properties`; migrations antigas com nome de 8 dígitos (ordem de replay); `scratch/` fora do `.gitignore`; `mcmv-calculator/` ignorado | Novo desenvolvedor/agente é induzido a erro; replay do zero incompleto | `README.md`, `supabase/README.md`, `supabase/schema.sql`, `.gitignore` |
 | **P-19** | Texto de erro visível ao usuário com **codificação corrompida** (“NÃ£o foi possÃ­vel…”) | Mensagens ilegíveis em erros de preferências/cadastro | `app/api/simulation-registrations/[id]/preferences/route.js`, `app/api/simulation-registrations/[id]/route.js`, `lib/simulation-registrations.js` |
 | **P-20** | Cron aponta para o host técnico `https://imoveis-mvp.vercel.app` (fixo nas migrations); jobs sem monitoramento/alerta — *confirmado no código; atividade real A CONFIRMAR* | Renomear projeto/domínio ou falha de job passa despercebida | migrations de cron (`*_cron.sql`, `*_sync_crons.sql`, `20260916_daily_goal_closing.sql`) |
-| **P-21** | **Código TEMPORÁRIO na `main`** (commits `TEMP:` de 2026-09-24): trava de envio simulado para destinos `+5500…` em `lib/whatsapp-master.js` (`dryRunForFictionalRecipient`), pulo de push para conversas `+5500…` e a rota `app/api/admin/tmp-chat-tests` (protegida por hash de segredo, fora dos guards de perfil, roda no banco de produção) — *confirmado; remoção prevista pelos próprios commits* | Enquanto existirem: rota extra exposta (atrás de segredo) e envio a números DDD 00 nunca chega à Meta; esquecer de removê-los deixa superfície de ataque/comportamento inesperado | `lib/whatsapp-master.js`, `lib/whatsapp-chat.js` (`notifyInternalMessage`), `app/api/admin/tmp-chat-tests/route.js` |
+| **P-21** | ~~Código TEMPORÁRIO de testes na `main`~~ — **RESOLVIDO** no commit `9bcae0c` (2026-09-25, `chore: remove rota e proteções temporárias de teste do Chat/Roleta/Áudio`). Existiam (commits `TEMP:` de 2026-09-24): trava de envio simulado para destinos `+5500…` em `lib/whatsapp-master.js` (`dryRunForFictionalRecipient`, ID `wamid.DRYRUN…`), pulo de push para conversas `+5500…` em `lib/whatsapp-chat.js` (`notifyInternalMessage`) e a rota `app/api/admin/tmp-chat-tests` (protegida por hash de segredo, rodava no banco de produção). Tudo removido; nenhuma função de produção dependia deles. `maxDuration = 30` do webhook permanece (legítimo). Rota responde 404 em produção. **Resíduo de dados de teste no banco: A CONFIRMAR** (auditoria de leitura pendente/em andamento) | — | `lib/whatsapp-master.js`, `lib/whatsapp-chat.js`, `app/api/webhooks/whatsapp-master/route.js` |
 
 Itens **A CONFIRMAR** adicionais (dados de produção) estão consolidados no fim de [`BUSINESS_RULES.md`](BUSINESS_RULES.md).

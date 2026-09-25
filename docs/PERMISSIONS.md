@@ -125,7 +125,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 ## 8. Diferenças em relação a `.claude/rules/auth-permissoes.md`
 
 1. Aquele arquivo diz que `requirePrimaryAdminApi` é “só o admin principal (dono)”. No código é alias de `requireGeneralAdminApi` (qualquer administrador geral).
-2. Diz que “todas as ~30 rotas admin” foram auditadas; hoje há **152 arquivos de rota** em `app/api`: 7 crons, 1 webhook, 1 rota **temporária** de testes (`admin/tmp-chat-tests`, protegida por hash de segredo em vez dos guards de perfil — ver `WHATSAPP.md` §14) e o restante autenticado, com **11 rotas que expõem ao menos um método público** (tabela acima). Várias rotas `requireAdminApi` dependem do `lib` para a restrição real — ao criar rota nova, **coloque o assert no `lib`** ou use o guard mais restritivo.
+2. Diz que “todas as ~30 rotas admin” foram auditadas; hoje há **151 arquivos de rota** em `app/api`: 7 crons, 1 webhook e o restante autenticado (a rota temporária de testes `admin/tmp-chat-tests` foi removida no commit `9bcae0c` — ver `SYSTEM_ARCHITECTURE.md` P-21), com **11 rotas que expõem ao menos um método público** (tabela acima). Várias rotas `requireAdminApi` dependem do `lib` para a restrição real — ao criar rota nova, **coloque o assert no `lib`** ou use o guard mais restritivo.
 3. Não menciona que `lib/admin-profiles.js` e `lib/admin-auth.js` têm `isOwnerAdminEmail` diferentes (ver §2), nem o anti-escalonamento de privilégio na criação de usuários por gestor.
 
 ## 9. Regras para mudar permissões
