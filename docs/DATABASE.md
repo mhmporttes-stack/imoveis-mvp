@@ -31,7 +31,7 @@
 | Roleta | `lead_distribution_state` (linha `default`), `lead_distribution_history`; posição/flag em `admin_users` (`lead_distribution_position`, `lead_distribution_enabled`) |
 | Campanhas | `campaigns` (kind `official`/personalizada, `link_journey`), `campaign_link_views`, `campaign_link_duplicate_submissions` |
 | Prospecção | `prospecting_contacts`, `prospecting_history` |
-| Meta Diária | `daily_goals`, `daily_goal_rounds`, `daily_goal_attempts`, `daily_goal_quota_versions`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides` (sem tela), `daily_goal_broker_messages`, `daily_goal_do_not_contact_log`, `daily_goal_abuse_flags` |
+| Meta Diária | `daily_goals`, `daily_goal_rounds`, `daily_goal_attempts`, `daily_goal_quota_versions`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides` (sem tela), `daily_goal_broker_messages`, `daily_goal_do_not_contact_log`, `daily_goal_abuse_flags`, `daily_goal_pending_freeze` (pendentes congelados por corretor/dia — migration `20260925140000`, aplicada em produção em 2026-09-25) |
 | Pontuação | `scoring_rule_versions` (versionada por vigência), `scoring_manual_adjustments` |
 | Automação / notificação | `crm_automation_rules`, `crm_automation_executions` (idempotência), `crm_notifications`, `crm_settings` (id → JSON: `whatsapp_master`, `daily_goal_messages`, `daily_message_settings`, `daily_report_dispatch`, `client_journey_statuses`, `client_journey_copy`, `whatsapp_manual_templates`, …) |
 | Mensagem diária | `daily_message_cards`, `daily_message_dispatches`, `daily_message_user_history` |
@@ -81,7 +81,7 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `whatsapp-broadcast-dispatch-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-broadcast-dispatch` |
 | `whatsapp-flows-timers-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-flows` |
 | `daily-report-once-a-day` | `0 1 * * *` | 22:00 | `/api/cron/daily-report` |
-| `daily-goal-close-once-a-day` | `10 3 * * *` | 00:10 | `/api/cron/daily-goal-close` |
+| `daily-goal-close-once-a-day` | `10 3 * * *` | 00:10 | `/api/cron/daily-goal-close` (fecha o dia anterior **e** congela as pendências de hoje) |
 | `meta-ads-intraday-sync` | `0 1,11,13,15,17,19,21,23 * * *` | 08–22 h (de 2 em 2 h) + 22:00 | `/api/cron/meta-ads-intraday-sync` |
 | `meta-ads-daily-consolidation` | `0 9 * * *` | 06:00 | `/api/cron/meta-ads-daily-consolidation` |
 

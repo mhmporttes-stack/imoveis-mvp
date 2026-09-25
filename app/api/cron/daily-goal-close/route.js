@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
-import { closeAllOpenDailyGoals, formatDailyGoalError } from "@/lib/daily-goal";
+import { closeAllOpenDailyGoals, formatDailyGoalError, freezeDailyGoalPendingForActiveBrokers } from "@/lib/daily-goal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Fechamento + congelamento das pendências de todos os corretores (o pg_net do
+// cron espera até 50 s; o congelamento tem orçamento próprio de 30 s).
+export const maxDuration = 55;
 
 // Rede de segurança diária da Meta Diária: fecha em definitivo qualquer dia
 // anterior ainda aberto (de QUALQUER corretor) e devolve à Prospecção quem
@@ -29,7 +32,17 @@ export async function GET(request) {
 
   try {
     const result = await closeAllOpenDailyGoals();
-    return NextResponse.json({ ok: true, ...result });
+
+    // Início do dia: congela as pendências de hoje (meta = prospecção + pendentes).
+    // Roda depois do fechamento e nunca o derruba; quem não for congelado aqui é
+    // congelado no primeiro acesso do dia à Meta Diária.
+    let pendingFreeze = null;
+    try {
+      pendingFreeze = await freezeDailyGoalPendingForActiveBrokers();
+    } catch (freezeError) {
+      console.error("Falha ao congelar as pendências da Meta Diária.", freezeError);
+    }
+    return NextResponse.json({ ok: true, ...result, pendingFreeze });
   } catch (error) {
     console.error("Falha ao fechar a Meta Diária.", error);
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: 500 });

@@ -90,9 +90,33 @@ export default function DailyGoalDashboard({ initialGoal }) {
               <span className={`text-3xl font-black ${colors.ring}`}>{goal.percent}%</span>
             </div>
           </div>
-          <p className="text-center text-sm font-bold text-muted">
-            {goal.realizedToday ?? goal.done} ações reais hoje · cota diária {goal.quota ?? goal.total}
-          </p>
+          <ul className="w-full max-w-xs space-y-1.5">
+            <GoalLine
+              label="Prospecção"
+              done={goal.prospecting?.done ?? goal.realizedToday ?? goal.done}
+              total={goal.prospecting?.target ?? goal.quota ?? goal.total}
+              completed={goal.prospecting?.completed ?? goal.percent >= 100}
+            />
+            {goal.pending?.total > 0 ? (
+              <GoalLine
+                label="Pendentes"
+                done={goal.pending.done}
+                total={goal.pending.total}
+                completed={goal.pending.completed}
+                remaining={goal.pending.remaining}
+              />
+            ) : null}
+          </ul>
+          {goal.pending?.remaining > 0 ? (
+            <a href="/admin/simulacoes?pending=1" className="text-xs font-black text-brand underline-offset-2 hover:underline">
+              Ver clientes pendentes
+            </a>
+          ) : null}
+          {goal.pending?.total > 0 ? (
+            <p className="text-center text-[11px] font-bold text-muted">
+              A meta de hoje soma prospecção + pendentes ({goal.totalRequired} atividades). Pendentes de hoje ficam fixos até amanhã.
+            </p>
+          ) : null}
           {goal.percent >= 100 ? (
             <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-black text-emerald-700">
               Meta diária concluída ✓
@@ -145,6 +169,19 @@ export default function DailyGoalDashboard({ initialGoal }) {
         />
       ))}
     </section>
+  );
+}
+
+// Uma obrigação do dia: "Prospecção 80/100" ou "Pendentes 20/30 · faltam 10";
+// quando concluída ganha o ✓ (ex.: "✓ Prospecção 104/100"). Pode passar do total
+// na prospecção (cada contato extra vale +1%); pendente nunca passa de 100%.
+function GoalLine({ label, done, total, completed, remaining = 0 }) {
+  return (
+    <li className={`flex items-center justify-center gap-1.5 text-sm font-black ${completed ? "text-emerald-700" : "text-navy"}`}>
+      {completed ? <Check className="h-4 w-4" aria-label="concluído" /> : null}
+      <span>{label} {done}/{total}</span>
+      {!completed && remaining > 0 ? <span className="text-xs font-bold text-muted">· faltam {remaining}</span> : null}
+    </li>
   );
 }
 
