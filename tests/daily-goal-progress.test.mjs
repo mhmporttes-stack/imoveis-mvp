@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyGoalOverallProgress, dailyGoalPercent, evaluateDailyGoalPending, isDailyGoalPendingCandidate, walletDayTarget } from '../lib/daily-goal-progress.mjs';
+import { dailyGoalOverallProgress, dailyGoalPercent, evaluateDailyGoalPending, isDailyGoalPendingCandidate, walletDayTarget, dayStageBreakdown } from '../lib/daily-goal-progress.mjs';
 
 test('full daily target includes new, second and third contacts', () => {
   const target = 20 + 41 + 9;
@@ -126,7 +126,7 @@ test('pendência resolvida conta 1 atividade; o total congelado não muda', () =
     attemptClientIds: new Set(['ja-na-cadencia'])
   });
   // repassado, apagado e já contado como prospecção saem da conta
-  assert.deepEqual(result, { total: 4, done: 3, remaining: 1 });
+  assert.deepEqual(result, { total: 4, done: 3, remaining: 1, remainingIds: ['ainda-pendente'] });
 });
 
 test('pendência com atividade que já venceu hoje não conta como resolvida', () => {
@@ -134,7 +134,7 @@ test('pendência com atividade que já venceu hoje não conta como resolvida', (
   const now = dayStart + 12 * 60 * 60 * 1000;
   const clientsById = new Map([['x', { responsibleUserId: broker, status: 'in_service', lastWhatsappContactAt: iso(dayStart - 5 * DAY), latestActivityAt: iso(now - 3600_000) }]]);
   const result = evaluateDailyGoalPending({ brokerId: broker, frozenIds: ['x'], clientsById, dayStartMs: dayStart, nowMs: now });
-  assert.deepEqual(result, { total: 1, done: 0, remaining: 1 });
+  assert.deepEqual(result, { total: 1, done: 0, remaining: 1, remainingIds: ['x'] });
 });
 
 // ---- Caso real (Jennyfer, 25/09): painel 106% x bloqueio "51 de 60" ----
@@ -154,4 +154,20 @@ test("meta do dia conta convertidos trabalhados hoje: 24 ativas + 21 encerradas 
 test("rodada que saiu da carteira sem tentativa do corretor não vira obrigação", () => {
   assert.equal(walletDayTarget({ activeCount: 10, leftRoundIds: ["a", "b"], attemptRoundIds: new Set() }).dayTarget, 10);
   assert.equal(walletDayTarget().dayTarget, 0);
+});
+
+test("meta por etapa: quantos contatos de cada tentativa já foram feitos (\"19 de 30\")", () => {
+  // 3 rodadas na 1ª etapa (2 feitas hoje, 1 ainda não), 2 na 2ª (1 feita), 1 na 3ª (não feita)
+  const activeRounds = [
+    { id: "n1", attempt_count: 1 }, { id: "n2", attempt_count: 1 }, { id: "n3", attempt_count: 0 },
+    { id: "s1", attempt_count: 2 }, { id: "s2", attempt_count: 1 },
+    { id: "t1", attempt_count: 2 }
+  ];
+  const attemptByRound = new Map([["n1", 1], ["n2", 1], ["s1", 2], ["e1", 3], ["c1", 1]]);
+  const stages = dayStageBreakdown({ activeRounds, leftRoundIds: ["e1", "c1", "sem-tentativa"], attemptByRound });
+  assert.deepEqual(stages.first, { done: 3, total: 4 }); // n1, n2 (feitas), n3 (falta) + c1 convertida hoje (feita)
+  assert.deepEqual(stages.second, { done: 1, total: 2 }); // s1 feita, s2 espera a 2ª tentativa
+  assert.deepEqual(stages.third, { done: 1, total: 2 }); // e1 encerrada hoje na 3ª (feita), t1 espera a 3ª
+  const total = stages.first.total + stages.second.total + stages.third.total;
+  assert.equal(total, walletDayTarget({ activeCount: activeRounds.length, leftRoundIds: ["e1", "c1", "sem-tentativa"], attemptRoundIds: new Set(attemptByRound.keys()) }).dayTarget);
 });

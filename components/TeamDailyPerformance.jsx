@@ -285,10 +285,14 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
               </div>
             </div>
 
+            {detail.isToday ? <GoalRemaining broker={detail.broker} /> : null}
+
             <div>
               <h4 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-navy">Contatos por tentativa</h4>
-              <AttemptBreakdown porMensagem={detail.broker.porMensagem} totalContatos={detail.broker.funnel.contatos} />
+              <AttemptBreakdown porMensagem={detail.broker.porMensagem} totalContatos={detail.broker.funnel.contatos} stages={detail.isToday ? detail.broker.wallet?.stages : null} />
             </div>
+
+            {detail.isToday && detail.pendingDetail ? <PendingClients pending={detail.pendingDetail} brokerId={detail.broker.brokerId} /> : null}
 
             <div>
               <h4 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-navy">Funil do dia</h4>
@@ -316,11 +320,101 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
 
 const ATTEMPT_LABELS = { 1: "1ª tentativa", 2: "2ª tentativa", 3: "3ª tentativa" };
 
+// Como a meta do dia fecha: prospecção + pendentes. Mostra onde está faltando
+// (por etapa da prospecção e nos pendentes). Dados já calculados no backend
+// (mesmo cálculo do card do corretor) — nada é recalculado aqui.
+function GoalRemaining({ broker }) {
+  const prospecting = broker.meta.prospecting;
+  const pending = broker.meta.pending;
+  if (!prospecting) return null;
+
+  const missingProspecting = Math.max(0, prospecting.target - prospecting.done);
+  const missingPending = pending ? pending.remaining : 0;
+  const totalMissing = missingProspecting + missingPending;
+  const stages = broker.wallet?.stages;
+  const where = [];
+  if (stages) {
+    for (const number of [1, 2, 3]) {
+      const stage = stages[STAGE_KEYS[number]];
+      const missing = Math.max(0, stage.total - stage.done);
+      if (missing > 0) where.push(`${missing} na ${ATTEMPT_LABELS[number]}`);
+    }
+  }
+  if (missingPending > 0) where.push(`${missingPending} ${missingPending === 1 ? "cliente pendente" : "clientes pendentes"}`);
+
+  return (
+    <div className="rounded-2xl border border-line bg-mist/40 px-4 py-3">
+      <h4 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-navy">O que falta para bater a meta</h4>
+      <ul className="space-y-1 text-sm font-black">
+        <li className={prospecting.completed ? "text-emerald-700" : "text-navy"}>
+          {prospecting.completed ? "✓ " : ""}Prospecção {prospecting.done} de {prospecting.target}
+          {!prospecting.completed ? <span className="text-xs font-bold text-muted"> · faltam {missingProspecting}</span> : null}
+        </li>
+        {pending && pending.total > 0 ? (
+          <li className={pending.completed ? "text-emerald-700" : "text-navy"}>
+            {pending.completed ? "✓ " : ""}Pendentes {pending.done} de {pending.total}
+            {!pending.completed ? <span className="text-xs font-bold text-muted"> · faltam {pending.remaining}</span> : null}
+          </li>
+        ) : null}
+      </ul>
+      {totalMissing > 0 ? (
+        <p className="mt-2 text-xs font-bold text-muted">
+          Faltam <span className="font-black text-navy">{totalMissing}</span> {totalMissing === 1 ? "atividade" : "atividades"} para chegar a 100%
+          {where.length ? `: ${where.join(" · ")}` : ""}.
+        </p>
+      ) : (
+        <p className="mt-2 text-xs font-black text-emerald-700">Meta do dia concluída ✓</p>
+      )}
+    </div>
+  );
+}
+
+// Quais clientes pendentes (atrasados: +3 dias sem contato e sem atividade futura,
+// congelados no início do dia) ainda não foram resolvidos hoje — mais antigos primeiro.
+function PendingClients({ pending, brokerId }) {
+  return (
+    <div>
+      <h4 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-navy">Clientes pendentes (atrasados)</h4>
+      {pending.total === 0 ? (
+        <p className="rounded-2xl border border-line bg-mist/40 px-4 py-3 text-sm font-bold text-muted">Nenhum cliente pendente na meta de hoje.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className={`text-sm font-black ${pending.remaining === 0 ? "text-emerald-700" : "text-navy"}`}>
+            {pending.done} de {pending.total} resolvidos
+            {pending.remaining > 0 ? <span className="text-xs font-bold text-muted"> · faltam {pending.remaining}</span> : " ✓"}
+          </p>
+          {pending.clients?.length ? (
+            <ul className="divide-y divide-line rounded-2xl border border-line bg-white">
+              {pending.clients.map((client) => (
+                <li key={client.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-black text-navy">{client.fullName}</span>
+                    {client.clientCode ? <span className="block text-[11px] font-bold text-muted">{client.clientCode}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-xs font-black text-red-600">{client.daysWithoutContact} {client.daysWithoutContact === 1 ? "dia" : "dias"} sem contato</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {pending.moreClients > 0 ? <p className="text-xs font-bold text-muted">+ {pending.moreClients} {pending.moreClients === 1 ? "outro cliente" : "outros clientes"} pendentes.</p> : null}
+          {pending.remaining > 0 ? (
+            <a href={`/admin/simulacoes?pending=1&responsibleUserId=${brokerId}`} className="inline-block text-xs font-black text-brand underline-offset-2 hover:underline">
+              Ver todos na lista de clientes
+            </a>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Reaproveita porMensagem, já calculado no backend (getDailyGoalPerformance)
 // a partir de daily_goal_attempts — respeita o mesmo período selecionado no
 // topo da tela (Hoje/Ontem/7 dias/30 dias), sem cálculo próprio aqui.
-function AttemptBreakdown({ porMensagem, totalContatos }) {
-  const attempts = [1, 2, 3].map((number) => ({ number, ...(porMensagem?.[number] || { abordados: 0, convertidos: 0 }) }));
+const STAGE_KEYS = { 1: "first", 2: "second", 3: "third" };
+
+function AttemptBreakdown({ porMensagem, totalContatos, stages = null }) {
+  const attempts = [1, 2, 3].map((number) => ({ number, ...(porMensagem?.[number] || { abordados: 0, convertidos: 0 }), stage: stages?.[STAGE_KEYS[number]] || null }));
   const abordadosSoma = attempts.reduce((sum, item) => sum + item.abordados, 0);
   // Contatos via Prospecção manual (fora da cadência estruturada de 3
   // tentativas) também entram em "Contatos realizados" — mostrados à parte
@@ -333,7 +427,16 @@ function AttemptBreakdown({ porMensagem, totalContatos }) {
         <div key={attempt.number} className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-mist/40 px-4 py-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted">{ATTEMPT_LABELS[attempt.number]}</p>
-            <p className="text-lg font-black text-navy">{attempt.abordados} contatos</p>
+            {attempt.stage ? (
+              <>
+                <p className="text-lg font-black text-navy">{attempt.stage.done} de {attempt.stage.total} contatos</p>
+                <p className={`text-[11px] font-bold ${attempt.stage.done >= attempt.stage.total ? "text-emerald-700" : "text-muted"}`}>
+                  {attempt.stage.done >= attempt.stage.total ? "✓ etapa concluída" : `faltam ${attempt.stage.total - attempt.stage.done}`}
+                </p>
+              </>
+            ) : (
+              <p className="text-lg font-black text-navy">{attempt.abordados} contatos</p>
+            )}
           </div>
           <div className="text-right">
             <p className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted">Conversão</p>
