@@ -13,21 +13,21 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }
+      { url: "/icons/favicon-32-mm.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192-mm.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512-mm.png", sizes: "512x512", type: "image/png" }
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: "/icons/apple-touch-icon-mm.png", sizes: "180x180", type: "image/png" }]
   },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     siteName: "Matheus Machado Imóveis",
-    images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado.png", width: 512, height: 512, alt: "Matheus Machado Imóveis" }]
+    images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado-v2.png", width: 1200, height: 630, alt: "Matheus Machado - Corretor de Imóveis" }]
   },
   twitter: {
-    card: "summary",
-    images: ["https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado.png"]
+    card: "summary_large_image",
+    images: ["https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado-v2.png"]
   },
   other: {
     "mobile-web-app-capable": "yes",
@@ -43,7 +43,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0D3B66"
+  themeColor: "#031D3A"
 };
 
 export default function RootLayout({ children }) {

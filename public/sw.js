@@ -9,14 +9,13 @@ const CACHE_VERSION = "painel-matheus-v4-mu70r0so";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   "/offline.html",
-  "/icons/favicon-32.png",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-192.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon.png",
-  "/assets/matheus-machado-symbol-premium.png",
-  "/assets/matheus-machado-logo-transparent.png"
+  "/icons/favicon-32-mm.png",
+  "/icons/icon-192-mm.png",
+  "/icons/icon-512-mm.png",
+  "/icons/icon-maskable-192-mm.png",
+  "/icons/icon-maskable-512-mm.png",
+  "/icons/apple-touch-icon-mm.png",
+  "/assets/matheus-machado-symbol.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -52,8 +51,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Painel Matheus";
   const options = {
     body: data.body || "",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/icons/icon-192-mm.png",
+    badge: "/icons/icon-192-mm.png",
     data: { url: data.url || "/admin/simulacoes" },
     tag: data.tag || undefined
   };

@@ -40,12 +40,12 @@ export default async function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-[#061A2F]/90 to-transparent" />
         <div className="relative z-10 flex min-h-[100svh] items-center px-5 py-12 sm:px-[5.8vw] sm:py-16 lg:py-14 xl:py-16">
           <div className="w-full max-w-[calc(100vw-40px)] md:max-w-[850px] xl:max-w-[900px] 2xl:max-w-[940px]">
-            <div className="relative h-[105px] w-[min(72vw,285px)] sm:h-32 sm:w-[330px] lg:h-28 lg:w-[300px] xl:h-32 xl:w-[340px]">
+            <div className="relative h-[88px] w-[112px] sm:h-[104px] sm:w-[132px] xl:h-28 xl:w-36">
               <Image
-                src="/assets/matheus-machado-symbol-premium.png"
+                src="/assets/matheus-machado-symbol.png"
                 alt="Matheus Machado - Corretor de Imóveis"
                 fill
-                sizes="(max-width: 640px) 74vw, 300px"
+                sizes="(max-width: 640px) 112px, 144px"
                 className="object-contain object-center"
                 priority
               />

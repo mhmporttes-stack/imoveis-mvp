@@ -8,31 +8,31 @@ export default function manifest() {
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
     orientation: "portrait",
-    background_color: "#F5F7FA",
-    theme_color: "#0D3B66",
+    background_color: "#031D3A",
+    theme_color: "#031D3A",
     categories: ["business", "productivity"],
     lang: "pt-BR",
     icons: [
       {
-        src: "/icons/icon-192.png",
+        src: "/icons/icon-192-mm.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/icon-512.png",
+        src: "/icons/icon-512-mm.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/icon-maskable-192.png",
+        src: "/icons/icon-maskable-192-mm.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable"
       },
       {
-        src: "/icons/icon-maskable-512.png",
+        src: "/icons/icon-maskable-512-mm.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable"
@@ -44,14 +44,14 @@ export default function manifest() {
         short_name: "Cadastros",
         description: "Abrir cadastros de simulação",
         url: "/admin/cadastros",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }]
+        icons: [{ src: "/icons/icon-192-mm.png", sizes: "192x192" }]
       },
       {
         name: "Simulações",
         short_name: "Simulações",
         description: "Abrir gerador de simulações",
         url: "/admin/simulacoes",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }]
+        icons: [{ src: "/icons/icon-192-mm.png", sizes: "192x192" }]
       }
     ]
   };
