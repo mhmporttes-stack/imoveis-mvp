@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyGoalOverallProgress, dailyGoalPercent, evaluateDailyGoalPending, isDailyGoalPendingCandidate } from '../lib/daily-goal-progress.mjs';
+import { dailyGoalOverallProgress, dailyGoalPercent, evaluateDailyGoalPending, isDailyGoalPendingCandidate, walletDayTarget } from '../lib/daily-goal-progress.mjs';
 
 test('full daily target includes new, second and third contacts', () => {
   const target = 20 + 41 + 9;
@@ -135,4 +135,23 @@ test('pendência com atividade que já venceu hoje não conta como resolvida', (
   const clientsById = new Map([['x', { responsibleUserId: broker, status: 'in_service', lastWhatsappContactAt: iso(dayStart - 5 * DAY), latestActivityAt: iso(now - 3600_000) }]]);
   const result = evaluateDailyGoalPending({ brokerId: broker, frozenIds: ['x'], clientsById, dayStartMs: dayStart, nowMs: now });
   assert.deepEqual(result, { total: 1, done: 0, remaining: 1 });
+});
+
+// ---- Caso real (Jennyfer, 25/09): painel 106% x bloqueio "51 de 60" ----
+
+test("meta do dia conta convertidos trabalhados hoje: 24 ativas + 21 encerradas + 6 convertidas = 51", () => {
+  const ids = (prefix, n) => Array.from({ length: n }, (_, i) => prefix + i);
+  const attempted = ids("a", 24).concat(ids("e", 21), ids("c", 6)); // 51 tentativas, uma por rodada
+  const left = ids("e", 21).concat(ids("x", 8), ids("c", 6), ["cx"]); // saíram hoje: 8 encerradas e 1 convertida SEM tentativa
+  const result = walletDayTarget({ activeCount: 24, leftRoundIds: left, attemptRoundIds: new Set(attempted) });
+  assert.deepEqual(result, { current: 24, leftWorked: 27, dayTarget: 51 });
+  // 51 tentativas em 51 = 100% (antes aparecia 106% com denominador 45) e a prospecção extra libera
+  const progress = dailyGoalOverallProgress({ prospectingDone: 51, prospectingTarget: result.dayTarget });
+  assert.equal(progress.percent, 100);
+  assert.equal(progress.required > 0 && progress.percent >= 100, true);
+});
+
+test("rodada que saiu da carteira sem tentativa do corretor não vira obrigação", () => {
+  assert.equal(walletDayTarget({ activeCount: 10, leftRoundIds: ["a", "b"], attemptRoundIds: new Set() }).dayTarget, 10);
+  assert.equal(walletDayTarget().dayTarget, 0);
 });
