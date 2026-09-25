@@ -59,6 +59,7 @@ const adminGroups = [
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
+      { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring"] }
     ]
@@ -154,6 +155,7 @@ const ownerGroups = [
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho/pontuacao", label: "Pontuação", key: "scoring" },
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
+      { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" }
     ]
   }

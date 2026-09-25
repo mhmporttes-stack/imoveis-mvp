@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
+  BookOpen,
   Check,
   CheckCheck,
   ExternalLink,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
+import AttendanceGuidePanel from "@/components/guide/AttendanceGuidePanel";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
@@ -105,6 +107,11 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  // Guia de Atendimento ao lado do Chat: no computador abre junto (e lembra se o corretor fechou); no celular o Chat
+  // continua principal e o Guia abre por cima quando o corretor toca em "Guia de Atendimento".
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [guideDesktop, setGuideDesktop] = useState(true);
+  const [guideMobile, setGuideMobile] = useState(false);
 
   const sectionRef = useRef(null);
   const filterRef = useRef(filter);
@@ -118,6 +125,29 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
     const handle = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(handle);
   }, [searchInput]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    try {
+      if (window.localStorage.getItem("wa-chat-guide-open") === "0") setGuideDesktop(false);
+    } catch {
+      // sem armazenamento local: fica no padrão (aberto)
+    }
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  const guideOpen = isDesktop ? guideDesktop : guideMobile;
+  const setGuideOpen = useCallback((open) => {
+    if (isDesktop) {
+      setGuideDesktop(open);
+      try { window.localStorage.setItem("wa-chat-guide-open", open ? "1" : "0"); } catch { /* opcional */ }
+    } else {
+      setGuideMobile(open);
+    }
+  }, [isDesktop]);
 
   const loadList = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setListLoading(true);
@@ -208,6 +238,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
     setDetail(null);
     setDetailError("");
     setInfoOpen(false);
+    setGuideMobile(false);
     loadDetail(id).then(() => refreshSummary());
   }
 
@@ -246,7 +277,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
       ) : null}
 
       <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" ? "hidden" : ""}`}>
-        <div className="grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]">
+        <div className={`grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "flex"}
             conversations={conversations}
@@ -269,6 +300,9 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
                 detail={detail}
                 error={detailError}
                 infoOpen={infoOpen}
+                guideOpen={guideOpen}
+                infoAlways={guideOpen && isDesktop}
+                onSetGuideOpen={setGuideOpen}
                 onBack={closeConversation}
                 onChanged={() => {
                   loadList({ silent: true });
@@ -295,7 +329,11 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
             )}
           </div>
 
-          {selectedId && detail ? (
+          {selectedId && guideOpen && isDesktop ? (
+            <aside className="flex min-h-0 flex-col overflow-hidden border-l border-line">
+              <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" />
+            </aside>
+          ) : selectedId && detail ? (
             <aside className="hidden min-h-0 overflow-y-auto border-l border-line xl:block">
               <ContactPanel brokers={brokers} canManage={canManage} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
             </aside>
@@ -303,8 +341,17 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
         </div>
       </div>
 
+      {selectedId && guideOpen && !isDesktop ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white" role="dialog" aria-label="Guia de Atendimento">
+          <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+            <button type="button" onClick={() => setGuideOpen(false)} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand"><ArrowLeft className="h-4 w-4" />Voltar ao chat</button>
+          </div>
+          <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" />
+        </div>
+      ) : null}
+
       {infoOpen && detail ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 p-0 xl:hidden" onClick={() => setInfoOpen(false)}>
+        <div className={`fixed inset-0 z-50 flex items-end justify-center bg-navy/40 p-0 ${guideOpen && isDesktop ? "" : "xl:hidden"}`} onClick={() => setInfoOpen(false)}>
           <div className="max-h-[80dvh] w-full overflow-y-auto rounded-t-[24px] bg-white shadow-soft" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <p className="font-black text-navy">Informações do contato</p>
@@ -410,7 +457,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
   );
 }
 
-function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onChanged, onDeleted, onToggleInfo }) {
+function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -530,13 +577,22 @@ function Thread({ canManage, currentUserId, detail, error, infoOpen, onBack, onC
           <button
             type="button"
             onClick={onToggleInfo}
-            className={`grid h-9 w-9 place-items-center rounded-full hover:bg-mist xl:hidden ${infoOpen ? "bg-blue-50 text-brand" : "text-navy"}`}
+            className={`grid h-9 w-9 place-items-center rounded-full hover:bg-mist ${infoAlways ? "" : "xl:hidden"} ${infoOpen ? "bg-blue-50 text-brand" : "text-navy"}`}
             aria-label="Informações do contato"
           >
             <Info className="h-5 w-5" />
           </button>
         </div>
       </header>
+
+      <div className="flex items-center gap-1.5 border-b border-line bg-white px-4 py-1.5" role="tablist" aria-label="Chat e Guia de Atendimento">
+        <button type="button" role="tab" aria-selected={!guideOpen} onClick={() => onSetGuideOpen(false)} className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition ${!guideOpen ? "bg-navy text-white" : "text-navy hover:bg-mist"}`}>
+          <MessageCircle className="h-3.5 w-3.5" />Chat
+        </button>
+        <button type="button" role="tab" aria-selected={guideOpen} onClick={() => onSetGuideOpen(!guideOpen)} className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition ${guideOpen ? "bg-brand text-white" : "border border-brand/30 text-brand hover:bg-blue-50"}`}>
+          <BookOpen className="h-3.5 w-3.5" />Guia de Atendimento
+        </button>
+      </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto bg-[#F1F5FA] px-3 py-4 sm:px-5">
         {detail.hasMore ? <p className="pb-2 text-center text-xs font-bold text-muted">Mostrando as últimas mensagens da conversa.</p> : null}

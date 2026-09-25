@@ -24,11 +24,34 @@ const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.6;
 const ADDABLE = ["message", "input", "action", "condition", "delay"];
 
+// O canvas é COMPARTILHADO: tudo que depende do tipo de bloco (portas, geometria, aparência, menu "Adicionar")
+// vem de um "adapter". O padrão abaixo é o dos Fluxos do WhatsApp e não mudou; o Guia de Atendimento
+// (components/guide) passa o seu.
+export const FLOW_ADAPTER = {
+  getPorts: getOutputPorts,
+  nodeHeight,
+  bodyHeight,
+  portPosition,
+  inputPosition,
+  autoArrange,
+  meta: NODE_META,
+  addable: ADDABLE,
+  addTitle: "Adicionar bloco",
+  emptyHint: "Ligue o gatilho ao primeiro bloco: arraste a bolinha \"Então\" até um espaço vazio, ou clique em + para adicionar.",
+  headerLabel: (node, meta) => `${meta.label}${node.type === "message" ? ` · ${messageModeLabel(node.data?.mode)}` : ""}`,
+  renderBody: (node, trigger) => {
+    const summary = nodeSummary(node);
+    if (node.type === "start") return <p className="line-clamp-3 text-[13px] font-bold leading-5 text-navy">{triggerSummary(trigger)}</p>;
+    if (Array.isArray(summary)) return summary.slice(0, 5).map((line, index) => <p key={index} className="truncate text-[12px] font-bold leading-[22px] text-navy">• {line}</p>);
+    return <p className="line-clamp-3 whitespace-pre-line text-[13px] font-semibold leading-5 text-slate">{summary}</p>;
+  }
+};
+
 // Canvas do editor de Fluxos: blocos arrastáveis sobre um fundo quadriculado,
 // ligados por linhas curvas (uma por saída), zoom/pan, auto-organizar. Sem
 // biblioteca externa — a geometria é fixa por tipo de bloco (flow-ui.js).
 const FlowCanvas = forwardRef(function FlowCanvas(
-  { graph, trigger, selectedId, issuesByNode, onSelect, onGraphChange, onAddNode },
+  { graph, trigger, selectedId, issuesByNode, onSelect, onGraphChange, onAddNode, adapter = FLOW_ADAPTER },
   ref
 ) {
   const containerRef = useRef(null);
@@ -57,12 +80,12 @@ const FlowCanvas = forwardRef(function FlowCanvas(
     const minX = Math.min(...nodes.map((node) => node.x));
     const minY = Math.min(...nodes.map((node) => node.y));
     const maxX = Math.max(...nodes.map((node) => node.x + NODE_W));
-    const maxY = Math.max(...nodes.map((node) => node.y + nodeHeight(node)));
+    const maxY = Math.max(...nodes.map((node) => node.y + adapter.nodeHeight(node)));
     const width = container.clientWidth;
     const height = container.clientHeight;
     const z = Math.min(1, Math.max(MIN_ZOOM, Math.min((width - 80) / (maxX - minX), (height - 80) / (maxY - minY))));
     setView({ z, x: (width - (maxX - minX) * z) / 2 - minX * z, y: Math.max(24, (height - (maxY - minY) * z) / 2 - minY * z) });
-  }, []);
+  }, [adapter]);
 
   const zoomBy = useCallback((factor, center) => {
     setView((current) => {
@@ -165,7 +188,7 @@ const FlowCanvas = forwardRef(function FlowCanvas(
     event.stopPropagation();
     event.preventDefault();
     setMenu(null);
-    const start = portPosition(node, portId);
+    const start = adapter.portPosition(node, portId);
     setConnecting({ from: node.id, port: portId, start, cursor: start });
     function move(moveEvent) {
       setConnecting((current) => (current ? { ...current, cursor: toGraph(moveEvent.clientX, moveEvent.clientY) } : current));
@@ -239,8 +262,8 @@ const FlowCanvas = forwardRef(function FlowCanvas(
             const from = nodesById.get(edge.from);
             const to = nodesById.get(edge.to);
             if (!from || !to) return null;
-            const a = portPosition(from, edge.port);
-            const b = inputPosition(to);
+            const a = adapter.portPosition(from, edge.port);
+            const b = adapter.inputPosition(to);
             const hovered = hoverEdge === edge.id;
             const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
             return (
@@ -275,6 +298,7 @@ const FlowCanvas = forwardRef(function FlowCanvas(
         {graph.nodes.map((node) => (
           <NodeCard
             key={node.id}
+            adapter={adapter}
             node={node}
             trigger={trigger}
             selected={selectedId === node.id}
@@ -289,16 +313,16 @@ const FlowCanvas = forwardRef(function FlowCanvas(
 
       {!graph.nodes.some((node) => node.type !== "start") ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-16 text-center text-sm font-bold text-muted">
-          Ligue o gatilho ao primeiro bloco: arraste a bolinha "Então" até um espaço vazio, ou clique em + para adicionar.
+          {adapter.emptyHint}
         </div>
       ) : null}
 
       <div data-flow-ui className="absolute right-3 top-3 z-10 flex flex-col gap-2">
-        <ControlButton primary label="Adicionar bloco" onClick={openMenuFromButton}><Plus className="h-5 w-5" /></ControlButton>
+        <ControlButton primary label={adapter.addTitle} onClick={openMenuFromButton}><Plus className="h-5 w-5" /></ControlButton>
         <ControlButton label="Aproximar" onClick={() => zoomBy(1.2)}><ZoomIn className="h-4 w-4" /></ControlButton>
         <ControlButton label="Afastar" onClick={() => zoomBy(1 / 1.2)}><ZoomOut className="h-4 w-4" /></ControlButton>
         <ControlButton label="Ajustar à tela" onClick={fit}><Maximize2 className="h-4 w-4" /></ControlButton>
-        <ControlButton label="Organizar blocos" onClick={() => { onGraphChange(autoArrange(graphRef.current), { history: true }); setTimeout(fit, 30); }}><LayoutGrid className="h-4 w-4" /></ControlButton>
+        <ControlButton label="Organizar blocos" onClick={() => { onGraphChange(adapter.autoArrange(graphRef.current), { history: true }); setTimeout(fit, 30); }}><LayoutGrid className="h-4 w-4" /></ControlButton>
       </div>
 
       {menu ? (
@@ -308,9 +332,9 @@ const FlowCanvas = forwardRef(function FlowCanvas(
           style={{ left: Math.min(menu.sx, (containerRef.current?.clientWidth || 600) - 270), top: Math.min(menu.sy, (containerRef.current?.clientHeight || 400) - 300) }}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <p className="px-2 pb-1 pt-1 text-[11px] font-black uppercase tracking-wider text-muted">Adicionar bloco</p>
-          {ADDABLE.map((type) => {
-            const meta = NODE_META[type];
+          <p className="px-2 pb-1 pt-1 text-[11px] font-black uppercase tracking-wider text-muted">{adapter.addTitle}</p>
+          {adapter.addable.map((type) => {
+            const meta = adapter.meta[type];
             const Icon = meta.icon;
             return (
               <button key={type} type="button" onClick={() => chooseNodeType(type)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-mist">
@@ -345,14 +369,13 @@ function ControlButton({ children, label, onClick, primary = false }) {
   );
 }
 
-function NodeCard({ node, trigger, selected, issues, edges, connectingActive, onPointerDown, onPortPointerDown }) {
-  const meta = NODE_META[node.type] || NODE_META.message;
+function NodeCard({ adapter, node, trigger, selected, issues, edges, connectingActive, onPointerDown, onPortPointerDown }) {
+  const meta = adapter.meta[node.type] || adapter.meta.message;
   const tone = TONES[meta.tone];
   const Icon = meta.icon;
-  const ports = getOutputPorts(node);
-  const body = bodyHeight(node);
-  const height = nodeHeight(node);
-  const summary = nodeSummary(node);
+  const ports = adapter.getPorts(node);
+  const body = adapter.bodyHeight(node);
+  const height = adapter.nodeHeight(node);
   const errorCount = issues?.errors || 0;
   const warningCount = issues?.warnings || 0;
 
@@ -366,20 +389,12 @@ function NodeCard({ node, trigger, selected, issues, edges, connectingActive, on
       <span className="absolute -left-[7px] top-[13px] h-3.5 w-3.5 rounded-full border-2 border-white bg-slate-400 shadow" aria-hidden="true" />
       <div className={`flex cursor-grab items-center gap-2 rounded-t-2xl px-3 active:cursor-grabbing ${tone.soft}`} style={{ height: HEADER_H }}>
         <Icon className="h-4 w-4 shrink-0" />
-        <span className="truncate text-[13px] font-black">
-          {meta.label}{node.type === "message" ? ` · ${messageModeLabel(node.data?.mode)}` : ""}
-        </span>
+        <span className="truncate text-[13px] font-black">{adapter.headerLabel(node, meta)}</span>
         {errorCount ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" title={`${errorCount} pendência(s)`} /> : warningCount ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" title="Atenção" /> : null}
       </div>
 
       <div className="overflow-hidden px-3 py-2" style={{ height: body }}>
-        {node.type === "start" ? (
-          <p className="line-clamp-3 text-[13px] font-bold leading-5 text-navy">{triggerSummary(trigger)}</p>
-        ) : Array.isArray(summary) ? (
-          summary.slice(0, 5).map((line, index) => <p key={index} className="truncate text-[12px] font-bold leading-[22px] text-navy">• {line}</p>)
-        ) : (
-          <p className="line-clamp-3 whitespace-pre-line text-[13px] font-semibold leading-5 text-slate">{summary}</p>
-        )}
+        {adapter.renderBody(node, trigger)}
       </div>
 
       <div>
