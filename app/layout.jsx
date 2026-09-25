@@ -19,6 +19,16 @@ export const metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
   },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "Matheus Machado Imóveis",
+    images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado.png", width: 512, height: 512, alt: "Matheus Machado Imóveis" }]
+  },
+  twitter: {
+    card: "summary",
+    images: ["https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado.png"]
+  },
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
