@@ -1,7 +1,7 @@
 # AGENTS.md — manual obrigatório para qualquer agente neste projeto
 
 > Vale para qualquer agente de IA (Claude Code, Codex, etc.) e para qualquer pessoa que altere este repositório.
-> Última verificação completa contra o código: **2026-09-24** (commit `ae510d1`). Se algo aqui divergir do código, **o código vence** — e a divergência deve ser corrigida na documentação (ver `docs/CHANGELOG_AI.md`).
+> Última verificação completa contra o código: **2026-09-24** (commit `3c82f72`). Se algo aqui divergir do código, **o código vence** — e a divergência deve ser corrigida na documentação (ver `docs/CHANGELOG_AI.md`).
 
 ## O que é o sistema
 

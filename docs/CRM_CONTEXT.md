@@ -1,7 +1,7 @@
 # CRM_CONTEXT — visão funcional do CRM
 
 > Objetivo: um agente novo entender em minutos **como o CRM funciona**. Detalhe de regra: [`BUSINESS_RULES.md`](BUSINESS_RULES.md). Detalhe técnico: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md). Permissões: [`PERMISSIONS.md`](PERMISSIONS.md). Manual dos agentes: [`../AGENTS.md`](../AGENTS.md).
-> Verificado contra o código em 2026-09-24 (commit `ae510d1`). O que só existe no banco de produção está marcado **A CONFIRMAR**.
+> Verificado contra o código em 2026-09-24 (commit `3c82f72`). O que só existe no banco de produção está marcado **A CONFIRMAR**.
 
 ## 1. O que é
 
@@ -44,7 +44,7 @@ Cliente = linha em `simulation_registrations` (código de cliente, telefone norm
 | Sem `ref`/`c` | idem | corretor padrão do site (ref `matheus`) |
 | Cadastro manual no CRM | “Novo cliente”, Clientes, Agenda etc. (`/api/simulation-registrations/manual`) | quem cadastra (corretor) ou o escolhido por gestor/admin |
 | Prospecção / Meta Diária | contato da fila vira cliente ao ser assumido (Prospecção) ou no 1º toque real (Meta Diária) | o corretor que assumiu/trabalhou o contato |
-| WhatsApp (resposta automática por palavra-chave “forward_to_roleta”, Fluxos com ação “roleta”, Chat “Adicionar ao CRM”) | telefone desconhecido vira cliente | roleta (automação) ou quem adicionou (Chat) |
+| WhatsApp (lead patrocinado — Click to WhatsApp —, resposta automática por palavra-chave “forward_to_roleta”, Fluxos com ação “roleta”, Chat “Adicionar ao CRM”) | telefone desconhecido vira cliente | **roleta** (lead patrocinado, automações; a conversa fica com o mesmo corretor) ou quem adicionou (Chat) |
 
 Se já existe cliente com o mesmo telefone (qualquer formato de 9º dígito/DDI) ou mesmo nome, o formulário **atualiza o atendimento existente** (não duplica, não gasta vez da roleta); exceção: link pessoal de **outro** corretor abre atendimento novo. Detalhes: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) §Clientes.
 
@@ -73,12 +73,12 @@ Marcos automáticos: entrar em qualquer status de venda cria a **venda financeir
 | Agenda | `/admin/calendario` | atividades (`calendar_activities` + campo legado no cliente), lembretes por push/WhatsApp/e-mail (cron) |
 | Roleta | Automações > `roulette` | fila de distribuição, presença online, histórico |
 | Prospecção / Base | `/admin/prospeccao` | fila `prospecting_contacts` (Base da Imobiliária e bases individuais), importação, atribuição |
-| Meta Diária | `/admin/meta-diaria` (+ `/gestao`) | cota diária de 1ª/2ª/3ª tentativa por corretor, carteira ativa, fechamento diário |
-| Desempenho / Ranking / Pontuação | `/admin/desempenho/*`, `/admin/relatorio-diario` | funil, pontos por evento (regras versionadas), Online (presença), relatório diário por e-mail |
+| Meta Diária | `/admin/meta-diaria` (+ `/gestao`) | cota diária de 1ª/2ª/3ª tentativa por corretor (o dia começa com exatamente a cota de contatos aguardando 1º contato; **uma tentativa por contato por dia**), carteira ativa, fechamento diário |
+| Desempenho / Ranking / Pontuação | `/admin/desempenho/*`, `/admin/relatorio-diario` | funil, pontos por evento (regras versionadas; **cada marco vale uma vez por cliente**), Online (presença), relatório diário por e-mail |
 | Oportunidades | `/admin/oportunidades` | score/urgência/prioridade determinísticos por cliente (Fase 1) |
 | Documentação / CCA | modal no cliente | upload em lote, IA classifica, motor determinístico decide o que falta, PDF, envio à CCA (link `wa.me`) |
 | Financeiro | `/admin/financeiro` | venda → comissão → despesas/recebimentos; visão projetada p/ associado |
-| Chat WhatsApp | `/admin/chat` | caixa de entrada do número oficial, janela 24h, modelos, mídia, atalhos |
+| Chat WhatsApp | `/admin/chat` | caixa de entrada do número oficial, janela 24h, modelos, mídia, atalhos, **mensagens internas** (só equipe; o cliente não vê), **excluir conversa** (lógica), **áudio recebido** tocável; leads de anúncio entram pela roleta |
 | Fluxos / Respostas / Disparo / Manual | Automações | robô visual estilo ManyChat; palavra-chave; envio em massa por modelo; mensagens manuais para a equipe |
 | Automações do CRM | Automações > `rules` | `crm_automation_rules` (13 gatilhos × 7 ações), avaliadas em `/api/cron/scheduled-activities` (a cada minuto **se** o `pg_cron` estiver ativo — A CONFIRMAR em produção); as regras vigentes vivem no banco |
 | Minha Jornada | `/minha-jornada/[token]` | página pública de progresso do cliente + timeline interna (`client_journey_events`) |

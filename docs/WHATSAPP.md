@@ -1,6 +1,6 @@
 # WHATSAPP — arquitetura, regras e riscos
 
-> Fonte: `lib/whatsapp-*.js`/`.mjs`, `lib/phone-utils.js`, `lib/client-phone-lookup.js`, `app/api/webhooks/whatsapp-master`, `app/api/admin/whatsapp-*`, `app/api/cron/whatsapp-*`, migrations `20260901…`, `20260915_whatsapp_manual_log`, `20260920…`, `20260922180000`, `20260923210000`, `20260924*` (verificado em 2026-09-24, commit `ae510d1`).
+> Fonte: `lib/whatsapp-*.js`/`.mjs`, `lib/phone-utils.js`, `lib/client-phone-lookup.js`, `app/api/webhooks/whatsapp-master`, `app/api/admin/whatsapp-*`, `app/api/cron/whatsapp-*`, migrations `20260901…`, `20260915_whatsapp_manual_log`, `20260920…`, `20260922180000`, `20260923210000`, `20260924*` (inclui `20260924210000`: Chat interno, exclusão e lead patrocinado) (verificado em 2026-09-24, commit `3c82f72`).
 > **Nunca** registrar tokens, segredos ou valores de variáveis aqui — só nomes. Estado real da conta Meta (WABA, número ativo, modelos aprovados) **não foi verificado** → **A CONFIRMAR**.
 > Regras gerais: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) §11 · Banco: [`DATABASE.md`](DATABASE.md) · Permissões: [`PERMISSIONS.md`](PERMISSIONS.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Meta Ads/Pixel: [`TRAFEGO_META.md`](TRAFEGO_META.md).
 
@@ -12,9 +12,11 @@ Um **único número oficial** na **WhatsApp Cloud API (Graph API)**. Tudo o que 
 Meta ──webhook──▶ /api/webhooks/whatsapp-master ──▶ processWhatsappWebhook (lib/whatsapp-master.js)
                      │ 1) whatsapp_master_events  (bruto, idempotente por event_key)
                      │ 2) projectChatFromEvents   → whatsapp_conversations / whatsapp_messages (Chat)
-                     │ 3) processFlowInbound      → Fluxos (prioridade)   ─┐ se um fluxo tratou, pára
-                     │ 4) processAutomationReply  → respostas por palavra-chave ◀┘
-                     └ 5) syncBroadcastMessageStatuses → status do Disparo (sent/delivered/read/failed)
+                     │ 3) processSponsoredLeads   → lead de anúncio (Click to WhatsApp) novo entra na roleta (§9-B)
+                     │ 3b) downloadInboundAudios  → áudio recebido baixado e guardado em storage privado (§6)
+                     │ 4) processFlowInbound      → Fluxos (prioridade)   ─┐ se um fluxo tratou, pára
+                     │ 5) processAutomationReply  → respostas por palavra-chave ◀┘
+                     └ 6) syncBroadcastMessageStatuses → status do Disparo (sent/delivered/read/failed)
 
 CRM ──▶ sendWhatsappTextMessage / sendWhatsappMessagePayload / sendWhatsappTemplateMessage ──▶ Graph API
         (Chat, Fluxos, respostas, Disparo, lembretes de atividade, ação de automação "WhatsApp modelo")
@@ -34,6 +36,7 @@ Configuração/estado de conexão exibidos na tela: `crm_settings.id='whatsapp_m
 - Ignora eventos cujo `metadata.phone_number_id` ≠ `WHATSAPP_PHONE_NUMBER_ID`.
 - Cada mensagem vira uma linha em `whatsapp_master_events` (`event_key = message:<id>` ou `status:<id>:<status>:<ts>`; `upsert … ignoreDuplicates`) — **só as linhas realmente inseridas disparam automação**, então reentrega da Meta nunca processa o mesmo “sim” duas vezes.
 - O Chat é projetado de forma **idempotente e best-effort** (`projectChatFromEvents`): falha aqui não derruba automações nem faz a Meta reenviar; o bruto continua guardado. Não há reprocessamento/alerta automático de projeções falhas.
+- A rota do webhook tem `maxDuration = 30` s (o processamento agora também roda o lead patrocinado e baixa áudio).
 - Logs estruturados por evento (`whatsapp-master-webhook`: aceito/rejeitado/processado/falhou, sem conteúdo de mensagem).
 
 ## 4. Envio
@@ -55,13 +58,15 @@ Classificação de erro (essencial para nunca duplicar envio): `notSent = true` 
 
 ## 6. Chat (`lib/whatsapp-chat.js`, `/admin/chat`)
 
-- **Modelo**: `whatsapp_conversations` (uma por telefone, único `contact_phone`; `status` `open`/`in_service`/`finished`; `assigned_user_id`; `client_id`; `unread_count`; `last_inbound_at`; `last_human_reply_at`; `origin` jsonb) e `whatsapp_messages` (direção, `sender_type` `customer`/`user`/`automation`, `meta_message_id` único, status `received/queued/sent/delivered/read/failed`).
+- **Modelo**: `whatsapp_conversations` (uma por telefone, único `contact_phone`; `status` `open`/`in_service`/`finished`; `assigned_user_id`; `client_id`; `unread_count`; `last_inbound_at`; `last_human_reply_at`; `origin` jsonb) e `whatsapp_messages` (direção `inbound`/`outbound`/**`internal`**, `sender_type` `customer`/`user`/`automation`, `meta_message_id` único, status `received/queued/sent/delivered/read/failed`). Conversa também tem `deleted_at`/`deleted_by` (exclusão lógica) e existe a tabela de auditoria `whatsapp_conversation_audit` (append-only, sem FK).
 - **Dois “lidos” que não se misturam**: `whatsapp_messages.status` = ciclo de entrega na Meta; `unread_count`/`last_read_*` = leitura pelo usuário do CRM.
 - **Escopo** (`chatScope`): admin/gestor veem tudo; corretor/associado veem conversas de clientes que respondem **ou** atribuídas a eles. Atribuir a outra pessoa: só admin/gestor. Atalhos (textos, imagem, documento, link de simulação do responsável): gerenciar só admin/gestor.
 - **Atendimento**: responder marca `in_service`, encerra o Fluxo ativo daquela conversa (`endLiveFlowSession`), grava `last_human_reply_at`, e “quem responde assume” a conversa se ninguém estiver com ela **e** for o responsável pelo cliente (ou a conversa não tiver cliente).
+- **Mensagens internas** (`sendChatInternalMessage`, rota `POST …/conversations/[id]/internal`): linha com `direction='internal'`/`message_type='internal'` (constraint no banco: uma implica a outra) **só no CRM** — nunca chama a Meta, não usa nem renova a janela de 24 h (funciona com a janela fechada), não muda status/atendente/última mensagem, não conta como resposta ao cliente (não grava `last_human_reply_at`, e a checagem de “atendente presente” dos Fluxos ignora `internal`) e não dispara automação. **Quem lê e escreve** (`canManageConversation`, decidido no backend; `getChatConversation` nem devolve as internas a quem não pode): administrador geral, gestor, atendente da conversa (`assigned_user_id`) ou responsável atual pelo cliente — **só o próprio id** (o vínculo de associado→corretor **não** vale aqui). Ao salvar, avisa os demais autorizados (responsável, atendente, admins e gestores ativos, exceto o autor) por `crm_notifications` (`chat_internal`) + push; **nunca WhatsApp**. A tela mostra o modo interno (`canInternal`).
+- **Excluir conversa** (`deleteChatConversation`, `DELETE …/conversations/[id]`): mesma permissão das internas. É **exclusão lógica** (`deleted_at`): tira da caixa e zera não lidas, encerra o Fluxo vivo (`conversa_excluida`) e grava auditoria; **não** apaga cliente, histórico, funil, documentos, vendas nem responsável, e não tenta apagar nada na Meta. Volta sozinha quando o cliente escreve de novo (`whatsapp_chat_apply_inbound` limpa `deleted_at` e audita `restored_by_inbound`) ou quando alguém abre o WhatsApp do cliente pelo card (`openChatForClient`, `restored_by_open`). A lista, o resumo e a visão geral do Chat (`runScopedQuery`) filtram `deleted_at is null`; abrir uma conversa excluída por id responde 404.
 - **Adicionar ao CRM** (`addChatConversationToCrm`): reaproveita o cadastro manual (não duplica se o telefone já existe); origem `whatsapp_chat`.
 - **Visão geral** (`getChatOverview`, `waitingInfo`): conversa não finalizada em que o **cliente escreveu por último** = “aguardando a gente” (≥ 10 min atenção, ≥ 30 min atraso); em que **nós** falamos por último e há ≥ 180 min de silêncio = “contato em silêncio”.
-- **Mídia enviada**: imagem JPG/PNG, áudio (ogg/mp3/mp4/aac/amr; gravação `webm/opus` é convertida para ogg em `lib/webm-opus-to-ogg.mjs`), documentos PDF/Office; ≤ 4 MB (limite de corpo da Vercel); armazenada no bucket **público** `whatsapp-chat-media`. **Mídia recebida** do cliente: guarda o payload e mostra só o rótulo (imagem/áudio/…): **não há download/exibição** (A CONFIRMAR se é requisito).
+- **Mídia enviada**: imagem JPG/PNG, áudio (ogg/mp3/mp4/aac/amr; gravação `webm/opus` é convertida para ogg em `lib/webm-opus-to-ogg.mjs`), documentos PDF/Office; ≤ 4 MB (limite de corpo da Vercel); armazenada no bucket **público** `whatsapp-chat-media`. **Áudio recebido** (`lib/whatsapp-media.js`): o servidor consulta a mídia na Meta (token só no servidor), baixa (≤ 16 MB, confere `sha256`), guarda no bucket **privado** `whatsapp-inbound-media` (`SUPABASE_INBOUND_MEDIA_BUCKET`) e registra o estado em `metadata.media` (`stored`/`failed`, tentativas). O navegador toca por `GET /api/admin/whatsapp-chat/media/[messageId]` (autenticada, mesma checagem de acesso da conversa, suporta `Range`, `?retry=1` tenta de novo); o download acontece no webhook (orçamento de 9 s, melhor esforço) ou sob demanda. `POST …/media/recover` (gestão/admin) tenta recuperar áudios dos últimos 14 dias. Player próprio com plano B de decodificação (`components/ChatAudioPlayer.jsx`, `lib/audio-wav.mjs`, `public/vendor/ogg-opus-decoder.min.js`). **Imagem/documento/vídeo recebidos** continuam sem download: só o rótulo (A CONFIRMAR se é requisito).
 - **Tempo real**: Supabase Realtime **Broadcast** sem dados (`broadcastChatChanged` → tópico HMAC não adivinhável); o navegador refaz a busca pela API autenticada; polling lento de segurança. Falha no broadcast é ignorada.
 
 ## 7. Associação mensagem ↔ cliente ↔ responsável
@@ -69,7 +74,7 @@ Classificação de erro (essencial para nunca duplicar envio): `notSent = true` 
 - **Telefone é a chave de ligação** (o CRM permite vários atendimentos por telefone; a ligação escolhe o cadastro **mais recente** que bate com qualquer formato do número): `lib/client-phone-lookup.js` (`findLatestRegistrationIdsByPhones`, `findConversationByPhone`) — **único ponto** usado por webhook, Chat, roleta, Fluxos, automações e Disparo.
 - Formatos (`lib/phone-utils.js`): `canonicalWhatsappPhone` = E.164 com 9º dígito para celular BR (`+55DD9XXXXXXXX`); `phoneComparisonKey` iguala com/sem 9, com/sem +55; `phoneLookupCandidates` lista todas as formas gravadas para `.in(...)`; `toBrazilianE164`/`toWhatsAppDigits` **só aceitam celular** (`DD9XXXXXXXX`). A Meta às vezes entrega o wa_id sem o 9 — por isso o cuidado. Testes: `tests/phone-utils.test.mjs`.
 - **Dois “donos” sincronizados**: cliente (`responsible_user_id`) e conversa (`assigned_user_id`). Cliente→conversa: trigger `whatsapp_conversation_assignee_sync`. Conversa→cliente: `assignChatConversation` (só admin/gestor, com histórico de transferência).
-- Conversa iniciada por anúncio “Click to WhatsApp”: guarda `origin = { kind: 'meta_ad', referral }` (a Meta envia `referral`); só o Fluxo condicional “origem anúncio”/gatilho `ad_referral` reage. Nenhuma regra grava origem no cliente a partir disso (ver `TRAFEGO_META.md`).
+- Conversa iniciada por anúncio “Click to WhatsApp”: guarda `origin = { kind: 'meta_ad', referral }` (a Meta envia `referral`); o Fluxo condicional “origem anúncio”/gatilho `ad_referral` reage, e **lead patrocinado novo entra na roleta** (§9-B), gravando a origem no cliente (`client_origins`, ver `TRAFEGO_META.md`).
 - **Atendimento humano ativo** (`lib/whatsapp-attendance.js`, `HUMAN_ATTENDING_MS = 30 min`): sinal **separado** de `last_whatsapp_contact_at`. Uma pessoa respondendo pelo Chat: (1) impede a redistribuição automática da roleta se respondeu **depois** de o responsável atual assumir; (2) suspende respostas por palavra-chave; (3) bloqueia Fluxos que não sejam por palavra-chave nos 30 min seguintes. **Não** conta para Meta Diária/ranking/“cliente aguardando ação” (ver P-11).
 
 ## 8. Fluxos (robô visual — `lib/whatsapp-flow-core.mjs` puro + `lib/whatsapp-flows.js`)
@@ -93,6 +98,16 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 - **Fluxos**: se a mensagem é a do botão, **só** o fluxo dedicado (gatilho por palavra-chave “preenchi meu cadastro”/“receber a minha simulação/receber minha simulação”) pode rodar; se é só cadastro recente, gatilhos **automáticos** (`any_message`, `first_message`, `ad_referral`) não disparam e os de **palavra-chave** continuam valendo. Fluxos suprimidos vão para o log “Atividade” (`skipped`).
 - Teste: `tests/whatsapp-form-completion.test.mjs`.
 
+### 9-B. Lead patrocinado — Click to WhatsApp (`lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-referral.mjs`, migration `20260924210000`)
+
+Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_type`, vale se houver `ctwa_clid`/`source_id`; `post` **não** entra) e ainda **não é cliente** entra na **roleta** existente:
+- Roda no webhook (eventos novos, já deduplicados) **antes** dos Fluxos/respostas, e numa rede de segurança: o cron `scheduled-activities` chama `reconcileSponsoredLeads` (conversas de anúncio das últimas 24 h sem cliente, até 10 por rodada). Falha nunca derruba o webhook.
+- Tudo numa **única transação** do banco, serializada por telefone (`whatsapp_get_or_create_roulette_client`, agora com `p_conversation_id` e `p_history_details`): cliente existente (qualquer formato do número) só tem a conversa vinculada — **não** duplica, **não** volta à roleta, responsável preservado; cliente novo → escolhe o corretor (presença), cria o cliente (`distribution_type='round_robin'`), **grava `lead_distribution_history`** (`assigned`, com `presenceTier`, `skipped`, `source: whatsapp_ad`) e **atribui a conversa ao mesmo corretor**.
+- Origem gravada: `acquisition_context.kind = whatsapp_ad`, rótulo “WhatsApp — Anúncio patrocinado”, metadados do `referral` saneados (sem mídia) + nomes de anúncio/conjunto/campanha **quando** o ID do anúncio já foi sincronizado em `meta_ad_entities` (a Meta não manda nomes no webhook).
+- Avisos: o corretor sorteado recebe notificação; sem corretor disponível a conversa fica no Chat e a gestão (admin/gestor ativos) é avisada.
+- As respostas por palavra-chave e as ações `roulette` de Fluxos também passam `conversationId`: o cliente criado por WhatsApp agora **vincula a conversa** e grava o histórico da roleta (`via: keyword_reply`/`flow`).
+- Testes: `tests/whatsapp-chat-media-referral.test.mjs`.
+
 ## 10. Disparo (`lib/whatsapp-broadcasts.js`)
 
 - **Fluxo**: escolher modelo `APPROVED` → destinatários (Base da Imobiliária `prospecting_contacts` sem dono, ou CSV) → revisão (`previewBroadcast`: totais, inválidos, duplicados, bloqueados) → `createBroadcast` (cria campanha do Gerador de Links com destino roleta, `whatsapp_broadcasts` e uma `whatsapp_broadcast_messages` por destinatário) → “Disparar agora” (`dispatchBroadcastNow`, transição condicional `draft→processing`, anti clique duplo) + cron a cada minuto (`processAllActiveBroadcastQueues`, 45 s de orçamento dividido entre disparos).
@@ -110,7 +125,7 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 
 ## 12. Identificadores importantes
 
-`event_key` (`whatsapp_master_events`), `message_id`/`meta_message_id` (ID da Meta; único em `whatsapp_messages`), `wa_id`/`contact_phone` (chave da conversa), `conversation_id`, `client_id`, `flow_id` + `session id`, `automation_id` (`whatsapp_messages`), `whatsapp_message_id` + `claim_token` + `callbackData bcm:<id>` (Disparo), `phone_number_id` (filtro do webhook), `referral` (`ctwa_clid` etc. só na conversa).
+`event_key` (`whatsapp_master_events`), `message_id`/`meta_message_id` (ID da Meta; único em `whatsapp_messages`), `wa_id`/`contact_phone` (chave da conversa), `conversation_id`, `client_id`, `flow_id` + `session id`, `automation_id` (`whatsapp_messages`), `whatsapp_message_id` + `claim_token` + `callbackData bcm:<id>` (Disparo), `phone_number_id` (filtro do webhook), `referral` (`ctwa_clid` etc.; na conversa e, para lead patrocinado novo, também em `client_origins.source_metadata`), `deleted_at`/`whatsapp_conversation_audit` (exclusão lógica), `metadata.media` (áudio recebido).
 
 ## 13. Deduplicação e idempotência (resumo)
 
@@ -119,7 +134,8 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 | Evento da Meta | `event_key` único (`ignoreDuplicates`) |
 | Mensagem no Chat | `meta_message_id` único (índice completo) |
 | Conversa | `contact_phone` único + busca por todos os formatos do número |
-| Cliente criado via WhatsApp | RPC com lock de telefone; existente é reaproveitado |
+| Cliente criado via WhatsApp (resposta, Fluxo, lead patrocinado) | RPC com lock de telefone; existente é reaproveitado (só vincula a conversa) |
+| Áudio recebido | estado em `metadata.media`; não baixa de novo se `stored`; `upsert` no storage |
 | Disparo | clique duplo (transição condicional), claim por linha, `delivery_unknown` sem reenvio |
 | Fluxo | uma sessão viva por telefone; cooldown por fluxo/telefone; lock de sessão (60 s) |
 | Contador de não lidas | RPC atômica (`whatsapp_chat_apply_inbound`) |
@@ -129,16 +145,17 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Problemas. Resumo:
 1. **P-04** lembrete de atividade falha em loop quando o modelo não existe/aprovado (erro Meta “#132001”, registrado na memória operacional de 2026-09-24) — bloqueia também push/e-mail.
 2. **P-11** resposta pelo Chat não conta como “contato” (por desenho); automações “sem primeiro atendimento” e o indicador “aguardando ação” continuam vendo o cliente como não contatado.
-3. **P-06** roleta acionada por WhatsApp não grava `lead_distribution_history`.
+3. ~~P-06~~ **resolvido** (migration `20260924210000`): a roleta acionada por WhatsApp agora grava `lead_distribution_history` e vincula a conversa.
 4. **P-16** gatilho de Fluxo por palavra-chave “contém” sem fronteira de palavra.
 5. Sem **opt-out** (PARAR/SAIR) no fluxo de mensagens; “não contactar” só vale para a base de prospecção/Disparo. **A CONFIRMAR** requisito.
-6. Mídia recebida do cliente não é baixada/exibida; bucket de mídia enviada é público (URLs não listadas).
+6. Só o **áudio** recebido é baixado (bucket privado); imagem/documento/vídeo recebidos não. O bucket de mídia **enviada** (`whatsapp-chat-media`) é público (URLs não listadas).
 7. Modelos aprovados na WABA atual e o número ativo: **A CONFIRMAR** (a memória operacional de 2026-09-24 registra 0 modelos aprovados na WABA nova).
-8. Falhas de projeção do Chat não têm reprocesso/alerta (o bruto fica em `whatsapp_master_events`).
+8. Falhas de projeção do Chat não têm reprocesso/alerta (o bruto fica em `whatsapp_master_events`). O lead patrocinado tem rede de segurança (cron); o áudio tem “Tentar novamente”/recuperação manual.
+9. **Código TEMPORÁRIO na `main`** (commits `TEMP:` de 2026-09-24, anunciados como “serão removidos”): `dryRunForFictionalRecipient` em `lib/whatsapp-master.js` (destinos `+5500…` **não chamam a Meta** e devolvem ID `wamid.DRYRUN…`), o pulo do push em `notifyInternalMessage` para conversas `+5500…`, e a rota `app/api/admin/tmp-chat-tests` (protegida por hash de segredo, não pelos guards de perfil). Remover e reimplantar é tarefa pendente de quem os criou; enquanto existirem, o envio a números com DDD 00 é simulado.
 
 ## 15. Como testar sem enviar mensagem real
 
-- Lógica pura: `node --test tests/whatsapp-flow-core.test.mjs tests/whatsapp-keyword-match.test.mjs tests/whatsapp-form-completion.test.mjs tests/phone-utils.test.mjs tests/whatsapp-contact-channel.test.mjs`.
+- Lógica pura: `node --test tests/whatsapp-flow-core.test.mjs tests/whatsapp-keyword-match.test.mjs tests/whatsapp-form-completion.test.mjs tests/whatsapp-chat-media-referral.test.mjs tests/phone-utils.test.mjs tests/whatsapp-contact-channel.test.mjs`.
 - Pré-visualização do Fluxo no editor usa dependências simuladas (não envia).
-- Envio simulado seguro não existe no código: **nunca** chame as funções de envio com telefone real em “teste”. Telefones `+5500…` são rejeitados pela validação (não chegam à Meta) — útil apenas para testar o caminho de erro local.
+- **Nunca** chame as funções de envio com telefone real em “teste”. Hoje existe uma trava **temporária** (ver §14, item 9): destinos `+5500…` (DDD 00 não existe) têm o envio simulado e não chegam à Meta. Sem ela, esses números seriam rejeitados na validação local.
 - Qualquer rota temporária de diagnóstico em produção: autenticada, sem `_` no nome da pasta, removida e reimplantada depois.

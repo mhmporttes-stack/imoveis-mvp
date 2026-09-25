@@ -1,6 +1,6 @@
 # TRAFEGO_META — Meta (Pixel, Conversions API, Meta Ads) e origem de leads
 
-> Fonte: `components/MetaPixel.jsx`, `lib/meta-pixel-*.js`, `lib/meta-conversions-api.js`, `lib/meta-ads-config.js`, `lib/meta-ads-sync.js`, `app/api/cron/meta-ads-*`, `app/api/admin/meta-ads/*`, `lib/lead-origin.js`, `lib/campaigns.js`, `supabase/migrations/20260923120000_meta_ads_read_sync.sql`, `20260923180000_meta_ads_sync_crons.sql` (verificado em 2026-09-24, commit `ae510d1`).
+> Fonte: `components/MetaPixel.jsx`, `lib/meta-pixel-*.js`, `lib/meta-conversions-api.js`, `lib/meta-ads-config.js`, `lib/meta-ads-sync.js`, `app/api/cron/meta-ads-*`, `app/api/admin/meta-ads/*`, `lib/lead-origin.js`, `lib/campaigns.js`, `supabase/migrations/20260923120000_meta_ads_read_sync.sql`, `20260923180000_meta_ads_sync_crons.sql` (verificado em 2026-09-24, commit `3c82f72`).
 > **Nunca** registrar access tokens, IDs de conta/pixel reais ou valores de variáveis: só nomes. Estado real da integração em produção (variáveis configuradas, backfill feito, crons ativos) **não foi verificado** → **A CONFIRMAR**.
 > Relacionados: [`WHATSAPP.md`](WHATSAPP.md) (Click-to-WhatsApp, Disparo) · [`BUSINESS_RULES.md`](BUSINESS_RULES.md) §4 (campanhas/origem) · [`DATABASE.md`](DATABASE.md) (tabelas `meta_ad_*`, `campaigns`, `client_origins`) · Manual: [`../AGENTS.md`](../AGENTS.md).
 
@@ -33,7 +33,7 @@
 - **Links do Gerador** (`?c=<campaigns.id>`): `campaigns` (kind `official` por corretor/gestor/admin, ou personalizada), destino `roulette`/`broker`, `link_journey` (`choice`/`quick_service`/`simulation`), contagem de aberturas em `campaign_link_views`, envios repetidos em `campaign_link_duplicate_submissions`. O `?c=` persiste 30 dias no `localStorage` (`lib/campaign-link-client.js`). Cadastro por campanha ativa recebe a **tag** com o nome da campanha e origem com snapshot do nome. Especificação original (design): `docs/spec-gerador-de-links.md` — os nomes de tabela/campos ali diferem do schema real.
 - **Link pessoal** (`?ref=`) e **equipe** (`/simulacao/equipe`): ver `BUSINESS_RULES.md` §3–4.
 - **Disparo do WhatsApp** cria uma campanha “roulette” por lote (o botão do modelo abre `/simulacao?c=<id>`); o cliente que converte herda essa origem.
-- **Click-to-WhatsApp (anúncio → conversa)**: a Meta envia `referral` no webhook; o código guarda `origin = { kind: 'meta_ad', referral }` **na conversa** (`whatsapp_conversations.origin`) e permite Fluxos por `ad_referral`/condição “origem anúncio”. **Não** grava campanha/anúncio no cliente (`client_origins`), então lead vindo de anúncio por WhatsApp aparece como origem de WhatsApp genérica (roleta via WhatsApp: `whatsapp_reply`/`whatsapp_chat`).
+- **Click-to-WhatsApp (anúncio → conversa → cliente)**: a Meta envia `referral` no webhook; o código guarda `origin = { kind: 'meta_ad', referral }` **na conversa** e permite Fluxos por `ad_referral`/condição “origem anúncio”. **Desde 2026-09-24** (`lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-referral.mjs`), lead de anúncio (`source_type = ad`) com telefone **novo** entra na **roleta** e grava a origem no cliente: `acquisition_context.kind = whatsapp_ad`, rótulo “WhatsApp — Anúncio patrocinado”, `client_origins.source_metadata` com `channel: whatsapp`, `entry: click_to_whatsapp`, o `referral` saneado (`source_id`, `source_type`, `source_url`, `headline`, `body`, `media_type`, `ctwa_clid`; sem mídia) e — **só se** o ID do anúncio já foi sincronizado em `meta_ad_entities` — `ad_name`, `adset_*`, `campaign_*` (a Meta não manda nomes no webhook). É a primeira ligação anúncio → cliente no CRM; a comparação com `meta_ad_insights` continua manual. `post` (CTA de publicação) não entra na roleta automaticamente.
 - **Meta Ads ↔ CRM**: não há junção automática. A comparação é manual: `meta_ad_insights.leads` (leads segundo a Meta) × contagem de cadastros por campanha (`campaigns`/`client_origins`; `lib/campaigns.js` documenta que o número é “comparável ao leads da Meta”). Custos de tráfego pago existem só como **categoria de despesa** no Financeiro (`"Tráfego pago"`).
 
 ## 5. Sincronização Meta Ads (leitura) — `lib/meta-ads-sync.js`
@@ -62,7 +62,7 @@
 ## 7. Riscos e pontos a confirmar
 
 - **P-13** rótulo de janela de atribuição não enviado à API; com token/conta ausentes os crons respondem `502` com `missing_config` (aparece como falha do job no `pg_cron`, sem alerta ao usuário).
-- Leads de anúncio via WhatsApp não carregam campanha/anúncio para o cliente (só ficam na conversa).
+- Lead de anúncio via WhatsApp só carrega campanha/anúncio para o cliente quando o anúncio já foi sincronizado da Meta (senão fica só o ID do anúncio e o `referral`); cliente que **já existia** apenas tem a conversa vinculada (origem original preservada).
 - Conversions API só cobre `Lead`; eventos de qualidade (aprovação/venda) não retornam à Meta.
 - `v21.0` fixa na CAPI; `META_ADS_GRAPH_API_VERSION`/`WHATSAPP_GRAPH_API_VERSION` têm padrão `v23.0` — revisar quando a Meta descontinuar versões.
 - Cron aponta para o host técnico `imoveis-mvp.vercel.app` (fixo nas migrations).

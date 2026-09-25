@@ -1,6 +1,6 @@
 # DATABASE — banco de dados (Supabase / Postgres)
 
-> Fonte: `supabase/migrations/*.sql` (115 arquivos), `supabase/schema.sql`, `supabase/tests/*.sql` e todos os `.from("...")`/`.rpc("...")` de `lib/`, `app/`, `components/` (2026-09-24, commit `ae510d1`).
+> Fonte: `supabase/migrations/*.sql` (116 arquivos), `supabase/schema.sql`, `supabase/tests/*.sql` e todos os `.from("...")`/`.rpc("...")` de `lib/`, `app/`, `components/` (2026-09-24, commit `3c82f72`).
 > **Nada foi consultado no banco de produção** nesta auditoria: o que é dado/estado de produção está marcado **A CONFIRMAR**. Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Permissões: [`PERMISSIONS.md`](PERMISSIONS.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Complementa `.claude/rules/database-supabase.md`.
 
 ## 1. Como o banco é gerenciado
@@ -19,7 +19,7 @@
 - Exceções com policy pública: `testimonials` (leitura dos publicados) e `admin_users` (“managed by service role”, reforço). O site público lê o catálogo por `lib/public-properties.js`/`lib/public-testimonials.js`.
 - O navegador usa a **anon key** só para o Supabase Auth (login/reset) e para o canal Realtime (Broadcast) do Chat; nunca lê tabelas.
 
-## 3. Tabelas por domínio (72 = 71 em migrations + `properties` em `schema.sql`)
+## 3. Tabelas por domínio (73 = 72 em migrations + `properties` em `schema.sql`)
 
 | Domínio | Tabelas |
 |---|---|
@@ -38,7 +38,7 @@
 | Documentação / CCA | `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `cca` |
 | IA | `ai_usage_log` |
 | Financeiro | `financial_sales` (uma por cliente), `financial_expenses`, `financial_payments` |
-| WhatsApp | `whatsapp_master_events` (bruto do webhook), `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_chat_shortcuts`, `whatsapp_flows`, `whatsapp_flow_sessions`, `whatsapp_flow_logs`, `whatsapp_automation_replies`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates`, `whatsapp_manual_log` |
+| WhatsApp | `whatsapp_master_events` (bruto do webhook), `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_chat_shortcuts`, `whatsapp_flows`, `whatsapp_flow_sessions`, `whatsapp_flow_logs`, `whatsapp_automation_replies`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates`, `whatsapp_manual_log`, `whatsapp_conversation_audit` (auditoria append-only de exclusão/restauração de conversa; sem FK) |
 | Meta Ads (leitura) | `meta_ad_accounts`, `meta_ad_entities`, `meta_ad_insights` (upsert diário por entidade), `meta_ad_sync_state` |
 
 **`simulation_registrations` — colunas que as regras dependem** (não exaustivo): `id`, `client_code`, `full_name`, `phone`, `phone_normalized`, `status`, `last_status_change_at`, `approved_at`, `responsible_user_id`, `previous_responsible_user_id`, `responsible_changed_at`, `distribution_type` (`round_robin` ou vazio), `direct_broker_link`, `journey_type` (`simulation`/`quick_service`), `contact_preference`, `acquisition_context` (jsonb, lido pelo trigger da jornada), `last_whatsapp_contact_at`, `last_admin_email`, `scheduled_activity_at/_type/_note/_notified_at/_completed_at/_completed_by`, `prospecting_contact_id`, `prospecting_assigned_pending`, `prospecting_assigned_by_user_id`, `preferences_access_token`, dados de renda/estado civil (`primary_*`, `secondary_*`, `has_children_under_18`, …), `cpf`, `pis`, `email`, `sale_completed_at`, `service_started_at`, `oldest_birth_date`, `created_at`, `updated_at`.
@@ -49,8 +49,8 @@
 |---|---|
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
 | `assign_round_robin_lead(excluded)` | roleta simples (reserva/fallback; **não alterar**) |
-| `whatsapp_get_or_create_roulette_client(...)`, `whatsapp_phone_lock_key` | cliente único por telefone via roleta, atômico |
-| `whatsapp_chat_apply_inbound/outbound` | atualização atômica da conversa (não lidas, prévia, janela) |
+| `whatsapp_get_or_create_roulette_client(...)`, `whatsapp_phone_lock_key` | cliente único por telefone via roleta, atômico; desde `20260924210000` recebe `p_conversation_id` (vincula a conversa e a atribui ao mesmo corretor) e `p_history_details` (grava `lead_distribution_history`) |
+| `whatsapp_chat_apply_inbound/outbound` | atualização atômica da conversa (não lidas, prévia, janela); `apply_inbound` também **restaura** conversa excluída (`deleted_at = null`) e audita |
 | `claim_whatsapp_broadcast_message`, `begin_whatsapp_broadcast_send`, `recover_stuck_whatsapp_broadcast_messages` | fila do Disparo sem duplicidade |
 | `increment_whatsapp_automation_reply_count`, `increment_whatsapp_flow_count` | contadores |
 | `claim_daily_goal_contacts`, `claim_single_prospecting_contact`, `daily_goal_reserve_wallet_slots`, `daily_goal_active_wallet_count`, `daily_goal_wallet_effective_config`, `set_daily_goal_quota` | Meta Diária/carteira (trava por corretor) |
@@ -89,7 +89,7 @@ Removido: `daily-broker-performance-whatsapp-once-a-day` (`20260922200000`). Nã
 
 ## 6. Storage e Realtime
 
-- Buckets (nome padrão / variável): `property-media` (`SUPABASE_STORAGE_BUCKET`, público — imóveis e fotos de captação), `testimonials` (`SUPABASE_TESTIMONIALS_BUCKET`), `property-documents` (`SUPABASE_PROPERTY_DOCS_BUCKET`), `broker-avatars` (`SUPABASE_BROKER_AVATARS_BUCKET`), `whatsapp-chat-media` (`SUPABASE_CHAT_MEDIA_BUCKET`, **criado como público**, limite 10 MB, ~4 MB por upload na Vercel), `client-documents` (`SUPABASE_CLIENT_DOCS_BUCKET`, **único privado**: upload por URL assinada; leitura por URL assinada de 10 min).
+- Buckets (nome padrão / variável): `property-media` (`SUPABASE_STORAGE_BUCKET`, público — imóveis e fotos de captação), `testimonials` (`SUPABASE_TESTIMONIALS_BUCKET`), `property-documents` (`SUPABASE_PROPERTY_DOCS_BUCKET`), `broker-avatars` (`SUPABASE_BROKER_AVATARS_BUCKET`), `whatsapp-chat-media` (`SUPABASE_CHAT_MEDIA_BUCKET`, **criado como público**, limite 10 MB, ~4 MB por upload na Vercel), `client-documents` (`SUPABASE_CLIENT_DOCS_BUCKET`, privado: upload por URL assinada; leitura por URL assinada de 10 min), `whatsapp-inbound-media` (`SUPABASE_INBOUND_MEDIA_BUCKET`, **privado**, criado pelo código; áudio recebido do cliente, servido por rota autenticada).
 - Realtime **Broadcast** do Chat: o servidor faz `POST /realtime/v1/api/broadcast` com tópico derivado por HMAC (`wa-chat-<hash>`, não adivinhável) e sem dados; o navegador refaz a busca pela API autenticada (há polling lento de segurança). Ver `WHATSAPP.md`.
 
 ## 7. Regras de schema a nunca quebrar
@@ -100,7 +100,8 @@ Removido: `daily-broker-performance-whatsapp-once-a-day` (`20260922200000`). Nã
 4. `crm_automation_executions(rule_id, client_id, event_key)` único = idempotência das automações.
 5. `meta_ad_insights` é **upsert** (a Meta reajusta atribuição depois) — nunca tratar como imutável.
 6. Toda tabela nova: RLS ligado, **sem** policy pública, `revoke` de `anon/authenticated` e `grant` à `service_role`, salvo exceção documentada.
-7. Listagens que podem passar de 1000 linhas precisam paginar (`fetchAllRows`/`.range`): o PostgREST corta silenciosamente em 1000 (ver P-01).
+7. `whatsapp_messages.direction` aceita `inbound`/`outbound`/`internal`, e a constraint `whatsapp_messages_internal_consistency` exige `direction='internal'` **se e somente se** `message_type='internal'`. Consultas que leem “mensagens do cliente/da equipe” devem excluir `internal` (a mensagem interna nunca passa pela Meta).
+7b. Listagens que podem passar de 1000 linhas precisam paginar (`fetchAllRows`/`.range`): o PostgREST corta silenciosamente em 1000 (ver P-01).
 8. Antes de `drop`/`alter` que perde dado: testar num script isolado; nunca em produção sem pedido.
 
 ## 8. Dados que **não** estão no repositório (A CONFIRMAR em produção)

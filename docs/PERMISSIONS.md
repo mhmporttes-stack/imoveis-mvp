@@ -1,6 +1,6 @@
 # PERMISSIONS — perfis, guards e escopo
 
-> Fonte: `lib/admin-auth.js`, `lib/admin-access.js`, `lib/admin-profiles.js`, `proxy.js`, todas as rotas de `app/api/**` e páginas de `app/admin/**` (varredura automatizada por método HTTP em 2026-09-24, commit `ae510d1`).
+> Fonte: `lib/admin-auth.js`, `lib/admin-access.js`, `lib/admin-profiles.js`, `proxy.js`, todas as rotas de `app/api/**` e páginas de `app/admin/**` (varredura automatizada por método HTTP em 2026-09-24, commit `3c82f72`).
 > Visão funcional: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Complementa `.claude/rules/auth-permissoes.md` (que tem imprecisões, ver §8).
 
 **Princípio:** a autorização real é **em código**. RLS está ligado sem policy pública; o app usa a service role no servidor. Esconder botão/menu **nunca** substitui o guard do servidor.
@@ -48,7 +48,7 @@ Asserts de negócio (`lib/admin-access.js`, dentro dos `lib/*.js`): `assertGener
 - `assertCanAccessResponsibleUser(auth, id)`: mesmo critério para uma operação sobre **um** cliente/usuário.
 - `resolveTeamVisibilityScope` / `listVisibleTeamProfiles`: decidem **quem aparece** em listas de equipe (admin todos; gestor sua equipe; demais só si). Nunca usar para decidir quais eventos pontuam.
 - `applyDoNotContactScope`: esconde `do_not_contact` de quem não é dono.
-- Chat: `chatScope` — admin/gestor veem todas as conversas; corretor/associado veem as de clientes que respondem **ou** atribuídas a eles.
+- Chat: `chatScope` — admin/gestor veem todas as conversas; corretor/associado veem as de clientes que respondem **ou** atribuídas a eles; conversas excluídas (`deleted_at`) não aparecem em nenhuma listagem. **Mensagens internas e exclusão de conversa** usam `canManageConversation` (backend): administrador geral, gestor, atendente da conversa ou responsável atual pelo cliente — **só o próprio id** (o vínculo associado→corretor **não** vale); quem não pode nem recebe as mensagens internas na leitura. Áudio recebido: a rota de mídia repete a checagem de acesso da conversa; recuperar áudios (`media/recover`) é só admin/gestor.
 
 ## 5. Matriz por perfil (o que cada um pode, confirmado no código)
 
@@ -72,6 +72,7 @@ Asserts de negócio (`lib/admin-access.js`, dentro dos `lib/*.js`): `assertGener
 | Automações (regras do CRM) | criar/editar: admin; ver: admin/gestor | ver | não | não |
 | Fluxos / Respostas por palavra-chave / Disparo / WhatsApp Manual | sim | sim | não | não |
 | Chat | tudo | tudo | escopo próprio | escopo do vinculado |
+| Chat: mensagens internas / excluir conversa | tudo | tudo | só se for atendente da conversa ou responsável pelo cliente | só se **ele próprio** for atendente/responsável (o vínculo com o corretor não vale) |
 | Oportunidades | equipe | equipe | próprios | (sem menu; URL funciona — A CONFIRMAR) |
 | Gerador de Links / Campanhas | sim | sim | não | não |
 | Usuários (criar/editar/excluir) | sim | só **corretores e associados** (anti-escalonamento: não cria nem promove admin/gestor) | não | não |
@@ -95,7 +96,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 **`requirePerformanceApi` (não-associado):** `daily-report`, `financeiro/[id]` (GET — e bloqueia gestor dentro da rota). **`requireFinancialAccessApi` (não-gestor):** `financeiro` (GET).
 
 **`requireAdminApi` (qualquer perfil) — restrição real no `lib` ou por escopo do cliente:**
-`admin/cca*` (lib: admin/gestor), `admin/client-documents/*` (escopo do cliente; `cca-submission` e `reset` admin/gestor), `admin/heartbeat`, `admin/opportunities*`, `admin/session` (GET), `admin/whatsapp-broadcasts/*` (lib: admin/gestor), `admin/whatsapp-chat/*` (escopo do Chat), `admin/whatsapp-master/templates` (owner), `analyze`, `calendar-activities*` (escopo do cliente), `client-journey/[id]`/`settings` (escrita: admin/gestor), `client-tags*` (**sem checagem de perfil**, ver P-07), `crm-notifications*`, `daily-goal/*` (própria do corretor; ler configuração: admin/gestor; alterar cota/mensagens: admin; `performance`: admin/gestor; `team-overview*`: dono), `daily-message/pending|[historyId]/complete`, `properties` (POST — cria não publicado para corretor), `prospecting*` (lib por ação; `bulk` = dono), `push/*`, `simular-entrada`, `simulation-registrations/*` (escopo; DELETE dono), `simulations*` (escopo; excluir simulação: dono), `testimonials` (POST), `uploads/images`, `uploads/testimonials`.
+`admin/cca*` (lib: admin/gestor), `admin/client-documents/*` (escopo do cliente; `cca-submission` e `reset` admin/gestor), `admin/heartbeat`, `admin/opportunities*`, `admin/session` (GET), `admin/whatsapp-broadcasts/*` (lib: admin/gestor), `admin/whatsapp-chat/*` (escopo do Chat; inclui `conversations/[id]/internal`, `DELETE conversations/[id]`, `media/[messageId]` — permissão decidida no `lib`; `media/recover`: admin/gestor), `admin/whatsapp-master/templates` (owner), `analyze`, `calendar-activities*` (escopo do cliente), `client-journey/[id]`/`settings` (escrita: admin/gestor), `client-tags*` (**sem checagem de perfil**, ver P-07), `crm-notifications*`, `daily-goal/*` (própria do corretor; ler configuração: admin/gestor; alterar cota/mensagens: admin; `performance`: admin/gestor; `team-overview*`: dono), `daily-message/pending|[historyId]/complete`, `properties` (POST — cria não publicado para corretor), `prospecting*` (lib por ação; `bulk` = dono), `push/*`, `simular-entrada`, `simulation-registrations/*` (escopo; DELETE dono), `simulations*` (escopo; excluir simulação: dono), `testimonials` (POST), `uploads/images`, `uploads/testimonials`.
 
 **Crons (`GET`, bearer):** `cron/daily-goal-close`, `cron/daily-report`, `cron/meta-ads-daily-consolidation`, `cron/meta-ads-intraday-sync`, `cron/scheduled-activities`, `cron/whatsapp-broadcast-dispatch`, `cron/whatsapp-flows`. Comparam `Authorization: Bearer` com `CRON_SECRET` **ou** o hash SHA-256 do token do `pg_cron` com `SUPABASE_CRON_TOKEN_HASH` (`timingSafeEqual`); **falham fechado** sem segredo configurado.
 
@@ -124,7 +125,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 ## 8. Diferenças em relação a `.claude/rules/auth-permissoes.md`
 
 1. Aquele arquivo diz que `requirePrimaryAdminApi` é “só o admin principal (dono)”. No código é alias de `requireGeneralAdminApi` (qualquer administrador geral).
-2. Diz que “todas as ~30 rotas admin” foram auditadas; hoje há **148 arquivos de rota** em `app/api`: 7 crons, 1 webhook e o restante autenticado, com **11 rotas que expõem ao menos um método público** (tabela acima). Várias rotas `requireAdminApi` dependem do `lib` para a restrição real — ao criar rota nova, **coloque o assert no `lib`** ou use o guard mais restritivo.
+2. Diz que “todas as ~30 rotas admin” foram auditadas; hoje há **152 arquivos de rota** em `app/api`: 7 crons, 1 webhook, 1 rota **temporária** de testes (`admin/tmp-chat-tests`, protegida por hash de segredo em vez dos guards de perfil — ver `WHATSAPP.md` §14) e o restante autenticado, com **11 rotas que expõem ao menos um método público** (tabela acima). Várias rotas `requireAdminApi` dependem do `lib` para a restrição real — ao criar rota nova, **coloque o assert no `lib`** ou use o guard mais restritivo.
 3. Não menciona que `lib/admin-profiles.js` e `lib/admin-auth.js` têm `isOwnerAdminEmail` diferentes (ver §2), nem o anti-escalonamento de privilégio na criação de usuários por gestor.
 
 ## 9. Regras para mudar permissões
