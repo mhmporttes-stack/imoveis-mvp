@@ -1038,7 +1038,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
       ) : (
         <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-black text-amber-800">Contato não cadastrado</p>
-          <p className="text-xs font-bold text-amber-700">Este telefone ainda não está em Clientes. Novos contatos são cadastrados sozinhos; se este ficou de fora (conversa já assumida ou sem corretor disponível), adicione aqui.</p>
+          <p className="text-xs font-bold text-amber-700">Este telefone ainda não está em Clientes. Novos contatos são cadastrados sozinhos; se este ficou de fora (por exemplo, sem corretor disponível na roleta), adicione aqui.</p>
           <label className="block text-xs font-black text-navy">
             Nome
             <input
