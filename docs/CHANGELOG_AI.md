@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-25 — Aviso ao corretor que recebe os clientes de um usuário excluído
+- **Data:** 2026-09-25
+- **Área:** Clientes / Notificações
+- **Alteração:** ao excluir um usuário com clientes, o corretor de destino recebe **um único** aviso resumido (`crm_notifications`, tipo `clients_transferred`, + push) — não um por cliente; não avisa se o próprio autor da exclusão é o destino. A tag do corretor anterior passou a ser obrigatória e gravada **antes** de mover cada lote (falha na tag aborta a transferência do lote).
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/admin-profiles.js` (`transferClientsBeforeDelete`); `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** aviso é best-effort (falha não desfaz a transferência). Continua sem exercício real em produção.
+- **Autor:** Claude Code
+
 ### 2026-09-25 — Excluir corretor pergunta para quem transferir os clientes
 - **Data:** 2026-09-25
 - **Área:** Clientes / Permissões (Usuários)
