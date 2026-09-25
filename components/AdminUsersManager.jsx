@@ -385,7 +385,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setDeleteDialog(null)} disabled={deleteDialog.busy} className="premium-button-secondary justify-center">Cancelar</button>
-              <button type="button" onClick={confirmDelete} disabled={deleteDialog.busy || deleteDialog.clientCount === null} className="premium-button-primary justify-center bg-red-700 hover:bg-red-800 disabled:opacity-60">
+              <button type="button" onClick={confirmDelete} disabled={deleteDialog.busy || deleteDialog.clientCount === null} className="premium-button-primary justify-center !bg-red-700 hover:!bg-red-800 disabled:opacity-60">
                 <Trash2 className="h-5 w-5" aria-hidden="true" />
                 {deleteDialog.busy ? "Excluindo..." : deleteDialog.clientCount > 0 ? "Transferir e excluir" : "Excluir"}
               </button>
