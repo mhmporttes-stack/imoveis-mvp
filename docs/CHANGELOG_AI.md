@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-26 — Formulário completa o card do WhatsApp em vez de duplicar
+- **Data:** 2026-09-26
+- **Área:** Clientes / WhatsApp
+- **Alteração:** `findMatchingRegistration` passou a considerar TODOS os cadastros do mesmo telefone (não só o mais recente). Formulário de link (completo e Atendimento Rápido): (1) completa o card criado pelo WhatsApp que ainda não tem simulação, mesmo que o link seja de outro corretor (mantém o responsável); (2) com link pessoal, prefere o cadastro do mesmo corretor do link. Novo campo `acquisitionKind` no cadastro (só o tipo da origem).
+- **Motivo:** bug reportado pelo dono — cliente veio do anúncio (card C3494), preencheu o formulário e gerou outros cards (C3495 e C3501, mesmo telefone). Causa: o card do Chat já tinha sido transferido a outro corretor, e a regra "link de outro corretor = atendimento novo" combinada com a busca só pelo cadastro mais recente criou duplicatas.
+- **Arquivos afetados:** `lib/simulation-registrations.js`; `docs/BUSINESS_RULES.md` (CLI-4).
+- **Risco/observação:** só previne novas duplicidades; os 3 cards já existentes daquele telefone **não foram mesclados** (mesclar exige decidir o que manter). Exceção "link de outro corretor abre atendimento novo" continua valendo quando o outro cadastro já tem simulação preenchida.
+- **Autor:** Claude Code
+
 ### 2026-09-26 — Novo cabeçalho da conversa no Chat
 - **Data:** 2026-09-26
 - **Área:** WhatsApp (Chat) — visual
