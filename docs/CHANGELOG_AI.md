@@ -75,7 +75,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Área:** Prospecção
 - **Alteração:** na lista da aba Prospecção (Base da Imobiliária, Minha Base e visão do dono), contatos sem nome (“Sem nome”, telefone no lugar do nome, “.”, letra solta…) aparecem depois dos que têm nome, mantida a ordem dentro de cada grupo.
 - **Motivo:** pedido do dono (2026-09-26).
-- **Arquivos afetados:** `lib/prospecting-queue-order.mjs` (novo), `lib/prospecting.js`, `tests/prospecting-queue-order.test.mjs` (novo), `docs/BUSINESS_RULES.md` (PRO-5).
+- **Arquivos afetados:** `lib/prospecting-queue-order.mjs` (novo), `lib/prospecting.js`, `tests/prospecting-queue-order.test.mjs` (novo), `docs/BUSINESS_RULES.md` (PRO-4b).
 - **Risco/observação:** só a ordem da lista na tela; a fila FIFO que a Meta Diária usa para reservar contatos (`queue_sort_at`) não mudou. Nenhum dado nem migration. Não validado com `next build` local.
 - **Autor:** Claude (agente)
 
