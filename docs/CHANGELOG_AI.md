@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-25 — Chat muda o status do cliente sozinho (Tentando contato / Em atendimento)
+- **Data:** 2026-09-25
+- **Área:** WhatsApp / Funil
+- **Alteração:** mensagem enviada por uma pessoa no Chat move o cliente de “Aguardando simulação” para “Tentando contato”; resposta do cliente move de “Tentando contato” para “Em atendimento” (só se tem corretor responsável). Só para frente; grava histórico de status (`source = whatsapp_chat`).
+- **Motivo:** pedido do dono (2026-09-25).
+- **Arquivos afetados:** `lib/whatsapp-client-status-core.mjs` (novo), `lib/whatsapp-client-status.js` (novo), `lib/whatsapp-chat.js`, `tests/whatsapp-client-status.test.mjs` (novo), `docs/WHATSAPP.md` (§6), `docs/BUSINESS_RULES.md` (WA-9).
+- **Risco/observação:** afeta funil/pontuação: “Em atendimento” automático credita o ponto de atendimento ao corretor responsável (uma vez por cliente) e converte a rodada da Meta Diária desse cliente — **confirmar com o dono** se quer o crédito assim ou como “sistema” (0 ponto). Não retroage (só mensagens novas). Sem migration. Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-25 — Detalhe do corretor (dono): quanto falta em cada tentativa e nos pendentes
 - **Data:** 2026-09-25
 - **Área:** Meta Diária (visão do dono)
