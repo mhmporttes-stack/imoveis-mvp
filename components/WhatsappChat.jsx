@@ -117,6 +117,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);
+  const readAttemptRef = useRef({});
   filterRef.current = filter;
   searchRef.current = search;
   selectedRef.current = selectedId;
@@ -175,9 +176,18 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
       if (selectedRef.current !== id) return;
       setDetail(data);
       setDetailError("");
-      if (data.conversation.unreadCount > 0 && document.visibilityState === "visible") {
-        fetch(`/api/admin/whatsapp-chat/conversations/${id}/read`, { method: "POST" }).catch(() => {});
-        setConversations((current) => current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)));
+      // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
+      // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
+      const unread = data.conversation.unreadCount;
+      if (unread > 0 && document.visibilityState === "visible" && readAttemptRef.current[id] !== unread) {
+        readAttemptRef.current[id] = unread;
+        fetch(`/api/admin/whatsapp-chat/conversations/${id}/read`, { method: "POST" })
+          .then((res) => res.json().catch(() => ({})))
+          .then((result) => {
+            if (result?.marked === false) return;
+            setConversations((current) => current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)));
+          })
+          .catch(() => {});
       }
     } catch (error) {
       if (!silent) setDetailError(error.message);
