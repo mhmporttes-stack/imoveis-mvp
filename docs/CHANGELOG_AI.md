@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-26 — Disparo: Gastos, Desempenho e Chat > Campanhas
+- **Data:** 2026-09-26
+- **Área:** WhatsApp (Disparo / Chat) / Banco
+- **Alteração:** novas abas **Gastos** (campanha, tipo, enviadas, custo por envio e total; tabela de preços editável) e **Desempenho** (funil enviadas→entregues→lidas→responderam→cadastros, custo por conversa e por cadastro, por campanha e por modelo) no Disparo; aba **Campanhas** no Chat (admin/gestor). O webhook passou a gravar `billable`/`pricing_category` dos eventos de status do Disparo.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `supabase/migrations/20260926120000_whatsapp_broadcast_costs.sql` (**aplicada em produção em 2026-09-26**: 2 colunas, 1 linha em `crm_settings`, 3 funções), `lib/whatsapp-broadcast-finance.js` (novo), `lib/whatsapp-broadcasts.js` (`getBroadcastDetail` + respostas), `lib/whatsapp-master.js` (`syncBroadcastMessageStatuses`), `app/api/admin/whatsapp-broadcasts/finance/route.js` (novo), `components/WhatsappDisparoInsights.jsx`/`WhatsappChatCampaigns.jsx` (novos), `WhatsappDisparoManager.jsx`, `WhatsappChat.jsx`; `docs/WHATSAPP.md`, `docs/DATABASE.md`.
+- **Risco/observação:** valores em R$ por categoria são **estimados** (A CONFIRMAR com a fatura Meta); a Meta não informa o valor em reais por evento. Resposta = 1ª mensagem recebida em até 7 dias (um contato que recebe dois disparos no período conta nos dois). Nenhuma regra de envio foi alterada.
+- **Autor:** Claude Code
+
 ### 2026-09-26 — Formulário completa o card do WhatsApp em vez de duplicar
 - **Data:** 2026-09-26
 - **Área:** Clientes / WhatsApp

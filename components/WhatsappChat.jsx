@@ -16,6 +16,7 @@ import {
   LayoutList,
   Loader2,
   MessageCircle,
+  Megaphone,
   MessageSquareText,
   Mic,
   Paperclip,
@@ -28,6 +29,7 @@ import {
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
 import AttendanceGuidePanel from "@/components/guide/AttendanceGuidePanel";
+import WhatsappChatCampaigns from "@/components/WhatsappChatCampaigns";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
@@ -283,7 +285,23 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
           <LayoutList className="h-4 w-4" />Visão geral
           {summary.awaitingLate > 0 ? <span className="rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-5 text-white" title="Conversas sem resposta há mais de 30 min">{summary.awaitingLate}</span> : null}
         </button>
+        {canManage ? (
+          <button type="button" onClick={() => setTab("campaigns")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "campaigns" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
+            <Megaphone className="h-4 w-4" />Campanhas
+          </button>
+        ) : null}
       </div>
+
+      {tab === "campaigns" && canManage ? (
+        <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+          <WhatsappChatCampaigns
+            onOpenConversation={(id) => {
+              setTab("conversations");
+              setTimeout(() => openConversation(id), 0);
+            }}
+          />
+        </div>
+      ) : null}
 
       {tab === "overview" ? (
         <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
@@ -297,7 +315,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
         </div>
       ) : null}
 
-      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" ? "hidden" : ""}`}>
+      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" ? "hidden" : ""}`}>
         <div className={`grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "flex"}

@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, CircleX, Clock, LoaderCircle, RefreshCw, Send, Upload } from "lucide-react";
+import { CostsSection, PerformanceSection, useFinanceReport } from "@/components/WhatsappDisparoInsights";
 
 const SECTIONS = [
   { key: "campaign", label: "Nova campanha" },
   { key: "templates", label: "Templates" },
-  { key: "history", label: "Histórico" }
+  { key: "history", label: "Histórico" },
+  { key: "costs", label: "Gastos" },
+  { key: "performance", label: "Desempenho" }
 ];
 
 const TEMPLATE_STATUS_TONE = {
@@ -32,6 +35,7 @@ export default function WhatsappDisparoManager() {
   const [section, setSection] = useState("campaign");
   const [templates, setTemplates] = useState([]);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const finance = useFinanceReport(section === "costs" || section === "performance");
 
   async function loadTemplates() {
     const response = await fetch("/api/admin/whatsapp-broadcasts/templates");
@@ -71,6 +75,8 @@ export default function WhatsappDisparoManager() {
       ) : null}
       {section === "templates" ? <TemplatesSection templates={templates} onReload={loadTemplates} /> : null}
       {section === "history" ? <HistorySection templates={templates} /> : null}
+      {section === "costs" ? <CostsSection finance={finance} /> : null}
+      {section === "performance" ? <PerformanceSection finance={finance} /> : null}
     </section>
   );
 }
