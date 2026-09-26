@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, UserRound } from "lucide-react";
+import { CLIENT_STATUS_META } from "@/lib/client-status";
 
 export function formatWait(minutes) {
   const value = Math.max(0, Math.round(minutes || 0));
@@ -31,6 +32,19 @@ export function WaitingBadge({ waiting, className = "" }) {
     <span className={`inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600 ${className}`}>
       <Clock className="h-3 w-3" aria-hidden="true" />
       Cliente sem responder há {formatWait(waiting.minutes)}
+    </span>
+  );
+}
+
+// Etapa/situação do card do cliente (mesmos rótulos e cores da lista de Clientes).
+export function ClientStatusBadge({ client, className = "" }) {
+  if (!client?.status) return null;
+  const meta = CLIENT_STATUS_META[client.status];
+  const label = meta?.label || client.statusLabel;
+  if (!label) return null;
+  return (
+    <span className={`inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold ${meta?.badgeClass || "bg-slate-100 text-slate-600"} ${className}`} title={`Situação do cliente: ${label}`}>
+      <span className="truncate">{label}</span>
     </span>
   );
 }

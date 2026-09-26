@@ -79,6 +79,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** a migration `20260925140000` foi aplicada em produção em 2026-09-25 (tabela criada, RLS ligado, sem acesso para anon/authenticated); sem ela o código funcionaria como antes, sem pendentes. Regra confirmada pelo dono em 2026-09-25: prospecção excedente só conta depois de a meta atingir 100% (não “paga” pendente não trabalhado). Não validado com `next build` local (sem `node_modules` na máquina); testes puros passam. Ranking/bônus e `getDailyGoalCompletionStatus` (liberação de prospecção extra) **não** foram alterados.
 - **Autor:** Claude (agente)
 
+### 2026-09-26 — Status do card no Chat e cadastro sem dados padrão
+- **Data:** 2026-09-26
+- **Área:** WhatsApp (Chat) / Clientes
+- **Alteração:** (1) o Chat mostra o status do card do cliente na lista, no cabeçalho da conversa e, no painel, se a simulação foi preenchida. (2) Cliente que não preencheu a simulação deixa de exibir dados padrão (nascimento 01/01/1900, "Autônomo sem registro", "Solteiro", "Não", R$ 0) no card expandido, no detalhe do cadastro e na lista de cadastros; aparece o aviso "O cliente ainda não preencheu os dados da simulação".
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/simulation-registration-schema.js` (`hasSimulationData`, `realBirthDate`), `lib/whatsapp-chat.js`, `components/WhatsappChatBadges.jsx`, `components/WhatsappChat.jsx`, `components/AdminSimulationList.jsx`, `components/RegistrationDetails.jsx`, `components/AdminRegistrationList.jsx`; `docs/BUSINESS_RULES.md` (CLI-5b), `docs/WHATSAPP.md`.
+- **Risco/observação:** só exibição — banco e regras inalterados (os valores padrão continuam gravados; o critério é nascimento ≠ 1900-01-01 ou renda/recurso > 0). Telas de edição (`SimulationGenerator`, formulários) e o PDF/CCA não foram alteradas.
+- **Autor:** Claude Code
+
 ### 2026-09-25 — Aviso ao corretor que recebe os clientes de um usuário excluído
 - **Data:** 2026-09-25
 - **Área:** Clientes / Notificações

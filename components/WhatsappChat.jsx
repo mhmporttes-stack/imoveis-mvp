@@ -30,7 +30,7 @@ import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
 import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
-import { BrokerChip, WaitingBadge } from "@/components/WhatsappChatBadges";
+import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 
 // Filtros da lista — para acrescentar outro no futuro basta uma linha aqui
@@ -449,6 +449,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
         <span className="mt-1 flex flex-wrap gap-1">
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">{STATUS_LABELS[conversation.status] || conversation.status}</span>
           {!conversation.client ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span> : null}
+          <ClientStatusBadge client={conversation.client} className="max-w-[170px]" />
           {conversation.broker ? <BrokerChip broker={conversation.broker} className="max-w-[140px]" /> : null}
           <WaitingBadge waiting={conversation.waiting} />
         </span>
@@ -546,6 +547,7 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways
           <p className="truncate font-black text-navy">{displayName(conversation)}</p>
           <p className="truncate text-xs font-bold text-muted">{formatPhone(conversation.phone)} · {STATUS_LABELS[conversation.status]}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <ClientStatusBadge client={conversation.client} />
             <BrokerChip broker={conversation.broker} />
             <WaitingBadge waiting={conversation.waiting} />
           </div>
@@ -1086,6 +1088,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
           <InfoRow label="Atendendo agora" value={conversation.assignedUserId ? conversation.broker?.name || "—" : "Ninguém"} />
           <InfoRow label="Etapa" value={client.funnelStage || client.statusLabel} />
           <InfoRow label="Situação" value={client.statusLabel} />
+          <InfoRow label="Simulação" value={client.simulationFilled ? "Dados preenchidos" : "Ainda não preencheu"} />
           <InfoRow label="Origem" value={client.origin || (conversation.origin?.kind === "meta_ad" ? "Anúncio Meta" : "—")} />
           <Link href={openClientHref} className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-navy/15 bg-white text-sm font-extrabold text-navy transition hover:border-brand">
             <ExternalLink className="h-4 w-4" /> Abrir cliente

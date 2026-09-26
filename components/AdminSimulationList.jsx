@@ -42,8 +42,10 @@ import {
   formatCurrency,
   formatDateBR,
   formatDateTimeBR,
+  hasSimulationData,
   incomeTypeLabel,
   maritalStatusLabel,
+  realBirthDate,
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
@@ -1812,11 +1814,13 @@ function PendingClientInfo({ registration, status }) {
     return <div className="mt-2">{headline}</div>;
   }
 
-  const lines = [
+  // Sem simulação preenchida o cadastro só tem valores padrão do banco — não mostrar nada.
+  const filled = hasSimulationData(registration);
+  const lines = filled ? [
     Number(registration.primaryMonthlyIncome) > 0 ? `Renda: ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
     registration.primaryIncomeType ? `Regime de trabalho: ${incomeTypeLabel(registration.primaryIncomeType)}` : "",
     Number(registration.availablePurchaseResource) > 0 ? `Recurso próprio: ${formatCurrency(registration.availablePurchaseResource)}` : ""
-  ].filter(Boolean);
+  ].filter(Boolean) : [];
 
   return (
     <div className="mt-2 space-y-1.5">
@@ -1836,30 +1840,39 @@ function InlineRegistrationDetails({ registration, simulation }) {
   }
 
   const familyIncome = calculateFamilyIncome(registration);
+  const filled = hasSimulationData(registration);
   return (
     <div className="mt-4 rounded-2xl border border-blue-100 bg-[#F8FBFF] p-4">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Dados do cadastro</p>
       <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <Detail label="Nome" value={registration.fullName} />
         <Detail label="Telefone" value={formatBrazilianPhone(registration.phoneNormalized || registration.phone)} />
-        <Detail label="Tipo de simulação" value={simulationTypeLabel(registration.simulationType)} />
-        <Detail label="Nascimento" value={formatDateBR(registration.oldestBirthDate)} />
         <Detail label="Enviado em" value={formatDateTimeBR(registration.createdAt)} />
-        <Detail label="Renda familiar" value={formatCurrency(familyIncome)} />
-        <Detail label="Renda do titular" value={formatCurrency(registration.primaryMonthlyIncome)} />
-        <Detail label="Tipo de renda" value={incomeTypeLabel(registration.primaryIncomeType)} />
-        <Detail label="Estado civil" value={maritalStatusLabel(registration.primaryMaritalStatus)} />
-        {registration.simulationType === "joint" ? (
+        {filled ? (
           <>
-            <Detail label="Renda da segunda pessoa" value={formatCurrency(registration.secondaryMonthlyIncome)} />
-            <Detail label="Renda da segunda pessoa" value={incomeTypeLabel(registration.secondaryIncomeType)} />
-            <Detail label="Estado civil da segunda pessoa" value={maritalStatusLabel(registration.secondaryMaritalStatus)} />
+            <Detail label="Tipo de simulação" value={simulationTypeLabel(registration.simulationType)} />
+            <Detail label="Nascimento" value={realBirthDate(registration.oldestBirthDate) ? formatDateBR(registration.oldestBirthDate) : ""} />
+            <Detail label="Renda familiar" value={formatCurrency(familyIncome)} />
+            <Detail label="Renda do titular" value={formatCurrency(registration.primaryMonthlyIncome)} />
+            <Detail label="Tipo de renda" value={incomeTypeLabel(registration.primaryIncomeType)} />
+            <Detail label="Estado civil" value={maritalStatusLabel(registration.primaryMaritalStatus)} />
+            {registration.simulationType === "joint" ? (
+              <>
+                <Detail label="Renda da segunda pessoa" value={formatCurrency(registration.secondaryMonthlyIncome)} />
+                <Detail label="Renda da segunda pessoa" value={incomeTypeLabel(registration.secondaryIncomeType)} />
+                <Detail label="Estado civil da segunda pessoa" value={maritalStatusLabel(registration.secondaryMaritalStatus)} />
+              </>
+            ) : null}
+            <Detail label="Mais de 3 anos de registro" value={booleanLabel(registration.hasOverThreeYearsRegisteredWork)} />
+            <Detail label="Filhos menores de 18 anos" value={booleanLabel(registration.hasChildrenUnder18)} />
+            <Detail label="Possui imóvel no nome" value={booleanLabel(registration.hasResidentialProperty)} />
+            <Detail label="Recurso próprio" value={formatCurrency(registration.availablePurchaseResource)} />
           </>
-        ) : null}
-        <Detail label="Mais de 3 anos de registro" value={booleanLabel(registration.hasOverThreeYearsRegisteredWork)} />
-        <Detail label="Filhos menores de 18 anos" value={booleanLabel(registration.hasChildrenUnder18)} />
-        <Detail label="Possui imóvel no nome" value={booleanLabel(registration.hasResidentialProperty)} />
-        <Detail label="Recurso próprio" value={formatCurrency(registration.availablePurchaseResource)} />
+        ) : (
+          <p className="rounded-2xl border border-dashed border-line bg-white px-3 py-2 text-sm font-bold text-muted sm:col-span-2 lg:col-span-3">
+            O cliente ainda não preencheu os dados da simulação.
+          </p>
+        )}
         {simulation?.id ? <Detail label="Simulação vinculada" value="Sim" /> : <Detail label="Simulação vinculada" value="Não" />}
         <EditableDetail label="E-mail" registrationId={registration.id} field="email" initialValue={registration.email} placeholder="cliente@exemplo.com" />
         <EditableDetail label="PIS" registrationId={registration.id} field="pis" initialValue={registration.pis} placeholder="Número do PIS" />

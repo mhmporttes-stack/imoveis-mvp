@@ -9,6 +9,7 @@ import {
   calculateFamilyIncome,
   formatCurrency,
   formatDateTimeBR,
+  hasSimulationData,
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 
@@ -83,38 +84,52 @@ export default function AdminRegistrationList({ registrations = [], isOwner = fa
 
 function RegistrationCard({ registration, removeRegistration, isOwner }) {
   const familyIncome = calculateFamilyIncome(registration);
+  // Sem simulação preenchida só há valores padrão do banco: não exibir.
+  const filled = hasSimulationData(registration);
 
   return (
     <article className="rounded-[28px] border border-line bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_55px_rgba(13,59,102,0.12)]">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-brand">
-              {simulationTypeLabel(registration.simulationType)}
-            </span>
-            <span className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-navy">
-              Renda familiar {formatCurrency(familyIncome)}
-            </span>
-          </div>
+          {filled ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-brand">
+                {simulationTypeLabel(registration.simulationType)}
+              </span>
+              <span className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-navy">
+                Renda familiar {formatCurrency(familyIncome)}
+              </span>
+            </div>
+          ) : null}
           <h2 className="text-2xl font-black leading-tight text-navy">{registration.fullName}</h2>
           <div className="mt-4 grid gap-3 text-sm font-bold text-muted sm:grid-cols-2 xl:grid-cols-4">
             <InfoItem icon={Phone} label={registration.phone} />
             <InfoItem icon={CalendarClock} label={formatDateTimeBR(registration.createdAt)} />
-            <InfoItem icon={UserRound} label={`Titular: ${formatCurrency(registration.primaryMonthlyIncome)}`} />
-            <InfoItem
-              icon={UserRound}
-              label={
-                registration.simulationType === "joint"
-                  ? `2ª pessoa: ${formatCurrency(registration.secondaryMonthlyIncome)}`
-                  : "Sem segunda pessoa"
-              }
-            />
+            {filled ? (
+              <>
+                <InfoItem icon={UserRound} label={`Titular: ${formatCurrency(registration.primaryMonthlyIncome)}`} />
+                <InfoItem
+                  icon={UserRound}
+                  label={
+                    registration.simulationType === "joint"
+                      ? `2ª pessoa: ${formatCurrency(registration.secondaryMonthlyIncome)}`
+                      : "Sem segunda pessoa"
+                  }
+                />
+              </>
+            ) : (
+              <InfoItem icon={UserRound} label="Simulação ainda não preenchida" />
+            )}
           </div>
         </div>
 
         <div className="grid min-w-[250px] gap-3 text-sm">
-          <StatusLine label="Imóvel no nome" value={booleanLabel(registration.hasResidentialProperty)} icon={Home} />
-          <StatusLine label="Valor disponível" value={formatCurrency(registration.availablePurchaseResource)} />
+          {filled ? (
+            <>
+              <StatusLine label="Imóvel no nome" value={booleanLabel(registration.hasResidentialProperty)} icon={Home} />
+              <StatusLine label="Valor disponível" value={formatCurrency(registration.availablePurchaseResource)} />
+            </>
+          ) : null}
           <Link href={`/admin/cadastros/${registration.id}`} className="premium-button-primary justify-center">
             Abrir cadastro
           </Link>
