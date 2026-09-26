@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  ArchiveRestore,
   ArrowLeft,
   BookOpen,
   Check,
   CheckCheck,
+  EllipsisVertical,
   ExternalLink,
   FileText,
   Info,
@@ -473,10 +475,26 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
   const messages = detail?.messages || [];
+  const showAssume = Boolean(conversation) && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function onPointerDown(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [conversation?.id]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -548,53 +566,86 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways
 
   return (
     <>
-      <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <button type="button" onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-mist lg:hidden" aria-label="Voltar para as conversas">
-          <ArrowLeft className="h-5 w-5 text-navy" />
-        </button>
-        <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-black text-navy">{displayName(conversation)}</p>
-          <p className="truncate text-xs font-bold text-muted">{formatPhone(conversation.phone)} · {STATUS_LABELS[conversation.status]}</p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1">
-            <ClientStatusBadge client={conversation.client} />
-            <BrokerChip broker={conversation.broker} />
-            <WaitingBadge waiting={conversation.waiting} />
+      <header className="border-b border-line px-3 py-2.5 sm:px-4 sm:py-3">
+        {/* Linha 1: identidade (o telefone fica no painel de informações) + ações */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button type="button" onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-mist lg:hidden" aria-label="Voltar para as conversas">
+            <ArrowLeft className="h-5 w-5 text-navy" />
+          </button>
+          <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-black leading-tight text-navy">{displayName(conversation)}</p>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden">
+              <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-extrabold ${conversation.window?.open ? "text-emerald-600" : "text-amber-700"}`}>
+                <span className={`h-2 w-2 rounded-full ${conversation.window?.open ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
+                {conversation.window?.open ? "Janela aberta" : "Janela fechada"}
+              </span>
+              {conversation.client ? <ClientStatusBadge client={conversation.client} className="min-w-0 whitespace-nowrap" /> : <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span>}
+            </div>
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {conversation.assignedUserId !== currentUserId && conversation.status !== "finished" ? (
-            <button type="button" onClick={assume} disabled={assuming} className="rounded-full bg-navy px-3 py-1.5 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60">
-              {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
-            </button>
-          ) : null}
-
-          {conversation.status !== "finished" ? (
-            <button type="button" onClick={() => changeStatus("finished")} className="rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand">Finalizar</button>
-          ) : (
-            <button type="button" onClick={() => changeStatus("open")} className="rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand">Reabrir</button>
-          )}
-          {conversation.canInternal ? (
+          <div className="flex shrink-0 items-center gap-1">
+            {showAssume ? (
+              <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
+                {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={() => { setDeleteError(""); setConfirmingDelete(true); }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-              title="Excluir conversa"
-              aria-label="Excluir conversa"
+              onClick={onToggleInfo}
+              className={`grid h-9 w-9 place-items-center rounded-full hover:bg-mist ${infoAlways ? "" : "xl:hidden"} ${infoOpen ? "bg-blue-50 text-brand" : "text-navy"}`}
+              aria-label="Informações do contato"
+              title="Informações do contato"
             >
-              <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Excluir conversa</span>
+              <Info className="h-5 w-5" />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onToggleInfo}
-            className={`grid h-9 w-9 place-items-center rounded-full hover:bg-mist ${infoAlways ? "" : "xl:hidden"} ${infoOpen ? "bg-blue-50 text-brand" : "text-navy"}`}
-            aria-label="Informações do contato"
-          >
-            <Info className="h-5 w-5" />
-          </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((value) => !value)}
+                className={`grid h-9 w-9 place-items-center rounded-full hover:bg-mist ${menuOpen ? "bg-blue-50 text-brand" : "text-navy"}`}
+                aria-label="Mais ações da conversa"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title="Mais ações"
+              >
+                <EllipsisVertical className="h-5 w-5" />
+              </button>
+              {menuOpen ? (
+                <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-soft">
+                  {conversation.status !== "finished" ? (
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); changeStatus("finished"); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
+                      <CheckCheck className="h-4 w-4 text-emerald-600" /> Finalizar conversa
+                    </button>
+                  ) : (
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); changeStatus("open"); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
+                      <ArchiveRestore className="h-4 w-4 text-brand" /> Reabrir conversa
+                    </button>
+                  )}
+                  {conversation.canInternal ? (
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDeleteError(""); setConfirmingDelete(true); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-red-600 hover:bg-red-50">
+                      <Trash2 className="h-4 w-4" /> Excluir conversa
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
+
+        {/* Linha 2: corretor e sinais de atenção, cada selo numa linha só (rola de lado se não couber) */}
+        <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <BrokerChip broker={conversation.broker} className="shrink-0 whitespace-nowrap" />
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">{STATUS_LABELS[conversation.status] || conversation.status}</span>
+          <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
+        </div>
+
+        {/* Linha 3 (celular): faixa larga para assumir o atendimento */}
+        {showAssume ? (
+          <button type="button" onClick={assume} disabled={assuming} className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-navy text-sm font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:hidden">
+            {assuming ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+            {assuming ? "Assumindo…" : "Assumir atendimento"}
+          </button>
+        ) : null}
       </header>
 
       <div className="flex items-center gap-1.5 border-b border-line bg-white px-4 py-1.5" role="tablist" aria-label="Chat e Guia de Atendimento">

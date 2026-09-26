@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-26 — Novo cabeçalho da conversa no Chat
+- **Data:** 2026-09-26
+- **Área:** WhatsApp (Chat) — visual
+- **Alteração:** cabeçalho reorganizado em camadas (nome sem telefone + janela de 24 h + status do card; corretor e sinais numa linha; "Assumir atendimento" em faixa larga no celular). "Finalizar/Reabrir" e "Excluir conversa" passaram para o menu "⋯". O selo "Cliente sem responder há X" agora diz "Cliente em silêncio há X".
+- **Motivo:** pedido do dono — nome e selos ficavam cortados no celular.
+- **Arquivos afetados:** `components/WhatsappChat.jsx`, `components/WhatsappChatBadges.jsx`; `docs/WHATSAPP.md`.
+- **Risco/observação:** só visual; rotas, permissões e regras inalteradas. Finalizar ficou 1 toque mais longe (decisão do dono pode reverter).
+- **Autor:** Claude Code
+
 ### 2026-09-25 — Chat muda o status do cliente sozinho (Tentando contato / Em atendimento)
 - **Data:** 2026-09-25
 - **Área:** WhatsApp / Funil
