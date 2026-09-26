@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-26 — Chat baixa imagens, documentos e vídeos recebidos (antes só áudio)
+- **Data:** 2026-09-26
+- **Área:** WhatsApp (Chat)
+- **Alteração:** imagem, documento, vídeo e figurinha recebidos passam a ser baixados da Meta e guardados no bucket privado `whatsapp-inbound-media` (como o áudio). No Chat: imagem com "Baixar", documento com nome/tamanho + "Abrir"/"Baixar" (nome original), vídeo com player. A rota `GET /api/admin/whatsapp-chat/media/[messageId]` (mesma permissão da conversa) entrega áudio em bytes e as demais mídias por redirecionamento a um link temporário (5 min); `?download=1` salva com o nome original; `?retry=1` tenta de novo. `POST .../media/recover` (admin/gestor) recupera as mídias dos últimos 14 dias.
+- **Motivo:** urgente — cliente enviou a documentação pelo Chat e só aparecia "[Documento] — abra no WhatsApp".
+- **Arquivos afetados:** `lib/whatsapp-media.js`, `lib/whatsapp-media-utils.mjs`, `lib/whatsapp-chat.js`, `lib/whatsapp-master.js`, `app/api/admin/whatsapp-chat/media/**`, `components/WhatsappChat.jsx`, `tests/whatsapp-media-utils.test.mjs`.
+- **Risco/observação:** "Mensagem não suportada" (tipo `unsupported`, erro 131051 da Meta) não traz arquivo: não há o que baixar; a tela agora explica. Limite de 16 MB por arquivo. Docs (`WHATSAPP.md` §6 ainda diz que só áudio é baixado) **A SINCRONIZAR**.
+- **Autor:** Claude Code
+
 ### 2026-09-26 — Disparo: Gastos, Desempenho e Chat > Campanhas
 - **Data:** 2026-09-26
 - **Área:** WhatsApp (Disparo / Chat) / Banco

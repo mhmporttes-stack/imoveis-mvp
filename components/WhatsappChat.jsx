@@ -9,6 +9,7 @@ import {
   BookOpen,
   Check,
   CheckCheck,
+  Download,
   EllipsisVertical,
   ExternalLink,
   FileText,
@@ -746,7 +747,9 @@ function MessageBubble({ message }) {
           <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">{message.automationKind === "flow" ? "Automação · Fluxo" : "Automação"}</p>
         ) : null}
         {message.media ? <MediaPreview media={message.media} type={message.type} /> : isMedia ? (
-          <p className="text-sm font-bold italic text-slate-500">[{label}] — abra no WhatsApp para visualizar</p>
+          <p className="text-sm font-bold italic text-slate-500">{message.type === "unsupported"
+            ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
+            : `[${label}] — abra no WhatsApp para visualizar`}</p>
         ) : null}
         {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Atalho · {message.shortcut}</p> : null}
         {message.body ? <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p> : null}
@@ -782,20 +785,74 @@ function StatusTicks({ status }) {
   return <Loader2 className="h-3 w-3 animate-spin" aria-label="Enviando" />;
 }
 
-function MediaPreview({ media, type }) {
-  if (type === "image") {
+function formatFileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (!size) return "";
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+}
+
+// Mídia RECEBIDA do cliente é servida pela rota autenticada do CRM; "?download=1" salva com o nome original.
+function downloadUrl(media) {
+  return media.inbound ? `${media.url}?download=1` : media.url;
+}
+
+function DownloadLink({ media, label = "Baixar" }) {
+  return (
+    <a href={downloadUrl(media)} className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-extrabold text-brand hover:bg-white">
+      <Download className="h-3.5 w-3.5" /> {label}
+    </a>
+  );
+}
+
+function InboundImage({ media, type }) {
+  const [src, setSrc] = useState(media.url);
+  const [failed, setFailed] = useState(false);
+  if (failed) {
     return (
-      <a href={media.url} target="_blank" rel="noreferrer" className="mb-1 block">
-        <img src={media.url} alt={media.name || "Imagem"} className="max-h-64 w-full rounded-xl object-cover" loading="lazy" />
-      </a>
+      <div className="mb-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+        Não foi possível carregar {type === "sticker" ? "a figurinha" : "a imagem"}.{" "}
+        <button type="button" onClick={() => { setFailed(false); setSrc(`${media.url}?retry=1&t=${Date.now()}`); }} className="underline">Tentar de novo</button>
+      </div>
     );
   }
-  if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} />;
   return (
-    <a href={media.url} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm font-extrabold text-brand">
-      <FileText className="h-4 w-4 shrink-0" />
-      <span className="truncate">{media.name || "Documento"}</span>
-    </a>
+    <div className="mb-1">
+      <a href={media.url} target="_blank" rel="noreferrer" className="block">
+        <img src={src} alt={media.name || "Imagem"} onError={() => setFailed(true)} className={type === "sticker" ? "max-h-40 w-auto" : "max-h-72 w-full rounded-xl object-cover"} loading="lazy" />
+      </a>
+      {media.inbound && type !== "sticker" ? <div className="mt-1"><DownloadLink media={media} /></div> : null}
+    </div>
+  );
+}
+
+function MediaPreview({ media, type }) {
+  if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} />;
+  if (type === "image" || type === "sticker") return <InboundImage media={media} type={type} />;
+  if (type === "video") {
+    return (
+      <div className="mb-1">
+        <video controls preload="metadata" src={media.url} className="max-h-72 w-full rounded-xl bg-black" />
+        {media.inbound ? <div className="mt-1"><DownloadLink media={media} /></div> : null}
+      </div>
+    );
+  }
+  // Documento (PDF, Word, Excel…): nome, tamanho, abrir e baixar.
+  const size = formatFileSize(media.size);
+  return (
+    <div className="mb-1 rounded-xl bg-white/70 px-3 py-2">
+      <div className="flex items-center gap-2 text-sm font-extrabold text-navy">
+        <FileText className="h-5 w-5 shrink-0 text-brand" />
+        <span className="min-w-0 flex-1 truncate">{media.name || "Documento"}</span>
+        {size ? <span className="shrink-0 text-[11px] font-bold text-slate-400">{size}</span> : null}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        <a href={media.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 px-3 py-1 text-xs font-extrabold text-brand hover:bg-white">
+          <ExternalLink className="h-3.5 w-3.5" /> Abrir
+        </a>
+        <DownloadLink media={media} />
+      </div>
+    </div>
   );
 }
 
