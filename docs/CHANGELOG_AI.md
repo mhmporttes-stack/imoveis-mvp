@@ -52,6 +52,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** só visual; rotas, permissões e regras inalteradas. Finalizar ficou 1 toque mais longe (decisão do dono pode reverter).
 - **Autor:** Claude Code
 
+### 2026-09-26 — Novo status “Atendimento automático” para cliente do WhatsApp sem formulário
+- **Data:** 2026-09-26
+- **Área:** WhatsApp / Funil / Banco
+- **Alteração:** novo status `automated_service` (“Atendimento automático”): o cliente criado pelo WhatsApp (roleta) sem formulário preenchido nasce nele, não em “Aguardando simulação”; corretor responde no Chat → “Em atendimento”; preenche o formulário → “Aguardando simulação” (já existia). Chat: contato de conversa já assumida e conversa adicionada ao CRM sem formulário já ficam “Em atendimento”. Aparece na aba Atendimento; é status ativo.
+- **Motivo:** pedido do dono (2026-09-26): sem formulário preenchido o status não pode ser “Aguardando simulação”.
+- **Arquivos afetados:** `supabase/migrations/20260926140000_client_status_automated_service.sql` (novo), `lib/client-status.js`, `lib/client-status-history.js`, `lib/whatsapp-client-status-core.mjs`, `lib/whatsapp-client-status.js`, `lib/whatsapp-chat.js`, `lib/simulation-registrations.js`, `components/AdminSimulationList.jsx`, `tests/whatsapp-client-status.test.mjs`, `docs/BUSINESS_RULES.md` (WA-9), `docs/WHATSAPP.md`, `docs/CRM_CONTEXT.md`, `docs/DATABASE.md`.
+- **Risco/observação:** migration em 3 partes (restrições → deploy → função da roleta + correção de 8 clientes reais). Sem tela pública própria: a Minha Jornada cai no texto padrão. Ranking: “Em atendimento” automático credita o ponto de atendimento ao corretor responsável (uma vez por cliente) — **confirmar com o dono**. O teste do Fluxo “Menu principal” continua falhando (P-15, anterior a esta mudança). Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-25 — Chat muda o status do cliente sozinho (Tentando contato / Em atendimento)
 - **Data:** 2026-09-25
 - **Área:** WhatsApp / Funil

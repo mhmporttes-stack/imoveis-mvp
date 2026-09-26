@@ -52,7 +52,7 @@ Outras entradas públicas que **não** criam cliente: modal da home (`/api/leads
 
 ## 5. Ciclo de vida do cliente e funil
 
-Status (fonte única `lib/client-status.js`, 24 valores): `pending` (Aguardando simulação) → `completed` → `simulation_sent` → `in_service` → `awaiting_return` (Tentando contato) → `documentation_pending` / `documents_pending` → `approval_pending` → `restriction` / `shielding` / `rejected` / `approved` → `meeting_pending` / `meeting_done` → 8 status de venda (`sale_completed` … `sale_payment`) e fora do funil `archived` / `do_not_contact`.
+Status (fonte única `lib/client-status.js`, 25 valores): `automated_service` (Atendimento automático — cliente do WhatsApp que ainda não preencheu o formulário) → `pending` (Aguardando simulação) → `completed` → `simulation_sent` → `in_service` → `awaiting_return` (Tentando contato) → `documentation_pending` / `documents_pending` → `approval_pending` → `restriction` / `shielding` / `rejected` / `approved` → `meeting_pending` / `meeting_done` → 8 status de venda (`sale_completed` … `sale_payment`) e fora do funil `archived` / `do_not_contact`.
 
 **Funil comercial (7 macroetapas)**: Atendimento → Simulação → Aguardando documentação → Aguardando aprovação (inclui restrição/blindagem/reprovado) → Cliente aprovado → Reunião → Venda; base = “Prospecção/novos clientes do período”. É **cumulativo** por design. Abas da tela Clientes: Todos, Prospecção, Atendimento, Simulação, Documentação, Aprovação, Aprovados, Reunião, Venda, Arquivados.
 

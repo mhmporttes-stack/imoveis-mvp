@@ -49,7 +49,7 @@
 |---|---|
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
 | `assign_round_robin_lead(excluded)` | roleta simples (reserva/fallback; **não alterar**) |
-| `whatsapp_get_or_create_roulette_client(...)`, `whatsapp_phone_lock_key` | cliente único por telefone via roleta, atômico; desde `20260924210000` recebe `p_conversation_id` (vincula a conversa e a atribui ao mesmo corretor) e `p_history_details` (grava `lead_distribution_history`) |
+| `whatsapp_get_or_create_roulette_client(...)`, `whatsapp_phone_lock_key` | cliente único por telefone via roleta, atômico; desde `20260924210000` recebe `p_conversation_id` (vincula a conversa e a atribui ao mesmo corretor) e `p_history_details` (grava `lead_distribution_history`) | **[2026-09-26]** cria o cliente em `automated_service` (Atendimento automático), não `pending`; as restrições `simulation_registrations_status_check` e `client_status_history_*_status_check` aceitam o valor novo (migration `20260926140000`).
 | `whatsapp_chat_apply_inbound/outbound` | atualização atômica da conversa (não lidas, prévia, janela); `apply_inbound` também **restaura** conversa excluída (`deleted_at = null`) e audita |
 | `claim_whatsapp_broadcast_message`, `begin_whatsapp_broadcast_send`, `recover_stuck_whatsapp_broadcast_messages` | fila do Disparo sem duplicidade |
 | `increment_whatsapp_automation_reply_count`, `increment_whatsapp_flow_count` | contadores |
