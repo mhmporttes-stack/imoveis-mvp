@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, CalendarClock, Check, ChevronRight, CircleCheck, Copy, Info, Loader2, RotateCcw } from "lucide-react";
-import { PHASES, RULE_PHASES, advance, fillPlaceholders, getOutputPorts, goBack, startState } from "@/lib/attendance-guide-core.mjs";
+import { ArrowLeft, BookOpen, CalendarClock, Check, ChevronRight, CircleCheck, Copy, Info, Loader2, RotateCcw, Pencil } from "lucide-react";
+import { PHASES, RULE_PHASES, advance, fillPlaceholders, findUnresolvedPlaceholders, getOutputPorts, goBack, startState } from "@/lib/attendance-guide-core.mjs";
 
 // Guia de Atendimento ao lado do Chat: árvore de decisão para o corretor. O guia certo abre sozinho conforme a
 // origem do cliente (Prospecção / Lead / Orgânico) e o progresso é salvo por cliente — ao voltar, continua
@@ -49,7 +49,9 @@ async function copyText(text) {
   }
 }
 
-export default function AttendanceGuidePanel({ conversationId, className = "" }) {
+// onInsert(texto): coloca a mensagem no campo do Chat DESTA conversa (o corretor revisa e envia). canInsert = janela de
+// 24h aberta (fora dela só modelo aprovado).
+export default function AttendanceGuidePanel({ conversationId, className = "", onInsert = null, canInsert = true }) {
   const [session, setSession] = useState(null);
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -167,6 +169,11 @@ export default function AttendanceGuidePanel({ conversationId, className = "" })
           <p className="rounded-2xl border border-dashed border-line p-5 text-center text-sm font-bold text-muted">Este guia ainda não tem cards ligados ao início.</p>
         ) : null}
         {saveWarning ? <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{saveWarning}</p> : null}
+        {session?.formFilledAt ? (
+          <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-extrabold leading-4 text-emerald-800" data-form-filled>
+            <Check className="mr-1 inline h-3.5 w-3.5" />Este cliente já preencheu o formulário ({formatAgo(session.formFilledAt)}). Não peça o link de novo: use a simulação dele.
+          </p>
+        ) : null}
 
         {session?.guide && node ? (
           <GuideStep
@@ -176,7 +183,8 @@ export default function AttendanceGuidePanel({ conversationId, className = "" })
             state={state}
             inLibrary={inLibrary}
             session={session}
-            conversationId={conversationId}
+            onInsert={onInsert}
+            canInsert={canInsert}
             onPick={(portId) => update(advance(state, graphs, portId))}
           />
         ) : null}
@@ -202,7 +210,32 @@ function PhaseStrip({ phase }) {
   );
 }
 
-function CopyMessage({ text }) {
+function formatAgo(value) {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `há ${hours} h` : `há ${Math.round(hours / 24)} dias`;
+}
+
+function InsertMessage({ text, onInsert, disabled }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { onInsert(text); setDone(true); setTimeout(() => setDone(false), 2500); }}
+        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-brand text-sm font-extrabold text-white transition hover:bg-navy disabled:opacity-50"
+        data-insert-message
+      >
+        {done ? <><Check className="h-4 w-4" />Inserida — revise e envie</> : <><Pencil className="h-4 w-4" />Inserir no chat</>}
+      </button>
+      {disabled ? <p className="mt-1 text-[11px] font-bold text-muted">Janela de 24h fechada: use um modelo aprovado no Chat.</p> : null}
+    </div>
+  );
+}
+
+function CopyMessage({ text, secondary = false }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     if (await copyText(text)) {
@@ -214,21 +247,23 @@ function CopyMessage({ text }) {
     <button
       type="button"
       onClick={copy}
-      className={`mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-extrabold transition ${copied ? "bg-emerald-500 text-white" : "bg-navy text-white hover:bg-[#082f55]"}`}
+      className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-extrabold transition ${copied ? "bg-emerald-500 text-white" : secondary ? "border border-navy/20 bg-white text-navy hover:border-brand" : "bg-navy text-white hover:bg-[#082f55]"}`}
     >
       {copied ? <><Check className="h-4 w-4" />Mensagem copiada!</> : <><Copy className="h-4 w-4" />Copiar mensagem</>}
     </button>
   );
 }
 
-function GuideStep({ node, graph, state, inLibrary, session, conversationId, onPick }) {
+function GuideStep({ node, graph, state, inLibrary, session, onInsert, canInsert, onPick }) {
   const data = node.data || {};
-  const fill = (text) => fillPlaceholders(text, { clientName: session.client?.name, brokerName: session.broker?.name, simulationLink: session.broker?.simulationLink });
+  const fill = (text) => fillPlaceholders(text, { clientName: session.client?.name, brokerName: session.broker?.name, simulationLink: session.broker?.simulationLink, brokerVars: session.broker?.vars });
   const ports = getOutputPorts(node);
   // Saída sem ligação não leva a lugar nenhum: no card de retorno ela some (fim do atendimento).
   const linkedPorts = ports.filter((port) => (graph?.edges || []).some((edge) => edge.from === node.id && edge.port === port.id));
   const trail = (state.path || []).slice(-3).map((item) => item.label).filter(Boolean);
   const message = fill(data.message);
+  const unresolved = findUnresolvedPlaceholders(message);
+  const asksForLink = /\[link\]/i.test(String(data.message || ""));
 
   return (
     <div className="space-y-3">
@@ -264,7 +299,16 @@ function GuideStep({ node, graph, state, inLibrary, session, conversationId, onP
           <div className="rounded-2xl rounded-tl-md border border-blue-100 bg-[#EAF2FF] p-3.5">
             <p className="whitespace-pre-wrap text-sm font-semibold leading-5 text-navy" data-guide-message>{message}</p>
           </div>
-          <CopyMessage text={message} />
+          {session.formFilledAt && asksForLink ? (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">O cliente já preencheu o formulário — não envie o link de novo.</p>
+          ) : null}
+          {unresolved.length ? (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Falta preencher {unresolved.join(", ")} antes de enviar (edite no campo do chat).</p>
+          ) : null}
+          <div className="mt-2 grid gap-2">
+            {onInsert ? <InsertMessage text={message} onInsert={onInsert} disabled={!canInsert} /> : null}
+            <CopyMessage text={message} secondary={Boolean(onInsert)} />
+          </div>
         </section>
       ) : null}
 

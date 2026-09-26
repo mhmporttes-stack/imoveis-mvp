@@ -114,6 +114,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
   const [isDesktop, setIsDesktop] = useState(true);
   const [guideDesktop, setGuideDesktop] = useState(true);
   const [guideMobile, setGuideMobile] = useState(false);
+  const [insertRequest, setInsertRequest] = useState(null); // { conversationId, text, nonce }
 
   const sectionRef = useRef(null);
   const filterRef = useRef(filter);
@@ -143,6 +144,12 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
   }, []);
 
   const guideOpen = isDesktop ? guideDesktop : guideMobile;
+  // "Inserir no chat": o texto vai para o campo da conversa ABERTA (marcado com o id dela — nunca para outra).
+  const insertIntoComposer = useCallback((text) => {
+    if (!selectedRef.current) return;
+    setInsertRequest({ conversationId: selectedRef.current, text, nonce: Date.now() });
+    setGuideMobile(false);
+  }, []);
   const setGuideOpen = useCallback((open) => {
     if (isDesktop) {
       setGuideDesktop(open);
@@ -251,10 +258,12 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
     setDetailError("");
     setInfoOpen(false);
     setGuideMobile(false);
+    setInsertRequest(null);
     loadDetail(id).then(() => refreshSummary());
   }
 
   function closeConversation() {
+    setInsertRequest(null);
     setSelectedId("");
     selectedRef.current = "";
     setDetail(null);
@@ -313,6 +322,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
                 error={detailError}
                 infoOpen={infoOpen}
                 guideOpen={guideOpen}
+                insertRequest={insertRequest}
                 infoAlways={guideOpen && isDesktop}
                 onSetGuideOpen={setGuideOpen}
                 onBack={closeConversation}
@@ -343,7 +353,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
 
           {selectedId && guideOpen && isDesktop ? (
             <aside className="flex min-h-0 flex-col overflow-hidden border-l border-line">
-              <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" />
+              <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" onInsert={insertIntoComposer} canInsert={detail?.conversation?.window?.open !== false} />
             </aside>
           ) : selectedId && detail ? (
             <aside className="hidden min-h-0 overflow-y-auto border-l border-line xl:block">
@@ -358,7 +368,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
           <div className="flex items-center gap-2 border-b border-line px-3 py-2">
             <button type="button" onClick={() => setGuideOpen(false)} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand"><ArrowLeft className="h-4 w-4" />Voltar ao chat</button>
           </div>
-          <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" />
+          <AttendanceGuidePanel key={selectedId} conversationId={selectedId} className="min-h-0 flex-1" onInsert={insertIntoComposer} canInsert={detail?.conversation?.window?.open !== false} />
         </div>
       ) : null}
 
@@ -470,7 +480,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
   );
 }
 
-function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
+function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -669,7 +679,7 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, infoAlways
         {!rows.length ? <p className="py-8 text-center text-sm font-bold text-muted">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
 
-      <Composer canManage={canManage} conversation={conversation} onSent={onChanged} />
+      <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} onSent={onChanged} />
 
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
@@ -792,8 +802,9 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function Composer({ canManage, conversation, onSent }) {
+function Composer({ canManage, conversation, insertRequest = null, onSent }) {
   const [text, setText] = useState("");
+  const textareaRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [attachment, setAttachment] = useState(null); // { file, previewUrl }
@@ -813,6 +824,17 @@ function Composer({ canManage, conversation, onSent }) {
     setInternalMode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
+
+  // Mensagem vinda do Guia de Atendimento: entra no campo (a pessoa revisa e envia). Só vale para a conversa aberta.
+  useEffect(() => {
+    if (!insertRequest || insertRequest.conversationId !== conversation.id) return;
+    setInternalMode(false);
+    setText(insertRequest.text);
+    setError("");
+    const handle = setTimeout(() => textareaRef.current?.focus(), 60);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertRequest?.nonce]);
 
   const canInternal = Boolean(conversation.canInternal);
 
@@ -964,6 +986,7 @@ function Composer({ canManage, conversation, onSent }) {
           <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending} onSent={onSent} />
           {canInternal ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
           <textarea
+            ref={textareaRef}
             className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             disabled={sending}
             onChange={(event) => setText(event.target.value)}
