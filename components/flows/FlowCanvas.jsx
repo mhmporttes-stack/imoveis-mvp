@@ -62,6 +62,7 @@ const FlowCanvas = forwardRef(function FlowCanvas(
 
   const graphRef = useRef(graph);
   const viewRef = useRef(view);
+  const lastTapRef = useRef(null); // { nodeId, time } — pro duplo toque abrir o card no celular
   graphRef.current = graph;
   viewRef.current = view;
 
@@ -150,12 +151,12 @@ const FlowCanvas = forwardRef(function FlowCanvas(
     window.addEventListener("pointerup", up);
   }
 
-  // --- arrastar um bloco ---
+  // --- arrastar um bloco (1 toque arrasta; abrir pra editar exige 2 toques rápidos, senão no
+  // celular tocar e segurar pra mover já abria o painel e atrapalhava o arrasto) ---
   function onNodePointerDown(event, node) {
     if (event.button !== 0) return;
     event.stopPropagation();
     setMenu(null);
-    onSelect(node.id);
     const startX = event.clientX;
     const startY = event.clientY;
     const origin = { x: node.x, y: node.y };
@@ -166,6 +167,7 @@ const FlowCanvas = forwardRef(function FlowCanvas(
       if (!started) {
         if (Math.abs(dx) + Math.abs(dy) < 3) return;
         started = true;
+        lastTapRef.current = null; // virou arrasto: não conta pro duplo toque
         // Guarda o estado anterior no histórico (desfazer) e depois move sem histórico.
         onGraphChange(graphRef.current, { history: true, key: `move-${node.id}-${startX}-${startY}` });
       }
@@ -177,6 +179,15 @@ const FlowCanvas = forwardRef(function FlowCanvas(
     function up() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      if (started) return;
+      const last = lastTapRef.current;
+      const now = Date.now();
+      if (last && last.nodeId === node.id && now - last.time < 400) {
+        lastTapRef.current = null;
+        onSelect(node.id); // 2º toque: abre o painel
+      } else {
+        lastTapRef.current = { nodeId: node.id, time: now };
+      }
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
