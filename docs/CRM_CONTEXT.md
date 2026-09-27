@@ -30,7 +30,7 @@ Regras de acesso completas (guards por rota/página): [`PERMISSIONS.md`](PERMISS
 - **Corretor**: CRM (Meta Diária, Clientes, Chat, Oportunidades, Empreendimentos, Agenda, Prospecção) · CADASTROS (Cadastrar imóvel, Cadastrar depoimento) · DESEMPENHO (Relatório Diário, Financeiro).
 - **Associado**: como corretor, sem Oportunidades e só com Financeiro no grupo de desempenho.
 - Telas fora do menu: `/admin/notificacoes`, `/admin/cadastros` (lista legada), `/admin/simulacoes/[id]` (a entidade “simulação”), `/admin/automacoes/fluxos/[id]` (editor de Fluxos). `/admin/whatsapp-master` só redireciona para `/admin/automacoes?tab=whatsapp-master`.
-- Automações tem abas: `rules` (regras), `roulette` (roleta), `daily-message`, `whatsapp-master`, `flows`, `whatsapp-manual`.
+- Automações tem abas: `rules` (regras), `roulette` (roleta), `daily-message`, `whatsapp-master`, `flows`, `disparos` (ex-`whatsapp-manual`, removida em 2026-09-27; o Disparo saiu de dentro de `whatsapp-master` e virou aba própria).
 
 ## 4. Como um cliente nasce (entradas)
 
@@ -79,7 +79,7 @@ Marcos automáticos: entrar em qualquer status de venda cria a **venda financeir
 | Documentação / CCA | modal no cliente | upload em lote, IA classifica, motor determinístico decide o que falta, PDF, envio à CCA (link `wa.me`) |
 | Financeiro | `/admin/financeiro` | venda → comissão → despesas/recebimentos; visão projetada p/ associado |
 | Chat WhatsApp | `/admin/chat` | caixa de entrada do número oficial, janela 24h, modelos, mídia, atalhos, **mensagens internas** (só equipe; o cliente não vê), **excluir conversa** (lógica), **áudio recebido** tocável; leads de anúncio entram pela roleta |
-| Fluxos / Respostas / Disparo / Manual | Automações | robô visual estilo ManyChat; palavra-chave; envio em massa por modelo; mensagens manuais para a equipe |
+| Fluxos / Respostas / Disparos | Automações | robô visual estilo ManyChat; palavra-chave; Disparos = envio em massa por modelo (aba própria, com Gastos e Desempenho) |
 | Automações do CRM | Automações > `rules` | `crm_automation_rules` (13 gatilhos × 7 ações), avaliadas em `/api/cron/scheduled-activities` (a cada minuto **se** o `pg_cron` estiver ativo — A CONFIRMAR em produção); as regras vigentes vivem no banco |
 | Minha Jornada | `/minha-jornada/[token]` | página pública de progresso do cliente + timeline interna (`client_journey_events`) |
 | Gerador de Links | `/admin/gerador-de-links` | campanhas `?c=`, link oficial por corretor, contagem de aberturas/cadastros |

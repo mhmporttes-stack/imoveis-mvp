@@ -70,7 +70,7 @@ Asserts de negócio (`lib/admin-access.js`, dentro dos `lib/*.js`): `assertGener
 | Financeiro: editar/excluir venda | **só administrador geral** | não | não | não |
 | Gastos de IA | administrador geral | não | não | não |
 | Automações (regras do CRM) | criar/editar: admin; ver: admin/gestor | ver | não | não |
-| Fluxos / Respostas por palavra-chave / Disparo / WhatsApp Manual | sim | sim | não | não |
+| Fluxos / Respostas por palavra-chave / Disparos | sim | sim | não | não |
 | Chat | tudo | tudo | escopo próprio | escopo do vinculado |
 | Chat: mensagens internas / excluir conversa | tudo | tudo | só se for atendente da conversa ou responsável pelo cliente | só se **ele próprio** for atendente/responsável (o vínculo com o corretor não vale) |
 | Oportunidades | equipe | equipe | próprios | (sem menu; URL funciona — A CONFIRMAR) |

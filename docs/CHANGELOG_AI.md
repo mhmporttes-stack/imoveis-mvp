@@ -79,6 +79,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** 2907 linhas de `prospecting_contacts` alteradas (2841 → `"Sem Nome"`; 59 com símbolo removido; 19 apelidos corrigidos), conferidas uma a uma antes de aplicar. **Fora do escopo, por risco de dano maior que o ganho** (não corrigido, fica para decisão futura do dono): 228 contatos com dígito colado ao nome (ex. `"Afonso/Ba0445"`), nomes de duas pessoas juntos por `/`/`&`/`|` (ex. `"Marcos Roberto Martins/Rute"`), e "mojibake" — acentuação corrompida na importação (ex. `"Jos? Carlos"`, `"Andrã?Ia"`) — problema de codificação de caractere, não de símbolo decorativo; remover o "?" destruiria a letra perdida. Não altera `queue_sort_at` (ordem de reserva da Meta Diária) nem nenhuma outra coluna. Não validado com `next build` local (sem `node_modules` na máquina).
 - **Autor:** Claude (agente)
 
+### 2026-09-27 — Disparos vira aba própria; WhatsApp Manual removido
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Automações) / Banco
+- **Alteração:** o Disparo (`WhatsappDisparoManager`, com suas 5 abas: Nova campanha, Templates, Histórico, Gastos, Desempenho) saiu de dentro de "WhatsApp Master" e virou aba própria "Disparos" em Automações (`?tab=disparos`, antes `whatsapp-manual`). "WhatsApp Master" ficou só com conexão, foto/perfil, respostas por palavra-chave e o inbox de eventos. O módulo **WhatsApp Manual foi removido por completo** (pedido do dono, não usava mais): tela, as 3 rotas (`manual-log`, `manual-templates`, `manual-summary`), `lib/whatsapp-manual-summary.js` e a tabela `whatsapp_manual_log` (com o histórico de cliques) e a configuração `crm_settings.whatsapp_manual_templates`.
+- **Motivo:** pedido do dono — a aba WhatsApp Master estava "muito bagunçada e poluída" com o Disparo empilhado dentro dela, e o WhatsApp Manual não era mais usado.
+- **Arquivos afetados:** `app/admin/automacoes/page.jsx`; removidos `components/WhatsappManualSender.jsx`, `lib/whatsapp-manual-summary.js`, `app/api/admin/whatsapp-master/manual-{log,templates,summary}/route.js`; `supabase/migrations/20260927120000_drop_whatsapp_manual.sql` (**aplicada em produção**: apagou a tabela e a configuração); `docs/BUSINESS_RULES.md` (AUT-7), `docs/WHATSAPP.md`, `docs/CRM_CONTEXT.md`, `docs/DATABASE.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/PERMISSIONS.md`.
+- **Risco/observação:** o histórico de "quem clicou em abrir o WhatsApp manualmente" foi apagado de vez (o dono pediu explicitamente, não só ocultar). Nenhuma regra de negócio do Disparo, Fluxos ou Chat mudou — só reorganização de tela.
+- **Autor:** Claude Code
+
 ### 2026-09-26 — Chat baixa imagens, documentos e vídeos recebidos (antes só áudio)
 - **Data:** 2026-09-26
 - **Área:** WhatsApp (Chat)

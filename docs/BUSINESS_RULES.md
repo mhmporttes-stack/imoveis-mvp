@@ -104,7 +104,7 @@
 - **AUT-4 Alerta sonoro** de novo cliente do formulário: sinal cru por polling (`/api/crm-notifications/new-client-alerts`), escopado ao próprio usuário, só origem `form`. — `NewClientSoundListener`, `classifyClientOrigin`.
 - **AUT-5 Push.** Web Push nativo VAPID, upsert por `endpoint`, `push_subscriptions`. — `lib/web-push.js`, `lib/push-subscriptions.js`.
 - **AUT-6 Mensagem diária** (`daily_message_*`): card 1×/dia por usuário, janela de 20 h contra duplicata, envios manuais idempotentes por `idempotency_key`. **Não é a Meta Diária.** — `lib/daily-message.js`, `lib/daily-message-cycle.js`.
-- **AUT-7 WhatsApp Manual.** Textos (início/acompanhamento/fechamento) montados com dados reais do ranking/meta; **quem envia é o dono, manualmente pelo WhatsApp** (link `wa.me`). — `lib/whatsapp-manual-summary.js`.
+- ~~AUT-7 WhatsApp Manual~~ **removido em 2026-09-27** (pedido do dono, não usava mais): textos manuais de início/acompanhamento/fechamento, link `wa.me` e o histórico de cliques (`whatsapp_manual_log`). Código, telas e tabela apagados (migration `20260927120000_drop_whatsapp_manual.sql`).
 
 ## 11. WhatsApp (resumo — detalhe em [`WHATSAPP.md`](WHATSAPP.md))
 

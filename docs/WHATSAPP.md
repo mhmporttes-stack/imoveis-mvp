@@ -22,7 +22,7 @@ CRM ──▶ sendWhatsappTextMessage / sendWhatsappMessagePayload / sendWhatsap
         (Chat, Fluxos, respostas, Disparo, lembretes de atividade, ação de automação "WhatsApp modelo")
 ```
 
-Módulos de tela: **Chat** (`/admin/chat`) e, em Automações, **Regras de resposta**, **Fluxos**, **Disparo**, **WhatsApp Master** (configuração/perfil/inbox de eventos) e **WhatsApp Manual**.
+Módulos de tela: **Chat** (`/admin/chat`) e, em Automações, **Regras de resposta**, **Fluxos**, **Disparos** (aba própria desde 2026-09-27; antes vivia dentro de WhatsApp Master) e **WhatsApp Master** (só conexão/perfil/respostas por palavra-chave/inbox de eventos). ~~WhatsApp Manual~~ removido em 2026-09-27 (não usado mais pelo dono).
 
 ## 2. Configuração (nomes de variáveis — nunca valores)
 
@@ -125,7 +125,6 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 
 - **Lembrete de atividade** (`lib/scheduled-activity-notifications.js`): modelo `WHATSAPP_REMINDER_TEMPLATE_NAME` ao corretor (+ e-mail ao dono + push). Falha do WhatsApp impede push/e-mail e a marcação de “notificado” (P-04).
 - **Automação do CRM** `send_whatsapp_template`: modelo aprovado para corretor/gestor/dono; variáveis posicionais a partir de `AUTOMATION_WHATSAPP_VARIABLES`.
-- **WhatsApp Manual** (`lib/whatsapp-manual-summary.js`, `whatsapp_manual_log`): monta textos com dados reais para o dono enviar **manualmente** (`wa.me`); só registra a ação.
 - **Perfil do WhatsApp Business** (`lib/whatsapp-profile.js`): ler/editar foto, sobre, endereço etc. via Graph; só admin.
 - **Meta Diária** e **Prospecção**: abrem `wa.me` com texto pronto e registram a tentativa (ação, não entrega).
 
