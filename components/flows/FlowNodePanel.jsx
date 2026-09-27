@@ -272,6 +272,16 @@ function MessageForm({ data, set }) {
         <VariableChips onInsert={(token) => set({ text: `${data.text || ""}${token}` })} />
       </Field>
 
+      {mode === "buttons" || mode === "list" ? (
+        <label className="flex items-start gap-2 rounded-xl border border-line bg-mist/40 p-3 text-xs font-bold text-navy">
+          <input type="checkbox" checked={Boolean(data.external)} onChange={(event) => set({ external: event.target.checked })} className="mt-0.5 h-4 w-4 accent-brand" />
+          <span>
+            Esta mensagem já foi enviada por <strong>fora</strong> do fluxo (ex.: o modelo do Disparo aprovado pela Meta).
+            <span className="block font-semibold text-muted">O fluxo nunca reenvia — só usa os botões/opções pra direcionar quem já respondeu. Cole aqui o texto e os botões EXATOS do modelo (precisam bater igual) e ligue a saída "Outra resposta" a uma pergunta de verdade, pra quem responder outra coisa não ficar sem retorno.</span>
+          </span>
+        </label>
+      ) : null}
+
       {mode === "buttons" ? (
         <Field label="Botões de resposta" hint={`${buttons.length}/${LIMITS.maxButtons}`}>
           <div className="space-y-2">

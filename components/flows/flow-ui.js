@@ -1,4 +1,4 @@
-import { MessageSquare, HelpCircle, Zap, GitBranch, Clock, Play } from "lucide-react";
+import { MessageSquare, HelpCircle, Zap, GitBranch, Clock, Play, Lock } from "lucide-react";
 import { getOutputPorts } from "@/lib/whatsapp-flow-core.mjs";
 
 // Metadados visuais e geometria dos blocos do editor de Fluxos. A geometria é
@@ -13,6 +13,10 @@ export const FOOT_PAD = 8;
 export const NODE_META = {
   start: { label: "Gatilho", icon: Play, tone: "emerald", hint: "O que inicia o fluxo" },
   message: { label: "Mensagem", icon: MessageSquare, tone: "blue", hint: "Texto, botões, lista ou link" },
+  // Não é um "type" de bloco novo (continua sendo "message") — é a mesma aparência que NodeCard usa quando
+  // node.data.external é true, pra deixar claro no mapa que essa mensagem já foi enviada por fora (ex.: o
+  // modelo aprovado do Disparo) e o fluxo nunca reenvia.
+  external: { label: "Mensagem externa", icon: Lock, tone: "slate", hint: "Já foi enviada por fora (ex.: modelo do Disparo aprovado pela Meta) — o fluxo não reenvia, só direciona pela resposta" },
   input: { label: "Pergunta", icon: HelpCircle, tone: "violet", hint: "Pergunta e guarda a resposta" },
   action: { label: "Ação", icon: Zap, tone: "amber", hint: "Roleta, etiqueta, passar para atendente" },
   condition: { label: "Condição", icon: GitBranch, tone: "cyan", hint: "Horário comercial, já é cliente…" },
@@ -99,7 +103,7 @@ export function nodeSummary(node) {
     case "start":
       return "";
     case "message":
-      return data.text || "Toque para escrever a mensagem…";
+      return data.external ? `🔒 Modelo já enviado pelo Disparo:\n${data.text || "toque para colar o texto exato do modelo"}` : (data.text || "Toque para escrever a mensagem…");
     case "input":
       return data.text || "Toque para escrever a pergunta…";
     case "action":

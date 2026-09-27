@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Fluxos: bloco "mensagem externa" mostra no mapa a mensagem real do Disparo
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Fluxos) — motor central e editor visual
+- **Alteração:** o dono apontou (com razão) que o bloco reaproveitado como "confirmação" ainda aparecia no mapa como uma SEGUNDA pergunta idêntica logo após o Gatilho, dando a entender que o cliente responderia duas vezes — mesmo já não sendo reenviada de fato (entrada anterior, `initialText`). Criado o bloco **"mensagem externa"** (`data.external = true`, continua `type: "message"`): representa no mapa a mensagem que JÁ foi enviada por fora (o modelo do Disparo, com os mesmos botões e o texto real) — o fluxo nunca a envia; só direciona pelo clique (`initialText`) ou, sem correspondência, segue pela porta "Outra resposta" até uma pergunta de verdade. `validateGraph` agora **exige** essa ligação quando `external = true`. Aparência distinta no editor (ícone de cadeado, cor cinza, "🔒 Modelo já enviado pelo Disparo:" no resumo) e um alternador no painel do bloco (visível em botões/lista) para qualquer fluxo futuro usar. O Fluxo "Disparo diário — resposta ao contato" foi reconstruído: a mensagem externa (com o texto real do modelo, colado igual ao que o dono está enviando à Meta) fica logo após o Gatilho; a pergunta de verdade ("ask") só é enviada se o clique não bater com nenhum botão.
+- **Motivo:** pedido do dono — o mapa precisava mostrar a mensagem real do disparo (com 3 botões) como a primeira caixa, não uma pergunta repetida.
+- **Arquivos afetados:** `lib/whatsapp-flow-core.mjs` (`defaultNodeData`, `validateGraph`, `runFlow`/`isExternalChoice`), `components/flows/flow-ui.js` (`NODE_META.external`, `nodeSummary`), `components/flows/FlowCanvas.jsx` (`NodeCard`, `headerLabel`), `components/flows/FlowNodePanel.jsx` (alternador em `MessageForm`), `tests/whatsapp-flow-core.test.mjs` (5 testes novos); linha em `whatsapp_flows` (graph reconstruído direto via SQL, id `346c9033-a2db-4d36-aefd-0d66b35095eb`); `docs/WHATSAPP.md`.
+- **Risco/observação:** mudança no motor CENTRAL — afeta a validação/execução de QUALQUER fluxo, mas só quando `data.external` é usado (novo, opt-in; nenhum fluxo existente tinha esse campo, comportamento deles é idêntico a antes). Suíte completa de testes puros roda 31/32 (a 1 falha é a P-15 já conhecida, sem relação). Continua sem ativar — falta o modelo ser aprovado e o dono escolher a Rotina no gatilho.
+- **Autor:** Claude Code
+
 ### 2026-09-27 — Ícone do app mostra o número de mensagens não lidas do Chat
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Chat) / PWA

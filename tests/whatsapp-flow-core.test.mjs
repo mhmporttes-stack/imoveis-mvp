@@ -232,6 +232,70 @@ test("executor: initialText só vale pra retomada de sessão NOVA (input=null) �
   assert.equal(result.status, "handoff");
 });
 
+// Grafo com um bloco "mensagem externa" (data.external=true) logo após o gatilho — representa o modelo já
+// aprovado do Disparo, com os MESMOS botões. Nunca é enviado por aqui; a porta "Outra resposta" (other) leva
+// a uma pergunta de verdade (askAgain), que essa sim é enviada quando o texto não bate com nenhum botão.
+function externalGraph() {
+  return {
+    nodes: [
+      node("start", "start", {}),
+      node("ext", "message", {
+        mode: "buttons", text: "Escolha uma opção:", external: true,
+        buttons: [{ id: "b1", title: "Quero atualizar" }, { id: "b2", title: "Tenho restrição" }, { id: "b3", title: "Não tenho interesse" }]
+      }),
+      node("askAgain", "message", {
+        mode: "buttons", text: "Não entendi, escolhe de novo:",
+        buttons: [{ id: "b1", title: "Quero atualizar" }, { id: "b2", title: "Tenho restrição" }, { id: "b3", title: "Não tenho interesse" }]
+      }),
+      node("interesse", "message", { mode: "text", text: "Certo, vamos atualizar!" }),
+      node("restricao", "message", { mode: "text", text: "Sem problema, temos a Blindagem Financeira." }),
+      node("semInteresse", "message", { mode: "text", text: "Sem problemas, obrigado!" })
+    ],
+    edges: [
+      edge("start", "next", "ext"),
+      edge("ext", "b1", "interesse"), edge("ext", "b2", "restricao"), edge("ext", "b3", "semInteresse"), edge("ext", "other", "askAgain"),
+      edge("askAgain", "b1", "interesse"), edge("askAgain", "b2", "restricao"), edge("askAgain", "b3", "semInteresse")
+    ]
+  };
+}
+
+test("validação: mensagem externa (botões) exige a saída 'Outra resposta' ligada", () => {
+  const graph = externalGraph();
+  graph.edges = graph.edges.filter((item) => !(item.from === "ext" && item.port === "other"));
+  const result = validateGraph(graph);
+  assert.ok(result.errors.some((item) => item.nodeId === "ext" && /Outra resposta/.test(item.message)));
+});
+
+test("validação: mensagem externa com 'Outra resposta' ligada não gera esse erro", () => {
+  const result = validateGraph(externalGraph());
+  assert.ok(!result.errors.some((item) => /Mensagem externa/.test(item.message)));
+});
+
+test("executor: mensagem externa NUNCA é enviada — clique batendo com o botão pula direto (sem mandar nada)", async () => {
+  const deps = makeDeps();
+  const result = await runFlow({ graph: externalGraph(), flowId: "f", session: freshSession, deps, initialText: "Tenho restrição" });
+  assert.equal(deps.calls.sent.length, 1);
+  assert.equal(deps.calls.sent[0].nodeId, "restricao");
+  assert.equal(result.status, "completed");
+});
+
+test("executor: mensagem externa sem correspondência segue pela porta 'Outra resposta' (aí sim envia)", async () => {
+  const deps = makeDeps();
+  const result = await runFlow({ graph: externalGraph(), flowId: "f", session: freshSession, deps, initialText: "Bom dia" });
+  assert.equal(deps.calls.sent.length, 1);
+  assert.equal(deps.calls.sent[0].nodeId, "askAgain");
+  assert.equal(result.status, "waiting");
+  assert.ok(!deps.calls.logs.some((entry) => entry.kind === "auto_route"));
+  assert.ok(deps.calls.logs.some((entry) => entry.kind === "external_skip" && entry.nodeId === "ext"));
+});
+
+test("executor: mensagem externa sem NENHUM initialText (ex.: gatilho por anúncio) também nunca é enviada", async () => {
+  const deps = makeDeps();
+  const result = await runFlow({ graph: externalGraph(), flowId: "f", session: freshSession, deps });
+  assert.equal(deps.calls.sent.length, 1);
+  assert.equal(deps.calls.sent[0].nodeId, "askAgain");
+});
+
 test("executor: texto igual ao rótulo do botão conta como toque", async () => {
   const graph = sampleGraph();
   const deps = makeDeps();

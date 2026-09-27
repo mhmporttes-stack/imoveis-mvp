@@ -38,7 +38,7 @@ export const FLOW_ADAPTER = {
   addable: ADDABLE,
   addTitle: "Adicionar bloco",
   emptyHint: "Ligue o gatilho ao primeiro bloco: arraste a bolinha \"Então\" até um espaço vazio, ou clique em + para adicionar.",
-  headerLabel: (node, meta) => `${meta.label}${node.type === "message" ? ` · ${messageModeLabel(node.data?.mode)}` : ""}`,
+  headerLabel: (node, meta) => `${meta.label}${node.type === "message" && !node.data?.external ? ` · ${messageModeLabel(node.data?.mode)}` : ""}`,
   renderBody: (node, trigger) => {
     const summary = nodeSummary(node);
     if (node.type === "start") return <p className="line-clamp-3 text-[13px] font-bold leading-5 text-navy">{triggerSummary(trigger)}</p>;
@@ -370,7 +370,10 @@ function ControlButton({ children, label, onClick, primary = false }) {
 }
 
 function NodeCard({ adapter, node, trigger, selected, issues, edges, connectingActive, onPointerDown, onPortPointerDown }) {
-  const meta = adapter.meta[node.type] || adapter.meta.message;
+  // "Mensagem externa" (node.data.external) usa a aparência própria (cadeado/cinza) mesmo continuando
+  // node.type === "message" — deixa claro no mapa que aquele bloco já foi enviado por fora (ex.: o modelo
+  // do Disparo) e não é reenviado por aqui.
+  const meta = (node.data?.external && adapter.meta.external) || adapter.meta[node.type] || adapter.meta.message;
   const tone = TONES[meta.tone];
   const Icon = meta.icon;
   const ports = adapter.getPorts(node);
