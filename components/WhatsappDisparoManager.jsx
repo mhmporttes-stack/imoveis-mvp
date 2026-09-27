@@ -404,7 +404,11 @@ function CreateTemplateForm({ onCreated, onError }) {
   const [bodyText, setBodyText] = useState("");
   const [footerText, setFooterText] = useState("");
   const [buttonText, setButtonText] = useState("");
+  const [quickReplyText, setQuickReplyText] = useState("");
   const [busy, setBusy] = useState(false);
+  // Até 3 botões de resposta rápida, um por linha — alternativa ao botão de link (a Meta não deixa
+  // misturar os dois tipos no mesmo template).
+  const quickReplyButtons = quickReplyText.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 3);
 
   const variableCount = (bodyText.match(/\{\{(\d+)\}\}/g) || []).length ? Math.max(...(bodyText.match(/\{\{(\d+)\}\}/g) || []).map((m) => Number(m.replace(/\D/g, "")))) : 0;
   const [mapping, setMapping] = useState({});
@@ -420,11 +424,11 @@ function CreateTemplateForm({ onCreated, onError }) {
       const response = await fetch("/api/admin/whatsapp-broadcasts/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, category, languageCode: "pt_BR", headerText, bodyText, footerText, buttonText, variableMapping })
+        body: JSON.stringify({ name, category, languageCode: "pt_BR", headerText, bodyText, footerText, buttonText, quickReplyButtons, variableMapping })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error);
-      setName(""); setHeaderText(""); setBodyText(""); setFooterText(""); setButtonText(""); setMapping({});
+      setName(""); setHeaderText(""); setBodyText(""); setFooterText(""); setButtonText(""); setQuickReplyText(""); setMapping({});
       await onCreated();
     } catch (createError) {
       onError(createError.message || "Falha ao criar o template.");
@@ -491,7 +495,18 @@ function CreateTemplateForm({ onCreated, onError }) {
       </label>
       <label className="block text-sm font-bold text-navy">
         Texto do botão (opcional — leva para o link da campanha)
-        <input className="mt-1 w-full rounded-lg border border-line p-3 font-normal" placeholder="Fazer simulação" value={buttonText} onChange={(e) => setButtonText(e.target.value)} />
+        <input className="mt-1 w-full rounded-lg border border-line p-3 font-normal disabled:bg-mist disabled:text-muted" placeholder="Fazer simulação" value={buttonText} onChange={(e) => setButtonText(e.target.value)} disabled={quickReplyButtons.length > 0} />
+      </label>
+      <label className="block text-sm font-bold text-navy">
+        Ou botões de resposta rápida (até 3, um por linha, ≤ 20 caracteres cada — substitui o botão de link acima)
+        <textarea
+          className="mt-1 w-full rounded-lg border border-line p-3 font-normal"
+          rows={3}
+          placeholder={"Quero atualizar\nTenho restrição\nSem interesse"}
+          value={quickReplyText}
+          onChange={(e) => setQuickReplyText(e.target.value)}
+        />
+        {quickReplyText.split("\n").some((line) => line.trim().length > 20) ? <span className="mt-1 block text-xs font-bold text-red-700">Um dos botões passa de 20 caracteres.</span> : null}
       </label>
 
       <div className="rounded-xl border border-dashed border-line bg-white p-3 text-sm text-muted">
@@ -499,7 +514,9 @@ function CreateTemplateForm({ onCreated, onError }) {
         {headerText ? <><br />{headerText}<br /></> : null}
         {bodyText.replace(/\{\{(\d+)\}\}/g, (_, i) => (mapping[i]?.source === "fixed" ? (mapping[i].value || `{{${i}}}`) : "João")) || "—"}
         {footerText ? <><br /><span className="text-xs">{footerText}</span></> : null}
-        {buttonText ? <><br /><span className="mt-1 inline-block rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-brand">{buttonText}</span></> : null}
+        {quickReplyButtons.length ? (
+          <><br /><span className="mt-1 flex flex-wrap gap-1.5">{quickReplyButtons.map((label) => <span key={label} className="inline-block rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-brand">{label}</span>)}</span></>
+        ) : buttonText ? <><br /><span className="mt-1 inline-block rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-brand">{buttonText}</span></> : null}
       </div>
 
       <button type="submit" disabled={busy} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">

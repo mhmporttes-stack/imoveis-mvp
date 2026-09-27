@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Modelo do Disparo aceita até 3 botões de resposta rápida
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Disparo/Templates)
+- **Alteração:** `createWhatsappMessageTemplate`/`createAndSubmitTemplate` passam a aceitar `quickReplyButtons` (até 3 textos, ≤ 20 caracteres cada) — alternativa ao botão de link único que já existia; os dois são mutuamente exclusivos (a Meta não mistura tipos no mesmo componente `BUTTONS`). O formulário "Novo template" do Disparo ganhou o campo correspondente.
+- **Motivo:** pedido do dono — construir um modelo de disparo com 3 caminhos (interesse / restrição / sem interesse) para alimentar um Fluxo de resposta.
+- **Arquivos afetados:** `lib/whatsapp-master.js`, `lib/whatsapp-broadcasts.js`, `components/WhatsappDisparoManager.jsx`; `docs/WHATSAPP.md`.
+- **Risco/observação:** nenhuma regra de envio existente mudou; templates já criados com botão de link continuam funcionando igual.
+- **Autor:** Claude Code
+
 ### 2026-09-27 — Faxina de nomes, parte 5: capitalização padronizada (só a 1ª letra de cada palavra)
 - **Data:** 2026-09-27
 - **Área:** Prospecção / Banco
