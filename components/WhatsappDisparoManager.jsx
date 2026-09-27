@@ -512,7 +512,9 @@ function CreateTemplateForm({ onCreated, onError }) {
       <div className="rounded-xl border border-dashed border-line bg-white p-3 text-sm text-muted">
         <strong className="text-navy">Preview: </strong>
         {headerText ? <><br />{headerText}<br /></> : null}
-        {bodyText.replace(/\{\{(\d+)\}\}/g, (_, i) => (mapping[i]?.source === "fixed" ? (mapping[i].value || `{{${i}}}`) : "João")) || "—"}
+        {/* whitespace-pre-wrap: as quebras de linha digitadas no corpo são reais e vão pra Meta assim —
+            só a prévia (sem essa regra) exibia tudo numa linha só. */}
+        <span className="whitespace-pre-wrap">{bodyText.replace(/\{\{(\d+)\}\}/g, (_, i) => (mapping[i]?.source === "fixed" ? (mapping[i].value || `{{${i}}}`) : "João")) || "—"}</span>
         {footerText ? <><br /><span className="text-xs">{footerText}</span></> : null}
         {quickReplyButtons.length ? (
           <><br /><span className="mt-1 flex flex-wrap gap-1.5">{quickReplyButtons.map((label) => <span key={label} className="inline-block rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-brand">{label}</span>)}</span></>
