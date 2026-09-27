@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Chat: mudar status do cliente direto no painel do contato
+- **Data:** 2026-09-27 · **Área:** WhatsApp (Chat) · **Motivo:** pedido do dono.
+- **Alteração:** admin/gestor mudam o status do cliente num seletor no painel "Informações do contato", chamando o mesmo `PATCH /api/simulation-registrations/[id]` do card em Clientes — reflete nos dois lugares, sem endpoint novo.
+- **Arquivos:** `components/WhatsappChat.jsx`, `docs/WHATSAPP.md`.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Ícone do app: confirmado que é limitação do iOS, não do código (diagnóstico removido)
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Chat) / PWA

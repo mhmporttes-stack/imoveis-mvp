@@ -37,6 +37,9 @@ import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudio
 import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
+import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
+
+const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 
 // Filtros da lista — para acrescentar outro no futuro basta uma linha aqui
 // (e o filtro correspondente em lib/whatsapp-chat.js).
@@ -1174,6 +1177,20 @@ function InternalComposer({ conversationId, onExit, onSent }) {
 function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
   const { conversation } = detail;
   const [assigning, setAssigning] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
+
+  // Mesmo endpoint que o card do cliente na tela de Clientes já usa — muda lá também.
+  async function changeStatus(status) {
+    if (!conversation.client?.id) return;
+    setChangingStatus(true);
+    await fetch(`/api/simulation-registrations/${conversation.client.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    }).catch(() => {});
+    setChangingStatus(false);
+    onChanged();
+  }
 
   async function assignTo(userId) {
     const target = brokers.find((broker) => broker.id === userId);
@@ -1279,6 +1296,20 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
           >
             <option value="">Ninguém (liberar — volta pra roleta)</option>
             {brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.online ? "🟢 " : ""}{broker.name}</option>)}
+          </select>
+        </label>
+      ) : null}
+
+      {canManage && client ? (
+        <label className="block rounded-2xl border border-line p-4 text-xs font-black text-navy">
+          Status do cliente
+          <select
+            className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand"
+            disabled={changingStatus}
+            onChange={(event) => changeStatus(event.target.value)}
+            value={client.status || ""}
+          >
+            {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
       ) : null}
