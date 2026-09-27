@@ -71,12 +71,33 @@ self.addEventListener("push", (event) => {
 });
 
 async function syncAppBadge(count) {
-  if (!("setAppBadge" in self.navigator)) return;
+  const supported = "setAppBadge" in self.navigator;
+  if (!supported) {
+    reportBadgeDebug({ supported, count, outcome: "unsupported", via: "push" });
+    return;
+  }
   try {
     if (typeof count === "number" && count > 0) await self.navigator.setAppBadge(count);
     else if (typeof count === "number") await self.navigator.clearAppBadge?.();
+    reportBadgeDebug({ supported, count, outcome: "ok", via: "push" });
+  } catch (error) {
+    reportBadgeDebug({ supported, count, outcome: "rejected", via: "push", error: String(error?.message || error) });
+  }
+}
+
+// Diagnóstico TEMPORÁRIO (mesma rota/tabela de components/useWhatsappChatSummary.js)
+// — o push é o caminho que atualiza o ícone com o app de verdade FECHADO; sem isto
+// não teria como ver o resultado. Fire-and-forget, nunca atrapalha a notificação.
+// Remover junto com o resto do diagnóstico.
+function reportBadgeDebug(details) {
+  try {
+    fetch("/api/admin/tmp-badge-debug", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(details)
+    }).catch(() => {});
   } catch {
-    // Sem suporte real, ou app não instalado (só aba do navegador) — ignora.
+    // Nunca deixa o diagnóstico quebrar o push.
   }
 }
 
