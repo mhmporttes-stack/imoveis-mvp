@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Faxina de nomes, parte 2: código de imóvel/importação grudado no nome
+- **Data:** 2026-09-27
+- **Área:** Prospecção / Banco
+- **Alteração:** removido sufixo de código grudado ao nome (1-3 letras + 3-7 dígitos, ex.: `"Suellen/Ca6908"` → `"Suellen"`, `"Rafael Ba0069"` → `"Rafael"`) e número solto no final (ex.: `"Dirce Batista 998767789"` → `"Dirce Batista"`, `"Milena Pereira 500 Reais"` → `"Milena Pereira"`).
+- **Motivo:** continuação da faxina de nomes (pedido do dono, 2026-09-27); na entrada anterior este caso tinha ficado fora do escopo por precaução, mas ao olhar os dados reais o padrão se mostrou bem definido e seguro de corrigir.
+- **Arquivos afetados:** `supabase/migrations/20260927130000_prospecting_names_code_suffix.sql` (novo), `docs/BUSINESS_RULES.md` (PRO-4c).
+- **Risco/observação:** 273 linhas alteradas (261 do padrão letra+dígitos, 12 de número solto), conferidas uma a uma antes de aplicar. Ainda fora do escopo: duas pessoas juntas por `/`/`&`/`|` e "mojibake" (acentuação corrompida) — essa última se mostrou mais difícil do que o esperado: a reversão matemática simples (Latin1↔UTF8) falha por byte inválido em parte dos casos; a correção precisaria ser lida caso a caso (~30 nomes), não aplicada por fórmula. Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Faxina de nomes na base de Prospecção; sem nome nunca sorteado em campanha
 - **Data:** 2026-09-27
 - **Área:** Prospecção / Disparo / Banco
