@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { brtNowParts, evaluateFailureBrake, isScheduleDueNow, normalizeDaysOfWeek, normalizeRunTime } from "../lib/whatsapp-broadcast-schedule-core.mjs";
+import { brtNowParts, evaluateFailureBrake, isScheduleDueNow, normalizeDaysOfWeek, normalizeRunTime, startOfTodayBrtIso } from "../lib/whatsapp-broadcast-schedule-core.mjs";
 
 test("horário de Brasília: 08:00 BRT = 11:00 UTC; virada de dia respeita o fuso", () => {
   const morning = brtNowParts(new Date("2026-09-28T11:00:30Z")); // segunda-feira
@@ -34,4 +34,12 @@ test("freio: pausa com muitas falhas, ignora lotes pequenos ou ainda em andament
   assert.equal(evaluateFailureBrake({ status: "completed", sent: 3, failed: 5, maxFailureRate: 0.3 }).pause, false); // amostra pequena
   assert.equal(evaluateFailureBrake({ status: "processing", sent: 0, failed: 40 }).pause, false); // ainda rodando
   assert.match(evaluateFailureBrake({ status: "failed", sent: 0, failed: 30 }).reason, /100% de falhas/);
+});
+
+test("filtro 'Hoje' (Gastos/Desempenho do Disparo): início do dia civil em Brasília, não 'últimas 24h'", () => {
+  // 07:00 em Brasília (10:00 UTC) de 28/09: "hoje" começou à meia-noite em Brasília (03:00 UTC do mesmo dia) —
+  // e não faltando exatamente 24h do agora (o que pegaria mensagens de ontem à noite).
+  assert.equal(startOfTodayBrtIso(new Date("2026-09-28T10:00:00Z")), "2026-09-28T03:00:00.000Z");
+  // Logo depois da virada do dia em Brasília (00:00:30 BRT = 03:00:30 UTC): "hoje" já é o dia novo.
+  assert.equal(startOfTodayBrtIso(new Date("2026-09-29T03:00:30Z")), "2026-09-29T03:00:00.000Z");
 });

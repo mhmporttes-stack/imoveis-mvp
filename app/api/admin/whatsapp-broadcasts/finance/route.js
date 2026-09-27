@@ -12,8 +12,9 @@ export async function GET(request) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const days = Number(new URL(request.url).searchParams.get("days") || 0);
-    const report = await getBroadcastFinanceReport({ days: [7, 30, 90].includes(days) ? days : 0 }, auth);
+    const daysParam = new URL(request.url).searchParams.get("days") || "0";
+    const days = daysParam === "today" ? "today" : (([7, 30, 90].includes(Number(daysParam)) ? Number(daysParam) : 0));
+    const report = await getBroadcastFinanceReport({ days }, auth);
     return NextResponse.json({ ...report, canEditPricing: isGeneralAdminAuth(auth) });
   } catch (error) {
     return NextResponse.json({ error: formatWhatsappBroadcastError(error) }, { status: error?.status || 400 });

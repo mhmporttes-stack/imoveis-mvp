@@ -5,6 +5,7 @@ import { Eye, Info, LoaderCircle, Save } from "lucide-react";
 
 const PERIODS = [
   { value: 0, label: "Tudo" },
+  { value: "today", label: "Hoje" },
   { value: 7, label: "7 dias" },
   { value: 30, label: "30 dias" },
   { value: 90, label: "90 dias" }
@@ -25,6 +26,12 @@ const RATE_FIELDS = [
 
 export function brl(value, maxDigits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: maxDigits });
+}
+
+function periodHint(days) {
+  if (days === "today") return "hoje";
+  if (days) return `últimos ${days} dias`;
+  return "todo o período";
 }
 
 function pct(value) {
@@ -112,12 +119,22 @@ export function CostsSection({ finance }) {
 
       {report ? (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <StatCard label="Gasto total" value={brl(summary.totalCost)} hint={`${summary.billable} mensagens cobradas`} tone="text-brand" />
             <StatCard label="Mensagens enviadas" value={summary.sent.toLocaleString("pt-BR")} hint={`${summary.delivered.toLocaleString("pt-BR")} entregues`} />
             <StatCard label="Custo por envio" value={brl(summary.costPerSent, 4)} hint="gasto total ÷ enviadas" />
-            <StatCard label="Campanhas" value={summary.campaigns} hint={days ? `últimos ${days} dias` : "todo o período"} />
+            <StatCard
+              label="Custo por conversa"
+              value={summary.costPerReply === null ? "—" : brl(summary.costPerReply)}
+              hint={summary.replied ? `${summary.replied} cliente(s) respondeu(ram)` : "ninguém respondeu ainda"}
+              tone="text-emerald-700"
+            />
+            <StatCard label="Campanhas" value={summary.campaigns} hint={periodHint(days)} />
           </div>
+          <p className="flex items-start gap-2 text-xs font-bold leading-5 text-muted">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Conversa = cliente que respondeu ao disparo em até 7 dias. Custo por conversa = gasto total ÷ quem respondeu.
+          </p>
 
           {items.length ? (
             <>
