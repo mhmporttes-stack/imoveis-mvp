@@ -57,8 +57,28 @@ self.addEventListener("push", (event) => {
     tag: data.tag || undefined
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      // Ícone do app na tela inicial (Badging API): o app pode estar fechado
+      // aqui, então quem atualiza o número é o próprio push, não a página.
+      // "unreadCount" já vem calculado pelo servidor (mesma contagem do menu),
+      // nunca incrementado às cegas — evita o número ficar errado se o corretor
+      // já leu outras mensagens antes deste push chegar.
+      syncAppBadge(data.unreadCount)
+    ])
+  );
 });
+
+async function syncAppBadge(count) {
+  if (!("setAppBadge" in self.navigator)) return;
+  try {
+    if (typeof count === "number" && count > 0) await self.navigator.setAppBadge(count);
+    else if (typeof count === "number") await self.navigator.clearAppBadge?.();
+  } catch {
+    // Sem suporte real, ou app não instalado (só aba do navegador) — ignora.
+  }
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

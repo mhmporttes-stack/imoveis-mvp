@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Ícone do app mostra o número de mensagens não lidas do Chat
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Chat) / PWA
+- **Alteração:** o ícone do app na tela inicial do celular passa a mostrar o número de não lidas do Chat (Badging API), o mesmo já exibido no menu. Com o app aberto, o hook do resumo do Chat atualiza o ícone a cada mudança. Com o app fechado, cada mensagem nova de cliente numa conversa **já atribuída** a alguém dispara um push com o total atual de não lidas, e o service worker atualiza o ícone a partir dele.
+- **Motivo:** pedido do dono, a partir do exemplo do "Gerenciador de Anúncios" (ícone com bolinha vermelha "2").
+- **Arquivos afetados:** `components/useWhatsappChatSummary.js`, `public/sw.js`, `lib/whatsapp-chat.js` (`getUnreadMessageCountForBroker`, `projectChatFromEvents`), `docs/WHATSAPP.md`.
+- **Risco/observação:** conversa sem atendente ainda (recém-criada pela roleta) não dispara push nesta primeira versão — só quem já está atribuído (`assigned_user_id`) é avisado; a contagem mostrada, porém, já soma também conversas de clientes por quem o corretor responde (mesma regra do menu). Suporte do navegador: iOS 16.4+ só com o app adicionado à Tela de Início (não numa aba comum), Android/desktop com Chrome instalado; sem suporte, não faz nada (sem erro). Sem migration. Não testado num aparelho real (sem ambiente de push aqui); não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Motor de Fluxos: clique no botão do modelo de Disparo pula a pergunta (initialText)
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Fluxos) — motor central

@@ -20,6 +20,23 @@ const store = {
 function setSummary(next) {
   store.summary = next;
   for (const listener of store.listeners) listener(next);
+  syncAppBadge(next.unreadMessages || 0);
+}
+
+// Ícone do app (tela inicial do celular, PWA instalado): mostra a mesma contagem
+// de não lidas do Chat que já aparece no menu (Badging API — iOS 16.4+/Android
+// Chrome/desktop com o app instalado; navegador comum ou versão antiga não tem
+// o método, por isso o "in navigator" antes de chamar). Só corrige o número
+// enquanto o app está aberto (aba ativa ou em segundo plano, com o canal em
+// tempo real vivo); com o app FECHADO quem atualiza é o push (public/sw.js).
+function syncAppBadge(count) {
+  try {
+    if (typeof navigator === "undefined" || !("setAppBadge" in navigator)) return;
+    if (count > 0) navigator.setAppBadge(count).catch(() => {});
+    else navigator.clearAppBadge?.().catch(() => {});
+  } catch {
+    // Navegador sem suporte real por trás do "in navigator" (raro) — ignora.
+  }
 }
 
 async function fetchSummary() {
