@@ -23,6 +23,8 @@ import {
   Paperclip,
   Search,
   Send,
+  Reply,
+  SmilePlus,
   Trash2,
   UserPlus,
   X
@@ -507,12 +509,15 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [reactionError, setReactionError] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
   const messages = detail?.messages || [];
+  const byMetaId = new Map(messages.filter((message) => message.metaMessageId).map((message) => [message.metaMessageId, message]));
   const showAssume = Boolean(conversation) && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
 
   useEffect(() => {
@@ -526,7 +531,24 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
 
   useEffect(() => {
     setMenuOpen(false);
+    setReplyTo(null);
+    setReactionError("");
   }, [conversation?.id]);
+
+  async function reactTo(message, emoji) {
+    setReactionError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/reactions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: message.id, emoji })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível reagir.");
+      onChanged();
+    } catch (failure) {
+      setReactionError(failure.message);
+    }
+  }
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -690,18 +712,19 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto bg-[#F1F5FA] px-3 py-4 sm:px-5">
+        {reactionError ? <p role="alert" className="rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
         {detail.hasMore ? <p className="pb-2 text-center text-xs font-bold text-muted">Mostrando as últimas mensagens da conversa.</p> : null}
         {rows.map((row) => (row.kind === "day" ? (
           <div key={row.key} className="flex justify-center py-2">
             <span className="rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-slate-500 shadow-sm">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} />
+          <MessageBubble key={row.key} message={row.message} quoted={byMetaId.get(row.message.replyToMessageId)} canReply={conversation.window?.open} onReply={() => setReplyTo(row.message)} onReact={reactTo} />
         )))}
         {!rows.length ? <p className="py-8 text-center text-sm font-bold text-muted">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
 
-      <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} onSent={onChanged} />
+      <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} onSent={onChanged} />
 
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
@@ -722,7 +745,9 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
   );
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, quoted, canReply, onReply, onReact }) {
+  const [reactionOpen, setReactionOpen] = useState(false);
+  const [reacting, setReacting] = useState(false);
   if (message.internal) {
     return (
       <div className="flex justify-end">
@@ -749,6 +774,12 @@ function MessageBubble({ message }) {
         {outbound && message.senderType === "automation" ? (
           <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">{message.automationKind === "flow" ? "Automação · Fluxo" : "Automação"}</p>
         ) : null}
+        {message.replyToMessageId ? (
+          <div className="mb-1.5 border-l-2 border-brand bg-white/60 px-2 py-1 text-xs font-semibold text-slate-600">
+            <span className="block font-extrabold text-brand">Em resposta a</span>
+            <span className="block truncate">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+          </div>
+        ) : null}
         {message.media ? <MediaPreview media={message.media} type={message.type} /> : isMedia ? (
           <p className="text-sm font-bold italic text-slate-500">{message.type === "unsupported"
             ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
@@ -762,6 +793,21 @@ function MessageBubble({ message }) {
             {message.buttons.map((label, index) => (
               <span key={index} className="rounded-full border border-brand/30 bg-white/70 px-2.5 py-0.5 text-[11px] font-extrabold text-brand">{label}</span>
             ))}
+          </div>
+        ) : null}
+        {message.reactions?.length ? (
+          <div className="mt-1 flex gap-1" aria-label="Reações">
+            {message.reactions.map((entry) => <span key={entry.sender} title={entry.sender === "customer" ? "Cliente" : "Equipe"} className="rounded-full border border-line bg-white px-1.5 text-sm">{entry.emoji}</span>)}
+          </div>
+        ) : null}
+        {!outbound && message.metaMessageId ? (
+          <div className="mt-1 flex items-center gap-1 border-t border-navy/10 pt-1">
+            {canReply ? <button type="button" onClick={onReply} className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-bold text-brand hover:bg-blue-50"><Reply className="h-3.5 w-3.5" /> Responder</button> : null}
+            <button type="button" onClick={() => setReactionOpen((open) => !open)} className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-bold text-brand hover:bg-blue-50" aria-label="Reagir à mensagem"><SmilePlus className="h-3.5 w-3.5" /> Reagir</button>
+            {reactionOpen ? <div className="flex flex-wrap gap-1" aria-label="Escolher reação">
+              {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => <button key={emoji} type="button" disabled={reacting} onClick={async () => { setReacting(true); await onReact(message, emoji); setReacting(false); setReactionOpen(false); }} className="rounded-lg p-1 text-base hover:bg-blue-50 disabled:opacity-50" aria-label={`Reagir com ${emoji}`}>{emoji}</button>)}
+              {message.reactions?.some((entry) => entry.sender === "team") ? <button type="button" disabled={reacting} onClick={async () => { setReacting(true); await onReact(message, ""); setReacting(false); setReactionOpen(false); }} className="px-1 text-[11px] font-bold text-slate-500">Remover</button> : null}
+            </div> : null}
           </div>
         ) : null}
         <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
@@ -880,7 +926,7 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function Composer({ canManage, conversation, insertRequest = null, onSent }) {
+function Composer({ canManage, conversation, insertRequest = null, replyTo, onClearReply, onSent }) {
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
   const [sending, setSending] = useState(false);
@@ -913,6 +959,13 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insertRequest?.nonce]);
+
+  useEffect(() => {
+    if (replyTo) setAttachment((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+  }, [replyTo?.id]);
 
   const canInternal = Boolean(conversation.canInternal);
 
@@ -974,6 +1027,7 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
   async function send() {
     const value = text.trim();
     if ((!value && !attachment) || sending) return;
+    if (replyTo && attachment) { setError("Para responder a uma mensagem específica, envie apenas texto."); return; }
     setSending(true);
     setError("");
     try {
@@ -984,12 +1038,13 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
         const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: value })
+          body: JSON.stringify({ text: value, replyToMessageId: replyTo?.id || "" })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
       }
       setText("");
+      onClearReply();
     } catch (sendError) {
       setError(sendError.message);
     } finally {
@@ -1029,6 +1084,7 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
   return (
     <div className="border-t border-line bg-white p-3">
       {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{shownError}</p> : null}
+      {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta"><X className="h-4 w-4" /></button></div> : null}
 
       {attachment ? (
         <div className="mb-2 flex items-center gap-3 rounded-2xl border border-line bg-mist/60 p-2">
@@ -1058,10 +1114,10 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
       ) : (
         <div className="flex items-end gap-1">
           <input ref={fileInput} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending} aria-label="Anexar foto ou arquivo" title="Anexar" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || Boolean(replyTo)} aria-label="Anexar foto ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
             <Paperclip className="h-5 w-5" />
           </button>
-          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending} onSent={onSent} />
+          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || Boolean(replyTo)} onSent={onSent} />
           {canInternal ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
           <textarea
             ref={textareaRef}
@@ -1084,7 +1140,7 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
               {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </button>
           ) : (
-            <button type="button" onClick={recorder.start} disabled={sending} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40" aria-label="Gravar áudio" title="Gravar áudio">
+            <button type="button" onClick={recorder.start} disabled={sending || Boolean(replyTo)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40" aria-label="Gravar áudio" title={replyTo ? "Respostas específicas aceitam texto" : "Gravar áudio"}>
               <Mic className="h-5 w-5" />
             </button>
           )}
