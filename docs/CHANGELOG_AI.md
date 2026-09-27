@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Fluxo "Disparo diário — resposta ao contato" (rascunho)
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Fluxos) / Banco
+- **Alteração:** criado o Fluxo **"Disparo diário — resposta ao contato"** (gatilho `campaign_reply`, `campaignSource` vazio de propósito), em **rascunho**, para quem responde ao disparo diário com 3 botões (Quero atualizar / Tenho restrição / Sem interesse): confirma a escolha (o clique no botão do TEMPLATE só abre a sessão — o texto daquele clique não chega ao fluxo, então ele reapresenta as mesmas 3 opções, já dentro da conversa), com um lembrete em 1h se não responder. "Quero atualizar" → `base_roulette` + link de simulação direto + handoff. "Tenho restrição" → `base_roulette` + explica a Blindagem Financeira (mesmo tom do Guia de Atendimento: nunca promete prazo/resultado) + pergunta se quer falar com corretor. "Sem interesse" → encerra educadamente, **sem** criar cliente nem sortear corretor. Resposta fora das 3 opções: repete 2x, depois passa para um humano (mecanismo já nativo do motor de Fluxos).
+- **Motivo:** pedido do dono, a partir do texto final do modelo que ele vai enviar para aprovação da Meta.
+- **Arquivos afetados:** linha nova em `whatsapp_flows` (inserida direto via SQL, id `346c9033-a2db-4d36-aefd-0d66b35095eb`, status `draft`); nenhum arquivo de código (reaproveita 100% o motor de Fluxos já existente — nenhuma mudança no `lib/whatsapp-flow-core.mjs`/`lib/whatsapp-flows.js`).
+- **Risco/observação:** **não ativado.** Falta, para ativar: (1) o modelo ser aprovado pela Meta; (2) o dono escolher a Rotina (ou campanha) no gatilho do Fluxo (`campaignSource`, hoje vazio de propósito); (3) publicar/ativar pelo editor visual. Testado só com o validador puro do motor (`validateGraph`/`validateTrigger`, zero erros) — **não testado num disparo real ainda**.
+- **Autor:** Claude Code
+
 ### 2026-09-27 — Modelo do Disparo aceita até 3 botões de resposta rápida
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Disparo/Templates)
