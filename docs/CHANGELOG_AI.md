@@ -43,7 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
-### 2026-09-27 — Fluxos: bloco "mensagem externa" mostra no mapa a mensagem real do Disparo
+### 2026-09-27 — Chat: liberar conversa devolve o cliente à roleta; seletor mostra quem está online
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Chat) / Roleta
+- **Alteração:** escolher "Ninguém (liberar)" no Chat agora também devolve o cliente vinculado à roleta por presença (exclui o corretor atual da escolha; sem ninguém elegível, só libera). O seletor "Atribuir conversa a" mostra 🟢 antes do nome de quem está online agora.
+- **Motivo:** pedido do dono (2026-09-27).
+- **Arquivos afetados:** `lib/whatsapp-chat.js` (`assignChatConversation`, `listChatBrokers`), `components/WhatsappChat.jsx`, `docs/BUSINESS_RULES.md` (ROL-8).
+- **Risco/observação:** reaproveita `assignRoundRobinLead`/`recordLeadDistributionHistory` (`lib/lead-distribution.js`), já usados pela roleta de lead novo — nenhuma lógica de escolha nova. Reatribuição roda com `auth=null` (ação do sistema, mesmo padrão de `reassignOrphanedClientsToOwner`), então não fica marcada como transferência manual de ninguém. Melhor esforço: erro na roleta nunca impede de liberar a conversa. Sem migration. Não validado com `next build` local.
+- **Autor:** Claude (agente)
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Fluxos) — motor central e editor visual
 - **Alteração:** o dono apontou (com razão) que o bloco reaproveitado como "confirmação" ainda aparecia no mapa como uma SEGUNDA pergunta idêntica logo após o Gatilho, dando a entender que o cliente responderia duas vezes — mesmo já não sendo reenviada de fato (entrada anterior, `initialText`). Criado o bloco **"mensagem externa"** (`data.external = true`, continua `type: "message"`): representa no mapa a mensagem que JÁ foi enviada por fora (o modelo do Disparo, com os mesmos botões e o texto real) — o fluxo nunca a envia; só direciona pelo clique (`initialText`) ou, sem correspondência, segue pela porta "Outra resposta" até uma pergunta de verdade. `validateGraph` agora **exige** essa ligação quando `external = true`. Aparência distinta no editor (ícone de cadeado, cor cinza, "🔒 Modelo já enviado pelo Disparo:" no resumo) e um alternador no painel do bloco (visível em botões/lista) para qualquer fluxo futuro usar. O Fluxo "Disparo diário — resposta ao contato" foi reconstruído: a mensagem externa (com o texto real do modelo, colado igual ao que o dono está enviando à Meta) fica logo após o Gatilho; a pergunta de verdade ("ask") só é enviada se o clique não bater com nenhum botão.

@@ -1277,8 +1277,8 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
             onChange={(event) => assignTo(event.target.value)}
             value={conversation.assignedUserId || ""}
           >
-            <option value="">Ninguém (liberar)</option>
-            {brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}</option>)}
+            <option value="">Ninguém (liberar — volta pra roleta)</option>
+            {brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.online ? "🟢 " : ""}{broker.name}</option>)}
           </select>
         </label>
       ) : null}
