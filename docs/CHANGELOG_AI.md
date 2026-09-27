@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Faxina de nomes na base de Prospecção; sem nome nunca sorteado em campanha
+- **Data:** 2026-09-27
+- **Área:** Prospecção / Disparo / Banco
+- **Alteração:** contato sem nome de verdade (nenhuma letra, ou "nome" é um e-mail) → `"Sem Nome"`; símbolo puramente decorativo removido de quem sobra letra (ex.: `"***Talita Dna"` → `"Talita Dna"`, `"## Cláudio ##"` → `"Cláudio"`); pequeno dicionário de apelidos sem ambiguidade corrigido (ex.: `"Zé"` → `"José"`, `"Cadu"` → `"Carlos Eduardo"`). `pick_broadcast_base_contacts` (usada pelo sorteio manual e pela rotina diária de Disparo) passa a excluir quem não tem nome de verdade.
+- **Motivo:** pedido do dono (2026-09-27), a partir de exemplos reais na Base da Imobiliária (`"***Talita Dna"`, `"## Cláudio ##"`, `"°#Y_Maiel#°"`, contatos com nome só de símbolo).
+- **Arquivos afetados:** `supabase/migrations/20260927120000_prospecting_names_cleanup.sql` (novo), `docs/BUSINESS_RULES.md` (PRO-4c).
+- **Risco/observação:** 2907 linhas de `prospecting_contacts` alteradas (2841 → `"Sem Nome"`; 59 com símbolo removido; 19 apelidos corrigidos), conferidas uma a uma antes de aplicar. **Fora do escopo, por risco de dano maior que o ganho** (não corrigido, fica para decisão futura do dono): 228 contatos com dígito colado ao nome (ex. `"Afonso/Ba0445"`), nomes de duas pessoas juntos por `/`/`&`/`|` (ex. `"Marcos Roberto Martins/Rute"`), e "mojibake" — acentuação corrompida na importação (ex. `"Jos? Carlos"`, `"Andrã?Ia"`) — problema de codificação de caractere, não de símbolo decorativo; remover o "?" destruiria a letra perdida. Não altera `queue_sort_at` (ordem de reserva da Meta Diária) nem nenhuma outra coluna. Não validado com `next build` local (sem `node_modules` na máquina).
+- **Autor:** Claude (agente)
+
 ### 2026-09-26 — Chat baixa imagens, documentos e vídeos recebidos (antes só áudio)
 - **Data:** 2026-09-26
 - **Área:** WhatsApp (Chat)
