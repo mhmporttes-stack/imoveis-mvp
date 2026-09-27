@@ -1065,12 +1065,7 @@ function Composer({ canManage, conversation, insertRequest = null, onSent }) {
             className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             disabled={sending}
             onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                send();
-              }
-            }}
+            // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
             placeholder={attachment ? "Legenda (opcional)…" : "Digite uma mensagem…"}
             rows={1}
             value={text}
@@ -1157,12 +1152,7 @@ function InternalComposer({ conversationId, onExit, onSent }) {
           className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
           disabled={sending}
           onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              send();
-            }
-          }}
+          // Enter só quebra linha — enviar é sempre pelo botão.
           placeholder="Mensagem interna — o cliente não verá esta mensagem"
           rows={1}
           value={text}
