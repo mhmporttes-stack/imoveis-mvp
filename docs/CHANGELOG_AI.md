@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Faxina de nomes, parte 5: capitalização padronizada (só a 1ª letra de cada palavra)
+- **Data:** 2026-09-27
+- **Área:** Prospecção / Banco
+- **Alteração:** `name` de `prospecting_contacts` padronizado para só a primeira letra de cada palavra maiúscula (ex.: `"GENI CARDOSO"` → `"Geni Cardoso"`, `"joão"` → `"João"`). Diferente do `initcap()` pronto do Postgres, preposição de nome brasileiro (`de`, `da`, `do`, `das`, `dos`) e o `e` de ligação ficam minúsculos quando não são a primeira palavra (`"SONIA MARIA ROSA DA SILVA"` → `"Sonia Maria Rosa da Silva"`, não `"Da Silva"`). Só letra é tocada — número, símbolo, espaço e barra ficam onde estavam.
+- **Motivo:** pedido do dono (2026-09-27): "todos devem ser padrão, só a primeira letra maiúscula".
+- **Arquivos afetados:** `supabase/migrations/20260927160000_prospecting_names_titlecase.sql` (novo, função criada e removida dentro da própria migration).
+- **Risco/observação:** 3.640 linhas alteradas (revisão por amostragem de 60+ casos antes de aplicar, nenhum problema encontrado); também unificou variantes antigas de "Sem Nome" (`"Sem nome"`, `"SEM NOME"`) para o texto canônico. Sobraram 14 nomes de uma letra só (`"A"`, `"S"`, `"F3R"`...) sem diferença possível de capitalização — fora do escopo deste pedido, não mexidos. Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Faxina de nomes, parte 3: acentuação corrompida corrigida à mão (mojibake)
 - **Data:** 2026-09-27
 - **Área:** Prospecção / Banco
