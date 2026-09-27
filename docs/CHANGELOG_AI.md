@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Faxina de nomes, parte 3: acentuação corrompida corrigida à mão (mojibake)
+- **Data:** 2026-09-27
+- **Área:** Prospecção / Banco
+- **Alteração:** ~65 nomes com acentuação corrompida na importação (ex.: `"Tã¢Nia Fetchir"` → `"Tânia Fetchir"`, `"Jos? Carlos Lima Pinto"` → `"José Carlos Lima Pinto"`) e "?" puramente decorativo (ex.: `"Carol ?"` → `"Carol"`) corrigidos **um a um, lidos manualmente** (não por fórmula — testei a reversão matemática Latin1↔UTF8 e ela falha por byte inválido numa parte dos casos, avisei o dono antes de aplicar). 6 nomes que não eram nome nenhum (link do Facebook, texto só de símbolo, letra solta) viraram `"Sem Nome"`.
+- **Motivo:** continuação da faxina de nomes, pedido do dono (2026-09-27), com confirmação explícita da lista antes de gravar.
+- **Arquivos afetados:** `supabase/migrations/20260927140000_prospecting_names_mojibake.sql` (novo, 31 correções + 2 "Sem Nome"), `supabase/migrations/20260927150000_prospecting_names_mojibake_2.sql` (novo, 27 correções + 4 "Sem Nome" — inclui 1 nome que tinha ficado de fora da primeira lista por engano, achado ao conferir o resultado).
+- **Risco/observação:** cada migration só atualiza por igualdade EXATA do texto corrompido lido — rodar de novo não faz nada. Ficaram de fora, de propósito: `"Gabriel??Mobilemaker|Gerenc. Ads??"` (nome + tag de negócio colados) e `"Morena Flor R.B.N.L.C?X"` (sigla ilegível). Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Faxina de nomes, parte 2: código de imóvel/importação grudado no nome
 - **Data:** 2026-09-27
 - **Área:** Prospecção / Banco
