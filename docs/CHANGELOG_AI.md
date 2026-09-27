@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Motor de Fluxos: clique no botão do modelo de Disparo pula a pergunta (initialText)
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Fluxos) — motor central
+- **Alteração:** o dono apontou corretamente que o Fluxo "Disparo diário — resposta ao contato" (entrada anterior abaixo) reperguntava as 3 opções mesmo quando o cliente já tinha clicado um botão do modelo. Causa: `campaign_reply` só sabe SE o telefone recebeu a campanha, não IMPORTA qual botão foi tocado — o texto do clique nunca chegava ao motor. Correção: `startSession`/`executeSession` (`lib/whatsapp-flows.js`) passam o texto que casou o gatilho para `runFlow({..., initialText})` (`lib/whatsapp-flow-core.mjs`); se o primeiro bloco de escolha do caminho, numa sessão que está começando, tiver uma opção com esse MESMO texto, a conversa já entra direto por ali — sem reenviar a mensagem. Só vale no arranque (uma tentativa, nunca numa resposta em andamento). Também corrigidos os textos dos 3 botões do Fluxo (id `346c9033-a2db-4d36-aefd-0d66b35095eb`) para baterem exatamente com os que o dono está enviando à Meta ("Quero atualizar" / "Tenho restrição" / "Não tenho interesse", sem emoji — antes estavam com emoji e "Sem interesse").
+- **Motivo:** pedido do dono — o disparo já tem os 3 botões, não faz sentido perguntar de novo.
+- **Arquivos afetados:** `lib/whatsapp-flow-core.mjs` (`runFlow`, novo `findOptionPortByText`/log `auto_route`), `lib/whatsapp-flows.js` (`startSession`, `executeSession`, `processFlowInbound`), `tests/whatsapp-flow-core.test.mjs` (3 testes novos); linha em `whatsapp_flows` (graph atualizado direto via SQL); `docs/WHATSAPP.md`.
+- **Risco/observação:** mudança no motor CENTRAL de Fluxos — afeta toda sessão nova de qualquer fluxo, não só este. Comportamento antigo preservado por design: só age quando o texto bate EXATAMENTE com uma opção do primeiro bloco de escolha alcançado; sem correspondência, envia a mensagem normalmente (nada muda para "Menu principal", "Anúncio", "Formulário concluído" — confirmado rodando a suíte completa de testes puros, 56/57 passam, a 1 falha é a P-15 já conhecida, sem relação). Continua sem ativar o Fluxo do disparo — falta o modelo ser aprovado e o dono escolher a Rotina no gatilho.
+- **Autor:** Claude Code
+
 ### 2026-09-27 — Fluxo "Disparo diário — resposta ao contato" (rascunho)
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Fluxos) / Banco

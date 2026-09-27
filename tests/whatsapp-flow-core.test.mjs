@@ -200,6 +200,38 @@ test("executor: toque no botão segue a ligação; pergunta o nome; resposta vir
   assert.equal(result.session.vars.primeiro_nome, "Joana");
 });
 
+test("executor: initialText — clique no botão do modelo de Disparo pula direto pra porta certa, sem reenviar a pergunta", async () => {
+  const graph = sampleGraph();
+  const deps = makeDeps();
+  // Sessão NOVA (sem input): o texto que disparou o fluxo já é "Quero simular" — igual ao botão b1 de m1.
+  const result = await runFlow({ graph, flowId: FLOW_ID, session: freshSession, deps, initialText: "Quero simular" });
+  // Não manda a mensagem de botões (m1) de novo: já entra na pergunta do nome (i1).
+  assert.equal(deps.calls.sent.length, 1);
+  assert.equal(deps.calls.sent[0].nodeId, "i1");
+  assert.equal(result.status, "waiting");
+  assert.equal(result.session.awaiting.nodeId, "i1");
+  assert.ok(deps.calls.logs.some((entry) => entry.kind === "auto_route" && entry.nodeId === "m1" && entry.detail.port === "b1"));
+});
+
+test("executor: initialText sem correspondência não muda nada (manda a pergunta normalmente)", async () => {
+  const graph = sampleGraph();
+  const deps = makeDeps();
+  const result = await runFlow({ graph, flowId: FLOW_ID, session: freshSession, deps, initialText: "Bom dia" });
+  assert.equal(deps.calls.sent.length, 1);
+  assert.equal(deps.calls.sent[0].nodeId, "m1");
+  assert.equal(result.status, "waiting");
+  assert.ok(!deps.calls.logs.some((entry) => entry.kind === "auto_route"));
+});
+
+test("executor: initialText só vale pra retomada de sessão NOVA (input=null) — resposta normal ignora", async () => {
+  const graph = sampleGraph();
+  const deps = makeDeps();
+  // Sessão já em andamento (esperando resposta em m1) + initialText por engano: não deve interferir na resposta real.
+  let result = await runFlow({ graph, flowId: FLOW_ID, session: freshSession, deps });
+  result = await runFlow({ graph, flowId: FLOW_ID, session: result.session, input: { kind: "reply", text: "Falar com corretor" }, deps, initialText: "Quero simular" });
+  assert.equal(result.status, "handoff");
+});
+
 test("executor: texto igual ao rótulo do botão conta como toque", async () => {
   const graph = sampleGraph();
   const deps = makeDeps();
