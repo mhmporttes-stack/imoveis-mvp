@@ -198,6 +198,25 @@ const TEMPLATES = [
     }
   },
   {
+    key: "resposta-campanha",
+    title: "Resposta de campanha de disparo",
+    description: "Quem RECEBEU uma campanha (ou rotina) de Disparo e respondeu: roleta só se ainda não tem corretor ativo, depois a apresentação com o nome de quem ficou responsável.",
+    build: () => {
+      const nodes = [];
+      const edges = [];
+      nodes.push(act("act", [{ type: "base_roulette" }, { type: "tag", tag: "Campanha de disparo" }]));
+      nodes.push(text("msg", "{{primeiro_nome}}, meu nome é {{corretor}}, sou {{cargo_corretor}}. Vi que há um tempo você entrou em contato com interesse na compra de um imóvel. Hoje estou te enviando essa mensagem só para saber como foi sua experiência, se você foi bem atendido(a) e se deu tudo certo com a compra do imóvel."));
+      nodes.push(act("h1", [{ type: "handoff" }]));
+      edges.push(edge("start", "next", "act"), edge("act", "next", "msg"), edge("msg", "next", "h1"));
+      return {
+        name: "Resposta de campanha de disparo",
+        // campaignSource fica vazio de propósito — escolha a campanha/rotina no gatilho antes de ativar.
+        trigger: { type: "campaign_reply", keywords: [], match: "contains", cooldownHours: 0, campaignSource: null },
+        graph: build(nodes, edges)
+      };
+    }
+  },
+  {
     key: "palavra-corretor",
     title: "Palavra-chave: falar com corretor",
     description: "Quando o cliente pede um corretor/atendente, encaminha pela roleta e passa para o Chat.",

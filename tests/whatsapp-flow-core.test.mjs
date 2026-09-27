@@ -83,6 +83,9 @@ test("gatilhos: palavra-chave ignora acento/maiúscula, exata exige igualdade", 
   assert.equal(matchTrigger({ type: "first_message" }, { isFirstMessage: true }), true);
   assert.equal(matchTrigger({ type: "first_message" }, { isFirstMessage: false }), false);
   assert.equal(matchTrigger({ type: "ad_referral" }, { hasReferral: true }), true);
+  assert.equal(matchTrigger({ type: "campaign_reply" }, { campaignMatch: true }), true);
+  assert.equal(matchTrigger({ type: "campaign_reply" }, { campaignMatch: false }), false);
+  assert.equal(matchTrigger({ type: "campaign_reply" }, {}), false);
   assert.equal(matchTrigger({ type: "any_message" }, {}), true);
 });
 
@@ -91,6 +94,17 @@ test("validação do gatilho", () => {
   assert.equal(validateTrigger({ type: "keyword", keywords: ["oi"] }).length, 0);
   assert.equal(validateTrigger({ type: "first_message" }).length, 0);
   assert.equal(validateTrigger({ type: "nada" }).length, 1);
+  assert.equal(validateTrigger({ type: "campaign_reply" }).length, 1);
+  assert.equal(validateTrigger({ type: "campaign_reply", campaignSource: { kind: "schedule", id: "s1" } }).length, 0);
+});
+
+test("ação 'base_roulette' é uma ação válida no grafo", () => {
+  const graph = {
+    nodes: [node("start", "start", {}), node("a1", "action", { actions: [{ type: "base_roulette" }] })],
+    edges: [edge("start", "next", "a1")]
+  };
+  const { errors } = validateGraph(graph);
+  assert.deepEqual(errors, []);
 });
 
 test("validação do grafo: fluxo de exemplo é válido; limites da Meta são barrados", () => {
@@ -311,11 +325,10 @@ test("modelos prontos do editor passam na validação de ativação", async () =
   const { buildFlowFromTemplate, listFlowTemplates } = await import("../components/flows/flow-templates.js");
   for (const { key } of listFlowTemplates()) {
     const { trigger, graph } = buildFlowFromTemplate(key);
-    const graphResult = validateGraph(graph);
-    const triggerErrors = key === "blank" ? [] : validateTrigger(trigger);
-    if (key === "blank") continue; // em branco precisa ser preenchido antes de ativar
-    assert.deepEqual(graphResult.errors, [], `modelo ${key}`);
-    assert.deepEqual(triggerErrors, [], `gatilho do modelo ${key}`);
+    if (key === "blank") continue; // em branco precisa ser preenchido (grafo inteiro) antes de ativar
+    assert.deepEqual(validateGraph(graph).errors, [], `modelo ${key}`);
+    if (key === "resposta-campanha") continue; // precisa escolher a campanha/rotina antes de ativar
+    assert.deepEqual(validateTrigger(trigger), [], `gatilho do modelo ${key}`);
   }
 });
 

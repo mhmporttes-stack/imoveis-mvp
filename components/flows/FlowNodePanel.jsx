@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Plus, Trash2, X } from "lucide-react";
 import { LIMITS, TRIGGER_TYPES, defaultCooldownHours, newId } from "@/lib/whatsapp-flow-core.mjs";
 import { ACTION_LABELS, CONDITION_LABELS, NODE_META, TONES, TRIGGER_LABELS } from "@/components/flows/flow-ui";
@@ -110,6 +110,7 @@ function TriggerForm({ trigger, onChange }) {
                   keyword: "Quando o cliente escrever uma das palavras abaixo.",
                   first_message: "Quando um contato novo manda a primeira mensagem.",
                   ad_referral: "Quando o cliente chega clicando no anúncio (Click to WhatsApp).",
+                  campaign_reply: "Quando quem RECEBEU uma campanha (ou rotina) de Disparo responde.",
                   any_message: "Qualquer mensagem, se não houver outro fluxo em andamento."
                 }[type]}
               </span>
@@ -117,6 +118,8 @@ function TriggerForm({ trigger, onChange }) {
           ))}
         </div>
       </Field>
+
+      {trigger.type === "campaign_reply" ? <CampaignSourcePicker trigger={trigger} set={set} /> : null}
 
       {trigger.type === "keyword" ? (
         <>
@@ -154,6 +157,53 @@ function TriggerForm({ trigger, onChange }) {
         Se um atendente respondeu a este cliente nos últimos 30 minutos, só o gatilho por palavra-chave inicia o fluxo (os outros esperam). Quando um atendente responde no Chat, o fluxo em andamento para.
       </p>
     </>
+  );
+}
+
+// Escolha de qual campanha/rotina de Disparo este gatilho acompanha — só quem RECEBEU aquele lote e respondeu dentro
+// da janela aciona o fluxo (lib/whatsapp-flows.js calcula isso no servidor; aqui só lista as opções).
+function CampaignSourcePicker({ trigger, set }) {
+  const [options, setOptions] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/whatsapp-broadcasts/campaign-options")
+      .then((response) => response.json())
+      .then((payload) => { if (!cancelled) setOptions(payload); })
+      .catch(() => { if (!cancelled) setError("Não foi possível carregar as campanhas."); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const value = trigger.campaignSource ? `${trigger.campaignSource.kind}:${trigger.campaignSource.id}` : "";
+
+  return (
+    <Field label="Qual campanha ou rotina">
+      {error ? <p className="text-xs font-bold text-red-600">{error}</p> : null}
+      <select
+        value={value}
+        onChange={(event) => {
+          const [kind, id] = event.target.value.split(":");
+          set({ campaignSource: id ? { kind, id } : null });
+        }}
+        className={inputClass}
+      >
+        <option value="">Escolha…</option>
+        {options?.schedules?.length ? (
+          <optgroup label="Rotinas de disparo">
+            {options.schedules.map((item) => <option key={item.id} value={`schedule:${item.id}`}>{item.name}</option>)}
+          </optgroup>
+        ) : null}
+        {options?.broadcasts?.length ? (
+          <optgroup label="Campanhas avulsas">
+            {options.broadcasts.map((item) => <option key={item.id} value={`broadcast:${item.id}`}>{item.campaignName}</option>)}
+          </optgroup>
+        ) : null}
+      </select>
+      {options && !options.schedules?.length && !options.broadcasts?.length ? (
+        <p className="mt-1 text-xs font-semibold text-muted">Nenhuma campanha ou rotina criada ainda em Disparo.</p>
+      ) : null}
+    </Field>
   );
 }
 
@@ -340,6 +390,7 @@ function ActionForm({ data, set }) {
       </Field>
       <div className="space-y-1.5 rounded-lg bg-mist px-3 py-2 text-xs font-semibold text-muted">
         <p><b>Roleta:</b> cria o cliente no CRM e escolhe o corretor pela roleta (se o telefone já é cliente, não duplica nem troca o responsável). Depois disso, {"{{link_simulacao}}"} e {"{{corretor}}"} passam a ser os desse corretor.</p>
+        <p><b>Roleta para cliente da base:</b> igual à Roleta para quem ainda não é cliente; se já é cliente e o responsável hoje é você (dono) ou alguém inativo, sorteia um corretor ativo. Se já tem um corretor ativo de verdade, mantém — nunca troca de novo depois.</p>
         <p><b>Passar para um atendente:</b> encerra o fluxo e deixa a conversa como "Nova" no Chat, para uma pessoa assumir.</p>
       </div>
     </>

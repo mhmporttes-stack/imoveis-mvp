@@ -30,6 +30,7 @@ export const TONES = {
 
 export const ACTION_LABELS = {
   roulette: "Encaminhar para a roleta (cria o cliente)",
+  base_roulette: "Roleta para cliente da base (mantém se já tem corretor ativo)",
   tag: "Aplicar etiqueta no cliente",
   handoff: "Passar para um atendente",
   finish: "Marcar conversa como finalizada",
@@ -48,6 +49,7 @@ export const TRIGGER_LABELS = {
   keyword: "Palavra-chave",
   first_message: "Primeira mensagem do contato",
   ad_referral: "Conversa iniciada por anúncio",
+  campaign_reply: "Respondeu a uma campanha de disparo",
   any_message: "Qualquer mensagem"
 };
 
