@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Ícone do app: confirmado que é limitação do iOS, não do código (diagnóstico removido)
+- **Data:** 2026-09-27
+- **Área:** WhatsApp (Chat) / PWA
+- **Alteração:** diagnóstico ao vivo (rota `admin/tmp-badge-debug` + tabela `tmp_badge_debug`, temporários) confirmou no aparelho real do dono que `navigator.setAppBadge`/`self.navigator.setAppBadge` sempre resolvem com sucesso — nas duas camadas (app aberto e push com o app fechado), contagem certa a cada mudança (0→1→2→3→4→0 acompanhando mensagens novas e leitura) — mas o iOS 18.7 nem sempre pinta o número no ícone da tela de início. Removido o diagnóstico (rota, tabela, trechos extras); mantido só o `setAppBadge`/`clearAppBadge` de sempre.
+- **Motivo:** o dono testou no iPhone duas vezes e o ícone não mudou; era preciso saber se era bug nosso ou do aparelho.
+- **Arquivos afetados:** `app/api/admin/tmp-badge-debug/route.js` (removido), `components/useWhatsappChatSummary.js`, `public/sw.js`, `docs/WHATSAPP.md`.
+- **Risco/observação:** nenhuma mudança de comportamento — só limpeza do diagnóstico. Conclusão: limitação confirmada do WebKit/iOS para a Badging API em apps instalados via "Adicionar à Tela de Início", fora do controle do código desta aplicação; documentado para não reabrir a investigação à toa numa próxima vez. Não validado com `next build` local.
+- **Autor:** Claude (agente)
+
 ### 2026-09-27 — Chat: liberar conversa devolve o cliente à roleta; seletor mostra quem está online
 - **Data:** 2026-09-27
 - **Área:** WhatsApp (Chat) / Roleta

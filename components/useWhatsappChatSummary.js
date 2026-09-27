@@ -29,38 +29,16 @@ function setSummary(next) {
 // o método, por isso o "in navigator" antes de chamar). Só corrige o número
 // enquanto o app está aberto (aba ativa ou em segundo plano, com o canal em
 // tempo real vivo); com o app FECHADO quem atualiza é o push (public/sw.js).
+// Diagnóstico ao vivo (2026-09-27, ver docs/CHANGELOG_AI.md): a chamada sempre
+// resolve com sucesso aqui, mas o iOS às vezes não pinta o ícone de verdade —
+// limitação confirmada do WebKit, não deste código; nada a corrigir do lado JS.
 function syncAppBadge(count) {
-  const supported = typeof navigator !== "undefined" && "setAppBadge" in navigator;
   try {
-    if (!supported) {
-      reportBadgeDebug({ supported, count, outcome: "unsupported" });
-      return;
-    }
-    const call = count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge?.();
-    Promise.resolve(call)
-      .then(() => reportBadgeDebug({ supported, count, outcome: "ok" }))
-      .catch((error) => reportBadgeDebug({ supported, count, outcome: "rejected", error: String(error?.message || error) }));
-  } catch (error) {
-    reportBadgeDebug({ supported, count, outcome: "threw", error: String(error?.message || error) });
-  }
-}
-
-// Diagnóstico TEMPORÁRIO (ver app/api/admin/tmp-badge-debug) — o dono testou no
-// iPhone e o ícone não mudou; sem acesso ao console do aparelho, isto manda o
-// resultado real da chamada (suporte, resolveu/rejeitou, modo de exibição) pro
-// log do servidor. Fire-and-forget, nunca atrapalha a tela. Remover depois.
-function reportBadgeDebug(details) {
-  try {
-    if (typeof fetch !== "function") return;
-    const displayModeStandalone = typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)")?.matches;
-    fetch("/api/admin/tmp-badge-debug", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...details, displayModeStandalone, ua: navigator.userAgent }),
-      keepalive: true
-    }).catch(() => {});
+    if (typeof navigator === "undefined" || !("setAppBadge" in navigator)) return;
+    if (count > 0) navigator.setAppBadge(count).catch(() => {});
+    else navigator.clearAppBadge?.().catch(() => {});
   } catch {
-    // Nunca deixa o diagnóstico quebrar a tela.
+    // Navegador sem suporte real por trás do "in navigator" (raro) — ignora.
   }
 }
 
