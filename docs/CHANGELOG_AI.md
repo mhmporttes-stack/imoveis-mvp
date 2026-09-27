@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Reações e respostas específicas no Chat
+- **Data:** 2026-09-27 · **Área:** WhatsApp (Chat) · **Motivo:** pedido do dono.
+- **Alteração:** mostra reações na mensagem original, permite reagir/remover reação e responder citando mensagens do cliente no CRM. Reação não aumenta não lidas nem muda o atendimento.
+- **Arquivos:** `lib/whatsapp-chat.js`, `lib/whatsapp-master.js`, `lib/whatsapp-reactions.mjs`, `components/WhatsappChat.jsx`, rotas `app/api/admin/whatsapp-chat/conversations/[id]/messages` e `reactions`, `tests/whatsapp-reactions.test.mjs`, `docs/WHATSAPP.md`.
+- **Risco/observação:** sem alteração no banco; o envio real depende das regras da Meta (incluindo validade da mensagem alvo). Sem envio de teste para cliente real.
+- **Autor:** Codex
+
 ### 2026-09-27 — Chat: mudar status do cliente direto no painel do contato
 - **Data:** 2026-09-27 · **Área:** WhatsApp (Chat) · **Motivo:** pedido do dono.
 - **Alteração:** admin/gestor mudam o status do cliente num seletor no painel "Informações do contato", chamando o mesmo `PATCH /api/simulation-registrations/[id]` do card em Clientes — reflete nos dois lugares, sem endpoint novo.
