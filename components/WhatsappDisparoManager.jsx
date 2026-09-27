@@ -6,10 +6,21 @@ import { CostsSection, PerformanceSection, useFinanceReport } from "@/components
 
 const SECTIONS = [
   { key: "campaign", label: "Nova campanha" },
+  { key: "schedules", label: "Rotinas" },
   { key: "templates", label: "Templates" },
   { key: "history", label: "Histórico" },
   { key: "costs", label: "Gastos" },
   { key: "performance", label: "Desempenho" }
+];
+
+const WEEKDAY_LABELS = [
+  { value: 0, label: "Dom" },
+  { value: 1, label: "Seg" },
+  { value: 2, label: "Ter" },
+  { value: 3, label: "Qua" },
+  { value: 4, label: "Qui" },
+  { value: 5, label: "Sex" },
+  { value: 6, label: "Sáb" }
 ];
 
 const TEMPLATE_STATUS_TONE = {
@@ -73,11 +84,233 @@ export default function WhatsappDisparoManager() {
       {section === "campaign" ? (
         <NewCampaignSection templates={templates} templatesLoaded={templatesLoaded} approvedTemplates={templates.filter((t) => t.status === "APPROVED")} />
       ) : null}
+      {section === "schedules" ? <SchedulesSection approvedTemplates={templates.filter((t) => t.status === "APPROVED")} templatesLoaded={templatesLoaded} /> : null}
       {section === "templates" ? <TemplatesSection templates={templates} onReload={loadTemplates} /> : null}
       {section === "history" ? <HistorySection templates={templates} /> : null}
       {section === "costs" ? <CostsSection finance={finance} /> : null}
       {section === "performance" ? <PerformanceSection finance={finance} /> : null}
     </section>
+  );
+}
+
+/* -------------------------------- Rotinas ---------------------------------- */
+
+function SchedulesSection({ approvedTemplates, templatesLoaded }) {
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [busyId, setBusyId] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-broadcasts/schedules");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error);
+      setSchedules(payload.schedules || []);
+    } catch (loadError) {
+      setError(loadError.message || "Não foi possível carregar as rotinas.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function toggleEnabled(schedule) {
+    setBusyId(schedule.id);
+    try {
+      const response = await fetch(`/api/admin/whatsapp-broadcasts/schedules/${schedule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !schedule.enabled })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error);
+      await load();
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível alterar a rotina.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function removeSchedule(schedule) {
+    if (!window.confirm(`Excluir a rotina "${schedule.name}"? Os lotes já disparados continuam no histórico.`)) return;
+    setBusyId(schedule.id);
+    try {
+      const response = await fetch(`/api/admin/whatsapp-broadcasts/schedules/${schedule.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error);
+      await load();
+    } catch (removeError) {
+      setError(removeError.message || "Não foi possível excluir a rotina.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-black text-navy">Rotinas de disparo</p>
+          <p className="text-xs font-bold text-muted">Ex.: todo dia às 8h, 30 mensagens sorteadas da base. O envio roda sozinho pelo cron do Disparo.</p>
+        </div>
+        <button type="button" onClick={() => setCreating(true)} className="premium-button-primary">Nova rotina</button>
+      </div>
+
+      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-muted">Carregando…</p> : null}
+
+      {!loading && !schedules.length ? <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm font-bold text-muted">Nenhuma rotina criada ainda.</p> : null}
+
+      <div className="space-y-3">
+        {schedules.map((schedule) => (
+          <ScheduleCard key={schedule.id} schedule={schedule} busy={busyId === schedule.id} onToggle={() => toggleEnabled(schedule)} onDelete={() => removeSchedule(schedule)} />
+        ))}
+      </div>
+
+      {creating ? (
+        <CreateScheduleForm
+          approvedTemplates={approvedTemplates}
+          templatesLoaded={templatesLoaded}
+          onClose={() => setCreating(false)}
+          onCreated={async () => { setCreating(false); await load(); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ScheduleCard({ schedule, busy, onToggle, onDelete }) {
+  const stats = schedule.stats || {};
+  const days = WEEKDAY_LABELS.filter((day) => schedule.daysOfWeek.includes(day.value)).map((day) => day.label).join(", ");
+  return (
+    <div className="rounded-2xl border border-line p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-black text-navy">{schedule.name}</p>
+          <p className="text-xs font-bold text-muted">
+            {schedule.templateName || "Modelo"} · {schedule.dailyCount}/dia às {schedule.runTime} · {days}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${schedule.enabled ? "bg-emerald-50 text-emerald-700" : "bg-mist text-muted"}`}>
+            {schedule.enabled ? "Ativa" : "Pausada"}
+          </span>
+          <button type="button" disabled={busy} onClick={onToggle} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">
+            {schedule.enabled ? "Pausar" : "Ativar"}
+          </button>
+          <button type="button" disabled={busy} onClick={onDelete} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">Excluir</button>
+        </div>
+      </div>
+
+      {schedule.pausedReason ? <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{schedule.pausedReason}</p> : null}
+      {schedule.lastError ? <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Erro na última execução: {schedule.lastError}</p> : null}
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <Metric label="Lotes" value={stats.batches || 0} />
+        <Metric label="Enviados" value={stats.sent || 0} />
+        <Metric label="Entregues" value={stats.delivered || 0} />
+        <Metric label="Lidos" value={stats.read || 0} />
+        <Metric label="Respostas" value={stats.replies || 0} />
+      </div>
+      {stats.byBroker?.length ? (
+        <p className="mt-2 text-xs font-bold text-muted">Respostas por corretor: {stats.byBroker.map((row) => `${row.name} (${row.count})`).join(", ")}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CreateScheduleForm({ approvedTemplates, templatesLoaded, onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [dailyCount, setDailyCount] = useState(30);
+  const [runTime, setRunTime] = useState("08:00");
+  const [days, setDays] = useState([0, 1, 2, 3, 4, 5, 6]);
+  const [minDaysSinceContact, setMinDaysSinceContact] = useState(60);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function toggleDay(value) {
+    setDays((current) => (current.includes(value) ? current.filter((day) => day !== value) : [...current, value].sort()));
+  }
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-broadcasts/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, templateId, dailyCount, runTime, daysOfWeek: days, minDaysSinceContact })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error);
+      await onCreated();
+    } catch (submitError) {
+      setError(submitError.message || "Não foi possível criar a rotina.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-line bg-mist/40 p-4">
+      <p className="mb-3 text-sm font-black text-navy">Nova rotina</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-black text-navy">
+          Nome da rotina
+          <input className="mt-1 w-full rounded-lg border border-line p-2 font-normal" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bom dia — base fria" />
+        </label>
+        <label className="text-xs font-black text-navy">
+          Modelo (só aprovados)
+          <select className="mt-1 w-full rounded-lg border border-line p-2 font-normal" value={templateId} onChange={(e) => setTemplateId(e.target.value)} disabled={!templatesLoaded}>
+            <option value="">Selecione…</option>
+            {approvedTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-black text-navy">
+          Mensagens por dia
+          <input type="number" min={1} max={500} className="mt-1 w-full rounded-lg border border-line p-2 font-normal" value={dailyCount} onChange={(e) => setDailyCount(Math.min(Math.max(Number(e.target.value) || 1, 1), 500))} />
+        </label>
+        <label className="text-xs font-black text-navy">
+          Horário (Brasília)
+          <input type="time" className="mt-1 w-full rounded-lg border border-line p-2 font-normal" value={runTime} onChange={(e) => setRunTime(e.target.value)} />
+        </label>
+        <label className="text-xs font-black text-navy sm:col-span-2">
+          Dias da semana
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {WEEKDAY_LABELS.map((day) => (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => toggleDay(day.value)}
+                className={`rounded-full border px-3 py-1 text-xs font-black ${days.includes(day.value) ? "border-navy bg-navy text-white" : "border-line text-navy"}`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+        </label>
+        <label className="text-xs font-black text-navy">
+          Dias sem contato p/ reaproveitar (2ª leva)
+          <input type="number" min={0} max={3650} className="mt-1 w-full rounded-lg border border-line p-2 font-normal" value={minDaysSinceContact} onChange={(e) => setMinDaysSinceContact(Math.max(Number(e.target.value) || 0, 0))} />
+        </label>
+      </div>
+      {error ? <p className="mt-2 text-xs font-bold text-red-600">{error}</p> : null}
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={onClose} className="premium-button-secondary">Cancelar</button>
+        <button type="button" disabled={busy || !name || !templateId} onClick={submit} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60">
+          {busy ? "Criando…" : "Criar rotina (fica pausada)"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -497,7 +730,38 @@ function ContactsStep({ sourceType, setSourceType, selectedContacts, setSelected
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [drawCount, setDrawCount] = useState(50);
+  const [drawing, setDrawing] = useState(false);
+  const [drawError, setDrawError] = useState("");
+  const [drawResult, setDrawResult] = useState(null); // { tier1, tier2 }
   const pageSize = 30;
+
+  // Sorteio: primeiro os NUNCA contatados (ao acaso); só se faltar, os de contato mais antigo. Some direto na seleção
+  // (o corretor pode ainda tirar/adicionar manualmente na lista abaixo antes de continuar).
+  async function drawRandomContacts() {
+    setDrawing(true);
+    setDrawError("");
+    setDrawResult(null);
+    try {
+      const response = await fetch("/api/admin/whatsapp-broadcasts/pick-contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: drawCount })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error);
+      setSelectedContacts((current) => {
+        const next = new Map(current);
+        for (const contact of payload.contacts || []) next.set(contact.id, contact);
+        return next;
+      });
+      setDrawResult({ tier1: payload.tier1 || 0, tier2: payload.tier2 || 0, total: (payload.contacts || []).length });
+    } catch (drawErr) {
+      setDrawError(drawErr.message || "Não foi possível sortear os contatos.");
+    } finally {
+      setDrawing(false);
+    }
+  }
 
   async function search(nextOffset = 0) {
     setLoading(true);
@@ -556,6 +820,28 @@ function ContactsStep({ sourceType, setSourceType, selectedContacts, setSelected
 
       {sourceType === "base" ? (
         <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-line bg-mist/40 p-3">
+            <span className="text-sm font-bold text-navy">Sortear</span>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              className="w-20 rounded-lg border border-line p-2 font-normal"
+              value={drawCount}
+              onChange={(event) => setDrawCount(Math.min(Math.max(Number(event.target.value) || 1, 1), 500))}
+            />
+            <span className="text-sm font-bold text-navy">contatos aleatórios da base</span>
+            <button type="button" onClick={drawRandomContacts} disabled={drawing} className="premium-button-secondary disabled:cursor-not-allowed disabled:opacity-60">
+              {drawing ? "Sorteando…" : "Sortear"}
+            </button>
+            <span className="text-xs text-muted">Primeiro os nunca contatados (ao acaso); só se faltar, os de contato mais antigo.</span>
+          </div>
+          {drawError ? <p className="text-xs font-bold text-red-600">{drawError}</p> : null}
+          {drawResult ? (
+            <p className="text-xs font-bold text-emerald-700">
+              {drawResult.total} sorteados: {drawResult.tier1} nunca contatados{drawResult.tier2 ? ` + ${drawResult.tier2} de contato mais antigo` : ""}.
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <input className="min-w-[220px] flex-1 rounded-lg border border-line p-2 font-normal" placeholder="Buscar por nome ou telefone" value={query} onChange={(e) => setQuery(e.target.value)} />
             <button type="button" onClick={() => search(0)} className="premium-button-secondary">Buscar</button>
