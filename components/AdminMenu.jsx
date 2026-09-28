@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
@@ -192,6 +193,7 @@ function CrmBreakdown({ counts, onClose, alignLeft = false }) {
 }
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
+  const pathname = usePathname();
   // Gestor enxerga exatamente o mesmo menu do administrador geral — o que
   // ele nao deve ver (financeiro da imobiliaria, clientes do dono) e barrado
   // nas proprias paginas/consultas, nao escondendo o item de menu.
@@ -202,6 +204,16 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   const crmCount = crmCounts.total;
   const [showCrmDetails, setShowCrmDetails] = useState(false);
   const crmPopoverRef = useRef(null);
+  const onMainGroupClick = (event, group) => {
+    setVisibleGroup(group.key);
+    if (!["clientes", "crm"].includes(group.key)) return;
+    if (pathname === group.href && crmCount > 0) {
+      event.preventDefault();
+      setShowCrmDetails((open) => !open);
+    } else {
+      setShowCrmDetails(false);
+    }
+  };
 
   useEffect(() => {
     if (!showCrmDetails) return;
@@ -248,7 +260,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             if (isBroker && group.key === "crm") {
               return (
                 <div key={group.key} ref={crmPopoverRef} className="relative flex min-w-0 flex-1">
-                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => { setVisibleGroup(group.key); if (crmCount > 0) { event.preventDefault(); setShowCrmDetails((open) => !open); } }}>
+                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => onMainGroupClick(event, group)}>
                     {group.label}
                   </Link>
                   {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
@@ -274,7 +286,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                 href={group.href}
                 className={`${buttonClass(highlighted, isBroker)} w-full`}
                 aria-expanded={["clientes", "crm"].includes(group.key) && crmCount > 0 ? showCrmDetails : undefined}
-                onClick={(event) => { setVisibleGroup(group.key); if (["clientes", "crm"].includes(group.key) && crmCount > 0) { event.preventDefault(); setShowCrmDetails((open) => !open); } }}
+                onClick={(event) => onMainGroupClick(event, group)}
               >
                 {group.label}
               </Link>
