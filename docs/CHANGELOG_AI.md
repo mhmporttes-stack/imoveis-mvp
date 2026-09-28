@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Entrada do conteúdo mais perceptível
+- **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** no iPhone, com movimento reduzido desligado, o dono não percebeu a animação anterior.
+- **Alteração:** entrada e troca de conteúdo em 320 ms com deslocamento curto de 20 px; a opção ativa do menu ganha entrada discreta, sem mover ranking, cabeçalho ou estrutura do menu. Nenhuma mudança em regras ou layout.
+- **Arquivos:** `app/globals.css`, `components/AdminMenu.jsx`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Transição acionada na troca real de páginas
 - **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** o dono continuou sem perceber transições depois da correção anterior.
 - **Alteração:** o menu agora inicia a entrada do conteúdo a cada troca de seção, inclusive quando o navegador reutiliza o mesmo nó; cabeçalho, menu e ranking não são animados. A preferência por movimento reduzido continua respeitada.
