@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { MoreHorizontal } from "lucide-react";
 
 const buttonBase =
@@ -173,6 +174,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   const groups = isAdmin ? ownerGroups : isManager ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
+  const { total: crmCount } = useCrmBadgeCounts();
 
   useEffect(() => {
     setVisibleGroup(getGroupKeyForActive(active, groups));
@@ -213,7 +215,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                   <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} onClick={() => setVisibleGroup(group.key)}>
                     {group.label}
                   </Link>
-                  <WhatsappChatNavBadge className="pointer-events-none absolute -top-2 right-7" />
+                  {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
                   <details className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
                     <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-full text-navy [&::-webkit-details-marker]:hidden" aria-label="Outras áreas do CRM" title="Outras áreas do CRM">
                       <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -230,15 +232,16 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
               );
             }
             return (
+              <div key={group.key} className="relative flex min-w-0 flex-1">
               <Link
-                key={group.key}
                 href={group.href}
-                className={buttonClass(highlighted, isBroker)}
+                className={`${buttonClass(highlighted, isBroker)} w-full`}
                 onClick={() => setVisibleGroup(group.key)}
               >
                 {group.label}
-                {group.items.some((item) => item.badge === "chat") ? <WhatsappChatNavBadge className="ml-2" /> : null}
               </Link>
+              {["clientes", "crm"].includes(group.key) && crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
+              </div>
             );
           }
 

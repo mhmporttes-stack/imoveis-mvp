@@ -29,6 +29,7 @@ import {
   X
 } from "lucide-react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import {
   CLIENT_FUNNEL_SALE_STATUS_VALUES,
   CLIENT_STATUS,
@@ -58,6 +59,11 @@ import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
+
+function CrmAgendaBadge() {
+  const { agenda } = useCrmBadgeCounts();
+  return agenda > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${agenda} atividades pendentes`}>{agenda > 99 ? "99+" : agenda}</span> : null;
+}
 const ACTIVITY_TYPE_OPTIONS = [
   { value: "follow_up", label: "Follow-up" },
   { value: "documentacao", label: "Documentação" },
@@ -778,8 +784,9 @@ export default function AdminSimulationList({
               <MessageCircle className="h-5 w-5" aria-hidden="true" />
               <WhatsappChatNavBadge className="absolute -right-2 -top-2" />
             </Link>
-            <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
+            <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
+              <CrmAgendaBadge />
             </Link>
             {brokerSimulationLink ? <button type="button" onClick={copyBrokerSimulationLink} aria-label="Copiar link de simulação" title="Copiar link de simulação" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               {copyFeedback === "Link copiado" ? <Check className="h-5 w-5" aria-hidden="true" /> : <Link2 className="h-5 w-5" aria-hidden="true" />}
