@@ -38,3 +38,9 @@ export function notifyHistoryBatch(userId, items) {
 export function notifyStatus(userId, { status, qr, phoneNumber, error }) {
   return post({ userId, type: "status", status, qr, phoneNumber, error });
 }
+
+// Confirmação de entrega ("delivered") ou leitura ("read") de uma mensagem
+// que o corretor mandou — as setinhas do WhatsApp (ver sessions.js: onMessagesUpdate).
+export function notifyMessageStatus(userId, { waMessageId, status }) {
+  return post({ userId, type: "message_status", waMessageId, status });
+}

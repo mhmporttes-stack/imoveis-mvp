@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
-import { projectIndividualHistoryBatch, projectIndividualInboundMessage } from "@/lib/whatsapp-individual-inbound";
+import { projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Lote de histórico grande pode demorar (vários inserts) — o plano Pro da
+// Vercel aguenta até 300s; 280 dá margem sem passar do limite.
+export const maxDuration = 280;
 
 // Recebe do microsserviço whatsapp-individual-service/ (sessão pessoal de
 // WhatsApp de cada corretor, via Baileys): mensagem nova (type:'message') ou
@@ -53,6 +55,11 @@ export async function POST(request) {
 
     if (payload.type === "history") {
       const result = await projectIndividualHistoryBatch(userId, Array.isArray(payload.items) ? payload.items : []);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (payload.type === "message_status") {
+      const result = await projectIndividualMessageStatus({ waMessageId: payload.waMessageId, status: payload.status });
       return NextResponse.json({ ok: true, ...result });
     }
 

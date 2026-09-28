@@ -3,7 +3,14 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds } from "./db.js";
-import { notifyHistoryBatch, notifyMessage, notifyStatus } from "./webhook.js";
+import { notifyHistoryBatch, notifyMessage, notifyMessageStatus, notifyStatus } from "./webhook.js";
+
+// Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
+// mudar código — o lote de histórico grande estava travando o webhook do CRM
+// (504) e piorando a corrupção de sessão (Bad MAC) quando várias sessões
+// sincronizavam ao mesmo tempo. PAUSADO por padrão; ativar setando
+// WHATSAPP_HISTORY_SYNC_ENABLED=true na Railway (não precisa novo deploy).
+const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED === "true";
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
 // listeners pro mesmo corretor. `sockets` é a fonte da verdade EM MEMÓRIA
@@ -49,8 +56,9 @@ async function startSocket(userId, entry) {
     printQRInTerminal: false,
     // Traz o histórico de conversas do celular ao conectar, igual o WhatsApp
     // Web (pedido explícito do dono, ciente de que isso inclui conversas
-    // pessoais do corretor — ver onHistorySync).
-    syncFullHistory: true,
+    // pessoais do corretor — ver onHistorySync). PAUSADO por ora — ver
+    // HISTORY_SYNC_ENABLED acima.
+    syncFullHistory: HISTORY_SYNC_ENABLED,
     browser: ["CRM Imoveis", "Chrome", "1.0"]
   });
   entry.sock = sock;
@@ -59,7 +67,10 @@ async function startSocket(userId, entry) {
 
   sock.ev.on("connection.update", (update) => onConnectionUpdate(userId, entry, update));
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
-  sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
+  sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
+  if (HISTORY_SYNC_ENABLED) {
+    sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
+  }
 
   // Resolve a chamada HTTP assim que soubermos "precisa de QR" ou "já
   // conectou" (creds válidos reaproveitados) — sem travar a resposta do
@@ -175,12 +186,33 @@ async function onMessagesUpsert(userId, messages, type) {
   }
 }
 
+// Confirmação de entrega/leitura (as "setinhas" do WhatsApp) das mensagens
+// que ESTE corretor mandou — Baileys avisa aqui quando o status muda.
+// status: 2=SERVER_ACK (só confirma envio, já tratado no /send), 3=DELIVERY_ACK
+// (entregue — duas setinhas cinza), 4=READ, 5=PLAYED (lida — duas setinhas
+// azuis). Só repassa entregue/lida; envio já é registrado na hora do /send.
+async function onMessagesUpdate(userId, updates) {
+  for (const { key, update } of updates || []) {
+    try {
+      if (!key?.fromMe || !key?.id) continue;
+      const statusCode = update?.status;
+      if (statusCode !== 3 && statusCode !== 4 && statusCode !== 5) continue;
+      await notifyMessageStatus(userId, { waMessageId: key.id, status: statusCode === 3 ? "delivered" : "read" });
+    } catch (error) {
+      console.error(`[${userId}] Falha ao processar atualização de status:`, error.message);
+    }
+  }
+}
+
 // Histórico trazido ao conectar (syncFullHistory) — pode vir em vários
 // lotes grandes. Manda em pedaços pro CRM (uma chamada por mensagem seria
 // lento demais) só o texto de conversa individual; o CRM decide o que fazer
 // com cada uma (não sorteia/cria cliente pra contato pessoal — só popula o
 // histórico da conversa).
-const HISTORY_BATCH_SIZE = 200;
+// Lote pequeno — um lote grande demorou tanto pra gravar no banco que o
+// webhook do CRM estourou o tempo limite (504) e perdeu mensagem em tempo
+// real chegando junto. Mais chamadas, cada uma rápida, é mais seguro.
+const HISTORY_BATCH_SIZE = 40;
 async function onHistorySync(userId, messages) {
   const items = (messages || []).map(extractTextMessage).filter(Boolean);
   if (!items.length) return;
