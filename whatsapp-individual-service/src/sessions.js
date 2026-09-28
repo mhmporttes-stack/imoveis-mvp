@@ -3,7 +3,7 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds } from "./db.js";
-import { notifyMessage, notifyStatus } from "./webhook.js";
+import { notifyHistoryBatch, notifyMessage, notifyStatus } from "./webhook.js";
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
 // listeners pro mesmo corretor. `sockets` é a fonte da verdade EM MEMÓRIA
@@ -47,7 +47,10 @@ async function startSocket(userId, entry) {
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     logger,
     printQRInTerminal: false,
-    syncFullHistory: false,
+    // Traz o histórico de conversas do celular ao conectar, igual o WhatsApp
+    // Web (pedido explícito do dono, ciente de que isso inclui conversas
+    // pessoais do corretor — ver onHistorySync).
+    syncFullHistory: true,
     browser: ["CRM Imoveis", "Chrome", "1.0"]
   });
   entry.sock = sock;
@@ -56,6 +59,7 @@ async function startSocket(userId, entry) {
 
   sock.ev.on("connection.update", (update) => onConnectionUpdate(userId, entry, update));
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
+  sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
 
   // Resolve a chamada HTTP assim que soubermos "precisa de QR" ou "já
   // conectou" (creds válidos reaproveitados) — sem travar a resposta do
@@ -126,43 +130,65 @@ async function onConnectionUpdate(userId, entry, update) {
   }
 }
 
+// Extrai { from, text, waMessageId, at, contactName, fromMe } de uma
+// mensagem crua do Baileys, ou null se deve ser ignorada — usado tanto para
+// mensagem em tempo real (onMessagesUpsert) quanto para o histórico
+// sincronizado ao conectar (onHistorySync). Só conversa individual (1:1) e
+// só texto nesta primeira versão (mídia fica para uma etapa futura); grupo
+// (@g.us), lista de transmissão (@broadcast) e LID (@lid) nunca viram
+// "cliente" no CRM — o JID deles não é um telefone e já causou lixo real
+// (conversa fantasma a partir de mensagem de grupo).
+function extractTextMessage(msg) {
+  const fromMe = Boolean(msg.key?.fromMe);
+  const remoteJid = String(msg.key?.remoteJid || "");
+  if (!remoteJid.endsWith("@s.whatsapp.net")) return null;
+  const text = msg.message?.conversation
+    || msg.message?.extendedTextMessage?.text
+    || msg.message?.imageMessage?.caption
+    || msg.message?.videoMessage?.caption
+    || "";
+  if (!text) return null;
+  const from = remoteJid.split("@")[0];
+  if (!from) return null;
+  return {
+    from,
+    text,
+    waMessageId: msg.key?.id || "",
+    at: new Date(Number(msg.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    contactName: fromMe ? "" : (msg.pushName || ""),
+    fromMe
+  };
+}
+
 async function onMessagesUpsert(userId, messages, type) {
   if (type !== "notify") return;
   for (const msg of messages || []) {
     try {
-      // fromMe = o corretor mandou essa mensagem pelo APLICATIVO OFICIAL do
-      // WhatsApp (não pelo Chat do CRM) — o próprio WhatsApp ecoa pra cá por
-      // ser um dispositivo conectado (multi-device). Processa igual, só
-      // marcando fromMe pro CRM saber que é mensagem de SAÍDA do corretor,
-      // não do cliente. Mensagem que já saiu pelo Chat (sendIndividualMessage)
-      // também ecoa aqui, mas o dedupe por wa_message_id evita duplicar.
-      const fromMe = Boolean(msg.key?.fromMe);
-      const remoteJid = String(msg.key?.remoteJid || "");
-      // Só conversa individual (1:1). Grupo (@g.us), lista de transmissão
-      // (@broadcast) e LID (@lid) nunca viram "cliente" no CRM — o JID deles
-      // não é um telefone e já causou lixo real (conversa fantasma a partir
-      // de mensagem de grupo).
-      if (!remoteJid.endsWith("@s.whatsapp.net")) continue;
-      const text = msg.message?.conversation
-        || msg.message?.extendedTextMessage?.text
-        || msg.message?.imageMessage?.caption
-        || msg.message?.videoMessage?.caption
-        || "";
-      if (!text) continue; // só texto nesta primeira versão (mídia fica para uma etapa futura)
-      const from = remoteJid.split("@")[0];
-      if (!from) continue;
-      await notifyMessage(userId, {
-        from,
-        text,
-        waMessageId: msg.key?.id || "",
-        at: new Date(Number(msg.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
-        contactName: fromMe ? "" : (msg.pushName || ""),
-        fromMe
-      });
+      const item = extractTextMessage(msg);
+      if (!item) continue;
+      await notifyMessage(userId, item);
     } catch (error) {
       // Nunca perde a próxima mensagem por causa de uma falha em notificar
       // esta — o log fica pra investigação manual.
       console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
+    }
+  }
+}
+
+// Histórico trazido ao conectar (syncFullHistory) — pode vir em vários
+// lotes grandes. Manda em pedaços pro CRM (uma chamada por mensagem seria
+// lento demais) só o texto de conversa individual; o CRM decide o que fazer
+// com cada uma (não sorteia/cria cliente pra contato pessoal — só popula o
+// histórico da conversa).
+const HISTORY_BATCH_SIZE = 200;
+async function onHistorySync(userId, messages) {
+  const items = (messages || []).map(extractTextMessage).filter(Boolean);
+  if (!items.length) return;
+  for (let i = 0; i < items.length; i += HISTORY_BATCH_SIZE) {
+    try {
+      await notifyHistoryBatch(userId, items.slice(i, i + HISTORY_BATCH_SIZE));
+    } catch (error) {
+      console.error(`[${userId}] Falha ao enviar lote de histórico:`, error.message);
     }
   }
 }

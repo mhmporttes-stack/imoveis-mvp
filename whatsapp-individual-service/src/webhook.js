@@ -30,6 +30,11 @@ export function notifyMessage(userId, { from, text, waMessageId, at, contactName
   return post({ userId, type: "message", from, text, waMessageId, at, contactName, fromMe });
 }
 
+// Lote do histórico sincronizado ao conectar (ver sessions.js: onHistorySync).
+export function notifyHistoryBatch(userId, items) {
+  return post({ userId, type: "history", items });
+}
+
 export function notifyStatus(userId, { status, qr, phoneNumber, error }) {
   return post({ userId, type: "status", status, qr, phoneNumber, error });
 }

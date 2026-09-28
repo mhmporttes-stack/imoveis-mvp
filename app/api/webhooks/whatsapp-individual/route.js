@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
-import { projectIndividualInboundMessage } from "@/lib/whatsapp-individual-inbound";
+import { projectIndividualHistoryBatch, projectIndividualInboundMessage } from "@/lib/whatsapp-individual-inbound";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Recebe do microsserviço whatsapp-individual-service/ (sessão pessoal de
 // WhatsApp de cada corretor, via Baileys): mensagem nova (type:'message') ou
@@ -48,6 +48,11 @@ export async function POST(request) {
         contactName: payload.contactName,
         fromMe: Boolean(payload.fromMe)
       });
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (payload.type === "history") {
+      const result = await projectIndividualHistoryBatch(userId, Array.isArray(payload.items) ? payload.items : []);
       return NextResponse.json({ ok: true, ...result });
     }
 
