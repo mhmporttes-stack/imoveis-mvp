@@ -1,5 +1,11 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+### 2026-09-28 — Relatórios no Chat e ficha cadastral do PDF
+- **Área:** Documentação / Chat / PDF.
+- **Alteração:** relatório já analisado acessível pelo Chat sem nova seleção; capa do PDF e da Pasta com campos maiores, linhas e seções compactas.
+- **Arquivos:** `components/WhatsappChat.jsx`, `components/ClientDocumentsModal.jsx`, `lib/client-document-pdf.js`, `docs/WHATSAPP.md`.
+- **Risco:** conteúdo e permissões dos relatórios não foram alterados; verificação visual da capa com dados de exemplo, sem acesso a documentos reais.
+
 ### 2026-09-28 — Prévia e processamento documental no Chat
 - **Causa:** dois lotes reais importaram 10 arquivos e 2 mensagens, mas falharam no recálculo: o `upsert` do checklist apontava para um índice único parcial que PostgREST não consegue inferir sem o predicado. A requisição longa também expunha “Load failed” no iPhone.
 - **Correção:** atualização/inserção por chave com recuperação de colisão concorrente; importação independente por arquivo, início rápido e acompanhamento do status do lote; repetição reutiliza o lote. Miniaturas locais de imagem/PDF, prévia ampliada, progresso visual limitado a 94% até conclusão real e erros legíveis por arquivo.
