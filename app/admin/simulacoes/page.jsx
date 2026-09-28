@@ -80,19 +80,6 @@ export default async function AdminSimulationsPage({ searchParams }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Clientes</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Acompanhe cadastros recebidos, simulações realizadas e clientes aguardando atendimento.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/simulacoes/nova" className="premium-button-primary">Novo cliente</Link>
-          <AdminLogoutButton />
-        </div>
-      </section>
       <AdminSectionNav active="simulations" />
       {!initialData ? (
         <SimulationError error={loadError} />
@@ -107,6 +94,9 @@ export default async function AdminSimulationsPage({ searchParams }) {
           tags={tags}
         />
       )}
+      <footer className="container-page mt-10 flex justify-center sm:justify-end">
+        <AdminLogoutButton />
+      </footer>
     </main>
   );
 }
