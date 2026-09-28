@@ -42,7 +42,7 @@ const STATUS_STYLE = {
   em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: DOCUMENT_STATUS_LABELS.em_analise }
 };
 
-export default function ClientDocumentsModal({ client, conversationId = "", canSendToCca, canManage, canEditRules = false, onClose }) {
+export default function ClientDocumentsModal({ client, conversationId = "", canSendToCca, canManage, canEditRules = false, reportsOnly = false, onNewAnalysis, onClose }) {
   const [batches, setBatches] = useState(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [error, setError] = useState("");
@@ -91,8 +91,9 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       const response = await fetch(`/api/admin/client-documents/batches?clientId=${client.id}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error);
-      setBatches(data.batches || []);
-      if (data.batches?.length) openBatch(data.batches[0].id);
+      const available = reportsOnly ? (data.batches || []).filter((batch) => batch.status === "analyzed") : data.batches || [];
+      setBatches(available);
+      if (available.length) openBatch(available[0].id);
     } catch (loadError) {
       setError(loadError.message || "Não foi possível carregar a documentação.");
       setBatches([]);
@@ -133,7 +134,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
   // análise da IA — o corretor não clica em "analisar".
   async function startUpload(fileList) {
     const files = Array.from(fileList || []).filter(Boolean);
-    if (!files.length) return;
+    if (!files.length || reportsOnly) return;
     setError("");
     cycleLabels();
     try {
@@ -279,9 +280,10 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line bg-white p-5 sm:p-6">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Documentação</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">{reportsOnly ? "Relatórios" : "Documentação"}</p>
             <h2 className="mt-1 text-xl font-black text-navy sm:text-2xl">{client.fullName}</h2>
-            {canManage ? (
+            {reportsOnly && onNewAnalysis ? <button type="button" className="mt-2 text-sm font-bold text-brand hover:underline" onClick={onNewAnalysis}>Analisar novos documentos</button> : null}
+            {canManage && !reportsOnly ? (
               <button type="button" className="mt-1 text-xs font-bold text-muted hover:text-red-700" onClick={handleResetAll}>
                 Excluir tudo e recomeçar
               </button>
@@ -295,7 +297,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error ? <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
-          {uploadState ? (
+          {reportsOnly ? null : uploadState ? (
             <div className="mb-4 flex items-center gap-3 rounded-2xl border border-brand/20 bg-blue-50 px-4 py-3">
               <LoaderCircle className="h-5 w-5 animate-spin text-brand" />
               <p className="text-sm font-black text-brand">{uploadState.label}</p>
@@ -325,9 +327,10 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
                   batch={batch}
                   isActive={activeBatch?.id === batch.id}
                   onOpen={() => openBatch(batch.id)}
+                  reportsOnly={reportsOnly}
                 />
               ))}
-              {!batches.length ? <p className="rounded-2xl border border-line p-6 text-center text-sm font-bold text-muted">Nenhum documento enviado ainda.</p> : null}
+              {!batches.length ? <p className="rounded-2xl border border-line p-6 text-center text-sm font-bold text-muted">{reportsOnly ? "Nenhuma análise concluída ainda." : "Nenhum documento enviado ainda."}</p> : null}
             </div>
           )}
 
@@ -337,7 +340,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
               canSendToCca={canSendToCca}
               canManage={canManage}
               canEditRules={canEditRules}
-              onReanalyze={() => reanalyze(activeBatch.id)}
+              onReanalyze={reportsOnly ? null : () => reanalyze(activeBatch.id)}
               onDeleteDocument={deleteDocument}
               onViewDocument={viewDocument}
               onCorrectItem={correctItem}
@@ -546,7 +549,7 @@ function BrokerAlertModal({ alert, onClose }) {
   );
 }
 
-function BatchRow({ batch, isActive, onOpen }) {
+function BatchRow({ batch, isActive, onOpen, reportsOnly }) {
   const summary = batch.summary || {};
   const statusLabel = { uploading: "Enviando", processing: "Processando", analyzed: "Analisado", failed: "Falhou" }[batch.status] || batch.status;
   return (
@@ -556,7 +559,7 @@ function BatchRow({ batch, isActive, onOpen }) {
       className={`w-full rounded-2xl border p-4 text-left transition ${isActive ? "border-brand bg-blue-50/50" : "border-line hover:border-brand/40"}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-black text-navy">Lote de {formatDate(batch.createdAt)} · {batch.totalFiles} arquivo(s)</p>
+        <p className="font-black text-navy">{reportsOnly ? "Relatório de" : "Lote de"} {formatDate(batch.createdAt)} · {batch.totalFiles} arquivo(s)</p>
         <span className="rounded-full bg-mist px-3 py-1 text-xs font-black text-navy">{statusLabel}</span>
       </div>
       {batch.status === "analyzed" ? (
@@ -609,7 +612,7 @@ function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversatio
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-black text-navy">Checklist — lote de {formatDate(batch.createdAt)}</h3>
         <div className="flex flex-wrap gap-2">
-          {batch.status === "analyzed" || batch.status === "failed" ? (
+          {onReanalyze && (batch.status === "analyzed" || batch.status === "failed") ? (
             <button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onReanalyze}>Reanalisar</button>
           ) : null}
           {canManage && batch.status === "analyzed" ? (

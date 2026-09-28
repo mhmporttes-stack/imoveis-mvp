@@ -515,6 +515,7 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
   const [reactionError, setReactionError] = useState("");
   const [documentSelectionOpen, setDocumentSelectionOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [hasDocumentReports, setHasDocumentReports] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -541,6 +542,18 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
     setDocumentSelectionOpen(false);
     setDocumentsOpen(false);
   }, [conversation?.id]);
+
+  useEffect(() => {
+    const clientId = conversation?.client?.id;
+    if (!clientId) return undefined;
+    let cancelled = false;
+    setHasDocumentReports(false);
+    fetch(`/api/admin/client-documents/batches?clientId=${encodeURIComponent(clientId)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (!cancelled) setHasDocumentReports(Boolean(data?.batches?.some((batch) => batch.status === "analyzed"))); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [conversation?.client?.id]);
 
   async function reactTo(message, emoji) {
     setReactionError("");
@@ -645,6 +658,7 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {conversation.client?.id ? <button type="button" onClick={() => setDocumentSelectionOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Analisar documentação" title="Analisar documentação"><FileText className="h-4 w-4" /><Search className="-ml-2 -mt-2 h-3 w-3" /></button> : null}
+            {conversation.client?.id && hasDocumentReports ? <button type="button" onClick={() => setDocumentsOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Abrir relatórios de documentação" title="Relatórios"><LayoutList className="h-5 w-5" /></button> : null}
             {showAssume ? (
               <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
@@ -734,8 +748,8 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
 
       <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} onSent={onChanged} />
 
-      {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
-      {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca canManage={canManage} canEditRules={canEditRules} onClose={() => setDocumentsOpen(false)} /> : null}
+      {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
+      {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca canManage={canManage} canEditRules={canEditRules} reportsOnly onNewAnalysis={() => { setDocumentsOpen(false); setDocumentSelectionOpen(true); }} onClose={() => setDocumentsOpen(false)} /> : null}
 
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
