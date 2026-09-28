@@ -242,7 +242,18 @@ export async function disconnectSession(userId) {
   await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null });
 }
 
-export async function sendMessage(userId, { to, text }) {
+// media: { kind: 'image'|'document'|'audio', url, mimeType, fileName } — o
+// Baileys baixa da URL e envia pro WhatsApp sozinho (mesma URL pública já
+// usada pelo número oficial, ver deliverChatMessage em lib/whatsapp-chat.js).
+function buildContent(text, media) {
+  const caption = String(text || "").trim() || undefined;
+  if (!media?.url) return { text: String(text || "") };
+  if (media.kind === "image") return { image: { url: media.url }, caption };
+  if (media.kind === "audio") return { audio: { url: media.url }, mimetype: media.mimeType || "audio/mpeg", ptt: false };
+  return { document: { url: media.url }, mimetype: media.mimeType || "application/octet-stream", fileName: media.fileName || "arquivo", caption };
+}
+
+export async function sendMessage(userId, { to, text, media }) {
   const entry = sockets.get(userId);
   if (!entry?.sock || entry.status !== "connected") {
     const error = new Error("Sessão do WhatsApp individual não está conectada.");
@@ -252,7 +263,7 @@ export async function sendMessage(userId, { to, text }) {
   const digits = String(to || "").replace(/\D/g, "");
   if (!digits) throw new Error("Destinatário inválido.");
   const jid = `${digits}@s.whatsapp.net`;
-  const result = await entry.sock.sendMessage(jid, { text: String(text || "") });
+  const result = await entry.sock.sendMessage(jid, buildContent(text, media));
   const waMessageId = result?.key?.id || "";
   if (!waMessageId) throw new Error("O WhatsApp não retornou o ID da mensagem enviada.");
   return { waMessageId };

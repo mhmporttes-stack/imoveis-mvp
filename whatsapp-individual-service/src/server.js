@@ -69,9 +69,9 @@ app.post("/sessions/:userId/disconnect", async (req, res) => {
 
 app.post("/sessions/:userId/send", async (req, res) => {
   try {
-    const { to, text } = req.body || {};
-    if (!to || !text) return res.status(400).json({ error: "Informe 'to' e 'text'." });
-    const result = await sendMessage(req.params.userId, { to, text });
+    const { to, text, media } = req.body || {};
+    if (!to || (!text && !media?.url)) return res.status(400).json({ error: "Informe 'to' e 'text' (ou 'media')." });
+    const result = await sendMessage(req.params.userId, { to, text, media });
     res.json(result);
   } catch (error) {
     const status = error.code === "NOT_CONNECTED" ? 409 : 500;
