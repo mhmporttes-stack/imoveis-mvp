@@ -110,6 +110,12 @@ main.bg-mist.py-14 {
   padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
 }
 
+/* O cabeçalho do ranking já acomoda a área segura do iPhone. Não repetir
+   essa altura antes de “Área restrita” nas páginas autenticadas. */
+body:has(.admin-ranking-header) main.bg-mist.py-14 {
+  padding-top: 1.5rem;
+}
+
 main.bg-mist.py-14 > section.container-page.mb-8 {
   position: relative;
   margin-bottom: 1.5rem;
@@ -166,6 +172,10 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
   main.bg-mist.py-14 {
     padding-top: calc(3.25rem + env(safe-area-inset-top));
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  body:has(.admin-ranking-header) main.bg-mist.py-14 {
+    padding-top: 1rem;
   }
 
   main.bg-mist.py-14 > section.container-page.mb-8 h1.text-5xl {
