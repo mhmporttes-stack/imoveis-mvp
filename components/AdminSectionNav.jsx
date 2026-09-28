@@ -37,7 +37,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
   }
 
   return (
-    <div className={`container-page space-y-2 ${isBroker ? "mb-4" : "mb-6"}`}>
+    <div className={`container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
@@ -56,7 +56,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
         </nav>
       ) : null}
 
-      {(isBroker || isManager) && !isAdmin ? (
+      {isManager && !isAdmin ? (
         <div className={isBroker ? "space-y-2" : "space-y-3"}>
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate">
             {!isBroker ? <>
