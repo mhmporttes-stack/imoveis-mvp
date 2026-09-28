@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Transição acionada na troca real de páginas
+- **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** o dono continuou sem perceber transições depois da correção anterior.
+- **Alteração:** o menu agora inicia a entrada do conteúdo a cada troca de seção, inclusive quando o navegador reutiliza o mesmo nó; cabeçalho, menu e ranking não são animados. A preferência por movimento reduzido continua respeitada.
+- **Arquivos:** `components/AdminMenu.jsx`, `app/globals.css`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Navegação mais perceptível no painel
 - **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** o dono não percebeu as transições após a primeira publicação.
 - **Alteração:** deslocamento curto e duração de 210 ms no conteúdo trocado, feedback de toque também nos links e entrada ao alternar submenus, Prospecção e abas de empreendimento. Ranking e cabeçalhos continuam fora das animações.
