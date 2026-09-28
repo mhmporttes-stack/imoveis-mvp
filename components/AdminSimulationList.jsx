@@ -724,7 +724,7 @@ export default function AdminSimulationList({
   return (
     <section className="container-page relative max-w-full overflow-visible" ref={listTopRef}>
       <div className="overflow-hidden rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative block w-full flex-1">
             <span className="sr-only">Buscar cliente</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
@@ -737,8 +737,7 @@ export default function AdminSimulationList({
             />
           </label>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_repeat(4,minmax(0,1fr))] items-center gap-1 lg:flex lg:w-auto lg:gap-2">
             <FiltersPopover
               open={filtersOpen}
               onOpenChange={setFiltersOpen}
@@ -751,35 +750,32 @@ export default function AdminSimulationList({
             />
             <button
               aria-label="Clientes pendentes"
-              className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${filters.pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
+              className={`inline-flex h-10 min-w-0 items-center justify-center gap-0.5 rounded-2xl border px-0.5 text-[10px] font-black transition sm:h-12 sm:gap-2 sm:px-4 sm:text-sm ${filters.pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
               onClick={() => updateFilters({ pendingOnly: !filters.pendingOnly, statusGroup: "all", status: "all" })}
               title="Clientes pendentes"
               type="button"
             >
-              <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
+              <TriangleAlert className="h-4 w-4 shrink-0 text-red-600 sm:h-5 sm:w-5" aria-hidden="true" />
               {pendingClientsCount}
             </button>
-            </div>
-            <div className="flex items-center gap-2">
-            <Link href="/admin/prospeccao" aria-label="Prospecção" title="Prospecção" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+            <Link href="/admin/prospeccao" aria-label="Prospecção" title="Prospecção" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <UserSearch className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <Link href="/admin/chat" aria-label="Chat" title="Chat" className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+            <Link href="/admin/chat" aria-label="Chat" title="Chat" className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <MessageCircle className="h-5 w-5" aria-hidden="true" />
               <WhatsappChatNavBadge className="absolute -right-2 -top-2" />
             </Link>
-            <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+            <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
             </Link>
             <Link
               href="/admin/simulacoes/nova"
               aria-label="Novo cliente"
               title="Novo cliente"
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5"
+              className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12"
             >
               <UserRoundPlus className="h-5 w-5" aria-hidden="true" />
             </Link>
-            </div>
           </div>
         </div>
 
@@ -1017,15 +1013,15 @@ function FiltersPopover({ open, onOpenChange, filters, onChange, canManageRespon
   return (
     <div className="relative" ref={containerRef}>
       <button
+        aria-label="Filtros"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${activeCount ? "border-brand bg-[#EAF3FF] text-brand" : "border-line bg-white text-navy hover:border-brand"}`}
+        className={`inline-flex h-10 w-full min-w-0 items-center justify-center gap-1 rounded-2xl border px-0.5 text-sm font-black transition sm:h-12 sm:gap-2 sm:px-4 lg:w-auto ${activeCount ? "border-brand bg-[#EAF3FF] text-brand" : "border-line bg-white text-navy hover:border-brand"}`}
         onClick={() => onOpenChange(!open)}
         type="button"
       >
-        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-        Filtros
-        {activeCount ? <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] text-white">{activeCount}</span> : null}
+        <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
+        {activeCount ? <span className="rounded-full bg-brand px-1 py-0.5 text-[9px] text-white">{activeCount}</span> : null}
       </button>
 
       {open ? (
