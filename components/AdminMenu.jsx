@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import { MoreHorizontal } from "lucide-react";
 
 const buttonBase =
-  "inline-flex min-h-10 min-w-[130px] flex-1 items-center justify-center rounded-full px-5 text-sm font-extrabold transition duration-300";
+  "inline-flex min-h-10 flex-1 items-center justify-center rounded-full font-extrabold transition duration-300";
 
-function buttonClass(isActive) {
-  return `${buttonBase} ${isActive ? "admin-nav-current" : ""} ${
+function buttonClass(isActive, compact = false) {
+  return `${buttonBase} ${compact ? "min-w-0 px-2 text-[11px] sm:px-5 sm:text-sm" : "min-w-[130px] px-5 text-sm"} ${isActive ? "admin-nav-current" : ""} ${
     isActive
       ? "bg-navy text-white shadow-soft"
       : "border border-navy/15 bg-white text-navy hover:-translate-y-0.5 hover:border-brand hover:shadow-soft"
@@ -200,17 +201,39 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
 
   return (
     <div className="space-y-2" ref={menuRef}>
-      <nav className="flex w-full flex-wrap justify-center gap-2.5" aria-label="Categorias administrativas">
+      <nav className={`flex w-full justify-center gap-2.5 ${isBroker ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
 
           if (group.href) {
+            if (isBroker && group.key === "crm") {
+              return (
+                <div key={group.key} className="relative flex min-w-0 flex-1">
+                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} onClick={() => setVisibleGroup(group.key)}>
+                    {group.label}
+                  </Link>
+                  <WhatsappChatNavBadge className="pointer-events-none absolute -top-2 right-7" />
+                  <details className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
+                    <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-full text-navy [&::-webkit-details-marker]:hidden" aria-label="Outras áreas do CRM" title="Outras áreas do CRM">
+                      <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-full mt-2 min-w-44 rounded-2xl border border-line bg-white p-2 shadow-soft">
+                      {group.items.filter((item) => ["daily-goal", "opportunities", "developments"].includes(item.key)).map((item) => (
+                        <Link key={item.key} href={item.href} className="block rounded-xl px-3 py-2 text-sm font-bold text-navy hover:bg-brand/10" onClick={(event) => { event.currentTarget.closest("details").open = false; setVisibleGroup(group.key); }}>
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            }
             return (
               <Link
                 key={group.key}
                 href={group.href}
-                className={buttonClass(highlighted)}
+                className={buttonClass(highlighted, isBroker)}
                 onClick={() => setVisibleGroup(group.key)}
               >
                 {group.label}
@@ -223,7 +246,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             <button
               key={group.key}
               type="button"
-              className={buttonClass(highlighted)}
+              className={buttonClass(highlighted, isBroker)}
               onClick={() => setVisibleGroup(group.key)}
             >
               {group.label}
@@ -232,7 +255,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      {isAdmin && visibleGroup === "clientes" ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
+      {(isAdmin && visibleGroup === "clientes") || (isBroker && visibleGroup === "crm") ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={`${visibleGroup}-${item.key}`}
