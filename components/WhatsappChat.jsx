@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -41,6 +41,7 @@ import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
+import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 
@@ -759,41 +760,146 @@ function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAna
   const [messages, setMessages] = useState(initialMessages);
   const [selected, setSelected] = useState([]);
   const [hasMore, setHasMore] = useState(initialMessages.length >= 100);
-  const [busy, setBusy] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [phase, setPhase] = useState("selection");
+  const [progress, setProgress] = useState(0);
+  const [preview, setPreview] = useState(null);
+  const [failedFiles, setFailedFiles] = useState([]);
+  const [pdfPages, setPdfPages] = useState({});
+  const [retryBatchId, setRetryBatchId] = useState("");
   const [error, setError] = useState("");
+  const runningRef = useRef(false);
+  const requestKeyRef = useRef("");
   const eligible = messages.filter((message) => !message.internal && (["text", "button", "interactive"].includes(message.type) && message.body?.trim() || ["image", "document"].includes(message.type)));
 
+  useEffect(() => {
+    if (phase !== "analyzing") return undefined;
+    const started = Date.now();
+    const timer = window.setInterval(() => setProgress((current) => Math.max(current, chatDocumentProgress(Date.now() - started))), 250);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+
+  const openPreview = useCallback((message) => setPreview(message), []);
+  const markPreviewUnavailable = useCallback((id) => setFailedFiles((current) => current.includes(id) ? current : [...current, id]), []);
+  const notePdfPages = useCallback((id, count) => setPdfPages((current) => current[id] === count ? current : { ...current, [id]: count }), []);
+  const close = () => { if (!runningRef.current) preview ? setPreview(null) : onClose(); };
+
   async function loadOlder() {
-    setBusy(true);
+    if (loadingOlder || runningRef.current) return;
+    setLoadingOlder(true); setError("");
     try {
       const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}?before=${encodeURIComponent(messages[0]?.at || "")}`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setMessages((current) => [...data.messages, ...current]); setHasMore(data.hasMore);
-    } catch (caught) { setError(caught.message); }
-    finally { setBusy(false); }
+      if (!response.ok || !Array.isArray(data.messages)) throw new Error("Falha ao buscar mensagens anteriores.");
+      setMessages((current) => [...data.messages.filter((entry) => !current.some((existing) => existing.id === entry.id)), ...current]); setHasMore(Boolean(data.hasMore));
+    } catch { setError("Não foi possível carregar mensagens anteriores. Tente novamente."); }
+    finally { setLoadingOlder(false); }
   }
+
+  async function waitForResult(batchId) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      let response;
+      try { response = await fetch(`/api/admin/client-documents/batches/${batchId}`, { cache: "no-store" }); } catch { continue; }
+      if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
+      if (data.batch?.status === "failed") { setRetryBatchId(batchId); throw new Error("Análise não concluída."); }
+      if (data.batch?.status === "analyzed") return data.batch;
+    }
+    throw new Error("Tempo de análise excedido.");
+  }
+
   async function analyze() {
-    setBusy(true); setError("");
+    if (runningRef.current || !selected.length) return;
+    runningRef.current = true; setPhase("analyzing"); setProgress(0); setError("");
+    if (!requestKeyRef.current) requestKeyRef.current = crypto.randomUUID();
     try {
-      const response = await fetch("/api/admin/client-documents/from-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: selected }) });
+      const response = await fetch("/api/admin/client-documents/from-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: selected, requestKey: requestKeyRef.current, retryBatchId }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      onAnalyzed(data.batch);
-    } catch (caught) { setError(caught.message || "Não foi possível analisar."); }
-    finally { setBusy(false); }
+      if (!response.ok || !data.batch?.id) throw new Error("Não foi possível iniciar a análise.");
+      const batch = data.batch.status === "analyzed" ? data.batch : await waitForResult(data.batch.id);
+      setProgress(100); setPhase("complete");
+      window.setTimeout(() => onAnalyzed(batch), 700);
+    } catch (caught) {
+      console.error("Falha na análise documental do Chat:", caught);
+      setError("Não foi possível concluir a análise."); setPhase("failed");
+    } finally { runningRef.current = false; }
   }
-  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/60 p-3" role="dialog" aria-modal="true" aria-label="Selecionar documentação" onMouseDown={onClose}>
-    <div className="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-2xl bg-white p-4 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-      <div className="flex items-center justify-between"><h2 className="text-lg font-black text-navy">Analisar documentação</h2><button type="button" onClick={onClose} aria-label="Fechar"><X className="h-5 w-5" /></button></div>
-      <p className="mb-3 text-xs text-muted">Selecione apenas arquivos e mensagens relacionados à documentação.</p>
-      {error ? <p role="alert" className="mb-2 text-sm text-red-700">{error}</p> : null}
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">{eligible.map((message) => <label key={message.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-2 text-sm text-navy"><input type="checkbox" className="mt-1" checked={selected.includes(message.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id))} /><span className="min-w-0"><span className="block text-xs font-bold text-muted">{message.direction === "inbound" ? "Cliente" : "Equipe"} · {message.type === "text" ? "Mensagem" : message.type === "image" ? "Imagem" : "PDF/arquivo"}</span><span className="block break-words">{message.media?.name || message.body?.slice(0, 220) || "Arquivo"}</span></span></label>)}</div>
-      {hasMore ? <button type="button" disabled={busy} onClick={loadOlder} className="mt-2 text-xs font-bold text-brand">Carregar mensagens anteriores</button> : null}
-      <div className="mt-3 flex justify-end gap-2"><button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onClose}>Cancelar</button><button type="button" className="premium-button-primary px-4 py-2 text-sm disabled:opacity-50" disabled={busy || !selected.length} onClick={analyze}>{busy ? "Analisando…" : `Analisar ${selected.length} selecionado(s)`}</button></div>
+  const step = progress < 12 ? "Preparando documentos..." : progress < 29 ? "Identificando informações..." : progress < 47 ? "Conferindo documentos..." : progress < 64 ? "Cruzando dados do cliente..." : progress < 79 ? "Aplicando regras documentais..." : progress < 91 ? "Verificando pendências..." : "Finalizando análise...";
+  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/60 p-3" role="dialog" aria-modal="true" aria-label="Selecionar documentação" onMouseDown={close}>
+    <div className="relative flex max-h-[min(85dvh,calc(100dvh-32px))] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-black text-navy">Analisar documentação</h2><button type="button" disabled={phase === "analyzing" || phase === "complete"} onClick={close} aria-label="Fechar" className="disabled:opacity-40"><X className="h-5 w-5" /></button></div>
+      {phase === "analyzing" || phase === "complete" ? <div className="flex min-h-[360px] flex-1 flex-col items-center justify-center px-2 text-center" aria-live="polite">
+        <div className="relative grid h-52 w-52 place-items-center">
+          <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 220 220" aria-hidden="true"><circle cx="110" cy="110" r="96" stroke="#e7eef8" strokeWidth="9" fill="none" /><circle cx="110" cy="110" r="96" stroke="#2676c4" strokeWidth="9" strokeLinecap="round" fill="none" strokeDasharray={2 * Math.PI * 96} strokeDashoffset={2 * Math.PI * 96 * (1 - progress / 100)} style={{ transition: "stroke-dashoffset 250ms ease-out" }} /></svg>
+          <div className="relative flex flex-col items-center"><div className="relative h-14 w-14"><FileText className="h-14 w-14 text-navy/75" strokeWidth={1.4} /><Search className="chat-doc-scan absolute left-6 top-5 h-8 w-8 text-brand" strokeWidth={2} /></div><strong className="mt-2 text-3xl font-black text-navy">{progress}%</strong></div>
+        </div>
+        <p className="mt-5 text-lg font-black text-navy">{phase === "complete" ? "✓ Análise concluída" : "Analisando documentação"}</p>
+        <p className="mt-1 text-sm text-muted">{phase === "complete" ? "Abrindo resultado..." : step}</p>
+      </div> : <>
+        <p className="mb-3 text-xs text-muted">Selecione apenas arquivos e mensagens relacionados à documentação.</p>
+        {error ? <p role="alert" className="mb-2 text-sm text-red-700">{error}</p> : null}
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-0.5">{eligible.map((message) => {
+          const media = ["image", "document"].includes(message.type);
+          const unsupported = media && !/pdf|image\/(jpeg|png|webp)/i.test(`${message.media?.mime || ""} ${message.media?.name || ""}`) && message.type !== "image";
+          return <div key={message.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-line p-2 text-sm text-navy">
+            <input type="checkbox" aria-label={`Selecionar ${message.media?.name || "mensagem"}`} disabled={unsupported} checked={selected.includes(message.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id))} />
+            {media ? <ChatDocumentThumbnail message={message} onPreview={openPreview} onUnavailable={markPreviewUnavailable} onPageCount={notePdfPages} /> : null}
+            <div className="min-w-0 flex-1"><span className="block text-xs font-bold text-muted">{message.direction === "inbound" ? "Cliente" : "Equipe"} · {media ? message.type === "image" ? "Imagem" : pdfPages[message.id] ? `PDF · ${pdfPages[message.id]} página(s)` : "PDF/arquivo" : "Mensagem"}</span>
+              {media ? <button type="button" onClick={() => openPreview(message)} className="block max-w-full break-all text-left text-sm text-navy underline-offset-2 hover:underline">{message.media?.name || "Arquivo"}</button> : <span className="block break-words">{message.body?.slice(0, 320)}</span>}
+              {media && failedFiles.includes(message.id) ? <span className="block text-xs text-red-700">Não foi possível carregar a prévia</span> : null}{unsupported ? <span className="block text-xs text-muted">Formato não suportado para análise</span> : null}</div>
+          </div>;
+        })}</div>
+        {hasMore ? <button type="button" disabled={loadingOlder} onClick={loadOlder} className="mt-2 text-xs font-bold text-brand disabled:opacity-50">{loadingOlder ? "Carregando..." : "Carregar mensagens anteriores"}</button> : null}
+        <div className="mt-3 flex justify-end gap-2"><button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onClose}>Cancelar</button><button type="button" className="premium-button-primary px-4 py-2 text-sm disabled:opacity-50" disabled={!selected.length || loadingOlder} onClick={analyze}>{phase === "failed" ? "Tentar novamente" : `Analisar ${selected.length} selecionado(s)`}</button></div>
+      </>}
+      {preview ? <div className="absolute inset-0 z-10 flex flex-col bg-white p-3 pb-[max(1rem,env(safe-area-inset-bottom))]" onMouseDown={(event) => event.stopPropagation()}><div className="mb-2 flex min-w-0 items-center justify-between gap-2"><strong className="min-w-0 truncate text-sm text-navy">{preview.media?.name || "Documento"}</strong><button type="button" aria-label="Fechar prévia" onClick={() => setPreview(null)}><X className="h-5 w-5" /></button></div>{failedFiles.includes(preview.id) ? <p className="mb-2 text-xs text-red-700">Não foi possível carregar a prévia</p> : null}{preview.type === "image" ? <img src={preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`} alt={preview.media?.name || "Imagem"} className="min-h-0 flex-1 object-contain" onError={() => markPreviewUnavailable(preview.id)} /> : <iframe title="Prévia do PDF" src={`${preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`}#page=1`} className="min-h-0 flex-1 rounded-lg border border-line" onError={() => markPreviewUnavailable(preview.id)} />}{preview.type === "document" ? <a href={preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`} target="_blank" rel="noreferrer" className="mt-2 self-end text-xs font-bold text-brand">Abrir documento completo</a> : null}</div> : null}
+      <style jsx global>{`@keyframes chatDocScan { 0%,100% { transform: translate(-9px,-6px); } 50% { transform: translate(8px,5px); } } .chat-doc-scan { animation: chatDocScan 2.4s ease-in-out infinite; } @media (prefers-reduced-motion: reduce) { .chat-doc-scan { animation: none; } }`}</style>
     </div>
   </div>;
 }
+
+const ChatDocumentThumbnail = memo(function ChatDocumentThumbnail({ message, onPreview, onUnavailable, onPageCount }) {
+  const holder = useRef(null);
+  const canvas = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [ready, setReady] = useState(false);
+  const url = message.media?.url || `/api/admin/whatsapp-chat/media/${message.id}`;
+  const pdf = message.type === "document" && /pdf/i.test(`${message.media?.mime || ""} ${message.media?.name || ""}`);
+  useEffect(() => {
+    if (!pdf || !holder.current) return undefined;
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisible(true); }, { rootMargin: "120px" });
+    observer.observe(holder.current);
+    return () => observer.disconnect();
+  }, [pdf]);
+  useEffect(() => {
+    if (!pdf || !visible) return undefined;
+    let cancelled = false;
+    let loadingTask;
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        loadingTask = pdfjs.getDocument({ url, disableStream: true });
+        const document = await loadingTask.promise;
+        if (!cancelled) onPageCount(message.id, document.numPages);
+        const page = await document.getPage(1);
+        const viewport = page.getViewport({ scale: 1 });
+        const scaled = page.getViewport({ scale: Math.min(1, 70 / viewport.width) });
+        if (cancelled || !canvas.current) return;
+        const element = canvas.current;
+        element.width = Math.ceil(scaled.width * Math.min(devicePixelRatio || 1, 2));
+        element.height = Math.ceil(scaled.height * Math.min(devicePixelRatio || 1, 2));
+        await page.render({ canvas: element, canvasContext: element.getContext("2d"), viewport: scaled, transform: [element.width / scaled.width, 0, 0, element.height / scaled.height, 0, 0] }).promise;
+        if (!cancelled) setReady(true);
+      } catch { if (!cancelled) onUnavailable(message.id); }
+    })();
+    return () => { cancelled = true; loadingTask?.destroy(); };
+  }, [pdf, visible, url, message.id, onUnavailable, onPageCount]);
+  return <button ref={holder} type="button" aria-label={`Prévia de ${message.media?.name || "arquivo"}`} onClick={() => onPreview(message)} className="relative grid h-[70px] w-[58px] shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-mist">
+    {message.type === "image" ? <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" onLoad={() => setReady(true)} onError={() => onUnavailable(message.id)} /> : <><FileText className="absolute h-7 w-7 text-brand/40" /><canvas ref={canvas} className={`relative max-h-full max-w-full object-contain ${ready ? "opacity-100" : "opacity-0"}`} /></>}
+  </button>;
+});
 
 function MessageBubble({ message, quoted, canReply, onReply, onReact }) {
   const [reactionOpen, setReactionOpen] = useState(false);

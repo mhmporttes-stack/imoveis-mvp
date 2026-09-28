@@ -1,5 +1,10 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+### 2026-09-28 — Prévia e processamento documental no Chat
+- **Causa:** dois lotes reais importaram 10 arquivos e 2 mensagens, mas falharam no recálculo: o `upsert` do checklist apontava para um índice único parcial que PostgREST não consegue inferir sem o predicado. A requisição longa também expunha “Load failed” no iPhone.
+- **Correção:** atualização/inserção por chave com recuperação de colisão concorrente; importação independente por arquivo, início rápido e acompanhamento do status do lote; repetição reutiliza o lote. Miniaturas locais de imagem/PDF, prévia ampliada, progresso visual limitado a 94% até conclusão real e erros legíveis por arquivo.
+- **Verificação:** testes e build desta alteração; sem mudança nas regras da IA, cálculos ou Base Mestra.
+
 ### 2026-09-28 — Chat e Base Mestra na análise documental
 - **Área:** Documentação, Chat, CCA e PDF.
 - **Alteração:** seleção explícita de mensagens e arquivos no Chat para a análise documental existente; regras ativas incorporadas em cada parecer; residência sem boletos; rastreio de pendências; cálculo auditável de renda por três extratos; mensagem de pendências editável no Chat; opções PDF ou pasta ZIP para a CCA, com confirmação de pendências.
