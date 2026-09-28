@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 
 const buttonBase =
@@ -171,17 +171,35 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   // nas proprias paginas/consultas, nao escondendo o item de menu.
   const groups = isAdmin ? ownerGroups : isManager ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
+  const menuRef = useRef(null);
 
   useEffect(() => {
     setVisibleGroup(getGroupKeyForActive(active, groups));
   }, [active, groups]);
+
+  // A navegação pode reutilizar o mesmo nó da página; a animação CSS de entrada
+  // não reinicia nesse caso. Animar os irmãos após o menu a cada troca de rota.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const frame = requestAnimationFrame(() => {
+      const sectionNav = menuRef.current?.parentElement;
+      if (sectionNav?.parentElement?.tagName !== "MAIN") return;
+      for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
+        node.animate?.(
+          [{ opacity: 0.4, transform: "translateY(16px)" }, { opacity: 1, transform: "translateY(0)" }],
+          { duration: 210, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+        );
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active]);
 
   const visibleItems = useMemo(() => {
     return groups.find((group) => group.key === visibleGroup)?.items || [];
   }, [groups, visibleGroup]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" ref={menuRef}>
       <nav className="flex w-full flex-wrap justify-center gap-2.5" aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
