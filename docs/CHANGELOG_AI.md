@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Abrir detalhamento no segundo toque
+- **Área:** Menu CRM / Clientes.
+- **Alteração:** o primeiro toque no botão principal abre a lista padrão; quando já se está nela, outro toque alterna o detalhamento das pendências, em todos os perfis com CRM. Badge e contagens permanecem iguais.
+- **Autor:** Codex
+
 ### 2026-09-28 — Exclusão de cliente pelo administrador principal
 - **Área:** Clientes.
 - **Alteração:** a exclusão remove primeiro o atendimento da camada de compatibilidade vinculado ao cadastro, evitando o bloqueio por chave estrangeira; o cliente canônico compartilhado permanece. A permissão exclusiva do dono não mudou.
