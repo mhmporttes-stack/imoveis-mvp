@@ -2,6 +2,11 @@ import { initAuthCreds, BufferJSON, proto } from "@whiskeysockets/baileys";
 import { encrypt, decrypt } from "./crypto.js";
 import { readEncryptedCreds, writeEncryptedCreds } from "./db.js";
 
+// Gravações de credenciais em andamento (de TODOS os corretores) — server.js
+// espera essa lista esvaziar antes de deixar o processo morrer num SIGTERM
+// (redeploy/restart), pra nunca cortar uma gravação no meio.
+export const pendingWrites = new Set();
+
 // Auth-state adapter do Baileys que persiste no Supabase em vez de disco
 // (useMultiFileAuthState não serve: Railway/Fly têm disco EFÊMERO — o
 // container reinicia sem os arquivos e o corretor teria que escanear o QR de
@@ -44,6 +49,8 @@ export async function useSupabaseAuthState(userId) {
     }).catch((error) => {
       console.error(`[${userId}] Falha ao persistir credenciais do WhatsApp:`, error.message);
     });
+    pendingWrites.add(writeQueue);
+    writeQueue.finally(() => pendingWrites.delete(writeQueue));
     return writeQueue;
   };
 

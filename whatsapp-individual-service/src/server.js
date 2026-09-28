@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import express from "express";
 import { connectSession, disconnectSession, getLiveSessionStatus, sendMessage } from "./sessions.js";
 import { listResumableUserIds, readSessionRow } from "./db.js";
+import { pendingWrites } from "./auth-state.js";
 
 const REQUIRED_ENV = ["APP_WEBHOOK_URL", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
@@ -83,6 +84,21 @@ app.listen(port, () => {
   console.log(`whatsapp-individual-service ouvindo na porta ${port}`);
   resumeSessions();
 });
+
+// A Railway manda SIGTERM antes de matar o processo (redeploy/restart) — sem
+// isso, uma gravação de credenciais em andamento podia ser cortada no meio,
+// perdendo o ÚLTIMO estado da sessão do Signal e corrompendo a sessão aos
+// poucos (erro "Bad MAC" nas mensagens seguintes). Espera a fila de
+// gravações pendentes (ver auth-state.js) terminar antes de sair.
+function gracefulShutdown(signal) {
+  console.log(`${signal} recebido — aguardando gravações pendentes antes de encerrar…`);
+  Promise.race([
+    Promise.allSettled([...pendingWrites]),
+    new Promise((resolve) => setTimeout(resolve, 8000))
+  ]).finally(() => process.exit(0));
+}
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // A cada restart/redeploy o socket em memória se perde, mas as credenciais
 // continuam persistidas (cifradas) no Supabase — sem isso o corretor ficava
