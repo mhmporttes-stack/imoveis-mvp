@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-27 — Novo formulário leva o card ao topo sem perder histórico
+- **Data:** 2026-09-27 · **Área:** Clientes / Banco · **Motivo:** pedido do dono.
+- **Alteração:** reenvio da simulação ou Atendimento Rápido marca a data do novo formulário, ordena o mesmo card no topo da aba/filtro e registra o evento na timeline. A data original, responsável, origem e histórico são preservados; edição interna não altera a ordem.
+- **Arquivos:** `lib/simulation-registrations.js`, `lib/simulation-list-query.js`, `components/AdminSimulationList.jsx`, `components/ClientJourneyActions.jsx`, migration `20260927235741_client_last_form_submission.sql`, `docs/BUSINESS_RULES.md`, `docs/DATABASE.md`.
+- **Risco/observação:** a migration precisa ser aplicada antes do deploy do código; na aba "Todos", "Tentando contato" permanece por último salvo quando houve novo formulário. Sem teste real de formulário em produção.
+- **Autor:** Codex
+
 ### 2026-09-27 — Reações e respostas específicas no Chat
 - **Data:** 2026-09-27 · **Área:** WhatsApp (Chat) · **Motivo:** pedido do dono.
 - **Alteração:** mostra reações na mensagem original, permite reagir/remover reação e responder citando mensagens do cliente no CRM. Reação não aumenta não lidas nem muda o atendimento.

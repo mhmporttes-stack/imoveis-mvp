@@ -45,7 +45,7 @@ const FIELD_LABEL = {
 // (nunca desaparece da timeline por ser um tipo novo/desconhecido).
 const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", notify: "jornada", regenerate: "jornada",
-  responsible_transferred: "atribuicao", data_updated: "sistema", tag_added: "sistema", tag_removed: "sistema",
+  responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
   sale_registered: "status",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao",
@@ -75,7 +75,7 @@ function EventIcon({ type }) {
   if (type === "notify") return <MessageCircle {...props} />;
   if (type === "regenerate") return <Link2 {...props} />;
   if (type === "tag_added" || type === "tag_removed") return <TagIcon {...props} />;
-  if (type === "data_updated") return <FileText {...props} />;
+  if (type === "data_updated" || type === "form_resubmitted") return <FileText {...props} />;
   if (type.startsWith("activity_")) return <CalendarCheck {...props} />;
   if (type === "sale_registered") return <KeyRound {...props} />;
   if (type === "prospecting:do_not_contact") return <Ban {...props} />;
@@ -117,6 +117,8 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "TAG REMOVIDA", description: [d.tagName ? `"${d.tagName}"` : ""] };
     case "data_updated":
       return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
+    case "form_resubmitted":
+      return { title: "FORMULÁRIO PREENCHIDO NOVAMENTE", description: [d.journeyType === "quick_service" ? "Atendimento rápido" : "Simulação"] };
     case "activity_scheduled":
       return { title: "ATIVIDADE AGENDADA", description: [d.title || "", d.scheduledAt ? `Data: ${date(d.scheduledAt)}` : ""].filter(Boolean) };
     case "activity_completed":

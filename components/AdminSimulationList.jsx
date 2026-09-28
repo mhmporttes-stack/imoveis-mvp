@@ -1244,7 +1244,8 @@ function ClientCard({
       ) : null}
 
       <div className="mt-2 space-y-1 text-sm text-muted">
-        <p className={urgency ? "font-bold" : "font-bold"}>Data do cadastro: {dateLabel}</p>
+        <p className="font-bold">Data do cadastro: {dateLabel}</p>
+        {client.registration?.lastFormSubmittedAt ? <p className="font-bold text-brand">Novo formulário: {formatRelativeDateTimeLabel(client.registration.lastFormSubmittedAt)}</p> : null}
         <p className={!client.lastWhatsappContactAt ? "font-extrabold text-amber-800" : "font-bold"}>Último contato: {lastContactLabel}</p>
         {client.scheduledActivityAt ? (
           <p className="font-bold text-navy">
@@ -1849,6 +1850,7 @@ function InlineRegistrationDetails({ registration, simulation }) {
         <Detail label="Nome" value={registration.fullName} />
         <Detail label="Telefone" value={formatBrazilianPhone(registration.phoneNormalized || registration.phone)} />
         <Detail label="Enviado em" value={formatDateTimeBR(registration.createdAt)} />
+        {registration.lastFormSubmittedAt ? <Detail label="Último formulário" value={formatDateTimeBR(registration.lastFormSubmittedAt)} /> : null}
         {filled ? (
           <>
             <Detail label="Tipo de simulação" value={simulationTypeLabel(registration.simulationType)} />
