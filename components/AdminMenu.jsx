@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
-import { CalendarDays, CircleDot, MessageCircle, MoreHorizontal, UserRoundPlus } from "lucide-react";
+import { CalendarDays, CircleDot, MessageCircle, UserRoundPlus } from "lucide-react";
 
 const buttonBase =
   "inline-flex min-h-10 flex-1 items-center justify-center rounded-full font-extrabold transition duration-300";
@@ -36,8 +36,6 @@ const adminGroups = [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
       { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
-      { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" },
-      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" },
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }
     ]
@@ -48,6 +46,7 @@ const adminGroups = [
     href: "/admin",
     items: [
       { href: "/admin", label: "Imóveis", key: "properties" },
+      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" }
     ]
@@ -74,13 +73,14 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, { href: "/admin/oportunidades", label: "Oportunidades", key: "opportunities" }, { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
     label: "CADASTROS",
     items: [
       { href: "/admin/novo", label: "Cadastrar imóvel", key: "new-property" },
+      { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
       { href: "/admin/depoimentos/novo", label: "Cadastrar depoimento", key: "new-testimonial", activeKeys: ["testimonials"] }
     ]
   },
@@ -95,12 +95,11 @@ const brokerGroups = [
   }
 ];
 
-// Central de Oportunidades é escopo corretor/gestor/admin (associado fora
-// do pedido original) — some do grupo "crm" só pra associado, sem afetar
-// corretor/gestor que compartilham o mesmo brokerGroups.
+// Associado só vê "Financeiro" dentro de "DESEMPENHO" (sem Relatório
+// Diário, que é do corretor) — sem afetar corretor/gestor, que compartilham
+// o mesmo brokerGroups.
 const associateGroups = brokerGroups.map((group) => {
   if (group.key === "desempenho") return { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" };
-  if (group.key === "crm") return { ...group, items: group.items.filter((item) => item.key !== "opportunities") };
   return group;
 });
 
@@ -261,23 +260,11 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             if (isBroker && group.key === "crm") {
               return (
                 <div key={group.key} ref={crmPopoverRef} className="relative flex min-w-0 flex-1">
-                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => onMainGroupClick(event, group)}>
+                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => onMainGroupClick(event, group)}>
                     {group.label}
                   </Link>
                   {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
                   {showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft /> : null}
-                  <details className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
-                    <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-full text-navy [&::-webkit-details-marker]:hidden" aria-label="Outras áreas do CRM" title="Outras áreas do CRM">
-                      <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-                    </summary>
-                    <div className="absolute left-0 top-full mt-2 min-w-44 rounded-2xl border border-line bg-white p-2 shadow-soft">
-                      {group.items.filter((item) => ["daily-goal", "opportunities", "developments"].includes(item.key)).map((item) => (
-                        <Link key={item.key} href={item.href} className="block rounded-xl px-3 py-2 text-sm font-bold text-navy hover:bg-brand/10" onClick={(event) => { event.currentTarget.closest("details").open = false; setVisibleGroup(group.key); }}>
-                          {item.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </details>
                 </div>
               );
             }

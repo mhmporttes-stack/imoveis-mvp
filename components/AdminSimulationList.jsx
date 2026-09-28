@@ -9,6 +9,7 @@ import {
   Calculator,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -21,6 +22,7 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
+  Target,
   TriangleAlert,
   Trash2,
   UserRound,
@@ -779,9 +781,7 @@ export default function AdminSimulationList({
               <TriangleAlert className="h-4 w-4 shrink-0 text-red-600 sm:h-5 sm:w-5" aria-hidden="true" />
               {pendingClientsCount}
             </button>
-            <Link href="/admin/prospeccao" aria-label="Prospecção" title="Prospecção" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
-              <UserSearch className="h-5 w-5" aria-hidden="true" />
-            </Link>
+            <ProspectingAndNewClientMenu />
             <Link href="/admin/chat" aria-label="Chat" title="Chat" className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <MessageCircle className="h-5 w-5" aria-hidden="true" />
               <WhatsappChatNavBadge className="absolute -right-2 -top-2" />
@@ -794,12 +794,12 @@ export default function AdminSimulationList({
               {copyFeedback === "Link copiado" ? <Check className="h-5 w-5" aria-hidden="true" /> : <Link2 className="h-5 w-5" aria-hidden="true" />}
             </button> : null}
             <Link
-              href="/admin/simulacoes/nova"
-              aria-label="Novo cliente"
-              title="Novo cliente"
+              href="/admin/meta-diaria"
+              aria-label="Meta Diária"
+              title="Meta Diária"
               className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12"
             >
-              <UserRoundPlus className="h-5 w-5" aria-hidden="true" />
+              <Target className="h-5 w-5" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -1475,6 +1475,53 @@ function ClientCard({
         />
       ) : null}
     </article>
+  );
+}
+
+// Botão único da barra de ferramentas que substitui os dois ícones separados
+// de "Prospecção" e "Novo cliente" (mesmo destino de sempre, só a entrada
+// visual que virou uma — abre um menu pequeno com as duas opções, liberando
+// um ícone na barra para o atalho de Meta Diária).
+function ProspectingAndNewClientMenu() {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Prospecção e novo cliente"
+        title="Prospecção e novo cliente"
+        onClick={() => setOpen((value) => !value)}
+        type="button"
+        className="inline-flex h-10 min-w-0 items-center justify-center gap-0.5 rounded-2xl border border-line bg-white px-1 text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 sm:px-2 lg:w-auto"
+      >
+        <UserSearch className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-40 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-xl" role="menu">
+          <Link href="/admin/prospeccao" role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-bold text-navy hover:bg-brand/10">
+            <UserSearch className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+            Prospecção
+          </Link>
+          <Link href="/admin/simulacoes/nova" role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-bold text-navy hover:bg-brand/10">
+            <UserRoundPlus className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+            Novo cliente
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
