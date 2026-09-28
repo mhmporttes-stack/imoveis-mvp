@@ -227,15 +227,19 @@ export default function ScoringRulesManager({
                     >
                       <Minus size={14} />
                     </button>
-                    <input
-                      type="number"
-                      min={rule.unit ? 1 : 0}
-                      step={1}
-                      value={value.points}
-                      onChange={(event) => handlePointsInput(rule.key, event.target.value)}
-                      disabled={!canEdit}
-                      className="w-16 border-0 bg-transparent text-center text-lg font-black text-navy outline-none disabled:opacity-70"
-                    />
+                    <div className="relative">
+                      {rule.key === "daily_goal_penalty" ? <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-lg font-black text-navy">−</span> : null}
+                      <input
+                        type="number"
+                        min={rule.unit ? 1 : 0}
+                        step={1}
+                        value={value.points}
+                        onChange={(event) => handlePointsInput(rule.key, event.target.value)}
+                        disabled={!canEdit}
+                        aria-label={rule.key === "daily_goal_penalty" ? "Pontos descontados da Meta Diária não concluída" : rule.label}
+                        className={`w-16 border-0 bg-transparent text-center text-lg font-black text-navy outline-none disabled:opacity-70 ${rule.key === "daily_goal_penalty" ? "pl-3" : ""}`}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => adjustPointsValue(rule.key, 1)}
