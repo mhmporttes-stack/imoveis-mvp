@@ -1,5 +1,11 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+### 2026-09-28 — Chat e Base Mestra na análise documental
+- **Área:** Documentação, Chat, CCA e PDF.
+- **Alteração:** seleção explícita de mensagens e arquivos no Chat para a análise documental existente; regras ativas incorporadas em cada parecer; residência sem boletos; rastreio de pendências; cálculo auditável de renda por três extratos; mensagem de pendências editável no Chat; opções PDF ou pasta ZIP para a CCA, com confirmação de pendências.
+- **Permissões:** somente administrador geral edita regras; corretor só acessa o próprio cliente e pode preparar envio para CCA; gestão do cadastro de CCA permanece restrita.
+- **Verificação:** 18 testes de regras e build Next.js concluídos. Fluxos externos dependem das credenciais de produção.
+
 > Este arquivo registra **alterações importantes futuras** feitas por agentes de IA (e por pessoas que usem agentes) neste projeto. **Não contém histórico anterior**: o histórico de código está no Git e o das regras de negócio em `.claude/rules/*.md` e `docs/`.
 > Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
 

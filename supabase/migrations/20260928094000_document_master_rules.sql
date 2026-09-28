@@ -1,0 +1,7 @@
+insert into public.document_ai_rules (category, title, instruction, rule_key) values
+('Residência', 'Tipos de comprovante aceitos', 'Aceite como comprovante de residência somente conta de água, energia elétrica, internet ou telefone com nome e endereço legíveis. Não aceite nenhum boleto nem extrato bancário. Fatura de cartão só pode servir de endereço quando usada para comprovar renda e não houver conta utilizável.', 'residence_source'),
+('Estado civil', 'Casamento sem averbação', 'Certidão de casamento sem averbação de divórcio exige documentação aplicável do cônjuge, salvo segunda certidão de casamento e segundo comprovante de residência. Se cadastro contradizer certidão, sinalize divergência.', 'marriage_spouse'),
+('FGTS', 'Extrato atualizado', 'Exija extrato do FGTS atualizado. Se estiver ausente ou claramente desatualizado, registre pendência específica; se não houver data legível, peça validação.', 'fgts_updated'),
+('Renda informal', 'Extratos bancários e PIX', 'Para três meses de extratos bancários, extraia cada entrada com valor, mês, origem e evidência. Exclua da renda líquida apenas transferência própria, do cônjuge ou parente de primeiro grau comprovada. Se a origem for incerta, inclua como renda; não presuma parentesco. Informe média bruta e líquida.', 'bank_income'),
+('CTPS', 'Formato da carteira', 'CTPS pode ser foto legível ou PDF; não crie pendência só pelo formato.', 'ctps_format')
+on conflict (rule_key) do nothing;

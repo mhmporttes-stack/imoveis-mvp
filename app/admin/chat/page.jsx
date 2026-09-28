@@ -24,7 +24,7 @@ export default async function ChatPage({ searchParams }) {
         <AdminLogoutButton />
       </section>
       <AdminSectionNav active="chat" />
-      <WhatsappChat canManage={canManage} currentUserId={auth.profile?.id || ""} initialClientId={typeof params.client === "string" ? params.client : ""} />
+      <WhatsappChat canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} initialClientId={typeof params.client === "string" ? params.client : ""} />
     </main>
   );
 }
