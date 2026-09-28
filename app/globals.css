@@ -73,8 +73,10 @@ body.admin-scroll-fix .admin-motion-detail {
   animation: admin-detail-in 180ms ease-out both;
 }
 
-body.admin-scroll-fix .admin-motion-back {
-  animation: admin-detail-back 180ms ease-out both;
+@media (max-width: 1023px) {
+  body.admin-scroll-fix .admin-motion-back {
+    animation: admin-detail-back 180ms ease-out both;
+  }
 }
 
 body.admin-scroll-fix :is(button, a[role="button"]):not(:disabled) {
