@@ -5,16 +5,19 @@ import { MessageCircle } from "lucide-react";
 
 import { FORM_COMPLETION_MESSAGE as MESSAGE } from "@/lib/whatsapp-form-completion.mjs";
 
-// Botão da tela final do formulário: abre o WhatsApp oficial com a mensagem
-// pronta. Quando o cliente escreve primeiro, a janela de 24h abre e o CRM
-// consegue responder sem template. Se o número não estiver configurado, o
-// botão simplesmente não aparece (o atendimento segue como antes).
-export default function ReceiveSimulationWhatsappButton() {
+// Botão da tela final do formulário: abre o WhatsApp com a mensagem pronta —
+// o do corretor dono do link (?ref=) que o cliente usou, ou o oficial quando
+// não há um corretor certo (link de equipe/roleta, sem ref, corretor sem
+// telefone). Quando o cliente escreve primeiro, a janela de 24h abre e quem
+// recebe consegue responder sem template. Se nenhum número estiver
+// configurado, o botão simplesmente não aparece (o atendimento segue como antes).
+export default function ReceiveSimulationWhatsappButton({ brokerRef = "" }) {
   const [phone, setPhone] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/whatsapp-contact")
+    const query = brokerRef ? `?ref=${encodeURIComponent(brokerRef)}` : "";
+    fetch(`/api/whatsapp-contact${query}`)
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!cancelled && data?.phone) setPhone(data.phone);
@@ -23,7 +26,7 @@ export default function ReceiveSimulationWhatsappButton() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [brokerRef]);
 
   if (!phone) return null;
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Camera } from "lucide-react";
 import ReceiveSimulationWhatsappButton from "@/components/simulation-form/ReceiveSimulationWhatsappButton";
 
-export default function SimulationSuccess() {
+export default function SimulationSuccess({ brokerRef = "" }) {
   return (
     <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-[36px] border border-line bg-white p-6 text-center shadow-[0_24px_70px_rgba(13,59,102,0.12)] sm:p-10 lg:p-12">
       <div className="relative mx-auto h-20 w-full max-w-[340px] sm:h-24">
@@ -29,7 +29,7 @@ export default function SimulationSuccess() {
         condições disponíveis para o seu perfil.
       </p>
 
-      <ReceiveSimulationWhatsappButton />
+      <ReceiveSimulationWhatsappButton brokerRef={brokerRef} />
 
       <div className="relative mx-auto mt-12 max-w-3xl overflow-hidden border-t border-line px-1 pt-10">
         <DecorativeBubble className="pointer-events-none absolute left-0 top-[145px] z-0 hidden h-20 w-20 text-brand lg:block" />
