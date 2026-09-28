@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Contadores de pendências no CRM
+- **Área:** Clientes / Agenda / Chat.
+- **Alteração:** o atalho Agenda exibe atividades vencidas; o botão CRM (Clientes para administrador geral) soma Chat não lido, atividades vencidas e clientes aguardando atendimento ou simulação. Os contadores ficam no canto superior direito e compartilham uma consulta por tela.
+- **Risco/observação:** o calendário permanece escopado ao perfil atual e o cliente é contado uma vez por status. Sem migração ou mudança de pontuação.
+- **Autor:** Codex
+
 ### 2026-09-28 — Atalhos de Clientes na barra de ações
 - **Data:** 2026-09-28 · **Área:** Clientes / navegação · **Motivo:** compactar o acesso a Prospecção, Chat e Agenda.
 - **Alteração:** atalhos existentes viram ícones após Filtros e Pendências, com badge atual do Chat; a faixa do submenu Clientes do administrador é ocultada, sem alterar as demais categorias, rotas ou permissões.
