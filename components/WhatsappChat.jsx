@@ -36,7 +36,6 @@ import WhatsappChatCampaigns from "@/components/WhatsappChatCampaigns";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
-import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
@@ -1156,23 +1155,6 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   // MODO INTERNO: mensagem só para a equipe (nunca vai ao WhatsApp). Funciona também com a janela de 24h fechada.
   if (internalMode && canInternal) {
     return <InternalComposer conversationId={conversation.id} onExit={() => setInternalMode(false)} onSent={onSent} />;
-  }
-
-  if (!conversation.window.open) {
-    return (
-      <div>
-        <WhatsappChatTemplateSender conversation={conversation} onSent={onSent} />
-        {canInternal ? (
-          <button
-            type="button"
-            onClick={() => setInternalMode(true)}
-            className="flex w-full items-center justify-center gap-2 border-t border-line bg-white px-4 py-2 text-xs font-extrabold text-slate-500 transition-colors duration-200 hover:bg-blue-50 hover:text-brand"
-          >
-            <MessageSquareText className="h-4 w-4" /> Escrever mensagem interna (o cliente não verá)
-          </button>
-        ) : null}
-      </div>
-    );
   }
 
   async function postMedia(file, caption = "") {
