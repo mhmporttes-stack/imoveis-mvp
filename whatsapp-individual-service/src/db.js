@@ -46,3 +46,10 @@ export async function readSessionRow(userId) {
   const { row } = await call("GET", `/api/webhooks/whatsapp-individual/state?userId=${encodeURIComponent(userId)}&field=row`);
   return row || null;
 }
+
+// user_ids com credenciais salvas — usado só na subida do processo (server.js)
+// para retomar sozinho as sessões que existiam antes do restart/redeploy.
+export async function listResumableUserIds() {
+  const { userIds } = await call("GET", "/api/webhooks/whatsapp-individual/state?field=resumable");
+  return Array.isArray(userIds) ? userIds : [];
+}

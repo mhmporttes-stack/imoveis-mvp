@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
 import { connectSession, disconnectSession, getLiveSessionStatus, sendMessage } from "./sessions.js";
-import { readSessionRow } from "./db.js";
+import { listResumableUserIds, readSessionRow } from "./db.js";
 
 const REQUIRED_ENV = ["APP_WEBHOOK_URL", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
@@ -79,4 +79,31 @@ app.post("/sessions/:userId/send", async (req, res) => {
 });
 
 const port = Number(process.env.PORT) || 3100;
-app.listen(port, () => console.log(`whatsapp-individual-service ouvindo na porta ${port}`));
+app.listen(port, () => {
+  console.log(`whatsapp-individual-service ouvindo na porta ${port}`);
+  resumeSessions();
+});
+
+// A cada restart/redeploy o socket em memória se perde, mas as credenciais
+// continuam persistidas (cifradas) no Supabase — sem isso o corretor ficava
+// "conectado" no banco sem socket vivo nenhum até clicar Reconectar. Um de
+// cada vez, com um intervalo curto entre eles, pra não abrir várias conexões
+// simultâneas com o WhatsApp no boot.
+async function resumeSessions() {
+  let userIds = [];
+  try {
+    userIds = await listResumableUserIds();
+  } catch (error) {
+    console.error("Falha ao listar sessões para retomar:", error.message);
+    return;
+  }
+  for (const userId of userIds) {
+    try {
+      await connectSession(userId);
+      console.log(`[${userId}] Sessão retomada após subir o processo.`);
+    } catch (error) {
+      console.error(`[${userId}] Falha ao retomar a sessão:`, error.message);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+}

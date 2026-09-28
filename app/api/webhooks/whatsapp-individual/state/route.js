@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getIndividualSessionRow,
+  listIndividualSessionsWithCreds,
   readIndividualSessionCredsInternal,
   verifyIndividualServiceSecret,
   writeIndividualSessionCredsInternal
@@ -22,9 +23,15 @@ export async function GET(request) {
 
   const userId = String(request.nextUrl.searchParams.get("userId") || "").trim();
   const field = String(request.nextUrl.searchParams.get("field") || "row");
-  if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
 
   try {
+    // Único campo sem userId: lista quem tem credenciais salvas, pro
+    // microsserviço retomar sozinho ao subir (ver listIndividualSessionsWithCreds).
+    if (field === "resumable") {
+      const userIds = await listIndividualSessionsWithCreds();
+      return NextResponse.json({ userIds });
+    }
+    if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
     if (field === "creds") {
       const encrypted = await readIndividualSessionCredsInternal(userId);
       return NextResponse.json({ encrypted });
