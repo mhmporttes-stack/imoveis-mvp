@@ -22,9 +22,11 @@ export default function NewClientSoundListener({ userId }) {
     sinceRef.current = new Date().toISOString();
 
     let cancelled = false;
+    let inFlight = false;
 
     async function poll() {
-      if (cancelled || !sinceRef.current) return;
+      if (cancelled || !sinceRef.current || inFlight) return;
+      inFlight = true;
       try {
         const response = await fetch(`/api/crm-notifications/new-client-alerts?since=${encodeURIComponent(sinceRef.current)}`);
         if (!response.ok) return;
@@ -41,6 +43,8 @@ export default function NewClientSoundListener({ userId }) {
         }
       } catch {
         // Falha de rede pontual — tenta de novo no próximo ciclo.
+      } finally {
+        inFlight = false;
       }
     }
 

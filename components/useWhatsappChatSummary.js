@@ -16,6 +16,7 @@ const store = {
   started: false,
   stop: null
 };
+let summaryInFlight = null;
 
 function setSummary(next) {
   store.summary = next;
@@ -42,18 +43,21 @@ function syncAppBadge(count) {
   }
 }
 
-async function fetchSummary() {
-  try {
-    const response = await fetch("/api/admin/whatsapp-chat/summary", { cache: "no-store" });
-    const data = await response.json().catch(() => null);
-    if (response.ok && data) {
-      setSummary(data);
-      return data;
+function fetchSummary() {
+  if (!summaryInFlight) summaryInFlight = (async () => {
+    try {
+      const response = await fetch("/api/admin/whatsapp-chat/summary", { cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (response.ok && data) {
+        setSummary(data);
+        return data;
+      }
+    } catch {
+      // Falha de rede pontual — o próximo ciclo tenta de novo.
     }
-  } catch {
-    // Falha de rede pontual — o próximo ciclo tenta de novo.
-  }
-  return null;
+    return null;
+  })().finally(() => { summaryInFlight = null; });
+  return summaryInFlight;
 }
 
 function startStore() {
