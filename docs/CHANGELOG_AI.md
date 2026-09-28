@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Exclusão de cliente pelo administrador principal
+- **Área:** Clientes.
+- **Alteração:** a exclusão remove primeiro o atendimento da camada de compatibilidade vinculado ao cadastro, evitando o bloqueio por chave estrangeira; o cliente canônico compartilhado permanece. A permissão exclusiva do dono não mudou.
+- **Risco/observação:** se a exclusão do cadastro falhar depois, o atendimento de compatibilidade poderá ser reconstruído na próxima atualização do cadastro; nenhuma exclusão real foi feita como teste.
+- **Autor:** Codex
+
 ### 2026-09-28 — Novos atendimentos apenas no atendimento automático
 - **Área:** Badge CRM / Clientes.
 - **Alteração:** clientes em "Em atendimento" deixam de contar em Novos atendimentos; a categoria mostra só Atendimento automático sem resposta ou assunção humana no Chat.
