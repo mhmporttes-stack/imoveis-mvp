@@ -96,7 +96,7 @@ async function onConnectionUpdate(userId, entry, update) {
     entry.status = "connected";
     entry.qr = null;
     const phoneNumber = String(entry.sock?.user?.id || "").split(":")[0] || "";
-    await notifyStatus(userId, { status: "connected", phoneNumber });
+    await notifyStatus(userId, { status: "connected", phoneNumber, qr: null });
     return;
   }
 
@@ -111,7 +111,7 @@ async function onConnectionUpdate(userId, entry, update) {
       entry.status = "disconnected";
       entry.qr = null;
       await clearSessionCreds(userId);
-      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, error: "logged_out" });
+      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out" });
       return;
     }
 
@@ -168,7 +168,7 @@ export async function disconnectSession(userId) {
   }
   sockets.delete(userId);
   await clearSessionCreds(userId);
-  await notifyStatus(userId, { status: "disconnected", phoneNumber: null });
+  await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null });
 }
 
 export async function sendMessage(userId, { to, text }) {
