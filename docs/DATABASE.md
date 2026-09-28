@@ -32,7 +32,7 @@
 | Campanhas | `campaigns` (kind `official`/personalizada, `link_journey`), `campaign_link_views`, `campaign_link_duplicate_submissions` |
 | Prospecção | `prospecting_contacts`, `prospecting_history` |
 | Meta Diária | `daily_goals`, `daily_goal_rounds`, `daily_goal_attempts`, `daily_goal_quota_versions`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides` (sem tela), `daily_goal_broker_messages`, `daily_goal_do_not_contact_log`, `daily_goal_abuse_flags`, `daily_goal_pending_freeze` (pendentes congelados por corretor/dia — migration `20260925140000`, aplicada em produção em 2026-09-25) |
-| Pontuação | `scoring_rule_versions` (versionada por vigência), `scoring_manual_adjustments` |
+| Pontuação | `scoring_rule_versions` (versionada por vigência, incluindo presença, intervalo em minutos, bônus diário de presença e penalidade da meta; migration `20260928040000`), `scoring_manual_adjustments` |
 | Automação / notificação | `crm_automation_rules`, `crm_automation_executions` (idempotência), `crm_notifications`, `crm_settings` (id → JSON: `whatsapp_master`, `daily_goal_messages`, `daily_message_settings`, `daily_report_dispatch`, `client_journey_statuses`, `client_journey_copy`, …) |
 | Mensagem diária | `daily_message_cards`, `daily_message_dispatches`, `daily_message_user_history` |
 | Documentação / CCA | `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `cca` |

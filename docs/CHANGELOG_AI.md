@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Ranking por ação real, presença e meta não cumprida
+- **Data:** 2026-09-28 · **Área:** Ranking / Meta Diária · **Motivo:** pedido do dono após cliente da roleta gerar pontos sem atendimento.
+- **Alteração:** recebimento automático pela roleta deixa de pontuar “Novo cliente”; presença ativa rende pontos por intervalo e bônus ao líder diário; meta fechada sem conclusão desconta pontos, inclusive abaixo de zero. Pesos e intervalo editáveis em Pontuação, com extrato coerente.
+- **Arquivos:** `lib/performance-overview.js`, `lib/admin-presence.js`, `lib/scoring-rules.js`, `components/ScoringRulesManager.jsx`, `supabase/migrations/20260928040000_scoring_presence_config.sql`, `docs/BUSINESS_RULES.md`, `docs/DATABASE.md`.
+- **Risco/observação:** a migration inicial das três regras foi aplicada no banco pelo Claude, mas seu arquivo não estava neste checkout; a migration incluída completa a configuração de intervalo e é idempotente para as três sementes existentes. Penalidade só após fechamento da meta.
+- **Autor:** Codex
+
 ### 2026-09-28 — Entrada do conteúdo mais perceptível
 - **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** no iPhone, com movimento reduzido desligado, o dono não percebeu a animação anterior.
 - **Alteração:** entrada e troca de conteúdo em 320 ms com deslocamento curto de 20 px; a opção ativa do menu ganha entrada discreta, sem mover ranking, cabeçalho ou estrutura do menu. Nenhuma mudança em regras ou layout.
