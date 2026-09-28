@@ -23,6 +23,7 @@ export async function POST(request) {
   } catch (error) {
     const body = { error: formatClientDocumentsError(error) };
     if (error?.code === "MISSING_CLIENT_FIELDS") body.missingFields = error.missingFields;
+    if (error?.code === "PENDING_CONFIRMATION") body.pendingCount = error.pendingCount;
     return NextResponse.json(body, { status: error?.status || 400 });
   }
 }

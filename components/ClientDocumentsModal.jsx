@@ -20,6 +20,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { DOCUMENT_TYPE_OPTIONS, CHECKLIST_STATUS_OPTIONS } from "@/lib/document-type-options";
 import { DOCUMENT_STATUS_LABELS, PERSON_ROLE_LABELS } from "@/lib/document-status-labels";
+import { pendingClientMessage } from "@/lib/document-policy.mjs";
 
 const CLIENT_DOCS_BUCKET = "client-documents";
 
@@ -41,7 +42,7 @@ const STATUS_STYLE = {
   em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: DOCUMENT_STATUS_LABELS.em_analise }
 };
 
-export default function ClientDocumentsModal({ client, canSendToCca, canManage, canEditRules = false, onClose }) {
+export default function ClientDocumentsModal({ client, conversationId = "", canSendToCca, canManage, canEditRules = false, onClose }) {
   const [batches, setBatches] = useState(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [error, setError] = useState("");
@@ -340,6 +341,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
               onDeleteDocument={deleteDocument}
               onViewDocument={viewDocument}
               onCorrectItem={correctItem}
+              conversationId={conversationId}
               onSendToCca={() => setCcaFlow({ batchId: activeBatch.id })}
               onBrokerAlert={handleBrokerAlert}
               brokerAlertBusy={brokerAlertFlow === "loading"}
@@ -567,8 +569,23 @@ function BatchRow({ batch, isActive, onOpen }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, canManage, canEditRules, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
+function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversationId, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
   const [showDivergences, setShowDivergences] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState("");
+  const suggestedMessage = pendingClientMessage(batch.checklist);
+  useEffect(() => { setMessageDraft(suggestedMessage); setMessageFeedback(""); }, [batch.id, suggestedMessage]);
+  async function sendPendingMessage() {
+    setSendingMessage(true); setMessageFeedback("");
+    try {
+      const response = await fetch(`/api/admin/client-documents/batches/${batch.id}/message`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, message: messageDraft }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setMessageFeedback("Mensagem enviada no Chat.");
+    } catch (error) { setMessageFeedback(error.message || "Não foi possível enviar."); }
+    finally { setSendingMessage(false); }
+  }
   // Agrupa por person_role (identidade estável: titular/conjuge/dependente/
   // outro), nunca por person_label — é texto livre extraído pela IA a cada
   // lote e pode variar (acento, "João" vs "Joao"), o que já causou o mesmo
@@ -629,6 +646,13 @@ function BatchDetail({ batch, canSendToCca, canManage, canEditRules, onReanalyze
           ) : null}
         </div>
       ) : null}
+
+      {batch.status === "analyzed" ? <div className="mt-3 rounded-xl border border-line bg-mist/40 p-3">
+        <p className="text-sm font-black text-navy">{suggestedMessage ? "Pendências para comunicar ao cliente" : "Documentação analisada — sem pendências identificadas."}</p>
+        {suggestedMessage ? <><textarea className="mt-2 w-full rounded-lg border border-line bg-white p-2 text-sm" rows={Math.min(9, Math.max(4, suggestedMessage.split("\n").length))} value={messageDraft} onChange={(event) => setMessageDraft(event.target.value)} aria-label="Mensagem para o cliente" /><button type="button" disabled={sendingMessage || !messageDraft.trim()} onClick={sendPendingMessage} className="premium-button-secondary mt-2 px-3 py-2 text-xs disabled:opacity-50"><Send className="h-4 w-4" /> Enviar no chat</button></> : null}
+        {messageFeedback ? <p role="status" className="mt-2 text-xs font-bold text-brand">{messageFeedback}</p> : null}
+        {batch.summary?.income ? <div className="mt-3 text-xs text-navy"><p className="font-black">Renda por extratos</p>{batch.summary.income.needsValidation ? <p>Valide os três meses e as entradas antes de concluir o cálculo.</p> : <><p>Média bruta mensal: {formatMoney(batch.summary.income.grossMonthlyAverage)}</p><p>Média líquida mensal considerada: {formatMoney(batch.summary.income.netMonthlyAverage)}</p></>}</div> : null}
+      </div> : null}
 
       <div className="mt-3 space-y-4">
         {Array.from(byPerson.entries()).map(([role, group]) => (
@@ -726,6 +750,8 @@ function ChecklistItemCard({ item, documents, canManage, canEditRules, onView, o
 }
 
 function CcaSubmissionFlow({ clientId, batchId, onClose }) {
+  const [format, setFormat] = useState("");
+  const [confirmPending, setConfirmPending] = useState(false);
   const [ccaOptions, setCcaOptions] = useState(null);
   const [propertyOptions, setPropertyOptions] = useState(null);
   const [ccaId, setCcaId] = useState("");
@@ -748,7 +774,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
   // CPF/PIS nunca são digitados aqui — são resolvidos automaticamente pelo
   // servidor a partir do cadastro do cliente (item 33/41 do pedido).
   function buildPayload(extra) {
-    return { clientId, batchId, ccaId, propertyType, propertyValue, propertyId: propertyId || null, propertyName: propertyId ? "" : propertyName, ...extra };
+    return { clientId, batchId, ccaId, format, confirmPending, propertyType, propertyValue, propertyId: propertyId || null, propertyName: propertyId ? "" : propertyName, ...extra };
   }
 
   async function handlePreview() {
@@ -772,6 +798,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
   }
 
   async function handleConfirm() {
+    if (preview?.pendingCount && !confirmPending) { setError(`Existem ${preview.pendingCount} pendências. Confirme para continuar.`); return; }
     setBusy(true);
     setError("");
     try {
@@ -833,23 +860,23 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
         {done ? (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-            <p className="mt-3 font-black text-navy">Documentação preparada, PDF gerado e WhatsApp aberto.</p>
+            <p className="mt-3 font-black text-navy">Documentação preparada e WhatsApp da CCA aberto.</p>
             <p className="mt-1 text-xs font-bold text-muted">Status do cliente atualizado para "Aguardando aprovação".</p>
-            {done.pdfUrl ? (
-              <a className="premium-button-secondary mt-4 inline-flex" href={done.pdfUrl} target="_blank" rel="noreferrer">Baixar PDF consolidado</a>
+            {done.packageUrl ? (
+              <a className="premium-button-secondary mt-4 inline-flex" href={done.packageUrl} target="_blank" rel="noreferrer">Baixar {done.format === "folder" ? "pasta ZIP" : "PDF consolidado"}</a>
             ) : null}
             {done.pdfSkipped?.length ? (
               <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-left text-xs font-bold text-amber-800">
                 {done.pdfSkipped.length} arquivo(s) não entraram no PDF (formato não suportado para mesclagem): {done.pdfSkipped.join(", ")}. Baixe-os manualmente pelo checklist se precisar anexar.
               </p>
             ) : null}
-            <p className="mt-3 text-xs font-bold text-muted">O WhatsApp abriu só com a mensagem — anexe o PDF manualmente lá, o link não vai grudado automaticamente.</p>
+            <p className="mt-3 text-xs font-bold text-muted">O link temporário do pacote foi incluído na mensagem da CCA.</p>
             <button type="button" className="premium-button-secondary mt-4" onClick={onClose}>Fechar</button>
           </div>
         ) : missingFields ? (
           <div>
             <h3 className="text-lg font-black text-navy">Complete o cadastro antes de gerar o PDF</h3>
-            <p className="mt-2 text-sm text-muted">Nome, e-mail e PIS vão escritos na capa do PDF consolidado — preencha o que estiver faltando.</p>
+            <p className="mt-2 text-sm text-muted">Informe o nome do cliente para identificar o pacote.</p>
             {error ? <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
             <div className="mt-3 space-y-2">
               {missingFields.includes("fullName") ? (
@@ -880,7 +907,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
               </button>
             </div>
           </div>
-        ) : preview ? (
+        ) : !format ? <div><h3 className="text-lg font-black text-navy">Enviar para aprovação</h3><p className="mt-2 text-sm text-muted">Escolha como organizar os documentos.</p><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" className="premium-button-secondary" onClick={() => setFormat("folder")}>PASTA</button><button type="button" className="premium-button-secondary" onClick={() => setFormat("pdf")}>PDF</button></div></div> : preview ? (
           <div>
             <h3 className="text-lg font-black text-navy">Documentação preparada para envio</h3>
             <dl className="mt-3 space-y-1 text-sm">
@@ -888,13 +915,16 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
               <Row label="CCA" value={`${preview.cca.name}${preview.cca.companyName ? ` — ${preview.cca.companyName}` : ""}`} />
               <Row label="Arquivos" value={preview.documentCount} />
             </dl>
+            <p className="mt-3 text-sm font-black text-navy">{preview.pendingCount ? `Existem ${preview.pendingCount} pendências na documentação.` : "Documentação completa"}</p>
+            {preview.pendingCount ? <label className="mt-2 flex items-center gap-2 text-xs font-bold text-amber-800"><input type="checkbox" checked={confirmPending} onChange={(event) => setConfirmPending(event.target.checked)} /> Confirmo o envio mesmo com pendências.</label> : null}
+            {error ? <p role="alert" className="mt-2 text-xs text-red-700">{error}</p> : null}
             {preview.missing?.length ? (
               <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltando: {preview.missing.join(", ")} — preencha acima antes de continuar, se necessário.</p>
             ) : null}
             <p className="mt-3 whitespace-pre-line rounded-xl bg-mist/60 p-3 text-sm text-navy">{preview.message}</p>
             <div className="mt-4 flex gap-2">
               <button type="button" className="premium-button-secondary" onClick={() => setPreview(null)}>Voltar</button>
-              <button type="button" disabled={busy} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" onClick={handleConfirm}>
+              <button type="button" disabled={busy || Boolean(preview.pendingCount && !confirmPending)} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" onClick={handleConfirm}>
                 {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Abrir WhatsApp
               </button>
             </div>
@@ -934,7 +964,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
               ) : null}
             </div>
             <div className="mt-4 flex gap-2">
-              <button type="button" className="premium-button-secondary" onClick={onClose}>Cancelar</button>
+              <button type="button" className="premium-button-secondary" onClick={() => setFormat("")}>Voltar</button>
               <button type="button" disabled={busy || !ccaId} className="premium-button-primary disabled:cursor-not-allowed disabled:opacity-60" onClick={handlePreview}>
                 {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null} Continuar
               </button>
@@ -958,3 +988,4 @@ function Row({ label, value }) {
 function formatDate(value) {
   return value ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "";
 }
+function formatMoney(value) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) || 0); }

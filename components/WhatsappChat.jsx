@@ -37,6 +37,7 @@ import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
 import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
+import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
@@ -103,7 +104,7 @@ function formatPhone(phone) {
   return phone || "";
 }
 
-export default function WhatsappChat({ canManage = false, currentUserId = "", initialClientId = "" }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "" }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
   const [brokers, setBrokers] = useState([]);
@@ -341,6 +342,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
             {selectedId ? (
               <Thread
                 canManage={canManage}
+                canEditRules={canEditRules}
                 currentUserId={currentUserId}
                 detail={detail}
                 error={detailError}
@@ -504,12 +506,14 @@ function ConversationRow({ conversation, selected, onSelect }) {
   );
 }
 
-function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
+function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [reactionError, setReactionError] = useState("");
+  const [documentSelectionOpen, setDocumentSelectionOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -533,6 +537,8 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
     setMenuOpen(false);
     setReplyTo(null);
     setReactionError("");
+    setDocumentSelectionOpen(false);
+    setDocumentsOpen(false);
   }, [conversation?.id]);
 
   async function reactTo(message, emoji) {
@@ -637,6 +643,7 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {conversation.client?.id ? <button type="button" onClick={() => setDocumentSelectionOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Analisar documentação" title="Analisar documentação"><FileText className="h-4 w-4" /><Search className="-ml-2 -mt-2 h-3 w-3" /></button> : null}
             {showAssume ? (
               <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
@@ -726,6 +733,9 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
 
       <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} onSent={onChanged} />
 
+      {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
+      {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca canManage={canManage} canEditRules={canEditRules} onClose={() => setDocumentsOpen(false)} /> : null}
+
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
           <div className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
@@ -743,6 +753,46 @@ function Thread({ canManage, currentUserId, detail, error, guideOpen, insertRequ
       ) : null}
     </>
   );
+}
+
+function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAnalyzed }) {
+  const [messages, setMessages] = useState(initialMessages);
+  const [selected, setSelected] = useState([]);
+  const [hasMore, setHasMore] = useState(initialMessages.length >= 100);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const eligible = messages.filter((message) => !message.internal && (["text", "button", "interactive"].includes(message.type) && message.body?.trim() || ["image", "document"].includes(message.type)));
+
+  async function loadOlder() {
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}?before=${encodeURIComponent(messages[0]?.at || "")}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setMessages((current) => [...data.messages, ...current]); setHasMore(data.hasMore);
+    } catch (caught) { setError(caught.message); }
+    finally { setBusy(false); }
+  }
+  async function analyze() {
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/client-documents/from-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: selected }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      onAnalyzed(data.batch);
+    } catch (caught) { setError(caught.message || "Não foi possível analisar."); }
+    finally { setBusy(false); }
+  }
+  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/60 p-3" role="dialog" aria-modal="true" aria-label="Selecionar documentação" onMouseDown={onClose}>
+    <div className="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-2xl bg-white p-4 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-black text-navy">Analisar documentação</h2><button type="button" onClick={onClose} aria-label="Fechar"><X className="h-5 w-5" /></button></div>
+      <p className="mb-3 text-xs text-muted">Selecione apenas arquivos e mensagens relacionados à documentação.</p>
+      {error ? <p role="alert" className="mb-2 text-sm text-red-700">{error}</p> : null}
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">{eligible.map((message) => <label key={message.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-2 text-sm text-navy"><input type="checkbox" className="mt-1" checked={selected.includes(message.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id))} /><span className="min-w-0"><span className="block text-xs font-bold text-muted">{message.direction === "inbound" ? "Cliente" : "Equipe"} · {message.type === "text" ? "Mensagem" : message.type === "image" ? "Imagem" : "PDF/arquivo"}</span><span className="block break-words">{message.media?.name || message.body?.slice(0, 220) || "Arquivo"}</span></span></label>)}</div>
+      {hasMore ? <button type="button" disabled={busy} onClick={loadOlder} className="mt-2 text-xs font-bold text-brand">Carregar mensagens anteriores</button> : null}
+      <div className="mt-3 flex justify-end gap-2"><button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onClose}>Cancelar</button><button type="button" className="premium-button-primary px-4 py-2 text-sm disabled:opacity-50" disabled={busy || !selected.length} onClick={analyze}>{busy ? "Analisando…" : `Analisar ${selected.length} selecionado(s)`}</button></div>
+    </div>
+  </div>;
 }
 
 function MessageBubble({ message, quoted, canReply, onReply, onReact }) {
