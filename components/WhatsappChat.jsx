@@ -1096,6 +1096,17 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+// Campo de mensagem cresce sozinho conforme o corretor digita (até um teto, depois rola por dentro) — em vez de
+// mostrar só 1 linha e esconder o resto do texto na hora de reler/corrigir.
+function useAutoGrowTextarea(ref, value) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [ref, value]);
+}
+
 function Composer({ canManage, conversation, insertRequest = null, replyTo, onClearReply, onSent }) {
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
@@ -1106,6 +1117,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   const recorder = useAudioRecorder();
   const canRecord = useMemo(() => audioRecordingSupported(), []);
   const [internalMode, setInternalMode] = useState(false);
+  useAutoGrowTextarea(textareaRef, text);
 
   useEffect(() => {
     setText("");
@@ -1291,7 +1303,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
           {canInternal ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
           <textarea
             ref={textareaRef}
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+            className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
             disabled={sending}
             onChange={(event) => setText(event.target.value)}
             // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
@@ -1340,6 +1352,8 @@ function InternalToggle({ active, disabled = false, onClick }) {
 
 function InternalComposer({ conversationId, onExit, onSent }) {
   const [text, setText] = useState("");
+  const textareaRef = useRef(null);
+  useAutoGrowTextarea(textareaRef, text);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -1377,8 +1391,9 @@ function InternalComposer({ conversationId, onExit, onSent }) {
       <div className="flex items-end gap-1">
         <InternalToggle active onClick={onExit} />
         <textarea
+          ref={textareaRef}
           autoFocus
-          className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+          className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
           disabled={sending}
           onChange={(event) => setText(event.target.value)}
           // Enter só quebra linha — enviar é sempre pelo botão.
