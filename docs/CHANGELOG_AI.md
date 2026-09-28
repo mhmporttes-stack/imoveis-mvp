@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Campeão ou campeã da semana; gerente fora do ranking
+- **Data:** 2026-09-28 · **Área:** Ranking / Perfil · **Motivo:** pedido do dono após ver o destaque no celular.
+- **Alteração:** cards semanais/diários mais legíveis; título semanal conforme gênero cadastrado; gerentes excluídos da classificação e dos destaques sem perder os dados de desempenho da equipe. Chave semanal versionada para recalcular vencedor salvo sob a regra anterior. Cadastro de gênero de Jennyfer corrigido conforme confirmação do dono.
+- **Arquivos:** `lib/ranking-display.mjs`, `lib/performance-overview.js`, `lib/weekly-ranking.js`, `components/TopRankingBadge.jsx`, `app/admin/layout.jsx`, `tests/ranking-display.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** pontuação e eventos não alterados; resultado semanal já gravado na chave anterior fica sem uso. Validar build e visualização após deploy.
+- **Autor:** Codex
+
 ### 2026-09-28 — Destaques do ranking semanal e diário
 - **Data:** 2026-09-28 · **Área:** Ranking / Banco · **Motivo:** pedido do dono.
 - **Alteração:** congela o Melhor da Semana anterior às 00:01 de segunda-feira em `crm_settings` e exibe semanal, diário e posição/pontos próprios nessa ordem; esconde a posição quando o usuário é líder do dia. Usa cálculo, desempate e permissões já existentes.

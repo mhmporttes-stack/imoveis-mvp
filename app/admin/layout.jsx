@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }) {
               status do sistema — sem esse respiro o conteúdo do cabeçalho
               nasceria atrás dela. O fundo da barra continua se estendendo
               até o topo real (comportamento padrão esperado em PWAs). */}
-          <header className="flex min-h-12 items-center justify-end border-b border-line bg-white/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:min-h-14 sm:px-6">
+          <header className="flex min-h-12 items-center justify-center border-b border-line bg-white/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:min-h-14 sm:px-6">
             <TopRankingBadge />
           </header>
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Avatar from "@/components/Avatar";
+import { weeklyChampionTitle } from "@/lib/ranking-display.mjs";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -48,15 +49,15 @@ export default function TopRankingBadge() {
   if (!data?.top1 && !data?.weeklyTop1) return null;
 
   return (
-    <div className="flex min-w-0 max-w-[calc(100vw-1.5rem)] flex-col items-end gap-1 py-1 sm:max-w-[280px]">
+    <div className="grid w-full max-w-lg gap-1.5 py-2 sm:grid-cols-2">
       {data.weeklyTop1 ? (
-        <RankingLeader person={data.weeklyTop1} label="Melhor da Semana" onClick={() => router.push("/admin/meta-diaria")} />
+        <RankingLeader person={data.weeklyTop1} label={weeklyChampionTitle(data.weeklyTop1.gender)} weekly onClick={() => router.push("/admin/meta-diaria")} />
       ) : null}
       {data.top1 ? (
         <RankingLeader person={data.top1} label="Melhor do Dia" onClick={() => router.push("/admin/meta-diaria")} />
       ) : null}
       {data.top1 && !data.isMeTop1 && data.myRank ? (
-        <span className="pr-2 text-right text-[10px] font-bold text-muted">
+        <span className="text-center text-[11px] font-bold text-muted sm:col-span-2">
           Sua posição hoje: {data.myRank}º lugar — {formatPoints(data.myPoints)} pontos
         </span>
       ) : null}
@@ -64,17 +65,20 @@ export default function TopRankingBadge() {
   );
 }
 
-function RankingLeader({ person, label, onClick }) {
+function RankingLeader({ person, label, weekly = false, onClick }) {
   return (
-    <button type="button" onClick={onClick} title="Ver Desempenho Diário"
-      className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50/70 py-1 pl-1 pr-3 transition hover:border-amber-300 hover:bg-amber-50">
+    <button type="button" onClick={onClick} title="Ver desempenho"
+      className={`flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${weekly
+        ? "border-navy bg-navy text-white hover:bg-navy/90"
+        : "border-amber-200 bg-amber-50 text-navy hover:bg-amber-100"}`}>
       <span className="relative shrink-0">
-        <Avatar name={person.name} photoUrl={person.photoUrl} size={32} />
-        <span className="absolute -right-1 -top-1.5 text-sm leading-none">🏆</span>
+        <Avatar name={person.name} photoUrl={person.photoUrl} size={36} />
+        <span className="absolute -right-1 -top-1 text-sm leading-none" aria-hidden="true">{weekly ? "🏆" : "★"}</span>
       </span>
-      <span className="min-w-0 text-left leading-tight">
-        <span className="block truncate text-xs font-extrabold text-navy">{person.name}</span>
-        <span className="block whitespace-nowrap text-[10px] font-bold text-amber-700">{label} · {formatPoints(person.points)} pts</span>
+      <span className="min-w-0 leading-tight">
+        <span className={`block text-[10px] font-black uppercase tracking-wide ${weekly ? "text-blue-100" : "text-amber-700"}`}>{label}</span>
+        <span className="block truncate text-sm font-extrabold">{person.name}</span>
+        <span className={`block text-xs font-bold ${weekly ? "text-blue-100" : "text-amber-700"}`}>{formatPoints(person.points)} pontos</span>
       </span>
     </button>
   );
