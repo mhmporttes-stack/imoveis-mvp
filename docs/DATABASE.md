@@ -1,5 +1,7 @@
 # DATABASE — banco de dados (Supabase / Postgres)
 
+`document_ai_rules` (migration `20260928092500`): regras de análise documental por categoria, título, instrução, estado ativo, chave/política opcional para a titularidade do comprovante de residência e data de atualização. A aplicação lê as ativas via `service_role` a cada análise; somente o administrador geral edita pela API.
+
 > Fonte: `supabase/migrations/*.sql` (116 arquivos), `supabase/schema.sql`, `supabase/tests/*.sql` e todos os `.from("...")`/`.rpc("...")` de `lib/`, `app/`, `components/` (2026-09-24, commit `3c82f72`).
 > **Nada foi consultado no banco de produção** nesta auditoria: o que é dado/estado de produção está marcado **A CONFIRMAR**. Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Permissões: [`PERMISSIONS.md`](PERMISSIONS.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Complementa `.claude/rules/database-supabase.md`.
 

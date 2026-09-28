@@ -157,6 +157,7 @@ const ownerGroups = [
     items: [
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho/pontuacao", label: "Pontuação", key: "scoring" },
+      { href: "/admin/documentacao/regras", label: "Documentação · Regras da IA", key: "document-rules" },
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
       { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" }

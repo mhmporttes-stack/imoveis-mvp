@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Regras editáveis para análise documental
+- **Área:** Documentação/CCA / Banco.
+- **Alteração:** Gestão > Documentação > Regras da IA administra regras ativas por categoria. A análise lê a versão atual antes de cada lote, registra a regra e a justificativa da pendência e inclui a justificativa no PDF. Correção humana pode abrir uma nova regra para revisão, sem publicação automática.
+- **Motivo:** evitar exigências presumidas e permitir corrigir a interpretação sem editar prompts.
+- **Arquivos afetados:** `lib/document-analysis.js`, `lib/client-documents.js`, `lib/client-document-pdf.js`, `components/DocumentAiRulesManager.jsx`, `supabase/migrations/20260928092500_document_ai_rules.sql`.
+- **Risco/observação:** a análise continua usando o provedor Anthropic existente; reanálises após mudança de regra chamam a IA novamente. Testes da regra de residência e build passaram.
+- **Autor:** Codex
+
 ### 2026-09-28 — Impedir recriação de cliente excluído
 - **Área:** Clientes / WhatsApp.
 - **Alteração:** a exclusão pelo dono marca as conversas vinculadas para não gerarem outro cadastro automático. Webhook e cron respeitam a marca em leads orgânicos e patrocinados; Chat e cadastro manual permanecem disponíveis.
