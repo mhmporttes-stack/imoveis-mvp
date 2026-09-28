@@ -41,8 +41,8 @@ export default async function AdminSectionNav({ active = "properties" }) {
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
-      {isManager && ["performance", "daily-report", "financial", "ai-usage", "scoring", "online"].includes(active) ? (
-        <nav className={`grid rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)] ${isAdmin ? "grid-cols-6" : "grid-cols-4"}`} aria-label="Opções de desempenho">
+      {isManager && ["performance", "daily-report", "financial", "ai-usage", "scoring", "online", "audit"].includes(active) ? (
+        <nav className={`grid rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)] ${isAdmin ? "grid-cols-7" : "grid-cols-5"}`} aria-label="Opções de desempenho">
           {/* Visão geral (dashboard operacional) segue a mesma paridade de acesso do gestor com o admin. */}
           <PerformanceLink active={active === "performance"} href="/admin/desempenho">Visão geral</PerformanceLink>
           <PerformanceLink active={active === "daily-report"} href="/admin/relatorio-diario">Relatório Diário</PerformanceLink>
@@ -53,6 +53,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
           {/* Pontuação: gestor acessa em modo somente leitura (sem editar regras/ajustes). */}
           <PerformanceLink active={active === "scoring"} href="/admin/desempenho/pontuacao">Pontuação</PerformanceLink>
           <PerformanceLink active={active === "online"} href="/admin/desempenho/online">Online</PerformanceLink>
+          <PerformanceLink active={active === "audit"} href="/admin/desempenho/auditoria">Auditoria</PerformanceLink>
         </nav>
       ) : null}
 

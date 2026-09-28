@@ -27,11 +27,13 @@ import {
   SmilePlus,
   Trash2,
   UserPlus,
+  Users,
   X
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
 import AttendanceGuidePanel from "@/components/guide/AttendanceGuidePanel";
+import WhatsappChatBrokers from "@/components/WhatsappChatBrokers";
 import WhatsappChatCampaigns from "@/components/WhatsappChatCampaigns";
 import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
@@ -125,15 +127,21 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const [guideDesktop, setGuideDesktop] = useState(true);
   const [guideMobile, setGuideMobile] = useState(false);
   const [insertRequest, setInsertRequest] = useState(null); // { conversationId, text, nonce }
+  // Aba "Corretores": ver o Chat filtrado por um corretor específico — o
+  // MESMO componente/estado, só um escopo extra na consulta (nunca um Chat
+  // paralelo). null = visão normal (tudo dentro da permissão de quem está logado).
+  const [scopedBroker, setScopedBroker] = useState(null); // { id, name } | null
 
   const sectionRef = useRef(null);
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);
+  const scopedBrokerRef = useRef(null);
   const readAttemptRef = useRef({});
   filterRef.current = filter;
   searchRef.current = search;
   selectedRef.current = selectedId;
+  scopedBrokerRef.current = scopedBroker;
 
   useEffect(() => {
     const handle = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -174,6 +182,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     try {
       const params = new URLSearchParams({ filter: filterRef.current });
       if (searchRef.current) params.set("q", searchRef.current);
+      if (scopedBrokerRef.current) params.set("brokerId", scopedBrokerRef.current.id);
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
@@ -224,7 +233,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   useEffect(() => {
     loadList();
-  }, [filter, search, loadList]);
+  }, [filter, search, scopedBroker, loadList]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -298,8 +307,27 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             <Megaphone className="h-4 w-4" />Campanhas
           </button>
         ) : null}
+        {canManage ? (
+          <button type="button" onClick={() => setTab("brokers")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "brokers" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
+            <Users className="h-4 w-4" />Corretores
+          </button>
+        ) : null}
         <span className="ml-auto"><WhatsappIndividualStatus /></span>
       </div>
+
+      {tab === "brokers" && canManage ? (
+        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+          <WhatsappChatBrokers
+            onOpen={(id, name) => {
+              setScopedBroker({ id, name });
+              setSelectedId("");
+              selectedRef.current = "";
+              setDetail(null);
+              setTab("conversations");
+            }}
+          />
+        </div>
+      ) : null}
 
       {tab === "campaigns" && canManage ? (
         <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
@@ -324,7 +352,16 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         </div>
       ) : null}
 
-      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" ? "hidden" : "admin-motion-enter"}`}>
+      {tab === "conversations" && scopedBroker ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-4 py-2.5">
+          <p className="text-sm font-bold text-navy">WhatsApp de <span className="font-black">{scopedBroker.name}</span></p>
+          <button type="button" onClick={() => { setScopedBroker(null); setTab("brokers"); }} className="text-xs font-black text-brand hover:underline">
+            ← Corretores
+          </button>
+        </div>
+      ) : null}
+
+      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : "admin-motion-enter"}`}>
         <div className={`grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "admin-motion-back flex"}

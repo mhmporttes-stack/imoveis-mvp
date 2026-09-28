@@ -63,7 +63,7 @@ const adminGroups = [
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
       { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
-      { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring"] }
+      { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring", "audit"] }
     ]
   }
 ];
@@ -113,7 +113,8 @@ const ownerGroups = [
     items: [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report"] },
-      { href: "/admin/desempenho/online", label: "Online", key: "online" }
+      { href: "/admin/desempenho/online", label: "Online", key: "online" },
+      { href: "/admin/desempenho/auditoria", label: "Auditoria", key: "audit" }
     ]
   },
   {
