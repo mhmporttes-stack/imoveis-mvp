@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Meta de domingo antes do campeão semanal
+- **Data:** 2026-09-28 · **Área:** Meta Diária / Ranking · **Motivo:** incluir a penalidade de domingo na consolidação das 00:01.
+- **Alteração:** cron diário passa de 00:10 para 00:01; o cálculo semanal espera o fechamento antes de apurar os pontos, mesmo com crons simultâneos. O campeão já congelado desta semana permanece intacto; a regra vale para os próximos fechamentos.
+- **Arquivos:** `lib/weekly-ranking.js`, `supabase/migrations/20260928043000_daily_goal_close_0001.sql`, `docs/BUSINESS_RULES.md`, `docs/DATABASE.md`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Ranking por ação real, presença e meta não cumprida
 - **Data:** 2026-09-28 · **Área:** Ranking / Meta Diária · **Motivo:** pedido do dono após cliente da roleta gerar pontos sem atendimento.
 - **Alteração:** recebimento automático pela roleta deixa de pontuar “Novo cliente”; presença ativa rende pontos por intervalo e bônus ao líder diário; meta fechada sem conclusão desconta pontos, inclusive abaixo de zero. Pesos e intervalo editáveis em Pontuação, com extrato coerente.

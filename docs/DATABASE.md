@@ -82,7 +82,7 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `whatsapp-broadcast-dispatch-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-broadcast-dispatch` |
 | `whatsapp-flows-timers-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-flows` |
 | `daily-report-once-a-day` | `0 1 * * *` | 22:00 | `/api/cron/daily-report` |
-| `daily-goal-close-once-a-day` | `10 3 * * *` | 00:10 | `/api/cron/daily-goal-close` (fecha o dia anterior **e** congela as pendências de hoje) |
+| `daily-goal-close-once-a-day` | `1 3 * * *` | 00:01 | `/api/cron/daily-goal-close` (fecha o dia anterior **e** congela as pendências de hoje; migration `20260928043000`) |
 | `weekly-ranking-monday` | `1 3 * * 1` | segunda 00:01 | `/api/cron/weekly-ranking` (congela o vencedor da semana anterior em `crm_settings`) |
 | `meta-ads-intraday-sync` | `0 1,11,13,15,17,19,21,23 * * *` | 08–22 h (de 2 em 2 h) + 22:00 | `/api/cron/meta-ads-intraday-sync` |
 | `meta-ads-daily-consolidation` | `0 9 * * *` | 06:00 | `/api/cron/meta-ads-daily-consolidation` |
