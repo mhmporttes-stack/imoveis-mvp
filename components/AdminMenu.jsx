@@ -232,7 +232,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
+      {isAdmin && visibleGroup === "clientes" ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
             key={`${visibleGroup}-${item.key}`}
@@ -247,7 +247,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
           </Link>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

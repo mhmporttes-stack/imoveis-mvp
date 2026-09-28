@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Atalhos de Clientes na barra de ações
+- **Data:** 2026-09-28 · **Área:** Clientes / navegação · **Motivo:** compactar o acesso a Prospecção, Chat e Agenda.
+- **Alteração:** atalhos existentes viram ícones após Filtros e Pendências, com badge atual do Chat; a faixa do submenu Clientes do administrador é ocultada, sem alterar as demais categorias, rotas ou permissões.
+- **Arquivos:** `components/AdminSimulationList.jsx`, `components/AdminMenu.jsx`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Abertura compacta da lista de clientes
 - **Data:** 2026-09-28 · **Área:** Clientes / interface · **Motivo:** reduzir o espaço antes da navegação.
 - **Alteração:** remove título e descrição introdutórios; o menu vem logo após o ranking, a ação Novo cliente vira ícone ao lado de Clientes pendentes e Sair fica ao final da página. A rota e as permissões permanecem iguais.

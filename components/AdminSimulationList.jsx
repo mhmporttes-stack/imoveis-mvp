@@ -23,9 +23,11 @@ import {
   TriangleAlert,
   Trash2,
   UserRound,
+  UserSearch,
   UserRoundPlus,
   X
 } from "lucide-react";
+import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import {
   CLIENT_FUNNEL_SALE_STATUS_VALUES,
   CLIENT_STATUS,
@@ -735,7 +737,8 @@ export default function AdminSimulationList({
             />
           </label>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
             <FiltersPopover
               open={filtersOpen}
               onOpenChange={setFiltersOpen}
@@ -756,6 +759,18 @@ export default function AdminSimulationList({
               <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
               {pendingClientsCount}
             </button>
+            </div>
+            <div className="flex items-center gap-2">
+            <Link href="/admin/prospeccao" aria-label="Prospecção" title="Prospecção" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+              <UserSearch className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <Link href="/admin/chat" aria-label="Chat" title="Chat" className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+              <MessageCircle className="h-5 w-5" aria-hidden="true" />
+              <WhatsappChatNavBadge className="absolute -right-2 -top-2" />
+            </Link>
+            <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5">
+              <CalendarDays className="h-5 w-5" aria-hidden="true" />
+            </Link>
             <Link
               href="/admin/simulacoes/nova"
               aria-label="Novo cliente"
@@ -764,6 +779,7 @@ export default function AdminSimulationList({
             >
               <UserRoundPlus className="h-5 w-5" aria-hidden="true" />
             </Link>
+            </div>
           </div>
         </div>
 
