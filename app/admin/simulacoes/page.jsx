@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
-import { isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
+import { buildBrokerSimulationLink, isBrokerProfile, isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listCalendarActivitiesForClients } from "@/lib/calendar-activities";
 import { listTags } from "@/lib/client-tags";
@@ -91,6 +91,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
           canManageResponsibleUsers={isGeneralAdmin || isManager}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
+          brokerSimulationLink={isBrokerProfile(auth.profile) ? buildBrokerSimulationLink(auth.profile) : ""}
           tags={tags}
         />
       )}
