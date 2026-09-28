@@ -605,6 +605,7 @@ function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversatio
 
   return (
     <div className="mt-5 rounded-2xl border border-line p-4">
+      {batch.summary?.unavailableFiles?.length ? <p className="mb-3 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">{batch.summary.unavailableFiles.length} arquivo(s) indisponível(is) não entraram na análise: {batch.summary.unavailableFiles.map((file) => file.name).join(", ")}.</p> : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-black text-navy">Checklist — lote de {formatDate(batch.createdAt)}</h3>
         <div className="flex flex-wrap gap-2">
