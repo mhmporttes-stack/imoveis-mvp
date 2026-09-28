@@ -8,7 +8,7 @@ const buttonBase =
   "inline-flex min-h-10 min-w-[130px] flex-1 items-center justify-center rounded-full px-5 text-sm font-extrabold transition duration-300";
 
 function buttonClass(isActive) {
-  return `${buttonBase} ${
+  return `${buttonBase} ${isActive ? "admin-nav-current" : ""} ${
     isActive
       ? "bg-navy text-white shadow-soft"
       : "border border-navy/15 bg-white text-navy hover:-translate-y-0.5 hover:border-brand hover:shadow-soft"
@@ -186,8 +186,8 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       if (sectionNav?.parentElement?.tagName !== "MAIN") return;
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         node.animate?.(
-          [{ opacity: 0.4, transform: "translateY(16px)" }, { opacity: 1, transform: "translateY(0)" }],
-          { duration: 210, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+          [{ opacity: 0.2, transform: "translateY(20px)" }, { opacity: 1, transform: "translateY(0)" }],
+          { duration: 320, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
         );
       }
     });
@@ -239,7 +239,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             href={item.href}
             className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
               isActiveItem(item, active)
-                ? "bg-navy text-white shadow-soft"
+                ? "admin-nav-current bg-navy text-white shadow-soft"
                 : "text-navy hover:bg-brand/10 hover:text-brand"
             }`}
           >
