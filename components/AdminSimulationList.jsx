@@ -707,34 +707,25 @@ export default function AdminSimulationList({
 
   async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
-    // Dentro da janela de 24h o atendimento abre no Chat (número oficial); fora
-    // dela abre o WhatsApp do próprio corretor. Em ambos os casos o botão
-    // continua registrando o contato (mesma API de sempre).
+    // Sempre abre o Chat do CRM, na MESMA aba (é uma rota interna, não um
+    // link externo — abrir aba nova só fazia sentido quando podia cair no
+    // WhatsApp pessoal do corretor). O botão continua registrando o
+    // contato (mesma API de sempre).
     if (!toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
 
-    const whatsappWindow = window.open("about:blank", "_blank");
-
     try {
       const [response, destination] = await Promise.all([
         fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" }),
-        resolveClientWhatsappDestination(client.registration.id, value)
+        resolveClientWhatsappDestination(client.registration.id)
       ]);
-      const whatsapp = destination.url;
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-
-      if (whatsappWindow) {
-        whatsappWindow.opener = null;
-        whatsappWindow.location.href = whatsapp;
-      } else {
-        window.open(whatsapp, "_blank", "noopener,noreferrer");
-      }
+      router.push(destination.url);
     } catch (error) {
-      if (whatsappWindow) whatsappWindow.close();
       alert(error.message || "Não foi possível registrar o contato via WhatsApp.");
     }
   }
