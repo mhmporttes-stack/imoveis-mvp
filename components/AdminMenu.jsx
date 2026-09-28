@@ -171,7 +171,7 @@ function CrmBreakdown({ counts, onClose, alignLeft = false }) {
   const items = [
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
-    { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?status=in_service&needsFirstContact=1", Icon: UserRoundPlus },
+    { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
     { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot }
   ].filter((item) => item.count > 0);
 
