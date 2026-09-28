@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Ocultar Melhor do Dia sem pontos
+- **Data:** 2026-09-28 · **Área:** Ranking · **Motivo:** destaque diário exibia um corretor com 0 pontos.
+- **Alteração:** líder diário só é exibido se tiver pontuação positiva; sem líder válido, o card e a posição diária ficam ocultos, mantendo o campeão semanal.
+- **Arquivos:** `lib/performance-overview.js`, `lib/ranking-display.mjs`, `components/TopRankingBadge.jsx`, `tests/ranking-display.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Meta de domingo antes do campeão semanal
 - **Data:** 2026-09-28 · **Área:** Meta Diária / Ranking · **Motivo:** incluir a penalidade de domingo na consolidação das 00:01.
 - **Alteração:** cron diário passa de 00:10 para 00:01; o cálculo semanal espera o fechamento antes de apurar os pontos, mesmo com crons simultâneos. O campeão já congelado desta semana permanece intacto; a regra vale para os próximos fechamentos.
