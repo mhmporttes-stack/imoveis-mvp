@@ -59,8 +59,10 @@ export default async function AdminSectionNav({ active = "properties" }) {
       {(isBroker || isManager) && !isAdmin ? (
         <div className={isBroker ? "space-y-2" : "space-y-3"}>
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate">
-            <a className="rounded-full border border-brand/20 bg-white px-4 py-2 text-brand" href={buildBrokerSimulationLink(profile)} target="_blank" rel="noreferrer">Meu link de simulação</a>
-            <a className="rounded-full border border-brand/20 bg-white px-4 py-2 text-brand" href={buildBrokerCaptacaoLink(profile)} target="_blank" rel="noreferrer">Meu link de captação</a>
+            {!isBroker ? <>
+              <a className="rounded-full border border-brand/20 bg-white px-4 py-2 text-brand" href={buildBrokerSimulationLink(profile)} target="_blank" rel="noreferrer">Meu link de simulação</a>
+              <a className="rounded-full border border-brand/20 bg-white px-4 py-2 text-brand" href={buildBrokerCaptacaoLink(profile)} target="_blank" rel="noreferrer">Meu link de captação</a>
+            </> : null}
             {isBroker ? <Link href="/admin/notificacoes" className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand/20 bg-white text-brand" aria-label="Notificações" title="Notificações">
               <Bell className="h-5 w-5" aria-hidden="true" />
               {unreadNotifications ? <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-600 px-1 text-center text-[10px] leading-5 text-white">{unreadNotifications}</span> : null}
