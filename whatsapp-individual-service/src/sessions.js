@@ -130,7 +130,13 @@ async function onMessagesUpsert(userId, messages, type) {
   if (type !== "notify") return;
   for (const msg of messages || []) {
     try {
-      if (msg.key?.fromMe) continue;
+      // fromMe = o corretor mandou essa mensagem pelo APLICATIVO OFICIAL do
+      // WhatsApp (não pelo Chat do CRM) — o próprio WhatsApp ecoa pra cá por
+      // ser um dispositivo conectado (multi-device). Processa igual, só
+      // marcando fromMe pro CRM saber que é mensagem de SAÍDA do corretor,
+      // não do cliente. Mensagem que já saiu pelo Chat (sendIndividualMessage)
+      // também ecoa aqui, mas o dedupe por wa_message_id evita duplicar.
+      const fromMe = Boolean(msg.key?.fromMe);
       const remoteJid = String(msg.key?.remoteJid || "");
       // Só conversa individual (1:1). Grupo (@g.us), lista de transmissão
       // (@broadcast) e LID (@lid) nunca viram "cliente" no CRM — o JID deles
@@ -150,7 +156,8 @@ async function onMessagesUpsert(userId, messages, type) {
         text,
         waMessageId: msg.key?.id || "",
         at: new Date(Number(msg.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
-        contactName: msg.pushName || ""
+        contactName: fromMe ? "" : (msg.pushName || ""),
+        fromMe
       });
     } catch (error) {
       // Nunca perde a próxima mensagem por causa de uma falha em notificar

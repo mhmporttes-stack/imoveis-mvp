@@ -707,14 +707,19 @@ export default function AdminSimulationList({
 
   async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
-    // Sempre abre o Chat do CRM, na MESMA aba (é uma rota interna, não um
-    // link externo — abrir aba nova só fazia sentido quando podia cair no
-    // WhatsApp pessoal do corretor). O botão continua registrando o
-    // contato (mesma API de sempre).
+    // Desktop/web: abre o Chat do CRM, na mesma aba (rota interna).
+    // Mobile/app: abre o aplicativo oficial do WhatsApp direto na conversa
+    // do cliente — a mensagem enviada por lá sincroniza de volta pro Chat
+    // sozinha (sessão individual = dispositivo conectado, ver
+    // whatsapp-individual-service/src/sessions.js: onMessagesUpsert também
+    // processa mensagens fromMe, não só as recebidas do cliente).
+    // Mesmo detector de mobile já usado em AdminPwaInstallHint.jsx.
     if (!toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
+    const userAgent = window.navigator.userAgent || "";
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent) || window.innerWidth < 768;
 
     try {
       const [response, destination] = await Promise.all([
@@ -724,7 +729,11 @@ export default function AdminSimulationList({
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-      router.push(destination.url);
+      if (isMobile) {
+        window.location.href = buildWhatsAppUrl(value);
+      } else {
+        router.push(destination.url);
+      }
     } catch (error) {
       alert(error.message || "Não foi possível registrar o contato via WhatsApp.");
     }

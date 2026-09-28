@@ -45,7 +45,8 @@ export async function POST(request) {
         text: payload.text,
         waMessageId: payload.waMessageId,
         at: payload.at,
-        contactName: payload.contactName
+        contactName: payload.contactName,
+        fromMe: Boolean(payload.fromMe)
       });
       return NextResponse.json({ ok: true, ...result });
     }

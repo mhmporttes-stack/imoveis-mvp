@@ -26,8 +26,8 @@ async function post(body) {
   }
 }
 
-export function notifyMessage(userId, { from, text, waMessageId, at, contactName }) {
-  return post({ userId, type: "message", from, text, waMessageId, at, contactName });
+export function notifyMessage(userId, { from, text, waMessageId, at, contactName, fromMe }) {
+  return post({ userId, type: "message", from, text, waMessageId, at, contactName, fromMe });
 }
 
 export function notifyStatus(userId, { status, qr, phoneNumber, error }) {
