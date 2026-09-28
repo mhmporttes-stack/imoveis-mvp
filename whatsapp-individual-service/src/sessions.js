@@ -131,13 +131,19 @@ async function onMessagesUpsert(userId, messages, type) {
   for (const msg of messages || []) {
     try {
       if (msg.key?.fromMe) continue;
+      const remoteJid = String(msg.key?.remoteJid || "");
+      // Só conversa individual (1:1). Grupo (@g.us), lista de transmissão
+      // (@broadcast) e LID (@lid) nunca viram "cliente" no CRM — o JID deles
+      // não é um telefone e já causou lixo real (conversa fantasma a partir
+      // de mensagem de grupo).
+      if (!remoteJid.endsWith("@s.whatsapp.net")) continue;
       const text = msg.message?.conversation
         || msg.message?.extendedTextMessage?.text
         || msg.message?.imageMessage?.caption
         || msg.message?.videoMessage?.caption
         || "";
       if (!text) continue; // só texto nesta primeira versão (mídia fica para uma etapa futura)
-      const from = String(msg.key?.remoteJid || "").split("@")[0];
+      const from = remoteJid.split("@")[0];
       if (!from) continue;
       await notifyMessage(userId, {
         from,
