@@ -52,7 +52,7 @@ export default function TopRankingBadge() {
   return (
     <div className={`grid w-full gap-2 py-2.5 lg:items-stretch ${showMyRank
       ? "max-w-5xl lg:grid-cols-[1.3fr_1fr_0.9fr]"
-      : "max-w-3xl lg:grid-cols-[1.3fr_1fr]"}`}>
+      : data.top1 ? "max-w-3xl lg:grid-cols-[1.3fr_1fr]" : "max-w-lg lg:grid-cols-1"}`}>
       {data.weeklyTop1 ? (
         <button type="button" onClick={() => router.push("/admin/meta-diaria")} title="Ver desempenho"
           className="relative flex min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-[#E9CB73] bg-[#FFF9E9] px-3.5 py-3 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8]">
