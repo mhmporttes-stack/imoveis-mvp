@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
 
@@ -22,6 +23,7 @@ import {
   TriangleAlert,
   Trash2,
   UserRound,
+  UserRoundPlus,
   X
 } from "lucide-react";
 import {
@@ -754,6 +756,14 @@ export default function AdminSimulationList({
               <TriangleAlert className="h-5 w-5 text-red-600" aria-hidden="true" />
               {pendingClientsCount}
             </button>
+            <Link
+              href="/admin/simulacoes/nova"
+              aria-label="Novo cliente"
+              title="Novo cliente"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5"
+            >
+              <UserRoundPlus className="h-5 w-5" aria-hidden="true" />
+            </Link>
           </div>
         </div>
 
