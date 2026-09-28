@@ -6,10 +6,13 @@ import { whatsappMessageLink } from "@/lib/format";
 const whatsappUrl =
   whatsappMessageLink("Olá, Matheus! Encontrei seu contato pelo site e gostaria de mais informações sobre os imóveis.");
 
+// Desligado temporariamente: número da WABA está desabilitado pela Meta (não recebe mensagens).
+const WHATSAPP_BUTTON_ENABLED = false;
+
 export default function WhatsAppFloatingButton() {
   const pathname = usePathname();
 
-  if (pathname?.startsWith("/admin")) {
+  if (!WHATSAPP_BUTTON_ENABLED || pathname?.startsWith("/admin")) {
     return null;
   }
 
