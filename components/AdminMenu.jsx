@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
-import { MoreHorizontal } from "lucide-react";
+import { CalendarDays, CircleDot, MessageCircle, MoreHorizontal, UserRoundPlus } from "lucide-react";
 
 const buttonBase =
   "inline-flex min-h-10 flex-1 items-center justify-center rounded-full font-extrabold transition duration-300";
@@ -167,6 +167,30 @@ function getGroupKeyForActive(active, groups = adminGroups) {
   return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
 }
 
+function CrmBreakdown({ counts, onClose, alignLeft = false }) {
+  const items = [
+    { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
+    { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
+    { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?status=in_service&needsFirstContact=1", Icon: UserRoundPlus },
+    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot }
+  ].filter((item) => item.count > 0);
+
+  return (
+    <div className={`absolute top-full z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl border border-brand/15 bg-white p-3 text-left shadow-soft ${alignLeft ? "left-0" : "left-1/2 -translate-x-1/2"}`}>
+      <p className="px-2 text-xs font-black uppercase tracking-widest text-brand">Pendências</p>
+      <p className="px-2 pb-2 text-sm font-semibold text-slate">{counts.total} no total</p>
+      {items.map(({ label, count, href, Icon }) => (
+        <Link key={label} href={href} onClick={onClose} className="flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-bold text-navy hover:bg-brand/5">
+          <Icon size={18} className="shrink-0 text-brand" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{label}</span>
+          <span className="inline-flex min-w-5 justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{count}</span>
+        </Link>
+      ))}
+      <Link href="/admin/simulacoes" onClick={onClose} className="mt-1 block border-t border-line px-2 pt-2 text-xs font-bold text-brand">Ver clientes</Link>
+    </div>
+  );
+}
+
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
   // Gestor enxerga exatamente o mesmo menu do administrador geral — o que
   // ele nao deve ver (financeiro da imobiliaria, clientes do dono) e barrado
@@ -174,7 +198,19 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   const groups = isAdmin ? ownerGroups : isManager ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
-  const { total: crmCount } = useCrmBadgeCounts();
+  const crmCounts = useCrmBadgeCounts();
+  const crmCount = crmCounts.total;
+  const [showCrmDetails, setShowCrmDetails] = useState(false);
+  const crmPopoverRef = useRef(null);
+
+  useEffect(() => {
+    if (!showCrmDetails) return;
+    const closeOutside = (event) => { if (!crmPopoverRef.current?.contains(event.target)) setShowCrmDetails(false); };
+    const closeEscape = (event) => { if (event.key === "Escape") setShowCrmDetails(false); };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeEscape); };
+  }, [showCrmDetails]);
 
   useEffect(() => {
     setVisibleGroup(getGroupKeyForActive(active, groups));
@@ -211,11 +247,12 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
           if (group.href) {
             if (isBroker && group.key === "crm") {
               return (
-                <div key={group.key} className="relative flex min-w-0 flex-1">
-                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} onClick={() => setVisibleGroup(group.key)}>
+                <div key={group.key} ref={crmPopoverRef} className="relative flex min-w-0 flex-1">
+                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full pr-8`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => { setVisibleGroup(group.key); if (crmCount > 0) { event.preventDefault(); setShowCrmDetails((open) => !open); } }}>
                     {group.label}
                   </Link>
                   {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
+                  {showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft /> : null}
                   <details className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
                     <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-full text-navy [&::-webkit-details-marker]:hidden" aria-label="Outras áreas do CRM" title="Outras áreas do CRM">
                       <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -232,15 +269,17 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
               );
             }
             return (
-              <div key={group.key} className="relative flex min-w-[130px] flex-1">
+              <div key={group.key} ref={["clientes", "crm"].includes(group.key) ? crmPopoverRef : null} className="relative flex min-w-[130px] flex-1">
               <Link
                 href={group.href}
                 className={`${buttonClass(highlighted, isBroker)} w-full`}
-                onClick={() => setVisibleGroup(group.key)}
+                aria-expanded={["clientes", "crm"].includes(group.key) && crmCount > 0 ? showCrmDetails : undefined}
+                onClick={(event) => { setVisibleGroup(group.key); if (["clientes", "crm"].includes(group.key) && crmCount > 0) { event.preventDefault(); setShowCrmDetails((open) => !open); } }}
               >
                 {group.label}
               </Link>
               {["clientes", "crm"].includes(group.key) && crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
+              {["clientes", "crm"].includes(group.key) && showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft={!isAdmin} /> : null}
               </div>
             );
           }

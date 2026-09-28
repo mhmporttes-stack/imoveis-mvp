@@ -10,8 +10,9 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCalendarPage() {
+export default async function AdminCalendarPage({ searchParams }) {
   await requireAdminPage();
+  const pendingOnly = (await searchParams)?.pending === "1";
 
   return (
     <main className="min-h-screen bg-[#f4f7fb] py-14">
@@ -27,7 +28,7 @@ export default async function AdminCalendarPage() {
       </section>
 
       <AdminSectionNav active="calendar" />
-      <ActivityCalendar />
+      <ActivityCalendar pendingOnly={pendingOnly} />
       <Footer />
     </main>
   );

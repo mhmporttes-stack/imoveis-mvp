@@ -16,10 +16,14 @@ export async function GET(request) {
     const now = new Date().toISOString();
     // A Agenda exibe somente as atividades do perfil atual; o legado e o
     // calendário novo têm registros diferentes e cada atividade vale uma vez.
-    const [clients, legacy, calendar] = await Promise.all([
+    const [newAttendances, awaitingSimulation, legacy, calendar] = await Promise.all([
       applyResponsibleUserScope(db.from("simulation_registrations")
         .select("id", { count: "exact", head: true })
-        .or(`status.eq.${CLIENT_STATUS.PENDING},and(status.eq.${CLIENT_STATUS.IN_SERVICE},last_whatsapp_contact_at.is.null)`), auth),
+        .eq("status", CLIENT_STATUS.IN_SERVICE)
+        .is("last_whatsapp_contact_at", null), auth),
+      applyResponsibleUserScope(db.from("simulation_registrations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", CLIENT_STATUS.PENDING), auth),
       db.from("simulation_registrations").select("id", { count: "exact", head: true })
         .eq("responsible_user_id", auth.profile.id)
         .not("scheduled_activity_at", "is", null)
@@ -32,8 +36,10 @@ export async function GET(request) {
         .eq("status", "pending")
         .lt("scheduled_at", now)
     ]);
-    for (const result of [clients, legacy, calendar]) if (result.error) throw result.error;
-    return NextResponse.json({ clients: clients.count || 0, agenda: (legacy.count || 0) + (calendar.count || 0) });
+    for (const result of [newAttendances, awaitingSimulation, legacy, calendar]) if (result.error) throw result.error;
+    const firstContact = newAttendances.count || 0;
+    const simulation = awaitingSimulation.count || 0;
+    return NextResponse.json({ clients: firstContact + simulation, newAttendances: firstContact, awaitingSimulation: simulation, agenda: (legacy.count || 0) + (calendar.count || 0) });
   } catch (error) {
     console.error("Erro ao contar pendências do CRM:", error);
     return NextResponse.json({ error: "Não foi possível contar as pendências." }, { status: 500 });

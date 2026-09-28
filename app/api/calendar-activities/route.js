@@ -19,12 +19,13 @@ export async function GET(request) {
 
   try {
     const url = new URL(request.url);
-    const from = url.searchParams.get("from") || "";
-    const to = url.searchParams.get("to") || "";
+    const pendingOnly = url.searchParams.get("pending") === "1";
+    const from = pendingOnly ? "" : url.searchParams.get("from") || "";
+    const to = pendingOnly ? new Date().toISOString() : url.searchParams.get("to") || "";
     const [registrations, birthdayRegistrations, savedActivities, clients] = await Promise.all([
-      listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: auth.profile?.id }),
-      listBirthdayRegistrations({ auth, responsibleUserId: auth.profile?.id }),
-      listCalendarActivities({ from, to, auth }),
+      listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: auth.profile?.id, pendingOnly }),
+      pendingOnly ? Promise.resolve([]) : listBirthdayRegistrations({ auth, responsibleUserId: auth.profile?.id }),
+      listCalendarActivities({ from, to, auth, pendingOnly }),
       listCalendarClientOptions(auth)
     ]);
     let profiles = [];
@@ -82,7 +83,11 @@ export async function GET(request) {
 
     const currentProfile = profiles.find((profile) => profile.id === auth.profile?.id) || auth.profile;
     const users = currentProfile?.id ? [{ id: currentProfile.id, name: currentProfile.name || "Meu usuário" }] : [];
-    return NextResponse.json({ activities, clients, users });
+    return NextResponse.json({ activities: pendingOnly ? activities.filter((activity) =>
+      !activity.isBirthday && activity.activityStatus !== "rescheduled" && activity.activityStatus !== "completed" &&
+      !activity.scheduledActivityCompletedAt && new Date(activity.scheduledActivityAt).getTime() < Date.now() &&
+      (activity.source !== "legacy" || !["archived", "do_not_contact"].includes(activity.status))
+    ) : activities, clients, users });
   } catch (error) {
     console.error("Erro ao carregar calendario de atividades:", error);
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
