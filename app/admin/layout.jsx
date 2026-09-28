@@ -16,11 +16,9 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? (
-        // Uma única faixa fixa no topo (sticky, não flutuante — participa do
-        // fluxo normal do layout, por isso nunca cobre o conteúdo abaixo).
-        // O aviso de "ver como" (quando ativo) e a barra com o Top 1 do
-        // ranking diário vivem dentro dela, empilhados sem sobreposição.
-        <div className="sticky top-0 z-[150]">
+        // Ranking no início da página, no fluxo normal: rola junto com o
+        // conteúdo e nunca fica sobre os cards de clientes.
+        <div>
           {auth.accountSwitchMode ? (
             <AdminViewAsBanner name={auth.profile.name} category={roleLabel(auth.profile.role)} />
           ) : null}

@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Ranking acompanha a rolagem da página
+- **Data:** 2026-09-28 · **Área:** Ranking / interface · **Motivo:** correção do dono após verificar no celular.
+- **Alteração:** removido `position: sticky` da faixa do ranking; permanece no início do painel, no fluxo da página, e sai de vista ao rolar. Visual e regras preservados.
+- **Arquivos:** `app/admin/layout.jsx`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Layout premium do ranking fixo
 - **Data:** 2026-09-28 · **Área:** Ranking / interface · **Motivo:** pedido do dono com mockup de referência.
 - **Alteração:** card semanal creme/dourado com coroa e louros, card diário branco/azul, faixa da posição; largura útil inteira no celular e três colunas compactas no desktop. Cabeçalho continua sticky e opaco; removido o segundo espaçamento de área segura antes de “Área restrita”.
