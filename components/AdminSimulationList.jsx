@@ -1470,6 +1470,7 @@ function ClientCard({
           client={{ id: client.registration.id, fullName: client.name || "Cliente" }}
           canSendToCca={showResponsibleSelector}
           canManage={showResponsibleSelector}
+          canEditRules={isOwner}
           onClose={() => setShowDocuments(false)}
         />
       ) : null}

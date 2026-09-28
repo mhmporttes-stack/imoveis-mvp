@@ -41,7 +41,7 @@ const STATUS_STYLE = {
   em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: DOCUMENT_STATUS_LABELS.em_analise }
 };
 
-export default function ClientDocumentsModal({ client, canSendToCca, canManage, onClose }) {
+export default function ClientDocumentsModal({ client, canSendToCca, canManage, canEditRules = false, onClose }) {
   const [batches, setBatches] = useState(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [error, setError] = useState("");
@@ -260,8 +260,10 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error);
       await openBatch(activeBatch.id);
+      return true;
     } catch (correctError) {
       setError(correctError.message || "Não foi possível corrigir o item.");
+      return false;
     }
   }
 
@@ -333,6 +335,7 @@ export default function ClientDocumentsModal({ client, canSendToCca, canManage, 
               batch={activeBatch}
               canSendToCca={canSendToCca}
               canManage={canManage}
+              canEditRules={canEditRules}
               onReanalyze={() => reanalyze(activeBatch.id)}
               onDeleteDocument={deleteDocument}
               onViewDocument={viewDocument}
@@ -564,7 +567,7 @@ function BatchRow({ batch, isActive, onOpen }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
+function BatchDetail({ batch, canSendToCca, canManage, canEditRules, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
   const [showDivergences, setShowDivergences] = useState(false);
   // Agrupa por person_role (identidade estável: titular/conjuge/dependente/
   // outro), nunca por person_label — é texto livre extraído pela IA a cada
@@ -640,6 +643,7 @@ function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocu
                   item={item}
                   documents={batch.documents}
                   canManage={canManage}
+                  canEditRules={canEditRules}
                   onView={onViewDocument}
                   onDelete={onDeleteDocument}
                   onCorrect={onCorrectItem}
@@ -653,8 +657,11 @@ function BatchDetail({ batch, canSendToCca, canManage, onReanalyze, onDeleteDocu
   );
 }
 
-function ChecklistItemCard({ item, documents, canManage, onView, onDelete, onCorrect }) {
+function ChecklistItemCard({ item, documents, canManage, canEditRules, onView, onDelete, onCorrect }) {
   const [editing, setEditing] = useState(false);
+  const [interpretation, setInterpretation] = useState("");
+  const [correctedStatus, setCorrectedStatus] = useState(item.status);
+  const [saving, setSaving] = useState(false);
   // precisa_confirmacao/ausente: qualquer um com acesso ao modal pode resolver
   // (é o fluxo normal do corretor terminando o próprio checklist). Corrigir um
   // status que a IA já deu como conforme/pendência/ilegível/divergência é uma
@@ -687,6 +694,7 @@ function ChecklistItemCard({ item, documents, canManage, onView, onDelete, onCor
         {canCorrect ? (
           <button type="button" className="client-action-button" onClick={() => setEditing((value) => !value)}>Corrigir</button>
         ) : null}
+        {canManage && item.documentId ? <button type="button" className="client-action-button" onClick={() => setEditing(true)}>Corrigir análise</button> : null}
       </div>
       {editing ? (
         <div className="mt-2 space-y-2 rounded-lg bg-mist/50 p-2">
@@ -704,6 +712,13 @@ function ChecklistItemCard({ item, documents, canManage, onView, onDelete, onCor
           >
             {CHECKLIST_STATUS_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
+          {canManage && item.documentId ? <div className="space-y-2 border-t border-line pt-2">
+            {item.extractedData?.analysisTrace ? <p className="text-xs text-muted">Regra: {item.extractedData.analysisTrace.ruleId} · {item.extractedData.analysisTrace.justification}</p> : null}
+            <label className="block text-xs font-bold text-navy">Interpretação correta<textarea rows={2} maxLength={500} className="mt-1 w-full rounded-lg border border-line bg-white p-2 text-sm" value={interpretation} onChange={(event) => setInterpretation(event.target.value)} /></label>
+            <label className="block text-xs font-bold text-navy">Resultado correto<select className="mt-1 w-full rounded-lg border border-line bg-white p-2 text-sm" value={correctedStatus} onChange={(event) => setCorrectedStatus(event.target.value)}>{CHECKLIST_STATUS_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
+            <button type="button" disabled={saving || !interpretation.trim()} className="premium-button-secondary px-3 py-2 text-xs disabled:opacity-50" onClick={async () => { setSaving(true); const ok = await onCorrect(item, { status: correctedStatus, observations: interpretation.trim() }); setSaving(false); if (ok) setEditing(false); }}>Salvar correção</button>
+            {canEditRules ? <button type="button" disabled={saving || !interpretation.trim()} className="ml-2 text-xs font-bold text-brand disabled:opacity-50" onClick={async () => { setSaving(true); const ok = await onCorrect(item, { status: correctedStatus, observations: interpretation.trim() }); setSaving(false); if (ok) window.location.href = `/admin/documentacao/regras?interpretation=${encodeURIComponent(interpretation.trim())}`; }}>Salvar como regra…</button> : null}
+          </div> : null}
         </div>
       ) : null}
     </div>
