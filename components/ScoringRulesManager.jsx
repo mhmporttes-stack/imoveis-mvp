@@ -46,7 +46,7 @@ export default function ScoringRulesManager({
 
   const summary = useMemo(() => {
     const activeCount = rules.filter((rule) => rule.active).length;
-    const top = [...rules].sort((a, b) => b.points - a.points)[0];
+    const top = [...rules].filter((rule) => !rule.unit && rule.key !== "daily_goal_penalty").sort((a, b) => b.points - a.points)[0];
     const lastChange = rules
       .map((rule) => rule.effectiveFrom)
       .filter(Boolean)
@@ -61,16 +61,16 @@ export default function ScoringRulesManager({
 
   function adjustPointsValue(key, delta) {
     const current = draft[key]?.points ?? 0;
-    updateDraft(key, { points: Math.max(0, current + delta) });
+    updateDraft(key, { points: Math.max(key === "presence_interval_minutes" ? 1 : 0, current + delta) });
   }
 
   function handlePointsInput(key, rawValue) {
     const parsed = Number(rawValue);
     if (rawValue === "" || Number.isNaN(parsed)) {
-      updateDraft(key, { points: 0 });
+      updateDraft(key, { points: key === "presence_interval_minutes" ? 1 : 0 });
       return;
     }
-    updateDraft(key, { points: Math.max(0, Math.trunc(parsed)) });
+    updateDraft(key, { points: Math.max(key === "presence_interval_minutes" ? 1 : 0, Math.trunc(parsed)) });
   }
 
   async function saveChanges() {
@@ -213,7 +213,7 @@ export default function ScoringRulesManager({
               <div key={rule.key} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-extrabold text-navy">{rule.label}</p>
-                  <p className="text-xs font-semibold text-slate-500">{rule.description}</p>
+                  <p className="text-xs font-semibold text-slate-500">{rule.description}{rule.unit ? ` (${rule.unit})` : ""}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ export default function ScoringRulesManager({
                     </button>
                     <input
                       type="number"
-                      min={0}
+                      min={rule.unit ? 1 : 0}
                       step={1}
                       value={value.points}
                       onChange={(event) => handlePointsInput(rule.key, event.target.value)}
@@ -247,7 +247,7 @@ export default function ScoringRulesManager({
                     </button>
                   </div>
 
-                  <button
+                  {rule.unit ? <span className="text-xs font-bold text-muted">min</span> : <button
                     type="button"
                     onClick={() => canEdit && updateDraft(rule.key, { active: !value.active })}
                     disabled={!canEdit}
@@ -256,7 +256,7 @@ export default function ScoringRulesManager({
                     }`}
                   >
                     {value.active ? "Ativa" : "Inativa"}
-                  </button>
+                  </button>}
                 </div>
               </div>
             );
