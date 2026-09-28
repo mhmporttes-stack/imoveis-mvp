@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Destaques do ranking semanal e diário
+- **Data:** 2026-09-28 · **Área:** Ranking / Banco · **Motivo:** pedido do dono.
+- **Alteração:** congela o Melhor da Semana anterior às 00:01 de segunda-feira em `crm_settings` e exibe semanal, diário e posição/pontos próprios nessa ordem; esconde a posição quando o usuário é líder do dia. Usa cálculo, desempate e permissões já existentes.
+- **Arquivos:** `lib/weekly-ranking.js`, `lib/weekly-ranking-period.mjs`, `lib/performance-overview.js`, `components/TopRankingBadge.jsx`, rotas de top-ranking e cron, migration `20260928001400_weekly_ranking_cron.sql`, `docs/BUSINESS_RULES.md`, `docs/DATABASE.md`.
+- **Risco/observação:** cron depende da migration aplicada; sem ela, o primeiro acesso após 00:01 consolida o mesmo resultado. Sem mutação em pontuação/histórico. Ainda não aplicado em produção.
+- **Autor:** Codex
+
 ### 2026-09-27 — Novo formulário leva o card ao topo sem perder histórico
 - **Data:** 2026-09-27 · **Área:** Clientes / Banco · **Motivo:** pedido do dono.
 - **Alteração:** reenvio da simulação ou Atendimento Rápido marca a data do novo formulário, ordena o mesmo card no topo da aba/filtro e registra o evento na timeline. A data original, responsável, origem e histórico são preservados; edição interna não altera a ordem.

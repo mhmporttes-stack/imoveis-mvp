@@ -32,35 +32,49 @@ export default function TopRankingBadge() {
 
     load();
     const interval = setInterval(load, REFRESH_MS);
+    // Atualiza na virada semanal sem esperar o intervalo normal de 5 min.
+    const nextMonday = new Date();
+    nextMonday.setUTCHours(3, 1, 0, 0);
+    nextMonday.setUTCDate(nextMonday.getUTCDate() + ((8 - nextMonday.getUTCDay()) % 7));
+    if (nextMonday.getTime() <= Date.now()) nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
+    const weeklyTimer = setTimeout(load, nextMonday.getTime() - Date.now() + 1000);
     return () => {
       active = false;
       clearInterval(interval);
+      clearTimeout(weeklyTimer);
     };
   }, []);
 
-  if (!data?.top1) return null;
+  if (!data?.top1 && !data?.weeklyTop1) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => router.push("/admin/meta-diaria")}
-      title="Ver Desempenho Diário"
-      className="flex min-w-0 max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border border-amber-200 bg-amber-50/70 py-1 pl-1 pr-3 transition hover:border-amber-300 hover:bg-amber-50 sm:max-w-[280px]"
-    >
+    <div className="flex min-w-0 max-w-[calc(100vw-1.5rem)] flex-col items-end gap-1 py-1 sm:max-w-[280px]">
+      {data.weeklyTop1 ? (
+        <RankingLeader person={data.weeklyTop1} label="Melhor da Semana" onClick={() => router.push("/admin/meta-diaria")} />
+      ) : null}
+      {data.top1 ? (
+        <RankingLeader person={data.top1} label="Melhor do Dia" onClick={() => router.push("/admin/meta-diaria")} />
+      ) : null}
+      {data.top1 && !data.isMeTop1 && data.myRank ? (
+        <span className="pr-2 text-right text-[10px] font-bold text-muted">
+          Sua posição hoje: {data.myRank}º lugar — {formatPoints(data.myPoints)} pontos
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function RankingLeader({ person, label, onClick }) {
+  return (
+    <button type="button" onClick={onClick} title="Ver Desempenho Diário"
+      className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50/70 py-1 pl-1 pr-3 transition hover:border-amber-300 hover:bg-amber-50">
       <span className="relative shrink-0">
-        <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={32} />
+        <Avatar name={person.name} photoUrl={person.photoUrl} size={32} />
         <span className="absolute -right-1 -top-1.5 text-sm leading-none">🏆</span>
       </span>
-      {/* Só o nome pode truncar (caso extremamente longo); o rótulo "Top 1
-          do dia" e a pontuação nunca são cortados. */}
       <span className="min-w-0 text-left leading-tight">
-        <span className="block truncate text-xs font-extrabold text-navy">{data.top1.name}</span>
-        <span className="block whitespace-nowrap text-[10px] font-bold text-amber-700">
-          Top 1 do dia · {formatPoints(data.top1.points)} pts
-        </span>
-        {!data.isMeTop1 && data.myRank ? (
-          <span className="block whitespace-nowrap text-[10px] font-bold text-muted">Sua posição: {data.myRank}º lugar</span>
-        ) : null}
+        <span className="block truncate text-xs font-extrabold text-navy">{person.name}</span>
+        <span className="block whitespace-nowrap text-[10px] font-bold text-amber-700">{label} · {formatPoints(person.points)} pts</span>
       </span>
     </button>
   );

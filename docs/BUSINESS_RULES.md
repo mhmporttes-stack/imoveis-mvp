@@ -92,6 +92,7 @@
 - **RAN-5 Visibilidade ≠ cálculo.** Eventos brutos são carregados **sem** filtro do escopo de quem consulta; o escopo só decide quem aparece (`listVisibleTeamProfiles`, que exclui os e-mails dono). Desempate: pontos > vendas > aprovados > prospecções > nome.
 - **RAN-6 Online/Presença.** `deriveStatus`: online ≤ 5 min de interação, ausente ≤ 30 min, depois offline; só **interação real** gera heartbeat. — `lib/admin-presence.js`, `components/AdminPresenceHeartbeat.jsx`.
 - **RAN-7 Relatório diário.** E-mail único por dia (cron `0 1 * * *` UTC = 22:00 São Paulo) para `SIMULATION_NOTIFICATION_EMAIL`/`ADMIN_EMAIL`; trava de reenvio em `crm_settings.daily_report_dispatch`. — `app/api/cron/daily-report/route.js`, `lib/daily-report*.js`.
+- **RAN-8 Destaques semanais.** Às 00:01 de segunda-feira (São Paulo), o cron consolida o vencedor da semana anterior completa (segunda a domingo) com o mesmo ranking do período personalizado e desempate existentes, gravando uma vez por semana em `crm_settings` (`ranking_week_<segunda>`). Nome, foto e pontos ficam congelados durante a semana; primeiro acesso após o horário serve de contingência se o cron falhar. Abaixo aparecem o Melhor do Dia (cálculo atual) e a posição/pontos de hoje do visualizador, omitida se for o primeiro colocado. O ranking personalizado não aplica o bônus restrito ao período “hoje” (RAN-3).
 
 ## 9. Oportunidades (Central — Fase 1)
 
