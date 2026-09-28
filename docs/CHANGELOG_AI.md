@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Novos atendimentos apenas no atendimento automático
+- **Área:** Badge CRM / Clientes.
+- **Alteração:** clientes em "Em atendimento" deixam de contar em Novos atendimentos; a categoria mostra só Atendimento automático sem resposta ou assunção humana no Chat.
+- **Autor:** Codex
+
 ### 2026-09-28 — Acesso a novos atendimentos
 - **Área:** Badge CRM / Clientes.
 - **Alteração:** o atalho de novos atendimentos abre a lista filtrada mesmo quando já se está em Clientes; a contagem/lista usa clientes em atendimento automático ou em atendimento sem resposta/assunção humana registrada no Chat. Aguardando simulação permanece categoria separada para não duplicar.
