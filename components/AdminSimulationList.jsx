@@ -14,6 +14,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  Link2,
   MessageCircle,
   MoreHorizontal,
   Phone,
@@ -144,6 +145,7 @@ export default function AdminSimulationList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
   canReturnAssignedProspecting = false,
+  brokerSimulationLink = "",
   isOwner = false,
   initialData,
   initialFilters,
@@ -179,6 +181,17 @@ export default function AdminSimulationList({
   const [newActivityDraft, setNewActivityDraft] = useState({ date: "", time: "", type: "follow_up", note: "" });
   const [expandedActivitiesClientId, setExpandedActivitiesClientId] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState("");
+
+  async function copyBrokerSimulationLink() {
+    try {
+      await navigator.clipboard.writeText(brokerSimulationLink);
+      setCopyFeedback("Link copiado");
+    } catch {
+      setCopyFeedback("Não foi possível copiar o link");
+    }
+    window.setTimeout(() => setCopyFeedback(""), 2000);
+  }
 
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
@@ -737,7 +750,7 @@ export default function AdminSimulationList({
             />
           </label>
 
-          <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_repeat(4,minmax(0,1fr))] items-center gap-1 lg:flex lg:w-auto lg:gap-2">
+          <div className={`grid w-full items-center gap-1 lg:flex lg:w-auto lg:gap-2 ${brokerSimulationLink ? "grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_repeat(5,minmax(0,1fr))]" : "grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_repeat(4,minmax(0,1fr))]"}`}>
             <FiltersPopover
               open={filtersOpen}
               onOpenChange={setFiltersOpen}
@@ -768,6 +781,9 @@ export default function AdminSimulationList({
             <Link href="/admin/calendario" aria-label="Agenda" title="Agenda" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
             </Link>
+            {brokerSimulationLink ? <button type="button" onClick={copyBrokerSimulationLink} aria-label="Copiar link de simulação" title="Copiar link de simulação" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
+              {copyFeedback === "Link copiado" ? <Check className="h-5 w-5" aria-hidden="true" /> : <Link2 className="h-5 w-5" aria-hidden="true" />}
+            </button> : null}
             <Link
               href="/admin/simulacoes/nova"
               aria-label="Novo cliente"
@@ -778,6 +794,8 @@ export default function AdminSimulationList({
             </Link>
           </div>
         </div>
+
+        {copyFeedback ? <p role="status" className="mt-2 text-xs font-bold text-brand">{copyFeedback}</p> : null}
 
         {hasActiveExtraFilters ? (
           <div className="mt-3 flex flex-wrap gap-2">
