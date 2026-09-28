@@ -24,8 +24,8 @@ export default function EmpreendimentoAdminTabs({ property, canPublish, showRegr
         </div>
       </div>
 
-      {tab === "dados" ? <PropertyForm property={property} canPublish={canPublish} isDevelopment /> : null}
-      {tab === "regras" ? <EmpreendimentoRegrasEntradaForm propertyId={property.id} /> : null}
+      {tab === "dados" ? <div className="admin-motion-enter"><PropertyForm property={property} canPublish={canPublish} isDevelopment /></div> : null}
+      {tab === "regras" ? <div className="admin-motion-enter"><EmpreendimentoRegrasEntradaForm propertyId={property.id} /></div> : null}
     </div>
   );
 }

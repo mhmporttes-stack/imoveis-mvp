@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Navegação mais perceptível no painel
+- **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** o dono não percebeu as transições após a primeira publicação.
+- **Alteração:** deslocamento curto e duração de 210 ms no conteúdo trocado, feedback de toque também nos links e entrada ao alternar submenus, Prospecção e abas de empreendimento. Ranking e cabeçalhos continuam fora das animações.
+- **Arquivos:** `app/globals.css`, `components/AdminMenu.jsx`, `components/ProspectingTabs.jsx`, `components/EmpreendimentoAdminTabs.jsx`.
+- **Autor:** Codex
+
 ### 2026-09-28 — Transições discretas na navegação administrativa
 - **Data:** 2026-09-28 · **Área:** Interface administrativa · **Motivo:** pedido do dono para navegação mais fluida.
 - **Alteração:** entrada curta de conteúdo e cards, transição lateral no Chat ao abrir/voltar, feedback ao pressionar botões e respeito a movimento reduzido. Ranking e menus principais permanecem estáveis.

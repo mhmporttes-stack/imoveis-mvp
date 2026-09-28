@@ -53,15 +53,15 @@ export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin =
       </div>
 
       {tab === "company" ? (
-        <ProspectingManager key="company" initialContacts={initialCompanyContacts} isAdmin={isAdmin} users={users} scope="company" label="Fila compartilhada" />
+        <div className="admin-motion-enter"><ProspectingManager key="company" initialContacts={initialCompanyContacts} isAdmin={isAdmin} users={users} scope="company" label="Fila compartilhada" /></div>
       ) : isOwner ? (
-        <BrokerBasesOverview isOwner={isOwner} users={users} />
+        <div className="admin-motion-enter"><BrokerBasesOverview isOwner={isOwner} users={users} /></div>
       ) : mineError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mineError}</p>
       ) : mineContacts === null ? (
         <p className="text-sm font-bold text-muted">Carregando…</p>
       ) : (
-        <ProspectingManager key="mine" initialContacts={mineContacts} scope="mine" label="Minha base" />
+        <div className="admin-motion-enter"><ProspectingManager key="mine" initialContacts={mineContacts} scope="mine" label="Minha base" /></div>
       )}
     </section>
   );
