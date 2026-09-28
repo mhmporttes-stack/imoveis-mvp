@@ -7,7 +7,7 @@ import { toWhatsAppDigits } from "@/lib/phone-utils";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export default function ActivityCalendar() {
+export default function ActivityCalendar({ pendingOnly = false }) {
   const today = useMemo(() => new Date(), []);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
@@ -36,7 +36,7 @@ export default function ActivityCalendar() {
       try {
         const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1, 0, 0, 0);
         const end = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0, 23, 59, 59);
-        const response = await fetch(`/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}`, {
+        const response = await fetch(pendingOnly ? "/api/calendar-activities?pending=1" : `/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}`, {
           cache: "no-store"
         });
         const payload = await response.json();
@@ -57,7 +57,7 @@ export default function ActivityCalendar() {
     return () => {
       ignore = true;
     };
-  }, [visibleMonth]);
+  }, [visibleMonth, pendingOnly]);
 
   const activitiesByDate = useMemo(() => {
     const grouped = new Map();
@@ -72,7 +72,7 @@ export default function ActivityCalendar() {
     return grouped;
   }, [activities]);
 
-  const selectedActivities = activitiesByDate.get(selectedDate) || [];
+  const selectedActivities = pendingOnly ? activities.filter((activity) => getActivityState(activity) === "pending") : activitiesByDate.get(selectedDate) || [];
   const selectedActivityGroups = useMemo(() => {
     const groups = {
       pending: [],
@@ -176,24 +176,24 @@ export default function ActivityCalendar() {
         <div className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Agenda dos corretores</p>
-            <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">{formatMonthTitle(visibleMonth)}</h2>
+            <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">{pendingOnly ? "Atividades pendentes" : formatMonthTitle(visibleMonth)}</h2>
           </div>
-          <div className="flex gap-2">
+          {pendingOnly ? <Link href="/admin/calendario" className="text-sm font-bold text-brand">Ver calendário</Link> : <div className="flex gap-2">
             <button type="button" className="rounded-full border border-brand/20 bg-white p-3 text-brand transition hover:-translate-y-0.5 hover:shadow-soft" aria-label="Mês anterior" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))}>
               <ChevronLeft size={20} />
             </button>
             <button type="button" className="rounded-full border border-brand/20 bg-white p-3 text-brand transition hover:-translate-y-0.5 hover:shadow-soft" aria-label="Próximo mês" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))}>
               <ChevronRight size={20} />
             </button>
-          </div>
+          </div>}
         </div>
 
         {error ? (
           <p className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
         ) : null}
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
-          <div>
+        <div className={`mt-6 grid gap-6 ${pendingOnly ? "" : "xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]"}`}>
+          {!pendingOnly ? <div>
             <div className="grid grid-cols-7 gap-2 text-center text-xs font-black uppercase tracking-[0.12em] text-slate">
               {WEEK_DAYS.map((day) => <span key={day}>{day}</span>)}
             </div>
@@ -235,7 +235,7 @@ export default function ActivityCalendar() {
                 );
               })}
             </div>
-          </div>
+          </div> : null}
 
           <aside className="rounded-[24px] border border-line bg-[#f8fbff] p-5">
             <div className="flex items-center gap-3">
@@ -243,8 +243,8 @@ export default function ActivityCalendar() {
                 <CalendarDays size={22} />
               </span>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand">Atividades do dia</p>
-                <h3 className="text-xl font-black text-navy">{formatDateLabel(selectedDate)}</h3>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand">{pendingOnly ? "Atividades vencidas" : "Atividades do dia"}</p>
+                <h3 className="text-xl font-black text-navy">{pendingOnly ? `${selectedActivities.length} pendente${selectedActivities.length === 1 ? "" : "s"}` : formatDateLabel(selectedDate)}</h3>
               </div>
             </div>
             <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-black text-white" onClick={() => setCreateOpen(true)} type="button"><Plus size={17} />Agendar atividade</button>
@@ -331,7 +331,7 @@ export default function ActivityCalendar() {
                 ))}
               </div>
             ) : (
-              <p className="mt-5 rounded-2xl bg-white px-4 py-5 font-bold text-slate">Nenhuma atividade agendada para este dia.</p>
+              <p className="mt-5 rounded-2xl bg-white px-4 py-5 font-bold text-slate">{pendingOnly ? "Nenhuma atividade pendente." : "Nenhuma atividade agendada para este dia."}</p>
             )}
           </aside>
         </div>

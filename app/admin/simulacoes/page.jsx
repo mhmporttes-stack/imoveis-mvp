@@ -26,6 +26,7 @@ function filtersFromSearchParams(searchParams) {
     pendingOnly: searchParams?.pending === "1",
     staleContactOnly: searchParams?.staleContact === "1",
     noFutureActivityOnly: searchParams?.noFutureActivity === "1",
+    needsFirstContact: searchParams?.needsFirstContact === "1",
     statusGroup: searchParams?.statusGroup || "all",
     status: searchParams?.status || "all"
   };

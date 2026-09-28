@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Detalhamento do badge CRM
+- **Área:** Menu CRM / Clientes / Agenda.
+- **Alteração:** o badge principal abre um resumo clicável de Chat, Agenda vencida, novos atendimentos e aguardando simulação. O total usa as mesmas quatro parcelas; cada acesso abre a lista já filtrada conforme o escopo do perfil.
+- **Risco/observação:** nenhuma atribuição, status ou permissão foi alterada; o filtro de primeiro contato usa o status Em atendimento sem contato WhatsApp registrado, igual à contagem.
+- **Autor:** Codex
+
 ### 2026-09-28 — Contadores de pendências no CRM
 - **Área:** Clientes / Agenda / Chat.
 - **Alteração:** o atalho Agenda exibe atividades vencidas; o botão CRM (Clientes para administrador geral) soma Chat não lido, atividades vencidas e clientes aguardando atendimento ou simulação. Os contadores ficam no canto superior direito e compartilham uma consulta por tela.

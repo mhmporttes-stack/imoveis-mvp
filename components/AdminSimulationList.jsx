@@ -114,6 +114,7 @@ const DEFAULT_FILTERS = {
   pendingOnly: false,
   staleContactOnly: false,
   noFutureActivityOnly: false,
+  needsFirstContact: false,
   statusGroup: "all",
   status: "all"
 };
@@ -249,6 +250,7 @@ export default function AdminSimulationList({
     if (filters.pendingOnly) params.set("pending", "1");
     if (filters.staleContactOnly) params.set("staleContact", "1");
     if (filters.noFutureActivityOnly) params.set("noFutureActivity", "1");
+    if (filters.needsFirstContact) params.set("needsFirstContact", "1");
     if (filters.statusGroup !== "all") params.set("statusGroup", filters.statusGroup);
     if (filters.status !== "all") params.set("status", filters.status);
     params.set("page", String(page));
@@ -770,7 +772,7 @@ export default function AdminSimulationList({
             <button
               aria-label="Clientes pendentes"
               className={`inline-flex h-10 min-w-0 items-center justify-center gap-0.5 rounded-2xl border px-0.5 text-[10px] font-black transition sm:h-12 sm:gap-2 sm:px-4 sm:text-sm ${filters.pendingOnly ? "border-red-300 bg-red-50 text-red-700" : "border-line bg-white text-navy hover:border-red-200 hover:bg-red-50"}`}
-              onClick={() => updateFilters({ pendingOnly: !filters.pendingOnly, statusGroup: "all", status: "all" })}
+              onClick={() => updateFilters({ pendingOnly: !filters.pendingOnly, statusGroup: "all", status: "all", needsFirstContact: false })}
               title="Clientes pendentes"
               type="button"
             >
@@ -834,7 +836,7 @@ export default function AdminSimulationList({
                       : "bg-transparent text-navy/80 hover:bg-[#F5FAFF] hover:text-navy"
                   }`}
                   key={group.key}
-                  onClick={() => updateFilters({ statusGroup: group.key, status: "all", pendingOnly: false })}
+                  onClick={() => updateFilters({ statusGroup: group.key, status: "all", pendingOnly: false, needsFirstContact: false })}
                   type="button"
                 >
                   {group.label}
@@ -1018,6 +1020,10 @@ function buildActiveFilterChips(filters, responsibleProfileMap, localTags, updat
 
   if (filters.noFutureActivityOnly) {
     chips.push({ key: "noFutureActivityOnly", label: "Sem atividade futura", onRemove: () => updateFilters({ noFutureActivityOnly: false }) });
+  }
+
+  if (filters.needsFirstContact) {
+    chips.push({ key: "needsFirstContact", label: "Novos atendimentos", onRemove: () => updateFilters({ needsFirstContact: false, status: "all" }) });
   }
 
   return chips;

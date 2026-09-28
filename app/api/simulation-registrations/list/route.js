@@ -29,6 +29,7 @@ export async function GET(request) {
     pendingOnly: params.get("pending") === "1",
     staleContactOnly: params.get("staleContact") === "1",
     noFutureActivityOnly: params.get("noFutureActivity") === "1",
+    needsFirstContact: params.get("needsFirstContact") === "1",
     statusGroup: params.get("statusGroup") || "all",
     status: params.get("status") || "all"
   };
