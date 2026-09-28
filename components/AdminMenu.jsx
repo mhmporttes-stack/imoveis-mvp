@@ -217,7 +217,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => (
           <Link
-            key={item.key}
+            key={`${visibleGroup}-${item.key}`}
             href={item.href}
             className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
               isActiveItem(item, active)
