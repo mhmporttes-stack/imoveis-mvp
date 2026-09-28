@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
-// Aba "Corretores" da Supervisão do WhatsApp — um card por corretor com a
-// presença REAL (admin_presence) e as conversas do WhatsApp oficial
-// atribuídas a ele/dos seus clientes. "Abrir" reaproveita o MESMO Chat
-// (onOpen), só passando o escopo de corretor — nunca uma tela nova.
+// Aba "Corretores" da Supervisão do WhatsApp — um card por corretor com o
+// status REAL da sessão de WhatsApp individual dele (conectado via QR Code
+// ao microsserviço, não presença no CRM) e as conversas atribuídas a
+// ele/dos seus clientes. "Abrir" reaproveita o MESMO Chat (onOpen), só
+// passando o escopo de corretor — nunca uma tela nova.
 const STATUS_META = {
-  online: { dot: "bg-emerald-500", label: "Conectado", order: 0 },
-  away: { dot: "bg-amber-400", label: "Ausente", order: 1 },
-  offline: { dot: "bg-slate-300", label: "Desconectado", order: 2 }
+  connected: { dot: "bg-emerald-500", label: "Conectado", order: 0 },
+  qr_required: { dot: "bg-amber-400", label: "Aguardando QR Code", order: 1 },
+  connecting: { dot: "bg-amber-400", label: "Conectando…", order: 1 },
+  reconnecting: { dot: "bg-amber-400", label: "Reconectando…", order: 1 },
+  error: { dot: "bg-red-500", label: "Erro na conexão", order: 1 },
+  disconnected: { dot: "bg-slate-300", label: "Desconectado", order: 2 }
 };
 
 export default function WhatsappChatBrokers({ onOpen }) {
@@ -33,7 +37,7 @@ export default function WhatsappChatBrokers({ onOpen }) {
 
   // Conectados com pendência primeiro, depois conectados, depois desconectados.
   const sorted = [...brokers].sort((a, b) => {
-    const orderDiff = STATUS_META[a.status].order - STATUS_META[b.status].order;
+    const orderDiff = (STATUS_META[a.status] || STATUS_META.disconnected).order - (STATUS_META[b.status] || STATUS_META.disconnected).order;
     if (orderDiff !== 0) return orderDiff;
     const pendingDiff = (b.counts.awaiting || 0) - (a.counts.awaiting || 0);
     if (pendingDiff !== 0) return pendingDiff;
@@ -43,7 +47,7 @@ export default function WhatsappChatBrokers({ onOpen }) {
   return (
     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
       {sorted.map((broker) => {
-        const meta = STATUS_META[broker.status] || STATUS_META.offline;
+        const meta = STATUS_META[broker.status] || STATUS_META.disconnected;
         return (
           <div key={broker.id} className="flex flex-col justify-between rounded-2xl border border-navy/[0.08] bg-white p-4 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
             <div className="flex items-center gap-3">
