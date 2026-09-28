@@ -1,5 +1,10 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+### 2026-09-28 — Conter consultas sobrepostas durante lentidão do CRM
+- **Área:** avisos globais de Chat e novos clientes.
+- **Alteração:** uma atualização pendente é compartilhada pelo resumo do Chat; o aviso sonoro não inicia outra consulta enquanto a anterior não terminou. Intervalos, notificações e escopo permanecem iguais.
+- **Risco/observação:** logs de produção registraram ondas de 30–60 s no Supabase e `PGRST003` (pool do PostgREST esgotado), além de timeouts nos cron/webhooks. Esta mudança reduz a amplificação durante a falha, mas a causa da saturação da infraestrutura ainda requer análise de capacidade/recursos no Supabase.
+
 ### 2026-09-28 — Relatórios no Chat e ficha cadastral do PDF
 - **Área:** Documentação / Chat / PDF.
 - **Alteração:** relatório já analisado acessível pelo Chat sem nova seleção; capa do PDF e da Pasta com campos maiores, linhas e seções compactas.
