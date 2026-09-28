@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Menu CRM do corretor legível no mobile
+- **Área:** Menu CRM.
+- **Alteração:** o menu secundário do corretor abre para dentro da tela, sem cortar os rótulos na lateral esquerda.
+- **Autor:** Codex
+
 ### 2026-09-28 — Abrir detalhamento no segundo toque
 - **Área:** Menu CRM / Clientes.
 - **Alteração:** o primeiro toque no botão principal abre a lista padrão; quando já se está nela, outro toque alterna o detalhamento das pendências, em todos os perfis com CRM. Badge e contagens permanecem iguais.

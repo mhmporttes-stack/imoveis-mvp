@@ -269,7 +269,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                     <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-full text-navy [&::-webkit-details-marker]:hidden" aria-label="Outras áreas do CRM" title="Outras áreas do CRM">
                       <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                     </summary>
-                    <div className="absolute right-0 top-full mt-2 min-w-44 rounded-2xl border border-line bg-white p-2 shadow-soft">
+                    <div className="absolute left-0 top-full mt-2 min-w-44 rounded-2xl border border-line bg-white p-2 shadow-soft">
                       {group.items.filter((item) => ["daily-goal", "opportunities", "developments"].includes(item.key)).map((item) => (
                         <Link key={item.key} href={item.href} className="block rounded-xl px-3 py-2 text-sm font-bold text-navy hover:bg-brand/10" onClick={(event) => { event.currentTarget.closest("details").open = false; setVisibleGroup(group.key); }}>
                           {item.label}
