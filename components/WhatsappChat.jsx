@@ -39,6 +39,7 @@ import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudio
 import WhatsappChatTemplateSender from "@/components/WhatsappChatTemplateSender";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
+import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
@@ -284,7 +285,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   return (
     <section className="container-page scroll-mt-[72px]" ref={sectionRef}>
       {openError ? <p className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setTab("conversations")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "conversations" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
           <MessageCircle className="h-4 w-4" />Conversas
           {totalUnread > 0 ? <span className="rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{totalUnread}</span> : null}
@@ -298,6 +299,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             <Megaphone className="h-4 w-4" />Campanhas
           </button>
         ) : null}
+        <span className="ml-auto"><WhatsappIndividualStatus /></span>
       </div>
 
       {tab === "campaigns" && canManage ? (
