@@ -25,9 +25,13 @@ Clique de "abrir WhatsApp" na UI (deep link `wa.me/...`) sempre chama uma API pr
 
 `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SIMULATION_NOTIFICATION_EMAIL`, `CAPTACAO_NOTIFICATION_EMAIL`. Notificações por e-mail de novo cadastro/captação.
 
-## Cron (Vercel)
+## Cron (pg_cron no Supabase, não o cron nativo da Vercel)
 
-Rotas em `app/api/cron/*`: `daily-goal-close`, `daily-report`, `scheduled-activities`, `whatsapp-broadcast-dispatch`. Todas exigem `Authorization: Bearer <token>` comparado com `timingSafeEqual` contra `CRON_SECRET`/`SUPABASE_CRON_TOKEN_HASH` — **falha fechado se a variável não estiver configurada** (nunca aceita chamada sem segredo configurado). Confirme se `vercel.json` (ou a config de cron do painel Vercel) realmente agenda cada rota antes de assumir que ela roda sozinha — a existência do endpoint não garante agendamento ativo.
+Rotas em `app/api/cron/*`: `daily-goal-close`, `daily-report`, `scheduled-activities`, `whatsapp-broadcast-dispatch`, `whatsapp-flows`, `meta-ads-intraday-sync`, `meta-ads-daily-consolidation`, `whatsapp-templates-sync`. Todas exigem `Authorization: Bearer <token>` comparado com `timingSafeEqual` contra `CRON_SECRET`/`SUPABASE_CRON_TOKEN_HASH` — **falha fechado se a variável não estiver configurada** (nunca aceita chamada sem segredo configurado).
+
+**O agendamento real não é o cron da Vercel** (`vercel.json`) — é o `pg_cron` do próprio banco (Supabase), com jobs em `cron.job` chamando `net.http_get` contra `https://imoveis-mvp.vercel.app/api/cron/<rota>` (domínio técnico da Vercel, não o domínio da marca — ver `lib/site-url.mjs`; isso é só a URL alvo da chamada do servidor, nunca aparece pra o cliente) com o token vindo de `vault.decrypted_secrets` (`crm_automation_cron_token`). Para inspecionar/alterar o agendamento, use `execute_sql` no projeto Supabase (`select * from cron.job`), não o painel da Vercel.
+
+**[REGRA — ajustada em 2026-09-28]** `crm-automations-every-minute` (`scheduled-activities`), `whatsapp-broadcast-dispatch-every-minute` e `whatsapp-flows-timers-every-minute` rodavam a cada 1 minuto; passaram para **a cada 2 minutos** (`cron.alter_job(id, schedule => '*/2 * * * *')`) — essas três, somadas ao registro de cada execução em `cron.job_run_details`, respondiam por quase 30% do tempo total gasto pelo banco (medido via `pg_stat_statements`). Efeito prático (aceito pelo dono): um passo de espera de Fluxo, a regra "REDISTRIBUIÇÃO DE LEADS" (`.claude/rules/roleta-prospeccao-campanhas.md`) e o reforço de segurança do cadastro automático do WhatsApp podem demorar até 1 minuto a mais no pior caso. **O Chat (WhatsApp) em tempo real não é afetado** — mensagem chegando/saindo e a tela se atualizando sozinha dependem do webhook (`app/api/webhooks/whatsapp-master`) e do canal Supabase Realtime, não deste cron. `daily-report`/`daily-goal-close`/`meta-ads-*`/`whatsapp-templates-sync`/`limpar-historico-cron-diario` continuam com sua frequência original (diária/algumas vezes ao dia), não foram tocados.
 
 ## Push
 
