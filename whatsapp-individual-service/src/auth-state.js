@@ -27,9 +27,24 @@ export async function useSupabaseAuthState(userId) {
     creds = initAuthCreds();
   }
 
-  const persist = async () => {
-    const payload = JSON.stringify({ creds, keys }, BufferJSON.replacer);
-    await writeEncryptedCreds(userId, encrypt(payload));
+  // Baileys chama keys.set() várias vezes seguidas ao processar mensagens.
+  // Sem serializar as gravações, duas chamadas de persist() podem viajar em
+  // paralelo e a resposta da mais ANTIGA chegar DEPOIS da mais nova — sobre-
+  // escrevendo um estado mais recente da sessão do Signal com um mais velho
+  // e incompleto. Isso corrompe a sessão (erro "Bad MAC"/"Failed to decrypt"
+  // em mensagens seguintes, inclusive perdendo mensagem recebida). Uma fila
+  // (uma gravação de cada vez, sempre lendo creds/keys no momento em que
+  // RODA, não em que foi chamada) garante que a gravação mais recente nunca
+  // seja pisada por uma mais antiga.
+  let writeQueue = Promise.resolve();
+  const persist = () => {
+    writeQueue = writeQueue.then(async () => {
+      const payload = JSON.stringify({ creds, keys }, BufferJSON.replacer);
+      await writeEncryptedCreds(userId, encrypt(payload));
+    }).catch((error) => {
+      console.error(`[${userId}] Falha ao persistir credenciais do WhatsApp:`, error.message);
+    });
+    return writeQueue;
   };
 
   return {
