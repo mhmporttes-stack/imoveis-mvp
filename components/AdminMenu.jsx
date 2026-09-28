@@ -232,7 +232,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
               );
             }
             return (
-              <div key={group.key} className="relative flex min-w-0 flex-1">
+              <div key={group.key} className="relative flex min-w-[130px] flex-1">
               <Link
                 href={group.href}
                 className={`${buttonClass(highlighted, isBroker)} w-full`}
