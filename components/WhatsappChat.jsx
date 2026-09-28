@@ -299,7 +299,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
       </div>
 
       {tab === "campaigns" && canManage ? (
-        <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
           <WhatsappChatCampaigns
             onOpenConversation={(id) => {
               setTab("conversations");
@@ -310,7 +310,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
       ) : null}
 
       {tab === "overview" ? (
-        <div className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
           <WhatsappChatOverview
             canManage={canManage}
             onOpen={(id) => {
@@ -321,10 +321,10 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
         </div>
       ) : null}
 
-      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" ? "hidden" : ""}`}>
+      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" ? "hidden" : "admin-motion-enter"}`}>
         <div className={`grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
-            className={selectedId ? "hidden lg:flex" : "flex"}
+            className={selectedId ? "hidden lg:flex" : "admin-motion-back flex"}
             conversations={conversations}
             error={listError}
             filter={filter}
@@ -337,7 +337,7 @@ export default function WhatsappChat({ canManage = false, currentUserId = "", in
             totalUnread={totalUnread}
           />
 
-          <div className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
+          <div className={`${selectedId ? "admin-motion-detail flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
             {selectedId ? (
               <Thread
                 canManage={canManage}

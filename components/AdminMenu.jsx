@@ -219,7 +219,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
           <Link
             key={item.key}
             href={item.href}
-            className={`min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
+            className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
               isActiveItem(item, active)
                 ? "bg-navy text-white shadow-soft"
                 : "text-navy hover:bg-brand/10 hover:text-brand"
