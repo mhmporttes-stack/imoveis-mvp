@@ -20,7 +20,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { DOCUMENT_TYPE_OPTIONS, CHECKLIST_STATUS_OPTIONS } from "@/lib/document-type-options";
 import { DOCUMENT_STATUS_LABELS, PERSON_ROLE_LABELS } from "@/lib/document-status-labels";
-import { pendingClientMessage } from "@/lib/document-policy.mjs";
+import { pendingClientMessage, visibleDocumentDivergences } from "@/lib/document-policy.mjs";
 
 const CLIENT_DOCS_BUCKET = "client-documents";
 
@@ -599,7 +599,7 @@ function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversatio
     // quando disponível — mantém a identificação amigável sem voltar a usar
     // o texto livre como chave de agrupamento.
     const genericLabel = PERSON_ROLE_LABELS[role] || role;
-    if (item.personLabel && item.personLabel !== genericLabel && !group.namedLabel) group.namedLabel = item.personLabel;
+    if (item.personLabel && item.personLabel !== genericLabel && !["Titular", "Outro", "Cônjuge", "Segundo proponente", "Proponente principal"].includes(item.personLabel) && !group.namedLabel) group.namedLabel = item.personLabel;
     group.items.push(item);
   }
 
@@ -707,7 +707,7 @@ function ChecklistItemCard({ item, documents, canManage, canEditRules, onView, o
           <Icon className="h-3.5 w-3.5" /> {style.label}
         </span>
       </div>
-      {item.observations ? <p className="mt-1 text-xs text-muted">{item.observations}</p> : null}
+      {item.observations ? <p className="mt-1 text-xs text-muted">{item.status === "divergencia" ? visibleDocumentDivergences([{ description: item.observations }])[0]?.description || "Dados divergentes; confira os documentos." : item.observations}</p> : null}
       {document ? <p className="mt-1 truncate text-[11px] text-muted" title={document.filename}>{document.filename}</p> : null}
       <div className="mt-2 flex flex-wrap gap-2">
         {document ? (
