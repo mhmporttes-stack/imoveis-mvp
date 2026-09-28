@@ -1,47 +1,48 @@
-import { getSupabase } from "./supabase.js";
+// Toda leitura/escrita de whatsapp_individual_sessions passa pelo Next.js
+// (app/api/webhooks/whatsapp-individual/state) em vez de falar com o
+// Supabase direto: este host (Railway) nunca guarda SUPABASE_SERVICE_ROLE_KEY
+// — esse segredo só existe no Next.js. Autenticado pelo MESMO
+// WHATSAPP_INDIVIDUAL_SERVICE_SECRET usado no sentido contrário (webhook.js).
+function baseUrl() {
+  return String(process.env.APP_WEBHOOK_URL || "").replace(/\/+$/, "");
+}
 
-// Toda leitura/escrita de whatsapp_individual_sessions passa por aqui — a
-// coluna session_creds_encrypted só é lida/escrita pelas duas funções de
-// credenciais (nunca pelas de status), pra não vazar credencial por engano
-// num log de status.
+function secret() {
+  return process.env.WHATSAPP_INDIVIDUAL_SERVICE_SECRET || "";
+}
+
+async function call(method, path, body) {
+  const url = `${baseUrl()}${path}`;
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json", "X-Service-Secret": secret() },
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error || `Falha ao falar com o CRM (status ${response.status}) em ${path}.`);
+  }
+  return payload;
+}
 
 export async function readEncryptedCreds(userId) {
-  const { data, error } = await getSupabase()
-    .from("whatsapp_individual_sessions")
-    .select("session_creds_encrypted")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.session_creds_encrypted || null;
+  const { encrypted } = await call("GET", `/api/webhooks/whatsapp-individual/state?userId=${encodeURIComponent(userId)}&field=creds`);
+  return encrypted || null;
 }
 
 export async function writeEncryptedCreds(userId, encrypted) {
-  const { error } = await getSupabase()
-    .from("whatsapp_individual_sessions")
-    .upsert({ user_id: userId, session_creds_encrypted: encrypted, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-  if (error) throw error;
+  await call("POST", "/api/webhooks/whatsapp-individual/state", { userId, encrypted });
 }
 
 export async function clearSessionCreds(userId) {
-  const { error } = await getSupabase()
-    .from("whatsapp_individual_sessions")
-    .upsert({ user_id: userId, session_creds_encrypted: null, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-  if (error) throw error;
+  await call("POST", "/api/webhooks/whatsapp-individual/state", { userId, encrypted: null });
 }
 
-export async function updateSessionStatus(userId, patch = {}) {
-  const { error } = await getSupabase()
-    .from("whatsapp_individual_sessions")
-    .upsert({ user_id: userId, updated_at: new Date().toISOString(), ...patch }, { onConflict: "user_id" });
-  if (error) throw error;
-}
-
+// Fallback do GET /sessions/:userId/status (server.js) para quando este
+// processo acabou de subir e ainda não tem estado em memória — status/QR já
+// são persistidos pelo Next.js via notifyStatus (webhook.js), esta função só
+// lê de volta.
 export async function readSessionRow(userId) {
-  const { data, error } = await getSupabase()
-    .from("whatsapp_individual_sessions")
-    .select("user_id, status, phone_number, last_connected_at, last_error, updated_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data || null;
+  const { row } = await call("GET", `/api/webhooks/whatsapp-individual/state?userId=${encodeURIComponent(userId)}&field=row`);
+  return row || null;
 }

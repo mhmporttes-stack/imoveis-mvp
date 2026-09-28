@@ -13,10 +13,13 @@ aberta 24h). Feito para rodar num host simples e sempre ligado: Railway.
 
 - Um processo = um socket Baileys por corretor (`userId` = `admin_users.id`).
 - As credenciais da sessão (equivalentes a estar "logado" no WhatsApp Web)
-  são cifradas (AES-256-GCM) e gravadas no Supabase, na tabela
-  `whatsapp_individual_sessions.session_creds_encrypted` — não em disco. Isso
-  é o que permite o processo reiniciar (deploy novo, restart da Railway) sem
-  pedir para o corretor escanear o QR de novo.
+  são cifradas (AES-256-GCM) aqui mesmo e persistidas na tabela
+  `whatsapp_individual_sessions.session_creds_encrypted` do Supabase — não em
+  disco. Isso é o que permite o processo reiniciar (deploy novo, restart da
+  Railway) sem pedir para o corretor escanear o QR de novo. Este serviço
+  **não tem acesso direto ao Supabase** (não guarda `SUPABASE_SERVICE_ROLE_KEY`
+  — esse segredo só existe no Next.js): ele lê/grava essas credenciais fazendo
+  HTTP para `{APP_WEBHOOK_URL}/api/webhooks/whatsapp-individual/state`.
 - O CRM (Next.js) nunca fala com o WhatsApp diretamente: ele chama este
   serviço por HTTP (`connect`/`status`/`disconnect`/`send`) e este serviço
   avisa o CRM por webhook quando chega mensagem ou muda o status/QR.
@@ -40,8 +43,9 @@ Veja `.env.example` — todas obrigatórias (o processo recusa subir sem
 alguma delas):
 
 - `WHATSAPP_INDIVIDUAL_SERVICE_SECRET` — mesmo valor configurado na Vercel.
-- `APP_WEBHOOK_URL` — URL do site (ex.: `https://SEU-DOMINIO.vercel.app`).
-- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — mesmo projeto Supabase do CRM.
+- `APP_WEBHOOK_URL` — URL do site (ex.: `https://SEU-DOMINIO.vercel.app`). É
+  por aqui que este serviço lê/grava tudo no banco (status, QR, credenciais)
+  — ele não fala com o Supabase direto.
 - `SESSION_ENCRYPTION_KEY` — 32 bytes em hex (gere com o comando no
   `.env.example`). Guarde num lugar seguro: perder essa chave = perder todas
   as sessões conectadas (todo corretor escaneia o QR de novo).

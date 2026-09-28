@@ -2,7 +2,7 @@ import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, makeCacheabl
 import pino from "pino";
 import QRCode from "qrcode";
 import { useSupabaseAuthState } from "./auth-state.js";
-import { clearSessionCreds, updateSessionStatus } from "./db.js";
+import { clearSessionCreds } from "./db.js";
 import { notifyMessage, notifyStatus } from "./webhook.js";
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
@@ -38,7 +38,6 @@ export async function connectSession(userId) {
 
 async function startSocket(userId, entry) {
   entry.status = "connecting";
-  await updateSessionStatus(userId, { status: "connecting", last_error: null });
 
   const { state, saveCreds } = await useSupabaseAuthState(userId);
   const { version } = await fetchLatestBaileysVersion();
@@ -86,8 +85,6 @@ async function onConnectionUpdate(userId, entry, update) {
       const qrDataUrl = await QRCode.toDataURL(qr);
       entry.status = "qr_required";
       entry.qr = qrDataUrl;
-      const qrExpiresAt = new Date(Date.now() + QR_TTL_MS).toISOString();
-      await updateSessionStatus(userId, { status: "qr_required", qr_data: qrDataUrl, qr_expires_at: qrExpiresAt, last_error: null });
       await notifyStatus(userId, { status: "qr_required", qr: qrDataUrl });
     } catch (error) {
       console.error(`[${userId}] Falha ao gerar o QR:`, error.message);
@@ -99,7 +96,6 @@ async function onConnectionUpdate(userId, entry, update) {
     entry.status = "connected";
     entry.qr = null;
     const phoneNumber = String(entry.sock?.user?.id || "").split(":")[0] || "";
-    await updateSessionStatus(userId, { status: "connected", phone_number: phoneNumber, qr_data: null, qr_expires_at: null, last_error: null, last_connected_at: new Date().toISOString() });
     await notifyStatus(userId, { status: "connected", phoneNumber });
     return;
   }
@@ -115,8 +111,7 @@ async function onConnectionUpdate(userId, entry, update) {
       entry.status = "disconnected";
       entry.qr = null;
       await clearSessionCreds(userId);
-      await updateSessionStatus(userId, { status: "disconnected", phone_number: null, qr_data: null, qr_expires_at: null, last_error: "Sessão encerrada pelo celular." });
-      await notifyStatus(userId, { status: "disconnected", error: "logged_out" });
+      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, error: "logged_out" });
       return;
     }
 
@@ -124,7 +119,6 @@ async function onConnectionUpdate(userId, entry, update) {
     // usando os MESMOS creds já persistidos — nunca gera QR à toa.
     entry.status = "reconnecting";
     const errorMessage = String(lastDisconnect?.error?.message || "").slice(0, 300);
-    await updateSessionStatus(userId, { status: "reconnecting", last_error: errorMessage || null });
     await notifyStatus(userId, { status: "reconnecting", error: errorMessage });
     setTimeout(() => {
       connectSession(userId).catch((error) => console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message));
@@ -174,8 +168,7 @@ export async function disconnectSession(userId) {
   }
   sockets.delete(userId);
   await clearSessionCreds(userId);
-  await updateSessionStatus(userId, { status: "disconnected", phone_number: null, qr_data: null, qr_expires_at: null, last_error: null });
-  await notifyStatus(userId, { status: "disconnected" });
+  await notifyStatus(userId, { status: "disconnected", phoneNumber: null });
 }
 
 export async function sendMessage(userId, { to, text }) {

@@ -3,7 +3,7 @@ import express from "express";
 import { connectSession, disconnectSession, getLiveSessionStatus, sendMessage } from "./sessions.js";
 import { readSessionRow } from "./db.js";
 
-const REQUIRED_ENV = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
+const REQUIRED_ENV = ["APP_WEBHOOK_URL", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
 if (missingEnv.length) {
   console.error(`Variáveis de ambiente faltando: ${missingEnv.join(", ")}. Veja .env.example.`);
