@@ -50,6 +50,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** pontuação e eventos não alterados; resultado semanal já gravado na chave anterior fica sem uso. Validar build e visualização após deploy.
 - **Autor:** Codex
 
+### 2026-09-27 — Card do cliente reflete atendimento real do Chat no "Último contato"
+- **Data:** 2026-09-27 · **Área:** Clientes · **Motivo:** pedido do dono (card mostrava "Nenhum contato realizado" para cliente com conversa ativa no Chat, com respostas reais do corretor).
+- **Alteração:** a lista de clientes (`listSimulationClientsPage`) agora usa, para o RÓTULO exibido no card, o mais recente entre `simulation_registrations.last_whatsapp_contact_at` (clique de "abrir WhatsApp") e `whatsapp_conversations.last_human_reply_at` (resposta humana real registrada no Chat, ver P-11 em `SYSTEM_ARCHITECTURE.md`). Só ajusta a exibição — nenhuma escrita na coluna original.
+- **Arquivos afetados:** `lib/simulation-list-query.js`.
+- **Risco/observação:** deliberadamente **não** alterei `last_whatsapp_contact_at` em si nem as regras que dependem do valor bruto dessa coluna (gatilho `no_first_contact`, redistribuição round-robin ROL-4, Meta Diária/ranking) — continuam vendo o cliente como "sem contato" para fins de automação/pontuação mesmo quando o card já mostra a data real. Isso é intencional (evita inflar pontuação por uma resposta no Chat) mas é um gap conhecido: o cliente pode aparecer com data recente no card e ainda assim ser redistribuído/alertado como "sem 1º contato". Não corrigido agora por estar fora do pedido; candidato a tarefa futura se o dono confirmar que quer unificar os dois sinais. P-11 em `SYSTEM_ARCHITECTURE.md` deveria ser atualizado para citar esta correção parcial.
+- **Autor:** Codex
+
 ### 2026-09-28 — Destaques do ranking semanal e diário
 - **Data:** 2026-09-28 · **Área:** Ranking / Banco · **Motivo:** pedido do dono.
 - **Alteração:** congela o Melhor da Semana anterior às 00:01 de segunda-feira em `crm_settings` e exibe semanal, diário e posição/pontos próprios nessa ordem; esconde a posição quando o usuário é líder do dia. Usa cálculo, desempate e permissões já existentes.
