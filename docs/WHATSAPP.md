@@ -78,6 +78,8 @@ Classificação de erro (essencial para nunca duplicar envio): `notSent = true` 
 
 ## 7. Associação mensagem ↔ cliente ↔ responsável
 
+- **Cadastro excluído pelo dono:** a conversa preserva `origin.crm_auto_create_suppressed_at`. O webhook e a reconciliação de leads orgânicos/patrocinados não recriam automaticamente o card dessa conversa; ela continua disponível no Chat e pode ser adicionada manualmente ao CRM.
+
 - **Telefone é a chave de ligação** (o CRM permite vários atendimentos por telefone; a ligação escolhe o cadastro **mais recente** que bate com qualquer formato do número): `lib/client-phone-lookup.js` (`findLatestRegistrationIdsByPhones`, `findConversationByPhone`) — **único ponto** usado por webhook, Chat, roleta, Fluxos, automações e Disparo.
 - Formatos (`lib/phone-utils.js`): `canonicalWhatsappPhone` = E.164 com 9º dígito para celular BR (`+55DD9XXXXXXXX`); `phoneComparisonKey` iguala com/sem 9, com/sem +55; `phoneLookupCandidates` lista todas as formas gravadas para `.in(...)`; `toBrazilianE164`/`toWhatsAppDigits` **só aceitam celular** (`DD9XXXXXXXX`). A Meta às vezes entrega o wa_id sem o 9 — por isso o cuidado. Testes: `tests/phone-utils.test.mjs`.
 - **Dois “donos” sincronizados**: cliente (`responsible_user_id`) e conversa (`assigned_user_id`). Cliente→conversa: trigger `whatsapp_conversation_assignee_sync`. Conversa→cliente: `assignChatConversation` (só admin/gestor, com histórico de transferência).
