@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Impedir recriação de cliente excluído
+- **Área:** Clientes / WhatsApp.
+- **Alteração:** a exclusão pelo dono marca as conversas vinculadas para não gerarem outro cadastro automático. Webhook e cron respeitam a marca em leads orgânicos e patrocinados; Chat e cadastro manual permanecem disponíveis.
+- **Motivo:** a FK soltava a conversa após excluir o cliente e o cron a transformava novamente em card com base em mensagem antiga.
+- **Risco/observação:** confirmado por leitura que o novo card veio da reconciliação de uma conversa antiga, sem nova mensagem. Nenhum cliente foi apagado como teste.
+- **Autor:** Codex
+
 ### 2026-09-28 — Menu CRM do corretor legível no mobile
 - **Área:** Menu CRM.
 - **Alteração:** o menu secundário do corretor abre para dentro da tela, sem cortar os rótulos na lateral esquerda.
