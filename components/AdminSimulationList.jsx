@@ -1163,7 +1163,7 @@ function ClientCard({
   const lastContactLabel = client.lastWhatsappContactAt ? formatLastContactLabel(client.lastWhatsappContactAt) : "Nenhum contato realizado";
 
   return (
-    <article className="relative max-w-full overflow-visible rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 focus-within:z-50 hover:z-50 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
+    <article className="admin-motion-enter relative max-w-full overflow-visible rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition duration-300 focus-within:z-50 hover:z-50 hover:-translate-y-0.5 hover:shadow-soft sm:p-[18px]">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <div className="mb-1 flex max-w-full flex-wrap items-center gap-2">

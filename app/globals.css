@@ -48,6 +48,60 @@ body.admin-scroll-fix {
   overflow-x: clip;
 }
 
+@keyframes admin-content-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes admin-detail-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes admin-detail-back {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* O cabeçalho, o ranking e os menus ficam fora desta animação. */
+body.admin-scroll-fix main:has(> .container-page.mb-6) > .container-page.mb-6 ~ *,
+body.admin-scroll-fix .admin-motion-enter {
+  animation: admin-content-in 180ms ease-out both;
+}
+
+body.admin-scroll-fix .admin-motion-detail {
+  animation: admin-detail-in 180ms ease-out both;
+}
+
+body.admin-scroll-fix .admin-motion-back {
+  animation: admin-detail-back 180ms ease-out both;
+}
+
+body.admin-scroll-fix :is(button, a[role="button"]):not(:disabled) {
+  transition: transform 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out;
+}
+
+body.admin-scroll-fix :is(button, a[role="button"]):not(:disabled):active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.admin-scroll-fix main:has(> .container-page.mb-6) > .container-page.mb-6 ~ *,
+  body.admin-scroll-fix .admin-motion-enter,
+  body.admin-scroll-fix .admin-motion-detail,
+  body.admin-scroll-fix .admin-motion-back {
+    animation: none;
+  }
+
+  body.admin-scroll-fix :is(button, a[role="button"]):not(:disabled) {
+    transition: none;
+  }
+
+  body.admin-scroll-fix :is(button, a[role="button"]):not(:disabled):active {
+    transform: none;
+  }
+}
+
 input,
 select,
 textarea,
