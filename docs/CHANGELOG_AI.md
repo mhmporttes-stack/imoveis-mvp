@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-09-28 — Acesso a novos atendimentos
+- **Área:** Badge CRM / Clientes.
+- **Alteração:** o atalho de novos atendimentos abre a lista filtrada mesmo quando já se está em Clientes; a contagem/lista usa clientes em atendimento automático ou em atendimento sem resposta/assunção humana registrada no Chat. Aguardando simulação permanece categoria separada para não duplicar.
+- **Risco/observação:** abrir o WhatsApp não é prova de atendimento humano. A consulta respeita o escopo de responsável atual, sem mudar pontuação ou distribuição.
+- **Autor:** Codex
+
 ### 2026-09-28 — Detalhamento do badge CRM
 - **Área:** Menu CRM / Clientes / Agenda.
 - **Alteração:** o badge principal abre um resumo clicável de Chat, Agenda vencida, novos atendimentos e aguardando simulação. O total usa as mesmas quatro parcelas; cada acesso abre a lista já filtrada conforme o escopo do perfil.

@@ -86,6 +86,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
         <SimulationError error={loadError} />
       ) : (
         <AdminSimulationList
+          key={JSON.stringify(filters)}
           initialData={initialData}
           initialFilters={filters}
           adminProfiles={adminProfiles}
