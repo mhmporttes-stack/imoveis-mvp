@@ -59,7 +59,6 @@ export default function TopRankingBadge() {
           <Laurel className="-right-2 bottom-0 -scale-x-100" />
           <span className="relative z-10 shrink-0">
             <Avatar name={data.weeklyTop1.name} photoUrl={data.weeklyTop1.photoUrl} size={64} className="border-2 !border-[#DBA735] shadow-sm" />
-            <span className="absolute -left-2 -top-5 -rotate-12 text-3xl leading-none" aria-hidden="true">👑</span>
           </span>
           <span className="relative z-10 min-w-0 leading-tight">
             <span className="block text-[11px] font-black uppercase tracking-wide text-[#9B6419]">👑 {weeklyChampionTitle(data.weeklyTop1.gender)}</span>
@@ -74,10 +73,9 @@ export default function TopRankingBadge() {
           className="flex min-w-0 items-center gap-3 rounded-3xl border border-[#C9DDF6] bg-[#F8FBFF] px-3.5 py-3 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF]">
           <span className="relative shrink-0">
             <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={58} className="border-2 !border-[#A9C8EC]" />
-            <span className="absolute -right-2 -top-3 text-2xl leading-none" aria-hidden="true">🥇</span>
           </span>
           <span className="min-w-0 leading-tight">
-            <span className="block text-[11px] font-black uppercase tracking-wide text-[#2370BC]">Melhor do Dia</span>
+            <span className="block text-[11px] font-black uppercase tracking-wide text-[#2370BC]">🥇 Melhor do Dia</span>
             <span className="mt-0.5 block truncate text-lg font-extrabold text-navy">{data.top1.name}</span>
             <span className="block text-base font-extrabold text-[#2370BC]">{formatPoints(data.top1.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
           </span>
