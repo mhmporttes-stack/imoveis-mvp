@@ -54,7 +54,8 @@ const CATEGORY_BY_TYPE = {
   "prospecting:returned": "atividades", "prospecting:do_not_contact": "status", "prospecting:bulk_assigned": "atribuicao",
   "prospecting:daily_goal_attempt": "atividades", "prospecting:daily_goal_converted": "atividades", "prospecting:daily_goal_round_ended": "atividades",
   document_batch_uploaded: "atividades", document_batch_analyzed: "atividades", document_batch_analysis_failed: "atividades",
-  document_checklist_corrected: "atividades", document_deleted: "atividades", document_sent_to_cca: "atividades"
+  document_checklist_corrected: "atividades", document_deleted: "atividades", document_sent_to_cca: "atividades",
+  cca_status_changed: "atividades"
 };
 
 const FILTERS = [
@@ -82,6 +83,7 @@ function EventIcon({ type }) {
   if (type.startsWith("prospecting:")) return <Phone {...props} />;
   if (type === "document_deleted") return <Trash2 {...props} />;
   if (type === "document_sent_to_cca") return <Send {...props} />;
+  if (type === "cca_status_changed") return <RefreshCw {...props} />;
   if (type.startsWith("document_")) return <FileText {...props} />;
   return <History {...props} />;
 }
@@ -171,6 +173,12 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "DOCUMENTO EXCLUÍDO", description: [] };
     case "document_sent_to_cca":
       return { title: "DOCUMENTAÇÃO ENVIADA PARA CCA", description: [d.ccaName ? `CCA: ${d.ccaName}` : "", d.documentCount ? `Arquivos: ${d.documentCount}` : ""].filter(Boolean) };
+    case "cca_status_changed":
+      return { title: "SUB-STATUS DE ANÁLISE ALTERADO", description: [
+        `${d.fromStatusLabel || "—"} → ${d.toStatusLabel || "—"}`,
+        d.ccaName ? `CCA: ${d.ccaName}` : "",
+        d.observation ? `Observação: ${d.observation}` : ""
+      ].filter(Boolean) };
     default:
       return { title: event.type.replace(/^prospecting:|^distribution:/, "").replace(/_/g, " ").toUpperCase(), description: [] };
   }

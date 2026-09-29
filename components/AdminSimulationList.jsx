@@ -2,6 +2,7 @@
 import Link from "next/link";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
+import CcaStatusCard from "@/components/CcaStatusCard";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -1255,6 +1256,7 @@ function ClientCard({
               </span>
             ) : null}
           </div>
+          {client.registration ? <CcaStatusCard clientId={client.registration.id} canManage={showResponsibleSelector} /> : null}
           {client.registration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} responsibleName={responsibleName} tags={clientTags} /> : null}
         </div>
 
