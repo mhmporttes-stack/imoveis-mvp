@@ -104,6 +104,16 @@ const associateGroups = brokerGroups.map((group) => {
   return group;
 });
 
+// Gestor: mesmo padrão visual compacto do corretor (CRM/CADASTROS/DESEMPENHO,
+// pedido do dono em 2026-09-29) MAIS o pill de GESTÃO (reaproveitado de
+// adminGroups) — sem ele, o gestor perde o acesso a Corretores, Gerador de
+// Links, Automações, Guia de Atendimento e Meta Diária > Gestão, que são dela
+// mesma gerenciar a equipe (não do dono). A checagem real de permissão/escopo
+// continua nas próprias páginas (requireBrokerManagementPage: admin OU
+// gestor, sempre limitado à equipe dela — nunca aos clientes/financeiro do
+// dono) — isso aqui é só garantir que o item do menu não suma de novo.
+const managerGroups = [...brokerGroups, adminGroups.find((group) => group.key === "gestao")];
+
 // Menu do administrador geral, organizado em torno de supervisionar o time.
 // Gestor continua com adminGroups (acima), sem alteração.
 const ownerGroups = [
@@ -196,12 +206,14 @@ function CrmBreakdown({ counts, onClose, alignLeft = false }) {
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
   const pathname = usePathname();
-  // Gestor agora enxerga o mesmo padrão de menu do corretor (pedido do dono,
+  // Gestor enxerga o mesmo padrão de menu do corretor (pedido do dono,
   // 2026-09-29): CRM/CADASTROS/DESEMPENHO, CRM colapsado num único pill com
-  // selo. A checagem de permissão real continua nas próprias páginas/
-  // consultas (gestor vê o time inteiro, não só ele) — isso é só o menu.
+  // selo — MAIS o pill de GESTÃO (managerGroups), que tinha sumido nessa
+  // mudança e é como ela acessa/gerencia a própria equipe (corrigido em
+  // 2026-09-29). A checagem de permissão/escopo real continua nas próprias
+  // páginas — isso aqui é só o menu.
   const treatAsBroker = isBroker || isManager;
-  const groups = isAdmin ? ownerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  const groups = isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
   const crmCounts = useCrmBadgeCounts();
@@ -255,7 +267,10 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
 
   return (
     <div className="space-y-2" ref={menuRef}>
-      <nav className={`flex w-full justify-center gap-2.5 ${treatAsBroker ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
+      {/* Gestor tem 4 pills (CRM/CADASTROS/DESEMPENHO/GESTÃO) contra 3 do
+          corretor — sem quebra de linha eles ficariam espremidos/cortados
+          no celular, por isso só o corretor puro fica flex-nowrap. */}
+      <nav className={`flex w-full justify-center gap-2.5 ${treatAsBroker && !isManager ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
