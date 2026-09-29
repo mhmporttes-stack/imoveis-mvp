@@ -51,6 +51,13 @@ const ATTENTION_ITEMS = [
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+const TREND_GRANULARITIES = [
+  { value: "day", label: "Dia a dia" },
+  { value: "week", label: "Semana a semana" },
+  { value: "month", label: "Mês a mês" }
+];
+const TREND_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2", "#dc2626", "#65a30d"];
+
 export default function PerformanceOverviewDashboard({ initialOverview, initialError = "" }) {
   const [period, setPeriod] = useState(initialOverview?.range?.period || "month");
   const [startDate, setStartDate] = useState(initialOverview?.range?.startDate || "");
@@ -66,6 +73,15 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const [funnelBrokerIds, setFunnelBrokerIds] = useState([]);
   const [funnelOverview, setFunnelOverview] = useState(null);
   const [funnelLoading, setFunnelLoading] = useState(false);
+
+  // Ranking histórico (pedido do dono, 2026-09-29): filtro de corretor próprio
+  // (não reaproveita funnelBrokerIds — trocar quem aparece no funil não deveria
+  // mexer no gráfico de tendência, e vice-versa).
+  const [trendGranularity, setTrendGranularity] = useState("month");
+  const [trendBrokerIds, setTrendBrokerIds] = useState([]);
+  const [trend, setTrend] = useState(null);
+  const [trendLoading, setTrendLoading] = useState(true);
+  const [trendError, setTrendError] = useState("");
 
   // O servidor já carregou initialOverview para o período/data padrão — sem
   // essa guarda, este efeito refaz a mesma consulta inteira (todas as
@@ -92,6 +108,13 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [funnelBrokerIds, period, startDate, endDate]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadTrend(controller.signal);
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendGranularity, trendBrokerIds]);
 
   const metrics = overview?.metrics || {};
   const attention = overview?.attention || {};
@@ -150,6 +173,27 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       }
     } finally {
       if (!signal?.aborted) setFunnelLoading(false);
+    }
+  }
+
+  async function loadTrend(signal) {
+    setTrendLoading(true);
+    setTrendError("");
+
+    const params = new URLSearchParams({ granularity: trendGranularity });
+    if (trendBrokerIds.length) params.set("brokerIds", trendBrokerIds.join(","));
+
+    try {
+      const response = await fetch(`/api/performance-overview/trend?${params.toString()}`, { signal });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o histórico.");
+      setTrend(payload.trend);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setTrendError(requestError.message || "Não foi possível carregar o histórico.");
+      }
+    } finally {
+      if (!signal?.aborted) setTrendLoading(false);
     }
   }
 
@@ -286,6 +330,49 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
         </article>
       </div>
+
+      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ranking histórico</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-navy">Quem está melhorando (ou piorando)</h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {brokerOptions.length > 0 && (
+              <BrokerFilterDropdown
+                brokers={brokerOptions}
+                loading={trendLoading}
+                selectedIds={trendBrokerIds}
+                onChange={setTrendBrokerIds}
+              />
+            )}
+            <TrendingUp className="text-brand" size={22} />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Granularidade do histórico">
+          {TREND_GRANULARITIES.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setTrendGranularity(option.value)}
+              className={`min-h-9 rounded-full border px-4 text-xs font-extrabold transition ${
+                trendGranularity === option.value
+                  ? "border-brand bg-blue-50 text-brand"
+                  : "border-navy/10 bg-white text-navy hover:border-brand"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {trendError && (
+          <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{trendError}</p>
+        )}
+
+        <TeamTrendChart trend={trend} loading={trendLoading} />
+      </article>
 
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -554,6 +641,94 @@ function findFunnelBottleneck(funnel) {
     }
   }
   return worst;
+}
+
+// Gráfico de linhas (SVG puro, sem biblioteca de gráfico no projeto) da
+// pontuação de cada corretor por bucket (dia/semana/mês) — vem pronto do
+// servidor (getPerformanceTrend, mesmo motor de pontuação do resto do
+// painel), este componente só desenha. Largura cresce com a quantidade de
+// buckets (visão "dia a dia" fica larga de propósito) e rola horizontalmente
+// em telas pequenas em vez de espremer os pontos.
+function TeamTrendChart({ trend, loading }) {
+  const buckets = trend?.buckets || [];
+  const series = trend?.series || [];
+
+  if (!loading && !buckets.length) {
+    return <p className="mt-6 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Sem dados para montar o histórico ainda.</p>;
+  }
+
+  if (loading && !buckets.length) {
+    return <p className="mt-6 text-sm font-bold text-slate-500">Carregando histórico…</p>;
+  }
+
+  const hasActivity = series.some((line) => line.points.some((value) => value > 0));
+  const maxPoints = Math.max(1, ...series.flatMap((line) => line.points));
+  const height = 240;
+  const paddingLeft = 36;
+  const paddingBottom = 28;
+  const paddingTop = 12;
+  const chartWidth = Math.max(560, buckets.length * 64);
+  const plotWidth = chartWidth - paddingLeft - 12;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const stepX = buckets.length > 1 ? plotWidth / (buckets.length - 1) : 0;
+  const xFor = (index) => paddingLeft + stepX * index;
+  const yFor = (value) => paddingTop + plotHeight - (value / maxPoints) * plotHeight;
+  const gridFractions = [0, 0.25, 0.5, 0.75, 1];
+
+  return (
+    <div className="mt-5">
+      <div className="overflow-x-auto">
+        <svg width={chartWidth} height={height} viewBox={`0 0 ${chartWidth} ${height}`} role="img" aria-label="Pontuação da equipe ao longo do tempo">
+          {gridFractions.map((fraction) => {
+            const y = paddingTop + plotHeight * (1 - fraction);
+            return (
+              <g key={fraction}>
+                <line x1={paddingLeft} x2={chartWidth - 12} y1={y} y2={y} stroke="#E2E8F0" strokeWidth={1} />
+                <text x={paddingLeft - 8} y={y + 4} textAnchor="end" className="fill-slate-400" fontSize={10} fontWeight={700}>
+                  {formatInteger(Math.round(maxPoints * fraction))}
+                </text>
+              </g>
+            );
+          })}
+
+          {buckets.map((bucket, index) => (
+            <text key={bucket.startDate} x={xFor(index)} y={height - 6} textAnchor="middle" className="fill-slate-500" fontSize={10} fontWeight={700}>
+              {bucket.label}
+            </text>
+          ))}
+
+          {series.map((line, seriesIndex) => {
+            const color = TREND_COLORS[seriesIndex % TREND_COLORS.length];
+            const path = line.points.map((value, index) => `${index === 0 ? "M" : "L"}${xFor(index)},${yFor(value)}`).join(" ");
+            return (
+              <g key={line.brokerId}>
+                <path d={path} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                {line.points.map((value, index) => (
+                  <circle key={index} cx={xFor(index)} cy={yFor(value)} r={3} fill={color}>
+                    <title>{`${line.name} — ${buckets[index].label}: ${formatInteger(value)} pts`}</title>
+                  </circle>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {!hasActivity && (
+        <p className="mt-3 text-sm font-bold text-slate-500">Nenhuma atividade pontuada nesse período.</p>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        {series.map((line, seriesIndex) => (
+          <span key={line.brokerId} className="inline-flex items-center gap-2 rounded-full border border-navy/10 px-3 py-1 text-xs font-extrabold text-navy">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TREND_COLORS[seriesIndex % TREND_COLORS.length] }} />
+            {line.name}
+          </span>
+        ))}
+        {!series.length && <p className="text-sm font-bold text-slate-500">Nenhum corretor ativo encontrado.</p>}
+      </div>
+    </div>
+  );
 }
 
 function FunnelChart({ funnel }) {
