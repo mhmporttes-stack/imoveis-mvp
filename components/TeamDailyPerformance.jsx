@@ -57,6 +57,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
   }, [period]);
 
   const presenceById = useTeamPresence();
+  const automationById = useAutomationStatus();
 
   return (
     <section className="container-page space-y-6">
@@ -84,7 +85,13 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {overview.brokers.map((broker) => (
-              <BrokerCard key={broker.brokerId} broker={broker} presenceStatus={presenceById[broker.brokerId]} onClick={() => setSelectedBrokerId(broker.brokerId)} />
+              <BrokerCard
+                key={broker.brokerId}
+                broker={broker}
+                presenceStatus={presenceById[broker.brokerId]}
+                automation={automationById[broker.brokerId]}
+                onClick={() => setSelectedBrokerId(broker.brokerId)}
+              />
             ))}
           </div>
 
@@ -165,8 +172,44 @@ function useTeamPresence() {
   return presenceById;
 }
 
-function BrokerCard({ broker, presenceStatus, onClick }) {
+// Mesmo padrão de badge usado na aba Automação (Gestão > Meta Diária).
+const AUTOMATION_SESSION_LABELS = {
+  connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
+  reconnecting: { label: "Reconectando", className: "bg-amber-50 text-amber-700" },
+  qr_required: { label: "Aguardando QR", className: "bg-amber-50 text-amber-700" },
+  connecting: { label: "Conectando", className: "bg-amber-50 text-amber-700" },
+  disconnected: { label: "Desconectado", className: "bg-red-50 text-red-700" },
+  error: { label: "Erro", className: "bg-red-50 text-red-700" },
+  nunca_conectou: { label: "Nunca conectou", className: "bg-mist text-muted" }
+};
+
+// Pedido do dono (2026-09-29): ver direto no card do corretor se a
+// automação da Meta Diária está rodando e se o WhatsApp individual dele
+// está conectado — mesma fonte da aba Automação (/api/admin/daily-goal-auto),
+// só consultado uma vez (não precisa do tempo real do presence).
+function useAutomationStatus() {
+  const [statusById, setStatusById] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/daily-goal-auto")
+      .then((response) => response.json())
+      .then((data) => {
+        if (cancelled || !data?.brokers) return;
+        setStatusById(Object.fromEntries(data.brokers.map((broker) => [broker.brokerId, broker])));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  return statusById;
+}
+
+function BrokerCard({ broker, presenceStatus, automation, onClick }) {
   const colors = progressColor(broker.meta.percent);
+  const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
+  const autoLabel = automation ? (!automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : "Automação rodando") : "";
+  const autoClassName = automation ? (!automation.enabled ? "bg-mist text-muted" : automation.paused ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700") : "";
 
   return (
     <button
@@ -184,6 +227,13 @@ function BrokerCard({ broker, presenceStatus, onClick }) {
           <span className="min-w-0 truncate">{broker.name}</span>
         </h3>
       </div>
+
+      {automation ? (
+        <div className="mt-2 flex flex-wrap gap-1">
+          <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex items-center justify-center">
         <div className="relative h-24 w-24 motion-reduce:[&_circle]:!transition-none">
