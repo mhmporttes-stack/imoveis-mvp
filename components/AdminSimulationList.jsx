@@ -45,7 +45,6 @@ import {
   normalizeClientStatus
 } from "@/lib/client-status";
 import { buildWhatsAppUrl, formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
-import { resolveClientWhatsappDestination } from "@/lib/whatsapp-contact-channel";
 import {
   booleanLabel,
   calculateFamilyIncome,
@@ -712,33 +711,16 @@ export default function AdminSimulationList({
 
   async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
-    // Desktop/web: abre o Chat do CRM, na mesma aba (rota interna).
-    // Mobile/app: abre o aplicativo oficial do WhatsApp direto na conversa
-    // do cliente — a mensagem enviada por lá sincroniza de volta pro Chat
-    // sozinha (sessão individual = dispositivo conectado, ver
-    // whatsapp-individual-service/src/sessions.js: onMessagesUpsert também
-    // processa mensagens fromMe, não só as recebidas do cliente).
-    // Mesmo detector de mobile já usado em AdminPwaInstallHint.jsx.
     if (!toWhatsAppDigits(value)) {
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
-    const userAgent = window.navigator.userAgent || "";
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent) || window.innerWidth < 768;
-
     try {
-      const [response, destination] = await Promise.all([
-        fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" }),
-        resolveClientWhatsappDestination(client.registration.id)
-      ]);
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-      if (isMobile) {
-        window.location.href = buildWhatsAppUrl(value);
-      } else {
-        router.push(destination.url);
-      }
+      window.open(buildWhatsAppUrl(value), "_blank", "noopener,noreferrer");
     } catch (error) {
       alert(error.message || "Não foi possível registrar o contato via WhatsApp.");
     }
