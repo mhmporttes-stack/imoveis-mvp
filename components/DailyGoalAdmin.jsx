@@ -2,6 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
+import Avatar from "./Avatar";
+
+const SESSION_STATUS_LABELS = {
+  connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
+  reconnecting: { label: "Reconectando", className: "bg-amber-50 text-amber-700" },
+  qr_required: { label: "Aguardando QR", className: "bg-amber-50 text-amber-700" },
+  connecting: { label: "Conectando", className: "bg-amber-50 text-amber-700" },
+  disconnected: { label: "Desconectado", className: "bg-red-50 text-red-700" },
+  error: { label: "Erro", className: "bg-red-50 text-red-700" },
+  nunca_conectou: { label: "Nunca conectou", className: "bg-mist text-muted" }
+};
 
 const TABS = [
   { key: "config", label: "Configurações" },
@@ -53,9 +64,16 @@ export default function DailyGoalAdmin({ initialSettings }) {
   );
 }
 
+// "OK" = rodando de verdade agora: ligada, não pausada, WhatsApp conectado
+// e sem erro em sequência acumulado.
+function isAutoHealthy(broker) {
+  return broker.enabled && !broker.paused && broker.sessionStatus === "connected" && !broker.consecutiveErrors;
+}
+
 // Visão do admin da automação da Meta Diária (pedido do dono, 2026-09-29):
-// lista quem ligou, se está pausado (e por quê) e permite pausar/retomar
-// QUALQUER corretor — inclusive quem não pausou a própria automação.
+// TODOS os corretores ativos — quem está rodando com a automação, quem está
+// conectado no WhatsApp individual e quem está OK, mesmo quem nunca mexeu
+// na automação — e permite pausar/retomar QUALQUER corretor.
 function AutomationTab() {
   const [brokers, setBrokers] = useState(null);
   const [error, setError] = useState("");
@@ -98,38 +116,62 @@ function AutomationTab() {
 
   if (!brokers) return <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>;
 
-  const active = brokers.filter((broker) => broker.enabled);
+  // Rodando de verdade primeiro, depois quem tem algum problema, por último
+  // quem nunca ligou — assim os casos que precisam de atenção aparecem no topo.
+  const sorted = [...brokers].sort((a, b) => {
+    const rank = (broker) => (isAutoHealthy(broker) ? 0 : broker.enabled ? 1 : 2);
+    return rank(a) - rank(b) || a.brokerName.localeCompare(b.brokerName, "pt-BR");
+  });
+  const runningCount = brokers.filter((broker) => broker.enabled && !broker.paused).length;
 
   return (
     <div className="space-y-6">
       <AutoMessagesEditor />
 
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
-      {!active.length ? (
-        <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Nenhum corretor ligou a automação da Meta Diária ainda.</p>
-      ) : (
-        <div className="grid gap-3">
-          {active.map((broker) => (
+
+      <p className="text-sm font-bold text-muted">{runningCount} de {brokers.length} corretores com a automação ligada.</p>
+
+      <div className="grid gap-3">
+        {sorted.map((broker) => {
+          const sessionInfo = SESSION_STATUS_LABELS[broker.sessionStatus] || SESSION_STATUS_LABELS.nunca_conectou;
+          const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : "Rodando";
+          const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+          const healthy = isAutoHealthy(broker);
+          return (
             <div key={broker.brokerId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft">
-              <div>
-                <p className="font-black text-navy">{broker.brokerName}</p>
-                <p className="text-xs font-bold text-muted">
-                  Enviadas hoje: {broker.sentToday} · Na fila: {broker.pendingToday} · Erros seguidos: {broker.consecutiveErrors}
-                </p>
-                {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
+              <div className="flex items-center gap-3">
+                <Avatar name={broker.brokerName} photoUrl={broker.brokerPhotoUrl} size={40} />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-black text-navy">{broker.brokerName}</p>
+                    <span title={healthy ? "Tudo certo" : "Precisa de atenção"}>{healthy ? "✅" : "⚠️"}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>Automação: {autoLabel}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-muted">
+                    Enviadas hoje: {broker.sentToday} · Na fila: {broker.pendingToday}
+                    {broker.consecutiveErrors ? ` · Erros seguidos: ${broker.consecutiveErrors}` : ""}
+                  </p>
+                  {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
+                </div>
               </div>
-              <button
-                type="button"
-                className="client-action-button"
-                disabled={busyId === broker.brokerId}
-                onClick={() => togglePause(broker.brokerId, !broker.paused)}
-              >
-                {broker.paused ? "Retomar" : "Pausar"}
-              </button>
+              {broker.enabled ? (
+                <button
+                  type="button"
+                  className="client-action-button"
+                  disabled={busyId === broker.brokerId}
+                  onClick={() => togglePause(broker.brokerId, !broker.paused)}
+                >
+                  {broker.paused ? "Retomar" : "Pausar"}
+                </button>
+              ) : null}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
