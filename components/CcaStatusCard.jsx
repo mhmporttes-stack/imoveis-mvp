@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle, Link2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { CLIENT_FUNNEL_STAGES, getClientFunnelStage } from "@/lib/client-status";
 
 // Mostra a CCA (foto + nome) pra qual o cliente foi enviado — clicável pra
 // trocar. Sem sub-status, sem observação, sem contador de dias e sem
@@ -13,7 +14,19 @@ import Avatar from "@/components/Avatar";
 // de wrapper própria), na frente do selo de status principal. Só aparece
 // quando o cliente já foi vinculado a alguma CCA (busca sua própria linha
 // aberta).
-export default function CcaStatusCard({ clientId, canManage }) {
+
+const FUNNEL_STAGE_ORDER = CLIENT_FUNNEL_STAGES.map((stage) => stage.key);
+const APPROVAL_STAGE_INDEX = FUNNEL_STAGE_ORDER.indexOf("approval");
+
+// Botão "Vincular a uma CCA" só aparece pra cliente já além da etapa
+// "Aguardando documentação" (pedido do dono) — clientes em Atendimento/
+// Simulação/Documentação ainda não chegaram no ponto de envio à CCA.
+function isPastDocumentationStage(clientStatus) {
+  const stageIndex = FUNNEL_STAGE_ORDER.indexOf(getClientFunnelStage(clientStatus));
+  return stageIndex !== -1 && stageIndex >= APPROVAL_STAGE_INDEX;
+}
+
+export default function CcaStatusCard({ clientId, clientStatus, canManage }) {
   const [current, setCurrent] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -73,7 +86,7 @@ export default function CcaStatusCard({ clientId, canManage }) {
   // vínculo manual, para os clientes que já estavam aguardando documentação
   // antes desta função existir.
   if (!current) {
-    if (!canManage) return null;
+    if (!canManage || !isPastDocumentationStage(clientStatus)) return null;
     return (
       <>
         <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={openForm}>

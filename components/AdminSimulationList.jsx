@@ -87,6 +87,9 @@ const MAIN_STATUS_VALUES = [
   CLIENT_STATUS.DOCUMENTATION,
   CLIENT_STATUS.DOCUMENTS_PENDING,
   CLIENT_STATUS.APPROVAL_PENDING,
+  CLIENT_STATUS.INCOME_COMMITMENT,
+  CLIENT_STATUS.CANCELLATION_LETTER,
+  CLIENT_STATUS.RESEARCH_MO,
   CLIENT_STATUS.RESTRICTION,
   CLIENT_STATUS.SHIELDING,
   CLIENT_STATUS.APPROVED,
@@ -1249,7 +1252,7 @@ function ClientCard({
             {client.registration?.clientCode ? <span className="ml-2 text-xs font-bold text-muted">{client.registration.clientCode}</span> : null}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {client.registration ? <CcaStatusCard clientId={client.registration.id} canManage={showResponsibleSelector} /> : null}
+            {client.registration ? <CcaStatusCard clientId={client.registration.id} clientStatus={client.status} canManage={showResponsibleSelector} /> : null}
             <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
             {urgency ? (
               <span className="inline-flex h-6 items-center rounded-full bg-amber-50 px-2.5 text-[10px] font-black uppercase tracking-[0.06em] text-amber-800">
