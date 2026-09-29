@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Avatar from "@/components/Avatar";
 import { weeklyChampionTitle } from "@/lib/ranking-display.mjs";
 
@@ -15,7 +15,6 @@ const REFRESH_MS = 5 * 60 * 1000;
 // periodicamente, nunca a cada troca de página.
 export default function TopRankingBadge() {
   const [data, setData] = useState(null);
-  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -54,7 +53,7 @@ export default function TopRankingBadge() {
       ? "max-w-5xl lg:grid-cols-[1.3fr_1fr_0.9fr]"
       : data.top1 ? "max-w-3xl lg:grid-cols-[1.3fr_1fr]" : "max-w-lg lg:grid-cols-1"}`}>
       {data.weeklyTop1 ? (
-        <button type="button" onClick={() => router.push("/admin/meta-diaria")} title="Ver desempenho"
+        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
           className="relative flex min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-[#E9CB73] bg-[#FFF9E9] px-3.5 py-3 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8]">
           <Laurel className="-left-2 bottom-0" />
           <Laurel className="-right-2 bottom-0 -scale-x-100" />
@@ -68,10 +67,10 @@ export default function TopRankingBadge() {
             <span className="block text-base font-extrabold text-[#B77C17]">{formatPoints(data.weeklyTop1.points)} pontos</span>
             <span className="block text-xs font-medium text-slate-600">Semana anterior</span>
           </span>
-        </button>
+        </SceneTransitionLink>
       ) : null}
       {data.top1 ? (
-        <button type="button" onClick={() => router.push("/admin/meta-diaria")} title="Ver desempenho"
+        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
           className="flex min-w-0 items-center gap-3 rounded-3xl border border-[#C9DDF6] bg-[#F8FBFF] px-3.5 py-3 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF]">
           <span className="relative shrink-0">
             <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={58} className="border-2 !border-[#A9C8EC]" />
@@ -82,7 +81,7 @@ export default function TopRankingBadge() {
             <span className="mt-0.5 block truncate text-lg font-extrabold text-navy">{data.top1.name}</span>
             <span className="block text-base font-extrabold text-[#2370BC]">{formatPoints(data.top1.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
           </span>
-        </button>
+        </SceneTransitionLink>
       ) : null}
       {showMyRank ? (
         <div className="flex min-w-0 items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 text-navy shadow-[0_2px_10px_rgba(13,59,102,0.06)]">

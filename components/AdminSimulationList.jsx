@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
 import CcaStatusCard from "@/components/CcaStatusCard";
@@ -797,14 +798,15 @@ export default function AdminSimulationList({
             {brokerSimulationLink ? <button type="button" onClick={copyBrokerSimulationLink} aria-label="Copiar link de simulação" title="Copiar link de simulação" className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12">
               {copyFeedback === "Link copiado" ? <Check className="h-5 w-5" aria-hidden="true" /> : <Link2 className="h-5 w-5" aria-hidden="true" />}
             </button> : null}
-            <Link
+            <SceneTransitionLink
               href="/admin/meta-diaria"
+              direction="forward"
               aria-label="Meta Diária"
               title="Meta Diária"
               className="inline-flex h-10 min-w-0 items-center justify-center rounded-2xl border border-line bg-white text-navy transition hover:border-brand hover:bg-brand/5 sm:h-12 lg:w-12"
             >
               <Target className="h-5 w-5" aria-hidden="true" />
-            </Link>
+            </SceneTransitionLink>
           </div>
         </div>
 
