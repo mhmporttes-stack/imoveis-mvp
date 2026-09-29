@@ -1,5 +1,6 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
+import CelebrationsManager from "@/components/celebrations/CelebrationsManager";
 import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
 import NewClientSoundSettings from "@/components/NewClientSoundSettings";
@@ -17,6 +18,7 @@ import { listAutomationRules } from "@/lib/crm-automations";
 import { getWhatsappMasterSettings } from "@/lib/crm";
 import { getDailyMessageSettings } from "@/lib/daily-message";
 import { listLeadDistributionDashboard } from "@/lib/lead-distribution";
+import { canLoadCelebrations, listCelebrationTriggers, listMessageTemplates, formatCelebrationsError } from "@/lib/celebrations";
 import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, listWhatsappMasterEvents, listWhatsappMessageTemplates } from "@/lib/whatsapp-master";
 import { listWhatsappAutomationReplies } from "@/lib/whatsapp-automation-replies";
 import Link from "next/link";
@@ -24,7 +26,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "whatsapp-master", "flows", "disparos"];
+const TABS = ["rules", "roulette", "daily-message", "incentivo", "whatsapp-master", "flows", "disparos"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
@@ -34,14 +36,15 @@ export default async function AutomationsPage({ searchParams }) {
   // link antigo cai na aba padrão.
   if (tabParam === "whatsapp-chat") redirect("/admin/chat");
   const tab = TABS.includes(tabParam) ? tabParam : "rules";
-  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates, flows] = await Promise.all([
+  const [rules, users, distribution, dailyMessageSettings, whatsappData, whatsappTemplates, flows, celebrationsData] = await Promise.all([
     tab === "rules" ? listAutomationRules() : Promise.resolve([]),
-    tab === "rules" ? listAdminProfiles() : Promise.resolve([]),
+    tab === "rules" || tab === "incentivo" ? listAdminProfiles() : Promise.resolve([]),
     tab === "roulette" ? listLeadDistributionDashboard() : Promise.resolve(null),
     tab === "daily-message" ? getDailyMessageSettings() : Promise.resolve(null),
     tab === "whatsapp-master" ? loadWhatsappMasterData() : Promise.resolve(null),
     tab === "rules" ? listWhatsappMessageTemplates().catch(() => []) : Promise.resolve([]),
-    tab === "flows" ? listWhatsappFlows().catch(() => null) : Promise.resolve(null)
+    tab === "flows" ? listWhatsappFlows().catch(() => null) : Promise.resolve(null),
+    tab === "incentivo" ? loadCelebrationsData(auth) : Promise.resolve(null)
   ]);
 
   return (
@@ -55,6 +58,16 @@ export default async function AutomationsPage({ searchParams }) {
         </>
       ) : tab === "daily-message" ? (
         <DailyMessageAdmin initialSettings={dailyMessageSettings} />
+      ) : tab === "incentivo" ? (
+        celebrationsData?.error ? (
+          <p className="container-page rounded-2xl bg-red-50 px-4 py-3 font-bold text-red-700">{celebrationsData.error}</p>
+        ) : (
+          <CelebrationsManager
+            initialTriggers={celebrationsData?.triggers || []}
+            initialTemplates={celebrationsData?.templates || []}
+            brokers={users.filter((user) => user.status === "active")}
+          />
+        )
       ) : tab === "whatsapp-master" ? (
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
@@ -72,6 +85,16 @@ export default async function AutomationsPage({ searchParams }) {
       )}
     </main>
   );
+}
+
+async function loadCelebrationsData(auth) {
+  if (!canLoadCelebrations()) return { error: "Configure o Supabase para carregar o Incentivo." };
+  try {
+    const [triggers, templates] = await Promise.all([listCelebrationTriggers(auth), listMessageTemplates(auth)]);
+    return { triggers, templates };
+  } catch (error) {
+    return { error: formatCelebrationsError(error) };
+  }
 }
 
 async function loadWhatsappMasterData() {
@@ -99,6 +122,7 @@ const SUBMENU_ITEMS = [
   { key: "rules", label: "Regras", href: "/admin/automacoes" },
   { key: "roulette", label: "Roleta", href: "/admin/automacoes?tab=roulette" },
   { key: "daily-message", label: "Mensagem do Dia", href: "/admin/automacoes?tab=daily-message" },
+  { key: "incentivo", label: "Incentivo", href: "/admin/automacoes?tab=incentivo" },
   { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
   { key: "flows", label: "Fluxos", href: "/admin/automacoes?tab=flows" },
   { key: "disparos", label: "Disparos", href: "/admin/automacoes?tab=disparos" }

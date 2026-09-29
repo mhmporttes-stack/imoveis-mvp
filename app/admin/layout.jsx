@@ -1,6 +1,7 @@
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
+import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import TopRankingBadge from "@/components/TopRankingBadge";
@@ -18,6 +19,7 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <AdminPresenceHeartbeat userId={auth.profile?.id} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
+      {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
       {auth.ok ? (
         // Ranking no início da página, no fluxo normal: rola junto com o
         // conteúdo e nunca fica sobre os cards de clientes.
