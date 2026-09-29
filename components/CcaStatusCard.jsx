@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, History as HistoryIcon, LoaderCircle, Pencil } from "lucide-react";
+import { Clock, History as HistoryIcon, LoaderCircle, Link2, Pencil } from "lucide-react";
 import { daysSince, ccaStatusDayColorKey, ccaStatusBadgeLabel } from "@/lib/cca-status-presentation.mjs";
 
 const COLOR_CLASSES = {
@@ -78,7 +78,32 @@ export default function CcaStatusCard({ clientId, canManage }) {
     }
   }
 
-  if (!loaded || !current) return null;
+  if (!loaded) return null;
+
+  // Cliente ainda sem nenhuma linha de acompanhamento (nunca passou pelo
+  // envio automático) — vínculo manual, para os clientes que já estavam
+  // aguardando documentação antes desta função existir.
+  if (!current) {
+    if (!canManage) return null;
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={openForm}>
+          <Link2 className="h-3 w-3" /> Vincular a uma CCA
+        </button>
+        {error ? <p className="w-full text-xs font-bold text-red-700">{error}</p> : null}
+        {showForm ? (
+          <CcaStatusForm
+            current={null}
+            stages={stages}
+            ccaList={ccaList}
+            busy={busy}
+            onCancel={() => setShowForm(false)}
+            onSave={handleSave}
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   const days = daysSince(current.enteredAt);
   const colorKey = ccaStatusDayColorKey(days);
@@ -129,8 +154,8 @@ export default function CcaStatusCard({ clientId, canManage }) {
 }
 
 function CcaStatusForm({ current, stages, ccaList, busy, onCancel, onSave }) {
-  const [statusId, setStatusId] = useState(current.status?.id || "");
-  const [ccaId, setCcaId] = useState(current.cca?.id || "");
+  const [statusId, setStatusId] = useState(current?.status?.id || "");
+  const [ccaId, setCcaId] = useState(current?.cca?.id || "");
   const [observation, setObservation] = useState("");
 
   function handleSubmit(event) {
