@@ -3,7 +3,8 @@ import AdminViewAsBanner from "@/components/AdminViewAsBanner";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import TopRankingBadge from "@/components/TopRankingBadge";
-import PageTransition from "@/components/motion/PageTransition";
+import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
+import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,8 @@ export default async function AdminLayout({ children }) {
           </header>
         </div>
       ) : null}
-      <PageTransition>{children}</PageTransition>
+      <SceneTransitionRoot>{children}</SceneTransitionRoot>
+      <SceneSkipCatcher />
     </>
   );
 }

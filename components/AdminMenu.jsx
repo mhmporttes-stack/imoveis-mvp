@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { CalendarDays, CircleDot, MessageCircle, UserRoundPlus } from "lucide-react";
@@ -299,20 +300,26 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       </nav>
 
       {(isAdmin && visibleGroup === "clientes") || (isBroker && visibleGroup === "crm") ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
-        {visibleItems.map((item) => (
-          <Link
-            key={`${visibleGroup}-${item.key}`}
-            href={item.href}
-            className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
-              isActiveItem(item, active)
-                ? "admin-nav-current bg-navy text-white shadow-soft"
-                : "text-navy hover:bg-brand/10 hover:text-brand"
-            }`}
-          >
-            {item.label}
-            {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
-          </Link>
-        ))}
+        {visibleItems.map((item) => {
+          // Meta Diária ganha a coreografia de cenas (SceneTransitionLink)
+          // ao entrar/sair dela; os demais itens continuam com o Link normal.
+          const ItemLink = item.key === "daily-goal" ? SceneTransitionLink : Link;
+          return (
+            <ItemLink
+              key={`${visibleGroup}-${item.key}`}
+              href={item.href}
+              {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
+              className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
+                isActiveItem(item, active)
+                  ? "admin-nav-current bg-navy text-white shadow-soft"
+                  : "text-navy hover:bg-brand/10 hover:text-brand"
+              }`}
+            >
+              {item.label}
+              {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
+            </ItemLink>
+          );
+        })}
       </div>}
     </div>
   );
