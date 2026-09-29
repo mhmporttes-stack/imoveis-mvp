@@ -101,7 +101,9 @@ function AutomationTab() {
   const active = brokers.filter((broker) => broker.enabled);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <AutoMessagesEditor />
+
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
       {!active.length ? (
         <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Nenhum corretor ligou a automação da Meta Diária ainda.</p>
@@ -128,6 +130,96 @@ function AutomationTab() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const AUTO_MESSAGE_FIELDS = [
+  { key: "message1", label: "1ª tentativa" },
+  { key: "message2", label: "2ª tentativa" },
+  { key: "message3", label: "3ª tentativa" }
+];
+
+// 4 variações por tentativa, sorteadas pela automação sem repetir a última
+// usada — pedido do dono (2026-09-29): variar o texto entre várias opções
+// reduz o padrão repetitivo que ajuda a banir número no WhatsApp.
+function AutoMessagesEditor() {
+  const [drafts, setDrafts] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/daily-goal-auto/messages").then((r) => r.json()).then((data) => setDrafts(data)).catch(() => {});
+  }, []);
+
+  function updateVariant(key, index, value) {
+    setDrafts((current) => {
+      const next = { ...current, [key]: [...(current[key] || [])] };
+      next[key][index] = value;
+      return next;
+    });
+  }
+
+  async function save() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(drafts)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setDrafts(data);
+      setFeedback("Mensagens da automação salvas.");
+    } catch (error) {
+      setFeedback(error.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+      <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
+        <div>
+          <h3 className="text-lg font-black text-navy">Mensagens da automação (4 variações por tentativa)</h3>
+          <p className="mt-1 text-xs font-bold text-muted">Sorteadas sem repetir a última usada. Variável disponível: {"{primeiro_nome}"}</p>
+        </div>
+        <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
+      </button>
+
+      {open ? (
+        !drafts ? (
+          <p className="mt-4 text-sm font-bold text-muted">Carregando…</p>
+        ) : (
+          <div className="mt-4 space-y-6">
+            {AUTO_MESSAGE_FIELDS.map((field) => (
+              <div key={field.key}>
+                <p className="text-sm font-black text-navy">{field.label}</p>
+                <div className="mt-2 grid gap-2">
+                  {(drafts[field.key] || ["", "", "", ""]).map((text, index) => (
+                    <textarea
+                      key={index}
+                      className="w-full rounded-2xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"
+                      rows={2}
+                      placeholder={`Variação ${index + 1}`}
+                      value={text}
+                      onChange={(event) => updateVariant(field.key, index, event.target.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {feedback ? <p className="text-sm font-bold text-navy">{feedback}</p> : null}
+            <button type="button" className="premium-button-primary" disabled={busy} onClick={save}>
+              {busy ? "Salvando..." : "Salvar mensagens da automação"}
+            </button>
+          </div>
+        )
+      ) : null}
     </div>
   );
 }
