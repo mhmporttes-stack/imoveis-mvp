@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, History as HistoryIcon, LoaderCircle, Link2, Pencil } from "lucide-react";
-import { daysSince, ccaStatusDayColorKey, ccaStatusBadgeLabel } from "@/lib/cca-status-presentation.mjs";
+import { History as HistoryIcon, LoaderCircle, Link2, RefreshCw } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import { daysSince, ccaStatusDayColorKey } from "@/lib/cca-status-presentation.mjs";
 
 const COLOR_CLASSES = {
   green: "bg-emerald-50 text-emerald-700",
@@ -12,16 +13,17 @@ const COLOR_CLASSES = {
 
 const date = (value) => (value ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "");
 
-// Selo + contador de dias + seletor de sub-status do acompanhamento na CCA.
-// Só aparece quando o cliente já foi enviado a alguma CCA (busca sua própria
-// linha aberta) — cliente nunca enviado não mostra nada aqui.
+// Mostra a CCA (foto + nome) pra qual o cliente foi enviado, com "há X dias"
+// colorido, e deixa trocar a CCA. Sem sub-status nem observação — o
+// acompanhamento de etapa já existe na esteira principal do cliente
+// (Documentação/Aprovação/Restrição/Blindagem etc.). Só aparece quando o
+// cliente já foi vinculado a alguma CCA (busca sua própria linha aberta).
 export default function CcaStatusCard({ clientId, canManage }) {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [stages, setStages] = useState([]);
   const [ccaList, setCcaList] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -39,31 +41,25 @@ export default function CcaStatusCard({ clientId, canManage }) {
   async function openForm() {
     setError("");
     setShowForm(true);
-    if (stages.length && ccaList.length) return;
+    if (ccaList.length) return;
     try {
-      const [stagesRes, ccaRes] = await Promise.all([
-        fetch("/api/admin/cca-status-stages?onlyActive=1"),
-        fetch("/api/admin/cca?onlyActive=1")
-      ]);
-      const stagesData = await stagesRes.json().catch(() => ({}));
-      const ccaData = await ccaRes.json().catch(() => ({}));
-      if (!stagesRes.ok) throw new Error(stagesData.error);
-      if (!ccaRes.ok) throw new Error(ccaData.error);
-      setStages(stagesData.stages || []);
-      setCcaList(ccaData.cca || []);
+      const response = await fetch("/api/admin/cca?onlyActive=1");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error);
+      setCcaList(data.cca || []);
     } catch (e) {
-      setError(e.message || "Não foi possível carregar as opções.");
+      setError(e.message || "Não foi possível carregar as CCAs.");
     }
   }
 
-  async function handleSave({ statusId, ccaId, observation }) {
+  async function handleSave({ ccaId }) {
     setBusy(true);
     setError("");
     try {
       const response = await fetch("/api/admin/client-cca-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, statusId, ccaId, observation })
+        body: JSON.stringify({ clientId, ccaId })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
@@ -80,9 +76,9 @@ export default function CcaStatusCard({ clientId, canManage }) {
 
   if (!loaded) return null;
 
-  // Cliente ainda sem nenhuma linha de acompanhamento (nunca passou pelo
-  // envio automático) — vínculo manual, para os clientes que já estavam
-  // aguardando documentação antes desta função existir.
+  // Cliente ainda sem nenhum vínculo (nunca passou pelo envio automático) —
+  // vínculo manual, para os clientes que já estavam aguardando documentação
+  // antes desta função existir.
   if (!current) {
     if (!canManage) return null;
     return (
@@ -91,32 +87,26 @@ export default function CcaStatusCard({ clientId, canManage }) {
           <Link2 className="h-3 w-3" /> Vincular a uma CCA
         </button>
         {error ? <p className="w-full text-xs font-bold text-red-700">{error}</p> : null}
-        {showForm ? (
-          <CcaStatusForm
-            current={null}
-            stages={stages}
-            ccaList={ccaList}
-            busy={busy}
-            onCancel={() => setShowForm(false)}
-            onSave={handleSave}
-          />
-        ) : null}
+        {showForm ? <CcaLinkForm ccaId="" ccaList={ccaList} busy={busy} onCancel={() => setShowForm(false)} onSave={handleSave} /> : null}
       </div>
     );
   }
 
   const days = daysSince(current.enteredAt);
   const colorKey = ccaStatusDayColorKey(days);
-  const badge = ccaStatusBadgeLabel({ statusKey: current.status?.key, statusLabel: current.status?.label, ccaName: current.cca?.name });
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 rounded-full border border-line py-0.5 pl-0.5 pr-2.5">
+        <Avatar name={current.cca?.name} photoUrl={current.cca?.photoUrl} size={24} />
+        <span className="max-w-[120px] truncate text-[11px] font-black text-navy" title={current.cca?.name}>{current.cca?.name}</span>
+      </div>
       <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-black uppercase tracking-[0.06em] ${COLOR_CLASSES[colorKey]}`}>
-        <Clock className="mr-1 h-3 w-3" /> {badge} · há {days} {days === 1 ? "dia" : "dias"}
+        há {days} {days === 1 ? "dia" : "dias"}
       </span>
       {canManage ? (
         <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={openForm}>
-          <Pencil className="h-3 w-3" /> Mudar status
+          <RefreshCw className="h-3 w-3" /> Trocar CCA
         </button>
       ) : null}
       {history.length ? (
@@ -127,24 +117,15 @@ export default function CcaStatusCard({ clientId, canManage }) {
 
       {error ? <p className="w-full text-xs font-bold text-red-700">{error}</p> : null}
 
-      {showForm ? (
-        <CcaStatusForm
-          current={current}
-          stages={stages}
-          ccaList={ccaList}
-          busy={busy}
-          onCancel={() => setShowForm(false)}
-          onSave={handleSave}
-        />
-      ) : null}
+      {showForm ? <CcaLinkForm ccaId={current.cca?.id || ""} ccaList={ccaList} busy={busy} onCancel={() => setShowForm(false)} onSave={handleSave} /> : null}
 
       {showHistory ? (
         <ul className="mt-1 w-full space-y-1 rounded-2xl border border-line bg-mist/40 p-3">
           {history.map((entry) => (
-            <li key={entry.id} className="text-xs font-bold text-navy/80">
-              {ccaStatusBadgeLabel({ statusKey: entry.status?.key, statusLabel: entry.status?.label, ccaName: entry.cca?.name })}
+            <li key={entry.id} className="flex items-center gap-2 text-xs font-bold text-navy/80">
+              <Avatar name={entry.cca?.name} photoUrl={entry.cca?.photoUrl} size={20} />
+              {entry.cca?.name || "—"}
               {" — "}{date(entry.enteredAt)}{entry.exitedAt ? ` até ${date(entry.exitedAt)}` : " (atual)"}
-              {entry.observation ? <span className="block text-[11px] font-normal text-muted">{entry.observation}</span> : null}
             </li>
           ))}
         </ul>
@@ -153,41 +134,24 @@ export default function CcaStatusCard({ clientId, canManage }) {
   );
 }
 
-function CcaStatusForm({ current, stages, ccaList, busy, onCancel, onSave }) {
-  const [statusId, setStatusId] = useState(current?.status?.id || "");
-  const [ccaId, setCcaId] = useState(current?.cca?.id || "");
-  const [observation, setObservation] = useState("");
+function CcaLinkForm({ ccaId: initialCcaId, ccaList, busy, onCancel, onSave }) {
+  const [ccaId, setCcaId] = useState(initialCcaId || "");
 
   function handleSubmit(event) {
     event.preventDefault();
-    onSave({ statusId, ccaId, observation });
+    onSave({ ccaId });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-1 w-full space-y-2 rounded-2xl border border-line bg-white p-3 shadow-soft">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="text-[11px] font-black text-navy">
-          Status
-          <select className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={statusId} onChange={(e) => setStatusId(e.target.value)} required>
-            <option value="" disabled>Selecione...</option>
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>{stage.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-[11px] font-black text-navy">
-          CCA
-          <select className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" value={ccaId} onChange={(e) => setCcaId(e.target.value)} required>
-            <option value="" disabled>Selecione...</option>
-            {ccaList.map((cca) => (
-              <option key={cca.id} value={cca.id}>{cca.name}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <label className="block text-[11px] font-black text-navy">
-        Observação
-        <textarea className="mt-1 w-full rounded-lg border border-line p-2 text-sm font-normal" rows={2} value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="O que a CCA pediu, de quem falta a carta, motivo da reprovação..." />
+    <form onSubmit={handleSubmit} className="mt-1 flex w-full flex-wrap items-end gap-2 rounded-2xl border border-line bg-white p-3 shadow-soft">
+      <label className="text-[11px] font-black text-navy">
+        CCA
+        <select className="mt-1 w-full min-w-[180px] rounded-lg border border-line p-2 text-sm font-normal" value={ccaId} onChange={(e) => setCcaId(e.target.value)} required>
+          <option value="" disabled>Selecione...</option>
+          {ccaList.map((cca) => (
+            <option key={cca.id} value={cca.id}>{cca.name}</option>
+          ))}
+        </select>
       </label>
       <div className="flex gap-2">
         <button type="button" className="premium-button-secondary" onClick={onCancel}>Cancelar</button>
