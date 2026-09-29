@@ -5,8 +5,6 @@ import NewClientSoundListener from "@/components/NewClientSoundListener";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import PageTransition from "@/components/motion/PageTransition";
 import { getAdminFromCookies } from "@/lib/admin-auth";
-import NeuralLauncher from "@/components/NeuralLauncher";
-import { neuralEnabled, neuralOwner } from "@/lib/neural/access";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +35,6 @@ export default async function AdminLayout({ children }) {
         </div>
       ) : null}
       <PageTransition>{children}</PageTransition>
-      {neuralEnabled() && neuralOwner(auth) ? <NeuralLauncher /> : null}
     </>
   );
 }
