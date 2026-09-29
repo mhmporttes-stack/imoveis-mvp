@@ -8,12 +8,11 @@ import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
 
 // Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
-// tela continua usando a identidade azul/navy padrão do CRM.
-function progressColor(percent) {
-  if (percent >= 100) return { stroke: "#059669", ring: "text-emerald-600", chip: "bg-emerald-50 text-emerald-700" };
-  if (percent >= 50) return { stroke: "#ea580c", ring: "text-orange-600", chip: "bg-orange-50 text-orange-700" };
-  return { stroke: "#dc2626", ring: "text-red-600", chip: "bg-red-50 text-red-700" };
-}
+// tela continua usando a identidade azul/navy padrão do CRM. A cor do anel e
+// do percentual acompanha o valor em tempo real durante a animação (0%
+// vermelho, 50% laranja, 100% verde), não só o resultado final.
+const PROGRESS_COLOR_STOPS = ["#dc2626", "#ea580c", "#059669"];
+const PROGRESS_COLOR_POSITIONS = [0, 50, 100];
 
 const RADIUS = 45;
 
@@ -34,8 +33,6 @@ export default function DailyGoalDashboard({ initialGoal }) {
       </section>
     );
   }
-
-  const colors = progressColor(goal.percent);
 
   async function handleAttempt(roundId, message) {
     setError("");
@@ -79,9 +76,25 @@ export default function DailyGoalDashboard({ initialGoal }) {
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         <div className="flex flex-col items-center gap-3">
           <div className="relative h-40 w-40">
-            <AnimatedRing percent={goal.percent} radius={RADIUS} color={colors.stroke} introOvershoot className="h-full w-full" />
+            <AnimatedRing
+              percent={goal.percent}
+              radius={RADIUS}
+              colorStops={PROGRESS_COLOR_STOPS}
+              colorStopPositions={PROGRESS_COLOR_POSITIONS}
+              introOvershoot
+              introDuration={3}
+              className="h-full w-full"
+            />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <AnimatedNumber value={goal.percent} format={(n) => `${Math.round(n)}%`} introOvershoot className={`text-3xl font-black ${colors.ring}`} />
+              <AnimatedNumber
+                value={goal.percent}
+                format={(n) => `${Math.round(n)}%`}
+                introOvershoot
+                introDuration={3}
+                colorStops={PROGRESS_COLOR_STOPS}
+                colorStopPositions={PROGRESS_COLOR_POSITIONS}
+                className="text-3xl font-black"
+              />
             </div>
           </div>
           <ul className="w-full max-w-xs space-y-1.5">
