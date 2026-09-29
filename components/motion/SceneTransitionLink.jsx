@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { animate } from "motion/react";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
-import { beginScene, markSceneDone, getActiveSnapshot, setPendingDirection } from "./scene-transition-store";
+import { beginScene, markSceneDone, getActiveSnapshot, setPendingDirection, startLoadingIndicator } from "./scene-transition-store";
 import { EXIT_DURATION, REVERSE_DURATION, ROOT_ID, STAGGER_GAP } from "./scene-transition-constants";
 
 // Link reutilizável que toca a Cena 1 (saída) enquanto navega: os blocos
@@ -47,7 +47,14 @@ export default function SceneTransitionLink({ href, direction = "forward", class
     const duration = direction === "forward" ? EXIT_DURATION : REVERSE_DURATION;
     const controls = animate(blocks, { x: exitX, opacity: 0 }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.4, 0, 0.2, 1] });
 
-    const finish = () => markSceneDone();
+    // A Cena 1 já pode ter terminado (ou sido pulada) antes da tela de
+    // destino terminar de carregar — mostra um indicador nesse meio-tempo
+    // em vez de deixar a tela em branco parada. startLoadingIndicator()
+    // ignora a chamada se a navegação já chegou nesse instante.
+    const finish = () => {
+      markSceneDone();
+      startLoadingIndicator();
+    };
     beginScene({ controls, onFinish: finish });
     controls.then(finish);
   }

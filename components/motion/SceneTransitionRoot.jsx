@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { animate } from "motion/react";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
-import { beginScene, markSceneDone, releaseSceneReady, consumePendingDirection } from "./scene-transition-store";
+import { beginScene, markSceneDone, releaseSceneReady, consumePendingDirection, stopLoadingIndicator } from "./scene-transition-store";
 import { ENTER_DURATION, REVERSE_DURATION, ROOT_ID, STAGGER_GAP } from "./scene-transition-constants";
 
 // Vive uma vez só no layout compartilhado (app/admin/layout.jsx), envolvendo
@@ -29,6 +29,10 @@ export default function SceneTransitionRoot({ children }) {
       firstRender.current = false;
       return;
     }
+    // A página de destino já montou — se o indicador de carregamento
+    // (mostrado quando a Cena 1 termina antes dos dados chegarem) estava
+    // ligado, desliga agora, com ou sem Cena 2 pela frente.
+    stopLoadingIndicator();
     const direction = consumePendingDirection();
     if (!direction || reducedMotion || !rootRef.current) {
       releaseSceneReady();

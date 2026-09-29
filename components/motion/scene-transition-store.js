@@ -12,17 +12,22 @@
 // cena de entrada terminar.
 let sceneReady = true;
 let active = false;
+let loading = false;
 let onSkip = null;
 let pendingDirection = null;
 
 const readyListeners = new Set();
 const activeListeners = new Set();
+const loadingListeners = new Set();
 
 function emitReady() {
   for (const listener of readyListeners) listener();
 }
 function emitActive() {
   for (const listener of activeListeners) listener();
+}
+function emitLoading() {
+  for (const listener of loadingListeners) listener();
 }
 
 export function getSceneReadySnapshot() {
@@ -65,6 +70,33 @@ export function markSceneDone() {
 export function releaseSceneReady() {
   sceneReady = true;
   emitReady();
+}
+
+export function getLoadingSnapshot() {
+  return loading;
+}
+export function subscribeLoading(listener) {
+  loadingListeners.add(listener);
+  return () => loadingListeners.delete(listener);
+}
+
+// Cena 1 (saída) já terminou de tocar, mas a navegação ainda não chegou —
+// mostra um indicador em vez de deixar a tela em branco parada (era isso
+// que "sumia" quando a página de destino demorava mais que a duração da
+// própria animação de saída). Ignorado se a transição já foi concluída
+// nesse meio-tempo (corrida entre o fim da Cena 1 e a chegada dos dados).
+export function startLoadingIndicator() {
+  if (sceneReady) return;
+  loading = true;
+  emitLoading();
+}
+
+// Chamado sempre que a página de destino efetivamente monta (com ou sem
+// Cena 2), pra garantir que o indicador nunca fique preso ligado.
+export function stopLoadingIndicator() {
+  if (!loading) return;
+  loading = false;
+  emitLoading();
 }
 
 // Toque em qualquer lugar da tela durante uma cena ativa (SceneSkipCatcher).
