@@ -196,10 +196,12 @@ function CrmBreakdown({ counts, onClose, alignLeft = false }) {
 
 export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false }) {
   const pathname = usePathname();
-  // Gestor enxerga exatamente o mesmo menu do administrador geral — o que
-  // ele nao deve ver (financeiro da imobiliaria, clientes do dono) e barrado
-  // nas proprias paginas/consultas, nao escondendo o item de menu.
-  const groups = isAdmin ? ownerGroups : isManager ? adminGroups : isBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  // Gestor agora enxerga o mesmo padrão de menu do corretor (pedido do dono,
+  // 2026-09-29): CRM/CADASTROS/DESEMPENHO, CRM colapsado num único pill com
+  // selo. A checagem de permissão real continua nas próprias páginas/
+  // consultas (gestor vê o time inteiro, não só ele) — isso é só o menu.
+  const treatAsBroker = isBroker || isManager;
+  const groups = isAdmin ? ownerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
   const crmCounts = useCrmBadgeCounts();
@@ -253,13 +255,13 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
 
   return (
     <div className="space-y-2" ref={menuRef}>
-      <nav className={`flex w-full justify-center gap-2.5 ${isBroker ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
+      <nav className={`flex w-full justify-center gap-2.5 ${treatAsBroker ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
 
           if (group.href) {
-            if (isBroker && group.key === "crm") {
+            if (treatAsBroker && group.key === "crm") {
               return (
                 <div key={group.key} ref={crmPopoverRef} className="relative flex min-w-0 flex-1">
                   <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => onMainGroupClick(event, group)}>
@@ -274,7 +276,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
               <div key={group.key} ref={["clientes", "crm"].includes(group.key) ? crmPopoverRef : null} className="relative flex min-w-[130px] flex-1">
               <Link
                 href={group.href}
-                className={`${buttonClass(highlighted, isBroker)} w-full`}
+                className={`${buttonClass(highlighted, treatAsBroker)} w-full`}
                 aria-expanded={["clientes", "crm"].includes(group.key) && crmCount > 0 ? showCrmDetails : undefined}
                 onClick={(event) => onMainGroupClick(event, group)}
               >
@@ -290,7 +292,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             <button
               key={group.key}
               type="button"
-              className={buttonClass(highlighted, isBroker)}
+              className={buttonClass(highlighted, treatAsBroker)}
               onClick={() => setVisibleGroup(group.key)}
             >
               {group.label}
@@ -299,7 +301,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      {(isAdmin && visibleGroup === "clientes") || (isBroker && visibleGroup === "crm") ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
+      {(isAdmin && visibleGroup === "clientes") || (treatAsBroker && visibleGroup === "crm") ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => {
           // Meta Diária ganha a coreografia de cenas (SceneTransitionLink)
           // ao entrar/sair dela; os demais itens continuam com o Link normal.
