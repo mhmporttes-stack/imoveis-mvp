@@ -7,12 +7,17 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 import { beginScene, markSceneDone, getActiveSnapshot, setPendingDirection } from "./scene-transition-store";
 import { EXIT_DURATION, REVERSE_DURATION, ROOT_ID, STAGGER_GAP } from "./scene-transition-constants";
 
-// Link reutilizável que toca a Cena 1 (saída) antes de navegar: os blocos
+// Link reutilizável que toca a Cena 1 (saída) enquanto navega: os blocos
 // diretos da tela atual (dentro de #scene-transition-root, montado uma vez
 // em app/admin/layout.jsx) saem para a lateral em sequência curta (stagger)
 // — só transform (x) e opacity. Ao terminar (ou ser pulado por um toque na
-// tela, via SceneSkipCatcher), navega de verdade; a Cena 2 (entrada) é
-// tocada por SceneTransitionRoot ao detectar a chegada.
+// tela, via SceneSkipCatcher), a Cena 2 (entrada) é tocada por
+// SceneTransitionRoot ao detectar a chegada.
+//
+// A navegação começa JUNTO com a Cena 1 (não depois dela) — se a tela nova
+// depender de dado do servidor, o carregamento acontece escondido durante os
+// segundos da própria animação em vez de criar uma pausa parada depois que
+// a Cena 1 já terminou (era isso que fazia a transição parecer "sem efeito").
 //
 // direction="forward": sai para a esquerda, dura EXIT_DURATION.
 // direction="backward" (voltar): espelhado, dura REVERSE_DURATION (mais curto).
@@ -31,22 +36,18 @@ export default function SceneTransitionLink({ href, direction = "forward", class
     }
     if (getActiveSnapshot()) return;
 
+    setPendingDirection(direction);
+    router.push(href);
+
     const root = document.getElementById(ROOT_ID);
     const blocks = root ? Array.from(root.children) : [];
-    if (!blocks.length) {
-      router.push(href);
-      return;
-    }
+    if (!blocks.length) return;
 
     const exitX = direction === "forward" ? "-15%" : "15%";
     const duration = direction === "forward" ? EXIT_DURATION : REVERSE_DURATION;
     const controls = animate(blocks, { x: exitX, opacity: 0 }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.4, 0, 0.2, 1] });
 
-    const finish = () => {
-      markSceneDone();
-      setPendingDirection(direction);
-      router.push(href);
-    };
+    const finish = () => markSceneDone();
     beginScene({ controls, onFinish: finish });
     controls.then(finish);
   }
