@@ -715,13 +715,22 @@ export default function AdminSimulationList({
       alert("Este cliente não possui um WhatsApp válido.");
       return;
     }
+    // Abre a aba em branco AGORA, no clique — ainda sincronamente ligada ao
+    // gesto do usuário — e só troca a URL dela depois do fetch. window.open
+    // só depois de um await é bloqueado como pop-up em vários navegadores
+    // (mesmo padrão de correção usado em DailyGoalDashboard/ProspectingManager).
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     try {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-      window.open(buildWhatsAppUrl(value), "_blank", "noopener,noreferrer");
+      const whatsappUrl = buildWhatsAppUrl(value);
+      if (popup) popup.location.href = whatsappUrl;
+      else window.location.assign(whatsappUrl);
     } catch (error) {
+      popup?.close();
       alert(error.message || "Não foi possível registrar o contato via WhatsApp.");
     }
   }
