@@ -66,6 +66,7 @@ export default async function AutomationsPage({ searchParams }) {
             initialTriggers={celebrationsData?.triggers || []}
             initialTemplates={celebrationsData?.templates || []}
             brokers={users.filter((user) => user.status === "active")}
+            adminName={(auth.profile?.name || "").split(/\s+/)[0] || ""}
           />
         )
       ) : tab === "whatsapp-master" ? (

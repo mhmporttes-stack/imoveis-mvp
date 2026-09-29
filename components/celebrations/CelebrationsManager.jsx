@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import CelebrationOverlay from "./CelebrationOverlay";
 
 const BASE_ANIMATIONS = ["confete", "fogos", "moedas", "coroa"];
@@ -31,18 +32,30 @@ function formatDateTimeSP(value) {
   }
 }
 
-function resolveSampleText(text) {
-  return String(text || "").replace(/\[nome\]/g, "Você").replace(/\[N\]/g, "5");
+// Sem corretor de verdade na prévia: usa o nome de quem está testando (o
+// admin/gestor logado) se disponível; senão remove o placeholder da frase em
+// vez de mostrar um nome falso ("Você").
+function resolveSampleText(text, name) {
+  const raw = String(text || "");
+  if (name) return raw.replace(/\[nome\]/g, name).replace(/\[N\]/g, "5");
+  return raw
+    .replace(/,\s*\[nome\]/g, "")
+    .replace(/\[nome\]\s*,\s*/g, "")
+    .replace(/\[nome\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([!.,])/g, "$1")
+    .trim()
+    .replace(/\[N\]/g, "5");
 }
 
 // O "Testar" nunca chama a API: monta uma amostra local a partir das
 // mensagens já cadastradas (ou um texto genérico, se o gatilho ainda não
 // tiver nenhuma) e resolve a animação do mesmo jeito que o motor faria.
-function sampleMessageForTrigger(trigger, templates) {
+function sampleMessageForTrigger(trigger, templates, adminName) {
   const active = templates.filter((item) => item.trigger_key === trigger.key && item.active);
   const chosen = active.length ? active[Math.floor(Math.random() * active.length)] : null;
   const text = chosen ? chosen.template : `Parabéns! Você bateu: ${trigger.label}`;
-  return resolveSampleText(text);
+  return resolveSampleText(text, adminName);
 }
 
 function pickAnimationForTest(trigger, animationMode) {
@@ -100,14 +113,14 @@ function parseTriggerConfig(trigger, fields) {
   return config;
 }
 
-export default function CelebrationsManager({ initialTriggers = [], initialTemplates = [], brokers = [] }) {
+export default function CelebrationsManager({ initialTriggers = [], initialTemplates = [], brokers = [], adminName = "" }) {
   const [tab, setTab] = useState("gatilhos");
   const [triggers, setTriggers] = useState(initialTriggers);
   const [templates, setTemplates] = useState(initialTemplates);
   const [preview, setPreview] = useState(null);
 
-  function testAnimation(message, animation) {
-    setPreview({ message, animation });
+  function testAnimation(message, animation, triggerKey) {
+    setPreview({ message, animation, triggerKey });
   }
 
   return (
@@ -127,25 +140,33 @@ export default function CelebrationsManager({ initialTriggers = [], initialTempl
 
       <div className="container-page space-y-4">
         {tab === "gatilhos" ? (
-          <TriggersSection triggers={triggers} setTriggers={setTriggers} templates={templates} onTest={testAnimation} />
+          <TriggersSection triggers={triggers} setTriggers={setTriggers} templates={templates} onTest={testAnimation} adminName={adminName} />
         ) : null}
         {tab === "mensagens" ? (
-          <MessagesSection triggers={triggers} templates={templates} setTemplates={setTemplates} onTest={testAnimation} />
+          <MessagesSection triggers={triggers} templates={templates} setTemplates={setTemplates} onTest={testAnimation} adminName={adminName} />
         ) : null}
         {tab === "disparo" ? (
-          <ManualDispatchSection brokers={brokers} triggers={triggers} templates={templates} onTest={testAnimation} />
+          <ManualDispatchSection brokers={brokers} triggers={triggers} templates={templates} onTest={testAnimation} adminName={adminName} />
         ) : null}
         {tab === "historico" ? <HistorySection brokers={brokers} /> : null}
       </div>
 
-      {preview ? (
-        <CelebrationOverlay message={preview.message} animation={preview.animation} previewMode onDismiss={() => setPreview(null)} />
-      ) : null}
+      <AnimatePresence>
+        {preview ? (
+          <CelebrationOverlay
+            message={preview.message}
+            animation={preview.animation}
+            triggerKey={preview.triggerKey}
+            previewMode
+            onDismiss={() => setPreview(null)}
+          />
+        ) : null}
+      </AnimatePresence>
     </section>
   );
 }
 
-function TriggersSection({ triggers, setTriggers, templates, onTest }) {
+function TriggersSection({ triggers, setTriggers, templates, onTest, adminName }) {
   const baseline = useMemo(() => buildAllDrafts(triggers), [triggers]);
   const [drafts, setDrafts] = useState(baseline);
   const [error, setError] = useState("");
@@ -171,9 +192,9 @@ function TriggersSection({ triggers, setTriggers, templates, onTest }) {
   }
 
   function handleTest(trigger) {
-    const message = sampleMessageForTrigger(trigger, templates);
+    const message = sampleMessageForTrigger(trigger, templates, adminName);
     const animation = pickAnimationForTest(trigger, drafts[trigger.key]?.animationMode ?? trigger.animationMode);
-    onTest(message, animation);
+    onTest(message, animation, trigger.key);
   }
 
   async function saveChanges() {
@@ -296,7 +317,7 @@ function TriggersSection({ triggers, setTriggers, templates, onTest }) {
   );
 }
 
-function MessagesSection({ triggers, templates, setTemplates, onTest }) {
+function MessagesSection({ triggers, templates, setTemplates, onTest, adminName }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -493,7 +514,7 @@ function MessagesSection({ triggers, templates, setTemplates, onTest }) {
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onTest(resolveSampleText(template.template), pickAnimationForTest(trigger, trigger.animationMode))}
+                          onClick={() => onTest(resolveSampleText(template.template, adminName), pickAnimationForTest(trigger, trigger.animationMode), trigger.key)}
                           className="premium-button-secondary h-9 px-3 text-xs"
                         >
                           Testar
@@ -558,7 +579,7 @@ function MessagesSection({ triggers, templates, setTemplates, onTest }) {
   );
 }
 
-function ManualDispatchSection({ brokers, triggers, templates, onTest }) {
+function ManualDispatchSection({ brokers, triggers, templates, onTest, adminName }) {
   const [brokerId, setBrokerId] = useState("");
   const [mode, setMode] = useState("template");
   const [templateId, setTemplateId] = useState("");
@@ -572,9 +593,12 @@ function ManualDispatchSection({ brokers, triggers, templates, onTest }) {
   const activeTemplates = useMemo(() => templates.filter((template) => template.active), [templates]);
   const selectedTemplate = useMemo(() => activeTemplates.find((template) => template.id === templateId) || null, [activeTemplates, templateId]);
   const isLocked = mode === "template" && selectedTemplate?.trigger_key === "daily_goal_200";
+  // Na prévia, usa o nome do corretor escolhido (se já escolhido) — só cai
+  // pro nome de quem está testando se nenhum corretor foi selecionado ainda.
+  const previewName = brokers.find((broker) => broker.id === brokerId)?.name?.split(/\s+/)[0] || adminName;
 
   function currentMessage() {
-    if (mode === "template") return selectedTemplate ? resolveSampleText(selectedTemplate.template) : "";
+    if (mode === "template") return selectedTemplate ? resolveSampleText(selectedTemplate.template, previewName) : "";
     return freeText.trim();
   }
 
@@ -585,7 +609,7 @@ function ManualDispatchSection({ brokers, triggers, templates, onTest }) {
   function handleTest() {
     const message = currentMessage();
     if (!message) return;
-    onTest(message, currentAnimation());
+    onTest(message, currentAnimation(), mode === "template" ? selectedTemplate?.trigger_key : "manual");
   }
 
   function resetForm() {

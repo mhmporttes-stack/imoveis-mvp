@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { AnimatePresence } from "motion/react";
 import CelebrationOverlay from "./CelebrationOverlay";
 
 const POLL_INTERVAL_MS = 30 * 1000;
@@ -74,6 +75,17 @@ export default function BrokerCelebrationGate({ userId }) {
   }
 
   const active = queue[0];
-  if (!active) return null;
-  return <CelebrationOverlay message={active.message} animation={active.animation} onDismiss={handleDismiss} />;
+  return (
+    <AnimatePresence>
+      {active ? (
+        <CelebrationOverlay
+          key={active.id}
+          message={active.message}
+          animation={active.animation}
+          triggerKey={active.trigger_key}
+          onDismiss={handleDismiss}
+        />
+      ) : null}
+    </AnimatePresence>
+  );
 }

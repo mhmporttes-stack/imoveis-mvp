@@ -207,3 +207,87 @@ export function runCelebrationEffect(canvas, type) {
 }
 
 export const CELEBRATION_ANIMATIONS = ["confete", "fogos", "moedas", "coroa", "combo_200"];
+
+// Aparelho fraco (poucos núcleos ou pouca memória) recebe metade das
+// partículas nas cenas cinematográficas — mira em 60fps no celular em vez de
+// travar. Heurística simples e barata, sem medir FPS de verdade.
+export function getParticleQuality() {
+  if (typeof navigator === "undefined") return "high";
+  const cores = navigator.hardwareConcurrency || 8;
+  const memory = navigator.deviceMemory || 8;
+  return cores <= 4 || memory <= 4 ? "low" : "high";
+}
+
+const CINEMATIC_PALETTE = ["#F4C86B", "#FFE9A8", "#FFFFFF", "#1769D1"];
+
+function makeExplosionParticles(cx, cy, count) {
+  return Array.from({ length: count }, () => {
+    const angle = rand(0, Math.PI * 2);
+    const speed = rand(3, 9);
+    return {
+      x: cx,
+      y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - rand(1, 3),
+      size: rand(5, 11),
+      rotation: rand(0, Math.PI * 2),
+      rotationSpeed: rand(-0.2, 0.2),
+      color: CINEMATIC_PALETTE[Math.floor(Math.random() * CINEMATIC_PALETTE.length)],
+      life: rand(90, 150)
+    };
+  });
+}
+
+// Explosão radial de papel picado (dourado/branco/marca) a partir do centro,
+// com gravidade e atrito — usada no pico das cenas cinematográficas (ex.:
+// fechamento do anel dos 100%). Diferente de `runCelebrationEffect("confete")`,
+// que é uma chuva contínua vinda do topo da tela.
+export function burstConfettiExplosion(canvas, { quality = "high" } = {}) {
+  if (!canvas) return () => {};
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return () => {};
+
+  let width = (canvas.width = canvas.offsetWidth);
+  let height = (canvas.height = canvas.offsetHeight);
+  function resize() {
+    width = canvas.width = canvas.offsetWidth;
+    height = canvas.height = canvas.offsetHeight;
+  }
+  window.addEventListener("resize", resize);
+
+  const count = quality === "low" ? 60 : 140;
+  let particles = makeExplosionParticles(width / 2, height / 2, count);
+  let stopped = false;
+  let rafId = null;
+
+  function loop() {
+    if (stopped) return;
+    ctx.clearRect(0, 0, width, height);
+    particles = particles.filter((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.12;
+      p.vx *= 0.99;
+      p.rotation += p.rotationSpeed;
+      p.life -= 1;
+      if (p.life <= 0 || p.y > height + 40) return false;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 40));
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+      return true;
+    });
+    if (particles.length) rafId = requestAnimationFrame(loop);
+  }
+  rafId = requestAnimationFrame(loop);
+
+  return () => {
+    stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    window.removeEventListener("resize", resize);
+    ctx.clearRect(0, 0, width, height);
+  };
+}
