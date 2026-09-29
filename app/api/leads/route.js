@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase";
+import { buildRateLimitKey, checkPublicRateLimit } from "@/lib/rate-limit";
+import { sendLeadNotification } from "@/lib/lead-notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const leadAttempts = new Map();
-const MIN_ATTEMPT_INTERVAL_MS = 60_000;
 
 export async function POST(request) {
   let payload;
@@ -30,11 +29,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "Informe um telefone/WhatsApp válido." }, { status: 400 });
   }
 
-  const spamKey = `${request.headers.get("x-forwarded-for") || "local"}:${phoneDigits}`;
-  const now = Date.now();
-  const lastAttemptAt = leadAttempts.get(spamKey) || 0;
-
-  if (now - lastAttemptAt < MIN_ATTEMPT_INTERVAL_MS) {
+  const allowed = await checkPublicRateLimit(buildRateLimitKey(request, phoneDigits), { windowSeconds: 60, maxAttempts: 1 });
+  if (!allowed) {
     return NextResponse.json(
       { error: "Aguarde alguns instantes antes de enviar novamente." },
       { status: 429 }
@@ -49,8 +45,6 @@ export async function POST(request) {
     );
   }
 
-  leadAttempts.set(spamKey, now);
-
   const { error } = await supabase.from("leads").insert({
     name,
     phone,
@@ -59,11 +53,17 @@ export async function POST(request) {
   });
 
   if (error) {
-    leadAttempts.delete(spamKey);
     return NextResponse.json(
       { error: "Não foi possível salvar seu cadastro agora. Tente novamente." },
       { status: 500 }
     );
+  }
+
+  try {
+    const notification = await sendLeadNotification({ name, phone, pageUrl });
+    if (notification?.skipped) console.warn("Lead notification email skipped:", notification.reason);
+  } catch (notificationError) {
+    console.warn("Lead notification email failed:", notificationError?.message || notificationError);
   }
 
   return NextResponse.json({

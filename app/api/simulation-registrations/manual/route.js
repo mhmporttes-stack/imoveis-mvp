@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
+import { getActingAdminEmail, requireAdminApi } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   ensureManualSimulationRegistration,
@@ -23,7 +23,7 @@ export async function POST(request) {
     const body = await request.json();
     const registration = await ensureManualSimulationRegistration({
       ...body,
-      adminEmail: auth.user?.email
+      adminEmail: getActingAdminEmail(auth)
     }, auth);
     return NextResponse.json(registration, { status: 201 });
   } catch (error) {

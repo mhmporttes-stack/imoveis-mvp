@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
+import { getActingAdminEmail, requireAdminApi } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   deleteSimulationRegistration,
@@ -24,7 +24,7 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const registration = await updateSimulationRegistration((await params).id, {
       ...body,
-      adminEmail: auth.user?.email
+      adminEmail: getActingAdminEmail(auth)
     }, auth);
     return NextResponse.json(registration);
   } catch (error) {

@@ -8,6 +8,7 @@ import {
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
 import { createPendingSimulationFromRegistration } from "@/lib/simulations";
 import { extractRequestMetadata } from "@/lib/meta-conversions-api";
+import { buildRateLimitKey, checkPublicRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,6 +26,11 @@ export async function POST(request) {
     payload = await request.json();
   } catch {
     return NextResponse.json({ error: "Envie respostas válidas para continuar." }, { status: 400 });
+  }
+
+  const allowed = await checkPublicRateLimit(buildRateLimitKey(request, payload?.phone), { windowSeconds: 60, maxAttempts: 3 });
+  if (!allowed) {
+    return NextResponse.json({ error: "Aguarde alguns instantes antes de enviar novamente." }, { status: 429 });
   }
 
   try {
