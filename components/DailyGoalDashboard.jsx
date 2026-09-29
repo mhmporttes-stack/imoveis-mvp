@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { Check, MessageCircle, Pencil } from "lucide-react";
+import RevealCard from "@/components/motion/RevealCard";
+import AnimatedRing from "@/components/motion/AnimatedRing";
+import AnimatedNumber from "@/components/motion/AnimatedNumber";
+import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
 
 // Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
 // tela continua usando a identidade azul/navy padrão do CRM.
@@ -12,7 +16,6 @@ function progressColor(percent) {
 }
 
 const RADIUS = 45;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const GROUPS = [
   { key: "new", title: "Novos contatos", chipLabel: "Novos" },
@@ -73,21 +76,12 @@ export default function DailyGoalDashboard({ initialGoal }) {
 
   return (
     <section className="container-page space-y-8">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
+      <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         <div className="flex flex-col items-center gap-3">
-          <div className="relative h-40 w-40 motion-reduce:[&_circle]:!transition-none">
-            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-              <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#E5EAF1" strokeWidth="9" />
-              <circle
-                cx="50" cy="50" r={RADIUS} fill="none"
-                stroke={colors.stroke} strokeWidth="9" strokeLinecap="round"
-                strokeDasharray={CIRCUMFERENCE}
-                strokeDashoffset={CIRCUMFERENCE * (1 - Math.min(100, goal.percent) / 100)}
-                style={{ transition: "stroke-dashoffset 0.7s ease-out, stroke 0.4s ease-out" }}
-              />
-            </svg>
+          <div className="relative h-40 w-40">
+            <AnimatedRing percent={goal.percent} radius={RADIUS} color={colors.stroke} className="h-full w-full" />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-3xl font-black ${colors.ring}`}>{goal.percent}%</span>
+              <AnimatedNumber value={goal.percent} format={(n) => `${Math.round(n)}%`} className={`text-3xl font-black ${colors.ring}`} />
             </div>
           </div>
           <ul className="w-full max-w-xs space-y-1.5">
@@ -141,9 +135,9 @@ export default function DailyGoalDashboard({ initialGoal }) {
           </div>
         ) : null}
 
-        <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <StaggerContainer className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3" delayChildren={0.15}>
           {GROUPS.map((group) => (
-            <div key={group.key} className="rounded-2xl border border-line bg-mist/40 px-4 py-3 text-center">
+            <StaggerItem key={group.key} className="rounded-2xl border border-line bg-mist/40 px-4 py-3 text-center">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">{group.chipLabel}</p>
               <p className="mt-1 text-xl font-black text-navy">{goal.groups[group.key].done} / {goal.groups[group.key].total}</p>
               {group.key === "new" && goal.groups.new.pendingCarriedOver > 0 ? (
@@ -151,23 +145,26 @@ export default function DailyGoalDashboard({ initialGoal }) {
                   {goal.groups.new.pendingToday} de hoje · {goal.groups.new.pendingCarriedOver} de dias anteriores
                 </p>
               ) : null}
-            </div>
+            </StaggerItem>
           ))}
-        </div>
-      </div>
+        </StaggerContainer>
+      </RevealCard>
 
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
-      {GROUPS.map((group) => (
-        <ClientGroup
-          key={group.key}
-          title={group.title}
-          clients={goal.groups[group.key].clients}
-          doneToday={goal.groups[group.key].doneToday}
-          onSend={handleAttempt}
-          onSaveTemplate={handleSaveTemplate}
-        />
-      ))}
+      <StaggerContainer className="space-y-8" staggerChildren={0.08} delayChildren={0.2}>
+        {GROUPS.map((group) => (
+          <StaggerItem key={group.key}>
+            <ClientGroup
+              title={group.title}
+              clients={goal.groups[group.key].clients}
+              doneToday={goal.groups[group.key].doneToday}
+              onSend={handleAttempt}
+              onSaveTemplate={handleSaveTemplate}
+            />
+          </StaggerItem>
+        ))}
+      </StaggerContainer>
     </section>
   );
 }
