@@ -18,19 +18,19 @@ export default async function AdminCampaignLinksPage() {
   let brokers = [];
   let error = "";
 
-  try {
-    const result = await listCampaigns();
-    campaigns = result.campaigns.map((campaign) => ({ ...campaign, link: buildCampaignLink(campaign) }));
-    summary = result.summary;
-  } catch (loadError) {
-    error = formatCampaignError(loadError);
+  // As duas buscas são independentes — rodar em paralelo em vez de uma
+  // atrás da outra, mantendo o mesmo isolamento de erro dos try/catch.
+  const [campaignsResult, profilesResult] = await Promise.allSettled([listCampaigns(), listAdminProfiles()]);
+
+  if (campaignsResult.status === "fulfilled") {
+    campaigns = campaignsResult.value.campaigns.map((campaign) => ({ ...campaign, link: buildCampaignLink(campaign) }));
+    summary = campaignsResult.value.summary;
+  } else {
+    error = formatCampaignError(campaignsResult.reason);
   }
 
-  try {
-    const profiles = await listAdminProfiles();
-    brokers = profiles.filter((profile) => ["admin", "broker"].includes(profile.role) && profile.status === "active");
-  } catch {
-    brokers = [];
+  if (profilesResult.status === "fulfilled") {
+    brokers = profilesResult.value.filter((profile) => ["admin", "broker"].includes(profile.role) && profile.status === "active");
   }
 
   return (

@@ -27,26 +27,32 @@ export default async function AdminBrokersPage({ searchParams }) {
   let ccaList = [];
   let error = "";
 
-  try {
-    users = await listAdminProfiles();
-  } catch (loadError) {
-    error = formatBrokerSchemaError(loadError);
+  // As três buscas são independentes — rodar em paralelo em vez de uma
+  // atrás da outra. Promise.allSettled mantém o mesmo isolamento de erro
+  // que os três try/catch separados já davam (uma falha nunca derruba as
+  // outras).
+  const [usersResult, registrationsResult, ccaResult] = await Promise.allSettled([
+    listAdminProfiles(),
+    listSimulationRegistrations({ auth }),
+    listCca(auth)
+  ]);
+
+  if (usersResult.status === "fulfilled") {
+    users = usersResult.value;
+  } else {
+    error = formatBrokerSchemaError(usersResult.reason);
   }
 
-  try {
-    registrations = await listSimulationRegistrations({ auth });
-  } catch (loadError) {
-    if (!error) error = formatSimulationRegistrationError(loadError);
+  if (registrationsResult.status === "fulfilled") {
+    registrations = registrationsResult.value;
+  } else if (!error) {
+    error = formatSimulationRegistrationError(registrationsResult.reason);
   }
 
   // CCA nunca deve derrubar a tela de corretores — é uma área independente,
   // só compartilhando o mesmo local de navegação (item 9 do pedido: "adicionar
   // na área onde atualmente existem cadastros de corretores").
-  try {
-    ccaList = await listCca(auth);
-  } catch {
-    ccaList = [];
-  }
+  if (ccaResult.status === "fulfilled") ccaList = ccaResult.value;
 
   const counts = buildCounts(registrations);
   const usersWithLinks = users.map((user) => ({
