@@ -46,7 +46,7 @@ export default function DailyGoalAutoPanel() {
           <Zap className="h-4 w-4 text-brand" aria-hidden="true" />
           <div>
             <p className="text-sm font-black text-navy">Automação da Meta Diária</p>
-            <p className="text-[11px] font-bold text-muted">Manda sozinho a 1ª mensagem de cada contato novo pelo seu WhatsApp, entre 08h e 18h.</p>
+            <p className="text-[11px] font-bold text-muted">Manda sozinho a 1ª, 2ª e 3ª tentativa de cada contato pelo seu WhatsApp, entre 06h30 e 19h.</p>
           </div>
         </div>
 
