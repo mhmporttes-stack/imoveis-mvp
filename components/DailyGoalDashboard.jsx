@@ -6,6 +6,7 @@ import RevealCard from "@/components/motion/RevealCard";
 import AnimatedRing from "@/components/motion/AnimatedRing";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
+import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 
 // Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
 // tela continua usando a identidade azul/navy padrão do CRM. A cor do anel e
@@ -167,6 +168,8 @@ export default function DailyGoalDashboard({ initialGoal }) {
           ))}
         </StaggerContainer>
       </RevealCard>
+
+      <DailyGoalAutoPanel />
 
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 

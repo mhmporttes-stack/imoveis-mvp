@@ -6,7 +6,8 @@ import { Save } from "lucide-react";
 const TABS = [
   { key: "config", label: "Configurações" },
   { key: "messages", label: "Mensagens" },
-  { key: "performance", label: "Desempenho" }
+  { key: "performance", label: "Desempenho" },
+  { key: "automacao", label: "Automação" }
 ];
 
 const MESSAGE_FIELDS = [
@@ -47,7 +48,87 @@ export default function DailyGoalAdmin({ initialSettings }) {
         <MessagesTab settings={settings} setSettings={setSettings} busy={busy} setBusy={setBusy} setFeedback={setFeedback} />
       ) : null}
       {tab === "performance" ? <PerformanceTab /> : null}
+      {tab === "automacao" ? <AutomationTab /> : null}
     </section>
+  );
+}
+
+// Visão do admin da automação da Meta Diária (pedido do dono, 2026-09-29):
+// lista quem ligou, se está pausado (e por quê) e permite pausar/retomar
+// QUALQUER corretor — inclusive quem não pausou a própria automação.
+function AutomationTab() {
+  const [brokers, setBrokers] = useState(null);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (loadError) {
+      setError(loadError.message || "Não foi possível carregar a automação.");
+    }
+  }
+
+  async function togglePause(brokerId, paused) {
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, paused })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível atualizar.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  if (!brokers) return <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>;
+
+  const active = brokers.filter((broker) => broker.enabled);
+
+  return (
+    <div className="space-y-4">
+      {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
+      {!active.length ? (
+        <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Nenhum corretor ligou a automação da Meta Diária ainda.</p>
+      ) : (
+        <div className="grid gap-3">
+          {active.map((broker) => (
+            <div key={broker.brokerId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft">
+              <div>
+                <p className="font-black text-navy">{broker.brokerName}</p>
+                <p className="text-xs font-bold text-muted">
+                  Enviadas hoje: {broker.sentToday} · Na fila: {broker.pendingToday} · Erros seguidos: {broker.consecutiveErrors}
+                </p>
+                {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
+              </div>
+              <button
+                type="button"
+                className="client-action-button"
+                disabled={busyId === broker.brokerId}
+                onClick={() => togglePause(broker.brokerId, !broker.paused)}
+              >
+                {broker.paused ? "Retomar" : "Pausar"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -253,6 +334,7 @@ function PerformanceTab() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Metric label="Previstas" value={data.summary.previstas} />
             <Metric label="Realizadas" value={data.summary.realizadas} />
+            <Metric label="Automáticas" value={data.summary.automaticas} />
             <Metric label="% Meta Diária" value={formatPercent(data.summary.execucao)} />
             <Metric label="Taxa de reativação" value={formatPercent(data.summary.taxaReativacao)} />
           </div>
