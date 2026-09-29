@@ -111,14 +111,20 @@ export default function ProspectingManager({
   }
 
   async function claim(contact) {
+    // Abre a aba em branco no clique (gesto do usuário) e só troca a URL
+    // dela depois do fetch — window.open só depois do fetch resolver é
+    // bloqueado como pop-up em vários navegadores.
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     setBusy(contact.id);
     try {
       const response = await fetch(`/api/prospecting/${contact.id}`, { method: "POST" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setContacts((current) => current.filter((item) => item.id !== contact.id));
-      window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
-    } catch (error) { alert(error.message); }
+      if (data.whatsappUrl) { if (popup) popup.location.href = data.whatsappUrl; else window.location.assign(data.whatsappUrl); }
+      else popup?.close();
+    } catch (error) { popup?.close(); alert(error.message); }
     finally { setBusy(""); }
   }
 

@@ -34,6 +34,11 @@ export default function DailyGoalDashboard({ initialGoal }) {
     );
   }
 
+  // Devolve a URL pro chamador abrir (nunca abre aqui) — quem chama já
+  // abriu uma aba em branco de forma síncrona, no clique, antes deste fetch;
+  // window.open só depois do fetch resolver é bloqueado como pop-up em
+  // vários navegadores (mesmo padrão de correção já usado em
+  // ClientJourneyActions.jsx).
   async function handleAttempt(roundId, message) {
     setError("");
     const response = await fetch("/api/daily-goal/attempt", {
@@ -44,11 +49,11 @@ export default function DailyGoalDashboard({ initialGoal }) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       setError(data.error || "Não foi possível registrar a tentativa.");
-      return;
+      return null;
     }
-    if (data.whatsappUrl) window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
     const refreshed = await fetch("/api/daily-goal");
     if (refreshed.ok) setGoal(await refreshed.json());
+    return data.whatsappUrl || null;
   }
 
   // Salvar o texto editado como padrão pessoal do corretor é uma ação própria,
@@ -249,9 +254,25 @@ function ClientCard({ client, onSend, onSaveTemplate }) {
   const [saved, setSaved] = useState(false);
 
   async function send() {
+    // Abre a aba em branco AGORA, no clique — ainda sincronamente ligado ao
+    // gesto do usuário — e só troca a URL dela depois que a tentativa for
+    // registrada. Abrir só depois do fetch é bloqueado como pop-up em vários
+    // navegadores (é o que fazia o botão "não abrir o WhatsApp" na Meta
+    // Diária, ao contrário do card de Prospecção que abre de outro jeito).
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     setBusy(true);
     try {
-      await onSend(client.roundId, editing ? text : undefined);
+      const whatsappUrl = await onSend(client.roundId, editing ? text : undefined);
+      if (whatsappUrl) {
+        if (popup) popup.location.href = whatsappUrl;
+        else window.location.assign(whatsappUrl);
+      } else {
+        popup?.close();
+      }
+    } catch (error) {
+      popup?.close();
+      throw error;
     } finally {
       setBusy(false);
     }
