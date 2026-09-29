@@ -79,9 +79,9 @@ export default function DailyGoalDashboard({ initialGoal }) {
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         <div className="flex flex-col items-center gap-3">
           <div className="relative h-40 w-40">
-            <AnimatedRing percent={goal.percent} radius={RADIUS} color={colors.stroke} className="h-full w-full" />
+            <AnimatedRing percent={goal.percent} radius={RADIUS} color={colors.stroke} introOvershoot className="h-full w-full" />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <AnimatedNumber value={goal.percent} format={(n) => `${Math.round(n)}%`} className={`text-3xl font-black ${colors.ring}`} />
+              <AnimatedNumber value={goal.percent} format={(n) => `${Math.round(n)}%`} introOvershoot className={`text-3xl font-black ${colors.ring}`} />
             </div>
           </div>
           <ul className="w-full max-w-xs space-y-1.5">
