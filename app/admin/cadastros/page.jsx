@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminRegistrationList from "@/components/AdminRegistrationList";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
@@ -30,17 +29,6 @@ export default async function AdminRegistrationsPage() {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Cadastros</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Acompanhe os clientes que preencheram a simulação de financiamento pelo site.
-          </p>
-        </div>
-        <AdminLogoutButton />
-      </section>
-
       <AdminSectionNav active="registrations" />
       {loadError ? <RegistrationsError error={loadError} /> : <AdminRegistrationList registrations={registrations} isOwner={isOwnerAdminEmail(auth?.user?.email)} />}
     </main>

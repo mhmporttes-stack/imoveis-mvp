@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminTestimonialList from "@/components/AdminTestimonialList";
 import { requireAdminPage } from "@/lib/admin-auth";
@@ -36,16 +35,8 @@ export default async function AdminTestimonialsPage() {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Depoimentos</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie relatos, imagens, vídeos, publicação e ordem de exibição.</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/depoimentos/novo" className="premium-button-primary">Novo depoimento</Link>
-          <AdminLogoutButton />
-        </div>
+      <section className="container-page mb-8 flex justify-end">
+        <Link href="/admin/depoimentos/novo" className="premium-button-primary">Novo depoimento</Link>
       </section>
       <AdminSectionNav active="testimonials" />
       {loadError ? (

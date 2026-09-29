@@ -1,4 +1,3 @@
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminUsersManager from "@/components/AdminUsersManager";
 import AdminViewAsSelector from "@/components/AdminViewAsSelector";
@@ -58,17 +57,6 @@ export default async function AdminBrokersPage({ searchParams }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Corretores</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Cadastre usuários, gerencie acessos e copie links exclusivos de simulação e captação.
-          </p>
-        </div>
-        <AdminLogoutButton />
-      </section>
-
       <AdminSectionNav active="brokers" />
       <nav className="container-page mb-5 grid grid-cols-3 rounded-xl border border-navy/[0.07] bg-white p-0.5" aria-label="Opcoes de corretores">
         <TabLink active={activeTab === "users"} href="/admin/corretores">Usuários</TabLink>

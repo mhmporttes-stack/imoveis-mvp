@@ -1,4 +1,3 @@
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import GuideManager from "@/components/guide/GuideManager";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
@@ -19,13 +18,6 @@ export default async function AttendanceGuidesPage() {
 
   return (
     <main className="min-h-screen bg-mist py-14">
-      <section className="container-page mb-6 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Gestão · Treinamento</p>
-          <h1 className="mt-2 text-3xl font-black text-navy md:text-4xl">Guia de Atendimento</h1>
-        </div>
-        <AdminLogoutButton />
-      </section>
       <AdminSectionNav active="attendance-guide" />
       {guides ? (
         <GuideManager initialGuides={guides} />

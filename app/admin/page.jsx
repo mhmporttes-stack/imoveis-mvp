@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AdminPropertyList from "@/components/AdminPropertyList";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
@@ -32,18 +31,10 @@ export default async function AdminPage({ searchParams }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div className="admin-properties-heading-copy">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">{managementView ? "Empreendimentos" : "Painel Administrativo"}</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">Gerencie o portfólio, edite informações comerciais e publique páginas individuais.</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href={managementView ? "/admin/empreendimentos/novo" : "/admin/novo"} className="premium-button-primary">
-            {managementView ? "Cadastrar empreendimento" : "Cadastrar novo Imóvel"}
-          </Link>
-          <AdminLogoutButton />
-        </div>
+      <section className="container-page mb-8 flex justify-end">
+        <Link href={managementView ? "/admin/empreendimentos/novo" : "/admin/novo"} className="premium-button-primary">
+          {managementView ? "Cadastrar empreendimento" : "Cadastrar novo Imóvel"}
+        </Link>
       </section>
       <AdminSectionNav active={managementView ? "management-properties" : "properties"} />
       <AdminPropertyList properties={properties} />

@@ -1,5 +1,11 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+### 2026-09-29 — Remove cabeçalho "Área restrita" das páginas do painel; "Sair" vai para o rodapé
+- **Área:** layout do painel administrativo (`app/admin/**`).
+- **Alteração:** removido o rótulo "Área restrita", o título e a descrição do topo de todas as páginas internas (Corretores, Financeiro, Desempenho, Pontuação, Meta Diária, Clientes, Chat, etc.); o botão "Sair" saiu do topo de cada página e passou a aparecer uma única vez, no rodapé, renderizado centralmente por `app/admin/layout.jsx`. Links de ação que dividiam o cabeçalho (ex.: "Novo cliente", "Novo depoimento", "Ver formulário público", "Cadastrar empreendimento") e links de navegação "Voltar…" foram preservados.
+- **Arquivos:** `app/admin/layout.jsx` e todas as páginas sob `app/admin/**` (exceto `login` e `reset-password`, que ficam fora da área autenticada).
+- **Risco/observação:** mudança só de UI, sem efeito em regra de negócio ou dado; verificação por leitura de cada diff (sem login real disponível neste ambiente para rodar o preview).
+
 ### 2026-09-28 — Conter consultas sobrepostas durante lentidão do CRM
 - **Área:** avisos globais de Chat e novos clientes.
 - **Alteração:** uma atualização pendente é compartilhada pelo resumo do Chat; o aviso sonoro não inicia outra consulta enquanto a anterior não terminou. Intervalos, notificações e escopo permanecem iguais.

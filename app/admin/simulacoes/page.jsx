@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminSimulationList from "@/components/AdminSimulationList";
 import { buildBrokerSimulationLink, isBrokerProfile, isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
@@ -97,9 +96,6 @@ export default async function AdminSimulationsPage({ searchParams }) {
           tags={tags}
         />
       )}
-      <footer className="container-page mt-10 flex justify-center sm:justify-end">
-        <AdminLogoutButton />
-      </footer>
     </main>
   );
 }

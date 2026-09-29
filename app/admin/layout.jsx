@@ -1,3 +1,4 @@
+import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
 import DailyMessageGate from "@/components/DailyMessageGate";
@@ -37,6 +38,11 @@ export default async function AdminLayout({ children }) {
       ) : null}
       <SceneTransitionRoot>{children}</SceneTransitionRoot>
       <SceneSkipCatcher />
+      {auth.ok ? (
+        <div className="container-page flex justify-center py-10">
+          <AdminLogoutButton />
+        </div>
+      ) : null}
     </>
   );
 }

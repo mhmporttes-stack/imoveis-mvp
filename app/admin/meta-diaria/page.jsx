@@ -1,4 +1,3 @@
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
@@ -36,18 +35,10 @@ export default async function MetaDiariaPage() {
 
   return (
     <main className="min-h-screen bg-mist py-14">
-      <section className="container-page mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <SceneTransitionLink href="/admin/simulacoes" direction="backward" className="block text-sm font-black uppercase tracking-[0.18em] text-brand">
-            ← Painel principal
-          </SceneTransitionLink>
-          <p className="mt-1 text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Meta Diária</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-            Sua cadência de prospecção e reativação de hoje — o sistema já monta a fila, você só executa.
-          </p>
-        </div>
-        <AdminLogoutButton />
+      <section className="container-page mb-8">
+        <SceneTransitionLink href="/admin/simulacoes" direction="backward" className="block text-sm font-black uppercase tracking-[0.18em] text-brand">
+          ← Painel principal
+        </SceneTransitionLink>
       </section>
       <AdminSectionNav active="daily-goal" />
       {error ? (
@@ -80,18 +71,10 @@ async function OwnerMetaDiariaView({ auth }) {
 
   return (
     <main className="min-h-screen bg-mist py-14">
-      <section className="container-page mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <SceneTransitionLink href="/admin/simulacoes" direction="backward" className="block text-sm font-black uppercase tracking-[0.18em] text-brand">
-            ← Painel principal
-          </SceneTransitionLink>
-          <p className="mt-1 text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Desempenho Diário</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-            Acompanhe a execução da meta e a conversão da equipe hoje.
-          </p>
-        </div>
-        <AdminLogoutButton />
+      <section className="container-page mb-8">
+        <SceneTransitionLink href="/admin/simulacoes" direction="backward" className="block text-sm font-black uppercase tracking-[0.18em] text-brand">
+          ← Painel principal
+        </SceneTransitionLink>
       </section>
       <AdminSectionNav active="daily-goal" />
       {error ? (

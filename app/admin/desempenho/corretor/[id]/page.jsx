@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import BrokerPerformanceDetail from "@/components/BrokerPerformanceDetail";
 import Footer from "@/components/Footer";
@@ -45,18 +44,9 @@ export default async function BrokerPerformancePage({ params }) {
   return (
     <main className="min-h-screen bg-[#f4f7fb] pt-12">
       <section className="container-page mb-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Link href="/admin/desempenho" className="text-sm font-black uppercase tracking-[0.18em] text-brand">
-              ← Voltar para Desempenho
-            </Link>
-            <h1 className="mt-3 text-4xl font-extrabold text-navy md:text-6xl">{profile.name || "Corretor"}</h1>
-            <p className="mt-3 max-w-3xl text-lg text-slate">
-              Indicadores operacionais individuais por período.
-            </p>
-          </div>
-          <AdminLogoutButton />
-        </div>
+        <Link href="/admin/desempenho" className="text-sm font-black uppercase tracking-[0.18em] text-brand">
+          ← Voltar para Desempenho
+        </Link>
       </section>
 
       <AdminSectionNav active="performance" />

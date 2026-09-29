@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { coverImage } from "@/lib/format";
@@ -13,10 +12,6 @@ export default async function EmpreendimentosPage() {
   const properties = (await listProperties()).filter((property) => property.isDevelopment);
 
   return <main className="min-h-screen bg-mist py-14">
-    <section className="container-page mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-      <div><p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Produtos</p><h1 className="mt-2 text-4xl font-black text-navy">Empreendimentos</h1><p className="mt-3 text-muted">Consulte condições comerciais, diferenciais e materiais de apoio.</p></div>
-      <AdminLogoutButton />
-    </section>
     <AdminSectionNav active="developments" />
     <section className="container-page grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {properties.map((property) => <article key={property.id} className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">

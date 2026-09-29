@@ -1,4 +1,3 @@
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import CampaignsManager from "@/components/CampaignsManager";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
@@ -36,17 +35,6 @@ export default async function AdminCampaignLinksPage() {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Gestão</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Gerador de Links</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Crie URLs exclusivas de campanha, vinculadas à roleta ou a um corretor específico, e acompanhe automaticamente a origem de cada cadastro.
-          </p>
-        </div>
-        <AdminLogoutButton />
-      </section>
-
       <AdminSectionNav active="campaign-links" />
 
       {error ? <CampaignsError error={error} /> : <CampaignsManager initialCampaigns={campaigns} initialSummary={summary} brokers={brokers} />}

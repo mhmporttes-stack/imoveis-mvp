@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import CaptacaoInternalInfoCard from "@/components/captacoes/CaptacaoInternalInfoCard";
 import CaptacaoStatusSelect from "@/components/captacoes/CaptacaoStatusSelect";
 import PublishCaptacaoButton from "@/components/captacoes/PublishCaptacaoButton";
@@ -30,21 +29,11 @@ export default async function CaptacaoDetailPage({ params }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div className="min-w-0">
-          <Link href="/admin/captacoes" className="inline-flex items-center gap-2 text-sm font-black text-brand transition hover:text-navy">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Voltar para captações
-          </Link>
-          <p className="mt-6 text-sm font-black uppercase tracking-[0.18em] text-brand">Captação recebida</p>
-          <h1 className="mt-3 truncate text-[clamp(2.25rem,6vw,4.5rem)] font-black leading-[0.95] text-navy">
-            {canViewInternal ? captacao.ownerName : typeLabel}
-          </h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            {typeLabel} enviado em {formatDateTimeSaoPaulo(captacao.createdAt)}.
-          </p>
-        </div>
-        <AdminLogoutButton />
+      <section className="container-page mb-8">
+        <Link href="/admin/captacoes" className="inline-flex items-center gap-2 text-sm font-black text-brand transition hover:text-navy">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Voltar para captações
+        </Link>
       </section>
 
       <section className="container-page grid gap-6">

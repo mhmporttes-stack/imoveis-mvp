@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import DeleteRegistrationButton from "@/components/DeleteRegistrationButton";
 import RegistrationDetails from "@/components/RegistrationDetails";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
@@ -32,20 +31,8 @@ export default async function AdminRegistrationDetailsPage({ params }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Cadastro de simulação</p>
-          <h1 className="mt-3 text-[clamp(2.4rem,5vw,4rem)] font-black leading-tight text-navy">
-            {registration.fullName}
-          </h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Respostas enviadas pelo formulário público de simulação de financiamento.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/admin/cadastros" className="premium-button-secondary">Voltar aos cadastros</Link>
-          <AdminLogoutButton />
-        </div>
+      <section className="container-page mb-8 flex justify-end">
+        <Link href="/admin/cadastros" className="premium-button-secondary">Voltar aos cadastros</Link>
       </section>
 
       <RegistrationDetails registration={registration} />

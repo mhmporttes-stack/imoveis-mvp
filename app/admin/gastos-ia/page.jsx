@@ -1,4 +1,3 @@
-import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminAiUsageDashboard from "@/components/AdminAiUsageDashboard";
 import { requireGeneralAdminPage } from "@/lib/admin-auth";
@@ -25,17 +24,6 @@ export default async function AdminAiUsagePage() {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
-          <h1 className="mt-3 text-5xl font-black text-navy">Gastos de IA</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
-            Extrato de cada análise de documentação feita pela IA, com estimativa de custo — acompanhe aqui sem precisar entrar no console da Anthropic.
-          </p>
-        </div>
-        <AdminLogoutButton />
-      </section>
-
       <AdminSectionNav active="ai-usage" />
 
       {error ? (
