@@ -240,7 +240,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         node.animate?.(
           [{ opacity: 0.2, transform: "translateY(20px)" }, { opacity: 1, transform: "translateY(0)" }],
-          { duration: 320, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+          { duration: 800, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
         );
       }
     });
