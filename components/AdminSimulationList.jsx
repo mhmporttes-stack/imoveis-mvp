@@ -1249,6 +1249,7 @@ function ClientCard({
             {client.registration?.clientCode ? <span className="ml-2 text-xs font-bold text-muted">{client.registration.clientCode}</span> : null}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {client.registration ? <CcaStatusCard clientId={client.registration.id} canManage={showResponsibleSelector} /> : null}
             <ClientStatusSelector busy={busy} client={client} onChange={(status) => onUpdateStatus(client, status)} />
             {urgency ? (
               <span className="inline-flex h-6 items-center rounded-full bg-amber-50 px-2.5 text-[10px] font-black uppercase tracking-[0.06em] text-amber-800">
@@ -1256,7 +1257,6 @@ function ClientCard({
               </span>
             ) : null}
           </div>
-          {client.registration ? <CcaStatusCard clientId={client.registration.id} canManage={showResponsibleSelector} /> : null}
           {client.registration ? <ClientJourneyActions registration={client.registration} canManage={showResponsibleSelector} responsibleName={responsibleName} tags={clientTags} /> : null}
         </div>
 

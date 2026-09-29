@@ -1,29 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History as HistoryIcon, LoaderCircle, Link2, RefreshCw } from "lucide-react";
+import { LoaderCircle, Link2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { daysSince, ccaStatusDayColorKey } from "@/lib/cca-status-presentation.mjs";
 
-const COLOR_CLASSES = {
-  green: "bg-emerald-50 text-emerald-700",
-  yellow: "bg-amber-50 text-amber-800",
-  red: "bg-red-50 text-red-700"
-};
-
-const date = (value) => (value ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "");
-
-// Mostra a CCA (foto + nome) pra qual o cliente foi enviado, com "há X dias"
-// colorido, e deixa trocar a CCA. Sem sub-status nem observação — o
-// acompanhamento de etapa já existe na esteira principal do cliente
-// (Documentação/Aprovação/Restrição/Blindagem etc.). Só aparece quando o
-// cliente já foi vinculado a alguma CCA (busca sua própria linha aberta).
+// Mostra a CCA (foto + nome) pra qual o cliente foi enviado — clicável pra
+// trocar. Sem sub-status, sem observação, sem contador de dias e sem
+// histórico próprio: tudo isso já existe na esteira principal do cliente
+// (Documentação/Aprovação/Restrição/Blindagem) e no ícone de histórico/
+// jornada do card (ClientJourneyActions, que já registra toda troca de
+// CCA). Renderiza direto no `flex flex-wrap` do card do cliente (sem <div>
+// de wrapper própria), na frente do selo de status principal. Só aparece
+// quando o cliente já foi vinculado a alguma CCA (busca sua própria linha
+// aberta).
 export default function CcaStatusCard({ clientId, canManage }) {
   const [current, setCurrent] = useState(null);
-  const [history, setHistory] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [ccaList, setCcaList] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,13 +25,14 @@ export default function CcaStatusCard({ clientId, canManage }) {
     if (!clientId) return;
     const controller = new AbortController();
     fetch(`/api/admin/client-cca-status/${clientId}`, { signal: controller.signal, cache: "no-store" })
-      .then(async (r) => { const data = await r.json(); if (!r.ok) throw new Error(data.error); setCurrent(data.current); setHistory(data.history || []); })
+      .then(async (r) => { const data = await r.json(); if (!r.ok) throw new Error(data.error); setCurrent(data.current); })
       .catch((e) => { if (e.name !== "AbortError") setError(e.message); })
       .finally(() => setLoaded(true));
     return () => controller.abort();
   }, [clientId]);
 
   async function openForm() {
+    if (!canManage) return;
     setError("");
     setShowForm(true);
     if (ccaList.length) return;
@@ -65,7 +59,6 @@ export default function CcaStatusCard({ clientId, canManage }) {
       if (!response.ok) throw new Error(data.error);
       const refreshed = await fetch(`/api/admin/client-cca-status/${clientId}`, { cache: "no-store" }).then((r) => r.json());
       setCurrent(refreshed.current);
-      setHistory(refreshed.history || []);
       setShowForm(false);
     } catch (e) {
       setError(e.message || "Não foi possível salvar.");
@@ -82,55 +75,33 @@ export default function CcaStatusCard({ clientId, canManage }) {
   if (!current) {
     if (!canManage) return null;
     return (
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <>
         <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={openForm}>
           <Link2 className="h-3 w-3" /> Vincular a uma CCA
         </button>
         {error ? <p className="w-full text-xs font-bold text-red-700">{error}</p> : null}
         {showForm ? <CcaLinkForm ccaId="" ccaList={ccaList} busy={busy} onCancel={() => setShowForm(false)} onSave={handleSave} /> : null}
-      </div>
+      </>
     );
   }
 
-  const days = daysSince(current.enteredAt);
-  const colorKey = ccaStatusDayColorKey(days);
-
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2 rounded-full border border-line py-0.5 pl-0.5 pr-2.5">
+    <>
+      <button
+        type="button"
+        disabled={!canManage}
+        className="inline-flex items-center gap-1.5 rounded-full border border-line py-0.5 pl-0.5 pr-2.5 disabled:cursor-default enabled:hover:bg-mist"
+        onClick={openForm}
+        title={canManage ? "Clique para trocar a CCA" : current.cca?.name}
+      >
         <Avatar name={current.cca?.name} photoUrl={current.cca?.photoUrl} size={24} />
-        <span className="max-w-[120px] truncate text-[11px] font-black text-navy" title={current.cca?.name}>{current.cca?.name}</span>
-      </div>
-      <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-black uppercase tracking-[0.06em] ${COLOR_CLASSES[colorKey]}`}>
-        há {days} {days === 1 ? "dia" : "dias"}
-      </span>
-      {canManage ? (
-        <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={openForm}>
-          <RefreshCw className="h-3 w-3" /> Trocar CCA
-        </button>
-      ) : null}
-      {history.length ? (
-        <button type="button" className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 text-[10px] font-black text-navy hover:bg-mist" onClick={() => setShowHistory((v) => !v)}>
-          <HistoryIcon className="h-3 w-3" /> Histórico
-        </button>
-      ) : null}
+        <span className="max-w-[120px] truncate text-[11px] font-black text-navy">{current.cca?.name}</span>
+      </button>
 
       {error ? <p className="w-full text-xs font-bold text-red-700">{error}</p> : null}
 
       {showForm ? <CcaLinkForm ccaId={current.cca?.id || ""} ccaList={ccaList} busy={busy} onCancel={() => setShowForm(false)} onSave={handleSave} /> : null}
-
-      {showHistory ? (
-        <ul className="mt-1 w-full space-y-1 rounded-2xl border border-line bg-mist/40 p-3">
-          {history.map((entry) => (
-            <li key={entry.id} className="flex items-center gap-2 text-xs font-bold text-navy/80">
-              <Avatar name={entry.cca?.name} photoUrl={entry.cca?.photoUrl} size={20} />
-              {entry.cca?.name || "—"}
-              {" — "}{date(entry.enteredAt)}{entry.exitedAt ? ` até ${date(entry.exitedAt)}` : " (atual)"}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    </>
   );
 }
 
