@@ -203,20 +203,22 @@ function AutomationTab() {
   const totals = brokers.reduce(
     (acc, broker) => ({
       sentToday: acc.sentToday + (broker.sentToday || 0),
+      sentUnconfirmedToday: acc.sentUnconfirmedToday + (broker.sentUnconfirmedToday || 0),
       pendingToday: acc.pendingToday + (broker.pendingToday || 0),
       skippedToday: acc.skippedToday + (broker.skippedToday || 0),
       errorToday: acc.errorToday + (broker.errorToday || 0),
       sentTotal: acc.sentTotal + (broker.sentTotal || 0)
     }),
-    { sentToday: 0, pendingToday: 0, skippedToday: 0, errorToday: 0, sentTotal: 0 }
+    { sentToday: 0, sentUnconfirmedToday: 0, pendingToday: 0, skippedToday: 0, errorToday: 0, sentTotal: 0 }
   );
 
   return (
     <div className="space-y-6">
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Enviadas hoje" value={totals.sentToday} tone="emerald" />
+        <StatCard label="Aguardando confirmação" value={totals.sentUnconfirmedToday} tone="amber" />
         <StatCard label="Na fila" value={totals.pendingToday} tone="brand" />
         <StatCard label="Puladas hoje" value={totals.skippedToday} tone="amber" />
         <StatCard label="Erros hoje" value={totals.errorToday} tone="red" />
@@ -255,7 +257,7 @@ function AutomationTab() {
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
                     </div>
                     <p className="mt-1 text-xs font-bold text-muted">
-                      Hoje: {broker.sentToday} enviadas · {broker.pendingToday} na fila · {broker.skippedToday} puladas · {broker.errorToday} com erro
+                      Hoje: {broker.sentToday} enviadas{broker.sentUnconfirmedToday ? ` · ${broker.sentUnconfirmedToday} aguardando confirmação` : ""} · {broker.pendingToday} na fila · {broker.skippedToday} puladas · {broker.errorToday} com erro
                       {broker.consecutiveErrors ? ` · ${broker.consecutiveErrors} erros seguidos` : ""}
                     </p>
                     <p className="mt-0.5 text-xs font-bold text-muted">
@@ -349,7 +351,7 @@ function BrokerCapInput({ brokerId, value, disabled, onSave }) {
     <input
       type="number"
       min={1}
-      max={100}
+      max={20}
       placeholder="auto"
       className="w-16 rounded-lg border border-line px-2 py-0.5 text-center text-xs font-bold text-navy outline-none focus:border-brand"
       value={draft}
@@ -492,11 +494,11 @@ function GlobalConfigPanel({ onSaved }) {
 
               <div>
                 <p className="text-xs font-black text-navy">Teto diário padrão</p>
-                <p className="text-[11px] font-bold text-muted">Máximo de mensagens automáticas por corretor por dia. Vazio = automático (todas as atividades pendentes do dia, limitado a 100).</p>
+                <p className="text-[11px] font-bold text-muted">Máximo de mensagens automáticas por corretor por dia. Vazio = automático (cota da Meta Diária, limitado a 20 e à rampa de aquecimento).</p>
                 <input
                   type="number"
                   min={1}
-                  max={100}
+                  max={20}
                   placeholder="automático"
                   className="mt-2 w-28 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
                   value={draft.dailyCapOverride ?? ""}
