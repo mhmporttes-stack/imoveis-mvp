@@ -246,7 +246,7 @@ function AutomationTab() {
               {broker.enabled ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
-                  <span>· Intervalo: {broker.minGapMinutes}–{broker.maxGapMinutes} min</span>
+                  <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
                   <span>· {broker.businessDaysOnly ? "Só dias úteis" : "Todos os dias"}</span>
                   <span className="flex items-center gap-1">
                     · Teto diário:
@@ -379,13 +379,14 @@ function GlobalConfigPanel({ onSaved }) {
 
               <div>
                 <p className="text-xs font-black text-navy">Intervalo entre mensagens</p>
-                <p className="text-[11px] font-bold text-muted">Tempo aleatório (min–máx) entre um disparo e outro do mesmo corretor.</p>
+                <p className="text-[11px] font-bold text-muted">Tempo aleatório (min–máx) entre um disparo e outro do mesmo corretor. Ignorado se "Oscilar mensagens" estiver ligado.</p>
                 <div className="mt-2 flex items-center gap-2">
                   <input
                     type="number"
                     min={1}
                     max={180}
-                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    disabled={Boolean(draft.oscillateEnabled)}
+                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand disabled:opacity-50"
                     value={draft.minGapMinutes}
                     onChange={(event) => setDraft((current) => ({ ...current, minGapMinutes: Number(event.target.value) }))}
                   />
@@ -394,11 +395,41 @@ function GlobalConfigPanel({ onSaved }) {
                     type="number"
                     min={1}
                     max={180}
-                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    disabled={Boolean(draft.oscillateEnabled)}
+                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand disabled:opacity-50"
                     value={draft.maxGapMinutes}
                     onChange={(event) => setDraft((current) => ({ ...current, maxGapMinutes: Number(event.target.value) }))}
                   />
                   <span className="text-sm font-bold text-muted">minutos</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-black text-navy">Oscilar mensagens</p>
+                <p className="text-[11px] font-bold text-muted">
+                  Em vez do intervalo fixo acima, calcula a média sozinho (tempo restante da janela ÷ mensagens do dia)
+                  e varia cada envio ± o percentual abaixo. Ex.: 90 mensagens numa janela de 12h30 dá uma média de ~8
+                  min; com 50% de oscilação, cada intervalo real fica entre ~4 e ~12 min.
+                </p>
+                <div className="mt-2 flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm font-bold text-navy">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(draft.oscillateEnabled)}
+                      onChange={(event) => setDraft((current) => ({ ...current, oscillateEnabled: event.target.checked }))}
+                    />
+                    Ligar oscilação
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    disabled={!draft.oscillateEnabled}
+                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand disabled:opacity-50"
+                    value={draft.oscillatePercent ?? 50}
+                    onChange={(event) => setDraft((current) => ({ ...current, oscillatePercent: Number(event.target.value) }))}
+                  />
+                  <span className="text-sm font-bold text-muted">%</span>
                 </div>
               </div>
 

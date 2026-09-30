@@ -62,6 +62,47 @@ test("spreadScheduleMinutes corta quando não cabe mais nenhum horário na janel
   for (const t of times) assert.ok(t <= 540);
 });
 
+test("spreadScheduleMinutes com oscilação: usa a média (janela / count) em vez de minGap/maxGap", () => {
+  // janela de 750 min (390 a 1140), 90 mensagens -> média = 8,33 min.
+  // random() sempre no meio (0.5) -> cada intervalo fica exatamente na média.
+  const times = spreadScheduleMinutes({
+    count: 90, windowStartMinutes: 390, windowEndMinutes: 1140,
+    minGapMinutes: 20, maxGapMinutes: 40, // devem ser ignorados nesse modo
+    oscillateEnabled: true, oscillatePercent: 50, random: () => 0.5
+  });
+  assert.equal(times.length, 90);
+  const gap = times[1] - times[0];
+  assert.ok(Math.abs(gap - 750 / 90) < 0.01, `gap=${gap}`);
+});
+
+test("spreadScheduleMinutes com oscilação: 0% de oscilação não varia (sempre a média exata)", () => {
+  const times = spreadScheduleMinutes({
+    count: 10, windowStartMinutes: 0, windowEndMinutes: 100,
+    oscillateEnabled: true, oscillatePercent: 0, random: () => Math.random()
+  });
+  for (let i = 1; i < times.length; i += 1) {
+    assert.ok(Math.abs((times[i] - times[i - 1]) - 10) < 0.001);
+  }
+});
+
+test("spreadScheduleMinutes com oscilação: 100% pode chegar perto de 0, mas nunca abaixo de 1 minuto", () => {
+  const times = spreadScheduleMinutes({
+    count: 10, windowStartMinutes: 0, windowEndMinutes: 100,
+    oscillateEnabled: true, oscillatePercent: 100, random: () => 0
+  });
+  for (let i = 1; i < times.length; i += 1) {
+    assert.ok(times[i] - times[i - 1] >= 1);
+  }
+});
+
+test("spreadScheduleMinutes com oscilação desligada (padrão) continua usando minGap/maxGap normalmente", () => {
+  const times = spreadScheduleMinutes({
+    count: 5, windowStartMinutes: 480, windowEndMinutes: 1080, minGapMinutes: 20, maxGapMinutes: 40,
+    oscillateEnabled: false, random: () => 0
+  });
+  assert.equal(times[1] - times[0], 20);
+});
+
 test("isWithinWindow", () => {
   assert.equal(isWithinWindow(480, 480, 1080), true);
   assert.equal(isWithinWindow(1080, 480, 1080), true);
