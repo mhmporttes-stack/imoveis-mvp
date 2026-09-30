@@ -37,28 +37,46 @@ function entryFor(userId) {
 // caracteres e digita em WhatsApp > Aparelhos conectados > Conectar com
 // número de telefone.
 //
-// Exceção à idempotência (bug real, 2026-09-30): o modal do CRM já abre
-// chamando connect() sem número (pra mostrar o QR na hora), então quando o
-// corretor clica em "prefere código?" e manda o número, o socket já está
-// em qr_required — a idempotência simplesmente devolvia o QR de novo e
-// IGNORAVA o número, e o botão "Pedir código" parecia não fazer nada.
-// requestPairingCode() só funciona logo depois de criar o socket, antes do
-// QR ser consumido — não dá pra "converter" um socket que já está em
-// qr_required. Solução: se chegou phoneNumber e o socket atual ainda está
-// só em qr_required (sessão nova, nunca chegou a conectar), descarta esse
-// socket em memória (sem apagar credenciais — não existe nenhuma ainda,
-// é sessão nova) e recomeça do zero já em modo código.
+// Exceção à idempotência (bug real, 2026-09-30, achado 2x no mesmo dia):
+//
+// 1ª vez: o modal do CRM já abre chamando connect() sem número (pra mostrar
+// o QR na hora), então quando o corretor clicava em "prefere código?" e
+// mandava o número, o socket já estava em qr_required — a idempotência
+// devolvia o QR de novo e IGNORAVA o número.
+//
+// 2ª vez, mais grave (corretor Eduardo, número banido pela Meta): mesmo
+// corrigindo o caso acima, trocar de número continuava travado quando a
+// sessão ANTIGA tinha ficado presa em "reconnecting"/"error" (não
+// qr_required) — porque useSupabaseAuthState() sempre recarrega as
+// CREDENCIAIS SALVAS do userId, e como a sessão velha (banida) já estava
+// "registered", o trecho abaixo que só pede código pra sessão NOVA
+// (`!state.creds.registered`) nunca disparava: o Baileys ficava retomando
+// pra sempre a sessão morta com o número velho, em loop de reconexão, e o
+// número novo digitado era simplesmente ignorado.
+//
+// Fix definitivo: phoneNumber é sempre um pedido explícito de "quero
+// começar do zero com ESTE número" — a única exceção é uma sessão já
+// CONECTADA de verdade (não derruba conexão saudável à toa). Fora isso,
+// não importa o status atual: derruba o socket em memória (se houver) E
+// apaga as credenciais salvas antes de criar um socket novo, garantindo um
+// estado realmente não registrado pro requestPairingCode() ter efeito.
 export async function connectSession(userId, { phoneNumber } = {}) {
   const entry = entryFor(userId);
-  const switchingToPairingCode = Boolean(phoneNumber) && entry.status === "qr_required";
-  if (switchingToPairingCode && entry.sock) {
-    try { entry.sock.end(undefined); } catch { /* socket pode já estar fechado */ }
+  const startingFresh = Boolean(phoneNumber) && entry.status !== "connected";
+
+  if (startingFresh) {
+    if (entry.sock) {
+      try { entry.sock.end(undefined); } catch { /* socket pode já estar fechado */ }
+    }
     entry.sock = null;
+    entry.connecting = null;
+    await clearSessionCreds(userId);
+  } else {
+    if (entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
+      return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
+    }
+    if (entry.connecting) return entry.connecting;
   }
-  if (!switchingToPairingCode && entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
-    return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
-  }
-  if (entry.connecting && !switchingToPairingCode) return entry.connecting;
 
   entry.connecting = startSocket(userId, entry, { phoneNumber }).finally(() => { entry.connecting = null; });
   return entry.connecting;
