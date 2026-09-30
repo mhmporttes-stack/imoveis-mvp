@@ -49,6 +49,17 @@ function formatGapMinutes(minutes) {
   return `${Math.round(minutes)} min`;
 }
 
+// Horário (São Paulo) do próximo item agendado que ainda vai sair — pedido
+// do dono, 2026-09-30. "atrasado" quando o horário já passou e ainda não
+// saiu (corretor desconectado, fora da janela, etc.) — mesmo pedido de
+// "realinhar horários" de antes, aplicado aqui de propósito.
+function formatNextDispatch(isoString) {
+  if (!isoString) return null;
+  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
+  const atrasado = new Date(isoString).getTime() < Date.now();
+  return `${time}${atrasado ? " (atrasado)" : ""}`;
+}
+
 const TABS = [
   { key: "config", label: "Configurações" },
   { key: "messages", label: "Mensagens" },
@@ -278,6 +289,9 @@ function AutomationTab() {
                       {broker.avgGapMinutes !== null ? ` (~${formatGapMinutes(broker.avgGapMinutes)} entre elas)` : ""}
                       {broker.dailyCapReason ? ` · teto: ${broker.dailyCapReason}` : ""}
                     </p>
+                    {broker.nextDispatchAt ? (
+                      <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo às {formatNextDispatch(broker.nextDispatchAt)}</p>
+                    ) : null}
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
                     {!broker.paused && issueLabel ? (
