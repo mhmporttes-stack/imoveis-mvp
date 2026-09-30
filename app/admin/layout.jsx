@@ -6,6 +6,7 @@ import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
+import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { getAdminFromCookies } from "@/lib/admin-auth";
@@ -41,6 +42,10 @@ export default async function AdminLayout({ children }) {
                 WhatsApp cair porque esse indicador só existia dentro do
                 Chat) — mesmo componente, agora sempre visível. */}
             <WhatsappIndividualStatus />
+            {/* Integração paralela, independente do WhatsApp (pedido do
+                dono, 2026-10-01) — mesmo lugar, mesmo padrão visual, nunca
+                confundida com o status do WhatsApp. */}
+            <GoogleContactsStatus />
           </header>
         </div>
       ) : null}

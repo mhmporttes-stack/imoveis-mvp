@@ -14,6 +14,16 @@ const SESSION_STATUS_LABELS = {
   nunca_conectou: { label: "Nunca conectou", className: "bg-mist text-muted" }
 };
 
+// Integração PARALELA ao WhatsApp (pedido do dono, 2026-10-01) — nunca
+// substitui nem se confunde com o status do WhatsApp acima, sempre exibida
+// como um badge separado, claramente rotulado "Google Contacts".
+const GOOGLE_CONTACTS_STATUS_LABELS = {
+  connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
+  error: { label: "Requer reconexão", className: "bg-amber-50 text-amber-700" },
+  expired: { label: "Requer reconexão", className: "bg-amber-50 text-amber-700" },
+  disconnected: { label: "Não configurado", className: "bg-mist text-muted" }
+};
+
 // Motivos internos de "pulado" traduzidos pra linguagem do dono — não são
 // erro de verdade na maioria das vezes (ex.: cliente que já respondeu).
 const SKIP_REASON_LABELS = {
@@ -33,7 +43,8 @@ const SKIP_REASON_LABELS = {
   movido_para_erro: "Cliente movido para \"Erro\" após 3 falhas técnicas seguidas",
   falha_destinatario_1_3: "Falha técnica ao enviar (1ª de 3) — será tentado de novo",
   falha_destinatario_2_3: "Falha técnica ao enviar (2ª de 3) — será tentado de novo",
-  falha_destinatario_3_3: "Falha técnica ao enviar (3ª de 3)"
+  falha_destinatario_3_3: "Falha técnica ao enviar (3ª de 3)",
+  google_contacts_sync_falhou: "Aguardando sincronização com o Google Contacts — será tentado de novo"
 };
 
 function minutesToTime(minutes) {
@@ -294,6 +305,9 @@ function AutomationTab() {
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>Automação: {autoLabel}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[broker.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
+                        Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[broker.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
+                      </span>
                     </div>
                     <p className="mt-1 text-xs font-bold text-muted">
                       Hoje: {broker.sentToday} enviadas{broker.sentUnconfirmedToday ? ` · ${broker.sentUnconfirmedToday} aguardando confirmação` : ""} · {broker.pendingToday} na fila · {broker.skippedToday} puladas · {broker.errorToday} com erro

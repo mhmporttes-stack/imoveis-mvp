@@ -191,6 +191,15 @@ const AUTOMATION_SESSION_LABELS = {
   nunca_conectou: { label: "Nunca conectou", className: "bg-mist text-muted" }
 };
 
+// Integração paralela, independente do WhatsApp (pedido do dono, 2026-10-01)
+// — mesmo padrão de components/DailyGoalAdmin.jsx.
+const GOOGLE_CONTACTS_STATUS_LABELS = {
+  connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
+  error: { label: "Requer reconexão", className: "bg-amber-50 text-amber-700" },
+  expired: { label: "Requer reconexão", className: "bg-amber-50 text-amber-700" },
+  disconnected: { label: "Não configurado", className: "bg-mist text-muted" }
+};
+
 // Pedido do dono (2026-09-29): ver direto no card do corretor se a
 // automação da Meta Diária está rodando e se o WhatsApp individual dele
 // está conectado — mesma fonte da aba Automação (/api/admin/daily-goal-auto),
@@ -286,6 +295,11 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
           <div className="mt-2 flex flex-wrap gap-1">
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+            {automation.googleContactsStatus && automation.googleContactsStatus !== "disconnected" ? (
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
+                Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
+              </span>
+            ) : null}
           </div>
           {automation.avgGapMinutes != null ? (
             <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
@@ -467,7 +481,11 @@ function AutomationSection({ automation, showHistory, onToggleHistory, brokerId 
       <div className="flex flex-wrap gap-1.5">
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
+          Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
+        </span>
       </div>
+      {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 
       {automation.enabled ? (
         <>
