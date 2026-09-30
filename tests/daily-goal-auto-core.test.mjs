@@ -147,3 +147,25 @@ test("pickMessageVariant com 1 única variação sempre repete (nada a evitar)",
 test("renderAutoMessage substitui {primeiro_nome}", () => {
   assert.equal(renderAutoMessage("Oi, {primeiro_nome}!", { primeiroNome: "Carol" }), "Oi, Carol!");
 });
+
+test("renderAutoMessage substitui {nome_corretor} e {associado_associada} conforme o gênero", () => {
+  assert.equal(
+    renderAutoMessage("Meu nome é {nome_corretor}, sou {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Eduardo", corretorGender: "male" }),
+    "Meu nome é Eduardo, sou associado do corretor Matheus Machado."
+  );
+  assert.equal(
+    renderAutoMessage("Meu nome é {nome_corretor}, sou {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Bruna", corretorGender: "female" }),
+    "Meu nome é Bruna, sou associada do corretor Matheus Machado."
+  );
+});
+
+test("renderAutoMessage sem gênero cadastrado nunca deixa {associado_associada} cru — cai no fallback neutro", () => {
+  assert.equal(
+    renderAutoMessage("Meu nome é {nome_corretor}, sou {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Caroline", corretorGender: "" }),
+    "Meu nome é Caroline, faço parte da equipe do corretor Matheus Machado."
+  );
+  assert.equal(
+    renderAutoMessage("Aqui é {nome_corretor}, {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Caroline", corretorGender: "" }),
+    "Aqui é Caroline, faço parte da equipe do corretor Matheus Machado."
+  );
+});
