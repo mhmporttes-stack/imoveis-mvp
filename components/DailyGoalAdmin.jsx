@@ -14,6 +14,33 @@ const SESSION_STATUS_LABELS = {
   nunca_conectou: { label: "Nunca conectou", className: "bg-mist text-muted" }
 };
 
+// Motivos internos de "pulado" traduzidos pra linguagem do dono — não são
+// erro de verdade na maioria das vezes (ex.: cliente que já respondeu).
+const SKIP_REASON_LABELS = {
+  fora_da_janela: "Fora do horário configurado",
+  fim_de_semana: "Fim de semana (dias úteis apenas)",
+  sessao_nao_conectada: "WhatsApp desconectado no momento",
+  fila_vazia: "Fila vazia",
+  round_nao_esta_mais_ativo: "Cliente não estava mais ativo (já converteu/encerrou)",
+  contato_do_not_contact: "Contato pediu para não ser contactado (PARAR)",
+  ja_teve_tentativa_hoje: "Cliente já tinha recebido tentativa hoje",
+  sem_telefone: "Contato sem telefone cadastrado",
+  automacao_desligada: "Automação foi desligada",
+  pausado_para_investigacao: "Pausado manualmente para investigação"
+};
+
+function minutesToTime(minutes) {
+  const value = Number(minutes) || 0;
+  const hour = Math.floor(value / 60);
+  const minute = value % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function timeToMinutes(time) {
+  const [hour, minute] = String(time || "00:00").split(":").map(Number);
+  return (Number(hour) || 0) * 60 + (Number(minute) || 0);
+}
+
 const TABS = [
   { key: "config", label: "Configurações" },
   { key: "messages", label: "Mensagens" },
@@ -114,6 +141,25 @@ function AutomationTab() {
     }
   }
 
+  async function saveBrokerCap(brokerId, dailyCapOverride) {
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, dailyCapOverride })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (capError) {
+      setError(capError.message || "Não foi possível atualizar o teto diário.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   if (!brokers) return <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>;
 
   // Rodando de verdade primeiro, depois quem tem algum problema, por último
@@ -123,14 +169,33 @@ function AutomationTab() {
     return rank(a) - rank(b) || a.brokerName.localeCompare(b.brokerName, "pt-BR");
   });
   const runningCount = brokers.filter((broker) => broker.enabled && !broker.paused).length;
+  const totals = brokers.reduce(
+    (acc, broker) => ({
+      sentToday: acc.sentToday + (broker.sentToday || 0),
+      pendingToday: acc.pendingToday + (broker.pendingToday || 0),
+      skippedToday: acc.skippedToday + (broker.skippedToday || 0),
+      errorToday: acc.errorToday + (broker.errorToday || 0),
+      sentTotal: acc.sentTotal + (broker.sentTotal || 0)
+    }),
+    { sentToday: 0, pendingToday: 0, skippedToday: 0, errorToday: 0, sentTotal: 0 }
+  );
 
   return (
     <div className="space-y-6">
-      <AutoMessagesEditor />
-
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <StatCard label="Enviadas hoje" value={totals.sentToday} tone="emerald" />
+        <StatCard label="Na fila" value={totals.pendingToday} tone="brand" />
+        <StatCard label="Puladas hoje" value={totals.skippedToday} tone="amber" />
+        <StatCard label="Erros hoje" value={totals.errorToday} tone="red" />
+        <StatCard label="Enviadas no total" value={totals.sentTotal} tone="navy" />
+      </div>
       <p className="text-sm font-bold text-muted">{runningCount} de {brokers.length} corretores com a automação ligada.</p>
+
+      <GlobalConfigPanel onSaved={load} />
+
+      <AutoMessagesEditor />
 
       <div className="grid gap-3">
         {sorted.map((broker) => {
@@ -138,40 +203,235 @@ function AutomationTab() {
           const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : "Rodando";
           const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
           const healthy = isAutoHealthy(broker);
+          const issue = broker.lastIssue;
+          const issueLabel = issue ? (issue.status === "error" ? (issue.reason || "Erro no envio") : (SKIP_REASON_LABELS[issue.reason] || issue.reason)) : "";
           return (
-            <div key={broker.brokerId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft">
-              <div className="flex items-center gap-3">
-                <Avatar name={broker.brokerName} photoUrl={broker.brokerPhotoUrl} size={40} />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-black text-navy">{broker.brokerName}</p>
-                    <span title={healthy ? "Tudo certo" : "Precisa de atenção"}>{healthy ? "✅" : "⚠️"}</span>
+            <div key={broker.brokerId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={broker.brokerName} photoUrl={broker.brokerPhotoUrl} size={40} />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-black text-navy">{broker.brokerName}</p>
+                      <span title={healthy ? "Tudo certo" : "Precisa de atenção"}>{healthy ? "✅" : "⚠️"}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>Automação: {autoLabel}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+                    </div>
+                    <p className="mt-1 text-xs font-bold text-muted">
+                      Hoje: {broker.sentToday} enviadas · {broker.pendingToday} na fila · {broker.skippedToday} puladas · {broker.errorToday} com erro
+                      {broker.consecutiveErrors ? ` · ${broker.consecutiveErrors} erros seguidos` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
+                    {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
+                    {!broker.paused && issueLabel ? <p className="mt-1 text-xs font-bold text-amber-700">Último problema: {issueLabel}</p> : null}
                   </div>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>Automação: {autoLabel}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-muted">
-                    Enviadas hoje: {broker.sentToday} · Na fila: {broker.pendingToday}
-                    {broker.consecutiveErrors ? ` · Erros seguidos: ${broker.consecutiveErrors}` : ""}
-                  </p>
-                  {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
                 </div>
+                {broker.enabled ? (
+                  <button
+                    type="button"
+                    className="client-action-button"
+                    disabled={busyId === broker.brokerId}
+                    onClick={() => togglePause(broker.brokerId, !broker.paused)}
+                  >
+                    {broker.paused ? "Retomar" : "Pausar"}
+                  </button>
+                ) : null}
               </div>
               {broker.enabled ? (
-                <button
-                  type="button"
-                  className="client-action-button"
-                  disabled={busyId === broker.brokerId}
-                  onClick={() => togglePause(broker.brokerId, !broker.paused)}
-                >
-                  {broker.paused ? "Retomar" : "Pausar"}
-                </button>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
+                  <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
+                  <span>· Intervalo: {broker.minGapMinutes}–{broker.maxGapMinutes} min</span>
+                  <span>· {broker.businessDaysOnly ? "Só dias úteis" : "Todos os dias"}</span>
+                  <span className="flex items-center gap-1">
+                    · Teto diário:
+                    <BrokerCapInput
+                      brokerId={broker.brokerId}
+                      value={broker.dailyCapOverride}
+                      disabled={busyId === broker.brokerId}
+                      onSave={saveBrokerCap}
+                    />
+                  </span>
+                </div>
               ) : null}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, tone }) {
+  const toneClass = {
+    emerald: "text-emerald-700",
+    brand: "text-brand",
+    amber: "text-amber-700",
+    red: "text-red-700",
+    navy: "text-navy"
+  }[tone] || "text-navy";
+  return (
+    <div className="rounded-2xl border border-line bg-white p-3 text-center shadow-soft">
+      <p className={`text-2xl font-black ${toneClass}`}>{value}</p>
+      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
+    </div>
+  );
+}
+
+function BrokerCapInput({ brokerId, value, disabled, onSave }) {
+  const [draft, setDraft] = useState(value ?? "");
+
+  useEffect(() => setDraft(value ?? ""), [value]);
+
+  return (
+    <input
+      type="number"
+      min={1}
+      max={20}
+      placeholder="auto"
+      className="w-16 rounded-lg border border-line px-2 py-0.5 text-center text-xs font-bold text-navy outline-none focus:border-brand"
+      value={draft}
+      disabled={disabled}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        const normalized = draft === "" ? null : Number(draft);
+        if (normalized !== (value ?? null)) onSave(brokerId, normalized);
+      }}
+    />
+  );
+}
+
+// Configuração global aplicada a todos os corretores de uma vez (pedido do
+// dono, 2026-09-30: menu completo — janela de envio, intervalo entre
+// mensagens, dias úteis, teto diário padrão). Também vira o padrão herdado
+// por quem ligar a automação pela 1ª vez depois (ver getDailyGoalAutoDefaults).
+function GlobalConfigPanel({ onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/daily-goal-auto/global-config").then((r) => r.json()).then((data) => setDraft(data)).catch(() => {});
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto/global-config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setDraft(data.defaults);
+      setFeedback("Configuração aplicada a todos os corretores.");
+      onSaved?.();
+    } catch (error) {
+      setFeedback(error.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+      <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
+        <div>
+          <h3 className="text-lg font-black text-navy">Configuração geral da automação</h3>
+          <p className="mt-1 text-xs font-bold text-muted">Horário de envio, intervalo entre mensagens, dias úteis e teto diário — aplica a todos os corretores.</p>
+        </div>
+        <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
+      </button>
+
+      {open ? (
+        !draft ? (
+          <p className="mt-4 text-sm font-bold text-muted">Carregando…</p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-black text-navy">Janela de envio</p>
+                <p className="text-[11px] font-bold text-muted">Horário em que a automação pode disparar mensagens.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="time"
+                    className="rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    value={minutesToTime(draft.windowStartMinutes)}
+                    onChange={(event) => setDraft((current) => ({ ...current, windowStartMinutes: timeToMinutes(event.target.value) }))}
+                  />
+                  <span className="text-sm font-bold text-muted">até</span>
+                  <input
+                    type="time"
+                    className="rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    value={minutesToTime(draft.windowEndMinutes)}
+                    onChange={(event) => setDraft((current) => ({ ...current, windowEndMinutes: timeToMinutes(event.target.value) }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-black text-navy">Intervalo entre mensagens</p>
+                <p className="text-[11px] font-bold text-muted">Tempo aleatório (min–máx) entre um disparo e outro do mesmo corretor.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={180}
+                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    value={draft.minGapMinutes}
+                    onChange={(event) => setDraft((current) => ({ ...current, minGapMinutes: Number(event.target.value) }))}
+                  />
+                  <span className="text-sm font-bold text-muted">a</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={180}
+                    className="w-20 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                    value={draft.maxGapMinutes}
+                    onChange={(event) => setDraft((current) => ({ ...current, maxGapMinutes: Number(event.target.value) }))}
+                  />
+                  <span className="text-sm font-bold text-muted">minutos</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-black text-navy">Teto diário padrão</p>
+                <p className="text-[11px] font-bold text-muted">Máximo de mensagens automáticas por corretor por dia. Vazio = automático (cota da Meta Diária, limitado a 20 e à rampa de aquecimento).</p>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  placeholder="automático"
+                  className="mt-2 w-28 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
+                  value={draft.dailyCapOverride ?? ""}
+                  onChange={(event) => setDraft((current) => ({ ...current, dailyCapOverride: event.target.value === "" ? null : Number(event.target.value) }))}
+                />
+              </div>
+
+              <div>
+                <p className="text-xs font-black text-navy">Dias de envio</p>
+                <label className="mt-2 flex items-center gap-2 text-sm font-bold text-navy">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(draft.businessDaysOnly)}
+                    onChange={(event) => setDraft((current) => ({ ...current, businessDaysOnly: event.target.checked }))}
+                  />
+                  Enviar só em dias úteis (seg. a sex.)
+                </label>
+              </div>
+            </div>
+
+            {feedback ? <p className="text-sm font-bold text-navy">{feedback}</p> : null}
+            <button type="button" className="premium-button-primary" disabled={busy} onClick={save}>
+              {busy ? "Salvando..." : "Aplicar a todos os corretores"}
+            </button>
+          </div>
+        )
+      ) : null}
     </div>
   );
 }
