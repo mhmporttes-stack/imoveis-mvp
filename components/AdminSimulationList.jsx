@@ -1219,12 +1219,14 @@ function ClientCard({
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <div className="mb-1 flex max-w-full flex-wrap items-center gap-2">
-            <p
-              className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted"
-              title="Corretor responsável"
-            >
-              Responsável: {responsibleName}
-            </p>
+            {showResponsibleSelector ? (
+              <p
+                className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-muted"
+                title="Corretor responsável"
+              >
+                Responsável: {responsibleName}
+              </p>
+            ) : null}
             {showResponsibleSelector ? (
               <select
                 aria-label={`Alterar corretor responsável de ${client.name || "cliente"}`}
