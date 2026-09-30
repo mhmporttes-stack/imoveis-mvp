@@ -191,13 +191,28 @@ async function onMessagesUpsert(userId, messages, type) {
 // status: 2=SERVER_ACK (só confirma envio, já tratado no /send), 3=DELIVERY_ACK
 // (entregue — duas setinhas cinza), 4=READ, 5=PLAYED (lida — duas setinhas
 // azuis). Só repassa entregue/lida; envio já é registrado na hora do /send.
+// Baileys: 0=ERROR, 1=PENDING, 2=SERVER_ACK (chegou no servidor do WhatsApp
+// — 1 tique cinza), 3=DELIVERY_ACK (chegou no aparelho do destinatário — 2
+// tiques), 4/5=READ/PLAYED. SERVER_ACK (2) também é repassado agora — é a
+// confirmação mais rápida e mais confiável de que a mensagem realmente saiu
+// pela conexão (não depende do destinatário estar online, ao contrário de
+// DELIVERY_ACK) — usada pela automação da Meta Diária pra distinguir
+// "tentamos enviar" de "realmente saiu" (achado real, 2026-09-30: mensagem
+// marcada "enviada" que nunca chegou nem no servidor do WhatsApp).
+function statusLabelFor(statusCode) {
+  if (statusCode === 2) return "server_ack";
+  if (statusCode === 3) return "delivered";
+  if (statusCode === 4 || statusCode === 5) return "read";
+  return null;
+}
+
 async function onMessagesUpdate(userId, updates) {
   for (const { key, update } of updates || []) {
     try {
       if (!key?.fromMe || !key?.id) continue;
-      const statusCode = update?.status;
-      if (statusCode !== 3 && statusCode !== 4 && statusCode !== 5) continue;
-      await notifyMessageStatus(userId, { waMessageId: key.id, status: statusCode === 3 ? "delivered" : "read" });
+      const label = statusLabelFor(update?.status);
+      if (!label) continue;
+      await notifyMessageStatus(userId, { waMessageId: key.id, status: label });
     } catch (error) {
       console.error(`[${userId}] Falha ao processar atualização de status:`, error.message);
     }
