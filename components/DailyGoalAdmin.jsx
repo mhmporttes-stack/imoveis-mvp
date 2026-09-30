@@ -49,19 +49,20 @@ function formatGapMinutes(minutes) {
   return `${Math.round(minutes)} min`;
 }
 
-// Horário (São Paulo) do próximo item agendado que ainda vai sair.
-// Pedido do dono, 2026-09-30: mostrar um horário antigo com "(atrasado)"
-// ficava parecendo erro que nunca se resolvia sozinho (a fila atrasada
-// mantém o MESMO horário velho até o item realmente sair, então o aviso só
-// ficava cada vez mais "errado" aos olhos dele, mesmo com tudo funcionando
-// por trás). Quando está atrasado, em vez do relógio parado, mostra uma
-// frase fixa e sempre verdadeira: o dispatcher tenta a cada ciclo (~5 min),
-// então "a qualquer momento" nunca fica desatualizada igual um horário fixo.
+// Horário (São Paulo) do item PENDENTE mais cedo da fila — pedido do dono,
+// 2026-09-30: quer ver o horário de verdade, não uma frase genérica. Antes
+// esse horário ficava preso no mesmo item obsoleto/com erro (por isso a
+// tentativa anterior de trocar por uma frase fixa); agora que o dispatcher
+// descarta item obsoleto/com falha de envio e já tenta o próximo da fila no
+// mesmo ciclo (ver dispatchOneForBroker em lib/daily-goal-auto.js), esse
+// horário passa a AVANÇAR de verdade a cada envio/descarte — o "(atrasado)"
+// só indica que a fila está maior do que o ritmo de 1 envio real por ciclo
+// consegue vencer agora, não que travou.
 function formatNextDispatch(isoString) {
   if (!isoString) return null;
+  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
   const atrasado = new Date(isoString).getTime() < Date.now();
-  if (atrasado) return "a qualquer momento (fila atrasada)";
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
+  return `${time}${atrasado ? " (atrasado)" : ""}`;
 }
 
 const TABS = [
