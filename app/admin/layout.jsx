@@ -5,6 +5,7 @@ import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGa
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import TopRankingBadge from "@/components/TopRankingBadge";
+import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { getAdminFromCookies } from "@/lib/admin-auth";
@@ -33,8 +34,13 @@ export default async function AdminLayout({ children }) {
               status do sistema — sem esse respiro o conteúdo do cabeçalho
               nasceria atrás dela. O fundo da barra continua se estendendo
               até o topo real (comportamento padrão esperado em PWAs). */}
-          <header className="admin-ranking-header flex min-h-12 items-center justify-center border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
+          <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
             <TopRankingBadge />
+            {/* Fixo em toda aba, igual o campeão semanal/melhor do dia
+                (pedido do dono, 2026-09-30: corretor não percebia o próprio
+                WhatsApp cair porque esse indicador só existia dentro do
+                Chat) — mesmo componente, agora sempre visível. */}
+            <WhatsappIndividualStatus />
           </header>
         </div>
       ) : null}
