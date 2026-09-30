@@ -351,7 +351,7 @@ function BrokerCapInput({ brokerId, value, disabled, onSave }) {
     <input
       type="number"
       min={1}
-      max={20}
+      max={100}
       placeholder="auto"
       className="w-16 rounded-lg border border-line px-2 py-0.5 text-center text-xs font-bold text-navy outline-none focus:border-brand"
       value={draft}
@@ -494,11 +494,11 @@ function GlobalConfigPanel({ onSaved }) {
 
               <div>
                 <p className="text-xs font-black text-navy">Teto diário padrão</p>
-                <p className="text-[11px] font-bold text-muted">Máximo de mensagens automáticas por corretor por dia. Vazio = automático (cota da Meta Diária, limitado a 20 e à rampa de aquecimento).</p>
+                <p className="text-[11px] font-bold text-muted">Máximo de mensagens automáticas por corretor por dia. Vazio = automático (todas as atividades pendentes do dia, limitado a 100).</p>
                 <input
                   type="number"
                   min={1}
-                  max={20}
+                  max={100}
                   placeholder="automático"
                   className="mt-2 w-28 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand"
                   value={draft.dailyCapOverride ?? ""}
