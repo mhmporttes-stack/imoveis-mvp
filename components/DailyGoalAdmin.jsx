@@ -281,9 +281,6 @@ function AutomationTab() {
           const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : sessionConnected ? "Rodando" : "Aguardando WhatsApp";
           const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
           const healthy = isAutoHealthy(broker);
-          const issue = broker.lastIssue;
-          const issueStale = isIssueStale(broker);
-          const issueLabel = issue ? (SKIP_REASON_LABELS[issue.reason] || issue.reason || (issue.status === "error" ? "Erro no envio" : "")) : "";
           return (
             <div key={broker.brokerId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -315,11 +312,9 @@ function AutomationTab() {
                       <p className="mt-0.5 text-xs font-bold text-red-700">{broker.autoErrorTotal} cliente{broker.autoErrorTotal === 1 ? "" : "s"} em "Erro" (3 falhas técnicas seguidas — veja o Histórico)</p>
                     ) : null}
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
-                    {!broker.paused && issueLabel ? (
-                      <p className={`mt-1 text-xs font-bold ${issueStale ? "text-muted" : "text-amber-700"}`}>
-                        {issueStale ? "Último problema (já resolvido — reconectou depois): " : "Último problema: "}{issueLabel}
-                      </p>
-                    ) : null}
+                    {/* "Último problema" removido daqui (pedido do dono, 2026-10-01) —
+                        informação de "o que aconteceu" agora vive só no Histórico,
+                        pra não duplicar entre a configuração e o detalhamento. */}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -408,7 +403,10 @@ const HISTORY_ATTEMPT_OPTIONS = [
 // Histórico da automação por corretor (pedido do dono, 2026-09-30) —
 // resumo do período + timeline cronológica, reaproveitando
 // adminGetDailyGoalAutoHistory/daily_goal_auto_queue (nenhum dado novo).
-function BrokerHistoryPanel({ brokerId }) {
+// Exportado (pedido do dono, 2026-10-01): reaproveitado também pelo ícone de
+// histórico do painel "Desempenho de Hoje" (components/TeamDailyPerformance.jsx),
+// em vez de recriar o histórico lá.
+export function BrokerHistoryPanel({ brokerId }) {
   const [period, setPeriod] = useState("today");
   const [status, setStatus] = useState("");
   const [attemptNumber, setAttemptNumber] = useState("");

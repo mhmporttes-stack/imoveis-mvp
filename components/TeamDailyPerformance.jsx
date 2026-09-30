@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X, History } from "lucide-react";
 import Avatar from "@/components/Avatar";
+// Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
+// > Automação) em vez de recriar — pedido do dono, 2026-10-01.
+import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -104,7 +107,12 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
       ) : null}
 
       {selectedBrokerId ? (
-        <BrokerDetailDrawer brokerId={selectedBrokerId} period={period} onClose={() => setSelectedBrokerId("")} />
+        <BrokerDetailDrawer
+          brokerId={selectedBrokerId}
+          period={period}
+          automation={automationById[selectedBrokerId]}
+          onClose={() => setSelectedBrokerId("")}
+        />
       ) : null}
     </section>
   );
@@ -213,6 +221,27 @@ function formatGapMinutes(minutes) {
   return `${Math.round(minutes)} min`;
 }
 
+function minutesToTime(minutes) {
+  const value = Number(minutes) || 0;
+  const hour = Math.floor(value / 60);
+  const minute = value % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+// Mesma regra de components/DailyGoalAdmin.jsx (pedido do dono, repetido à
+// exaustão, 2026-09-30): nunca mostrar horário passado nem "atrasado" — item
+// elegível (scheduled_for <= agora) vira "aguardando processamento". Aqui,
+// compacto pro card (resumo de 1 linha) — cobre também os estados sem
+// próximo disparo (desligada/pausada/sem pendências).
+function formatNextDispatchCompact(automation) {
+  if (!automation?.enabled) return "desligada";
+  if (automation.paused) return "pausada";
+  if (!automation.nextDispatchAt) return "sem pendências";
+  const scheduled = new Date(automation.nextDispatchAt).getTime();
+  if (scheduled <= Date.now()) return "aguardando processamento";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
+}
+
 function BrokerCard({ broker, presenceStatus, automation, onClick }) {
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -286,6 +315,12 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
         {broker.meta.done} / {broker.meta.total} atividades
       </p>
 
+      {automation ? (
+        <p className="mt-1 text-center text-xs font-bold text-muted">
+          Próximo {formatNextDispatchCompact(automation)} · Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}
+        </p>
+      ) : null}
+
       {broker.wallet ? (
         <p className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}>
           Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
@@ -315,9 +350,10 @@ function MiniStat({ label, value }) {
   );
 }
 
-function BrokerDetailDrawer({ brokerId, period, onClose }) {
+function BrokerDetailDrawer({ brokerId, period, automation, onClose }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -364,6 +400,10 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
               </div>
             </div>
 
+            {automation ? (
+              <AutomationSection automation={automation} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />
+            ) : null}
+
             {detail.isToday ? <GoalRemaining broker={detail.broker} /> : null}
 
             <div>
@@ -393,6 +433,66 @@ function BrokerDetailDrawer({ brokerId, period, onClose }) {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+// Seção compacta de automação no painel "Desempenho de Hoje" (pedido do
+// dono, 2026-10-01) — concentra o que hoje estava espalhado/duplicado entre
+// o card e a configuração: status, próximo disparo, contagens do dia e
+// intervalo/janela configurados. O ícone abre o Histórico já existente
+// (BrokerHistoryPanel, de components/DailyGoalAdmin.jsx) — nada novo criado.
+function AutomationSection({ automation, showHistory, onToggleHistory, brokerId }) {
+  const sessionInfo = AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou;
+  const sessionConnected = automation.sessionStatus === "connected";
+  const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : "Aguardando WhatsApp";
+  const autoClassName = !automation.enabled ? "bg-mist text-muted" : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+  const sentToday = (automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0);
+
+  return (
+    <div className="rounded-2xl border border-line bg-mist/40 px-4 py-3">
+      <div className="mb-2 flex items-center justify-between">
+        <h4 className="text-xs font-black uppercase tracking-[0.14em] text-navy">Automação</h4>
+        <button
+          type="button"
+          onClick={onToggleHistory}
+          title="Histórico da automação"
+          aria-label="Histórico da automação"
+          className="icon-button"
+        >
+          <History className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+      </div>
+
+      {automation.enabled ? (
+        <>
+          <p className="mt-2 text-xs font-bold text-navy">
+            Próximo disparo: <span className="font-black">{formatNextDispatchCompact(automation)}</span>
+          </p>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
+            <MiniStat label="Enviadas" value={sentToday} />
+            <MiniStat label="Aguard." value={automation.sentUnconfirmedToday || 0} />
+            <MiniStat label="Na fila" value={automation.pendingToday || 0} />
+            <MiniStat label="Puladas" value={automation.skippedToday || 0} />
+            <MiniStat label="Erros" value={automation.errorToday || 0} />
+          </div>
+          <p className="mt-2 text-[11px] font-bold text-muted">
+            Janela {minutesToTime(automation.windowStartMinutes)}–{minutesToTime(automation.windowEndMinutes)} · Intervalo{" "}
+            {automation.avgGapMinutes != null
+              ? formatGapMinutes(automation.avgGapMinutes)
+              : automation.oscillateEnabled
+                ? `média automática ± ${automation.oscillatePercent}%`
+                : `${automation.minGapMinutes}–${automation.maxGapMinutes} min`}
+          </p>
+        </>
+      ) : null}
+
+      {showHistory ? <BrokerHistoryPanel brokerId={brokerId} /> : null}
     </div>
   );
 }
