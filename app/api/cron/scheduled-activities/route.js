@@ -10,6 +10,7 @@ import { listDueCalendarActivityNotifications, markCalendarActivityNotified } fr
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
 import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
+import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,6 +98,18 @@ export async function GET(request) {
       console.error("Falha ao reconciliar contatos diretos do WhatsApp.", organicError);
     }
 
+    // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
+    // primeiro corretor on-line quem ficou sem responsável porque, na hora
+    // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
+    // abaixo, que já ignora quem está nessa fila de propósito.
+    let pendingRouletteAssignment = { assigned: 0 };
+    try {
+      pendingRouletteAssignment = await reassignPendingRouletteLeads();
+    } catch (pendingError) {
+      console.error("Falha ao reconciliar a fila de espera da roleta.", pendingError);
+      pendingRouletteAssignment = { error: pendingError?.message || "Falha ao reconciliar." };
+    }
+
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
     // qualquer registro que tenha ficado com responsible_user_id nulo por
     // qualquer caminho (não só o de exclusão de corretor, já tratado na hora)
@@ -119,6 +132,7 @@ export async function GET(request) {
       results: allResults,
       automations,
       sponsoredLeads,
+      pendingRouletteAssignment,
       orphanReassignment
     });
   } catch (error) {

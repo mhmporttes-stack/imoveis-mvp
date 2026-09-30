@@ -1207,7 +1207,9 @@ function ClientCard({
   const clientTags = ensureArray(client.tags);
   const currentTagIds = clientTags.map((tagItem) => tagItem.id).filter(Boolean);
   const responsibleUserId = client.registration?.responsibleUserId || "";
-  const responsibleName = responsibleProfileMap?.get(responsibleUserId)?.name || client.lastAdminLabel || "Sem corretor";
+  const responsibleName = responsibleProfileMap?.get(responsibleUserId)?.name
+    || client.lastAdminLabel
+    || (client.registration?.pendingDistributionAt ? "Aguardando" : "Sem corretor");
   const urgency = getUrgencySignal(client, activities);
   const dateLabel = safeFormatDateLabel(client.registration);
   const lastContactLabel = client.lastWhatsappContactAt ? formatLastContactLabel(client.lastWhatsappContactAt) : "Nenhum contato realizado";
