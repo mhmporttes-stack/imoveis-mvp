@@ -132,6 +132,11 @@ function isAutoHealthy(broker) {
 // TODOS os corretores ativos — quem está rodando com a automação, quem está
 // conectado no WhatsApp individual e quem está OK, mesmo quem nunca mexeu
 // na automação — e permite pausar/retomar QUALQUER corretor.
+// Atualiza sozinho a cada 20s (pedido do dono, 2026-09-30: mandou mensagem
+// pro próximo cliente da fila e o card ficou com "Próximo disparo" antigo até
+// ele recarregar a página na mão) — só enquanto esta aba estiver montada.
+const AUTOMATION_POLL_MS = 20000;
+
 function AutomationTab() {
   const [brokers, setBrokers] = useState(null);
   const [error, setError] = useState("");
@@ -139,6 +144,8 @@ function AutomationTab() {
 
   useEffect(() => {
     load();
+    const interval = setInterval(load, AUTOMATION_POLL_MS);
+    return () => clearInterval(interval);
   }, []);
 
   async function load() {
