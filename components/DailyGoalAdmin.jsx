@@ -149,6 +149,29 @@ function AutomationTab() {
     }
   }
 
+  // Liga/desliga a automação de um corretor — o corretor não controla mais
+  // isso sozinho (pedido do dono, 2026-09-30), então precisa ter como o
+  // admin ativar pela 1ª vez ou desligar de vez (diferente de "Pausar", que
+  // é temporário e mantém a fila/config).
+  async function toggleEnabled(brokerId, enabled) {
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, enabled })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível atualizar.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   async function saveBrokerCap(brokerId, dailyCapOverride) {
     setBusyId(brokerId);
     setError("");
@@ -244,16 +267,37 @@ function AutomationTab() {
                     {!broker.paused && issueLabel ? <p className="mt-1 text-xs font-bold text-amber-700">Último problema: {issueLabel}</p> : null}
                   </div>
                 </div>
-                {broker.enabled ? (
-                  <button
-                    type="button"
-                    className="client-action-button"
-                    disabled={busyId === broker.brokerId}
-                    onClick={() => togglePause(broker.brokerId, !broker.paused)}
-                  >
-                    {broker.paused ? "Retomar" : "Pausar"}
-                  </button>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {broker.enabled ? (
+                    <>
+                      <button
+                        type="button"
+                        className="client-action-button"
+                        disabled={busyId === broker.brokerId}
+                        onClick={() => togglePause(broker.brokerId, !broker.paused)}
+                      >
+                        {broker.paused ? "Retomar" : "Pausar"}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-muted hover:text-red-700"
+                        disabled={busyId === broker.brokerId}
+                        onClick={() => toggleEnabled(broker.brokerId, false)}
+                      >
+                        Desativar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="client-action-button"
+                      disabled={busyId === broker.brokerId}
+                      onClick={() => toggleEnabled(broker.brokerId, true)}
+                    >
+                      Ativar
+                    </button>
+                  )}
+                </div>
               </div>
               {broker.enabled ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
