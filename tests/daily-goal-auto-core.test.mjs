@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   computeDailyAutoCap,
-  warmupDayNumber,
+  shuffleArray,
   spreadScheduleMinutes,
   isWithinWindow,
   isBusinessDay,
@@ -11,32 +11,34 @@ import {
   renderAutoMessage
 } from "../lib/daily-goal-auto-core.mjs";
 
-test("teto do dia nunca passa de 20, mesmo com cota de Gestão maior", () => {
-  assert.equal(computeDailyAutoCap({ quota: 30, warmupDayNumber: null }), 20);
+test("teto do dia = todas as atividades pendentes, sem passar de 100", () => {
+  assert.equal(computeDailyAutoCap({ totalActivities: 65 }), 65);
+  assert.equal(computeDailyAutoCap({ totalActivities: 130 }), 100);
 });
 
-test("teto do dia respeita a rampa de aquecimento nos primeiros dias", () => {
-  assert.equal(computeDailyAutoCap({ quota: 30, warmupSchedule: [5, 10, 15, 20], warmupDayNumber: 1 }), 5);
-  assert.equal(computeDailyAutoCap({ quota: 30, warmupSchedule: [5, 10, 15, 20], warmupDayNumber: 2 }), 10);
-  assert.equal(computeDailyAutoCap({ quota: 30, warmupSchedule: [5, 10, 15, 20], warmupDayNumber: 4 }), 20);
+test("teto do dia respeita um override manual menor que as atividades pendentes", () => {
+  assert.equal(computeDailyAutoCap({ totalActivities: 65, dailyCapOverride: 10 }), 10);
 });
 
-test("depois do fim da rampa, volta a valer o teto de 20 (rampa não limita mais)", () => {
-  assert.equal(computeDailyAutoCap({ quota: 30, warmupSchedule: [5, 10, 15, 20], warmupDayNumber: 5 }), 20);
+test("override manual maior que 100 não estoura o teto absoluto", () => {
+  assert.equal(computeDailyAutoCap({ totalActivities: 65, dailyCapOverride: 500 }), 65);
 });
 
-test("cota de Gestão menor que 20 prevalece (teto é o MENOR dos candidatos)", () => {
-  assert.equal(computeDailyAutoCap({ quota: 12, warmupDayNumber: null }), 12);
+test("sem nenhuma atividade pendente, teto é 0", () => {
+  assert.equal(computeDailyAutoCap({ totalActivities: 0 }), 0);
 });
 
-test("warmupDayNumber conta a partir do dia de início (dia 1 = o próprio dia)", () => {
-  assert.equal(warmupDayNumber("2026-09-29", "2026-09-29"), 1);
-  assert.equal(warmupDayNumber("2026-09-29", "2026-09-30"), 2);
-  assert.equal(warmupDayNumber("2026-09-29", "2026-10-02"), 4);
+test("shuffleArray devolve os mesmos itens, só a ordem muda (e não muta o array original)", () => {
+  const original = [1, 2, 3, 4, 5];
+  const shuffled = shuffleArray(original, () => 0.999);
+  assert.deepEqual([...original], [1, 2, 3, 4, 5]); // não mutou
+  assert.deepEqual([...shuffled].sort(), [1, 2, 3, 4, 5]); // mesmos itens
 });
 
-test("warmupDayNumber sem data de início não limita (null)", () => {
-  assert.equal(warmupDayNumber(null, "2026-09-29"), null);
+test("shuffleArray é determinístico quando random é fornecido", () => {
+  const a = shuffleArray([1, 2, 3, 4, 5], () => 0.5);
+  const b = shuffleArray([1, 2, 3, 4, 5], () => 0.5);
+  assert.deepEqual(a, b);
 });
 
 test("spreadScheduleMinutes espalha dentro da janela, respeitando o mínimo/máximo intervalo", () => {
