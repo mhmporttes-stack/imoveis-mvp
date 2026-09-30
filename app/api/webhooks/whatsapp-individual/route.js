@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
 import { projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
+import { ensureDailyGoalAutoEnabledOnConnect } from "@/lib/daily-goal-auto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,10 @@ export async function POST(request) {
         qrExpiresAt: payload.qrExpiresAt,
         error: payload.error
       });
+      // Ativa a automação da Meta Diária sozinha assim que a sessão
+      // individual DESTE corretor conecta (pedido do dono, 2026-09-30) — só
+      // liga quando ainda não estava ligada, nunca pausa/desliga nada.
+      if (payload.status === "connected") await ensureDailyGoalAutoEnabledOnConnect(userId);
       return NextResponse.json({ ok: true });
     }
 

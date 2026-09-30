@@ -205,6 +205,14 @@ function useAutomationStatus() {
   return statusById;
 }
 
+// Intervalo médio REAL entre os horários já agendados hoje pra esse
+// corretor (não a teoria de min/máx nem da oscilação) — mesmo padrão de
+// components/DailyGoalAdmin.jsx. Pedido do dono, 2026-09-30.
+function formatGapMinutes(minutes) {
+  if (minutes < 1) return `${Math.round(minutes * 60)} seg`;
+  return `${Math.round(minutes)} min`;
+}
+
 function BrokerCard({ broker, presenceStatus, automation, onClick }) {
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -245,10 +253,15 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
       </div>
 
       {automation ? (
-        <div className="mt-2 flex flex-wrap gap-1">
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
-        </div>
+        <>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
+          </div>
+          {automation.avgGapMinutes != null ? (
+            <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
+          ) : null}
+        </>
       ) : null}
 
       <div className="mt-4 flex items-center justify-center">
