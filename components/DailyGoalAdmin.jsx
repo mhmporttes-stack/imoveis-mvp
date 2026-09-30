@@ -49,15 +49,19 @@ function formatGapMinutes(minutes) {
   return `${Math.round(minutes)} min`;
 }
 
-// Horário (São Paulo) do próximo item agendado que ainda vai sair — pedido
-// do dono, 2026-09-30. "atrasado" quando o horário já passou e ainda não
-// saiu (corretor desconectado, fora da janela, etc.) — mesmo pedido de
-// "realinhar horários" de antes, aplicado aqui de propósito.
+// Horário (São Paulo) do próximo item agendado que ainda vai sair.
+// Pedido do dono, 2026-09-30: mostrar um horário antigo com "(atrasado)"
+// ficava parecendo erro que nunca se resolvia sozinho (a fila atrasada
+// mantém o MESMO horário velho até o item realmente sair, então o aviso só
+// ficava cada vez mais "errado" aos olhos dele, mesmo com tudo funcionando
+// por trás). Quando está atrasado, em vez do relógio parado, mostra uma
+// frase fixa e sempre verdadeira: o dispatcher tenta a cada ciclo (~5 min),
+// então "a qualquer momento" nunca fica desatualizada igual um horário fixo.
 function formatNextDispatch(isoString) {
   if (!isoString) return null;
-  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
   const atrasado = new Date(isoString).getTime() < Date.now();
-  return `${time}${atrasado ? " (atrasado)" : ""}`;
+  if (atrasado) return "a qualquer momento (fila atrasada)";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
 }
 
 const TABS = [
@@ -297,7 +301,7 @@ function AutomationTab() {
                       {broker.dailyCapReason ? ` · teto: ${broker.dailyCapReason}` : ""}
                     </p>
                     {broker.nextDispatchAt ? (
-                      <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo às {formatNextDispatch(broker.nextDispatchAt)}</p>
+                      <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo: {formatNextDispatch(broker.nextDispatchAt)}</p>
                     ) : null}
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
