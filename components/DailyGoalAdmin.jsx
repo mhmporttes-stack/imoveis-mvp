@@ -41,6 +41,14 @@ function timeToMinutes(time) {
   return (Number(hour) || 0) * 60 + (Number(minute) || 0);
 }
 
+// Intervalo médio REAL entre os horários já agendados hoje (não a teoria de
+// min/máx nem da oscilação) — arredonda pra minutos inteiros; menos de 1
+// minuto mostra em segundos, pra não arredondar pra "0 min".
+function formatGapMinutes(minutes) {
+  if (minutes < 1) return `${Math.round(minutes * 60)} seg`;
+  return `${Math.round(minutes)} min`;
+}
+
 const TABS = [
   { key: "config", label: "Configurações" },
   { key: "messages", label: "Mensagens" },
@@ -226,6 +234,10 @@ function AutomationTab() {
                     <p className="mt-1 text-xs font-bold text-muted">
                       Hoje: {broker.sentToday} enviadas · {broker.pendingToday} na fila · {broker.skippedToday} puladas · {broker.errorToday} com erro
                       {broker.consecutiveErrors ? ` · ${broker.consecutiveErrors} erros seguidos` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs font-bold text-muted">
+                      Total de hoje: {broker.plannedToday} mensagem{broker.plannedToday === 1 ? "" : "s"}
+                      {broker.avgGapMinutes !== null ? ` (~${formatGapMinutes(broker.avgGapMinutes)} entre elas)` : ""}
                     </p>
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
