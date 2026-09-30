@@ -35,15 +35,30 @@ function entryFor(userId) {
 // phoneNumber (opcional, pedido do dono 2026-09-30): pareamento por código
 // numérico em vez de QR — o corretor digita o número, recebe um código de 8
 // caracteres e digita em WhatsApp > Aparelhos conectados > Conectar com
-// número de telefone. Só faz sentido numa sessão nova (sem QR/código já
-// pendente); se já tiver uma conexão em andamento, ignora o número e devolve
-// o estado atual (mesma idempotência de sempre).
+// número de telefone.
+//
+// Exceção à idempotência (bug real, 2026-09-30): o modal do CRM já abre
+// chamando connect() sem número (pra mostrar o QR na hora), então quando o
+// corretor clica em "prefere código?" e manda o número, o socket já está
+// em qr_required — a idempotência simplesmente devolvia o QR de novo e
+// IGNORAVA o número, e o botão "Pedir código" parecia não fazer nada.
+// requestPairingCode() só funciona logo depois de criar o socket, antes do
+// QR ser consumido — não dá pra "converter" um socket que já está em
+// qr_required. Solução: se chegou phoneNumber e o socket atual ainda está
+// só em qr_required (sessão nova, nunca chegou a conectar), descarta esse
+// socket em memória (sem apagar credenciais — não existe nenhuma ainda,
+// é sessão nova) e recomeça do zero já em modo código.
 export async function connectSession(userId, { phoneNumber } = {}) {
   const entry = entryFor(userId);
-  if (entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
+  const switchingToPairingCode = Boolean(phoneNumber) && entry.status === "qr_required";
+  if (switchingToPairingCode && entry.sock) {
+    try { entry.sock.end(undefined); } catch { /* socket pode já estar fechado */ }
+    entry.sock = null;
+  }
+  if (!switchingToPairingCode && entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
     return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
   }
-  if (entry.connecting) return entry.connecting;
+  if (entry.connecting && !switchingToPairingCode) return entry.connecting;
 
   entry.connecting = startSocket(userId, entry, { phoneNumber }).finally(() => { entry.connecting = null; });
   return entry.connecting;
