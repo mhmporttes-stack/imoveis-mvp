@@ -99,10 +99,22 @@ export default function DailyGoalAdmin({ initialSettings }) {
   );
 }
 
+// Um erro registrado ANTES da sessão atual conectar (ela caiu e reconectou
+// depois) já foi resolvido pela reconexão — só falta um envio de sucesso
+// pra zerar consecutive_errors sozinho. Sem isso, o painel mostrava alerta
+// pra corretor já reconectado, mostrando um problema antigo como se fosse
+// atual (pedido do dono, 2026-09-30).
+function isIssueStale(broker) {
+  if (broker.sessionStatus !== "connected" || !broker.lastIssue?.at || !broker.sessionLastConnectedAt) return false;
+  return new Date(broker.sessionLastConnectedAt).getTime() > new Date(broker.lastIssue.at).getTime();
+}
+
 // "OK" = rodando de verdade agora: ligada, não pausada, WhatsApp conectado
-// e sem erro em sequência acumulado.
+// e sem erro em sequência acumulado (ou o erro já é de antes da reconexão atual).
 function isAutoHealthy(broker) {
-  return broker.enabled && !broker.paused && broker.sessionStatus === "connected" && !broker.consecutiveErrors;
+  if (!broker.enabled || broker.paused || broker.sessionStatus !== "connected") return false;
+  if (!broker.consecutiveErrors) return true;
+  return isIssueStale(broker);
 }
 
 // Visão do admin da automação da Meta Diária (pedido do dono, 2026-09-29):
@@ -241,6 +253,7 @@ function AutomationTab() {
           const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
           const healthy = isAutoHealthy(broker);
           const issue = broker.lastIssue;
+          const issueStale = isIssueStale(broker);
           const issueLabel = issue ? (issue.status === "error" ? (issue.reason || "Erro no envio") : (SKIP_REASON_LABELS[issue.reason] || issue.reason)) : "";
           return (
             <div key={broker.brokerId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
@@ -267,7 +280,11 @@ function AutomationTab() {
                     </p>
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
-                    {!broker.paused && issueLabel ? <p className="mt-1 text-xs font-bold text-amber-700">Último problema: {issueLabel}</p> : null}
+                    {!broker.paused && issueLabel ? (
+                      <p className={`mt-1 text-xs font-bold ${issueStale ? "text-muted" : "text-amber-700"}`}>
+                        {issueStale ? "Último problema (já resolvido — reconectou depois): " : "Último problema: "}{issueLabel}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
