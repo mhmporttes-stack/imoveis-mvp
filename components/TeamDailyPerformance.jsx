@@ -208,8 +208,24 @@ function useAutomationStatus() {
 function BrokerCard({ broker, presenceStatus, automation, onClick }) {
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
-  const autoLabel = automation ? (!automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : "Automação rodando") : "";
-  const autoClassName = automation ? (!automation.enabled ? "bg-mist text-muted" : automation.paused ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700") : "";
+  // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
+  // conectado) — ligada+sem pausa mas sem sessão conectada é "Aguardando
+  // WhatsApp", nunca "Rodando" (o dispatcher pula esse corretor com
+  // skip_reason "sessao_nao_conectada", nada é enviado). Corrige o card
+  // mostrando "Automação rodando" ao lado de "WhatsApp: Nunca conectou",
+  // que não faz sentido — achado pelo dono, 2026-09-30.
+  const sessionConnected = automation?.sessionStatus === "connected";
+  const autoLabel = automation
+    ? !automation.enabled ? "Automação desligada"
+    : automation.paused ? "Automação pausada"
+    : sessionConnected ? "Automação rodando"
+    : "Aguardando WhatsApp"
+    : "";
+  const autoClassName = automation
+    ? !automation.enabled ? "bg-mist text-muted"
+    : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700"
+    : "bg-emerald-50 text-emerald-700"
+    : "";
 
   return (
     <button

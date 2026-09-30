@@ -200,8 +200,12 @@ function AutomationTab() {
       <div className="grid gap-3">
         {sorted.map((broker) => {
           const sessionInfo = SESSION_STATUS_LABELS[broker.sessionStatus] || SESSION_STATUS_LABELS.nunca_conectou;
-          const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : "Rodando";
-          const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+          // "Rodando" só quando o WhatsApp individual está conectado de
+          // verdade — ligada+sem pausa mas sem sessão vira "Aguardando
+          // WhatsApp", nunca "Rodando" (o dispatcher pula, nada é enviado).
+          const sessionConnected = broker.sessionStatus === "connected";
+          const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : sessionConnected ? "Rodando" : "Aguardando WhatsApp";
+          const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
           const healthy = isAutoHealthy(broker);
           const issue = broker.lastIssue;
           const issueLabel = issue ? (issue.status === "error" ? (issue.reason || "Erro no envio") : (SKIP_REASON_LABELS[issue.reason] || issue.reason)) : "";
