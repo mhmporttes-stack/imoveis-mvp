@@ -58,11 +58,17 @@ function formatGapMinutes(minutes) {
 // horário passa a AVANÇAR de verdade a cada envio/descarte — o "(atrasado)"
 // só indica que a fila está maior do que o ritmo de 1 envio real por ciclo
 // consegue vencer agora, não que travou.
+// Pedido do dono, 2026-09-30 (repetido várias vezes): NUNCA mostrar um
+// horário passado nem "(atrasado)" — o item mais antigo da fila pode estar
+// vencido (a mensagem sai no próximo ciclo do robô, a cada 2 min), mas isso
+// não é pra aparecer como um relógio parado no passado. Trava o horário
+// exibido em "agora" quando o agendado já passou: nunca é mentira (o robô
+// realmente tenta a qualquer momento a partir de agora) e nunca precisa de
+// aviso de atraso.
 function formatNextDispatch(isoString) {
   if (!isoString) return null;
-  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(isoString));
-  const atrasado = new Date(isoString).getTime() < Date.now();
-  return `${time}${atrasado ? " (atrasado)" : ""}`;
+  const effective = Math.max(new Date(isoString).getTime(), Date.now());
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(effective));
 }
 
 const TABS = [
