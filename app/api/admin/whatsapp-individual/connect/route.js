@@ -17,7 +17,16 @@ export async function POST(request) {
   if (!userId) return NextResponse.json({ error: "Usuário sem perfil administrativo." }, { status: 403 });
 
   try {
-    const result = await connectIndividualSession(userId);
+    // phoneNumber opcional (pedido do dono, 2026-09-30): pareamento por
+    // código numérico em vez de escanear o QR.
+    let phoneNumber = "";
+    try {
+      const body = await request.json();
+      phoneNumber = String(body?.phoneNumber || "");
+    } catch {
+      // Corpo vazio (clique normal de "Conectar", sem número) — QR como sempre.
+    }
+    const result = await connectIndividualSession(userId, phoneNumber);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Falha ao conectar o WhatsApp individual:", error?.message || error);

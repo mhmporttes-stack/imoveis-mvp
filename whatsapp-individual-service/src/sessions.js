@@ -24,7 +24,7 @@ const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
 function entryFor(userId) {
   let entry = sockets.get(userId);
   if (!entry) {
-    entry = { sock: null, status: "disconnected", qr: null, connecting: null };
+    entry = { sock: null, status: "disconnected", qr: null, pairingCode: null, connecting: null };
     sockets.set(userId, entry);
   }
   return entry;
@@ -32,19 +32,27 @@ function entryFor(userId) {
 
 // connect(): idempotente — se já existe socket vivo (ou uma conexão em
 // andamento) para este userId, devolve o estado atual em vez de abrir outro.
-export async function connectSession(userId) {
+// phoneNumber (opcional, pedido do dono 2026-09-30): pareamento por código
+// numérico em vez de QR — o corretor digita o número, recebe um código de 8
+// caracteres e digita em WhatsApp > Aparelhos conectados > Conectar com
+// número de telefone. Só faz sentido numa sessão nova (sem QR/código já
+// pendente); se já tiver uma conexão em andamento, ignora o número e devolve
+// o estado atual (mesma idempotência de sempre).
+export async function connectSession(userId, { phoneNumber } = {}) {
   const entry = entryFor(userId);
-  if (entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "connecting")) {
-    return { status: entry.status, qr: entry.qr };
+  if (entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
+    return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
   }
   if (entry.connecting) return entry.connecting;
 
-  entry.connecting = startSocket(userId, entry).finally(() => { entry.connecting = null; });
+  entry.connecting = startSocket(userId, entry, { phoneNumber }).finally(() => { entry.connecting = null; });
   return entry.connecting;
 }
 
-async function startSocket(userId, entry) {
+async function startSocket(userId, entry, { phoneNumber } = {}) {
   entry.status = "connecting";
+  entry.qr = null;
+  entry.pairingCode = null;
 
   const { state, saveCreds } = await useSupabaseAuthState(userId);
   const { version } = await fetchLatestBaileysVersion();
@@ -53,6 +61,9 @@ async function startSocket(userId, entry) {
     version,
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     logger,
+    // Pareamento por código já manda o próprio Baileys mostrar o QR no
+    // terminal se isso ficar true — mantido false nos dois modos, o QR vira
+    // imagem (onConnectionUpdate) e o código vem de requestPairingCode.
     printQRInTerminal: false,
     // Traz o histórico de conversas do celular ao conectar, igual o WhatsApp
     // Web (pedido explícito do dono, ciente de que isso inclui conversas
@@ -72,7 +83,25 @@ async function startSocket(userId, entry) {
     sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
   }
 
-  // Resolve a chamada HTTP assim que soubermos "precisa de QR" ou "já
+  // Pareamento por número de telefone (pedido do dono, 2026-09-30) — só pede
+  // o código se a sessão ainda não estiver registrada (credenciais novas);
+  // uma sessão que já foi pareada antes (reconexão) nunca precisa disso.
+  // requestPairingCode() precisa vir ANTES do QR normal ser consumido —
+  // onConnectionUpdate ignora um evento de QR que chegue depois (guarda
+  // entry.pairingCode) pra não sobrescrever o código pelo QR à toa.
+  if (phoneNumber && !state.creds.registered) {
+    try {
+      const digits = String(phoneNumber).replace(/\D/g, "");
+      const code = await sock.requestPairingCode(digits);
+      entry.pairingCode = code;
+      entry.status = "pairing_code_required";
+      await notifyStatus(userId, { status: "pairing_code_required", pairingCode: code });
+    } catch (error) {
+      console.error(`[${userId}] Falha ao pedir código de pareamento:`, error.message);
+    }
+  }
+
+  // Resolve a chamada HTTP assim que soubermos "precisa de QR/código" ou "já
   // conectou" (creds válidos reaproveitados) — sem travar a resposta do
   // POST /connect esperando o ciclo de vida inteiro da conexão. Um timeout
   // de segurança evita a chamada ficar pendurada; a tela já faz polling do
@@ -82,8 +111,9 @@ async function startSocket(userId, entry) {
     const finish = () => {
       if (settled) return;
       settled = true;
-      resolve({ status: entry.status, qr: entry.qr });
+      resolve({ status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode });
     };
+    if (entry.pairingCode) { finish(); return; }
     const onUpdate = (update) => {
       if (update.qr || update.connection === "open" || update.connection === "close") finish();
     };
@@ -96,6 +126,10 @@ async function onConnectionUpdate(userId, entry, update) {
   const { connection, lastDisconnect, qr } = update;
 
   if (qr) {
+    // Sessão em modo pareamento por código já tem o código gerado — um QR
+    // que chegue depois (Baileys às vezes ainda emite, mesmo pedindo o
+    // código antes) é ignorado, nunca substitui o código na tela.
+    if (entry.pairingCode) return;
     try {
       const qrDataUrl = await QRCode.toDataURL(qr);
       entry.status = "qr_required";
@@ -110,6 +144,7 @@ async function onConnectionUpdate(userId, entry, update) {
   if (connection === "open") {
     entry.status = "connected";
     entry.qr = null;
+    entry.pairingCode = null;
     const phoneNumber = String(entry.sock?.user?.id || "").split(":")[0] || "";
     await notifyStatus(userId, { status: "connected", phoneNumber, qr: null });
     return;
@@ -122,9 +157,10 @@ async function onConnectionUpdate(userId, entry, update) {
 
     if (loggedOut) {
       // Corretor desconectou pelo próprio celular (WhatsApp > Aparelhos
-      // conectados): credenciais não servem mais — precisa de QR novo.
+      // conectados): credenciais não servem mais — precisa de QR/código novo.
       entry.status = "disconnected";
       entry.qr = null;
+      entry.pairingCode = null;
       await clearSessionCreds(userId);
       await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out" });
       return;
@@ -243,7 +279,7 @@ async function onHistorySync(userId, messages) {
 export function getLiveSessionStatus(userId) {
   const entry = sockets.get(userId);
   if (!entry || !entry.sock) return null;
-  return { status: entry.status, qr: entry.qr };
+  return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
 }
 
 export async function disconnectSession(userId) {

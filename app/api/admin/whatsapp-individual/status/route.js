@@ -22,6 +22,7 @@ export async function GET(request) {
       phoneNumber: row?.phone_number || "",
       qr: row?.qr_data || "",
       qrExpiresAt: row?.qr_expires_at || null,
+      pairingCode: row?.pairing_code || "",
       lastConnectedAt: row?.last_connected_at || null,
       lastError: row?.last_error || ""
     });

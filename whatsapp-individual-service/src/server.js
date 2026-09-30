@@ -33,7 +33,10 @@ app.use(checkSecret);
 
 app.post("/sessions/:userId/connect", async (req, res) => {
   try {
-    const result = await connectSession(req.params.userId);
+    // phoneNumber opcional (pedido do dono, 2026-09-30): pareamento por
+    // código em vez de QR — só tem efeito numa sessão nova.
+    const { phoneNumber } = req.body || {};
+    const result = await connectSession(req.params.userId, { phoneNumber });
     res.json(result);
   } catch (error) {
     console.error(`[${req.params.userId}] Falha ao conectar:`, error.message);
@@ -49,6 +52,7 @@ app.get("/sessions/:userId/status", async (req, res) => {
     res.json({
       status: row?.status || "disconnected",
       phoneNumber: row?.phone_number || "",
+      pairingCode: row?.pairing_code || null,
       lastConnectedAt: row?.last_connected_at || null,
       error: row?.last_error || ""
     });

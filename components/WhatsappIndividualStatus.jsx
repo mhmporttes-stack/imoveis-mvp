@@ -14,6 +14,7 @@ const STATUS_LABEL = {
   disconnected: "Desconectado",
   connecting: "Conectando…",
   qr_required: "Aguardando QR",
+  pairing_code_required: "Aguardando código",
   connected: "Conectado",
   reconnecting: "Reconectando…",
   error: "Erro"
@@ -28,8 +29,18 @@ function formatPhone(phone) {
 
 function badgeTone(status) {
   if (status === "connected") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "qr_required" || status === "connecting" || status === "reconnecting") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (status === "qr_required" || status === "pairing_code_required" || status === "connecting" || status === "reconnecting") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-line bg-white text-navy/70";
+}
+
+// "551499998888" -> "55 14 9999-8888" — mais fácil de conferir enquanto
+// digita do que os dígitos corridos.
+function formatPhoneInput(digits) {
+  const d = String(digits || "").replace(/\D/g, "");
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)} ${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)} ${d.slice(2, 4)} ${d.slice(4)}`;
+  return `${d.slice(0, 2)} ${d.slice(2, 4)} ${d.slice(4, 8)}-${d.slice(8, 12)}`;
 }
 
 export default function WhatsappIndividualStatus() {
@@ -37,6 +48,11 @@ export default function WhatsappIndividualStatus() {
   const [modalOpen, setModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Pareamento por número de telefone (pedido do dono, 2026-09-30):
+  // alternativa ao QR. phoneMode alterna a tela; phoneInput guarda só os
+  // dígitos (formatPhoneInput cuida da exibição).
+  const [phoneMode, setPhoneMode] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
   const pollRef = useRef(null);
 
   const loadStatus = useCallback(async () => {
@@ -61,20 +77,24 @@ export default function WhatsappIndividualStatus() {
   // não fica batendo na API o tempo todo com o modal fechado.
   useEffect(() => {
     if (!modalOpen) return undefined;
-    const shouldPoll = ["qr_required", "connecting", "reconnecting"].includes(status?.status);
+    const shouldPoll = ["qr_required", "pairing_code_required", "connecting", "reconnecting"].includes(status?.status);
     if (!shouldPoll) return undefined;
     pollRef.current = setInterval(loadStatus, POLL_MS);
     return () => clearInterval(pollRef.current);
   }, [modalOpen, status?.status, loadStatus]);
 
-  const handleConnect = useCallback(async () => {
+  const handleConnect = useCallback(async (phoneNumber) => {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/whatsapp-individual/connect", { method: "POST" });
+      const response = await fetch("/api/admin/whatsapp-individual/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(phoneNumber ? { phoneNumber } : {})
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível conectar.");
-      setStatus((current) => ({ ...current, status: data.status, qr: data.qr || current?.qr || "" }));
+      setStatus((current) => ({ ...current, status: data.status, qr: data.qr || current?.qr || "", pairingCode: data.pairingCode || "" }));
       await loadStatus();
     } catch (connectError) {
       setError(connectError.message);
@@ -82,6 +102,12 @@ export default function WhatsappIndividualStatus() {
       setBusy(false);
     }
   }, [loadStatus]);
+
+  const handleRequestPairingCode = useCallback(() => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length < 10) { setError("Informe o número completo, com DDD."); return; }
+    handleConnect(digits);
+  }, [phoneInput, handleConnect]);
 
   const handleDisconnect = useCallback(async () => {
     if (!window.confirm("Desconectar este WhatsApp? Será preciso escanear o QR de novo para reconectar.")) return;
@@ -101,6 +127,7 @@ export default function WhatsappIndividualStatus() {
 
   const openModal = useCallback(() => {
     setError("");
+    setPhoneMode(false);
     setModalOpen(true);
     if (!status || status.status === "disconnected" || status.status === "error") handleConnect();
   }, [status, handleConnect]);
@@ -138,10 +165,33 @@ export default function WhatsappIndividualStatus() {
                     <p className="text-xs text-emerald-700/80">{formatPhone(status.phoneNumber) || "Número não identificado"}</p>
                   </div>
                   <div className="flex w-full gap-2">
-                    <button type="button" disabled={busy} onClick={handleConnect} className="flex-1 rounded-full border border-navy/15 px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Reconectar</button>
+                    <button type="button" disabled={busy} onClick={() => handleConnect()} className="flex-1 rounded-full border border-navy/15 px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Reconectar</button>
                     <button type="button" disabled={busy} onClick={handleDisconnect} className="flex-1 rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-extrabold text-red-700 hover:border-red-300 disabled:opacity-50">Desconectar</button>
                   </div>
                 </>
+              ) : status?.pairingCode ? (
+                <>
+                  <div className="w-full rounded-2xl border border-line bg-mist/40 py-5 text-center">
+                    <p className="font-mono text-3xl font-black tracking-[0.15em] text-navy">{status.pairingCode}</p>
+                  </div>
+                  <p className="text-xs text-navy/60">No celular: WhatsApp → Aparelhos conectados → Conectar com número de telefone → digite esse código.</p>
+                </>
+              ) : phoneMode ? (
+                <div className="flex w-full flex-col gap-2">
+                  <label className="text-xs font-bold text-navy/70" htmlFor="whatsapp-individual-phone">Seu número (com DDD)</label>
+                  <input
+                    id="whatsapp-individual-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="14 99999-9999"
+                    value={formatPhoneInput(phoneInput)}
+                    onChange={(event) => setPhoneInput(event.target.value.replace(/\D/g, "").slice(0, 13))}
+                    className="w-full rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy focus:border-brand focus:outline-none"
+                  />
+                  <button type="button" disabled={busy} onClick={handleRequestPairingCode} className="w-full rounded-full bg-navy px-3 py-2 text-xs font-extrabold text-white hover:bg-navy/90 disabled:opacity-50">
+                    {busy ? "Pedindo código…" : "Pedir código"}
+                  </button>
+                </div>
               ) : status?.qr ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -155,9 +205,30 @@ export default function WhatsappIndividualStatus() {
                 </div>
               )}
 
-              {currentStatus !== "connected" ? (
-                <button type="button" disabled={busy} onClick={handleConnect} className="w-full rounded-full bg-navy px-3 py-2 text-xs font-extrabold text-white hover:bg-navy/90 disabled:opacity-50">
+              {currentStatus !== "connected" && !phoneMode && !status?.pairingCode ? (
+                <button type="button" disabled={busy} onClick={() => handleConnect()} className="w-full rounded-full bg-navy px-3 py-2 text-xs font-extrabold text-white hover:bg-navy/90 disabled:opacity-50">
                   {busy ? "Conectando…" : "Gerar novo QR"}
+                </button>
+              ) : null}
+
+              {currentStatus !== "connected" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    const goingToPhone = !phoneMode;
+                    setPhoneMode(goingToPhone);
+                    // Voltar pro QR depois de já ter pedido um código: limpa o
+                    // código guardado e pede um QR novo (o código antigo não
+                    // serve mais pra nada nessa troca de método).
+                    if (!goingToPhone && status?.pairingCode) {
+                      setStatus((current) => ({ ...current, pairingCode: "" }));
+                      handleConnect();
+                    }
+                  }}
+                  className="text-xs font-bold text-brand underline-offset-2 hover:underline"
+                >
+                  {phoneMode ? "Prefere escanear o QR?" : "Prefere conectar com um código, sem QR?"}
                 </button>
               ) : null}
             </div>

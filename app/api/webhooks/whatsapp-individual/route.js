@@ -36,6 +36,7 @@ export async function POST(request) {
         phoneNumber: payload.phoneNumber,
         qrData: payload.qr,
         qrExpiresAt: payload.qrExpiresAt,
+        pairingCode: payload.pairingCode,
         error: payload.error
       });
       // Ativa a automação da Meta Diária sozinha assim que a sessão
