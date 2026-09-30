@@ -259,8 +259,9 @@ function AutomationTab() {
                       {broker.consecutiveErrors ? ` · ${broker.consecutiveErrors} erros seguidos` : ""}
                     </p>
                     <p className="mt-0.5 text-xs font-bold text-muted">
-                      Total de hoje: {broker.plannedToday} mensagem{broker.plannedToday === 1 ? "" : "s"}
+                      Total de hoje: {broker.plannedToday} de até {broker.dailyCap} mensagem{broker.dailyCap === 1 ? "" : "s"}
                       {broker.avgGapMinutes !== null ? ` (~${formatGapMinutes(broker.avgGapMinutes)} entre elas)` : ""}
+                      {broker.dailyCapReason ? ` · teto: ${broker.dailyCapReason}` : ""}
                     </p>
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
