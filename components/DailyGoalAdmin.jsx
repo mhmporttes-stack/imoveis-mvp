@@ -625,7 +625,7 @@ function AutoMessagesEditor() {
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
           <h3 className="text-lg font-black text-navy">Mensagens da automação (4 variações por tentativa)</h3>
-          <p className="mt-1 text-xs font-bold text-muted">Sorteadas sem repetir a última usada. Variável disponível: {"{primeiro_nome}"}</p>
+          <p className="mt-1 text-xs font-bold text-muted">Sorteadas sem repetir a última usada. Variáveis disponíveis: {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_associada}"}</p>
         </div>
         <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
       </button>
