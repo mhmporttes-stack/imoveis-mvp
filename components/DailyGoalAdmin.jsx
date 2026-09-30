@@ -25,8 +25,15 @@ const SKIP_REASON_LABELS = {
   contato_do_not_contact: "Contato pediu para não ser contactado (PARAR)",
   ja_teve_tentativa_hoje: "Cliente já tinha recebido tentativa hoje",
   sem_telefone: "Contato sem telefone cadastrado",
+  sem_nome: "Contato sem nome cadastrado",
   automacao_desligada: "Automação foi desligada",
-  pausado_para_investigacao: "Pausado manualmente para investigação"
+  pausado_para_investigacao: "Pausado manualmente para investigação",
+  lead_respondeu: "Cliente respondeu — atendimento humano assumiu",
+  falha_infraestrutura: "Instabilidade temporária (sessão/WhatsApp) — cliente não foi penalizado",
+  movido_para_erro: "Cliente movido para \"Erro\" após 3 falhas técnicas seguidas",
+  falha_destinatario_1_3: "Falha técnica ao enviar (1ª de 3) — será tentado de novo",
+  falha_destinatario_2_3: "Falha técnica ao enviar (2ª de 3) — será tentado de novo",
+  falha_destinatario_3_3: "Falha técnica ao enviar (3ª de 3)"
 };
 
 function minutesToTime(minutes) {
@@ -49,26 +56,18 @@ function formatGapMinutes(minutes) {
   return `${Math.round(minutes)} min`;
 }
 
-// Horário (São Paulo) do item PENDENTE mais cedo da fila — pedido do dono,
-// 2026-09-30: quer ver o horário de verdade, não uma frase genérica. Antes
-// esse horário ficava preso no mesmo item obsoleto/com erro (por isso a
-// tentativa anterior de trocar por uma frase fixa); agora que o dispatcher
-// descarta item obsoleto/com falha de envio e já tenta o próximo da fila no
-// mesmo ciclo (ver dispatchOneForBroker em lib/daily-goal-auto.js), esse
-// horário passa a AVANÇAR de verdade a cada envio/descarte — o "(atrasado)"
-// só indica que a fila está maior do que o ritmo de 1 envio real por ciclo
-// consegue vencer agora, não que travou.
-// Pedido do dono, 2026-09-30 (repetido várias vezes): NUNCA mostrar um
-// horário passado nem "(atrasado)" — o item mais antigo da fila pode estar
-// vencido (a mensagem sai no próximo ciclo do robô, a cada 2 min), mas isso
-// não é pra aparecer como um relógio parado no passado. Trava o horário
-// exibido em "agora" quando o agendado já passou: nunca é mentira (o robô
-// realmente tenta a qualquer momento a partir de agora) e nunca precisa de
-// aviso de atraso.
+// Horário (São Paulo) do item PENDENTE mais cedo da fila. Pedido do dono,
+// 2026-09-30 (repetido várias vezes, categórico): NUNCA mostrar um horário
+// passado nem a palavra "atrasado" — scheduled_for <= agora só significa que
+// o item está ELEGÍVEL para processamento (o robô tenta a qualquer momento,
+// a cada ciclo de 2 min), não que a fila travou. Quando já passou, mostra
+// "aguardando processamento" em vez de fingir um horário; só mostra horário
+// de verdade quando ele é de fato futuro.
 function formatNextDispatch(isoString) {
   if (!isoString) return null;
-  const effective = Math.max(new Date(isoString).getTime(), Date.now());
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(effective));
+  const scheduled = new Date(isoString).getTime();
+  if (scheduled <= Date.now()) return "aguardando processamento";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
 const TABS = [
@@ -152,6 +151,7 @@ function AutomationTab() {
   const [brokers, setBrokers] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [historyBrokerId, setHistoryBrokerId] = useState("");
 
   useEffect(() => {
     load();
@@ -283,7 +283,7 @@ function AutomationTab() {
           const healthy = isAutoHealthy(broker);
           const issue = broker.lastIssue;
           const issueStale = isIssueStale(broker);
-          const issueLabel = issue ? (issue.status === "error" ? (issue.reason || "Erro no envio") : (SKIP_REASON_LABELS[issue.reason] || issue.reason)) : "";
+          const issueLabel = issue ? (SKIP_REASON_LABELS[issue.reason] || issue.reason || (issue.status === "error" ? "Erro no envio" : "")) : "";
           return (
             <div key={broker.brokerId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -311,6 +311,9 @@ function AutomationTab() {
                       <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo: {formatNextDispatch(broker.nextDispatchAt)}</p>
                     ) : null}
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>
+                    {broker.autoErrorTotal ? (
+                      <p className="mt-0.5 text-xs font-bold text-red-700">{broker.autoErrorTotal} cliente{broker.autoErrorTotal === 1 ? "" : "s"} em "Erro" (3 falhas técnicas seguidas — veja o Histórico)</p>
+                    ) : null}
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
                     {!broker.paused && issueLabel ? (
                       <p className={`mt-1 text-xs font-bold ${issueStale ? "text-muted" : "text-amber-700"}`}>
@@ -320,6 +323,13 @@ function AutomationTab() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-brand hover:underline"
+                    onClick={() => setHistoryBrokerId((current) => (current === broker.brokerId ? "" : broker.brokerId))}
+                  >
+                    {historyBrokerId === broker.brokerId ? "Fechar histórico" : "Histórico"}
+                  </button>
                   {broker.enabled ? (
                     <>
                       <button
@@ -367,10 +377,142 @@ function AutomationTab() {
                   </span>
                 </div>
               ) : null}
+              {historyBrokerId === broker.brokerId ? <BrokerHistoryPanel brokerId={broker.brokerId} /> : null}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const HISTORY_PERIODS = [
+  { value: "today", label: "Hoje" },
+  { value: "last7", label: "7 dias" }
+];
+const HISTORY_STATUS_OPTIONS = [
+  { value: "", label: "Todos os status" },
+  { value: "sent", label: "Enviadas" },
+  { value: "pending", label: "Pendentes/aguardando retry" },
+  { value: "error", label: "Com erro" },
+  { value: "skipped", label: "Puladas" },
+  { value: "canceled", label: "Canceladas" }
+];
+const HISTORY_ATTEMPT_OPTIONS = [
+  { value: "", label: "Todas as tentativas" },
+  { value: "1", label: "1ª tentativa" },
+  { value: "2", label: "2ª tentativa" },
+  { value: "3", label: "3ª tentativa" }
+];
+
+// Histórico da automação por corretor (pedido do dono, 2026-09-30) —
+// resumo do período + timeline cronológica, reaproveitando
+// adminGetDailyGoalAutoHistory/daily_goal_auto_queue (nenhum dado novo).
+function BrokerHistoryPanel({ brokerId }) {
+  const [period, setPeriod] = useState("today");
+  const [status, setStatus] = useState("");
+  const [attemptNumber, setAttemptNumber] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const query = new URLSearchParams({ brokerId });
+        if (status) query.set("status", status);
+        if (attemptNumber) query.set("attemptNumber", attemptNumber);
+        if (period === "last7") {
+          const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          query.set("from", from);
+        }
+        const response = await fetch(`/api/admin/daily-goal-auto/history?${query.toString()}`, { signal: controller.signal });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error);
+        setData(payload);
+      } catch (requestError) {
+        if (requestError.name !== "AbortError") setError(requestError.message || "Não foi possível carregar o histórico.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [brokerId, period, status, attemptNumber]);
+
+  return (
+    <div className="mt-3 rounded-2xl border border-line bg-mist/30 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {HISTORY_PERIODS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setPeriod(option.value)}
+            className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+              period === option.value ? "border-brand bg-blue-50 text-brand" : "border-line bg-white text-navy"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+        <select className="h-8 rounded-lg border border-line bg-white px-2 text-xs font-bold text-navy" value={status} onChange={(event) => setStatus(event.target.value)}>
+          {HISTORY_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        <select className="h-8 rounded-lg border border-line bg-white px-2 text-xs font-bold text-navy" value={attemptNumber} onChange={(event) => setAttemptNumber(event.target.value)}>
+          {HISTORY_ATTEMPT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </div>
+
+      {error ? <p className="mt-2 text-xs font-bold text-red-700">{error}</p> : null}
+      {loading || !data ? (
+        <p className="mt-3 text-xs font-bold text-muted">Carregando…</p>
+      ) : (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <HistoryStat label="Processadas" value={data.summary.processadas} />
+            <HistoryStat label="Enviadas" value={data.summary.enviadas} tone="emerald" />
+            <HistoryStat label="Aguard. retry" value={data.summary.aguardandoRetry} tone="amber" />
+            <HistoryStat label="Erros" value={data.summary.erros} tone="red" />
+            <HistoryStat label="Puladas" value={data.summary.puladas} />
+          </div>
+          <div className="mt-3 max-h-72 overflow-y-auto rounded-xl border border-line bg-white">
+            {data.timeline.length ? (
+              <ul className="divide-y divide-line">
+                {data.timeline.map((event) => (
+                  <li key={event.id} className="px-3 py-2 text-xs">
+                    <span className="font-black text-navy">{formatTime(event.at)}</span>{" "}
+                    <span className="font-bold text-navy">{event.contactName || "Contato sem nome"}</span>{" "}
+                    {event.attemptNumber ? <span className="text-muted">· {event.attemptNumber}ª tentativa</span> : null}
+                    {event.variant ? <span className="text-muted"> · Modelo {event.variant}</span> : null}
+                    {" · "}
+                    <span className={
+                      event.status === "sent" ? "font-bold text-emerald-700"
+                        : event.status === "error" ? "font-bold text-red-700"
+                        : "font-bold text-amber-700"
+                    }>
+                      {event.status === "sent" ? "Enviado" : SKIP_REASON_LABELS[event.reason] || event.reason || event.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-3 py-4 text-center text-xs font-bold text-muted">Nada no período selecionado.</p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function HistoryStat({ label, value, tone }) {
+  const toneClass = { emerald: "text-emerald-700", amber: "text-amber-700", red: "text-red-700" }[tone] || "text-navy";
+  return (
+    <div className="rounded-xl border border-line bg-white p-2 text-center">
+      <p className={`text-lg font-black ${toneClass}`}>{value ?? 0}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
     </div>
   );
 }

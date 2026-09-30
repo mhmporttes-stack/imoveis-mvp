@@ -8,7 +8,9 @@ import {
   isBusinessDay,
   isOptOutMessage,
   pickMessageVariant,
-  renderAutoMessage
+  renderAutoMessage,
+  nextSequentialVariantIndex,
+  classifySendError
 } from "../lib/daily-goal-auto-core.mjs";
 
 test("teto do dia = todas as atividades pendentes, sem passar de 100", () => {
@@ -168,4 +170,57 @@ test("renderAutoMessage sem gênero cadastrado nunca deixa {associado_associada}
     renderAutoMessage("Aqui é {nome_corretor}, {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Caroline", corretorGender: "" }),
     "Aqui é Caroline, faço parte da equipe do corretor Matheus Machado."
   );
+});
+
+test("nextSequentialVariantIndex roda 1A→1B→1C→1D→1A... (nunca sorteio, sempre sequencial)", () => {
+  let cursor = 0;
+  const seen = [];
+  for (let i = 0; i < 6; i += 1) {
+    const { index, nextCursor } = nextSequentialVariantIndex(cursor, 4);
+    seen.push(index);
+    cursor = nextCursor;
+  }
+  assert.deepEqual(seen, [0, 1, 2, 3, 0, 1]);
+});
+
+test("nextSequentialVariantIndex persiste entre chamadas (cursor salvo continua de onde parou)", () => {
+  const first = nextSequentialVariantIndex(0, 3);
+  assert.equal(first.index, 0);
+  const second = nextSequentialVariantIndex(first.nextCursor, 3);
+  assert.equal(second.index, 1);
+  // "reinício do processo" simulado: chama de novo com o cursor persistido, não do zero.
+  const afterRestart = nextSequentialVariantIndex(second.nextCursor, 3);
+  assert.equal(afterRestart.index, 2);
+});
+
+test("nextSequentialVariantIndex se ajusta sozinho se o número de variações mudar (banco editado)", () => {
+  const { index } = nextSequentialVariantIndex(5, 4); // cursor de um banco com mais variações
+  assert.ok(index >= 0 && index < 4);
+});
+
+test("nextSequentialVariantIndex sem variações devolve índice inválido (-1), nunca quebra", () => {
+  assert.deepEqual(nextSequentialVariantIndex(0, 0), { index: -1, nextCursor: 0 });
+});
+
+test("classifySendError: sessão desconectada (NOT_CONNECTED, 409) é infra, nunca penaliza o contato", () => {
+  const error = new Error("Sessão do WhatsApp individual não está conectada.");
+  error.code = "NOT_CONNECTED";
+  error.status = 409;
+  assert.equal(classifySendError(error), "infra");
+});
+
+test("classifySendError: timeout/rede/5xx são infra", () => {
+  assert.equal(classifySendError(new Error("Falha ao comunicar com o serviço de WhatsApp individual (status 500).")), "infra");
+  assert.equal(classifySendError({ message: "fetch failed", name: "TypeError" }), "infra");
+  assert.equal(classifySendError(new Error("Stream Errored (restart required)")), "infra");
+});
+
+test("classifySendError: erro explicitamente do destinatário é 'contact'", () => {
+  assert.equal(classifySendError(new Error("Destinatário inválido.")), "contact");
+  assert.equal(classifySendError(new Error("Número inválido")), "contact");
+});
+
+test("classifySendError: mensagem ambígua/desconhecida cai no padrão seguro (infra, nunca penaliza o contato)", () => {
+  assert.equal(classifySendError(new Error("Alguma coisa estranha aconteceu")), "infra");
+  assert.equal(classifySendError(new Error("")), "infra");
 });
