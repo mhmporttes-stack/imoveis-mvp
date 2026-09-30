@@ -70,10 +70,7 @@ export async function POST(request) {
 
     console.error("Simulation registration failed:", error?.message || error);
     return NextResponse.json(
-      {
-        error: formatSimulationRegistrationError(error),
-        _debugTemp: { name: error?.name, code: error?.code, details: error?.details, hint: error?.hint, message: error?.message, stack: String(error?.stack || "").split("\n").slice(0, 6) }
-      },
+      { error: formatSimulationRegistrationError(error) },
       { status: 400 }
     );
   }
