@@ -5,7 +5,7 @@
 ## 1. Baseline (enquanto não houver meta oficial)
 
 - Calcule por **canal** (não misture): *WhatsApp* (anúncio de clique para WhatsApp — atribuição por `ad_id`), *site/simulação* (UTM paga), *outros objetivos* (tráfego, reconhecimento, perfil).
-- Para cada canal, no maior período com dado (mínimo 30 dias; ideal 90): custo por cliente CRM, por simulação, por documentação, por aprovação enviada, por venda; taxas de passagem entre etapas; CPM, CTR, CPC médios ponderados.
+- Para cada canal, nos **últimos 30 dias** (decisão do dono, 2026-10-01: o histórico antigo da conta — 2023, impulsionamentos e anúncios fora da estratégia atual — não é relevante e não deve entrar no baseline; não pedir backfill): custo por cliente CRM, por simulação, por documentação, por aprovação enviada, por venda; taxas de passagem entre etapas; CPM, CTR, CPC médios ponderados.
 - Use **total gasto ÷ total de eventos** do período (média ponderada), não média de médias.
 - Sempre informe o tamanho da amostra. Com menos de ~10 eventos numa etapa, o custo dela é **indicativo**, não base de decisão.
 - Registre o baseline calculado no relatório (período + números) para comparação na próxima auditoria.

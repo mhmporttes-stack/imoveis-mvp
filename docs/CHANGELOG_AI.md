@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Gestor de Tráfego: análises só dos últimos 30 dias, sem backfill
+- **Data:** 2026-10-01
+- **Área:** Meta/Tráfego / Docs
+- **Alteração:** decisão do dono — não carregar o histórico antigo da Meta. Anúncios de 2023 (impulsionamentos e publicações patrocinadas) não são relevantes para a estratégia atual. Baseline e análises do Gestor de Tráfego usam os últimos 30 dias.
+- **Arquivos afetados:** `.claude/skills/auditar-trafego/references/regras-decisao.md` §1, `docs/TRAFEGO_META.md` §6-A.
+- **Risco/observação:** nenhuma chamada de backfill foi feita. A sincronização diária e a intradiária continuam iguais.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Gestor de Tráfego: agente + 3 skills somente leitura (Meta × funil do CRM)
 - **Data:** 2026-10-01
 - **Área:** Docs / Infra (estrutura do Claude Code) / Meta/Tráfego

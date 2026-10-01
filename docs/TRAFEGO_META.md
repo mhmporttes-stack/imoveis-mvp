@@ -73,7 +73,7 @@ Conhecimento especializado de tráfego vive no repositório, carregado sob deman
 
 **Categoria especial (moradia/crédito): A CONFIRMAR.** `syncMetaAdEntities` só busca `id,name,objective,status,effective_status` da campanha — `special_ad_categories`, orçamento, datas e lance não são sincronizados. Conjuntos antigos com idade mínima ≠ 18 e interesses detalhados são apenas **indício** de campanhas não declaradas como categoria especial.
 
-**Histórico (backfill):** em 2026-10-01 só havia dados de 13/09 a 30/09/2026 (`backfill_status = not_started`). Campanhas da conta existem desde abr/2023; a Meta mantém métricas por ~37 meses. A carga usa a rota existente `POST /api/admin/meta-ads/backfill` (admin geral logado; só leitura na Meta, retomável por blocos de 31 dias; aceita `startDate`). Não há como dispará-la sem sessão de admin.
+**Histórico (backfill): não será feito** (decisão do dono, 2026-10-01). Os anúncios antigos da conta (2023, impulsionamentos e publicações patrocinadas) não representam a estratégia atual; o relevante são os **últimos 30 dias**, já cobertos pela consolidação diária (janela móvel de `META_ADS_SYNC_WINDOW_DAYS`) e pela sincronização intradiária. Baseline e análises usam esse período.
 
 ## 7. Riscos e pontos a confirmar
 
