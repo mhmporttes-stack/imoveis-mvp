@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Correção de dados P-01 (etapa 2): contatos presos ao mesmo card
+- **Data:** 2026-10-01
+- **Área:** Meta Diária / Prospecção / Banco (dados)
+- **Alteração:** 120 contatos desvinculados dos 15 cards compartilhados, 3 cards próprios criados (#C4480, #C4481, #C4482), 5 contatos liberados do "não contactar" herdado do vínculo. Backup em `public.p01_backup_20261001_*`. Detalhe e pendências: `docs/INCIDENTES.md`.
+- **Motivo:** aprovado pelo dono após o inventário dos 15 casos.
+- **Arquivos afetados:** só dados (sem código, sem migration).
+- **Risco/observação:** pontuação inalterada (fontes do ranking com a mesma impressão digital antes/depois; cards novos com responsável fora do ranking). Pendentes por decisão do dono: #C3919 (4 contatos) e #C3846 (…2973, …3947).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Meta Diária: contato só reaproveita cliente com o mesmo telefone (P-01, etapa 1)
 - **Data:** 2026-10-01
 - **Área:** Meta Diária / Prospecção
