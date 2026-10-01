@@ -11,6 +11,7 @@ import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-noti
 import { runCrmAutomations } from "@/lib/crm-automations";
 import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
 import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
+import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,6 +123,17 @@ export async function GET(request) {
       orphanReassignment = { error: orphanError?.message || "Falha ao reatribuir." };
     }
 
+    // Limpeza de fotos órfãs do upload público de captação — no máximo 1 vez
+    // por dia (lib/captacao-upload-cleanup.js). Falha aqui nunca derruba o
+    // resto do cron.
+    let captacaoUploadCleanup = null;
+    try {
+      captacaoUploadCleanup = await runCaptacaoUploadCleanupIfDue();
+    } catch (cleanupError) {
+      console.error("Falha na limpeza de fotos órfãs da captação.", cleanupError);
+      captacaoUploadCleanup = { error: cleanupError?.message || "Falha na limpeza." };
+    }
+
     const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
@@ -133,7 +145,8 @@ export async function GET(request) {
       automations,
       sponsoredLeads,
       pendingRouletteAssignment,
-      orphanReassignment
+      orphanReassignment,
+      captacaoUploadCleanup
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);

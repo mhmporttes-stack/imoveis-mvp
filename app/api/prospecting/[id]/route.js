@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { recordAdminGrace } from "@/lib/admin-presence";
 import { claimProspectingContact, deleteProspectingContact, getProspectingHistory, updateProspectingContact } from "@/lib/prospecting";
 
 export const runtime = "nodejs";
@@ -14,7 +15,12 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  try { return NextResponse.json(await claimProspectingContact((await params).id, auth)); }
+  try {
+    const result = await claimProspectingContact((await params).id, auth);
+    // Clique no WhatsApp da Prospecção = atividade real no CRM (ROL-2b).
+    await recordAdminGrace(auth);
+    return NextResponse.json(result);
+  }
   catch (error) { return NextResponse.json({ error: error.message }, { status: 409 }); }
 }
 export async function PATCH(request, { params }) {

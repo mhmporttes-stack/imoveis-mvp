@@ -237,7 +237,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     );
   }
 
-  if (completionView === "success") return <SimulationSuccess brokerRef={brokerRef} />;
+  if (completionView === "success") return <SimulationSuccess accessToken={registrationContext.preferencesAccessToken} brokerRef={brokerRef} registrationId={registrationContext.id} />;
 
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 shadow-soft sm:p-8 lg:p-10">

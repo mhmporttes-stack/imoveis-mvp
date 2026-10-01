@@ -109,11 +109,11 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 | `POST /api/simulation-registrations/quick-attendance` | Atendimento Rápido | validação; dedup; sem rate limit |
 | `PATCH /api/simulation-registrations/[id]/preferences` | preferências pós-cadastro | **token** `preferences_access_token` |
 | `POST /api/captacoes` | captação de imóvel | validação Zod |
-| `POST /api/uploads/captacoes` | fotos da captação (bucket público de imóveis) | só JPG/PNG/WEBP; rate limit **em memória** (10 / 5 min por IP) |
+| `POST /api/uploads/captacoes` | fotos da captação (bucket público de imóveis) | só JPG/PNG/WEBP **pelo conteúdo real** do arquivo; rate limit no banco (10 / 5 min por IP) que **bloqueia** se não puder ser checado; órfãs apagadas após 72 h (desde 2026-10-01) |
 | `POST /api/leads` | modal da home | rate limit **em memória** (1/min por IP+telefone); grava só em `leads` |
 | `POST /api/campaigns/track-view` | contar abertura de link | best-effort |
 | `GET /api/properties`, `/api/properties/[id]` | catálogo público | só publicados (`lib/public-properties.js`) |
-| `GET /api/whatsapp-contact` | número oficial p/ botão “Receber minha simulação” | só o número de exibição (não é segredo) |
+| `GET /api/whatsapp-contact` | WhatsApp do corretor responsável p/ botão “Receber minha simulação” (WA-10) | exige `registrationId` + token do próprio cadastro (`preferences_access_token`); devolve só estado e telefone do corretor, nunca dados do cliente; sem token só resolve link pessoal `?ref=` |
 | `POST /api/admin/session`, `DELETE` | criar/limpar cookies | valida o access token no Supabase |
 | `/minha-jornada/[token]` (página) | jornada pública | token de 64 hex; allowlist de campos; `no-store` |
 

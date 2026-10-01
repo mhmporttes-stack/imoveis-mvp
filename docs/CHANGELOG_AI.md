@@ -44,6 +44,30 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — WA-10, ROL-2b e proteção do upload público de captação (implementação)
+- **Data:** 2026-10-01
+- **Área:** WhatsApp / Roleta / Presença / Site público / Infra
+- **Alteração:**
+  - **WA-10:** o botão "Receber minha simulação" abre o WhatsApp do corretor **responsável** pelo cadastro, usando o token do próprio cadastro. Na fila de espera mostra aviso e consulta de novo; com responsável sem telefone válido mostra aviso. Nunca abre número de reserva.
+  - **ROL-2b:** a roleta considera on-line só até 5 min da atividade **real**. Clique no WhatsApp do CRM e envio pelo Chat contam como atividade; acabou a gravação de hora no futuro. A tolerância visual do painel Online, do seletor 🟢 do Chat e do painel da roleta passou a ser calculada na leitura (`loadVisualPresence`). O clique de WhatsApp da Prospecção agora registra atividade como os demais.
+  - **Upload de captação:**
+    - tipo validado pelos bytes reais do arquivo;
+    - rate limit que bloqueia se a checagem falhar (só nesta rota);
+    - limpeza diária de fotos órfãs (com mais de 72 h, nunca referenciadas em captação ou imóvel), no cron `scheduled-activities`.
+  - **P-17:** decisão do dono registrada: ações operacionais em "Alterar conta" continuam atribuídas ao corretor emulado; os 8 pontos não foram alterados.
+- **Motivo:** regras confirmadas pelo dono em 2026-10-01.
+- **Arquivos afetados:**
+  - Código: `lib/admin-presence.js`, `lib/admin-presence-core.mjs` (novo), `lib/lead-distribution.js`, `lib/whatsapp-chat.js`, `app/api/prospecting/[id]/route.js`, `lib/simulation-registrations.js`, `lib/receive-simulation-contact.mjs` (novo), `app/api/whatsapp-contact/route.js`, `components/simulation-form/{SimulationForm,SimulationSuccess,ReceiveSimulationWhatsappButton}.jsx`, `lib/rate-limit.js`, `lib/image-signature.mjs` (novo), `app/api/uploads/captacoes/route.js`, `lib/captacao-upload-cleanup.js` e `-core.mjs` (novos), `app/api/cron/scheduled-activities/route.js`.
+  - Testes novos: `tests/admin-presence-core`, `receive-simulation-contact`, `image-signature`, `captacao-upload-cleanup-core`.
+  - Documentação: rules `auth-permissoes`, `integracoes-externas`, `roleta-prospeccao-campanhas`; `docs/BUSINESS_RULES.md`, `SYSTEM_ARCHITECTURE.md`, `PERMISSIONS.md`, `WHATSAPP.md`.
+- **Risco/observação:**
+  - **Banco:** nenhuma migration nem mudança de banco. A limpeza grava só a marca `crm_settings.id='captacao_upload_cleanup'`.
+  - **Conferido em produção (somente leitura):** todo cadastro por formulário tem token; 0 fotos em `captacoes/` hoje; nenhum `last_activity_at` no futuro.
+  - **Validação:** `pnpm build` ok; testes ok, exceto a falha conhecida de `tests/whatsapp-flow-core.test.mjs`. Sem login real neste ambiente: tela de espera do botão e painel Online não foram vistos rodando.
+  - **Efeito visível:** depois de uma ação de WhatsApp o status visual on-line pode durar até ~1 min a menos que antes, porque a marca é por minuto.
+  - **Pendente de decisão:** `assignProspectingContacts` (única ação administrativa entre os 8 pontos do P-17).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Pente-fino documental: P-17, upload de captação, Oportunidades e duas regras do dono
 - **Data:** 2026-10-01
 - **Área:** Docs / Permissões / Roleta / WhatsApp
