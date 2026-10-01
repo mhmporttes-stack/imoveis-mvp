@@ -62,6 +62,19 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** testado na vitrine (`/dev/vitrine?tela=clientes`) nos 6 cenários pedidos — corretor com foto, corretor sem foto, cliente sem responsável, troca pelo seletor do card, mobile e desktop — todos corretos. `pnpm build` ok.
 - **Autor:** Claude Code
 
+### 2026-10-01 — Alexa: skill privada "Central Machado" (consulta por voz, somente leitura)
+- **Data:** 2026-10-01
+- **Área:** Integração (Alexa) / Permissões
+- **Alteração:**
+  - Nova rota `POST /api/alexa/skill` (endpoint HTTPS da Custom Skill, sem Lambda). Segurança em camadas: assinatura, certificado e horário da Amazon (`ask-sdk-express-adapter`), ID da skill (`ALEXA_SKILL_ID`) e usuário Alexa autorizado (`ALEXA_ALLOWED_USER_IDS`, separado por vírgula). `deviceId` não é critério. Chave geral `ALEXA_SKILL_ENABLED`. Rate limit; orçamento de 6 s por resposta.
+  - Intenções da V1: resumo do dia (reusa `buildArrivalSummary`), aguardando simulação/documentação/aprovação (reusa `countByStatus`), próxima reunião (`listCalendarActivities`) e "quem são?" (primeiros nomes, máx. 5, usando o assunto da pergunta anterior guardado na sessão). Lógica pura e testada em `lib/alexa-skill-core.mjs`.
+  - Somente leitura; só contagens e primeiros nomes (sem CPF, renda, valores, documentos). Logs só com intenção e resultado. Sem migration/tabela nova. Voice Monkey e Rotina de Chegada intocados.
+  - Dependência nova: `ask-sdk-express-adapter` (oficial Amazon) só para verificar a assinatura.
+- **Motivo:** pedido do dono (conversar com a Alexa sobre o CRM).
+- **Arquivos afetados:** `app/api/alexa/skill/route.js`, `lib/alexa-skill.js`, `lib/alexa-skill-core.mjs`, `lib/alexa-arrival.js` (exporta `countByStatus`), `tests/alexa-skill.test.mjs`, `package.json`, `pnpm-lock.yaml`, `.env.example`.
+- **Risco/observação:** a skill fica em modo Development (só a conta Amazon do dono). O `userId` da Alexa muda se a skill for desativada e reativada. Correção da entrada anterior: o cron do CRM roda a cada 2 minutos (`*/2`), não a cada minuto; a fala da Rotina de Chegada sai até ~2–3 min depois do horário previsto. A confirmar: frases de uma só vez em pt-BR ("pergunte à central machado…") e comportamento caso o Echo migre para Alexa+.
+- **Autor:** Claude (agente)
+
 ### 2026-10-01 — Botões do rodapé do card com 44px (Lista de clientes concluída)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend
