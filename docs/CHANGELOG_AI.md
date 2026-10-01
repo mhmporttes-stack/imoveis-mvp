@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Agente Marketing — Posicionamento Digital
+- **Data:** 2026-10-01
+- **Área:** Agentes/Docs
+- **Alteração:** novo subagente `marketing-posicionamento`, 7 skills (`/auditar-posicionamento`, `/google-perfil-avaliacoes`, `/concorrentes-marilia`, `/seo-site`, `/visibilidade-ia`, `/conteudo-social`, `/plano-semanal`), memória em `docs/posicionamento/` e guia `docs/MARKETING_POSICIONAMENTO.md`; `CLAUDE.md` e `AGENTS.md` atualizados.
+- **Motivo:** pedido do dono — especialista permanente em presença/reputação orgânica, separado do `gestor-trafego`.
+- **Arquivos afetados:** `.claude/agents/marketing-posicionamento.md`, `.claude/skills/{auditar-posicionamento,google-perfil-avaliacoes,concorrentes-marilia,seo-site,visibilidade-ia,conteudo-social,plano-semanal}/`, `docs/posicionamento/*`, `docs/MARKETING_POSICIONAMENTO.md`, `CLAUDE.md`, `AGENTS.md`
+- **Risco/observação:** só arquivos de agente/documentação, sem código do app. Site público hoje sem `robots.txt`/`sitemap.xml` (404) e sem JSON-LD — tratado pelo agente no 1º snapshot.
+
 ### 2026-10-01 — Mensagens internas de supervisão (gestor ↔ corretor)
 - **Data:** 2026-10-01
 - **Área:** Meta Diária (Supervisão) / Notificações / Banco
