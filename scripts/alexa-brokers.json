@@ -1,0 +1,11 @@
+[
+  { "name": "Luan", "fullName": "Luan Vitor", "gender": "male" },
+  { "name": "Lucas", "fullName": "Lucas Borges", "gender": "male" },
+  { "name": "Jennyfer", "fullName": "Jennyfer Zorzato", "gender": "female" },
+  { "name": "Eduardo", "fullName": "Eduardo Bueno", "gender": "male" },
+  { "name": "Ketlin", "fullName": "Ketlin", "gender": "" },
+  { "name": "Bruna", "fullName": "Bruna Santos", "gender": "female" },
+  { "name": "Caroline", "fullName": "Caroline Mayumi", "gender": "" },
+  { "name": "Izabela", "fullName": "Izabela Silverio", "gender": "female" },
+  { "name": "Bencke", "fullName": "Bencke", "gender": "female" }
+]

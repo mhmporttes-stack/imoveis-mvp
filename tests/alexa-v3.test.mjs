@@ -172,10 +172,10 @@ test("gerencial: quem fez mais, quem tem atividade atrasada", async () => {
 
 test("comparação objetiva entre dois corretores", async () => {
   const say = conversation();
-  assert.equal(await say("CompararIntent", { corretor: slot("Izabela", "i1"), corretor2: slot("Bruna", "b1"), assunto: slot("prospecções feitas", "med_prospeccoes") }), "Hoje, Izabela: 34 prospecções. Bruna: 50 prospecções.");
-  const meta = await say("CompararIntent", { corretor: slot("Izabela", "i1"), corretor2: slot("Eduardo", "e1"), assunto: slot("meta", "meta_equipe") });
+  assert.equal(await say("CompararIntent", { corretor: slot("Izabela", "i1"), outro_corretor: slot("Bruna", "b1"), assunto: slot("prospecções feitas", "med_prospeccoes") }), "Hoje, Izabela: 34 prospecções. Bruna: 50 prospecções.");
+  const meta = await say("CompararIntent", { corretor: slot("Izabela", "i1"), outro_corretor: slot("Eduardo", "e1"), assunto: slot("meta", "meta_equipe") });
   assert.equal(meta, "Hoje, Izabela: 82 por cento da meta. Eduardo: 30 por cento da meta.");
-  const general = await say("CompararIntent", { corretor: slot("Izabela", "i1"), corretor2: slot("Bruna", "b1") });
+  const general = await say("CompararIntent", { corretor: slot("Izabela", "i1"), outro_corretor: slot("Bruna", "b1") });
   assert.match(general, /^Hoje, Izabela: 82 por cento da meta, 34 prospecções, 0 vendas\. Bruna: 120 por cento da meta, 50 prospecções, 1 venda\.$/);
   assert.match(await say("CompararIntent", { corretor: slot("Izabela", "i1") }), /Quais corretores/);
 });

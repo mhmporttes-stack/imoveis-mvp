@@ -240,7 +240,7 @@
               "type": "CORRETOR"
             },
             {
-              "name": "corretor2",
+              "name": "outro_corretor",
               "type": "CORRETOR"
             },
             {
@@ -253,28 +253,28 @@
             }
           ],
           "samples": [
-            "compare a {corretor} com a {corretor2}",
-            "compare o {corretor} com o {corretor2}",
-            "compare a {corretor} com o {corretor2}",
-            "compare o {corretor} com a {corretor2}",
-            "compare {corretor} com {corretor2}",
-            "compare {corretor} e {corretor2}",
-            "compare a {corretor} e a {corretor2}",
-            "compare a {corretor} com a {corretor2} {periodo}",
-            "compare o {corretor} com o {corretor2} {periodo}",
-            "compare {corretor} com {corretor2} {periodo}",
-            "compare {corretor} com {corretor2} em {assunto}",
-            "compare {corretor} com {corretor2} nas {assunto}",
-            "quem fez mais {assunto} {corretor} ou {corretor2}",
-            "quem fez mais {assunto} a {corretor} ou a {corretor2}",
-            "quem fez mais {assunto} o {corretor} ou o {corretor2}",
-            "quem teve mais {assunto} {corretor} ou {corretor2}",
-            "como estão {corretor} e {corretor2}",
-            "como estão a {corretor} e a {corretor2}",
-            "como estão {corretor} e {corretor2} na {assunto}",
-            "como estão a {corretor} e a {corretor2} na {assunto}",
-            "{assunto} da {corretor} e da {corretor2}",
-            "{assunto} do {corretor} e do {corretor2}"
+            "compare a {corretor} com a {outro_corretor}",
+            "compare o {corretor} com o {outro_corretor}",
+            "compare a {corretor} com o {outro_corretor}",
+            "compare o {corretor} com a {outro_corretor}",
+            "compare {corretor} com {outro_corretor}",
+            "compare {corretor} e {outro_corretor}",
+            "compare a {corretor} e a {outro_corretor}",
+            "compare a {corretor} com a {outro_corretor} {periodo}",
+            "compare o {corretor} com o {outro_corretor} {periodo}",
+            "compare {corretor} com {outro_corretor} {periodo}",
+            "compare {corretor} com {outro_corretor} em {assunto}",
+            "compare {corretor} com {outro_corretor} nas {assunto}",
+            "quem fez mais {assunto} {corretor} ou {outro_corretor}",
+            "quem fez mais {assunto} a {corretor} ou a {outro_corretor}",
+            "quem fez mais {assunto} o {corretor} ou o {outro_corretor}",
+            "quem teve mais {assunto} {corretor} ou {outro_corretor}",
+            "como estão {corretor} e {outro_corretor}",
+            "como estão a {corretor} e a {outro_corretor}",
+            "como estão {corretor} e {outro_corretor} na {assunto}",
+            "como estão a {corretor} e a {outro_corretor} na {assunto}",
+            "{assunto} da {corretor} e da {outro_corretor}",
+            "{assunto} do {corretor} e do {outro_corretor}"
           ]
         },
         {
@@ -1055,46 +1055,18 @@
           "values": [
             {
               "name": {
-                "value": "Bencke",
+                "value": "Luan",
                 "synonyms": [
-                  "Benke",
-                  "Benque",
-                  "Bencki"
+                  "Luan Vitor",
+                  "Luã"
                 ]
               }
             },
             {
               "name": {
-                "value": "Bruna",
-                "synonyms": []
-              }
-            },
-            {
-              "name": {
-                "value": "Caroline",
+                "value": "Lucas",
                 "synonyms": [
-                  "Carol",
-                  "Carolaine"
-                ]
-              }
-            },
-            {
-              "name": {
-                "value": "Eduardo",
-                "synonyms": [
-                  "Edu",
-                  "Dudu"
-                ]
-              }
-            },
-            {
-              "name": {
-                "value": "Izabela",
-                "synonyms": [
-                  "Isabela",
-                  "Izabel",
-                  "Isabel",
-                  "Iza"
+                  "Lucas Borges"
                 ]
               }
             },
@@ -1102,11 +1074,22 @@
               "name": {
                 "value": "Jennyfer",
                 "synonyms": [
+                  "Jennyfer Zorzato",
                   "Jenifer",
                   "Jennifer",
                   "Jeniffer",
                   "Jeny",
                   "Jenny"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "Eduardo",
+                "synonyms": [
+                  "Eduardo Bueno",
+                  "Edu",
+                  "Dudu"
                 ]
               }
             },
@@ -1125,16 +1108,44 @@
             },
             {
               "name": {
-                "value": "Luan",
+                "value": "Bruna",
                 "synonyms": [
-                  "Luã"
+                  "Bruna Santos"
                 ]
               }
             },
             {
               "name": {
-                "value": "Lucas",
-                "synonyms": []
+                "value": "Caroline",
+                "synonyms": [
+                  "Caroline Mayumi",
+                  "Carol",
+                  "Carolaine"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "Izabela",
+                "synonyms": [
+                  "Izabela Silverio",
+                  "Isabela",
+                  "Izabel",
+                  "Isabel",
+                  "Iza",
+                  "Izabela silvério",
+                  "Isabela silvério"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "Bencke",
+                "synonyms": [
+                  "Benke",
+                  "Benque",
+                  "Bencki"
+                ]
               }
             }
           ]
