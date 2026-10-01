@@ -74,6 +74,21 @@ Copie o modelo abaixo (uma entrada por bloco):
   - Validação: build, `node --test` (só as 3 falhas conhecidas) e revisão visual em 360, 390 e 1440px.
 - **Autor:** Claude Code (designer-crm)
 
+### 2026-10-01 — Alexa: rotina "Chegada ao escritório" (preparada, ainda NÃO validada no iPhone)
+- **Data:** 2026-10-01
+- **Área:** Integração (Alexa) / Banco / Cron
+- **Alteração:**
+  - Gatilho: Atalho do iPhone (conectar ao Wi-Fi do escritório) faz `POST /api/integrations/alexa-arrival` com `Authorization: Bearer <chave>`. A chave é gerada no painel (aparece uma única vez; só o hash SHA-256 fica em `alexa_arrival_state`; gerar outra invalida a anterior). Resposta mínima, rate limit, sem polling.
+  - Regra: no máximo 1 resumo por dia (data de São Paulo, `last_arrival_date`); novas conexões no mesmo dia são ignoradas; no dia seguinte libera sozinho. Não depende de evento de saída. Chegada fora da faixa de horário/dias da rotina é ignorada SEM gastar a chance do dia.
+  - Atraso (padrão 3 min): a chegada grava `pending_run_at`; o cron que já roda a cada minuto (`/api/cron/scheduled-activities`) chama `processDueArrival`, que reserva a execução, monta o resumo só nesse momento e fala. Pendente parado há mais de 1h é descartado.
+  - Resumo (`lib/alexa-arrival.js`, composição pura em `lib/alexa-config-core.mjs`): agenda do dia (`listCalendarActivities`), contagens por status em `simulation_registrations` (aguardando simulação, documentação pendente, aguardando aprovação), meta diária (`getOwnerTeamDailyOverview`), vendas do dia (`financial_sales`). Só contagens e primeiros nomes; até 300 caracteres; itens zerados somem; falha de um bloco omite só aquele item.
+  - Fala via `speakAlexa` (Voice Monkey) com as mesmas travas: Alexa ativa, rotina ativa, dia/horário global e da rotina, intervalo mínimo.
+  - Painel: seção "Rotinas" em Configurações → Alexa (liga/desliga, atraso, dias, faixa de horário, gerar chave, "Ver/Ouvir resumo agora", status do último aviso e execução). Rotas admin: `GET/POST /api/admin/alexa/arrival` (`requireGeneralAdminApi`).
+- **Motivo:** pedido do dono (rotina de chegada ao escritório).
+- **Arquivos afetados:** `supabase/migrations/20261001170000_alexa_arrival_routine.sql`, `lib/alexa-arrival.js`, `lib/alexa-config-core.mjs`, `lib/alexa-service.js`, `lib/alexa-voice.js` (limite da frase 200→400), `app/api/integrations/alexa-arrival/route.js`, `app/api/admin/alexa/arrival/route.js`, `app/api/cron/scheduled-activities/route.js`, `app/admin/alexa/page.jsx`, `components/alexa/AlexaSettings.jsx`, `tests/alexa-arrival.test.mjs`.
+- **Risco/observação:** a rotina nasce DESLIGADA. O Atalho do iPhone ainda precisa ser criado e validado pelo dono. iOS pode atrasar ou pular automações (modo de baixo consumo, atualização que volta "Executar imediatamente" para "Perguntar antes"). "Documentações pendentes" usa os status Aguardando documentação + Documentação pendente (não há contagem de "aguardando análise" da IA).
+- **Autor:** Claude (agente)
+
 ### 2026-10-01 — Lista de clientes em cards híbridos (etapa e responsável no card)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend

@@ -12,6 +12,7 @@ import { runCrmAutomations } from "@/lib/crm-automations";
 import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
 import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
+import { processDueArrival } from "@/lib/alexa-arrival";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,6 +133,14 @@ export async function GET(request) {
     } catch (cleanupError) {
       console.error("Falha na limpeza de fotos órfãs da captação.", cleanupError);
       captacaoUploadCleanup = { error: cleanupError?.message || "Falha na limpeza." };
+    }
+
+    // Rotina "Chegada ao escritório" da Alexa: se o iPhone avisou a chegada e o
+    // atraso já passou, monta o resumo e fala. Nunca derruba o resto do cron.
+    try {
+      await processDueArrival();
+    } catch (arrivalError) {
+      console.error("Falha na rotina de chegada da Alexa.", arrivalError?.name || arrivalError);
     }
 
     const allResults = [...results, ...calendarResults];

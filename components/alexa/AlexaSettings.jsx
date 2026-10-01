@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mic, Send } from "lucide-react";
+import { Copy, Mic, Send } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -32,7 +32,7 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 }
 
-export default function AlexaSettings({ initialSettings, initialMeta, env, events }) {
+export default function AlexaSettings({ initialSettings, initialMeta, env, events, routines, initialArrival }) {
   const [settings, setSettings] = useState(initialSettings);
   const [saved, setSaved] = useState(initialSettings);
   const [meta, setMeta] = useState(initialMeta);
@@ -40,6 +40,10 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
   const [testPhrase, setTestPhrase] = useState("");
   const [testing, setTesting] = useState(false);
   const [notify, toastElement] = useToast();
+  const [arrival, setArrival] = useState(initialArrival);
+  const [newToken, setNewToken] = useState("");
+  const [preview, setPreview] = useState("");
+  const [routineBusy, setRoutineBusy] = useState("");
 
   const dirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(saved), [settings, saved]);
   const envReady = env.voiceEnabledEnv && env.tokenConfigured && env.deviceConfigured;
@@ -55,6 +59,52 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
   function toggleWeekday(day) {
     const has = settings.allowedWeekdays.includes(day);
     patch({ allowedWeekdays: has ? settings.allowedWeekdays.filter((item) => item !== day) : [...settings.allowedWeekdays, day].sort() });
+  }
+
+  function patchRoutine(key, partial) {
+    setSettings((current) => ({ ...current, routines: { ...current.routines, [key]: { ...current.routines[key], ...partial } } }));
+  }
+
+  function toggleRoutineWeekday(key, day) {
+    const list = settings.routines[key].allowedWeekdays;
+    patchRoutine(key, { allowedWeekdays: list.includes(day) ? list.filter((item) => item !== day) : [...list, day].sort() });
+  }
+
+  async function arrivalAction(action) {
+    setRoutineBusy(action);
+    try {
+      const response = await fetch("/api/admin/alexa/arrival", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (data.text) setPreview(data.text);
+      if (!response.ok) {
+        notify(data.error || "Não foi possível concluir.", "danger");
+        return;
+      }
+      if (action === "token") {
+        setNewToken(data.token);
+        setArrival((current) => ({ ...current, tokenConfigured: true, tokenCreatedAt: new Date().toISOString() }));
+        notify("Chave gerada. Copie agora: ela não será mostrada de novo.");
+      } else if (action === "speak") {
+        notify("Resumo enviado ao Echo Dot.");
+      }
+    } catch {
+      notify("Não foi possível concluir. Verifique a conexão.", "danger");
+    } finally {
+      setRoutineBusy("");
+    }
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify("Copiado.");
+    } catch {
+      notify("Não foi possível copiar. Selecione o texto e copie manualmente.", "danger");
+    }
   }
 
   function numberValue(value) {
@@ -269,6 +319,119 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
             );
           })}
         </div>
+      </section>
+
+      <section className="space-y-3" aria-label="Rotinas">
+        <h2 className="text-base font-semibold text-ink">Rotinas</h2>
+        {routines.map((routine) => {
+          const config = settings.routines[routine.key];
+          return (
+            <Card key={routine.key} className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <h3 className="text-base font-semibold text-ink">{routine.label}</h3>
+                  <p className="text-sm text-muted">{routine.description}</p>
+                  <Badge tone={arrival?.tokenConfigured ? "success" : "warning"} dot>
+                    {arrival?.tokenConfigured ? "Chave do iPhone gerada" : "Falta gerar a chave do iPhone"}
+                  </Badge>
+                </div>
+                <Switch checked={config.enabled} onChange={(value) => patchRoutine(routine.key, { enabled: value })} label={`${routine.label} ligada`} />
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-medium text-ink">Dias da semana</p>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS.map((day) => {
+                    const on = config.allowedWeekdays.includes(day.value);
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleRoutineWeekday(routine.key, day.value)}
+                        className={cx(
+                          "min-h-touch min-w-14 rounded-control border px-3 text-sm font-medium transition-colors",
+                          on ? "border-brand bg-brand text-white" : "border-line bg-white text-ink-2 hover:bg-mist"
+                        )}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Atraso após a chegada (minutos)" hint="Tempo entre conectar no Wi-Fi e a Alexa falar.">
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    inputMode="numeric"
+                    className={inputClasses}
+                    value={config.delayMinutes}
+                    onChange={(event) => patchRoutine(routine.key, { delayMinutes: numberValue(event.target.value) })}
+                  />
+                </Field>
+                <Field label="Aceitar chegada a partir de" hint="Horário de Brasília.">
+                  <input type="time" className={inputClasses} value={config.startTime} onChange={(event) => patchRoutine(routine.key, { startTime: event.target.value })} />
+                </Field>
+                <Field label="Aceitar chegada até" hint="Fora dessa faixa a chegada é ignorada.">
+                  <input type="time" className={inputClasses} value={config.endTime} onChange={(event) => patchRoutine(routine.key, { endTime: event.target.value })} />
+                </Field>
+              </div>
+
+              <p className="text-xs text-muted">
+                No máximo 1 resumo por dia: novas conexões ou oscilações do Wi-Fi no mesmo dia são ignoradas, e no dia seguinte a rotina libera sozinha.
+                Vale também a regra geral de dias, horário e intervalo da Alexa.
+              </p>
+
+              <div className="space-y-3 border-t border-line pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="secondary" loading={routineBusy === "token"} onClick={() => arrivalAction("token")}>
+                    {arrival?.tokenConfigured ? "Gerar nova chave" : "Gerar chave do iPhone"}
+                  </Button>
+                  <Button type="button" variant="ghost" loading={routineBusy === "preview"} onClick={() => arrivalAction("preview")}>Ver resumo agora</Button>
+                  <Button type="button" variant="ghost" loading={routineBusy === "speak"} onClick={() => arrivalAction("speak")}>Ouvir resumo agora</Button>
+                </div>
+                {arrival?.tokenConfigured && !newToken ? (
+                  <p className="text-xs text-muted">Gerar uma nova chave desativa a anterior (o Atalho do iPhone precisará da nova).</p>
+                ) : null}
+
+                {newToken ? (
+                  <div className="space-y-2 rounded-control border border-line bg-mist p-3">
+                    <p className="text-sm font-medium text-ink">Chave do iPhone (aparece só agora)</p>
+                    <div className="flex items-center gap-2">
+                      <code className="min-w-0 flex-1 break-all rounded-control bg-white px-2 py-1.5 text-xs text-ink">{newToken}</code>
+                      <Button type="button" variant="secondary" size="sm" onClick={() => copyText(newToken)}><Copy className="h-4 w-4" aria-hidden="true" /> Copiar</Button>
+                    </div>
+                    <p className="text-xs text-muted">Endereço para o Atalho (método POST):</p>
+                    <div className="flex items-center gap-2">
+                      <code className="min-w-0 flex-1 break-all rounded-control bg-white px-2 py-1.5 text-xs text-ink">
+                        {typeof window !== "undefined" ? `${window.location.origin}/api/integrations/alexa-arrival` : "/api/integrations/alexa-arrival"}
+                      </code>
+                      <Button type="button" variant="secondary" size="sm" onClick={() => copyText(`${window.location.origin}/api/integrations/alexa-arrival`)}><Copy className="h-4 w-4" aria-hidden="true" /> Copiar</Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {preview ? (
+                  <div className="rounded-control border border-line bg-white p-3">
+                    <p className="text-xs font-medium text-muted">Resumo montado com os dados de agora</p>
+                    <p className="mt-1 text-sm text-ink">{preview}</p>
+                  </div>
+                ) : null}
+
+                <dl className="grid gap-x-6 gap-y-1 text-xs text-muted sm:grid-cols-2">
+                  <div className="flex gap-1"><dt>Último aviso do iPhone:</dt><dd>{arrival?.lastPingAt ? formatDateTime(arrival.lastPingAt) : "nenhum ainda"}</dd></div>
+                  <div className="flex gap-1"><dt>Última execução:</dt><dd>{arrival?.lastRunAt ? `${formatDateTime(arrival.lastRunAt)}${arrival.lastRunStatus ? ` (${arrival.lastRunStatus})` : ""}` : "nenhuma ainda"}</dd></div>
+                  <div className="flex gap-1"><dt>Chegada já registrada hoje:</dt><dd>{arrival?.lastArrivalDate === new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) ? "sim" : "não"}</dd></div>
+                  {arrival?.pendingRunAt ? <div className="flex gap-1"><dt>Falará às:</dt><dd>{formatDateTime(arrival.pendingRunAt)}</dd></div> : null}
+                </dl>
+              </div>
+            </Card>
+          );
+        })}
       </section>
 
       <Card className="space-y-3">

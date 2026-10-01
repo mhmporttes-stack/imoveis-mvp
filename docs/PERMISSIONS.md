@@ -86,7 +86,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 
 ## 6. Inventário de rotas por guard (app/api)
 
-**Só `requireGeneralAdminApi` (administrador geral):** `admin/alexa` (GET/PUT), `admin/alexa/test` (POST), `admin/meta-ads/backfill`, `admin/meta-ads/sync-status`, `admin/whatsapp-master/profile`, `admin/whatsapp-master/profile/photo`, `financeiro/[id]` (PATCH/DELETE), `scoring-rules` (escrita), `scoring-adjustments` (escrita). `admin/view-as` = `requireRealGeneralAdminApi`.
+**Só `requireGeneralAdminApi` (administrador geral):** `admin/alexa` (GET/PUT), `admin/alexa/test` (POST), `admin/alexa/arrival` (GET/POST), `admin/meta-ads/backfill`, `admin/meta-ads/sync-status`, `admin/whatsapp-master/profile`, `admin/whatsapp-master/profile/photo`, `financeiro/[id]` (PATCH/DELETE), `scoring-rules` (escrita), `scoring-adjustments` (escrita). `admin/view-as` = `requireRealGeneralAdminApi`.
 
 **`requireBrokerManagementApi` (admin/gestor):** `admin-users`, `admin-users/[id]`, `admin-users/[id]/photo`, `admin/presence`, `admin/presence/report`, `admin/whatsapp-flows` (todas), `admin/whatsapp-master/automation-replies*`, `admin/whatsapp-master/manual-*`, `campaigns`, `campaigns/[id]`, `captacoes` (GET), `captacoes/[id]`, `captacoes/[id]/publish`, `crm-automation-rules*`, `crm-settings/whatsapp-master*`, `daily-message/cards*`, `daily-message/dispatch*`, `daily-message/settings`, `lead-distribution`, `performance-overview*`, `scoring-rules` (GET/history), `whatsapp-master/events`.
 

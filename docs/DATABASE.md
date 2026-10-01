@@ -25,7 +25,7 @@
 
 | Domínio | Tabelas |
 |---|---|
-| Usuários / presença | `alexa_settings` (config única da Alexa, sem credenciais), `admin_users`, `admin_presence` (1 linha/usuário, `last_activity_at`), `admin_presence_activity` (marcas por minuto p/ relatório), `push_subscriptions` |
+| Usuários / presença | `alexa_settings` (config única da Alexa, sem credenciais), `alexa_arrival_state` (estado da rotina de chegada; só hash da chave), `admin_users`, `admin_presence` (1 linha/usuário, `last_activity_at`), `admin_presence_activity` (marcas por minuto p/ relatório), `push_subscriptions` |
 | Catálogo público | `properties` (imóveis **e** empreendimentos de catálogo, `is_development`), `empreendimentos` (regras de entrada em JSON, mesmo id do produto), `testimonials`, `captacoes` (imóveis ofertados por proprietários), `leads` (modal da home — sem leitor no código) |
 | Simulação | `simulations`, `simulation_properties`, `simulation_property_benefits` |
 | **Clientes** | **`simulation_registrations`** (entidade central), `client_status_history`, `tags`, `client_tags`, `calendar_activities`, camada de compatibilidade `crm_clients` (único por `canonical_phone`) + `crm_attendances` (por `legacy_registration_id`) |
