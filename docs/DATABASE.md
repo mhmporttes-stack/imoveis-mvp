@@ -85,7 +85,7 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `whatsapp-master-scheduled-activities` | `* * * * *` | a cada minuto | URL vem do Vault (`crm_scheduled_activities_url`) — esperado: `/api/cron/scheduled-activities` (**A CONFIRMAR**) |
 | `whatsapp-broadcast-dispatch-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-broadcast-dispatch` |
 | `whatsapp-flows-timers-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-flows` |
-| `crm-cache-refresh-business` | `*/5 10-23 * * 1-6` | seg–sáb 07–20 h, de 5 em 5 min | `/api/cron/crm-snapshots?mode=refresh` (atualiza o cache da voz) |
+| `crm-cache-refresh-business` | `*/10 10-23 * * 1-6` | seg–sáb 07–20 h, de 10 em 10 min (ajustado em `20261001200000`) | `/api/cron/crm-snapshots?mode=refresh` (atualiza o cache da voz) |
 | `crm-cache-refresh-offhours` | `*/30 0-9 * * *` | 21–06 h, de 30 em 30 min | idem |
 | `crm-cache-refresh-sunday` | `*/30 10-23 * * 0` | domingo, de 30 em 30 min | idem |
 | `crm-snapshot-stock-2355` | `55 2 * * *` | 23:55 | `/api/cron/crm-snapshots?mode=stock` (foto do estoque: clientes por status/grupo) |
