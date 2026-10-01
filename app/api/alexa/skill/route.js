@@ -18,8 +18,8 @@ export async function POST(request) {
   const rawBody = await request.text();
   try {
     await verifyAmazonRequest(rawBody, Object.fromEntries(request.headers));
-  } catch {
-    console.warn("[alexa-skill] assinatura ou horário inválidos.");
+  } catch (verifyError) {
+    console.warn(`[alexa-skill] assinatura ou horário inválidos: ${String(verifyError?.message || verifyError).slice(0, 200)}`);
     return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   }
 
