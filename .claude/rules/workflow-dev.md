@@ -8,6 +8,10 @@ Esta rule é **global** (sem `paths:`), carregada em toda sessão. Mantenha-a cu
 - **Claude Code na web (container Linux efêmero):** clone novo a cada sessão, sem `.env` de produção e sem login real no painel; `node_modules` pode não estar instalado (rode `pnpm install` só quando for de fato buildar/testar). `launch.json` não serve aqui.
 - Em qualquer um: builds (`next build`/Turbopack) podem levar 5–10 min — build "parado" aos 2–3 min não é falha.
 
+## Permissões do Claude Code
+
+`.claude/settings.json` (versionado) libera sem perguntar o trabalho rotineiro (ler/editar arquivos do projeto, `pnpm`/`node`, testes/build, git do dia a dia, leitura e SQL rotineiro no Supabase, deploy `vercel --prod`). Continua pedindo autorização: `rm`, force-push/reset --hard/clean/apagar branch, editar `.env*`/o próprio settings, `vercel env|rm|domains`, CLI `supabase`, branches/pausa/restauração de projeto Supabase e SQL de alto risco (DROP, TRUNCATE, DELETE, UPDATE sem WHERE, GRANT público, RLS/policy, papéis/senhas — hook `.claude/hooks/guard-destructive-sql.mjs`). Ao mudar essa política, edite os dois arquivos juntos.
+
 ## Validação (não há `lint` nem `test` no `package.json`)
 
 - `pnpm build` — compila e checa o TS de `lib/simulacao-entrada/*`. O `prebuild` regenera `public/sw.js`: se só o hash mudou, `git checkout -- public/sw.js` antes de commitar.
