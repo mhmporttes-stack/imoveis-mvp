@@ -283,6 +283,7 @@ function AgendaPanel({ client, activities, busy, list, autoStart = false }) {
             {client.scheduledActivityNote ? <p className="text-[13px] text-ink-2">{client.scheduledActivityNote}</p> : null}
           </div>
           <div className="flex shrink-0 gap-1">
+            <IconAction label="Concluir agendamento" disabled={busy} onClick={() => list.completeClientSchedule(client)}><Check className="h-4 w-4" /></IconAction>
             <IconAction label="Editar agendamento" disabled={busy} onClick={() => start("main")}><Pencil className="h-4 w-4" /></IconAction>
             <IconAction label="Remover agendamento" tone="danger" disabled={busy} onClick={() => list.clearClientSchedule(client)}><X className="h-4 w-4" /></IconAction>
           </div>

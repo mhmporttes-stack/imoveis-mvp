@@ -379,6 +379,36 @@ export function useClientList({
     });
   }
 
+  // Concluir o agendamento único legado: some da agenda (mesmo efeito visual
+  // de "remover"), mas grava scheduled_activity_completed_at/by em vez de só
+  // limpar — histórico, automações e métricas ("activity_completed") contam
+  // como concluída, não como cancelada. Processado em dois blocos separados
+  // em lib/simulation-registrations.js#updateSimulationRegistration: o bloco
+  // de scheduledActivityCompleted roda depois do de scheduledActivityAt, por
+  // isso o completed_at final prevalece mesmo mandando os dois no mesmo PATCH.
+  async function completeClientSchedule(client) {
+    return withBusy(client, async () => {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledActivityAt: null,
+          scheduledActivityType: "follow_up",
+          scheduledActivityNote: "",
+          scheduledActivityCompleted: true
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        notify(data.error || "Não foi possível concluir a atividade.", "danger");
+        return false;
+      }
+      patchClientRegistration(client.id, { ...data, scheduledActivityAt: data.scheduledActivityAt ?? "" }, { refreshAfter: filters.noFutureActivityOnly || filters.pendingOnly });
+      notify("Atividade concluída.");
+      return true;
+    });
+  }
+
   function activitiesFor(client) {
     return activitiesByClient[client.id] || [];
   }
@@ -551,7 +581,7 @@ export function useClientList({
     // ações
     activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser,
     handleProspectingAction, confirmDoNotContact, cancelDoNotContact: () => setDncTarget(null),
-    saveClientSchedule, clearClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
+    saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
     saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, copyBrokerSimulationLink, getScheduleDraft
   };
 }

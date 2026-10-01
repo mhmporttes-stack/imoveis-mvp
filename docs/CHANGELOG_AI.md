@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Botão de concluir no agendamento legado do card e da ficha
+- **Data:** 2026-10-01
+- **Área:** Clientes / Agenda
+- **Alteração:** o agendamento único do cadastro (`scheduled_activity_at`, distinto das "atividades extras" de `calendar_activities`) só tinha botões de editar/remover no card (`ClientCard.jsx`) e na ficha (`ClientSheet.jsx`) — não existia como marcar que a tarefa foi concluída, só editar a data ou apagar o agendamento inteiro. Adicionado um botão "Concluir" (✓), igual ao que as atividades extras já tinham, chamando a nova `list.completeClientSchedule(client)`.
+- **Motivo:** dono reportou (print da ficha) que não via nenhum botão de "atividade realizada".
+- **Arquivos afetados:** `components/clients/useClientList.js` (nova função `completeClientSchedule`), `components/clients/ClientCard.jsx`, `components/clients/ClientSheet.jsx`.
+- **Risco/observação:** nenhuma mudança de backend/schema — `scheduled_activity_completed_at`/`_by` e a rota `PATCH /api/simulation-registrations/[id]` (campo `scheduledActivityCompleted`) já existiam e já eram usados pelo motor de automações (`trigger_type = "activity_completed"`) e pela página `/admin/agenda`; só faltava o botão aqui. "Concluir" grava a conclusão (histórico/automação) e também limpa `scheduled_activity_at` (mesmo efeito visual de "remover", mas contabilizado como concluída, não cancelada) — testado na vitrine (`/dev/vitrine?tela=clientes`), no card e na ficha, cliente some da agenda e aparece o toast "Atividade concluída.". `pnpm build` ok.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Todas as etapas de venda liberadas no seletor de status do card
 - **Data:** 2026-10-01
 - **Área:** Clientes / Funil

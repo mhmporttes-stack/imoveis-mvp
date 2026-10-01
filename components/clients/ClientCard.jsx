@@ -304,7 +304,10 @@ function AgendaBlock({ client, agenda, busy, list, onOpen }) {
             {item.note ? <span className="min-w-0 truncate text-ink-2">· {item.note}</span> : null}
           </p>
           {item.main ? (
-            <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>
+            <>
+              <SmallAction label="Concluir atividade" onClick={() => list.completeClientSchedule(client)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
+              <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>
+            </>
           ) : (
             <>
               <SmallAction label="Concluir atividade" onClick={() => list.completeClientActivity(client, item.id)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
