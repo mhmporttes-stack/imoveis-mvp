@@ -1,26 +1,31 @@
 ---
 name: auditar-crm
-description: Auditoria geral do CRM imoveis-mvp — procura inconsistências, bugs, duplicidades, problemas de regra de negócio, banco de dados e permissões. Use quando o usuário pedir um "pente-fino", uma auditoria geral, ou disser "verifique erros e regras não aplicadas" sem apontar um módulo específico.
+description: Auditoria preventiva do CRM imoveis-mvp — acha risco, inconsistência, regressão, código obsoleto, falha de arquitetura ou violação de regra de negócio antes que vire bug percebido pelo usuário. Use para "audite X", um pente-fino geral, "procure coisas que podem quebrar", "verifique se existe código antigo", ou "audite essa implementação antes de publicar" — com ou sem módulo específico apontado.
 ---
 
-# Auditoria geral do CRM
+# Auditoria preventiva do CRM
 
-Antes de começar, leia `docs/SYSTEM_ARCHITECTURE.md` §13 (problemas já conhecidos P-01…P-18, com status) e as rules dos módulos auditados (`.claude/rules/`, tabela em `CLAUDE.md`). **Não reporte como novo o que já está em §13** — para esses, só diga se ainda procede ou se foi resolvido. Achado novo confirmado entra em §13 com o próximo ID livre.
+A metodologia completa (camadas A-I, severidade P0-P3, evidência obrigatória, passada de verificação, formato do relatório, "auditoria ≠ correção") já está em `.claude/agents/auditor-crm.md` — **use esse agente** para a auditoria em si. Esta skill cobre só o que é específico de **entender o pedido e escolher o protocolo certo** antes de acionar o agente.
 
-## Como conduzir
+## 1. Entenda o escopo e a profundidade sozinho
 
-Esta é uma tarefa de pesquisa ampla — para um projeto deste tamanho (~150 arquivos em `lib/`, ~110 em `components/`, ~160 migrations), prefira dividir em auditorias paralelas por área em vez de uma varredura sequencial única. Áreas sugeridas (ajuste conforme o que o usuário pedir ou o que já foi auditado recentemente):
+Não pergunte "qual protocolo devo aplicar" — decida pela frase do pedido:
 
-1. **Performance** — N+1 queries (loop com `await` dentro fazendo uma consulta por item), `select("*")` em tabelas grandes/hot paths, ausência de paginação em listas que crescem, `await` sequencial que podia ser `Promise.all`.
-2. **Regras de negócio e drift** — enums/rótulos duplicados que podem ter divergido entre arquivos (ver histórico em `.claude/rules/crm-clientes-funil.md`), regras descritas em comentário mas não realmente aplicadas no código logo abaixo, `person_label` usado como identidade em vez de `person_role`, status hardcoded como string solta em vez de `CLIENT_STATUS.X`.
-3. **API/segurança** — toda rota em `app/api/admin/**` tem guard de `lib/admin-auth.js` ANTES de tocar em dado (ver `.claude/rules/auth-permissoes.md`); webhooks públicos validam assinatura/token; rotas de diagnóstico temporárias esquecidas (`tmp-`/`debug-`/`test-` no nome da pasta).
-4. **Banco de dados** — ver skill `/auditar-banco` para uma auditoria dedicada; aqui, só uma verificação superficial de migrations órfãs/duplicadas se o tempo permitir.
-5. **Permissões** — ver skill `/revisar-permissoes` para uma auditoria dedicada.
+| O usuário disse... | Profundidade | Escopo |
+|---|---|---|
+| "audite essa alteração/isso antes de publicar" | Foco | Só os arquivos tocados + quem os importa/chama |
+| "audite Clientes" / "audite o WhatsApp" / nomeia um módulo | Módulo | A rule do módulo (tabela em `CLAUDE.md`) + camadas relevantes a ele |
+| "faça uma auditoria geral" / "procure coisas que podem quebrar" / "verifique se existe código antigo" sem módulo | Geral | Projeto inteiro, dividido em sub-auditorias paralelas (ver agente) |
+| "faça um pre-mortem dessa implementação" | — | Não é esta skill: é `/pre-mortem` (mesmo agente, modo diferente) |
 
-Cada achado deve ter: arquivo:linha, o que está errado, por que importa (cenário concreto de falha, não hipotético), severidade (HIGH = bug real de comportamento/segurança agora; MEDIUM = risco de drift ainda não visível; LOW = cosmético). **Não confunda "design intencional documentado" com bug** — vários comportamentos deste sistema parecem estranhos à primeira vista mas têm um comentário explicando a razão (ex.: funil cumulativo, geração preguiçosa da Meta Diária). Leia o comentário antes de reportar como bug.
+## 2. Antes de reportar, confira o que já é conhecido
 
-## Depois de encontrar os achados
+Leia `docs/SYSTEM_ARCHITECTURE.md` §13 (ledger de risco/arquitetura, P-01…P-21) e §12 (divergências doc×código) inteiros, e consulte `docs/INCIDENTES.md` (bugs já confirmados e corrigidos — skill `/consultar-incidentes`) antes de procurar algo novo. Não reporte de novo o que já está em qualquer um dos dois — diga só se procede, piorou ou foi resolvido.
 
-Não corrija tudo silenciosamente. Para cada achado HIGH: confirme com dado real quando possível (query direta, chamada de API autenticada via script em `scratch/`) antes de reportar como certeza. Priorize e pergunte ao usuário quais corrigir agora vs. quais só documentar — auditorias anteriores mostraram que mudanças de maior escopo (ex.: reescrever paginação de uma tela) merecem confirmação explícita antes de começar, mesmo que pareçam a correção "óbvia".
+## 3. Rode a auditoria
 
-Ao corrigir algo encontrado na auditoria, siga a filosofia do agente `crm-editor` (`.claude/agents/crm-editor.md`): causa raiz, impacto, preservar o que funciona, testar antes/depois com dado real quando a mudança tocar produção.
+Siga `.claude/agents/auditor-crm.md` do passo da camada escolhida até o relatório. Se o escopo pedir banco de dados especificamente, use `/auditar-banco`; se pedir permissões especificamente, use `/revisar-permissoes` — não duplique essas duas, delegue.
+
+## 4. Depois do relatório
+
+Auditoria não corrige. Se o usuário autorizar corrigir um ou mais achados, acione `/diagnosticar-bug` (comportamento errado) ou o agente `crm-editor` (estrutural) só para os itens apontados — nunca para a lista inteira sem pedido explícito.

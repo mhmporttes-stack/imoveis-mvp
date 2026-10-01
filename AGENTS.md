@@ -30,6 +30,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Pixel, Conversions API, Meta Ads, UTMs, campanhas/links | `docs/TRAFEGO_META.md` |
 | Análise de tráfego pago (auditoria, funil anúncio → venda, copy, planejamento) | agente `gestor-trafego` + skills `/auditar-trafego`, `/criar-anuncio`, `/planejar-campanha` (somente leitura) |
 | Interface: crítica, redesenho, layout, mobile, sistema visual, revisão visual | agente `designer-crm` + skill `/design-crm` (vitrine sem login: `app/dev/vitrine`, só `next dev`) |
+| Auditoria preventiva (achar risco/código morto/regra violada antes de virar bug), ou pre-mortem antes de publicar algo grande | agente `auditor-crm` + skills `/auditar-crm`, `/pre-mortem` — **somente leitura, nunca corrige**; achados conhecidos ficam em `docs/SYSTEM_ARCHITECTURE.md` §13 |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
 | Registrar uma regra nova confirmada pelo dono | skill `/registrar-regra` |
 | Um bug foi relatado (mesmo vago: "travou", "deu erro", + print) | skill `/diagnosticar-bug` — nunca corrija antes de achar a causa raiz (`.claude/agents/crm-editor.md` §"Diagnóstico sistemático de bugs") |
