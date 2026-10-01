@@ -25,6 +25,7 @@
 
 | Domínio | Tabelas |
 |---|---|
+| Métricas / cache | `crm_metric_cache` (cache volátil + locks dos cálculos pesados da voz), `crm_metric_snapshots` (histórico diário por métrica/dimensão; reutilizável por gráficos e relatórios) — RLS ligada, só service role |
 | Usuários / presença | `alexa_settings` (config única da Alexa, sem credenciais), `alexa_arrival_state` (estado da rotina de chegada; só hash da chave), `admin_users`, `admin_presence` (1 linha/usuário, `last_activity_at`), `admin_presence_activity` (marcas por minuto p/ relatório), `push_subscriptions` |
 | Catálogo público | `properties` (imóveis **e** empreendimentos de catálogo, `is_development`), `empreendimentos` (regras de entrada em JSON, mesmo id do produto), `testimonials`, `captacoes` (imóveis ofertados por proprietários), `leads` (modal da home — sem leitor no código) |
 | Simulação | `simulations`, `simulation_properties`, `simulation_property_benefits` |
@@ -49,6 +50,7 @@
 
 | Função | Papel |
 |---|---|
+| `crm_status_counts()` | contagem de clientes por status em uma consulta (usada pela voz e pelos snapshots; só service role) |
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
 | `assign_round_robin_lead(excluded)` | roleta simples (reserva/fallback; **não alterar**) |
 | `whatsapp_get_or_create_roulette_client(...)`, `whatsapp_phone_lock_key` | cliente único por telefone via roleta, atômico; desde `20260924210000` recebe `p_conversation_id` (vincula a conversa e a atribui ao mesmo corretor) e `p_history_details` (grava `lead_distribution_history`) | **[2026-09-26]** cria o cliente em `automated_service` (Atendimento automático), não `pending`; as restrições `simulation_registrations_status_check` e `client_status_history_*_status_check` aceitam o valor novo (migration `20260926140000`).
@@ -83,6 +85,11 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `whatsapp-master-scheduled-activities` | `* * * * *` | a cada minuto | URL vem do Vault (`crm_scheduled_activities_url`) — esperado: `/api/cron/scheduled-activities` (**A CONFIRMAR**) |
 | `whatsapp-broadcast-dispatch-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-broadcast-dispatch` |
 | `whatsapp-flows-timers-every-minute` | `* * * * *` | a cada minuto | `/api/cron/whatsapp-flows` |
+| `crm-cache-refresh-business` | `*/5 10-23 * * 1-6` | seg–sáb 07–20 h, de 5 em 5 min | `/api/cron/crm-snapshots?mode=refresh` (atualiza o cache da voz) |
+| `crm-cache-refresh-offhours` | `*/30 0-9 * * *` | 21–06 h, de 30 em 30 min | idem |
+| `crm-cache-refresh-sunday` | `*/30 10-23 * * 0` | domingo, de 30 em 30 min | idem |
+| `crm-snapshot-stock-2355` | `55 2 * * *` | 23:55 | `/api/cron/crm-snapshots?mode=stock` (foto do estoque: clientes por status/grupo) |
+| `crm-snapshot-close-0010` | `10 3 * * *` | 00:10 | `/api/cron/crm-snapshots?mode=close` (métricas de eventos do dia anterior) |
 | `daily-report-once-a-day` | `0 1 * * *` | 22:00 | `/api/cron/daily-report` |
 | `daily-goal-close-once-a-day` | `1 3 * * *` | 00:01 | `/api/cron/daily-goal-close` (fecha o dia anterior **e** congela as pendências de hoje; migration `20260928043000`) |
 | `weekly-ranking-monday` | `1 3 * * 1` | segunda 00:01 | `/api/cron/weekly-ranking` (congela o vencedor da semana anterior em `crm_settings`) |
