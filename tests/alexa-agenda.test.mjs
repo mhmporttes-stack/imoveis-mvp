@@ -58,6 +58,9 @@ test("frases: horário, tipo e primeiro nome do cliente", () => {
   assert.equal(activityLabel({ type: "follow_up", title: "Follow-up", clientName: "maria souza" }), "retorno para Maria");
   assert.equal(activityLabel({ type: "documentacao", title: "", clientName: "Carlos Dias" }), "documentação de Carlos");
   assert.equal(activityLabel({ type: "outro", title: "Enviar proposta", clientName: "" }), "Enviar proposta");
+  assert.equal(activityLabel({ type: "follow_up", title: "mandar mensagem", clientName: "Mateus Dias" }), "retorno para Mateus, mandar mensagem");
+  assert.equal(activityLabel({ type: "reuniao", title: "matheus", clientName: "Jeniffer Lima" }), "reunião com Jeniffer, matheus");
+  assert.equal(activityLabel({ type: "outro", title: "conferir andamento", clientName: "Gustavo Reis" }), "conferir andamento, cliente Gustavo");
   assert.equal(activityLabel({ type: "outro", title: "", clientName: "" }), "atividade");
   const one = buildActivityItems([{ at: "2026-10-08T04:00:00Z", type: "reuniao", title: "", clientName: "Ana", clientId: "9" }], { today: TODAY });
   assert.equal(activitiesSentence(one, { periodoSpoken: "amanhã" }).text, "Amanhã você tem 1 atividade. À 1 hora, reunião com Ana.");

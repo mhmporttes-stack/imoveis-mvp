@@ -1065,3 +1065,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/alexa-v2/providers/{agenda,activities-core}`, `lib/alexa-v2/{catalog-agenda,periods,router,model-core}`, `lib/alexa-skill-core.mjs`.
 - **Risco/observação:** mesma Agenda do CRM (calendar_activities + campo legado de simulation_registrations), só atividades PENDENTES do usuário vinculado (dono), em horário de Brasília. Aniversários não entram nessa resposta (ficam na rotina de chegada).
 - **Autor:** Claude Code
+
+### 2026-10-02 — Alexa: agenda por dia da semana, data falada e "próxima sexta"
+- **Data:** 2026-10-02
+- **Área:** Alexa / Agenda
+- **Alteração:** a consulta da agenda pessoal (uma única intenção, `AgendaIntent`) agora aceita período (hoje, amanhã, depois de amanhã), dia da semana ("sexta", "na sexta-feira", "próxima sexta", "sexta que vem"; slot próprio `DIA_SEMANA`) e data falada ("dia 8", "8 de outubro"; slot `AMAZON.DATE`), sempre normalizados para AAAA-MM-DD de Brasília antes de consultar a Agenda. Dia da semana = próxima ocorrência (hoje conta; "próxima/que vem" pula para a semana seguinte); data sem ano = próxima ocorrência. Mantém contexto ("e sábado?", "e no dia seguinte?", "qual é a primeira?", "e depois?"). Falha anterior: o modelo publicado no Console não tinha as frases de data (upload não salvo) e "agendadas na ..." não existia entre as frases.
+- **Motivo:** pedido do dono (frase "Quais atividades eu tenho agendadas na sexta-feira?" não era reconhecida no Echo).
+- **Arquivos afetados:** `lib/alexa-v2/{model-core,router,periods}.mjs`, `lib/alexa-v2/providers/activities-core.mjs`, `docs/alexa-interaction-model.json`.
+- **Risco/observação:** modelo grande (cerca de 700 frases na intenção de agenda, geradas por combinação de prefixos). A fala sempre diz o tipo da atividade; o título digitado entra no fim só se agrega.
+- **Autor:** Claude Code
