@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
-import { closeAllOpenDailyGoals, formatDailyGoalError, freezeDailyGoalPendingForActiveBrokers } from "@/lib/daily-goal";
+import { closeAllOpenDailyGoals, formatDailyGoalError, freezeDailyGoalPendingForActiveBrokers, freezeDailyGoalWalletForActiveBrokers } from "@/lib/daily-goal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,16 +33,23 @@ export async function GET(request) {
   try {
     const result = await closeAllOpenDailyGoals();
 
-    // Início do dia: congela as pendências de hoje (meta = prospecção + pendentes).
-    // Roda depois do fechamento e nunca o derruba; quem não for congelado aqui é
-    // congelado no primeiro acesso do dia à Meta Diária.
+    // Início do dia: congela as pendências de hoje (meta = prospecção + pendentes)
+    // e a carteira de hoje (meta só atualiza à meia-noite, regra do dono em
+    // 2026-10-01). Roda depois do fechamento e nunca o derruba; quem não for
+    // congelado aqui é congelado no primeiro acesso do dia à Meta Diária.
     let pendingFreeze = null;
     try {
       pendingFreeze = await freezeDailyGoalPendingForActiveBrokers();
     } catch (freezeError) {
       console.error("Falha ao congelar as pendências da Meta Diária.", freezeError);
     }
-    return NextResponse.json({ ok: true, ...result, pendingFreeze });
+    let walletFreeze = null;
+    try {
+      walletFreeze = await freezeDailyGoalWalletForActiveBrokers();
+    } catch (freezeError) {
+      console.error("Falha ao congelar a carteira da Meta Diária.", freezeError);
+    }
+    return NextResponse.json({ ok: true, ...result, pendingFreeze, walletFreeze });
   } catch (error) {
     console.error("Falha ao fechar a Meta Diária.", error);
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: 500 });
