@@ -19,7 +19,7 @@ paths:
 
 ## Componentes grandes/centrais
 
-`components/AdminSimulationList.jsx` é a lista principal do CRM (~2.260 linhas). Busca, filtros e paginação são feitos **no servidor** (`/api/simulation-registrations/list` → `lib/simulation-list-query.js`); o componente só exibe a página atual e os contadores devolvidos pela API. Ao mexer em filtro/aba/contador, altere a query do servidor, não um filtro local no componente (divergência D-1 de `docs/SYSTEM_ARCHITECTURE.md` §12, reconciliada em 2026-10-01).
+A Lista de clientes é `components/clients/` (`ClientWorkspace` tela, `useClientList` estado/ações/API, `ClientRow` linha, `ClientSheet` ficha). Busca, filtros e paginação são feitos **no servidor** (`/api/simulation-registrations/list` → `lib/simulation-list-query.js`); a tela só exibe a página atual e os contadores devolvidos pela API. Ao mexer em filtro/aba/contador, altere a query do servidor, não um filtro local no componente (divergência D-1 de `docs/SYSTEM_ARCHITECTURE.md` §12, reconciliada em 2026-10-01).
 
 `components/PerformanceOverviewDashboard.jsx`, `components/DailyGoalDashboard.jsx`, `components/TeamDailyPerformance.jsx` — telas de ranking/Meta Diária, ver `.claude/rules/meta-diaria-ranking.md`.
 

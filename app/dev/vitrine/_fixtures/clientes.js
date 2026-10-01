@@ -1,4 +1,4 @@
-// Fixture da tela "Lista de clientes" (components/AdminSimulationList.jsx,
+// Fixture da tela "Lista de clientes" (components/clients/ClientWorkspace.jsx,
 // montado como em app/admin/simulacoes/page.jsx). Dados 100% FICTÍCIOS —
 // nomes com sobrenome "Exemplo/Teste/Demo", telefones (14) 90000-00xx e
 // e-mails @vitrine.invalid. Nada aqui vem do banco.
@@ -892,7 +892,7 @@ const INITIAL_FILTERS = {
   status: "all"
 };
 
-export function propsFor(perfil = "admin") {
+export function propsFor(perfil = "admin", { pageSize = 20 } = {}) {
   const isAdmin = perfil === "admin";
   const isManager = perfil === "gestor";
   const isBrokerLike = perfil === "corretor" || perfil === "associado";
@@ -905,7 +905,7 @@ export function propsFor(perfil = "admin") {
       : [];
 
   return {
-    initialData: buildListPayload({ filters: INITIAL_FILTERS, page: 1, pageSize: 5, perfil }),
+    initialData: buildListPayload({ filters: INITIAL_FILTERS, page: 1, pageSize, perfil }),
     initialFilters: { ...INITIAL_FILTERS },
     adminProfiles,
     canManageResponsibleUsers: isAdmin || isManager,

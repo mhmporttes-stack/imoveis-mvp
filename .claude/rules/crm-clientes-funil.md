@@ -9,7 +9,7 @@ paths:
   - "lib/document-status-labels.js"
   - "lib/do-not-contact-reasons.js"
   - "lib/journey-presentation.js"
-  - "components/AdminSimulationList.jsx"
+  - "components/clients/**"
   - "components/ClientJourney*.jsx"
   - "components/RegistrationDetails.jsx"
   - "app/minha-jornada/**"
@@ -24,7 +24,7 @@ paths:
 
 `lib/client-status.js` é a **única** fonte de verdade do enum `CLIENT_STATUS` e de qualquer agrupamento derivado dele (`ACTIVE_CLIENT_STATUS_VALUES`, `CLIENT_FUNNEL_STAGES`, `CLIENT_STATUS_META`, `CLIENT_FUNNEL_SALE_STATUS_VALUES`). **Nunca crie uma cópia local de um conjunto de status em outro arquivo** — já houve um bug real de produção assim: `lib/crm.js` mantinha sua própria cópia de "status ativos" para o contador de "aguardando ação" do dashboard, ficou desatualizada (faltavam `meeting_pending`/`meeting_done`) e subcontava clientes por meses até ser corrigida importando de `client-status.js`.
 
-Cliente principal: `simulation_registrations` (persistência em `lib/simulation-registrations.js`). Um cliente pode ter uma `simulation` associada (`lib/simulations.js`) — a lista principal (`AdminSimulationList.jsx`) agrupa os dois.
+Cliente principal: `simulation_registrations` (persistência em `lib/simulation-registrations.js`). Um cliente pode ter uma `simulation` associada (`lib/simulations.js`) — a lista principal (`components/clients/`, lógica em `useClientList.js`) agrupa os dois.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 

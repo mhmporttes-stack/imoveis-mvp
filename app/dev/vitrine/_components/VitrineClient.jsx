@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
-import AdminSimulationList from "@/components/AdminSimulationList";
+import ClientWorkspace from "@/components/clients/ClientWorkspace";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
@@ -35,7 +35,7 @@ const TELAS = {
     rotas: clientes.routes,
     render: (perfil) => (
       <main className="bg-mist py-14">
-        <AdminSimulationList {...clientes.propsFor(perfil)} />
+        <ClientWorkspace {...clientes.propsFor(perfil)} />
       </main>
     )
   },

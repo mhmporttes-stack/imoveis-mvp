@@ -23,7 +23,7 @@ const SIZES = {
 
 export function buttonClasses({ variant = "primary", size = "md", block = false, className = "" } = {}) {
   return cx(
-    "inline-flex select-none items-center justify-center whitespace-nowrap font-semibold",
+    "inline-flex select-none items-center justify-center whitespace-nowrap font-semibold [&>svg]:shrink-0",
     "transition-[background-color,border-color,color,transform] duration-150 ease-out-ui",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
     "active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100 motion-reduce:transition-none motion-reduce:active:scale-100",

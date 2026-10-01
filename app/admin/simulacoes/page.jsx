@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
-import AdminSimulationList from "@/components/AdminSimulationList";
+import ClientWorkspace from "@/components/clients/ClientWorkspace";
 import { buildBrokerSimulationLink, isBrokerProfile, isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail, listAdminProfiles } from "@/lib/admin-profiles";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listCalendarActivitiesForClients } from "@/lib/calendar-activities";
@@ -51,7 +51,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
 
   try {
     const [pageResult, counters, pendingClientsCount, tagsResult, adminProfilesResult] = await Promise.all([
-      listSimulationClientsPage({ auth, filters, page: 1 }),
+      listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20 }),
       getSimulationClientCounters({ auth, filters }),
       getPendingClientsCount({ auth }),
       listTags(),
@@ -84,7 +84,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
       {!initialData ? (
         <SimulationError error={loadError} />
       ) : (
-        <AdminSimulationList
+        <ClientWorkspace
           key={JSON.stringify(filters)}
           initialData={initialData}
           initialFilters={filters}
