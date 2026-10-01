@@ -9,7 +9,11 @@ import TestimonialsSection from "@/components/TestimonialsSection";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
 
-export const dynamic = "force-dynamic";
+// ISR: página pública, mesmo conteúdo para todo visitante (sem sessão/auth).
+// force-dynamic forçava um round-trip ao Supabase a cada visita (TTFB medido
+// em 636ms); 60s de cache é imperceptível para a home e tira carga do banco
+// em todo pico de tráfego. Achado da auditoria de performance 2026-10-01.
+export const revalidate = 60;
 
 const benefits = [
   { icon: ShieldCheck, title: "Compra segura", text: "Acompanhamento consultivo para comparar condições, prazos e documentação." },
@@ -47,7 +51,6 @@ export default async function HomePage() {
                 fill
                 sizes="(max-width: 640px) 112px, 144px"
                 className="object-contain object-center"
-                priority
               />
             </div>
             <div className="mt-4">

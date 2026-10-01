@@ -1,4 +1,6 @@
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import AppChrome from "@/components/AppChrome";
 
 export const metadata = {
@@ -51,6 +53,11 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <body>
         <AppChrome>{children}</AppChrome>
+        {/* Instrumentação pura (zero HTML/CSS visível) — baseline de Core
+            Web Vitals real (LCP/INP/CLS/TTFB/FCP) para a auditoria de
+            performance 2026-10-01 e futuras repetições dela. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

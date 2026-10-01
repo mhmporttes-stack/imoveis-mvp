@@ -6,7 +6,11 @@ import PropertyImageCarousel from "@/components/PropertyImageCarousel";
 import { coverImage, propertyRegion, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
 
-export const dynamic = "force-dynamic";
+// ISR: página pública, mesmo conteúdo para todo visitante (sem sessão/auth).
+// force-dynamic forçava um round-trip ao Supabase a cada visita; 60s de cache
+// é imperceptível para uma ficha de empreendimento e tira carga do banco em
+// todo pico de tráfego. Achado da auditoria de performance 2026-10-01.
+export const revalidate = 60;
 
 export default async function PropertyPage({ params }) {
   const { id } = await params;

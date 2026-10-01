@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Auditoria de performance: auth deduplicada, ISR no site público, queries mais leves
+- **Data:** 2026-10-01
+- **Área:** Infra/Banco/Permissões/Docs
+- **Alteração:** `getAdminFromCookies` (lib/admin-auth.js) memoizado com `cache()` do React — eliminava uma checagem de sessão duplicada (layout + cada página) em toda navegação do admin; `admin_users`/`simulation_registrations` deixaram de usar `select("*")` nos caminhos quentes de auth e do Financeiro (projeção só das colunas realmente lidas); sincronização de templates do WhatsApp passou de 1 upsert por template para 1 upsert em lote; home e ficha de empreendimento do site público trocaram de `force-dynamic` para ISR (`revalidate = 60`); removida a dependência `three` (sem nenhum import no repo) e um `priority` duplicado na hero da home; adicionados `@vercel/analytics`/`@vercel/speed-insights` para medir Core Web Vitals reais daqui pra frente. Nenhuma mudança visual/layout.
+- **Motivo:** pedido do dono — auditoria completa de performance (site, CRM, PWA), com instrução explícita de só mexer automaticamente em otimizações técnicas/invisíveis e registrar o resto para autorização.
+- **Arquivos afetados:** `lib/admin-auth.js`, `lib/admin-profiles.js`, `lib/financial.js`, `lib/whatsapp-broadcasts.js`, `app/page.jsx`, `app/empreendimentos/[id]/page.jsx`, `app/layout.jsx`, `package.json`, `pnpm-lock.yaml`, `docs/PERFORMANCE_AUDIT.md` (checklist completo, inclusive achados NÃO aplicados).
+- **Risco/observação:** `next build` limpo antes/depois. Ficaram fora desta rodada (registrados em `docs/PERFORMANCE_AUDIT.md` para autorização do dono, por risco real — não por serem visuais): habilitar `images.unoptimized=false` (exige configurar remotePatterns do Supabase Storage e consome cota de otimização de imagem da Vercel, projeto já teve um bloqueio por limite do plano Hobby em 2026-09-26); paginação/virtualização das listas de Chat e Prospecção; refatorar WhatsappChat para prefetch no servidor; coluna dedicada de thumbnail para a listagem pública de imóveis parar de carregar `photos_json` inteiro. Dois achados reportados por subagentes (poll de 3s do WhatsApp individual, poll de 2,5s da Supervisão) eram falsos positivos ao verificar o código — nada foi alterado neles.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Correção de dados P-01 (etapa 2): contatos presos ao mesmo card
 - **Data:** 2026-10-01
 - **Área:** Meta Diária / Prospecção / Banco (dados)
