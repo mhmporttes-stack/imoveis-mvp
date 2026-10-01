@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Documentação alinhada ao código: roleta on-line, §13, Oportunidades e WhatsApp individual
+- **Data:** 2026-10-01
+- **Área:** Docs / Roleta / WhatsApp
+- **Alteração:**
+  - **Roleta:** nova REGRA OFICIAL (definida em 30/09, confirmada pelo dono em 01/10) na rule e em `BUSINESS_RULES.md` (ROL-2a, ROL-5, ROL-7). Distribuição só entre corretores on-line, fila de espera (`pending_distribution_at`) e link geral sem `?ref=` pela roleta. A regra de 2026-09-24 foi mantida como histórico.
+  - **Arquitetura:** `SYSTEM_ARCHITECTURE.md` §13 marca P-01, P-04, P-08, P-09 e P-17 como resolvidos, com o que resta de cada um.
+  - **Oportunidades:** `BUSINESS_RULES.md` §9 marca a Central de Oportunidades como removida, com OPO-1/OPO-2 só como histórico.
+  - **WhatsApp:** `WHATSAPP.md` ganhou a §1-A (arquitetura do WhatsApp individual) e o aviso do banimento do número oficial.
+- **Motivo:** pedido do dono, depois do registro retroativo de 28–30/09.
+- **Arquivos afetados:** `.claude/rules/roleta-prospeccao-campanhas.md` (regra + `paths:`), `.claude/rules/integracoes-externas.md` (nota de atualização), `docs/BUSINESS_RULES.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/WHATSAPP.md`.
+- **Risco/observação:** só documentação, conferida no código atual.
+  - **A CONFIRMAR:** a tolerância de presença após clique em WhatsApp não aparece na nova `pick_round_robin_broker`.
+  - **A CONFIRMAR:** os ~16 usos de `auth.user.email` fora das 2 rotas corrigidas em P-17.
+  - **A CONFIRMAR:** se o upload de captação ainda grava sem login.
+  - **Para o dono:** cliente do link geral pode ser distribuído a outro corretor, mas o botão "Receber minha simulação" abre o WhatsApp do Matheus.
+  - **Ainda citam Oportunidades:** `CRM_CONTEXT.md`, `PERMISSIONS.md` e `SYSTEM_ARCHITECTURE.md` (§§ de inventário).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Reorganização da estrutura do Claude Code (rules, agente, skills)
 - **Data:** 2026-10-01
 - **Área:** Docs / Infra (estrutura do Claude Code)

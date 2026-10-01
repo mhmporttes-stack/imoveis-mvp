@@ -2,6 +2,7 @@
 
 > Fonte: `lib/whatsapp-*.js`/`.mjs`, `lib/phone-utils.js`, `lib/client-phone-lookup.js`, `app/api/webhooks/whatsapp-master`, `app/api/admin/whatsapp-*`, `app/api/cron/whatsapp-*`, migrations `20260901…`, `20260915_whatsapp_manual_log`, `20260920…`, `20260922180000`, `20260923210000`, `20260924*` (inclui `20260924210000`: Chat interno, exclusão e lead patrocinado) (verificado em 2026-09-24, commit `3c82f72`).
 > **Nunca** registrar tokens, segredos ou valores de variáveis aqui — só nomes. Estado real da conta Meta (WABA, número ativo, modelos aprovados) **não foi verificado** → **A CONFIRMAR**.
+> **Atualização 2026-10-01:** o número oficial foi **banido pela Meta em 28/09/2026**. Desde então o canal principal de conversa é o **WhatsApp individual** de cada corretor (§1-A). As seções 1 a 15 descrevem o caminho da Cloud API, que continua no código (conversas sem responsável, Disparo, Fluxos, webhook oficial), mas cujo funcionamento real depende do número oficial → **A CONFIRMAR**.
 > Regras gerais: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) §11 · Banco: [`DATABASE.md`](DATABASE.md) · Permissões: [`PERMISSIONS.md`](PERMISSIONS.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Meta Ads/Pixel: [`TRAFEGO_META.md`](TRAFEGO_META.md).
 
 ## 1. Visão geral
@@ -23,6 +24,37 @@ CRM ──▶ sendWhatsappTextMessage / sendWhatsappMessagePayload / sendWhatsap
 ```
 
 Módulos de tela: **Chat** (`/admin/chat`) e, em Automações, **Regras de resposta**, **Fluxos**, **Disparos** (aba própria desde 2026-09-27; antes vivia dentro de WhatsApp Master) e **WhatsApp Master** (só conexão/perfil/respostas por palavra-chave/inbox de eventos). ~~WhatsApp Manual~~ removido em 2026-09-27 (não usado mais pelo dono).
+
+## 1-A. WhatsApp individual — canal principal desde 2026-09-28 (verificado no código em 2026-10-01)
+
+**Por quê:** o número oficial (Cloud API) foi banido em 28/09/2026. Cada corretor conecta o **próprio WhatsApp** e o Chat do CRM passa a enviar e receber por essa sessão.
+
+**Peças:**
+
+```
+Celular do corretor ⇄ WhatsApp ⇄ whatsapp-individual-service (Railway, Baileys, 1 socket por corretor)
+        │  HTTP connect/status/disconnect/send  ▲              │ webhooks: status | message | history | message_status
+        │  (lib/whatsapp-individual.js)         │              ▼
+        └──────────── Next.js (Vercel) ─────────┴──▶ /api/webhooks/whatsapp-individual (+ /state para credenciais)
+```
+
+- **Microsserviço** `whatsapp-individual-service/` (`src/sessions.js`, `server.js`, `webhook.js`, `auth-state.js`, `crypto.js`): publicado no **Railway**, não na Vercel (serverless não segura socket aberto). Rotas `/health` (sem segredo) e `/sessions/:userId/{connect,status,disconnect,send}`. **Não tem acesso ao Supabase** nem à service role: lê e grava status, QR e credenciais via `app/api/webhooks/whatsapp-individual/state`. Credenciais Baileys cifradas (AES-256-GCM, `SESSION_ENCRYPTION_KEY`) e guardadas em `whatsapp_individual_sessions.session_creds_encrypted`; o Next.js nunca as lê para exibir. Grupos (`@g.us`), listas de transmissão (`@broadcast`) e `@lid` são descartados no próprio serviço.
+- **Autenticação nos dois sentidos:** header `X-Service-Secret` comparado a `WHATSAPP_INDIVIDUAL_SERVICE_SECRET` (`verifyIndividualServiceSecret`, `timingSafeEqual`). Variáveis do lado Vercel: `WHATSAPP_INDIVIDUAL_SERVICE_URL`, `WHATSAPP_INDIVIDUAL_SERVICE_SECRET`. Lado Railway: `WHATSAPP_INDIVIDUAL_SERVICE_SECRET`, `APP_WEBHOOK_URL`, `SESSION_ENCRYPTION_KEY`, `PORT`, opcional `WHATSAPP_HISTORY_SYNC_ENABLED`.
+- **Conectar:** `/api/admin/whatsapp-individual/{connect,status,disconnect}` (`requireAdminApi`), sempre para o **próprio** perfil logado (`auth.profile.id`; nunca recebe `userId` de fora). QR Code ou **código numérico de pareamento** (corretor informa o número). Status em `whatsapp_individual_sessions.status`: `disconnected`, `connecting`, `qr_required`, `connected`, `reconnecting`, `error`. Indicador no cabeçalho do painel: `components/WhatsappIndividualStatus.jsx`. Ao conectar, a automação da Meta Diária liga sozinha para o corretor (`ensureDailyGoalAutoEnabledOnConnect`).
+- **Envio pelo Chat:** `pickSendChannel` (`lib/whatsapp-individual-routing.mjs`, puro e testado) decide por conversa. Responsável com sessão `connected` → `individual`. Responsável com sessão configurada mas não conectada → **`blocked`**: erro claro, mensagem preservada, nunca cai em silêncio no número banido. Sem responsável, ou responsável sem sessão nenhuma → `cloud_api`, o caminho antigo. Envia texto, foto, documento e áudio (`sendIndividualMessage`). Com sessão individual conectada não há janela de 24 h: o Chat trata a conversa como aberta (`windowOpen = janela oficial || sessão conectada`) e o bloqueio por modelo foi removido em 28/09.
+- **Recebimento** (`lib/whatsapp-individual-inbound.js`):
+  - `projectIndividualInboundMessage` grava no **mesmo** Chat (`whatsapp_messages.channel='whatsapp_individual'`, `session_user_id`), com idempotência por `wa_message_id`, push ao responsável e realtime. **Recebido: só texto** (mensagem sem texto é ignorada).
+  - Contato ainda sem cliente vira cliente **direto do corretor dono da sessão**, sem roleta (RPC `whatsapp_get_or_create_client_for_broker`, origem `whatsapp_individual`, nome saneado por `sanitizeContactFullName`).
+  - Mensagens que o corretor manda pelo próprio celular (`fromMe`) também são registradas, e a conversa sem responsável passa a ser dele.
+  - `projectIndividualMessageStatus` grava entrega e leitura (inclusive o *server ack*). A automação da Meta Diária só conta "enviada" com essa confirmação.
+- **Histórico do celular** (`projectIndividualHistoryBatch`): decisão do dono de importar ao conectar, ciente de que traz conversas pessoais. Só popula conversas: nunca cria cliente, push nem não lidas. **Desligado** por padrão (`WHATSAPP_HISTORY_SYNC_ENABLED`) depois de causar 504 no webhook.
+- **Outros usos:** automação da Meta Diária (`lib/daily-goal-auto.js`, só por este canal, nunca pelo oficial). Chat › Corretores mostra o status real da sessão de cada corretor. Google Contacts (`lib/google-contacts.js`) salva o cliente na agenda do corretor antes do envio automático. O Disparo (`lib/whatsapp-broadcasts.js`) **não** usa este canal (trava + teste `tests/whatsapp-broadcast-no-individual-channel.test.mjs`).
+- **Banco:** `whatsapp_individual_sessions` (1 por corretor; status, número, QR/código, credenciais cifradas, erro); colunas `channel`/`session_user_id` em `whatsapp_messages`; selo de conta na conversa. Migrations `20260928130000_whatsapp_individual_sessions`, `20260928180000_whatsapp_individual_direct_broker`, `20260928190000_whatsapp_conversation_account_badge`, `20260930160000_whatsapp_individual_pairing_code`.
+- **Riscos:**
+  - A sessão depende do celular do corretor ligado e com internet.
+  - Números pessoais podem ser banidos por volume. Mitigações na automação: variações de mensagem, ordem embaralhada, intervalo oscilante, teto diário. Troca de número depois de banimento foi corrigida em 30/09.
+  - Perder `SESSION_ENCRYPTION_KEY` derruba todas as sessões.
+  - Mídia **recebida** não é importada por este canal.
 
 ## 2. Configuração (nomes de variáveis — nunca valores)
 
