@@ -44,7 +44,9 @@ const SKIP_REASON_LABELS = {
   falha_destinatario_1_3: "Falha técnica ao enviar (1ª de 3) — será tentado de novo",
   falha_destinatario_2_3: "Falha técnica ao enviar (2ª de 3) — será tentado de novo",
   falha_destinatario_3_3: "Falha técnica ao enviar (3ª de 3)",
-  google_contacts_sync_falhou: "Aguardando sincronização com o Google Contacts — será tentado de novo"
+  google_contacts_sync_falhou: "Aguardando sincronização com o Google Contacts — será tentado de novo",
+  reordenado_manualmente: "Fila reorganizada manualmente pelo admin",
+  reordenado_automaticamente_reconexao: "Fila redistribuída automaticamente após reconectar o WhatsApp"
 };
 
 function minutesToTime(minutes) {
@@ -440,6 +442,10 @@ export function BrokerHistoryPanel({ brokerId }) {
         if (period === "last7") {
           const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
           query.set("from", from);
+        } else {
+          // "Hoje" também mostra o que ainda falta disparar até o fim do dia
+          // (pedido do dono, 2026-10-02), não só o que já aconteceu.
+          query.set("scheduled", "1");
         }
         const response = await fetch(`/api/admin/daily-goal-auto/history?${query.toString()}`, { signal: controller.signal });
         const payload = await response.json();
@@ -482,12 +488,13 @@ export function BrokerHistoryPanel({ brokerId }) {
         <p className="mt-3 text-xs font-bold text-muted">Carregando…</p>
       ) : (
         <>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
             <HistoryStat label="Processadas" value={data.summary.processadas} />
             <HistoryStat label="Enviadas" value={data.summary.enviadas} tone="emerald" />
             <HistoryStat label="Aguard. retry" value={data.summary.aguardandoRetry} tone="amber" />
             <HistoryStat label="Erros" value={data.summary.erros} tone="red" />
             <HistoryStat label="Puladas" value={data.summary.puladas} />
+            {typeof data.summary.agendadas === "number" ? <HistoryStat label="Agendadas" value={data.summary.agendadas} tone="brand" /> : null}
           </div>
           <div className="mt-3 max-h-72 overflow-y-auto rounded-xl border border-line bg-white">
             {data.timeline.length ? (
@@ -513,6 +520,29 @@ export function BrokerHistoryPanel({ brokerId }) {
               <p className="px-3 py-4 text-center text-xs font-bold text-muted">Nada no período selecionado.</p>
             )}
           </div>
+
+          {Array.isArray(data.scheduled) ? (
+            <div className="mt-3">
+              <p className="text-[11px] font-black uppercase tracking-wide text-muted">Ainda hoje ({data.scheduled.length})</p>
+              <div className="mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-white">
+                {data.scheduled.length ? (
+                  <ul className="divide-y divide-line">
+                    {data.scheduled.map((event) => (
+                      <li key={event.id} className="px-3 py-2 text-xs">
+                        <span className="font-black text-brand">{formatNextDispatch(event.scheduledFor)}</span>{" "}
+                        <span className="font-bold text-navy">{event.contactName || "Contato sem nome"}</span>{" "}
+                        {event.attemptNumber ? <span className="text-muted">· {event.attemptNumber}ª tentativa</span> : null}
+                        {event.variant ? <span className="text-muted"> · Modelo {event.variant}</span> : null}
+                        {event.isRetry ? <span className="text-muted"> · retry</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-3 py-4 text-center text-xs font-bold text-muted">Nada mais agendado para hoje.</p>
+                )}
+              </div>
+            </div>
+          ) : null}
         </>
       )}
     </div>
@@ -520,7 +550,7 @@ export function BrokerHistoryPanel({ brokerId }) {
 }
 
 function HistoryStat({ label, value, tone }) {
-  const toneClass = { emerald: "text-emerald-700", amber: "text-amber-700", red: "text-red-700" }[tone] || "text-navy";
+  const toneClass = { emerald: "text-emerald-700", amber: "text-amber-700", red: "text-red-700", brand: "text-brand" }[tone] || "text-navy";
   return (
     <div className="rounded-xl border border-line bg-white p-2 text-center">
       <p className={`text-lg font-black ${toneClass}`}>{value ?? 0}</p>

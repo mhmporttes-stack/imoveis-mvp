@@ -15,7 +15,8 @@ export async function GET(request) {
       status: searchParams.get("status") || null,
       attemptNumber: searchParams.get("attemptNumber") || null,
       from: searchParams.get("from") || null,
-      to: searchParams.get("to") || null
+      to: searchParams.get("to") || null,
+      scheduled: searchParams.get("scheduled") === "1"
     };
     return NextResponse.json(await adminGetDailyGoalAutoHistory(auth, params));
   } catch (error) {
