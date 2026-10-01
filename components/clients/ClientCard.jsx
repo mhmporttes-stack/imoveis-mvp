@@ -126,17 +126,16 @@ export default function ClientCard({ client, activities, responsibleName, showRe
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
       <footer className="mt-auto flex items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
-        <Button size="sm" className="min-h-10 px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+        <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
         </Button>
-        <Button size="sm" variant="secondary" className="min-h-10 px-3.5" onClick={() => onOpen("agenda")} disabled={busy}>
+        <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => onOpen("agenda")} disabled={busy}>
           <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Agendar
         </Button>
         <Menu
           label={`Mais ações para ${name}`}
           trigger={<MoreHorizontal className="h-5 w-5" aria-hidden="true" />}
           className="ml-auto"
-          size="sm"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
             { label: "Empreendimentos", icon: ExternalLink, onSelect: () => list.openSimulation(client) },

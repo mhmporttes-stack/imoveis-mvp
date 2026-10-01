@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Botões do rodapé do card com 44px (Lista de clientes concluída)
+- **Data:** 2026-10-01
+- **Área:** Clientes / Frontend
+- **Alteração:** os botões WhatsApp, Agendar e "⋯" do rodapé do `ClientCard` voltaram para 44px de altura, a área de toque recomendada. Nada mais foi alterado: espaçamentos, conteúdo, topo, indicadores, funil, busca e barra inferior continuam iguais. Com isso, a reformulação da Lista de clientes está **concluída**.
+- **Motivo:** pedido do dono, para ter área de toque confortável no celular.
+- **Arquivos afetados:** `components/clients/ClientCard.jsx`.
+- **Risco/observação:** a altura do card aumenta cerca de 4px. Medição na vitrine: 44px nos três botões. `pnpm build` ok.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Card de cliente mais compacto
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend
