@@ -86,7 +86,7 @@ test("frases da agenda e dos resultados com dados reais do formato", () => {
   assert.equal(TOPICS.agenda.say.count({ count: 1, items }, q), "Hoje temos 1 reunião.");
   assert.equal(TOPICS.agenda.say.list({ count: 1, items }, q).text, "10 horas com João.");
   const next = nextMeeting(items, new Date("2026-10-07T12:00:00Z"));
-  assert.equal(TOPICS.proxima_reuniao.say.count(next, q), "A próxima reunião é hoje às 10 horas, com João, do Eduardo.");
+  assert.equal(TOPICS.proxima_reuniao.say.count(next, q), "A próxima reunião é hoje às 10 horas, com João, corretor Eduardo.");
   assert.equal(TOPICS.proxima_reuniao.say.count({ when: null }, q), "Não há reuniões marcadas para os próximos dias.");
   assert.equal(TOPICS.vendas.say.count({ count: 3 }, { periodoSpoken: "hoje" }), "Tivemos 3 vendas hoje.");
   assert.equal(TOPICS.melhor_dia.say.count({ name: "Bruna", points: 195 }, { periodoSpoken: "hoje" }), "O melhor do dia é Bruna, com 195 pontos.");
