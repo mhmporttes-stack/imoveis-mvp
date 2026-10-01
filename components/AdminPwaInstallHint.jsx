@@ -80,7 +80,7 @@ export default function AdminPwaInstallHint() {
   const isAndroid = platform === "android";
 
   return (
-    <aside className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 right-4 z-[130] mx-auto max-w-[560px] rounded-[24px] border border-blue-100 bg-white p-4 text-navy shadow-premium md:left-auto md:right-6 md:mx-0">
+    <aside className="fixed bottom-[calc(1rem+max(env(safe-area-inset-bottom),var(--admin-bottom-nav-space)))] left-4 right-4 z-[130] mx-auto max-w-[560px] rounded-[24px] border border-blue-100 bg-white p-4 text-navy shadow-premium md:left-auto md:right-6 md:mx-0">
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#E9F2FF] text-brand">
           {isAndroid ? <Download className="h-5 w-5" /> : <Share className="h-5 w-5" />}

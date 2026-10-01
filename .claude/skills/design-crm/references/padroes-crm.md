@@ -4,7 +4,7 @@ Padrões de partida, não regras cegas — adapte à intenção da tela. Antes d
 
 ## Navegação
 
-- **Mobile (PWA, maioria dos corretores):** barra inferior fixa com 4–5 destinos do dia a dia do perfil (ex.: corretor → Meta Diária, Clientes, Chat, Agenda, Mais), com `env(safe-area-inset-bottom)`; o resto em "Mais" (sheet). Contadores (badges) nos destinos, não espalhados.
+- **Mobile (PWA, maioria dos corretores):** barra inferior fixa — **implementada** (`AdminBottomNav`, detalhes em `sistema-visual.md` §4.1). Tela redesenhada não repete o menu no topo no celular e não cria barra fixa própria no rodapé sem somar `--admin-bottom-nav-space`.
 - **Desktop:** navegação lateral ou superior estável com agrupamento (CRM · Operação · Gestão), item ativo inequívoco. Hoje o menu é `components/AdminMenu.jsx` (grupos por perfil: owner/manager/broker/associate) — preserve quem vê o quê.
 - Uma tela = um título + no máximo uma linha de contexto. Ações primárias da tela no cabeçalho dela, não espalhadas.
 

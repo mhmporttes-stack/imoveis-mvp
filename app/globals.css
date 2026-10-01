@@ -2,8 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fundação do sistema visual (.claude/skills/design-crm/references/sistema-visual.md).
+   --font-ui é a família da interface; a fonte definitiva será carregada via
+   next/font em app/layout.jsx depois do comparativo Manrope × Inter — até lá
+   mantém exatamente a pilha anterior. --admin-bottom-nav-space é o espaço
+   ocupado pela barra inferior do painel no celular (0 quando não existe). */
 :root {
   color-scheme: light;
+  --font-ui: Inter, Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --admin-bottom-nav-space: 0px;
 }
 
 * {
@@ -32,7 +39,7 @@ body {
   touch-action: pan-y;
   background: #ffffff;
   color: #1f2937;
-  font-family: Inter, Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
@@ -331,6 +338,131 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
 
 @media (prefers-reduced-motion: reduce) {
   .simulation-prompt {
+    animation: none;
+  }
+}
+
+/* ===== Fundação do sistema visual (2026-10-01) =====
+   Componentes em components/ui/ e barra inferior do painel. Decisões em
+   .claude/skills/design-crm/references/sistema-visual.md. */
+
+/* Barra inferior do painel no celular (components/AdminBottomNav.jsx):
+   reserva o espaço dela no fim da página para nada ficar escondido atrás. */
+html.admin-has-bottom-nav {
+  --admin-bottom-nav-space: calc(4rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  html.admin-has-bottom-nav {
+    --admin-bottom-nav-space: 0px;
+  }
+}
+
+html.admin-has-bottom-nav body {
+  padding-bottom: var(--admin-bottom-nav-space);
+}
+
+/* Sheet (components/ui/Sheet.jsx) sobre <dialog> nativo. */
+html.ui-sheet-open {
+  overflow: hidden;
+}
+
+.ui-sheet {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: 100vw;
+  overflow: hidden;
+  background: #ffffff;
+  color: inherit;
+  box-shadow: 0 -12px 40px -12px rgba(13, 59, 102, 0.25);
+}
+
+.ui-sheet::backdrop {
+  background: rgba(3, 29, 58, 0.45);
+}
+
+.ui-sheet-bottom,
+.ui-sheet-auto {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-height: min(88dvh, calc(100dvh - 24px));
+  border-radius: 20px 20px 0 0;
+  padding-top: 8px;
+  animation: ui-sheet-up 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ui-sheet-bottom > div,
+.ui-sheet-auto > div {
+  max-height: calc(min(88dvh, calc(100dvh - 24px)) - 8px);
+}
+
+.ui-sheet-handle {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 999px;
+  background: #d0d5dd;
+}
+
+.ui-sheet-right {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(480px, 100vw);
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 20px 0 0 20px;
+  animation: ui-sheet-left 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ui-sheet-right > div {
+  height: 100%;
+  max-height: 100%;
+}
+
+.ui-sheet-right .ui-sheet-handle {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .ui-sheet-auto {
+    inset: 0 0 0 auto;
+    width: min(480px, 100vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-top: 0;
+    border-radius: 20px 0 0 20px;
+    animation-name: ui-sheet-left;
+  }
+
+  .ui-sheet-auto > div {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .ui-sheet-auto .ui-sheet-handle {
+    display: none;
+  }
+}
+
+@keyframes ui-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes ui-sheet-left {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-sheet-bottom,
+  .ui-sheet-auto,
+  .ui-sheet-right {
     animation: none;
   }
 }

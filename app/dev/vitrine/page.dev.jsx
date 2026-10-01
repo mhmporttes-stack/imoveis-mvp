@@ -20,6 +20,7 @@ export default async function VitrinePage({ searchParams }) {
       perfil={typeof params.perfil === "string" ? params.perfil : "admin"}
       estado={typeof params.estado === "string" ? params.estado : "normal"}
       limpo={params.limpo === "1"}
+      fonte={typeof params.fonte === "string" ? params.fonte : "atual"}
     />
   );
 }

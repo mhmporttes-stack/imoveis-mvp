@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Fundação do sistema visual + navegação mobile com barra inferior
+- **Data:** 2026-10-01
+- **Área:** Frontend / Navegação do painel
+- **Alteração:**
+  - **Tokens** (aditivos) em `tailwind.config.cjs`: rampa de texto (`ink-2`, `faint`), cores semânticas `success|warning|danger|info|neutral` (`DEFAULT/soft/line/strong`), raios `chip|control|card|panel`, `shadow-float`, `ease-out-ui`, `text-2xs`, `min-h-touch`. Fonte da interface virou a variável `--font-ui` (`globals.css`) com **a mesma pilha de antes** — a família definitiva aguarda a escolha do dono (comparativo Manrope × Inter entregue).
+  - **Componentes base** `components/ui/`: Button, Badge/CountBadge, StatusBadge (+ `status-tone.js`), Card, Sheet (`<dialog>` nativo), EmptyState, Skeleton, Field, `cx`.
+  - **Navegação mobile:** `components/AdminBottomNav.jsx` em `app/admin/layout.jsx` — barra inferior fixa (< 768px) com 4 destinos por perfil (admin geral: Meta, Clientes, Chat, Desempenho; demais: Meta, Clientes, Chat, Agenda) + "Mais" com Pendências e todos os itens do menu (`getAdminMenuGroups`, exportado de `AdminMenu.jsx`, fonte única). `AdminMenu` passa a aparecer só ≥ 768px. Espaço reservado por `--admin-bottom-nav-space`; aviso de instalação do PWA sobe acima da barra; a barra some com o teclado aberto.
+  - Vitrine: tela `fundacao`, seletor de fonte, barra inferior simulada; script de captura com `--fonte`, `--clicar "botao:…"`, `--sufixo`.
+- **Motivo:** pedido do dono — Fundação antes do redesenho das telas; nova navegação mobile autorizada.
+- **Arquivos afetados:** `tailwind.config.cjs`, `app/globals.css`, `components/ui/*` (novos), `components/AdminBottomNav.jsx` (novo), `components/AdminMenu.jsx`, `app/admin/layout.jsx`, `components/AdminPwaInstallHint.jsx`, `app/dev/vitrine/**`, `.claude/skills/design-crm/**`, `.claude/rules/frontend-pwa.md`, `docs/pwa-admin.md`.
+- **Risco/observação:**
+  - Nenhuma regra de negócio, API ou permissão alterada; nenhum item de menu removido (todos acessíveis pelo "Mais"); telas existentes não usam ainda os componentes novos.
+  - Revisão visual na vitrine em 360/390/768/1440 (perfis admin, gestor, corretor). Conversa aberta no Chat (altura `100dvh-150px`) fica acima da barra por causa do espaço reservado no fim da página; o encaixe definitivo vem no redesenho do Chat.
+  - Pré-existente, não corrigido (fica para o redesenho de Clientes): em 360px os botões de ação do card de cliente transbordam ("Agenda" cortado).
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Designer CRM: agente, skill de design e vitrine de componentes (somente desenvolvimento)
 - **Data:** 2026-10-01
 - **Área:** Infra / Frontend / Estrutura do Claude

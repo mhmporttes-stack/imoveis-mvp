@@ -1,3 +1,4 @@
+import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
@@ -10,6 +11,7 @@ import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { getAdminFromCookies } from "@/lib/admin-auth";
+import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,16 @@ export default async function AdminLayout({ children }) {
       ) : null}
       <SceneTransitionRoot>{children}</SceneTransitionRoot>
       <SceneSkipCatcher />
+      {/* Navegação principal no celular (< md); do tablet para cima continua
+          o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
+      {auth.ok ? (
+        <AdminBottomNav
+          isAdmin={isGeneralAdminProfile(auth.profile)}
+          isBroker={isBrokerProfile(auth.profile)}
+          isAssociate={isAssociateProfile(auth.profile)}
+          isManager={isManagerProfile(auth.profile)}
+        />
+      ) : null}
       {auth.ok ? (
         <div className="container-page flex justify-center py-10">
           <AdminLogoutButton />

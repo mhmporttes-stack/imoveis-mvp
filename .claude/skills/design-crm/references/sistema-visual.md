@@ -22,31 +22,50 @@ Fonte de verdade das decisões visuais. Status de cada item: **[ADOTADO]** = val
 
 ## 3. Tokens
 
-### Cor [PROPOSTO]
+### Cor [ADOTADO na Fundação, 2026-10-01 — tokens em `tailwind.config.cjs`]
 - **Marca:** `navy` (estrutura, títulos, texto forte, botão primário), `brand` (acento de ação, link, seleção, foco), branco (superfície), `mist` (fundo do canvas). Um único matiz azul nas superfícies — variar só a luminosidade.
-- **Rampa de texto em 4 níveis:** primário `ink`/`navy` · secundário (≈ `#475467`) · terciário `muted` · desabilitado/placeholder (≈ `#98A2B3`). Hierarquia por peso + nível da rampa, não por caixa alta.
-- **Semânticas** (criar no `tailwind.config.cjs` como `success`, `warning`, `danger`, `info`, cada uma com `DEFAULT` texto, `soft` fundo, `line` borda): sucesso = verde (aprovado, venda, on-line), alerta = âmbar (aguardando, atrasado leve), perigo = vermelho (erro, atrasado crítico, não contatar), info = azul (novo, em andamento). Status do funil mapeiam para essas, nunca cor crua.
+- **Rampa de texto em 4 níveis:** primário `ink`/`navy` · secundário `ink-2` · terciário `muted` · desabilitado/placeholder `faint`. Hierarquia por peso + nível da rampa, não por caixa alta.
+- **Semânticas** `success`, `warning`, `danger`, `info`, `neutral`, cada uma com `DEFAULT` (texto), `soft` (fundo), `line` (borda) e `strong` (ponto/preenchimento) — ex.: `bg-warning-soft text-warning`: sucesso = verde (aprovado, venda, on-line), alerta = âmbar (aguardando, atrasado leve), perigo = vermelho (erro, atrasado crítico, não contatar), info = azul (novo, em andamento). Status do cliente → tom em `components/ui/status-tone.js` (`clientStatusTone`) e `StatusBadge`; nunca cor crua. (`CLIENT_STATUS_META` em `lib/client-status.js` segue nas telas antigas até o redesenho delas.)
 - Contraste mínimo AA: 4,5:1 texto normal, 3:1 texto ≥ 18px/negrito ≥ 14px e ícones/bordas de controle.
 
-### Tipografia [PROPOSTO]
-- Carregar a fonte de verdade via `next/font` (autorizado pelo dono). Candidatas: **Manrope** (já declarada, geométrica, combina com a marca, boa em números grandes) e **Inter** (neutra, ótima em tabelas densas). Decidir no primeiro redesenho com screenshot comparativo e registrar na tabela §6. Uma família para UI; serifas decorativas só nas telas de celebração (já existem).
-- **Escala** (≈1,2): 12 · 13 · 14 · 16 · 18 · 22 · 28 · 36 px. Corpo de app 14px (desktop) / 15–16px (mobile, inputs **sempre ≥16px** — evita zoom do iOS). 12px é o mínimo para texto lido; 11px só para micro-rótulo em caixa alta com tracking. Nada abaixo de 11px.
+### Tipografia [escala PROPOSTA · família PENDENTE do dono]
+- A família da interface é a variável `--font-ui` (`app/globals.css`; Tailwind `font-sans` = `var(--font-ui)`). Hoje ela mantém a pilha antiga (Inter/Manrope não carregadas → fonte do sistema). **Comparativo Manrope × Inter entregue ao dono em 2026-10-01** (vitrine `?fonte=manrope|inter`); ao decidir: carregar a escolhida com `next/font` em `app/layout.jsx` e apontar `--font-ui` para ela. Uma família para UI; serifas decorativas só nas telas de celebração (já existem).
+- **Escala** (≈1,2): 12 · 13 · 14 · 16 · 18 · 22 · 28 · 36 px (`text-2xs` = 11px micro-rótulo). Corpo de app 14px (desktop) / 15–16px (mobile, inputs **sempre ≥16px** — evita zoom do iOS). 12px é o mínimo para texto lido; 11px só para micro-rótulo em caixa alta com tracking. Nada abaixo de 11px.
 - Pesos: 400 texto · 500 rótulos/tabela · 600 títulos e ênfase · 700–800 só ponto focal e números-herói. `font-black` deixa de ser padrão.
 - Números que mudam ou se comparam (métricas, valores, ranking, tabelas): `tabular-nums`. Títulos grandes: tracking levemente negativo; `text-wrap: balance`.
 
-### Espaço, raio e profundidade [PROPOSTO]
+### Espaço, raio e profundidade [ADOTADO na Fundação — tokens `rounded-chip|control|card|panel`, `shadow-float`, `min-h-touch`]
 - Espaçamento em base 4 (4, 8, 12, 16, 20, 24, 32, 40, 48). Densidade varia por zona: listas e tabelas compactas, cabeçalhos e pontos focais com ar.
-- **Raio:** 6 (badge, chip pequeno) · 10 (botão, input, item de lista) · 14 (card, painel) · 20 (modal, sheet, contêiner grande) · `full` (pílula, avatar, contador). **Concêntrico:** raio externo = interno + padding. Fim dos `rounded-[28px]` soltos.
-- **Uma estratégia de profundidade:** bordas de baixa opacidade (`line` ou `navy/8–10%`) + mudança tonal para estruturar; **sombra só para o que flutua** (popover, menu, modal, barra fixa, toast). Card comum não leva sombra.
+- **Raio:** `rounded-chip` 6 (badge) · `rounded-control` 10 (botão, input, item) · `rounded-card` 14 (card) · `rounded-panel` 20 (modal, sheet, contêiner grande) · `full` (pílula, avatar, contador). **Concêntrico:** raio externo = interno + padding. Fim dos `rounded-[28px]` soltos.
+- **Uma estratégia de profundidade:** bordas de baixa opacidade (`line` ou `navy/8–10%`) + mudança tonal para estruturar; **sombra só para o que flutua** (`shadow-float`: popover, menu, sheet, barra fixa, toast). Card comum não leva sombra. `shadow-soft`/`shadow-premium` são legado.
 - Área de toque mínima 44×44px (40 no mínimo absoluto em desktop denso).
 
 ### Movimento [ADOTADO + PROPOSTO]
 - [ADOTADO] `components/motion/*` e respeito a `prefers-reduced-motion`.
-- [PROPOSTO] Interface: 120–250ms, ease-out (`cubic-bezier(0.2, 0, 0, 1)`), só `transform`/`opacity`, nunca `transition-all`; feedback de toque `scale(0.97)` em `:active`; nada de `hover:-translate-y-0.5` em itens de lista densa (pula a lista inteira). Animação longa e expressiva só em celebração.
+- [ADOTADO] Interface: 120–250ms, `ease-out-ui` (`cubic-bezier(0.2, 0, 0, 1)`), só `transform`/`opacity`, nunca `transition-all`; feedback de toque `scale(0.97)` em `:active`; nada de `hover:-translate-y-0.5` em itens de lista densa (pula a lista inteira). Animação longa e expressiva só em celebração.
 
-## 4. Componentes base [PROPOSTO]
+## 4. Componentes base [ADOTADO — `components/ui/`, sem dependência nova]
 
-Criar sob demanda, no primeiro redesenho que precisar, em `components/ui/` (sem dependência nova): `Button` (primária navy, secundária contorno, fantasma, perigo; tamanhos 36/44), `Badge`/`StatusBadge` (semântica do funil), `Card`, `Sheet` (drawer lateral no desktop / de baixo no mobile, `<dialog>` nativo), `EmptyState`, `Skeleton`, `Field` (rótulo + input + ajuda + erro). Ao criar um, registre aqui com caminho e variantes. Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
+Use-os em toda tela nova ou redesenhada; telas antigas migram no próprio redesenho. Demonstração viva: vitrine `?tela=fundacao`.
+
+| Componente | Uso |
+|---|---|
+| `Button` (`buttonClasses`) | `variant`: primary (navy) · secondary (contorno) · ghost · danger · danger-ghost. `size`: sm 36 · md 44 · lg 48 · icon 44×44. `href` → `<Link>`; `loading` → spinner + bloqueia clique duplo. |
+| `Badge`, `CountBadge` | `tone` semântico (neutral/info/success/warning/danger/brand), `dot`, `icon`. `CountBadge` some no zero, "99+". |
+| `StatusBadge` + `status-tone.js` | Status do cliente com o tom semântico (`clientStatusTone`). |
+| `Card` | Superfície com borda, sem sombra; `padding` none/sm/md/lg; `as`. |
+| `Sheet` | `<dialog>` nativo: foco preso, Esc, fundo inerte, rolagem travada. `side` bottom (celular) · right (gaveta) · auto (bottom < md, right ≥ md). `footer` fixo. CSS em `globals.css` (`.ui-sheet*`). |
+| `EmptyState` | Vazio como convite (ícone, título, descrição, ação); `tone="danger"` para erro com "como resolver". |
+| `Skeleton`, `SkeletonList` | Carregamento no formato do conteúdo, com `role=status`. |
+| `Field` + `inputClasses` | Rótulo visível + ajuda + erro ligados por `aria-describedby`/`aria-invalid`; input 16px no celular. |
+| `cx` | Junta classes condicionais. |
+
+Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
+
+## 4.1 Navegação [ADOTADO — autorizada pelo dono em 2026-10-01]
+
+- **Celular (< 768px):** `components/AdminBottomNav.jsx` (montada em `app/admin/layout.jsx`), barra inferior fixa com 4 destinos + **Mais** (sheet com Pendências e **todos** os grupos de `getAdminMenuGroups`, exceto os já na barra). Administrador geral: Meta · Clientes · Chat · Desempenho. Gestor, corretor, associado: Meta · Clientes · Chat · Agenda. Contadores: Clientes = novos atendimentos + aguardando simulação; Chat = mensagens não lidas; Agenda = atividades pendentes. Some enquanto um campo de texto está em foco (teclado virtual). O espaço dela é reservado por `--admin-bottom-nav-space` (padding do `body`); elementos fixos no rodapé devem somar essa variável.
+- **Tablet/desktop (≥ 768px):** `AdminMenu` no topo (o mesmo `getAdminMenuGroups`). Mudar destinos/itens → mude os grupos em `AdminMenu.jsx`, nunca uma lista paralela.
 
 ## 5. Larguras de referência
 
@@ -59,3 +78,5 @@ Criar sob demanda, no primeiro redesenho que precisar, em `components/ui/` (sem 
 | 2026-10-01 | Identidade obrigatória = azul/branco + logo; resto livre | todo o CRM | decisão do dono |
 | 2026-10-01 | Fonte pode ser escolhida e carregada pelo Designer | `app/layout.jsx` (next/font) | autorizado pelo dono; escolha pendente do 1º redesenho |
 | 2026-10-01 | Dependência nova só com aprovação do dono | — | decisão do dono |
+| 2026-10-01 | Fundação: tokens semânticos, raios, `shadow-float`, `ease-out-ui`, `--font-ui`; componentes `components/ui/` | `tailwind.config.cjs`, `globals.css`, `components/ui/*` | aprovado pelo dono; aditivo, telas antigas intactas |
+| 2026-10-01 | Navegação mobile = barra inferior + "Mais"; menu do topo só ≥ 768px | `AdminBottomNav.jsx`, `AdminMenu.jsx`, `app/admin/layout.jsx` | autorizado pelo dono; distribuição por perfil decidida pelo Designer |

@@ -3,9 +3,9 @@
 //
 // Uso:
 //   node .claude/skills/design-crm/scripts/capturar-vitrine.mjs --tela clientes [--perfil corretor]
-//     [--estado normal|carregando|erro] [--larguras 360,390,768,1280,1440]
+//     [--estado normal|carregando|erro] [--fonte atual|manrope|inter] [--larguras 360,390,768,1280,1440]
 //     [--base http://localhost:3000] [--saida scratch/vitrine] [--pagina-inteira]
-//     [--clicar "texto visível"]  (clica no primeiro elemento com esse texto antes de capturar)
+//     [--clicar "texto visível" | "botao:Nome"]  (clica antes de capturar)
 //     [--sufixo nome]             (acrescenta ao nome do arquivo, ex.: conversa-aberta)
 //
 // Saída: <saida>/<tela>-<perfil>-<estado>-<largura>.png (scratch/ é ignorado
@@ -46,6 +46,7 @@ if (!tela) {
 }
 const perfil = arg("perfil", "admin");
 const estado = arg("estado", "normal");
+const fonte = arg("fonte", "atual");
 const larguras = String(arg("larguras", "360,390,768,1280,1440")).split(",").map(Number).filter(Boolean);
 const base = arg("base", "http://localhost:3000");
 const saida = arg("saida", "scratch/vitrine");
@@ -74,18 +75,22 @@ for (const largura of larguras) {
   page.on("console", (msg) => { if (["warning", "error"].includes(msg.type())) avisos.push(msg.text()); });
   page.on("pageerror", (error) => avisos.push(`pageerror: ${error.message}`));
 
-  const url = `${base}/dev/vitrine?${new URLSearchParams({ tela, perfil, estado, limpo: "1" })}`;
+  const url = `${base}/dev/vitrine?${new URLSearchParams({ tela, perfil, estado, fonte, limpo: "1" })}`;
   await page.goto(url, { waitUntil: "networkidle", timeout: 120000 });
   // Esconde o indicador de desenvolvimento do Next (não faz parte da tela).
   await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
   await page.waitForTimeout(1500);
   if (clicar) {
-    await page.getByText(String(clicar), { exact: false }).first().click();
+    // "botao:Nome" clica no botão com esse nome acessível; senão, no primeiro texto.
+    const alvo = String(clicar).startsWith("botao:")
+      ? page.getByRole("button", { name: String(clicar).slice(6), exact: true })
+      : page.getByText(String(clicar), { exact: false });
+    await alvo.first().click();
     await page.waitForTimeout(1500);
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${sufixo ? `-${sufixo}` : ""}-${largura}.png`);
+  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${fonte !== "atual" ? `-${fonte}` : ""}${sufixo ? `-${sufixo}` : ""}-${largura}.png`);
   await page.screenshot({ path: arquivo, fullPage: paginaInteira });
   console.log(`${arquivo}${overflow > 0 ? `  ⚠ rolagem horizontal de ${overflow}px` : ""}`);
   for (const aviso of avisos.slice(0, 8)) console.log(`   · ${aviso.slice(0, 200)}`);

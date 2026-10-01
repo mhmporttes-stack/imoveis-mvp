@@ -5,7 +5,7 @@
 `app/dev/vitrine/` renderiza os **componentes reais** do painel com **dados fictícios**, sem login, sem Supabase e sem chamar API nenhuma — `_lib/mock-fetch.js` intercepta todo `fetch` para `/api/**` e responde com as fixtures (`_fixtures/<tela>.js`; rotas compartilhadas de menu/badges em `_fixtures/comum.js`).
 
 - **Nunca existe em produção:** a página é `page.dev.jsx`, extensão que o `next.config.mjs` só registra no `next dev` (`PHASE_DEVELOPMENT_SERVER`); no `next build` o arquivo nem é compilado. Segunda trava: `notFound()` se `NODE_ENV === "production"`. `AppChrome` renderiza `/dev/*` sem cabeçalho/rodapé do site.
-- **Abrir:** `pnpm dev` → `http://localhost:3000/dev/vitrine` (índice). Parâmetros: `tela` (clientes, chat, meta-diaria, meta-diaria-equipe, desempenho), `perfil` (admin, gestor, corretor, associado), `estado` (normal, carregando = APIs nunca respondem, erro = APIs respondem 500), `limpo=1` (sem a barra amarela de dev).
+- **Abrir:** `pnpm dev` → `http://localhost:3000/dev/vitrine` (índice). Parâmetros: `tela` (fundacao, clientes, chat, meta-diaria, meta-diaria-equipe, desempenho), `perfil` (admin, gestor, corretor, associado), `estado` (normal, carregando = APIs nunca respondem, erro = APIs respondem 500), `fonte` (atual, manrope, inter — troca `--font-ui` só na vitrine), `limpo=1` (sem a barra amarela de dev). A barra inferior do celular aparece em todas as telas, com o item ativo simulado (`path` em `TELAS`).
 - **Tela nova:** crie `_fixtures/<tela>.js` exportando os dados e `routes` (`{ method?, match: RegExp sobre pathname+search, response: objeto | ({url, init, method}) => objeto, status?, delay? }`), derive o formato lendo a `lib/` que a página real usa, e registre em `TELAS` no `VitrineClient.jsx` reproduzindo o `<main>` da página real. **Dados sempre inventados** — nunca copie dado real do banco (nome, telefone, CPF, renda).
 - Limite honesto: o que a página server-side faz antes do componente (guard, `AdminSectionNav` com dados do servidor, cabeçalho de ranking) não é reproduzido — a vitrine mostra o menu (`AdminMenu`) e o componente da tela. Aviso `[vitrine] sem fixture para …` no console = endpoint sem fixture (o componente recebe `{}`): complete a fixture se afetar o que está sendo revisado.
 
@@ -18,7 +18,7 @@ node .claude/skills/design-crm/scripts/capturar-vitrine.mjs --tela clientes --pe
 node .claude/skills/design-crm/scripts/capturar-vitrine.mjs --tela chat --estado carregando --larguras 390,1280
 ```
 
-Gera `scratch/vitrine/<tela>-<perfil>-<estado>-<largura>.png` (padrão 360, 390, 768, 1280, 1440; `--pagina-inteira` para página toda), avisa rolagem horizontal e erros de console. Abra os PNG com a ferramenta Read para ver. Movimento reduzido ligado para capturas estáveis — revise animações à parte. No container web: Chromium em `/opt/pw-browsers` (Playwright global já configurado). Apague `scratch/vitrine/` ao terminar.
+Gera `scratch/vitrine/<tela>-<perfil>-<estado>[-<fonte>][-<sufixo>]-<largura>.png` (padrão 360, 390, 768, 1280, 1440; `--pagina-inteira` para página toda; `--fonte manrope`; `--clicar "texto"` ou `--clicar "botao:Mais"` + `--sufixo nome` para capturar após um clique), avisa rolagem horizontal e erros de console. Abra os PNG com a ferramenta Read para ver. Movimento reduzido ligado para capturas estáveis — revise animações à parte. No container web: Chromium em `/opt/pw-browsers` (Playwright global já configurado). Apague `scratch/vitrine/` ao terminar.
 
 Para comparar antes × depois, capture antes de editar com `--saida scratch/vitrine/antes`.
 

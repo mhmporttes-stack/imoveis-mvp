@@ -19,7 +19,7 @@ function buttonClass(isActive, compact = false) {
   }`;
 }
 
-function isActiveItem(item, active) {
+export function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
 }
 
@@ -176,6 +176,14 @@ const ownerGroups = [
   }
 ];
 
+// Fonte única dos grupos do menu por perfil — usada também pela barra
+// inferior do celular (components/AdminBottomNav.jsx, sheet "Mais"), para
+// que nenhum destino exista em um menu e falte no outro.
+export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false } = {}) {
+  const treatAsBroker = isBroker || isManager;
+  return isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+}
+
 function getGroupKeyForActive(active, groups = adminGroups) {
   return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
 }
@@ -213,7 +221,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   // 2026-09-29). A checagem de permissão/escopo real continua nas próprias
   // páginas — isso aqui é só o menu.
   const treatAsBroker = isBroker || isManager;
-  const groups = isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  const groups = getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager });
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
   const crmCounts = useCrmBadgeCounts();
@@ -266,7 +274,10 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   }, [groups, visibleGroup]);
 
   return (
-    <div className="space-y-2" ref={menuRef}>
+    // No celular (< md) a navegação é a barra inferior fixa
+    // (AdminBottomNav, renderizada em app/admin/layout.jsx) — este menu só
+    // aparece do tablet para cima. Mesmos grupos (getAdminMenuGroups).
+    <div className="hidden space-y-2 md:block" ref={menuRef}>
       {/* Gestor tem 4 pills (CRM/CADASTROS/DESEMPENHO/GESTÃO) contra 3 do
           corretor — sem quebra de linha eles ficariam espremidos/cortados
           no celular, por isso só o corretor puro fica flex-nowrap. */}

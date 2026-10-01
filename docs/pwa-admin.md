@@ -15,6 +15,7 @@ O painel administrativo pode ser instalado no iPhone pelo Safari usando **Compar
 - Botão de instalar o app para corretores acessando pelo navegador do celular: no Android/Chrome captura o evento `beforeinstallprompt` e mostra um botão real ("Instalar app") que dispara a instalação nativa; no iPhone/Safari (que não dispara esse evento) mantém a orientação manual de Compartilhar > Adicionar à Tela de Início, com a mesma apresentação visual.
 - Detecção de atualização disponível.
 - Renovação periódica da sessão administrativa via `/api/admin/session`.
+- Navegação de app no celular (< 768px): barra inferior fixa `components/AdminBottomNav.jsx` (4 destinos por perfil + "Mais"), respeitando a área segura do iPhone; o menu do topo só aparece do tablet para cima. Detalhes: `.claude/skills/design-crm/references/sistema-visual.md` §4.1.
 
 ## Segurança Do Cache
 
