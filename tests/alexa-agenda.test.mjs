@@ -156,8 +156,56 @@ test("modelo: intenção de data usa AMAZON.DATE e as frases naturais do pedido"
   const model = buildInteractionModel({ brokers: [{ id: "i1", name: "Izabela", fullName: "Izabela Silvério" }] });
   assert.deepEqual(auditModel(model), []);
   const intents = model.interactionModel.languageModel.intents;
-  const date = intents.find((intent) => intent.name === "AgendaDataIntent");
-  assert.deepEqual(date.slots, [{ name: "data", type: "AMAZON.DATE" }]);
-  for (const sample of ["o que tenho agendado dia {data}", "quais atividades tenho na {data}", "o que tenho {data}", "tenho compromisso dia {data}", "qual minha agenda para {data}", "o que tenho agendado para {data}"]) assert.ok(date.samples.includes(sample), sample);
+  assert.ok(!intents.find((intent) => intent.name === "AgendaDataIntent"), "uma única intenção de agenda");
+  const date = intents.find((intent) => intent.name === "AgendaIntent");
+  assert.deepEqual(date.slots, [{ name: "periodo", type: "PERIODO" }, { name: "data", type: "AMAZON.DATE" }, { name: "dia_semana", type: "DIA_SEMANA" }]);
+  for (const sample of ["o que tenho agendado dia {data}", "quais atividades tenho em {data}", "o que tenho {data}", "tenho compromisso dia {data}", "qual minha agenda para {data}", "o que tenho agendado para {data}"]) assert.ok(date.samples.includes(sample), sample);
   assert.ok(intents.find((intent) => intent.name === "DiaSeguinteIntent").samples.includes("e no dia seguinte"));
+});
+
+// --- Dia da semana (slot próprio) e variações naturais do pedido -----------------------
+const weekday = (id, value) => ({ value, resolutions: { resolutionsPerAuthority: [{ status: { code: "ER_SUCCESS_MATCH" }, values: [{ value: { id, name: value } }] }] } });
+
+test("dia da semana: sexta, próxima sexta, sábado, segunda, e o próprio dia (hoje = quarta 07/10/2026)", async () => {
+  const friday = [{ at: "2026-10-09T13:00:00Z", type: "reuniao", title: "", clientName: "Ana", clientId: "9" }];
+  const say = conversation({ "d:2026-10-09": friday, "d:2026-10-10": [], "d:2026-10-12": [], "d:2026-10-07": [], "d:2026-10-14": [] });
+  const expected = "Na sexta-feira, dia 9 de outubro, você tem 1 atividade. Às 10 horas, reunião com Ana.";
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("5", "sexta-feira") }), expected);
+  assert.equal(await say("PrimeiraIntent"), "A primeira é às 10 horas, reunião com Ana.");
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("5_proxima", "próxima sexta") }), expected);
+  assert.equal(await say("AgendaIntent", { dia_semana: { value: "sexta" } }), expected, "sem resolução: texto falado");
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("6", "sábado") }), "Você não tem nenhuma atividade agendada para sábado, dia 10 de outubro.");
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("1", "segunda") }), "Você não tem nenhuma atividade agendada para segunda-feira, dia 12 de outubro.");
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("3", "quarta") }), "Você não tem nenhuma atividade agendada para quarta-feira, dia 7 de outubro.");
+  assert.equal(await say("AgendaIntent", { dia_semana: weekday("3_proxima", "quarta que vem") }), "Você não tem nenhuma atividade agendada para quarta-feira, dia 14 de outubro.");
+  assert.equal(await say("DiaSeguinteIntent"), "Você não tem nenhuma atividade agendada para quinta-feira, dia 15 de outubro.");
+});
+
+test("contexto: 'e sábado?' e 'e no dia seguinte?' mantêm a agenda; data falada vence o dia da semana", async () => {
+  const say = conversation({ "d:2026-10-09": [{ at: "2026-10-09T13:00:00Z", type: "ligacao", title: "", clientName: "Bia", clientId: "1" }], "d:2026-10-10": [{ at: "2026-10-10T14:00:00Z", type: "visita", title: "", clientName: "Caio", clientId: "2" }], "d:2026-10-11": [], "d:2026-10-08": TOMORROW });
+  assert.match(await say("AgendaIntent", { dia_semana: weekday("5", "sexta") }), /ligação para Bia/);
+  assert.match(await say("AgendaIntent", { dia_semana: weekday("6", "sábado") }), /No sábado, dia 10 de outubro, você tem 1 atividade\. Às 11 horas, visita com Caio/);
+  assert.equal(await say("DiaSeguinteIntent"), "Você não tem nenhuma atividade agendada para domingo, dia 11 de outubro.");
+  assert.match(await say("AgendaIntent", { data: { value: "2026-10-08" }, dia_semana: weekday("5", "sexta") }), /Na quinta-feira, dia 8 de outubro/);
+});
+
+test("modelo: dia da semana e frases naturais do pedido existem na intenção de agenda", () => {
+  const model = buildInteractionModel({ brokers: [{ id: "i1", name: "Izabela", fullName: "Izabela Silvério" }] });
+  assert.deepEqual(auditModel(model), []);
+  const language = model.interactionModel.languageModel;
+  const agenda = language.intents.find((intent) => intent.name === "AgendaIntent");
+  const wanted = [
+    "quais atividades eu tenho agendadas na {dia_semana}", "quais atividades tenho {dia_semana}", "o que eu tenho agendado {dia_semana}", "o que tenho na {dia_semana}",
+    "minha agenda de {dia_semana}", "minha agenda para {dia_semana}", "quais compromissos tenho {dia_semana}", "tenho alguma coisa marcada {dia_semana}",
+    "tenho algo agendado para {dia_semana}", "o que está marcado para {dia_semana}", "quais reuniões tenho {dia_semana}", "como está minha agenda {dia_semana}",
+    "e {dia_semana}", "e na {dia_semana}", "e dia {data}", "minha agenda dia {data}", "o que tenho agendado para {data}", "quais atividades eu tenho agendadas para {periodo}"
+  ];
+  for (const sample of wanted) assert.ok(agenda.samples.includes(sample), sample);
+  const week = language.types.find((type) => type.name === "DIA_SEMANA").values;
+  assert.equal(week.length, 14);
+  const sexta = week.find((value) => value.id === "5");
+  assert.ok(sexta.name.synonyms.includes("sexta"));
+  const proxima = week.find((value) => value.id === "5_proxima");
+  assert.ok(proxima.name.synonyms.includes("sexta que vem") && proxima.name.synonyms.includes("próxima sexta"));
+  assert.ok(week.find((value) => value.id === "6").name.value === "sábado");
 });
