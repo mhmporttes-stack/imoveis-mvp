@@ -1038,3 +1038,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/alexa-v2/{medidas,brokers,broker-aliases,catalog,catalog-corretor,catalog-etapas,model-core,router}.mjs`, `lib/alexa-v2/providers/{corretor,corretor-core,agenda,funil}`, `lib/crm-metrics/{broker-stock,broker-stock-core,overview-core,jobs,team-goal}`, `app/api/admin/alexa/model/route.js`, migration `20261001210000_crm_status_counts_by_broker.sql`.
 - **Risco/observação:** nenhuma métrica é recalculada: tudo vem do cache do Desempenho (`getPerformanceOverview`) e da Meta Diária (`getOwnerTeamDailyOverview`), mais o estoque por corretor (RPC agrupada, 1 consulta a cada ciclo). "Reuniões agendou" (criadas no dia) não tem fonte oficial e não é respondido. Histórico de estoque por corretor só existe para hoje.
 - **Autor:** Claude Code
+
+### 2026-10-02 — Alexa: "minha agenda" (atividades de hoje, amanhã, depois de amanhã e da semana)
+- **Data:** 2026-10-02
+- **Área:** Alexa / Agenda
+- **Alteração:** a Central responde "quais atividades eu tenho amanhã?", "o que eu tenho para amanhã?", "quais são meus compromissos de amanhã?", "tenho alguma atividade amanhã?" e "qual é minha agenda de amanhã?" com horário, tipo/título e primeiro nome do cliente (máx. 5 por vez; "e depois" continua). Contexto: "qual é a primeira/última?", "e depois?" e "e depois de amanhã?". Novo período "depois de amanhã". A abertura da skill passou a ser só "Ok, qual informação você deseja?" e a Central responde rankings por métrica ("quem mais fez atendimentos hoje").
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/alexa-v2/providers/{agenda,activities-core}`, `lib/alexa-v2/{catalog-agenda,periods,router,model-core}`, `lib/alexa-skill-core.mjs`.
+- **Risco/observação:** mesma Agenda do CRM (calendar_activities + campo legado de simulation_registrations), só atividades PENDENTES do usuário vinculado (dono), em horário de Brasília. Aniversários não entram nessa resposta (ficam na rotina de chegada).
+- **Autor:** Claude Code
