@@ -1,3 +1,29 @@
+---
+paths:
+  - "lib/crm-automation*.js"
+  - "lib/push-subscriptions.js"
+  - "lib/web-push.js"
+  - "lib/daily-message*"
+  - "lib/client-journey.js"
+  - "lib/scheduled-activity-notifications.js"
+  - "lib/lead-notifications.js"
+  - "lib/simulation-registration-notifications.js"
+  - "lib/daily-report*.js"
+  - "lib/calendar-activities.js"
+  - "components/AutomationRulesManager.jsx"
+  - "components/CrmNotificationsList.jsx"
+  - "components/DailyMessage*.jsx"
+  - "components/AdminPushSubscription.jsx"
+  - "app/admin/automacoes/**"
+  - "app/admin/notificacoes/**"
+  - "app/api/crm-*/**"
+  - "app/api/push/**"
+  - "app/api/daily-message/**"
+  - "app/api/cron/scheduled-activities/**"
+  - "app/api/cron/daily-report/**"
+  - "public/sw.js"
+---
+
 # Automações, notificações, push e mensagem diária
 
 ## Motor de automações (`lib/crm-automations.js`)

@@ -1,6 +1,15 @@
+---
+paths:
+  - "supabase/**"
+  - "**/*.sql"
+  - "lib/supabase*.js"
+  - "lib/db.js"
+  - "scripts/**"
+---
+
 # Banco de dados e Supabase
 
-Postgres 17 no Supabase, projeto `tshhasbbchjcvhoyizoo`, região `us-west-2`. ~102 migrations incrementais em `supabase/migrations/` (nenhum schema único "canônico" — o histórico de migrations É o schema).
+Postgres 17 no Supabase, projeto `tshhasbbchjcvhoyizoo`, região `us-west-2`. ~160 migrations incrementais em `supabase/migrations/` (162 em 2026-10-01) (nenhum schema único "canônico" — o histórico de migrations É o schema).
 
 ## Como as migrations funcionam aqui
 
@@ -23,28 +32,11 @@ Ao criar uma tabela nova: siga o padrão (RLS habilitado, sem policy pública) a
 
 Incidente real (corrigido 08/09/2026, ver `supabase/migrations/20260908204500_allow_repeat_simulation_phone.sql`): um índice `simulation_registrations_phone_normalized_unique` impedia um cliente de ser recadastrado com o mesmo telefone, quebrando a regra de negócio real (um telefone pode ter vários atendimentos distintos, inclusive com corretores diferentes — um novo atendimento é um novo registro, não uma fusão). Identidade de um cadastro é o `id`, nunca o telefone. Qualquer rotina que agrupe por telefone precisa ser revisada com cuidado para não fundir atendimentos que deveriam ser distintos.
 
-## Inventário de tabelas por domínio (não exaustivo — confirme com Grep antes de assumir)
+## Inventário de tabelas
 
-| Domínio | Tabelas |
-|---|---|
-| Usuários/perfis | `admin_users` |
-| Catálogo público | `properties`, `empreendimentos`, `testimonials`, `captacoes`, `leads` |
-| CRM/simulações | `simulation_registrations`, `simulations`, `simulation_properties`, `simulation_property_benefits` |
-| Status/histórico/tags | `client_status_history`, `tags`, `client_tags` |
-| Jornada pública do cliente | `client_journeys`, `client_journey_events`, `client_origins` |
-| Agenda | `calendar_activities` |
-| Automação/notificação | `crm_automation_rules`, `crm_automation_executions`, `crm_notifications`, `crm_settings` |
-| Roleta/distribuição | `lead_distribution_state`, `lead_distribution_history` |
-| Campanhas | `campaigns`, `campaign_link_views` |
-| Prospecção | `prospecting_contacts`, `prospecting_history` |
-| Meta Diária / carteira | `daily_goals`, `daily_goal_rounds`, `daily_goal_attempts`, `daily_goal_quota_versions`, `daily_goal_wallet_config`, `daily_goal_broker_messages`, `daily_goal_do_not_contact_log`, `daily_goal_abuse_flags` |
-| Documentação do cliente / CCA | `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `cca` |
-| Gastos de IA | `ai_usage_log` |
-| Financeiro | `financial_sales`, `financial_expenses`, `financial_payments` |
-| WhatsApp | `whatsapp_master_events`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates` |
-| Push/mensagem diária | `push_subscriptions` (mensagem diária usa `crm_settings` + tabela própria — confirme antes de assumir o nome exato) |
+O inventário completo e verificado (~72 tabelas, funções/triggers SQL e jobs `pg_cron`) está em `docs/DATABASE.md` — não mantenha uma segunda lista aqui (a lista antiga, incompleta, foi para `docs/HISTORICO_REGRAS.md`). Antes de uma mudança de schema, confirme também contra o código: `grep -roh '\.from("[a-z_]*")' lib/ | sort -u`.
 
-Antes de confiar nesta lista para uma mudança de schema, rode `grep -roh '\.from("[a-z_]*")' lib/ | sort -u` para confirmar contra o código atual — este arquivo pode ficar desatualizado se tabelas forem adicionadas depois.
+Para **ler** o estado real do banco (tabelas, advisors, `cron.job`, consultas de conferência), prefira as ferramentas do MCP do Supabase quando estiverem disponíveis na sessão (`list_tables`, `get_advisors`, `execute_sql` só com SELECT) em vez de um script com a service role. Escrita em produção continua exigindo pedido explícito.
 
 ## Fetch de listas grandes
 

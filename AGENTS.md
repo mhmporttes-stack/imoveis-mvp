@@ -15,8 +15,8 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 
 1. **O código e as migrations** (`lib/`, `app/`, `components/`, `supabase/migrations/`).
 2. **`docs/` (esta camada central)** — verificada contra o código em 2026-09-24.
-3. `CLAUDE.md` + `.claude/rules/*.md` — regras por módulo, com etiquetas de proveniência (REGRA OFICIAL DE NEGÓCIO / COMPORTAMENTO ATUAL / PENDENTE DE VALIDAÇÃO). Úteis, mas parte está desatualizada (lista em `docs/SYSTEM_ARCHITECTURE.md` §Divergências).
-4. `DOCUMENTACAO-TECNICA-DESENVOLVEDOR.md` — histórica. `README.md` — **obsoleto** (descreve SQLite/backup local que não existem em produção): não use.
+3. `CLAUDE.md` + `.claude/rules/*.md` — regras por módulo, com etiquetas de proveniência (REGRA OFICIAL DE NEGÓCIO / COMPORTAMENTO ATUAL / PENDENTE DE VALIDAÇÃO). Reconciliadas com o código em 2026-10-01 (`docs/SYSTEM_ARCHITECTURE.md` §12). As rules têm `paths:` e só carregam quando um arquivo do módulo é lido — ver `CLAUDE.md`.
+4. `DOCUMENTACAO-TECNICA-DESENVOLVEDOR.md` e `docs/HISTORICO_REGRAS.md` — históricos. `README.md` — **obsoleto** (descreve SQLite/backup local que não existem em produção): não use.
 5. Estado do banco de produção: **não está no repositório**. O que só existe lá (regras de automação, pontuação vigente, cotas, cron ativos) está marcado **A CONFIRMAR**.
 
 ## Qual documento ler (leia antes de mexer)
@@ -28,7 +28,9 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Tabelas, migrations, funções/triggers SQL, crons | `docs/DATABASE.md` |
 | WhatsApp (Chat, Fluxos, Disparo, webhook, janela 24h, templates) | `docs/WHATSAPP.md` |
 | Pixel, Conversions API, Meta Ads, UTMs, campanhas/links | `docs/TRAFEGO_META.md` |
-| Registrar o que você mudou | `docs/CHANGELOG_AI.md` |
+| Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
+| Registrar uma regra nova confirmada pelo dono | skill `/registrar-regra` |
+| Investigar um problema em produção | skill `/diagnosticar-producao` |
 | Regras detalhadas de um módulo específico | `.claude/rules/<módulo>.md` (tabela em `CLAUDE.md`) |
 
 ## Regras de segurança (inegociáveis)

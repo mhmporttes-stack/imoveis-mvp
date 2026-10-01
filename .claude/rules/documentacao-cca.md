@@ -1,3 +1,25 @@
+---
+paths:
+  - "lib/client-document*"
+  - "lib/document-*"
+  - "lib/document-*.mjs"
+  - "lib/cca*"
+  - "lib/client-cca-status.js"
+  - "lib/broker-alert.js"
+  - "lib/ai-usage.js"
+  - "lib/chat-document-progress.mjs"
+  - "components/ClientDocumentsModal.jsx"
+  - "components/Cca*.jsx"
+  - "components/DocumentAiRulesManager.jsx"
+  - "components/AdminAiUsageDashboard.jsx"
+  - "app/admin/documentacao/**"
+  - "app/admin/gastos-ia/**"
+  - "app/api/admin/client-documents/**"
+  - "app/api/admin/cca/**"
+  - "app/api/admin/client-cca-status/**"
+  - "app/api/admin/document-ai-rules/**"
+---
+
 # Documentação do cliente, análise por IA e envio à CCA
 
 Módulo para coletar, classificar e conferir os documentos de um cliente antes de enviar para uma CCA (Central de Crédito e Análise) parceira. Arquivos principais: `lib/client-documents.js` (orquestração), `lib/document-analysis.js` (chamada à IA), `lib/document-requirements-engine.js` (regras determinísticas), `lib/client-document-pdf.js` (geração do PDF), `lib/cca.js` (cadastro de CCAs parceiras), `lib/broker-alert.js`. UI: `components/ClientDocumentsModal.jsx`.

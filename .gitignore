@@ -45,3 +45,6 @@ mcmv-calculator/
 
 # supabase cli local cache
 supabase/.temp/
+
+# scripts descartáveis de investigação (ver .claude/rules/workflow-dev.md)
+scratch/

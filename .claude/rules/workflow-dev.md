@@ -1,27 +1,35 @@
 # Workflow de desenvolvimento, build, deploy e testes
 
-## Ferramentas locais — armadilhas reais deste ambiente
+Esta rule é **global** (sem `paths:`), carregada em toda sessão. Mantenha-a curta.
 
-- **`npm` puro não funciona neste ambiente de desenvolvimento** (Windows, runtime Node isolado). Use `pnpm` (via `node <caminho>\pnpm\bin\pnpm.cjs ...` se o `pnpm` global não estiver no PATH) ou, para rodar o dev server diretamente, `node node_modules/next/dist/bin/next dev`. `.claude/launch.json` (se existir) já deve apontar pro node/next corretos — não reverta para `npm run dev` sem testar antes.
-- Builds (`next build` via Turbopack) neste ambiente podem ser **lentos** (minutos, não segundos) por causa de I/O de disco mais lento no diretório do projeto — não assuma que um build "travado" às 2-3 minutos falhou; builds de 5-10 minutos já foram observados terminando com sucesso.
-- Não existe script de `lint` nem suíte de testes formal (`package.json` sem `scripts.lint`/`scripts.test`). "Rodar os testes" = `pnpm build` (compila + checa TS do motor de entrada) + rodar manualmente os arquivos relevantes em `tests/*.test.mjs`/`.test.js` com `node <arquivo>`.
+## Ambientes — dois, com armadilhas diferentes
+
+- **Máquina do dono (Windows, runtime Node isolado do Codex):** `npm` puro **não funciona**. Use `pnpm` (via `node <caminho>\pnpm\bin\pnpm.cjs ...` se o `pnpm` global não estiver no PATH) ou `node node_modules/next/dist/bin/next dev`. `.claude/launch.json` aponta para o node desse ambiente (caminho Windows) — não reverta para `npm run dev` sem testar.
+- **Claude Code na web (container Linux efêmero):** clone novo a cada sessão, sem `.env` de produção e sem login real no painel; `node_modules` pode não estar instalado (rode `pnpm install` só quando for de fato buildar/testar). `launch.json` não serve aqui.
+- Em qualquer um: builds (`next build`/Turbopack) podem levar 5–10 min — build "parado" aos 2–3 min não é falha.
+
+## Validação (não há `lint` nem `test` no `package.json`)
+
+- `pnpm build` — compila e checa o TS de `lib/simulacao-entrada/*`. O `prebuild` regenera `public/sw.js`: se só o hash mudou, `git checkout -- public/sw.js` antes de commitar.
+- Testes unitários (Node ≥ 20, sem dependências): `node --test tests/<arquivo>.test.mjs` (há ~33 arquivos em `tests/`) e `node --test lib/financial-calculations.test.js`. Rode os da área que você mexeu. Exceções e falhas conhecidas: `AGENTS.md` §Comandos de validação (`journey-http` exige servidor local; `journey-auth.integration` mexe em banco — nunca contra produção).
 
 ## Migrations
 
-Formato de nome e fluxo real de aplicação (não é `supabase db push`): `.claude/rules/database-supabase.md`. Adicional específico de workflow: sempre teste a query num script isolado antes de rodar contra produção quando a migration for destrutiva (drop/alter que perde dado).
+Formato de nome e fluxo real de aplicação (não é `supabase db push`): `.claude/rules/database-supabase.md`. Migration destrutiva (drop/alter que perde dado): teste a query isolada antes, e só aplique com pedido explícito.
 
-## `scratch/`
+## `scratch/` e diagnósticos
 
-Pasta para scripts de investigação/teste descartáveis (ex.: autenticar via magic link do Supabase e chamar uma API de produção pra confirmar um comportamento antes/depois de uma correção). Sempre apagar tudo de `scratch/` ao final da tarefa — nunca fica versionado.
+`scratch/` (ignorado pelo git) é para scripts descartáveis — sempre apagar ao terminar. Investigação de problema em produção segue a skill `/diagnosticar-producao` (logs e consultas de leitura antes de publicar qualquer código de diagnóstico).
 
 ## Deploy
 
-Vercel, projeto `imoveis-mvp`, domínio de produção `https://www.matheusmachadoimoveis.com.br`. Publicação usual: `git push` pra `main` (deploy automático via integração Vercel↔GitHub) ou `pnpm dlx vercel --prod --yes` quando publicação manual for necessária. Build local bem-sucedido não significa que o código já está em produção — confirme o deploy antes de considerar uma correção "no ar".
+Vercel, projeto `imoveis-mvp`. **`git push` para `main` = deploy automático em produção.** Publicação manual: `pnpm dlx vercel --prod --yes`. Build local bem-sucedido não significa que já está no ar — confirme o deploy. O microsserviço `whatsapp-individual-service/` é publicado à parte (Railway), não pela Vercel.
 
 ## Antes de considerar uma tarefa concluída
 
-1. `git status`/`git diff` — revisar exatamente o que mudou, nada além do pretendido (`git checkout -- public/sw.js` se só o hash do service worker mudou por causa do build local).
-2. `pnpm build` limpo.
-3. Testar a mudança de verdade — quando envolve dado real, prefira validar com um script autenticado (`scratch/`) contra o comportamento esperado, antes/depois, em vez de assumir que o código está certo só porque compila.
-4. Limpar `scratch/` e qualquer rota de diagnóstico temporária criada só para investigação.
-5. Commit com mensagem descrevendo o quê e por quê (causa raiz, não só o sintoma corrigido).
+1. `git status`/`git diff` — só o pretendido (reverter `public/sw.js` se só mudou o hash).
+2. `pnpm build` limpo quando a mudança participa do build; testes `node --test` da área.
+3. Testar de verdade quando envolve dado real (antes/depois), sem gravar em produção como "teste".
+4. Limpar `scratch/` e qualquer rota de diagnóstico temporária.
+5. Mudou regra, arquitetura, tabela, rota, permissão ou integração → atualizar `docs/` correspondente e registrar em `docs/CHANGELOG_AI.md` (regra do dono nova → skill `/registrar-regra`).
+6. Commit descrevendo o quê e por quê (causa raiz, não só o sintoma).

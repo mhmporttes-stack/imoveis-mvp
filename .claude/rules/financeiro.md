@@ -1,3 +1,12 @@
+---
+paths:
+  - "lib/financial*"
+  - "components/AdminFinancialDashboard.jsx"
+  - "app/admin/financeiro/**"
+  - "app/api/financeiro/**"
+  - "lib/whatsapp-broadcast-finance.js"
+---
+
 # Financeiro
 
 Arquivos: `lib/financial.js` (persistência, escopo por perfil), `lib/financial-calculations.js` (distribuição de comissão em centavos), `components/AdminFinancialDashboard.jsx`.

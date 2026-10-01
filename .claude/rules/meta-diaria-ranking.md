@@ -1,3 +1,33 @@
+---
+paths:
+  - "lib/daily-goal*"
+  - "lib/performance-*"
+  - "lib/scoring-rules.js"
+  - "lib/ranking-display.mjs"
+  - "lib/weekly-ranking*"
+  - "lib/celebrations.js"
+  - "lib/google-contacts*"
+  - "components/DailyGoal*.jsx"
+  - "components/TeamDailyPerformance.jsx"
+  - "components/PerformanceOverviewDashboard.jsx"
+  - "components/BrokerPerformanceDetail.jsx"
+  - "components/ScoringRulesManager.jsx"
+  - "components/TopRankingBadge.jsx"
+  - "components/celebrations/**"
+  - "app/admin/meta-diaria/**"
+  - "app/admin/desempenho/**"
+  - "app/api/daily-goal/**"
+  - "app/api/admin/daily-goal-auto/**"
+  - "app/api/performance-overview/**"
+  - "app/api/scoring-*/**"
+  - "app/api/celebrations/**"
+  - "app/api/cron/daily-goal-close/**"
+  - "app/api/cron/whatsapp-meta-diaria-dispatch/**"
+  - "app/api/cron/weekly-ranking/**"
+  - "app/api/cron/celebrations-ranking/**"
+  - "tests/daily-goal*"
+---
+
 # Meta Diária, carteira ativa e ranking
 
 Arquivos principais: `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `lib/performance-overview.js`, `lib/scoring-rules.js`. Componentes: `components/DailyGoalDashboard.jsx` (visão do corretor), `components/TeamDailyPerformance.jsx` (visão do gestor/dono), `components/PerformanceOverviewDashboard.jsx` (ranking/funil).
@@ -22,7 +52,7 @@ Quanto ao retorno à fila (2º ponto) e à exclusão de arquivado/não-contactar
 
 ## Geração da cota diária
 
-**[IMPLEMENTAÇÃO, não regra de negócio — a menos que o dono determine o contrário]** Novas rodadas do dia (cota de "1ª tentativa") só são criadas quando o PRÓPRIO corretor abre sua tela de Meta Diária (`ensureDailyGoalGenerated`, chamado dentro de `getBrokerDailyGoal`). Não existe cron que gere isso de madrugada. Isso é uma característica técnica da implementação atual, não uma regra de negócio confirmada — qualquer horário, cron ou estratégia técnica de geração fica classificado como implementação até o dono decidir o contrário. Consequência observada: cedo no dia, antes de os corretores abrirem o app, a visão do gestor (`TeamDailyPerformance.jsx`) mostra "1ª: 0" para quem ainda não começou. Se o pedido futuro for mudar essa estratégia (ex.: gerar via cron), trate como mudança de implementação a avaliar tecnicamente (impacto no pool compartilhado de contatos de um corretor ausente), não como correção de bug nem como regra de negócio pré-definida.
+**[IMPLEMENTAÇÃO, não regra de negócio — a menos que o dono determine o contrário]** Novas rodadas do dia (cota de "1ª tentativa") só são criadas quando o PRÓPRIO corretor abre sua tela de Meta Diária (`ensureDailyGoalGenerated`, chamado dentro de `getBrokerDailyGoal`). Não existe cron que gere isso de madrugada. Isso é uma característica técnica da implementação atual, não uma regra de negócio confirmada — qualquer horário, cron ou estratégia técnica de geração fica classificado como implementação até o dono decidir o contrário. Consequência observada: cedo no dia, antes de os corretores abrirem o app, a visão do gestor (`TeamDailyPerformance.jsx`) mostra "1ª: 0" para quem ainda não começou. Se o pedido futuro for mudar essa estratégia (ex.: gerar via cron), trate como mudança de implementação a avaliar tecnicamente (impacto no pool compartilhado de contatos de um corretor ausente), não como correção de bug nem como regra de negócio pré-definida. **Exceção (2026-09-29):** para corretor com a automação da Meta Diária ligada, o dispatcher (`runDailyGoalAutoDispatch`, `lib/daily-goal-auto.js`) chama `ensureDailyGoalGeneratedForBroker` antes de enviar.
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-24] Cota de 1º contato = exatamente 20 aguardando 1º contato.** O corretor começa o dia com 20 contatos sem 1º contato — nem mais, nem menos. Se sobraram N sem 1º contato dos dias anteriores, entram só `quota - N` novos (fez 10, no dia seguinte entram mais 10, mantendo os 20). Implementação: `ensureDailyGoalGenerated` (`lib/daily-goal.js`) conta as rodadas `active` com `attempt_count = 0` do corretor e pede à RPC `claim_daily_goal_contacts` só `quota - pendentes`. A trava da carteira ativa (limite 100, `daily_goal_wallet_config`) continua valendo: corretor com a carteira cheia recebe menos que o necessário. Antes desta regra entravam sempre 20 novos por cima do que sobrou e a pilha crescia (ex.: 34 sem 1º contato). A regra NÃO devolve o excesso já acumulado (ex.: quem já tem mais de 20 sem 1º contato só passa a receber 0 novos até baixar de 20). Continua valendo que a geração acontece quando o corretor abre a Meta Diária, uma vez por dia.
 
@@ -35,7 +65,7 @@ Implementação (já feita, replicar o mesmo padrão em qualquer tela nova que m
 - O que faltava era a **visibilidade**: `lib/daily-goal.js` consulta `daily_goal_attempts` do dia e monta uma lista `doneToday` por grupo (mostrada como card com selo verde em `DailyGoalDashboard.jsx`).
 - `lib/daily-goal-wallet.js` (`getDailyGoalWalletStatus`, usado tanto no chip "Carteira ativa" do corretor quanto na visão do gestor) faz a mesma coisa na contagem `byAttempt.{first,second,third}`: uma rodada cuja tentativa mais recente foi HOJE conta na etapa que ela ACABOU de concluir, não na próxima.
 - **[REGRA OFICIAL 2026-09-24 — reforçada pelo dono] Uma tentativa por contato por dia.** O contato que recebeu uma tentativa HOJE fica verde na etapa em que foi feito e só desce para a próxima à meia-noite (1ª → 2ª → 3ª), desde que o status não tenha mudado para "Em atendimento" ou outra etapa (aí a rodada encerra). `buildDailyGoalSnapshot` nunca lista como pendente da etapa seguinte uma rodada com tentativa hoje (`roundIdsWithAttemptToday`), e `registerDailyGoalAttempt` recusa uma segunda tentativa da mesma rodada no mesmo dia. O texto abaixo sobre "corretor atrasado faz 2ª e 3ª no mesmo dia" descreve o comportamento ANTIGO, hoje proibido — mas continua valendo a lição sobre usar o `attempt_count` atual da rodada (e não o `attempt_number` de uma linha) para decidir em qual etapa ela está descansando.
-- **[COMPORTAMENTO ANTIGO, hoje proibido]** Armadilha real já corrigida: nunca assuma que uma rodada recebe no máximo 1 tentativa por dia. Um corretor atrasado pode legitimamente fazer a 2ª E a 3ª tentativa da mesma rodada no mesmo dia (catching up). Ao decidir "essa rodada está descansando em qual etapa", use sempre o `attempt_count` ATUAL da rodada (o estágio mais avançado), nunca o `attempt_number` de uma linha específica de `daily_goal_attempts` — se você indexar por `round_id` num `Map` a partir de `daily_goal_attempts`, uma rodada com duas tentativas no mesmo dia vai sobrescrever a entrada e você perde uma delas.
+- Lição herdada (comportamento antigo, hoje proibido, detalhe em `docs/HISTORICO_REGRAS.md`): para decidir em qual etapa uma rodada está descansando, use sempre o `attempt_count` ATUAL da rodada, nunca o `attempt_number` de uma linha de `daily_goal_attempts` indexada num `Map` por `round_id`.
 
 ## Ranking / pontuação (`lib/scoring-rules.js`, `lib/performance-overview.js`)
 
@@ -49,7 +79,7 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-22]** Bater a meta é 100%; cada contato adicional além da meta soma exatamente **+1 ponto percentual** (não é uma razão contínua) — 122 contatos numa meta de 31 é **191%**, nunca 394% (122/31×100) nem qualquer outro valor proporcional acima de 100%. `dailyGoalPercent(done, target)` (`lib/daily-goal-progress.mjs`, com testes em `tests/daily-goal-progress.test.mjs`) centraliza essa fórmula — nunca recalcule `Math.round((done/target)*100)` sem teto em nenhum lugar novo, reaproveite essa função.
 
-O denominador (`target`) desse cálculo é a **carteira ativa de hoje** (`wallet.current` — rodadas com `status='active'` agora), não `wallet.requiredToday`/`getDailyGoalTarget` (que soma rodadas carregadas de dias anteriores e serve a um propósito diferente: liberar prospecção extra, `getDailyGoalCompletionStatus`). Confundir os dois já foi um bug real corrigido duas vezes na mesma tarde (2026-09-22): primeiro a fórmula proporcional sem teto (394%), depois o denominador errado usando `requiredToday` (123% em vez de 191%) — ambos em `buildDailyGoalSnapshot` e `buildOwnerTeamOverview` (`lib/daily-goal.js`). Se o percentual exibido algum dia não bater com "meta = carteira ativa de hoje, +1%/contato extra", comece verificando esses dois pontos antes de qualquer outra hipótese. **[Atualização 2026-09-25 — unificado]** `getDailyGoalTarget`, a liberação da prospecção extra (`getDailyGoalCompletionStatus`) e o fechamento do dia **deixaram de ser uma conta diferente**: usam o MESMO total do painel (`loadWalletDayNumbers` em `lib/daily-goal-wallet.js` = carteira ativa + trabalhados hoje que já saíram dela, **encerrados OU convertidos em atendimento**). Bug real corrigido: rodada convertida hoje ficava fora do total mas contava como feita (Jennyfer: 51 de 45 = 106% no painel, enquanto o bloqueio pedia “51 de 60”; o correto era 51 de 51 = 100%). Rodada que saiu da carteira sem tentativa do corretor no dia não é obrigação dele.
+O denominador (`target`) desse cálculo **não** é `wallet.requiredToday`. Desde 2026-09-25 o painel, `getDailyGoalTarget`, a liberação da prospecção extra (`getDailyGoalCompletionStatus`) e o fechamento do dia usam o MESMO total: `loadWalletDayNumbers` (`lib/daily-goal-wallet.js`) = carteira ativa + trabalhados hoje que já saíram dela (encerrados OU convertidos em atendimento). Rodada que saiu da carteira sem tentativa do corretor no dia não é obrigação dele. Se o percentual exibido não bater, verifique primeiro `buildDailyGoalSnapshot` e `buildOwnerTeamOverview` (`lib/daily-goal.js`) — os dois bugs reais anteriores (fórmula sem teto e denominador errado) estão em `docs/HISTORICO_REGRAS.md`.
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-23, refina o parágrafo acima]** O denominador é a carteira ativa de hoje **mais os contatos trabalhados hoje que já saíram dela** (`wallet.dayTarget = current + endedWorkedToday`, `getDailyGoalWalletStatus` em `lib/daily-goal-wallet.js`): rodada encerrada hoje (`ended_at` de hoje, qualquer motivo — "Não contactar" após o cliente responder sem interesse, conversão etc.) que tenha tentativa registrada hoje continua valendo na meta. Motivo: a jennyfer recebeu 20 contatos, marcou 8 como "Não contactar" depois de responderem, a carteira caiu pra 12 e o card mostrou 20/12 = 108% em vez de 20/20 = 100% — a meta encolhia a cada retorno resolvido. Rodada encerrada hoje SEM tentativa hoje (ex.: devolvida à fila sem trabalho) não entra. Ambos os pontos de uso (`buildDailyGoalSnapshot`, `buildOwnerTeamOverview`) usam `dayTarget`. O chip "Carteira ativa X/100" continua mostrando `current`.
 
@@ -60,3 +90,16 @@ O denominador (`target`) desse cálculo é a **carteira ativa de hoje** (`wallet
 ## Carteira ativa (wallet)
 
 Limite global configurável (Gestão > Meta Diária > Configurações), com arquitetura já pronta (`daily_goal_wallet_broker_overrides`) para limite individual por corretor no futuro — mas ainda sem tela para editar override individual. A prospecção "extra" (além da carteira já cheia) só libera depois que a carteira INTEIRA já recebeu a obrigação do dia (`getDailyGoalCompletionStatus`), calculado sempre contra tabelas de fato (tentativas/reivindicações reais), nunca um contador visual do frontend. **[Atualização 2026-09-25]** a prospecção extra libera quando a meta do dia chega a 100% no MESMO cálculo do painel (prospecção do dia + pendentes congelados, `dailyGoalOverallProgress`).
+
+## Automação da Meta Diária (WhatsApp individual)
+
+**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — criada em 2026-09-29/30 a pedido do dono]** `lib/daily-goal-auto.js` (+ `lib/daily-goal-auto-core.mjs`, puro e testado em `tests/daily-goal-auto-core.test.mjs`) envia 1ª, 2ª e 3ª tentativa pelo **WhatsApp individual do corretor** (sessão Baileys, ver `.claude/rules/integracoes-externas.md`), **nunca pelo número oficial**. Cron `pg_cron` a cada 2 min → `/api/cron/whatsapp-meta-diaria-dispatch`; fila em `daily_goal_auto_queue`; configuração em Gestão › Meta Diária › Automação (`/api/admin/daily-goal-auto/**` usa `requireAdminApi`; a restrição a admin/gestor está nas funções `admin*` de `lib/daily-goal-auto.js`). Pontos que não podem ser quebrados:
+- `registerDailyGoalAttemptAutomated` (`lib/daily-goal.js`) só é chamada por `lib/daily-goal-auto.js` — nenhuma rota de usuário importa essa função.
+- "Enviada" só conta com entrega confirmada pelo WhatsApp (`delivered_at`), não apenas aceita pela sessão; erro de contato (número inválido) é diferente de erro de infraestrutura (sessão caída) — ver `classifySendError`.
+- Antes de cada envio o contato passa por `isContactBlockedFromOutreach` (`lib/daily-goal.js`: cliente `do_not_contact`/`sale_completed` pelo cadastro OU pelo telefone). Nunca reintroduza envio sem essa checagem.
+- Integração opcional com Google Contacts (`lib/google-contacts.js`, por corretor, best-effort): salva o cliente na agenda do corretor antes do envio; falha ali nunca derruba a sessão do WhatsApp nem o envio.
+Detalhe das mudanças: `docs/CHANGELOG_AI.md` e o histórico do git de 2026-09-29/30.
+
+## Reconhecimentos (Incentivo) e ranking semanal
+
+Popups de reconhecimento (`lib/celebrations.js`, `components/celebrations/**`, cron `celebrations-ranking`) e o campeão semanal (`lib/weekly-ranking.js`, cron `weekly-ranking`) leem os mesmos números da Meta Diária e do ranking — regra completa em `docs/BUSINESS_RULES.md` (RAN-9 e seguintes). Ao mudar a fórmula da meta ou da pontuação, confira esses consumidores.

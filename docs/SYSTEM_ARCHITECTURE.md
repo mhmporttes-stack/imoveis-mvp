@@ -159,7 +159,7 @@ Sem `lint`, sem `test` em `package.json`, sem CI no repositório (`.github` inex
 | D-9 | `docs/spec-gerador-de-links.md` | tabelas `brokers`/`clients` | schema real: `admin_users`/`simulation_registrations`/`client_origins` (spec = desenho inicial) |
 | D-10 | comentários no código | “10 minutos” (`crm-automations.js`), “funil de 8 etapas” (`performance-overview.js`), “gestor vê o mesmo menu do admin” (`AdminMenu.jsx`) | prazo é dado da regra (5 min segundo `.claude/rules`); funil tem 7 macroetapas; gestor usa `adminGroups`, admin usa `ownerGroups` |
 
-Estas divergências **não** foram corrigidas nos arquivos originais (rótulos de proveniência são do dono). Esta camada `docs/` prevalece até alguém reconciliar.
+**Atualização 2026-10-01:** D-1 a D-7 foram reconciliadas — os fatos técnicos foram corrigidos dentro de `.claude/rules/*` e de `CLAUDE.md` (sem alterar nenhuma etiqueta de REGRA OFICIAL; trechos antigos preservados em `docs/HISTORICO_REGRAS.md`). D-8 a D-10 (README, spec do gerador de links, comentários no código) continuam abertas: estão fora da estrutura do Claude Code e exigem tarefa própria. Divergência nova entre rule e código: corrija a rule se for fato técnico; se envolver regra do dono, registre aqui e pergunte.
 
 ## 13. Problemas identificados durante a auditoria
 

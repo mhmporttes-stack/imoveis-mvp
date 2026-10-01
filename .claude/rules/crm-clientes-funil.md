@@ -1,3 +1,23 @@
+---
+paths:
+  - "lib/client-*.js"
+  - "lib/simulation-*.js"
+  - "lib/simulations.js"
+  - "lib/crm.js"
+  - "lib/crm-clients.js"
+  - "lib/performance-overview.js"
+  - "lib/document-status-labels.js"
+  - "lib/do-not-contact-reasons.js"
+  - "lib/journey-presentation.js"
+  - "components/AdminSimulationList.jsx"
+  - "components/ClientJourney*.jsx"
+  - "components/RegistrationDetails.jsx"
+  - "app/minha-jornada/**"
+  - "app/admin/simulacoes/**"
+  - "app/api/simulation-registrations/**"
+  - "app/api/client-*/**"
+---
+
 # Clientes, status e funil comercial
 
 ## Fonte única de status
@@ -28,7 +48,7 @@ O que **já foi** um bug real (corrigido 2026-09-22): a coorte de "quem entra no
 
 - Tags: `tags` + `client_tags` (tabela associativa), gerenciadas em `lib/client-tags.js`. Mudança de tags grava eventos na timeline do cliente — ver o ponto único de escrita em `.claude/rules/automacoes-notificacoes.md`.
 - "Minha Jornada" (`/minha-jornada/[token]`, spec completa em `docs/minha-jornada.md`): página pública sem login, token de 256 bits, mostra progresso do cliente numa linguagem amigável. Tabelas: `client_journeys` (token, maior progresso já alcançado, estado anterior), `client_journey_events` (timeline), `client_origins` (origem/campanha/UTM). A página pública recebe só uma allowlist de campos, nunca o registro completo. Avisos manuais de WhatsApp são registrados como "acionamento", não como confirmação de entrega/leitura.
-- `client_status_history` é gravado por trigger de banco em mudanças reais de status (inclusive por automação) — avisos da jornada NÃO são inseridos ali, para não distorcer pontuação/relatórios que leem esse histórico.
+- `client_status_history` é gravado **pelo código** (`recordClientStatusChange`, `lib/client-status-history.js`) — **não existe trigger de banco** para ele (divergência D-2, reconciliada em 2026-10-01). Consequência: uma mudança de `status` feita por UPDATE direto sem chamar essa função não entra no histórico, nem no funil/pontuação que leem essa tabela (problema conhecido P-02 em `docs/SYSTEM_ARCHITECTURE.md` §13). Avisos da jornada NÃO são inseridos ali, para não distorcer pontuação/relatórios que leem esse histórico. (Os triggers que existem em `simulation_registrations` são outros: `capture_client_journey`, `guard_client_identity`, criação de venda financeira.)
 
 ## Prospecção/roleta como origem de cliente
 

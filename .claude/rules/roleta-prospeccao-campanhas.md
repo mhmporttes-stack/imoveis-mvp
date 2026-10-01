@@ -1,3 +1,28 @@
+---
+paths:
+  - "lib/lead-distribution.js"
+  - "lib/lead-*.js"
+  - "lib/prospecting*.js"
+  - "lib/prospecting-queue-order.mjs"
+  - "lib/campaign*.js"
+  - "lib/campaigns.js"
+  - "lib/whatsapp-sponsored-lead.js"
+  - "lib/whatsapp-referral.mjs"
+  - "lib/admin-presence.js"
+  - "components/Prospecting*.jsx"
+  - "components/LeadDistributionDashboard.jsx"
+  - "components/CampaignsManager.jsx"
+  - "components/BrokerBasesOverview.jsx"
+  - "app/admin/prospeccao/**"
+  - "app/admin/gerador-de-links/**"
+  - "app/api/prospecting/**"
+  - "app/api/lead-distribution/**"
+  - "app/api/campaigns/**"
+  - "supabase/migrations/*round_robin*"
+  - "supabase/migrations/*prospecting*"
+  - "supabase/migrations/*claim*"
+---
+
 # Roleta (distribuição de leads), prospecção e campanhas
 
 ## Links pessoais vs. roleta
@@ -12,9 +37,10 @@ Dois fluxos distintos, não confundir:
 
 **Ponto de atenção herdado**: a atribuição via RPC acontece numa chamada separada do INSERT do cliente — uma falha depois da RPC pode avançar a fila sem o cadastro ser concluído (não é atômico). Se for mexer nesse fluxo, considere se vale a pena tornar atômico, mas não assuma que já é.
 
-## Regra de retorno automático (round-robin sem contato)
+## Retorno automático — dois mecanismos distintos (divergência D-3, reconciliada em 2026-10-01)
 
-Cliente de origem roleta sem contato registrado por WhatsApp dentro do prazo configurado deve voltar pra fila (transferência contínua). Implementado em `lib/prospecting-auto-return.js` — roda a cada carregamento da lista principal de clientes (não é um cron isolado hoje). Batching: usa `.in("id", ids)` agrupado por corretor em vez de um update por contato (já foi um N+1 real, corrigido).
+- **Lead de roleta sem contato** → volta para a roleta pela ação `return_to_round_robin` do motor de automações (`lib/crm-automations.js`, regra "REDISTRIBUIÇÃO DE LEADS", rodada pelo cron `scheduled-activities`). Não é feito ao carregar a lista.
+- **Contato de prospecção parado** (`prospecting_contacts.status = claimed` com última tentativa há ≥ 7 dias) → volta para a fila por `autoReturnStaleProspectingContacts` (`lib/prospecting-auto-return.js`), chamado por `listSimulationRegistrations` (`lib/simulation-registrations.js`) e pela Prospecção (`lib/prospecting.js`). A lista principal atual (`/api/simulation-registrations/list`) **não** o chama. O mesmo arquivo tem `hibernateEndedDailyGoalRounds` (24 h de folga após a 3ª tentativa da Meta Diária). Batching: usa `.in("id", ids)` agrupado por corretor em vez de um update por contato (já foi um N+1 real, corrigido).
 
 ## Fila de prospecção manual
 
@@ -32,6 +58,6 @@ Clientes desta fila também são alvo do motor de automações (`lib/crm-automat
 
 **[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-09-25] Contato direto no WhatsApp vira cliente sozinho.** Quem escreve para o número oficial e ainda não é cliente é cadastrado automaticamente pela roleta (mesma função de banco `whatsapp_get_or_create_roulette_client` do lead patrocinado; origem `whatsapp_organic`, "WhatsApp — Contato direto"): cliente + corretor por presença + histórico da roleta + conversa atribuída ao mesmo corretor + aviso "Novo contato no WhatsApp". Conversa que alguém JÁ assumiu no Chat não passa pela roleta: o cliente é cadastrado para quem atende (`createDirectContactRegistration`). Código: `routeOrganicLead`/`processOrganicLeads` (webhook) e `reconcileOrganicLeads` (cron de 1 min, últimas 24h) em `lib/whatsapp-sponsored-lead.js`. Não cadastra: telefone que já é cliente (só vincula a conversa), conversa excluída/finalizada, número de integrante ATIVO da equipe (`admin_users.phone`; inativo conta como contato normal).
 
-**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — corrigido em 2026-09-27] Nome de exibição do WhatsApp com 1 caractere (emoji sozinho, etc.) travava o cadastro automático para sempre.** O banco exige `length(btrim(full_name)) > 1` (`simulation_registrations_full_name_check`). `routeOrganicLead`/`routeSponsoredLead` (`lib/whatsapp-sponsored-lead.js`) e `materializeClientFromAutomationReply` (`lib/whatsapp-automation-replies.js`) usavam o nome de perfil do WhatsApp direto como `full_name` — um contato cujo nome de exibição é só "🙏" (ou qualquer 0-1 caractere) fazia o INSERT falhar com essa checagem, a cada webhook E a cada execução do cron de reconciliação (a cada minuto, para sempre, sem nunca se autocorrigir) — a conversa ficava eternamente "Não cadastrado"/"Sem corretor" mesmo com corretor disponível na roleta. `sanitizeContactFullName` (`lib/whatsapp-referral.mjs`, puro) agora troca qualquer nome de 0-1 caractere por "Cliente WhatsApp" ANTES do INSERT, nos três pontos que cadastram cliente a partir do nome do WhatsApp. Caso real corrigido manualmente em 2026-09-27 (contato "🙏", +5514998224022) antes da correção existir.
+**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — corrigido em 2026-09-27]** Todo cadastro de cliente a partir do nome de perfil do WhatsApp passa por `sanitizeContactFullName` (`lib/whatsapp-referral.mjs`): nome de 0–1 caractere vira "Cliente WhatsApp" antes do INSERT (o banco exige `length(btrim(full_name)) > 1`). Ponto novo que cadastra cliente a partir do WhatsApp deve usar a mesma função. Histórico do incidente: `docs/HISTORICO_REGRAS.md`.
 
-**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — corrigido em 2026-09-28] `claim_daily_goal_contacts`/`claim_single_prospecting_contact` (RPC que alimenta a Meta Diária e a Prospecção manual) nunca filtravam contato sem nome usável nem contato ligado a um cliente `do_not_contact`/`sale_completed`.** A regra "nunca reivindicar contato sem nome" (`is_usable_contact_name`) só existia em `pick_broadcast_base_contacts` (Disparo, migration 20260927090000) — corretor continuava recebendo "Sem Nome" na Meta Diária. Mais grave: cliente marcado "Não contactar novamente" reapareceu na Meta Diária da Jennyfer no mesmo dia — causa raiz, a mesma pessoa tinha 5 linhas em `prospecting_contacts` (5 telefones diferentes, mesmo `registration_id`, herança da importação); marcar "não contactar" numa linha nunca propagava pras outras, que continuavam `available`/`recent_attempt` e eram reivindicadas de novo, mandando mensagem pra quem pediu pra parar — risco direto de banimento do número no WhatsApp. Corrigido em `supabase/migrations/20260928200000_daily_goal_claim_guards.sql`: as duas RPCs agora exigem nome usável E ausência de vínculo (por `registration_id` OU `phone_normalized`) com cliente `do_not_contact`/`sale_completed`; faxina retroativa marcou como `do_not_contact` toda linha presa nessa situação e encerrou as rodadas ativas afetadas (o corretor completa a cota sozinho no próximo carregamento).
+**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — corrigido em 2026-09-28]** `claim_daily_goal_contacts`/`claim_single_prospecting_contact` (RPCs da Meta Diária e da Prospecção manual) só reivindicam contato com nome usável (`is_usable_contact_name`) e **sem vínculo** (por `registration_id` OU `phone_normalized`) com cliente `do_not_contact`/`sale_completed` (migration `20260928200000_daily_goal_claim_guards.sql`). Uma mesma pessoa pode ter várias linhas em `prospecting_contacts` (telefones diferentes, mesmo `registration_id`): qualquer bloqueio novo precisa valer para todas as linhas irmãs, nunca só para a linha clicada — mandar mensagem a quem pediu para parar arrisca banimento do número. Histórico do incidente: `docs/HISTORICO_REGRAS.md`.

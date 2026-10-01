@@ -11,13 +11,13 @@ Login via Supabase Auth. Cookies do painel (`lib/admin-auth.js`): `mm_admin_acce
 | `requireFinancialManagerApi` | admin ou gestor, para dados financeiros/edição de empreendimentos |
 | `requireFinancialAccessApi` | Acesso financeiro (inclui visão adaptada de associado) |
 | `requirePerformanceApi` | Acesso a telas de desempenho/ranking |
-| `requirePrimaryAdminApi` | Só o admin principal (dono) |
+| `requirePrimaryAdminApi` | **Apelido de `requireGeneralAdminApi`** (admin geral efetivo) — apesar do nome, **não** restringe ao dono (`lib/admin-auth.js`). Checagem só-do-dono é `assertOwnerAdmin` (`lib/admin-access.js`) |
 | `requireRealGeneralAdminApi` | Admin geral **real** (não considera "Alterar conta" — usado em `/api/admin/view-as`) |
 | `requireGeneralAdminApi` | Admin geral (efetivo, considera view-as) |
 
-Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrimaryAdminPage`, `requirePerformancePage`, `requireGeneralAdminPage`, `requireFinancialAccessPage`, `requireBrokerManagementPage`.
+Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrimaryAdminPage` (também apelido do admin geral), `requirePerformancePage`, `requireGeneralAdminPage`, `requireFinancialAccessPage`, `requireBrokerManagementPage`.
 
-**Toda rota em `app/api/admin/**` e toda página em `app/admin/**` precisa chamar um desses ANTES de tocar em dado** — não depois, nunca condicionalmente pulado. Já foi auditado uma vez (2026-09) e todas as ~30 rotas admin passaram; ao adicionar uma rota nova, mantenha esse padrão.
+**Toda rota em `app/api/admin/**` e toda página em `app/admin/**` precisa chamar um desses ANTES de tocar em dado** — não depois, nunca condicionalmente pulado. Já foi auditado (2026-09); hoje são ~85 rotas em `app/api/admin/**` e ~194 rotas no total em `app/api/**` — inventário e exceções conhecidas (ex.: `/api/client-tags` só exige login, P-07) em `docs/PERMISSIONS.md`. Ao adicionar uma rota nova, mantenha esse padrão.
 
 ## Perfis (`admin_users.role`)
 

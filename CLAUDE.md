@@ -6,7 +6,7 @@ Produção: https://www.matheusmachadoimoveis.com.br (Vercel, projeto `imoveis-m
 
 ## Camada central de contexto (leia primeiro)
 
-`AGENTS.md` (raiz) é o manual obrigatório para qualquer agente e aponta para `docs/`: `CRM_CONTEXT.md` (visão funcional), `BUSINESS_RULES.md` (regras confirmadas no código), `SYSTEM_ARCHITECTURE.md` (arquitetura, divergências e problemas conhecidos), `PERMISSIONS.md`, `DATABASE.md`, `WHATSAPP.md`, `TRAFEGO_META.md` e `CHANGELOG_AI.md` (registrar alterações importantes). Estes documentos foram verificados contra o código em 2026-09-24; quando divergirem de `.claude/rules/*`, vale o código e, depois dele, `docs/` (divergências listadas em `docs/SYSTEM_ARCHITECTURE.md` §12).
+`AGENTS.md` (raiz) é o manual obrigatório para qualquer agente e aponta para `docs/`. **O Claude Code não carrega `AGENTS.md` sozinho quando existe `CLAUDE.md`** — leia-o no início de qualquer tarefa que altere arquivos. Documentos de `docs/`: `CRM_CONTEXT.md` (visão funcional), `BUSINESS_RULES.md` (regras confirmadas no código), `SYSTEM_ARCHITECTURE.md` (arquitetura, divergências e problemas conhecidos), `PERMISSIONS.md`, `DATABASE.md`, `WHATSAPP.md`, `TRAFEGO_META.md` e `CHANGELOG_AI.md` (registrar alterações importantes). Estes documentos foram verificados contra o código em 2026-09-24; quando divergirem de `.claude/rules/*`, vale o código e, depois dele, `docs/`. As divergências D-1 a D-7 de `docs/SYSTEM_ARCHITECTURE.md` §12 foram reconciliadas nas rules em 2026-10-01; divergência nova encontrada → corrija a rule (fato técnico) ou registre em §12 (se envolver regra do dono).
 
 ## Stack
 
@@ -21,12 +21,27 @@ app/            rotas Next.js (App Router) — admin/, api/, páginas públicas
 components/     componentes React (client components em sua maioria)
 lib/            TODA a lógica de negócio e acesso a dados — nunca acessar Supabase direto de um componente
 supabase/       migrations/ (schema incremental), tests/ (SQL), schema.sql
-docs/           specs pontuais já escritas (minha-jornada, pwa-admin, gerador-de-links)
-scratch/        scripts descartáveis de investigação/teste — nunca committar, sempre apagar ao terminar
-mcmv-calculator/  motor de cálculo ANTIGO/de referência — NÃO é o que roda em produção (ver regra abaixo)
+docs/           camada central de referência (ver acima) + specs pontuais (minha-jornada, pwa-admin, gerador-de-links)
+scripts/        scripts de build/manutenção (ex.: stamp-service-worker)
+tests/          testes unitários `node --test`
+whatsapp-individual-service/  microsserviço do WhatsApp individual (Baileys), publicado no Railway — não na Vercel
+scratch/        scripts descartáveis de investigação/teste — ignorado pelo git, sempre apagar ao terminar
+mcmv-calculator/  motor de cálculo ANTIGO/de referência — está no .gitignore e normalmente ausente do clone; NÃO é o que roda em produção
 ```
 
-Documentação técnica geral (histórica, pode estar desatualizada em detalhes recentes): `DOCUMENTACAO-TECNICA-DESENVOLVEDOR.md`. Regras por módulo, mais específicas e atualizadas: `.claude/rules/`.
+Documentação **histórica** (não use como fonte do comportamento atual): `DOCUMENTACAO-TECNICA-DESENVOLVEDOR.md`, `README.md` (obsoleto) e `docs/HISTORICO_REGRAS.md` (trechos retirados das rules em 2026-10-01).
+
+## Onde cada informação mora (uma casa por tipo — não duplique)
+
+| Tipo de informação | Lugar |
+|---|---|
+| Regra inviolável que vale para o projeto inteiro | este `CLAUDE.md` (curto) |
+| Instrução de trabalho por módulo + regras do dono com etiqueta (REGRA OFICIAL etc.) | `.claude/rules/<módulo>.md` — curtas, diretivas, sem narrativa de incidente |
+| Referência detalhada verificada no código (tabelas, rotas, fluxos, IDs de regra) | `docs/*.md` |
+| Histórico do que mudou e por quê (incidentes, nomes, números do caso) | `docs/CHANGELOG_AI.md` (+ `git log`) |
+| Procedimento repetível | `.claude/skills/` |
+
+Regra nova confirmada pelo dono → skill `/registrar-regra`. Rule nunca carrega a história do incidente — só a instrução e um link.
 
 ## Regras que nunca podem ser quebradas
 
@@ -59,7 +74,7 @@ Quatro papéis em `admin_users.role`: **admin** (geral), **manager** (gestor de 
 | Convenções de frontend, PWA | `.claude/rules/frontend-pwa.md` |
 | Workflow de dev, build, deploy, testes | `.claude/rules/workflow-dev.md` |
 
-**Importante sobre como isso é carregado:** `CLAUDE.md` é lido automaticamente pelo Claude Code no início da sessão. `.claude/agents/*.md` e `.claude/skills/*/SKILL.md` são descobertos automaticamente (aparecem como subagente/skills disponíveis). **`.claude/rules/*.md` não tem carregamento automático nativo** — esses arquivos só são lidos quando algo instrui explicitamente a lê-los (esta tabela, o agente `crm-editor`, ou uma skill). Ao trabalhar neste projeto sem passar pelo agente/skills (ex.: perguntado algo direto no chat principal), leia manualmente o arquivo de regras do módulo relevante antes de responder sobre ele.
+**Como isso é carregado (verificado na doc oficial do Claude Code em 2026-10-01):** `CLAUDE.md` é lido no início da sessão. Skills só carregam a descrição no início; o corpo entra quando são invocadas. Rules **sem** `paths:` no frontmatter (`workflow-dev.md`, `auth-permissoes.md`) carregam em toda sessão. As demais têm `paths:` e **só entram no contexto quando o Claude lê (ferramenta Read) um arquivo que casa com os globs** — inclusive em subagentes. `grep`/`cat` pelo Bash **não** disparam o carregamento. Por isso: ao responder sobre um módulo sem ter lido arquivo dele (pergunta direta no chat, planejamento), leia manualmente a rule da tabela acima. Ao criar arquivo novo de um módulo, confira se o nome casa com o `paths:` da rule; se não casar, ajuste os globs.
 
 **Provenância das regras:** todo item de regra de negócio em `.claude/rules/` carrega uma das três etiquetas abaixo — não assuma que um comportamento do código é regra oficial só porque é o que o código faz hoje.
 
