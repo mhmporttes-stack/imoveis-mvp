@@ -255,3 +255,26 @@ test("modelo de voz recebe as variantes ACENTUADAS dos apelidos e o ranking fala
   assert.equal(rankingLabel("este_mes", "este mês"), "do mês");
   assert.equal(rankingLabel("hoje", "hoje"), "do dia");
 });
+
+test("ranking por métrica (time) mesmo com um corretor na conversa", async () => {
+  const say = conversation();
+  await say("CorretorIntent", { corretor: slot("Izabela", "i1") });
+  assert.equal(await say("ListarIntent", { assunto: slot("atendimentos", "med_atendimentos"), periodo: slot("hoje", "hoje") }), "Izabela, 6; Bruna, 4; Eduardo, 1.");
+  assert.equal(await say("ListarIntent", { assunto: slot("simulações", "med_simulacoes") }), "Izabela, 3; Bruna, 2; Eduardo, 1.");
+  assert.equal(await say("ListarIntent", { assunto: slot("documentação", "med_documentacao") }), "Izabela, 2.");
+  assert.equal(await say("ListarIntent", { assunto: slot("aprovação", "med_aprovacao") }), "Izabela, 1.");
+  // "qual corretor ..." pelo texto da fala vira lista de ranking (sem herdar o corretor da conversa)
+  assert.equal(await say("ConsultarIntent", { assunto: { ...slot("atendimentos", "med_atendimentos"), value: "qual corretor mais fez atendimentos" } }), "Izabela, 6; Bruna, 4; Eduardo, 1.");
+  const fresh = conversation();
+  assert.equal(await fresh("ConsultarIntent", { assunto: { ...slot("atendimentos", "med_atendimentos"), value: "qual corretor mais fez atendimentos" } }), "Izabela, 6; Bruna, 4; Eduardo, 1.");
+});
+
+test("ranking com nenhum resultado e vendas atribuídas", async () => {
+  const say = conversation();
+  assert.equal(await say("ListarIntent", { assunto: slot("vendas feitas", "med_vendas") }), "Bruna, 1.");
+  assert.equal(await say("ListarIntent", { assunto: slot("reuniões realizadas", "med_reunioes") }), "Izabela, 1.");
+  const d = deps();
+  d.providers.corretor = async (q) => deriveCorretor(q, { overview: { ...OVERVIEW, team: OVERVIEW.team.map((r) => ({ ...r, approvalPending: 0 })) }, goal: GOAL });
+  const empty = await handleSkillRequestV2(envelope("ListarIntent", { assunto: slot("clientes para aprovação", "med_aprovacao") }), d);
+  assert.equal(empty.response.outputSpeech.text, "Ninguém levou cliente para aprovação hoje.");
+});
