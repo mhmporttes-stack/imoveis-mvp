@@ -131,7 +131,7 @@ where a.entity_type='adset'
 order by (a.status in ('ACTIVE')) desc, c.name
 ```
 
-Campos de campanha disponíveis hoje: só `id`, `name`, `objective`, `status`, `effective_status` — **`special_ad_categories`, orçamento, datas e lance NÃO são sincronizados** (não dá para auditar por aqui).
+Colunas de `meta_ad_entities`: `entity_id`, `name`, `status` (já guarda o status efetivo, ex.: `CAMPAIGN_PAUSED`), `objective`, `targeting` (conjuntos), `parent_id`, `raw`. Não existe coluna `effective_status`. **`special_ad_categories`, orçamento, datas e lance NÃO são sincronizados** (não dá para auditar por aqui).
 
 ## Q5 — O que a Meta está contando como resultado
 
