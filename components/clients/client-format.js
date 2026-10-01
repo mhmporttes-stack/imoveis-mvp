@@ -2,8 +2,8 @@ import { CLIENT_STATUS, isOverdueActivityClient, isStaleContactClient, mergeActi
 import { formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
 
 // Formatação e sinais da Lista de clientes (redesenho 2026-10). Mesmas regras
-// do AdminSimulationList — quando o redesenho substituir a tela antiga, este
-// passa a ser o único lugar delas.
+// da tela anterior (AdminSimulationList, removida no redesenho) — este é o
+// único lugar delas.
 
 // Mesmas opções aceitas pelo servidor (lib/simulation-list-query.js). A tela
 // nova abre com 20 por página (a página passa pageSize: 20 na carga inicial).

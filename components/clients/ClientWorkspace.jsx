@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
-import { ChevronLeft, ChevronRight, Inbox, Link2, Search, SlidersHorizontal, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useId, useRef, useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
+import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
+import { CountBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
@@ -17,8 +20,8 @@ import ClientSheet from "./ClientSheet";
 import { PAGE_SIZE_OPTIONS } from "./client-format";
 import { useClientList } from "./useClientList";
 
-// Lista de clientes — redesenho 2026-10 (Designer CRM). Mesmas props do
-// AdminSimulationList; toda a lógica vive em useClientList.
+// Lista de clientes (/admin/simulacoes) — redesenho do Designer CRM,
+// aprovado pelo dono em 2026-10-01. Toda a lógica vive em useClientList.
 //   Hierarquia: 1) o que precisa de ação agora · 2) onde a carteira está no
 //   funil · 3) a lista, escaneável · 4) a ficha do cliente numa gaveta, sem
 //   perder a lista de vista.
@@ -30,6 +33,11 @@ export default function ClientWorkspace(props) {
   const badgeCounts = useCrmBadgeCounts();
   const [openClientId, setOpenClientId] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const topRef = useRef(null);
+  const goToPage = (nextPage) => {
+    list.goToPage(nextPage);
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Vindo de outra tela (/admin/simulacoes?clientId=X): abre a ficha.
   useEffect(() => {
@@ -50,7 +58,7 @@ export default function ClientWorkspace(props) {
   const pageEnd = list.total ? pageStart + list.items.length - 1 : 0;
 
   return (
-    <section className="container-page pb-6" aria-labelledby="clientes-titulo">
+    <section ref={topRef} className="container-page scroll-mt-4 pb-6" aria-labelledby="clientes-titulo">
       {/* 1. Cabeçalho */}
       <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -60,6 +68,22 @@ export default function ClientWorkspace(props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Atalhos para Meta Diária, Chat e Agenda: no desktop o menu do topo
+              não mostra os subitens do grupo CRM/Clientes; no celular eles
+              estão na barra inferior. */}
+          <nav aria-label="Atalhos" className="mr-1 hidden items-center gap-1 md:flex">
+            <SceneTransitionLink href="/admin/meta-diaria" direction="forward" aria-label="Meta Diária" title="Meta Diária" className={SHORTCUT}>
+              <Target className="h-5 w-5" aria-hidden="true" />
+            </SceneTransitionLink>
+            <Link href="/admin/chat" aria-label={`Chat${badgeCounts.chat ? ` (${badgeCounts.chat} não lidas)` : ""}`} title="Chat" className={SHORTCUT}>
+              <MessageCircle className="h-5 w-5" aria-hidden="true" />
+              <CountBadge count={badgeCounts.chat} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.chat} mensagens não lidas`} />
+            </Link>
+            <Link href="/admin/calendario" aria-label={`Agenda${badgeCounts.agenda ? ` (${badgeCounts.agenda} pendentes)` : ""}`} title="Agenda" className={SHORTCUT}>
+              <CalendarDays className="h-5 w-5" aria-hidden="true" />
+              <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
+            </Link>
+          </nav>
           {brokerSimulationLink ? (
             <Button variant="ghost" size="md" onClick={list.copyBrokerSimulationLink} className="hidden sm:inline-flex">
               <Link2 className="h-4 w-4" aria-hidden="true" /> Meu link
@@ -187,11 +211,28 @@ export default function ClientWorkspace(props) {
           </p>
           <div className="flex items-center gap-2">
             <PageSizeSelect value={list.pageSize} onChange={list.changePageSize} />
-            <Button variant="secondary" size="icon" onClick={() => list.goToPage(list.page - 1)} disabled={list.page <= 1} aria-label="Página anterior">
+            <Button variant="secondary" size="icon" onClick={() => goToPage(list.page - 1)} disabled={list.page <= 1} aria-label="Página anterior">
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </Button>
-            <span className="min-w-[4.5rem] text-center text-[13px] font-medium text-ink tabular-nums">{list.page} de {list.totalPages}</span>
-            <Button variant="secondary" size="icon" onClick={() => list.goToPage(list.page + 1)} disabled={list.page >= list.totalPages} aria-label="Próxima página">
+            <span className="min-w-[4.5rem] text-center text-[13px] font-medium text-ink tabular-nums sm:hidden">{list.page} de {list.totalPages}</span>
+            <span className="hidden items-center gap-1 sm:flex">
+              {pageNumbers(list.page, list.totalPages).map((number) => (
+                <button
+                  key={number}
+                  type="button"
+                  onClick={() => goToPage(number)}
+                  aria-current={number === list.page ? "page" : undefined}
+                  aria-label={`Página ${number}`}
+                  className={cx(
+                    "h-touch min-w-touch rounded-control px-2 text-[13px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                    number === list.page ? "bg-navy text-white" : "text-ink hover:bg-navy/[0.06]"
+                  )}
+                >
+                  {number}
+                </button>
+              ))}
+            </span>
+            <Button variant="secondary" size="icon" onClick={() => goToPage(list.page + 1)} disabled={list.page >= list.totalPages} aria-label="Próxima página">
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
@@ -216,6 +257,8 @@ export default function ClientWorkspace(props) {
     </section>
   );
 }
+
+const SHORTCUT = "relative inline-flex h-touch w-touch items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-navy/[0.06] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
 
 // "Para agir agora": atalhos para os recortes que pedem ação. Cada um aplica
 // o mesmo filtro de servidor que já existia (pendentes, novos atendimentos,
@@ -432,6 +475,13 @@ function PageSizeSelect({ value, onChange }) {
       </select>
     </>
   );
+}
+
+function pageNumbers(current, totalPages) {
+  const maxVisible = 5;
+  const start = Math.max(1, Math.min(current - 2, totalPages - maxVisible + 1));
+  const end = Math.min(totalPages, start + maxVisible - 1);
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
 }
 
 // Chips removíveis para todo filtro ativo — inclusive os que chegam por link

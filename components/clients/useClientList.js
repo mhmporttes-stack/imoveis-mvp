@@ -7,7 +7,8 @@ import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
-// e a mesma ordem de efeitos do AdminSimulationList — o que mudou é só a
+// e a mesma ordem de efeitos da tela anterior (AdminSimulationList, removida
+// em 2026-10-01 no redesenho) — o que mudou é só a
 // apresentação: `notify` (toast) no lugar de alert() e `confirmAction`
 // (diálogo da página) no lugar de confirm(). Busca, filtros, contadores e
 // paginação continuam no servidor (/api/simulation-registrations/list).

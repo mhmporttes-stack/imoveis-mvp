@@ -46,6 +46,7 @@ export default function ClientRow({ client, activities, responsibleName, showRes
           </button>
           <p className="hidden min-w-0 items-center gap-1.5 text-xs text-muted lg:flex">
             <span className="shrink-0 whitespace-nowrap tabular-nums">{clientPhone(client) || "Sem telefone"}</span>
+            {client.registration?.clientCode ? <span className="shrink-0 whitespace-nowrap">· {client.registration.clientCode}</span> : null}
             {tags.length ? <TagDots tags={tags} /> : null}
           </p>
         </div>
@@ -60,6 +61,9 @@ export default function ClientRow({ client, activities, responsibleName, showRes
         <span className="min-w-0 lg:hidden">
           <NextAction urgency={urgency} next={next} lastContact={lastContact} compact />
         </span>
+        {client.registration?.lastFormSubmittedAt ? (
+          <span className="w-full text-xs font-medium text-brand lg:hidden">Novo formulário {formatAgo(client.registration.lastFormSubmittedAt)}</span>
+        ) : null}
       </div>
 
       {/* Próxima ação (desktop) */}
@@ -68,9 +72,10 @@ export default function ClientRow({ client, activities, responsibleName, showRes
       </div>
 
       {/* Último contato (desktop) */}
-      <p className={cx("hidden text-[13px] lg:block", lastContact ? "text-ink-2" : "font-medium text-warning")}>
-        {lastContact || "Nunca contatado"}
-      </p>
+      <div className="hidden min-w-0 lg:block">
+        <p className={cx("text-[13px]", lastContact ? "text-ink-2" : "font-medium text-warning")}>{lastContact || "Nunca contatado"}</p>
+        {client.registration?.lastFormSubmittedAt ? <p className="truncate text-xs font-medium text-brand">Novo formulário {formatAgo(client.registration.lastFormSubmittedAt)}</p> : null}
+      </div>
 
       {/* Responsável (admin/gestor) */}
       {showResponsible ? (
@@ -120,7 +125,7 @@ function NextAction({ urgency, next, lastContact, compact = false }) {
 function TagDots({ tags }) {
   const visible = tags.slice(0, 2);
   return (
-    <span className="hidden min-w-0 items-center gap-1 xl:flex">
+    <span className="hidden min-w-0 items-center gap-1 lg:flex">
       <span aria-hidden="true">·</span>
       {visible.map((tag) => (
         <span key={tag.id} className="inline-flex min-w-0 items-center gap-1">

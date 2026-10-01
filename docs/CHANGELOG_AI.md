@@ -44,6 +44,23 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Nova Lista de clientes (substitui AdminSimulationList)
+- **Data:** 2026-10-01
+- **Área:** Clientes / Frontend
+- **Alteração:**
+  - `/admin/simulacoes` passa a usar `components/clients/`: `ClientWorkspace` (cabeçalho com atalhos, "Para agir agora", funil clicável, busca/filtros, lista, paginação), `ClientRow` (colunas no desktop, cartão no celular), `ClientSheet` (ficha em gaveta: ações, etapa, responsável, CCA, aviso de progresso/histórico, prospecção, agenda, simulação, tags, cadastro com e-mail/PIS, exclusão) e `useClientList` (estado e ações, mesmas APIs).
+  - Decisões do dono: etapa, "Avisar progresso" e CCA ficam só na ficha; a lista abre com 20 por página (`page.jsx` pede `pageSize: 20` na carga inicial).
+  - `alert/confirm` do navegador viraram aviso (`Toast`) e diálogo (`ConfirmDialog`) da página.
+  - `components/AdminSimulationList.jsx` removido; referências em `lib/` (comentários), `docs/` e rules atualizadas.
+- **Motivo:** redesenho aprovado pelo dono (Designer CRM).
+- **Arquivos afetados:** `app/admin/simulacoes/page.jsx`, `components/clients/*` (novos), `components/AdminSimulationList.jsx` (removido), `components/ui/{Button,Sheet,ConfirmDialog,Toast}.jsx`, `app/globals.css`, `tailwind.config.cjs`, comentários em `lib/{client-status,do-not-contact-reasons,simulations,simulation-list-utils}.js`, `docs/{SYSTEM_ARCHITECTURE,BUSINESS_RULES}.md` (só caminhos de arquivo em CLI-5b/CLI-12; texto das regras intacto), `.claude/rules/{frontend-pwa,crm-clientes-funil}.md` (paths agora `components/clients/**`), vitrine.
+- **Auditoria antiga × nova (todas preservadas):** busca com debounce; abas de grupo e status; filtros corretor (só admin/gestor), tag, sem contato +3 dias, sem atividade futura, pendentes, novos atendimentos (inclusive vindos por URL) com etiquetas removíveis; copiar link (corretor), Prospecção, Novo cliente; atalhos Meta Diária/Chat/Agenda com contadores (no desktop o menu do topo não mostra esses subitens; no celular estão na barra inferior); WhatsApp com registro de contato; etapa incl. Venda; responsável (só admin/gestor); CCA; aviso de progresso e histórico; urgência; agendamento principal (criar/editar/remover) e atividades extras (criar/concluir/cancelar, "ver todas"); prospecção (Prospectar, Em atendimento, Não contactar com motivo, Devolver à fila — mesmas condições); tags (marcar, criar com cor, excluir do sistema); Documentação, Empreendimentos, Valores; cadastro completo, e-mail/PIS editáveis, preferências do imóvel, preferência de contato, novo formulário, código do cliente; excluir (só dono); paginação com números e 5/10/20; abrir cliente por `?clientId=`; estados vazio/erro/carregando.
+- **Risco/observação:**
+  - Corrigido de passagem: tags e agendamento editados agora aparecem na hora na lista (antes só depois de recarregar).
+  - Tags na lista aparecem a partir de 1024px; no celular ficam na ficha. CCA e "Avisar progresso" não carregam mais por cliente na lista (só ao abrir a ficha) — menos requisições.
+  - Validação: `pnpm build` ok (sem rotas `/dev`); `node --test` 261/265 — as 3 falhas são as conhecidas (`journey-http` ×2 exigem servidor local; `whatsapp-flow-core` "Menu principal"); revisão visual na vitrine em 360/390/768/1280/1440 (admin, gestor, corretor); teste de interação e de permissão por perfil na vitrine sem erros de console. Não foi testado com login real em produção.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Manrope como tipografia oficial do painel
 - **Data:** 2026-10-01
 - **Área:** Frontend

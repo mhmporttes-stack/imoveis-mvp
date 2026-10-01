@@ -79,15 +79,15 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
       >
         <div className="space-y-6" aria-busy={busy || undefined}>
           {/* Ações principais */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Button className="col-span-2 sm:col-span-1" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <Button className="col-span-2 sm:col-span-3" onClick={() => list.openWhatsApp(client)} disabled={busy}>
               <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
             </Button>
             <Button variant="secondary" onClick={() => setShowDocuments(true)} disabled={busy || !registration?.id}>
               <FileText className="h-4 w-4" aria-hidden="true" /> Documentos
             </Button>
             <Button variant="secondary" onClick={() => list.openSimulation(client)} disabled={busy}>
-              <ExternalLink className="h-4 w-4" aria-hidden="true" /> Imóveis
+              <ExternalLink className="h-4 w-4" aria-hidden="true" /> Empreendimentos
             </Button>
             <Button variant="secondary" className="col-span-2 sm:col-span-1" onClick={() => list.openValues(client)} disabled={busy}>
               <Calculator className="h-4 w-4" aria-hidden="true" /> Valores
