@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Regra do dono: ação do dono num cliente de corretor pontua para o corretor
+- **Data:** 2026-10-01
+- **Área:** Ranking
+- **Alteração:** só documentação (rule `meta-diaria-ranking.md` + `docs/BUSINESS_RULES.md` RAN-2). Mudança de status feita por usuário que não disputa o ranking (o dono) num cliente atribuído a um corretor é creditada ao corretor responsável — comportamento que o código já tinha (fallback para `responsible_user_id` quando `changed_by` não é reconhecido), e que divergia do texto antigo da RAN-2 ("só se `changed_by` for nulo").
+- **Motivo:** validação final do Modelo B Ajustado encontrou 2 casos (Jennyfer 28/09 e ketlin 29/09, +20 cada, "Documentação recebida" registrada pelo login do dono); o dono decidiu manter o comportamento.
+- **Arquivos afetados:** `.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** nenhum código alterado; pontos históricos intactos.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Ranking: Modelo B Ajustado (pesos, teto de presença, teto de prospecção)
 - **Data:** 2026-10-01
 - **Área:** Ranking
