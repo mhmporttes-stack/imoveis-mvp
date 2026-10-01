@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Meta Diária: contato só reaproveita cliente com o mesmo telefone (P-01, etapa 1)
+- **Data:** 2026-10-01
+- **Área:** Meta Diária / Prospecção
+- **Alteração:** correção preventiva das rodadas repetidas (ver `docs/INCIDENTES.md`). Vínculo contato→cliente só reaproveitado com telefone igual; senão procura/cria pelo telefone do contato sem sobrescrever cliente existente; tentativas da Meta Diária sempre com o telefone do contato. `findMatchingRegistration` passou a usar a regra pura `pickRegistrationByPhone` (mesmo comportamento, agora testado).
+- **Motivo:** aprovado pelo dono após o diagnóstico.
+- **Arquivos afetados:** `lib/contact-client-link.mjs`, `lib/registration-match.mjs` (novos), `lib/daily-goal.js`, `lib/prospecting.js`, `lib/simulation-registrations.js`, `tests/contact-client-link.test.mjs`, `tests/registration-match.test.mjs`.
+- **Risco/observação:** nenhum dado alterado (os 15 clientes e os 129 contatos ficam como estão até a etapa 2). Medido antes: fora do bug, todos os 2.694 contatos vinculados têm o mesmo telefone do cliente — a checagem não afeta vínculos legítimos. Quando um corretor tocar um dos 129 contatos, ele ganha o próprio cliente (vínculo corrigido só nesse contato, organicamente). Reaproveitar cliente pelo telefone agora não troca o nome dele pelo nome do contato.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Regra do dono: ação do dono num cliente de corretor pontua para o corretor
 - **Data:** 2026-10-01
 - **Área:** Ranking
