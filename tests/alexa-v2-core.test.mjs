@@ -103,12 +103,23 @@ test("listas: 5 nomes e 'e mais X'", () => {
   assert.equal(pageOfNames(["A"], 0).hasMore, false);
 });
 
-test("V1 continua igual: intenções antigas passam pelo tratador antigo", async () => {
+test("V1: tratador antigo continua disponível e as frases antigas agora usam as fontes da V2", async () => {
+  const legacy = await handleSkillRequestV2(envelope("AguardandoSimulacaoIntent"), makeDeps({ v1ToV2: false }));
+  assert.equal(text(legacy), "6 clientes aguardando simulação.");
+  assert.deepEqual(legacy.sessionAttributes, { lastTopic: "simulacao", lastCount: 6 });
   const r = await handleSkillRequestV2(envelope("AguardandoSimulacaoIntent"), makeDeps());
-  assert.equal(text(r), "6 clientes aguardando simulação.");
-  assert.deepEqual(r.sessionAttributes, { lastTopic: "simulacao", lastCount: 6 });
-  const resumo = await handleSkillRequestV2(envelope("ResumoDoDiaIntent"), makeDeps());
-  assert.equal(text(resumo), "Bom dia, Matheus.");
+  assert.equal(text(r), "2 clientes aguardando simulação.");
+  assert.equal(ctxOf(r).topic, "etapa");
+  const deps = makeDeps();
+  deps.providers.resumo = async () => ({ text: "Bom dia, Matheus." });
+  assert.equal(text(await handleSkillRequestV2(envelope("ResumoDoDiaIntent"), deps)), "Bom dia, Matheus.");
+  const who = await handleSkillRequestV2(envelope("QuemSaoIntent", {}, { lastTopic: "simulacao" }), makeDeps({ v1ToV2: false }));
+  assert.ok(text(who).length > 0);
+});
+
+test("etapa falada sem assunto ('quantos clientes em documentação') vira consulta de etapa", async () => {
+  const r = await handleSkillRequestV2(envelope("ConsultarIntent", { etapa: slot("simulacao", "simulação") }, { v2: { topic: "funil", kind: "count", periodo: "hoje" } }), makeDeps());
+  assert.equal(text(r), "2 clientes aguardando simulação.");
 });
 
 test("consulta simples e contexto salvo", async () => {
