@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Todas as etapas de venda liberadas no seletor de status do card
+- **Data:** 2026-10-01
+- **Área:** Clientes / Funil
+- **Alteração:** `components/clients/StatusOptions.jsx` (grupo "Venda" do seletor de status, usado por `ClientCard.jsx` e `ClientSheet.jsx`) passou de mostrar só "Venda realizada" para listar as 8 etapas do pipeline de venda (`CLIENT_FUNNEL_SALE_STATUS_VALUES`, mesma ordem da barra de abas): Venda realizada, Formulários, Reserva, Contrato, Assinatura Caixa, ITBI, Cartório, Pagamento. Removida a lógica de "opção atual desabilitada" que só existia porque as demais etapas não eram selecionáveis.
+- **Motivo:** pedido do dono — essas subetapas já existiam no funil (contagem própria na barra de abas de Clientes) e um cliente já estava em "Cartório", mas não havia como mover um cliente entre elas pela tela; só por edição direta no banco. Não era regressão de hoje (conferido no componente anterior à reescrita da lista de Clientes, mesma restrição já existia).
+- **Arquivos afetados:** `components/clients/StatusOptions.jsx`.
+- **Risco/observação:** o backend (`updateSimulationRegistration`, `lib/simulation-registrations.js`) já tratava qualquer uma das 8 etapas igualmente (auto-registro de venda financeira via `ensureFinancialSaleForRegistration`, marco automático de "Reunião realizada" se faltava) — a lacuna era só no frontend, nenhuma mudança de backend/permissão necessária. Liberado sem restrição de perfil (qualquer corretor/gestor que já podia mudar status pode mover entre as etapas de venda), conforme decisão do dono. `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Meta Diária: carteira ativa (denominador da meta) passa a congelar à meia-noite
 - **Data:** 2026-10-01
 - **Área:** Meta Diária / Ranking
