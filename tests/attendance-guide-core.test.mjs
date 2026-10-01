@@ -19,6 +19,11 @@ test("origem do atendimento → tipo de guia", () => {
   assert.equal(classifyGuideKind({ acquisitionKind: "manual" }), "organic");
   assert.equal(classifyGuideKind({ acquisitionKind: "site" }), "organic");
   assert.equal(classifyGuideKind({}), "organic");
+  // 2026-10-01: evidência confiável de mídia paga = lead, mesmo pelo link pessoal; sem evidência continua orgânico
+  assert.equal(classifyGuideKind({ acquisitionKind: "broker_link", paidMediaEvidence: true }), "lead");
+  assert.equal(classifyGuideKind({ acquisitionKind: "paid_link", paidMediaEvidence: true }), "lead");
+  assert.equal(classifyGuideKind({ acquisitionKind: "broker_link", paidMediaEvidence: false }), "organic");
+  assert.equal(classifyGuideKind({ prospectingContactId: "x", paidMediaEvidence: true }), "prospecting");
 });
 
 test("[Nome], [Corretor] e [Link] são preenchidos; sem dado o marcador fica para o corretor", () => {

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { audioContentType, audioExtensionForMime, baseMime, inboundAudioMediaId, parseByteRange } from "../lib/whatsapp-media-utils.mjs";
-import { SPONSORED_KIND, SPONSORED_LABEL, buildSponsoredOriginMetadata, isSponsoredAdReferral, sanitizeReferral } from "../lib/whatsapp-referral.mjs";
+import { SPONSORED_KIND, SPONSORED_LABEL, adIdFromReferral, buildSponsoredOriginMetadata, isSponsoredAdReferral, sanitizeReferral } from "../lib/whatsapp-referral.mjs";
 import { floatChannelsToWav } from "../lib/audio-wav.mjs";
 
 // ---------------------------------------------------------------- mídia recebida
@@ -86,4 +86,13 @@ test("metadados da origem: canal, entrada, referral e nomes do anúncio só quan
   assert.deepEqual(bare.referral, { ctwa_clid: "z" });
   assert.equal(SPONSORED_KIND, "whatsapp_ad");
   assert.equal(SPONSORED_LABEL, "WhatsApp — Anúncio patrocinado");
+});
+
+test("adIdFromReferral: ID do anúncio só de referral de anúncio com ID numérico; senão vazio", () => {
+  assert.equal(adIdFromReferral({ source_type: "ad", source_id: "52547581247353", ctwa_clid: "x" }), "52547581247353");
+  assert.equal(adIdFromReferral({ source_id: "52547581247353", ctwa_clid: "x" }), "52547581247353");
+  assert.equal(adIdFromReferral({ source_type: "post", source_id: "52547581247353" }), "");
+  assert.equal(adIdFromReferral({ source_type: "ad", source_id: "abc&utm_x=1" }), "");
+  assert.equal(adIdFromReferral({ source_type: "ad" }), "");
+  assert.equal(adIdFromReferral(null), "");
 });

@@ -37,7 +37,7 @@ group by 1,2 order by investimento desc
 
 ## Q2 — Funil CRM por campanha/conjunto/anúncio (o diferencial)
 
-Atribuição (ver `regras-decisao.md` §Atribuição): cliente com `client_origins.source_metadata` contendo `ad_id`/`adset_id`/`campaign_id` (anúncio de WhatsApp) **ou** mídia paga identificada — UTM paga no padrão atual (`utm_medium=paid`, `utm_campaign` = ID da campanha, `utm_term` = ID do conjunto, `utm_content` = ID do anúncio), formato antigo `utm_medium=anuncio` (inclui `utm_campaign=ctwa_formulario` do Fluxo "Anúncio WhatsApp — formulário direto": o anúncio é buscado no `referral` da conversa pelo telefone; se a mesma pessoa já tem card de anúncio de WhatsApp, não conta de novo), ou `paid_media=true` gravado pelo cadastro (desde 2026-10-01). Etapa = a **mais avançada já alcançada** (histórico + status atual + venda em `financial_sales` não cancelada), espelhando `CLIENT_FUNNEL_STAGES` de `lib/client-status.js`: 1 atendimento, 2 simulação, 3 documentação, 4 aprovação enviada (inclui restrição/reprovado), 5 aprovado, 6 reunião, 7 venda. Se `lib/client-status.js` mudar, atualize o `stage_of` abaixo.
+Atribuição (ver `regras-decisao.md` §Atribuição): cliente com `client_origins.source_metadata` contendo `ad_id`/`adset_id`/`campaign_id` (anúncio de WhatsApp) **ou** mídia paga identificada — UTM paga no padrão atual (`utm_medium=paid`, `utm_campaign` = ID da campanha, `utm_term` = ID do conjunto, `utm_content` = ID do anúncio), formato `utm_medium=anuncio` (inclui `utm_campaign=ctwa_formulario` do Fluxo "Anúncio WhatsApp — formulário direto": desde 2026-10-01 o link leva `utm_content=<ID do anúncio>` quando o clique trouxe o ID; nos cadastros anteriores o anúncio é buscado no `referral` da conversa pelo telefone; se a mesma pessoa já tem card de anúncio de WhatsApp, não conta de novo), ou `paid_media=true` gravado pelo cadastro (desde 2026-10-01). Etapa = a **mais avançada já alcançada** (histórico + status atual + venda em `financial_sales` não cancelada), espelhando `CLIENT_FUNNEL_STAGES` de `lib/client-status.js`: 1 atendimento, 2 simulação, 3 documentação, 4 aprovação enviada (inclui restrição/reprovado), 5 aprovado, 6 reunião, 7 venda. Se `lib/client-status.js` mudar, atualize o `stage_of` abaixo.
 
 ```sql
 with params as (select 'campaign'::text lvl, date '2026-09-01' d_from, date '2026-09-30' d_to),
@@ -189,6 +189,7 @@ select
   case when m ? 'ad_id' and anuncio_sincronizado then 'ID do anúncio (anúncio sincronizado)'
        when m ? 'ad_id' then 'ID do anúncio (anúncio ainda não sincronizado da Meta)'
        when paga and utm_casa_meta then 'UTM com IDs da Meta (padrão atual)'
+       when paga and m->>'utm_campaign'='ctwa_formulario' and m->>'utm_content' ~ '^[0-9]+$' then 'Formulário do anúncio de WhatsApp — ID do anúncio no link (desde 2026-10-01)'
        when paga and m->>'utm_campaign'='ctwa_formulario' and ad_conversa is not null and mesma_pessoa_ja_whatsapp_ad then 'Formulário do anúncio de WhatsApp — anúncio pela conversa; pessoa já contada como anúncio de WhatsApp'
        when paga and m->>'utm_campaign'='ctwa_formulario' and ad_conversa is not null then 'Formulário do anúncio de WhatsApp — anúncio identificado pela conversa'
        when paga and m->>'utm_campaign'='ctwa_formulario' then 'Formulário do anúncio de WhatsApp — sem conversa para identificar o anúncio'

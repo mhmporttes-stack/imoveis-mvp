@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildLeadOrigin, classifyPaidMedia } from "../lib/lead-origin.js";
+import { buildLeadOrigin, classifyPaidMedia, hasPaidMediaEvidence } from "../lib/lead-origin.js";
 
 const META_STANDARD = { utm_source: "fb", utm_medium: "paid", utm_campaign: "120210000000001", utm_term: "120210000000002", utm_content: "120210000000003" };
 const CTWA_LEGACY = { utm_source: "whatsapp", utm_medium: "anuncio", utm_campaign: "ctwa_formulario" };
@@ -107,4 +107,18 @@ test("sanitização de UTM preservada (remove <> e limita a 200)", () => {
   assert.equal(origin.metadata.utm_medium, "paid");
   assert.equal(origin.metadata.utm_campaign.length, 200);
   assert.equal(origin.kind, "paid_link");
+});
+
+test("hasPaidMediaEvidence: só evidência confiável (ID do anúncio, paid_link, paid_media, UTM paga)", () => {
+  assert.equal(hasPaidMediaEvidence("whatsapp_ad", { ad_id: "52547581247353" }), true);
+  assert.equal(hasPaidMediaEvidence("paid_link", {}), true);
+  assert.equal(hasPaidMediaEvidence("broker_link", { paid_media: true }), true);
+  assert.equal(hasPaidMediaEvidence("broker_link", { utm_source: "whatsapp", utm_medium: "anuncio", utm_campaign: "ctwa_formulario" }), true);
+  assert.equal(hasPaidMediaEvidence("campaign", { utm_source: "ig", utm_medium: "paid", utm_campaign: "52546652319953" }), true);
+  // sem evidência: texto livre/rótulo, UTM orgânica, ad_id inválido, nada
+  assert.equal(hasPaidMediaEvidence("campaign", { utm_campaign: "PATROCINADO" }), false);
+  assert.equal(hasPaidMediaEvidence("tracked_link", { utm_source: "ig", utm_medium: "social" }), false);
+  assert.equal(hasPaidMediaEvidence("broker_link", { ad_id: "patrocinado" }), false);
+  assert.equal(hasPaidMediaEvidence("broker_link", { paid_media: "true" }), false);
+  assert.equal(hasPaidMediaEvidence("", null), false);
 });

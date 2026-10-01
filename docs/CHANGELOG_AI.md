@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Guia de lead por evidência de mídia paga + ID do anúncio no link do Fluxo "formulário direto" (encerra a estruturação do Gestor de Tráfego)
+- **Data:** 2026-10-01
+- **Área:** WhatsApp (Fluxos) / Guia de Atendimento / Meta/Tráfego
+- **Alteração:**
+  - **Guia de Atendimento:** `classifyGuideKind` ganhou `paidMediaEvidence`, calculado por `hasPaidMediaEvidence` (`lib/lead-origin.js`). Cliente com evidência confiável de mídia paga (ID do anúncio, `paid_link`, `paid_media` ou UTM paga reconhecida) recebe o guia de **lead**, mesmo vindo pelo link de corretor. Texto livre não conta.
+  - **Fluxos:** nova variável `{{anuncio_id}}`, com o ID real do anúncio vindo do `referral` do clique (`adIdFromReferral`). O Fluxo ativo "Anúncio WhatsApp — formulário direto" teve o link alterado de `…utm_campaign=ctwa_formulario` para `…utm_campaign=ctwa_formulario&utm_content={{anuncio_id}}` (rascunho e versão publicada). Sem ID, o link continua igual ao anterior na prática, porque a UTM vazia é descartada.
+  - **Gestor de Tráfego:** Q6 reconhece o ID do anúncio que vem no link.
+- **Motivo:** decisão do dono, para atribuir exatamente anúncio → cadastro e tratar cliente de mídia paga como lead.
+- **Arquivos afetados:** `lib/lead-origin.js`, `lib/attendance-guide-core.mjs`, `lib/attendance-guides.js`, `lib/whatsapp-flows.js`, `lib/whatsapp-referral.mjs`, testes (`attendance-guide-core`, `lead-origin`, `whatsapp-chat-media-referral`, novo `ctwa-form-link-attribution`), `.claude/skills/auditar-trafego/references/consultas-funil.md`, `docs/TRAFEGO_META.md` §4.
+- **Dado alterado em produção (autorizado):** `whatsapp_flows` id `5fa75655-b82e-4020-8bdc-67e50f2932fc`, nó `form`, campo `linkUrl` (em `graph` e `published_graph`). Para reverter, remover `&utm_content={{anuncio_id}}`.
+- **Risco/observação:**
+  - Nenhum histórico reescrito; nada alterado na Meta.
+  - **Validação:** suíte com 261 aprovados e 1 falha conhecida (`whatsapp-flow-core`, "Menu principal"); `pnpm build` ok.
+  - Clientes antigos com evidência paga passam a abrir o guia de lead dali em diante, porque a classificação é calculada na leitura.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Reconhecimento de UTMs pagas fora do padrão + diagnóstico de atribuição do Gestor de Tráfego
 - **Data:** 2026-10-01
 - **Área:** Meta/Tráfego / Clientes (origem)
