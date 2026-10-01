@@ -7,6 +7,11 @@ import { fetchStatusCounts } from "@/lib/crm-metrics/funnel-stock";
 import { computePendencias, paramsForPeriod, readPendencias, readTeamGoal } from "@/lib/crm-metrics/team-goal";
 import { deriveMeta, derivePendencias, deriveProspeccao, slimTeamGoal } from "@/lib/crm-metrics/team-goal-core.mjs";
 import { getTodayInSaoPaulo } from "@/lib/daily-report";
+import { getPerformanceOverview } from "@/lib/performance-overview";
+import { readOverview } from "@/lib/crm-metrics/overview";
+import { deriveRanking, deriveResultados, slimOverview } from "@/lib/crm-metrics/overview-core.mjs";
+import { etapaProvider } from "@/lib/alexa-v2/providers/funil";
+import { ETAPA_IDS } from "@/lib/alexa-v2/catalog.mjs";
 
 // TEMPORÁRIA (Alexa V2, etapas 3-4): paridade entre o que a voz lê (cache) e a
 // função da TELA chamada ao vivo com a sessão real do dono. Somente leitura.
@@ -63,6 +68,33 @@ export async function GET(request) {
       mine: { total: mine.total, byGroup: mine.byGroup },
       cacheAgeMinutes: cache?.ageMinutes ?? null
     };
+  }
+
+  if (which === "overview" || which === "all") {
+    const periodId = new URL(request.url).searchParams.get("periodo") || "hoje";
+    const live = slimOverview(await getPerformanceOverview(paramsForPeriod(periodId, getTodayInSaoPaulo()), auth));
+    const cached = await readOverview(periodId);
+    report.overview = { periodId, cachedAt: cached?.payload?.capturedAt || null, topics: {} };
+    for (const topic of ["vendas", "aprovacoes", "desempenho"]) {
+      const a = JSON.stringify(deriveResultados(live, topic));
+      const b = cached ? JSON.stringify(deriveResultados(cached.payload, topic)) : null;
+      report.overview.topics[topic] = { equal: a === b, live: JSON.parse(a), cache: b ? JSON.parse(b) : null };
+    }
+    for (const topic of ["melhor_dia", "ranking"]) {
+      const a = JSON.stringify(deriveRanking(live, topic));
+      const b = cached ? JSON.stringify(deriveRanking(cached.payload, topic)) : null;
+      report.overview.topics[topic] = { equal: a === b, live: JSON.parse(a), cache: b ? JSON.parse(b) : null };
+    }
+  }
+
+  if (which === "etapas" || which === "all") {
+    const screen = await getSimulationClientCounters({ auth });
+    report.etapas = {};
+    for (const etapa of ETAPA_IDS) {
+      const mine = await etapaProvider({ etapa, periodo: "hoje", kind: "count" });
+      report.etapas[etapa] = { count: mine.count };
+    }
+    report.etapas.__screenByStatus = screen.byStatus;
   }
 
   return NextResponse.json(report);
