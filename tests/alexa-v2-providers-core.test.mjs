@@ -72,7 +72,7 @@ test("agenda: horário de Brasília, dia, deduplicação e próxima reunião", (
     { today: "2026-10-07", brokerNames }
   );
   assert.equal(items.length, 2);
-  assert.deepEqual(items[0], { at: "2026-10-07T13:00:00Z", hours: 10, minutes: 0, dayOffset: 0, weekdayName: "quarta-feira", client: "João", broker: "Eduardo" });
+  assert.deepEqual(items[0], { at: "2026-10-07T13:00:00Z", hours: 10, minutes: 0, dayOffset: 0, weekdayName: "quarta-feira", client: "João", brokerId: "b2", broker: "Eduardo" });
   assert.equal(items[1].dayOffset, 2);
   assert.equal(items[1].weekdayName, "sexta-feira");
   const next = nextMeeting(items, new Date("2026-10-07T14:00:00Z"));

@@ -231,13 +231,13 @@ test("'quem bateu a meta' lista nomes; 'e o Eduardo' vira a meta do corretor", a
   const deps = makeDeps();
   deps.providers.meta = async (q) => {
     if (q.topic === "meta_bateram") return { count: 2, items: [{ name: "Bruna", percent: 120 }, { name: "Eduardo", percent: 110 }] };
-    if (q.topic === "meta_corretor") return { name: q.corretorName, percent: 110, hit: true, hasGoal: true };
     return null;
   };
+  deps.providers.corretor = async (q) => ({ name: q.corretorName, gender: "male", meta: { percent: 110, hasGoal: true, hit: true, remaining: 0 } });
   const who = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("meta_bateram", "quem bateu a meta") }), deps);
   assert.equal(text(who), "Bruna e Eduardo.");
   const howMany = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: { ...slot("meta_bateram", "bateram a meta"), value: "quantos bateram a meta" } }), deps);
   assert.match(text(howMany), /2 corretores bateram a meta/);
   const one = await handleSkillRequestV2(envelope("ContinuaIntent", { corretor: { value: "Eduardo" } }, { v2: ctxOf(howMany) }), deps);
-  assert.equal(text(one), "Eduardo está em 110 por cento da meta hoje.");
+  assert.equal(text(one), "Sim, o Eduardo bateu a meta hoje, com 110 por cento.");
 });

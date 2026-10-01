@@ -89,10 +89,10 @@ test("pendências: total, nomes por tempo sem contato, ranking e 'sem contato h�
 
 test("reconhecer corretor falado", () => {
   const matcher = makeBrokerMatcher([{ id: "b1", name: "Bruna" }, { id: "b2", name: "Eduardo" }, { id: "b6", name: "Everaldo" }, { id: "b7", name: "João" }]);
-  assert.deepEqual(matcher.match("Eduardo"), { id: "b2", name: "Eduardo" });
-  assert.deepEqual(matcher.match("o eduardo"), { id: "b2", name: "Eduardo" });
-  assert.deepEqual(matcher.match("joao"), { id: "b7", name: "João" });
-  assert.deepEqual(matcher.match("Ed"), { id: "b2", name: "Eduardo" });
+  assert.deepEqual(matcher.match("Eduardo"), { id: "b2", name: "Eduardo", gender: "" });
+  assert.deepEqual(matcher.match("o eduardo"), { id: "b2", name: "Eduardo", gender: "" });
+  assert.deepEqual(matcher.match("joao"), { id: "b7", name: "João", gender: "" });
+  assert.deepEqual(matcher.match("Ed"), { id: "b2", name: "Eduardo", gender: "" });
   assert.equal(matcher.match("E"), null);
   assert.equal(matcher.match("Zeca"), null);
   assert.equal(matcher.match(""), null);

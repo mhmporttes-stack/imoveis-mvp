@@ -124,7 +124,157 @@
             "quantas",
             "quantos são",
             "quantas são",
-            "qual o total"
+            "qual o total",
+            "como está a {assunto} da {corretor}",
+            "como está a {assunto} do {corretor}",
+            "como está o {assunto} da {corretor}",
+            "como está o {assunto} do {corretor}",
+            "qual a {assunto} da {corretor}",
+            "qual a {assunto} do {corretor}",
+            "qual é a {assunto} da {corretor}",
+            "qual é a {assunto} do {corretor}",
+            "me fale sobre a {assunto} da {corretor}",
+            "me fale sobre a {assunto} do {corretor}",
+            "me fala sobre a {assunto} da {corretor}",
+            "me fala sobre a {assunto} do {corretor}",
+            "me fale sobre {assunto} da {corretor}",
+            "quantas {assunto} a {corretor} fez",
+            "quantas {assunto} o {corretor} fez",
+            "quantas {assunto} a {corretor} fez {periodo}",
+            "quantas {assunto} o {corretor} fez {periodo}",
+            "quantas {assunto} a {corretor} teve",
+            "quantas {assunto} o {corretor} teve",
+            "quantos {assunto} a {corretor} tem",
+            "quantos {assunto} o {corretor} tem",
+            "quantos {assunto} a {corretor} teve",
+            "quantos {assunto} o {corretor} teve",
+            "quanto da {assunto} a {corretor} bateu",
+            "quanto da {assunto} o {corretor} bateu",
+            "quantos por cento da {assunto} a {corretor} bateu",
+            "quantos por cento da {assunto} o {corretor} bateu",
+            "quantos por cento a {corretor} fez da {assunto}",
+            "quantos por cento o {corretor} fez da {assunto}",
+            "a {corretor} {assunto}",
+            "o {corretor} {assunto}",
+            "{corretor} {assunto}",
+            "a {corretor} {assunto} {periodo}",
+            "o {corretor} {assunto} {periodo}",
+            "quantos clientes da {corretor} estão em {etapa}",
+            "quantos clientes do {corretor} estão em {etapa}",
+            "quantos clientes a {corretor} tem em {etapa}",
+            "quantos clientes o {corretor} tem em {etapa}",
+            "quantas {assunto} ela fez",
+            "quantas {assunto} ele fez",
+            "quantas {assunto} ela fez {periodo}",
+            "quantas {assunto} ele fez {periodo}",
+            "quantos {assunto} ela tem",
+            "quantos {assunto} ele tem",
+            "ela tem {assunto}",
+            "ele tem {assunto}",
+            "ela fez {assunto}",
+            "ele fez {assunto}",
+            "ela tem {assunto} {periodo}",
+            "ele tem {assunto} {periodo}",
+            "{assunto} dela",
+            "{assunto} dele",
+            "quantos por cento ela fez",
+            "quantos por cento ele fez",
+            "quanto da meta ela bateu",
+            "quanto da meta ele bateu",
+            "qual a {assunto} dela",
+            "qual a {assunto} dele"
+          ]
+        },
+        {
+          "name": "CorretorIntent",
+          "slots": [
+            {
+              "name": "corretor",
+              "type": "CORRETOR"
+            },
+            {
+              "name": "periodo",
+              "type": "PERIODO"
+            }
+          ],
+          "samples": [
+            "como foi o dia da {corretor}",
+            "como foi o dia do {corretor}",
+            "como foi o dia da {corretor} {periodo}",
+            "como foi o dia do {corretor} {periodo}",
+            "como foi a {corretor}",
+            "como foi o {corretor}",
+            "como foi a {corretor} {periodo}",
+            "como foi o {corretor} {periodo}",
+            "como está {corretor}",
+            "como está a {corretor}",
+            "como está o {corretor}",
+            "como está a {corretor} {periodo}",
+            "como está o {corretor} {periodo}",
+            "me fale sobre {corretor}",
+            "me fale sobre a {corretor}",
+            "me fale sobre o {corretor}",
+            "me fala sobre {corretor}",
+            "me fala sobre a {corretor}",
+            "me fala sobre o {corretor}",
+            "qual o desempenho da {corretor}",
+            "qual o desempenho do {corretor}",
+            "qual o desempenho da {corretor} {periodo}",
+            "qual o desempenho do {corretor} {periodo}",
+            "desempenho da {corretor}",
+            "desempenho do {corretor}",
+            "me dê um resumo da {corretor}",
+            "me dê um resumo do {corretor}",
+            "resumo da {corretor}",
+            "resumo do {corretor}",
+            "resumo da {corretor} {periodo}",
+            "resumo do {corretor} {periodo}",
+            "como foi {corretor} {periodo}"
+          ]
+        },
+        {
+          "name": "CompararIntent",
+          "slots": [
+            {
+              "name": "corretor",
+              "type": "CORRETOR"
+            },
+            {
+              "name": "corretor2",
+              "type": "CORRETOR"
+            },
+            {
+              "name": "assunto",
+              "type": "ASSUNTO"
+            },
+            {
+              "name": "periodo",
+              "type": "PERIODO"
+            }
+          ],
+          "samples": [
+            "compare a {corretor} com a {corretor2}",
+            "compare o {corretor} com o {corretor2}",
+            "compare a {corretor} com o {corretor2}",
+            "compare o {corretor} com a {corretor2}",
+            "compare {corretor} com {corretor2}",
+            "compare {corretor} e {corretor2}",
+            "compare a {corretor} e a {corretor2}",
+            "compare a {corretor} com a {corretor2} {periodo}",
+            "compare o {corretor} com o {corretor2} {periodo}",
+            "compare {corretor} com {corretor2} {periodo}",
+            "compare {corretor} com {corretor2} em {assunto}",
+            "compare {corretor} com {corretor2} nas {assunto}",
+            "quem fez mais {assunto} {corretor} ou {corretor2}",
+            "quem fez mais {assunto} a {corretor} ou a {corretor2}",
+            "quem fez mais {assunto} o {corretor} ou o {corretor2}",
+            "quem teve mais {assunto} {corretor} ou {corretor2}",
+            "como estão {corretor} e {corretor2}",
+            "como estão a {corretor} e a {corretor2}",
+            "como estão {corretor} e {corretor2} na {assunto}",
+            "como estão a {corretor} e a {corretor2} na {assunto}",
+            "{assunto} da {corretor} e da {corretor2}",
+            "{assunto} do {corretor} e do {corretor2}"
           ]
         },
         {
@@ -159,7 +309,13 @@
             "quem são os clientes de {assunto}",
             "quem aguarda {assunto}",
             "quem são {assunto} do {corretor}",
-            "quem são {assunto} da {corretor}"
+            "quem são {assunto} da {corretor}",
+            "quem fez mais {assunto}",
+            "quem fez mais {assunto} {periodo}",
+            "quem teve mais {assunto}",
+            "quem teve mais {assunto} {periodo}",
+            "quem {assunto}",
+            "quem {assunto} {periodo}"
           ]
         },
         {
@@ -193,7 +349,15 @@
             "e na {periodo}",
             "e no {periodo}",
             "agora {periodo}",
-            "agora {assunto}"
+            "agora {assunto}",
+            "e a {assunto}",
+            "e o {assunto}",
+            "e {assunto} dela",
+            "e {assunto} dele",
+            "e {assunto} da {corretor}",
+            "e {assunto} do {corretor}",
+            "e a {corretor} {periodo}",
+            "e o {corretor} {periodo}"
           ]
         },
         {
@@ -233,7 +397,12 @@
                 "synonyms": [
                   "meta do time",
                   "meta diaria",
-                  "meta"
+                  "meta",
+                  "meta diária",
+                  "meta de hoje",
+                  "meta do dia",
+                  "percentual da meta",
+                  "porcentagem da meta"
                 ]
               }
             },
@@ -256,7 +425,10 @@
                   "nao bateram a meta",
                   "nao bateu a meta",
                   "faltam bater a meta",
-                  "ainda nao bateu"
+                  "ainda nao bateu",
+                  "abaixo da meta",
+                  "quem está abaixo da meta",
+                  "quem não bateu a meta"
                 ]
               }
             },
@@ -268,15 +440,6 @@
                   "quanto falta para cada",
                   "quanto falta pra cada",
                   "falta para cada corretor"
-                ]
-              }
-            },
-            {
-              "id": "meta_corretor",
-              "name": {
-                "value": "meta de um corretor",
-                "synonyms": [
-                  "meta do corretor"
                 ]
               }
             },
@@ -339,7 +502,10 @@
                 "synonyms": [
                   "nao prospectou",
                   "sem prospeccao",
-                  "ainda nao prospectou"
+                  "ainda nao prospectou",
+                  "sem atividade",
+                  "quem está sem atividade",
+                  "quem não prospectou hoje"
                 ]
               }
             },
@@ -381,8 +547,7 @@
                 "value": "reuniões",
                 "synonyms": [
                   "reunioes",
-                  "agenda",
-                  "compromissos"
+                  "agenda"
                 ]
               }
             },
@@ -402,7 +567,6 @@
                 "value": "reuniões atrasadas",
                 "synonyms": [
                   "reunioes atrasadas",
-                  "atividades atrasadas",
                   "compromissos atrasados"
                 ]
               }
@@ -413,8 +577,7 @@
                 "value": "clientes sem atendimento",
                 "synonyms": [
                   "sem atendimento",
-                  "sem atendimento humano",
-                  "aguardando atendimento"
+                  "sem atendimento humano"
                 ]
               }
             },
@@ -474,7 +637,9 @@
                 "value": "vendas",
                 "synonyms": [
                   "venda",
-                  "vendeu"
+                  "vendeu",
+                  "vendas feitas",
+                  "quem vendeu"
                 ]
               }
             },
@@ -504,9 +669,7 @@
               "name": {
                 "value": "desempenho da equipe",
                 "synonyms": [
-                  "desempenho",
-                  "como esta a equipe",
-                  "como esta o time"
+                  "desempenho"
                 ]
               }
             },
@@ -564,6 +727,155 @@
                 "synonyms": [
                   "atencao",
                   "precisa de atencao"
+                ]
+              }
+            },
+            {
+              "id": "med_atendimentos",
+              "name": {
+                "value": "atendimentos",
+                "synonyms": [
+                  "atendimentos iniciados",
+                  "atendimentos feitos"
+                ]
+              }
+            },
+            {
+              "id": "med_simulacoes",
+              "name": {
+                "value": "simulações",
+                "synonyms": [
+                  "simulacoes",
+                  "simulacoes enviadas",
+                  "simulações enviadas",
+                  "simulações feitas",
+                  "quem fez mais simulações"
+                ]
+              }
+            },
+            {
+              "id": "med_documentacao",
+              "name": {
+                "value": "documentações recebidas",
+                "synonyms": [
+                  "documentacoes",
+                  "documentacao recebida",
+                  "documentacoes recebidas",
+                  "documentações",
+                  "documentação recebida",
+                  "documentos recebidos"
+                ]
+              }
+            },
+            {
+              "id": "med_aprovacao",
+              "name": {
+                "value": "clientes para aprovação",
+                "synonyms": [
+                  "clientes para aprovacao",
+                  "foram para aprovacao",
+                  "enviados para aprovacao",
+                  "clientes foram para aprovação",
+                  "clientes enviados para aprovação",
+                  "aprovações enviadas"
+                ]
+              }
+            },
+            {
+              "id": "med_reunioes",
+              "name": {
+                "value": "reuniões realizadas",
+                "synonyms": [
+                  "reunioes realizadas",
+                  "reunioes feitas",
+                  "clientes para reuniao",
+                  "reuniões feitas",
+                  "clientes para reunião"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao_faltam",
+              "name": {
+                "value": "prospecções que faltam",
+                "synonyms": [
+                  "prospeccoes que faltam",
+                  "faltam prospeccoes",
+                  "quantas prospeccoes faltam",
+                  "quantas prospecções faltam",
+                  "faltam prospecções",
+                  "prospecções restantes"
+                ]
+              }
+            },
+            {
+              "id": "posicao_ranking",
+              "name": {
+                "value": "posição no ranking",
+                "synonyms": [
+                  "posicao no ranking",
+                  "colocacao no ranking",
+                  "posicao",
+                  "posição",
+                  "colocação no ranking",
+                  "lugar no ranking"
+                ]
+              }
+            },
+            {
+              "id": "atividades_atrasadas",
+              "name": {
+                "value": "atividades atrasadas",
+                "synonyms": [
+                  "atividade atrasada",
+                  "tarefas atrasadas"
+                ]
+              }
+            },
+            {
+              "id": "acao_pendente",
+              "name": {
+                "value": "clientes aguardando ação",
+                "synonyms": [
+                  "clientes aguardando acao",
+                  "aguardando acao",
+                  "clientes aguardando atendimento",
+                  "quem tem clientes aguardando atendimento"
+                ]
+              }
+            },
+            {
+              "id": "compromissos",
+              "name": {
+                "value": "compromissos",
+                "synonyms": [
+                  "atividades agendadas"
+                ]
+              }
+            },
+            {
+              "id": "quem_reuniao",
+              "name": {
+                "value": "quem tem reunião",
+                "synonyms": [
+                  "quem tem reuniao",
+                  "quem tem reuniões"
+                ]
+              }
+            },
+            {
+              "id": "equipe_resumo",
+              "name": {
+                "value": "como está minha equipe",
+                "synonyms": [
+                  "minha equipe",
+                  "como esta minha equipe",
+                  "como esta a equipe",
+                  "como esta o time",
+                  "situacao da equipe",
+                  "como está a equipe",
+                  "como está o time",
+                  "situação da equipe"
                 ]
               }
             },
@@ -744,7 +1056,11 @@
             {
               "name": {
                 "value": "Bencke",
-                "synonyms": []
+                "synonyms": [
+                  "Benke",
+                  "Benque",
+                  "Bencki"
+                ]
               }
             },
             {
@@ -756,37 +1072,63 @@
             {
               "name": {
                 "value": "Caroline",
-                "synonyms": []
+                "synonyms": [
+                  "Carol",
+                  "Carolaine"
+                ]
               }
             },
             {
               "name": {
                 "value": "Eduardo",
-                "synonyms": []
+                "synonyms": [
+                  "Edu",
+                  "Dudu"
+                ]
               }
             },
             {
               "name": {
                 "value": "Izabela",
-                "synonyms": []
+                "synonyms": [
+                  "Isabela",
+                  "Izabel",
+                  "Isabel",
+                  "Iza"
+                ]
               }
             },
             {
               "name": {
                 "value": "Jennyfer",
-                "synonyms": []
+                "synonyms": [
+                  "Jenifer",
+                  "Jennifer",
+                  "Jeniffer",
+                  "Jeny",
+                  "Jenny"
+                ]
               }
             },
             {
               "name": {
                 "value": "Ketlin",
-                "synonyms": []
+                "synonyms": [
+                  "Ketlyn",
+                  "Kétlin",
+                  "Kathleen",
+                  "Katlin",
+                  "Ketlen",
+                  "Ketilin"
+                ]
               }
             },
             {
               "name": {
                 "value": "Luan",
-                "synonyms": []
+                "synonyms": [
+                  "Luã"
+                ]
               }
             },
             {

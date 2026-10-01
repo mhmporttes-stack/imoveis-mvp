@@ -50,6 +50,7 @@
 
 | Função | Papel |
 |---|---|
+| `crm_status_counts_by_broker()` | clientes por responsável e status em uma consulta agrupada (estoque por corretor da voz; só service role) |
 | `crm_status_counts()` | contagem de clientes por status em uma consulta (usada pela voz e pelos snapshots; só service role) |
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
 | `assign_round_robin_lead(excluded)` | roleta simples (reserva/fallback; **não alterar**) |
