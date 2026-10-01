@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Cliente "Pago" some da lista de Clientes, continua acessível pelo Financeiro
+- **Data:** 2026-10-01
+- **Área:** Clientes / Financeiro
+- **Alteração:** cliente com status `sale_paid` ("Pago") deixou de aparecer em qualquer aba/busca/contador da tela Clientes (`lib/simulation-list-query.js`: `applyScopedFilters` e o contador "Todos" excluem o status). O cadastro continua existindo normalmente (nada é apagado; funil, pontuação e ranking não são afetados) — só não navega/busca mais até ele ali. Novo parâmetro `pinClientId` em `listSimulationClientsPage` busca um cliente específico por id ignorando esse filtro (mas respeitando escopo de responsável/permissão), usado quando a URL traz `?clientId=`. `AdminFinancialDashboard.jsx` ganhou um link "Ver cliente" na edição de uma venda, abrindo `/admin/simulacoes?clientId=<id>` — o único caminho de volta ao card a partir de agora.
+- **Motivo:** pedido do dono — "gostaria que após a venda ser paga ela saísse dali [Clientes] e ficasse apenas no financeiro, o card do cliente deve ainda existir porém eu só consigo acessá-lo pelo financeiro [...] pra ter uma visão mais limpa e menos poluída".
+- **Arquivos afetados:** `lib/simulation-list-query.js`, `app/api/simulation-registrations/list/route.js`, `app/admin/simulacoes/page.jsx`, `components/clients/useClientList.js`, `components/clients/ClientWorkspace.jsx`, `components/AdminFinancialDashboard.jsx`.
+- **Risco/observação:** o sub-chip "Pago X" na barra de etapas da aba Venda sempre mostra 0 a partir de agora (consequência esperada: o status é excluído da contagem em todo lugar). Não testado com sessão autenticada real (sem credenciais de admin disponíveis nesta sessão) — baseado em revisão cuidadosa do código e confirmação via SQL direto de que o cliente de teste (Isabella Borges, `sale_paid`) seria afetado como esperado. `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Correção: marcar venda como "Pago" agora lança o recebimento (conta no mês certo)
 - **Data:** 2026-10-01
 - **Área:** Financeiro
