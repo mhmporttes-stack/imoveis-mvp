@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, History } from "lucide-react";
+import { X, History, ListRestart } from "lucide-react";
 import Avatar from "@/components/Avatar";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
@@ -60,7 +60,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
   }, [period]);
 
   const presenceById = useTeamPresence();
-  const automationById = useAutomationStatus();
+  const [automationById, refetchAutomation] = useAutomationStatus();
 
   return (
     <section className="container-page space-y-6">
@@ -94,6 +94,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 presenceStatus={presenceById[broker.brokerId]}
                 automation={automationById[broker.brokerId]}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
+                onRequeued={refetchAutomation}
               />
             ))}
           </div>
@@ -207,19 +208,26 @@ const GOOGLE_CONTACTS_STATUS_LABELS = {
 function useAutomationStatus() {
   const [statusById, setStatusById] = useState({});
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/daily-goal-auto")
+  const load = (cancelledRef = { current: false }) => {
+    return fetch("/api/admin/daily-goal-auto")
       .then((response) => response.json())
       .then((data) => {
-        if (cancelled || !data?.brokers) return;
+        if (cancelledRef.current || !data?.brokers) return;
         setStatusById(Object.fromEntries(data.brokers.map((broker) => [broker.brokerId, broker])));
       })
       .catch(() => {});
-    return () => { cancelled = true; };
+  };
+
+  useEffect(() => {
+    const cancelledRef = { current: false };
+    load(cancelledRef);
+    return () => { cancelledRef.current = true; };
   }, []);
 
-  return statusById;
+  // refetch exposto pra depois de uma ação que muda o estado da automação
+  // (ex.: reorganizar a fila) sem precisar recarregar a tela inteira —
+  // pedido do dono, 2026-10-02.
+  return [statusById, load];
 }
 
 // Intervalo médio REAL entre os horários já agendados hoje pra esse
@@ -251,7 +259,8 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, onClick }) {
+function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued }) {
+  const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
   // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
@@ -273,11 +282,39 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
     : "bg-emerald-50 text-emerald-700"
     : "";
 
+  // Reorganiza a fila de disparos de hoje deste corretor (pedido do dono,
+  // 2026-10-02): cancela os itens pendentes/atrasados e gera uma agenda
+  // nova, espalhada a partir de agora. stopPropagation pra não abrir o
+  // painel "Desempenho de Hoje" junto (o card inteiro é clicável).
+  async function handleRequeue(event) {
+    event.stopPropagation();
+    if (requeuing) return;
+    setRequeuing(true);
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto/requeue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId: broker.brokerId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      await onRequeued?.();
+    } catch {
+      // Falha pontual — o corretor pode tentar de novo; não trava o card.
+    } finally {
+      setRequeuing(false);
+    }
+  }
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="rounded-[22px] border border-line bg-white p-5 text-left shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition hover:-translate-y-0.5 hover:border-brand/40"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); }
+      }}
+      className="cursor-pointer rounded-[22px] border border-line bg-white p-5 text-left shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition hover:-translate-y-0.5 hover:border-brand/40"
     >
       <div className="flex items-center gap-3">
         <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
@@ -330,9 +367,23 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
       </p>
 
       {automation ? (
-        <p className="mt-1 text-center text-xs font-bold text-muted">
-          Próximo {formatNextDispatchCompact(automation)} · Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}
-        </p>
+        <div className="mt-1 flex items-center justify-center gap-1">
+          <p className="text-center text-xs font-bold text-muted">
+            Próximo {formatNextDispatchCompact(automation)} · Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}
+          </p>
+          {automation.enabled ? (
+            <button
+              type="button"
+              onClick={handleRequeue}
+              disabled={requeuing}
+              title="Reorganizar fila de disparos (cancela pendentes/atrasados e reagenda do zero)"
+              aria-label="Reorganizar fila de disparos"
+              className="shrink-0 rounded-full p-1 text-muted transition hover:bg-mist hover:text-brand disabled:opacity-50"
+            >
+              <ListRestart className={`h-3.5 w-3.5 ${requeuing ? "animate-spin" : ""}`} />
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {broker.wallet ? (
@@ -351,7 +402,7 @@ function BrokerCard({ broker, presenceStatus, automation, onClick }) {
       <p className="mt-3 text-center text-xs font-extrabold uppercase tracking-[0.08em] text-brand">
         Conversão {formatRate(broker.conversao)}
       </p>
-    </button>
+    </div>
   );
 }
 
