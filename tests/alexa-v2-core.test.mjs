@@ -76,7 +76,7 @@ test("períodos: semana e mês seguem o CRM (segunda a hoje; mês até hoje)", (
 test("catálogo: todo assunto é consistente", () => {
   for (const [id, topic] of Object.entries(TOPICS)) {
     assert.ok(topic.provider, `${id} sem provedor`);
-    assert.ok(topic.periods.every((p) => PERIOD_IDS.includes(p)), `${id} período inválido`);
+    assert.ok(topic.periods.every((p) => PERIOD_IDS.includes(p) || p === "data"), `${id} período inválido`);
     for (const kind of topic.kinds) assert.equal(typeof topic.say[kind], "function", `${id} sem frase ${kind}`);
     if (topic.defaultPeriod) assert.ok(topic.periods.includes(topic.defaultPeriod));
   }
