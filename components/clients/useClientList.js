@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { normalizeClientStatus } from "@/lib/client-status";
+import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
@@ -39,6 +39,7 @@ export function useClientList({
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [busyClientId, setBusyClientId] = useState("");
   const [dncTarget, setDncTarget] = useState(null);
+  const [receivedDateTarget, setReceivedDateTarget] = useState(null);
 
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
@@ -234,14 +235,12 @@ export function useClientList({
     });
   }
 
-  async function updateClientStatus(client, status) {
-    const nextStatus = normalizeClientStatus(status);
-    if (nextStatus === client.status) return;
+  async function applyStatusUpdate(client, nextStatus, { receivedDate } = {}) {
     await withBusy(client, async () => {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus })
+        body: JSON.stringify({ status: nextStatus, ...(receivedDate ? { receivedDate } : {}) })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -251,6 +250,31 @@ export function useClientList({
       patchClientRegistration(client.id, { ...data, status: nextStatus }, { refreshAfter: true });
       notify("Etapa atualizada.");
     });
+  }
+
+  // Cliente indo para "Pago" (fim do pipeline de venda) pede a data do
+  // recebimento antes de gravar — pedido do dono, 2026-10-01: "sempre que eu
+  // lançar uma venda como paga quero [...] me perguntando qual a data do
+  // recebimento" (sem isso, o recebimento automático (lib/financial.js) usava
+  // sempre o dia de hoje, e podia cair no mês errado se o lançamento no CRM
+  // acontecesse depois do dia real do pagamento). Mesmo padrão de dncTarget
+  // (motivo de "não contactar"): a tela mostra um diálogo, e só grava depois
+  // de confirmado.
+  async function updateClientStatus(client, status) {
+    const nextStatus = normalizeClientStatus(status);
+    if (nextStatus === client.status) return;
+    if (nextStatus === CLIENT_STATUS.SALE_PAID) {
+      setReceivedDateTarget({ client, nextStatus });
+      return;
+    }
+    await applyStatusUpdate(client, nextStatus);
+  }
+
+  async function confirmReceivedDate(receivedDate) {
+    const target = receivedDateTarget;
+    if (!target) return;
+    setReceivedDateTarget(null);
+    await applyStatusUpdate(target.client, target.nextStatus, { receivedDate });
   }
 
   async function updateClientResponsibleUser(client, responsibleUserId) {
@@ -577,12 +601,13 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId, dncTarget, responsibleProfiles, responsibleProfileMap,
+    loading, loadError, localTags, busyClientId, dncTarget, receivedDateTarget, responsibleProfiles, responsibleProfileMap,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
     activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser,
     handleProspectingAction, confirmDoNotContact, cancelDoNotContact: () => setDncTarget(null),
+    confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
     saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, copyBrokerSimulationLink, getScheduleDraft
   };

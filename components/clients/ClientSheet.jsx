@@ -180,6 +180,12 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         onCancel={list.cancelDoNotContact}
         onConfirm={list.confirmDoNotContact}
       />
+
+      <ReceivedDateDialog
+        target={list.receivedDateTarget}
+        onCancel={list.cancelReceivedDate}
+        onConfirm={list.confirmReceivedDate}
+      />
     </>
   );
 }
@@ -699,6 +705,63 @@ function DoNotContactDialog({ client, onCancel, onConfirm }) {
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
             <Button type="submit" variant="danger" disabled={invalid}>Confirmar</Button>
+          </div>
+        </form>
+      ) : null}
+    </dialog>
+  );
+}
+
+function todayDateInputValue() {
+  const now = new Date();
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(now)
+      .map((part) => [part.type, part.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+// Data do recebimento ao marcar um cliente como "Pago" (fim do pipeline de
+// venda) — pedido do dono, 2026-10-01: o recebimento automático
+// (lib/financial.js) precisa contar no mês certo, que nem sempre é o dia em
+// que alguém mexe no CRM (ex.: lançamento atrasado, cliente pagou num dia e
+// o status só foi mudado depois). Mesmo padrão de DoNotContactDialog: só
+// grava depois de confirmado; "target" é { client, nextStatus }.
+function ReceivedDateDialog({ target, onCancel, onConfirm }) {
+  const ref = useRef(null);
+  const [receivedDate, setReceivedDate] = useState(todayDateInputValue());
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (target && !dialog.open) {
+      setReceivedDate(todayDateInputValue());
+      dialog.showModal();
+    }
+    if (!target && dialog.open) dialog.close();
+  }, [target]);
+
+  return (
+    <dialog ref={ref} aria-labelledby={titleId} className="ui-confirm" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
+      {target ? (
+        <form className="p-5 sm:p-6" onSubmit={(event) => { event.preventDefault(); if (receivedDate) onConfirm(receivedDate); }}>
+          <h2 id={titleId} className="text-base font-semibold text-ink">Data do recebimento</h2>
+          <p className="mt-1 text-sm text-ink-2">
+            {target.client?.name || "Este cliente"} vai para "Pago" — em que dia o pagamento foi recebido? Essa data é a que conta nos totais mensais do Financeiro.
+          </p>
+          <input
+            type="date"
+            className={cx(inputClasses, "mt-4")}
+            value={receivedDate}
+            onChange={(event) => setReceivedDate(event.target.value)}
+            aria-label="Data do recebimento"
+            required
+          />
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+            <Button type="submit" disabled={!receivedDate}>Confirmar</Button>
           </div>
         </form>
       ) : null}
