@@ -78,6 +78,8 @@ Desde 2026-10-01 o `scheduled-activities` também roda, no máximo 1 vez por dia
 
 `lib/google-contacts.js` (+ `google-contacts-config*.js`/`.mjs`, OAuth por corretor, tokens cifrados com `lib/secrets-crypto.js`): salva o cliente na agenda do Google do corretor antes do envio automático da Meta Diária. Best-effort e isolado do WhatsApp individual — erro aqui nunca derruba a sessão nem o envio.
 
+**[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-01] Nome do contato no Google.** O contato é salvo no Google Contacts do corretor como `Cliente {nome completo do cliente}` (ex.: CRM "Fabiane Silva" → Google "Cliente Fabiane Silva"), sem nunca repetir o prefixo. O prefixo existe **só no Google**: nome do cliente no CRM e no banco não mudam; telefone, identificação do contato existente (corretor + telefone) e o fluxo de disparo continuam iguais. Implementação: `lib/google-contacts-name.mjs` (`buildGoogleContactName`), usado em `ensureClientInBrokerContacts`. Detalhes: `docs/BUSINESS_RULES.md` MD-9.
+
 ## Push
 
 Ver `.claude/rules/automacoes-notificacoes.md` (Web Push nativo com VAPID, sem serviço terceiro).

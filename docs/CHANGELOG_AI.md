@@ -44,6 +44,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Google Contacts: contato salvo como "Cliente {nome}"
+- **Data:** 2026-10-01
+- **Área:** Meta Diária (automação) / Integrações
+- **Alteração:** o nome enviado ao Google ao criar o contato do cliente na agenda do corretor passa a ser `Cliente {nome completo}`. A função nova `buildGoogleContactName` (`lib/google-contacts-name.mjs`) é idempotente: nunca gera "Cliente Cliente". Sem nome, o contato é salvo como `Cliente {telefone}`. Ela é usada em `ensureClientInBrokerContacts`, no lugar da linha que montava o nome.
+- **Motivo:** pedido do dono.
+- **Sem mudança em:** nome do cliente no CRM e banco de clientes, telefone, identificação do contato existente (corretor + telefone, sem duplicar), salvar/confirmar antes do envio e fluxo de disparo.
+- **Arquivos afetados:** `lib/google-contacts-name.mjs` (novo), `lib/google-contacts.js` (1 linha + import), `tests/google-contacts-name.test.mjs` (novo), `.claude/rules/integracoes-externas.md`, `docs/BUSINESS_RULES.md` MD-9.
+- **Risco/observação:**
+  - Os 85 contatos já sincronizados antes desta mudança mantêm o nome antigo no Google, porque a integração só cria contatos e nunca os atualiza. Renomeá-los exige um fluxo novo de atualização (A CONFIRMAR).
+  - Validação real com a conta Google não pôde ser feita deste ambiente: os tokens são cifrados e a chave só existe na Vercel. Fica para o primeiro contato novo sincronizado após o deploy.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Cliente "Pago" some da lista de Clientes, continua acessível pelo Financeiro
 - **Data:** 2026-10-01
 - **Área:** Clientes / Financeiro
