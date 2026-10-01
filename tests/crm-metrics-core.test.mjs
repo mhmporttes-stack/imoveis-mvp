@@ -38,3 +38,16 @@ test("janela de validade do cache", () => {
   assert.deepEqual(cacheFreshness("invalido", 10, now), { fresh: false, ageMinutes: null });
   assert.deepEqual(cacheFreshness("2026-10-07T15:05:00Z", 10, now), { fresh: true, ageMinutes: 0 });
 });
+
+test("grupo Todos exclui 'Não contactar' (igual à tela), mas o total e o status o incluem", () => {
+  const keep = (status) => status;
+  const rows = [
+    { status: "pending", total: 10 },
+    { status: "do_not_contact", total: 4 }
+  ];
+  const result = aggregateStatusCounts(rows, keep, [{ key: "all", statuses: [] }, { key: "archived", statuses: ["archived", "do_not_contact"] }]);
+  assert.equal(result.total, 14);
+  assert.equal(result.byStatus.do_not_contact, 4);
+  assert.equal(result.byGroup.all, 10);
+  assert.equal(result.byGroup.archived, 4);
+});
