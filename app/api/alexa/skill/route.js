@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 10;
 
-// Endpoint da skill privada "Central Machado". Só aceita chamadas assinadas
+// Endpoint da skill privada "CRM". Só aceita chamadas assinadas
 // pela Amazon, da nossa skill e de um usuário Alexa autorizado. Somente leitura.
 export async function POST(request) {
   const config = getSkillConfig();

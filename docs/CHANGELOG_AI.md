@@ -981,3 +981,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/alexa-v2/*` (catálogo, roteador, períodos, texto, sanitização, provedores), `lib/crm-metrics/*` (cache, snapshots, jobs, Meta/Desempenho pré-calculados), `lib/alexa-skill.js`, `app/api/cron/crm-snapshots/route.js`, `scripts/build-alexa-model.mjs`, `docs/alexa-interaction-model.json`, migration `20261001190000_crm_metric_snapshots_cache.sql`.
 - **Risco/observação:** os números da voz vêm das MESMAS funções das telas (Meta da Equipe, Desempenho, Clientes, Presença); testes de paridade confirmaram igualdade. Histórico de estoque (funil, pendências "ontem") começa na ativação dos snapshots. Lista de corretores do modelo de voz é fixa (acrescentar corretor novo em `scripts/build-alexa-model.mjs` e reimportar). Nunca fala CPF, telefone ou documentos; listas têm no máximo 5 nomes ("e mais N"; "mais" continua).
 - **Autor:** Claude Code
+
+### 2026-10-01 — Alexa: tratamento "Machado", invocação "CRM" e aniversários na rotina de chegada
+- **Data:** 2026-10-01
+- **Área:** Alexa
+- **Alteração:** a Alexa chama o dono de "Machado" nas saudações e no resumo (rotina de chegada e "como estamos"); a skill passou a abrir com "Alexa, abrir CRM" (nome de invocação `crm` no modelo); o resumo da rotina de chegada ganhou, no FINAL, a frase de aniversariantes do dia ("Machado, além disso, hoje três clientes fazem aniversário: Jean, Adalberto e Júnior."), omitida quando não há ninguém.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/alexa-config-core.mjs` (`OWNER_SPOKEN_NAME`, `isBirthdayOn`, `birthdayFirstNames`, `composeBirthdaySentence`, `composeArrivalSummary`), `lib/alexa-arrival.js`, `lib/alexa-v2/providers/resumo.js`, `lib/alexa-skill-core.mjs`, `scripts/build-alexa-model.mjs`, `docs/alexa-interaction-model.json`.
+- **Risco/observação:** aniversários NÃO têm tabela própria: a Agenda os calcula na hora a partir de `simulation_registrations.oldest_birth_date` (dia/mês; 1900 = sem data; 29/02 cai em 28/02) e a voz reutiliza `listBirthdayRegistrations` com o mesmo escopo da Agenda (clientes do próprio dono). Sem duplicados (por id ou nome completo). Só primeiros nomes. O modelo de voz precisa ser reimportado no Console (invocação).
+- **Autor:** Claude Code

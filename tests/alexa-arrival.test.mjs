@@ -135,3 +135,47 @@ test("resumo muito longo corta o item menos prioritário e nunca passa do limite
   assert.ok(text.length <= MAX_SUMMARY_LENGTH, `tamanho ${text.length}`);
   assert.ok(text.startsWith("Bom dia, Matheus."));
 });
+
+// --- Aniversários e tratamento "Machado" ----------------------------------------
+import { OWNER_SPOKEN_NAME, birthdayFirstNames, composeBirthdaySentence, isBirthdayOn } from "../lib/alexa-config-core.mjs";
+
+const person = (id, fullName, oldestBirthDate) => ({ id, fullName, oldestBirthDate });
+const MAY20 = [person("1", "jean silva", "1985-05-20"), person("2", "ADALBERTO souza", "1990-05-20"), person("3", "Júnior Lima", "2001-05-20")];
+
+test("tratamento do dono é 'Machado'", () => {
+  assert.equal(OWNER_SPOKEN_NAME, "Machado");
+  assert.ok(composeArrivalSummary({ name: OWNER_SPOKEN_NAME, minutesOfDay: 600 }).startsWith("Bom dia, Machado."));
+});
+
+test("aniversários: nenhum, 1, 2 e 3 (frase no final, só primeiro nome)", () => {
+  assert.equal(composeBirthdaySentence([]), "");
+  assert.equal(composeBirthdaySentence(["Jean"]), "Machado, além disso, hoje um cliente faz aniversário: Jean.");
+  assert.equal(composeBirthdaySentence(["Jean", "Adalberto"]), "Machado, além disso, hoje dois clientes fazem aniversário: Jean e Adalberto.");
+  assert.equal(composeBirthdaySentence(["Jean", "Adalberto", "Júnior"]), "Machado, além disso, hoje três clientes fazem aniversário: Jean, Adalberto e Júnior.");
+  assert.equal(composeBirthdaySentence(["A", "B", "C", "D", "E", "F", "G"]), "Machado, além disso, hoje sete clientes fazem aniversário: A, B, C, D, E e mais 2.");
+  const none = composeArrivalSummary({ name: "Machado", minutesOfDay: 600, awaitingSimulation: 1, birthdays: [] });
+  assert.ok(!/anivers/i.test(none));
+  const three = composeArrivalSummary({ name: "Machado", minutesOfDay: 600, awaitingSimulation: 1, birthdays: ["Jean", "Adalberto", "Júnior"] });
+  assert.ok(three.startsWith("Bom dia, Machado. Temos 1 cliente aguardando simulação."));
+  assert.ok(three.endsWith("Machado, além disso, hoje três clientes fazem aniversário: Jean, Adalberto e Júnior."));
+});
+
+test("aniversário usa dia/mês de hoje (Brasília), ignora 1900 e duplicados", () => {
+  const names = birthdayFirstNames([...MAY20, person("1", "jean silva", "1985-05-20"), person("9", "Jean  Silva", "1985-05-20"), person("4", "Sem Data", "1900-05-20"), person("5", "Outro Dia", "1990-05-21")], "2026-05-20", (v) => String(v).split(" ")[0]);
+  assert.deepEqual(names, ["jean", "ADALBERTO", "Júnior"]);
+  assert.deepEqual(birthdayFirstNames(MAY20, "2026-05-19"), []);
+  assert.equal(isBirthdayOn("2000-02-29", "2027-02-28"), true);
+  assert.equal(isBirthdayOn("2000-02-29", "2028-02-28"), false);
+  assert.equal(isBirthdayOn("2000-02-29", "2028-02-29"), true);
+  assert.equal(isBirthdayOn("", "2026-05-20"), false);
+});
+
+test("o resumo não corta o aniversário: o corte vale para o resto", () => {
+  const text = composeArrivalSummary({
+    name: "Machado", minutesOfDay: 600, agenda: { count: 3, nextTime: { h: 10, m: 0 } },
+    awaitingSimulation: 30, documentsPending: 20, awaitingApproval: 10,
+    goalDoneNames: ["Bruna", "Eduardo", "Izabela"], salesToday: 4, birthdays: ["Jean", "Adalberto", "Júnior"]
+  });
+  assert.ok(text.endsWith("Jean, Adalberto e Júnior."));
+  assert.ok(text.length <= 300);
+});

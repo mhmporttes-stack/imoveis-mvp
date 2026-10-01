@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "central machado",
+      "invocationName": "crm",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
