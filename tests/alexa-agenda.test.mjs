@@ -108,3 +108,56 @@ test("modelo de voz inclui a agenda pessoal sem conflitos", () => {
   const periodo = language.types.find((type) => type.name === "PERIODO").values.find((value) => value.id === "depois_amanha");
   assert.equal(periodo.name.value, "depois de amanhã");
 });
+
+// --- Datas específicas e dias da semana ---------------------------------------------
+import { dateSpoken, nextWeekday, parseDateSlot } from "../lib/alexa-v2/periods.mjs";
+
+test("datas: dia e mês, dia do mês, dia da semana e próxima ocorrência (hoje = quarta 07/10/2026)", () => {
+  assert.equal(parseDateSlot("2026-10-08", TODAY), "2026-10-08");
+  assert.equal(parseDateSlot("XXXX-10-20", TODAY), "2026-10-20");
+  assert.equal(parseDateSlot("XXXX-XX-15", TODAY), "2026-10-15");
+  assert.equal(parseDateSlot("XXXX-XX-03", TODAY), "2026-11-03", "dia do mês já passado -> próximo mês");
+  assert.equal(parseDateSlot("2026-10-01", TODAY), "2027-10-01", "sem ano e já passou -> próxima ocorrência");
+  assert.equal(parseDateSlot("XXXX-02-29", TODAY), "2028-02-29", "29/02 espera o ano bissexto");
+  assert.equal(parseDateSlot("2026-W41-5", TODAY), "2026-10-09", "sexta");
+  assert.equal(parseDateSlot("sexta-feira", TODAY), "2026-10-09");
+  assert.equal(parseDateSlot("segunda", TODAY), "2026-10-12");
+  assert.equal(parseDateSlot("quarta", TODAY), TODAY, "o próprio dia conta");
+  assert.equal(parseDateSlot("dia 15", TODAY), "2026-10-15");
+  assert.equal(parseDateSlot("20 de outubro", TODAY), "2026-10-20");
+  assert.equal(parseDateSlot("2026-10", TODAY), null);
+  assert.equal(parseDateSlot("2026-02-30", TODAY), null);
+  assert.equal(parseDateSlot("", TODAY), null);
+  assert.equal(nextWeekday(6, TODAY), "2026-10-10");
+  assert.equal(dateSpoken("2026-10-09", TODAY), "na sexta-feira, dia 9 de outubro");
+  assert.equal(dateSpoken("2026-10-10", TODAY), "no sábado, dia 10 de outubro");
+  assert.equal(resolvePeriod("d:2026-10-08", TODAY).startDate, "2026-10-08");
+  assert.deepEqual(agendaRange("d:2026-10-20", TODAY), { startDate: "2026-10-20", endDate: "2026-10-20" });
+});
+
+test("agenda por data: dia 8 de outubro, sexta-feira, dia 15, no dia seguinte e primeira", async () => {
+  const say = conversation({ "d:2026-10-08": TOMORROW, "d:2026-10-09": [{ at: "2026-10-09T13:00:00Z", type: "reuniao", title: "", clientName: "Ana", clientId: "9" }], "d:2026-10-15": [], "d:2026-10-20": [] });
+  assert.equal(
+    await say("AgendaDataIntent", { data: { value: "2026-10-08" } }),
+    "Na quinta-feira, dia 8 de outubro, você tem 3 atividades. Às 9 horas, reunião com João. Às 14 horas, retorno para Maria. E às 16 horas, documentação de Carlos."
+  );
+  assert.equal(await say("PrimeiraIntent"), "A primeira é às 9 horas, reunião com João.");
+  assert.equal(await say("DiaSeguinteIntent"), "Na sexta-feira, dia 9 de outubro, você tem 1 atividade. Às 10 horas, reunião com Ana.");
+  assert.equal(await say("DiaAnteriorIntent"), "Na quinta-feira, dia 8 de outubro, você tem 3 atividades. Às 9 horas, reunião com João. Às 14 horas, retorno para Maria. E às 16 horas, documentação de Carlos.");
+  assert.equal(await say("AgendaDataIntent", { data: { value: "sexta-feira" } }), "Na sexta-feira, dia 9 de outubro, você tem 1 atividade. Às 10 horas, reunião com Ana.");
+  assert.equal(await say("AgendaDataIntent", { data: { value: "XXXX-XX-15" } }), "Você não tem nenhuma atividade agendada para quinta-feira, dia 15 de outubro.");
+  assert.equal(await say("AgendaDataIntent", { data: { value: "XXXX-10-20" } }), "Você não tem nenhuma atividade agendada para terça-feira, dia 20 de outubro.");
+  assert.match(await say("AgendaDataIntent", { data: { value: "2026-10" } }), /Não entendi a data/);
+  const noCtx = conversation({});
+  assert.match(await noCtx("DiaSeguinteIntent"), /De qual agenda/);
+});
+
+test("modelo: intenção de data usa AMAZON.DATE e as frases naturais do pedido", () => {
+  const model = buildInteractionModel({ brokers: [{ id: "i1", name: "Izabela", fullName: "Izabela Silvério" }] });
+  assert.deepEqual(auditModel(model), []);
+  const intents = model.interactionModel.languageModel.intents;
+  const date = intents.find((intent) => intent.name === "AgendaDataIntent");
+  assert.deepEqual(date.slots, [{ name: "data", type: "AMAZON.DATE" }]);
+  for (const sample of ["o que tenho agendado dia {data}", "quais atividades tenho na {data}", "o que tenho {data}", "tenho compromisso dia {data}", "qual minha agenda para {data}", "o que tenho agendado para {data}"]) assert.ok(date.samples.includes(sample), sample);
+  assert.ok(intents.find((intent) => intent.name === "DiaSeguinteIntent").samples.includes("e no dia seguinte"));
+});
