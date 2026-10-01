@@ -547,7 +547,10 @@
                 "value": "reuniões",
                 "synonyms": [
                   "reunioes",
-                  "agenda"
+                  "agenda",
+                  "reunião",
+                  "reuniões marcadas",
+                  "agenda do dia"
                 ]
               }
             },
