@@ -21,7 +21,7 @@
 - Exceções com policy pública: `testimonials` (leitura dos publicados) e `admin_users` (“managed by service role”, reforço). O site público lê o catálogo por `lib/public-properties.js`/`lib/public-testimonials.js`.
 - O navegador usa a **anon key** só para o Supabase Auth (login/reset) e para o canal Realtime (Broadcast) do Chat; nunca lê tabelas.
 
-## 3. Tabelas por domínio (73 = 72 em migrations + `properties` em `schema.sql`)
+## 3. Tabelas por domínio (74 = 73 em migrations + `properties` em `schema.sql`)
 
 | Domínio | Tabelas |
 |---|---|
@@ -37,6 +37,7 @@
 | Meta Diária | `daily_goals`, `daily_goal_rounds`, `daily_goal_attempts`, `daily_goal_quota_versions`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides` (sem tela), `daily_goal_broker_messages`, `daily_goal_do_not_contact_log`, `daily_goal_abuse_flags`, `daily_goal_pending_freeze` (pendentes congelados por corretor/dia — migration `20260925140000`, aplicada em produção em 2026-09-25) |
 | Pontuação | `scoring_rule_versions` (versionada por vigência, incluindo presença, intervalo em minutos, bônus diário de presença e penalidade da meta; migration `20260928040000`), `scoring_manual_adjustments` |
 | Automação / notificação | `crm_automation_rules`, `crm_automation_executions` (idempotência), `crm_notifications`, `crm_settings` (id → JSON: `whatsapp_master`, `daily_goal_messages`, `daily_message_settings`, `daily_report_dispatch`, `client_journey_statuses`, `client_journey_copy`, …) |
+| Supervisão | `supervision_messages` (mensagens internas gestor/admin ↔ corretor, confirmação OK/resposta; migration `20261001210000`, aplicada em produção em 2026-10-01) — RLS ligada, só service role |
 | Mensagem diária | `daily_message_cards`, `daily_message_dispatches`, `daily_message_user_history` |
 | Documentação / CCA | `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `cca` |
 | IA | `ai_usage_log` |
@@ -103,6 +104,7 @@ Removido: `daily-broker-performance-whatsapp-once-a-day` (`20260922200000`). Nã
 
 - Buckets (nome padrão / variável): `property-media` (`SUPABASE_STORAGE_BUCKET`, público — imóveis e fotos de captação), `testimonials` (`SUPABASE_TESTIMONIALS_BUCKET`), `property-documents` (`SUPABASE_PROPERTY_DOCS_BUCKET`), `broker-avatars` (`SUPABASE_BROKER_AVATARS_BUCKET`), `whatsapp-chat-media` (`SUPABASE_CHAT_MEDIA_BUCKET`, **criado como público**, limite 10 MB, ~4 MB por upload na Vercel), `client-documents` (`SUPABASE_CLIENT_DOCS_BUCKET`, privado: upload por URL assinada; leitura por URL assinada de 10 min), `whatsapp-inbound-media` (`SUPABASE_INBOUND_MEDIA_BUCKET`, **privado**, criado pelo código; áudio recebido do cliente, servido por rota autenticada).
 - Realtime **Broadcast** do Chat: o servidor faz `POST /realtime/v1/api/broadcast` com tópico derivado por HMAC (`wa-chat-<hash>`, não adivinhável) e sem dados; o navegador refaz a busca pela API autenticada (há polling lento de segurança). Ver `WHATSAPP.md`.
+- Realtime **Broadcast** das mensagens de supervisão: mesmo padrão, mas tópico **por usuário** (`sup-<hmac(userId)>`), entregue só ao próprio usuário por `/api/admin/supervision-messages/{pending,unread}` — `lib/supervision-messages.js`.
 
 ## 7. Regras de schema a nunca quebrar
 

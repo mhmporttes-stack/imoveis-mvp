@@ -22,6 +22,9 @@ paths:
   - "app/api/cron/scheduled-activities/**"
   - "app/api/cron/daily-report/**"
   - "public/sw.js"
+  - "lib/supervision-messages*"
+  - "components/supervision/**"
+  - "app/api/admin/supervision-messages/**"
 ---
 
 # Automações, notificações, push e mensagem diária
@@ -55,3 +58,10 @@ Card motivacional/devocional mostrado aos corretores uma vez por dia — **não 
 ## Log de histórico de cliente
 
 `logClientJourneyEvent`/`logClientJourneyEvents` (`lib/client-journey.js`) é o **ponto único de escrita** na timeline do cliente (`client_journey_events`) para qualquer ação nova do CRM que deve aparecer no histórico — nunca um INSERT direto espalhado pelo código. Use a versão em lote (`logClientJourneyEvents`) quando registrar mais de um evento na mesma ação, em vez de um loop chamando a versão singular (N+1 real já corrigido em `lib/client-tags.js`).
+
+## Mensagens internas de supervisão (gestor ↔ corretor)
+
+**[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-01] Mensagem da supervisão.** Gestor/admin abre um mini-chat pelo ícone de chat no card do corretor (Supervisão › Meta Diária) e envia mensagens ao corretor. No corretor, a mensagem aparece como **balão central** que **só sai com "OK" ou com uma resposta** — sem X, sem fechar clicando fora, ESC não descarta. OK envia "OK" ao gestor e marca a mensagem como confirmada; resposta com texto chega ao gestor em tempo real e marca como respondida. Pendente persiste no banco (volta depois de recarregar/relogar); várias pendentes aparecem **uma por vez** ("1 de 3"), nunca empilhadas. Resposta com a conversa fechada vira badge no ícone do card. Corretor só vê as próprias; gestor só a própria equipe; admin geral qualquer usuário. **Não é** o Chat de clientes/WhatsApp nem a "mensagem interna" de uma conversa do Chat. Implementação: `lib/supervision-messages.js` (+ `lib/supervision-messages-core.mjs`, testado), `components/supervision/**`, `/api/admin/supervision-messages/**`, tabela `supervision_messages`. Detalhes: `docs/BUSINESS_RULES.md` AUT-8.
+
+**[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — PENDENTE DE VALIDAÇÃO]** Durante "Alterar conta" o balão não aparece e a API recusa responder: o admin real não confirma/responde em nome do corretor (responder é falar pelo corretor com a supervisão, diferente das ações operacionais da regra de `auth-permissoes.md`). Hoje o ícone de entrada só existe na visão do dono (`TeamDailyPerformance`); a API já aceita gestor sobre a própria equipe.
+

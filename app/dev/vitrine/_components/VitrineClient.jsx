@@ -8,6 +8,7 @@ import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import WhatsappChat from "@/components/WhatsappChat";
+import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import { installMockFetch } from "../_lib/mock-fetch";
 import { FONTES } from "../_lib/fonts";
 import Fundacao from "./Fundacao";
@@ -16,6 +17,7 @@ import * as clientes from "../_fixtures/clientes";
 import * as chat from "../_fixtures/chat";
 import * as metaDiaria from "../_fixtures/meta-diaria";
 import * as desempenho from "../_fixtures/desempenho";
+import * as supervisao from "../_fixtures/supervisao";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -65,10 +67,22 @@ const TELAS = {
     path: "/admin/meta-diaria",
     titulo: "Meta Diária (visão do dono)",
     active: "daily-goal",
-    rotas: metaDiaria.routes,
+    rotas: [...supervisao.routes, ...metaDiaria.routes],
     render: () => (
       <main className="min-h-screen bg-mist py-14">
         <TeamDailyPerformance initialOverview={metaDiaria.teamOverview} />
+      </main>
+    )
+  },
+  "supervisao-corretor": {
+    path: "/admin/meta-diaria",
+    titulo: "Mensagem da supervisão (corretor)",
+    active: "daily-goal",
+    rotas: [...supervisao.routes, ...metaDiaria.routes],
+    render: () => (
+      <main className="min-h-screen bg-mist py-14">
+        <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} />
+        <SupervisionMessageGate userId="vitrine-corretor-ana" />
       </main>
     )
   },

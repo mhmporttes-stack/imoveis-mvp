@@ -5,6 +5,7 @@ import AdminViewAsBanner from "@/components/AdminViewAsBanner";
 import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
+import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
@@ -34,6 +35,7 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
+      {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? (
         // Ranking no início da página, no fluxo normal: rola junto com o
         // conteúdo e nunca fica sobre os cards de clientes.

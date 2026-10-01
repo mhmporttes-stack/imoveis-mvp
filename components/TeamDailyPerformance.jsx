@@ -6,6 +6,9 @@ import Avatar from "@/components/Avatar";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
 import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
+// Mensagens internas de supervisão (pedido do dono, 2026-10-01): ícone no
+// card + mini-chat flutuante. Independente do Chat de clientes/WhatsApp.
+import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from "@/components/supervision/SupervisionChatDock";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -61,6 +64,8 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
 
   const presenceById = useTeamPresence();
   const [automationById, refetchAutomation] = useAutomationStatus();
+  const supervisionInbox = useSupervisionInbox();
+  const [chatBroker, setChatBroker] = useState(null);
 
   return (
     <section className="container-page space-y-6">
@@ -95,6 +100,8 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 automation={automationById[broker.brokerId]}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
                 onRequeued={refetchAutomation}
+                chatUnread={supervisionInbox.counts[broker.brokerId] || 0}
+                onOpenChat={() => setChatBroker({ id: broker.brokerId, name: broker.name, photoUrl: broker.photoUrl || "" })}
               />
             ))}
           </div>
@@ -105,6 +112,15 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
             </p>
           ) : null}
         </>
+      ) : null}
+
+      {chatBroker ? (
+        <SupervisionChatDock
+          partner={chatBroker}
+          inboxVersion={supervisionInbox.version}
+          onSeen={supervisionInbox.clearFor}
+          onClose={() => setChatBroker(null)}
+        />
       ) : null}
 
       {selectedBrokerId ? (
@@ -259,7 +275,7 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued }) {
+function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -325,6 +341,7 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued })
           />
           <span className="min-w-0 truncate">{broker.name}</span>
         </h3>
+        <SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} />
       </div>
 
       {automation ? (

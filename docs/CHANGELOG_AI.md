@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Mensagens internas de supervisão (gestor ↔ corretor)
+- **Data:** 2026-10-01
+- **Área:** Meta Diária (Supervisão) / Notificações / Banco
+- **Alteração:** ícone de chat no card do corretor (visão do dono da Meta Diária) abre um mini-chat flutuante; a mensagem chega ao corretor como balão central fixo até "OK" ou resposta, uma por vez, com estados Enviada/Entregue/Vista/Confirmada/Respondida e badge de resposta não vista no card.
+- **Motivo:** pedido do dono.
+- **Reutilizado:** padrão de Broadcast do Chat (tópico HMAC + ping sem dados), `Avatar`, `sendPushToUser`, bipe de `lib/new-client-sound.js` (só com preferência ligada), `Button`/tokens da Fundação, `usePrefersReducedMotion`, `motion/react`, guards `requireAdminApi` + `managedUserIds`.
+- **Arquivos afetados:** `supabase/migrations/20261001210000_supervision_messages.sql` (aplicada), `lib/supervision-messages.js`, `lib/supervision-messages-core.mjs`, `tests/supervision-messages-core.test.mjs`, `app/api/admin/supervision-messages/**`, `components/supervision/{SupervisionMessageGate,SupervisionChatDock,useSupervisionRealtime}.js(x)`, `components/TeamDailyPerformance.jsx`, `app/admin/layout.jsx`, vitrine (`supervisao-corretor` + rotas em `meta-diaria-equipe`).
+- **Risco/observação:** sem mudança no Chat/WhatsApp, Google Contacts ou contatos. Durante "Alterar conta" o balão não aparece (decisão técnica, A CONFIRMAR com o dono). Entrada só na visão do dono (a tela de equipe hoje é exclusiva dele); gestor já é aceito pela API. Fluxo validado na vitrine (desktop 1280 e celular 390) e permissões em teste unitário; ponta a ponta com dois usuários reais não foi possível deste ambiente (sem login).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Google Contacts: contato salvo como "Cliente {nome}"
 - **Data:** 2026-10-01
 - **Área:** Meta Diária (automação) / Integrações
