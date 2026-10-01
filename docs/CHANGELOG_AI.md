@@ -44,6 +44,19 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Atribuição em massa da Prospecção registra o admin real em "Alterar conta"
+- **Data:** 2026-10-01
+- **Área:** Permissões / Prospecção
+- **Alteração:** `assignProspectingContacts` (`lib/prospecting.js`), única ação exclusivamente administrativa entre os 8 pontos do P-17, passa a registrar quem **realmente** executou, mesmo durante "Alterar conta". Usa `getActingAdminEmail` no `adminEmail` (`changed_by` do status inicial e `last_admin_email`) e no `actor` da origem do cadastro. As demais ações operacionais continuam atribuídas ao corretor emulado.
+- **Motivo:** decisão do dono (2026-10-01).
+- **Arquivos afetados:** `lib/prospecting.js`, `.claude/rules/auth-permissoes.md`, `docs/SYSTEM_ARCHITECTURE.md` (P-17).
+- **Risco/observação:**
+  - Fora de "Alterar conta" o comportamento é idêntico, porque `getActingAdminEmail` devolve o próprio usuário.
+  - O status inicial `pending` não pontua, então não há efeito em ranking.
+  - Só afeta clientes **criados** pela atribuição; cliente já existente não tem a origem regravada.
+  - **Validação:** checagem isolada de `getActingAdminEmail` ("Alterar conta" → admin real; sessão normal → o próprio usuário); `pnpm build` ok; suíte igual à anterior (245 ok, 1 falha conhecida em `whatsapp-flow-core`).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — WA-10, ROL-2b e proteção do upload público de captação (implementação)
 - **Data:** 2026-10-01
 - **Área:** WhatsApp / Roleta / Presença / Site público / Infra
