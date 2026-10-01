@@ -20,6 +20,10 @@
           "samples": []
         },
         {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
           "name": "AMAZON.NextIntent",
           "samples": []
         },
@@ -31,46 +35,47 @@
           "name": "ResumoDoDiaIntent",
           "samples": [
             "resumo do dia",
-            "me dê o resumo do dia",
+            "me dê um resumo",
+            "me dê um resumo do dia",
             "como está o dia",
-            "o que temos hoje",
-            "me atualize"
+            "como estão as coisas",
+            "resumo"
           ]
         },
         {
           "name": "AguardandoSimulacaoIntent",
           "samples": [
             "quantos clientes aguardam simulação",
-            "quantos aguardam simulação",
-            "quantos estão aguardando simulação",
-            "clientes aguardando simulação"
+            "quantos clientes estão aguardando simulação",
+            "clientes aguardando simulação",
+            "tem cliente aguardando simulação"
           ]
         },
         {
           "name": "AguardandoDocumentacaoIntent",
           "samples": [
-            "quantos clientes estão com documentação pendente",
-            "quantos têm documentação pendente",
-            "documentação pendente",
-            "clientes com documentação pendente"
+            "quantos clientes aguardam documentação",
+            "quantos clientes estão aguardando documentação",
+            "documentações pendentes",
+            "tem documentação pendente"
           ]
         },
         {
           "name": "AguardandoAprovacaoIntent",
           "samples": [
             "quantos clientes aguardam aprovação",
-            "quantos aguardam aprovação",
-            "quantos estão aguardando aprovação",
-            "clientes aguardando aprovação"
+            "quantos clientes estão aguardando aprovação",
+            "clientes aguardando aprovação",
+            "tem cliente para aprovar"
           ]
         },
         {
           "name": "ProximaReuniaoIntent",
           "samples": [
-            "qual é a próxima reunião",
-            "próxima reunião",
-            "quando é a próxima reunião",
-            "qual a próxima reunião"
+            "qual é minha próxima reunião",
+            "minha próxima reunião",
+            "qual é meu próximo compromisso",
+            "qual é a próxima reunião"
           ]
         },
         {
@@ -151,6 +156,8 @@
             "liste {assunto}",
             "liste {assunto} {periodo}",
             "me diga {assunto}",
+            "quem são os clientes de {assunto}",
+            "quem aguarda {assunto}",
             "quem são {assunto} do {corretor}",
             "quem são {assunto} da {corretor}"
           ]
@@ -209,7 +216,6 @@
           "samples": [
             "resumo geral",
             "como estamos",
-            "como estão as coisas",
             "me dê um panorama",
             "panorama do escritório",
             "como está o escritório"
@@ -262,6 +268,15 @@
                   "quanto falta para cada",
                   "quanto falta pra cada",
                   "falta para cada corretor"
+                ]
+              }
+            },
+            {
+              "id": "meta_corretor",
+              "name": {
+                "value": "meta de um corretor",
+                "synonyms": [
+                  "meta do corretor"
                 ]
               }
             },
@@ -558,7 +573,9 @@
                 "value": "clientes em simulação",
                 "synonyms": [
                   "clientes aguardando simulação",
-                  "clientes esperando simulação"
+                  "clientes esperando simulação",
+                  "clientes simulação",
+                  "clientes simulações"
                 ]
               }
             },
@@ -569,7 +586,8 @@
                 "synonyms": [
                   "clientes documentos",
                   "clientes com documentação pendente",
-                  "clientes documentação pendente"
+                  "clientes documentação pendente",
+                  "clientes documentações"
                 ]
               }
             },
@@ -579,7 +597,8 @@
                 "value": "clientes em aprovação",
                 "synonyms": [
                   "clientes aguardando aprovação",
-                  "clientes análise de crédito"
+                  "clientes análise de crédito",
+                  "clientes aprovação"
                 ]
               }
             },
@@ -787,7 +806,8 @@
                 "value": "simulação",
                 "synonyms": [
                   "aguardando simulação",
-                  "esperando simulação"
+                  "esperando simulação",
+                  "simulações"
                 ]
               }
             },
@@ -798,7 +818,8 @@
                 "synonyms": [
                   "documentos",
                   "com documentação pendente",
-                  "documentação pendente"
+                  "documentação pendente",
+                  "documentações"
                 ]
               }
             },

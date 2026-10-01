@@ -15,9 +15,9 @@ const PERIOD_VALUES = {
 };
 
 const ETAPA_SYNONYMS = {
-  simulacao: ["aguardando simulação", "esperando simulação"],
-  documentacao: ["documentos", "com documentação pendente", "documentação pendente"],
-  aprovacao: ["aguardando aprovação", "análise de crédito"],
+  simulacao: ["aguardando simulação", "esperando simulação", "simulação", "simulações"],
+  documentacao: ["documentos", "com documentação pendente", "documentação pendente", "documentações"],
+  aprovacao: ["aguardando aprovação", "análise de crédito", "aprovação"],
   aprovados: ["aprovado", "com crédito aprovado"],
   reuniao: ["reuniões", "marcados para reunião"],
   atendimento: ["atendimento humano", "sendo atendidos"],
@@ -71,26 +71,27 @@ const model = {
         { name: "AMAZON.HelpIntent", samples: [] },
         { name: "AMAZON.StopIntent", samples: [] },
         { name: "AMAZON.NavigateHomeIntent", samples: [] },
+        { name: "AMAZON.FallbackIntent", samples: [] },
         { name: "AMAZON.NextIntent", samples: [] },
         { name: "AMAZON.RepeatIntent", samples: [] },
         // --- V1 (preservada) ---
         {
           name: "ResumoDoDiaIntent",
-          samples: ["resumo do dia", "me dê o resumo do dia", "como está o dia", "o que temos hoje", "me atualize"]
+          samples: ["resumo do dia", "me dê um resumo", "me dê um resumo do dia", "como está o dia", "como estão as coisas", "resumo"]
         },
         {
           name: "AguardandoSimulacaoIntent",
-          samples: ["quantos clientes aguardam simulação", "quantos aguardam simulação", "quantos estão aguardando simulação", "clientes aguardando simulação"]
+          samples: ["quantos clientes aguardam simulação", "quantos clientes estão aguardando simulação", "clientes aguardando simulação", "tem cliente aguardando simulação"]
         },
         {
           name: "AguardandoDocumentacaoIntent",
-          samples: ["quantos clientes estão com documentação pendente", "quantos têm documentação pendente", "documentação pendente", "clientes com documentação pendente"]
+          samples: ["quantos clientes aguardam documentação", "quantos clientes estão aguardando documentação", "documentações pendentes", "tem documentação pendente"]
         },
         {
           name: "AguardandoAprovacaoIntent",
-          samples: ["quantos clientes aguardam aprovação", "quantos aguardam aprovação", "quantos estão aguardando aprovação", "clientes aguardando aprovação"]
+          samples: ["quantos clientes aguardam aprovação", "quantos clientes estão aguardando aprovação", "clientes aguardando aprovação", "tem cliente para aprovar"]
         },
-        { name: "ProximaReuniaoIntent", samples: ["qual é a próxima reunião", "próxima reunião", "quando é a próxima reunião", "qual a próxima reunião"] },
+        { name: "ProximaReuniaoIntent", samples: ["qual é minha próxima reunião", "minha próxima reunião", "qual é meu próximo compromisso", "qual é a próxima reunião"] },
         // --- V2 ---
         {
           name: "ConsultarIntent",
@@ -149,6 +150,8 @@ const model = {
             "liste {assunto}",
             "liste {assunto} {periodo}",
             "me diga {assunto}",
+            "quem são os clientes de {assunto}",
+            "quem aguarda {assunto}",
             "quem são {assunto} do {corretor}",
             "quem são {assunto} da {corretor}"
           ]
@@ -184,7 +187,7 @@ const model = {
         },
         {
           name: "ResumoIntent",
-          samples: ["resumo geral", "como estamos", "como estão as coisas", "me dê um panorama", "panorama do escritório", "como está o escritório"]
+          samples: ["resumo geral", "como estamos", "me dê um panorama", "panorama do escritório", "como está o escritório"]
         }
       ],
       types: [
