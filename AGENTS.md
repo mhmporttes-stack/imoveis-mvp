@@ -29,6 +29,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | WhatsApp (Chat, Fluxos, Disparo, webhook, janela 24h, templates) | `docs/WHATSAPP.md` |
 | Pixel, Conversions API, Meta Ads, UTMs, campanhas/links | `docs/TRAFEGO_META.md` |
 | Análise de tráfego pago (auditoria, funil anúncio → venda, copy, planejamento) | agente `gestor-trafego` + skills `/auditar-trafego`, `/criar-anuncio`, `/planejar-campanha` (somente leitura) |
+| Interface: crítica, redesenho, layout, mobile, sistema visual, revisão visual | agente `designer-crm` + skill `/design-crm` (vitrine sem login: `app/dev/vitrine`, só `next dev`) |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
 | Registrar uma regra nova confirmada pelo dono | skill `/registrar-regra` |
 | Investigar um problema em produção | skill `/diagnosticar-producao` |

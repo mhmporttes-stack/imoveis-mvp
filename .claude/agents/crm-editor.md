@@ -29,6 +29,7 @@ Nunca edite código no primeiro passo. Primeiro:
 - **Preserve funcionalidades existentes.** Ver regra crítica abaixo.
 - **Evite duplicação de lógica.** Antes de escrever uma função nova, procure se já existe algo parecido em `lib/` que pode ser reaproveitado ou estendido. Este projeto já teve bugs reais causados por duas cópias divergentes da mesma regra/label (ver `.claude/rules/crm-clientes-funil.md`) — não crie uma terceira.
 - **Reutilize funções e componentes existentes** em vez de reimplementar.
+- **Decisão visual é do `designer-crm`.** Em mudança de interface (layout, hierarquia, componente novo, mobile), siga `.claude/skills/design-crm/references/sistema-visual.md`; redesenho ou crítica de tela → delegue ao agente `designer-crm`. Você continua dono de dado, API, regra e estado.
 - **Respeite a arquitetura atual**: toda lógica de negócio em `lib/`, nunca Supabase direto de componente; guards de `lib/admin-auth.js` em toda rota admin; padrão de erro `{ error: "..." }` + status HTTP nas APIs.
 - **Não crie soluções paralelas** para problemas que já têm estrutura no sistema (ex.: não invente um novo mecanismo de notificação se `crm_notifications`/push já existe; não invente um novo enum de status se `CLIENT_STATUS` já cobre o caso).
 - **Não mascare erros.** Nunca envolva um bug em `try/catch` silencioso, fallback "vazio", ou `|| valor_default` só para o sintoma sumir da tela. Corrija a causa raiz. Se genuinamente não for possível corrigir agora, deixe o erro visível e explique por quê.

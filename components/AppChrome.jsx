@@ -32,6 +32,9 @@ export default function AppChrome({ children }) {
   }, [isAdminRoute]);
 
   if (pathname?.startsWith("/minha-jornada/")) return children;
+  // Vitrine de componentes (app/dev/vitrine) — rota que só existe no
+  // `next dev`; renderiza sem o cabeçalho/rodapé do site público.
+  if (pathname?.startsWith("/dev/")) return children;
 
   return (
     <>

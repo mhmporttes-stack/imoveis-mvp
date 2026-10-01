@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Designer CRM: agente, skill de design e vitrine de componentes (somente desenvolvimento)
+- **Data:** 2026-10-01
+- **Área:** Infra / Frontend / Estrutura do Claude
+- **Alteração:**
+  - Novo agente `designer-crm` (Product Design/UI-UX): critica antes de executar, propõe além do pedido, implementa só interface; delega dado/API/regra ao `crm-editor`.
+  - Nova skill `/design-crm` (modos criticar, redesenhar, limpar) com referências sob demanda: `sistema-visual.md` (memória do design: identidade obrigatória, diagnóstico atual, tokens propostos, tabela de decisões), `padroes-crm.md`, `revisao-visual.md`, e o script `scripts/capturar-vitrine.mjs` (screenshots em 360/390/768/1280/1440).
+  - **Vitrine** `app/dev/vitrine`: componentes reais (Clientes, Chat, Meta Diária corretor/dono, Desempenho) com dados 100% fictícios e mock de `fetch` — sem login, sem API, sem banco. Só existe no `next dev`: `next.config.mjs` registra a extensão `dev.jsx` apenas em `PHASE_DEVELOPMENT_SERVER`; `notFound()` em produção como segunda trava. `AppChrome` renderiza `/dev/*` sem cabeçalho/rodapé público (rota inexistente em produção).
+  - Ponteiros: `.claude/rules/frontend-pwa.md` (decisão visual → `/design-crm`), `crm-editor`, `CLAUDE.md`, `AGENTS.md`.
+- **Motivo:** pedido do dono — Designer especialista com liberdade de redesenho, preservando azul/branco, logo, funcionalidades e regras; revisão visual sem login.
+- **Arquivos afetados:** `.claude/agents/designer-crm.md`, `.claude/skills/design-crm/**`, `app/dev/vitrine/**`, `next.config.mjs`, `components/AppChrome.jsx`, `.claude/rules/frontend-pwa.md`, `.claude/agents/crm-editor.md`, `CLAUDE.md`, `AGENTS.md`.
+- **Risco/observação:**
+  - `pnpm build` ok sem nenhuma rota `/dev` na saída; nenhum comportamento de produção muda.
+  - Custo fixo medido em sessão nova: +~90 tokens no início; a skill só carrega quando há tarefa de design (verificado: crítica de design invocou `/design-crm` e leu só `sistema-visual.md`).
+  - Encontrado e não corrigido (fora do escopo): `text-slate`/`bg-slate` (216 usos) não geram CSS; possível bug — após marcar/desmarcar tag na Lista de clientes, as pílulas do card só atualizam no próximo carregamento da lista (A CONFIRMAR em produção).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Guia de lead por evidência de mídia paga + ID do anúncio no link do Fluxo "formulário direto" (encerra a estruturação do Gestor de Tráfego)
 - **Data:** 2026-10-01
 - **Área:** WhatsApp (Fluxos) / Guia de Atendimento / Meta/Tráfego

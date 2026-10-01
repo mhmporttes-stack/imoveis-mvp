@@ -25,6 +25,8 @@ paths:
 
 ## Estilo
 
+**Decisão visual é do agente `designer-crm`.** Crítica, redesenho, revisão visual ou ajuste de layout/mobile → **invoque a skill `/design-crm`** (ou delegue ao `designer-crm`) antes de responder ou editar. Toda mudança de interface segue `.claude/skills/design-crm/references/sistema-visual.md` (tokens, escalas, decisões) — não invente raio, tamanho de texto ou cor de status solta. Revisão visual sem login: vitrine `app/dev/vitrine` (só `next dev`, nunca em produção).
+
 Tailwind CSS, identidade visual azul institucional/navy, português do Brasil em toda a interface. Datas/horários sempre em `America/Sao_Paulo` (helpers em `lib/daily-report.js`: `getTodayInSaoPaulo`, `getTimeGreeting`, etc. — reutilize, não reimplemente cálculo de fuso horário). Valores monetários em BRL com formatação brasileira (`Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`).
 
 ## PWA
