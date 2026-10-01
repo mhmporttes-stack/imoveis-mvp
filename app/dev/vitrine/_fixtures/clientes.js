@@ -723,7 +723,7 @@ const STATUS_GROUPS = {
   approval: ["approval_pending", "income_commitment", "cancellation_letter", "research_mo", "restriction", "shielding", "rejected"],
   approved: ["approved"],
   meeting: ["meeting_pending", "meeting_done"],
-  sale: ["sale_completed", "sale_forms", "sale_reservation", "sale_contract", "sale_caixa_signature", "sale_itbi", "sale_registry", "sale_payment"],
+  sale: ["sale_completed", "sale_forms", "sale_reservation", "sale_compliance", "sale_contract", "sale_caixa_signature", "sale_itbi", "sale_registry", "sale_payment"],
   archived: ["archived", "do_not_contact"]
 };
 const ACTIVE_STATUSES = new Set([
