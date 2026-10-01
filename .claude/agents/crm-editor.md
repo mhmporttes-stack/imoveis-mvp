@@ -42,8 +42,45 @@ Nunca edite código no primeiro passo. Primeiro:
 - **Rode os testes relevantes** com `node --test tests/<área>*.test.mjs` (~33 arquivos em `tests/`, mais `lib/financial-calculations.test.js`) — falhas conhecidas em `AGENTS.md` §Comandos de validação.
 - **Procure regressões relacionadas**: releia os outros consumidores do código que você mudou.
 - **Verifique frontend, backend E banco** — uma mudança de regra de negócio geralmente precisa dos três alinhados.
-- **Feche a documentação** conforme `AGENTS.md` §Ao terminar: atualize o `docs/` da área e registre em `docs/CHANGELOG_AI.md` quando mudar regra, arquitetura, tabela, rota, permissão ou integração. Regra nova confirmada pelo dono → skill `/registrar-regra`. Investigação em produção → skill `/diagnosticar-producao` (nada de publicar código de diagnóstico antes de esgotar logs e consultas de leitura).
+- **Feche a documentação** conforme `AGENTS.md` §Ao terminar: atualize o `docs/` da área e registre em `docs/CHANGELOG_AI.md` quando mudar regra, arquitetura, tabela, rota, permissão ou integração. Regra nova confirmada pelo dono → skill `/registrar-regra`. Investigação em produção → skill `/diagnosticar-producao` (nada de publicar código de diagnóstico antes de esgotar logs e consultas de leitura). Correção de bug real → registre também em `docs/INCIDENTES.md` (seção "Diagnóstico sistemático de bugs" abaixo) e verifique com a skill `/verificar-correcao` antes de dar por encerrado.
 - **Informe resumidamente o que foi alterado**, em português, sem jargão desnecessário — quem lê pode ser o próprio Matheus (não-técnico).
+
+## Diagnóstico sistemático de bugs
+
+Vale para qualquer tarefa que comece com um comportamento relatado como errado (mensagem vaga do dono, print, "parou de funcionar") — não só correções formais abertas por uma skill. Print, relato do dono ou mensagem de erro são **evidência/sintoma**, não diagnóstico: dizem onde olhar, não por que acontece. Nenhuma correção antes de investigar a causa raiz.
+
+1. **Entender o sintoma** — o que está errado, desde quando, para quem (todos os perfis ou um caso específico)?
+2. **Classificar o impacto** — trava o sistema inteiro, um módulo, um perfil, um cliente específico? Decide a urgência e se cabe contenção antes de diagnosticar (ver "Bug crítico em produção" abaixo).
+3. **Reproduzir** com dado real sempre que possível — chamar a API/função envolvida com o caso concreto, não assumir.
+4. **Verificar se é produção ou local** — comportamento só em produção segue a skill `/diagnosticar-producao` (logs e consultas de leitura antes de qualquer código publicado).
+5. **Consultar o histórico** — skill `/consultar-incidentes` (ou `grep` em `docs/INCIDENTES.md`) antes de investigar do zero: o mesmo sintoma, ou um parecido, pode já ter causa raiz e correção documentadas.
+6. **Verificar alterações recentes** na área (`git log`, `docs/CHANGELOG_AI.md`) — mudança recente é a primeira suspeita, nunca a única.
+7. **Coletar evidências/logs** conforme o caso (Supabase `query_logs`/`execute_sql` só leitura, logs da Vercel, console do navegador).
+8. **Seguir o fluxo de dados** até achar onde o comportamento diverge do esperado — da tela até o banco, ou do banco até a tela.
+9. **Formular UMA hipótese testável por vez** e testá-la antes de passar para a próxima — nunca mude várias coisas de uma vez esperando que uma delas resolva.
+10. **Causa raiz, não sintoma.** Se um número está errado na tela, a causa pode estar 3 camadas abaixo.
+11. **Correção mínima e segura** — a menor mudança que resolve a causa raiz, sem mascarar (nunca `try/catch` silencioso, fallback vazio ou `|| default` só pro sintoma sumir da tela).
+12. **Verificar** com o mesmo caso real usado para reproduzir, depois seguir a skill `/verificar-correcao` (regressão, testes, build, produção).
+
+### Limite de tentativas
+
+Se **3 hipóteses/correções consecutivas falharem**, pare de aplicar remendos. Reavalie a causa raiz, questione as premissas, verifique a arquitetura e procure dependências compartilhadas que expliquem o padrão. Informe claramente ao usuário que as tentativas falharam, em vez de continuar alterando código às cegas.
+
+### Abrangência sem virar refatoração
+
+Ao confirmar a causa raiz, verifique se o mesmo problema existe em outros pontos que compartilham o componente/função/tabela (ex.: um bug num componente usado em Clientes pode existir em outra tela que usa o mesmo componente). Corrija todos os pontos reais do mesmo bug — mas não transforme isso numa refatoração geral de código não relacionado.
+
+### Bug crítico em produção (indisponibilidade ou risco grave)
+
+1. Primeiro avalie contenção/restauração do serviço. Considere rollback **só quando for a opção segura** — nunca se houver risco de perda de dado ou incompatibilidade com uma migration já aplicada. `AGENTS.md` já proíbe publicar ou rodar algo destrutivo sem pedido explícito: rollback segue a mesma regra, confirme com o usuário antes de executar.
+2. Preserve evidências/logs antes de qualquer ação de contenção.
+3. Só depois investigue a causa raiz (passos acima).
+4. Corrija definitivamente — contenção não substitui a correção real.
+5. Valide em produção com o caso concreto.
+
+### Memória de incidentes
+
+Depois de confirmar causa raiz + correção de um bug real (não um ajuste cosmético), registre em `docs/INCIDENTES.md` — curto, buscável por sintoma/área, sem repetir a narrativa completa que já foi para `docs/CHANGELOG_AI.md`.
 
 ## Regra crítica: nunca assuma que uma alteração é isolada
 

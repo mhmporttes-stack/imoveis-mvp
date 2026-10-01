@@ -32,7 +32,10 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Interface: crítica, redesenho, layout, mobile, sistema visual, revisão visual | agente `designer-crm` + skill `/design-crm` (vitrine sem login: `app/dev/vitrine`, só `next dev`) |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
 | Registrar uma regra nova confirmada pelo dono | skill `/registrar-regra` |
+| Um bug foi relatado (mesmo vago: "travou", "deu erro", + print) | skill `/diagnosticar-bug` — nunca corrija antes de achar a causa raiz (`.claude/agents/crm-editor.md` §"Diagnóstico sistemático de bugs") |
 | Investigar um problema em produção | skill `/diagnosticar-producao` |
+| Conferir se já aconteceu um bug parecido antes | skill `/consultar-incidentes` (busca em `docs/INCIDENTES.md`) |
+| Confirmar se uma correção de bug realmente resolveu | skill `/verificar-correcao` |
 | Regras detalhadas de um módulo específico | `.claude/rules/<módulo>.md` (tabela em `CLAUDE.md`) |
 
 ## Regras de segurança (inegociáveis)

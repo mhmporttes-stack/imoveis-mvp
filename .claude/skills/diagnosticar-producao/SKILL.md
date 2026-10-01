@@ -13,9 +13,13 @@ Neste projeto **`git push` para `main` = deploy em produção**. Código de diag
 - Consultas ao banco de produção só com **SELECT**.
 - Não imprima nem cole segredos, tokens ou dados pessoais completos (CPF, telefone) na resposta.
 
-## 1. Fixar um caso concreto
+## 0-b. Indisponibilidade ou risco grave: contenção antes de diagnosticar
 
-Monte um caso concreto: quem (usuário/perfil), qual cliente (id), quando (horário de São Paulo), qual tela/rota/cron e a mensagem de erro exata. Sem isso, peça ao dono antes de investigar às cegas.
+Se o problema for uma indisponibilidade (site/painel fora do ar, fluxo crítico bloqueado para todo mundo) ou risco grave (ex.: mensagem indo para quem pediu para não ser contactado): primeiro avalie contenção/restauração — rollback só quando for a opção segura (nunca se houver risco de perda de dado ou incompatibilidade com uma migration já aplicada; confirme com o dono antes, nunca rollback automático). Preserve evidências/logs antes de qualquer ação de contenção. Só depois siga para a causa raiz abaixo — contenção não substitui a correção definitiva. Detalhe: `.claude/agents/crm-editor.md` §"Bug crítico em produção".
+
+## 1. Fixar um caso concreto e consultar o histórico
+
+Monte um caso concreto: quem (usuário/perfil), qual cliente (id), quando (horário de São Paulo), qual tela/rota/cron e a mensagem de erro exata. Sem isso, peça ao dono antes de investigar às cegas. Antes de seguir, rode a skill `/consultar-incidentes` com os termos do sintoma — o mesmo problema pode já ter causa raiz documentada em `docs/INCIDENTES.md`.
 
 ## 2. Fontes de leitura (nesta ordem)
 
@@ -38,4 +42,4 @@ Use só se as etapas acima não identificarem a causa, e avise o dono antes de p
 
 ## 4. Depois de achar a causa
 
-Siga a correção pela skill `/corrigir-bug` (causa raiz). Valide com o **mesmo caso** do passo 1 e registre em `docs/CHANGELOG_AI.md`: causa, correção e diagnóstico removido.
+Siga a correção pela skill `/diagnosticar-bug` (causa raiz). Valide com o **mesmo caso** do passo 1 (skill `/verificar-correcao`) e registre: causa, correção e diagnóstico removido em `docs/CHANGELOG_AI.md`, e um resumo buscável por sintoma em `docs/INCIDENTES.md`.
