@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
 import ClientWorkspace from "@/components/clients/ClientWorkspace";
+import AdminSimulationListLegacy from "../_legacy/AdminSimulationListLegacy";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
@@ -36,6 +37,29 @@ const TELAS = {
     render: (perfil) => (
       <main className="bg-mist py-14">
         <ClientWorkspace {...clientes.propsFor(perfil)} />
+      </main>
+    )
+  },
+  // Comparação de cards da Lista de clientes (2026-10): antiga × atual × híbrida.
+  "clientes-antigo": {
+    path: "/admin/simulacoes",
+    titulo: "Lista de clientes — versão antiga (referência)",
+    active: "simulations",
+    rotas: clientes.routes,
+    render: (perfil) => (
+      <main className="bg-mist py-14">
+        <AdminSimulationListLegacy {...clientes.propsFor(perfil)} />
+      </main>
+    )
+  },
+  "clientes-hibrido": {
+    path: "/admin/simulacoes",
+    titulo: "Lista de clientes — proposta híbrida (cards)",
+    active: "simulations",
+    rotas: clientes.routes,
+    render: (perfil) => (
+      <main className="bg-mist py-14">
+        <ClientWorkspace layout="cards" {...clientes.propsFor(perfil)} />
       </main>
     )
   },

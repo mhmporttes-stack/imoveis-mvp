@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
+import ClientCard from "./ClientCard";
 import ClientRow, { ROW_GRID } from "./ClientRow";
 import ClientSheet from "./ClientSheet";
 import { PAGE_SIZE_OPTIONS } from "./client-format";
@@ -25,13 +26,20 @@ import { useClientList } from "./useClientList";
 //   Hierarquia: 1) o que precisa de ação agora · 2) onde a carteira está no
 //   funil · 3) a lista, escaneável · 4) a ficha do cliente numa gaveta, sem
 //   perder a lista de vista.
-export default function ClientWorkspace(props) {
+// `layout`: "rows" (lista em colunas, atual em produção) ou "cards" (proposta
+// híbrida em avaliação na vitrine).
+export default function ClientWorkspace({ layout = "rows", ...props }) {
   const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const list = useClientList({ ...props, notify, confirmAction });
   const badgeCounts = useCrmBadgeCounts();
   const [openClientId, setOpenClientId] = useState("");
+  const [openFocus, setOpenFocus] = useState("");
+  const openFicha = (clientId, focus = "") => {
+    setOpenFocus(focus);
+    setOpenClientId(clientId);
+  };
   const [filtersOpen, setFiltersOpen] = useState(false);
   const topRef = useRef(null);
   const goToPage = (nextPage) => {
@@ -154,6 +162,45 @@ export default function ClientWorkspace(props) {
       </div>
 
       {/* 5. Lista */}
+      {layout === "cards" ? (
+        <div className="relative mt-3">
+          {list.loading ? <span className="ui-progress absolute inset-x-0 -top-2 z-10 h-0.5 rounded-full" role="progressbar" aria-label="Atualizando a lista" /> : null}
+          {list.loadError ? (
+            <div className="rounded-card border border-line bg-white">
+              <EmptyState tone="danger" icon={TriangleAlert} title="Não foi possível carregar os clientes" description={list.loadError} action={<Button size="sm" onClick={list.fetchClients}>Tentar de novo</Button>} />
+            </div>
+          ) : list.loading && !list.items.length ? (
+            <div className="rounded-card border border-line bg-white p-5"><SkeletonList rows={6} label="Carregando clientes…" /></div>
+          ) : list.items.length ? (
+            <div className={cx("grid gap-3 transition-opacity duration-150 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(26rem,1fr))]", list.loading && "opacity-60")} aria-busy={list.loading || undefined}>
+              {list.items.map((client) => (
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  activities={list.activitiesFor(client)}
+                  responsibleName={responsibleNameOf(client)}
+                  showResponsible={canManageResponsibleUsers}
+                  busy={list.busyClientId === client.id}
+                  selected={openClientId === client.id}
+                  isOwner={isOwner}
+                  canReturnAssignedProspecting={canReturnAssignedProspecting}
+                  list={list}
+                  onOpen={(focus = "") => openFicha(client.id, focus)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-card border border-line bg-white">
+              <EmptyState
+                icon={Inbox}
+                title={filters.query ? "Nenhum cliente encontrado para esta busca" : anyFilter ? "Nenhum cliente neste filtro" : "Nenhum cliente ainda"}
+                description={anyFilter ? "Tente outro termo ou limpe os filtros." : brokerSimulationLink ? "Compartilhe seu link de simulação para receber os primeiros clientes." : "Cadastre um cliente ou aguarde novos atendimentos."}
+                action={anyFilter ? <Button variant="secondary" size="sm" onClick={list.resetFilters}>Limpar filtros</Button> : <Button size="sm" href="/admin/simulacoes/nova">Novo cliente</Button>}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="relative mt-3 overflow-hidden rounded-card border border-line bg-white">
         {list.loading ? <span className="ui-progress absolute inset-x-0 top-0 z-10 h-0.5" role="progressbar" aria-label="Atualizando a lista" /> : null}
         <div className={cx("hidden border-b border-line bg-mist/60 px-5 py-2.5 text-2xs font-semibold uppercase tracking-wide text-muted lg:grid lg:gap-x-4", ROW_GRID)} style={{ "--resp-col": canManageResponsibleUsers ? "minmax(0,1.1fr)" : "0px" }} aria-hidden="true">
@@ -186,7 +233,7 @@ export default function ClientWorkspace(props) {
                 showResponsible={canManageResponsibleUsers}
                 busy={list.busyClientId === client.id}
                 selected={openClientId === client.id}
-                onOpen={() => setOpenClientId(client.id)}
+                onOpen={() => openFicha(client.id)}
                 onWhatsApp={() => list.openWhatsApp(client)}
               />
             ))}
@@ -202,6 +249,8 @@ export default function ClientWorkspace(props) {
           />
         )}
       </div>
+
+      )}
 
       {/* 6. Paginação */}
       {list.total > 0 && !list.loadError ? (
@@ -245,7 +294,8 @@ export default function ClientWorkspace(props) {
         client={openClient}
         list={list}
         open={Boolean(openClient)}
-        onClose={() => setOpenClientId("")}
+        onClose={() => { setOpenClientId(""); setOpenFocus(""); }}
+        focus={openFocus}
         canManage={canManageResponsibleUsers}
         canReturnAssignedProspecting={canReturnAssignedProspecting}
         isOwner={isOwner}

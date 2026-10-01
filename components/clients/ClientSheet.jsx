@@ -56,8 +56,21 @@ const MAIN_STATUS_VALUES = [
 const SALE_STATUS_VALUES = new Set(CLIENT_FUNNEL_SALE_STATUS_VALUES);
 const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 
-export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName }) {
+// `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
+// agendamento aberto), "tags" (editor aberto) ou "documents" (modal).
+export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName, focus = "" }) {
   const [showDocuments, setShowDocuments] = useState(false);
+  useEffect(() => {
+    if (!open || !focus) return undefined;
+    if (focus === "documents") {
+      setShowDocuments(true);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      document.getElementById(`ficha-${focus}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [open, focus, client?.id]);
   if (!client) return <Sheet open={false} onClose={onClose} title="" />;
 
   const activities = list.activitiesFor(client);
@@ -127,8 +140,8 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           <ProspectingActions client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
 
           {/* Agenda */}
-          <Section title="Agenda do cliente">
-            <AgendaPanel client={client} activities={activities} busy={busy} list={list} />
+          <Section title="Agenda do cliente" anchor="ficha-agenda">
+            <AgendaPanel client={client} activities={activities} busy={busy} list={list} autoStart={focus === "agenda"} />
           </Section>
 
           {/* Simulação */}
@@ -137,8 +150,8 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           </Section>
 
           {/* Tags */}
-          <Section title="Tags">
-            <TagsPanel client={client} tags={tags} busy={busy} list={list} />
+          <Section title="Tags" anchor="ficha-tags">
+            <TagsPanel client={client} tags={tags} busy={busy} list={list} autoEdit={focus === "tags"} />
           </Section>
 
           {/* Cadastro */}
@@ -181,10 +194,10 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, anchor, children }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className="border-t border-line pt-5 first:border-t-0 first:pt-0">
+    <section id={anchor} aria-labelledby={id} className="scroll-mt-2 border-t border-line pt-5 first:border-t-0 first:pt-0">
       <h3 id={id} className="mb-3 text-2xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
       {children}
     </section>
@@ -244,7 +257,7 @@ function ProspectingActions({ client, busy, list, canReturnAssignedProspecting }
 
 const EMPTY_DRAFT = { date: "", time: "", type: "follow_up", note: "" };
 
-function AgendaPanel({ client, activities, busy, list }) {
+function AgendaPanel({ client, activities, busy, list, autoStart = false }) {
   const [mode, setMode] = useState(""); // "" | "main" | "extra"
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [error, setError] = useState("");
@@ -256,7 +269,12 @@ function AgendaPanel({ client, activities, busy, list }) {
   const mainAt = client.scheduledActivityAt;
   const mainOverdue = mainAt && new Date(mainAt).getTime() < now;
 
-  useEffect(() => { setMode(""); setError(""); }, [client.id]);
+  useEffect(() => {
+    setError("");
+    if (autoStart) start(client.scheduledActivityAt ? "extra" : "main");
+    else setMode("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id, autoStart]);
 
   function start(nextMode) {
     setError("");
@@ -413,8 +431,9 @@ function SimulationSummary({ client }) {
   );
 }
 
-function TagsPanel({ client, tags, busy, list }) {
-  const [editing, setEditing] = useState(false);
+function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
+  const [editing, setEditing] = useState(autoEdit);
+  useEffect(() => { if (autoEdit) setEditing(true); }, [autoEdit, client.id]);
   const [name, setName] = useState("");
   const [color, setColor] = useState(TAG_COLORS[0].value);
   const currentIds = tags.map((tag) => tag.id);
