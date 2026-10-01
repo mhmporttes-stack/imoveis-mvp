@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Círculo do card identifica o responsável, não o cliente
+- **Data:** 2026-10-01
+- **Área:** Clientes / Frontend
+- **Alteração:** o círculo ao lado do nome no `ClientCard` (Lista de clientes) deixou de mostrar as iniciais do cliente e passou a identificar o responsável atual: foto de perfil do corretor responsável quando há uma cadastrada; iniciais do corretor (não do cliente) quando não há foto; e a marca da imobiliária em círculo preto quando o cliente está sem responsável (aguardando distribuição pela roleta). A imagem acompanha automaticamente qualquer troca de responsável (seletor do card ou qualquer outro fluxo existente), pois lê direto do mesmo dado que o card já recebia (`responsibleProfileMap`) — sem nova fonte de verdade. Fallback para iniciais se a foto não carregar. Nenhuma lógica de roleta/atribuição/permissão foi alterada; estrutura, altura e espaçamento do card continuam iguais.
+- **Motivo:** pedido do dono, para reconhecer visualmente quem está com cada cliente na lista.
+- **Arquivos afetados:** `components/clients/ClientCard.jsx`, `components/clients/ClientWorkspace.jsx`, `app/dev/vitrine/_fixtures/clientes.js` (fixture de teste), `public/assets/company-mark-avatar.png` (novo, recorte circular da marca fornecido pelo dono).
+- **Risco/observação:** testado na vitrine (`/dev/vitrine?tela=clientes`) nos 6 cenários pedidos — corretor com foto, corretor sem foto, cliente sem responsável, troca pelo seletor do card, mobile e desktop — todos corretos. `pnpm build` ok.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Botões do rodapé do card com 44px (Lista de clientes concluída)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend
