@@ -44,6 +44,27 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Card de cliente mais compacto
+- **Data:** 2026-10-01
+- **Área:** Clientes / Frontend
+- **Alteração:** `ClientCard` com espaçamentos e alturas reduzidos. As mudanças:
+  - padding de 14–16px;
+  - avatar de 36px;
+  - corpo com `space-y-2`;
+  - próxima atividade em uma linha (data e nota truncada);
+  - poder de compra em 16px;
+  - "Adicionar tag" na linha de contato quando o cliente não tem tags.
+
+  WhatsApp e Agendar passam a ter o mesmo tamanho (40px), com o WhatsApp ainda primário; o "⋯" também ficou com 40px (`Menu size="sm"`). "Último contato nunca" virou "Sem contato". Topo, busca, filtros, ficha e barra inferior não mudaram.
+- **Motivo:** avaliação do dono em produção, com ~2.159 clientes; meta de 1,5 a 2 cards por tela sem perder informação.
+- **Medição (vitrine, mesmos dados):** a altura média do card no celular caiu de 428 para 359px (corretor) e de 393 para 326px (admin), cerca de 16–17%. No celular, ficam ~1,9–2,1 cards visíveis na área da lista.
+- **Arquivos afetados:** `components/clients/ClientCard.jsx`, `components/ui/Menu.jsx` (prop `size`), `.claude/skills/design-crm/references/{sistema-visual,padroes-crm}.md`.
+- **Risco/observação:**
+  - Nenhuma informação ou ação removida.
+  - Botões do rodapé com 40px, dentro do mínimo de toque do sistema (44px recomendado e 40px como mínimo absoluto).
+  - Validação: build, `node --test` (só as 3 falhas conhecidas) e revisão visual em 360, 390 e 1440px.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Lista de clientes em cards híbridos (etapa e responsável no card)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend

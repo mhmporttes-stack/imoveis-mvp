@@ -6,7 +6,7 @@ import { cx } from "./cx";
 // Menu de ações compacto ("⋯"). Abre abaixo do gatilho, fecha com Esc,
 // clique fora ou ao escolher; setas ↑/↓ percorrem os itens e o foco volta ao
 // gatilho ao fechar. `items`: [{ label, icon, onSelect, tone?, hidden?, separatorBefore? }].
-export default function Menu({ label, trigger, items, align = "right", className = "" }) {
+export default function Menu({ label, trigger, items, align = "right", size = "md", className = "" }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
@@ -48,7 +48,7 @@ export default function Menu({ label, trigger, items, align = "right", className
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-touch w-touch items-center justify-center rounded-control border border-line bg-white text-ink-2 transition-colors hover:bg-navy/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className={cx(size === "sm" ? "h-10 w-10" : "h-touch w-touch", "inline-flex items-center justify-center rounded-control border border-line bg-white text-ink-2 transition-colors hover:bg-navy/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand")}
       >
         {trigger}
       </button>

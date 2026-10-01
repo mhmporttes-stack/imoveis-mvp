@@ -10,6 +10,8 @@ Padrões de partida, não regras cegas — adapte à intenção da tela. Antes d
 
 ## Listas de clientes / tabelas densas
 
+- **Lista de clientes real (ADOTADO):** cards híbridos (`components/clients/ClientCard.jsx`) — densidade alvo ~2 cards por tela no celular; ver decisões em `sistema-visual.md` §6.
+
 - **Desktop:** tabela ou lista em linhas (44–52px) com colunas escaneáveis: nome + telefone · status (badge semântico) · responsável · próxima atividade/atraso · última interação · ações. Cabeçalho fixo, números alinhados à direita com `tabular-nums`.
 - **Mobile:** card compacto por cliente, uma linha de título (nome), uma de status/próxima ação, ações primárias (WhatsApp, abrir) com alvo ≥44px; o resto atrás de "mais".
 - **Filtros:** busca sempre visível; filtros frequentes como chips/segmentos com contagem; avançados em sheet. Mostre os filtros ativos e "limpar". Busca/filtro/paginação são do servidor (`.claude/rules/frontend-pwa.md`) — o design não cria filtro local.

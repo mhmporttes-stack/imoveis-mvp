@@ -61,17 +61,17 @@ export default function ClientCard({ client, activities, responsibleName, showRe
       aria-busy={busy || undefined}
     >
       {/* Cabeçalho: quem é e em que pé está */}
-      <header className="flex items-start gap-3 px-4 pt-4">
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/[0.06] text-[13px] font-semibold text-navy" aria-hidden="true">
+      <header className="flex items-start gap-2.5 px-3.5 pt-3 sm:px-4">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/[0.06] text-xs font-semibold text-navy" aria-hidden="true">
           {initialsOf(name)}
         </span>
         <div className="min-w-0 flex-1">
           <h2 id={`card-${client.id}`} className="flex min-w-0 items-baseline gap-2">
-            <button type="button" onClick={() => onOpen()} className="truncate text-left text-base font-semibold text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
+            <button type="button" onClick={() => onOpen()} className="truncate text-left text-[15px] font-semibold leading-5 text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
               {name}
             </button>
           </h2>
-          <p className="mt-0.5 flex min-w-0 items-center gap-x-1.5 truncate text-xs text-muted">
+          <p className="flex min-w-0 items-center gap-x-1.5 truncate text-xs leading-4 text-muted">
             <span className="shrink-0 tabular-nums">{clientPhone(client) || "Sem telefone"}</span>
             {registration.clientCode ? <span className="shrink-0">· {registration.clientCode}</span> : null}
           </p>
@@ -82,13 +82,13 @@ export default function ClientCard({ client, activities, responsibleName, showRe
           onClick={() => onOpen()}
           aria-label={`Abrir ficha de ${name}`}
           title="Abrir ficha"
-          className="-mr-1 -mt-1 border-transparent"
+          className="-mr-1.5 -mt-1 !h-9 !min-h-0 !w-9 !min-w-0 border-transparent"
         >
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-1.5 px-4 pt-2.5">
+      <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-2 sm:px-4">
         <StatusControl client={client} name={name} busy={busy} list={list} confirmAction={confirmAction} />
         {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
         {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
@@ -96,11 +96,13 @@ export default function ClientCard({ client, activities, responsibleName, showRe
       </div>
 
       {/* Corpo: agenda, simulação e contato */}
-      <div className="mt-3 space-y-3 px-4">
+      <div className="mt-2.5 space-y-2 px-3.5 sm:px-4">
         <AgendaBlock client={client} agenda={agenda} busy={busy} list={list} onOpen={onOpen} />
         <SimulationLine client={client} />
         <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
-          <span>Último contato <span className={lastContact ? "font-medium text-ink" : "font-medium text-warning"}>{lastContact || "nunca"}</span></span>
+          {lastContact
+            ? <span>Último contato <span className="font-medium text-ink">{lastContact}</span></span>
+            : <span className="font-medium text-warning">Sem contato</span>}
           <span aria-hidden="true" className="text-faint">·</span>
           <span>Cadastro {formatAgo(registration.createdAt) || "sem data"}</span>
           {registration.contactPreference === "call" || registration.contactPreference === "whatsapp" ? (
@@ -112,25 +114,29 @@ export default function ClientCard({ client, activities, responsibleName, showRe
               </span>
             </>
           ) : null}
+          {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : null}
         </p>
-        <TagsLine tags={tags} onEdit={() => onOpen("tags")} />
+        {tags.length ? <TagsLine tags={tags} onEdit={() => onOpen("tags")} /> : null}
       </div>
 
       <ProspectingStrip client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
-      <div className="h-4 shrink-0" aria-hidden="true" />
+      <div className="h-3 shrink-0" aria-hidden="true" />
 
       {/* Ações do dia a dia */}
-      <footer className="mt-auto flex items-center gap-2 border-t border-line px-4 py-3">
-        <Button className="flex-1 sm:flex-none" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+      {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
+          dono: pesos próximos, sem o botão dominar o card). */}
+      <footer className="mt-auto flex items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
+        <Button size="sm" className="min-h-10 px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
         </Button>
-        <Button variant="secondary" onClick={() => onOpen("agenda")} disabled={busy}>
+        <Button size="sm" variant="secondary" className="min-h-10 px-3.5" onClick={() => onOpen("agenda")} disabled={busy}>
           <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Agendar
         </Button>
         <Menu
           label={`Mais ações para ${name}`}
           trigger={<MoreHorizontal className="h-5 w-5" aria-hidden="true" />}
           className="ml-auto"
+          size="sm"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
             { label: "Empreendimentos", icon: ExternalLink, onSelect: () => list.openSimulation(client) },
@@ -256,13 +262,13 @@ function AgendaBlock({ client, agenda, busy, list, onOpen }) {
   const visible = agenda.slice(0, MAX_ACTIVITIES);
   const hidden = agenda.length - visible.length;
   return (
-    <ul className="space-y-1.5" aria-label="Próximas atividades">
+    <ul className="space-y-1" aria-label="Próximas atividades">
       {visible.map((item) => (
-        <li key={item.key} className={cx("flex items-center gap-2.5 rounded-control px-3 py-2", item.overdue ? "bg-danger-soft" : "bg-mist")}>
+        <li key={item.key} className={cx("flex items-center gap-2 rounded-control py-0.5 pl-2.5 pr-0.5", item.overdue ? "bg-danger-soft" : "bg-mist")}>
           <CalendarClock className={cx("h-4 w-4 shrink-0", item.overdue ? "text-danger" : "text-brand")} aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-[13px] leading-5">
-            <span className={cx("font-semibold tabular-nums", item.overdue ? "text-danger" : "text-ink")}>{item.overdue ? "Atrasada · " : ""}{formatWhen(item.at)}</span>
-            {item.note ? <span className="block truncate text-ink-2">{item.note}</span> : null}
+          <p className="flex min-w-0 flex-1 items-baseline gap-1 text-[13px] leading-5" title={item.note || undefined}>
+            <span className={cx("shrink-0 font-semibold tabular-nums", item.overdue ? "text-danger" : "text-ink")}>{item.overdue ? "Atrasada · " : ""}{formatWhen(item.at)}</span>
+            {item.note ? <span className="min-w-0 truncate text-ink-2">· {item.note}</span> : null}
           </p>
           {item.main ? (
             <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>
@@ -306,9 +312,9 @@ function SimulationLine({ client }) {
     return (
       <div className="min-w-0">
         <p className="text-[13px] text-ink-2">
-          Poder de compra <span className="ml-1 text-lg font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span>
+          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span>
         </p>
-        {client.summary.components?.length ? <p className="truncate text-xs text-muted tabular-nums" title={client.summary.components.join(" · ")}>{client.summary.components.join(" · ")}</p> : null}
+        {client.summary.components?.length ? <p className="truncate text-xs leading-4 text-muted tabular-nums" title={client.summary.components.join(" · ")}>{client.summary.components.join(" · ")}</p> : null}
       </div>
     );
   }
@@ -323,8 +329,19 @@ function SimulationLine({ client }) {
   return (
     <div className="min-w-0">
       <p className={cx("text-[13px] font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</p>
-      {details.length ? <p className="truncate text-xs text-muted">{details.join(" · ")}</p> : null}
+      {details.length ? <p className="truncate text-xs leading-4 text-muted">{details.join(" · ")}</p> : null}
     </div>
+  );
+}
+
+function AddTagButton({ onClick }) {
+  return (
+    <>
+      <span aria-hidden="true" className="text-faint">·</span>
+      <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-chip font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Adicionar tag
+      </button>
+    </>
   );
 }
 
@@ -340,7 +357,7 @@ function TagsLine({ tags, onEdit }) {
       ))}
       {tags.length > MAX_TAGS ? <span className="text-xs font-medium text-muted">+{tags.length - MAX_TAGS}</span> : null}
       <button type="button" onClick={onEdit} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> {tags.length ? "Tags" : "Adicionar tag"}
+        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Tags
       </button>
     </div>
   );
@@ -355,7 +372,7 @@ function ProspectingStrip({ client, busy, list, canReturnAssignedProspecting }) 
   const canReturn = canReturnAssignedProspecting && registration.prospectingAssignedByUserId;
   if (!pending && !awaitingReturn && !(client.status === CLIENT_STATUS.IN_SERVICE && canReturn)) return null;
   return (
-    <div className="mx-4 mt-3 flex flex-wrap items-center gap-2 rounded-control bg-info-soft px-3 py-2">
+    <div className="mx-3.5 mt-2.5 flex flex-wrap items-center gap-1.5 rounded-control bg-info-soft px-2.5 py-1.5 sm:mx-4">
       <span className="mr-auto text-xs font-semibold text-info">Prospecção</span>
       {pending ? <Button size="sm" disabled={busy} onClick={() => list.handleProspectingAction(client, "prospect")}>Prospectar</Button> : null}
       {pending || awaitingReturn ? <Button size="sm" variant="secondary" disabled={busy} onClick={() => list.handleProspectingAction(client, "in_service")}>Em atendimento</Button> : null}
