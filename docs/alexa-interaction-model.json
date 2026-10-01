@@ -1,0 +1,870 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "central machado",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NextIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.RepeatIntent",
+          "samples": []
+        },
+        {
+          "name": "ResumoDoDiaIntent",
+          "samples": [
+            "resumo do dia",
+            "me dê o resumo do dia",
+            "como está o dia",
+            "o que temos hoje",
+            "me atualize"
+          ]
+        },
+        {
+          "name": "AguardandoSimulacaoIntent",
+          "samples": [
+            "quantos clientes aguardam simulação",
+            "quantos aguardam simulação",
+            "quantos estão aguardando simulação",
+            "clientes aguardando simulação"
+          ]
+        },
+        {
+          "name": "AguardandoDocumentacaoIntent",
+          "samples": [
+            "quantos clientes estão com documentação pendente",
+            "quantos têm documentação pendente",
+            "documentação pendente",
+            "clientes com documentação pendente"
+          ]
+        },
+        {
+          "name": "AguardandoAprovacaoIntent",
+          "samples": [
+            "quantos clientes aguardam aprovação",
+            "quantos aguardam aprovação",
+            "quantos estão aguardando aprovação",
+            "clientes aguardando aprovação"
+          ]
+        },
+        {
+          "name": "ProximaReuniaoIntent",
+          "samples": [
+            "qual é a próxima reunião",
+            "próxima reunião",
+            "quando é a próxima reunião",
+            "qual a próxima reunião"
+          ]
+        },
+        {
+          "name": "ConsultarIntent",
+          "slots": [
+            {
+              "name": "assunto",
+              "type": "ASSUNTO"
+            },
+            {
+              "name": "periodo",
+              "type": "PERIODO"
+            },
+            {
+              "name": "corretor",
+              "type": "CORRETOR"
+            },
+            {
+              "name": "etapa",
+              "type": "ETAPA"
+            }
+          ],
+          "samples": [
+            "{assunto}",
+            "como está {assunto}",
+            "como estão {assunto}",
+            "quantos {assunto}",
+            "quantas {assunto}",
+            "qual {assunto}",
+            "qual é {assunto}",
+            "me fale {assunto}",
+            "{assunto} {periodo}",
+            "{assunto} de {periodo}",
+            "{assunto} na {periodo}",
+            "quantos {assunto} {periodo}",
+            "quantas {assunto} {periodo}",
+            "como foi {assunto} {periodo}",
+            "{assunto} do {corretor}",
+            "{assunto} da {corretor}",
+            "{assunto} do {corretor} {periodo}",
+            "{assunto} da {corretor} {periodo}",
+            "quantos clientes em {etapa}",
+            "quantos clientes estão em {etapa}",
+            "quantos clientes em {etapa} {periodo}",
+            "quantos",
+            "quantas",
+            "quantos são",
+            "quantas são",
+            "qual o total"
+          ]
+        },
+        {
+          "name": "ListarIntent",
+          "slots": [
+            {
+              "name": "assunto",
+              "type": "ASSUNTO"
+            },
+            {
+              "name": "periodo",
+              "type": "PERIODO"
+            },
+            {
+              "name": "corretor",
+              "type": "CORRETOR"
+            }
+          ],
+          "samples": [
+            "quem são",
+            "quem são eles",
+            "quem foram",
+            "quais são",
+            "quais são eles",
+            "me diga os nomes",
+            "quem são {assunto}",
+            "quais são {assunto}",
+            "quem são {assunto} {periodo}",
+            "liste {assunto}",
+            "liste {assunto} {periodo}",
+            "me diga {assunto}",
+            "quem são {assunto} do {corretor}",
+            "quem são {assunto} da {corretor}"
+          ]
+        },
+        {
+          "name": "ContinuaIntent",
+          "slots": [
+            {
+              "name": "assunto",
+              "type": "ASSUNTO"
+            },
+            {
+              "name": "periodo",
+              "type": "PERIODO"
+            },
+            {
+              "name": "corretor",
+              "type": "CORRETOR"
+            }
+          ],
+          "samples": [
+            "e {periodo}",
+            "e {assunto}",
+            "e {assunto} {periodo}",
+            "e o {corretor}",
+            "e a {corretor}",
+            "e {corretor}",
+            "e do {corretor}",
+            "e da {corretor}",
+            "e para {periodo}",
+            "e quanto a {assunto}",
+            "e sobre {assunto}",
+            "e na {periodo}",
+            "e no {periodo}",
+            "agora {periodo}",
+            "agora {assunto}"
+          ]
+        },
+        {
+          "name": "MaisIntent",
+          "samples": [
+            "mais",
+            "mais nomes",
+            "continue",
+            "continua",
+            "pode continuar",
+            "quais mais",
+            "tem mais",
+            "e os outros",
+            "o resto",
+            "próximos"
+          ]
+        },
+        {
+          "name": "ResumoIntent",
+          "samples": [
+            "resumo geral",
+            "como estamos",
+            "como estão as coisas",
+            "me dê um panorama",
+            "panorama do escritório",
+            "como está o escritório"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "ASSUNTO",
+          "values": [
+            {
+              "id": "meta_equipe",
+              "name": {
+                "value": "meta da equipe",
+                "synonyms": [
+                  "meta do time",
+                  "meta diaria",
+                  "meta"
+                ]
+              }
+            },
+            {
+              "id": "meta_bateram",
+              "name": {
+                "value": "quem bateu a meta",
+                "synonyms": [
+                  "bateram a meta",
+                  "bateu a meta",
+                  "quem bateu"
+                ]
+              }
+            },
+            {
+              "id": "meta_faltam",
+              "name": {
+                "value": "quem ainda não bateu a meta",
+                "synonyms": [
+                  "nao bateram a meta",
+                  "nao bateu a meta",
+                  "faltam bater a meta",
+                  "ainda nao bateu"
+                ]
+              }
+            },
+            {
+              "id": "meta_cada",
+              "name": {
+                "value": "quanto falta para cada corretor",
+                "synonyms": [
+                  "quanto falta para cada",
+                  "quanto falta pra cada",
+                  "falta para cada corretor"
+                ]
+              }
+            },
+            {
+              "id": "meta_lider",
+              "name": {
+                "value": "maior percentual da meta",
+                "synonyms": [
+                  "maior percentual",
+                  "lidera a meta",
+                  "mais perto da meta"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao_equipe",
+              "name": {
+                "value": "prospecção da equipe",
+                "synonyms": [
+                  "prospeccao",
+                  "prospeccoes",
+                  "prospectaram"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao_ranking",
+              "name": {
+                "value": "quem mais prospectou",
+                "synonyms": [
+                  "mais prospectou",
+                  "quem prospectou mais"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao_vs_meta",
+              "name": {
+                "value": "prospecção comparada à meta",
+                "synonyms": [
+                  "prospeccao comparada",
+                  "prospeccao contra a meta",
+                  "prospeccao e meta"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao_corretor",
+              "name": {
+                "value": "prospecção de um corretor",
+                "synonyms": [
+                  "prospeccao do corretor"
+                ]
+              }
+            },
+            {
+              "id": "sem_prospeccao",
+              "name": {
+                "value": "quem ainda não prospectou",
+                "synonyms": [
+                  "nao prospectou",
+                  "sem prospeccao",
+                  "ainda nao prospectou"
+                ]
+              }
+            },
+            {
+              "id": "online",
+              "name": {
+                "value": "corretores online",
+                "synonyms": [
+                  "online",
+                  "conectados",
+                  "trabalhando"
+                ]
+              }
+            },
+            {
+              "id": "funil",
+              "name": {
+                "value": "funil",
+                "synonyms": [
+                  "funil de hoje"
+                ]
+              }
+            },
+            {
+              "id": "movimento",
+              "name": {
+                "value": "clientes que avançaram",
+                "synonyms": [
+                  "avancaram",
+                  "avancou",
+                  "mudaram de etapa",
+                  "movimento"
+                ]
+              }
+            },
+            {
+              "id": "agenda",
+              "name": {
+                "value": "reuniões",
+                "synonyms": [
+                  "reunioes",
+                  "agenda",
+                  "compromissos"
+                ]
+              }
+            },
+            {
+              "id": "proxima_reuniao",
+              "name": {
+                "value": "próxima reunião",
+                "synonyms": [
+                  "proxima reuniao",
+                  "proximo compromisso"
+                ]
+              }
+            },
+            {
+              "id": "reunioes_atrasadas",
+              "name": {
+                "value": "reuniões atrasadas",
+                "synonyms": [
+                  "reunioes atrasadas",
+                  "atividades atrasadas",
+                  "compromissos atrasados"
+                ]
+              }
+            },
+            {
+              "id": "sem_atendimento",
+              "name": {
+                "value": "clientes sem atendimento",
+                "synonyms": [
+                  "sem atendimento",
+                  "sem atendimento humano",
+                  "aguardando atendimento"
+                ]
+              }
+            },
+            {
+              "id": "pendencias",
+              "name": {
+                "value": "pendências",
+                "synonyms": [
+                  "pendencias",
+                  "pendente",
+                  "pendentes"
+                ]
+              }
+            },
+            {
+              "id": "pendencias_ranking",
+              "name": {
+                "value": "corretor com mais pendências",
+                "synonyms": [
+                  "mais pendencias",
+                  "quem tem mais pendencias"
+                ]
+              }
+            },
+            {
+              "id": "sem_contato",
+              "name": {
+                "value": "clientes há muito tempo sem contato",
+                "synonyms": [
+                  "sem contato",
+                  "muito tempo sem contato"
+                ]
+              }
+            },
+            {
+              "id": "fila_roleta",
+              "name": {
+                "value": "fila da roleta",
+                "synonyms": [
+                  "roleta"
+                ]
+              }
+            },
+            {
+              "id": "clientes_novos",
+              "name": {
+                "value": "clientes novos",
+                "synonyms": [
+                  "novos clientes",
+                  "cadastros"
+                ]
+              }
+            },
+            {
+              "id": "vendas",
+              "name": {
+                "value": "vendas",
+                "synonyms": [
+                  "venda",
+                  "vendeu"
+                ]
+              }
+            },
+            {
+              "id": "aprovacoes",
+              "name": {
+                "value": "aprovações",
+                "synonyms": [
+                  "aprovacoes",
+                  "aprovacao no periodo",
+                  "aprovados no periodo"
+                ]
+              }
+            },
+            {
+              "id": "conversao",
+              "name": {
+                "value": "conversão",
+                "synonyms": [
+                  "conversao",
+                  "taxa de conversao"
+                ]
+              }
+            },
+            {
+              "id": "desempenho",
+              "name": {
+                "value": "desempenho da equipe",
+                "synonyms": [
+                  "desempenho",
+                  "como esta a equipe",
+                  "como esta o time"
+                ]
+              }
+            },
+            {
+              "id": "melhor_dia",
+              "name": {
+                "value": "melhor do dia",
+                "synonyms": [
+                  "destaque do dia"
+                ]
+              }
+            },
+            {
+              "id": "campeao_semana",
+              "name": {
+                "value": "campeão da semana",
+                "synonyms": [
+                  "campeao da semana",
+                  "campea da semana"
+                ]
+              }
+            },
+            {
+              "id": "ranking",
+              "name": {
+                "value": "ranking",
+                "synonyms": [
+                  "classificacao"
+                ]
+              }
+            },
+            {
+              "id": "pontos",
+              "name": {
+                "value": "pontos de um corretor",
+                "synonyms": [
+                  "pontos"
+                ]
+              }
+            },
+            {
+              "id": "resumo",
+              "name": {
+                "value": "resumo",
+                "synonyms": [
+                  "como esta o escritorio",
+                  "como esta o dia"
+                ]
+              }
+            },
+            {
+              "id": "atencao",
+              "name": {
+                "value": "o que precisa de atenção",
+                "synonyms": [
+                  "atencao",
+                  "precisa de atencao"
+                ]
+              }
+            },
+            {
+              "id": "etapa_simulacao",
+              "name": {
+                "value": "clientes em simulação",
+                "synonyms": [
+                  "clientes aguardando simulação",
+                  "clientes esperando simulação"
+                ]
+              }
+            },
+            {
+              "id": "etapa_documentacao",
+              "name": {
+                "value": "clientes em documentação",
+                "synonyms": [
+                  "clientes documentos",
+                  "clientes com documentação pendente",
+                  "clientes documentação pendente"
+                ]
+              }
+            },
+            {
+              "id": "etapa_aprovacao",
+              "name": {
+                "value": "clientes em aprovação",
+                "synonyms": [
+                  "clientes aguardando aprovação",
+                  "clientes análise de crédito"
+                ]
+              }
+            },
+            {
+              "id": "etapa_aprovados",
+              "name": {
+                "value": "clientes em aprovados",
+                "synonyms": [
+                  "clientes aprovado",
+                  "clientes com crédito aprovado"
+                ]
+              }
+            },
+            {
+              "id": "etapa_reuniao",
+              "name": {
+                "value": "clientes em reunião",
+                "synonyms": [
+                  "clientes reuniões",
+                  "clientes marcados para reunião"
+                ]
+              }
+            },
+            {
+              "id": "etapa_atendimento",
+              "name": {
+                "value": "clientes em atendimento",
+                "synonyms": [
+                  "clientes atendimento humano",
+                  "clientes sendo atendidos"
+                ]
+              }
+            },
+            {
+              "id": "etapa_venda",
+              "name": {
+                "value": "clientes em venda",
+                "synonyms": [
+                  "clientes vendas",
+                  "clientes fase de venda"
+                ]
+              }
+            },
+            {
+              "id": "etapa_prospeccao",
+              "name": {
+                "value": "clientes em prospecção",
+                "synonyms": [
+                  "clientes prospectando",
+                  "clientes aguardando retorno"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PERIODO",
+          "values": [
+            {
+              "id": "hoje",
+              "name": {
+                "value": "hoje",
+                "synonyms": [
+                  "agora",
+                  "neste momento",
+                  "no dia de hoje",
+                  "do dia"
+                ]
+              }
+            },
+            {
+              "id": "ontem",
+              "name": {
+                "value": "ontem",
+                "synonyms": [
+                  "dia de ontem"
+                ]
+              }
+            },
+            {
+              "id": "amanha",
+              "name": {
+                "value": "amanhã",
+                "synonyms": [
+                  "amanha",
+                  "dia de amanhã"
+                ]
+              }
+            },
+            {
+              "id": "esta_semana",
+              "name": {
+                "value": "esta semana",
+                "synonyms": [
+                  "essa semana",
+                  "na semana",
+                  "da semana",
+                  "nesta semana",
+                  "semana atual"
+                ]
+              }
+            },
+            {
+              "id": "semana_passada",
+              "name": {
+                "value": "semana passada",
+                "synonyms": [
+                  "na semana passada",
+                  "da semana passada",
+                  "semana anterior"
+                ]
+              }
+            },
+            {
+              "id": "este_mes",
+              "name": {
+                "value": "este mês",
+                "synonyms": [
+                  "esse mês",
+                  "neste mês",
+                  "no mês",
+                  "do mês",
+                  "mês atual"
+                ]
+              }
+            },
+            {
+              "id": "mes_passado",
+              "name": {
+                "value": "mês passado",
+                "synonyms": [
+                  "no mês passado",
+                  "do mês passado",
+                  "mês anterior"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CORRETOR",
+          "values": [
+            {
+              "name": {
+                "value": "Bencke",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Bruna",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Caroline",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Eduardo",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Izabela",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Jennyfer",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Ketlin",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Luan",
+                "synonyms": []
+              }
+            },
+            {
+              "name": {
+                "value": "Lucas",
+                "synonyms": []
+              }
+            }
+          ]
+        },
+        {
+          "name": "ETAPA",
+          "values": [
+            {
+              "id": "simulacao",
+              "name": {
+                "value": "simulação",
+                "synonyms": [
+                  "aguardando simulação",
+                  "esperando simulação"
+                ]
+              }
+            },
+            {
+              "id": "documentacao",
+              "name": {
+                "value": "documentação",
+                "synonyms": [
+                  "documentos",
+                  "com documentação pendente",
+                  "documentação pendente"
+                ]
+              }
+            },
+            {
+              "id": "aprovacao",
+              "name": {
+                "value": "aprovação",
+                "synonyms": [
+                  "aguardando aprovação",
+                  "análise de crédito"
+                ]
+              }
+            },
+            {
+              "id": "aprovados",
+              "name": {
+                "value": "aprovados",
+                "synonyms": [
+                  "aprovado",
+                  "com crédito aprovado"
+                ]
+              }
+            },
+            {
+              "id": "reuniao",
+              "name": {
+                "value": "reunião",
+                "synonyms": [
+                  "reuniões",
+                  "marcados para reunião"
+                ]
+              }
+            },
+            {
+              "id": "atendimento",
+              "name": {
+                "value": "atendimento",
+                "synonyms": [
+                  "atendimento humano",
+                  "sendo atendidos"
+                ]
+              }
+            },
+            {
+              "id": "venda",
+              "name": {
+                "value": "venda",
+                "synonyms": [
+                  "vendas",
+                  "fase de venda"
+                ]
+              }
+            },
+            {
+              "id": "prospeccao",
+              "name": {
+                "value": "prospecção",
+                "synonyms": [
+                  "prospectando",
+                  "aguardando retorno"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
