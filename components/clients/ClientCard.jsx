@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Calculator,
   CalendarClock,
@@ -41,7 +42,7 @@ import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from
 const MAX_ACTIVITIES = 2;
 const MAX_TAGS = 4;
 
-export default function ClientCard({ client, activities, responsibleName, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
+export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
   const name = client.name || "Cliente sem nome";
   const registration = client.registration || {};
   const urgency = getUrgencySignal(client, activities);
@@ -62,9 +63,7 @@ export default function ClientCard({ client, activities, responsibleName, showRe
     >
       {/* Cabeçalho: quem é e em que pé está */}
       <header className="flex items-start gap-2.5 px-3.5 pt-3 sm:px-4">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/[0.06] text-xs font-semibold text-navy" aria-hidden="true">
-          {initialsOf(name)}
-        </span>
+        <ResponsibleAvatar responsibleProfile={responsibleProfile} />
         <div className="min-w-0 flex-1">
           <h2 id={`card-${client.id}`} className="flex min-w-0 items-baseline gap-2">
             <button type="button" onClick={() => onOpen()} className="truncate text-left text-[15px] font-semibold leading-5 text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
@@ -146,6 +145,41 @@ export default function ClientCard({ client, activities, responsibleName, showRe
         />
       </footer>
     </article>
+  );
+}
+
+// Círculo do cabeçalho: identifica o responsável atual, não o cliente. Com
+// corretor + foto cadastrada mostra a foto; com corretor sem foto mostra as
+// iniciais do corretor; sem responsável (aguardando roleta) mostra a marca da
+// imobiliária. Mesmo espaço circular de antes (h-9 w-9), só o conteúdo muda —
+// e já acompanha o responsável porque lê direto do dado que o card recebe
+// (sem fonte de verdade própria).
+function ResponsibleAvatar({ responsibleProfile }) {
+  const photoUrl = responsibleProfile?.photoUrl || "";
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => setImgError(false), [photoUrl]);
+
+  if (responsibleProfile && photoUrl && !imgError) {
+    return (
+      <img
+        src={photoUrl}
+        alt={responsibleProfile.name || "Corretor responsável"}
+        onError={() => setImgError(true)}
+        className="h-9 w-9 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  if (responsibleProfile) {
+    return (
+      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/[0.06] text-xs font-semibold text-navy" aria-hidden="true">
+        {initialsOf(responsibleProfile.name)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black" aria-hidden="true">
+      <img src="/assets/company-mark-avatar.png" alt="" className="h-full w-full object-cover" />
+    </span>
   );
 }
 

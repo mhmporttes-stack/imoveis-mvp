@@ -97,7 +97,7 @@ const PROFILES = [
   profile(P.elisa, "Elisa Associada Demo", "elisa.demo@vitrine.invalid", "associate", { linkedBrokerId: P.bruno, simulationRef: "elisa-demo", createdAt: ago(40) }),
   profile(P.diego, "Diego Modelo", "diego.modelo@vitrine.invalid", "broker", { simulationRef: "diego-modelo", createdAt: ago(60) }),
   profile(P.carla, "Carla Demonstração", "carla.demo@vitrine.invalid", "broker", { simulationRef: "carla-demo", createdAt: ago(90) }),
-  profile(P.bruno, "Bruno Fictício", "bruno.ficticio@vitrine.invalid", "broker", { managerId: P.gestor, simulationRef: "bruno-ficticio", createdAt: ago(120) }),
+  profile(P.bruno, "Bruno Fictício", "bruno.ficticio@vitrine.invalid", "broker", { managerId: P.gestor, simulationRef: "bruno-ficticio", createdAt: ago(120), photoUrl: "/icons/apple-touch-icon.png" }),
   profile(P.ana, "Ana Exemplo", "ana.exemplo@vitrine.invalid", "broker", { managerId: P.gestor, simulationRef: "ana-exemplo", createdAt: ago(150) }),
   profile(P.gestor, "Gabriel Gestor Demo", "gabriel.gestor@vitrine.invalid", "manager", { createdAt: ago(180) }),
   profile(P.admin, "Administração Vitrine", "admin@vitrine.invalid", "admin", { createdAt: ago(365) })

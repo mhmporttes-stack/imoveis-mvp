@@ -54,6 +54,7 @@ export default function ClientWorkspace(props) {
   const responsibleNameOf = (client) => list.responsibleProfileMap.get(client.registration?.responsibleUserId || "")?.name
     || client.lastAdminLabel
     || (client.registration?.pendingDistributionAt ? "Aguardando distribuição" : "Sem corretor");
+  const responsibleProfileOf = (client) => list.responsibleProfileMap.get(client.registration?.responsibleUserId || "") || null;
 
   const { filters } = list;
   const extraFilterCount = [filters.responsibleUserId !== "all", filters.tagId !== "all", filters.staleContactOnly, filters.noFutureActivityOnly].filter(Boolean).length;
@@ -175,6 +176,7 @@ export default function ClientWorkspace(props) {
                 client={client}
                 activities={list.activitiesFor(client)}
                 responsibleName={responsibleNameOf(client)}
+                responsibleProfile={responsibleProfileOf(client)}
                 showResponsible={canManageResponsibleUsers}
                 busy={list.busyClientId === client.id}
                 selected={openClientId === client.id}
