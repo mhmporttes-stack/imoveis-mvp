@@ -65,7 +65,7 @@ const CORRETORES = ["Bencke", "Bruna", "Caroline", "Eduardo", "Izabela", "Jennyf
 const model = {
   interactionModel: {
     languageModel: {
-      invocationName: "meu crm",
+      invocationName: "central",
       intents: [
         { name: "AMAZON.CancelIntent", samples: [] },
         { name: "AMAZON.HelpIntent", samples: [] },

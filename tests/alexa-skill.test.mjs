@@ -43,7 +43,7 @@ test("autorização: skill e usuário corretos, tudo mais é negado", () => {
 
 test("abertura e ajuda mantêm a sessão aberta", async () => {
   const launch = await handleSkillRequest(envelope({ type: "LaunchRequest" }), deps);
-  assert.match(text(launch), /^CRM./);
+  assert.match(text(launch), /^Central./);
   assert.equal(launch.response.shouldEndSession, false);
   assert.ok(launch.response.reprompt);
   const help = await handleSkillRequest(intent("AMAZON.HelpIntent"), deps);
