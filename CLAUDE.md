@@ -87,4 +87,5 @@ Quando uma REGRA OFICIAL diverge do COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO, o ar
 ## Agente e skills deste projeto
 
 - Subagente `crm-editor` (persona **CRM Architect**) — use-o para qualquer alteração de código neste CRM; ele já carrega a filosofia de investigar causa raiz e impacto antes de editar.
+- Subagente `gestor-trafego` — análise de tráfego pago (Meta) **somente leitura**, cruzando investimento com o funil do CRM; skills `/auditar-trafego`, `/criar-anuncio`, `/planejar-campanha`. Nunca altera campanha/orçamento — só recomenda. Contexto: `docs/TRAFEGO_META.md` §6-A.
 - Skills: `/auditar-crm`, `/corrigir-bug`, `/nova-funcionalidade`, `/auditar-banco`, `/revisar-permissoes`, `/registrar-regra` (regra nova do dono → lugar certo, sem duplicar) e `/diagnosticar-producao` (logs e consultas de leitura antes de publicar código de diagnóstico).

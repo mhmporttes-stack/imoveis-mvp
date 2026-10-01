@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Gestor de Tráfego: agente + 3 skills somente leitura (Meta × funil do CRM)
+- **Data:** 2026-10-01
+- **Área:** Docs / Infra (estrutura do Claude Code) / Meta/Tráfego
+- **Alteração:** novo agente `gestor-trafego` e skills `/auditar-trafego` (auditoria + monitoramento + funil anúncio → cliente → simulação → documentação → aprovação → reunião → venda; referências `consultas-funil.md` com Q0–Q5 validadas em produção e `regras-decisao.md` com baseline do histórico, critérios para baixo volume, interpretação de atribuição e checklist de configuração), `/criar-anuncio` (copy + briefing + `conformidade-imobiliaria.md`) e `/planejar-campanha` (especificação PAUSADA + checklist). Conceitos do projeto público Meta Ads Stack (ad-audit, ad-watchdog, ad-creative-engine, campaign-builder, princípios do ad-optimizer) usados só como referência; nenhum MCP, token ou integração instalado. `docs/TRAFEGO_META.md` §6-A, `CLAUDE.md` e `AGENTS.md` atualizados.
+- **Motivo:** pedido do dono — especializar o Gestor de Tráfego (Marília/SP, primeiro imóvel, MCMV, financiamento) e cruzar investimento com a evolução real do lead no CRM.
+- **Arquivos afetados:** `.claude/agents/gestor-trafego.md`, `.claude/skills/{auditar-trafego,criar-anuncio,planejar-campanha}/**`, `docs/TRAFEGO_META.md`, `CLAUDE.md`, `AGENTS.md`.
+- **Risco/observação:**
+  - **Segurança:** somente leitura (`SELECT` no Supabase; integração Meta é `ads_read`); toda ação vira recomendação para aprovação; sem metas inventadas (baseline do histórico até o dono definir).
+  - **Achados de dados (verificados):**
+    - links pagos usam UTM com IDs da Meta (campanha/conjunto/anúncio), casando 1:1 com `meta_ad_entities`;
+    - leads da Meta ≠ clientes do CRM por desenho (o Pixel conta todo formulário; a Meta atribui com 7d clique/1d visualização);
+    - campanha de WhatsApp tem `leads = 0` na Meta (o resultado é "conversa iniciada");
+    - `special_ad_categories` não é sincronizado → categoria especial **A CONFIRMAR**.
+  - **Contexto medido em sessão nova:** +570 tokens fixos (descrições); auditoria completa carrega ~7 mil tokens só quando usada.
+  - **Teste de roteamento:** pergunta de tráfego foi delegada ao `gestor-trafego`; sem acesso ao banco, o agente recusou estimar.
+  - **Histórico (backfill):** autorizado pelo dono, mas só pode ser disparado com sessão de administrador (rota existente `POST /api/admin/meta-ads/backfill`). Dados atuais: 13/09–30/09/2026.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Atribuição em massa da Prospecção registra o admin real em "Alterar conta"
 - **Data:** 2026-10-01
 - **Área:** Permissões / Prospecção

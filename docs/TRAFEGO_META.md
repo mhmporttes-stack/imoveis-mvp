@@ -59,6 +59,22 @@
 4. Qualquer escrita na Meta (criar/pausar campanha) é **fora do escopo atual** — exige fase nova, aprovação explícita e revisão de segurança.
 5. Testes só de leitura: `GET /api/admin/meta-ads/sync-status` autenticado como administrador geral; **não** rode `backfill` em produção sem pedido.
 
+## 6-A. Gestor de Tráfego (Claude Code) — análise somente leitura (desde 2026-10-01)
+
+Conhecimento especializado de tráfego vive no repositório, carregado sob demanda: agente **`gestor-trafego`** (`.claude/agents/gestor-trafego.md`) e skills **`/auditar-trafego`** (auditoria + monitoramento + funil CRM; referências `consultas-funil.md` e `regras-decisao.md`), **`/criar-anuncio`** (copy/briefing; referência `conformidade-imobiliaria.md`) e **`/planejar-campanha`** (especificação pausada). Conceitos do projeto público *Meta Ads Stack* usados só como referência — nenhum MCP, token ou integração dele foi instalado.
+
+**Política de segurança (decisão do dono, 2026-10-01):** auditoria e monitoramento só leem (`SELECT` no Supabase; integração Meta é `ads_read`); nenhuma alteração em campanha, conjunto, anúncio, público ou orçamento — tudo sai como recomendação numerada para aprovação; campanha nova = especificação para criação **pausada**; nada financeiro automático; sem metas inventadas (compara com **baseline do histórico** até o dono definir metas).
+
+**Atribuição anúncio → cliente (verificado em produção 2026-10-01):**
+- Anúncio de WhatsApp: `client_origins.source_metadata.ad_id` (+ `adset_id`/`campaign_id`/nomes quando o anúncio já estava sincronizado).
+- Site/simulação: os links pagos atuais usam `utm_medium=paid`, `utm_campaign` = **ID da campanha**, `utm_term` = **ID do conjunto**, `utm_content` = **ID do anúncio** — casam 1:1 com `meta_ad_entities`. Anúncio sem esse padrão não entra no funil CRM.
+- Leads da Meta ≠ clientes do CRM por desenho: o Pixel dispara `Lead` em todo formulário do site e a Meta atribui com 7 dias de clique/1 de visualização; o CRM atribui só pelo último clique rastreado (conservador). Ex. set/2026: 82 leads na Meta × 18 clientes atribuídos na mesma campanha.
+- Campanha de WhatsApp tem `leads = 0` em `meta_ad_insights` (o resultado é `onsite_conversion.messaging_conversation_started_7d` em `actions_raw`).
+
+**Categoria especial (moradia/crédito): A CONFIRMAR.** `syncMetaAdEntities` só busca `id,name,objective,status,effective_status` da campanha — `special_ad_categories`, orçamento, datas e lance não são sincronizados. Conjuntos antigos com idade mínima ≠ 18 e interesses detalhados são apenas **indício** de campanhas não declaradas como categoria especial.
+
+**Histórico (backfill):** em 2026-10-01 só havia dados de 13/09 a 30/09/2026 (`backfill_status = not_started`). Campanhas da conta existem desde abr/2023; a Meta mantém métricas por ~37 meses. A carga usa a rota existente `POST /api/admin/meta-ads/backfill` (admin geral logado; só leitura na Meta, retomável por blocos de 31 dias; aceita `startDate`). Não há como dispará-la sem sessão de admin.
+
 ## 7. Riscos e pontos a confirmar
 
 - **P-13** rótulo de janela de atribuição não enviado à API; com token/conta ausentes os crons respondem `502` com `missing_config` (aparece como falha do job no `pg_cron`, sem alerta ao usuário).
