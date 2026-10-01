@@ -99,6 +99,13 @@ test("hoje -> ontem -> semana no resumo do corretor", async () => {
   assert.match((await say("ContinuaIntent", { periodo: slot("esta semana", "esta_semana") })).text, /^Esta semana a Izabela fez 34 prospecções, iniciou 26 atendimentos/);
 });
 
+test("pergunta nova sobre o dia do corretor não herda semana/ontem da conversa", async () => {
+  const say = conversation();
+  await say("CorretorIntent", { corretor: slot("Izabela", "i1") });
+  assert.match((await say("ContinuaIntent", { periodo: slot("esta semana", "esta_semana") })).text, /^Esta semana a Izabela/);
+  assert.match((await say("CorretorIntent", { corretor: slot("Izabela", "i1") })).text, /^Hoje a Izabela está com 82 por cento/);
+});
+
 test("desempenho -> Agenda: a data nova leva para a agenda mesmo com corretor na conversa", async () => {
   const say = conversation();
   await say("CorretorIntent", { corretor: slot("Izabela", "i1") });
