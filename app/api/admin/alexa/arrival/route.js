@@ -29,7 +29,9 @@ export async function POST(request) {
       return NextResponse.json({ token });
     }
     if (body.action === "preview" || body.action === "speak") {
-      const text = await buildArrivalSummary(auth.profile?.id || null);
+      // "at" (só na prévia): simula outro instante (ISO), p.ex. para conferir aniversários de uma data.
+      const at = body.action === "preview" && body.at ? new Date(body.at) : null;
+      const text = await buildArrivalSummary(auth.profile?.id || null, at && Number.isFinite(at.getTime()) ? at : undefined);
       if (body.action === "preview") return NextResponse.json({ text });
       const result = await speakArrivalSummary(text, { force: true });
       if (!result.spoken) return NextResponse.json({ error: "Não foi possível falar na Alexa agora.", text }, { status: 400 });
