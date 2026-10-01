@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Correção: marcar venda como "Pago" agora lança o recebimento (conta no mês certo)
+- **Data:** 2026-10-01
+- **Área:** Financeiro
+- **Alteração:** complementa a entrada anterior deste mesmo dia (cliente em "Pago" marca `financial_sales` como Recebido). `markFinancialSaleReceivedForRegistration` só alterava `financial_status` direto — como esse campo é sempre recalculado a partir da soma dos `financial_payments` (`deriveFinancialStatus`), a venda aparecia "Recebido" na lista mas não entrava nos totais mensais do Dashboard (que somam pagamentos por `received_date`), e a marcação se perderia na próxima vez que a venda fosse salva pela tela do Financeiro. Agora a função lança um `financial_payments` novo com o valor que falta receber (comissão bruta − já recebido), datado de hoje — nunca mexe em recebimentos/despesas/repasses já lançados.
+- **Motivo:** pedido do dono — "a venda recebida deve ser computada no mês que eu alterei o status para pago".
+- **Arquivos afetados:** `lib/financial.js`.
+- **Risco/observação:** resolve também o risco residual já registrado na entrada anterior (status podendo ser sobrescrito ao salvar a venda pela tela) — agora o status fica consistente com um recebimento real. `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Pipeline de venda: "Pagamento" renomeado para "Aguardando pagamento" + etapa "Pago" (marca a venda como Recebida no Financeiro)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Funil / Financeiro
