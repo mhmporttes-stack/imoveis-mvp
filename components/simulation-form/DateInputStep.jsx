@@ -1,4 +1,4 @@
-import { getMaximumBirthDateForMinimumAge } from "@/lib/simulation-registration-schema";
+import { getMaximumBirthDateForMinimumAge } from "@/lib/simulation-registration-format";
 
 export default function DateInputStep({ error, onChange, step, value }) {
   const inputId = `simulation-${step.id}`;

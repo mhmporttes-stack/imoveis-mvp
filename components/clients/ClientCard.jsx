@@ -26,7 +26,7 @@ import Menu from "@/components/ui/Menu";
 import { cx } from "@/components/ui/cx";
 import { clientStatusTone } from "@/components/ui/status-tone";
 import { CLIENT_STATUS, clientStatusLabel } from "@/lib/client-status";
-import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-schema";
+import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";

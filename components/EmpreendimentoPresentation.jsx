@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ChevronLeft, ChevronRight, Download, Expand, MapPin, X } from "lucide-react";
 import { buildGoogleMapsUrl, coverImage } from "@/lib/format";
-import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-schema";
+import { calculateFamilyIncome, parseCurrencyNumber } from "@/lib/simulation-registration-format";
 import { getRenderableSimulationModels, normalizeSimulationModels } from "@/lib/simulation-models";
 
 export default function EmpreendimentoPresentation({ simulation, properties }) {

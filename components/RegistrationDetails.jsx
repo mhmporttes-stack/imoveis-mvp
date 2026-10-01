@@ -9,7 +9,7 @@ import {
   maritalStatusLabel,
   realBirthDate,
   simulationTypeLabel
-} from "@/lib/simulation-registration-schema";
+} from "@/lib/simulation-registration-format";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 
 export default function RegistrationDetails({ registration }) {

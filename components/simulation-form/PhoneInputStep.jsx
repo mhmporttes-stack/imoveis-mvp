@@ -1,4 +1,4 @@
-import { formatPhone } from "@/lib/simulation-registration-schema";
+import { formatPhone } from "@/lib/simulation-registration-format";
 
 export default function PhoneInputStep({ error, onChange, step, value }) {
   const inputId = `simulation-${step.id}`;

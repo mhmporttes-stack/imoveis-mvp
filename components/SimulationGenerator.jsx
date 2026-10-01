@@ -13,7 +13,7 @@ import {
   SIMULATION_TYPE_OPTIONS,
   calculateFamilyIncome,
   parseCurrencyNumber
-} from "@/lib/simulation-registration-schema";
+} from "@/lib/simulation-registration-format";
 import {
   SIMULATION_MODEL_TYPES,
   extractSimulationModelsFromNote,

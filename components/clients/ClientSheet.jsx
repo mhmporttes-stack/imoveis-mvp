@@ -39,7 +39,7 @@ import {
   maritalStatusLabel,
   realBirthDate,
   simulationTypeLabel
-} from "@/lib/simulation-registration-schema";
+} from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";

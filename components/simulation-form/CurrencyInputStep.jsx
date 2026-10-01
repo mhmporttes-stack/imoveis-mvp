@@ -1,4 +1,4 @@
-import { formatCurrencyFromDigits } from "@/lib/simulation-registration-schema";
+import { formatCurrencyFromDigits } from "@/lib/simulation-registration-format";
 
 export default function CurrencyInputStep({ error, onChange, step, value }) {
   const inputId = `simulation-${step.id}`;

@@ -11,7 +11,7 @@ import {
   formatDateTimeBR,
   hasSimulationData,
   simulationTypeLabel
-} from "@/lib/simulation-registration-schema";
+} from "@/lib/simulation-registration-format";
 
 export default function AdminRegistrationList({ registrations = [], isOwner = false }) {
   const router = useRouter();

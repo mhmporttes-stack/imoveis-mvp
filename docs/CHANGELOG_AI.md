@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Auditoria de performance (2ª rodada): fotos da listagem, zod fora do bundle de exibição, queries em paralelo
+- **Data:** 2026-10-01
+- **Área:** Banco/Infra/Docs
+- **Alteração:** listagem pública de imóveis passou a buscar só a foto de capa (`photos_json->0` via PostgREST, não o array inteiro) — sem migration, mesmo resultado visual; `lib/simulation-registration-schema.js` (carrega zod) dividido em dois módulos — funções puras de formatação foram para `lib/simulation-registration-format.js` (sem zod), e 9 componentes de exibição (cards de cliente, detalhes, listas) passaram a importar de lá, parando de carregar zod à toa; duas contagens sequenciais da aba "Todos" de Clientes agora rodam em paralelo; `listAdminProfiles()` memoizado por requisição (eliminava até 4 consultas idênticas numa carga do Ranking/Extrato de Pontos). Nenhuma mudança visual/comportamental.
+- **Motivo:** pedido do dono — 2ª rodada da auditoria de performance, focada só em ganhos técnicos sem risco de regressão visível, depois de validar a 1ª rodada em produção (TTFB da home: 636ms → 177ms confirmado ao vivo).
+- **Arquivos afetados:** `lib/public-properties.js`, `lib/simulation-registration-schema.js`, `lib/simulation-registration-format.js` (novo), `lib/simulation-list-query.js`, `lib/admin-profiles.js`, 9 componentes (import path only — ver `docs/PERFORMANCE_AUDIT.md`), `docs/PERFORMANCE_AUDIT.md`.
+- **Risco/observação:** `next build` limpo. Extração de foto testada contra a API REST de produção (leitura) antes de aplicar, confirmando formato de retorno idêntico ao que `coverImage()` já esperava. Verificado com `EXPLAIN ANALYZE` (não só leitura de código): nenhum índice novo necessário agora nas 3 tabelas que mais crescem. Ficou de fora, por risco (não por ser visual): trim de `simulations(*)` na listagem de Clientes — o campo alimenta a lógica de status/filtro da tela, precisa de verificação mais extensa antes de mexer.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Auditoria de performance: auth deduplicada, ISR no site público, queries mais leves
 - **Data:** 2026-10-01
 - **Área:** Infra/Banco/Permissões/Docs
