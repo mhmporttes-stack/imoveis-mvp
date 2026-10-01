@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Pipeline de venda: "Reserva" renomeada e etapa "Conformidade" adicionada
+- **Data:** 2026-10-01
+- **Área:** Clientes / Funil
+- **Alteração:** no pipeline de pós-venda, o status `sale_reservation` mudou de rótulo de "Reserva" para "Aguardando reserva" (valor no banco inalterado) e um status novo, `sale_compliance` ("Conformidade"), foi inserido logo depois, antes de "Contrato" (`sale_contract`). Ordem final: Venda realizada, Formulários, Aguardando reserva, Conformidade, Contrato, Assinatura Caixa, ITBI, Cartório, Pagamento. Atualizado em todo lugar que enumera o pipeline: `lib/client-status.js` (enum/opções/meta/funil — fonte única), `lib/client-status-history.js` (rótulos da timeline), `lib/celebrations.js` (marco de vendas do mês), `lib/scoring-rules.js` (pontuação — conta como "sale", igual às demais etapas), `lib/simulation-list-utils.js` (`isCompletedClientStatus`), `lib/simulation-registrations.js` (guard do pipeline de venda + guard de status manual, 2 ocorrências), fixture da vitrine de design. Nova migration ajusta as 3 CHECK constraints do banco (`simulation_registrations.status`, `client_status_history.new_status`/`previous_status`) para aceitar `sale_compliance` — já aplicada em produção.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/client-status.js`, `lib/client-status-history.js`, `lib/celebrations.js`, `lib/scoring-rules.js`, `lib/simulation-list-utils.js`, `lib/simulation-registrations.js`, `app/dev/vitrine/_fixtures/clientes.js`, `supabase/migrations/20261001190000_client_status_sale_compliance.sql`.
+- **Risco/observação:** `components/clients/StatusOptions.jsx` (corrigido nesta mesma sessão para listar todas as etapas de venda a partir de `CLIENT_FUNNEL_SALE_STATUS_VALUES`) já mostra a etapa nova sem precisar de mudança adicional. Nenhum cliente existente precisou de migração de dado — só quem for movido manualmente para "Conformidade" daqui pra frente usa o novo valor. `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Botão de concluir no agendamento legado do card e da ficha
 - **Data:** 2026-10-01
 - **Área:** Clientes / Agenda
