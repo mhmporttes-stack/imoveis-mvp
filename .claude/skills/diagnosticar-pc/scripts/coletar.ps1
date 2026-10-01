@@ -29,6 +29,7 @@ function Mascara($t) {
   if ($t.Length -gt 160) { $t = $t.Substring(0,160) + '...' }
   $t
 }
+function SomaProp($itens, $prop) { $s = 0.0; foreach ($i in $itens) { if ($null -ne $i[$prop]) { $s += [double]$i[$prop] } }; $s }
 function Cpu2($ids) {
   # CPU% por processo em janela de ~2s
   $a = @{}; Get-Process -Id $ids -ErrorAction SilentlyContinue | ForEach-Object { $a[$_.Id] = $_.CPU }
@@ -96,7 +97,11 @@ if ($todos -or $Modulo -eq 'memoria') {
   $pf = Get-CimInstance Win32_PageFileUsage | ForEach-Object { [ordered]@{ arquivo = $_.Name; tamanhoMB = $_.AllocatedBaseSize; usoMB = $_.CurrentUsage; picoMB = $_.PeakUsage } }
   $pfAuto = (Get-CimInstance Win32_ComputerSystem).AutomaticManagedPagefile
   $pages = $null
-  try { $pages = [math]::Round((Get-Counter '\Memory\Pages/sec' -ErrorAction Stop).CounterSamples[0].CookedValue, 1) } catch {}
+  # classes CIM sao independentes do idioma (Get-Counter usa nomes localizados em pt-BR); media de 4 amostras de 1 s
+  try {
+    $amostras = 1..4 | ForEach-Object { $v = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).PagesPersec; Start-Sleep -Seconds 1; $v }
+    $pages = [math]::Round(($amostras | Measure-Object -Average).Average, 1)
+  } catch {}
   $comp = $null
   try { $comp = Get-MMAgent | ForEach-Object { "MemoryCompression=$($_.MemoryCompression) PageCombining=$($_.PageCombining)" } } catch {}
   $top = Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 15 | ForEach-Object {
@@ -124,17 +129,21 @@ if ($todos -or $Modulo -eq 'disco') {
     $rel = $_ | Get-StorageReliabilityCounter
     [ordered]@{ nome = $_.FriendlyName; tipo = "$($_.MediaType)"; barramento = "$($_.BusType)"; saude = "$($_.HealthStatus)"; tamanhoGB = GB $_.Size; desgastePct = $rel.Wear; tempC = $rel.Temperature; errosLeitura = $rel.ReadErrorsTotal; errosEscrita = $rel.WriteErrorsTotal }
   }
-  $fila = $null; $lat = $null
+  # CIM (independente de idioma): 5 amostras de 1 s -> fila e latencia = maximo, ocupado = media
+  $fila = $null; $lat = $null; $busy = $null
   try {
-    $c = Get-Counter '\PhysicalDisk(_Total)\Avg. Disk Queue Length', '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', '\PhysicalDisk(_Total)\% Disk Time' -ErrorAction Stop
-    $fila = [math]::Round($c.CounterSamples[0].CookedValue, 2); $lat = [math]::Round($c.CounterSamples[1].CookedValue * 1000, 2)
-    $busy = [math]::Round($c.CounterSamples[2].CookedValue, 1)
+    $am = 1..5 | ForEach-Object { $d = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"; Start-Sleep -Seconds 1; $d }
+    $fila = [math]::Round(($am | Measure-Object CurrentDiskQueueLength -Maximum).Maximum, 2)
+    $lat = [math]::Round(($am | Measure-Object AvgDisksecPerTransfer -Maximum).Maximum * 1000, 2)
+    $busy = [math]::Round(($am | Measure-Object PercentDiskTime -Average).Average, 1)
   } catch {}
   $temp = @{
     tempUsuarioMB = DirMB $env:TEMP
     windowsTempMB = DirMB "$env:SystemRoot\Temp"
     windowsUpdateCacheMB = DirMB "$env:SystemRoot\SoftwareDistribution\Download"
     crashDumpsMB = DirMB "$env:LOCALAPPDATA\CrashDumps"
+    edgeCacheMB = DirMB "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache"
+    miniaturasExplorerMB = DirMB "$env:LOCALAPPDATA\Microsoft\Windows\Explorer"
     lixeiraMB = $null
   }
   $trim = $null
@@ -216,7 +225,7 @@ if ($todos -or $Modulo -eq 'chrome') {
     $ext = if ($p.CommandLine -match '--extension-process') { $true } else { $false }
     [ordered]@{ pid = $p.ProcessId; ppid = $p.ParentProcessId; tipo = $tipo; extensao = $ext; wsMB = MB $gp.WorkingSet64; cpuPct = $cpu[[int]$p.ProcessId] }
   }
-  $porTipo = $lista | Group-Object { $_.tipo } | ForEach-Object { [ordered]@{ tipo = $_.Name; qtd = $_.Count; wsMB = [math]::Round(($_.Group | Measure-Object wsMB -Sum).Sum, 1); cpuPct = [math]::Round(($_.Group | Measure-Object cpuPct -Sum).Sum, 1) } }
+  $porTipo = $lista | Group-Object { $_.tipo } | ForEach-Object { [ordered]@{ tipo = $_.Name; qtd = $_.Count; wsMB = [math]::Round((SomaProp $_.Group "wsMB"), 1); cpuPct = [math]::Round((SomaProp $_.Group "cpuPct"), 1) } }
   $pidsVivos = @($procs | ForEach-Object { $_.ProcessId })
   # orfao = processo filho (renderer/gpu/utility) cujo pai ja nao existe
   $orfaosReais = $lista | Where-Object { $_.tipo -ne 'browser' -and ($pidsVivos -notcontains $_.ppid) }
@@ -248,7 +257,7 @@ if ($todos -or $Modulo -eq 'chrome') {
   try { $debugPort = [bool](Get-NetTCPConnection -LocalPort 9222 -State Listen -ErrorAction Stop) } catch { $debugPort = $false }
   $out.chrome = [ordered]@{
     versao = $ver; processos = $lista.Count; porTipo = @($porTipo)
-    totalWsMB = [math]::Round(($lista | Measure-Object wsMB -Sum).Sum, 1)
+    totalWsMB = [math]::Round((SomaProp $lista "wsMB"), 1)
     top5 = @($lista | Sort-Object { $_.wsMB } -Descending | Select-Object -First 5)
     possiveisOrfaos = @($orfaosReais).Count
     perfis = @($perfis); aceleracao = $hw
@@ -278,13 +287,13 @@ if ($todos -or $Modulo -eq 'claude') {
   $mcps = @()
   try {
     $j = Get-Content "$env:USERPROFILE\.claude.json" -Raw | ConvertFrom-Json
-    $mcps = @($j.mcpServers.PSObject.Properties.Name)
+    $mcps = @($j.mcpServers.PSObject.Properties.Name | Where-Object { $_ })
   } catch {}
   $desk = @("$env:APPDATA\Claude", "$env:LOCALAPPDATA\AnthropicClaude", "$env:LOCALAPPDATA\Packages") | Where-Object { $_ -notmatch 'Packages' } | ForEach-Object { [ordered]@{ pasta = $_; mb = DirMB $_ } }
   $logs = Get-ChildItem "$env:APPDATA\Claude\logs" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object { "$($_.Name) $(MB $_.Length)MB" }
   $out.claude = [ordered]@{
     processos = @($lista); qtd = $lista.Count
-    totalWsMB = [math]::Round(($lista | Measure-Object wsMB -Sum).Sum, 1)
+    totalWsMB = [math]::Round((SomaProp $lista "wsMB"), 1)
     nodeOrfaos = @($orf).Count
     pastasDotClaude = @($pastas); mcpsUsuario = @($mcps); desktop = @($desk); logsRecentes = @($logs)
     nodeInstalado = [bool](Get-Command node -ErrorAction SilentlyContinue)
