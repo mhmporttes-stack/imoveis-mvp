@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Correção: congelamento da carteira perdia rodada que já tinha saído antes do freeze
+- **Data:** 2026-10-01
+- **Área:** Meta Diária / Ranking
+- **Alteração:** corrige uma regressão da entrada anterior deste mesmo dia ("Meta Diária: carteira ativa... passa a congelar à meia-noite"). `freezeDailyGoalWalletIfMissing` (`lib/daily-goal-wallet.js`) só capturava rodadas com `status='active'` no instante exato do congelamento — uma rodada que o corretor já tinha trabalhado de manhã e que converteu/encerrou ANTES do congelamento lazy rodar (pode acontecer horas depois da geração da cota, se ninguém olhar o painel antes disso) nunca entrava no conjunto congelado e sumia da meta pelo resto do dia. Corrigido: a captura agora inclui também quem já saiu hoje antes do congelamento (`ended_at`/`converted_at` de hoje) — mesma condição que a consulta ao vivo já usava antes do congelamento existir. Rodada nova criada DEPOIS do congelamento continua de fora (não existe em nenhum dos dois lados da consulta), preservando a regra do dono.
+- **Motivo:** o dono reportou que Luan Vitor recebeu só 14 contatos em vez de 20. Diagnóstico com dado real: a cota cheia de 20 foi gerada normalmente às 08:57; 6 desses contatos já tinham convertido/encerrado quando o congelamento lazy rodou às 14:44 (disparado por outra pessoa abrindo o painel do gestor); por isso só 14 entraram no congelamento.
+- **Arquivos afetados:** `lib/daily-goal-wallet.js`.
+- **Risco/observação:** confirmado o mesmo problema em mais 6 corretores no dia de hoje (Bruna Santos, Eduardo Bueno, Jennyfer Zorzato, izabela Silverio, Caroline Mayumi, ketlin) — as 14 linhas de `daily_goal_wallet_freeze` de hoje com `round_ids` incompletos foram recalculadas via SQL direto em produção com a mesma lógica da correção (nenhuma delas precisará de ajuste futuro; o congelamento de amanhã já nasce correto). `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Pipeline de venda: "Reserva" renomeada e etapa "Conformidade" adicionada
 - **Data:** 2026-10-01
 - **Área:** Clientes / Funil
