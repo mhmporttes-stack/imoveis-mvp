@@ -12,7 +12,10 @@ Atenção: o servidor `windsor` declarado em `.mcp.json` (login próprio) contin
 | Meta Ads (`facebook`) — **mídia paga** | SIM — conta `139348312829192` | SIM, 2026-10-01 | 2026-10-01 | É anúncio pago: domínio do `gestor-trafego`, não do posicionamento orgânico. 5 campanhas com gasto nos últimos 30 dias. Inclui conversão personalizada "cadastro_simulação". |
 | Google Search Console | NÃO CONECTADO | não | 2026-10-01 | Não aparece em `get_connectors`. Conectar no Windsor (dono, no navegador). |
 | Google Analytics 4 | NÃO CONECTADO | não | 2026-10-01 | Idem. |
-| Instagram (orgânico, `facebook_organic`) | NÃO CONECTADO | não | 2026-10-01 | Idem. |
-| Facebook (orgânico, `facebook_organic`) | NÃO CONECTADO | não | 2026-10-01 | Idem. |
+| Instagram Insights (`instagram`) | SIM — conta `17841410653785252` ("Matheus Machado \| Corretor de imóveis", @mhm.machado), conectada em 2026-10-01 por login Meta do dono; identidade confirmada pelo @ | SIM, 2026-10-01 | 2026-10-01 | Perfil (bio, link, seguidores, nº de posts), diário da conta (alcance, visualizações, contas engajadas, interações, novos seguidores, toques nos links do perfil), por publicação (alcance, visualizações, salvamentos, compartilhamentos, curtidas, comentários, tipo, data, link), stories (só 24h), público (idade, gênero, cidade, país). `profile_views` volta **vazio** (campo descontinuado pela Meta). |
+| Facebook (orgânico, `facebook_organic`) | NÃO CONECTADO | não | 2026-10-01 | Sem vaga no plano Basic (3/3). Páginas vistas na tela de conexão: "Matheus Machado Corretor de Imóveis", "Matheus Machado Corretor", "Matheus Henrique Porttes" — qual é a oficial: A CONFIRMAR. |
+| Google Search Console / GA4 | NÃO CONECTADO | não | 2026-10-01 | Fica para a próxima etapa (decisão do dono: prioridade GMN, Instagram, Meta Ads). Plano Basic = **3 fontes, 3 em uso** (Meta Ads, GMN, Instagram): conectar outra exige upgrade ou trocar uma fonte. |
 
-Pendência para o dono: conectar Search Console, GA4 e Instagram/Facebook orgânico no painel do Windsor; só então o agente consegue medir SEO, tráfego do site e alcance social com dado real.
+Nota de segurança: o conector Instagram expõe ações de escrita (`create_*_post`, `create_story`, `reply_to_comment`, `delete_comment` etc.). O agente **não usa nenhuma** — Instagram é só leitura; qualquer escrita exige pedido explícito do dono por ação. O interruptor "escrita de ações" do Windsor ficou **desligado** na conexão. As permissões da Meta concedidas ao Windsor incluem `ads_management`, `business_management` e `catalog_management` (pedido padrão do Windsor, autorizado pelo dono em 2026-10-01).
+
+Pendência para o dono: decidir upgrade do Windsor (ou trocar uma fonte) para Search Console/GA4/Facebook orgânico.
