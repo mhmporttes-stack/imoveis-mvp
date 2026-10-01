@@ -39,19 +39,21 @@ export async function GET(request) {
   const auth = await requireGeneralAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  const only = new URL(request.url).searchParams.get("only") || "";
   const results = [];
-  results.push(await measure("funil: getSimulationClientCounters", () => getSimulationClientCounters({ auth })));
-  results.push(await measure("pendentes: getPendingClientsCount", () => getPendingClientsCount({ auth })));
-  results.push(await measure("sem atendimento: getUnattendedClientIds", () => getUnattendedClientIds(auth)));
-  results.push(await measure("presenca: getTeamPresence", () => getTeamPresence(auth)));
-  results.push(await measure("meta: getDailyGoalPerformance(today)", () => getDailyGoalPerformance({ period: "today" }, auth)));
-  results.push(await measure("overview(today) frio", () => getPerformanceOverview({ period: "today" }, auth)));
-  results.push(await measure("overview(today) cache 90s", () => getCachedTodayOverviewForRanking()));
-  results.push(await measure("meta equipe: getOwnerTeamDailyOverview(today)", () => getOwnerTeamDailyOverview({ period: "today" }, auth)));
-  results.push(await measure("overview(yesterday)", () => getPerformanceOverview({ period: "yesterday" }, auth)));
-  results.push(await measure("overview(last7)", () => getPerformanceOverview({ period: "last7" }, auth)));
-  results.push(await measure("overview(month)", () => getPerformanceOverview({ period: "month" }, auth)));
-  results.push(await measure("relatorio do dia: getDailyReport(today)", () => getDailyReport({ period: "today" }, auth)));
+  const run = async (label, fn) => { if (!only || label.includes(only)) results.push(await measure(label, fn)); };
+  await run("funil: getSimulationClientCounters", () => getSimulationClientCounters({ auth }));
+  await run("pendentes: getPendingClientsCount", () => getPendingClientsCount({ auth }));
+  await run("sem atendimento: getUnattendedClientIds", () => getUnattendedClientIds(auth));
+  await run("presenca: getTeamPresence", () => getTeamPresence(auth));
+  await run("meta: getDailyGoalPerformance(today)", () => getDailyGoalPerformance({ period: "today" }, auth));
+  await run("overview(today) frio", () => getPerformanceOverview({ period: "today" }, auth));
+  await run("overview(today) cache 90s", () => getCachedTodayOverviewForRanking());
+  await run("meta equipe: getOwnerTeamDailyOverview(today)", () => getOwnerTeamDailyOverview({ period: "today" }, auth));
+  await run("overview(yesterday)", () => getPerformanceOverview({ period: "yesterday" }, auth));
+  await run("overview(last7)", () => getPerformanceOverview({ period: "last7" }, auth));
+  await run("overview(month)", () => getPerformanceOverview({ period: "month" }, auth));
+  await run("relatorio do dia: getDailyReport(today)", () => getDailyReport({ period: "today" }, auth));
 
   return NextResponse.json({ at: new Date().toISOString(), note: "chamadas ao Supabase contadas por fetch global; trafego paralelo de outros usuarios pode somar", results });
 }
