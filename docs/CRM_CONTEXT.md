@@ -25,10 +25,12 @@ Regras de acesso completas (guards por rota/página): [`PERMISSIONS.md`](PERMISS
 
 ## 3. Menus do painel (`components/AdminMenu.jsx`)
 
-- **Administrador geral**: SUPERVISÃO (Meta Diária, Desempenho, Online) · CLIENTES (Clientes, Chat, Prospecção, Agenda) · CADASTROS (Imóveis, Empreendimentos, Cadastro de empreendimentos, Captações, Depoimentos, Corretores, Gerador de Links) · FINANCEIRO (Financeiro, Gastos de IA) · CONFIGURAÇÕES (Meta Diária gestão, Pontuação, Automações, Minha Jornada).
-- **Gestor**: CRM (Meta Diária, Clientes, Chat, Oportunidades, Empreendimentos, Agenda, Prospecção) · CADASTROS (Imóveis, Captações, Depoimentos) · GESTÃO (Corretores, Empreendimentos, Gerador de Links, Minha Jornada, Automações, Meta Diária gestão, Desempenho). O que ele não pode ver é barrado nas páginas/consultas, não escondido do menu.
-- **Corretor**: CRM (Meta Diária, Clientes, Chat, Oportunidades, Empreendimentos, Agenda, Prospecção) · CADASTROS (Cadastrar imóvel, Cadastrar depoimento) · DESEMPENHO (Relatório Diário, Financeiro).
-- **Associado**: como corretor, sem Oportunidades e só com Financeiro no grupo de desempenho.
+> Atualizado em 2026-10-01 conforme `components/AdminMenu.jsx` (`ownerGroups`, `managerGroups`, `brokerGroups`, `associateGroups`). A Central de Oportunidades foi **removida** em 2026-09-28 e não aparece mais em nenhum menu.
+
+- **Administrador geral** (`ownerGroups`): SUPERVISÃO (Meta Diária, Desempenho, Online, Auditoria) · CLIENTES (Clientes, Chat, Prospecção, Agenda) · CADASTROS (Imóveis, Empreendimentos, Cadastro de empreendimentos, Captações, Depoimentos, Corretores, Gerador de Links) · FINANCEIRO (Financeiro, Gastos de IA) · CONFIGURAÇÕES (Meta Diária gestão, Pontuação, Documentação · Regras da IA, Automações, Guia de Atendimento, Minha Jornada).
+- **Gestor** (`managerGroups` = menu do corretor + GESTÃO): CRM, CADASTROS e DESEMPENHO iguais aos do corretor · GESTÃO (Corretores, Empreendimentos/cadastro, Gerador de Links, Minha Jornada, Automações, Guia de Atendimento, Meta Diária gestão, Desempenho). O que ele não pode ver é barrado nas páginas/consultas, não escondido do menu.
+- **Corretor** (`brokerGroups`): CRM (Meta Diária, Lista de clientes, Chat, Calendário, Prospecção) · CADASTROS (Cadastrar imóvel, Empreendimentos, Cadastrar depoimento) · DESEMPENHO (Relatório Diário, Financeiro).
+- **Associado** (`associateGroups`): como corretor, só com Financeiro no grupo DESEMPENHO.
 - Telas fora do menu: `/admin/notificacoes`, `/admin/cadastros` (lista legada), `/admin/simulacoes/[id]` (a entidade “simulação”), `/admin/automacoes/fluxos/[id]` (editor de Fluxos). `/admin/whatsapp-master` só redireciona para `/admin/automacoes?tab=whatsapp-master`.
 - Automações tem abas: `rules` (regras), `roulette` (roleta), `daily-message`, `whatsapp-master`, `flows`, `disparos` (ex-`whatsapp-manual`, removida em 2026-09-27; o Disparo saiu de dentro de `whatsapp-master` e virou aba própria).
 
@@ -75,7 +77,6 @@ Marcos automáticos: entrar em qualquer status de venda cria a **venda financeir
 | Prospecção / Base | `/admin/prospeccao` | fila `prospecting_contacts` (Base da Imobiliária e bases individuais), importação, atribuição |
 | Meta Diária | `/admin/meta-diaria` (+ `/gestao`) | cota diária de 1ª/2ª/3ª tentativa por corretor (o dia começa com exatamente a cota de contatos aguardando 1º contato; **uma tentativa por contato por dia**), carteira ativa, fechamento diário |
 | Desempenho / Ranking / Pontuação | `/admin/desempenho/*`, `/admin/relatorio-diario` | funil, pontos por evento (regras versionadas; **cada marco vale uma vez por cliente**), Online (presença), relatório diário por e-mail |
-| Oportunidades | `/admin/oportunidades` | score/urgência/prioridade determinísticos por cliente (Fase 1) |
 | Documentação / CCA | modal no cliente | upload em lote, IA classifica, motor determinístico decide o que falta, PDF, envio à CCA (link `wa.me`) |
 | Financeiro | `/admin/financeiro` | venda → comissão → despesas/recebimentos; visão projetada p/ associado |
 | Chat WhatsApp | `/admin/chat` | caixa de entrada do número oficial, janela 24h, modelos, mídia, atalhos, **mensagens internas** (só equipe; o cliente não vê), **excluir conversa** (lógica), **áudio recebido** tocável; leads de anúncio entram pela roleta |
@@ -95,7 +96,7 @@ Marcos automáticos: entrar em qualquer status de venda cria a **venda financeir
 Site público / links ─┐
 Cadastro manual ──────┼─▶ simulation_registrations ──▶ Funil/Status ──▶ Ranking/Desempenho ◀── Meta Diária
 WhatsApp (auto) ──────┘        │  │  │                     │                   ▲
-                               │  │  └─ Financeiro (venda) └─ Oportunidades    │
+                               │  │  └─ Financeiro (venda)                     │
                                │  └──── Documentação/CCA ─▶ status              │
                                └──── Roleta ◀── presença (Online)         Prospecção ◀─ Base/Importação
 Automações (cron 1 min) ─▶ push / e-mail / WhatsApp modelo / notificações / transferências

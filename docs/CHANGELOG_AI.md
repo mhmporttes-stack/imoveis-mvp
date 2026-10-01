@@ -44,6 +44,23 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Pente-fino documental: P-17, upload de captação, Oportunidades e duas regras do dono
+- **Data:** 2026-10-01
+- **Área:** Docs / Permissões / Roleta / WhatsApp
+- **Alteração:**
+  - **Regras do dono (`/registrar-regra`):** WA-10 (botão "Receber minha simulação" abre o WhatsApp do corretor responsável) e ROL-2b (on-line para a roleta = atividade real no CRM nos últimos 5 min, sem tolerância por clique ou envio no WhatsApp). As duas **divergem do código** e foram registradas lado a lado como COMPORTAMENTO ATUAL, aguardando implementação.
+  - **P-17 auditado:** 8 pontos que chegam à pontuação, lista em `SYSTEM_ARCHITECTURE.md` §13.
+  - **Upload de captação (P-09):** risco documentado.
+  - **Central de Oportunidades:** removidas as referências obsoletas em `CRM_CONTEXT.md` (menus refeitos a partir do `AdminMenu.jsx`), `PERMISSIONS.md` e `SYSTEM_ARCHITECTURE.md`. O histórico continua em `BUSINESS_RULES.md` §9.
+- **Motivo:** pedido do dono (pente-fino final, sem alterar comportamento).
+- **Arquivos afetados:** `.claude/rules/integracoes-externas.md`, `.claude/rules/roleta-prospeccao-campanhas.md`, `docs/BUSINESS_RULES.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/CRM_CONTEXT.md`, `docs/PERMISSIONS.md`.
+- **Risco/observação:** nenhum código alterado. Pendências:
+  - implementar WA-10 e ROL-2b;
+  - corrigir os 8 pontos de P-17;
+  - decidir a reserva do botão sem responsável e se o clique no botão WhatsApp conta como atividade.
+  - `SYSTEM_ARCHITECTURE.md` l.139 ainda lista `tests/whatsapp-contact-channel.test.mjs`, removido em 29/09 (fora do escopo desta tarefa).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Documentação alinhada ao código: roleta on-line, §13, Oportunidades e WhatsApp individual
 - **Data:** 2026-10-01
 - **Área:** Docs / Roleta / WhatsApp
