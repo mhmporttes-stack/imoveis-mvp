@@ -22,3 +22,6 @@ Agente: `marketing-posicionamento`. Antes de editar: ler `CLAUDE.md`, `AGENTS.md
 - Validar: `pnpm build` (se só `public/sw.js` mudou de hash, `git checkout -- public/sw.js`); conferir HTML gerado (`next dev` na porta 3020 ou build) para título/JSON-LD/robots/sitemap.
 - Registrar em `docs/CHANGELOG_AI.md`; **publicar (push) só com pedido explícito**, e depois: reenviar sitemap no Search Console (tarefa do dono, 2 min — instrua).
 - Medir: baseline no `HISTORICO.md` antes; reavaliar em 14 e 45 dias (páginas indexadas, impressões, cliques, posição nas consultas-alvo).
+
+## Dados reais primeiro (Windsor)
+Fonte 1: **Search Console** (consultas/páginas: cliques, impressões, CTR, posição; consultas com "marília", "primeiro imóvel", "minha casa minha vida", "caixa", marca) e **GA4** (sessões e leads por origem/página de entrada) via Windsor — o "valor inicial" dos indicadores do BACKLOG vem daqui. Se ausentes, o item 1 do BACKLOG é conectar a fonte; não estimar cliques/posição.

@@ -22,3 +22,6 @@ Agente: `marketing-posicionamento`. Conceito SAIV (share of AI visibility) e "GE
 
 ## Fechar
 Grave a tabela de perguntas × plataformas em `HISTORICO.md`; ações em `BACKLOG.md` com reavaliação em 30–45 dias (IA muda devagar e de forma instável).
+
+## Dados reais primeiro (Windsor)
+Windsor não mede ChatGPT/Gemini. Use-o só para o efeito indireto: tráfego de origem `chatgpt.com`/`gemini`/`perplexity` e buscas de marca no **Search Console/GA4** (campo de origem real, via `get_fields`); sem dado = **[A CONFIRMAR]**.

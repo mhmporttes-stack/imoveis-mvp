@@ -21,3 +21,6 @@ Agente: `marketing-posicionamento`. Metodologia: `../auditar-posicionamento/refe
 
 ## Autoridade e citações locais
 Lista curta, com evidência de oportunidade: diretórios/portais de Marília onde concorrentes aparecem e Matheus não; construtoras e parceiros locais com página de corretores; imprensa/blogs locais; Apple Business Connect e Bing Places (cadastro grátis, mesmo NAP); Facebook Page completa. Cada item: URL do alvo, NAP exato a usar, quem faz. **Sem comprar links/seguidores.**
+
+## Dados reais primeiro (Windsor)
+Fonte 1: **Instagram e Facebook orgânicos** via Windsor (seguidores, alcance, visitas ao perfil, cliques no link, desempenho por publicação). Com dado real, substitui o pedido de prints de Insights e a nota de desempenho é calculada com esses números; sem conector/campo, peça print e marque **[A CONFIRMAR]**. Cruze com GA4/CRM para saber quais publicações geram visita e lead.

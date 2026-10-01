@@ -23,4 +23,7 @@ Agente: `marketing-posicionamento`. Arquivos: `docs/posicionamento/BACKLOG.md` e
 Compare snapshot atual × anterior por área e por número-chave; atribua mudança só quando houver evidência temporal (ação publicada em X, indicador mudou depois). Correlação sem evidência = "inconclusivo". Grave em `HISTORICO.md`.
 
 ## Regras
-Sem metas inventadas; sem item sem checagem de falha; sem lista com mais de 7 ativos. Recorrência (semanal) só se o dono pedir e **somente leitura/rascunho** — nada que publique sozinho (`mcp__scheduled-tasks__*` / `/schedule` apenas para gerar o relatório).
+Sem metas inventadas; sem item sem checagem de falha; sem lista com mais de 7 ativos. Recorrência (semanal) só se o dono pedir e **somente leitura/rascunho** — nada que publique ou altere sozinho (itens de escrita só rodam com o "sim" do dono na conversa) (`mcp__scheduled-tasks__*` / `/schedule` apenas para gerar o relatório).
+
+## Dados reais primeiro (Windsor)
+Medição e reavaliação do BACKLOG usam primeiro o Windsor (`FONTES.md` → `get_data`, período antes × depois da ação, mesma janela). "Valor inicial" desconhecido passa a ser lido do Windsor quando a fonte conectar. Sem fonte: continua "inconclusivo", sem estimar.

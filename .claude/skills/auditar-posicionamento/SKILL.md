@@ -20,3 +20,6 @@ Agente: `marketing-posicionamento`. Metodologia, etiquetas e índice: `reference
 9. **Pontue** as 7 áreas; calcule o índice só sobre as áreas medidas; compare com o snapshot anterior.
    **Consulta de marca:** o nome tem homônimos famosos; rode também "Matheus Machado corretor Marília CRECI 323106" e o domínio. Consultas sem localização (WebSearch só EUA) com valor quase nulo (ex.: "casas à venda em Marília") → pule e diga por quê. Concorrentes e homônimos aparecem em `HISTORICO.md` como evidência interna, nunca em material publicável.
 10. **Grave** snapshot em `HISTORICO.md` e recomendações em `BACKLOG.md` (máx. 7 ativas, com checagem de falha). Responda no formato do agente.
+
+## Dados reais primeiro (Windsor)
+Antes dos passos 2–6, leia `docs/posicionamento/FONTES.md` e rode `get_connectors` (protocolo em `references/windsor.md`). Fonte conectada → use o dado do Windsor como base da nota da área e **[VERIFICADO-WINDSOR]**; os passos de leitura pública (WebSearch/curl/prints) viram complemento e conferência. Fonte não conectada ou com erro → **[A CONFIRMAR]** com o motivo, e a área segue "não medida". Nunca preencher lacuna com estimativa. Auditoria é só leitura: nunca `execute_action`; escrita só quando o dono pedir/aprovar (agente, seção "Alterações externas").

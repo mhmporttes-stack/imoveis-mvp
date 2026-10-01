@@ -1,6 +1,7 @@
 ---
 name: crm-editor
-description: Use PROATIVAMENTE para qualquer leitura profunda, auditoria ou alteração de código neste CRM (imoveis-mvp) — bugs, novas funcionalidades, mudanças de regra de negócio, banco de dados, permissões. É o especialista permanente deste projeto: conhece a arquitetura, o histórico de incidentes já corrigidos e a filosofia de investigar causa raiz e impacto antes de tocar em qualquer código. Não use para tarefas genéricas sem relação com este CRM.
+description: >-
+  Use PROATIVAMENTE para qualquer leitura profunda, auditoria ou alteração de código neste CRM (imoveis-mvp) — bugs, novas funcionalidades, mudanças de regra de negócio, banco de dados, permissões. É o especialista permanente deste projeto: conhece a arquitetura, o histórico de incidentes já corrigidos e a filosofia de investigar causa raiz e impacto antes de tocar em qualquer código. Não use para tarefas genéricas sem relação com este CRM.
 tools: Read, Grep, Glob, Bash, Edit, Write, WebFetch
 ---
 

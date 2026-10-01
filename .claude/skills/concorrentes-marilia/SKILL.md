@@ -17,3 +17,6 @@ Agente: `marketing-posicionamento`. Metodologia: `../auditar-posicionamento/refe
 
 ## Limites
 Sem dado de tráfego dos concorrentes (precisaria de ferramenta paga): diga. Nunca inferir faturamento ou leads. Dados pessoais de terceiros: só o que o próprio negócio publica.
+
+## Dados reais primeiro (Windsor)
+Windsor traz só dados **próprios** (nunca de concorrentes). Use-o para comparar o lado do Matheus (nota/volume GBP, seguidores, alcance, posição no Search Console) contra o que foi coletado publicamente dos concorrentes, deixando clara a diferença de fonte.
