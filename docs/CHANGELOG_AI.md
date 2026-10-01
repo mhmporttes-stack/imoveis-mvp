@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Pipeline de venda: "Pagamento" renomeado para "Aguardando pagamento" + etapa "Pago" (marca a venda como Recebida no Financeiro)
+- **Data:** 2026-10-01
+- **Área:** Clientes / Funil / Financeiro
+- **Alteração:** `sale_payment` mudou de rótulo de "Pagamento" para "Aguardando pagamento" (valor no banco inalterado) e um status novo, `sale_paid` ("Pago"), foi inserido como última etapa do pipeline de venda. Ordem final: Venda realizada, Formulários, Aguardando reserva, Conformidade, Contrato, Assinatura Caixa, ITBI, Cartório, Aguardando pagamento, Pago. Atualizado nos mesmos 7 arquivos da etapa "Conformidade" (commit `369bb0d`): `lib/client-status.js`, `lib/client-status-history.js`, `lib/celebrations.js`, `lib/scoring-rules.js`, `lib/simulation-list-utils.js`, `lib/simulation-registrations.js` (2 ocorrências), fixture da vitrine. Nova migration ajusta as 3 CHECK constraints do banco para aceitar `sale_paid` — já aplicada em produção. Além disso: cliente que entra em "Pago" agora marca automaticamente a venda financeira correspondente (`financial_sales`) como "Recebido" (`markFinancialSaleReceivedForRegistration`, `lib/financial.js`), chamada no mesmo ponto de `updateSimulationRegistration` que já cria a venda ao entrar no pipeline — só na transição PARA `sale_paid`, nunca retroativo. Não mexe em valores/despesas/repasses/pagamentos já lançados.
+- **Motivo:** pedido do dono (duas mensagens seguidas: renomear/adicionar a etapa, depois "venda paga já deve alterar no financeiro também").
+- **Arquivos afetados:** `lib/client-status.js`, `lib/client-status-history.js`, `lib/celebrations.js`, `lib/scoring-rules.js`, `lib/simulation-list-utils.js`, `lib/simulation-registrations.js`, `lib/financial.js`, `app/dev/vitrine/_fixtures/clientes.js`, `supabase/migrations/20261001200000_client_status_sale_paid.sql`. Regra registrada em `.claude/rules/financeiro.md`.
+- **Risco/observação:** `financial_status` normalmente é recalculado a partir dos recebimentos lançados (`deriveFinancialStatus`) sempre que alguém salva a venda pela tela do Financeiro — a nova marcação automática usa `manual_status: true`, mas essa flag hoje só é informativa (não é respeitada por `updateFinancialSale` para evitar sobrescrita); ou seja, se o gestor editar a venda depois pelo Financeiro sem informar o status, ela pode ser recalculada e sair de "Recebido". Risco residual conhecido, não corrigido agora (fora do pedido). `pnpm build`/testes não rodados nesta sessão (ambiente sem acesso ao comando).
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Correção: congelamento da carteira perdia rodada que já tinha saído antes do freeze
 - **Data:** 2026-10-01
 - **Área:** Meta Diária / Ranking
