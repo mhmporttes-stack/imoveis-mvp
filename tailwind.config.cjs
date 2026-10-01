@@ -52,6 +52,9 @@ module.exports = {
       transitionTimingFunction: {
         "out-ui": "cubic-bezier(0.2, 0, 0, 1)"
       },
+      spacing: {
+        touch: "44px"
+      },
       minHeight: {
         touch: "44px"
       },

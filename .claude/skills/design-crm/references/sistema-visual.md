@@ -58,7 +58,11 @@ Use-os em toda tela nova ou redesenhada; telas antigas migram no próprio redese
 | `EmptyState` | Vazio como convite (ícone, título, descrição, ação); `tone="danger"` para erro com "como resolver". |
 | `Skeleton`, `SkeletonList` | Carregamento no formato do conteúdo, com `role=status`. |
 | `Field` + `inputClasses` | Rótulo visível + ajuda + erro ligados por `aria-describedby`/`aria-invalid`; input 16px no celular. |
+| `ConfirmDialog` (`useConfirm`) | Confirmação na página no lugar de `window.confirm` (`await confirmAction({ title, description, confirmLabel, tone })`). |
+| `Toast` (`useToast`) | Resultado de ação no lugar de `alert()`; sucesso some em 3,5 s, erro fica; `aria-live`. Fica acima da barra inferior. |
 | `cx` | Junta classes condicionais. |
+
+Tokens de tamanho: `h-touch`/`w-touch`/`size` 44 px (`spacing.touch`), `min-h-touch`/`min-w-touch`. Ícone dentro de `Button` não encolhe (`[&>svg]:shrink-0`).
 
 Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
 
@@ -80,4 +84,5 @@ Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
 | 2026-10-01 | Dependência nova só com aprovação do dono | — | decisão do dono |
 | 2026-10-01 | Fundação: tokens semânticos, raios, `shadow-float`, `ease-out-ui`, `--font-ui`; componentes `components/ui/` | `tailwind.config.cjs`, `globals.css`, `components/ui/*` | aprovado pelo dono; aditivo, telas antigas intactas |
 | 2026-10-01 | Tipografia oficial do painel = Manrope (só `/admin`) | `app/admin/layout.jsx` | escolha do dono após comparativo Manrope × Inter |
+| 2026-10-01 | Lista de clientes redesenhada (proposta, branch `design/lista-clientes`, vitrine `?tela=clientes-novo`): `components/clients/*` — faixa "Para agir agora", funil clicável com barras, lista em colunas (desktop) / cartão compacto (celular), ficha em gaveta | `components/clients/` | aguardando aprovação do dono; não está em produção |
 | 2026-10-01 | Navegação mobile = barra inferior + "Mais"; menu do topo só ≥ 768px | `AdminBottomNav.jsx`, `AdminMenu.jsx`, `app/admin/layout.jsx` | autorizado pelo dono; distribuição por perfil decidida pelo Designer |

@@ -62,7 +62,7 @@ export default function Sheet({ open, onClose, title, description = "", side = "
           <header className="flex items-start gap-3 border-b border-line px-4 pb-3 pt-3 sm:px-5">
             <span className="ui-sheet-handle" aria-hidden="true" />
             <div className="min-w-0 flex-1 pt-1">
-              <h2 id={titleId} className="text-base font-semibold text-ink">{title}</h2>
+              <h2 id={titleId} className="text-lg font-semibold leading-6 tracking-[-0.01em] text-navy">{title}</h2>
               {description ? <p id={descriptionId} className="mt-0.5 text-sm text-ink-2">{description}</p> : null}
             </div>
             <button

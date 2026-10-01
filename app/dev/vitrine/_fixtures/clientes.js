@@ -892,7 +892,7 @@ const INITIAL_FILTERS = {
   status: "all"
 };
 
-export function propsFor(perfil = "admin") {
+export function propsFor(perfil = "admin", { pageSize = 5 } = {}) {
   const isAdmin = perfil === "admin";
   const isManager = perfil === "gestor";
   const isBrokerLike = perfil === "corretor" || perfil === "associado";
@@ -905,7 +905,7 @@ export function propsFor(perfil = "admin") {
       : [];
 
   return {
-    initialData: buildListPayload({ filters: INITIAL_FILTERS, page: 1, pageSize: 5, perfil }),
+    initialData: buildListPayload({ filters: INITIAL_FILTERS, page: 1, pageSize, perfil }),
     initialFilters: { ...INITIAL_FILTERS },
     adminProfiles,
     canManageResponsibleUsers: isAdmin || isManager,
