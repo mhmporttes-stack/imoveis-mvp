@@ -5,7 +5,7 @@ description: Revisa schema, migrations, relacionamentos, constraints, RLS, trigg
 
 # Auditoria de banco de dados
 
-Leia `.claude/rules/database-supabase.md` primeiro — já documenta o padrão de migrations deste projeto, o modelo de RLS (habilitado sem policy pública na maioria das tabelas, proposital) e o inventário conhecido de tabelas.
+Leia `.claude/rules/database-supabase.md` primeiro (padrão de migrations, modelo de RLS — habilitado sem policy pública na maioria das tabelas, proposital) e `docs/DATABASE.md` (inventário completo de tabelas, funções/triggers e jobs `pg_cron`).
 
 ## O que verificar
 
@@ -15,7 +15,7 @@ Leia `.claude/rules/database-supabase.md` primeiro — já documenta o padrão d
 4. **RLS.** Toda tabela nova tem RLS habilitado? Alguma tabela tem RLS habilitado MAS ganhou uma policy pública que não deveria existir (verifique se há razão documentada, como `testimonials`)? Alguma tabela sensível está com RLS desabilitado?
 5. **Constraints e integridade.** Chaves estrangeiras sem `on delete`/`on update` definidos onde deveriam existir; `check` constraints que não refletem mais o enum real do código (ex.: `CLIENT_STATUS` ganhou um valor novo em `lib/client-status.js` mas o `check` da coluna no banco não foi atualizado); UNIQUE constraints que podem estar violando uma regra de negócio real (ver o incidente histórico de telefone único, `.claude/rules/database-supabase.md`) — nunca recrie esse padrão.
 6. **Triggers e funções.** Liste `create trigger`/`create or replace function` das migrations relevantes ao que está sendo investigado — confirme que o comportamento documentado no comentário da migration ainda bate com o código da função atual (funções podem ter sido substituídas por uma migration posterior sem atualizar o comentário da primeira).
-7. **Consistência dos dados** (quando relevante à investigação): rode queries read-only contra produção (via script em `scratch/`, autenticado com a service role, apagado ao final) para confirmar hipóteses com números reais — nunca infira do schema sozinho quando dá pra confirmar com dado real.
+7. **Consistência dos dados** (quando relevante à investigação): confirme hipóteses com números reais usando, de preferência, o MCP do Supabase (`list_tables`, `get_advisors` de segurança/performance, `execute_sql` **só com SELECT**, `list_migrations` para comparar com `supabase/migrations/`). Só se o MCP não estiver disponível na sessão, use um script read-only em `scratch/` (apagado ao final). Nunca infira do schema sozinho quando dá pra confirmar com dado real.
 
 ## Regras
 

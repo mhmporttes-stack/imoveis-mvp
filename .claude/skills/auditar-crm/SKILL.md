@@ -5,11 +5,11 @@ description: Auditoria geral do CRM imoveis-mvp — procura inconsistências, bu
 
 # Auditoria geral do CRM
 
-Leia `CLAUDE.md` e os arquivos relevantes de `.claude/rules/` antes de começar — eles já documentam vários bugs reais encontrados e corrigidos em auditorias anteriores; não redescubra o que já está documentado, use como ponto de partida e verifique se ainda procede.
+Antes de começar, leia `docs/SYSTEM_ARCHITECTURE.md` §13 (problemas já conhecidos P-01…P-18, com status) e as rules dos módulos auditados (`.claude/rules/`, tabela em `CLAUDE.md`). **Não reporte como novo o que já está em §13** — para esses, só diga se ainda procede ou se foi resolvido. Achado novo confirmado entra em §13 com o próximo ID livre.
 
 ## Como conduzir
 
-Esta é uma tarefa de pesquisa ampla — para um projeto deste tamanho (~88 arquivos em `lib/`, ~87 em `components/`, ~100+ migrations), prefira dividir em auditorias paralelas por área em vez de uma varredura sequencial única. Áreas sugeridas (ajuste conforme o que o usuário pedir ou o que já foi auditado recentemente):
+Esta é uma tarefa de pesquisa ampla — para um projeto deste tamanho (~150 arquivos em `lib/`, ~110 em `components/`, ~160 migrations), prefira dividir em auditorias paralelas por área em vez de uma varredura sequencial única. Áreas sugeridas (ajuste conforme o que o usuário pedir ou o que já foi auditado recentemente):
 
 1. **Performance** — N+1 queries (loop com `await` dentro fazendo uma consulta por item), `select("*")` em tabelas grandes/hot paths, ausência de paginação em listas que crescem, `await` sequencial que podia ser `Promise.all`.
 2. **Regras de negócio e drift** — enums/rótulos duplicados que podem ter divergido entre arquivos (ver histórico em `.claude/rules/crm-clientes-funil.md`), regras descritas em comentário mas não realmente aplicadas no código logo abaixo, `person_label` usado como identidade em vez de `person_role`, status hardcoded como string solta em vez de `CLIENT_STATUS.X`.

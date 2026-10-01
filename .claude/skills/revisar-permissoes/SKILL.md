@@ -5,7 +5,7 @@ description: Verifica o comportamento de permissões entre Admin, Gestor, Corret
 
 # Revisão de permissões
 
-Leia `.claude/rules/auth-permissoes.md` primeiro — lista os guards existentes (`lib/admin-auth.js`) e as funções de escopo (`lib/admin-access.js`).
+Leia `.claude/rules/auth-permissoes.md` primeiro (guards de `lib/admin-auth.js` e funções de escopo de `lib/admin-access.js`) e `docs/PERMISSIONS.md` (§6: inventário de rotas por guard; §5: matriz por perfil; exceções já conhecidas, ex.: P-07 `/api/client-tags`). Atenção: `requirePrimaryAdminApi`/`requirePrimaryAdminPage` são apelidos do admin geral — se uma rota precisa ser só do dono, o guard certo é `assertOwnerAdmin`.
 
 ## O que verificar
 
