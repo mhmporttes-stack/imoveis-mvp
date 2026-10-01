@@ -62,6 +62,20 @@ Copie o modelo abaixo (uma entrada por bloco):
   - Validação: `pnpm build` ok; `node --test` com as mesmas 3 falhas conhecidas (`journey-http` ×2, `whatsapp-flow-core`); revisão visual na vitrine em 360/390/768/1280/1440 (admin, gestor, corretor); testados mudar etapa (cancelar e confirmar), trocar responsável e as listas por perfil (corretor sem seletor; gestor só com a equipe), sem erros de console. Não testado com login real em produção.
 - **Autor:** Claude Code (designer-crm)
 
+### 2026-10-01 — Configurações → Alexa (painel + serviço central de fala)
+- **Data:** 2026-10-01
+- **Área:** Integração (Alexa/Voice Monkey) / Banco / Permissões
+- **Alteração:**
+  - Nova tabela `alexa_settings` (linha única): Alexa ativa, dias da semana, horário inicial/final (Brasília), intervalo mínimo entre falas, `events` (jsonb) com liga/desliga + frase por evento e extras (antecedência da reunião; mínimo de clientes e tempo aguardando da fila) e `last_spoken_at`. Nunca guarda token nem ID do dispositivo.
+  - `lib/alexa-service.js` é o ponto ÚNICO de decisão: `announceAlexaEvent(evento, valores)` valida Alexa ativa, evento ativo, dia/horário e intervalo mínimo (reserva atômica em `last_spoken_at`), monta a frase (variáveis `{cliente}`, `{corretor}`, `{quantidade}`, `{minutos}`; só primeiro nome) e chama `speakAlexa` (`lib/alexa-voice.js`). Nunca lança erro; logs só com evento e motivo. Regras puras e testadas em `lib/alexa-config-core.mjs` (inclui bloqueio de CPF, renda, valores e afins na frase e no texto final).
+  - Página `/admin/alexa` (menu CONFIGURAÇÕES, só administrador geral) e rotas `GET/PUT /api/admin/alexa` e `POST /api/admin/alexa/test` ("Testar Alexa"), todas com `requireGeneralAdminApi`. A API devolve só booleanos sobre as envs (token/dispositivo/servidor liberado).
+  - "Novo cliente" (formulário completo e Atendimento Rápido) agora passa por `announceAlexaEvent("new_client", …)`. Os outros 5 eventos (cliente aprovado, venda, meta diária, reunião próxima, fila) estão só configuráveis e NÃO conectados a fluxos reais.
+  - Novo componente `components/ui/Switch.jsx`.
+- **Motivo:** pedido do dono: gerenciar as regras da Alexa pelo painel, sem alterar código.
+- **Arquivos afetados:** `supabase/migrations/20261001150000_alexa_settings.sql`, `lib/alexa-config-core.mjs`, `lib/alexa-service.js`, `app/api/admin/alexa/route.js`, `app/api/admin/alexa/test/route.js`, `app/admin/alexa/page.jsx`, `components/alexa/AlexaSettings.jsx`, `components/ui/Switch.jsx`, `components/AdminMenu.jsx`, `app/api/simulation-registrations/route.js`, `app/api/simulation-registrations/quick-attendance/route.js`, `tests/alexa-config.test.mjs`.
+- **Risco/observação:** se a tabela não existir ou o banco falhar, o serviço cai no padrão (só "Novo cliente" fala, 24h, sem intervalo), preservando o comportamento anterior. A variável `ALEXA_VOICE_ENABLED` da Vercel continua como chave geral de segurança, além do painel. Falas são em série no Echo (sem fila): vários eventos simultâneos podem se sobrepor.
+- **Autor:** Claude (agente)
+
 ### 2026-10-01 — Nova Lista de clientes (substitui AdminSimulationList)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend

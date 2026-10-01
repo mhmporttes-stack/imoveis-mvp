@@ -171,7 +171,8 @@ const ownerGroups = [
       { href: "/admin/documentacao/regras", label: "Documentação · Regras da IA", key: "document-rules" },
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
       { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
-      { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" }
+      { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
+      { href: "/admin/alexa", label: "Alexa", key: "alexa" }
     ]
   }
 ];

@@ -5,7 +5,7 @@ import {
   formatSimulationRegistrationError
 } from "@/lib/simulation-registrations";
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
-import { speakAlexa } from "@/lib/alexa-voice";
+import { announceAlexaEvent } from "@/lib/alexa-service";
 import { extractRequestMetadata } from "@/lib/meta-conversions-api";
 import { buildRateLimitKey, checkPublicRateLimit } from "@/lib/rate-limit";
 
@@ -50,7 +50,7 @@ export async function POST(request) {
       console.warn("Quick attendance notification email failed:", notificationError?.message || notificationError);
     }
 
-    await speakAlexa("Novo cliente aguardando atendimento.");
+    await announceAlexaEvent("new_client", { clienteNome: registration.fullName, responsibleUserId: registration.responsibleUserId });
     return NextResponse.json(
       { ok: true, registrationId: registration.id, contactPreference: registration.contactPreference },
       { status: 201 }
