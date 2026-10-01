@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Reconhecimento de UTMs pagas fora do padrão + diagnóstico de atribuição do Gestor de Tráfego
+- **Data:** 2026-10-01
+- **Área:** Meta/Tráfego / Clientes (origem)
+- **Alteração:**
+  - **Código (`crm-editor`):** `lib/lead-origin.js` ganhou `classifyPaidMedia`, uma função pura. Ela reconhece como mídia paga também `utm_medium=anuncio`/`anúncio`, formato do Fluxo ativo "Anúncio WhatsApp — formulário direto", que só dispara para quem chegou clicando em anúncio. Novos cadastros pagos passam a gravar `paid_media: true` e, quando há evidência, `paid_channel` (`whatsapp_ad` para `ctwa_formulario`; `meta_site` para fb/ig). Essas chaves são aditivas em `client_origins.source_metadata`. O padrão atual e a prioridade de `kind`/`label` ficaram iguais; link pessoal continua `broker_link`.
+  - **Gestor de Tráfego:**
+    - Q2 passou a reconhecer `anuncio` e `paid_media`.
+    - No caso `ctwa_formulario`, busca o anúncio no `referral` da conversa pelo telefone, sem contar duas vezes quem já tem card de anúncio de WhatsApp.
+    - Nova consulta canônica **Q6** (diagnóstico de atribuição) em `consultas-funil.md`.
+- **Motivo:** pedido do dono, após a primeira auditoria de tráfego.
+- **Arquivos afetados:** `lib/lead-origin.js`, `tests/lead-origin.test.mjs` (novo, 11 testes), `.claude/skills/auditar-trafego/references/consultas-funil.md`, `docs/TRAFEGO_META.md` §4, `docs/BUSINESS_RULES.md` CAM-3.
+- **Risco/observação:**
+  - **Histórico:** nenhum cadastro antigo foi alterado (origem imutável; sem evidência, nada muda). Os 2 cadastros "PATROCINADO" sem nenhuma UTM continuam sem atribuição.
+  - **Validação em produção (set/2026, Q6):** 38 por anúncio de WhatsApp, 21 com UTM padrão e 2 do formulário do anúncio de WhatsApp (1 com o anúncio identificado pela conversa e já contado, 1 sem conversa). A Q2 atribui 60 cadastros: os 59 de antes mais 1 de mídia paga sem anúncio identificado.
+  - **Testes e build:** suíte igual à anterior (1 falha conhecida em `whatsapp-flow-core`); `pnpm build` ok.
+  - **Pendente de decisão:** o Guia de Atendimento (`lib/attendance-guide-core.mjs`) trata `tracked_link` como lead, mas não `paid_link`. Cadastro patrocinado sem link pessoal recebe o guia orgânico, e isso já acontecia antes desta mudança.
+- **Autor:** Claude Code (correção de código pelo `crm-editor`)
+
 ### 2026-10-01 — Gestor de Tráfego: análises só dos últimos 30 dias, sem backfill
 - **Data:** 2026-10-01
 - **Área:** Meta/Tráfego / Docs

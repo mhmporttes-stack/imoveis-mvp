@@ -37,7 +37,7 @@ group by 1,2 order by investimento desc
 
 ## Q2 — Funil CRM por campanha/conjunto/anúncio (o diferencial)
 
-Atribuição (ver `regras-decisao.md` §Atribuição): cliente com `client_origins.source_metadata` contendo `ad_id`/`adset_id`/`campaign_id` (anúncio de WhatsApp) **ou** UTM paga (`utm_campaign` = ID da campanha, `utm_term` = ID do conjunto, `utm_content` = ID do anúncio — convenção dos links pagos atuais). Etapa = a **mais avançada já alcançada** (histórico + status atual + venda em `financial_sales` não cancelada), espelhando `CLIENT_FUNNEL_STAGES` de `lib/client-status.js`: 1 atendimento, 2 simulação, 3 documentação, 4 aprovação enviada (inclui restrição/reprovado), 5 aprovado, 6 reunião, 7 venda. Se `lib/client-status.js` mudar, atualize o `stage_of` abaixo.
+Atribuição (ver `regras-decisao.md` §Atribuição): cliente com `client_origins.source_metadata` contendo `ad_id`/`adset_id`/`campaign_id` (anúncio de WhatsApp) **ou** mídia paga identificada — UTM paga no padrão atual (`utm_medium=paid`, `utm_campaign` = ID da campanha, `utm_term` = ID do conjunto, `utm_content` = ID do anúncio), formato antigo `utm_medium=anuncio` (inclui `utm_campaign=ctwa_formulario` do Fluxo "Anúncio WhatsApp — formulário direto": o anúncio é buscado no `referral` da conversa pelo telefone; se a mesma pessoa já tem card de anúncio de WhatsApp, não conta de novo), ou `paid_media=true` gravado pelo cadastro (desde 2026-10-01). Etapa = a **mais avançada já alcançada** (histórico + status atual + venda em `financial_sales` não cancelada), espelhando `CLIENT_FUNNEL_STAGES` de `lib/client-status.js`: 1 atendimento, 2 simulação, 3 documentação, 4 aprovação enviada (inclui restrição/reprovado), 5 aprovado, 6 reunião, 7 venda. Se `lib/client-status.js` mudar, atualize o `stage_of` abaixo.
 
 ```sql
 with params as (select 'campaign'::text lvl, date '2026-09-01' d_from, date '2026-09-30' d_to),
@@ -46,14 +46,25 @@ stage_of(status, rank) as (values
  ('approval_pending',4),('income_commitment',4),('cancellation_letter',4),('research_mo',4),('restriction',4),('shielding',4),('rejected',4),
  ('approved',5),('meeting_pending',6),('meeting_done',6),
  ('sale_completed',7),('sale_forms',7),('sale_reservation',7),('sale_contract',7),('sale_caixa_signature',7),('sale_itbi',7),('sale_registry',7),('sale_payment',7)),
-attributed as (
-  select r.id client_id, r.status,
-    coalesce(o.source_metadata->>'ad_id', case when o.source_metadata->>'utm_medium' in ('paid','cpc','ppc','paid_social') then o.source_metadata->>'utm_content' end) ad_id,
-    coalesce(o.source_metadata->>'adset_id', case when o.source_metadata->>'utm_medium' in ('paid','cpc','ppc','paid_social') then o.source_metadata->>'utm_term' end) adset_id,
-    coalesce(o.source_metadata->>'campaign_id', case when o.source_metadata->>'utm_medium' in ('paid','cpc','ppc','paid_social') then o.source_metadata->>'utm_campaign' end) campaign_id
+base as (
+  select r.id client_id, r.status, o.source_metadata m,
+    right(regexp_replace(coalesce(r.phone_normalized,''),'\D','','g'),8) tel8,
+    (lower(coalesce(o.source_metadata->>'utm_medium','')) in ('cpc','ppc','paid','paid_social','paid_search','anuncio','anúncio') or (o.source_metadata->>'paid_media')='true') paga
   from simulation_registrations r join client_origins o on o.client_id = r.id cross join params p
   where (r.created_at at time zone 'America/Sao_Paulo')::date between p.d_from and p.d_to
-    and ((o.source_metadata ? 'ad_id') or o.source_metadata->>'utm_medium' in ('paid','cpc','ppc','paid_social'))
+),
+attributed as (
+  select b.client_id, b.status,
+    coalesce(b.m->>'ad_id', case when b.paga then b.m->>'utm_content' end,
+      case when b.m->>'utm_campaign'='ctwa_formulario' then (select c.origin->'referral'->>'source_id' from whatsapp_conversations c
+        where c.origin->'referral'->>'source_type'='ad' and right(regexp_replace(c.contact_phone,'\D','','g'),8)=b.tel8 limit 1) end) ad_id,
+    coalesce(b.m->>'adset_id', case when b.paga then b.m->>'utm_term' end) adset_id,
+    coalesce(b.m->>'campaign_id', case when b.paga and b.m->>'utm_campaign' ~ '^[0-9]+$' then b.m->>'utm_campaign' end) campaign_id
+  from base b
+  where ((b.m ? 'ad_id') or b.paga)
+    -- formulário do anúncio de WhatsApp de quem JÁ tem card de anúncio de WhatsApp: não contar a mesma pessoa duas vezes
+    and not (b.m->>'utm_campaign'='ctwa_formulario' and exists (select 1 from simulation_registrations r2 join client_origins o2 on o2.client_id=r2.id
+      where r2.id<>b.client_id and o2.source_kind='whatsapp_ad' and right(regexp_replace(coalesce(r2.phone_normalized,''),'\D','','g'),8)=b.tel8))
 ),
 resolved as (
   select a.client_id, a.status,
@@ -83,7 +94,7 @@ spend as (
   select i.entity_id, sum(i.spend) spend, sum(i.leads) leads_meta
   from meta_ad_insights i join params p on i.entity_type=p.lvl and i.date between p.d_from and p.d_to group by 1
 )
-select coalesce(e.name, '(não sincronizado)') nome, coalesce(s.entity_id, c.entity_id) id,
+select case when coalesce(s.entity_id, c.entity_id) is null then '(mídia paga sem anúncio identificado)' else coalesce(e.name, '(não sincronizado)') end nome, coalesce(s.entity_id, c.entity_id) id,
   round(coalesce(s.spend,0)::numeric,2) investimento, coalesce(s.leads_meta,0) leads_meta,
   coalesce(c.clientes,0) clientes_crm, c.atendimento, c.simulacao, c.documentacao, c.aprovacao_enviada, c.aprovado, c.reuniao, c.venda, c.perdidos,
   round((s.spend/nullif(c.clientes,0))::numeric,2) custo_cliente,
@@ -96,7 +107,7 @@ left join meta_ad_entities e on e.entity_id = coalesce(s.entity_id, c.entity_id)
 order by investimento desc
 ```
 
-Leitura: linha com investimento e `clientes_crm = 0` = gasto sem cliente atribuído (desperdício ou lacuna de rastreamento — ver §Atribuição). Linha `(não sincronizado)` = cliente veio de anúncio que ainda não está em `meta_ad_entities`.
+Leitura: `(mídia paga sem anúncio identificado)` = pago comprovado, mas sem como saber qual anúncio. Linha com investimento e `clientes_crm = 0` = gasto sem cliente atribuído (desperdício ou lacuna de rastreamento — ver §Atribuição). Linha `(não sincronizado)` = cliente veio de anúncio que ainda não está em `meta_ad_entities`.
 
 ## Q3 — Tendência semana a semana (fadiga, leilão)
 
@@ -144,3 +155,49 @@ group by 1 order by 2 desc
 ```
 
 `leads` em `meta_ad_insights` soma só `lead`, `onsite_conversion.lead_grouped`, `leadgen_grouped`. Campanha de **WhatsApp** aparece com `leads_meta = 0` — o resultado dela está em `onsite_conversion.messaging_conversation_started_7d` (conversas iniciadas); use Q5 e Q2 para avaliá-la.
+
+## Q6 — Diagnóstico de atribuição (como cada cadastro chegou)
+
+Classifica os cadastros do período em **1. Anúncio de WhatsApp**, **2. Mídia paga identificada**, **3. Sem rastreio** (rótulo de pago, mas sem nenhuma UTM — não atribuir) e **4. Sem atribuição a mídia paga** (orgânico, link pessoal, manual/prospecção, etc.), com detalhe de qual evidência sustentou a classificação. Use para medir a qualidade do rastreamento e antes de concluir "anúncio sem cliente". Nunca altera origem: é só leitura.
+
+```sql
+with params as (select date '2026-09-01' d_from, date '2026-09-30' d_to),
+base as (
+  select r.id client_id, r.status, o.source_kind, o.source_label, o.source_metadata m,
+    right(regexp_replace(coalesce(r.phone_normalized,''),'\D','','g'),8) tel8
+  from simulation_registrations r join client_origins o on o.client_id=r.id cross join params p
+  where (r.created_at at time zone 'America/Sao_Paulo')::date between p.d_from and p.d_to
+),
+ev as (
+  select b.*,
+    lower(coalesce(b.m->>'utm_medium','')) medium,
+    (lower(coalesce(b.m->>'utm_medium','')) in ('cpc','ppc','paid','paid_social','paid_search','anuncio','anúncio') or (b.m->>'paid_media')='true') paga,
+    exists (select 1 from meta_ad_entities e where e.entity_type='campaign' and e.entity_id=b.m->>'utm_campaign') utm_casa_meta,
+    exists (select 1 from meta_ad_entities e where e.entity_type='ad' and e.entity_id=b.m->>'ad_id') anuncio_sincronizado,
+    (select c.origin->'referral'->>'source_id' from whatsapp_conversations c
+      where b.m->>'utm_campaign'='ctwa_formulario' and c.origin->'referral'->>'source_type'='ad'
+        and right(regexp_replace(c.contact_phone,'\D','','g'),8)=b.tel8 limit 1) ad_conversa,
+    exists (select 1 from simulation_registrations r2 join client_origins o2 on o2.client_id=r2.id
+      where r2.id<>b.client_id and o2.source_kind='whatsapp_ad' and right(regexp_replace(coalesce(r2.phone_normalized,''),'\D','','g'),8)=b.tel8) mesma_pessoa_ja_whatsapp_ad
+  from base b
+)
+select
+  case when m ? 'ad_id' then '1. Anúncio de WhatsApp'
+       when paga then '2. Mídia paga identificada'
+       when source_label ilike '%patroc%' then '3. Sem rastreio (rótulo de pago, sem UTM)'
+       else '4. Sem atribuição a mídia paga' end categoria,
+  case when m ? 'ad_id' and anuncio_sincronizado then 'ID do anúncio (anúncio sincronizado)'
+       when m ? 'ad_id' then 'ID do anúncio (anúncio ainda não sincronizado da Meta)'
+       when paga and utm_casa_meta then 'UTM com IDs da Meta (padrão atual)'
+       when paga and m->>'utm_campaign'='ctwa_formulario' and ad_conversa is not null and mesma_pessoa_ja_whatsapp_ad then 'Formulário do anúncio de WhatsApp — anúncio pela conversa; pessoa já contada como anúncio de WhatsApp'
+       when paga and m->>'utm_campaign'='ctwa_formulario' and ad_conversa is not null then 'Formulário do anúncio de WhatsApp — anúncio identificado pela conversa'
+       when paga and m->>'utm_campaign'='ctwa_formulario' then 'Formulário do anúncio de WhatsApp — sem conversa para identificar o anúncio'
+       when paga then 'UTM paga sem ID reconhecido'
+       when m ? 'utm_source' then 'UTM não paga (' || coalesce(m->>'utm_source','?') || '/' || coalesce(nullif(medium,''),'sem medium') || ')'
+       else 'Sem UTM — ' || source_kind end detalhe,
+  count(*) cadastros,
+  count(*) filter (where status not in ('pending','automated_service','awaiting_return','archived','do_not_contact')) avancaram_no_funil
+from ev group by 1,2 order by 1, 3 desc
+```
+
+Resultado real (set/2026): 38 por anúncio de WhatsApp, 21 com UTM no padrão atual, 2 do formulário do anúncio de WhatsApp (1 sem conversa, 1 já contado), 2 "PATROCINADO" sem nenhuma UTM. Em "4." aparecem também cadastros manuais/importação de prospecção (milhares) — não são entrada de anúncio.
