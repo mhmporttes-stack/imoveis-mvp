@@ -32,10 +32,10 @@ test("autorização: skill e usuário corretos, tudo mais é negado", () => {
   assert.equal(authorizeSkillRequest(intent("X"), config).ok, true);
   const otherSkill = intent("X");
   otherSkill.session.application.applicationId = "amzn1.ask.skill.outra";
-  assert.equal(authorizeSkillRequest(otherSkill, config).reason, "skill_invalida");
+  assert.equal(authorizeSkillRequest(otherSkill, config).reason, "skill_id");
   const otherUser = intent("X");
   otherUser.session.user.userId = "amzn1.ask.account.OUTRO";
-  assert.equal(authorizeSkillRequest(otherUser, config).reason, "usuario_nao_autorizado");
+  assert.equal(authorizeSkillRequest(otherUser, config).reason, "allowed_user");
   assert.equal(authorizeSkillRequest(intent("X"), { skillId: "", allowedUserIds: [USER] }).ok, false);
   assert.equal(authorizeSkillRequest(intent("X"), { skillId: SKILL, allowedUserIds: [] }).ok, false);
   assert.equal(authorizeSkillRequest({}, config).ok, false);
