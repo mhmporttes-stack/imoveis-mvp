@@ -53,6 +53,116 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** nenhum código do CRM, banco, migration ou integração foi tocado; nenhuma etiqueta REGRA OFICIAL alterada (conferido por script). Rule com `paths:` só carrega quando um arquivo do módulo é lido pela ferramenta Read — perguntas diretas sem leitura de arquivo dependem de ler a rule manualmente (instrução no `CLAUDE.md`). Os ~50 commits de 2026-09-30 (automação da Meta Diária, WhatsApp individual, Google Contacts) não têm entrada neste changelog — A CONFIRMAR se o dono quer registro retroativo.
 - **Autor:** Claude Code
 
+> **Registro retroativo (feito em 2026-10-01).** As 8 entradas abaixo consolidam, por tema, os ~125 commits de 28/09 (tarde) a 30/09/2026 que ficaram sem registro aqui. Não é um registro commit a commit: o detalhe de cada mudança está no `git log` do período. Autor das mudanças: Claude Code (sessões do dono); autor deste resumo: Claude Code.
+
+### 2026-09-28 a 2026-09-30 — WhatsApp individual (Baileys) substitui o número oficial banido
+- **Área:** WhatsApp / Infra / Banco
+- **Alteração:** cada corretor conecta o próprio WhatsApp por QR Code ou código numérico de pareamento. O microsserviço `whatsapp-individual-service/` roda no Railway (não na Vercel) e não guarda a service role: lê e grava estado e credenciais cifradas via `app/api/webhooks/whatsapp-individual/state`, autenticado por `X-Service-Secret`. O Chat do CRM envia e recebe pela sessão do responsável. `pickSendChannel` bloqueia o envio quando a sessão existe mas está caída, sem cair em silêncio no número banido. Também:
+  - contato novo no número pessoal vai direto para o dono da sessão, sem roleta;
+  - grupos e listas de transmissão são ignorados;
+  - foto, documento e áudio são enviados;
+  - confirmação de entrega e leitura funciona;
+  - troca de número depois de banimento destrava.
+- **Decisões do dono:** importar o histórico do celular ao conectar, ciente de que traz conversas pessoais. A sincronização ficou **desligada** (`WHATSAPP_HISTORY_SYNC_ENABLED`) porque gerava 504 no webhook. Removida a trava de janela de 24 h no Chat (regra exclusiva do número oficial).
+- **Motivo:** o número oficial (Meta Cloud API) foi banido em 28/09/2026.
+- **Arquivos afetados:** `whatsapp-individual-service/**`, `lib/whatsapp-individual*.js`/`.mjs`, `lib/whatsapp-chat.js`, `app/api/webhooks/whatsapp-individual/**`, `app/api/admin/whatsapp-individual/**`, `components/WhatsappIndividualStatus.jsx`. Migrations `20260928130000_whatsapp_individual_sessions`, `20260928180000_whatsapp_individual_direct_broker`, `20260928190000_whatsapp_conversation_account_badge`, `20260930160000_whatsapp_individual_pairing_code`.
+- **Risco/observação:** a sessão Baileys depende do celular do corretor e pode cair. Corretor sem sessão configurada continua no caminho antigo (Cloud API, banida). Doc: `.claude/rules/integracoes-externas.md`. `docs/WHATSAPP.md` ainda não descreve o canal individual por completo (A CONFIRMAR atualização).
+
+### 2026-09-29 a 2026-09-30 — Automação da Meta Diária pelo WhatsApp individual
+- **Área:** Meta Diária / WhatsApp / Banco
+- **Alteração:** o cron `whatsapp-meta-diaria-dispatch` (a cada 5 min, depois a cada 2 min) envia 1ª, 2ª e 3ª tentativa pela sessão pessoal do corretor, **nunca** pelo número oficial. Funcionamento:
+  - janela padrão 06h30–19h;
+  - 4 variações de mensagem por tentativa, em rotação sequencial persistente;
+  - ordem das atividades embaralhada;
+  - intervalo com oscilação em torno da média;
+  - teto diário = todas as atividades do dia (máx. 100), sem rampa de aquecimento;
+  - "enviada" só conta com confirmação do WhatsApp;
+  - erro de contato separado de erro de infraestrutura: retry técnico em 30 min sem gastar tentativa; após 3 falhas do contato, categoria nova **"Erro"** (`auto_error`);
+  - a cota de 20 novos do dia é gerada pelo cron, sem o corretor abrir a tela;
+  - painel de configuração em Gestão › Meta Diária › Automação, com histórico por corretor e card resumido.
+- **Decisões do dono:**
+  - a automação liga sozinha quando a sessão conecta;
+  - o corretor **não** pausa nem ativa a própria automação (só admin/gestor, também bloqueado na API);
+  - o envio manual continua liberado mesmo com a automação ligada (uma trava que impedia isso foi revertida no mesmo dia).
+- **Motivo:** pedido do dono, para cumprir a meta de contatos sem envio manual um a um.
+- **Arquivos afetados:** `lib/daily-goal-auto.js`, `lib/daily-goal-auto-core.mjs` (+ `tests/daily-goal-auto-core.test.mjs`), `lib/daily-goal.js`, `app/api/cron/whatsapp-meta-diaria-dispatch/**`, `app/api/admin/daily-goal-auto/**`, `app/api/daily-goal/auto/**`, `components/DailyGoalAutoPanel.jsx`, `components/TeamDailyPerformance.jsx`. Migrations `20260929190000_daily_goal_auto_dispatch`, `20260929200000_daily_goal_auto_window`, `20260930113000_fix_daily_goal_auto_queue_unique_constraint`, `20260930140000_daily_goal_auto_oscillate`, `20260930150000_daily_goal_auto_delivery_tracking`, `20260930150500_meta_diaria_dispatch_every_2min`, `20260930200000_meta_diaria_auto_robustez`.
+- **Risco/observação:** bugs reais corrigidos no caminho:
+  - UNIQUE da fila travava a re-fila para sempre, com erro engolido;
+  - um conflito isolado descartava o lote inteiro;
+  - timestamp inválido no agendamento;
+  - falso positivo de pausa automática;
+  - contagem de enviadas que não batia com o WhatsApp.
+  Risco permanente: banimento de números pessoais por volume. Doc: `.claude/rules/meta-diaria-ranking.md` §Automação.
+
+### 2026-09-30 — Integração Google Contacts por corretor (pedido de 01/10)
+- **Área:** Integrações / Meta Diária / Banco
+- **Alteração:** cada corretor conecta a própria conta Google por OAuth. Antes de cada envio automático da Meta Diária, `ensureClientInBrokerContacts` salva o cliente na agenda do corretor, de forma idempotente (mapa local broker+telefone). Tokens cifrados com `lib/secrets-crypto.js` (`CRM_SECRETS_ENCRYPTION_KEY`), nunca expostos ao front. Badge de conexão no cabeçalho do painel.
+- **Motivo:** pedido do dono. Contato salvo na agenda tende a reduzir bloqueio e denúncia de mensagens no WhatsApp pessoal (A CONFIRMAR como motivação exata).
+- **Arquivos afetados:** `lib/google-contacts*.js`/`.mjs`, `lib/secrets-crypto.js`, `lib/daily-goal-auto.js`, `app/api/google-contacts/**`, `components/GoogleContactsStatus.jsx`, `tests/google-contacts-config.test.mjs`. Migration `20261001120000_google_contacts_integration`.
+- **Risco/observação:** opt-in. Na publicação nenhum corretor estava conectado, então o fluxo de envio seguiu idêntico. Falha no Google é best-effort: nunca derruba o envio nem conta como erro do contato. Variáveis novas: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CRM_SECRETS_ENCRYPTION_KEY` (configuração em produção A CONFIRMAR).
+
+### 2026-09-30 — Roleta só entre corretores on-line, com fila de espera; link geral pela roleta
+- **Área:** Roleta / Clientes / Banco
+- **Alteração:**
+  - `pick_round_robin_broker` perdeu os níveis 3 e 4 ("ausente" e "qualquer elegível") e só considera quem está on-line.
+  - Sem ninguém on-line, o cadastro é criado sem responsável, com `pending_distribution_at`, e o card mostra "Aguardando". O cron `scheduled-activities` (`reassignPendingRouletteLeads`) atribui o mais antigo assim que alguém fica on-line.
+  - `reassignOrphanedClientsToOwner`, a regra REDISTRIBUIÇÃO DE LEADS e o escopo do gestor foram ajustados para essa fila.
+  - O **link geral do site (sem `?ref=`) passou a ir pela roleta**, em vez de cair no Matheus. O botão "Receber minha simulação" continua usando o default `matheus`.
+- **Motivo:** regra do dono (2026-09-30).
+- **Arquivos afetados:** `lib/lead-distribution.js`, `lib/simulation-registrations.js`, `lib/crm-automations.js`. Migration `20260930130000_roleta_online_only_waiting_queue`.
+- **Risco/observação:** **diverge do texto atual das rules.** `.claude/rules/roleta-prospeccao-campanhas.md` ("Roleta por presença", REGRA OFICIAL de 2026-09-24) ainda descreve os níveis 3 e 4. `.claude/rules/integracoes-externas.md` diz que o link sem `?ref=` grava o Matheus como responsável. Registrar a regra nova pela skill `/registrar-regra` (A CONFIRMAR com o dono).
+
+### 2026-09-30 — Meta Diária/Prospecção: cliente não é mais liberado cedo demais; incidente do cadastro
+- **Área:** Meta Diária / Prospecção / Clientes
+- **Alteração:**
+  - A 3ª tentativa encerra a rodada mas **mantém** o responsável. Depois de 24 h sem mudança de status, o contato "hiberna" (trava de 30 dias) e só então volta à base.
+  - O retorno automático da Prospecção passou de 2 para 7 dias.
+  - Contato ligado a cliente "não contactar"/vendido por **outra** linha (telefone irmão) não recebe mais envio automático (`isContactBlockedFromOutreach`) nem aparece na fila.
+  - Overloads inseguros das RPCs de claim foram removidos.
+  - Rodada já contatada hoje não é reenfileirada.
+- **Incidente (30/09, tarde):** a hibernação, na primeira versão, montava uma lista com ~1.600 ids e estourou o tamanho de URL do PostgREST. O "Bad Request" quebrou **todo** cadastro do formulário público até a correção (consulta invertida, filtro por join). Foram publicados 3 commits de diagnóstico temporário, removidos na correção. Motivou a skill `/diagnosticar-producao`.
+- **Arquivos afetados:** `lib/prospecting-auto-return.js`, `lib/daily-goal.js`, `lib/prospecting.js`, `lib/simulation-registrations.js`. Migrations `20260928200000_daily_goal_claim_guards`, `20260930180000_drop_unsafe_claim_overloads`.
+- **Risco/observação:** consulta que filtra por lista de ids crescente deve partir da tabela pequena ou usar join. Nunca montar `.in()` com histórico inteiro.
+
+### 2026-09-29 — Acompanhamento de aprovação na CCA e novos status de aprovação
+- **Área:** Documentação/CCA / Funil
+- **Alteração:**
+  - Histórico de sub-status por cliente (`client_cca_status_history`, uma linha aberta por vez), aberto automaticamente no envio à CCA.
+  - Selo no card do cliente com contador "há X dias" (verde até 2, amarelo até 5, vermelho acima).
+  - Vínculo manual de cliente já aguardando documentação.
+  - Foto da CCA.
+  - Três status novos em Aprovação (Comprometimento de renda, Carta de cancelamento, M.O de pesquisa), na mesma macroetapa de Restrição/Reprovado.
+  - A aba de cadastro de sub-status (Status CCA) foi removida em seguida, ficando só a leitura dos valores semeados.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/client-cca-status.js`, `lib/cca-status-stages.js`, `lib/cca-status-presentation.mjs` (+ teste), `lib/client-status.js`, `components/CcaStatusCard.jsx`, `app/api/admin/client-cca-status/**`. Migrations `20260929150000_cca_status_stages`, `20260929150100_client_cca_status_history`, `20260929160000_client_status_approval_reasons`.
+- **Risco/observação:** status novos entram no enum único `lib/client-status.js` e não criam aba própria no funil.
+
+### 2026-09-29 a 2026-09-30 — Pente-fino: problemas conhecidos corrigidos e performance
+- **Área:** Clientes / Permissões / Notificações / Infra
+- **Alteração:** corrigidos problemas listados em `docs/SYSTEM_ARCHITECTURE.md` §13:
+  - **P-01:** fim do casamento de cadastro por nome igual, e fim do corte em 1.000 linhas na detecção de duplicidade;
+  - **P-04:** lembrete de atividade não trava mais push/e-mail quando o WhatsApp falha;
+  - **P-08:** lead da home e captação passam a avisar por e-mail;
+  - **P-09:** rate limit dos formulários públicos no banco (`check_public_rate_limit`) em vez de memória;
+  - **P-17:** ação feita em "Alterar conta" pontua para o admin real;
+  - **P-11 (parcial):** o Chat passa a gravar `last_whatsapp_contact_at` ao enviar, com backfill.
+  Performance: índices em 24 chaves estrangeiras de tabelas quentes (advisor do Supabase), consultas em paralelo e menos idas ao banco na Meta Diária. Novo gráfico de ranking histórico (dia/semana/mês) em Desempenho, usando o mesmo motor de pontuação.
+- **Decisão revertida:** mover as funções da Vercel para São Paulo (`gru1`) deixou o CRM inacessível, porque o banco fica em `us-west-2`. Revertido no mesmo dia; a região padrão continua.
+- **Arquivos afetados:** `lib/simulation-registrations.js`, `lib/scheduled-activity-notifications.js`, `lib/admin-auth.js`, `lib/lead-notifications.js`, `lib/rate-limit.js`, rotas públicas de cadastro/captação/leads, `lib/whatsapp-client-status.js`, `lib/performance-overview.js`, `lib/performance-trend.mjs`. Migrations `20260929120000_public_form_rate_limits`, `20260929170000_missing_fk_indexes_hot_tables`, `20260928210000_backfill_last_whatsapp_contact_from_chat`.
+- **Risco/observação:** a tabela §13 de `docs/SYSTEM_ARCHITECTURE.md` ainda lista P-01, P-04, P-08, P-09 e P-17 como abertos (atualização pendente). Mudança de região da Vercel só com o banco na mesma região.
+
+### 2026-09-28 a 2026-09-29 — Site e painel após o banimento do número oficial
+- **Área:** WhatsApp / Site público / Painel / Cron
+- **Alteração:**
+  - Botão flutuante de WhatsApp do site desativado temporariamente.
+  - "Receber minha simulação" abre o WhatsApp **pessoal** do corretor do link.
+  - O botão WhatsApp dos cards (Clientes, Meta Diária, Prospecção) passou pelo Chat do CRM e **voltou a abrir o WhatsApp Web/app (`wa.me`)** em 29/09, até o Chat individual ficar estável; o código de decisão Chat-ou-externo foi removido.
+  - Os crons `scheduled-activities`, `whatsapp-broadcast-dispatch` e `whatsapp-flows` passaram de 1 para 2 min (~30% do tempo do banco; via `cron.alter_job`, fora do repo).
+  - Menu do corretor/gestor: Prospecção e Novo cliente unificados, atalho da Meta Diária, Central de Oportunidades **removida** por completo.
+- **Motivo:** número oficial banido e pedidos do dono.
+- **Arquivos afetados:** `components/WhatsAppFloatingButton.jsx`, `components/simulation-form/**`, `app/api/whatsapp-contact/**`, `components/AdminMenu.jsx`, `components/AdminSimulationList.jsx`.
+- **Risco/observação:** regras correspondentes já estão em `.claude/rules/integracoes-externas.md` (botão e crons). A remoção de Oportunidades apagou `lib/opportunities.js`/`lib/opportunity-scoring.js`; `docs/BUSINESS_RULES.md` §9 ainda descreve a Central (A CONFIRMAR atualização).
+
 ### 2026-09-29 — Reconhecimentos: 1ª cena cinematográfica (100% da meta) + arquitetura por gatilho
 - **Área:** overlay de reconhecimentos (Incentivo).
 - **Alteração:** o overlay virou uma casca fina (`CelebrationOverlay.jsx`) que escolhe, por `trigger_key`, um componente de "cena" isolado e carregado sob demanda (`next/dynamic`, sem SSR) — `scenes/Scene100.jsx` é a primeira cena cinematográfica (anel dourado que se desenha até 100% reaproveitando `components/motion/AnimatedRing`/`AnimatedNumber`, pulso de luz + explosão de confete no fechamento via novo `burstConfettiExplosion`, texto em cascata palavra por palavra via `StaggerContainer`/`StaggerItem` já existentes); as demais 15 continuam em `scenes/GenericScene.jsx` (o visual anterior, card + emoji) até serem migradas no mesmo padrão. Corrigido também: a prévia/"Testar" não mostra mais "Você" como nome quando não há corretor real — usa o nome de quem está testando (admin/gestor logado, ou o corretor selecionado no disparo manual) ou remove o placeholder da frase.
