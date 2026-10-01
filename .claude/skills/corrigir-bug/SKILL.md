@@ -9,7 +9,7 @@ A metodologia completa (localizar código, causa raiz, dependências, impacto, p
 
 ## 1. Reproduzir/confirmar o problema com dado real primeiro
 
-Se o usuário deu um exemplo concreto (print, número específico, passo a passo), comece por aí. Se o relato for vago, peça um exemplo concreto ANTES de investigar às cegas — ou, se for mais rápido, investigue você mesmo o suficiente pra formular uma hipótese testável (chamar a API relevante autenticado via script em `scratch/`, comparando esperado vs. observado).
+Se o usuário deu um exemplo concreto (print, número específico, passo a passo), comece por aí. Se o problema só aparece em produção, siga a skill `/diagnosticar-producao` para investigar (logs e consultas de leitura antes de qualquer código de diagnóstico publicado). Se o relato for vago, peça um exemplo concreto ANTES de investigar às cegas — ou, se for mais rápido, investigue você mesmo o suficiente pra formular uma hipótese testável (chamar a API relevante autenticado via script em `scratch/`, comparando esperado vs. observado).
 
 Prefira sempre confirmar com dado real (consulta ao banco, chamada de API) a assumir que o código "parece" ter o bug — este projeto já teve casos onde a explicação óbvia estava errada e a causa real era mais sutil, ou onde o comportamento "estranho" era design intencional, não bug (ver a seção de provenância de cada arquivo em `.claude/rules/`).
 

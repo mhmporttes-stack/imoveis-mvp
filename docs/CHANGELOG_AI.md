@@ -1,5 +1,58 @@
 # CHANGELOG_AI — registro de alterações importantes feitas por agentes
 
+> Este arquivo registra **alterações importantes futuras** feitas por agentes de IA (e por pessoas que usem agentes) neste projeto. **Não contém histórico anterior**: o histórico de código está no Git e o das regras de negócio em `.claude/rules/*.md` e `docs/`.
+> Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
+
+## Quando registrar
+
+Registre uma entrada **sempre que a sua alteração**:
+
+- muda uma **regra de negócio** ou o comportamento visível de um módulo;
+- cria/altera **tabela, coluna, função, trigger, migration, cron** ou política de acesso;
+- cria/altera **rota de API**, guard/permissão ou contrato de payload;
+- mexe em **integração** (WhatsApp, Meta, Anthropic, Resend, push) ou em variável de ambiente;
+- altera uma **área compartilhada** (ver lista em `SYSTEM_ARCHITECTURE.md` §10);
+- **corrige uma divergência** entre a documentação e o código (atualize também o documento afetado);
+- ou quando você **encontra um problema fora do escopo e não o corrigiu** (registre em “Risco/observação” e avise o dono).
+
+Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível, tarefas só de leitura/auditoria sem alteração.
+
+## Como registrar
+
+1. Acrescente a entrada logo **abaixo do título “## Registro”** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
+2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
+3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
+4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
+5. Se algo não pôde ser provado no código, escreva **A CONFIRMAR** — não invente.
+6. Não apague entradas antigas. Para corrigir uma, acrescente uma nova referenciando a anterior.
+7. **Arquivamento mensal (quando necessário):** se este arquivo passar de ~500 linhas, mova as entradas de meses já encerrados, sem alterar o texto, para `docs/changelog/AAAA-MM.md` (um arquivo por mês, mais recente primeiro) e deixe ao fim da seção “Registro” a linha `Meses anteriores: docs/changelog/`. Agentes leem só as entradas recentes daqui; o arquivo mensal é consultado sob demanda.
+
+## Formato
+
+Copie o modelo abaixo (uma entrada por bloco):
+
+```markdown
+### AAAA-MM-DD — <título curto>
+- **Data:** AAAA-MM-DD
+- **Área:** <Clientes | Roleta | Funil | Agenda | Meta Diária | Ranking | WhatsApp | Meta/Tráfego | Documentação/CCA | Financeiro | Permissões | Banco | Infra | Docs | …>
+- **Alteração:** <o que mudou, em 1–3 linhas>
+- **Motivo:** <por que; pedido do dono, bug, incidente…>
+- **Arquivos afetados:** `caminho/arquivo1`, `caminho/arquivo2` (e migrations, se houver)
+- **Risco/observação:** <impacto possível em outros módulos, o que foi validado e como, o que ficou A CONFIRMAR, problemas encontrados e não corrigidos>
+- **Autor:** <agente/ferramenta ou pessoa>
+```
+
+## Registro
+
+### 2026-10-01 — Reorganização da estrutura do Claude Code (rules, agente, skills)
+- **Data:** 2026-10-01
+- **Área:** Docs / Infra (estrutura do Claude Code)
+- **Alteração:** rules de `.claude/rules/` com `paths:` (carregamento sob demanda; `workflow-dev` e `auth-permissoes` continuam globais); divergências D-1 a D-7 corrigidas nas próprias rules; lacunas cobertas (WhatsApp individual, automação da Meta Diária, Google Contacts, Reconhecimentos); `CLAUDE.md` com "onde cada informação mora"; `crm-editor` e skills de auditoria atualizados; novas skills `registrar-regra` e `diagnosticar-producao`; trechos históricos movidos sem alteração para `docs/HISTORICO_REGRAS.md`; entradas deste changelog que estavam acima do cabeçalho movidas para "Registro" (texto intacto) e regra de arquivamento mensal criada.
+- **Motivo:** pedido do dono (auditoria de governança do Claude Code): as 11 rules carregavam em toda sessão (~20 mil tokens) e várias continham fatos já desmentidos pelo código.
+- **Arquivos afetados:** `CLAUDE.md`, `AGENTS.md`, `.gitignore`, `.claude/rules/*.md`, `.claude/agents/crm-editor.md`, `.claude/skills/*/SKILL.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/PERMISSIONS.md`, `docs/HISTORICO_REGRAS.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** nenhum código do CRM, banco, migration ou integração foi tocado; nenhuma etiqueta REGRA OFICIAL alterada (conferido por script). Rule com `paths:` só carrega quando um arquivo do módulo é lido pela ferramenta Read — perguntas diretas sem leitura de arquivo dependem de ler a rule manualmente (instrução no `CLAUDE.md`). Os ~50 commits de 2026-09-30 (automação da Meta Diária, WhatsApp individual, Google Contacts) não têm entrada neste changelog — A CONFIRMAR se o dono quer registro retroativo.
+- **Autor:** Claude Code
+
 ### 2026-09-29 — Reconhecimentos: 1ª cena cinematográfica (100% da meta) + arquitetura por gatilho
 - **Área:** overlay de reconhecimentos (Incentivo).
 - **Alteração:** o overlay virou uma casca fina (`CelebrationOverlay.jsx`) que escolhe, por `trigger_key`, um componente de "cena" isolado e carregado sob demanda (`next/dynamic`, sem SSR) — `scenes/Scene100.jsx` é a primeira cena cinematográfica (anel dourado que se desenha até 100% reaproveitando `components/motion/AnimatedRing`/`AnimatedNumber`, pulso de luz + explosão de confete no fechamento via novo `burstConfettiExplosion`, texto em cascata palavra por palavra via `StaggerContainer`/`StaggerItem` já existentes); as demais 15 continuam em `scenes/GenericScene.jsx` (o visual anterior, card + emoji) até serem migradas no mesmo padrão. Corrigido também: a prévia/"Testar" não mostra mais "Você" como nome quando não há corretor real — usa o nome de quem está testando (admin/gestor logado, ou o corretor selecionado no disparo manual) ou remove o placeholder da frase.
@@ -40,49 +93,6 @@
 - **Alteração:** seleção explícita de mensagens e arquivos no Chat para a análise documental existente; regras ativas incorporadas em cada parecer; residência sem boletos; rastreio de pendências; cálculo auditável de renda por três extratos; mensagem de pendências editável no Chat; opções PDF ou pasta ZIP para a CCA, com confirmação de pendências.
 - **Permissões:** somente administrador geral edita regras; corretor só acessa o próprio cliente e pode preparar envio para CCA; gestão do cadastro de CCA permanece restrita.
 - **Verificação:** 18 testes de regras e build Next.js concluídos. Fluxos externos dependem das credenciais de produção.
-
-> Este arquivo registra **alterações importantes futuras** feitas por agentes de IA (e por pessoas que usem agentes) neste projeto. **Não contém histórico anterior**: o histórico de código está no Git e o das regras de negócio em `.claude/rules/*.md` e `docs/`.
-> Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
-
-## Quando registrar
-
-Registre uma entrada **sempre que a sua alteração**:
-
-- muda uma **regra de negócio** ou o comportamento visível de um módulo;
-- cria/altera **tabela, coluna, função, trigger, migration, cron** ou política de acesso;
-- cria/altera **rota de API**, guard/permissão ou contrato de payload;
-- mexe em **integração** (WhatsApp, Meta, Anthropic, Resend, push) ou em variável de ambiente;
-- altera uma **área compartilhada** (ver lista em `SYSTEM_ARCHITECTURE.md` §10);
-- **corrige uma divergência** entre a documentação e o código (atualize também o documento afetado);
-- ou quando você **encontra um problema fora do escopo e não o corrigiu** (registre em “Risco/observação” e avise o dono).
-
-Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível, tarefas só de leitura/auditoria sem alteração.
-
-## Como registrar
-
-1. Acrescente a entrada **no topo** da seção “Registro” (mais recente primeiro).
-2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
-3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
-4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
-5. Se algo não pôde ser provado no código, escreva **A CONFIRMAR** — não invente.
-6. Não apague entradas antigas. Para corrigir uma, acrescente uma nova referenciando a anterior.
-
-## Formato
-
-Copie o modelo abaixo (uma entrada por bloco):
-
-```markdown
-### AAAA-MM-DD — <título curto>
-- **Data:** AAAA-MM-DD
-- **Área:** <Clientes | Roleta | Funil | Agenda | Meta Diária | Ranking | WhatsApp | Meta/Tráfego | Documentação/CCA | Financeiro | Permissões | Banco | Infra | Docs | …>
-- **Alteração:** <o que mudou, em 1–3 linhas>
-- **Motivo:** <por que; pedido do dono, bug, incidente…>
-- **Arquivos afetados:** `caminho/arquivo1`, `caminho/arquivo2` (e migrations, se houver)
-- **Risco/observação:** <impacto possível em outros módulos, o que foi validado e como, o que ficou A CONFIRMAR, problemas encontrados e não corrigidos>
-- **Autor:** <agente/ferramenta ou pessoa>
-```
-
-## Registro
 
 ### 2026-09-28 — Regras editáveis para análise documental
 - **Área:** Documentação/CCA / Banco.

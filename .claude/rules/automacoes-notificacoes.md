@@ -48,7 +48,7 @@ Notificação genérica no CRM — sempre resolvida pela hierarquia real de quem
 
 Web Push nativo (VAPID), sem biblioteca externa de push — `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Assinatura por `endpoint` (upsert), tabela `push_subscriptions`.
 
-## Mensagem diária (`lib/daily-message.js`, `lib/daily-message-cycle.mjs`)
+## Mensagem diária (`lib/daily-message.js`, `lib/daily-message-cycle.js`)
 
 Card motivacional/devocional mostrado aos corretores uma vez por dia — **não confundir com Meta Diária** (são sistemas completamente diferentes apesar do nome parecido: um é gamificação de prospecção, o outro é conteúdo). Janela de tolerância de 20h antes de gerar uma nova linha automática, para não duplicar o envio do dia se o horário configurado mudar no meio do dia (`RECENT_AUTO_GUARD_MS`). Testes dedicados: `tests/daily-message-cycle.test.mjs`.
 

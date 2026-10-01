@@ -87,4 +87,4 @@ Quando uma REGRA OFICIAL diverge do COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO, o ar
 ## Agente e skills deste projeto
 
 - Subagente `crm-editor` (persona **CRM Architect**) — use-o para qualquer alteração de código neste CRM; ele já carrega a filosofia de investigar causa raiz e impacto antes de editar.
-- Skills: `/auditar-crm`, `/corrigir-bug`, `/nova-funcionalidade`, `/auditar-banco`, `/revisar-permissoes`.
+- Skills: `/auditar-crm`, `/corrigir-bug`, `/nova-funcionalidade`, `/auditar-banco`, `/revisar-permissoes`, `/registrar-regra` (regra nova do dono → lugar certo, sem duplicar) e `/diagnosticar-producao` (logs e consultas de leitura antes de publicar código de diagnóstico).
