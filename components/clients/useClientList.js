@@ -20,7 +20,8 @@ export function useClientList({
   initialFilters,
   tags = [],
   notify,
-  confirmAction
+  confirmAction,
+  pinClientId = ""
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...initialFilters }));
@@ -62,7 +63,7 @@ export function useClientList({
     }
     fetchClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, pinClientId]);
 
   function updateFilters(patch) {
     setFilters((current) => ({ ...current, ...patch }));
@@ -87,6 +88,7 @@ export function useClientList({
     if (filters.needsFirstContact) params.set("needsFirstContact", "1");
     if (filters.statusGroup !== "all") params.set("statusGroup", filters.statusGroup);
     if (filters.status !== "all") params.set("status", filters.status);
+    if (pinClientId) params.set("clientId", pinClientId);
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
 

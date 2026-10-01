@@ -48,10 +48,11 @@ export default async function AdminSimulationsPage({ searchParams }) {
   const isManager = isManagerProfile(auth.profile);
   const needsAdminProfiles = isGeneralAdmin || isManager;
   const filters = filtersFromSearchParams(resolvedSearchParams);
+  const pinClientId = resolvedSearchParams?.clientId || "";
 
   try {
     const [pageResult, counters, pendingClientsCount, tagsResult, adminProfilesResult] = await Promise.all([
-      listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20 }),
+      listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20, pinClientId }),
       getSimulationClientCounters({ auth, filters }),
       getPendingClientsCount({ auth }),
       listTags(),

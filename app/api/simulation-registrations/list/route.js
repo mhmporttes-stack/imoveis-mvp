@@ -35,10 +35,11 @@ export async function GET(request) {
   };
   const page = Number(params.get("page")) || 1;
   const pageSize = Number(params.get("pageSize")) || undefined;
+  const pinClientId = params.get("clientId") || "";
 
   try {
     const [pageResult, counters, pendingClientsCount] = await Promise.all([
-      listSimulationClientsPage({ auth, filters, page, pageSize }),
+      listSimulationClientsPage({ auth, filters, page, pageSize, pinClientId }),
       getSimulationClientCounters({ auth, filters }),
       getPendingClientsCount({ auth })
     ]);

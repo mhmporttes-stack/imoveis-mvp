@@ -29,9 +29,9 @@ export default function ClientWorkspace(props) {
   const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
-  const list = useClientList({ ...props, notify, confirmAction });
-  const badgeCounts = useCrmBadgeCounts();
   const [openClientId, setOpenClientId] = useState("");
+  const list = useClientList({ ...props, notify, confirmAction, pinClientId: openClientId });
+  const badgeCounts = useCrmBadgeCounts();
   const [openFocus, setOpenFocus] = useState("");
   const openFicha = (clientId, focus = "") => {
     setOpenFocus(focus);

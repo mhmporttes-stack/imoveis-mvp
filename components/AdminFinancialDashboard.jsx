@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   BarChart3,
   CalendarDays,
   CheckCircle2,
   Clock3,
   DollarSign,
+  ExternalLink,
   Filter,
   Plus,
   ReceiptText,
@@ -568,7 +570,17 @@ function SaleEditor({
     <div className="premium-card overflow-hidden">
       <div className="border-b border-line bg-white p-5 md:p-6">
         <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Edição financeira</p>
-        <h3 className="mt-2 text-3xl font-black text-navy">{sale.clientName || "Cliente sem nome"}</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h3 className="text-3xl font-black text-navy">{sale.clientName || "Cliente sem nome"}</h3>
+          {sale.clientId ? (
+            <Link
+              href={`/admin/simulacoes?clientId=${sale.clientId}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-brand/25 bg-white px-3 text-xs font-black text-brand transition hover:border-brand hover:bg-[#EEF6FF]"
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> Ver cliente
+            </Link>
+          ) : null}
+        </div>
         <p className="mt-2 text-sm font-semibold text-muted">
           Comissão livre: <strong className="text-navy">{formatCurrency(draftTotals.freeCommission)}</strong> ·
           Recebido: <strong className="text-navy"> {formatCurrency(draftTotals.receivedTotal)}</strong> ·
