@@ -51,6 +51,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
   const [brokerAlertFlow, setBrokerAlertFlow] = useState(null); // null | "loading" | { message, whatsappUrl } | { empty: true }
   const [pdfFlow, setPdfFlow] = useState(null); // null | true (abre o PdfDownloadModal)
   const dropRef = useRef(null);
+  const dialogRef = useRef(null);
   const labelIndexRef = useRef(0);
   const labelTimerRef = useRef(null);
 
@@ -59,12 +60,21 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
     return () => { document.body.style.overflow = ""; };
   }, []);
 
+  // <dialog> nativo com showModal() entra na camada de topo do navegador —
+  // nenhum z-index normal fica acima dela. Sem isso, abrir Documentação com
+  // a ficha do cliente (Sheet, components/ui/Sheet.jsx, também um <dialog>)
+  // aberta por trás deixava a ficha sobrepondo este modal e bloqueando o
+  // clique na área de anexar arquivos (achado real, 2026-10-01 — reclamação
+  // "uma aba está sobrepondo a outra e não conseguimos anexar os
+  // documentos"). O evento nativo "close" (Esc, .close()) já cobre o
+  // fechamento — não precisa mais de listener manual de teclado.
   useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    dialog.showModal();
+    const handleDialogClose = () => onClose();
+    dialog.addEventListener("close", handleDialogClose);
+    return () => dialog.removeEventListener("close", handleDialogClose);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -270,7 +280,12 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-label="Documentação do cliente" onMouseDown={onClose}>
+    <dialog
+      ref={dialogRef}
+      className="fixed inset-0 z-[100] m-0 flex max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4"
+      aria-label="Documentação do cliente"
+      onClick={(event) => { if (event.target === dialogRef.current) dialogRef.current.close(); }}
+    >
       <div
         ref={dropRef}
         className="flex max-h-[92svh] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]"
@@ -369,7 +384,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       {pdfFlow ? (
         <PdfDownloadModal clientId={client.id} onClose={() => setPdfFlow(null)} />
       ) : null}
-    </div>,
+    </dialog>,
     document.body
   );
 }
