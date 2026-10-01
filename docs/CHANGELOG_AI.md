@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Ranking: Modelo B Ajustado (pesos, teto de presença, teto de prospecção)
+- **Data:** 2026-10-01
+- **Área:** Ranking
+- **Alteração:** novos pesos por atividade (Novo cliente 2, Prospecção 1, Atendimento 8, Simulação 15, Documentação 20, Enviado p/ aprovação 25, Aprovado 50, Venda 150); "Tempo online" caiu de 5 para 1 ponto/10min e passou a ter **teto de 30 pontos/corretor/dia**; bônus "Mais tempo online no dia" **removido** (regra desativada); bônus de Meta Diária trocou de "+20 por múltiplo de 100% sem teto" para "+15 aos 100%, +30 aos 200%, teto 30"; nova **"Prospecção" limitada a 200% da cota diária** (acima disso, conta mas não pontua); Meta não concluída (−50) e Reunião (não pontua) inalterados. Tudo aplicado **retroativamente desde 28/09/2026 00:00 (Brasília)** via `scoring_rule_versions` (fechando a versão antiga de cada regra em 2026-09-28T03:00:00Z e abrindo a nova a partir dali) — nenhum evento histórico foi duplicado, alterado ou tem data mexida; o Extrato de Pontos usa a mesma anotação de teto que o Ranking, então os dois continuam reconciliando exatamente.
+- **Motivo:** três auditorias sequenciais do dono (pontuação do dia, simulação de rebalanceamento, backtest do Modelo B Ajustado + teto de prospecção) mostraram Presença+Novo Cliente somando ~77% dos pontos do time e avanço real de funil só ~14% — o ranking recompensava volume/presença muito mais que avanço comercial. O Modelo B Ajustado, validado por backtest contra dados reais de 28/09–01/10, leva Funil a ~42% do total e nenhum corretor passa a liderar nenhum dia nem o acumulado só por volume sem avanço de funil.
+- **Arquivos afetados:** `lib/performance-overview.js` (`loadDailyGoalBonusByBroker` reescrita para qualquer período/dia, `loadPresenceScoring` com teto, `annotateProspectingCap` novo, `getPointsLedger` ajustado), `supabase/migrations/20261001120000_scoring_model_b_adjusted.sql` (aplicada em produção), `docs/BUSINESS_RULES.md` (RAN-1/RAN-3/RAN-3a/RAN-3b).
+- **Risco/observação:** build de produção (`next build`) passou limpo. Sem credenciais de admin neste ambiente para um teste ponta-a-ponta autenticado contra o Ranking ao vivo (mesma limitação de sessões anteriores) — a validação foi por leitura cuidadosa do código + backtest em SQL read-only nas três auditorias anteriores à implementação; o dono deve conferir o Ranking/Extrato de hoje e de um dia passado (ex.: 29/09) após o deploy. "Últimos 7 dias"/"Este mês" também passam a refletir o teto de presença e o novo bônus de meta para QUALQUER dia do período (antes só "hoje" tinha bônus de meta) — mudança desejada e abrangida pelo pedido de retroatividade, mas vale avisar o dono que números de períodos longos vão mudar, não só a semana de 28/09.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Agente Marketing — Posicionamento Digital
 - **Data:** 2026-10-01
 - **Área:** Agentes/Docs
