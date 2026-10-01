@@ -147,7 +147,7 @@ test("'quem são?' usa o assunto anterior; 'mais' pagina; fim da lista", async (
 
 test("'mais' sem lista anterior explica", async () => {
   const r = await handleSkillRequestV2(envelope("MaisIntent"), makeDeps());
-  assert.match(text(r), /Não há uma lista/);
+  assert.equal(text(r), "Não entendi.");
 });
 
 test("etapa: pergunta e continuação com outra etapa", async () => {
@@ -158,7 +158,7 @@ test("etapa: pergunta e continuação com outra etapa", async () => {
   const names = await handleSkillRequestV2(envelope("ListarIntent", {}, first.sessionAttributes), deps);
   assert.equal(text(names), "João e Maria.");
   const lost = await handleSkillRequestV2(envelope("ContinuaIntent", { etapa: slot("aprovacao") }), deps);
-  assert.match(text(lost), /Sobre o que/);
+  assert.equal(text(lost), "Não entendi.");
   const chained = await handleSkillRequestV2(envelope("ContinuaIntent", { etapa: slot("aprovacao") }, first.sessionAttributes), deps);
   assert.equal(text(chained), "Nenhum cliente aguardando aprovação.");
 });
@@ -178,7 +178,7 @@ test("'e o Eduardo?' filtra por corretor; corretor desconhecido é explicado", a
   const team = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("prospeccao_equipe") }), deps);
   assert.equal(text(team), "A equipe fez 85 prospecções hoje.");
   const asked = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("prospeccao_corretor") }), deps);
-  assert.equal(text(asked), "De qual corretor?");
+  assert.equal(text(asked), "Não entendi.");
   const eduardo = await handleSkillRequestV2(envelope("ContinuaIntent", { corretor: { value: "Eduardo" } }, asked.sessionAttributes), deps);
   assert.equal(text(eduardo), "Eduardo fez 30 prospecções hoje.");
   const unknown = await handleSkillRequestV2(envelope("ContinuaIntent", { corretor: { value: "Zeca" } }, asked.sessionAttributes), deps);
@@ -197,14 +197,14 @@ test("período padrão de assuntos específicos e agenda", async () => {
 test("fallback: provedor que falha, que demora ou que não existe", async () => {
   const failing = makeDeps({ providers: { meta: async () => { throw new Error("banco fora"); } } });
   const failed = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("meta_equipe") }), failing);
-  assert.equal(text(failed), "Não consegui buscar isso agora. Quer o resumo geral?");
+  assert.equal(text(failed), "Não consegui buscar isso agora.");
   assert.doesNotMatch(text(failed), /banco|erro/i);
   const slow = makeDeps({ timeoutMs: 20, providers: { meta: () => new Promise(() => {}) } });
   const timedOut = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("meta_equipe") }), slow);
-  assert.equal(text(timedOut), "Não consegui buscar isso agora. Quer o resumo geral?");
+  assert.equal(text(timedOut), "Não consegui buscar isso agora.");
   const missing = makeDeps({ providers: {} });
   const none = await handleSkillRequestV2(envelope("ConsultarIntent", { assunto: slot("meta_equipe") }), missing);
-  assert.equal(text(none), "Ainda não consigo responder isso por aqui.");
+  assert.equal(text(none), "Não entendi.");
 });
 
 test("dado antigo vira aviso curto; dado sensível nunca é falado", async () => {
@@ -222,7 +222,7 @@ test("repetir e assunto ausente", async () => {
   const again = await handleSkillRequestV2(envelope("AMAZON.RepeatIntent", {}, first.sessionAttributes), deps);
   assert.equal(text(again), text(first));
   const nothing = await handleSkillRequestV2(envelope("ConsultarIntent"), deps);
-  assert.match(text(nothing), /Sobre qual assunto/);
+  assert.equal(text(nothing), "Não entendi.");
   const noKind = await handleSkillRequestV2(envelope("ListarIntent", { assunto: slot("meta_equipe") }), deps);
   assert.match(text(noKind), /^Para isso só tenho o número\. A meta da equipe/);
 });

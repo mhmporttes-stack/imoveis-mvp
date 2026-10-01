@@ -78,7 +78,7 @@ test("conversa: 'quem são?' usa o assunto da pergunta anterior", async () => {
 
 test("'quem são?' sem contexto pergunta o assunto; com slot responde direto", async () => {
   const ask = await handleSkillRequest(intent("QuemSaoIntent"), deps);
-  assert.match(text(ask), /De qual assunto/);
+  assert.equal(text(ask), "Não entendi.");
   assert.equal(ask.response.shouldEndSession, false);
   const withSlot = await handleSkillRequest(intent("QuemSaoIntent", { assunto: { name: "assunto", value: "documentos" } }), deps);
   assert.equal(text(withSlot), "João, Maria e Pedro.");
@@ -106,7 +106,7 @@ test("resumo do dia e próxima reunião", async () => {
 
 test("intenção desconhecida cai no fallback sem quebrar", async () => {
   const result = await handleSkillRequest(intent("AMAZON.FallbackIntent"), deps);
-  assert.match(text(result), /Não entendi/);
+  assert.equal(text(result), "Não entendi.");
   assert.equal(result.response.shouldEndSession, false);
 });
 

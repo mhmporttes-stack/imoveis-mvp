@@ -1074,3 +1074,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/alexa-v2/{model-core,router,periods}.mjs`, `lib/alexa-v2/providers/activities-core.mjs`, `docs/alexa-interaction-model.json`.
 - **Risco/observação:** modelo grande (cerca de 700 frases na intenção de agenda, geradas por combinação de prefixos). A fala sempre diz o tipo da atividade; o título digitado entra no fim só se agrega.
 - **Autor:** Claude Code
+
+### 2026-10-02 — Alexa: fallback único "Não entendi." e contexto conversacional dinâmico
+- **Data:** 2026-10-02
+- **Área:** Alexa
+- **Alteração:** (1) todo fallback/pergunta sem contexto suficiente responde SÓ "Não entendi." (sem lista de opções, exemplos, explicações ou ajuda; a sessão continua aberta e o contexto é preservado); a ajuda continua só quando o dono pede "ajuda". Mensagem de falha técnica ficou "Não consegui buscar isso agora." (sem sugestão). (2) Contexto estruturado (assunto/métrica, formato, período ou data, corretor, etapa, domínio): ele só COMPLETA o que a nova pergunta não diz; informação explícita nova sempre vence ("e o Eduardo, quantas simulações fez hoje?" troca tudo de uma vez; "e ontem?" muda só o período; "e a Izabela?" só o corretor; "e simulações?" só a métrica). "E a Bruna?" sobre a agenda pessoal do dono (sem fonte segura) → "Não entendi.".
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/alexa-skill-core.mjs`, `lib/alexa-v2/{router,catalog,model-core}.mjs`, testes `tests/alexa-context.test.mjs` e ajustes em `tests/alexa-*.test.mjs`.
+- **Risco/observação:** o modelo de voz ganhou frases "e o {corretor} quantas {assunto} fez {período}" (reimportar e buildar no Console).
+- **Autor:** Claude Code

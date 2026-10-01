@@ -82,7 +82,7 @@ test("sem atividade, sem contexto e lista longa com continuação", async () => 
   const say = conversation({ amanha: [], hoje: MANY });
   assert.equal(await say("AgendaIntent", { periodo: slot("amanhã", "amanha") }), "Você não tem nenhuma atividade agendada para amanhã.");
   const noCtx = conversation({});
-  assert.match(await noCtx("PrimeiraIntent"), /De qual agenda/);
+  assert.equal(await noCtx("PrimeiraIntent"), "Não entendi.");
   const long = conversation({ hoje: MANY });
   const first = await long("AgendaIntent", {});
   assert.match(first, /^Hoje você tem 7 atividades\. Às 8 horas, ligação para Clientea\./);
@@ -150,9 +150,9 @@ test("agenda por data: dia 8 de outubro, sexta-feira, dia 15, no dia seguinte e 
   assert.equal(await say("AgendaDataIntent", { data: { value: "sexta-feira" } }), "Na sexta-feira, dia 9 de outubro, você tem 1 atividade. Às 10 horas, reunião com Ana.");
   assert.equal(await say("AgendaDataIntent", { data: { value: "XXXX-XX-15" } }), "Você não tem nenhuma atividade agendada para quinta-feira, dia 15 de outubro.");
   assert.equal(await say("AgendaDataIntent", { data: { value: "XXXX-10-20" } }), "Você não tem nenhuma atividade agendada para terça-feira, dia 20 de outubro.");
-  assert.match(await say("AgendaDataIntent", { data: { value: "2026-10" } }), /Não entendi a data/);
+  assert.equal(await say("AgendaDataIntent", { data: { value: "2026-10" } }), "Não entendi.");
   const noCtx = conversation({});
-  assert.match(await noCtx("DiaSeguinteIntent"), /De qual agenda/);
+  assert.equal(await noCtx("DiaSeguinteIntent"), "Não entendi.");
 });
 
 test("modelo: intenção de data usa AMAZON.DATE e as frases naturais do pedido", () => {

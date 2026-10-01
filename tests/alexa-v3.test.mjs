@@ -177,7 +177,7 @@ test("comparação objetiva entre dois corretores", async () => {
   assert.equal(meta, "Hoje, Izabela: 82 por cento da meta. Eduardo: 30 por cento da meta.");
   const general = await say("CompararIntent", { corretor: slot("Izabela", "i1"), outro_corretor: slot("Bruna", "b1") });
   assert.match(general, /^Hoje, Izabela: 82 por cento da meta, 34 prospecções, 0 vendas\. Bruna: 120 por cento da meta, 50 prospecções, 1 venda\.$/);
-  assert.match(await say("CompararIntent", { corretor: slot("Izabela", "i1") }), /Quais corretores/);
+  assert.equal(await say("CompararIntent", { corretor: slot("Izabela", "i1") }), "Não entendi.");
 });
 
 test("corretor desconhecido e período sem fonte confiável", async () => {
