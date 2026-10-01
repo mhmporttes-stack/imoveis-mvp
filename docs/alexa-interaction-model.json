@@ -163,6 +163,15 @@
             "quantos clientes do {corretor} estão em {etapa}",
             "quantos clientes a {corretor} tem em {etapa}",
             "quantos clientes o {corretor} tem em {etapa}",
+            "quantos clientes a {corretor} levou para {assunto}",
+            "quantos clientes o {corretor} levou para {assunto}",
+            "quantos clientes a {corretor} levou para {assunto} {periodo}",
+            "quantos clientes o {corretor} levou para {assunto} {periodo}",
+            "quantos clientes ela levou para {assunto}",
+            "quantos clientes ele levou para {assunto}",
+            "quantos clientes ela levou para {assunto} {periodo}",
+            "quantos clientes ele levou para {assunto} {periodo}",
+            "quantos clientes {corretor} levou para {assunto}",
             "quantas {assunto} ela fez",
             "quantas {assunto} ele fez",
             "quantas {assunto} ela fez {periodo}",
@@ -426,6 +435,9 @@
                   "nao bateu a meta",
                   "faltam bater a meta",
                   "ainda nao bateu",
+                  "não bateram a meta",
+                  "não bateu a meta",
+                  "ainda não bateu",
                   "abaixo da meta",
                   "quem está abaixo da meta",
                   "quem não bateu a meta"
@@ -461,7 +473,9 @@
                 "synonyms": [
                   "prospeccao",
                   "prospeccoes",
-                  "prospectaram"
+                  "prospectaram",
+                  "prospecção",
+                  "prospecções"
                 ]
               }
             },
@@ -482,7 +496,10 @@
                 "synonyms": [
                   "prospeccao comparada",
                   "prospeccao contra a meta",
-                  "prospeccao e meta"
+                  "prospeccao e meta",
+                  "prospecção comparada",
+                  "prospecção contra a meta",
+                  "prospecção e meta"
                 ]
               }
             },
@@ -491,7 +508,8 @@
               "name": {
                 "value": "prospecção de um corretor",
                 "synonyms": [
-                  "prospeccao do corretor"
+                  "prospeccao do corretor",
+                  "prospecção do corretor"
                 ]
               }
             },
@@ -503,6 +521,9 @@
                   "nao prospectou",
                   "sem prospeccao",
                   "ainda nao prospectou",
+                  "não prospectou",
+                  "sem prospecção",
+                  "ainda não prospectou",
                   "sem atividade",
                   "quem está sem atividade",
                   "quem não prospectou hoje"
@@ -537,7 +558,9 @@
                   "avancaram",
                   "avancou",
                   "mudaram de etapa",
-                  "movimento"
+                  "movimento",
+                  "avançaram",
+                  "avançou"
                 ]
               }
             },
@@ -560,7 +583,8 @@
                 "value": "próxima reunião",
                 "synonyms": [
                   "proxima reuniao",
-                  "proximo compromisso"
+                  "proximo compromisso",
+                  "próximo compromisso"
                 ]
               }
             },
@@ -601,7 +625,9 @@
                 "value": "corretor com mais pendências",
                 "synonyms": [
                   "mais pendencias",
-                  "quem tem mais pendencias"
+                  "quem tem mais pendencias",
+                  "mais pendências",
+                  "quem tem mais pendências"
                 ]
               }
             },
@@ -653,7 +679,9 @@
                 "synonyms": [
                   "aprovacoes",
                   "aprovacao no periodo",
-                  "aprovados no periodo"
+                  "aprovados no periodo",
+                  "aprovação no período",
+                  "aprovados no período"
                 ]
               }
             },
@@ -663,7 +691,8 @@
                 "value": "conversão",
                 "synonyms": [
                   "conversao",
-                  "taxa de conversao"
+                  "taxa de conversao",
+                  "taxa de conversão"
                 ]
               }
             },
@@ -700,7 +729,8 @@
               "name": {
                 "value": "ranking",
                 "synonyms": [
-                  "classificacao"
+                  "classificacao",
+                  "classificação"
                 ]
               }
             },
@@ -729,7 +759,9 @@
                 "value": "o que precisa de atenção",
                 "synonyms": [
                   "atencao",
-                  "precisa de atencao"
+                  "precisa de atencao",
+                  "atenção",
+                  "precisa de atenção"
                 ]
               }
             },
@@ -752,7 +784,8 @@
                   "simulacoes enviadas",
                   "simulações enviadas",
                   "simulações feitas",
-                  "quem fez mais simulações"
+                  "quem fez mais simulações",
+                  "simulação"
                 ]
               }
             },
@@ -766,7 +799,8 @@
                   "documentacoes recebidas",
                   "documentações",
                   "documentação recebida",
-                  "documentos recebidos"
+                  "documentos recebidos",
+                  "documentação"
                 ]
               }
             },
@@ -778,9 +812,12 @@
                   "clientes para aprovacao",
                   "foram para aprovacao",
                   "enviados para aprovacao",
+                  "foram para aprovação",
+                  "enviados para aprovação",
                   "clientes foram para aprovação",
                   "clientes enviados para aprovação",
-                  "aprovações enviadas"
+                  "aprovações enviadas",
+                  "aprovação"
                 ]
               }
             },
@@ -805,8 +842,8 @@
                   "prospeccoes que faltam",
                   "faltam prospeccoes",
                   "quantas prospeccoes faltam",
-                  "quantas prospecções faltam",
                   "faltam prospecções",
+                  "quantas prospecções faltam",
                   "prospecções restantes"
                 ]
               }
@@ -819,8 +856,8 @@
                   "posicao no ranking",
                   "colocacao no ranking",
                   "posicao",
-                  "posição",
                   "colocação no ranking",
+                  "posição",
                   "lugar no ranking"
                 ]
               }
@@ -843,6 +880,7 @@
                   "clientes aguardando acao",
                   "aguardando acao",
                   "clientes aguardando atendimento",
+                  "aguardando ação",
                   "quem tem clientes aguardando atendimento"
                 ]
               }
@@ -876,9 +914,9 @@
                   "como esta a equipe",
                   "como esta o time",
                   "situacao da equipe",
+                  "situação da equipe",
                   "como está a equipe",
-                  "como está o time",
-                  "situação da equipe"
+                  "como está o time"
                 ]
               }
             },

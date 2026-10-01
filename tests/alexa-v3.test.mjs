@@ -242,3 +242,16 @@ test("modelo de voz: gerado do catálogo central, sem repetições e com os corr
   const twins = brokerSlotValues([{ id: "1", name: "Ana", fullName: "Ana Lima" }, { id: "2", name: "Ana", fullName: "Ana Souza" }]);
   assert.deepEqual(twins.map((value) => value.name.value), ["Ana Lima", "Ana Souza"]);
 });
+
+test("modelo de voz recebe as variantes ACENTUADAS dos apelidos e o ranking fala 'da semana'", async () => {
+  const { accentize } = await import("../lib/alexa-v2/model-core.mjs");
+  const { rankingLabel } = await import("../lib/alexa-v2/medidas.mjs");
+  assert.equal(accentize("prospeccoes feitas"), "prospecções feitas");
+  assert.equal(accentize("posicao no ranking"), "posição no ranking");
+  const model = buildInteractionModel({ brokers: ROSTER });
+  const assunto = model.interactionModel.languageModel.types.find((type) => type.name === "ASSUNTO").values.find((value) => value.id === "prospeccao_equipe");
+  assert.ok(assunto.name.synonyms.includes("prospecções"));
+  assert.equal(rankingLabel("esta_semana", "esta semana"), "da semana");
+  assert.equal(rankingLabel("este_mes", "este mês"), "do mês");
+  assert.equal(rankingLabel("hoje", "hoje"), "do dia");
+});
