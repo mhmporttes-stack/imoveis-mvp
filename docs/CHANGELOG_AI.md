@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Chips de WhatsApp e Google Contacts sempre juntos no header admin
+- **Data:** 2026-10-01
+- **Área:** Infra / Frontend
+- **Alteração:** no cabeçalho fixo do `/admin`, os chips "WhatsApp • status" e "Google Contacts • status" passaram a ficar dentro de um mesmo container (lado a lado quando cabe, empilhados quando não cabe). Antes, cada um era um item solto no `flex-wrap` do header e o Google Contacts podia quebrar para uma linha própria, centralizada sozinha, parecendo desconectado do WhatsApp.
+- **Motivo:** pedido do dono — as duas informações de conexão deviam ficar juntas visualmente.
+- **Arquivos afetados:** `app/admin/layout.jsx`.
+- **Risco/observação:** mudança só de layout (wrapper `flex flex-col sm:flex-row`, padrão já usado em outros 9 arquivos do projeto); nenhum componente de chip foi alterado. `pnpm build` ok. Não testado com sessão autenticada real (sem credenciais de admin disponíveis nesta sessão) — baseado em build limpo e no padrão CSS já validado no restante do código.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Círculo do card identifica o responsável, não o cliente
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend
