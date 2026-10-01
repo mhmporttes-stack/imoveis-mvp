@@ -95,7 +95,7 @@ const PERFIS = {
 export default function VitrineClient({ tela, perfil, estado, limpo, fonte }) {
   const atual = TELAS[tela];
   const perfilValido = PERFIS[perfil] ? perfil : "admin";
-  const fonteValida = FONTES[fonte] ? fonte : "atual";
+  const fonteValida = FONTES[fonte] ? fonte : "manrope";
 
   // Instalado durante o render (antes dos efeitos dos filhos dispararem
   // o primeiro fetch). Idempotente.

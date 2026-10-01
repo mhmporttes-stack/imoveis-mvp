@@ -46,7 +46,7 @@ if (!tela) {
 }
 const perfil = arg("perfil", "admin");
 const estado = arg("estado", "normal");
-const fonte = arg("fonte", "atual");
+const fonte = arg("fonte", "manrope");
 const larguras = String(arg("larguras", "360,390,768,1280,1440")).split(",").map(Number).filter(Boolean);
 const base = arg("base", "http://localhost:3000");
 const saida = arg("saida", "scratch/vitrine");
@@ -90,7 +90,7 @@ for (const largura of larguras) {
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${fonte !== "atual" ? `-${fonte}` : ""}${sufixo ? `-${sufixo}` : ""}-${largura}.png`);
+  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${fonte !== "manrope" ? `-${fonte}` : ""}${sufixo ? `-${sufixo}` : ""}-${largura}.png`);
   await page.screenshot({ path: arquivo, fullPage: paginaInteira });
   console.log(`${arquivo}${overflow > 0 ? `  ⚠ rolagem horizontal de ${overflow}px` : ""}`);
   for (const aviso of avisos.slice(0, 8)) console.log(`   · ${aviso.slice(0, 200)}`);

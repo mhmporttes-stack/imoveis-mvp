@@ -28,8 +28,8 @@ Fonte de verdade das decisões visuais. Status de cada item: **[ADOTADO]** = val
 - **Semânticas** `success`, `warning`, `danger`, `info`, `neutral`, cada uma com `DEFAULT` (texto), `soft` (fundo), `line` (borda) e `strong` (ponto/preenchimento) — ex.: `bg-warning-soft text-warning`: sucesso = verde (aprovado, venda, on-line), alerta = âmbar (aguardando, atrasado leve), perigo = vermelho (erro, atrasado crítico, não contatar), info = azul (novo, em andamento). Status do cliente → tom em `components/ui/status-tone.js` (`clientStatusTone`) e `StatusBadge`; nunca cor crua. (`CLIENT_STATUS_META` em `lib/client-status.js` segue nas telas antigas até o redesenho delas.)
 - Contraste mínimo AA: 4,5:1 texto normal, 3:1 texto ≥ 18px/negrito ≥ 14px e ícones/bordas de controle.
 
-### Tipografia [escala PROPOSTA · família PENDENTE do dono]
-- A família da interface é a variável `--font-ui` (`app/globals.css`; Tailwind `font-sans` = `var(--font-ui)`). Hoje ela mantém a pilha antiga (Inter/Manrope não carregadas → fonte do sistema). **Comparativo Manrope × Inter entregue ao dono em 2026-10-01** (vitrine `?fonte=manrope|inter`); ao decidir: carregar a escolhida com `next/font` em `app/layout.jsx` e apontar `--font-ui` para ela. Uma família para UI; serifas decorativas só nas telas de celebração (já existem).
+### Tipografia [ADOTADO — Manrope, escolha do dono em 2026-10-01]
+- **Manrope** é a fonte oficial do painel: carregada com `next/font` em `app/admin/layout.jsx` (só rotas `/admin`), que redefine `--font-ui` no `:root` (vale também para modais em portal). O site público segue com a pilha padrão de `--font-ui` (`app/globals.css`). Tailwind `font-sans` = `var(--font-ui)`. Vitrine usa Manrope por padrão (`?fonte=inter|atual` só para comparação). Serifas decorativas só nas telas de celebração (já existem).
 - **Escala** (≈1,2): 12 · 13 · 14 · 16 · 18 · 22 · 28 · 36 px (`text-2xs` = 11px micro-rótulo). Corpo de app 14px (desktop) / 15–16px (mobile, inputs **sempre ≥16px** — evita zoom do iOS). 12px é o mínimo para texto lido; 11px só para micro-rótulo em caixa alta com tracking. Nada abaixo de 11px.
 - Pesos: 400 texto · 500 rótulos/tabela · 600 títulos e ênfase · 700–800 só ponto focal e números-herói. `font-black` deixa de ser padrão.
 - Números que mudam ou se comparam (métricas, valores, ranking, tabelas): `tabular-nums`. Títulos grandes: tracking levemente negativo; `text-wrap: balance`.
@@ -76,7 +76,8 @@ Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
 | Data | Decisão | Onde | Por quê |
 |---|---|---|---|
 | 2026-10-01 | Identidade obrigatória = azul/branco + logo; resto livre | todo o CRM | decisão do dono |
-| 2026-10-01 | Fonte pode ser escolhida e carregada pelo Designer | `app/layout.jsx` (next/font) | autorizado pelo dono; escolha pendente do 1º redesenho |
+| 2026-10-01 | Fonte pode ser escolhida e carregada pelo Designer | next/font | autorizado pelo dono |
 | 2026-10-01 | Dependência nova só com aprovação do dono | — | decisão do dono |
 | 2026-10-01 | Fundação: tokens semânticos, raios, `shadow-float`, `ease-out-ui`, `--font-ui`; componentes `components/ui/` | `tailwind.config.cjs`, `globals.css`, `components/ui/*` | aprovado pelo dono; aditivo, telas antigas intactas |
+| 2026-10-01 | Tipografia oficial do painel = Manrope (só `/admin`) | `app/admin/layout.jsx` | escolha do dono após comparativo Manrope × Inter |
 | 2026-10-01 | Navegação mobile = barra inferior + "Mais"; menu do topo só ≥ 768px | `AdminBottomNav.jsx`, `AdminMenu.jsx`, `app/admin/layout.jsx` | autorizado pelo dono; distribuição por perfil decidida pelo Designer |

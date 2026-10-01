@@ -10,16 +10,26 @@ import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
+import { Manrope } from "next/font/google";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
+
+// Tipografia oficial do painel (escolha do dono em 2026-10-01, depois do
+// comparativo Manrope × Inter). Carregada só nas rotas /admin — o site
+// público continua com a pilha padrão de --font-ui (app/globals.css). A regra
+// fica no :root (e não num wrapper) para valer também em modais renderizados
+// por portal direto no <body>.
+const manrope = Manrope({ subsets: ["latin"], display: "swap" });
+const ADMIN_FONT_CSS = `:root{--font-ui:${manrope.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;}`;
 
 export default async function AdminLayout({ children }) {
   const auth = await getAdminFromCookies();
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: ADMIN_FONT_CSS }} />
       {auth.ok ? <AdminPresenceHeartbeat userId={auth.profile?.id} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}

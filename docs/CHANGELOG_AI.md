@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Manrope como tipografia oficial do painel
+- **Data:** 2026-10-01
+- **Área:** Frontend
+- **Alteração:** `app/admin/layout.jsx` carrega Manrope (`next/font/google`) e redefine `--font-ui` no `:root` só nas rotas `/admin`. Site público inalterado. Vitrine passa a usar Manrope por padrão.
+- **Motivo:** escolha do dono após o comparativo visual Manrope × Inter.
+- **Arquivos afetados:** `app/admin/layout.jsx`, `app/dev/vitrine/**`, `.claude/skills/design-crm/references/sistema-visual.md`, `.claude/skills/design-crm/scripts/capturar-vitrine.mjs`.
+- **Risco/observação:** só tipografia; larguras de texto mudam levemente (Manrope é um pouco mais larga que a fonte do sistema) — conferido na vitrine. Nenhuma regra, API ou permissão alterada.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Fundação do sistema visual + navegação mobile com barra inferior
 - **Data:** 2026-10-01
 - **Área:** Frontend / Navegação do painel
