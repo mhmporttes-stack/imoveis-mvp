@@ -16,7 +16,6 @@ import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import ClientCard from "./ClientCard";
-import ClientRow, { ROW_GRID } from "./ClientRow";
 import ClientSheet from "./ClientSheet";
 import { PAGE_SIZE_OPTIONS } from "./client-format";
 import { useClientList } from "./useClientList";
@@ -24,11 +23,9 @@ import { useClientList } from "./useClientList";
 // Lista de clientes (/admin/simulacoes) — redesenho do Designer CRM,
 // aprovado pelo dono em 2026-10-01. Toda a lógica vive em useClientList.
 //   Hierarquia: 1) o que precisa de ação agora · 2) onde a carteira está no
-//   funil · 3) a lista, escaneável · 4) a ficha do cliente numa gaveta, sem
-//   perder a lista de vista.
-// `layout`: "rows" (lista em colunas, atual em produção) ou "cards" (proposta
-// híbrida em avaliação na vitrine).
-export default function ClientWorkspace({ layout = "rows", ...props }) {
+//   funil · 3) os cards dos clientes (ClientCard), com o que se usa no dia a
+//   dia · 4) a ficha do cliente numa gaveta para o secundário.
+export default function ClientWorkspace(props) {
   const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
@@ -162,70 +159,18 @@ export default function ClientWorkspace({ layout = "rows", ...props }) {
       </div>
 
       {/* 5. Lista */}
-      {layout === "cards" ? (
-        <div className="relative mt-3">
-          {list.loading ? <span className="ui-progress absolute inset-x-0 -top-2 z-10 h-0.5 rounded-full" role="progressbar" aria-label="Atualizando a lista" /> : null}
-          {list.loadError ? (
-            <div className="rounded-card border border-line bg-white">
-              <EmptyState tone="danger" icon={TriangleAlert} title="Não foi possível carregar os clientes" description={list.loadError} action={<Button size="sm" onClick={list.fetchClients}>Tentar de novo</Button>} />
-            </div>
-          ) : list.loading && !list.items.length ? (
-            <div className="rounded-card border border-line bg-white p-5"><SkeletonList rows={6} label="Carregando clientes…" /></div>
-          ) : list.items.length ? (
-            <div className={cx("grid gap-3 transition-opacity duration-150 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(26rem,1fr))]", list.loading && "opacity-60")} aria-busy={list.loading || undefined}>
-              {list.items.map((client) => (
-                <ClientCard
-                  key={client.id}
-                  client={client}
-                  activities={list.activitiesFor(client)}
-                  responsibleName={responsibleNameOf(client)}
-                  showResponsible={canManageResponsibleUsers}
-                  busy={list.busyClientId === client.id}
-                  selected={openClientId === client.id}
-                  isOwner={isOwner}
-                  canReturnAssignedProspecting={canReturnAssignedProspecting}
-                  list={list}
-                  onOpen={(focus = "") => openFicha(client.id, focus)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-card border border-line bg-white">
-              <EmptyState
-                icon={Inbox}
-                title={filters.query ? "Nenhum cliente encontrado para esta busca" : anyFilter ? "Nenhum cliente neste filtro" : "Nenhum cliente ainda"}
-                description={anyFilter ? "Tente outro termo ou limpe os filtros." : brokerSimulationLink ? "Compartilhe seu link de simulação para receber os primeiros clientes." : "Cadastre um cliente ou aguarde novos atendimentos."}
-                action={anyFilter ? <Button variant="secondary" size="sm" onClick={list.resetFilters}>Limpar filtros</Button> : <Button size="sm" href="/admin/simulacoes/nova">Novo cliente</Button>}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-      <div className="relative mt-3 overflow-hidden rounded-card border border-line bg-white">
-        {list.loading ? <span className="ui-progress absolute inset-x-0 top-0 z-10 h-0.5" role="progressbar" aria-label="Atualizando a lista" /> : null}
-        <div className={cx("hidden border-b border-line bg-mist/60 px-5 py-2.5 text-2xs font-semibold uppercase tracking-wide text-muted lg:grid lg:gap-x-4", ROW_GRID)} style={{ "--resp-col": canManageResponsibleUsers ? "minmax(0,1.1fr)" : "0px" }} aria-hidden="true">
-          <span>Cliente</span>
-          <span>Etapa</span>
-          <span>Próxima ação</span>
-          <span>Último contato</span>
-          <span>{canManageResponsibleUsers ? "Responsável" : ""}</span>
-          <span />
-        </div>
-
+      <div className="relative mt-3">
+        {list.loading ? <span className="ui-progress absolute inset-x-0 -top-2 z-10 h-0.5 rounded-full" role="progressbar" aria-label="Atualizando a lista" /> : null}
         {list.loadError ? (
-          <EmptyState
-            tone="danger"
-            icon={TriangleAlert}
-            title="Não foi possível carregar os clientes"
-            description={list.loadError}
-            action={<Button size="sm" onClick={list.fetchClients}>Tentar de novo</Button>}
-          />
+          <div className="rounded-card border border-line bg-white">
+            <EmptyState tone="danger" icon={TriangleAlert} title="Não foi possível carregar os clientes" description={list.loadError} action={<Button size="sm" onClick={list.fetchClients}>Tentar de novo</Button>} />
+          </div>
         ) : list.loading && !list.items.length ? (
-          <div className="p-5"><SkeletonList rows={6} label="Carregando clientes…" /></div>
+          <div className="rounded-card border border-line bg-white p-5"><SkeletonList rows={6} label="Carregando clientes…" /></div>
         ) : list.items.length ? (
-          <ul className={cx("divide-y divide-line transition-opacity duration-150", list.loading && "opacity-60")} aria-busy={list.loading || undefined} aria-label="Clientes">
+          <div className={cx("grid gap-3 transition-opacity duration-150 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(26rem,1fr))]", list.loading && "opacity-60")} aria-busy={list.loading || undefined}>
             {list.items.map((client) => (
-              <ClientRow
+              <ClientCard
                 key={client.id}
                 client={client}
                 activities={list.activitiesFor(client)}
@@ -233,24 +178,25 @@ export default function ClientWorkspace({ layout = "rows", ...props }) {
                 showResponsible={canManageResponsibleUsers}
                 busy={list.busyClientId === client.id}
                 selected={openClientId === client.id}
-                onOpen={() => openFicha(client.id)}
-                onWhatsApp={() => list.openWhatsApp(client)}
+                isOwner={isOwner}
+                canReturnAssignedProspecting={canReturnAssignedProspecting}
+                list={list}
+                confirmAction={confirmAction}
+                onOpen={(focus = "") => openFicha(client.id, focus)}
               />
             ))}
-          </ul>
+          </div>
         ) : (
-          <EmptyState
-            icon={Inbox}
-            title={filters.query ? "Nenhum cliente encontrado para esta busca" : anyFilter ? "Nenhum cliente neste filtro" : "Nenhum cliente ainda"}
-            description={anyFilter ? "Tente outro termo ou limpe os filtros." : brokerSimulationLink ? "Compartilhe seu link de simulação para receber os primeiros clientes." : "Cadastre um cliente ou aguarde novos atendimentos."}
-            action={anyFilter
-              ? <Button variant="secondary" size="sm" onClick={list.resetFilters}>Limpar filtros</Button>
-              : <Button size="sm" href="/admin/simulacoes/nova">Novo cliente</Button>}
-          />
+          <div className="rounded-card border border-line bg-white">
+            <EmptyState
+              icon={Inbox}
+              title={filters.query ? "Nenhum cliente encontrado para esta busca" : anyFilter ? "Nenhum cliente neste filtro" : "Nenhum cliente ainda"}
+              description={anyFilter ? "Tente outro termo ou limpe os filtros." : brokerSimulationLink ? "Compartilhe seu link de simulação para receber os primeiros clientes." : "Cadastre um cliente ou aguarde novos atendimentos."}
+              action={anyFilter ? <Button variant="secondary" size="sm" onClick={list.resetFilters}>Limpar filtros</Button> : <Button size="sm" href="/admin/simulacoes/nova">Novo cliente</Button>}
+            />
+          </div>
         )}
       </div>
-
-      )}
 
       {/* 6. Paginação */}
       {list.total > 0 && !list.loadError ? (

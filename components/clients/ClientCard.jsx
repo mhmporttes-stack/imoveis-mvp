@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CalendarPlus,
   Check,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
   FileText,
@@ -15,29 +16,32 @@ import {
   Tag as TagIcon,
   Trash2,
   TriangleAlert,
+  UserRound,
   X
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Menu from "@/components/ui/Menu";
-import StatusBadge from "@/components/ui/StatusBadge";
 import { cx } from "@/components/ui/cx";
-import { CLIENT_STATUS } from "@/lib/client-status";
+import { clientStatusTone } from "@/components/ui/status-tone";
+import { CLIENT_STATUS, clientStatusLabel } from "@/lib/client-status";
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-schema";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
+import StatusOptions from "./StatusOptions";
 import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
 
-// Card de cliente (proposta híbrida 2026-10): o conceito do card antigo —
-// ver o cliente inteiro sem abrir nada — com a hierarquia e os componentes
-// da Fundação. Mostra direto: etapa, urgência, responsável, próximas
-// atividades (concluir/cancelar ali mesmo), poder de compra ou situação da
-// simulação, contato, novo formulário, tags e as ações do dia a dia. A ficha
-// continua para o secundário (cadastro completo, CCA, aviso de progresso,
-// histórico, mudança de etapa).
+// Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
+// em 2026-10-01): o conceito do card antigo — ver o cliente inteiro sem abrir
+// nada — com a hierarquia e os componentes da Fundação. Mostra e opera direto:
+// etapa (com confirmação), responsável (só admin/gestor, com confirmação),
+// urgência, próximas atividades (concluir/cancelar), poder de compra ou
+// situação da simulação, contato, novo formulário, tags e as ações do dia a
+// dia. A ficha fica para o secundário (cadastro completo, CCA, aviso de
+// progresso, histórico).
 const MAX_ACTIVITIES = 2;
 const MAX_TAGS = 4;
 
-export default function ClientCard({ client, activities, responsibleName, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, onOpen }) {
+export default function ClientCard({ client, activities, responsibleName, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
   const name = client.name || "Cliente sem nome";
   const registration = client.registration || {};
   const urgency = getUrgencySignal(client, activities);
@@ -66,12 +70,10 @@ export default function ClientCard({ client, activities, responsibleName, showRe
             <button type="button" onClick={() => onOpen()} className="truncate text-left text-base font-semibold text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
               {name}
             </button>
-            {registration.clientCode ? <span className="hidden shrink-0 text-xs text-muted sm:inline">{registration.clientCode}</span> : null}
           </h2>
           <p className="mt-0.5 flex min-w-0 items-center gap-x-1.5 truncate text-xs text-muted">
             <span className="shrink-0 tabular-nums">{clientPhone(client) || "Sem telefone"}</span>
-            {registration.clientCode ? <span className="shrink-0 sm:hidden">· {registration.clientCode}</span> : null}
-            {showResponsible ? <><span aria-hidden="true">·</span><span className="truncate">Resp.: <span className="text-ink-2">{responsibleName}</span></span></> : null}
+            {registration.clientCode ? <span className="shrink-0">· {registration.clientCode}</span> : null}
           </p>
         </div>
         <Button
@@ -87,7 +89,8 @@ export default function ClientCard({ client, activities, responsibleName, showRe
       </header>
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-2.5">
-        <StatusBadge status={client.status} />
+        <StatusControl client={client} name={name} busy={busy} list={list} confirmAction={confirmAction} />
+        {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
         {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
         {registration.lastFormSubmittedAt ? <Badge tone="info">Novo formulário {formatAgo(registration.lastFormSubmittedAt)}</Badge> : null}
       </div>
@@ -141,6 +144,87 @@ export default function ClientCard({ client, activities, responsibleName, showRe
   );
 }
 
+// Seletor nativo (acessível, nativo no celular) vestido de selo. A mudança só
+// é gravada depois de confirmada no diálogo — o valor é controlado pelo
+// cliente, então cancelar volta ao status atual sozinho.
+function StatusControl({ client, name, busy, list, confirmAction }) {
+  const tone = clientStatusTone(client.status);
+  async function change(next) {
+    if (!next || next === client.status) return;
+    const ok = await confirmAction({
+      title: "Mudar a etapa?",
+      description: `${name}: de "${clientStatusLabel(client.status)}" para "${clientStatusLabel(next)}".`,
+      confirmLabel: "Mudar etapa"
+    });
+    if (ok) list.updateClientStatus(client, next);
+  }
+  return (
+    <span className={cx("relative inline-flex h-7 max-w-full items-center gap-1.5 rounded-chip pl-2 pr-1.5 text-xs font-medium focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1", PILL_TONES[tone] || PILL_TONES.neutral)}>
+      <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", DOT_TONES[tone] || DOT_TONES.neutral)} aria-hidden="true" />
+      <span className="truncate">{clientStatusLabel(client.status)}</span>
+      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
+      <select
+        aria-label={`Etapa de ${name}: ${clientStatusLabel(client.status)}. Alterar etapa`}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        value={client.status}
+        disabled={busy}
+        onChange={(event) => change(event.target.value)}
+      >
+        <StatusOptions current={client.status} />
+      </select>
+    </span>
+  );
+}
+
+// Troca de responsável no card: só aparece para quem já podia trocar
+// (canManageResponsibleUsers = admin geral ou gestor; lista de corretores já
+// limitada à equipe do gestor pela página). O servidor continua validando.
+function ResponsibleControl({ client, name, responsibleName, busy, list, confirmAction }) {
+  const value = client.registration?.responsibleUserId || "";
+  async function change(next) {
+    if (next === value) return;
+    const nextName = next ? (list.responsibleProfileMap.get(next)?.name || "corretor selecionado") : "Sem corretor";
+    const ok = await confirmAction({
+      title: "Trocar o responsável?",
+      description: `${name} passa de ${responsibleName} para ${nextName}.`,
+      confirmLabel: "Trocar responsável"
+    });
+    if (ok) list.updateClientResponsibleUser(client, next);
+  }
+  return (
+    <span className="relative inline-flex h-7 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
+      <UserRound className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
+      <span className="truncate">{responsibleName}</span>
+      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
+      <select
+        aria-label={`Responsável por ${name}: ${responsibleName}. Trocar responsável`}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        value={value}
+        disabled={busy}
+        onChange={(event) => change(event.target.value)}
+      >
+        <option value="">Sem corretor</option>
+        {list.responsibleProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+      </select>
+    </span>
+  );
+}
+
+const PILL_TONES = {
+  neutral: "bg-neutral-soft text-neutral",
+  info: "bg-info-soft text-info",
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  danger: "bg-danger-soft text-danger"
+};
+const DOT_TONES = {
+  neutral: "bg-neutral",
+  info: "bg-info-strong",
+  success: "bg-success-strong",
+  warning: "bg-warning-strong",
+  danger: "bg-danger-strong"
+};
+
 // Agendamento principal + atividades extras pendentes, em ordem de data
 // (atrasadas primeiro), com as mesmas ações do card antigo.
 function buildAgenda(client, activities) {
@@ -178,7 +262,7 @@ function AgendaBlock({ client, agenda, busy, list, onOpen }) {
           <CalendarClock className={cx("h-4 w-4 shrink-0", item.overdue ? "text-danger" : "text-brand")} aria-hidden="true" />
           <p className="min-w-0 flex-1 text-[13px] leading-5">
             <span className={cx("font-semibold tabular-nums", item.overdue ? "text-danger" : "text-ink")}>{item.overdue ? "Atrasada · " : ""}{formatWhen(item.at)}</span>
-            {item.note ? <span className="block truncate text-ink-2 sm:inline sm:before:content-['_·_']">{item.note}</span> : null}
+            {item.note ? <span className="block truncate text-ink-2">{item.note}</span> : null}
           </p>
           {item.main ? (
             <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>

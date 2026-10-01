@@ -68,32 +68,8 @@ export function getUrgencySignal(client, extraActivities) {
   return null;
 }
 
-// Próxima atividade (agendamento legado ou atividade extra pendente), a mais
-// próxima primeiro — atrasadas antes das futuras.
-export function getNextActivity(client, activities = []) {
-  const candidates = [];
-  if (client.scheduledActivityAt) {
-    candidates.push({ at: client.scheduledActivityAt, note: client.scheduledActivityNote || "", legacy: true });
-  }
-  for (const activity of activities) {
-    if (activity.status !== "pending") continue;
-    candidates.push({ at: activity.scheduledActivityAt, note: activity.note || activity.title || "", legacy: false });
-  }
-  const valid = candidates
-    .map((item) => ({ ...item, time: new Date(item.at || "").getTime() }))
-    .filter((item) => Number.isFinite(item.time))
-    .sort((a, b) => a.time - b.time);
-  if (!valid.length) return null;
-  const next = valid[0];
-  return { ...next, overdue: next.time < Date.now(), count: valid.length };
-}
-
 export function clientPhone(client) {
   return formatBrazilianPhone(client.registration?.phoneNormalized || client.registration?.phone || "");
-}
-
-export function hasValidWhatsApp(client) {
-  return Boolean(toWhatsAppDigits(client.registration?.phoneNormalized || client.registration?.phone));
 }
 
 export function initialsOf(name = "") {

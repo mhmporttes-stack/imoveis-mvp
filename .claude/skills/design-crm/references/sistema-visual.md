@@ -58,6 +58,7 @@ Use-os em toda tela nova ou redesenhada; telas antigas migram no próprio redese
 | `EmptyState` | Vazio como convite (ícone, título, descrição, ação); `tone="danger"` para erro com "como resolver". |
 | `Skeleton`, `SkeletonList` | Carregamento no formato do conteúdo, com `role=status`. |
 | `Field` + `inputClasses` | Rótulo visível + ajuda + erro ligados por `aria-describedby`/`aria-invalid`; input 16px no celular. |
+| `Menu` | Menu de ações "⋯" (abre para cima no celular, setas ↑/↓, Esc devolve o foco). |
 | `ConfirmDialog` (`useConfirm`) | Confirmação na página no lugar de `window.confirm` (`await confirmAction({ title, description, confirmLabel, tone })`). |
 | `Toast` (`useToast`) | Resultado de ação no lugar de `alert()`; sucesso some em 3,5 s, erro fica; `aria-live`. Fica acima da barra inferior. |
 | `cx` | Junta classes condicionais. |
@@ -85,4 +86,5 @@ Biblioteca externa (Radix, React Aria…) só com aprovação do dono.
 | 2026-10-01 | Fundação: tokens semânticos, raios, `shadow-float`, `ease-out-ui`, `--font-ui`; componentes `components/ui/` | `tailwind.config.cjs`, `globals.css`, `components/ui/*` | aprovado pelo dono; aditivo, telas antigas intactas |
 | 2026-10-01 | Tipografia oficial do painel = Manrope (só `/admin`) | `app/admin/layout.jsx` | escolha do dono após comparativo Manrope × Inter |
 | 2026-10-01 | Lista de clientes redesenhada: faixa "Para agir agora", funil clicável com barras, lista em colunas (desktop ≥ lg) / cartão compacto (celular), ficha em gaveta; etapa, "Avisar progresso" e CCA **só na ficha**; abre com 20 por página; atalhos Meta/Chat/Agenda no cabeçalho ≥ md | `components/clients/`, `app/admin/simulacoes/page.jsx` | aprovado pelo dono; `AdminSimulationList` removido |
+| 2026-10-01 | Lista de clientes em **cards híbridos** (padrão único, sem alternância): o conceito do card antigo com a Fundação; etapa e responsável (só admin/gestor) mudam no próprio card por seletor nativo vestido de selo + **confirmação** (`ConfirmDialog`); concluir/cancelar atividade no card; ficha para o secundário. Substitui a lista em linhas (`ClientRow`, removido) | `components/clients/ClientCard.jsx`, `StatusOptions.jsx` | aprovado pelo dono após comparação antigo × atual × híbrido |
 | 2026-10-01 | Navegação mobile = barra inferior + "Mais"; menu do topo só ≥ 768px | `AdminBottomNav.jsx`, `AdminMenu.jsx`, `app/admin/layout.jsx` | autorizado pelo dono; distribuição por perfil decidida pelo Designer |

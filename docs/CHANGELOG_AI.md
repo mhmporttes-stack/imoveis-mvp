@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Lista de clientes em cards híbridos (etapa e responsável no card)
+- **Data:** 2026-10-01
+- **Área:** Clientes / Frontend
+- **Alteração:**
+  - A listagem de `/admin/simulacoes` passa a ser de cards (`components/clients/ClientCard.jsx`), padrão único no celular e no desktop. Topo, busca, filtros, funil, ficha, Fundação, Manrope e barra inferior inalterados.
+  - **No card:** nome, telefone, código, etapa, responsável (admin/gestor), urgência, novo formulário, até 2 próximas atividades com concluir/cancelar, poder de compra ou situação da simulação, último contato, cadastro, preferência de contato e tags (até 4). Ações: WhatsApp, Agendar (abre a ficha no formulário), menu ⋯ (Documentação, Empreendimentos, Valores, Ficha completa, Excluir só para o dono) e ações de prospecção quando se aplicam.
+  - **Etapa no card:** seletor nativo com aparência de selo; a mudança só é gravada após confirmação ("Mudar a etapa? de X para Y"). Cancelar mantém a etapa atual.
+  - **Responsável no card:** só aparece para quem já podia trocar (`canManageResponsibleUsers` = admin geral ou gestor, com a lista de corretores já limitada pela página). Pede confirmação antes de gravar. O guard do servidor é o mesmo.
+  - A ficha abre direto em agenda, tags ou documentos a partir do card. Lista de etapas centralizada em `components/clients/StatusOptions.jsx` (card e ficha).
+  - Removidos: `components/clients/ClientRow.jsx` (lista em linhas), a cópia da tela antiga e as telas de comparação da vitrine.
+- **Motivo:** decisão do dono após comparar antigo × atual × híbrido na vitrine.
+- **Auditoria card antigo × híbrido:** presentes no card ou a um toque — responsável (seletor), nome/código, etapa (seletor), urgência, tags (+ editor), data do cadastro, novo formulário, último contato, agendamento principal e atividades (concluir/cancelar; editar/remover e "+N" na ficha), preferência de contato, poder de compra/situação da simulação, prospecção (Prospectar, Em atendimento, Não contactar com motivo, Devolver à fila), WhatsApp, Agendar, Cadastro (ficha), Empreendimentos, Valores, Documentação, Excluir (dono). Na ficha, por decisão anterior do dono: CCA, "Avisar progresso" e histórico.
+- **Arquivos afetados:** `components/clients/{ClientCard,ClientWorkspace,ClientSheet,StatusOptions,client-format}.jsx|js`, `components/clients/ClientRow.jsx` (removido), `components/ui/Menu.jsx` (novo), vitrine, `.claude/rules/frontend-pwa.md`, `docs/SYSTEM_ARCHITECTURE.md`, `sistema-visual.md`.
+- **Risco/observação:**
+  - Confirmação nova antes de mudar etapa e responsável no card. No card antigo a troca era imediata.
+  - Validação: `pnpm build` ok; `node --test` com as mesmas 3 falhas conhecidas (`journey-http` ×2, `whatsapp-flow-core`); revisão visual na vitrine em 360/390/768/1280/1440 (admin, gestor, corretor); testados mudar etapa (cancelar e confirmar), trocar responsável e as listas por perfil (corretor sem seletor; gestor só com a equipe), sem erros de console. Não testado com login real em produção.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-01 — Nova Lista de clientes (substitui AdminSimulationList)
 - **Data:** 2026-10-01
 - **Área:** Clientes / Frontend

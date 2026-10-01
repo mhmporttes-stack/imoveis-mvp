@@ -25,7 +25,7 @@ import Button from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Field";
 import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
-import { CLIENT_FUNNEL_SALE_STATUS_VALUES, CLIENT_STATUS, CLIENT_STATUS_META } from "@/lib/client-status";
+import { CLIENT_STATUS } from "@/lib/client-status";
 import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 import {
@@ -41,19 +41,9 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-schema";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
+import StatusOptions from "./StatusOptions";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
-// Etapas na mesma ordem e com os mesmos rótulos do seletor antigo. "Venda"
-// tem uma única opção (Venda realizada); status legados de venda aparecem
-// como a opção atual, sem poderem ser escolhidos de novo.
-const MAIN_STATUS_VALUES = [
-  CLIENT_STATUS.AUTOMATED_SERVICE, CLIENT_STATUS.PENDING, CLIENT_STATUS.COMPLETED, CLIENT_STATUS.SIMULATION_SENT,
-  CLIENT_STATUS.AWAITING_RETURN, CLIENT_STATUS.IN_SERVICE, CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.DOCUMENTS_PENDING,
-  CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.INCOME_COMMITMENT, CLIENT_STATUS.CANCELLATION_LETTER, CLIENT_STATUS.RESEARCH_MO,
-  CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SHIELDING, CLIENT_STATUS.APPROVED, CLIENT_STATUS.REJECTED,
-  CLIENT_STATUS.MEETING_PENDING, CLIENT_STATUS.MEETING_DONE, CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT
-];
-const SALE_STATUS_VALUES = new Set(CLIENT_FUNNEL_SALE_STATUS_VALUES);
 const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 
 // `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
@@ -220,15 +210,9 @@ function LabeledSelect({ label, value, disabled, onChange, children }) {
 }
 
 function StatusSelect({ client, busy, onChange }) {
-  const current = client.status;
-  const legacySale = SALE_STATUS_VALUES.has(current) && current !== CLIENT_STATUS.SALE_COMPLETED;
   return (
-    <LabeledSelect label="Etapa" value={current} disabled={busy} onChange={onChange}>
-      {MAIN_STATUS_VALUES.map((value) => <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
-      <optgroup label="Venda">
-        <option value={CLIENT_STATUS.SALE_COMPLETED}>Venda realizada</option>
-        {legacySale ? <option value={current} disabled>{CLIENT_STATUS_META[current]?.label || "Venda"} (atual)</option> : null}
-      </optgroup>
+    <LabeledSelect label="Etapa" value={client.status} disabled={busy} onChange={onChange}>
+      <StatusOptions current={client.status} />
     </LabeledSelect>
   );
 }
