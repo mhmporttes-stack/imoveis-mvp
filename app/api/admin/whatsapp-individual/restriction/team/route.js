@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isGeneralAdmin, requireBrokerManagementApi } from "@/lib/admin-auth";
 import { resolveTeamVisibilityScope } from "@/lib/admin-profiles";
 import { listAllOpenRestrictions, listOpenRestrictions } from "@/lib/whatsapp-restriction";
-import { canValidateRestriction } from "@/lib/whatsapp-restriction-core.mjs";
+import { canValidateRestriction, closeOriginFor } from "@/lib/whatsapp-restriction-core.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,8 @@ export async function GET(request) {
         reportedAt: row.reported_at,
         validatedAt: row.validated_at || null,
         validationOrigin: row.validation_origin || null,
-        canValidate: canValidateRestriction({ ...actor, targetUserId: userId })
+        canValidate: canValidateRestriction({ ...actor, targetUserId: userId }),
+        canClose: closeOriginFor({ ...actor, targetUserId: userId }) !== null
       };
     }
     return NextResponse.json({ restrictions });

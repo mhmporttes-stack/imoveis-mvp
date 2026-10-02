@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — WhatsApp: restrição validada só encerra por admin/gestora (+ "Ver histórico")
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Permissões
+- **Alteração:** corretor encerra só restrição apenas INFORMADA; validada → 403 (UI esconde "Restrição resolvida"). Nova rota `restriction/close` (admin geral ou gestora da equipe) e encerramento automático ao conectar com motivo `automatico_conectado`. Card da gestão ganha "Encerrar restrição" (validada) e "Ver histórico" (rota `restriction/history` existente, só do escopo).
+- **Motivo:** regra do dono (T-20261002-29), complementa PRO-13.
+- **Arquivos afetados:** `lib/whatsapp-restriction-core.mjs`, `lib/whatsapp-restriction.js`, `app/api/admin/whatsapp-individual/restriction/close/route.js`, `restriction/team/route.js` (campo `canClose`), `components/WhatsappStateChip.jsx`, `components/WhatsappIndividualStatus.jsx`, `tests/whatsapp-restriction-close.test.mjs`, docs/rule PRO-13. Sem migration (reaproveita `event_type='resolved'` e origens `admin`/`gestora`).
+- **Risco/observação:** PRO-11 intacto (nada libera Prospecção). Histórico só INSERT. "Ver histórico" aparece enquanto há restrição aberta (a rota `team` lista só abertas); histórico de quem já não tem restrição aberta segue acessível só pela rota. `TeamDailyPerformance.jsx` não foi tocado.
+- **Autor:** Claude Sonnet 5.5 (crm-editor)
+
 
 ### 2026-10-02 — Alertas e mensagens direcionadas privadas ao destinatário (T-20261002-28)
 - **O quê:** regra oficial do dono (alerta/mensagem a um usuário é visível só a ele). Núcleo: `resolveAudienceRecipients` (user|team|global|role), `onlyOwnRows`, `canViewDelivery` em `lib/crm-alerts-core.mjs`; `onlyRecipientRows` na Supervisão; `createAlertsForAudience` em `lib/crm-alerts.js`; `lib/crm.js` (notificações) filtra pelo próprio usuário também para admin geral; push: `AdminPushSubscription` reassocia o navegador ao usuário logado a cada carga e `AdminLogoutButton` desassocia no logout.

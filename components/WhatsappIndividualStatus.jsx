@@ -286,7 +286,9 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
                         ? <p className="flex items-center gap-1.5 text-xs font-black text-navy"><Ban aria-hidden="true" className="h-3.5 w-3.5" />Restrição validada</p>
                         : <p className="flex items-center gap-1.5 text-xs font-black text-navy"><CircleHelp aria-hidden="true" className="h-3.5 w-3.5" />Restrição informada — aguardando validação</p>}
                       <p className="mt-1 text-[11px] text-navy/70">Informado em {restriction.reportedAt ? new Date(restriction.reportedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—"}. Seu gestor ou o administrador valida o aviso. A Prospecção e a Meta Diária continuam bloqueadas até o WhatsApp conectar.</p>
-                      <button type="button" disabled={busy} onClick={() => sendRestriction("resolve")} className="mt-2 w-full rounded-full border border-navy/20 bg-white px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Restrição resolvida</button>
+                      {restriction.validationStatus === "validated"
+                        ? <p className="mt-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-navy/80">Restrição validada — só o administrador ou a gestora da equipe encerram. Se o WhatsApp voltar a conectar, ela se encerra sozinha.</p>
+                        : <button type="button" disabled={busy} onClick={() => sendRestriction("resolve")} className="mt-2 w-full rounded-full border border-navy/20 bg-white px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Restrição resolvida</button>}
                     </>
                   ) : confirmingRestriction ? (
                     <>
