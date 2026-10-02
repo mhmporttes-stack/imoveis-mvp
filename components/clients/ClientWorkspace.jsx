@@ -295,29 +295,36 @@ function FocusStrip({ list, badgeCounts }) {
     }
   ];
   const dot = { danger: "bg-danger-strong", warning: "bg-warning-strong", info: "bg-info-strong" };
+  // Celular: contador > 0 ganha um tom suave de borda/fundo (desktop inalterado).
+  const tint = {
+    danger: "max-sm:border-danger-line max-sm:bg-danger-soft/60",
+    warning: "max-sm:border-warning-line max-sm:bg-warning-soft/60",
+    info: "max-sm:border-info-line max-sm:bg-info-soft/60"
+  };
 
   return (
-    <div className="mt-5">
+    <div className="mt-4 sm:mt-5">
       <h2 className="sr-only">Para agir agora</h2>
-      <ul className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
+      {/* Celular: os 3 cards lado a lado, sem rolagem horizontal. */}
+      <ul className="grid grid-cols-3 gap-1.5 sm:gap-3">
         {items.map((item) => (
-          <li key={item.key} className="shrink-0 sm:shrink">
+          <li key={item.key} className="min-w-0">
             <button
               type="button"
               onClick={item.onClick}
               aria-pressed={item.active}
               className={cx(
-                "flex h-full w-[10.5rem] flex-col items-start gap-1 rounded-card border px-3.5 py-3 text-left transition-colors duration-150 sm:w-full sm:flex-row sm:items-center sm:gap-3 sm:px-4",
+                "flex h-full w-full flex-col items-center gap-0.5 rounded-card border px-1.5 py-2 text-center transition-colors duration-150 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3 sm:text-left",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
-                item.active ? "border-navy bg-navy text-white" : "border-line bg-white hover:border-navy/25"
+                item.active ? "border-navy bg-navy text-white" : cx("border-line bg-white hover:border-navy/25", item.count ? tint[item.tone] : "")
               )}
             >
-              <span className={cx("text-2xl font-bold leading-none tracking-[-0.02em] tabular-nums sm:text-[28px]", item.active ? "text-white" : item.count ? "text-navy" : "text-faint")}>
+              <span className={cx("text-[22px] font-bold leading-none tracking-[-0.02em] tabular-nums sm:text-[28px]", item.active ? "text-white" : item.count ? "text-navy" : "text-faint")}>
                 {item.count}
               </span>
               <span className="min-w-0">
-                <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold sm:text-sm">
-                  {item.count && !item.active ? <span className={cx("h-2 w-2 shrink-0 rounded-full", dot[item.tone])} aria-hidden="true" /> : null}
+                <span className="flex items-center justify-center gap-1.5 text-[11px] font-semibold leading-[1.15] sm:justify-start sm:whitespace-nowrap sm:text-sm sm:leading-normal">
+                  {item.count && !item.active ? <span className={cx("hidden h-2 w-2 shrink-0 rounded-full sm:block", dot[item.tone])} aria-hidden="true" /> : null}
                   {item.label}
                 </span>
                 <span className={cx("hidden truncate text-xs sm:block", item.active ? "text-white/75" : "text-muted")}>{item.hint}</span>
@@ -342,7 +349,7 @@ function PipelineStrip({ list }) {
   const select = (key) => list.updateFilters({ statusGroup: key, status: "all", pendingOnly: false, needsFirstContact: false });
 
   return (
-    <div className="mt-4 rounded-card border border-line bg-white">
+    <div className="mt-2.5 rounded-card border border-line bg-white sm:mt-4">
       <div className="flex items-stretch overflow-x-auto" role="tablist" aria-label="Etapas do funil">
         <StageTab label="Todos" count={counters.byGroup?.all ?? counters.all ?? 0} active={filters.statusGroup === "all"} onClick={() => select("all")} />
         {funnel.map((group) => (
@@ -392,7 +399,7 @@ function StageTab({ label, count, ratio = null, active, onClick, muted = false }
       aria-selected={active}
       onClick={onClick}
       className={cx(
-        "relative flex min-w-[6.75rem] flex-1 shrink-0 flex-col justify-between gap-2 px-3.5 pb-3 pt-2.5 text-left transition-colors duration-150",
+        "relative flex min-w-[30%] flex-1 shrink-0 flex-col justify-between gap-2 px-3 pb-3 pt-2.5 text-left sm:min-w-[6.75rem] sm:px-3.5 transition-colors duration-150",
         "border-r border-line last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
         active ? "bg-info-soft" : "hover:bg-navy/[0.025]"
       )}

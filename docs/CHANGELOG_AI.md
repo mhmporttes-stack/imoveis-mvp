@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Clientes (mobile): 3 cards "Para agir agora" lado a lado e funil mais compacto
+- **Data:** 2026-10-02
+- **Área:** Frontend (só visual; filtros, contadores e dados inalterados)
+- **Alteração:** `FocusStrip` — grade de 3 colunas iguais sem rolagem horizontal no celular (número em destaque, título em até 2 linhas, tom suave quando contador > 0); `PipelineStrip` — abas com 30% da largura (Todos/Prospecção/Atendimento 100% visíveis, demais por rolagem) e menos espaço vertical. `sm+` inalterado.
+- **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Saúde: gráfico "Resultado da imobiliária por corretor" em colunas verticais
 - **Data:** 2026-10-02
 - **Área:** Frontend (só visual; fórmula, filtros, período e dados inalterados)
