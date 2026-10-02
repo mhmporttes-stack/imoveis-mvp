@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
+import { decideCardWhatsapp, detectDevice, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
@@ -13,6 +14,15 @@ import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPay
 // apresentação: `notify` (toast) no lugar de alert() e `confirmAction`
 // (diálogo da página) no lugar de confirm(). Busca, filtros, contadores e
 // paginação continuam no servidor (/api/simulation-registrations/list).
+// Só escolhe QUAL link externo usar (Web x app) quando o estado real já mandou abrir fora — nunca decide o destino.
+function readCardDevice() {
+  return detectDevice({
+    userAgent: navigator.userAgent || "",
+    standalone: navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches,
+    maxTouchPoints: navigator.maxTouchPoints || 0
+  });
+}
+
 export function useClientList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
@@ -41,6 +51,8 @@ export function useClientList({
   const [busyClientId, setBusyClientId] = useState("");
   const [openingChatClientId, setOpeningChatClientId] = useState("");
   const [chatNavPending, startChatNavigation] = useTransition();
+  // Estado real do WhatsApp do usuário (decide o destino do botão "WhatsApp"). Desconhecido = Chat interno.
+  const [waState, setWaState] = useState(null);
   const [dncTarget, setDncTarget] = useState(null);
   const [receivedDateTarget, setReceivedDateTarget] = useState(null);
 
@@ -48,6 +60,18 @@ export function useClientList({
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
   ), [adminProfiles]);
   const responsibleProfileMap = useMemo(() => new Map(responsibleProfiles.map((profile) => [profile.id, profile])), [responsibleProfiles]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetch("/api/admin/whatsapp-individual/card-state", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (alive && data) setWaState(data); })
+      .catch(() => {});
+    load();
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { alive = false; document.removeEventListener("visibilitychange", onVisible); };
+  }, []);
 
   // Busca com debounce (350ms): uma consulta por pausa de digitação, não por tecla.
   useEffect(() => {
@@ -585,11 +609,27 @@ export function useClientList({
     // nada. A navegação roda em transição e o card fica "ocupado" até a página
     // do Chat chegar (retorno visual imediato, sem permitir clique repetido).
     const registrationId = client.registration.id;
+    // REGRA OFICIAL (dono, 2026-10-02): destino pelo estado REAL do WhatsApp do corretor
+    // (lib/client-card-whatsapp-core.mjs) — conectado: Chat; desconectado/restrição:
+    // WhatsApp Web (desktop) ou app (celular/PWA). Nunca decidido "por ser mobile".
+    const decision = decideCardWhatsapp({
+      stateKnown: Boolean(waState),
+      sessionStatus: waState?.sessionStatus ?? null,
+      restricted: waState?.restricted === true,
+      device: readCardDevice(),
+      clientStatus: client.status,
+      isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
+      phone: value
+    });
     // Falha no registro NUNCA bloqueia a navegação: só deixa um aviso discreto no Chat
     // ("aberto, mas o contato não pôde ser salvo/sincronizado" — lib/whatsapp-contact-warning.mjs).
     fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true })
       .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
       .catch(() => flagContactNotSaved(client.name || client.registration?.fullName || ""));
+    if (decision.action === CARD_WA_EXTERNAL) {
+      window.open(decision.url, "_blank", "noopener,noreferrer");
+      return;
+    }
     setOpeningChatClientId(client.id);
     startChatNavigation(() => {
       router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);

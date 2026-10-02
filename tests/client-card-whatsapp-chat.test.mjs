@@ -24,7 +24,10 @@ test("botão WhatsApp do card navega para o Chat focado no cliente (sem WhatsApp
   const body = functionBody(hook, "function openWhatsApp(client)");
   assert.match(body, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}`\)/);
   assert.match(body, /const registrationId = client\.registration\.id;/);
-  assert.doesNotMatch(body, /window\.open|window\.location|buildWhatsAppUrl|wa\.me|api\.whatsapp\.com|web\.whatsapp/);
+  // 2026-10-02 (T-24): fora só quando o ESTADO real manda; o hook nunca monta URL externa por conta própria.
+  assert.match(body, /decideCardWhatsapp\(/);
+  assert.match(body, /window\.open\(decision\.url/);
+  assert.doesNotMatch(body, /window\.location|buildWhatsAppUrl|wa\.me|api\.whatsapp\.com|web\.whatsapp/);
   assert.match(body, /toWhatsAppDigits\(value\)/, "telefone inválido continua barrado antes de sair da lista");
 });
 
@@ -90,7 +93,7 @@ test("card e ficha (mobile/desktop) só têm o caminho do Chat — nenhum deep l
   const hook = source("components/clients/useClientList.js");
   const body = functionBody(hook, "function openWhatsApp(client)");
   assert.doesNotMatch(body, /isMobile|standalone|display-mode|userAgent|matchMedia|navigator\./, "sem ramo por celular/PWA/user-agent");
-  assert.doesNotMatch(body, /window\.open|location\.(assign|href|replace)|<a /, "sem abrir janela/URL externa");
+  assert.doesNotMatch(body, /location\.(assign|href|replace)|<a /, "sem navegar para URL externa; janela externa só via decisão pelo estado (decision.url)");
 });
 
 test("app instalado procura versão nova ao voltar e a cada 10 min, sem recarregar no meio da digitação", () => {

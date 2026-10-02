@@ -1622,3 +1622,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/alexa-skill-core.mjs`, `lib/alexa-v2/{router,catalog,model-core}.mjs`, testes `tests/alexa-context.test.mjs` e ajustes em `tests/alexa-*.test.mjs`.
 - **Risco/observação:** o modelo de voz ganhou frases "e o {corretor} quantas {assunto} fez {período}" (reimportar e buildar no Console).
 - **Autor:** Claude Code
+
+### 2026-10-02 — Botão WhatsApp do card decide pelo estado real do WhatsApp
+- **Data:** 2026-10-02 (tarefa T-20261002-24)
+- **Área:** Clientes (card/ficha), WhatsApp individual
+- **Alteração:** conectado → Chat interno; desconectado ou restrição informada/validada → WhatsApp Web (desktop) ou app (celular/PWA); estado desconhecido, arquivado, Não contactar, cliente de outro responsável ou telefone inválido → Chat. Nova rota somente leitura `GET /api/admin/whatsapp-individual/card-state`.
+- **Motivo:** pedido do dono: com o WhatsApp do corretor fora do ar o Chat não envia; ele precisa poder falar com o cliente por fora, sem que isso conte como conectado (nada muda em status, elegibilidade ou Prospecção). A decisão é pelo estado real, nunca pelo aparelho (incidente do PWA, 04a9288).
+- **Arquivos afetados:** `lib/client-card-whatsapp-core.mjs`, `app/api/admin/whatsapp-individual/card-state/route.js`, `components/clients/useClientList.js`, testes `tests/client-card-whatsapp-decision.test.mjs` e `tests/client-card-whatsapp-chat.test.mjs`; docs WA-13a, rule crm-clientes-funil.
+- **Risco/observação:** só vale para cliente do próprio usuário (o link externo usa o número de quem clica). Sem migration.
+- **Autor:** Claude Code

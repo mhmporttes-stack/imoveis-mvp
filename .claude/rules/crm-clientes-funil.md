@@ -53,3 +53,5 @@ O que **já foi** um bug real (corrigido 2026-09-22): a coorte de "quem entra no
 ## Prospecção/roleta como origem de cliente
 
 Um cliente pode entrar no CRM por: link pessoal do corretor, link de "equipe" (roleta), cadastro manual pelo corretor, ou fila de prospecção (Meta Diária/Base da Imobiliária). `classifyClientOrigin` (`lib/crm-automations.js`) categoriza isso (`"form"`/`"manual"`/etc.) — usado por automações e pelo funil. Ver `.claude/rules/roleta-prospeccao-campanhas.md` para o fluxo completo.
+
+- **Botão WhatsApp do card [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]:** o destino vem do estado REAL da sessão do corretor (`lib/client-card-whatsapp-core.mjs`): conectado → Chat interno; desconectado ou restrição informada/validada → WhatsApp Web (desktop) / app (celular/PWA). Nunca decidir "por ser mobile". Estado desconhecido, cliente arquivado/Não contactar, cliente de outro responsável ou telefone inválido → Chat. Não altera status/elegibilidade/Prospecção. Detalhe: WA-13a em `docs/BUSINESS_RULES.md`.
