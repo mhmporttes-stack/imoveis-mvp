@@ -60,3 +60,44 @@ test("pareamento por código: número com DDD ganha o 55; formato internacional 
   assert.equal(normalizePairingNumber("014999990001"), "5514999990001");
   assert.equal(normalizePairingNumber("12345"), "");
 });
+
+// Eventos do Chat (mídia, citação, reação, edição, apagar) — 2026-10-02.
+import { extractChatEvent } from "../whatsapp-individual-service/src/message-extract.js";
+
+const chat = (message, key = {}) => ({ key: { id: "WA5", remoteJid: "5514999990001@s.whatsapp.net", fromMe: false, ...key }, message, messageTimestamp: 1790000000, pushName: "Cliente Teste" });
+
+test("foto com legenda e resposta citada", () => {
+  const event = extractChatEvent(chat({ imageMessage: { mimetype: "image/jpeg", caption: "Olha", fileLength: 1234, contextInfo: { stanzaId: "WA1" } } }));
+  assert.equal(event.kind, "message");
+  assert.equal(event.messageType, "image");
+  assert.equal(event.text, "Olha");
+  assert.equal(event.media.size, 1234);
+  assert.equal(event.quotedId, "WA1");
+});
+
+test("GIF (vídeo com gifPlayback), figurinha, áudio de voz, documento com legenda e visualização temporária", () => {
+  assert.equal(extractChatEvent(chat({ videoMessage: { mimetype: "video/mp4", gifPlayback: true } })).messageType, "gif");
+  assert.equal(extractChatEvent(chat({ stickerMessage: { mimetype: "image/webp", isAnimated: true } })).media.animated, true);
+  assert.equal(extractChatEvent(chat({ audioMessage: { mimetype: "audio/ogg; codecs=opus", ptt: true } })).media.mime, "audio/ogg");
+  const doc = extractChatEvent(chat({ documentWithCaptionMessage: { message: { documentMessage: { mimetype: "application/pdf", fileName: "rg.pdf", caption: "RG" } } } }));
+  assert.equal(doc.messageType, "document");
+  assert.equal(doc.media.fileName, "rg.pdf");
+  assert.equal(doc.text, "RG");
+  assert.equal(extractChatEvent(chat({ ephemeralMessage: { message: { conversation: "oi" } } })).text, "oi");
+});
+
+test("reação, remoção de reação, edição e apagar para todos", () => {
+  const reaction = extractChatEvent(chat({ reactionMessage: { key: { id: "WA1" }, text: "❤️" } }));
+  assert.deepEqual([reaction.kind, reaction.targetId, reaction.emoji], ["reaction", "WA1", "❤️"]);
+  assert.equal(extractChatEvent(chat({ reactionMessage: { key: { id: "WA1" }, text: "" } })).emoji, "");
+  const edit = extractChatEvent(chat({ protocolMessage: { type: 14, key: { id: "WA2" }, editedMessage: { conversation: "corrigido" } } }));
+  assert.deepEqual([edit.kind, edit.targetId, edit.newText], ["edit", "WA2", "corrigido"]);
+  const revoke = extractChatEvent(chat({ protocolMessage: { type: 0, key: { id: "WA3" } } }, { fromMe: true }));
+  assert.deepEqual([revoke.kind, revoke.targetId, revoke.fromMe], ["revoke", "WA3", true]);
+  assert.equal(extractChatEvent(chat({ protocolMessage: { type: 3, key: { id: "WA4" } } })), null);
+});
+
+test("grupo e mensagem vazia continuam ignorados", () => {
+  assert.equal(extractChatEvent(chat({ conversation: "oi" }, { remoteJid: "123@g.us" })), null);
+  assert.equal(extractChatEvent(chat({})), null);
+});

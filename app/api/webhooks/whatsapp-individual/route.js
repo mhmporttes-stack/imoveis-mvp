@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
-import { projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
+import { projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
@@ -55,6 +55,26 @@ export async function POST(request) {
     }
 
     if (payload.type === "message") {
+      const kind = ["reaction", "edit", "revoke"].includes(payload.kind) ? payload.kind : "message";
+      // Reação, edição e "apagar para todos" (2026-10-02): só sincronizam a
+      // mensagem original no Chat — nunca são "resposta" do cliente para a
+      // Prospecção (BUSINESS_RULES PRO-9/WA-9: reação nunca é resposta real).
+      if (kind !== "message") {
+        const result = await projectIndividualChatAction({
+          userId,
+          kind,
+          from: payload.from,
+          fromMe: Boolean(payload.fromMe),
+          waMessageId: payload.waMessageId,
+          targetId: payload.targetId,
+          emoji: payload.emoji,
+          newText: payload.newText,
+          at: payload.at
+        });
+        return NextResponse.json({ ok: true, chat: result });
+      }
+
+      const media = payload.media && typeof payload.media === "object" ? payload.media : null;
       const event = {
         userId,
         from: payload.from,
@@ -62,14 +82,20 @@ export async function POST(request) {
         waMessageId: payload.waMessageId,
         at: payload.at,
         contactName: payload.contactName,
-        fromMe: Boolean(payload.fromMe)
+        fromMe: Boolean(payload.fromMe),
+        media,
+        quotedId: payload.quotedId,
+        remoteJid: payload.remoteJid
       };
+      // Foto/áudio/figurinha sem legenda também é resposta real do cliente
+      // para a Prospecção (texto de marcação, nunca vira opt-out).
+      const prospectingEvent = { ...event, text: String(payload.text || "").trim() || (media ? `[${media.kind || "mídia"}]` : "") };
       // Dois consumidores INDEPENDENTES do mesmo evento (pedido do dono,
       // 2026-10-02): A) resposta à Prospecção e B) Chat do CRM. Rodam em
       // paralelo, cada um com a própria idempotência; a falha de um (ex.: erro
       // ao gravar no Chat) nunca impede o outro.
       const results = await runIndependentConsumers({
-        prospecting: () => processProspectingInboundReply(event),
+        prospecting: () => processProspectingInboundReply(prospectingEvent),
         chat: () => projectIndividualInboundMessage(event)
       });
       for (const [name, result] of Object.entries(results)) {

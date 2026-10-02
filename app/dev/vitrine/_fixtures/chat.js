@@ -435,7 +435,19 @@ function msg(id, minutesAgo, direction, body, extra = {}) {
     readAt: outbound && status === "read" ? at : null,
     metaMessageId: internal ? "" : `wamid.DEMO${id.replace(/\W/g, "")}`,
     reactions: extra.reactions || [],
-    replyToMessageId: extra.replyTo ? `wamid.DEMO${extra.replyTo.replace(/\W/g, "")}` : ""
+    replyToMessageId: extra.replyTo ? `wamid.DEMO${extra.replyTo.replace(/\W/g, "")}` : "",
+    // Ações por mensagem (lib/whatsapp-message-actions.mjs, calculadas no servidor):
+    // todas as conversas da vitrine simulam o WhatsApp individual.
+    refId: internal ? "" : `wamid.DEMO${id.replace(/\W/g, "")}`,
+    channel: "whatsapp_individual",
+    editedAt: extra.editedAt || null,
+    revoked: Boolean(extra.revoked),
+    revokedBy: extra.revoked || "",
+    originalBody: extra.originalBody || "",
+    canReply: !internal && status !== "failed" && !extra.revoked,
+    canReact: !internal && status !== "failed" && !extra.revoked,
+    canEdit: outbound && senderType === "user" && status !== "failed" && !extra.revoked && (extra.type || "text") === "text" && minutesAgo <= 15,
+    canDelete: outbound && senderType === "user" && status !== "failed" && !extra.revoked && minutesAgo <= 48 * 60
   };
 }
 
@@ -458,7 +470,11 @@ function juliannaMessages(perfil) {
     msg("m01-13", 60 + 30, "outbound", "Recebi! A foto ficou ótima. Só falta o comprovante de residência e os holerites.", { sentByName: diego, status: "delivered", replyTo: "m01-11" }),
     msg("m01-14", 60 + 28, "outbound", "Consegue me mandar ainda hoje?", { sentByName: diego, status: "failed", errorCode: admin ? "131047" : "", errorMessage: admin ? "Sessão do WhatsApp individual desconectada no momento do envio (demonstração)." : "" }),
     msg("m01-15", 14, "inbound", "Mando sim, só chegar em casa"),
-    msg("m01-16", 13, "inbound", "O comprovante pode ser conta de luz no nome da minha mãe? Moro com ela")
+    msg("m01-15b", 13.8, "inbound", "", { revoked: "customer" }),
+    msg("m01-16", 13, "inbound", "O comprovante pode ser conta de luz no nome da minha mãe? Moro com ela"),
+    msg("m01-17", 6, "outbound", "Pode sim! Conta de luz no nome da sua mãe serve, junto com uma declaração de que você mora com ela.", { sentByName: diego, status: "delivered", replyTo: "m01-16", editedAt: ago(5), originalBody: admin ? "Pode sim! Conta de luz serve." : "" }),
+    msg("m01-18", 5, "outbound", "", { sentByName: diego, status: "delivered", type: "video", media: { url: "/vitrine-demo-gif.mp4", mime: "video/mp4", name: "gif.mp4", gif: true } }),
+    msg("m01-19", 4, "outbound", "", { sentByName: diego, status: "sent", revoked: "team", originalBody: admin ? "Mensagem enviada por engano" : "" })
   ];
 }
 
@@ -816,7 +832,10 @@ export const routes = [
     const body = await readBody(init);
     return { message: pushMessage(conversationIdFrom(url), newMessage("internal", String(body.text || ""))) };
   } },
+  { method: "POST", match: new RegExp(`${CONV}\\/media\\/upload-target`), response: { path: "sent/direct/demo/arquivo.mp4", signedUrl: "/api/dev-upload-demo" } },
   { method: "POST", match: new RegExp(`${CONV}\\/media`), response: { message: { id: "demo-media-sent", status: "sent" } } },
+  { method: "PATCH", match: new RegExp(`${CONV}\\/messages\\/[^/?]+`), response: { message: { id: "demo-edit", status: "sent" } } },
+  { method: "DELETE", match: new RegExp(`${CONV}\\/messages\\/[^/?]+`), response: { message: { id: "demo-delete", revoked: true } } },
   { method: "POST", match: new RegExp(`${CONV}\\/shortcut`), response: async ({ url, init }) => {
     const body = await readBody(init);
     const shortcut = SHORTCUTS.find((item) => item.id === body.shortcutId);
