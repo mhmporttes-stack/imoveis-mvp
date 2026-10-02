@@ -794,14 +794,17 @@ function GlobalConfigPanel({ onSaved }) {
   );
 }
 
+// Máximo de variações por tentativa — o mesmo limite do servidor
+// (AUTO_MESSAGE_MAX_VARIANTS em lib/daily-goal.js).
 const AUTO_MESSAGE_FIELDS = [
-  { key: "message1", label: "1ª tentativa" },
-  { key: "message2", label: "2ª tentativa" },
-  { key: "message3", label: "3ª tentativa" }
+  { key: "message1", label: "1ª tentativa", max: 4 },
+  { key: "message2", label: "2ª tentativa", max: 4 },
+  { key: "message3", label: "3ª tentativa", max: 10 }
 ];
 
-// 4 variações por tentativa, sorteadas pela automação sem repetir a última
-// usada — pedido do dono (2026-09-29): variar o texto entre várias opções
+// Variações sorteadas pela automação no momento do envio, com anti-repetição
+// por WhatsApp (nenhuma se repete até todas da tentativa terem saído) —
+// pedido do dono (2026-09-29/2026-10-02): variar o texto entre várias opções
 // reduz o padrão repetitivo que ajuda a banir número no WhatsApp.
 function AutoMessagesEditor() {
   const [drafts, setDrafts] = useState(null);
@@ -845,8 +848,8 @@ function AutoMessagesEditor() {
     <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
-          <h3 className="text-lg font-black text-navy">Mensagens da automação (4 variações por tentativa)</h3>
-          <p className="mt-1 text-xs font-bold text-muted">Sorteadas sem repetir a última usada. Variáveis disponíveis: {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_associada}"}</p>
+          <h3 className="text-lg font-black text-navy">Mensagens da automação (até 4 variações na 1ª e 2ª tentativa, até 10 na 3ª)</h3>
+          <p className="mt-1 text-xs font-bold text-muted">Sorteadas no envio sem repetir nenhuma até todas daquela tentativa terem saído pelo mesmo WhatsApp. Campo vazio é ignorado. Variáveis disponíveis: {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_associada}"}</p>
         </div>
         <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
       </button>
@@ -860,7 +863,7 @@ function AutoMessagesEditor() {
               <div key={field.key}>
                 <p className="text-sm font-black text-navy">{field.label}</p>
                 <div className="mt-2 grid gap-2">
-                  {(drafts[field.key] || ["", "", "", ""]).map((text, index) => (
+                  {Array.from({ length: Math.max(field.max, (drafts[field.key] || []).length) }, (_, index) => (drafts[field.key] || [])[index] || "").map((text, index) => (
                     <textarea
                       key={index}
                       className="w-full rounded-2xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"

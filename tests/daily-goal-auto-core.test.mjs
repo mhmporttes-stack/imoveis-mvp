@@ -7,9 +7,7 @@ import {
   isWithinWindow,
   isBusinessDay,
   isOptOutMessage,
-  pickMessageVariant,
   renderAutoMessage,
-  nextSequentialVariantIndex,
   classifySendError
 } from "../lib/daily-goal-auto-core.mjs";
 
@@ -135,17 +133,6 @@ test("isOptOutMessage NÃO dispara em frase longa que só menciona a palavra (ev
   assert.equal(isOptOutMessage(""), false);
 });
 
-test("pickMessageVariant nunca repete a última variação usada (com mais de 1 opção)", () => {
-  const variants = ["a", "b"];
-  const { text, index } = pickMessageVariant(variants, 0, () => 0); // sortearia índice 0 de novo
-  assert.equal(index, 1);
-  assert.equal(text, "b");
-});
-
-test("pickMessageVariant com 1 única variação sempre repete (nada a evitar)", () => {
-  assert.deepEqual(pickMessageVariant(["único"], 0), { text: "único", index: 0 });
-});
-
 test("renderAutoMessage substitui {primeiro_nome}", () => {
   assert.equal(renderAutoMessage("Oi, {primeiro_nome}!", { primeiroNome: "Carol" }), "Oi, Carol!");
 });
@@ -170,36 +157,6 @@ test("renderAutoMessage sem gênero cadastrado nunca deixa {associado_associada}
     renderAutoMessage("Aqui é {nome_corretor}, {associado_associada} do corretor Matheus Machado.", { nomeCorretor: "Caroline", corretorGender: "" }),
     "Aqui é Caroline, faço parte da equipe do corretor Matheus Machado."
   );
-});
-
-test("nextSequentialVariantIndex roda 1A→1B→1C→1D→1A... (nunca sorteio, sempre sequencial)", () => {
-  let cursor = 0;
-  const seen = [];
-  for (let i = 0; i < 6; i += 1) {
-    const { index, nextCursor } = nextSequentialVariantIndex(cursor, 4);
-    seen.push(index);
-    cursor = nextCursor;
-  }
-  assert.deepEqual(seen, [0, 1, 2, 3, 0, 1]);
-});
-
-test("nextSequentialVariantIndex persiste entre chamadas (cursor salvo continua de onde parou)", () => {
-  const first = nextSequentialVariantIndex(0, 3);
-  assert.equal(first.index, 0);
-  const second = nextSequentialVariantIndex(first.nextCursor, 3);
-  assert.equal(second.index, 1);
-  // "reinício do processo" simulado: chama de novo com o cursor persistido, não do zero.
-  const afterRestart = nextSequentialVariantIndex(second.nextCursor, 3);
-  assert.equal(afterRestart.index, 2);
-});
-
-test("nextSequentialVariantIndex se ajusta sozinho se o número de variações mudar (banco editado)", () => {
-  const { index } = nextSequentialVariantIndex(5, 4); // cursor de um banco com mais variações
-  assert.ok(index >= 0 && index < 4);
-});
-
-test("nextSequentialVariantIndex sem variações devolve índice inválido (-1), nunca quebra", () => {
-  assert.deepEqual(nextSequentialVariantIndex(0, 0), { index: -1, nextCursor: 0 });
 });
 
 test("classifySendError: sessão desconectada (NOT_CONNECTED, 409) é infra, nunca penaliza o contato", () => {

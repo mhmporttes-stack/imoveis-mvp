@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Modelos das mensagens automáticas: sorteio com anti-repetição no momento do envio
+- **Data:** 2026-10-02
+- **Área:** Meta Diária · Prospecção · WhatsApp
+- **Alteração:** a escolha do modelo deixou de ser a rotação fixa 1A→1B→1C→1D (escolhida na montagem da fila/no clique do Disparar) e passou a ser sorteio com anti-repetição por WhatsApp e tentativa, feito no servidor imediatamente antes do envio, igual para Meta Diária e Disparar. 3ª tentativa aceita até 10 modelos (1ª/2ª continuam até 4).
+- **Motivo:** pedido do dono — variar textos de verdade para não repetir o mesmo texto pelo mesmo número, sem ordem previsível.
+- **Arquivos afetados:** `lib/daily-goal-auto-core.mjs` (`pickAntiRepeatVariant`, `cycleStateFromHistory`, `wasVariantActuallySent`; saíram `pickMessageVariant`/`nextSequentialVariantIndex`), `lib/daily-goal-auto.js` (`selectVariantForSend`), `lib/prospecting-extra-dispatch.js`, `lib/daily-goal.js` (`AUTO_MESSAGE_MAX_VARIANTS`), `components/DailyGoalAdmin.jsx`, testes `tests/message-variant-anti-repeat.test.mjs`, `tests/daily-goal-auto-core.test.mjs`.
+- **Risco/observação:** sem migration. As colunas `variant_cursor_attempt1/2/3` de `daily_goal_auto_settings` deixaram de ser usadas (mantidas). Em produção a 3ª tentativa tem hoje 4 modelos cadastrados — o ciclo de 10 passa a valer quando o dono cadastrar os outros 6. Itens já na fila com modelo antigo gravado são re-sorteados no envio. Nenhuma mensagem real enviada nos testes.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Prospecção: botão "Disparar" (fila extra 10 + cooldown 1 h) e trava de status sem resposta real
 - **Data:** 2026-10-02
 - **Área:** Prospecção · Meta Diária · Ranking · WhatsApp · Banco
