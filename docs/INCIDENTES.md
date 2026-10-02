@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Venda marcada como "Pago" não aparece em Financeiro > Recebimentos (R$ 0,00 em tudo)
+- **Data:** 2026-10-02
+- **Sintoma:** Financeiro > Recebimentos com "Todo período": "A receber neste mês", "Recebido neste mês" e "A receber 30/60/90" em R$ 0,00 e agenda vazia, embora uma venda já recebida (cliente em "Pago") existisse.
+- **Área:** Financeiro
+- **Impacto:** 1 venda (comissão bruta R$ 9.000,00) com `financial_status = received` mas sem nenhuma linha em `financial_payments`; R$ 9.000,00 fora de todos os totais. As outras 6 vendas estavam consistentes (pendentes, sem pagamentos). Nenhum outro recebimento ignorado (a tabela estava vazia).
+- **Causa raiz:** o Financeiro soma `financial_payments`, nunca o status da venda. A 1ª versão de `markFinancialSaleReceivedForRegistration` (commit `f1084fa`, 01/10 16:17 -03) só gravava `financial_status = received` + `manual_status = true`, sem lançar o recebimento. O lançamento automático só entrou em `fca4c81` (16:26). O cliente foi marcado "Pago" às 16:21, entre os dois commits, e a função só roda na transição para `sale_paid` — não houve retroativo. O filtro "Todo período" não influenciava: ele só filtra a lista de vendas.
+- **Correção:** (1) dado: 1 recebimento de R$ 9.000,00, `received`, data 01/10/2026, inserido com trava `NOT EXISTS`; (2) código: reparo idempotente `computeReceiptRepair` (`lib/financial-receipt-repair-core.mjs`) usado por `markFinancialSaleReceivedForRegistration` e pela rede de segurança `repairReceivedSaleMissingPayments` em `listFinancialSales` (só venda `received` + `manual_status` + cliente em `sale_paid`; lança só a diferença, nunca passa da comissão, não duplica).
+- **Arquivos/commit:** `lib/financial.js`, `lib/financial-receipt-repair-core.mjs`, `tests/financial-receipt-repair.test.mjs` — ver commit com a mensagem "Financeiro: repara venda recebida sem recebimento lançado" (`git log`)
+- **Prevenção/teste:** `node --test tests/financial-receipt-repair.test.mjs` (caso sem pagamento, parcial preservado, idempotência, teto, status não-recebidos, centavos). Consulta de auditoria: vendas `received` cuja soma de `financial_payments` (`received`) < `gross_commission`.
+- **Status:** Resolvido
+
 ### 2026-10-01 — Mesmo cliente aparece em várias rodadas/tentativas da Meta Diária no mesmo dia
 - **Data:** 2026-10-01
 - **Sintoma:** na validação do ranking, um cliente aparecia em 5 a 20 rodadas da Meta Diária no mesmo dia (ex.: 20 "1ª tentativas" no mesmo cliente em 9 minutos); 2ª/3ª tentativas iam várias vezes para a mesma pessoa.

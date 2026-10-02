@@ -52,6 +52,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** itens novos de `getAdminMenuGroups` sem entrada em `ITEM_ICONS` recebem o ícone genérico `CircleDot`.
 - **Autor:** Claude Code
 
+### 2026-10-02 — Financeiro: reparo idempotente de venda "Recebido" sem recebimento lançado
+- **Data:** 2026-10-02
+- **Área:** Financeiro
+- **Alteração:** nova regra pura `computeReceiptRepair` (`lib/financial-receipt-repair-core.mjs`, em centavos) define quanto falta lançar para uma venda `received` (só a diferença; 0 se já coberta ou se a venda não está `received`). `markFinancialSaleReceivedForRegistration` passa a usá-la e `listFinancialSales` ganhou a rede de segurança `repairReceivedSaleMissingPayments` (venda `received` + `manual_status` + cliente em `sale_paid`), com desfazimento de duplicata em corrida. Dado: 1 recebimento de R$ 9.000,00 (01/10/2026) lançado para a venda afetada.
+- **Motivo:** incidente 2026-10-02 em `docs/INCIDENTES.md` — cliente marcado "Pago" antes do lançamento automático existir ficou "Recebido" sem pagamento e fora dos totais.
+- **Arquivos afetados:** `lib/financial.js`, `lib/financial-receipt-repair-core.mjs`, `tests/financial-receipt-repair.test.mjs`, `docs/INCIDENTES.md`. Sem migration.
+- **Risco/observação:** `listFinancialSales` agora pode gravar (só no caso inconsistente, falha não derruba a tela). Venda "Recebido" colocada manualmente na tela, sem cliente em `sale_paid`, NÃO é reparada de propósito. Regra `financeiro.md` inalterada.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Indicadores WhatsApp/Google Contacts movidos para dentro dos cards do ranking
 - **Data:** 2026-10-02
 - **Área:** Frontend (só posição; estados, cores, tamanho, modal e tooltip inalterados)
