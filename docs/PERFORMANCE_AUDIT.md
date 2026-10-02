@@ -13,6 +13,16 @@
 - **Verificado com EXPLAIN ANALYZE** (não só leitura de código) nas 3 queries mais quentes de tabelas que crescem (`daily_goal_attempts`, `prospecting_history`, `client_status_history`): todas rodam em 1-3ms hoje, nenhuma precisa de índice novo agora — `prospecting_history` é a que mais cresce (quase 10 mil linhas) e deve ser reavaliada daqui alguns meses.
 - **Build de produção limpo** antes/depois de todas as mudanças desta rodada.
 
+### Validação final em produção (commit 4df4477, deploy propagado)
+
+- **Listagem pública (`GET /api/properties`):** `photos` do 1º imóvel caiu de **14 para 1** item; payload total da listagem (16 imóveis) caiu de **75.311 → 26.632 bytes (-65%)**. Mesma listagem (16 imóveis), nenhum card quebrado — conferido visualmente na home (screenshot) e por rede (todas as imagens dos cards carregando, sem 404/erro).
+- **Ficha de empreendimento (DUO, id `0761141c-...`):** carrossel completo intacto — cliquei em "próxima foto" e confirmei a troca para uma 2ª foto diferente, provando que `getPublicProperty` (não tocado, `select("*")`) continua entregando o array cheio só na ficha.
+- **Home:** `x-vercel-cache: HIT`, `age` incrementando, `cache-control: public, max-age=0, must-revalidate`. TTFB real nesta checagem: **221ms** (vs. 636ms antes da Rodada 1; a variação frente aos 177ms medidos logo após a Rodada 1 é normal — depende do PoP/estado do cache da CDN no instante da medição, não é regressão).
+- **Erros:** nenhum 4xx/5xx inesperado em nenhuma rota testada (home, listagem, ficha real, 404 de id inexistente retorna 404 corretamente). Dois `net::ERR_ABORTED` observados na rede são prefetch/beacon cancelados pela navegação (comportamento normal do Next.js e do Speed Insights), não erros de aplicação.
+- **Banco (sem alterações nesta validação):** reconferido por SQL que o join trimado do Financeiro (`client:simulation_registrations!inner(full_name, phone, responsible_user_id)`) resolve corretamente nome/telefone/responsável para vendas reais. A paralelização de contagens e o `cache()` em `listAdminProfiles`/`getAdminFromCookies` não alteram nenhuma query nem seu resultado (só a ordem/deduplicação das chamadas) — mudança comprovadamente segura por construção, sem necessidade de nova checagem de índice.
+- **Zod fora do bundle de exibição:** build de produção resolveu toda a árvore de imports sem erro (`simulation-registration-schema.js` reexportando `simulation-registration-format.js`); os 9 componentes migrados são todos de exibição/formatação (cards, detalhes, listas, steps do formulário) e nenhum usa `validateSimulationRegistration`/o schema zod — confirmado por grep antes da mudança.
+- **Limitação honesta:** este ambiente não tem credenciais de admin, então **Clientes, Ranking, Extrato de Pontos, Simulação (tela) e Detalhes do cliente não puderam ser clicados/testados ao vivo logado**. A validação dessas telas foi por: build limpo, grep de uso de cada campo/export antes de qualquer trim, e confirmação direta via SQL de que as queries alteradas retornam os dados esperados. Recomendo uma conferência visual rápida do dono nessas 5 telas após este relatório.
+
 ## ETAPA 1 — Baseline (2026-10-01)
 
 - TTFB do site público (home, medido via `performance` API no navegador real, produção): **636ms**. domContentLoaded 773ms, load 795ms, 20 requisições na carga inicial.
