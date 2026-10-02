@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Chat: números internos não viram cliente, visibilidade por hierarquia e limpeza de conversas particulares do dono
+- **Data:** 2026-10-02
+- **Área:** WhatsApp · Chat · Permissões · Banco
+- **Alteração:** (1) caminhos automáticos do WhatsApp (contato direto no individual, anúncio/orgânico e palavra-chave/Fluxo no oficial, resposta à Prospecção, status por resposta) consultam `findInternalTeamPhone` e não criam/vinculam card de número da equipe; formulário/links/captação/manual não mudam. (2) `chatScope` passou a seguir a hierarquia: admin tudo, gestor próprias + equipe (`managedUserIds`), corretor só as próprias; mensagens do WhatsApp individual de quem está fora do escopo ficam ocultas; gestor só atribui dentro da equipe; aviso de mensagem interna só ao gestor da equipe. (3) Migration `20261002280000_whatsapp_session_known_numbers` (coluna `known_phone_numbers` + trigger que guarda todo número já conectado). (4) Removidas do CRM 2 conversas particulares do WhatsApp do dono (sem cliente/prospecção; já ocultas por ele em 28/09), com registro em `whatsapp_conversation_audit` (`detail.purged`).
+- **Motivo:** pedido do dono — conversa entre integrantes criou card (ex.: "Jennyfer Zorzato", criado às 09:57 de 02/10 pela sessão do dono); gestor via conversas de toda a empresa, inclusive as do dono.
+- **Arquivos afetados:** `lib/internal-phones*.{js,mjs}`, `lib/whatsapp-chat-scope.mjs`, `lib/whatsapp-chat.js`, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-automation-replies.js`, `lib/whatsapp-master.js`, `lib/whatsapp-flows.js`, `lib/prospecting-reply.js`, `lib/client-documents.js`, migration acima, testes `tests/internal-phones-core.test.mjs`, `tests/internal-phones-creation-paths.test.mjs`, `tests/whatsapp-chat-scope.test.mjs`. Docs: BUSINESS_RULES WA-11/WA-12, PERMISSIONS, WHATSAPP §1-A/§6, rule integracoes-externas.
+- **Risco/observação:** gestora deixa de ver 126 conversas sem atendente/cliente da equipe (ficam só com o admin). O número particular do dono não está gravado (sessão desconectada e telefone do perfil vazio): até ele reconectar ou preencher o telefone no perfil, mensagem do dono para um corretor ainda pode criar card. Card "Jennyfer Zorzato" (criado pelo bug) NÃO foi apagado — exclusão é irreversível e só do dono. Prévia da última mensagem na lista é da conversa inteira (não filtrada por sessão).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Chat (WhatsApp individual): mídia, responder, reagir, editar, apagar para todos e sincronização — celular, app e navegador
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Chat · Frontend/PWA
