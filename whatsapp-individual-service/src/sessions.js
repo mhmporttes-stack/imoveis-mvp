@@ -1,4 +1,4 @@
-import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { useSupabaseAuthState } from "./auth-state.js";
@@ -137,7 +137,12 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
     // pessoais do corretor — ver onHistorySync). PAUSADO por ora — ver
     // HISTORY_SYNC_ENABLED acima.
     syncFullHistory: HISTORY_SYNC_ENABLED,
-    browser: ["CRM Imoveis", "Chrome", "1.0"]
+    // Pareamento por código exige uma identificação de navegador que o
+    // WhatsApp reconheça (o nome personalizado fazia o pedido de código
+    // terminar em "Connection Closed"); sessões por QR seguem como antes.
+    // (sessão pareada por código guarda creds.pairingCode — mantém o mesmo
+    // navegador nas reconexões dela).
+    browser: (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"]
   });
   entry.sock = sock;
 
@@ -171,7 +176,9 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
       await new Promise((resolve) => {
         const timer = setTimeout(resolve, 10000);
         const onReady = (update) => {
-          if (update.qr || update.connection === "connecting") {
+          // Só o QR prova que a conexão com o WhatsApp abriu de verdade —
+          // o evento "connecting" dispara no instante em que o socket nasce.
+          if (update.qr) {
             clearTimeout(timer);
             sock.ev.off("connection.update", onReady);
             resolve();
