@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Corretor vê os próprios clientes em "Não contactar"
+- **Data:** 2026-10-02
+- **Área:** Clientes · Permissões
+- **Alteração:** `canViewDoNotContact` passa a liberar para todos os perfis; o escopo por responsável continua (corretor vê os seus, gestor os da equipe). Nas listas, "Não contactar" segue fora da aba "Todos" e aparece em "Arquivados", na pesquisa e na ficha — a mesma visão que o dono já tinha.
+- **Motivo:** regra do dono (evitar confusão: o cliente sumia da carteira do corretor depois de "Não contactar").
+- **Arquivos afetados:** `lib/simulation-registrations.js`, `lib/simulation-list-query.js` (comentário), `docs/BUSINESS_RULES.md` (CLI-9), `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** listas de aniversário/agenda também passam a incluir os "Não contactar" do corretor (como já acontecia para o dono); bloqueios de prospecção/automação/disparo inalterados.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Número do dono não faz disparo automático da Meta Diária
 - **Data:** 2026-10-02
 - **Área:** Meta Diária (automação WhatsApp)
