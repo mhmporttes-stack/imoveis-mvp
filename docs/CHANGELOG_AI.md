@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — "Não contactar" passa a manter o responsável em todos os fluxos
+- **Data:** 2026-10-02
+- **Área:** Prospecção · Clientes
+- **Alteração:** o botão "Não contactar" da Prospecção/card do cliente (`handleProspectingClientAction`) deixou de zerar `simulation_registrations.responsible_user_id` e `prospecting_contacts.assigned_user_id`. Fonte única dos campos gravados (`lib/do-not-contact-core.mjs`), usada também pelo opt-out automático e pelo "Não tem interesse" (`lib/prospecting-reply.js`), que já preservavam. Motivo obrigatório, trava anti-abuso, histórico e bloqueios de prospecção/automação inalterados.
+- **Motivo:** regra do dono — "Não contactar" bloqueia prospecção, mas o cliente continua do corretor (pesquisável, ficha acessível, reativável).
+- **Arquivos afetados:** `lib/do-not-contact-core.mjs`, `lib/prospecting.js`, `lib/prospecting-reply.js`, `tests/do-not-contact-core.test.mjs`, `docs/BUSINESS_RULES.md` (CLI-9, PRO-5), `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** antes, o cliente ficava sem responsável e a rede de segurança `reassignOrphanedClientsToOwner` o repassava ao dono (dos 807 clientes em "Não contactar", 0 estavam sem responsável em 2026-10-02). Dado existente não alterado: os já marcados continuam com o dono, não com o corretor original. Daqui para frente o cliente fica com o corretor e essa rede de segurança deixa de agir sobre ele.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Clientes (mobile): faixa de etapas do funil com 3 abas inteiras e rolagem encaixada
 - **Data:** 2026-10-02
 - **Área:** Frontend (só visual; contadores, barras, filtros e seleção inalterados)
