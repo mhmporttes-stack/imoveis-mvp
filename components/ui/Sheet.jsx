@@ -9,7 +9,7 @@ import { cx } from "./cx";
 // side="bottom" (sheet do celular, padrão), "right" (gaveta lateral no
 // desktop) ou "auto" (bottom no celular, right a partir de md).
 // Use para consultar/editar sem perder o contexto (padroes-crm.md §Modais).
-export default function Sheet({ open, onClose, title, description = "", side = "auto", footer = null, className = "", children }) {
+export default function Sheet({ open, onClose, title, description = "", side = "auto", footer = null, className = "", compact = false, children }) {
   const ref = useRef(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -59,22 +59,28 @@ export default function Sheet({ open, onClose, title, description = "", side = "
     >
       {open ? (
         <div className="flex max-h-[inherit] flex-col">
-          <header className="flex items-start gap-3 border-b border-line px-4 pb-3 pt-3 sm:px-5">
+          <header className={cx("flex gap-3 px-4 sm:px-5", compact ? "items-center pb-1 pt-4" : "items-start border-b border-line pb-3 pt-3")}>
             <span className="ui-sheet-handle" aria-hidden="true" />
-            <div className="min-w-0 flex-1 pt-1">
-              <h2 id={titleId} className="text-lg font-semibold leading-6 tracking-[-0.01em] text-navy">{title}</h2>
+            <div className={cx("min-w-0 flex-1", !compact && "pt-1")}>
+              <h2 id={titleId} className={cx("font-semibold tracking-[-0.01em] text-navy", compact ? "text-xl leading-7" : "text-lg leading-6")}>{title}</h2>
               {description ? <p id={descriptionId} className="mt-0.5 text-sm text-ink-2">{description}</p> : null}
             </div>
             <button
               type="button"
               onClick={() => ref.current?.close()}
-              className="inline-flex h-touch w-touch shrink-0 items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-navy/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className={cx(
+                "inline-flex shrink-0 items-center justify-center text-ink-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                compact
+                  // Fechar discreto: círculo de 36px, área de toque de 44px pelo ::before.
+                  ? "relative h-9 w-9 rounded-full bg-navy/[0.06] hover:bg-navy/[0.1] before:absolute before:-inset-1 before:content-['']"
+                  : "h-touch w-touch rounded-control hover:bg-navy/[0.06]"
+              )}
               aria-label="Fechar"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
+          <div className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5", compact ? "pb-4 pt-2" : "py-4")}>{children}</div>
           {footer ? <footer className="border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">{footer}</footer> : null}
         </div>
       ) : null}

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, CalendarDays, CircleDot, Ellipsis, MessageCircle, Target, UserRoundPlus, Users } from "lucide-react";
+import {
+  BarChart3, BookOpen, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
+  MessageCircle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
+  UserRoundPlus, Users, UsersRound, Wallet, Zap
+} from "lucide-react";
 import { getAdminMenuGroups } from "@/components/AdminMenu";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Sheet from "@/components/ui/Sheet";
@@ -144,35 +148,88 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
         </ul>
       </nav>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu" side="bottom">
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu" side="bottom" compact>
         <MoreMenu flags={flags} counts={counts} pathname={pathname} barKeys={destinations.map((item) => item.key)} />
       </Sheet>
     </>
   );
 }
 
+// Ícone de cada destino do menu "Mais", por chave de `getAdminMenuGroups`.
+// Só apresentação — destinos, ordem e permissões vêm do próprio menu.
+const ITEM_ICONS = {
+  "daily-goal": Target,
+  "daily-goal-admin": Target,
+  simulations: Users,
+  chat: MessageCircle,
+  calendar: CalendarDays,
+  prospecting: Search,
+  properties: House,
+  "new-property": HousePlus,
+  developments: Building2,
+  "management-properties": Building,
+  captacoes: Radar,
+  testimonials: MessageSquareQuote,
+  "new-testimonial": MessageSquarePlus,
+  brokers: UsersRound,
+  "campaign-links": Link2,
+  "client-journey": Route,
+  automations: Zap,
+  "attendance-guide": BookOpen,
+  performance: BarChart3,
+  "daily-report": FileText,
+  financial: Wallet,
+  online: UserCheck,
+  audit: ShieldCheck,
+  "ai-usage": BrainCircuit,
+  scoring: Trophy,
+  "document-rules": FileText,
+  alexa: Mic
+};
+
+// Mesma unidade visual para todo item do menu: ícone em ladrilho + nome (até
+// 2 linhas) + badge quando existir. Altura mínima de 44px (toque).
+function MenuTile({ href, label, Icon, current = false, count = 0 }) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={cx(
+        "relative flex h-full min-h-touch items-center gap-1.5 rounded-control border px-1.5 py-1.5 text-[12px] leading-[1.15] min-[375px]:gap-2 min-[375px]:px-2.5 min-[375px]:text-[13px] transition-[background-color,transform] duration-150 ease-out-ui active:scale-[0.97] motion-reduce:transition-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+        current ? "border-info-line bg-info-soft font-semibold text-navy" : "border-navy/[0.06] bg-mist/70 font-medium text-ink hover:bg-info-soft/60"
+      )}
+    >
+      <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-md", current ? "bg-brand text-white" : "bg-white text-brand ring-1 ring-navy/[0.06]")}>
+        <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1 break-words">{label}</span>
+      {/* Badge preso ao canto do próprio item: não disputa largura com o nome. */}
+      <CountBadge count={count} label={`${count} ${label}`} className="absolute -right-1 -top-1.5 ring-2 ring-white" />
+    </Link>
+  );
+}
+
+const SECTION_TITLE = "mb-1.5 px-0.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted";
+
 function MoreMenu({ flags, counts, pathname, barKeys }) {
   const groups = getAdminMenuGroups(flags);
   const pending = [
     { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
-    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot },
+    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: Clock },
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle }
   ].filter((item) => item.count > 0);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3.5">
       {pending.length ? (
         <section aria-labelledby="mais-pendencias">
-          <h3 id="mais-pendencias" className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">Pendências</h3>
-          <ul className="grid grid-cols-2 gap-x-2">
+          <h3 id="mais-pendencias" className={SECTION_TITLE}>Pendências</h3>
+          <ul className="grid grid-cols-2 gap-1.5">
             {pending.map(({ label, count, href, Icon }) => (
               <li key={label}>
-                <Link href={href} className="flex min-h-touch items-center gap-2 rounded-control px-2 text-[13px] font-medium leading-tight text-ink hover:bg-navy/[0.04]">
-                  <Icon className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">{label}</span>
-                  <CountBadge count={count} label={`${count} ${label}`} />
-                </Link>
+                <MenuTile href={href} label={label} Icon={Icon} count={count} />
               </li>
             ))}
           </ul>
@@ -184,26 +241,17 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
         if (!items.length) return null;
         const headingId = `mais-${group.key}`;
         return (
-          <section key={group.key} aria-labelledby={headingId} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
-            <h3 id={headingId} className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">
+          <section key={group.key} aria-labelledby={headingId}>
+            <h3 id={headingId} className={SECTION_TITLE}>
               {group.label.length <= 3 ? group.label : group.label.charAt(0) + group.label.slice(1).toLowerCase()}
             </h3>
-            <ul className="grid grid-cols-2 gap-x-2">
+            <ul className="grid grid-cols-2 gap-1.5">
               {items.map((item) => {
                 const itemPath = item.href.split("?")[0];
                 const current = pathname === itemPath && !item.href.includes("?");
                 return (
                   <li key={`${group.key}-${item.key}`}>
-                    <Link
-                      href={item.href}
-                      aria-current={current ? "page" : undefined}
-                      className={cx(
-                        "flex min-h-touch items-center rounded-control px-2 text-[13px] leading-tight",
-                        current ? "bg-info-soft font-semibold text-navy" : "font-medium text-ink hover:bg-navy/[0.04]"
-                      )}
-                    >
-                      {item.label}
-                    </Link>
+                    <MenuTile href={item.href} label={item.label} Icon={ITEM_ICONS[item.key] || CircleDot} current={current} />
                   </li>
                 );
               })}

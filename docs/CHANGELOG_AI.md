@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Menu "Mais" (mobile) redesenhado: itens com ícone, estado ativo e badge no item
+- **Data:** 2026-10-02
+- **Área:** Frontend (só visual; destinos, ordem, permissões e contadores inalterados)
+- **Alteração:** `AdminBottomNav` (`MoreMenu`): cada opção virou um "mini botão" (ícone lucide em ladrilho + nome em até 2 linhas, 2 colunas, altura mínima 44px), ícone por chave de `getAdminMenuGroups` (`ITEM_ICONS`), item ativo em azul claro com ícone azul sólido, badge preso ao canto do próprio item, títulos de seção discretos. `Sheet` ganhou a prop opcional `compact` (cabeçalho e botão fechar discretos), usada só pelo menu; demais Sheets inalterados.
+- **Arquivos afetados:** `components/AdminBottomNav.jsx`, `components/ui/Sheet.jsx`.
+- **Risco/observação:** itens novos de `getAdminMenuGroups` sem entrada em `ITEM_ICONS` recebem o ícone genérico `CircleDot`.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Indicadores WhatsApp/Google Contacts movidos para dentro dos cards do ranking
 - **Data:** 2026-10-02
 - **Área:** Frontend (só posição; estados, cores, tamanho, modal e tooltip inalterados)
