@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Estados do WhatsApp: restrição informada x validada + instrumentação de desconexão (T-20261002-23)
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Meta Diária / Banco / Permissões
+- **Alteração:** 4 estados no card (Conectado · Desconectado · Restrição informada — aguardando validação · Restrição validada). Corretor só informa; admin geral valida qualquer um, gestora só a equipe ("Validar restrição" / "Não validar"); histórico append-only; encerra sozinha ao conectar. Webhook `status` passou a carregar `statusCode`/`output` do Baileys, gravados em `last_disconnect_code` e `whatsapp_session_events` (só registro).
+- **Motivo:** pedido do dono; T-20 provou que não há evidência técnica confiável de banimento, então a validação é administrativa.
+- **Arquivos afetados:** `supabase/migrations/20261003150000_whatsapp_restriction_validation.sql`, `lib/whatsapp-restriction-core.mjs`, `lib/whatsapp-restriction.js`, `lib/whatsapp-individual.js`, `app/api/admin/whatsapp-individual/restriction/{route,team,validate,history}`, `app/api/webhooks/whatsapp-individual/route.js`, `whatsapp-individual-service/src/{sessions,webhook}.js`, `components/{WhatsappStateChip,WhatsappIndividualStatus,TeamDailyPerformance}.jsx`, `tests/whatsapp-restriction*.test.mjs`, regra PRO-13.
+- **Risco/observação:** PRO-11 intacto (Prospecção/Meta Diária seguem exigindo `connected`). Nenhuma lógica de reconexão do serviço foi alterada; 403 só é registrado. Migration aplicada ANTES do deploy do app (o upsert da sessão usa colunas novas).
+- **Autor:** crm-editor (Claude Sonnet 5.5)
+
 ### 2026-10-03 — Status operacional "WhatsApp restringido"
 - **Data:** 2026-10-03
 - **Área:** WhatsApp / Meta Diária / Banco

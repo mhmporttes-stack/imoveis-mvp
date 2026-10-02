@@ -273,7 +273,7 @@ async function onConnectionUpdate(userId, entry, update) {
       entry.qr = null;
       entry.pairingCode = null;
       await clearSessionCreds(userId);
-      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out" });
+      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out", statusCode, output: lastDisconnect?.error?.output?.payload });
       return;
     }
 
@@ -289,7 +289,7 @@ async function onConnectionUpdate(userId, entry, update) {
     entry.pairingCode = null;
     entry.pairingError = null;
     const errorMessage = String(lastDisconnect?.error?.message || "").slice(0, 300);
-    await notifyStatus(userId, { status: "reconnecting", error: errorMessage });
+    await notifyStatus(userId, { status: "reconnecting", error: errorMessage, statusCode, output: lastDisconnect?.error?.output?.payload });
     const restartRequired = statusCode === DisconnectReason.restartRequired;
     setTimeout(async () => {
       try { await Promise.all([...pendingWrites]); } catch { /* falha de gravação já foi logada */ }

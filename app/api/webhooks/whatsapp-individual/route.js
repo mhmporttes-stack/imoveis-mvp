@@ -39,7 +39,9 @@ export async function POST(request) {
         qrData: payload.qr,
         qrExpiresAt: payload.qrExpiresAt,
         pairingCode: payload.pairingCode,
-        error: payload.error
+        error: payload.error,
+        statusCode: payload.statusCode,
+        output: payload.output
       });
       // Ativa a automação da Meta Diária sozinha assim que a sessão
       // individual DESTE corretor conecta (pedido do dono, 2026-09-30) — só

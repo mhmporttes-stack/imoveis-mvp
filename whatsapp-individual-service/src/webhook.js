@@ -40,8 +40,8 @@ export function notifyHistoryBatch(userId, items) {
 
 // pairingCode precisa ir junto (2026-10-02): sem ele o CRM nunca gravava o
 // código e a tela, ao reler o status ~1s depois, apagava o código exibido.
-export function notifyStatus(userId, { status, qr, phoneNumber, error, pairingCode }) {
-  return post({ userId, type: "status", status, qr, phoneNumber, error, pairingCode });
+export function notifyStatus(userId, { status, qr, phoneNumber, error, pairingCode, statusCode, output }) {
+  return post({ userId, type: "status", status, qr, phoneNumber, error, pairingCode, statusCode, output });
 }
 
 // Confirmação de entrega ("delivered") ou leitura ("read") de uma mensagem

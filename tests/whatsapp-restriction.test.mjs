@@ -58,13 +58,13 @@ test("selos: Aguardando × Restringido × Desconectado × Conectado são distint
   assert.equal(resolveWhatsappBadge({ sessionStatus: "nunca_conectou" }), WHATSAPP_BADGES.waiting);
   assert.equal(resolveWhatsappBadge({ sessionStatus: null }), WHATSAPP_BADGES.waiting);
   assert.equal(resolveWhatsappBadge({ sessionStatus: "disconnected" }), WHATSAPP_BADGES.disconnected);
-  assert.equal(resolveWhatsappBadge({ sessionStatus: "nunca_conectou", openRestriction: open }), WHATSAPP_BADGES.restricted);
-  assert.equal(resolveWhatsappBadge({ sessionStatus: "disconnected", openRestriction: open }), WHATSAPP_BADGES.restricted);
+  assert.equal(resolveWhatsappBadge({ sessionStatus: "nunca_conectou", openRestriction: open }), WHATSAPP_BADGES.informed);
+  assert.equal(resolveWhatsappBadge({ sessionStatus: "disconnected", openRestriction: open }), WHATSAPP_BADGES.informed);
   assert.equal(resolveWhatsappBadge({ sessionStatus: "connected", openRestriction: open }), WHATSAPP_BADGES.connected);
   const labels = new Set(Object.values(WHATSAPP_BADGES).map((b) => b.label));
   const icons = new Set(Object.values(WHATSAPP_BADGES).map((b) => b.icon));
-  assert.equal(labels.size, 4);
-  assert.equal(icons.size, 4);
+  assert.equal(labels.size, 5);
+  assert.equal(icons.size, 5);
 });
 
 test("REGRA CRÍTICA: restringido sem conexão continua BLOQUEADO na Prospecção; admin geral segue isento", () => {

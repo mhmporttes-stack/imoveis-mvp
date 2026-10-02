@@ -17,13 +17,23 @@ async function currentUserId(request) {
   return { userId };
 }
 
+// Estado visto pelo próprio corretor: informada (aguardando validação) ou validada.
+function stateBody(open) {
+  return {
+    restricted: Boolean(open),
+    reportedAt: open?.reported_at || null,
+    validationStatus: open ? (open.validation_status || "informed") : null,
+    validatedAt: open?.validated_at || null
+  };
+}
+
 export async function GET(request) {
   const who = await currentUserId(request);
   if (who.error) return who.error;
   try {
     await endRestrictionIfConnected(who.userId, await getIndividualSessionStatusForUser(who.userId));
     const open = await getOpenRestriction(who.userId);
-    return NextResponse.json({ restricted: Boolean(open), reportedAt: open?.reported_at || null });
+    return NextResponse.json(stateBody(open));
   } catch (error) {
     console.error("Falha ao ler a restrição do WhatsApp:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível ler o status." }, { status: 500 });
@@ -46,7 +56,7 @@ export async function POST(request) {
     }
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     const open = await getOpenRestriction(who.userId);
-    return NextResponse.json({ result: result.result, restricted: Boolean(open), reportedAt: open?.reported_at || null });
+    return NextResponse.json({ result: result.result, ...stateBody(open) });
   } catch (error) {
     console.error("Falha ao gravar a restrição do WhatsApp:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível salvar." }, { status: 500 });

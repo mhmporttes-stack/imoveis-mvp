@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, History, ListRestart, Ban } from "lucide-react";
+import { X, History, ListRestart } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND } from "@/lib/whatsapp-restriction-core.mjs";
 import Avatar from "@/components/Avatar";
+import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
 import IntegrationStatusIcon, { googleContactsTone, whatsappTone } from "@/components/IntegrationStatusIcon";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
@@ -66,6 +67,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
 
   const presenceById = useTeamPresence();
   const [automationById, refetchAutomation] = useAutomationStatus();
+  const [restrictionById, refetchRestrictions] = useTeamRestrictions();
   const supervisionInbox = useSupervisionInbox();
   const [chatBroker, setChatBroker] = useState(null);
 
@@ -100,6 +102,8 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 broker={broker}
                 presenceStatus={presenceById[broker.brokerId]}
                 automation={automationById[broker.brokerId]}
+                restriction={restrictionById[broker.brokerId]}
+                onRestrictionChanged={refetchRestrictions}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
                 onRequeued={refetchAutomation}
                 chatUnread={supervisionInbox.counts[broker.brokerId] || 0}
@@ -130,6 +134,8 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           brokerId={selectedBrokerId}
           period={period}
           automation={automationById[selectedBrokerId]}
+          restriction={restrictionById[selectedBrokerId]}
+          onRestrictionChanged={refetchRestrictions}
           onClose={() => setSelectedBrokerId("")}
         />
       ) : null}
@@ -280,7 +286,7 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -296,16 +302,14 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
     ? !automation.enabled ? "Automação desligada"
     : automation.paused ? "Automação pausada"
     : sessionConnected ? "Automação rodando"
-    : automation.whatsappRestricted ? "WhatsApp restringido"
     : "Aguardando WhatsApp"
     : "";
   const autoClassName = automation
     ? !automation.enabled ? "bg-mist text-muted"
     : automation.paused ? "bg-amber-50 text-amber-700"
-    : !sessionConnected ? (automation.whatsappRestricted ? "bg-navy/10 text-navy ring-1 ring-navy/30" : "bg-amber-50 text-amber-700")
+    : !sessionConnected ? "bg-amber-50 text-amber-700"
     : "bg-emerald-50 text-emerald-700"
     : "";
-  const showRestrictedIcon = autoLabel === "WhatsApp restringido";
 
   // Reorganiza a fila de disparos de hoje deste corretor (pedido do dono,
   // 2026-10-02): cancela os itens pendentes/atrasados e gera uma agenda
@@ -356,10 +360,12 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
       {automation ? (
         <>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{showRestrictedIcon ? <Ban aria-hidden="true" className="mr-0.5 inline h-2.5 w-2.5" /> : null}{autoLabel}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
+            <WhatsappStateChip small sessionStatus={automation.sessionStatus} restriction={restriction} />
             <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
+          <RestrictionValidationActions brokerId={broker.brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
           {automation.avgGapMinutes != null ? (
             <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
           ) : null}
@@ -437,7 +443,7 @@ function MiniStat({ label, value }) {
   );
 }
 
-function BrokerDetailDrawer({ brokerId, period, automation, onClose }) {
+function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestrictionChanged, onClose }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -488,7 +494,7 @@ function BrokerDetailDrawer({ brokerId, period, automation, onClose }) {
             </div>
 
             {automation ? (
-              <AutomationSection automation={automation} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />
+              <AutomationSection automation={automation} restriction={restriction} onRestrictionChanged={onRestrictionChanged} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />
             ) : null}
 
             {detail.isToday ? <GoalRemaining broker={detail.broker} /> : null}
@@ -529,12 +535,11 @@ function BrokerDetailDrawer({ brokerId, period, automation, onClose }) {
 // o card e a configuração: status, próximo disparo, contagens do dia e
 // intervalo/janela configurados. O ícone abre o Histórico já existente
 // (BrokerHistoryPanel, de components/DailyGoalAdmin.jsx) — nada novo criado.
-function AutomationSection({ automation, showHistory, onToggleHistory, brokerId }) {
+function AutomationSection({ automation, restriction, onRestrictionChanged, showHistory, onToggleHistory, brokerId }) {
   const sessionInfo = AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou;
   const sessionConnected = automation.sessionStatus === "connected";
-  const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : automation.whatsappRestricted ? "WhatsApp restringido" : "Aguardando WhatsApp";
-  const showRestrictedIcon = autoLabel === "WhatsApp restringido";
-  const autoClassName = !automation.enabled ? "bg-mist text-muted" : showRestrictedIcon ? "bg-navy/10 text-navy ring-1 ring-navy/30" : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+  const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : "Aguardando WhatsApp";
+  const autoClassName = !automation.enabled ? "bg-mist text-muted" : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
   const sentToday = (automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0);
 
   return (
@@ -553,11 +558,13 @@ function AutomationSection({ automation, showHistory, onToggleHistory, brokerId 
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{showRestrictedIcon ? <Ban aria-hidden="true" className="mr-1 inline h-3 w-3" /> : null}{autoLabel}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
+        <WhatsappStateChip sessionStatus={automation.sessionStatus} restriction={restriction} />
         <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
         <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
-      {!sessionConnected ? <p className="mt-1 text-[10px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p> : null}
+      <RestrictionValidationActions brokerId={brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
+      <p className="mt-1 text-[10px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p>
       {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 
       {automation.enabled ? (
