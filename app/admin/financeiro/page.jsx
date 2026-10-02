@@ -4,7 +4,7 @@ import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requireFinancialAccessPage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales } from "@/lib/financial";
 import { getHealthSettings, listExpenseOccurrences, listOperatingExpenses } from "@/lib/financial-health";
-import { DEFAULT_HEALTH_SETTINGS } from "@/lib/financial-health-core.mjs";
+import { DEFAULT_HEALTH_SETTINGS, buildExpensePanel } from "@/lib/financial-health-core.mjs";
 import { getTodayInSaoPaulo } from "@/lib/daily-report";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
@@ -33,10 +33,12 @@ export default async function AdminFinancialPage() {
   if (isGeneralAdminAuth(auth)) {
     try {
       const [expenses, settings, occurrences] = await Promise.all([listOperatingExpenses(), getHealthSettings(), listExpenseOccurrences()]);
-      health = { expenses, settings, occurrences, today: getTodayInSaoPaulo(), error: "" };
+      const today = getTodayInSaoPaulo();
+      // panel: compromissos do mês (vencidas, vencem esta semana, total a pagar/pago, próximos) — só admin geral (este bloco)
+      health = { expenses, settings, occurrences, today, panel: buildExpensePanel({ expenses, overrides: occurrences, today }), error: "" };
     } catch (error) {
       console.error("Nao foi possivel carregar a aba Saude do financeiro.", error);
-      health = { expenses: [], occurrences: [], settings: { ...DEFAULT_HEALTH_SETTINGS }, today: getTodayInSaoPaulo(), error: "Não foi possível carregar a aba Saúde. Verifique se a migration 20261002120000_financial_health.sql e 20261002190000_financial_expense_occurrences.sql foram aplicadas." };
+      health = { expenses: [], occurrences: [], settings: { ...DEFAULT_HEALTH_SETTINGS }, today: getTodayInSaoPaulo(), panel: null, error: "Não foi possível carregar a aba Saúde. Verifique se a migration 20261002120000_financial_health.sql e 20261002190000_financial_expense_occurrences.sql e 20261003130000_financial_variable_expenses.sql foram aplicadas." };
     }
   }
 

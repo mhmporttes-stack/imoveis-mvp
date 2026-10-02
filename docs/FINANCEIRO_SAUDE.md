@@ -37,6 +37,21 @@ A previsão do saldo da comissão (`expected_receipt_date`, `computeForecastAmou
 - Custo operacional mensal de referência (reserva) mede o que a operação custa — pago ou ainda a confirmar.
 - Sem linha em `...occurrences` = prevista. Despesas já cadastradas antes desta regra passam a ser previstas até serem confirmadas.
 
+## Despesa variável (previsto × pago) e vencimentos
+
+**[REGRA OFICIAL — dono, 2026-10-02, aprovação provisória (opção A)]**
+
+- **Vencimento obrigatório**: `expense_date` (NOT NULL) é o vencimento da 1ª ocorrência; reagendar move o vencimento da ocorrência. Despesa sem data válida (defensivo; hoje nenhuma) fica fora das contas e aparece em `panel.undated` — nunca é apagada.
+- **Pagamento só quando efetivamente pago** (regra anterior mantida): só **Confirmar pagamento** manual; a data chegar não paga.
+- **Modo do valor** `amount_mode` (`fixed` padrão | `variable`) ≠ `expense_type` ("Natureza do gasto": fixa/variável/extraordinária — rótulo "Tipo" vira "Natureza do gasto" na UI, fase 2). Despesas antigas = `fixed`.
+- **Previsto × pago, persistindo ambos**: a ocorrência paga guarda `paid_amount` (pago, congelado) e `expected_amount` (previsto congelado no momento da confirmação; nulo em pagamentos anteriores à migration). Realizado/lucro/caixa continuam usando só o pago.
+- **Previsão de série variável** (`forecastAmountFor`, calculada na leitura): ocorrência não paga = `paid_amount` da última ocorrência **paga anterior** da série (por data original); sem nenhuma paga = valor cadastrado. Não divide a série nem reescreve meses passados. Série fixa: valor cadastrado, como sempre.
+- **Status de vencimento** (`dueStatus`, datas no fuso America/Sao_Paulo; `saoPauloToday`): **paid** (Paga) · **overdue** (Vencida: vencimento < hoje e não paga) · **due_soon** (A vencer: hoje..hoje+7, inclusive) · **planned** (Prevista: > hoje+7). Usa o vencimento efetivo (reagendado, se houver).
+- **Painel** (`buildExpensePanel({ expenses, overrides, today, range?, limit? })`, período padrão = mês de hoje): `overdue` (qtd+valor, qualquer mês) · `dueThisWeek` (hoje..+7) · `planned` (previstas do período, fora da semana) · `totalToPay` = vencidas + a vencer + previstas do período · `totalPaid` (pagas no período pela data do pagamento, com `expected` para comparar) · `upcoming` ("Próximos compromissos": vencidas primeiro, mais antiga primeiro; depois por data) · `undated`.
+- **Confirmar pagamento** (`POST /api/financeiro/saude/despesas/[id]/ocorrencias`, `requireGeneralAdminApi`, inalterado): `{ action: "pay", occurrenceDate, paidDate?, paidAmount? }` — `paidDate` padrão hoje e **não pode ser futura**; `paidAmount` padrão = **previsto** da ocorrência (variável: último pago anterior); aceita valor diferente. Grava `expected_amount` (já congelado é mantido ao corrigir o valor). Desfazer/reagendar zeram `expected_amount`.
+- **Contrato de payload** (só admin geral, `app/admin/financeiro/page.jsx` → `health`): `{ expenses[] (+amountMode), occurrences[] (+expectedAmount), settings, today, panel, error }`. Eventos de `collectExpenseEvents` ganharam `dueDate`, `amountMode`, `expectedAmount`, `paidAmount`, `paidDate`, `dueStatus`.
+- Limitação: a reserva (`recurringMonthlyEquivalent`) segue usando o valor cadastrado; editar o valor de uma série variável (divisão dali para frente) reinicia a referência no valor digitado.
+
 ## Recorrência
 
 A linha guarda **uma vez** a âncora (`expense_date` = 1ª ocorrência), a periodicidade e o encerramento opcional. As ocorrências são **calculadas na leitura** (`expandExpenseOccurrences`): mesmo dia do mês (dia 31 → último dia dos meses curtos), até `recurrence_end_date`. Nada é materializado no banco.
