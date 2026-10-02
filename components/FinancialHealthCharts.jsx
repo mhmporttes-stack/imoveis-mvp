@@ -40,50 +40,152 @@ function formatAxis(value) {
   return `${sign}${num(abs, 0)}`;
 }
 
+// ---------- Resultado da imobiliária por corretor: colunas verticais ----------
+
+const COLUMN_PLOT_HEIGHT = 240; // px da área de plotagem (0 → escala máxima)
+const COLUMN_TOP_ROOM = 30; // folga acima da escala para o valor em R$ da maior coluna
+const COLUMN_SLOT_MIN = 84; // largura mínima por corretor: abaixo disso rola na horizontal
+
+// Escala: parte de R$ 0 e vai até o próximo milhar acima do maior resultado
+// (3.825 → 4.000; 4.120 → 5.000; múltiplo exato de mil mantém). Sem resultado: 1.000.
+export function niceThousandMax(maxValue) {
+  const v = Number(maxValue || 0);
+  if (!(v > 0)) return 1000;
+  return Math.max(1000, Math.ceil(v / 1000) * 1000);
+}
+
+function useCountUpOnView(signature, { duration = 1100 } = {}) {
+  const ref = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [seen, setSeen] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    if (typeof IntersectionObserver === "undefined") { setSeen(true); return undefined; }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) { setSeen(true); observer.disconnect(); }
+    }, { threshold: 0.35 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!seen) return undefined;
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) { setProgress(1); return undefined; }
+    let frame = 0;
+    const start = performance.now();
+    setProgress(0);
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setProgress(1 - Math.pow(1 - t, 3)); // easeOutCubic: suave, sem exagero
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [seen, signature, duration]);
+
+  return [ref, progress];
+}
+
 export function BrokerResultChart({ rows = [] }) {
   const [active, setActive] = useState("");
-  const max = Math.max(...rows.map((r) => r.agencyResult), 0);
+  const maxValue = Math.max(...rows.map((r) => r.agencyResult), 0);
+  const scaleMax = niceThousandMax(maxValue);
+  const signature = rows.map((r) => `${r.key}:${r.agencyResult}`).join("|");
+  const [ref, progress] = useCountUpOnView(signature);
 
-  if (!rows.length || max <= 0) {
-    return <EmptyChart text="Nenhuma comissão recebida no período selecionado." />;
-  }
+  if (!rows.length) return <div ref={ref}><EmptyChart text="Nenhum corretor encontrado para o período selecionado." /></div>;
+
+  const ticks = [0, 0.5, 1].map((f) => scaleMax * f);
+  const activeRow = rows.find((r) => r.key === active);
 
   return (
-    <ul className="space-y-3" aria-label="Resultado da imobiliária por corretor">
-      {rows.map((row) => {
-        const width = Math.max(2, Math.round((row.agencyResult / max) * 100));
-        const open = active === row.key;
-        return (
-          <li key={row.key}>
-            <button
-              type="button"
-              onClick={() => setActive(open ? "" : row.key)}
-              onMouseEnter={() => setActive(row.key)}
-              onMouseLeave={() => setActive("")}
-              onFocus={() => setActive(row.key)}
-              onBlur={() => setActive("")}
-              aria-expanded={open}
-              className="block w-full text-left"
-            >
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-sm font-black text-navy">{row.name}</span>
-                <span className="shrink-0 text-sm font-black text-navy">{formatMoney(row.agencyResult)}</span>
-              </span>
-              <span className="mt-1.5 block h-3 overflow-hidden rounded-full bg-blue-50">
-                <span className="block h-full rounded-full bg-gradient-to-r from-brand to-navy transition-all" style={{ width: `${width}%` }} />
-              </span>
-            </button>
-            {open && (
-              <p className="mt-1.5 rounded-xl border border-line bg-mist px-3 py-2 text-xs leading-5 text-muted" role="status">
-                Comissão bruta recebida <strong className="text-navy">{formatMoney(row.grossReceived)}</strong> · repasses{" "}
-                <strong className="text-navy">{formatMoney(row.repasses)}</strong> · nota e despesas da venda <strong className="text-navy">{formatMoney(row.otherCosts)}</strong> · {row.salesCount} {row.salesCount === 1 ? "venda" : "vendas"}
-              </p>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div ref={ref}>
+      <div className="flex" aria-label="Resultado da imobiliária por corretor, em reais">
+        {/* eixo Y fixo (não rola junto com as colunas) */}
+        <div className="relative shrink-0 pr-2" style={{ width: 66, height: COLUMN_PLOT_HEIGHT + COLUMN_TOP_ROOM }} aria-hidden="true">
+          {ticks.map((tick) => (
+            <span key={tick} className="absolute right-2 -translate-y-1/2 whitespace-nowrap text-[11px] font-bold text-muted" style={{ top: COLUMN_TOP_ROOM + COLUMN_PLOT_HEIGHT - (tick / scaleMax) * COLUMN_PLOT_HEIGHT }}>
+              {formatAxisMoney(tick)}
+            </span>
+          ))}
+        </div>
+
+        <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain pb-1" tabIndex={0} role="group" aria-label="Colunas por corretor (role para o lado se houver muitos)">
+          <div className="relative flex" style={{ minWidth: rows.length * COLUMN_SLOT_MIN }}>
+            {/* linhas de grade */}
+            <div className="pointer-events-none absolute inset-x-0 top-0" style={{ height: COLUMN_PLOT_HEIGHT + COLUMN_TOP_ROOM }} aria-hidden="true">
+              {ticks.map((tick) => (
+                <div key={tick} className="absolute inset-x-0 border-t" style={{ top: COLUMN_TOP_ROOM + COLUMN_PLOT_HEIGHT - (tick / scaleMax) * COLUMN_PLOT_HEIGHT, borderColor: tick === 0 ? "#B8C4D6" : COLORS.grid }} />
+              ))}
+            </div>
+
+            {rows.map((row) => {
+              const finalHeight = (row.agencyResult / scaleMax) * COLUMN_PLOT_HEIGHT;
+              const height = finalHeight * progress;
+              const shown = row.agencyResult * progress;
+              const open = active === row.key;
+              return (
+                <button
+                  key={row.key}
+                  type="button"
+                  onClick={() => setActive(open ? "" : row.key)}
+                  onMouseEnter={() => setActive(row.key)}
+                  onMouseLeave={() => setActive("")}
+                  onFocus={() => setActive(row.key)}
+                  onBlur={() => setActive("")}
+                  aria-label={`${row.name}: ${formatMoney(row.agencyResult)}`}
+                  className="relative z-10 flex min-w-0 flex-1 flex-col items-center focus:outline-none"
+                  style={{ minWidth: COLUMN_SLOT_MIN }}
+                >
+                  <div className="relative w-full" style={{ height: COLUMN_PLOT_HEIGHT + COLUMN_TOP_ROOM }}>
+                    {/* valor em R$ — FORA, acima da coluna, centralizado nela */}
+                    <span
+                      className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-black tabular-nums ${row.agencyResult > 0 ? "text-navy" : "text-muted"}`}
+                      style={{ bottom: height + 6 }}
+                    >
+                      {formatMoney(shown)}
+                    </span>
+                    {/* coluna: só existe altura se houver resultado (R$ 0 não ganha altura) */}
+                    {finalHeight > 0 && (
+                      <div
+                        className={`absolute bottom-0 left-1/2 w-11 -translate-x-1/2 overflow-hidden rounded-t-xl bg-gradient-to-t from-navy to-brand shadow-[0_4px_10px_-6px_rgba(13,59,102,0.55)] transition-[filter] ${open ? "brightness-110" : ""}`}
+                        style={{ height }}
+                      >
+                        {/* "$" branco dentro da coluna, perto do topo interno; some se a coluna for baixa demais */}
+                        {height >= 30 && (
+                          <span className="absolute left-0 right-0 top-1.5 text-center text-base font-black leading-none text-white" aria-hidden="true">$</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <span className="mt-2 line-clamp-2 min-h-[2.25rem] w-full break-words px-1 text-center text-xs font-black leading-[1.15rem] text-navy" title={row.name}>{row.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-2 min-h-[2.5rem] rounded-xl border border-line bg-mist px-3 py-2 text-xs leading-5 text-muted" role="status">
+        {activeRow ? (
+          <>
+            <strong className="text-navy">{activeRow.name}</strong> · comissão bruta recebida <strong className="text-navy">{formatMoney(activeRow.grossReceived)}</strong> · repasses{" "}
+            <strong className="text-navy">{formatMoney(activeRow.repasses)}</strong> · nota e despesas da venda <strong className="text-navy">{formatMoney(activeRow.otherCosts)}</strong> · {activeRow.salesCount} {activeRow.salesCount === 1 ? "venda" : "vendas"}
+          </>
+        ) : "Toque ou passe o mouse em uma coluna para ver o detalhe. Se houver muitos corretores, role o gráfico para o lado."}
+      </p>
+    </div>
   );
+}
+
+function formatAxisMoney(value) {
+  const v = Number(value || 0);
+  if (v === 0) return "R$ 0";
+  const n = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(v / 1000);
+  return `R$ ${n} mil`;
 }
 
 const SERIES_OPTIONS = [

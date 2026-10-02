@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Saúde: gráfico "Resultado da imobiliária por corretor" em colunas verticais
+- **Data:** 2026-10-02
+- **Área:** Frontend (só visual; fórmula, filtros, período e dados inalterados)
+- **Alteração:** barras horizontais viraram colunas verticais: uma por corretor elegível (admin/gestor/corretor ativos), inclusive R$ 0,00 (sem altura); escala de R$ 0 até o próximo milhar acima do maior resultado (3.825 → 4.000; 4.120 → 5.000); animação ao entrar na tela (colunas crescem e o valor em R$ acompanha, respeita prefers-reduced-motion); valor em R$ fora/acima, "$" branco dentro do topo da coluna (some em coluna baixa), nome na base com 2 linhas e reticências; rolagem horizontal interna quando há muitos corretores; eixo Y fixo.
+- **Arquivos afetados:** `components/FinancialHealthCharts.jsx`, `components/FinancialHealthTab.jsx` (apenas completa a lista com corretores sem resultado), `components/AdminFinancialDashboard.jsx` (passa os corretores elegíveis).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Financeiro: nota fiscal com % por venda; repasses ≠ despesas operacionais (Saúde)
 - **Data:** 2026-10-02
 - **Área:** Financeiro / Saúde / banco

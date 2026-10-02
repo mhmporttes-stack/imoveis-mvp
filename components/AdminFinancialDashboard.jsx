@@ -468,7 +468,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
 
       {health && activeTab === "saude" && (
         health.error ? <Feedback tone="error">{health.error}</Feedback> : (
-          <FinancialHealthTab sales={sales} initialExpenses={health.expenses} initialOccurrences={health.occurrences} initialSettings={health.settings} today={health.today} />
+          <FinancialHealthTab sales={sales} initialExpenses={health.expenses} initialOccurrences={health.occurrences} initialSettings={health.settings} eligibleBrokers={brokers} today={health.today} />
         )
       )}
 

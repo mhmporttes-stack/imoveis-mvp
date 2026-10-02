@@ -42,7 +42,7 @@ const EMPTY_FORM = {
   note: ""
 };
 
-export default function FinancialHealthTab({ sales = [], initialExpenses = [], initialOccurrences = [], initialSettings = {}, today }) {
+export default function FinancialHealthTab({ sales = [], initialExpenses = [], initialOccurrences = [], initialSettings = {}, eligibleBrokers = [], today }) {
   const [expenses, setExpenses] = useState(initialExpenses);
   const [occurrences, setOccurrences] = useState(initialOccurrences);
   const [settings, setSettings] = useState(initialSettings);
@@ -66,6 +66,19 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
   );
 
   const { summary, changes } = health;
+
+  // Todos os corretores elegíveis aparecem no gráfico, inclusive com R$ 0,00 no período. Só apresentação:
+  // o resultado de cada um continua vindo de health.byBroker (cálculo inalterado).
+  const brokerRows = useMemo(() => {
+    const norm = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const rows = health.byBroker.map((row) => ({ ...row }));
+    const matches = (row, user) => row.key === user.id || (user.email && row.key === user.email) || norm(row.name) === norm(user.name);
+    for (const user of eligibleBrokers) {
+      if (!user?.name || rows.some((row) => matches(row, user))) continue;
+      rows.push({ key: `eligible-${user.id}`, name: user.name, agencyResult: 0, grossReceived: 0, repasses: 0, otherCosts: 0, salesCount: 0 });
+    }
+    return rows.sort((a, b) => b.agencyResult - a.agencyResult || a.name.localeCompare(b.name, "pt-BR"));
+  }, [health.byBroker, eligibleBrokers]);
   const fullMonth = health.range.start.slice(8) === "01" && monthRange(health.range.start).end === health.range.end;
   const vsLabel = fullMonth ? "vs mês anterior" : "vs período anterior";
   const periodTitle = fullMonth ? monthLabel(health.range.start) : `${formatDate(health.range.start)} a ${formatDate(health.range.end)}`;
@@ -148,7 +161,7 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
 
         {/* Resultado por corretor */}
         <Card title="Resultado da imobiliária por corretor" subtitle="Parte da imobiliária nas comissões efetivamente recebidas no período">
-          <BrokerResultChart rows={health.byBroker} />
+          <BrokerResultChart rows={brokerRows} />
           <p className="mt-3 text-xs leading-5 text-muted">Não é VGV nem comissão bruta: é o que sobra para a imobiliária depois de repasses, despesas da venda, nota e comissões de corretor/gestor. Despesas operacionais da empresa não são atribuídas a corretor.</p>
         </Card>
       </div>
