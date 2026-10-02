@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/simulacao-entrada/{casa-paulista.mjs,presentation-model.mjs,cliente-entrada.js,proposta-pdf.mjs,calculator.ts,types.ts}`, `app/api/simular-entrada/route.js`, `app/api/simulations/[id]/proposta-valores/route.js`, `components/EmpreendimentoPresentation.jsx`, `components/SimulationGenerator.jsx`, `tests/proposta-valores.test.mjs`, `docs/BUSINESS_RULES.md`. Sem migration.
 - **Risco/observação:** Snapshots já gravados com Casa Paulista = 0 NÃO foram reescritos (histórico); passam a refletir o benefício ao salvar a simulação de novo. Documentação gratuita segue como 5% do valor do imóvel exatamente como a tela já mostrava (**PENDENTE DE VALIDAÇÃO**: origem incidental no commit f9992ec; o cadastro do empreendimento já tem valor próprio em `beneficiosInformativos`). Logo do PDF: asset único `public/assets/matheus-machado-symbol.png` (mesmo do PDF de documentos); a logo vetorial completa (CorelDRAW) não pôde ser convertida sem software — A CONFIRMAR exportação SVG/PNG pelo dono. Pontuação/Meta Diária/ranking intocados.
 - **Autor:** Claude (crm-editor, T-20261002-48)
+### 2026-10-03 — Manual do CRM, etapa 3: interface e administração (T-20261002-52)
+- **Data:** 2026-10-03
+- **Área:** Manual do CRM / Menu / Interface
+- **Alteração:** Item "Manual" (ícone BookOpen) no menu de todos os perfis e na barra inferior; página `/admin/manual` (cards de tópicos, accordion de subtópicos, busca com debounce, âncora `#topico/subtopico` e `?novidade=`, aba Novidades com "Li e entendi", texto renderizado como texto seguro); `/admin/manual/gerenciar` (só admin geral efetivo: edição rápida, ordem, audiência, status, fila de aprovação, novidades com sugestão de alteração antes×depois, versões, leituras, carregar estrutura inicial; aprovar/publicar só o dono); `components/manual/ManualHelpLink.jsx` (ajuda contextual, pronto e NÃO usado nas telas); `components/ui/Accordion.jsx`; núcleo puro `lib/manual-ui-core.mjs`; telas `manual` e `manual-gerenciar` na vitrine.
+- **Motivo:** Pedido do dono (módulo Manual, etapa 3). Card "Ainda ficou com alguma dúvida?" e feedback ficam fora (seção reservada em `ManualBrowser.jsx`, sem render) até decisão do dono.
+- **Arquivos afetados:** `app/admin/manual/**`, `components/manual/*`, `components/ui/Accordion.jsx`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`, `lib/manual-ui-core.mjs`, `tests/manual-ui-core.test.mjs`, `app/dev/vitrine/*`.
+- **Risco/observação:** Branch `feat/manual-crm`, sem migration aplicada e sem deploy. No menu do topo o grupo "MANUAL" tem um único item (sem subbarra). Componentes cliente não importam a guarda de conteúdo (teste estático).
+- **Autor:** Claude (designer-crm + crm-editor, T-20261002-52)
 ### 2026-10-03 — Manual do CRM, etapa 2: backend (T-20261002-47)
 - **Data:** 2026-10-03
 - **Área:** Manual do CRM / Alertas / Permissões

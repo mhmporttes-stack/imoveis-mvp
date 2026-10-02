@@ -28,6 +28,14 @@ const clientItems = [
   { href: "/admin/calendario", label: "Calendário", key: "calendar" }
 ];
 
+// Manual do CRM: todos os perfis (a visibilidade do conteúdo é filtrada no servidor).
+const manualGroup = {
+  key: "ajuda",
+  label: "MANUAL",
+  href: "/admin/manual",
+  items: [{ href: "/admin/manual", label: "Manual", key: "manual" }]
+};
+
 const adminGroups = [
   {
     key: "crm",
@@ -66,7 +74,8 @@ const adminGroups = [
       { href: "/admin/meta-diaria/gestao", label: "Meta Diária", key: "daily-goal-admin" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report", "financial", "scoring", "audit"] }
     ]
-  }
+  },
+  manualGroup
 ];
 
 const brokerGroups = [
@@ -93,7 +102,8 @@ const brokerGroups = [
       { href: "/admin/relatorio-diario", label: "Relatório Diário", key: "daily-report" },
       { href: "/admin/financeiro", label: "Financeiro", key: "financial" }
     ]
-  }
+  },
+  manualGroup
 ];
 
 // Associado só vê "Financeiro" dentro de "DESEMPENHO" (sem Relatório
@@ -112,7 +122,7 @@ const associateGroups = brokerGroups.map((group) => {
 // continua nas próprias páginas (requireBrokerManagementPage: admin OU
 // gestor, sempre limitado à equipe dela — nunca aos clientes/financeiro do
 // dono) — isso aqui é só garantir que o item do menu não suma de novo.
-const managerGroups = [...brokerGroups, adminGroups.find((group) => group.key === "gestao")];
+const managerGroups = [...brokerGroups.filter((group) => group.key !== "ajuda"), adminGroups.find((group) => group.key === "gestao"), manualGroup];
 
 // Menu do administrador geral, organizado em torno de supervisionar o time.
 // Gestor continua com adminGroups (acima), sem alteração.
@@ -174,7 +184,8 @@ const ownerGroups = [
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
       { href: "/admin/alexa", label: "Alexa", key: "alexa" }
     ]
-  }
+  },
+  manualGroup
 ];
 
 // Fonte única dos grupos do menu por perfil — usada também pela barra
@@ -329,7 +340,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         })}
       </nav>
 
-      {(isAdmin && visibleGroup === "clientes") || (treatAsBroker && visibleGroup === "crm") ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
+      {(isAdmin && visibleGroup === "clientes") || (treatAsBroker && visibleGroup === "crm") || visibleGroup === "ajuda" ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
         {visibleItems.map((item) => {
           // Meta Diária ganha a coreografia de cenas (SceneTransitionLink)
           // ao entrar/sair dela; os demais itens continuam com o Link normal.

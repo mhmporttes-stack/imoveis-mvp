@@ -26,6 +26,9 @@ import * as financeiroSaude from "../_fixtures/financeiro-saude";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import * as financeiroVendas from "../_fixtures/financeiro-vendas";
 import AutoClick from "./AutoClick";
+import ManualBrowser from "@/components/manual/ManualBrowser";
+import ManualAdmin from "@/components/manual/ManualAdmin";
+import * as manual from "../_fixtures/manual";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -164,6 +167,36 @@ const TELAS = {
       <main className="bg-mist py-14">
         <AdminFinancialDashboard {...financeiroVendas.propsFor(perfil)} />
         <AutoClick passos={variante} />
+      </main>
+    )
+  },
+  manual: {
+    path: "/admin/manual",
+    titulo: "Manual do CRM (?variante=vazio|erro, ou cliques separados por barra ex.: Novidades|Primeiros passos)",
+    active: "manual",
+    rotas: manual.routes,
+    render: (perfil, variante) => (
+      <main className="min-h-screen bg-mist py-14">
+        <ManualBrowser
+          initialTopics={variante === "vazio" || variante === "erro" ? [] : manual.topics}
+          /* cliques opcionais: ver AutoClick abaixo */
+          initialNews={variante === "vazio" || variante === "erro" ? [] : manual.news}
+          initialError={variante === "erro" ? "Tente novamente em instantes. Se continuar, avise a gestão." : ""}
+          manageHref={perfil === "admin" ? "/admin/manual/gerenciar" : ""}
+        />
+        {variante && variante !== "vazio" && variante !== "erro" ? <AutoClick passos={variante} /> : null}
+      </main>
+    )
+  },
+  "manual-gerenciar": {
+    path: "/admin/manual/gerenciar",
+    titulo: "Manual do CRM — administração (?variante=dono|outraconta|outro-admin, depois |cliques separados por barra, ex.: dono|Aprovação)",
+    active: "manual",
+    rotas: manual.routes,
+    render: (perfil, variante) => (
+      <main className="min-h-screen bg-mist py-14">
+        <ManualAdmin initial={manual.adminOverview} isOwner={variante.split("|")[0] === "dono"} ownerViewingAsOther={variante.split("|")[0] === "outraconta"} />
+        <AutoClick passos={variante.split("|").slice(1).join("|")} />
       </main>
     )
   },

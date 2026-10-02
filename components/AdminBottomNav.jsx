@@ -176,6 +176,7 @@ const ITEM_ICONS = {
   "client-journey": Route,
   automations: Zap,
   "attendance-guide": BookOpen,
+  manual: BookOpen,
   performance: BarChart3,
   "daily-report": FileText,
   financial: Wallet,
