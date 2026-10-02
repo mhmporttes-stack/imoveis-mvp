@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { parseBrazilianMoney } from "@/lib/money-br.mjs";
 
 // Modais de "Confirmar recebimento" e "Reagendar" da previsão de recebimento da comissão.
 // Usados na Agenda (atividade "Confirmar recebimento") e no Financeiro (Agenda de recebimentos).
@@ -15,12 +16,8 @@ function todayInSaoPaulo() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
-function parseMoney(value) {
-  const text = String(value ?? "").replace(/[^\d,.-]/g, "");
-  if (!text) return 0;
-  const parsed = text.includes(",") ? Number(text.replace(/\./g, "").replace(",", ".")) : Number(text);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+// Regra única de valor brasileiro ("1.500" = 1500): lib/money-br.mjs, a mesma do servidor.
+const parseMoney = parseBrazilianMoney;
 
 function formatDateKey(dateKey) {
   const [year, month, day] = String(dateKey || "").split("-");

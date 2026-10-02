@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { calculateCommissionDistribution, calculateInvoiceDeduction, resolveInvoicePercentage } from "@/lib/financial-calculations";
 import { calculateReceivableMetrics, computeForecastAmount, flattenReceivableEntries } from "@/lib/financial-expected-receipt-core.mjs";
+import { parseBrazilianDecimal, parseBrazilianMoney } from "@/lib/money-br.mjs";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
 
@@ -138,7 +139,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
     if (propertyFilter && !normalizeText(sale.propertyName).includes(normalizeText(propertyFilter))) return false;
     return true;
   }), [sales, clientFilter, brokerFilter, propertyFilter, statusFilter]);
-  const payments = useMemo(() => flattenReceivableEntries(receivableSales, (sale) => calculateSaleTotals(sale).freeCommission), [receivableSales]);
+  const payments = useMemo(() => flattenReceivableEntries(receivableSales, (sale) => calculateSaleTotals(sale).grossCommission), [receivableSales]);
   const receivableMetrics = useMemo(() => calculateReceivableMetrics(payments), [payments]);
   const draftTotals = useMemo(() => calculateSaleTotals(draftSale), [draftSale]);
 
@@ -184,13 +185,13 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       if (field === "hasManagerCommission" && value) {
         const broker = brokers.find((user) => user.id === next.brokerId);
         next.managerId = next.managerId || broker?.managerId || "";
-        if (!normalizeMoneyValue(next.managerPercentage)) {
+        if (!parseBrazilianDecimal(next.managerPercentage)) {
           next.managerPercentage = formatPercentInput(broker?.defaultManagerPercentage ?? 10);
         }
       }
 
       if (field === "commissionPercentage") {
-        const percentage = normalizeMoneyValue(value);
+        const percentage = parseBrazilianDecimal(value);
         next.commissionInputMode = "percentage";
         next.grossCommission = saleValue > 0 ? formatCurrencyInput(roundMoney((saleValue * percentage) / 100)) : "";
       }
@@ -203,7 +204,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
 
       if (field === "saleValue") {
         if (next.commissionInputMode === "percentage") {
-          const percentage = normalizeMoneyValue(next.commissionPercentage);
+          const percentage = parseBrazilianDecimal(next.commissionPercentage);
           next.grossCommission = saleValue > 0 ? formatCurrencyInput(roundMoney((saleValue * percentage) / 100)) : "";
         } else {
           const amount = normalizeMoneyValue(next.grossCommission);
@@ -600,7 +601,7 @@ function SaleEditor({
   managers,
   canManageForecast = false
 }) {
-  const draftForecast = computeForecastAmount({ freeCommission: draftTotals.freeCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
+  const draftForecast = computeForecastAmount({ grossCommission: draftTotals.grossCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
   if (!sale?.id || !draftSale?.id) {
     return (
       <div className="premium-card p-8 text-center">
@@ -976,7 +977,8 @@ function calculateSaleTotals(sale = {}) {
     freeCommission,
     ...distribution,
     receivedTotal,
-    receivableTotal: Math.max(0, freeCommission - receivedTotal)
+    // Mesma base do servidor (lib/financial-receipt-basis.mjs): falta da comissão BRUTA, não da livre.
+    receivableTotal: Math.max(0, grossCommission - receivedTotal)
   };
 }
 
@@ -1082,18 +1084,9 @@ function startOfDate(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+// Valor em R$ no padrão brasileiro ("1.500" = 1500) — regra única em lib/money-br.mjs (a mesma do servidor).
 function normalizeMoneyValue(value) {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const text = String(value ?? "").trim();
-  if (!text) return 0;
-  const cleaned = text.replace(/[^\d,.-]/g, "");
-  if (!cleaned) return 0;
-  if (cleaned.includes(",")) {
-    const parsed = Number(cleaned.replace(/\./g, "").replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseBrazilianMoney(value);
 }
 
 function formatCurrency(value) {
@@ -1105,7 +1098,7 @@ function formatCurrencyInput(value) {
 }
 
 function formatPercentInput(value) {
-  return `${formatPercent(normalizeMoneyValue(value))}%`;
+  return `${formatPercent(parseBrazilianDecimal(value))}%`;
 }
 
 function formatDate(value) {

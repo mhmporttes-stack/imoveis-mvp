@@ -17,6 +17,7 @@ import {
   rescheduleExpectedReceipt,
   syncExpectedReceiptActivity
 } from "../lib/financial-expected-receipt-db.mjs";
+import { computeReceiptRepair } from "../lib/financial-receipt-repair-core.mjs";
 
 // ---------- banco falso (imita os índices únicos parciais da migration) ----------
 
@@ -106,7 +107,7 @@ function buildCtx(db, { today = "2026-10-15" } = {}) {
         financialStatus: row.financial_status,
         updatedByEmail: row.updated_by_email || "",
         payments,
-        totals: { freeCommission: free, receivedTotal: received }
+        totals: { grossCommission: Number(row.gross_commission), freeCommission: free, receivedTotal: received }
       };
     }
   };
@@ -133,15 +134,15 @@ test("previsão é só do dono: não-dono não recebe a data; dono e chamada int
 
 // ---------- previsão e indicadores ----------
 
-test("previsão: saldo = comissão livre − recebido − parcelas já datadas; venda recebida/cancelada = 0", () => {
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "pending", payments: [] }), 9000);
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "partial", payments: [{ status: "received", amount: 5000 }] }), 4000);
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "pending", payments: [{ status: "expected", amount: 3000, expectedDate: "2026-11-01" }] }), 6000);
+test("previsão: saldo = comissão BRUTA − recebido − parcelas já datadas; venda recebida/cancelada = 0", () => {
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "pending", payments: [] }), 9000);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "partial", payments: [{ status: "received", amount: 5000 }] }), 4000);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "pending", payments: [{ status: "expected", amount: 3000, expectedDate: "2026-11-01" }] }), 6000);
   // parcela sem data não é contada em nenhum indicador, então não abate o saldo previsto
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "pending", payments: [{ status: "expected", amount: 3000, expectedDate: "" }] }), 9000);
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "received", payments: [] }), 0);
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "cancelled", payments: [] }), 0);
-  assert.equal(computeForecastAmount({ freeCommission: 9000, financialStatus: "pending", payments: [{ status: "received", amount: 9500 }] }), 0);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "pending", payments: [{ status: "expected", amount: 3000, expectedDate: "" }] }), 9000);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "received", payments: [] }), 0);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "cancelled", payments: [] }), 0);
+  assert.equal(computeForecastAmount({ grossCommission: 9000, financialStatus: "pending", payments: [{ status: "received", amount: 9500 }] }), 0);
 });
 
 test("venda pendente SEM previsão continua como hoje: nenhuma entrada nova", () => {
@@ -227,20 +228,20 @@ test("plano da atividade: cria, mantém (idempotente), reagenda a mesma, conclui
 });
 
 test("plano de confirmação: integral, parcial, valor inválido e teto no saldo previsto", () => {
-  const full = planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0 });
+  const full = planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0 });
   assert.deepEqual([full.ok, full.paymentAmount, full.status, full.nextExpectedDate, full.remaining], [true, 9000, "received", null, 0]);
 
-  const partial = planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0, amount: 5000, nextExpectedDate: "2026-11-10" });
+  const partial = planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0, amount: 5000, nextExpectedDate: "2026-11-10" });
   assert.deepEqual([partial.status, partial.remaining, partial.nextExpectedDate, partial.receivedAfter], ["partial", 4000, "2026-11-10", 5000]);
 
-  const partialNoDate = planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0, amount: 5000 });
+  const partialNoDate = planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0, amount: 5000 });
   assert.equal(partialNoDate.nextExpectedDate, null);
 
-  assert.equal(planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0, amount: 9000.01 }).ok, false);
-  assert.equal(planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0, amount: 0 }).ok, false);
-  assert.equal(planConfirmation({ forecastAmount: 0, freeCommission: 9000, receivedTotal: 9000 }).ok, false);
+  assert.equal(planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0, amount: 9000.01 }).ok, false);
+  assert.equal(planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0, amount: 0 }).ok, false);
+  assert.equal(planConfirmation({ forecastAmount: 0, grossCommission: 9000, receivedTotal: 9000 }).ok, false);
   // recebimento total ignora nova previsão
-  assert.equal(planConfirmation({ forecastAmount: 9000, freeCommission: 9000, receivedTotal: 0, amount: 9000, nextExpectedDate: "2026-11-10" }).nextExpectedDate, null);
+  assert.equal(planConfirmation({ forecastAmount: 9000, grossCommission: 9000, receivedTotal: 0, amount: 9000, nextExpectedDate: "2026-11-10" }).nextExpectedDate, null);
 });
 
 // ---------- fluxo com banco: criação, reagendamento, confirmação, idempotência ----------
@@ -323,7 +324,7 @@ test("confirmação INTEGRAL: 1 pagamento, venda recebida, atividade concluída,
   assert.equal(pendingActivities(db).length, 0);
   assert.equal(db.tables.calendar_activities.find((activity) => activity.id === activityId).status, "completed");
   assert.equal(result.sale.totals.receivedTotal, 9000);
-  const metrics = calculateReceivableMetrics(flattenReceivableEntries([result.sale], (sale) => sale.totals.freeCommission), new Date(2026, 9, 15));
+  const metrics = calculateReceivableMetrics(flattenReceivableEntries([result.sale], (sale) => sale.totals.grossCommission), new Date(2026, 9, 15));
   assert.equal(metrics.expectedThisMonth, 0);
   assert.equal(metrics.receivedThisMonth, 9000);
 });
@@ -390,7 +391,7 @@ test("RECEBIMENTO PARCIAL: 5.000 de 9.000 → parcial, saldo 4.000 com nova prev
   assert.match(open[0].note, /R\$\s?4\.000,00/);
 
   // dashboard: 5.000 recebidos + 4.000 previstos — os 9.000 não são contados de novo
-  const entries = flattenReceivableEntries([result.sale], (sale) => sale.totals.freeCommission);
+  const entries = flattenReceivableEntries([result.sale], (sale) => sale.totals.grossCommission);
   const metrics = calculateReceivableMetrics(entries, new Date(2026, 9, 15));
   assert.equal(metrics.receivedThisMonth, 5000);
   assert.equal(metrics.expectedThisMonth, 0);
@@ -499,4 +500,61 @@ test("preservação: reconciliar não toca vendas existentes sem previsão nem a
   const before = JSON.stringify(db.tables);
   await reconcileExpectedReceiptActivities(buildCtx(db));
   assert.equal(JSON.stringify(db.tables), before);
+});
+
+// ---------- base ÚNICA de recebimento (bruta): sem recebimento em dobro com nota/despesa ----------
+// Regressão da auditoria incremental 2026-10-02: a Previsão/Confirmar recebimento usava a comissão LIVRE e o
+// reparo do "Pago" a BRUTA — confirmar a previsão e depois marcar "Pago" lançava um 2º recebimento automático.
+
+test("venda com nota (livre ≠ bruta): a previsão é a BRUTA e confirmar tudo encerra a venda sem sobra para o reparo do 'Pago'", async () => {
+  const db = createFakeDb({ financial_sales: [gustavo({ invoice_issued: true })] }); // bruta 9.000, livre 7.650
+  const ctx = buildCtx(db);
+  await syncExpectedReceiptActivity(ctx, "sale-gustavo", actor);
+  assert.match(pendingActivities(db)[0].note, /R\$\s*9\.000,00/);
+
+  const result = await confirmExpectedReceipt(ctx, "sale-gustavo", {}, actor);
+  assert.equal(result.status, "received");
+  assert.equal(paymentsOf(db, "sale-gustavo").reduce((sum, payment) => sum + Number(payment.amount), 0), 9000);
+
+  const sale = await ctx.getSale("sale-gustavo");
+  const repair = computeReceiptRepair({ financialStatus: "received", grossCommission: sale.totals.grossCommission, payments: sale.payments });
+  assert.equal(repair.needsRepair, false);
+  assert.equal(repair.amount, 0);
+});
+
+test("recebimento parcial no valor da livre: sobra a diferença até a BRUTA e o 'Pago' completa só ela (nunca passa da bruta)", async () => {
+  const db = createFakeDb({ financial_sales: [gustavo({ invoice_issued: true })] });
+  const ctx = buildCtx(db);
+  await syncExpectedReceiptActivity(ctx, "sale-gustavo", actor);
+
+  const partial = await confirmExpectedReceipt(ctx, "sale-gustavo", { amount: 7650 }, actor);
+  assert.equal(partial.status, "partial");
+  assert.equal(partial.remaining, 1350);
+
+  const sale = await ctx.getSale("sale-gustavo");
+  const repair = computeReceiptRepair({ financialStatus: "received", grossCommission: sale.totals.grossCommission, payments: sale.payments });
+  assert.deepEqual({ needsRepair: repair.needsRepair, amount: repair.amount }, { needsRepair: true, amount: 1350 });
+  assert.equal(7650 + repair.amount, sale.totals.grossCommission);
+});
+
+test("invariante: qualquer sequência de confirmações + reparo do 'Pago' nunca soma mais que a comissão bruta", () => {
+  const rounds = 300;
+  for (let round = 0; round < rounds; round += 1) {
+    const gross = 1000 + Math.round(Math.random() * 90000) / 100 * 100;
+    let payments = [];
+    const steps = 1 + Math.floor(Math.random() * 4);
+    for (let step = 0; step < steps; step += 1) {
+      const forecast = computeForecastAmount({ grossCommission: gross, financialStatus: "pending", payments });
+      if (!(forecast > 0)) break;
+      const amount = Math.round(forecast * Math.random() * 100) / 100 || forecast;
+      const plan = planConfirmation({ forecastAmount: forecast, grossCommission: gross, receivedTotal: payments.reduce((sum, payment) => sum + payment.amount, 0), amount });
+      if (!plan.ok) continue;
+      payments = [...payments, { status: "received", amount: plan.paymentAmount, installmentNumber: payments.length + 1 }];
+    }
+    const repair = computeReceiptRepair({ financialStatus: "received", grossCommission: gross, payments });
+    if (repair.needsRepair) payments = [...payments, { status: "received", amount: repair.amount, installmentNumber: payments.length + 1 }];
+    const total = Math.round(payments.reduce((sum, payment) => sum + payment.amount, 0) * 100) / 100;
+    assert.ok(total <= Math.round(gross * 100) / 100, `soma ${total} > bruta ${gross}`);
+    assert.equal(computeReceiptRepair({ financialStatus: "received", grossCommission: gross, payments }).needsRepair, false, "reparo é idempotente");
+  }
 });

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Recebido em dobro no "Pago" e "1.500" lido como R$ 1,50 (Financeiro)
+- **Data:** 2026-10-02
+- **Sintoma:** (a) com nota fiscal/despesa na venda, confirmar a previsão de recebimento e depois mover o cliente para "Pago" podia lançar um 2º recebimento automático; (b) valor digitado "1.500" virava R$ 1,50 (campos da Saúde, do modal de recebimento e da Edição Financeira).
+- **Área:** Financeiro
+- **Impacto:** ainda nenhum dado errado em produção (auditoria dos dados: 7 vendas, 1 recebimento de R$ 9.000,00 = comissão bruta, nenhum recebido acima da bruta, nenhum valor de despesa/recebimento com cara de milhar mal lido). Risco real a partir da 1ª venda com nota/despesa recebida pelo fluxo da previsão; o lembrete da Agenda de 1 venda (bruta 30.000, despesa 10.000) mostrava R$ 20.000 e passa a mostrar R$ 30.000.
+- **Causa raiz:** (a) duas definições de "recebido": `deriveFinancialStatus` e o reparo do "Pago" usavam a comissão BRUTA; Previsão/Confirmar recebimento/"A receber" usavam a LIVRE (bruta − nota − despesas). Confirmar o saldo livre marcava "Recebido"; o "Pago" então lançava a diferença até a bruta — dinheiro que ninguém confirmou. A Saúde (regra oficial do dono) já trata recebido como bruta. (b) `normalizeMoneyValue` (servidor, tela e modal tinham cópias) entregava texto sem vírgula direto a `Number()`, que lê o ponto como decimal; no padrão brasileiro é milhar.
+- **Correção:** base única `lib/financial-receipt-basis.mjs` (alvo = bruta; recebido = pagamentos `received`; recebida ⇔ recebido ≥ bruta; saldo = max(0, bruta − recebido)) usada por status, reparo, previsão, confirmação, cura de status, "A receber" e Saúde; regra única de dinheiro brasileiro `lib/money-br.mjs` (1.500 = 1500; 1.500,50 = 1500,5; percentuais ficam de fora) substituindo as 3 cópias.
+- **Arquivos/commit:** `lib/financial-receipt-basis.mjs`, `lib/money-br.mjs`, `lib/financial.js`, `lib/financial-expected-receipt-core.mjs`, `-db.mjs`, `lib/financial-receipt-repair-core.mjs`, `lib/financial-health-core.mjs`, `components/AdminFinancialDashboard.jsx`, `components/ReceiptActionModals.jsx` — commit no `git log` ("Financeiro: base única de recebimento e valor brasileiro").
+- **Prevenção/teste:** `tests/money-br.test.mjs` e 3 testes novos em `tests/financial-expected-receipt.test.mjs` (venda com nota: previsão bruta e sem sobra para o "Pago"; parcial na livre completa só a diferença; invariante aleatória: confirmações + reparo nunca passam da bruta).
+- **Status:** Resolvido
+
 ### 2026-10-02 — Segundo proponente recebia pendência de comprovante de residência
 - **Data:** 2026-10-02
 - **Sintoma:** análise documental exigia comprovante de residência do SEGUNDO PROPONENTE ("Renda informal exige comprovante em nome do próprio cliente.").

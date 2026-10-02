@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Financeiro: base única de recebimento (bruta) e leitura correta de valor brasileiro
+- **Data:** 2026-10-02
+- **Área:** Financeiro
+- **Alteração:** (1) `lib/financial-receipt-basis.mjs`: única definição de comissão recebida (alvo = comissão BRUTA; recebido = pagamentos `received`; recebida ⇔ recebido ≥ bruta; saldo = max(0, bruta − recebido)), em centavos, usada por `deriveFinancialStatus`, reparo do "Pago", `computeForecastAmount` (Previsão/Agenda/Saúde), `planConfirmation`, `healStatusFromPayments` e `receivableTotal` (servidor e tela). A comissão livre segue só como base da distribuição. Parâmetro `freeCommission` → `grossCommission` nessas funções. (2) `lib/money-br.mjs`: "1.500" = 1500, "1.500,50" = 1500,5, "1500" = 1500, "1500,50" = 1500,5; ponto com 1–2 casas continua decimal (formato do banco/JSON); percentuais usam `parseBrazilianDecimal` (sem regra de milhar). Substitui as 3 cópias (`normalizeMoneyValue` do servidor e da tela, `parseMoney` do modal de recebimento).
+- **Motivo:** pedido do dono — as 2 pendências críticas da auditoria incremental (recebimento em dobro no "Pago"; "1.500" virando R$ 1,50).
+- **Arquivos afetados:** `lib/financial-receipt-basis.mjs` (novo), `lib/money-br.mjs` (novo), `lib/financial.js`, `lib/financial-expected-receipt-core.mjs`, `lib/financial-expected-receipt-db.mjs`, `lib/financial-receipt-repair-core.mjs`, `lib/financial-health-core.mjs`, `components/AdminFinancialDashboard.jsx`, `components/ReceiptActionModals.jsx`, `tests/money-br.test.mjs`, `tests/financial-expected-receipt.test.mjs`, `docs/BUSINESS_RULES.md` (FIN-1/FIN-5), `.claude/rules/financeiro.md`, `docs/FINANCEIRO_SAUDE.md`, `docs/INCIDENTES.md`.
+- **Risco/observação:** mudança visível e intencional: "Comissão a receber" e o valor previsto da Agenda passam a ser BRUTA − recebido (antes LIVRE − recebido) nas vendas com nota/despesa; hoje afeta o lembrete de 1 venda (R$ 20.000 → R$ 30.000). Sem migration e sem correção de dado histórico (auditoria: nenhum recebimento duplicado, nenhum valor mal lido). Fora do escopo, não alterado: recebimento aceita data futura, `reconcileExpectedReceiptActivities` por minuto, cálculo "livre" repetido na tela.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Resposta de cliente em Prospecção promove sozinho para "Em atendimento" (substitui a pendência manual de PRO-8)
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Prospecção / Meta Diária
