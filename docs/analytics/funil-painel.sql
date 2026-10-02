@@ -1,4 +1,8 @@
 -- FUNIL-PAINEL (canônica) — replica getPerformanceOverview/computeCumulativeFunnel (lib/performance-overview.js).
+-- Etapas 1–6: cumulativas (rk >= N, MET-3/MET-4). VENDA: MET-12 (regra oficial 2026-10-02) — cliente da
+-- coorte cuja PRIMEIRA entrada em qualquer status de venda (client_status_history) cai no período; sem
+-- histórico de venda e status atual de venda = data de criação (buildFirstSaleEntries/countFirstSalesInRange).
+-- Mudança de subetapa (Conformidade, Pagamento, Pago...) NÃO é venda nova.
 -- SOMENTE LEITURA: uma única instrução WITH ... SELECT. Troque só os dois timestamps em `params`
 -- (meia-noite de São Paulo; fim EXCLUSIVO). Ver docs/METRICAS_FUNIL.md.
 with params as (
@@ -27,6 +31,15 @@ coorte as (
   select a.client_id from daily_goal_attempts a, params p
     where a.client_id is not null and a.created_at >= p.ini and a.created_at < p.fim
 ),
+primeira_venda as (
+  select c.client_id,
+    coalesce(
+      (select min(h.changed_at) from client_status_history h join stage_of s on s.status = h.new_status
+        where h.client_id = c.client_id and s.rk = 7),
+      case when exists (select 1 from stage_of s where s.status = r.status and s.rk = 7) then r.created_at end
+    ) as em
+  from coorte c join simulation_registrations r on r.id = c.client_id
+),
 rk_cliente as (
   select c.client_id,
     greatest(
@@ -43,5 +56,6 @@ select count(*) as prospeccao_base,
   count(*) filter (where rk >= 4) as aprovacao,
   count(*) filter (where rk >= 5) as aprovado,
   count(*) filter (where rk >= 6) as reuniao,
-  count(*) filter (where rk >= 7) as venda
+  count(*) filter (where rk >= 7) as venda_etapa_alcancada,
+  (select count(*) from primeira_venda v, params p where v.em >= p.ini and v.em < p.fim) as venda
 from rk_cliente

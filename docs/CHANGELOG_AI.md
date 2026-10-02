@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — SQL canônico do funil: Venda = primeira entrada (MET-12)
+- **Data:** 2026-10-02
+- **Área:** Docs · Métricas
+- **Alteração:** a coluna `venda` de `docs/analytics/funil-painel.sql` passou de "rk ≥ 7" para "primeira entrada em status de venda no período", igual a `buildFirstSaleEntries`/`countFirstSalesInRange` do painel. Cliente criado já em venda e sem histórico de venda conta na criação. `venda_etapa_alcancada` fica só para conferência.
+- **Motivo:** o `analista-dados` encontrou 3 "vendas" em 28/09–01/10. Na verdade a primeira entrada delas foi em 20/08, 31/08 e 08/09, e em 01/10 só mudaram de subetapa (Conformidade/Pagamento/Pago). Pela regra oficial MET-12 o período tem 0 vendas.
+- **Arquivos afetados:** `docs/analytics/funil-painel.sql`, `docs/METRICAS_FUNIL.md`, `tests/funil-painel-sql.test.mjs` (o teste falha com o SQL antigo e confere as etapas do SQL contra `CLIENT_FUNNEL_STAGES`).
+- **Risco/observação:** Aprovado e Reunião continuam cumulativos, como no painel: as mesmas 3 vendas antigas entram na coorte do período por mudar de subetapa e contam em Aprovado/Reunião (4 e 3; de fato 1 aprovação e 0 reuniões novas). É o comportamento atual do painel, não corrigido aqui. Se movimentação dentro de Venda deve ou não colocar o cliente na coorte do período é decisão do dono.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Supabase MCP estável (`Supabase`, somente leitura) e banco realmente read-only para agentes analíticos
 - **Data:** 2026-10-02
 - **Área:** Infra · Permissões · Banco
