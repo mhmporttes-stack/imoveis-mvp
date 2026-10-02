@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Agent Scout: especialista em encontrar especialistas (somente pesquisa e recomendação)
+- **Data:** 2026-10-02
+- **Área:** Docs / Agentes (nenhuma tela, `lib/`, `app/`, `components/`, banco ou regra de negócio alterados)
+- **Alteração:** novo subagente `agent-scout` (tools: Read, Grep, Glob, WebFetch, WebSearch, Write, Edit; sem Bash/PowerShell/Agent/MCP; sem memória) que pesquisa fontes públicas (doc oficial, MCP Registry, npm, PyPI por nome, GitHub, VoltAgent, Build with Claude), audita candidatos sem executar e recomenda; skill `/scout`; base em `docs/scout/` (ESTUDO, FONTES, RUBRICA, TEMPLATE-RELATORIO, relatorios/) lida sob demanda; linha no MAPA da Central + regra "avaliar o Scout antes de criar/evoluir fortemente um especialista" (também em `despachante.md`); teste `tests/agent-scout.test.mjs`.
+- **Motivo:** pedido do dono (T-20261002-58): descobrir e avaliar agentes/skills/plugins/MCPs prontos antes de reinventar, sem instalar nada de terceiros.
+- **Arquivos afetados:** `.claude/agents/agent-scout.md`, `.claude/skills/scout/SKILL.md`, `.claude/despachante/MAPA-AGENTES.md`, `.claude/agents/despachante.md`, `docs/scout/**`, `tests/agent-scout.test.mjs`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** nada de terceiros instalado, executado ou copiado (fontes lidas só por WebFetch/WebSearch, resumo próprio). Custo fixo de contexto ≈ +130 tokens por sessão (descrições do agente e da skill); CLAUDE.md inalterado. Adoção de qualquer achado: só com aprovação do dono, via `crm-editor`. Testes pré-existentes que falham em `origin/main` (não causados aqui): descrições `designer-crm` (427>380) e `direcao-criativa` (408>180) em `context-budget`; `despachante.test` falha em checkout Windows com `autocrlf` (CRLF).
+- **Autor:** Claude (T-20261002-58)
+
 ### 2026-10-02 — Designer evoluído para Diretor de Design (agente + base modular + crítico independente)
 - **Data:** 2026-10-02
 - **Área:** Docs / Agentes (nenhuma tela, nenhum PDF e nenhuma regra de negócio foi alterada)
