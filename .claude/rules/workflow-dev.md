@@ -5,7 +5,7 @@ Esta rule é **global** (sem `paths:`), carregada em toda sessão. Mantenha-a cu
 ## Ambientes — dois, com armadilhas diferentes
 
 - **Máquina do dono (Windows, runtime Node isolado do Codex):** `npm` puro **não funciona**. Use `pnpm` (via `node <caminho>\pnpm\bin\pnpm.cjs ...` se o `pnpm` global não estiver no PATH) ou `node node_modules/next/dist/bin/next dev`. `.claude/launch.json` aponta para o node desse ambiente (caminho Windows) — não reverta para `npm run dev` sem testar.
-- **Claude Code na web (container Linux efêmero):** clone novo a cada sessão, sem `.env` de produção e sem login real no painel; `node_modules` pode não estar instalado (rode `pnpm install` só quando for de fato buildar/testar). `launch.json` não serve aqui.
+- **Claude Code na web (container Linux efêmero):** clone novo a cada sessão, sem `.env` de produção e sem login real no painel; `pnpm build`/`next dev` só baixam as fontes do Google com `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_USE_ENV_PROXY=1` (sem isso: erro `next/font/google` no build e 404 em todas as páginas do painel/vitrine no dev); `node_modules` pode não estar instalado (rode `pnpm install` só quando for de fato buildar/testar). `launch.json` não serve aqui.
 - Em qualquer um: builds (`next build`/Turbopack) podem levar 5–10 min — build "parado" aos 2–3 min não é falha.
 
 ## Permissões do Claude Code

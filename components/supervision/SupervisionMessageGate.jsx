@@ -17,7 +17,8 @@ const DONE_HOLD_MS = 750;
 // próprio: o balão espera elas terminarem em vez de empilhar por cima.
 function hasCompetingOverlay() {
   if (typeof document === "undefined") return false;
-  return Boolean(document.querySelector('[aria-modal="true"][aria-label="Reconhecimento"], [aria-modal="true"][aria-label="Mensagem do dia"]'));
+  // [data-alert-important]: alerta Importante da Central de Alertas aberto — a Supervisão espera ele ser confirmado.
+  return Boolean(document.querySelector('[aria-modal="true"][aria-label="Reconhecimento"], [aria-modal="true"][aria-label="Mensagem do dia"], [data-alert-important="true"]'));
 }
 
 // Área realmente visível (desconta o teclado virtual no celular) — o balão

@@ -65,3 +65,12 @@ Card motivacional/devocional mostrado aos corretores uma vez por dia — **não 
 
 **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — PENDENTE DE VALIDAÇÃO]** Durante "Alterar conta" o balão não aparece e a API recusa responder: o admin real não confirma/responde em nome do corretor (responder é falar pelo corretor com a supervisão, diferente das ações operacionais da regra de `auth-permissoes.md`). Hoje o ícone de entrada só existe na visão do dono (`TeamDailyPerformance`); a API já aceita gestor sobre a própria equipe.
 
+## Central de Alertas (Informativo / Importante) — 2026-10-02
+
+**[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-02]** Só dois tipos de alerta na tela. **Informativo**: flutua pela lateral por ~5 s e some, não bloqueia, fila sem sobrepor. **Importante**: bloqueia o CRM até "Entendi", registrando destinatário, alerta, quando apareceu e quando confirmou. Mesmo comportamento em celular, app de computador e navegador. **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]**
+- Tabelas `crm_alert_definitions` (o quê: mensagem, tipo, público, gatilho, período, repetição — base do futuro construtor) e `crm_alert_deliveries` (cada entrega; `UNIQUE(recipient_id, dedupe_key)`, então o mesmo evento nunca vira dois alertas). Migration `20261002340000`.
+- Servidor: `lib/crm-alerts.js` (núcleo puro `lib/crm-alerts-core.mjs`, testes `tests/crm-alerts-core.test.mjs`). Rotas `/api/admin/alerts` (pendentes do próprio usuário), `…/shown`, `…/[id]/ack`, `…/test` e `…/definitions` (admin geral).
+- Tela: `components/alerts/AlertCenterGate.jsx` no layout, fora de "Alterar conta", como a Supervisão. Realtime por usuário com consulta de segurança a cada 60 s. O Importante é um `<dialog>` nativo, fica acima de gavetas e espera Supervisão/Reconhecimento/Mensagem do dia; a Supervisão espera ele.
+- **Não crie outro sistema de alerta na tela:** novo alerta = linha em `crm_alert_definitions` + `createAlertDeliveries`. Supervisão, Celebração, Mensagem do dia e `crm_notifications` continuam como estão.
+- "Cliente aguardando resposta" (`reply_waiting`): o detector é o mesmo do aviso falado da Alexa (`lib/alexa-reply-alert.js`). A mesma espera vira Importante para o corretor, com chave conversa + início da espera. **Nasce desligado** e o dono liga em Automações › Alertas. Por ora herda o horário e o liga/desliga da Alexa.
+

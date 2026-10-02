@@ -44,6 +44,23 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Central de Alertas (Informativo / Importante)
+- **Data:** 2026-10-02
+- **Área:** Notificações · Painel · Banco · Alexa
+- **Alteração:** camada única de alertas na tela.
+  - Informativo: lateral, ~5 s, fila de 3 no computador e 2 no celular, não bloqueia.
+  - Importante: `<dialog>` modal que bloqueia até "Entendi", com apareceu e confirmou registrados.
+  - Tabelas `crm_alert_definitions`/`crm_alert_deliveries` (migration `20261002340000`, aplicada), `lib/crm-alerts.js` e núcleo `.mjs`, rotas `/api/admin/alerts/**`, `components/alerts/*`, aba Automações › Alertas (liga/desliga e "Testar em mim").
+  - O alerta "cliente aguardando resposta" é criado pelo mesmo detector da Alexa, sem duplicar, e **nasce desligado**.
+  - A Supervisão passa a esperar o Importante aberto.
+- **Motivo:** pedido do dono. Arquitetura analisada com o `designer-crm` (especificação visual) e com o `crm-editor` no papel de "Alexa" (mapa dos alertas atuais). Não existe agente "alexa" no projeto.
+- **Arquivos afetados:** os acima, mais `app/admin/layout.jsx`, `components/supervision/SupervisionMessageGate.jsx`, `lib/alexa-reply-alert.js`, `app/globals.css`, vitrine (`tela=alertas`), `tests/crm-alerts-core.test.mjs`; rule automacoes-notificacoes, DATABASE, workflow-dev.
+- **Risco/observação:**
+  - Validado na vitrine com Playwright (1366 px e 390 px): cada Informativo dura 5,0 s, a fila não sobrepõe nem repete, o Importante bloqueia e Esc não fecha, "Entendi" libera e o próximo aparece.
+  - Idempotência e registros testados no banco numa transação desfeita.
+  - Pendências: o detector de espera ainda depende da Alexa ligada e do horário dela; falta decidir o destino de espera sem corretor; o construtor completo de alertas ainda não existe; `whatsapp_reply_alerts`/`_settings` continuam sem migration versionada (apontado pela análise).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Prospecção só com WhatsApp conectado (PRO-11)
 - **Data:** 2026-10-02
 - **Área:** Prospecção / Meta Diária / WhatsApp

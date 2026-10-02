@@ -2,6 +2,7 @@ import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
+import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
@@ -36,6 +37,8 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
       {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}
+      {/* Central de Alertas (Informativo/Importante) — fora de "Alterar conta", como a Supervisão. */}
+      {auth.ok && !auth.accountSwitchMode ? <AlertCenterGate userId={auth.profile?.id} /> : null}
       {auth.ok ? (
         // Ranking no início da página, no fluxo normal: rola junto com o
         // conteúdo e nunca fica sobre os cards de clientes.

@@ -18,6 +18,8 @@ import * as chat from "../_fixtures/chat";
 import * as metaDiaria from "../_fixtures/meta-diaria";
 import * as desempenho from "../_fixtures/desempenho";
 import * as supervisao from "../_fixtures/supervisao";
+import * as alertas from "../_fixtures/alertas";
+import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -83,6 +85,18 @@ const TELAS = {
       <main className="min-h-screen bg-mist py-14">
         <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} />
         <SupervisionMessageGate userId="vitrine-corretor-ana" />
+      </main>
+    )
+  },
+  alertas: {
+    path: "/admin/meta-diaria",
+    titulo: "Central de Alertas (corretor)",
+    active: "daily-goal",
+    rotas: [...alertas.routes, ...metaDiaria.routes],
+    render: () => (
+      <main className="min-h-screen bg-mist py-14">
+        <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} />
+        <AlertCenterGate userId="vitrine-corretor-eduardo" />
       </main>
     )
   },
