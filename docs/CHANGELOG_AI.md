@@ -49,6 +49,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Área:** Frontend (só visual; fórmula, filtros, período e dados inalterados)
 - **Alteração:** barras horizontais viraram colunas verticais: uma por corretor elegível (admin/gestor/corretor ativos), inclusive R$ 0,00 (sem altura); escala de R$ 0 até o próximo milhar acima do maior resultado (3.825 → 4.000; 4.120 → 5.000); animação ao entrar na tela (colunas crescem e o valor em R$ acompanha, respeita prefers-reduced-motion); valor em R$ fora/acima, "$" branco dentro do topo da coluna (some em coluna baixa), nome na base com 2 linhas e reticências; rolagem horizontal interna quando há muitos corretores; eixo Y fixo.
 - **Arquivos afetados:** `components/FinancialHealthCharts.jsx`, `components/FinancialHealthTab.jsx` (apenas completa a lista com corretores sem resultado), `components/AdminFinancialDashboard.jsx` (passa os corretores elegíveis).
+
+### 2026-10-02 — Vendas do Desempenho contadas uma única vez, na primeira entrada em Venda
+- **Data:** 2026-10-02
+- **Área:** Métricas (Desempenho / Visão Geral / ranking); Financeiro não alterado
+- **Alteração:** a etapa "Venda" do funil do Desempenho contava todo cliente da coorte que já tivesse alcançado Venda; como a coorte inclui quem teve qualquer mudança de etapa no período, VENDA (setembro) → CONFORMIDADE/CARTÓRIO (outubro) fazia a mesma venda aparecer também em outubro. Agora `metrics.sale`, a etapa Venda do funil e `team[].sale` (desempate do ranking, Alexa, snapshots) = clientes cuja primeira entrada em status de venda cai no período. Lógica pura em `lib/sales-count-core.mjs`; `loadFullStatusHistoryForClients` passou a trazer `changed_at`.
+- **Arquivos afetados:** `lib/performance-overview.js`, `lib/sales-count-core.mjs`, `tests/sales-count-core.test.mjs`, `docs/METRICAS_FUNIL.md` (MET-12).
+- **Risco/observação:** as etapas anteriores do funil (Reunião etc.) continuam cumulativas e ainda incluem o cliente no mês em que ele teve movimentação pós-venda — não alterado a pedido. `lib/campaigns.js` (`row.funnel.sale`) e `lib/attendance-audit.js` têm fontes próprias, não alteradas.
 - **Autor:** Claude Code
 
 ### 2026-10-02 — Financeiro: nota fiscal com % por venda; repasses ≠ despesas operacionais (Saúde)

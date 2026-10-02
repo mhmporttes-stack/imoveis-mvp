@@ -88,7 +88,7 @@ Cliente **criado** em `[início, fim)`, acompanhado até **hoje**: % que alcanç
 
 ## MET-12 — Venda
 
-Venda = `rk = 7` (qualquer dos 10 status de venda). Valor/comissão = `financial_sales` (uma por cliente), **não** se confunde com a contagem do funil. Cancelamento financeiro: `financial_status = 'cancelado'`.
+**[REGRA OFICIAL — dono, 2026-10-02] No painel Desempenho/Visão Geral, a contagem de Venda de um período = clientes cuja PRIMEIRA entrada em qualquer status de venda (`client_status_history`) cai no período** — uma vez só; Conformidade/Cartório/Pago depois não somam venda nem movem o mês (`lib/sales-count-core.mjs`, teste `tests/sales-count-core.test.mjs`). Cliente criado já em status de venda sem histórico de venda conta na data de criação. As demais etapas do funil seguem a definição cumulativa abaixo. Venda = `rk = 7` (qualquer dos 10 status de venda) continua valendo para a definição de etapa alcançada. Valor/comissão = `financial_sales` (uma por cliente), **não** se confunde com a contagem do funil. Cancelamento financeiro: `financial_status = 'cancelado'`.
 
 ## MET-13 — Lacunas conhecidas nos dados (medidas em 2026-10-01 — reconferir antes de confiar)
 
