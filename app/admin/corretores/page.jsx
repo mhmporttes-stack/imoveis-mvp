@@ -74,7 +74,7 @@ export default async function AdminBrokersPage({ searchParams }) {
       ) : activeTab === "cca" ? (
         <CcaManager initialCca={ccaList} />
       ) : (
-        <AdminUsersManager initialUsers={usersWithLinks} counts={counts} canManageAllRoles={isGeneralAdmin(auth)} />
+        <AdminUsersManager initialUsers={usersWithLinks} counts={counts} canManageAllRoles={isGeneralAdmin(auth)} currentUserId={auth.profile?.id || ""} />
       )}
     </main>
   );

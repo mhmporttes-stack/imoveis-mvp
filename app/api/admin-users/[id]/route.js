@@ -4,10 +4,10 @@ import {
   ADMIN_ROLE,
   buildBrokerCaptacaoLink,
   buildBrokerSimulationLink,
-  countClientsOfProfile,
   deleteAdminProfile,
   formatBrokerSchemaError,
   getAdminProfileById,
+  previewBrokerRemoval,
   updateAdminProfile
 } from "@/lib/admin-profiles";
 
@@ -18,23 +18,26 @@ export const dynamic = "force-dynamic";
 // administradores ou outros gestores, e não pode promover ninguém a esses papéis.
 const MANAGER_ASSIGNABLE_ROLES = [ADMIN_ROLE.BROKER, ADMIN_ROLE.ASSOCIATE];
 
-// Pré-visualização da exclusão: quantos clientes precisam ser transferidos.
-// Mesma trava da exclusão (só administrador geral).
+// Quem pode excluir: administrador geral (qualquer corretor) ou gestor — este só da PRÓPRIA equipe
+// (manager_id = ele). Validado de novo no backend em lib/admin-profiles.js (previewBrokerRemoval/deleteAdminProfile).
+function removalActor(auth) {
+  return { id: auth.profile?.id || "", role: auth.profile?.role || "", isGeneralAdmin: isGeneralAdmin(auth) };
+}
+
+// Pré-visualização da exclusão: clientes por etapa, quem pode receber e a distribuição equilibrada.
 export async function GET(request, { params }) {
   const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  if (!isGeneralAdmin(auth)) {
-    return NextResponse.json({ error: "Apenas o administrador geral pode excluir usuários." }, { status: 403 });
-  }
 
   const { id } = await params;
   try {
-    const clientCount = await countClientsOfProfile(id);
-    return NextResponse.json({ clientCount });
+    const preview = await previewBrokerRemoval(id, { actor: removalActor(auth) });
+    return NextResponse.json(preview);
   } catch (error) {
     console.error(error);
+    if (error?.status === 403) return NextResponse.json({ error: error.message }, { status: 403 });
     return NextResponse.json({ error: "Não foi possível contar os clientes." }, { status: 400 });
   }
 }
@@ -67,31 +70,31 @@ export async function PATCH(request, { params }) {
   }
 }
 
-// Exclusão é mais sensível que editar/desativar (some com o cadastro), por
-// isso restrita ao administrador geral — gestores continuam podendo editar/
-// desativar corretores e associados (PATCH acima, inalterado), mas não
-// excluir. Se o usuário tem clientes, o corpo precisa trazer
-// `transferToUserId` (corretor que recebe os clientes).
+// Exclusão é mais sensível que editar/desativar (some com o cadastro). Administrador geral: qualquer
+// usuário. Gestor: só corretor/associado da própria equipe. Se o usuário tem clientes, o corpo traz
+// `strategy`: "transfer" (+ `transferToUserId`) ou "distribute" (equilibrado entre a equipe).
 export async function DELETE(request, { params }) {
   const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  if (!isGeneralAdmin(auth)) {
-    return NextResponse.json({ error: "Apenas o administrador geral pode excluir usuários." }, { status: 403 });
-  }
 
   const { id } = await params;
   try {
     const body = await request.json().catch(() => ({}));
-    const result = await deleteAdminProfile(id, { transferToUserId: String(body?.transferToUserId || ""), auth });
-    return NextResponse.json({ ok: true, transferred: result.transferred, tagName: result.tagName });
+    const result = await deleteAdminProfile(id, {
+      transferToUserId: String(body?.transferToUserId || ""),
+      strategy: body?.strategy === "distribute" ? "distribute" : "transfer",
+      auth,
+      actor: removalActor(auth)
+    });
+    return NextResponse.json({ ok: true, transferred: result.transferred, tagName: result.tagName, strategy: result.strategy, distribution: result.distribution });
   } catch (error) {
     console.error(error);
+    if (error?.status === 403) return NextResponse.json({ error: error.message }, { status: 403 });
     return NextResponse.json({ error: formatBrokerSchemaError(error) }, { status: 400 });
   }
 }
-
 function withLinks(user) {
   return {
     ...user,

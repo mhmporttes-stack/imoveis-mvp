@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Pencil, Plus, Save, Trash2, UserRoundCheck, UserRoundX, Upload, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GENDER_OPTIONS } from "@/lib/broker-gender";
+import { clientStatusLabel } from "@/lib/client-status";
 
 const EMPTY_FORM = {
   name: "",
@@ -27,7 +28,7 @@ const STATUS_LABELS = {
   inactive: "Inativo"
 };
 
-export default function AdminUsersManager({ initialUsers = [], counts = {}, canManageAllRoles = true }) {
+export default function AdminUsersManager({ initialUsers = [], counts = {}, canManageAllRoles = true, currentUserId = "" }) {
   const [users, setUsers] = useState(initialUsers);
   const [form, setForm] = useState(EMPTY_FORM);
   const [message, setMessage] = useState("");
@@ -130,12 +131,19 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
   async function deleteUser(user) {
     setError("");
     setMessage("");
-    setDeleteDialog({ user, clientCount: null, targetId: "", busy: false, error: "" });
+    setDeleteDialog({ user, clientCount: null, statusCounts: {}, recipients: [], transferTargets: [], distribution: null, mode: "", targetId: "", busy: false, error: "" });
     try {
       const response = await fetch(`/api/admin-users/${user.id}`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Não foi possível verificar os clientes do usuário.");
-      setDeleteDialog((current) => (current && current.user.id === user.id ? { ...current, clientCount: payload.clientCount || 0 } : current));
+      setDeleteDialog((current) => (current && current.user.id === user.id ? {
+        ...current,
+        clientCount: payload.clientCount || 0,
+        statusCounts: payload.statusCounts || {},
+        recipients: payload.recipients || [],
+        transferTargets: payload.transferTargets || [],
+        distribution: payload.distribution || null
+      } : current));
     } catch (countError) {
       setDeleteDialog((current) => (current && current.user.id === user.id ? { ...current, clientCount: 0, error: countError.message } : current));
     }
@@ -144,7 +152,11 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
   async function confirmDelete() {
     const dialog = deleteDialog;
     if (!dialog || dialog.busy) return;
-    if (dialog.clientCount > 0 && !dialog.targetId) {
+    if (dialog.clientCount > 0 && !dialog.mode) {
+      setDeleteDialog({ ...dialog, error: "Escolha o que fazer com os clientes deste corretor." });
+      return;
+    }
+    if (dialog.clientCount > 0 && dialog.mode === "transfer" && !dialog.targetId) {
       setDeleteDialog({ ...dialog, error: "Escolha o corretor que vai receber os clientes." });
       return;
     }
@@ -153,16 +165,18 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
       const response = await fetch(`/api/admin-users/${dialog.user.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transferToUserId: dialog.targetId })
+        body: JSON.stringify({ strategy: dialog.mode === "distribute" ? "distribute" : "transfer", transferToUserId: dialog.targetId })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Não foi possível excluir o usuário.");
 
       setUsers((current) => current.filter((item) => item.id !== dialog.user.id));
       const targetName = users.find((item) => item.id === dialog.targetId)?.name;
-      setMessage(payload.transferred
-        ? `Usuário excluído. ${payload.transferred} cliente(s) transferido(s) para ${targetName || "o corretor escolhido"} com a tag "${payload.tagName}".`
-        : "Usuário excluído.");
+      setMessage(!payload.transferred
+        ? "Usuário excluído."
+        : payload.strategy === "distribute"
+          ? `Usuário excluído. ${payload.transferred} cliente(s) distribuído(s) entre ${payload.distribution?.length || 0} corretor(es), com a tag "${payload.tagName}".`
+          : `Usuário excluído. ${payload.transferred} cliente(s) transferido(s) para ${targetName || "o corretor escolhido"} com a tag "${payload.tagName}".`);
       setDeleteDialog(null);
     } catch (deleteError) {
       setDeleteDialog((current) => (current ? { ...current, busy: false, error: deleteError.message || "Não foi possível excluir o usuário." } : current));
@@ -319,7 +333,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                         {isActive ? <UserRoundX className="h-5 w-5" aria-hidden="true" /> : <UserRoundCheck className="h-5 w-5" aria-hidden="true" />}
                         {isActive ? "Desativar" : "Ativar"}
                       </button>
-                      {!isActive && canManageAllRoles ? (
+                      {!isActive && (canManageAllRoles || (["broker", "associate"].includes(user.role) && user.managerId === currentUserId)) ? (
                         <button
                           type="button"
                           onClick={() => deleteUser(user)}
@@ -358,22 +372,66 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
               <p className="mt-5 text-sm font-bold text-muted">Verificando os clientes deste usuário…</p>
             ) : deleteDialog.clientCount > 0 ? (
               <div className="mt-4 grid gap-3">
-                <p className="text-sm font-bold text-navy">
-                  Este usuário tem <strong>{deleteDialog.clientCount}</strong> cliente(s). Para qual corretor eles devem ser transferidos?
-                </p>
-                <select
-                  value={deleteDialog.targetId}
-                  onChange={(event) => setDeleteDialog({ ...deleteDialog, targetId: event.target.value, error: "" })}
-                  disabled={deleteDialog.busy}
-                  className="h-12 w-full rounded-xl border border-line bg-white px-3 text-base font-bold text-navy outline-none focus:border-brand"
-                >
-                  <option value="">Selecione o corretor…</option>
-                  {brokers.filter((item) => item.id !== deleteDialog.user.id).map((item) => (
-                    <option key={item.id} value={item.id}>{item.name} — {roleLabel(item.role)}</option>
-                  ))}
-                </select>
+                <p className="text-sm font-black text-navy">O que deseja fazer com os clientes deste corretor?</p>
+                <p className="text-sm font-bold text-muted">Este usuário tem <strong className="text-navy">{deleteDialog.clientCount}</strong> cliente(s).</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteDialog({ ...deleteDialog, mode: "transfer", error: "" })}
+                    disabled={deleteDialog.busy}
+                    aria-pressed={deleteDialog.mode === "transfer"}
+                    className={`rounded-xl border px-3 py-3 text-sm font-black ${deleteDialog.mode === "transfer" ? "border-brand bg-blue-50 text-brand" : "border-line bg-white text-navy"}`}
+                  >
+                    Transferir para um corretor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteDialog({ ...deleteDialog, mode: "distribute", error: "" })}
+                    disabled={deleteDialog.busy || !deleteDialog.recipients.length}
+                    aria-pressed={deleteDialog.mode === "distribute"}
+                    className={`rounded-xl border px-3 py-3 text-sm font-black disabled:opacity-50 ${deleteDialog.mode === "distribute" ? "border-brand bg-blue-50 text-brand" : "border-line bg-white text-navy"}`}
+                  >
+                    Distribuir entre a equipe
+                  </button>
+                </div>
+                {!deleteDialog.recipients.length ? (
+                  <p className="text-xs font-bold text-muted">Distribuir entre a equipe indisponível: não há corretores ativos e elegíveis na equipe.</p>
+                ) : null}
+
+                {deleteDialog.mode === "transfer" ? (
+                  <select
+                    value={deleteDialog.targetId}
+                    onChange={(event) => setDeleteDialog({ ...deleteDialog, targetId: event.target.value, error: "" })}
+                    disabled={deleteDialog.busy}
+                    className="h-12 w-full rounded-xl border border-line bg-white px-3 text-base font-bold text-navy outline-none focus:border-brand"
+                  >
+                    <option value="">Selecione o corretor…</option>
+                    {deleteDialog.transferTargets.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name} — {roleLabel(item.role)}</option>
+                    ))}
+                  </select>
+                ) : null}
+
+                {deleteDialog.mode === "distribute" && deleteDialog.distribution ? (
+                  <div className="grid gap-2">
+                    <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-brand">
+                      {deleteDialog.clientCount} cliente(s) serão distribuídos entre {deleteDialog.recipients.length} corretor(es).
+                    </p>
+                    <ul className="grid gap-2">
+                      {deleteDialog.distribution.map((broker) => (
+                        <li key={broker.id} className="rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy">
+                          <span className="font-black">{broker.name}</span> — {broker.total} cliente(s)
+                          <span className="mt-1 block text-xs font-bold text-muted">
+                            {Object.entries(broker.byStatus).map(([status, amount]) => `${amount} ${clientStatusLabel(status)}`).join(" · ") || "nenhum"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
                 <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-brand">
-                  Os clientes transferidos recebem a tag <strong>“{deleteDialog.user.name}”</strong> (o corretor anterior) e a transferência fica registrada no histórico de cada cliente. Nenhum cliente é apagado.
+                  Os clientes recebem a tag <strong>“{deleteDialog.user.name}”</strong> (o corretor anterior) e a mudança fica registrada no histórico de cada cliente. A etapa de cada cliente não muda e nenhum cliente é apagado.
                 </p>
               </div>
             ) : (
@@ -387,7 +445,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
               <button type="button" onClick={() => setDeleteDialog(null)} disabled={deleteDialog.busy} className="premium-button-secondary justify-center">Cancelar</button>
               <button type="button" onClick={confirmDelete} disabled={deleteDialog.busy || deleteDialog.clientCount === null} className="premium-button-primary justify-center !bg-red-700 hover:!bg-red-800 disabled:opacity-60">
                 <Trash2 className="h-5 w-5" aria-hidden="true" />
-                {deleteDialog.busy ? "Excluindo..." : deleteDialog.clientCount > 0 ? "Transferir e excluir" : "Excluir"}
+                {deleteDialog.busy ? "Excluindo..." : deleteDialog.clientCount > 0 ? (deleteDialog.mode === "distribute" ? "Confirmar: distribuir e excluir" : "Transferir e excluir") : "Excluir"}
               </button>
             </div>
           </div>
