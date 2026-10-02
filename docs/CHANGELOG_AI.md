@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-01 — Agente `analista-dados` (BI somente leitura) + definição canônica das métricas do funil
+- **Data:** 2026-10-01
+- **Área:** Agentes/Docs (nenhum código do CRM, banco, `settings.json`, hook ou permissão alterado)
+- **Alteração:** novo agente `.claude/agents/analista-dados.md` (só `SELECT` via `execute_sql`/`list_tables`; `memory: project` só para metodologia e baselines agregados) e skills `/analisar-funil`, `/descobrir-padroes`, `/comparar-periodos` (`context: fork`, `agent: analista-dados`). Nova fonte única das métricas: `docs/METRICAS_FUNIL.md` + SQL testado em `docs/analytics/` (`funil-painel.sql` replica o funil do painel Desempenho; `consultas-base.md`).
+- **Motivo:** pedido do dono (1ª etapa da expansão da equipe de agentes) — padrões/BI do CRM sem cada agente calcular conversão de um jeito. Definições lidas no código (`lib/client-status.js`, `lib/performance-overview.js`, `lib/scoring-rules.js`) e conferidas no banco, não inventadas.
+- **Arquivos afetados:** `.claude/agents/analista-dados.md`, `.claude/skills/{analisar-funil,descobrir-padroes,comparar-periodos}/SKILL.md`, `docs/METRICAS_FUNIL.md`, `docs/analytics/*`, `CLAUDE.md`, `AGENTS.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** (1) A restrição "somente leitura" é **de prompt + ferramentas limitadas**; o `settings.json` ainda libera `execute_sql`/`apply_migration` sem hook de somente-leitura por agente — endurecer (hook/papel Postgres de leitura) está previsto na fundação da arquitetura e **não** foi feito aqui por instrução do dono. (2) `memory: project` habilita Write/Edit ao agente; o prompt o restringe a `.claude/agent-memory/analista-dados/`. (3) Lacunas medidas (MET-13): histórico de status confiável só nas etapas 1–7 (1.053 das 1.089 divergências status×histórico são status de prospecção); ~96 % dos eventos de histórico são de 2026-09-07 em diante; `client_status_history.source` nulo em ~82 %. (4) Divergência registrada, sem correção: `/auditar-trafego` (`stage_of`) usa `financial_sales` como piso rk 7 e o painel não — zero diferença hoje (vendas = rk 7). (5) O registro de agentes não recarrega a quente: o `analista-dados` só aparece como `subagent_type` depois de reiniciar a sessão; as skills carregaram na hora.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Auditoria de performance (2ª rodada): fotos da listagem, zod fora do bundle de exibição, queries em paralelo
 - **Data:** 2026-10-01
 - **Área:** Banco/Infra/Docs
