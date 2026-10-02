@@ -14,7 +14,7 @@ Implementado em 2026-10-02. O plano original (investigação anterior) não esta
    `https://mcp.supabase.com/mcp?project_ref=tshhasbbchjcvhoyizoo&read_only=true&features=database,debugging,development,docs`.
    - `read_only=true`: o próprio servidor executa as consultas com um usuário Postgres somente leitura.
    - Ficam fora as ferramentas de escrita, de Edge Functions, de branches e de conta.
-   - Autenticação por OAuth (registro dinâmico): uma vez por máquina, em `/mcp` → `Supabase` → *Authenticate*. Sem token no repositório.
+   - **Autenticação por token pessoal (PAT) na variável `SUPABASE_ACCESS_TOKEN`** (`Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}`, expandida pelo Claude Code; o token nunca entra no repositório). Não usamos OAuth: na nuvem (claude.ai/code) a sessão não é interativa e não consegue fazer login (validado em 2026-10-02). Mesmo token nos dois lugares: variável de ambiente do usuário no Windows e variável do ambiente da nuvem.
    - `.claude/settings.json` traz `enabledMcpjsonServers: ["Supabase"]`, que só vale em pasta confiável. No desktop, aprove o servidor na primeira vez que o Claude Code perguntar.
 2. **Hook `.claude/hooks/guard-destructive-sql.mjs`**, que vale para qualquer servidor Supabase. O matcher é `mcp__.*__execute_sql|mcp__.*__apply_migration`, então cobre o estável e o conector com UUID.
    - **Agentes analíticos** (`analista-dados`, `auditor-crm`, `gestor-trafego`, `gestor-financeiro`, `marketing-posicionamento`, identificados pelo `agent_type` do hook):
@@ -42,7 +42,11 @@ Vai pelo conector da conta (desktop: `mcp__<uuid>__…`; nuvem: `mcp__Supabase__
 - O Claude Code deduplica conector e servidor pela URL, não pelo nome (docs oficiais de MCP, "scope hierarchy").
 - A URL do projeto tem `project_ref`/`read_only`, então os dois convivem.
 - **Desktop:** o conector tem nome UUID e o do projeto se chama `Supabase`, sem conflito de nome. Os agentes usam o `Supabase` (leitura) e a sessão principal usa o conector para escrever.
-- **Nuvem (claude.ai/code):** o conector da conta já se chama `Supabase`. Ver o resultado da validação em sessão nova no `docs/CHANGELOG_AI.md` (2026-10-02).
+- **Nuvem (claude.ai/code), validado numa sessão nova em 2026-10-02:**
+  - com o `.mcp.json`, o nome `Supabase` passa a ser do servidor do projeto e o conector da conta aparece com UUID (`mcp__ec08adab…__`), igual ao desktop;
+  - sem o token, o `Supabase` do projeto fica "precisa de autenticação" e os agentes ficam sem banco;
+  - com `SUPABASE_ACCESS_TOKEN` no ambiente, o comportamento é igual nos dois ambientes: agentes → `Supabase` (leitura), escrita → conector (UUID) com confirmação.
+  - O hook cobre os dois (matcher `mcp__.*__execute_sql`).
 
 ## Validação (2026-10-02)
 

@@ -57,7 +57,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:**
   - Validado com o `analista-dados` real (`/analisar-funil`): `transaction_read_only = on`.
   - Escrita em transação read-only é recusada pelo banco (25006).
-  - No desktop é preciso autenticar o servidor `Supabase` uma vez em `/mcp`.
+  - Validação numa sessão nova na nuvem: o servidor do projeto toma o nome `Supabase` e o conector da conta passa a aparecer com UUID. Sem login possível na nuvem, a autenticação passou a ser por token pessoal (`SUPABASE_ACCESS_TOKEN`, configurado pelo dono no Windows e no ambiente da nuvem). Até isso ser feito, os agentes ficam sem banco nas sessões novas; a escrita continua pelo conector da conta.
 - **Autor:** Claude Code
 
 ### 2026-10-02 — Chat: conversa passa a ser (telefone + sessão do WhatsApp) — fim do cruzamento entre corretores
