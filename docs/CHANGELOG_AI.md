@@ -1739,3 +1739,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ### 2026-10-02 — Poller da ponte encerrava sozinho com a fila vazia (T-20261002-39)
 - Causa: o único timer de espera entre consultas usava `unref()`, então o Node saía em silêncio após a primeira volta ociosa. Correção: removido o `unref()` em `scripts/central-bridge/poller.mjs` (teste em `tests/central-bridge.test.mjs`). Rotas `/api/central/*` verificadas em produção (201/200/GET, ~1 s, formato conforme o OpenAPI); segurança e arquitetura intactas.
+
+### 2026-10-02 — Manual do CRM, etapa 4: conteúdo inicial (T-20261002-55)
+- `lib/manual-seed-content.mjs` (dados puros): 8 tópicos, 47 subtópicos (audiências Todos/Corretor/Gestora) e 4 novidades em rascunho. O seed (`loadManualSeeds`) insere tudo como `pending`/`draft`, é idempotente e só preenche corpo vazio (nunca sobrescreve texto editado). `manual-seed-structure.mjs` passou a ser derivado do conteúdo. Testes em `tests/manual-seed-content.test.mjs` e `tests/manual-service.test.mjs`. Valores confirmados em código/banco: carteira ativa 50 e cota diária 10.
