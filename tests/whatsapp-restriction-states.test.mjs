@@ -112,8 +112,11 @@ test("rotas novas: guard antes de tocar em dado; validar grava o admin REAL; rot
   assert.doesNotMatch(own, /validateRestriction|body\.(userId|targetUserId)/);
 });
 
-test("PRO-11 intacto: elegibilidade/disparo não conhecem restrição; admin geral segue isento", () => {
-  for (const file of ["lib/prospecting-eligibility-core.mjs", "lib/prospecting-eligibility.js", "lib/prospecting-extra-dispatch.js", "lib/whatsapp-individual-routing.mjs"]) {
+// Atualizado em 2026-10-02 (REGRA OFICIAL — dono): restrição VALIDADA libera Meta Diária manual e, com
+// 100%, a Prospecção manual (lib/prospecting-eligibility*); o DISPARO (fila extra e roteamento) segue sem
+// conhecer restrição e exigindo sessão conectada. Cobertura do novo gate: tests/daily-goal-window-credit.test.mjs.
+test("PRO-11 intacto no disparo: fila extra/roteamento não conhecem restrição; admin geral segue isento", () => {
+  for (const file of ["lib/prospecting-extra-dispatch.js", "lib/whatsapp-individual-routing.mjs"]) {
     assert.doesNotMatch(src(file), /restrict/i, file);
   }
   assert.equal(decideProspectingGate({ kind: "participate", role: "admin", isGeneralAdmin: true, sessionStatus: null }).allowed, true);

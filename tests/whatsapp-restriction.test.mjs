@@ -76,8 +76,10 @@ test("REGRA CRÍTICA: restringido sem conexão continua BLOQUEADO na Prospecçã
   }
   assert.equal(decideProspectingGate({ kind: "participate", role: "broker", sessionStatus: "connected" }).allowed, true);
   assert.equal(decideProspectingGate({ kind: "participate", role: "admin", isGeneralAdmin: true, sessionStatus: null }).allowed, true);
-  // Elegibilidade e o gate de servidor não conhecem a restrição.
-  for (const file of ["lib/prospecting-eligibility-core.mjs", "lib/prospecting-eligibility.js", "lib/prospecting-extra-dispatch.js", "lib/whatsapp-individual-routing.mjs"]) {
+  // Sem restrição VALIDADA o gate segue bloqueado (acima); informada nunca libera (regra do dono, 2026-10-02:
+  // só a VALIDADA libera Meta manual — ver tests/daily-goal-window-credit.test.mjs). O disparo não conhece restrição.
+  assert.equal(decideProspectingGate({ kind: "daily_goal", role: "broker", sessionStatus: "disconnected", restriction: "informed" }).allowed, false);
+  for (const file of ["lib/prospecting-extra-dispatch.js", "lib/whatsapp-individual-routing.mjs"]) {
     assert.doesNotMatch(src(file), /restrict/i, file);
   }
   // A automação só dispara com sessão connected; restrição não aparece no despacho.

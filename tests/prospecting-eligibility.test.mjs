@@ -59,13 +59,13 @@ test("D — barreiras de SERVIDOR (não só visual) em cada caminho que executa/
   const goal = source("lib/daily-goal.js");
   // Cota da Meta Diária: checa ANTES de criar a linha do dia (reconectar no mesmo dia gera normalmente).
   const generation = between(goal, "async function ensureDailyGoalGenerated(auth, today) {", "const { data: won");
-  assert.match(generation, /if \(!\(await isUserEligibleToProspect\(brokerId\)\)\) return;/);
-  assert.match(between(goal, "export async function registerDailyGoalAttempt(", "const round = await"), /await assertProspectingParticipation\(auth\);/);
+  assert.match(generation, /if \(!\(await isUserEligibleForDailyGoal\(brokerId\)\)\) return;/);
+  assert.match(between(goal, "export async function registerDailyGoalAttempt(", "const round = await"), /await assertDailyGoalParticipation\(auth\);/);
 
   const extra = source("lib/prospecting-extra-dispatch.js");
   const enqueue = between(extra, "export async function enqueueExtraProspectingDispatch(", "const [{ data: contact");
-  assert.ok(enqueue.indexOf("assertProspectingParticipation(auth)") > 0 && enqueue.indexOf("assertProspectingParticipation(auth)") < enqueue.indexOf("loadAvailability(brokerId)"), "barra antes de reservar/enfileirar");
-  assert.match(between(extra, "export async function getExtraDispatchStatus(", "}"), /assertProspectingAccess\(auth\)/);
+  assert.ok(enqueue.indexOf("assertProspectingParticipation(auth, { strict: true })") > 0 && enqueue.indexOf("assertProspectingParticipation(auth, { strict: true })") < enqueue.indexOf("loadAvailability(brokerId)"), "barra antes de reservar/enfileirar");
+  assert.match(between(extra, "export async function getExtraDispatchStatus(", "return loadAvailability"), /assertProspectingAccess\(auth, \{ strict: true \}\)/);
 
   const prospecting = source("lib/prospecting.js");
   assert.match(between(prospecting, "export async function listProspectingContacts(", "const now"), /assertProspectingAccess\(auth\)/);
