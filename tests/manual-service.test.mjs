@@ -271,15 +271,24 @@ test("guard em create/update/publish/alerta (casos sintéticos)", async () => {
   await assert.rejects(service.setStatus(OWNER, "section", SBAD, "published"), /Conteúdo não permitido/);
 });
 
-test("seeds: carga idempotente, tudo 'pending', nada visível", async () => {
+test("seeds: carga idempotente, tudo 'pending', nada visível, não sobrescreve texto editado", async () => {
   const { service, db } = world();
   const first = await service.seedStructure(OWNER);
-  assert.ok(first.topicsCreated >= 8 && first.sectionsCreated > 20);
+  assert.ok(first.topicsCreated >= 8 && first.sectionsCreated > 40 && first.newsCreated === 4);
   const second = await loadManualSeeds(db);
-  assert.deepEqual(second, { topicsCreated: 0, sectionsCreated: 0 });
+  assert.deepEqual(second, { topicsCreated: 0, sectionsCreated: 0, sectionsFilled: 0, newsCreated: 0 });
   assert.ok(db.tables.manual_topics.every((t) => t.status === "pending"));
-  assert.ok(db.tables.manual_sections.every((s) => s.status === "pending" && s.body === ""));
+  assert.ok(db.tables.manual_sections.every((s) => s.status === "pending" && s.body.length > 0));
+  assert.ok(db.tables.manual_news.every((n) => n.status === "draft" && n.important === false && n.requires_ack === false));
   assert.deepEqual((await service.getVisibleManual(OWNER)).topics, []);
+  // texto editado pelo dono é preservado; corpo vazio é preenchido
+  const [a, b] = db.tables.manual_sections;
+  a.body = "Texto editado pelo dono";
+  b.body = "";
+  const third = await loadManualSeeds(db);
+  assert.equal(third.sectionsFilled, 1);
+  assert.equal(a.body, "Texto editado pelo dono");
+  assert.ok(b.body.length > 40);
   await expectStatus(service.seedStructure(OTHER_ADMIN), 403);
 });
 
