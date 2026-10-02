@@ -5,6 +5,8 @@ paths:
   - "app/admin/financeiro/**"
   - "app/api/financeiro/**"
   - "lib/whatsapp-broadcast-finance.js"
+  - "components/FinancialHealth*"
+  - "docs/FINANCEIRO_SAUDE.md"
 ---
 
 # Financeiro
@@ -56,3 +58,6 @@ Cálculo inteiramente em centavos para controlar arredondamento — não reescre
 - **Confirmar recebimento** (`POST /api/financeiro/[id]/receipt`, `requireGeneralAdminApi`): idempotente e à prova de corrida — claim condicional da atividade + `financial_payments.confirmed_activity_id` único. Valor ≤ saldo previsto; parcial aceita nova previsão para o saldo.
 - **Só o dono** [REGRA OFICIAL — dono, 2026-10-02]: lançar, alterar e **ver** a previsão é exclusivo do administrador principal (`isOwnerAdminEmail`, `isExpectedReceiptOwner` em `lib/financial.js`). Não-dono (inclusive outro admin geral, gestor, corretor, associado) não recebe `expectedReceiptDate` (omitido em `listFinancialSales`/`getFinancialSale`, logo na API e na tela), não vê o campo/linhas/atividade e não grava (salvar a venda preserva a previsão); `POST /api/financeiro/[id]/receipt` responde 403. A atividade é sempre do dono.
 - **Divergência conhecida, não alterada**: o saldo usa a comissão LIVRE, mas `deriveFinancialStatus` compara com a BRUTA — com nota fiscal (15%) as bases diferem. Não mude sem decisão do dono.
+## Aba "Saúde" (2026-10-02)
+
+Só admin geral. Despesas **da empresa** vivem em `financial_operating_expenses` (≠ `financial_expenses`, que são repasses/despesas de UMA venda); caixa/reserva em `financial_health_settings`. Cálculo puro em `lib/financial-health-core.mjs` — **toda fórmula (realizado × previsto × estimado, caixa, reserva, ponto de equilíbrio, resultado por corretor) está em `docs/FINANCEIRO_SAUDE.md`**; não duplique nem reinvente. Nunca assumir saldo de caixa; nunca materializar recorrência futura; nunca contar previsão como recebido. **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]** pedido do dono em 2026-10-02 (implementado como descrito no doc).

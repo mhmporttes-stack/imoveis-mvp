@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   DollarSign,
+  HeartPulse,
   ExternalLink,
   Filter,
   Plus,
@@ -20,6 +21,7 @@ import {
 import { calculateCommissionDistribution } from "@/lib/financial-calculations";
 import { calculateReceivableMetrics, computeForecastAmount, flattenReceivableEntries } from "@/lib/financial-expected-receipt-core.mjs";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
+import FinancialHealthTab from "@/components/FinancialHealthTab";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -88,7 +90,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false, canManageForecast = false }) {
+export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false, canManageForecast = false, health = null }) {
   const isAssociate = currentUser?.role === "associate";
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -363,7 +365,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
 
   return (
     <section className="container-page space-y-6">
-      <div className="premium-card p-5 md:p-7">
+      {activeTab !== "saude" && <div className="premium-card p-5 md:p-7">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Controle financeiro</p>
@@ -401,13 +403,14 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
             </>
           )}
         </div>
-      </div>
+      </div>}
 
       {!isAssociate && <div className="flex flex-wrap gap-2">
         {[
           { key: "dashboard", label: "DASHBOARD", icon: BarChart3 },
           ...(canEdit ? [{ key: "vendas", label: "VENDAS", icon: ReceiptText }] : []),
-          { key: "recebimentos", label: "RECEBIMENTOS", icon: WalletCards }
+          { key: "recebimentos", label: "RECEBIMENTOS", icon: WalletCards },
+          ...(health ? [{ key: "saude", label: "SAÚDE", icon: HeartPulse }] : [])
         ].map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.key;
@@ -461,6 +464,12 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
             managers={managers}
           />
         </div>
+      )}
+
+      {health && activeTab === "saude" && (
+        health.error ? <Feedback tone="error">{health.error}</Feedback> : (
+          <FinancialHealthTab sales={sales} initialExpenses={health.expenses} initialSettings={health.settings} today={health.today} />
+        )
       )}
 
       {activeTab === "recebimentos" && (

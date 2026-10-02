@@ -3,6 +3,9 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requireFinancialAccessPage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales } from "@/lib/financial";
+import { getHealthSettings, listOperatingExpenses } from "@/lib/financial-health";
+import { DEFAULT_HEALTH_SETTINGS } from "@/lib/financial-health-core.mjs";
+import { getTodayInSaoPaulo } from "@/lib/daily-report";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +27,23 @@ export default async function AdminFinancialPage() {
     return <FinancialError error={formatFinancialError(error)} />;
   }
 
+  // Aba "Saúde": só admin geral (dados da empresa inteira). Falha aqui (ex.: migration
+  // ainda não aplicada) nunca derruba o resto do Financeiro — a aba mostra o aviso.
+  let health = null;
+  if (isGeneralAdminAuth(auth)) {
+    try {
+      const [expenses, settings] = await Promise.all([listOperatingExpenses(), getHealthSettings()]);
+      health = { expenses, settings, today: getTodayInSaoPaulo(), error: "" };
+    } catch (error) {
+      console.error("Nao foi possivel carregar a aba Saude do financeiro.", error);
+      health = { expenses: [], settings: { ...DEFAULT_HEALTH_SETTINGS }, today: getTodayInSaoPaulo(), error: "Não foi possível carregar a aba Saúde. Verifique se a migration 20261002120000_financial_health.sql foi aplicada." };
+    }
+  }
+
   return (
     <main className="bg-mist py-14">
       <AdminSectionNav active="financial" />
-      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} canManageForecast={isExpectedReceiptOwner(auth)} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
+      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} health={health} canManageForecast={isExpectedReceiptOwner(auth)} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
     </main>
   );
 }
