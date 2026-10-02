@@ -1699,3 +1699,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 ### 2026-10-02 — Ponte da Central: chaves conferidas por hash SHA-256 no Supabase (T-20261002-36, conclui a T-33)
 - Decisão do dono: o relé não guarda chave nenhuma (nem na Vercel nem no Supabase); confere o Bearer calculando SHA-256 e comparando (timing-safe) com `central_credentials.secret_sha256`. Sem linha ativa do papel = 503; chave errada = 401; papel cruzado = 403. Removida a dependência de `CENTRAL_*_SECRET` no relé (`lib/central/core.mjs`, `store.getCredentials`).
 - Migration `20261003210000_central_credentials.sql` (aditiva, RLS, só service_role). Chaves do executor/aprovação nunca saem do PC. Testes em `tests/central-bridge.test.mjs`. Claude executor segue DESATIVADO. Detalhe e rotação: `docs/CENTRAL_PONTE.md`.
+
+### 2026-10-02 — Poller da ponte encerrava sozinho com a fila vazia (T-20261002-39)
+- Causa: o único timer de espera entre consultas usava `unref()`, então o Node saía em silêncio após a primeira volta ociosa. Correção: removido o `unref()` em `scripts/central-bridge/poller.mjs` (teste em `tests/central-bridge.test.mjs`). Rotas `/api/central/*` verificadas em produção (201/200/GET, ~1 s, formato conforme o OpenAPI); segurança e arquitetura intactas.

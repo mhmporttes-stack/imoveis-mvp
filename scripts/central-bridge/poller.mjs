@@ -72,7 +72,7 @@ export async function main() {
     if (result !== "idle" && result !== "error") continue; // pode haver mais tarefas na fila
     await new Promise((resolve) => {
       wake = resolve;
-      setTimeout(resolve, config.pollSeconds * 1000).unref?.();
+      setTimeout(resolve, config.pollSeconds * 1000); // sem unref: e este timer que mantem o processo vivo
     });
     wake = null;
   }

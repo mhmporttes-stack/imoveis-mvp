@@ -375,3 +375,11 @@ test("hash nunca aparece em respostas nem logs; migration nao grava chave nem ha
     assert.ok(!/CENTRAL_[A-Z_]*SECRET|process\.env/.test(readFileSync(f, "utf8")), `env de segredo em ${f}`);
   }
 });
+
+test("poller: o timer de espera entre consultas nao e unref (senao o processo encerra com a fila vazia)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../scripts/central-bridge/poller.mjs", import.meta.url), "utf8");
+  const sleep = src.split("\n").find((l) => l.includes("setTimeout(resolve, config.pollSeconds"));
+  assert.ok(sleep, "linha de espera nao encontrada");
+  assert.ok(!/\.unref/.test(sleep));
+});
