@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Manual do CRM, etapa 2: backend (T-20261002-47)
+- **Data:** 2026-10-03
+- **Área:** Manual do CRM / Alertas / Permissões
+- **Alteração:** Novo módulo de backend do Manual: migration `20261003230000_manual_crm.sql` (5 tabelas, RLS ligado, só service role; NÃO aplicada em produção), `lib/manual-core.mjs` (regras puras), `lib/manual-guard.mjs` (guarda de conteúdo, só servidor), `lib/manual-service.mjs` + `lib/manual.js` (dados), `lib/manual-seed-structure.mjs` (estrutura inicial, carga idempotente tudo `pending`), rotas `app/api/admin/manual/**`. Publicar novidade (só o dono) cria alertas pela Central de Alertas com audiência explícita (all/role) e dedupe `manual_news:<id>:v<n>`; "Entendi" no alerta grava o ledger de leitura (`recordManualNewsRead` em `lib/crm-alerts.js`).
+- **Motivo:** Pedido do dono (módulo Manual do CRM, etapas 1-5); canal de dúvidas/sugestões fica fora até decisão do dono.
+- **Arquivos afetados:** os acima + `tests/manual-*.test.mjs`, `tests/_helpers/manual-fake-db.mjs`.
+- **Risco/observação:** Branch `feat/manual-crm`, sem deploy. Conteúdo só é visível quando `published` e dentro da audiência do perfil efetivo; edição de seção publicada vira versão proposta (aprovação do dono).
+- **Autor:** Claude (crm-editor, T-20261002-47)
 ### 2026-10-02 — Meta Diária: visão da gestora (só a equipe dela) + alerta de conexão do WhatsApp (T-35)
 - **Data:** 2026-10-02
 - **Área:** Meta Diária / WhatsApp / Alertas / Permissões
