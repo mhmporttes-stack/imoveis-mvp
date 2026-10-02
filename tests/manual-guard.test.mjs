@@ -71,3 +71,34 @@ test("rotas do Manual chamam guard e nunca expõem audiences", () => {
     assert.doesNotMatch(src, /audiences/, file);
   }
 });
+
+import { MANUAL_SEED_CONTENT, MANUAL_SEED_NEWS } from "../lib/manual-seed-content.mjs";
+
+test("guard reforçado: paráfrases genéricas de 'quem vê' são barradas (frases separadas, outros cargos e verbos)", () => {
+  const blocked = [
+    "A coordenadora acompanha as conversas dos corretores.",
+    "O gerente tem acesso ao histórico das mensagens.",
+    "O líder do time consegue ver o chat de cada um.",
+    "A diretoria audita o atendimento. Tudo fica registrado.",
+    "O administrador abre o sistema. Depois olha a conversa do cliente.",
+    "As conversas ficam visíveis ao gestor.",
+    "Clientes que foram arquivados mantêm a conversa.",
+    "Ao arquivar o cliente, a conversa permanece disponível.",
+    "O histórico do atendimento fica guardado.",
+    "O dono acessa tudo do sistema."
+  ];
+  for (const text of blocked) assert.equal(isManualContentAllowed(text), false, text);
+});
+
+test("guard reforçado: sem falso positivo por trecho dentro de palavra e textos legítimos", () => {
+  const allowed = [
+    "O imóvel aparece na lista. O sistema envia o aviso e devolve o contato à fila.",
+    "O corretor cadastra o imóvel e o CRM envia a mensagem pronta.",
+    "A equipe comemora quando a meta chega a 100%.",
+    "Você ve o progresso do dia na tela da Meta Diária.",
+    "Arquivar tira o cliente do seu dia a dia sem apagá-lo."
+  ];
+  for (const text of allowed) assert.equal(isManualContentAllowed(text), true, text);
+  for (const item of MANUAL_SEED_CONTENT) assert.equal(isManualContentAllowed(item.title, item.body), true, item.section);
+  for (const n of MANUAL_SEED_NEWS) assert.equal(isManualContentAllowed(n.title, n.body), true, n.slug);
+});

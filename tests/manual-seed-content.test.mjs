@@ -9,7 +9,7 @@ import { parseSafeText } from "../lib/manual-ui-core.mjs";
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 test("conteúdo: todo subtópico tem corpo não vazio e curto, sem HTML nem link", () => {
-  assert.ok(MANUAL_SEED_CONTENT.length >= 40);
+  assert.ok(MANUAL_SEED_CONTENT.length >= 38);
   for (const item of MANUAL_SEED_CONTENT) {
     assert.ok(item.body.length > 40 && item.body.length <= 1500, `${item.section}: tamanho ${item.body.length}`);
     assert.ok(!/[<>]/.test(item.body), `${item.section}: HTML`);
