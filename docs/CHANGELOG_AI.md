@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/simulacao-entrada/{casa-paulista.mjs,presentation-model.mjs,cliente-entrada.js,proposta-pdf.mjs,calculator.ts,types.ts}`, `app/api/simular-entrada/route.js`, `app/api/simulations/[id]/proposta-valores/route.js`, `components/EmpreendimentoPresentation.jsx`, `components/SimulationGenerator.jsx`, `tests/proposta-valores.test.mjs`, `docs/BUSINESS_RULES.md`. Sem migration.
 - **Risco/observação:** Snapshots já gravados com Casa Paulista = 0 NÃO foram reescritos (histórico); passam a refletir o benefício ao salvar a simulação de novo. Documentação gratuita segue como 5% do valor do imóvel exatamente como a tela já mostrava (**PENDENTE DE VALIDAÇÃO**: origem incidental no commit f9992ec; o cadastro do empreendimento já tem valor próprio em `beneficiosInformativos`). Logo do PDF: asset único `public/assets/matheus-machado-symbol.png` (mesmo do PDF de documentos); a logo vetorial completa (CorelDRAW) não pôde ser convertida sem software — A CONFIRMAR exportação SVG/PNG pelo dono. Pontuação/Meta Diária/ranking intocados.
 - **Autor:** Claude (crm-editor, T-20261002-48)
+### 2026-10-03 — Manual do CRM, etapa 2: backend (T-20261002-47)
+- **Data:** 2026-10-03
+- **Área:** Manual do CRM / Alertas / Permissões
+- **Alteração:** Novo módulo de backend do Manual: migration `20261003230000_manual_crm.sql` (5 tabelas, RLS ligado, só service role; NÃO aplicada em produção), `lib/manual-core.mjs` (regras puras), `lib/manual-guard.mjs` (guarda de conteúdo, só servidor), `lib/manual-service.mjs` + `lib/manual.js` (dados), `lib/manual-seed-structure.mjs` (estrutura inicial, carga idempotente tudo `pending`), rotas `app/api/admin/manual/**`. Publicar novidade (só o dono) cria alertas pela Central de Alertas com audiência explícita (all/role) e dedupe `manual_news:<id>:v<n>`; "Entendi" no alerta grava o ledger de leitura (`recordManualNewsRead` em `lib/crm-alerts.js`).
+- **Motivo:** Pedido do dono (módulo Manual do CRM, etapas 1-5); canal de dúvidas/sugestões fica fora até decisão do dono.
+- **Arquivos afetados:** os acima + `tests/manual-*.test.mjs`, `tests/_helpers/manual-fake-db.mjs`.
+- **Risco/observação:** Branch `feat/manual-crm`, sem deploy. Conteúdo só é visível quando `published` e dentro da audiência do perfil efetivo; edição de seção publicada vira versão proposta (aprovação do dono).
+- **Autor:** Claude (crm-editor, T-20261002-47)
 ### 2026-10-02 — Meta Diária: visão da gestora (só a equipe dela) + alerta de conexão do WhatsApp (T-35)
 - **Data:** 2026-10-02
 - **Área:** Meta Diária / WhatsApp / Alertas / Permissões
