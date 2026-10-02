@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Segurança: Documentação/CCA e log de IA fechados para a chave pública (RLS + revoke)
+- **Data:** 2026-10-02
+- **Área:** Banco · Documentação/CCA · Permissões
+- **Alteração:** RLS habilitado em `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions` e `ai_usage_log` (a `cca` já tinha) e `revoke all` de `anon`/`authenticated` nas 6 tabelas. Nenhuma policy criada; dados, regras documentais e motor de IA inalterados.
+- **Motivo:** achado do agente `analista-documental`: com a anon key pública (embutida no site) qualquer pessoa listava 171 documentos, 19 lotes, 90 itens de checklist (CPF/PIS extraídos), 4 envios à CCA (com URLs assinadas) e 37 registros de IA — e tinha até INSERT/UPDATE/DELETE/TRUNCATE. Aprovado pelo dono.
+- **Arquivos afetados:** `supabase/migrations/20261002180000_lock_client_documents_rls.sql` (aplicada em produção), `docs/DATABASE.md` §2, `.claude/analista-documental/ARQUITETURA.md`.
+- **Risco/observação:** antes: confirmado que todo acesso a essas tabelas é pelo servidor com service role (`getSupabaseAdminClient`, sem fallback para anon), que o navegador só usa Storage por URL assinada e broadcast, e que não há view/função/trigger/policy/Realtime sobre elas. Depois: anon recebe 42501 em leitura e escrita nas 6 tabelas (`testimonials` segue pública); como service_role (transação desfeita) leitura das 6, upload, checklist, atualização do lote, log de IA e envio à CCA funcionam; contagens inalteradas. **Fora do escopo, não corrigido:** 9 tabelas ainda com RLS desligado (lista em `DATABASE.md` §2, inclui `crm_clients`/`crm_attendances`) e `log_client_meta_attribution()` executável por anon.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Agente `analista-documental` + skills e regressão sintética da análise documental
 - **Data:** 2026-10-02
 - **Área:** Documentação/CCA · Docs/agentes (nenhuma mudança de comportamento em produção)

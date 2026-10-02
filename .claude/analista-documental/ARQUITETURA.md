@@ -65,7 +65,7 @@ Enum gravado: `conforme`, `pendencia`, `ilegivel`, `divergencia`, `precisa_confi
 8. `duplicateDocumentIds` não aparece na UI.
 9. WEBP é analisado mas fica fora do PDF mesclado; HEIC/HEIF nem são analisados.
 10. Permissões: `prepareCcaSubmission`/`submitToCca`/`deleteClientDocument` só checam acesso ao cliente (sem checagem de papel); `confirmDocumentBatchUpload` não valida `storage_path`.
-11. **Segurança (P0, achado em 2026-10-02, aguardando aprovação do dono):** `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions` e `ai_usage_log` estavam com RLS desligado e `SELECT` para `anon`/`authenticated` (legíveis via PostgREST com a anon key pública); `cca` com RLS ligado mas grant de select para anon. O app não lê essas tabelas pelo navegador. Correção proposta: `enable row level security` + `revoke all ... from anon, authenticated`. Conferir o estado atual antes de afirmar.
+11. **Segurança (corrigido em 2026-10-02):** as tabelas `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `ai_usage_log` e `cca` estavam legíveis/alteráveis com a anon key pública. Migration `20261002180000_lock_client_documents_rls.sql`: RLS ligado + `revoke all` de `anon`/`authenticated`, sem policy (todo acesso é service role no servidor). Ao criar tabela nova do módulo, siga o mesmo padrão.
 12. Bucket `whatsapp-chat-media` é público.
 
 ## 6. Ferramentas locais de inspeção (desenvolvimento, nunca produção)
