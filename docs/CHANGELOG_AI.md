@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Prospecção só com WhatsApp conectado (PRO-11)
+- **Data:** 2026-10-02
+- **Área:** Prospecção / Meta Diária / WhatsApp
+- **Alteração:** só participa da Prospecção quem tem a sessão do WhatsApp pessoal `connected`. Novo `lib/prospecting-eligibility.js` (barreiras de servidor, erro 403 `WHATSAPP_NOT_CONNECTED`) + `lib/prospecting-eligibility-core.mjs` (regras puras). Aplicado em: geração da cota da Meta Diária (sem criar a linha do dia), tentativa manual, "Prospectar" do card, "Disparar" (enqueue e status), lista/"Minha Base" da Prospecção para corretor/associado, atribuição administrativa (destino) e cron da fila de disparos (nenhum item novo sem sessão conectada). Prospecção mostra "Conecte seu WhatsApp para acessar a Prospecção." + botão que abre o modal de conexão (evento `crm:open-whatsapp-connect`); Meta Diária mostra aviso `prospectingBlocked`.
+- **Motivo:** pedido do dono — Prospecção 100% por disparos automáticos do CRM.
+- **Arquivos afetados:** `lib/prospecting-eligibility.js`, `lib/prospecting-eligibility-core.mjs`, `lib/daily-goal.js`, `lib/daily-goal-auto.js`, `lib/prospecting.js`, `lib/prospecting-extra-dispatch.js`, `app/admin/prospeccao/page.jsx`, `components/ProspectingConnectGate.jsx`, `components/DailyGoalDashboard.jsx`, `components/WhatsappIndividualStatus.jsx`, `tests/prospecting-eligibility.test.mjs`, `docs/BUSINESS_RULES.md` (PRO-11)
+- **Risco/observação:** efeito imediato — hoje só 1 de 9 sessões está `connected`; os demais deixam de receber cota nova e de entrar na fila até conectar. Corretor sem linha de `daily_goals` no dia fica como "ainda não gerou" (já existia). Administrador geral fica fora da exigência (A CONFIRMAR com o dono). Estado transitório `reconnecting` conta como não conectado até voltar a `connected`. Sem Node no ambiente: testes não executados localmente. Campanhas (`whatsapp-broadcasts`) não foram alteradas.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Botão WhatsApp do card abriu o WhatsApp externo no celular: app instalado procura versão nova
 - **Data:** 2026-10-02
 - **Área:** Clientes / PWA

@@ -138,6 +138,14 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
     if (!status || status.status === "disconnected" || status.status === "error") handleConnect();
   }, [status, handleConnect]);
 
+  // "Conectar WhatsApp" de outras telas (Prospecção/Meta Diária bloqueadas sem a sessão
+  // conectada, 2026-10-02) abre este mesmo modal — não existe rota própria de conexão.
+  useEffect(() => {
+    const onRequest = () => openModal();
+    window.addEventListener("crm:open-whatsapp-connect", onRequest);
+    return () => window.removeEventListener("crm:open-whatsapp-connect", onRequest);
+  }, [openModal]);
+
   const currentStatus = status?.status || "disconnected";
 
   return (
