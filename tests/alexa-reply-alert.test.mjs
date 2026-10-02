@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { composeReplyAlertSpeech, findUnansweredStreaks, isReplyAlertHour } from "../lib/alexa-reply-alert-core.mjs";
+import { composeReplyAlertSpeech, findUnansweredStreaks, isReplyAlertHour, normalizeReplyAlertSettings } from "../lib/alexa-reply-alert-core.mjs";
 
 const at = (m) => new Date(Date.UTC(2026, 9, 2, 14, 0) + m * 60000).toISOString(); // 14:00Z = 11:00 BRT
 const now = (m) => new Date(at(m));
@@ -43,6 +43,14 @@ test("frase do alerta", () => {
   );
   assert.match(composeReplyAlertSpeech({ brokerName: "Edu", brokerGender: "male", clientName: "", waitingMinutes: 10 }), /^Atenção, corretor Edu\. Um cliente está/);
   assert.match(composeReplyAlertSpeech({ brokerName: "", clientName: "5511999998888", waitingMinutes: 11 }), /^Atenção\. Um cliente está aguardando uma resposta há 11 minutos\.$/);
+});
+
+test("configuração: valores válidos valem, inválidos voltam ao padrão atual", () => {
+  assert.deepEqual(normalizeReplyAlertSettings(null), { startHour: 7, endHour: 20, maxAgeMinutes: 60, maxPerRun: 3 });
+  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 8, end_hour: 18, max_age_minutes: 120, max_per_run: 5 }), { startHour: 8, endHour: 18, maxAgeMinutes: 120, maxPerRun: 5 });
+  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 20, end_hour: 8, max_age_minutes: 5, max_per_run: 99 }), { startHour: 7, endHour: 20, maxAgeMinutes: 60, maxPerRun: 3 });
+  assert.equal(isReplyAlertHour(now(0), { startHour: 12, endHour: 18 }), false); // 11h fora de 12–18
+  assert.equal(findUnansweredStreaks([inbound(0)], now(61), { maxAgeMinutes: 120 }).length, 1);
 });
 
 test("só em horário comercial de São Paulo", () => {
