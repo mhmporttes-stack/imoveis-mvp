@@ -1,5 +1,4 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
-import Footer from "@/components/Footer";
 import AttendanceAuditDashboard from "@/components/AttendanceAuditDashboard";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { listVisibleTeamProfiles } from "@/lib/admin-profiles";
@@ -15,7 +14,6 @@ export default async function AttendanceAuditPage() {
     <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="audit" />
       <AttendanceAuditDashboard brokers={brokers} />
-      <Footer />
     </main>
   );
 }

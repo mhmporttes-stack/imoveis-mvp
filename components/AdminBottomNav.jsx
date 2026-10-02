@@ -161,16 +161,16 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
   ].filter((item) => item.count > 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {pending.length ? (
         <section aria-labelledby="mais-pendencias">
-          <h3 id="mais-pendencias" className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Pendências</h3>
-          <ul>
+          <h3 id="mais-pendencias" className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">Pendências</h3>
+          <ul className="grid grid-cols-2 gap-x-2">
             {pending.map(({ label, count, href, Icon }) => (
               <li key={label}>
-                <Link href={href} className="flex min-h-touch items-center gap-3 rounded-control px-2 text-sm font-medium text-ink hover:bg-navy/[0.04]">
-                  <Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-                  <span className="flex-1">{label}</span>
+                <Link href={href} className="flex min-h-touch items-center gap-2 rounded-control px-2 text-[13px] font-medium leading-tight text-ink hover:bg-navy/[0.04]">
+                  <Icon className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">{label}</span>
                   <CountBadge count={count} label={`${count} ${label}`} />
                 </Link>
               </li>
@@ -184,11 +184,11 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
         if (!items.length) return null;
         const headingId = `mais-${group.key}`;
         return (
-          <section key={group.key} aria-labelledby={headingId}>
-            <h3 id={headingId} className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+          <section key={group.key} aria-labelledby={headingId} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
+            <h3 id={headingId} className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">
               {group.label.length <= 3 ? group.label : group.label.charAt(0) + group.label.slice(1).toLowerCase()}
             </h3>
-            <ul className="grid grid-cols-1 min-[420px]:grid-cols-2 min-[420px]:gap-x-2">
+            <ul className="grid grid-cols-2 gap-x-2">
               {items.map((item) => {
                 const itemPath = item.href.split("?")[0];
                 const current = pathname === itemPath && !item.href.includes("?");
@@ -198,7 +198,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
                       href={item.href}
                       aria-current={current ? "page" : undefined}
                       className={cx(
-                        "flex min-h-touch items-center rounded-control px-2 text-sm",
+                        "flex min-h-touch items-center rounded-control px-2 text-[13px] leading-tight",
                         current ? "bg-info-soft font-semibold text-navy" : "font-medium text-ink hover:bg-navy/[0.04]"
                       )}
                     >

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import BrokerPerformanceDetail from "@/components/BrokerPerformanceDetail";
-import Footer from "@/components/Footer";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getAdminProfileById } from "@/lib/admin-profiles";
 import { isAdminPermissionError } from "@/lib/admin-access";
@@ -51,7 +50,6 @@ export default async function BrokerPerformancePage({ params }) {
 
       <AdminSectionNav active="performance" />
       <BrokerPerformanceDetail brokerId={id} brokerName={profile.name || "Corretor"} initialOverview={overview} initialError={error} />
-      <Footer />
     </main>
   );
 }
@@ -67,7 +65,6 @@ function BrokerPerformanceUnavailable({ reason }) {
           {reason}
         </div>
       </section>
-      <Footer />
     </main>
   );
 }

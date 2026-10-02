@@ -312,7 +312,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             <Users className="h-4 w-4" />Corretores
           </button>
         ) : null}
-        <span className="ml-auto"><WhatsappIndividualStatus /></span>
+        <span className="ml-auto"><WhatsappIndividualStatus align="end" /></span>
       </div>
 
       {tab === "brokers" && canManage ? (

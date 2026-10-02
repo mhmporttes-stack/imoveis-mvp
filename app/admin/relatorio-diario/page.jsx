@@ -1,6 +1,5 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import DailyReportDashboard from "@/components/DailyReportDashboard";
-import Footer from "@/components/Footer";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 import { canLoadDailyReport, formatDailyReportError, getDailyReport } from "@/lib/daily-report";
 import { requirePerformancePage } from "@/lib/admin-auth";
@@ -50,7 +49,6 @@ export default async function DailyReportPage() {
         initialReport={report}
         initialError={error}
       />
-      <Footer />
     </main>
   );
 }

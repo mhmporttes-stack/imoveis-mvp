@@ -1,5 +1,4 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
-import Footer from "@/components/Footer";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { canLoadPerformanceOverview, formatPerformanceOverviewError, getPerformanceOverview } from "@/lib/performance-overview";
@@ -26,7 +25,6 @@ export default async function PerformancePage() {
     <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="performance" />
       <PerformanceOverviewDashboard initialOverview={overview} initialError={error} />
-      <Footer />
     </main>
   );
 }

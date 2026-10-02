@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }) {
                 um em cima do outro (pedido do dono, 2026-10-01: Google
                 Contacts "solto" longe do WhatsApp parecia outra coisa) —
                 o flex-wrap do header nunca mais separa um do outro. */}
-            <div className="flex flex-col items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {/* Fixo em toda aba, igual o campeão semanal/melhor do dia
                   (pedido do dono, 2026-09-30: corretor não percebia o
                   próprio WhatsApp cair porque esse indicador só existia

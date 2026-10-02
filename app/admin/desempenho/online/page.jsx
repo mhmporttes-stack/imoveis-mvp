@@ -1,5 +1,4 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
-import Footer from "@/components/Footer";
 import OnlinePresenceBoard from "@/components/OnlinePresenceBoard";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { canLoadAdminPresence, formatAdminPresenceError, getTeamPresence } from "@/lib/admin-presence";
@@ -26,7 +25,6 @@ export default async function AdminOnlinePresencePage() {
     <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="online" />
       <OnlinePresenceBoard initialPresence={presence} initialError={error} />
-      <Footer />
     </main>
   );
 }

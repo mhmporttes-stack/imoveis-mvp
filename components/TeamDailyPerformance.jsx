@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, History, ListRestart } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import IntegrationStatusIcon, { googleContactsTone, whatsappTone } from "@/components/IntegrationStatusIcon";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
 import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
@@ -145,11 +146,13 @@ function TeamSummary({ summary }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 rounded-[24px] border border-navy/10 bg-white p-5 shadow-soft sm:grid-cols-3 lg:grid-cols-5">
-      {items.map((item) => (
-        <div key={item.label} className="rounded-2xl bg-mist/40 px-3 py-3 text-center">
+    // Celular: "Meta da equipe" (ponto focal) ocupa a linha toda e os outros
+    // quatro formam uma grade 2×2 — sem a quinta caixa sozinha e meio vazia.
+    <div className="grid grid-cols-2 gap-2 rounded-[24px] border border-navy/10 bg-white p-3 shadow-soft sm:grid-cols-3 sm:gap-2.5 sm:p-5 lg:grid-cols-5">
+      {items.map((item, index) => (
+        <div key={item.label} className={`rounded-2xl bg-mist/40 px-3 py-2 text-center sm:py-3 ${index === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
           <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted">{item.label}</p>
-          <p className="mt-1 text-xl font-black text-navy">{item.value}</p>
+          <p className="mt-0.5 text-xl font-black tabular-nums text-navy sm:mt-1">{item.value}</p>
         </div>
       ))}
     </div>
@@ -279,6 +282,7 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
   const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
+  const googleInfo = automation ? (GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected) : null;
   // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
   // conectado) — ligada+sem pausa mas sem sessão conectada é "Aguardando
   // WhatsApp", nunca "Rodando" (o dispatcher pula esse corretor com
@@ -346,14 +350,10 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
 
       {automation ? (
         <>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
-            {automation.googleContactsStatus && automation.googleContactsStatus !== "disconnected" ? (
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
-                Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
-              </span>
-            ) : null}
+            <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
+            {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
           {automation.avgGapMinutes != null ? (
             <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
@@ -546,12 +546,10 @@ function AutomationSection({ automation, showHistory, onToggleHistory, brokerId 
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
-          Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
-        </span>
+        <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
+        <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
       {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Ajustes mobile/PWA: rodapé do site fora do painel, menu "Mais", Desempenho, status WhatsApp/Google em ícones
+- **Data:** 2026-10-02
+- **Área:** Frontend (só interface; nenhuma lib/API/banco)
+- **Alteração:** (1) removido o `Footer` institucional das 7 páginas `app/admin/**` que o renderizavam (calendário, desempenho e subpáginas, relatório diário) — o rodapé do site público segue em `AppChrome` (`!isAdminRoute`). (2) `AdminBottomNav`: menu "Mais" compactado (sempre 2 colunas, espaçamento menor, divisórias entre grupos; mesmos itens/destinos). (3) `PerformanceOverviewDashboard`: bloco "Visão geral" compacto no celular (Atualizar ao lado do título, filtros de período numa linha); `md+` inalterado. (4) `TeamSummary`: "Meta da equipe" em linha inteira + grade 2×2 no celular. (5) Novo `components/IntegrationStatusIcon.jsx`: WhatsApp e Google Contacts viram ícones (verde = conectado; laranja = estado intermediário real — WhatsApp conectando/reconectando/aguardando QR ou código, Google "requer reconexão"; cinza = desconectado/nunca conectou/erro), com tooltip no desktop e texto por toque no celular. Usado no cabeçalho do painel, no Chat e nos cards/painel de automação da supervisão (`TeamDailyPerformance`).
+- **Motivo:** pedido do dono (revisão do uso no celular).
+- **Arquivos afetados:** `app/admin/**/page.jsx` (7), `app/admin/layout.jsx`, `components/{AdminBottomNav,PerformanceOverviewDashboard,TeamDailyPerformance,WhatsappIndividualStatus,GoogleContactsStatus,WhatsappChat,IntegrationStatusIcon}.jsx`.
+- **Risco/observação:** erro do WhatsApp ("Erro") agora aparece cinza (antes vermelho) por haver só três cores pedidas; o texto continua no tooltip/modal. `DailyGoalAdmin.jsx` (Meta Diária > Gestão) ainda mostra os selos de texto antigos — fora do escopo pedido. KPIs do Desempenho (7 cards) ficam em 1 coluna no celular — possível melhoria futura.
+- **Autor:** Claude Code
+
 ### 2026-10-01 — Agente `analista-dados` (BI somente leitura) + definição canônica das métricas do funil
 - **Data:** 2026-10-01
 - **Área:** Agentes/Docs (nenhum código do CRM, banco, `settings.json`, hook ou permissão alterado)

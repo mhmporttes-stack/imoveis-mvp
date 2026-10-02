@@ -200,14 +200,16 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Visão geral</p>
-            <h2 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">
+      <div className="rounded-[28px] border border-navy/10 bg-white p-4 shadow-soft md:p-7">
+        {/* Celular: título à esquerda e "Atualizar" à direita na mesma linha
+            (economiza uma linha inteira); do md para cima, layout original. */}
+        <div className="flex items-start justify-between gap-3 md:flex-col md:items-stretch md:gap-5 lg:flex-row lg:items-center">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-brand md:tracking-[0.35em]">Visão geral</p>
+            <h2 className="mt-1 text-2xl font-extrabold text-navy md:mt-2 md:text-4xl">
               {overview?.range?.label || "Painel de desempenho"}
             </h2>
-            <p className="mt-2 max-w-3xl text-base text-slate-600">
+            <p className="mt-1 max-w-3xl text-sm text-slate-600 md:mt-2 md:text-base">
               Como a equipe trabalhou, como está o funil comercial e onde agir agora.
             </p>
           </div>
@@ -216,21 +218,21 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
             type="button"
             onClick={() => loadOverview()}
             disabled={loading}
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-full border border-navy/15 bg-white px-4 text-sm font-extrabold text-navy transition hover:border-brand disabled:opacity-50"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-full border border-navy/15 bg-white px-3 text-sm font-extrabold md:gap-2 md:px-4 text-navy transition hover:border-brand disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             Atualizar
           </button>
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Período do painel">
+        <div className="mt-4 flex flex-col gap-3 md:mt-6 md:gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex gap-1.5 md:flex-wrap md:gap-2" role="tablist" aria-label="Período do painel">
             {PERIODS.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => setPeriod(option.value)}
-                className={`min-h-11 rounded-full border px-4 text-sm font-extrabold transition ${
+                className={`min-h-11 flex-1 whitespace-nowrap rounded-full border px-1.5 text-[13px] font-extrabold transition md:flex-none md:px-4 md:text-sm ${
                   period === option.value
                     ? "border-brand bg-blue-50 text-brand"
                     : "border-navy/10 bg-white text-navy hover:border-brand"
@@ -242,7 +244,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
 
           {period === "custom" && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
               <DateField label="Início" value={startDate} onChange={setStartDate} />
               <DateField label="Final" value={endDate} onChange={setEndDate} />
             </div>
@@ -600,7 +602,7 @@ function DateField({ label, value, onChange }) {
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 min-h-11 rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
+        className="mt-1.5 min-h-11 w-full min-w-0 rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none md:mt-2 md:w-auto focus:border-brand focus:ring-4 focus:ring-brand/15"
       />
     </label>
   );

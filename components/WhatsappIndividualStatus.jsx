@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Smartphone, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import IntegrationStatusIcon, { whatsappTone } from "@/components/IntegrationStatusIcon";
 
 // Indicador discreto de conexão da sessão INDIVIDUAL de WhatsApp (Baileys,
 // QR Code) do usuário logado — camada de transporte nova por cima do Chat já
@@ -27,12 +28,6 @@ function formatPhone(phone) {
   return phone ? `+${digits}` : "";
 }
 
-function badgeTone(status) {
-  if (status === "connected") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "qr_required" || status === "pairing_code_required" || status === "connecting" || status === "reconnecting") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-line bg-white text-navy/70";
-}
-
 // "551499998888" -> "55 14 9999-8888" — mais fácil de conferir enquanto
 // digita do que os dígitos corridos.
 function formatPhoneInput(digits) {
@@ -43,7 +38,7 @@ function formatPhoneInput(digits) {
   return `${d.slice(0, 2)} ${d.slice(2, 4)} ${d.slice(4, 8)}-${d.slice(8, 12)}`;
 }
 
-export default function WhatsappIndividualStatus() {
+export default function WhatsappIndividualStatus({ align = "center" }) {
   const [status, setStatus] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -136,15 +131,13 @@ export default function WhatsappIndividualStatus() {
 
   return (
     <>
-      <button
-        type="button"
+      <IntegrationStatusIcon
+        kind="whatsapp"
+        tone={whatsappTone(currentStatus)}
+        label={`WhatsApp: ${currentStatus === "connected" && status?.phoneNumber ? formatPhone(status.phoneNumber) : STATUS_LABEL[currentStatus] || "Desconectado"}`}
         onClick={openModal}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-extrabold transition hover:border-brand ${badgeTone(currentStatus)}`}
-        title="Sessão pessoal de WhatsApp (QR Code)"
-      >
-        <Smartphone className="h-3.5 w-3.5" />
-        WhatsApp • {currentStatus === "connected" && status?.phoneNumber ? formatPhone(status.phoneNumber) : STATUS_LABEL[currentStatus] || "Desconectado"}
-      </button>
+        align={align}
+      />
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModalOpen(false)}>

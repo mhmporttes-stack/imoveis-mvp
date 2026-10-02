@@ -1,5 +1,4 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
-import Footer from "@/components/Footer";
 import ScoringRulesManager from "@/components/ScoringRulesManager";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
@@ -57,7 +56,6 @@ export default async function ScoringPage() {
         initialHistory={history}
         initialRules={rules}
       />
-      <Footer />
     </main>
   );
 }

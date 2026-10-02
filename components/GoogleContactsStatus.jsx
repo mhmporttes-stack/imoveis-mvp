@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Contact, X } from "lucide-react";
+import { X } from "lucide-react";
+import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
 
 // Indicador discreto da integração INDIVIDUAL de Google Contacts (People
 // API) do usuário logado — pedido do dono, 2026-10-01. Mesmo padrão visual
@@ -17,12 +18,6 @@ const QUERY_MESSAGES = {
   cancelado: { tone: "amber", text: "Conexão com o Google cancelada." },
   nao_configurado: { tone: "amber", text: "Google Contacts ainda não foi configurado pelo administrador." }
 };
-
-function badgeTone(status) {
-  if (status === "connected") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "error" || status === "expired") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-line bg-white text-navy/70";
-}
 
 const STATUS_LABEL = {
   disconnected: "Não conectado",
@@ -89,15 +84,12 @@ export default function GoogleContactsStatus() {
 
   return (
     <>
-      <button
-        type="button"
+      <IntegrationStatusIcon
+        kind="google"
+        tone={googleContactsTone(currentStatus)}
+        label={`Google Contacts: ${STATUS_LABEL[currentStatus] || "Não conectado"}`}
         onClick={() => setModalOpen(true)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-extrabold transition hover:border-brand ${badgeTone(currentStatus)}`}
-        title="Integração individual com o Google Contacts"
-      >
-        <Contact className="h-3.5 w-3.5" />
-        Google Contacts • {STATUS_LABEL[currentStatus] || "Não conectado"}
-      </button>
+      />
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModalOpen(false)}>
