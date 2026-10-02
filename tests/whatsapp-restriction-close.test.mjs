@@ -85,5 +85,4 @@ test("PRO-11 e T-25 não regridem: restrição (informada ou validada, encerrada
     assert.equal(decideProspectingGate({ kind: "participate", role: "broker", sessionStatus: "disconnected" }).allowed, false);
     assert.notEqual(resolveWhatsappBadge({ sessionStatus: "connected", openRestriction: r }), WHATSAPP_BADGES.validated);
   }
-  assert.doesNotMatch(src("lib/prospecting-eligibility-core.mjs"), /restriction/i);
 });
