@@ -215,6 +215,14 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível abrir a conversa.");
       if (selectedRef.current !== id) return;
+      // Cliente arquivado para quem não é o dono (WA-13): Chat em branco, como se não houvesse conversa.
+      if (data.empty) {
+        setSelectedId("");
+        selectedRef.current = "";
+        setDetail(null);
+        setDetailError("");
+        return;
+      }
       setDetail(data);
       setDetailError("");
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando

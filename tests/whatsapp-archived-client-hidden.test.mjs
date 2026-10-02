@@ -35,10 +35,21 @@ test("sem push nem atribuição para conversa escondida; card não reabre conver
   const chat = source("lib/whatsapp-chat.js");
   // Card de cliente arquivado: só o dono abre a conversa (somente leitura);
   // qualquer outro (inclusive o corretor) recebe Chat em branco.
-  assert.match(chat, /client\.status === "archived"[\s\S]{0,600}if \(!isOwnerAdminEmail\(auth\?\.user\?\.email\)\) return \{ conversationId: null \}/);
+  assert.match(chat, /client\.status === "archived"[\s\S]{0,600}if \(!isArchivedChatViewer\(auth\)\) return \{ conversationId: null \}/);
   assert.match(chat, /return \{ conversationId: archivedRows\[0\]\.id, archivedReadOnly: true \}/);
-  assert.match(chat, /function canViewArchivedConversation[\s\S]{0,250}isOwnerAdminEmail\(auth\?\.user\?\.email\)/);
+  assert.match(chat, /archivedConversationAccess\(\{[^}]*isOwner: isArchivedChatViewer\(auth\)/);
   assert.match(chat, /archivedReadOnly \? \{ canReply: false, canReact: false, canEdit: false, canDelete: false \}/);
   assert.match(source("components/WhatsappChat.jsx"), /if \(data\.conversationId\) openConversation\(data\.conversationId\)/);
   assert.match(chat, /pushTargets\.delete\(row\.id\)/);
+});
+
+test("cliente arquivado: dono lê tudo; corretor/outros recebem Chat vazio e nenhum dado (backend)", () => {
+  const chat = source("lib/whatsapp-chat.js");
+  // Conversa já oculta antes do arquivamento (sem a marca do gatilho) também conta; decisão pura testada em whatsapp-chat-scope.test.mjs.
+  assert.match(chat, /async function loadConversation[\s\S]{0,900}clientStatus = client\?\.status/);
+  assert.match(chat, /if \(access === "empty"\) throw new WhatsappChatError\("Conversa não encontrada\.", \{ status: 404, code: "ARCHIVED_HIDDEN" \}\)/);
+  // A leitura (API de detalhe/páginas anteriores) devolve visualização vazia em vez de erro.
+  assert.match(chat, /error\?\.code === "ARCHIVED_HIDDEN"\) return \{ empty: true, conversation: null, messages: \[\], hasMore: false \}/);
+  // Frontend: resposta vazia fecha a conversa, sem mensagem de erro.
+  assert.match(source("components/WhatsappChat.jsx"), /if \(data\.empty\) \{\s+setSelectedId\(""\);[\s\S]{0,160}setDetailError\(""\);\s+return;/);
 });

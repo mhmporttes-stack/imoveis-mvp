@@ -97,3 +97,38 @@ test("dono da sessão e contadores por corretor", () => {
   assert.deepEqual(conversationOwnerIds({ sessionKey: "c1", assignedUserId: "c2", responsibleUserId: "c3" }), ["c1"]);
   assert.deepEqual(conversationOwnerIds({ sessionKey: OFFICIAL_SESSION_KEY, assignedUserId: "c2", responsibleUserId: "c3" }), ["c2", "c3"]);
 });
+
+import { archivedConversationAccess } from "../lib/whatsapp-chat-scope.mjs";
+
+test("cliente arquivado: dono lê (A); corretor/outros recebem vazio (B); desarquivado/ativa seguem normal", () => {
+  const hidden = { deleted_at: "2026-10-02T00:00:00Z", origin: { archived_hidden_at: "2026-10-02T00:00:00Z" } };
+  const hiddenBefore = { deleted_at: "2026-09-01T00:00:00Z", origin: {} }; // oculta antes do arquivamento (sem marca)
+  assert.equal(archivedConversationAccess({ conversation: hidden, clientStatus: "archived", isOwner: true }), "read");
+  assert.equal(archivedConversationAccess({ conversation: hiddenBefore, clientStatus: "archived", isOwner: true }), "read");
+  assert.equal(archivedConversationAccess({ conversation: hidden, clientStatus: "archived", isOwner: false }), "empty");
+  assert.equal(archivedConversationAccess({ conversation: hiddenBefore, clientStatus: "archived", isOwner: false }), "empty");
+  // conversa ativa, ou excluída de cliente NÃO arquivado: regra normal (404 normal)
+  assert.equal(archivedConversationAccess({ conversation: { deleted_at: null, origin: {} }, clientStatus: "archived", isOwner: false }), "none");
+  assert.equal(archivedConversationAccess({ conversation: hiddenBefore, clientStatus: "in_service", isOwner: false }), "none");
+  assert.equal(archivedConversationAccess({ conversation: hiddenBefore, clientStatus: null, isOwner: true }), "none");
+});
+
+import { ARCHIVED_CHAT_VIEWER_AUTH_USER_ID, isArchivedChatViewer } from "../lib/whatsapp-chat-scope.mjs";
+
+test("histórico arquivado: SÓ a conta do dono (id único); outro admin, gestor e corretores bloqueados", () => {
+  const hidden = { deleted_at: "2026-10-02T00:00:00Z", origin: { archived_hidden_at: "2026-10-02T00:00:00Z" } };
+  const decide = (auth) => archivedConversationAccess({ conversation: hidden, clientStatus: "archived", isOwner: isArchivedChatViewer(auth) });
+  const owner = { user: { id: ARCHIVED_CHAT_VIEWER_AUTH_USER_ID, email: "mhmporttes@gmail.com" }, profile: { role: "admin" } };
+  assert.equal(decide(owner), "read");
+  assert.equal(decide({ user: { id: "11111111-aaaa", email: "outro.admin@x.com" }, profile: { role: "admin" } }), "empty");
+  // mesmo com e-mail do dono, sem o id único não passa (identidade, não e-mail/cargo)
+  assert.equal(decide({ user: { id: "22222222-bbbb", email: "mhmporttes@gmail.com" }, profile: { role: "admin" } }), "empty");
+  assert.equal(decide({ user: { id: "33333333-cccc", email: "gestor@x.com" }, profile: { role: "manager" } }), "empty");
+  assert.equal(decide({ user: { id: "44444444-dddd", email: "responsavel@x.com" }, profile: { role: "broker" } }), "empty");
+  assert.equal(decide({ user: { id: "55555555-eeee", email: "outro.corretor@x.com" }, profile: { role: "broker" } }), "empty");
+  assert.equal(decide({ user: { id: "66666666-ffff", email: "associado@x.com" }, profile: { role: "associate" } }), "empty");
+  assert.equal(decide(null), "empty");
+  // "Alterar conta": a sessão REAL é o dono → continua permitido; outro admin emulando o dono (id efetivo do dono, sessão real dele) → bloqueado
+  assert.equal(decide({ realUser: owner.user, user: { id: "44444444-dddd", email: "responsavel@x.com" } }), "read");
+  assert.equal(decide({ realUser: { id: "11111111-aaaa" }, user: owner.user }), "empty");
+});

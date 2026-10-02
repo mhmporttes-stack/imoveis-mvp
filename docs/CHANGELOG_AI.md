@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Cliente arquivado: Chat vazio para o corretor, leitura só do dono (backend)
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Permissões
+- **Alteração:** `getChatConversation` devolve `{ empty: true, messages: [] }` (sem erro) quando a conversa é de cliente arquivado e quem pede não é o dono; o Chat fecha a conversa e mostra o estado vazio normal (antes: "Conversa não encontrada."). Conversa oculta ANTES do arquivamento (sem `origin.archived_hidden_at`) agora também conta como de cliente arquivado (3 casos em produção) — a conta do dono passa a ler essas também. Acesso por identidade única (id Supabase Auth, sessão real), nunca por cargo; para trocar de dono, mudar `ARCHIVED_CHAT_VIEWER_AUTH_USER_ID`. Decisão pura em `archivedConversationAccess` (`lib/whatsapp-chat-scope.mjs`). Migration `20261002330000` (desarquivar apaga o histórico) aplicada em produção, sem mudança.
+- **Motivo:** pedido do dono — corretor não pode ver nada do histórico de cliente arquivado, nem por ID/link/API; dono continua lendo.
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `lib/whatsapp-chat-scope.mjs`, `components/WhatsappChat.jsx`, `tests/whatsapp-chat-scope.test.mjs`, `tests/whatsapp-archived-client-hidden.test.mjs`, `docs/BUSINESS_RULES.md` (WA-13)
+- **Risco/observação:** `applyChatContactSignal` (lista de Clientes) ainda usa `last_human_reply_at` de conversas ocultas só para o selo de "último contato" — é um horário, não conteúdo; não alterado.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Desarquivar cliente apaga o histórico do Chat (PENDENTE de aplicação no banco)
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Chat · Banco
