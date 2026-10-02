@@ -55,7 +55,13 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
       const response = await fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Falha ao consultar o status.");
-      setStatus(data);
+      // Código de pareamento já exibido não some numa releitura que ainda não
+      // o traga, enquanto a sessão não conectou/caiu (2026-10-02).
+      setStatus((current) => (
+        !data.pairingCode && current?.pairingCode && !["connected", "disconnected"].includes(data.status)
+          ? { ...data, pairingCode: current.pairingCode }
+          : data
+      ));
       return data;
     } catch {
       // Melhor esforço: o badge some silenciosamente se a checagem falhar, não
