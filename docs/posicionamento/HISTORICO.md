@@ -2,6 +2,17 @@
 
 > Memória do agente `marketing-posicionamento`. Uma entrada por análise, **mais recente no topo**. Formato e índice: `.claude/skills/auditar-posicionamento/references/metodologia.md`. Compare sempre na mesma base de áreas.
 
+## 2026-10-02 — Snapshot 3 (Google Meu Negócio: auditoria aprofundada + concorrentes no Maps)
+**Método:** Windsor (perfil, desempenho 90 dias, avaliações, mídia, posts) + Google Maps público em navegador sem login (`hl=pt-BR&gl=br`, centro de Marília; amostra com personalização mínima, **confiança média**). **Nada alterado.** `list_actions` foi bloqueado pela trava de segurança da sessão (não contornado).
+- **Perfil público confirmado no Maps:** "Matheus Machado", Agente imobiliário, 5,0 (6), Av. Ipiranga, 147, matheusmachadoimoveis.com.br, (14) 99840-7380, "Atualizado por esta empresa há 11 semanas".
+- **Ausência nos resultados:** em "corretor de imóveis Marília SP" o perfil **não está entre os 9 primeiros resultados**; também não aparece em "minha casa minha vida Marília SP" nem "financiamento imobiliário Marília SP". Só aparece na busca pelo nome.
+- **Concorrentes que aparecem (nota, nº de avaliações):** "corretor de imóveis": Luis Lopes (4,2; 21), Moradas Imóveis (4,9; 3.571), Alexandre Bruno (5,0; 1), Jefferson Fontes (5,0; 5), Toca Imóveis (4,4; 2.034), T. R. Trindade (5,0; 53), JR Corretor (0), Alan Matos (5,0; 9), Matheus Destro (5,0; 15). "MCMV": União Imobiliária (4,6; 136), Moradas, Caniatto & Freitas (5,0; 77), Toca (o resto é ruído: loja de jogos, órgão público). "Financiamento": Loja MRV (patrocinado), Prime Imóveis (4,8; 27), União, CredPam (correspondente bancário; 5,0; 94), Prime Assessoria (4,6; 19), Arnaldo Moreira (5,0; 40), Central Imóveis (5,0; 47).
+- **Leitura:** perfis com **1, 5, 9 e 15 avaliações** já aparecem na busca genérica → o piso para entrar é baixo e a categoria/completude pesam. Nenhum concorrente da amostra usa "primeiro imóvel" ou "Minha Casa Minha Vida" como posicionamento visível; o nome de vários é inflado com palavras-chave (Alexandre Bruno "… CRECI …", Matheus Destro "Corretor de Imóveis em Marilia-SP = …"): **não copiar** (viola a regra do Google; risco de suspensão).
+- **Desempenho (90 dias):** 252 impressões (Busca 170, Maps 82), 2 ligações, 0 cliques no site, 112 pedidos de rota. **Os 112 pedidos de rota são 44% das impressões — taxa atípica; origem A CONFIRMAR** (clientes e equipe indo ao escritório? Se sim, é visita real; se não, investigar).
+- **Pacote de correção pronto, nada aplicado:** `docs/posicionamento/rascunhos/2026-10-02-gbp-pacote.md` (6 respostas, descrição, link com UTM, serviços, categorias, área, fotos, 4 posts, 5 perguntas e respostas, horário).
+
+---
+
 ## 2026-10-01 — Snapshot 2 (auditoria completa com dados reais Windsor)
 **Método:** Windsor (somente leitura) — Instagram `17841410653785252` (153 publicações de ~06/07 a 30/09, conta 30 dias, público, stories), Google Meu Negócio `locations/11870750752232851669` (perfil, 90 dias de desempenho, avaliações, palavras-chave, posts/mídia), Meta Ads `139348312829192` (só audiência/posicionamento; nada alterado). Concorrência: 2 WebSearch dos EUA, **baixa confiança**. Site: reaproveitado do Snapshot 1 (não refeito). Search Console, GA4, Facebook orgânico, IA e autoridade: **não medidos**. Valores em R$ dos anúncios: moeda da conta A CONFIRMAR.
 
