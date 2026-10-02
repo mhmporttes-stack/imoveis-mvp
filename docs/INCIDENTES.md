@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Automação da Meta Diária do número do dono religou sozinha depois de um deploy (20 envios agendados)
+- **Data:** 2026-10-02
+- **Sintoma:** número do dono, que não deve fazer disparo automático, voltou a ficar com a automação ligada e 20 envios na fila para as 07:00.
+- **Área:** Meta Diária / Infra
+- **Impacto:** nenhum envio feito (cancelado às 04:17, antes da janela); só o número do dono.
+- **Causa raiz:** o deploy na Vercel do commit que exclui o dono de `ensureDailyGoalAutoEnabledOnConnect` (1ddebba) **falhou**; a trava só entrou com o deploy seguinte (d92e9f7, pronto às 07:08:07Z). Todo push na `main` também reinicia o microsserviço no Railway, que reconecta as sessões e chama o webhook `connected`; a reconexão do dono chegou às 07:08:08Z e ainda foi atendida pela versão antiga (sem a consulta do e-mail em `admin_users` nos logs do Supabase), que religou a automação; o cron das 07:10 montou a fila.
+- **Correção:** automação do dono desligada e 20 itens `pending` cancelados (`automacao_desligada`). Código já correto em produção desde d92e9f7.
+- **Arquivos/commit:** `lib/daily-goal-auto.js` — commit `1ddebba` (falhou na Vercel), no ar via `d92e9f7`
+- **Prevenção/teste:** depois de um push que muda comportamento de produção, confirmar o status do deploy da Vercel no commit (não só o do Railway) antes de dar por publicado. Risco residual: todo push reinicia o WhatsApp e a reconexão pode cair na versão anterior da Vercel por alguns segundos.
+- **Status:** Resolvido
+
 ### 2026-10-02 — "Conectar com código" do WhatsApp não funciona no celular (código não aparece / some / dá erro ao conectar)
 - **Data:** 2026-10-02
 - **Sintoma:** no celular (sem como escanear o QR), "Pedir código" não mostrava código; depois mostrava por ~1 s; depois o WhatsApp dizia "Não foi possível conectar o dispositivo".
