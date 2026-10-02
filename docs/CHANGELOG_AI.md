@@ -52,6 +52,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/financial-receipt-basis.mjs` (novo), `lib/money-br.mjs` (novo), `lib/financial.js`, `lib/financial-expected-receipt-core.mjs`, `lib/financial-expected-receipt-db.mjs`, `lib/financial-receipt-repair-core.mjs`, `lib/financial-health-core.mjs`, `components/AdminFinancialDashboard.jsx`, `components/ReceiptActionModals.jsx`, `tests/money-br.test.mjs`, `tests/financial-expected-receipt.test.mjs`, `docs/BUSINESS_RULES.md` (FIN-1/FIN-5), `.claude/rules/financeiro.md`, `docs/FINANCEIRO_SAUDE.md`, `docs/INCIDENTES.md`.
 - **Risco/observação:** mudança visível e intencional: "Comissão a receber" e o valor previsto da Agenda passam a ser BRUTA − recebido (antes LIVRE − recebido) nas vendas com nota/despesa; hoje afeta o lembrete de 1 venda (R$ 20.000 → R$ 30.000). Sem migration e sem correção de dado histórico (auditoria: nenhum recebimento duplicado, nenhum valor mal lido). Fora do escopo, não alterado: recebimento aceita data futura, `reconcileExpectedReceiptActivities` por minuto, cálculo "livre" repetido na tela.
 - **Autor:** Claude Code
+### 2026-10-02 — Botão "WhatsApp" do card de cliente abre a conversa no Chat do CRM
+- **Data:** 2026-10-02
+- **Área:** Clientes / WhatsApp
+- **Alteração:** o botão (card e ficha de Clientes) deixou de abrir `wa.me`/WhatsApp Web e navega para `/admin/chat?client=<id>`, que localiza a conversa do cliente (vinculada, senão por telefone), cria uma só se não houver e a seleciona. Abrir pelo card não muda mais atendente/status da conversa (`assign: false`). Busca por `client_id` antes do telefone e tratamento da corrida de criação (23505) em `openChatForClient`.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/clients/useClientList.js`, `app/api/admin/whatsapp-chat/open-client/route.js`, `lib/whatsapp-chat.js`, `docs/BUSINESS_RULES.md` (WA-13), `tests/client-card-whatsapp-chat.test.mjs`
+- **Risco/observação:** o clique segue registrando `last_whatsapp_contact_at` como antes (mesmo sem mensagem enviada); o envio efetivo continua pelo canal que o Chat escolher (individual conectado ou número oficial dentro das 24 h). Outros botões WhatsApp não mudaram.
+- **Autor:** Claude (Code)
+
 
 ### 2026-10-02 — Resposta de cliente em Prospecção promove sozinho para "Em atendimento" (substitui a pendência manual de PRO-8)
 - **Data:** 2026-10-02

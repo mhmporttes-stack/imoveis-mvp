@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
-import { buildWhatsAppUrl, toWhatsAppDigits } from "@/lib/phone-utils";
+import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
@@ -572,21 +572,21 @@ export function useClientList({
       notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
       return;
     }
-    // Abre a aba no gesto do clique e só troca a URL depois do registro.
-    const popup = window.open("about:blank", "_blank");
-    if (popup) popup.opener = null;
+    // Regra do dono (2026-10-02): o botão abre a conversa do cliente DENTRO do Chat
+    // do CRM (nada de WhatsApp Web/app externo). O Chat localiza a conversa vinculada
+    // (ou a do mesmo telefone), cria uma só se não houver nenhuma e já a deixa
+    // selecionada — sem mudar atendente/responsável (POST /whatsapp-chat/open-client).
+    // O clique continua registrando o contato, como antes.
     try {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
       patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-      const whatsappUrl = buildWhatsAppUrl(value);
-      if (popup) popup.location.href = whatsappUrl;
-      else window.location.assign(whatsappUrl);
     } catch (error) {
-      popup?.close();
       notify(error.message || "Não foi possível registrar o contato via WhatsApp.", "danger");
+      return;
     }
+    router.push(`/admin/chat?client=${encodeURIComponent(client.registration.id)}`);
   }
 
   async function copyBrokerSimulationLink() {

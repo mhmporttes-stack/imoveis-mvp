@@ -15,7 +15,8 @@ export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
     if (!body?.clientId) return NextResponse.json({ error: "Informe o cliente." }, { status: 400 });
-    return NextResponse.json(await openChatForClient(String(body.clientId), auth));
+    // assign: false — abrir a conversa pelo card nunca muda atendente/status.
+    return NextResponse.json(await openChatForClient(String(body.clientId), auth, { assign: false }));
   } catch (error) {
     return chatErrorResponse(error);
   }
