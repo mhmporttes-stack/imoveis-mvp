@@ -17,6 +17,13 @@ export async function GET(request) {
 
   try {
     const row = await getIndividualSessionRow(userId);
+    // Código de pareamento expira em poucos minutos no WhatsApp (e morre se o
+    // serviço reiniciar): passados 3 min sem conectar, a tela volta a
+    // oferecer um código novo em vez de mostrar um código morto (2026-10-02).
+    const pairingExpired = row?.status === "pairing_code_required" && Date.now() - new Date(row?.updated_at || 0).getTime() > 3 * 60 * 1000;
+    if (pairingExpired) {
+      return NextResponse.json({ status: "disconnected", phoneNumber: row?.phone_number || "", qr: "", qrExpiresAt: null, pairingCode: "", lastConnectedAt: row?.last_connected_at || null, lastError: "pairing_expired" });
+    }
     return NextResponse.json({
       status: row?.status || "disconnected",
       phoneNumber: row?.phone_number || "",
