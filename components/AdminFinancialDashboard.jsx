@@ -3,18 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   BarChart3,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  DollarSign,
+  ChevronDown,
+  ChevronRight,
   HeartPulse,
   ExternalLink,
-  Filter,
   Plus,
   ReceiptText,
-  RefreshCw,
-  Save,
   Trash2,
   WalletCards
 } from "lucide-react";
@@ -24,6 +20,18 @@ import { parseBrazilianDecimal, parseBrazilianMoney } from "@/lib/money-br.mjs";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
 import EmptyState from "@/components/ui/EmptyState";
+import Button from "@/components/ui/Button";
+import UiField, { inputClasses } from "@/components/ui/Field";
+import { cx } from "@/components/ui/cx";
+import {
+  Collapsible,
+  EditorFooter,
+  FilterBar,
+  FinancialStatusBadge,
+  HeroNumbers,
+  PaymentStatusBadge,
+  SectionTabs
+} from "@/components/FinancialSalesParts";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -66,24 +74,12 @@ const PERIOD_OPTIONS = [
   { value: "all", label: "Todo período" }
 ];
 
-const STATUS_STYLES = {
-  pending: "border-amber-200 bg-amber-50 text-amber-800",
-  partial: "border-blue-200 bg-blue-50 text-blue-700",
-  received: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  cancelled: "border-slate-200 bg-slate-50 text-slate-600"
-};
-
-const PAYMENT_STATUS_STYLES = {
-  expected: "border-blue-200 bg-blue-50 text-blue-700",
-  received: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  overdue: "border-red-200 bg-red-50 text-red-700",
-  cancelled: "border-slate-200 bg-slate-50 text-slate-600"
-};
-
 const MONEY_FORMATTER = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL"
 });
+
+const MONTH_FORMATTER = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", month: "long" });
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -110,6 +106,8 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   const [error, setError] = useState("");
   const [resultView, setResultView] = useState("separated");
   const [receiptAction, setReceiptAction] = useState(null);
+  // Celular/tablet: "list" mostra a lista de vendas, "editor" a venda aberta (com "Voltar"). Em xl as duas aparecem juntas.
+  const [mobileStep, setMobileStep] = useState("list");
   const brokers = useMemo(() => financialUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [financialUsers]);
   const managers = useMemo(() => financialUsers.filter((user) => ["admin", "manager"].includes(user.role) && user.status === "active"), [financialUsers]);
 
@@ -150,6 +148,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
     setMessage("");
     setError("");
     setActiveTab("vendas");
+    setMobileStep("editor");
   }
 
   function clearFilters() {
@@ -357,6 +356,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       setSales(nextSales);
       setSelectedSaleId(nextSales[0]?.id || "");
       setDraftSale(createDraftSale(nextSales[0]));
+      setMobileStep("list");
       setMessage("Venda financeira excluída.");
     } catch (requestError) {
       setError(requestError.message || "Não foi possível excluir a venda.");
@@ -365,106 +365,129 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
     }
   }
 
+  const monthLabel = MONTH_FORMATTER.format(new Date());
+  const extraFilterCount = [clientFilter, brokerFilter, propertyFilter].filter((value) => String(value).trim()).length;
+  const tabs = [
+    { key: "dashboard", label: "Resumo", icon: BarChart3 },
+    ...(canEdit ? [{ key: "vendas", label: "Vendas", icon: ReceiptText }] : []),
+    { key: "recebimentos", label: "Recebimentos", icon: WalletCards },
+    ...(health ? [{ key: "saude", label: "Saúde", icon: HeartPulse }] : [])
+  ];
+  // No celular a venda aberta ocupa a tela inteira (lista -> editor, com "Voltar"); a partir de xl lista e editor ficam lado a lado.
+  const editingOnMobile = canEdit && activeTab === "vendas" && mobileStep === "editor";
+  const hideOnMobileEditing = editingOnMobile ? "max-xl:hidden" : "";
+
   return (
-    <section className="container-page space-y-6">
-      {activeTab !== "saude" && <div className="premium-card p-5 md:p-7">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Controle financeiro</p>
-            <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">Vendas, comissões e recebimentos</h2>
-            <p className="mt-2 max-w-4xl text-base leading-7 text-muted">
+    <section className="container-page space-y-4 md:space-y-5">
+      {activeTab !== "saude" && (
+        <header className={hideOnMobileEditing}>
+          <h2 className="text-[28px] font-bold leading-9 tracking-[-0.02em] text-navy">Vendas e comissões</h2>
+          <details className="group mt-1">
+            <summary className="inline-flex min-h-touch cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [&::-webkit-details-marker]:hidden">
+              Como as vendas entram aqui
+              <ChevronDown className="h-4 w-4 transition-transform duration-150 ease-out-ui group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+            </summary>
+            <p className="max-w-3xl pb-2 text-sm leading-6 text-ink-2">
               As vendas entram automaticamente quando um cliente chega em Venda realizada. Ajuste VGV, comissão, repasses e parcelas sem expor dados financeiros para outros usuários.
             </p>
-          </div>
+          </details>
+        </header>
+      )}
 
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="premium-button-secondary min-h-12 px-5"
-          >
-            <Filter size={18} />
-            Limpar filtros
-          </button>
+      {!isAssociate && (
+        <div className={hideOnMobileEditing}>
+          <SectionTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
         </div>
+      )}
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <SelectField label="Período" value={period} onChange={setPeriod} options={PERIOD_OPTIONS} />
-          <TextField label="Cliente" value={clientFilter} onChange={setClientFilter} placeholder="Buscar cliente" />
-          <TextField label="Corretor" value={brokerFilter} onChange={setBrokerFilter} placeholder="Responsável" />
-          <SelectField
-            label="Status financeiro"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[{ value: "all", label: "Todos" }, ...FINANCIAL_STATUS_OPTIONS]}
+      {activeTab !== "saude" && (
+        <div className={hideOnMobileEditing}>
+          <HeroNumbers
+            received={formatCurrency(receivableMetrics.receivedThisMonth)}
+            receivable={formatCurrency(receivableMetrics.expectedThisMonth)}
+            overdue={formatCurrency(receivableMetrics.overdueBeforeMonth)}
+            overdueActive={receivableMetrics.overdueBeforeMonth > 0}
+            monthLabel={monthLabel}
+            onSeeOverdue={isAssociate ? null : () => setActiveTab("recebimentos")}
           />
-          <TextField label="Imóvel" value={propertyFilter} onChange={setPropertyFilter} placeholder="Empreendimento ou imóvel" />
+        </div>
+      )}
+
+      {activeTab !== "saude" && (
+        <div className={hideOnMobileEditing}>
+          <FilterBar
+            onClear={clearFilters}
+            extraCount={extraFilterCount}
+            hint={activeTab === "recebimentos" ? "Aqui o período não conta: recebimentos aparecem pela data de pagamento ou previsão, não pela data da venda." : ""}
+            primary={<>
+              <SelectField label="Período" value={period} onChange={setPeriod} options={PERIOD_OPTIONS} />
+              <SelectField
+                label="Status financeiro"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[{ value: "all", label: "Todos" }, ...FINANCIAL_STATUS_OPTIONS]}
+              />
+            </>}
+            extra={<>
+              <TextField label="Cliente" value={clientFilter} onChange={setClientFilter} placeholder="Buscar cliente" />
+              <TextField label="Corretor" value={brokerFilter} onChange={setBrokerFilter} placeholder="Responsável" />
+              <TextField label="Imóvel" value={propertyFilter} onChange={setPropertyFilter} placeholder="Empreendimento ou imóvel" />
+            </>}
+          />
           {period === "custom" && (
-            <>
+            <div className="mt-3 grid grid-cols-2 gap-3 rounded-card border border-line bg-white p-3 sm:max-w-md sm:p-4">
               <TextField label="Data inicial" type="date" value={startDate} onChange={setStartDate} />
               <TextField label="Data final" type="date" value={endDate} onChange={setEndDate} />
-            </>
+            </div>
           )}
         </div>
-      </div>}
-
-      {!isAssociate && <div className="flex flex-wrap gap-2">
-        {[
-          { key: "dashboard", label: "DASHBOARD", icon: BarChart3 },
-          ...(canEdit ? [{ key: "vendas", label: "VENDAS", icon: ReceiptText }] : []),
-          { key: "recebimentos", label: "RECEBIMENTOS", icon: WalletCards },
-          ...(health ? [{ key: "saude", label: "SAÚDE", icon: HeartPulse }] : [])
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-5 text-sm font-black transition ${
-                active
-                  ? "border-navy bg-navy text-white shadow-soft"
-                  : "border-navy/10 bg-white text-navy hover:border-brand"
-              }`}
-            >
-              <Icon size={17} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>}
+      )}
 
       {message && <Feedback tone="success">{message}</Feedback>}
       {error && <Feedback tone="error">{error}</Feedback>}
 
       {activeTab === "dashboard" && (
         <>
-          <DashboardTab metrics={metrics} salesCount={filteredSales.length} resultView={resultView} onResultViewChange={setResultView} currentUser={currentUser} isAssociate={isAssociate} />
-          {isAssociate ? <div className="mt-6"><h2 className="mb-3 text-xl font-black text-navy">Vendas com participação</h2><SalesList sales={filteredSales} /></div> : null}
+          <DashboardTab
+            metrics={metrics}
+            salesCount={filteredSales.length}
+            resultView={resultView}
+            onResultViewChange={setResultView}
+            currentUser={currentUser}
+            isAssociate={isAssociate}
+            payments={payments}
+            onSeeReceivables={() => setActiveTab("recebimentos")}
+          />
+          {isAssociate ? <div><h3 className="mb-3 text-lg font-semibold text-navy">Vendas com participação</h3><SalesList sales={filteredSales} showReceiptDates={false} /></div> : null}
         </>
       )}
 
       {canEdit && activeTab === "vendas" && (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
-          <SalesList sales={filteredSales} selectedSaleId={selectedSaleId} onSelect={selectSale} />
-          <SaleEditor
-            sale={selectedSale}
-            draftSale={draftSale}
-            draftTotals={draftTotals}
-            saving={saving}
-            onFieldChange={updateDraftField}
-            onSave={saveDraft}
-            onDelete={deleteSale}
-            onExpenseChange={updateExpense}
-            onExpenseAdd={addExpense}
-            onExpenseRemove={removeExpense}
-            onPaymentChange={updatePayment}
-            onPaymentAdd={addPayment}
-            onPaymentRemove={removePayment}
-            canManageForecast={canManageForecast}
-            brokers={brokers}
-            managers={managers}
-          />
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(560px,1.15fr)]">
+          <div className={mobileStep === "editor" ? "max-xl:hidden" : ""}>
+            <SalesList sales={filteredSales} selectedSaleId={selectedSaleId} onSelect={selectSale} showReceiptDates />
+          </div>
+          <div className={mobileStep === "list" ? "max-xl:hidden" : ""}>
+            <SaleEditor
+              sale={selectedSale}
+              draftSale={draftSale}
+              draftTotals={draftTotals}
+              saving={saving}
+              onFieldChange={updateDraftField}
+              onSave={saveDraft}
+              onDelete={deleteSale}
+              onBack={() => setMobileStep("list")}
+              onExpenseChange={updateExpense}
+              onExpenseAdd={addExpense}
+              onExpenseRemove={removeExpense}
+              onPaymentChange={updatePayment}
+              onPaymentAdd={addPayment}
+              onPaymentRemove={removePayment}
+              canManageForecast={canManageForecast}
+              brokers={brokers}
+              managers={managers}
+            />
+          </div>
         </div>
       )}
 
@@ -486,110 +509,198 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       {activeTab === "recebimentos" && (
         <ReceivablesTab payments={payments} metrics={receivableMetrics} canEdit={canEdit && canManageForecast} onReceiptAction={setReceiptAction} />
       )}
-      {receiptAction?.type === "confirm" ? (
-        <ConfirmReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
-      ) : null}
-      {receiptAction?.type === "reschedule" ? (
-        <RescheduleReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
-      ) : null}
+      <div className="contents">
+        {receiptAction?.type === "confirm" ? (
+          <ConfirmReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
+        ) : null}
+        {receiptAction?.type === "reschedule" ? (
+          <RescheduleReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
+        ) : null}
+      </div>
     </section>
   );
 }
 
-function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, currentUser, isAssociate = false }) {
+function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, currentUser, isAssociate = false, payments = [], onSeeReceivables = () => {} }) {
   const ownBroker = metrics.byBrokerId?.[currentUser?.id] || 0;
   const ownManager = metrics.byManagerId?.[currentUser?.id] || 0;
   const consolidated = metrics.agencyCommission + ownBroker + ownManager;
   const cards = isAssociate ? [
-    { title: "VGV das vendas", value: formatCurrency(metrics.saleValue), icon: DollarSign },
-    { title: "Minha comissão", value: formatCurrency(metrics.freeCommission), icon: CheckCircle2 },
-    { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal), icon: Clock3 },
-    { title: "Total de vendas", value: String(salesCount), icon: BarChart3 },
-    { title: "Média por venda", value: formatCurrency(metrics.averageCommission), icon: DollarSign }
+    { title: "VGV das vendas", value: formatCurrency(metrics.saleValue) },
+    { title: "Minha comissão", value: formatCurrency(metrics.freeCommission) },
+    { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal) },
+    { title: "Total de vendas", value: String(salesCount) },
+    { title: "Média por venda", value: formatCurrency(metrics.averageCommission) }
   ] : [
-    { title: "VGV total", value: formatCurrency(metrics.saleValue), icon: DollarSign },
-    { title: "Comissão bruta", value: formatCurrency(metrics.grossCommission), icon: ReceiptText },
-    { title: "Despesas e repasses", value: formatCurrency(metrics.expenseTotal), icon: Trash2 },
-    { title: "Comissão livre", value: formatCurrency(metrics.freeCommission), icon: CheckCircle2 },
-    { title: "Receita da imobiliária", value: formatCurrency(metrics.agencyCommission), icon: DollarSign },
-    { title: "Comissão de corretores", value: formatCurrency(metrics.brokerCommission), icon: ReceiptText },
-    { title: "Comissão de gestores", value: formatCurrency(metrics.managerCommission), icon: WalletCards },
+    { title: "VGV total", value: formatCurrency(metrics.saleValue) },
+    { title: "Comissão bruta", value: formatCurrency(metrics.grossCommission) },
+    { title: "Despesas e repasses", value: formatCurrency(metrics.expenseTotal) },
+    { title: "Comissão livre", value: formatCurrency(metrics.freeCommission) },
+    { title: "Receita da imobiliária", value: formatCurrency(metrics.agencyCommission) },
+    { title: "Comissão de corretores", value: formatCurrency(metrics.brokerCommission) },
+    { title: "Comissão de gestores", value: formatCurrency(metrics.managerCommission) },
     ...(resultView === "separated" ? [
-      { title: "Minha produção como corretor", value: formatCurrency(ownBroker), icon: ReceiptText },
-      { title: "Meu resultado como gestor", value: formatCurrency(ownManager), icon: WalletCards }
-    ] : [{ title: "Resultado consolidado", value: formatCurrency(consolidated), icon: BarChart3 }]),
-    { title: "Comissão recebida", value: formatCurrency(metrics.receivedTotal), icon: WalletCards },
-    { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal), icon: Clock3 },
-    { title: "Total de vendas", value: String(salesCount), icon: BarChart3 },
-    { title: "Comissão média por venda", value: formatCurrency(metrics.averageCommission), icon: DollarSign },
-    { title: "Margem líquida", value: `${formatPercent(metrics.marginPercentage)}%`, icon: BarChart3 }
+      { title: "Minha produção como corretor", value: formatCurrency(ownBroker) },
+      { title: "Meu resultado como gestor", value: formatCurrency(ownManager) }
+    ] : [{ title: "Resultado consolidado", value: formatCurrency(consolidated) }]),
+    { title: "Comissão recebida", value: formatCurrency(metrics.receivedTotal) },
+    { title: "Comissão a receber", value: formatCurrency(metrics.receivableTotal) },
+    { title: "Total de vendas", value: String(salesCount) },
+    { title: "Comissão média por venda", value: formatCurrency(metrics.averageCommission) },
+    { title: "Margem líquida", value: `${formatPercent(metrics.marginPercentage)}%` }
   ];
+  // "Para acompanhar": o que ainda não entrou (já vem ordenado por data; vencidos primeiro). Só leitura dos mesmos
+  // lançamentos da aba Recebimentos — previsão do dono continua só para o dono (já omitida dos dados dos demais).
+  const today = startOfDate(new Date());
+  const open = payments.filter((payment) => payment.status !== "received" && payment.status !== "cancelled");
+  const upcoming = open.slice(0, 5);
 
-  return (<>
-    {!isAssociate && <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
-      <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "separated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("separated")}>Separado por função</button>
-      <button type="button" className={`rounded-full px-4 py-2 text-sm font-black ${resultView === "consolidated" ? "bg-navy text-white" : "text-navy"}`} onClick={() => onResultViewChange("consolidated")}>Consolidado</button>
-    </div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {cards.map((card) => {
-        const Icon = card.icon;
-        return (
-          <article key={card.title} className="premium-card p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">{card.title}</p>
-                <p className="mt-3 text-3xl font-black text-navy">{card.value}</p>
-              </div>
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-brand">
-                <Icon size={20} />
-              </span>
+  return (
+    <div className="space-y-4">
+      {!isAssociate && upcoming.length > 0 ? (
+        <section aria-labelledby="para-acompanhar" className="rounded-card border border-line bg-white">
+          <div className="flex items-center justify-between gap-3 px-4 pt-3">
+            <h3 id="para-acompanhar" className="text-base font-semibold text-navy">Para acompanhar</h3>
+            <Button variant="ghost" onClick={onSeeReceivables}>
+              Ver todos ({open.length})
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+          <ul className="divide-y divide-line">
+            {upcoming.map((payment) => {
+              const date = parseDate(payment.expectedDate);
+              const overdue = payment.status === "overdue" || (date && date < today);
+              return (
+                <li key={payment.key} className={cx("flex items-center gap-3 px-4 py-3", overdue && "bg-danger-soft/40")}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink">{payment.clientName}</p>
+                    <p className={cx("truncate text-xs", overdue ? "font-medium text-danger" : "text-muted")}>
+                      {payment.expectedDate ? `${overdue ? "Venceu em" : "Previsto para"} ${formatDate(payment.expectedDate)}` : "Sem data prevista"} · {payment.isForecast ? "Saldo da comissão" : `Parcela ${payment.installmentNumber}`}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-navy">{formatCurrency(payment.amount)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      <Collapsible title="Ver detalhes" summary={isAssociate ? "VGV, comissão e médias" : "VGV, comissão bruta, repasses, resultado por função e médias"} tone="muted">
+        {!isAssociate ? (
+          <div role="group" aria-label="Forma de ver o resultado" className="mb-4 inline-flex rounded-control border border-line bg-mist p-1">
+            {[
+              { key: "separated", label: "Separado por função" },
+              { key: "consolidated", label: "Consolidado" }
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={resultView === option.key}
+                onClick={() => onResultViewChange(option.key)}
+                className={cx(
+                  "min-h-10 rounded-chip px-3.5 text-sm font-semibold transition-colors duration-150 ease-out-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                  resultView === option.key ? "bg-white text-navy shadow-sm ring-1 ring-line" : "text-muted hover:text-navy"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-3">
+          {cards.map((card) => (
+            <div key={card.title} className="min-w-0">
+              <dt className="text-xs text-muted">{card.title}</dt>
+              <dd className="mt-0.5 truncate text-lg font-semibold tabular-nums text-navy">{card.value}</dd>
             </div>
-          </article>
-        );
-      })}
+          ))}
+        </dl>
+      </Collapsible>
     </div>
-  </>);
+  );
 }
 
-function SalesList({ sales, selectedSaleId, onSelect }) {
+// Situação de recebimento de UMA venda para a lista. `showDates` = false para o associado; a previsão
+// (expectedReceiptDate) só existe nos dados do dono — para os demais só aparecem datas de parcelas.
+function saleReceiptInfo(sale, totals, showDates) {
+  const today = startOfDate(new Date());
+  const status = sale.financialStatus;
+  const closed = status === "received" || status === "cancelled";
+  const openParcels = ensureArray(sale.payments).filter((payment) => payment.status !== "received" && payment.status !== "cancelled");
+  const dated = openParcels
+    .map((payment) => ({ date: parseDate(payment.expectedDate), forecast: false }))
+    .filter((item) => item.date);
+  const forecastDate = sale.expectedReceiptDate && totals.receivableTotal > 0 ? parseDate(sale.expectedReceiptDate) : null;
+  if (forecastDate) dated.push({ date: forecastDate, forecast: true });
+  dated.sort((a, b) => a.date - b.date);
+  const overdue = !closed && (openParcels.some((payment) => payment.status === "overdue") || dated.some((item) => item.date < today));
+  const next = dated[0] || null;
+  return {
+    overdue,
+    nextDate: showDates && next ? next.date : null,
+    nextLabel: next?.forecast ? "Previsão" : "Parcela",
+    closed
+  };
+}
+
+function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true }) {
   if (!sales.length) {
     return (
-      <div className="premium-card p-8 text-center">
-        <p className="text-xl font-black text-navy">Nenhuma venda encontrada.</p>
-        <p className="mt-2 text-muted">Quando um cliente for marcado como Venda realizada, a venda aparecerá aqui automaticamente.</p>
+      <div className="rounded-card border border-line bg-white">
+        <EmptyState
+          icon={ReceiptText}
+          title="Nenhuma venda encontrada"
+          description="Quando um cliente for marcado como Venda realizada, a venda aparecerá aqui automaticamente. Se já marcou, confira os filtros acima."
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <ul className="space-y-2">
       {sales.map((sale) => {
         const active = sale.id === selectedSaleId;
         const totals = calculateSaleTotals(sale);
+        const info = saleReceiptInfo(sale, totals, showReceiptDates);
+        const option = FINANCIAL_STATUS_OPTIONS.find((item) => item.value === sale.financialStatus) || FINANCIAL_STATUS_OPTIONS[0];
+        const classes = cx(
+          "block w-full rounded-card border bg-white p-3.5 text-left sm:p-4",
+          info.overdue ? "border-l-4 border-danger-line border-l-danger-strong" : "border-line",
+          onSelect && "transition-[border-color,background-color] duration-150 ease-out-ui hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+          active && "border-brand bg-info-soft/40 ring-1 ring-brand/30"
+        );
+        const body = (
+          <>
+            <span className="flex items-start justify-between gap-3">
+              <span className="min-w-0">
+                <span className="block truncate text-base font-semibold text-navy">{sale.clientName || "Cliente sem nome"}</span>
+                <span className="mt-0.5 block truncate text-sm text-muted">{formatDate(sale.saleDate)} · {sale.propertyName || "Imóvel não informado"}</span>
+              </span>
+              <FinancialStatusBadge value={option.value} label={option.label} overdue={info.overdue} />
+            </span>
+            <span className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+              <span className="text-ink-2">VGV <strong className="font-semibold tabular-nums text-ink">{formatCurrency(totals.saleValue)}</strong></span>
+              <span className="text-ink-2">Comissão livre <strong className="font-semibold tabular-nums text-ink">{formatCurrency(totals.freeCommission)}</strong></span>
+              {info.nextDate ? (
+                <span className={cx("tabular-nums", info.overdue ? "font-semibold text-danger" : "text-ink-2")}>
+                  {info.nextLabel} {DATE_FORMATTER.format(info.nextDate)}
+                </span>
+              ) : null}
+            </span>
+          </>
+        );
         return (
-          <button
-            key={sale.id}
-            type="button"
-            onClick={onSelect ? () => onSelect(sale) : undefined}
-            className={`w-full rounded-[22px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
-              active ? "border-brand bg-blue-50/60 shadow-soft" : "border-line bg-white"
-            }`}
-          >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate text-lg font-black text-navy">{sale.clientName || "Cliente sem nome"}</p>
-                <p className="mt-1 text-sm font-semibold text-muted">{formatDate(sale.saleDate)} · {sale.propertyName || "Imóvel não informado"}</p>
-              </div>
-              <StatusBadge value={sale.financialStatus} />
-            </div>
-            <div className="mt-3 grid gap-2 text-sm font-bold text-muted sm:grid-cols-2">
-              <span>VGV: <strong className="text-navy">{formatCurrency(totals.saleValue)}</strong></span>
-              <span>Comissão livre: <strong className="text-navy">{formatCurrency(totals.freeCommission)}</strong></span>
-            </div>
-          </button>
+          <li key={sale.id}>
+            {onSelect ? (
+              <button type="button" onClick={() => onSelect(sale)} aria-current={active ? "true" : undefined} className={classes}>{body}</button>
+            ) : (
+              <div className={classes}>{body}</div>
+            )}
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
@@ -601,6 +712,7 @@ function SaleEditor({
   onFieldChange,
   onSave,
   onDelete,
+  onBack,
   onExpenseChange,
   onExpenseAdd,
   onExpenseRemove,
@@ -614,146 +726,200 @@ function SaleEditor({
   const draftForecast = computeForecastAmount({ grossCommission: draftTotals.grossCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
   if (!sale?.id || !draftSale?.id) {
     return (
-      <div className="premium-card p-8 text-center">
-        <p className="text-xl font-black text-navy">Selecione uma venda.</p>
+      <div className="rounded-card border border-line bg-white">
+        <EmptyState icon={ReceiptText} title="Selecione uma venda" description="Escolha uma venda da lista para ajustar valores, comissão, repasses e recebimentos." />
       </div>
     );
   }
 
+  const expenses = ensureArray(draftSale.expenses);
+  const payments = ensureArray(draftSale.payments);
+
   return (
-    <div className="premium-card overflow-hidden">
-      <div className="border-b border-line bg-white p-5 md:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Edição financeira</p>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h3 className="text-3xl font-black text-navy">{sale.clientName || "Cliente sem nome"}</h3>
-          {sale.clientId ? (
-            <Link
-              href={`/admin/simulacoes?clientId=${sale.clientId}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-brand/25 bg-white px-3 text-xs font-black text-brand transition hover:border-brand hover:bg-[#EEF6FF]"
-            >
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> Ver cliente
-            </Link>
-          ) : null}
-        </div>
-        <p className="mt-2 text-sm font-semibold text-muted">
-          Comissão livre: <strong className="text-navy">{formatCurrency(draftTotals.freeCommission)}</strong> ·
-          Recebido: <strong className="text-navy"> {formatCurrency(draftTotals.receivedTotal)}</strong> ·
-          A receber: <strong className="text-navy"> {formatCurrency(draftTotals.receivableTotal)}</strong>
-        </p>
-        {draftTotals.invoiceDeduction > 0 ? (
-          <p className="mt-1 text-sm font-bold text-amber-700">Nota fiscal: desconto de {formatCurrency(draftTotals.invoiceDeduction)} ({formatPercent(draftTotals.invoicePercentage)}% da comissão bruta)</p>
-        ) : null}
-      </div>
-
-      <div className="space-y-6 p-5 md:p-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextField label="Imóvel / empreendimento" value={draftSale.propertyName} onChange={(value) => onFieldChange("propertyName", value)} />
-          <SelectField label="Corretor responsável" value={draftSale.brokerId} onChange={(value) => onFieldChange("brokerId", value)} options={[{ value: "", label: "Selecione o corretor" }, ...brokers.map((user) => ({ value: user.id, label: user.name }))]} />
-          <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
-          <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
-          {canManageForecast ? <div>
-            <TextField label="Previsão de recebimento" type="date" value={draftSale.expectedReceiptDate} onChange={(value) => onFieldChange("expectedReceiptDate", value)} />
-            <p className="mt-1 text-xs font-bold text-muted">
-              {draftForecast > 0
-                ? `Previsto: ${formatCurrency(draftForecast)} (saldo a receber). Não é dinheiro recebido.`
-                : "Quando você espera receber o saldo da comissão. Gera uma atividade na Agenda."}
-            </p>
-          </div> : null}
-          <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
-          <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
-          <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
-          <div>
-            <label className="block">
-              <span className="mb-2 block text-sm font-black text-navy">Nota fiscal (%)</span>
-              <div className="relative">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={draftSale.invoicePercentage ?? ""}
-                  placeholder="0"
-                  onChange={(event) => onFieldChange("invoicePercentage", event.target.value)}
-                  className="admin-input min-h-12 rounded-2xl pr-10"
-                />
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted">%</span>
-              </div>
-            </label>
-            <p className="mt-1 text-xs font-bold text-muted">
-              {draftTotals.invoiceDeduction > 0
-                ? `Despesa fiscal: ${formatCurrency(draftTotals.invoiceDeduction)} sobre a comissão bruta (${formatCurrency(draftTotals.grossCommission)}).`
-                : "0% = sem nota. O percentual vale só para esta venda."}
-            </p>
+    <div className="rounded-card border border-line bg-white">
+      <div className="border-b border-line p-4 md:p-5">
+        <Button variant="ghost" onClick={onBack} className="-ml-3 mb-1 xl:hidden">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Voltar para vendas
+        </Button>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted">Edição financeira</p>
+            <h3 className="truncate text-[22px] font-semibold leading-7 tracking-[-0.01em] text-navy">{sale.clientName || "Cliente sem nome"}</h3>
+            {sale.clientId ? (
+              <Link
+                href={`/admin/simulacoes?clientId=${sale.clientId}`}
+                className="-ml-2 mt-0.5 inline-flex min-h-touch items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" /> Ver cliente
+              </Link>
+            ) : null}
           </div>
-          <TextField label="% Corretor" value={draftSale.brokerSharePercentage} onChange={(value) => onFieldChange("brokerSharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
-          <TextField label="% Imobiliária" value={draftSale.agencySharePercentage} onChange={(value) => onFieldChange("agencySharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
-          <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
-            <input type="checkbox" checked={Boolean(draftSale.hasManagerCommission)} onChange={(event) => onFieldChange("hasManagerCommission", event.target.checked)} className="h-5 w-5 accent-brand" />
-            Possui comissão de gestor
-          </label>
-          {draftSale.hasManagerCommission ? <>
-            <SelectField label="Gestor" value={draftSale.managerId} onChange={(value) => onFieldChange("managerId", value)} options={[{ value: "", label: "Selecione o gestor" }, ...managers.map((user) => ({ value: user.id, label: user.name }))]} />
-            <TextField label="% Gestor" value={draftSale.managerPercentage} onChange={(value) => onFieldChange("managerPercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
-          </> : null}
-        </div>
-
-        <div className="grid gap-3 rounded-2xl border border-line bg-mist/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SmallMetric title="Gestor" value={formatCurrency(draftTotals.managerCommission)} />
-          <SmallMetric title="Base após gestor" value={formatCurrency(draftTotals.distributionBase)} />
-          <SmallMetric title="Corretor" value={formatCurrency(draftTotals.brokerCommission)} />
-          <SmallMetric title="Imobiliária" value={formatCurrency(draftTotals.agencyCommission)} />
-        </div>
-
-        <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
-
-        <LineItemsSection
-          title="Despesas e repasses"
-          emptyText="Nenhuma despesa cadastrada."
-          addLabel="Adicionar despesa"
-          onAdd={onExpenseAdd}
-        >
-          {ensureArray(draftSale.expenses).map((expense, index) => (
-            <div key={expense.id || expense.localId || index} className="grid gap-3 rounded-2xl border border-line bg-mist/40 p-3 lg:grid-cols-[1.2fr_0.9fr_0.8fr_1fr_auto]">
-              <TextField label="Descrição" value={expense.description} onChange={(value) => onExpenseChange(index, "description", value)} />
-              <SelectField label="Categoria" value={expense.category} onChange={(value) => onExpenseChange(index, "category", value)} options={EXPENSE_CATEGORIES.map((category) => ({ value: category, label: category }))} />
-              <TextField label="Valor" value={expense.amount} onChange={(value) => onExpenseChange(index, "amount", value)} inputMode="decimal" />
-              <TextField label="Observação" value={expense.note} onChange={(value) => onExpenseChange(index, "note", value)} />
-              <RemoveButton label="Remover despesa" onClick={() => onExpenseRemove(index)} />
-            </div>
-          ))}
-        </LineItemsSection>
-
-        <LineItemsSection
-          title="Recebimentos"
-          emptyText="Nenhuma parcela cadastrada."
-          addLabel="Adicionar parcela"
-          onAdd={onPaymentAdd}
-        >
-          {ensureArray(draftSale.payments).map((payment, index) => (
-            <div key={payment.id || payment.localId || index} className="grid gap-3 rounded-2xl border border-line bg-mist/40 p-3 xl:grid-cols-[0.5fr_0.85fr_0.85fr_0.85fr_0.75fr_1fr_auto]">
-              <TextField label="Nº" value={payment.installmentNumber} onChange={(value) => onPaymentChange(index, "installmentNumber", value)} inputMode="numeric" />
-              <TextField label="Valor" value={payment.amount} onChange={(value) => onPaymentChange(index, "amount", value)} inputMode="decimal" />
-              <TextField label="Previsão" type="date" value={payment.expectedDate} onChange={(value) => onPaymentChange(index, "expectedDate", value)} />
-              <TextField label="Recebido em" type="date" value={payment.receivedDate} onChange={(value) => onPaymentChange(index, "receivedDate", value)} />
-              <SelectField label="Status" value={payment.status} onChange={(value) => onPaymentChange(index, "status", value)} options={PAYMENT_STATUS_OPTIONS} />
-              <TextField label="Observação" value={payment.note} onChange={(value) => onPaymentChange(index, "note", value)} />
-              <RemoveButton label="Remover parcela" onClick={() => onPaymentRemove(index)} />
-            </div>
-          ))}
-        </LineItemsSection>
-
-        <div className="grid gap-3 border-t border-line pt-5 sm:grid-cols-2">
-          <button type="button" onClick={onSave} disabled={saving} className="premium-button-primary min-h-12">
-            <Save size={18} />
-            {saving ? "Salvando..." : "Salvar financeiro"}
-          </button>
-          <button type="button" onClick={onDelete} disabled={saving} className="premium-button-secondary min-h-12 text-red-700 hover:border-red-300 hover:bg-red-50">
-            <Trash2 size={18} />
+          <Button variant="danger-ghost" onClick={onDelete} disabled={saving} className="shrink-0">
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
             Excluir venda
-          </button>
+          </Button>
         </div>
       </div>
+
+      <div className="space-y-3 p-3 md:p-4">
+        <Collapsible
+          title="Venda"
+          defaultOpen
+          summary={`${draftSale.propertyName || "Imóvel não informado"} · VGV ${formatCurrency(normalizeMoneyValue(draftSale.saleValue))}`}
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <TextField label="Imóvel / empreendimento" value={draftSale.propertyName} onChange={(value) => onFieldChange("propertyName", value)} />
+            <SelectField label="Corretor responsável" value={draftSale.brokerId} onChange={(value) => onFieldChange("brokerId", value)} options={[{ value: "", label: "Selecione o corretor" }, ...brokers.map((user) => ({ value: user.id, label: user.name }))]} />
+            <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
+            <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
+            {canManageForecast ? (
+              <TextField
+                label="Previsão de recebimento"
+                type="date"
+                value={draftSale.expectedReceiptDate}
+                onChange={(value) => onFieldChange("expectedReceiptDate", value)}
+                hint={draftForecast > 0
+                  ? `Previsto: ${formatCurrency(draftForecast)} (saldo a receber). Não é dinheiro recebido.`
+                  : "Quando você espera receber o saldo da comissão. Gera uma atividade na Agenda."}
+              />
+            ) : null}
+            <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
+            <div className="md:col-span-2">
+              <TextAreaField label="Observações" value={draftSale.notes} onChange={(value) => onFieldChange("notes", value)} />
+            </div>
+          </div>
+        </Collapsible>
+
+        <Collapsible
+          title="Comissão e repasses"
+          summary={`Bruta ${formatCurrency(draftTotals.grossCommission)} · livre ${formatCurrency(draftTotals.freeCommission)} · ${expenses.length} ${expenses.length === 1 ? "despesa" : "despesas"}`}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
+              <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
+              <div className="space-y-1.5">
+                <label htmlFor="venda-nota-fiscal" className="block text-sm font-medium text-ink">Nota fiscal (%)</label>
+                <div className="relative">
+                  <input
+                    id="venda-nota-fiscal"
+                    aria-describedby="venda-nota-fiscal-ajuda"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={draftSale.invoicePercentage ?? ""}
+                    placeholder="0"
+                    onChange={(event) => onFieldChange("invoicePercentage", event.target.value)}
+                    className={cx(inputClasses, "pr-10 tabular-nums")}
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted" aria-hidden="true">%</span>
+                </div>
+                <p id="venda-nota-fiscal-ajuda" className="text-xs text-muted">
+                  {draftTotals.invoiceDeduction > 0
+                    ? `Despesa fiscal: ${formatCurrency(draftTotals.invoiceDeduction)} sobre a comissão bruta (${formatCurrency(draftTotals.grossCommission)}).`
+                    : "0% = sem nota. O percentual vale só para esta venda."}
+                </p>
+              </div>
+              <div className="hidden md:block" aria-hidden="true" />
+              <TextField label="% Corretor" value={draftSale.brokerSharePercentage} onChange={(value) => onFieldChange("brokerSharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+              <TextField label="% Imobiliária" value={draftSale.agencySharePercentage} onChange={(value) => onFieldChange("agencySharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+              <label className="flex min-h-touch cursor-pointer items-center gap-3 rounded-control border border-line bg-white px-3 text-sm font-medium text-ink md:col-span-2">
+                <input type="checkbox" checked={Boolean(draftSale.hasManagerCommission)} onChange={(event) => onFieldChange("hasManagerCommission", event.target.checked)} className="h-5 w-5 accent-brand" />
+                Possui comissão de gestor
+              </label>
+              {draftSale.hasManagerCommission ? <>
+                <SelectField label="Gestor" value={draftSale.managerId} onChange={(value) => onFieldChange("managerId", value)} options={[{ value: "", label: "Selecione o gestor" }, ...managers.map((user) => ({ value: user.id, label: user.name }))]} />
+                <TextField label="% Gestor" value={draftSale.managerPercentage} onChange={(value) => onFieldChange("managerPercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
+              </> : null}
+            </div>
+
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-control bg-mist p-3 sm:grid-cols-4" aria-label="Como a comissão se divide">
+              {[
+                { title: "Gestor", value: draftTotals.managerCommission },
+                { title: "Base após gestor", value: draftTotals.distributionBase },
+                { title: "Corretor", value: draftTotals.brokerCommission },
+                { title: "Imobiliária", value: draftTotals.agencyCommission }
+              ].map((item) => (
+                <div key={item.title} className="min-w-0">
+                  <dt className="text-xs text-muted">{item.title}</dt>
+                  <dd className="truncate text-sm font-semibold tabular-nums text-navy">{formatCurrency(item.value)}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {draftTotals.invoiceDeduction > 0 ? (
+              <p className="text-sm font-medium text-warning">Nota fiscal: desconto de {formatCurrency(draftTotals.invoiceDeduction)} ({formatPercent(draftTotals.invoicePercentage)}% da comissão bruta)</p>
+            ) : null}
+
+            <LineItemsSection
+              title="Despesas e repasses"
+              emptyText="Nenhuma despesa cadastrada."
+              addLabel="Adicionar despesa"
+              onAdd={onExpenseAdd}
+            >
+              {expenses.map((expense, index) => (
+                <div key={expense.id || expense.localId || index} className="rounded-control border border-line bg-mist/60 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink">Despesa {index + 1}</p>
+                    <RemoveButton label={`Remover despesa ${index + 1}`} onClick={() => onExpenseRemove(index)} />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <TextField label="Descrição" value={expense.description} onChange={(value) => onExpenseChange(index, "description", value)} />
+                    <SelectField label="Categoria" value={expense.category} onChange={(value) => onExpenseChange(index, "category", value)} options={EXPENSE_CATEGORIES.map((category) => ({ value: category, label: category }))} />
+                    <TextField label="Valor" value={expense.amount} onChange={(value) => onExpenseChange(index, "amount", value)} inputMode="decimal" />
+                    <TextField label="Observação" value={expense.note} onChange={(value) => onExpenseChange(index, "note", value)} />
+                  </div>
+                </div>
+              ))}
+            </LineItemsSection>
+          </div>
+        </Collapsible>
+
+        <Collapsible
+          title="Recebimentos"
+          summary={`${payments.length} ${payments.length === 1 ? "parcela" : "parcelas"} · recebido ${formatCurrency(draftTotals.receivedTotal)} · a receber ${formatCurrency(draftTotals.receivableTotal)}`}
+        >
+          <LineItemsSection
+            title=""
+            emptyText="Nenhuma parcela cadastrada."
+            addLabel="Adicionar parcela"
+            onAdd={onPaymentAdd}
+          >
+            {payments.map((payment, index) => (
+              <div key={payment.id || payment.localId || index} className="rounded-control border border-line bg-mist/60 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                    Parcela {payment.installmentNumber || index + 1}
+                    <PaymentStatusBadge value={payment.status} label={(PAYMENT_STATUS_OPTIONS.find((item) => item.value === payment.status) || PAYMENT_STATUS_OPTIONS[0]).label} />
+                  </p>
+                  <RemoveButton label={`Remover parcela ${payment.installmentNumber || index + 1}`} onClick={() => onPaymentRemove(index)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  <TextField label="Nº" value={payment.installmentNumber} onChange={(value) => onPaymentChange(index, "installmentNumber", value)} inputMode="numeric" />
+                  <TextField label="Valor" value={payment.amount} onChange={(value) => onPaymentChange(index, "amount", value)} inputMode="decimal" />
+                  <SelectField label="Status" value={payment.status} onChange={(value) => onPaymentChange(index, "status", value)} options={PAYMENT_STATUS_OPTIONS} />
+                  <TextField label="Previsão" type="date" value={payment.expectedDate} onChange={(value) => onPaymentChange(index, "expectedDate", value)} />
+                  <TextField label="Recebido em" type="date" value={payment.receivedDate} onChange={(value) => onPaymentChange(index, "receivedDate", value)} />
+                  <TextField label="Observação" value={payment.note} onChange={(value) => onPaymentChange(index, "note", value)} />
+                </div>
+              </div>
+            ))}
+          </LineItemsSection>
+        </Collapsible>
+      </div>
+
+      <EditorFooter
+        saving={saving}
+        onSave={onSave}
+        metrics={[
+          { label: "Comissão livre", value: formatCurrency(draftTotals.freeCommission) },
+          { label: "Recebido", value: formatCurrency(draftTotals.receivedTotal) },
+          { label: "A receber", value: formatCurrency(draftTotals.receivableTotal) }
+        ]}
+      />
     </div>
   );
 }
@@ -763,14 +929,12 @@ function LineItemsSection({ title, emptyText, addLabel, onAdd, children }) {
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h4 className="text-xl font-black text-navy">{title}</h4>
-        <button type="button" onClick={onAdd} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-brand/25 bg-white px-4 text-sm font-black text-brand transition hover:border-brand hover:bg-blue-50">
-          <Plus size={16} />
-          {addLabel}
-        </button>
-      </div>
-      {hasChildren ? children : <p className="rounded-2xl border border-line bg-mist/50 p-4 text-sm font-bold text-muted">{emptyText}</p>}
+      {title ? <h4 className="text-sm font-semibold text-navy">{title}</h4> : null}
+      {hasChildren ? children : <p className="rounded-control bg-mist p-3 text-sm text-muted">{emptyText}</p>}
+      <Button variant="secondary" onClick={onAdd} className="w-full sm:w-auto">
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        {addLabel}
+      </Button>
     </section>
   );
 }
@@ -778,77 +942,72 @@ function LineItemsSection({ title, emptyText, addLabel, onAdd, children }) {
 function ReceivablesTab({ payments, metrics, canEdit = false, onReceiptAction = () => {} }) {
   const today = startOfDate(new Date());
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SmallMetric title="A receber neste mês" value={formatCurrency(metrics.expectedThisMonth)} />
-        <SmallMetric title="Recebido neste mês" value={formatCurrency(metrics.receivedThisMonth)} />
-        <SmallMetric title="A receber próximos 30/60/90 dias" value={`${formatCurrency(metrics.next30)} / ${formatCurrency(metrics.next60)} / ${formatCurrency(metrics.next90)}`} />
-        <SmallMetric title="Vencidas de meses anteriores" value={formatCurrency(metrics.overdueBeforeMonth)} />
-      </div>
-      <p className="text-xs font-bold text-muted">Recebido = só pagamento confirmado. Previsão não conta como dinheiro recebido. Estes indicadores consideram todas as vendas, independentemente da data da venda.</p>
+    <div className="space-y-4">
+      <Collapsible title="Próximos 30, 60 e 90 dias" summary={`${formatCurrency(metrics.next30)} · ${formatCurrency(metrics.next60)} · ${formatCurrency(metrics.next90)}`} tone="muted">
+        <dl className="grid grid-cols-3 gap-4">
+          {[{ title: "Em 30 dias", value: metrics.next30 }, { title: "Em 60 dias", value: metrics.next60 }, { title: "Em 90 dias", value: metrics.next90 }].map((item) => (
+            <div key={item.title} className="min-w-0">
+              <dt className="text-xs text-muted">{item.title}</dt>
+              <dd className="truncate text-base font-semibold tabular-nums text-navy sm:text-lg">{formatCurrency(item.value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </Collapsible>
 
-      <div className="premium-card overflow-hidden">
-        <div className="border-b border-line p-5">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Parcelas e previsões</p>
-          <h3 className="mt-2 text-2xl font-black text-navy">Agenda de recebimentos</h3>
+      <section className="rounded-card border border-line bg-white" aria-labelledby="agenda-recebimentos">
+        <div className="border-b border-line px-4 py-3">
+          <h3 id="agenda-recebimentos" className="text-base font-semibold text-navy">Agenda de recebimentos</h3>
+          <p className="text-xs text-muted">Parcelas e previsões, da mais antiga para a mais nova.</p>
         </div>
-        <div className="divide-y divide-line">
+        <ul className="divide-y divide-line">
           {payments.length ? payments.map((payment) => {
             const date = parseDate(payment.expectedDate);
             const open = payment.status !== "received" && payment.status !== "cancelled";
-            const displayStatus = open && date && date < today ? "overdue" : payment.status;
+            const isOverdue = open && date && date < today;
+            const displayStatus = isOverdue ? "overdue" : payment.status;
+            const daysLate = isOverdue ? Math.max(1, Math.round((today.getTime() - date.getTime()) / 86400000)) : 0;
             const canAct = payment.isForecast && canEdit;
+            const receipt = { saleId: payment.saleId, clientName: payment.clientName, propertyName: payment.propertyName, amount: payment.amount, expectedDate: payment.expectedDate };
+            const statusOption = PAYMENT_STATUS_OPTIONS.find((item) => item.value === displayStatus) || PAYMENT_STATUS_OPTIONS[0];
             return (
-              <div key={payment.key} className="grid gap-3 p-4 text-sm md:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr] md:items-center">
-                <div>
-                  <p className="font-black text-navy">{payment.clientName}</p>
-                  <p className="font-semibold text-muted">{payment.propertyName || "Imóvel não informado"} · {payment.isForecast ? "Previsão do saldo" : `Parcela ${payment.installmentNumber}`}</p>
+              <li
+                key={payment.key}
+                className={cx(
+                  "grid gap-x-4 gap-y-2 px-4 py-3 md:grid-cols-[minmax(0,1.6fr)_120px_130px_130px_auto] md:items-center",
+                  isOverdue && "border-l-4 border-l-danger-strong bg-danger-soft/40"
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">{payment.clientName}</p>
+                  <p className="truncate text-xs text-muted">{payment.propertyName || "Imóvel não informado"} · {payment.isForecast ? "Previsão do saldo" : `Parcela ${payment.installmentNumber}`}</p>
                 </div>
-                <p className="font-black text-navy">{formatCurrency(payment.amount)}</p>
-                <p className="font-bold text-muted">{formatDate(payment.expectedDate)}</p>
-                <PaymentBadge value={displayStatus} />
+                <p className="text-base font-semibold tabular-nums text-navy md:text-right">{formatCurrency(payment.amount)}</p>
+                <p className={cx("text-sm tabular-nums", isOverdue ? "font-semibold text-danger" : "text-ink-2")}>
+                  {formatDate(payment.expectedDate)}
+                  {isOverdue ? <span className="block text-xs font-medium">há {daysLate} {daysLate === 1 ? "dia" : "dias"}</span> : null}
+                </p>
+                <div><PaymentStatusBadge value={displayStatus} label={statusOption.label} /></div>
                 {canAct ? (
-                  <div className="grid gap-2 sm:grid-cols-2 md:col-span-4">
-                    <button
-                      type="button"
-                      className="min-h-12 rounded-full bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-700"
-                      onClick={() => onReceiptAction({ type: "confirm", receipt: { saleId: payment.saleId, clientName: payment.clientName, propertyName: payment.propertyName, amount: payment.amount, expectedDate: payment.expectedDate } })}
-                    >
-                      Confirmar recebimento
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-12 rounded-full border border-brand/25 bg-white px-4 text-sm font-black text-brand transition hover:border-brand hover:bg-blue-50"
-                      onClick={() => onReceiptAction({ type: "reschedule", receipt: { saleId: payment.saleId, clientName: payment.clientName, propertyName: payment.propertyName, amount: payment.amount, expectedDate: payment.expectedDate } })}
-                    >
-                      Reagendar
-                    </button>
+                  <div className="grid grid-cols-2 gap-2 md:flex">
+                    <Button onClick={() => onReceiptAction({ type: "confirm", receipt })}>Confirmar recebimento</Button>
+                    <Button variant="secondary" onClick={() => onReceiptAction({ type: "reschedule", receipt })}>Reagendar</Button>
                   </div>
-                ) : null}
-              </div>
+                ) : <span className="hidden md:block" />}
+              </li>
             );
           }) : (
-            <p className="p-6 text-center font-bold text-muted">Nenhum recebimento cadastrado.</p>
+            <li><EmptyState icon={WalletCards} title="Nenhum recebimento cadastrado" description="As parcelas e previsões das vendas aparecem aqui assim que forem lançadas." /></li>
           )}
-        </div>
-      </div>
+        </ul>
+      </section>
+      <p className="text-xs text-muted">Recebido = só pagamento confirmado. Previsão não conta como dinheiro recebido. Estes indicadores consideram todas as vendas, independentemente da data da venda.</p>
     </div>
   );
 }
 
-function SmallMetric({ title, value }) {
+function TextField({ label, value, onChange, type = "text", placeholder = "", inputMode, formatOnBlur, hint }) {
   return (
-    <article className="premium-card p-5">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">{title}</p>
-      <p className="mt-3 text-2xl font-black text-navy">{value}</p>
-    </article>
-  );
-}
-
-function TextField({ label, value, onChange, type = "text", placeholder = "", inputMode, formatOnBlur }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-navy">{label}</span>
+    <UiField label={label} hint={hint}>
       <input
         type={type}
         value={value ?? ""}
@@ -857,67 +1016,50 @@ function TextField({ label, value, onChange, type = "text", placeholder = "", in
         onFocus={formatOnBlur ? (event) => event.target.select() : undefined}
         onChange={(event) => onChange(event.target.value)}
         onBlur={formatOnBlur ? (event) => onChange(formatOnBlur(event.target.value)) : undefined}
-        className="admin-input min-h-12 rounded-2xl"
+        className={cx(inputClasses, "tabular-nums")}
       />
-    </label>
+    </UiField>
   );
 }
 
 function TextAreaField({ label, value, onChange }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-navy">{label}</span>
+    <UiField label={label}>
       <textarea
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value)}
-        className="admin-input min-h-28 rounded-2xl py-3"
+        className={cx(inputClasses, "min-h-24 py-2.5")}
       />
-    </label>
+    </UiField>
   );
 }
 
 function SelectField({ label, value, onChange, options }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-navy">{label}</span>
-      <select value={value ?? ""} onChange={(event) => onChange(event.target.value)} className="admin-input min-h-12 rounded-2xl">
+    <UiField label={label}>
+      <select value={value ?? ""} onChange={(event) => onChange(event.target.value)} className={inputClasses}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </select>
-    </label>
+    </UiField>
   );
 }
 
 function RemoveButton({ label, onClick }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-red-100 bg-white px-3 text-red-700 transition hover:bg-red-50"
-    >
-      <Trash2 size={18} />
-    </button>
+    <Button variant="danger-ghost" size="icon" aria-label={label} title={label} onClick={onClick}>
+      <Trash2 className="h-4 w-4" aria-hidden="true" />
+    </Button>
   );
-}
-
-function StatusBadge({ value }) {
-  const option = FINANCIAL_STATUS_OPTIONS.find((item) => item.value === value) || FINANCIAL_STATUS_OPTIONS[0];
-  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${STATUS_STYLES[option.value]}`}>{option.label}</span>;
-}
-
-function PaymentBadge({ value }) {
-  const option = PAYMENT_STATUS_OPTIONS.find((item) => item.value === value) || PAYMENT_STATUS_OPTIONS[0];
-  return <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${PAYMENT_STATUS_STYLES[option.value]}`}>{option.label}</span>;
 }
 
 function Feedback({ tone, children }) {
   const classes = tone === "error"
-    ? "border-red-200 bg-red-50 text-red-700"
-    : "border-emerald-200 bg-emerald-50 text-emerald-700";
+    ? "border-danger-line bg-danger-soft text-danger"
+    : "border-success-line bg-success-soft text-success";
 
-  return <div className={`rounded-2xl border p-4 text-sm font-bold ${classes}`}>{children}</div>;
+  return <div role={tone === "error" ? "alert" : "status"} className={`rounded-control border px-4 py-3 text-sm font-medium ${classes}`}>{children}</div>;
 }
 
 function calculateDashboardMetrics(sales) {

@@ -1631,3 +1631,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/client-card-whatsapp-core.mjs`, `app/api/admin/whatsapp-individual/card-state/route.js`, `components/clients/useClientList.js`, testes `tests/client-card-whatsapp-decision.test.mjs` e `tests/client-card-whatsapp-chat.test.mjs`; docs WA-13a, rule crm-clientes-funil.
 - **Risco/observação:** só vale para cliente do próprio usuário (o link externo usa o número de quem clica). Sem migration.
 - **Autor:** Claude Code
+
+### 2026-10-02 — Financeiro (Vendas/Comissões): interface da fase 3 (só layout, nenhuma regra mudou)
+- **Data:** 2026-10-02
+- **Área:** Financeiro / interface (T-20261002-12)
+- **Alteração:** topo com 3 números grandes (Recebido no mês · A receber · Comissões em atraso — mesmas contas de `calculateReceivableMetrics`: recebido no mês, "a receber neste mês", vencidas de meses anteriores); demais cartões em "Ver detalhes" (recolhido); filtros: Período e Status à vista + "Mais filtros" (Cliente, Corretor, Imóvel); edição da venda em 3 blocos recolhíveis (Venda · Comissão e repasses · Recebimentos) com resumo fixo (livre, recebido, a receber) e Salvar fixo no rodapé; no celular lista e editor viram duas telas ("Voltar para vendas"); abas num componente único (`SectionTabs`, sublinhado, sem caixa alta); lista de vendas com selo "Atrasado" em vermelho e previsão/parcela ao lado; texto de apresentação recolhido; bloco "Para acompanhar" no Resumo e Recebimentos com linha vermelha para atraso. Aba "Dashboard" passou a se chamar "Resumo". Vitrine: tela `financeiro-vendas` (perfis admin/gestor/corretor/associado) + `AutoClick` (dev).
+- **Motivo:** pedido do dono; reduzir poluição e mostrar "o que fazer agora".
+- **Arquivos afetados:** `components/AdminFinancialDashboard.jsx`, `components/FinancialSalesParts.jsx` (novo), `app/dev/vitrine/**`. Nenhum arquivo de `lib/`, API ou da Saúde.
+- **Risco/observação:** visão projetada do associado e previsão só do dono preservadas (a previsão só aparece onde `expectedReceiptDate` já chega, ou seja, só ao dono; associado não vê datas na lista). "Recebido no mês/A receber/Em atraso" não dependem do período da venda (como a aba Recebimentos já era).
+- **Autor:** Claude Code (designer-crm)

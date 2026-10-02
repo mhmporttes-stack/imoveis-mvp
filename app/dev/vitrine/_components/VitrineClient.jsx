@@ -22,6 +22,9 @@ import * as alertas from "../_fixtures/alertas";
 import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
 import * as financeiroSaude from "../_fixtures/financeiro-saude";
+import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
+import * as financeiroVendas from "../_fixtures/financeiro-vendas";
+import AutoClick from "./AutoClick";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -113,6 +116,18 @@ const TELAS = {
         <section className="container-page space-y-6">
           <FinancialHealthTab {...financeiroSaude.propsFor(variante)} />
         </section>
+      </main>
+    )
+  },
+  "financeiro-vendas": {
+    path: "/admin/financeiro",
+    titulo: "Financeiro > Resumo, Vendas e Recebimentos (?variante=Vendas|Marta cliques em sequência)",
+    active: "financial",
+    rotas: financeiroVendas.routes,
+    render: (perfil, variante) => (
+      <main className="bg-mist py-14">
+        <AdminFinancialDashboard {...financeiroVendas.propsFor(perfil)} />
+        <AutoClick passos={variante} />
       </main>
     )
   },
