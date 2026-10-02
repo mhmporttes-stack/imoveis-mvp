@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 // Estrutura do Despachante + invariantes de segurança. Nada vai ao banco.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g, "\n");
 const agentFiles = fs.readdirSync(path.join(root, ".claude/agents")).filter((f) => f.endsWith(".md"));
 
 function frontmatter(text) {

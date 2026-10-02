@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Testes estruturais tolerantes a CRLF (despachante.test.mjs)
+- **Data:** 2026-10-02
+- **Área:** Infra / Testes
+- **Alteração:** `tests/despachante.test.mjs` normaliza CRLF para LF ao ler arquivos (como já faziam context-budget e agent-scout); nenhuma asserção afrouxada.
+- **Motivo:** no Windows (core.autocrlf=true) os .md saíam com CRLF e o teste falhava com "frontmatter ausente" (T-20261002-59).
+- **Arquivos afetados:** `tests/despachante.test.mjs`
+- **Risco/observação:** restam só as falhas de limite de descrição (designer-crm, direcao-criativa), decisão do dono.
+- **Autor:** Claude Code (Despachante)
+
 ### 2026-10-02 — Agent Scout: especialista em encontrar especialistas (somente pesquisa e recomendação)
 - **Data:** 2026-10-02
 - **Área:** Docs / Agentes (nenhuma tela, `lib/`, `app/`, `components/`, banco ou regra de negócio alterados)
