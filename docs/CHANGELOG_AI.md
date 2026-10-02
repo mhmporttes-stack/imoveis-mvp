@@ -63,6 +63,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Autor:** crm-editor (Claude Sonnet 5.5)
 
 
+### 2026-10-02 — Reativação manual a "Tentando contato" encerra a pendência "sem atividade futura"
+- **Data:** 2026-10-02
+- **Área:** Clientes / Meta Diária
+- **Alteração:** devolver à mão um cliente avançado a "Tentando contato" tira a pendência de atividade futura (painel, lista, automação), reinicia o relógio de 3 dias e conta como pendência resolvida na Meta Diária. Sem atividade fictícia; histórico, responsável, mensagens e pontos intactos; "Não contactar" não reativa. Sem migration.
+- **Motivo:** pedido do dono (cliente que parou de responder continuava com "atividade futura não agendada" mesmo devolvido à prospecção).
+- **Arquivos afetados:** `lib/client-status.js`, `lib/crm.js`, `lib/crm-automations.js`, `lib/daily-goal-progress.mjs`, `lib/daily-goal-pending.js`, `lib/performance-overview.js`, `lib/simulation-list-query.js`, `components/clients/client-format.js`, `tests/pending-reactivation.test.mjs`, `.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md`
+
 ### 2026-10-02 — Despachante de tarefas + política de autonomia dos agentes
 - **O quê:** novo agente `despachante` (`.claude/agents/despachante.md`), skill `/despachar`, mapa de agentes e registro de tarefas em `.claude/despachante/`, documento `docs/DESPACHANTE.md` (capacidades reais, auditoria de permissões, política de autonomia), teste `tests/despachante.test.mjs` (mapa completo + invariantes de segurança). `CLAUDE.md` e `AGENTS.md` apontam para eles.
 - **Por quê:** o dono quer um único chat de entrada que delegue em segundo plano e só o interrompa em decisão de produto/impacto destrutivo.

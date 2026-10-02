@@ -1,4 +1,4 @@
-import { CLIENT_STATUS, isOverdueActivityClient, isStaleContactClient, mergeActivitySignal } from "@/lib/client-status";
+import { CLIENT_STATUS, isOverdueActivityClient, isStaleContactClient, mergeActivitySignal, pendingReferenceAt } from "@/lib/client-status";
 import { formatBrazilianPhone, toWhatsAppDigits } from "@/lib/phone-utils";
 
 // Formatação e sinais da Lista de clientes (redesenho 2026-10). Mesmas regras
@@ -55,8 +55,8 @@ export function isPendingClient(client, extraActivities) {
   const now = Date.now();
   const scheduledAt = new Date(merged.scheduledActivityAt || "").getTime();
   if (Number.isFinite(scheduledAt) && scheduledAt > now) return false;
-  const referenceAt = new Date(client.lastWhatsappContactAt || client.createdAt || "").getTime();
-  return Number.isFinite(referenceAt) && referenceAt < now - (3 * 24 * 60 * 60 * 1000);
+  const referenceAt = pendingReferenceAt(client);
+  return referenceAt !== null && referenceAt < now - (3 * 24 * 60 * 60 * 1000);
 }
 
 // Único sinal de urgência por cliente, por prioridade (atividade atrasada >
