@@ -58,6 +58,13 @@ Copie o modelo abaixo (uma entrada por bloco):
   - Validado com o `analista-dados` real (`/analisar-funil`): `transaction_read_only = on`.
   - Escrita em transação read-only é recusada pelo banco (25006).
   - Validação numa sessão nova na nuvem: o servidor do projeto toma o nome `Supabase` e o conector da conta passa a aparecer com UUID. Sem login possível na nuvem, a autenticação passou a ser por token pessoal (`SUPABASE_ACCESS_TOKEN`, configurado pelo dono no Windows e no ambiente da nuvem). Até isso ser feito, os agentes ficam sem banco nas sessões novas; a escrita continua pelo conector da conta.
+### 2026-10-02 — Chat: parte 2 da migração (telefone + sessão) aplicada em produção
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Banco
+- **Alteração:** aplicada `20261002290100_whatsapp_conversation_per_session_split` (autorizada pelo dono): removido o UNIQUE global de `whatsapp_conversations.contact_phone` (fica só UNIQUE(`contact_phone`, `session_key`)); dedupe do WhatsApp pessoal por sessão (`whatsapp_messages_individual_wa_id_uidx` = `session_user_id` + `wa_message_id`); criada `whatsapp_conversation_split_log`. Separadas exatamente as 23 mensagens auditadas (conversas 471ed956…, ccd9ac6d…, fa256805…) em 4 conversas novas (telefone + sessão); log com 23 linhas (reversível). 2848 mensagens antes e depois; conversas 269 → 273.
+- **Motivo:** fim do cruzamento entre corretores (ver 2026-10-02 "Chat: conversa passa a ser telefone + sessão").
+- **Arquivos afetados:** `supabase/migrations/20261002290100_whatsapp_conversation_per_session_split.sql` — a versão aplicada limita o split às 3 conversas auditadas, tem trava "exatamente 23" (aborta se diferente) e não repete a reclassificação em lote da parte 1.
+- **Risco/observação:** ficou fora (nova autorização necessária) a conversa `39647f9f…` (cliente Lorgna Zapata, criada depois da auditoria): 2 mensagens recebidas pela sessão da ketlin + 1 envio manual pelo número oficial na mesma conversa de chave oficial. O botão WhatsApp do card dela abriria uma conversa nova (telefone + sessão da ketlin) em vez dessa. Reverter o split: mover as mensagens de volta pelo `whatsapp_conversation_split_log` (message_id → from_conversation_id).
 - **Autor:** Claude Code
 
 ### 2026-10-02 — Chat: conversa passa a ser (telefone + sessão do WhatsApp) — fim do cruzamento entre corretores

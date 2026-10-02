@@ -31,13 +31,17 @@ create table if not exists public.whatsapp_conversation_split_log (
 alter table public.whatsapp_conversation_split_log enable row level security;
 create index if not exists whatsapp_conversation_split_log_message_idx on public.whatsapp_conversation_split_log (message_id);
 
-select public.whatsapp_classify_conversation_sessions();
-
+-- AUTORIZAÇÃO DO DONO (2026-10-02): separar SOMENTE as 23 mensagens já auditadas,
+-- nestas 3 conversas (471ed956… = 15 msgs de 2 sessões; ccd9ac6d… = 3 msgs;
+-- fa256805… = 5 msgs). Qualquer outra conversa que apareça misturada (ex.: a de
+-- criação posterior à auditoria) NÃO é tocada aqui — precisa de nova auditoria
+-- e autorização. A reclassificação em lote da parte 1 não é repetida.
 do $$
 declare
   r record;
   v_new uuid;
   v_affected uuid[] := '{}';
+  v_moved integer;
 begin
   for r in
     select m.conversation_id, m.session_user_id, c.contact_phone, c.contact_name, c.profile_photo_url, c.client_id, c.status
@@ -45,6 +49,11 @@ begin
       join public.whatsapp_conversations c on c.id = m.conversation_id
      where m.session_user_id is not null
        and m.session_user_id <> c.session_key
+       and m.conversation_id in (
+         '471ed956-71cd-4fe0-b648-9a2d4b3eb22d'::uuid,
+         'ccd9ac6d-35d1-44e1-8e2a-4d9eba67f703'::uuid,
+         'fa256805-f12e-4545-b2ac-94120c372b6b'::uuid
+       )
      group by m.conversation_id, m.session_user_id, c.contact_phone, c.contact_name, c.profile_photo_url, c.client_id, c.status
   loop
     insert into public.whatsapp_conversations (contact_phone, contact_name, profile_photo_url, client_id, status, session_key, assigned_user_id)
@@ -57,6 +66,7 @@ begin
          set conversation_id = v_new
        where conversation_id = r.conversation_id
          and session_user_id = r.session_user_id
+         and session_user_id <> (select c2.session_key from public.whatsapp_conversations c2 where c2.id = r.conversation_id)
       returning id
     )
     insert into public.whatsapp_conversation_split_log (message_id, from_conversation_id, to_conversation_id, session_user_id)
@@ -64,6 +74,12 @@ begin
 
     v_affected := v_affected || r.conversation_id || v_new;
   end loop;
+
+  -- Trava: exatamente as 23 mensagens auditadas. Qualquer outro número aborta a migration inteira.
+  select count(*) into v_moved from public.whatsapp_conversation_split_log;
+  if v_moved <> 23 then
+    raise exception 'Split abortado: esperado 23 mensagens movidas, encontrado %', v_moved;
+  end if;
 
   if cardinality(v_affected) > 0 then
     -- Resumo (última mensagem/entrada) recalculado a partir das mensagens que
