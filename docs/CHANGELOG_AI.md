@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Desarquivar cliente apaga o histórico do Chat (PENDENTE de aplicação no banco)
+- **Data:** 2026-10-02
+- **Área:** WhatsApp · Chat · Banco
+- **Alteração:** a migration `20261002330000_whatsapp_unarchive_purges_chat_history.sql` troca o "desarquivar devolve as conversas" por "desarquivar apaga as conversas ocultas do cliente e as mensagens delas". A auditoria guarda só a contagem. Nada além do Chat é tocado.
+- **Motivo:** regra do dono (WA-13, complemento).
+- **Arquivos afetados:** migration acima, `tests/whatsapp-archived-client-hidden.test.mjs`, BUSINESS_RULES WA-13, WHATSAPP §6.
+- **Risco/observação:** **ainda não aplicada em produção.** O SQL contém `DELETE` e o hook de proteção exige confirmação do dono, e as duas tentativas expiraram sem resposta. Aplicar quando o dono confirmar, testando antes em transação desfeita. Arquivos de mídia das conversas apagadas continuam no storage.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Cliente arquivado: só o dono lê a conversa pelo card; demais veem o Chat em branco
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Chat · Permissões

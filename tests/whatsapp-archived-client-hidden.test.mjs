@@ -18,10 +18,14 @@ test("mensagem nova não restaura conversa de cliente arquivado", () => {
   assert.match(migration, /unread_count = case when v_archived then 0/);
 });
 
-test("arquivar esconde; desarquivar devolve só o que a regra escondeu", () => {
+test("arquivar esconde; desarquivar APAGA o histórico do Chat (conversa nova do zero)", () => {
   assert.match(migration, /after update of status on public\.simulation_registrations/);
   assert.match(migration, /new\.status = 'archived' and old\.status is distinct from 'archived'/);
-  assert.match(migration, /c\.origin \? 'archived_hidden_at'/);
+  const purge = source("supabase/migrations/20261002330000_whatsapp_unarchive_purges_chat_history.sql");
+  assert.match(purge, /old\.status = 'archived' and new\.status is distinct from 'archived'/);
+  // Só o Chat do cliente, só conversas ocultas; registro de auditoria antes de apagar.
+  assert.match(purge, /'purged', true[\s\S]*delete from public\.whatsapp_conversations c\s+where c\.client_id = new\.id and c\.deleted_at is not null/);
+  assert.doesNotMatch(purge, /simulation_registrations\s+where|client_status_history|calendar_activities|prospecting_contacts/);
 });
 
 test("sem push nem atribuição para conversa escondida; card não reabre conversa de arquivado", () => {
