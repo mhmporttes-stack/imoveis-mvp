@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Cliente arquivado sai do Chat e não volta com mensagem nova
+- **Data:** 2026-10-02
+- **Área:** WhatsApp · Chat · Banco
+- **Alteração:**
+  - A migration `20261002320000` cria o gatilho em `simulation_registrations`: arquivar esconde as conversas do cliente; desarquivar devolve só as que essa regra escondeu.
+  - `whatsapp_chat_apply_inbound` deixa de restaurar e zera as não lidas quando o cliente está arquivado.
+  - No código, conversa escondida não recebe push nem atribuição automática, e o botão "WhatsApp" do card de cliente arquivado devolve 409.
+  - 9 conversas visíveis de clientes já arquivados foram escondidas, com auditoria (`detail.backfill`).
+- **Motivo:** pedido do dono (BUSINESS_RULES WA-13).
+- **Arquivos afetados:** migration acima, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-chat.js`, `tests/whatsapp-archived-client-hidden.test.mjs`, docs WHATSAPP §6, BUSINESS_RULES WA-13, rule integracoes-externas.
+- **Risco/observação:**
+  - Testado em produção numa transação desfeita: arquivar esconde, mensagem nova mantém escondida com 0 não lidas, desarquivar restaura.
+  - Nada é apagado. As mensagens continuam sendo gravadas, então a Prospecção continua vendo resposta.
+  - Envio de relatório de documentos pelo Chat para cliente arquivado passa a falhar com a mesma mensagem.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Chat: entrada redundante do número oficial some da lista + aviso discreto se o contato não for salvo
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Clientes
