@@ -18,6 +18,8 @@ import {
   WalletCards
 } from "lucide-react";
 import { calculateCommissionDistribution } from "@/lib/financial-calculations";
+import { calculateReceivableMetrics, computeForecastAmount, flattenReceivableEntries } from "@/lib/financial-expected-receipt-core.mjs";
+import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -103,6 +105,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [resultView, setResultView] = useState("separated");
+  const [receiptAction, setReceiptAction] = useState(null);
   const brokers = useMemo(() => financialUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [financialUsers]);
   const managers = useMemo(() => financialUsers.filter((user) => ["admin", "manager"].includes(user.role) && user.status === "active"), [financialUsers]);
 
@@ -123,7 +126,17 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   }, [sales, period, startDate, endDate, clientFilter, brokerFilter, propertyFilter, statusFilter]);
 
   const metrics = useMemo(() => calculateDashboardMetrics(filteredSales), [filteredSales]);
-  const payments = useMemo(() => flattenPayments(filteredSales), [filteredSales]);
+  // Recebimentos (a receber/recebido no mês, 30/60/90 dias, agenda) são por data de RECEBIMENTO/previsão:
+  // não podem depender do período da data da VENDA (uma venda de setembro prevista para outubro some do
+  // filtro "Este mês"). Os demais filtros (cliente, corretor, imóvel, status) continuam valendo.
+  const receivableSales = useMemo(() => sales.filter((sale) => {
+    if (statusFilter !== "all" && sale.financialStatus !== statusFilter) return false;
+    if (clientFilter && !normalizeText(sale.clientName).includes(normalizeText(clientFilter))) return false;
+    if (brokerFilter && !normalizeText(sale.brokerName || sale.brokerEmail).includes(normalizeText(brokerFilter))) return false;
+    if (propertyFilter && !normalizeText(sale.propertyName).includes(normalizeText(propertyFilter))) return false;
+    return true;
+  }), [sales, clientFilter, brokerFilter, propertyFilter, statusFilter]);
+  const payments = useMemo(() => flattenReceivableEntries(receivableSales, (sale) => calculateSaleTotals(sale).freeCommission), [receivableSales]);
   const receivableMetrics = useMemo(() => calculateReceivableMetrics(payments), [payments]);
   const draftTotals = useMemo(() => calculateSaleTotals(draftSale), [draftSale]);
 
@@ -286,6 +299,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
           grossCommission: draftSale.grossCommission,
           commissionInputMode: draftSale.commissionInputMode,
           financialStatus: draftSale.financialStatus,
+          expectedReceiptDate: draftSale.expectedReceiptDate || "",
           manualStatus: draftSale.manualStatus,
           invoiceIssued: draftSale.invoiceIssued,
           brokerId: draftSale.brokerId,
@@ -310,6 +324,17 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
     } finally {
       setSaving(false);
     }
+  }
+
+  function applyReceiptResult(result) {
+    const updated = result?.sale;
+    if (updated?.id) {
+      setSales((current) => current.map((sale) => (sale.id === updated.id ? updated : sale)));
+      setDraftSale((current) => (current?.id === updated.id ? createDraftSale(updated) : current));
+    }
+    setReceiptAction(null);
+    setError("");
+    setMessage(result?.alreadyConfirmed ? "Este recebimento já havia sido confirmado." : "Previsão de recebimento atualizada.");
   }
 
   async function deleteSale() {
@@ -438,8 +463,14 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       )}
 
       {activeTab === "recebimentos" && (
-        <ReceivablesTab payments={payments} metrics={receivableMetrics} />
+        <ReceivablesTab payments={payments} metrics={receivableMetrics} canEdit={canEdit} onReceiptAction={setReceiptAction} />
       )}
+      {receiptAction?.type === "confirm" ? (
+        <ConfirmReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
+      ) : null}
+      {receiptAction?.type === "reschedule" ? (
+        <RescheduleReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
+      ) : null}
     </section>
   );
 }
@@ -558,6 +589,7 @@ function SaleEditor({
   brokers,
   managers
 }) {
+  const draftForecast = computeForecastAmount({ freeCommission: draftTotals.freeCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
   if (!sale?.id || !draftSale?.id) {
     return (
       <div className="premium-card p-8 text-center">
@@ -597,6 +629,14 @@ function SaleEditor({
           <SelectField label="Corretor responsável" value={draftSale.brokerId} onChange={(value) => onFieldChange("brokerId", value)} options={[{ value: "", label: "Selecione o corretor" }, ...brokers.map((user) => ({ value: user.id, label: user.name }))]} />
           <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
           <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
+          <div>
+            <TextField label="Previsão de recebimento" type="date" value={draftSale.expectedReceiptDate} onChange={(value) => onFieldChange("expectedReceiptDate", value)} />
+            <p className="mt-1 text-xs font-bold text-muted">
+              {draftForecast > 0
+                ? `Previsto: ${formatCurrency(draftForecast)} (saldo a receber). Não é dinheiro recebido.`
+                : "Quando você espera receber o saldo da comissão. Gera uma atividade na Agenda."}
+            </p>
+          </div>
           <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
           <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
           <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
@@ -699,32 +739,59 @@ function LineItemsSection({ title, emptyText, addLabel, onAdd, children }) {
   );
 }
 
-function ReceivablesTab({ payments, metrics }) {
+function ReceivablesTab({ payments, metrics, canEdit = false, onReceiptAction = () => {} }) {
+  const today = startOfDate(new Date());
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SmallMetric title="A receber neste mês" value={formatCurrency(metrics.expectedThisMonth)} />
         <SmallMetric title="Recebido neste mês" value={formatCurrency(metrics.receivedThisMonth)} />
         <SmallMetric title="A receber próximos 30/60/90 dias" value={`${formatCurrency(metrics.next30)} / ${formatCurrency(metrics.next60)} / ${formatCurrency(metrics.next90)}`} />
+        <SmallMetric title="Vencidas de meses anteriores" value={formatCurrency(metrics.overdueBeforeMonth)} />
       </div>
+      <p className="text-xs font-bold text-muted">Recebido = só pagamento confirmado. Previsão não conta como dinheiro recebido. Estes indicadores consideram todas as vendas, independentemente da data da venda.</p>
 
       <div className="premium-card overflow-hidden">
         <div className="border-b border-line p-5">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Parcelas</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Parcelas e previsões</p>
           <h3 className="mt-2 text-2xl font-black text-navy">Agenda de recebimentos</h3>
         </div>
         <div className="divide-y divide-line">
-          {payments.length ? payments.map((payment) => (
-            <div key={payment.key} className="grid gap-3 p-4 text-sm md:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr] md:items-center">
-              <div>
-                <p className="font-black text-navy">{payment.clientName}</p>
-                <p className="font-semibold text-muted">{payment.propertyName || "Imóvel não informado"} · Parcela {payment.installmentNumber}</p>
+          {payments.length ? payments.map((payment) => {
+            const date = parseDate(payment.expectedDate);
+            const open = payment.status !== "received" && payment.status !== "cancelled";
+            const displayStatus = open && date && date < today ? "overdue" : payment.status;
+            const canAct = payment.isForecast && canEdit;
+            return (
+              <div key={payment.key} className="grid gap-3 p-4 text-sm md:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr] md:items-center">
+                <div>
+                  <p className="font-black text-navy">{payment.clientName}</p>
+                  <p className="font-semibold text-muted">{payment.propertyName || "Imóvel não informado"} · {payment.isForecast ? "Previsão do saldo" : `Parcela ${payment.installmentNumber}`}</p>
+                </div>
+                <p className="font-black text-navy">{formatCurrency(payment.amount)}</p>
+                <p className="font-bold text-muted">{formatDate(payment.expectedDate)}</p>
+                <PaymentBadge value={displayStatus} />
+                {canAct ? (
+                  <div className="grid gap-2 sm:grid-cols-2 md:col-span-4">
+                    <button
+                      type="button"
+                      className="min-h-12 rounded-full bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-700"
+                      onClick={() => onReceiptAction({ type: "confirm", receipt: { saleId: payment.saleId, clientName: payment.clientName, propertyName: payment.propertyName, amount: payment.amount, expectedDate: payment.expectedDate } })}
+                    >
+                      Confirmar recebimento
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-12 rounded-full border border-brand/25 bg-white px-4 text-sm font-black text-brand transition hover:border-brand hover:bg-blue-50"
+                      onClick={() => onReceiptAction({ type: "reschedule", receipt: { saleId: payment.saleId, clientName: payment.clientName, propertyName: payment.propertyName, amount: payment.amount, expectedDate: payment.expectedDate } })}
+                    >
+                      Reagendar
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <p className="font-black text-navy">{formatCurrency(payment.amount)}</p>
-              <p className="font-bold text-muted">{formatDate(payment.expectedDate)}</p>
-              <PaymentBadge value={payment.status} />
-            </div>
-          )) : (
+            );
+          }) : (
             <p className="p-6 text-center font-bold text-muted">Nenhum recebimento cadastrado.</p>
           )}
         </div>
@@ -884,44 +951,6 @@ function calculateSaleTotals(sale = {}) {
     receivedTotal,
     receivableTotal: Math.max(0, freeCommission - receivedTotal)
   };
-}
-
-function flattenPayments(sales) {
-  return sales.flatMap((sale) =>
-    ensureArray(sale.payments).map((payment, index) => ({
-      ...payment,
-      key: `${sale.id}-${payment.id || index}`,
-      clientName: sale.clientName || "Cliente sem nome",
-      propertyName: sale.propertyName || "",
-      saleId: sale.id
-    }))
-  ).sort((a, b) => compareDate(a.expectedDate, b.expectedDate));
-}
-
-function calculateReceivableMetrics(payments) {
-  const now = startOfDate(new Date());
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-  return {
-    expectedThisMonth: payments
-      .filter((payment) => payment.status !== "received" && isDateBetween(payment.expectedDate, monthStart, monthEnd))
-      .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0),
-    receivedThisMonth: payments
-      .filter((payment) => payment.status === "received" && isDateBetween(payment.receivedDate, monthStart, monthEnd))
-      .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0),
-    next30: sumExpectedUntil(payments, now, 30),
-    next60: sumExpectedUntil(payments, now, 60),
-    next90: sumExpectedUntil(payments, now, 90)
-  };
-}
-
-function sumExpectedUntil(payments, start, days) {
-  const end = new Date(start);
-  end.setDate(end.getDate() + days);
-  return payments
-    .filter((payment) => payment.status !== "received" && isDateBetween(payment.expectedDate, start, end))
-    .reduce((sum, payment) => sum + normalizeMoneyValue(payment.amount), 0);
 }
 
 function createDraftSale(sale) {

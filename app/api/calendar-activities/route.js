@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { listAdminProfiles } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
 import { createCalendarActivity, listCalendarActivities, listCalendarClientOptions } from "@/lib/calendar-activities";
+import { listExpectedReceiptSummaries } from "@/lib/financial";
 import {
   formatSimulationRegistrationError,
   listBirthdayRegistrations,
@@ -61,6 +62,20 @@ export async function GET(request) {
       };
     });
 
+    // Atividades "Confirmar recebimento": valor/data previstos para os botões da Agenda. Dado financeiro
+    // só vai para o admin geral (sem isso o card aparece, mas sem os botões).
+    let receiptSummaries = new Map();
+    const receiptSaleIds = isGeneralAdminAuth(auth)
+      ? savedActivities.filter((activity) => activity.financialSaleId && activity.status === "pending").map((activity) => activity.financialSaleId)
+      : [];
+    if (receiptSaleIds.length) {
+      try {
+        receiptSummaries = await listExpectedReceiptSummaries(receiptSaleIds);
+      } catch (receiptError) {
+        console.error("Nao foi possivel carregar os dados de recebimento da agenda.", receiptError);
+      }
+    }
+
     activities.push(...savedActivities.map((activity) => {
       const client = clientById.get(activity.clientId);
       const responsible = profileById.get(activity.responsibleUserId);
@@ -74,6 +89,7 @@ export async function GET(request) {
         scheduledActivityCompletedAt: activity.completedAt,
         scheduledActivityCompleted: activity.status === "completed",
         activityStatus: activity.status,
+        financialReceipt: activity.financialSaleId ? receiptSummaries.get(activity.financialSaleId) || null : null,
         responsibleName: responsible?.name || (activity.responsibleUserId ? "Corretor" : "Sem responsável")
       };
     }));

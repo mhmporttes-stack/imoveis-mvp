@@ -13,6 +13,7 @@ import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-s
 import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
+import { reconcileExpectedReceiptActivities } from "@/lib/financial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,16 @@ export async function GET(request) {
         console.error("Falha ao enviar notificacao de atividade (calendar_activities).", error);
         calendarResults.push({ id: item.activityId, error: error?.message || "Falha ao enviar." });
       }
+    }
+
+    // Previsão de recebimento da comissão (Financeiro): garante a atividade "Confirmar recebimento" na
+    // Agenda mesmo que ninguém abra o Financeiro, e limpa a de venda já recebida/cancelada. Idempotente.
+    let expectedReceipts = null;
+    try {
+      expectedReceipts = await reconcileExpectedReceiptActivities();
+    } catch (receiptError) {
+      console.error("Falha ao reconciliar atividades de previsao de recebimento.", receiptError);
+      expectedReceipts = { error: receiptError?.message || "Falha ao reconciliar." };
     }
 
     let automations = [];
@@ -152,6 +163,7 @@ export async function GET(request) {
       failed: allResults.filter((item) => item.error).length,
       results: allResults,
       automations,
+      expectedReceipts,
       sponsoredLeads,
       pendingRouletteAssignment,
       orphanReassignment,

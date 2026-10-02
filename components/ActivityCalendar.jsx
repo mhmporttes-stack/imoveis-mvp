@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, MessageCircle, Plus, UserRound, X } from "lucide-react";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
+import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -27,6 +28,9 @@ export default function ActivityCalendar({ pendingOnly = false }) {
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [rescheduleError, setRescheduleError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  // Atividades "Confirmar recebimento" (previsão de comissão do Financeiro): modal aberto + recarga da lista.
+  const [receiptAction, setReceiptAction] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -57,7 +61,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
     return () => {
       ignore = true;
     };
-  }, [visibleMonth, pendingOnly]);
+  }, [visibleMonth, pendingOnly, reloadKey]);
 
   const activitiesByDate = useMemo(() => {
     const grouped = new Map();
@@ -305,7 +309,26 @@ export default function ActivityCalendar({ pendingOnly = false }) {
                             />
                           </div>
 
-                          {state === "pending" && isLateOpen ? (
+                          {activity.financialReceipt && activity.activityStatus !== "completed" && activity.activityStatus !== "rescheduled" ? (
+                            <div className="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-2">
+                              <button
+                                type="button"
+                                className="min-h-12 rounded-full bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                                onClick={() => setReceiptAction({ type: "confirm", receipt: activity.financialReceipt })}
+                              >
+                                Confirmar recebimento
+                              </button>
+                              <button
+                                type="button"
+                                className="min-h-12 rounded-full border border-brand/20 bg-white px-4 py-3 text-sm font-black text-brand transition hover:bg-brand hover:text-white"
+                                onClick={() => setReceiptAction({ type: "reschedule", receipt: activity.financialReceipt })}
+                              >
+                                Reagendar
+                              </button>
+                            </div>
+                          ) : null}
+
+                          {state === "pending" && isLateOpen && !activity.financialSaleId ? (
                             <div className="mt-4 grid gap-2 border-t border-red-100 pt-4 sm:grid-cols-2">
                               <button
                                 type="button"
@@ -353,6 +376,20 @@ export default function ActivityCalendar({ pendingOnly = false }) {
           onNoteChange={setRescheduleNote}
           onClose={() => setRescheduleActivity(null)}
           onSubmit={submitReschedule}
+        />
+      ) : null}
+      {receiptAction?.type === "confirm" ? (
+        <ConfirmReceiptModal
+          receipt={receiptAction.receipt}
+          onClose={() => setReceiptAction(null)}
+          onDone={() => { setReceiptAction(null); setReloadKey((key) => key + 1); }}
+        />
+      ) : null}
+      {receiptAction?.type === "reschedule" ? (
+        <RescheduleReceiptModal
+          receipt={receiptAction.receipt}
+          onClose={() => setReceiptAction(null)}
+          onDone={() => { setReceiptAction(null); setReloadKey((key) => key + 1); }}
         />
       ) : null}
       {createOpen ? <CreateActivityModal clients={clients} date={selectedDate} users={users} onClose={() => setCreateOpen(false)} onCreated={(activity) => { setActivities((current) => [...current, normalizeReturnedActivity(activity, {}, users, clients)]); setCreateOpen(false); }} /> : null}
@@ -723,6 +760,7 @@ function formatActivityType(value) {
     reuniao: "Reunião",
     visita: "Visita",
     outro: "Outro",
+    recebimento: "Recebimento de comissão",
     birthday: "Aniversário"
   })[value] || "Atividade";
 }

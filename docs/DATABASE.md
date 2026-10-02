@@ -41,7 +41,7 @@
 | Mensagem diária | `daily_message_cards`, `daily_message_dispatches`, `daily_message_user_history` |
 | Documentação / CCA | `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions`, `cca` |
 | IA | `ai_usage_log` |
-| Financeiro | `financial_sales` (uma por cliente), `financial_expenses`, `financial_payments` |
+| Financeiro | `financial_sales` (uma por cliente; `expected_receipt_date` = previsão de recebimento do saldo), `financial_expenses`, `financial_payments` (`confirmed_activity_id` único = no máx. 1 pagamento por atividade confirmada) — e `calendar_activities.financial_sale_id` (vínculo da atividade "Confirmar recebimento"; índice único parcial: 1 atividade `pending` por venda; `ON DELETE CASCADE`). Migration `20261002130000_financial_expected_receipt.sql` |
 | WhatsApp | `whatsapp_master_events` (bruto do webhook), `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_chat_shortcuts`, `whatsapp_flows`, `whatsapp_flow_sessions`, `whatsapp_flow_logs`, `whatsapp_automation_replies`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates`, `whatsapp_conversation_audit` (auditoria append-only de exclusão/restauração de conversa; sem FK) |
 | Meta Ads (leitura) | `meta_ad_accounts`, `meta_ad_entities`, `meta_ad_insights` (upsert diário por entidade), `meta_ad_sync_state` |
 
