@@ -196,6 +196,14 @@
 - **SIM-2 Fonte única da apresentação.** [COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO] `buildPresentationModel` (`lib/simulacao-entrada/presentation-model.mjs`) alimenta a tela de apresentação e o PDF "Proposta de Valores"; o gerador do PDF só desenha.
 - **SIM-3 Documentação gratuita = 5% do imóvel na apresentação.** [PENDENTE DE VALIDAÇÃO] Implementação histórica (commit f9992ec), preservada igual; o cadastro do empreendimento já tem valor próprio em `beneficiosInformativos`.
 
+## 17. Manual do CRM e Novidades (MAN-x)
+
+- **MAN-1 Propósito.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** O **Manual** explica como o CRM funciona **hoje**; as **Novidades** explicam as mudanças **recentes**. O Manual nasce vazio para a equipe (estado "O manual ainda está sendo preparado") e só mostra o que o dono publicar.
+- **MAN-2 Fluxo de publicação.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Rascunho → Aguardando → Publicado. **Só o dono aprova e publica** (`lib/manual-service.mjs`, `isOwner`). Alteração de seção já publicada vira versão proposta e só vale após aprovação do dono. "Carregar estrutura inicial" (`/admin/manual/gerenciar`) insere tudo como pendente/rascunho.
+- **MAN-3 Audiências.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Cada tópico, seção e novidade tem audiência (todos ou perfis); a filtragem é feita **no backend** (leitura, busca e novidades), nunca só na tela.
+- **MAN-4 Confirmação de leitura e histórico.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Confirmação de leitura é opcional por novidade (`requires_ack`). Histórico de versões e leituras: só administrador.
+- **MAN-5 Confidencialidade permanente.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Manual, Novidades, notificações, busca, ajuda e API **nunca** documentam capacidades administrativas confidenciais relacionadas à visualização de conversas, históricos ou acessos que usuários comuns não possuem, e não as descrevem. Há guarda de conteúdo na escrita e a leitura omite conteúdo barrado (`lib/manual-guard.mjs`).
+
 ## Consolidado — pontos **A CONFIRMAR**
 
 1. Estado real do banco de produção (nada foi consultado nesta auditoria): regras em `crm_automation_rules`, `scoring_rule_versions` vigentes, cota diária, `whatsapp_automation_replies` ativas, `crm_settings`.

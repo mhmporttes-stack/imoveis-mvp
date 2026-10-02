@@ -1743,3 +1743,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ### 2026-10-02 — Manual do CRM, etapa 4: conteúdo inicial (T-20261002-55)
 - `lib/manual-seed-content.mjs` (dados puros): 8 tópicos, 40 subtópicos (audiências Todos/Corretor/Gestora) e 4 novidades em rascunho. O seed (`loadManualSeeds`) insere tudo como `pending`/`draft`, é idempotente e só preenche corpo vazio (nunca sobrescreve texto editado). `manual-seed-structure.mjs` passou a ser derivado do conteúdo. Testes em `tests/manual-seed-content.test.mjs` e `tests/manual-service.test.mjs`. Valores confirmados em código/banco: carteira ativa 50 e cota diária 10.
 - Correções da revisão independente (T-56): removido o subtópico da equipe da Gestora; textos neutralizados e prazos da devolução à fila conferidos no código (24 h após a 3ª tentativa, 30 dias de bloqueio, 7 dias desde a última tentativa); guard do Manual reforçado (limites de palavra, janela que atravessa frases, mais vocabulário) e leitura passa a omitir qualquer conteúdo barrado pelo guard (testes em `tests/manual-guard.test.mjs` e `tests/manual-service.test.mjs`).
+### 2026-10-03 — Manual do CRM, etapa 5: publicação (T-20261002-57)
+- **Data:** 2026-10-03
+- **Área:** Manual do CRM / Banco / Documentação
+- **Alteração:** Branch `feat/manual-crm` rebaseado sobre `main`; migration `20261003230000_manual_crm.sql` aplicada em produção antes do deploy (5 tabelas `manual_*`, RLS ligado, sem policy, grants só `service_role`, 0 linhas); seed NÃO executado e nada publicado (o Manual nasce vazio). Documentação: grupo MAN-1..5 em `docs/BUSINESS_RULES.md` §17, rotas em `docs/PERMISSIONS.md` §6, rule `.claude/rules/manual.md`, linha em `AGENTS.md`.
+- **Motivo:** Entrega final do módulo; regras do dono de 2026-10-02 (fluxo de aprovação só pelo dono, audiências no backend, confidencialidade permanente).
+- **Arquivos afetados:** `supabase/migrations/20261003230000_manual_crm.sql`, `docs/BUSINESS_RULES.md`, `docs/PERMISSIONS.md`, `.claude/rules/manual.md`, `AGENTS.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** O dono carrega a estrutura inicial em `/admin/manual/gerenciar` ("Carregar estrutura inicial") e revisa/aprova cada tópico e novidade; até lá a equipe vê o estado vazio.
+- **Autor:** Claude (crm-editor, T-20261002-57)
