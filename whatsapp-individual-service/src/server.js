@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, disconnectSession, getLiveSessionStatus, sendMessage } from "./sessions.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, reactToMessage, sendMessage } from "./sessions.js";
 import { listResumableUserIds, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 
@@ -12,7 +12,7 @@ if (missingEnv.length) {
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 // Health check SEM segredo — é o que a Railway usa pra saber se o serviço
 // está de pé, e não manda o header.
@@ -71,15 +71,50 @@ app.post("/sessions/:userId/disconnect", async (req, res) => {
   }
 });
 
+function sendError(res, error) {
+  const status = error.code === "NOT_CONNECTED" ? 409 : 500;
+  res.status(status).json({ error: error.message });
+}
+
 app.post("/sessions/:userId/send", async (req, res) => {
   try {
-    const { to, text, media } = req.body || {};
+    const { to, text, media, quoted } = req.body || {};
     if (!to || (!text && !media?.url)) return res.status(400).json({ error: "Informe 'to' e 'text' (ou 'media')." });
-    const result = await sendMessage(req.params.userId, { to, text, media });
+    const result = await sendMessage(req.params.userId, { to, text, media, quoted });
     res.json(result);
   } catch (error) {
-    const status = error.code === "NOT_CONNECTED" ? 409 : 500;
-    res.status(status).json({ error: error.message });
+    sendError(res, error);
+  }
+});
+
+// Reação, edição e "apagar para todos" (2026-10-02).
+app.post("/sessions/:userId/react", async (req, res) => {
+  try {
+    const { to, targetId, targetFromMe, emoji } = req.body || {};
+    if (!to || !targetId) return res.status(400).json({ error: "Informe 'to' e 'targetId'." });
+    res.json(await reactToMessage(req.params.userId, { to, targetId, targetFromMe, emoji }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.post("/sessions/:userId/edit", async (req, res) => {
+  try {
+    const { to, targetId, text } = req.body || {};
+    if (!to || !targetId || !text) return res.status(400).json({ error: "Informe 'to', 'targetId' e 'text'." });
+    res.json(await editMessage(req.params.userId, { to, targetId, text }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.post("/sessions/:userId/delete", async (req, res) => {
+  try {
+    const { to, targetId } = req.body || {};
+    if (!to || !targetId) return res.status(400).json({ error: "Informe 'to' e 'targetId'." });
+    res.json(await deleteMessageForEveryone(req.params.userId, { to, targetId }));
+  } catch (error) {
+    sendError(res, error);
   }
 });
 

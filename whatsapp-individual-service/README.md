@@ -35,7 +35,10 @@ aberta 24h). Feito para rodar num host simples e sempre ligado: Railway.
 | `/sessions/:userId/connect` | POST | Inicia/retoma a sessão. Devolve `{status, qr}` — `qr` em base64 (data URL) quando `status` é `qr_required`. |
 | `/sessions/:userId/status` | GET | `{status, phoneNumber, lastConnectedAt, error}`. |
 | `/sessions/:userId/disconnect` | POST | Encerra a sessão e apaga as credenciais salvas. |
-| `/sessions/:userId/send` | POST | Corpo `{to, text}` — envia pela sessão ativa daquele `userId`. Erro 409 se não estiver conectada. |
+| `/sessions/:userId/send` | POST | Corpo `{to, text, media?, quoted?}` — envia pela sessão ativa daquele `userId` (texto, foto, vídeo, GIF, figurinha, áudio, documento; `quoted = {id, fromMe, text}` para responder citando). Devolve `{waMessageId, remoteJid}`. Erro 409 se não estiver conectada. |
+| `/sessions/:userId/react` | POST | Corpo `{to, targetId, targetFromMe, emoji}` — reage (emoji vazio remove). |
+| `/sessions/:userId/edit` | POST | Corpo `{to, targetId, text}` — edita mensagem enviada por esta sessão. |
+| `/sessions/:userId/delete` | POST | Corpo `{to, targetId}` — apaga para todos mensagem enviada por esta sessão. |
 
 ## Variáveis de ambiente
 
@@ -82,8 +85,11 @@ alguma delas):
 
 ## Limitações desta primeira versão
 
-- Só mensagens de **texto** (enviar e receber). Áudio/imagem/documento por
-  este canal ficam para uma etapa futura.
+- Mídia recebida (até 16 MB) é baixada e enviada ao storage do CRM por URL
+  assinada (`/api/webhooks/whatsapp-individual/media-upload`); o serviço
+  continua sem acesso direto ao Supabase. Reação, edição e "apagar para todos"
+  chegam ao CRM como `type: "message"` com `kind` `reaction`/`edit`/`revoke`.
+- `.gif` não é convertido em vídeo (sem ffmpeg): o CRM envia como documento.
 - Um `userId` = uma sessão. Não há fila entre sessões nem múltiplos números
   por corretor.
 - Sem retry automático de envio: se o `send` falhar, o Chat mostra o erro e

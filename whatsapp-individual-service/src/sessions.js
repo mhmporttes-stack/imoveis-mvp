@@ -1,10 +1,10 @@
-import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, DisconnectReason, downloadMediaMessage, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
-import { clearSessionCreds } from "./db.js";
-import { notifyHistoryBatch, notifyMessage, notifyMessageStatus, notifyStatus } from "./webhook.js";
-import { extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
+import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
+import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus } from "./webhook.js";
+import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
@@ -308,14 +308,44 @@ async function onMessagesUpsert(userId, messages, type) {
   if (type !== "notify") return;
   for (const msg of messages || []) {
     try {
-      const item = extractTextMessage(msg, lidMapFor(userId));
-      if (!item) continue;
-      await notifyMessage(userId, item);
+      // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
+      // — do cliente e do que o corretor faz pelo app do celular (fromMe).
+      const event = extractChatEvent(msg, lidMapFor(userId));
+      if (!event) continue;
+      if (event.kind === "message" && event.media) {
+        event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
+      }
+      await notifyChatEvent(userId, event);
     } catch (error) {
       // Nunca perde a próxima mensagem por causa de uma falha em notificar
       // esta — o log fica pra investigação manual.
       console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
     }
+  }
+}
+
+// Mídia: baixa do WhatsApp (o arquivo vem cifrado; o Baileys decifra) e
+// envia direto para o Storage privado do CRM por URL assinada. Falha nunca
+// impede a mensagem de chegar ao Chat: vai com status 'failed' e o motivo.
+const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+async function storeIncomingMedia(userId, msg, event) {
+  try {
+    if (event.media.size && event.media.size > MAX_MEDIA_BYTES) throw new Error("Arquivo acima de 16 MB.");
+    const sock = sockets.get(userId)?.sock;
+    const buffer = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock ? sock.updateMediaMessage : undefined });
+    if (!buffer?.length) throw new Error("O WhatsApp devolveu um arquivo vazio.");
+    if (buffer.length > MAX_MEDIA_BYTES) throw new Error("Arquivo acima de 16 MB.");
+    const target = await requestMediaUploadTarget(userId, { waMessageId: event.waMessageId, mime: event.media.mime, kind: event.media.kind });
+    const response = await fetch(target.signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": event.media.mime || "application/octet-stream", "x-upsert": "true" },
+      body: buffer
+    });
+    if (!response.ok) throw new Error(`Storage recusou o arquivo (HTTP ${response.status}).`);
+    return { status: "stored", bucket: target.bucket, path: target.path, size: buffer.length };
+  } catch (error) {
+    console.error(`[${userId}] Falha ao guardar mídia ${event.waMessageId}:`, error.message);
+    return { status: "failed", error: String(error.message || "Falha ao baixar a mídia").slice(0, 200) };
   }
 }
 
@@ -393,29 +423,82 @@ export async function disconnectSession(userId) {
   await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null });
 }
 
-// media: { kind: 'image'|'document'|'audio', url, mimeType, fileName } — o
-// Baileys baixa da URL e envia pro WhatsApp sozinho (mesma URL pública já
-// usada pelo número oficial, ver deliverChatMessage em lib/whatsapp-chat.js).
+// media: { kind: 'image'|'video'|'gif'|'sticker'|'document'|'audio', url,
+// mimeType, fileName } — o Baileys baixa da URL e envia pro WhatsApp sozinho
+// (mesma URL pública já usada pelo número oficial, ver deliverChatMessage em
+// lib/whatsapp-chat.js). GIF = vídeo MP4 com reprodução automática.
 function buildContent(text, media) {
   const caption = String(text || "").trim() || undefined;
   if (!media?.url) return { text: String(text || "") };
   if (media.kind === "image") return { image: { url: media.url }, caption };
-  if (media.kind === "audio") return { audio: { url: media.url }, mimetype: media.mimeType || "audio/mpeg", ptt: false };
+  if (media.kind === "video") return { video: { url: media.url }, caption, mimetype: media.mimeType || "video/mp4" };
+  if (media.kind === "gif") return { video: { url: media.url }, caption, gifPlayback: true, mimetype: "video/mp4" };
+  if (media.kind === "sticker") return { sticker: { url: media.url } };
+  if (media.kind === "audio") return { audio: { url: media.url }, mimetype: media.mimeType || "audio/mpeg", ptt: Boolean(media.ptt) };
   return { document: { url: media.url }, mimetype: media.mimeType || "application/octet-stream", fileName: media.fileName || "arquivo", caption };
 }
 
-export async function sendMessage(userId, { to, text, media }) {
+function connectedSocket(userId) {
   const entry = sockets.get(userId);
   if (!entry?.sock || entry.status !== "connected") {
     const error = new Error("Sessão do WhatsApp individual não está conectada.");
     error.code = "NOT_CONNECTED";
     throw error;
   }
+  return entry.sock;
+}
+
+function jidFor(to) {
   const digits = String(to || "").replace(/\D/g, "");
   if (!digits) throw new Error("Destinatário inválido.");
-  const jid = `${digits}@s.whatsapp.net`;
-  const result = await entry.sock.sendMessage(jid, buildContent(text, media));
+  return `${digits}@s.whatsapp.net`;
+}
+
+// Chave de uma mensagem desta conversa (para citar, reagir, editar, apagar).
+// Sempre no JID do telefone — o mesmo para onde a mensagem é enviada.
+function keyFor(jid, id, fromMe) {
+  const cleanId = String(id || "").trim();
+  if (!cleanId) throw new Error("Mensagem de referência inválida.");
+  return { remoteJid: jid, id: cleanId, fromMe: Boolean(fromMe) };
+}
+
+// quoted (opcional): { id, fromMe, text } — resposta citada a uma mensagem.
+export async function sendMessage(userId, { to, text, media, quoted }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  const options = {};
+  if (quoted?.id) {
+    options.quoted = { key: keyFor(jid, quoted.id, quoted.fromMe), message: { conversation: String(quoted.text || "") } };
+  }
+  const result = await sock.sendMessage(jid, buildContent(text, media), options);
   const waMessageId = result?.key?.id || "";
   if (!waMessageId) throw new Error("O WhatsApp não retornou o ID da mensagem enviada.");
-  return { waMessageId };
+  return { waMessageId, remoteJid: result?.key?.remoteJid || jid };
+}
+
+// Reação (emoji vazio remove a reação).
+export async function reactToMessage(userId, { to, targetId, targetFromMe, emoji }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  const result = await sock.sendMessage(jid, { react: { text: String(emoji || ""), key: keyFor(jid, targetId, targetFromMe) } });
+  return { waMessageId: result?.key?.id || "" };
+}
+
+// Editar mensagem que ESTE número enviou (o WhatsApp aceita só texto/legenda
+// e por tempo limitado — a regra de prazo fica no CRM).
+export async function editMessage(userId, { to, targetId, text }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  const clean = String(text || "").trim();
+  if (!clean) throw new Error("Texto vazio.");
+  const result = await sock.sendMessage(jid, { text: clean, edit: keyFor(jid, targetId, true) });
+  return { waMessageId: result?.key?.id || "" };
+}
+
+// Apagar para todos (só mensagem que ESTE número enviou).
+export async function deleteMessageForEveryone(userId, { to, targetId }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  const result = await sock.sendMessage(jid, { delete: keyFor(jid, targetId, true) });
+  return { waMessageId: result?.key?.id || "" };
 }

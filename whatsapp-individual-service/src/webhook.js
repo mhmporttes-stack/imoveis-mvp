@@ -26,8 +26,11 @@ async function post(body) {
   }
 }
 
-export function notifyMessage(userId, { from, text, waMessageId, at, contactName, fromMe }) {
-  return post({ userId, type: "message", from, text, waMessageId, at, contactName, fromMe });
+// Evento completo do Chat (2026-10-02) — mesmo type:'message' (compatível com
+// o CRM antigo, que lê from/text), mais `kind` (message|reaction|edit|revoke)
+// e os campos de mídia, citação, reação e edição (ver message-extract.js).
+export function notifyChatEvent(userId, event) {
+  return post({ userId, type: "message", ...event });
 }
 
 // Lote do histórico sincronizado ao conectar (ver sessions.js: onHistorySync).

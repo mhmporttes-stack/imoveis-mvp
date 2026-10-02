@@ -88,3 +88,126 @@ export function extractTextMessage(msg, lidMap = new Map()) {
     fromMe
   };
 }
+
+// ---------------------------------------------------------------------------
+// Eventos completos do Chat (2026-10-02): além do texto, mídia (foto, vídeo,
+// GIF, figurinha, áudio, documento), resposta citada, reação, edição e
+// "apagar para todos" — tanto do cliente quanto o que o corretor faz pelo
+// app do celular (fromMe). Puro: o download da mídia fica em sessions.js.
+// ---------------------------------------------------------------------------
+
+const WRAPPER_KEYS = ["ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2", "viewOnceMessageV2Extension", "documentWithCaptionMessage", "editedMessage"];
+
+// Tira os "envelopes" (mensagem temporária, visualização única, documento
+// com legenda, edição) — mesma ideia do normalizeMessageContent do Baileys.
+export function unwrapContent(message) {
+  let content = message || null;
+  for (let i = 0; i < 5 && content; i += 1) {
+    const wrapperKey = WRAPPER_KEYS.find((key) => content[key]?.message);
+    if (!wrapperKey) break;
+    content = content[wrapperKey].message;
+  }
+  return content;
+}
+
+const MEDIA_KEYS = {
+  imageMessage: "image",
+  videoMessage: "video",
+  stickerMessage: "sticker",
+  audioMessage: "audio",
+  documentMessage: "document"
+};
+
+// Tipos de protocolo do WhatsApp (proto.Message.ProtocolMessage.Type).
+export const PROTOCOL_REVOKE = 0;
+export const PROTOCOL_MESSAGE_EDIT = 14;
+
+function protocolType(value) {
+  if (value === PROTOCOL_REVOKE || value === "REVOKE") return "revoke";
+  if (value === PROTOCOL_MESSAGE_EDIT || value === "MESSAGE_EDIT") return "edit";
+  return "";
+}
+
+export function textOfContent(content) {
+  if (!content) return "";
+  return content.conversation
+    || content.extendedTextMessage?.text
+    || content.imageMessage?.caption
+    || content.videoMessage?.caption
+    || content.documentMessage?.caption
+    || "";
+}
+
+function contextInfoOf(content) {
+  if (!content) return null;
+  for (const value of Object.values(content)) {
+    if (value && typeof value === "object" && value.contextInfo) return value.contextInfo;
+  }
+  return null;
+}
+
+function numberOrZero(value) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "object" && typeof value.toNumber === "function") return value.toNumber();
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+// Dados da mídia (sem baixar): tipo para o CRM, MIME, nome, tamanho, GIF/voz.
+export function mediaInfoOf(content) {
+  if (!content) return null;
+  const key = Object.keys(MEDIA_KEYS).find((name) => content[name]);
+  if (!key) return null;
+  const media = content[key];
+  let kind = MEDIA_KEYS[key];
+  if (kind === "video" && media.gifPlayback) kind = "gif";
+  const fallbackMime = { image: "image/jpeg", video: "video/mp4", gif: "video/mp4", sticker: "image/webp", audio: "audio/ogg", document: "application/octet-stream" }[kind];
+  return {
+    kind,
+    mime: String(media.mimetype || fallbackMime).split(";")[0].trim(),
+    fileName: String(media.fileName || "").slice(0, 120),
+    size: numberOrZero(media.fileLength),
+    seconds: numberOrZero(media.seconds),
+    ptt: Boolean(media.ptt),
+    animated: Boolean(media.isAnimated)
+  };
+}
+
+// msg do Baileys -> evento para o CRM, ou null (grupo, status, sem conteúdo).
+// kind: 'message' | 'reaction' | 'edit' | 'revoke'.
+export function extractChatEvent(msg, lidMap = new Map()) {
+  const from = resolveChatPhone(msg, lidMap);
+  if (!from) return null;
+  const fromMe = Boolean(msg?.key?.fromMe);
+  const base = {
+    from,
+    fromMe,
+    waMessageId: msg?.key?.id || "",
+    remoteJid: String(msg?.key?.remoteJid || ""),
+    at: new Date(numberOrZero(msg?.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    contactName: fromMe ? "" : (msg?.pushName || "")
+  };
+  const content = unwrapContent(msg?.message);
+  if (!content) return null;
+
+  if (content.reactionMessage) {
+    const targetId = content.reactionMessage.key?.id || "";
+    if (!targetId) return null;
+    return { ...base, kind: "reaction", targetId, emoji: String(content.reactionMessage.text || "") };
+  }
+
+  if (content.protocolMessage) {
+    const type = protocolType(content.protocolMessage.type);
+    const targetId = content.protocolMessage.key?.id || "";
+    if (!type || !targetId) return null;
+    if (type === "revoke") return { ...base, kind: "revoke", targetId };
+    const newText = textOfContent(unwrapContent(content.protocolMessage.editedMessage));
+    return newText ? { ...base, kind: "edit", targetId, newText } : null;
+  }
+
+  const media = mediaInfoOf(content);
+  const text = textOfContent(content);
+  if (!media && !text) return null;
+  const quotedId = contextInfoOf(content)?.stanzaId || "";
+  return { ...base, kind: "message", messageType: media ? media.kind : "text", text, media, quotedId };
+}
