@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Resposta de cliente em Prospecção promove sozinho para "Em atendimento" (substitui a pendência manual de PRO-8)
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Prospecção / Meta Diária
+- **Alteração:** cliente em "Tentando contato" que está em prospecção e RESPONDE pelo WhatsApp passa sozinho para "Em atendimento" (no nome do corretor responsável, `client_status_history.source = whatsapp_chat`); a cadência continua sendo encerrada (rodada `converted`, fila cancelada). Antes (PRO-8 da manhã do mesmo dia) o status não mudava e o corretor resolvia pela pendência "Cliente respondeu — atualizar status". A pendência só é aberta se não houver corretor responsável (rede de segurança). `markClientsInServiceOnReply` ganhou `includeProspected`; o Chat do individual continua deixando o cliente em prospecção para a Prospecção (evita corrida com o cancelamento da cadência); o número oficial promove direto.
+- **Motivo:** pedido do dono — Lu Indique Flavia, Lorgna Zapata e mais 3 clientes de hoje ficaram em "Tentando contato" mesmo depois de responder (não era falha de recebimento: a pendência estava aberta, por desenho de PRO-8). Decisão do dono: automático.
+- **Arquivos afetados:** `lib/prospecting-reply.js`, `lib/prospecting-reply-core.mjs` (comentário), `lib/whatsapp-client-status.js`, `lib/whatsapp-chat.js`, `docs/BUSINESS_RULES.md` (PRO-8), `.claude/rules/roleta-prospeccao-campanhas.md`, `tests/prospecting-reply-auto-service.test.mjs`, `tests/prospecting-reply-core.test.mjs`
+- **Risco/observação:** "agora não"/"me chama depois" também promovem (só pedido inequívoco de parar vira Não contactar). O "Aguardando há X min" do Chat não é status: continua até alguém da equipe responder a conversa. PRO-9 (trava) não precisa de pendência para liberar: o cliente já sai de "Tentando contato". Dados: 5 clientes de 02/10 corrigidos pelo mesmo caminho (histórico de status gravado) e pendências resolvidas com `resolution = auto_in_service`.
+- **Autor:** Claude (Code)
+
+
 ### 2026-10-02 — Documentação: segundo proponente não precisa de comprovante de residência
 - **Data:** 2026-10-02
 - **Área:** Documentação/CCA

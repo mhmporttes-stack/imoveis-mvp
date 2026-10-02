@@ -19,7 +19,7 @@ const prospectingContact = { id: "k1", status: "claimed", assigned_user_id: "b1"
 const base = { clientId: "c1", clientStatus: "awaiting_return", contacts: [prospectingContact], messageAt: AFTER };
 const decide = (text, extra = {}) => decideProspectingReplyAction({ ...base, text, ...extra });
 
-test("resposta normal de cliente em prospecção -> pendência (status não muda sozinho)", () => {
+test("resposta normal de cliente em prospecção -> ALERT_REPLY (vira Em atendimento sozinho; pendência só sem corretor responsável)", () => {
   for (const text of ["oi", "Oi, tudo bem?", "sim", "Tenho interesse", "como funciona?", "qual valor?", "Me chama amanhã", "agora não", "me chama depois", "vou pensar", "quem é?", "👍"]) {
     assert.equal(decide(text), REPLY_ACTION.ALERT_REPLY, text);
   }
