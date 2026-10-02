@@ -19,14 +19,16 @@ Arquivos: `lib/financial.js` (persistência, escopo por perfil), `lib/financial-
 
 Cálculo básico (`lib/financial.js`):
 ```
-dedução por nota = comissão bruta × 15%, se invoiceIssued
+dedução por nota = comissão bruta × invoice_percentage (% PRÓPRIO de cada venda, 0–100)
 comissão livre = max(0, comissão bruta − dedução − despesas)
 a receber = max(0, comissão livre − recebido)
 ```
 
 `invoiceIssued` é só um campo de controle interno ("Gerar nota/nota emitida") — **não é integração fiscal real** (sem emissão de NFS-e/prefeitura). Nunca descreva esse recurso como emissão fiscal automática numa resposta ao usuário sem essa integração existir de fato.
 
-**[PENDENTE DE VALIDAÇÃO]** Os 15% de dedução por nota fiscal (`invoiceIssued`) são o que o código calcula hoje. **Não trate como regra oficial** — o dono ainda não confirmou se 15% é a alíquota/percentual correto atualmente ou um valor que ficou desatualizado. Não altere esse número sem confirmação explícita.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** A nota fiscal é uma **despesa variável da venda** e o percentual **pertence a cada venda** (`financial_sales.invoice_percentage`, campo "Nota fiscal (%)" na Edição Financeira; qualquer valor 0–100, ex.: 6, 10, 12, 15, 20). **Não existe percentual global** nem 15% fixo. Base = **comissão bruta** (nunca VGV), deduzida **antes** da divisão gestor/corretor/imobiliária e **uma única vez** (`calculateSaleBase` em `lib/financial-calculations.js`, fonte única usada por servidor e tela). `invoice_issued` virou derivado (`% > 0`). Vendas antigas foram migradas sem mudar valor (com nota → 15, sem nota → 0); sem a coluna/valor, o fallback é o legado (com nota = 15%).
+
+**[REGRA OFICIAL — dono, 2026-10-02] Classificação:** **repasses** (comissão de corretor e gestor + despesas da venda de categoria Repasse/Corretor parceiro/Captador/Indicador/Bonificação) **não são despesas operacionais**; nota fiscal é despesa variável da venda; despesas operacionais = da empresa (`financial_operating_expenses`) + despesas da venda que não são repasse. Saúde: comissão recebida − repasses − nota − despesas operacionais pagas = resultado líquido (`docs/FINANCEIRO_SAUDE.md`).
 
 ## Distribuição de comissão (`lib/financial-calculations.js`)
 
@@ -57,7 +59,7 @@ Cálculo inteiramente em centavos para controlar arredondamento — não reescre
 - **Agenda**: UMA atividade `recebimento` por venda (`calendar_activities.financial_sale_id`, 09:00 de SP), mantida por `syncExpectedReceiptActivity` (ao salvar a venda, ao confirmar/reagendar e pela reconciliação do cron `scheduled-activities`). Reagendar move a MESMA atividade. Concluir/reagendar/excluir pelas ações genéricas da Agenda é recusado para atividade financeira.
 - **Confirmar recebimento** (`POST /api/financeiro/[id]/receipt`, `requireGeneralAdminApi`): idempotente e à prova de corrida — claim condicional da atividade + `financial_payments.confirmed_activity_id` único. Valor ≤ saldo previsto; parcial aceita nova previsão para o saldo.
 - **Só o dono** [REGRA OFICIAL — dono, 2026-10-02]: lançar, alterar e **ver** a previsão é exclusivo do administrador principal (`isOwnerAdminEmail`, `isExpectedReceiptOwner` em `lib/financial.js`). Não-dono (inclusive outro admin geral, gestor, corretor, associado) não recebe `expectedReceiptDate` (omitido em `listFinancialSales`/`getFinancialSale`, logo na API e na tela), não vê o campo/linhas/atividade e não grava (salvar a venda preserva a previsão); `POST /api/financeiro/[id]/receipt` responde 403. A atividade é sempre do dono.
-- **Divergência conhecida, não alterada**: o saldo usa a comissão LIVRE, mas `deriveFinancialStatus` compara com a BRUTA — com nota fiscal (15%) as bases diferem. Não mude sem decisão do dono.
+- **Divergência conhecida, não alterada**: o saldo usa a comissão LIVRE, mas `deriveFinancialStatus` compara com a BRUTA — com nota fiscal as bases diferem. Não mude sem decisão do dono.
 ## Aba "Saúde" (2026-10-02)
 
 Só admin geral. Despesas **da empresa** vivem em `financial_operating_expenses` (≠ `financial_expenses`, que são repasses/despesas de UMA venda); caixa/reserva em `financial_health_settings`. Cálculo puro em `lib/financial-health-core.mjs` — **toda fórmula (realizado × previsto × estimado, caixa, reserva, ponto de equilíbrio, resultado por corretor) está em `docs/FINANCEIRO_SAUDE.md`**; não duplique nem reinvente. Nunca assumir saldo de caixa; nunca materializar recorrência futura; nunca contar previsão como recebido. **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]** pedido do dono em 2026-10-02 (implementado como descrito no doc).

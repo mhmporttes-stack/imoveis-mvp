@@ -18,7 +18,7 @@ import {
   Trash2,
   WalletCards
 } from "lucide-react";
-import { calculateCommissionDistribution } from "@/lib/financial-calculations";
+import { calculateCommissionDistribution, calculateInvoiceDeduction, resolveInvoicePercentage } from "@/lib/financial-calculations";
 import { calculateReceivableMetrics, computeForecastAmount, flattenReceivableEntries } from "@/lib/financial-expected-receipt-core.mjs";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
@@ -303,7 +303,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
           financialStatus: draftSale.financialStatus,
           ...(canManageForecast ? { expectedReceiptDate: draftSale.expectedReceiptDate || "" } : {}),
           manualStatus: draftSale.manualStatus,
-          invoiceIssued: draftSale.invoiceIssued,
+          invoicePercentage: draftSale.invoicePercentage,
           brokerId: draftSale.brokerId,
           hasManagerCommission: draftSale.hasManagerCommission,
           managerId: draftSale.managerId,
@@ -629,8 +629,8 @@ function SaleEditor({
           Recebido: <strong className="text-navy"> {formatCurrency(draftTotals.receivedTotal)}</strong> ·
           A receber: <strong className="text-navy"> {formatCurrency(draftTotals.receivableTotal)}</strong>
         </p>
-        {draftSale.invoiceIssued ? (
-          <p className="mt-1 text-sm font-bold text-amber-700">Nota fiscal: desconto de {formatCurrency(draftTotals.invoiceDeduction)} (15%)</p>
+        {draftTotals.invoiceDeduction > 0 ? (
+          <p className="mt-1 text-sm font-bold text-amber-700">Nota fiscal: desconto de {formatCurrency(draftTotals.invoiceDeduction)} ({formatPercent(draftTotals.invoicePercentage)}% da comissão bruta)</p>
         ) : null}
       </div>
 
@@ -651,16 +651,30 @@ function SaleEditor({
           <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
           <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
           <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
-          <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
-            <input
-              type="checkbox"
-              checked={Boolean(draftSale.invoiceIssued)}
-              onChange={(event) => onFieldChange("invoiceIssued", event.target.checked)}
-              className="h-5 w-5 accent-brand"
-            />
-            Gerar nota
-            <span className="ml-auto text-xs font-bold text-muted">Abater 15%</span>
-          </label>
+          <div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-black text-navy">Nota fiscal (%)</span>
+              <div className="relative">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={draftSale.invoicePercentage ?? ""}
+                  placeholder="0"
+                  onChange={(event) => onFieldChange("invoicePercentage", event.target.value)}
+                  className="admin-input min-h-12 rounded-2xl pr-10"
+                />
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted">%</span>
+              </div>
+            </label>
+            <p className="mt-1 text-xs font-bold text-muted">
+              {draftTotals.invoiceDeduction > 0
+                ? `Despesa fiscal: ${formatCurrency(draftTotals.invoiceDeduction)} sobre a comissão bruta (${formatCurrency(draftTotals.grossCommission)}).`
+                : "0% = sem nota. O percentual vale só para esta venda."}
+            </p>
+          </div>
           <TextField label="% Corretor" value={draftSale.brokerSharePercentage} onChange={(value) => onFieldChange("brokerSharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
           <TextField label="% Imobiliária" value={draftSale.agencySharePercentage} onChange={(value) => onFieldChange("agencySharePercentage", value)} inputMode="decimal" formatOnBlur={formatPercentInput} />
           <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-black text-navy">
@@ -934,7 +948,8 @@ function calculateDashboardMetrics(sales) {
 function calculateSaleTotals(sale = {}) {
   const saleValue = normalizeMoneyValue(sale.saleValue);
   const grossCommission = normalizeMoneyValue(sale.grossCommission);
-  const invoiceDeduction = sale.invoiceIssued ? roundMoney(grossCommission * 0.15) : 0;
+  const invoicePercentage = resolveInvoicePercentage({ invoicePercentage: sale.invoicePercentage, invoiceIssued: sale.invoiceIssued });
+  const invoiceDeduction = calculateInvoiceDeduction(grossCommission, invoicePercentage);
   const expenseTotal = ensureArray(sale.expenses).reduce((sum, expense) => sum + normalizeMoneyValue(expense.amount), 0);
   const receivedTotal = ensureArray(sale.payments)
     .filter((payment) => payment.status === "received")
@@ -956,6 +971,7 @@ function calculateSaleTotals(sale = {}) {
     saleValue,
     grossCommission,
     invoiceDeduction,
+    invoicePercentage,
     expenseTotal,
     freeCommission,
     ...distribution,
@@ -970,6 +986,7 @@ function createDraftSale(sale) {
     ...sale,
     saleValue: formatCurrencyInput(sale.saleValue),
     commissionPercentage: formatPercentInput(sale.commissionPercentage),
+    invoicePercentage: String(resolveInvoicePercentage({ invoicePercentage: sale.invoicePercentage, invoiceIssued: sale.invoiceIssued })),
     grossCommission: formatCurrencyInput(sale.grossCommission),
     managerPercentage: formatPercentInput(sale.managerPercentage || 0),
     brokerSharePercentage: formatPercentInput(sale.brokerSharePercentage ?? 50),

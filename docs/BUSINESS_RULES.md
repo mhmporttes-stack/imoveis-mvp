@@ -148,7 +148,7 @@
 
 ## 13. Financeiro
 
-- **FIN-1 Cálculo** (`lib/financial.js`): dedução por nota = comissão bruta × **15%** se `invoiceIssued`; comissão livre = `max(0, bruta − dedução − despesas)`; a receber = `max(0, livre − recebido)`. `invoiceIssued` é só controle interno (sem NFS-e). **[PENDENTE DE VALIDAÇÃO]** os 15%.
+- **FIN-1 Cálculo** (`lib/financial.js`): dedução por nota = comissão bruta × `invoice_percentage` **da própria venda** (0–100; antes: 15% fixo se `invoiceIssued`); comissão livre = `max(0, bruta − dedução − despesas)`; a receber = `max(0, livre − recebido)`. `invoiceIssued` é só controle interno (sem NFS-e). **[REGRA OFICIAL — dono, 2026-10-02]** % de nota por venda, sem percentual global.
 - **FIN-2 Distribuição** (`lib/financial-calculations.js`, em centavos): gestor (% livre por venda) sai da comissão livre; o restante divide corretor/imobiliária (padrão 50/50, devem somar 100). [REGRA OFICIAL 2026-09-22]: gestor 10%, restante 50/50, **sem gestor** nas vendas do dono. [COMPORTAMENTO ATUAL ≠ OFICIAL]: gestor é campo livre por venda; nada zera o gestor nas vendas do dono; percentuais padrão por usuário em `admin_users` (`broker/agency_commission_percentage` 50/50, `default_manager_percentage` 10). Testes: `lib/financial-calculations.test.js`.
 - **FIN-3 Escopo.** Lista: admin (tudo), corretor (próprios), associado (do corretor vinculado, **visão projetada**: 10% da comissão livre/recebimentos, sem despesas/gestor/imobiliária — **[PENDENTE DE VALIDAÇÃO]**); **gestor sem acesso**. Editar/excluir venda: só administrador geral. — `lib/financial.js`, `app/api/financeiro/**`.
 - **FIN-4 Venda automática** e prevenção de duplicidade por cliente: ver FUN-5.
@@ -176,7 +176,7 @@
 1. Estado real do banco de produção (nada foi consultado nesta auditoria): regras em `crm_automation_rules`, `scoring_rule_versions` vigentes, cota diária, `whatsapp_automation_replies` ativas, `crm_settings`.
 2. Agendamento efetivo dos `pg_cron` e o alvo/URL do cron `whatsapp-master-scheduled-activities` (URL vem do Vault `crm_scheduled_activities_url`).
 3. Prazo da redistribuição de roleta (5 min segundo a regra; 10 min citado em comentário de código).
-4. Se os 15% de dedução por nota, a visão de associado (10%) e a lista de status que gera venda são as regras oficiais (marcadas PENDENTE pelo dono).
+4. Se a visão de associado (10%) e a lista de status que gera venda são as regras oficiais (marcadas PENDENTE pelo dono).
 5. Número/WABA oficial ativo e modelos de WhatsApp aprovados (a memória operacional de 2026-09-24 registra 0 modelos aprovados; não verificado aqui).
 6. Se as respostas por “sim/não” semeadas continuam ativas e como o dono quer lidar com opt-out (PARAR/SAIR) — sem implementação hoje.
 7. Se os dados da tabela `leads` (modal da home) são consumidos por alguém fora do sistema (não há leitor no código).

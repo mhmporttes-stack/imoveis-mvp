@@ -15,4 +15,4 @@ Executa como `gestor-financeiro` (somente leitura). Argumentos: `$ARGUMENTS`. Ad
 3. **Decomponha** a variação do lucro: efeito receita × efeito despesa operacional × efeito custo de venda (mix de repasses).
 4. **Ruído:** com poucos recebimentos (< 5) a diferença pode ser só calendário de pagamento — diga isso.
 5. **Projeção × realizado:** só para o mês em andamento; meses encerrados não têm projeção guardada (não invente).
-6. Mudou regra (nota 15%, % gestor) no intervalo? Cite no `docs/CHANGELOG_AI.md`/`git log`. Termine com Fato/Apontamento/Recomendação.
+6. Mudou regra (% de nota fiscal da venda, % gestor) no intervalo? Cite no `docs/CHANGELOG_AI.md`/`git log`. Termine com Fato/Apontamento/Recomendação.

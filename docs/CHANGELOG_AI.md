@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Financeiro: nota fiscal com % por venda; repasses ≠ despesas operacionais (Saúde)
+- **Data:** 2026-10-02
+- **Área:** Financeiro / Saúde / banco
+- **Alteração:** (1) a nota fiscal deixou de ser "15% fixo ligado/desligado": cada venda tem seu **"Nota fiscal (%)"** (0–100, base = comissão bruta, deduzida uma vez antes da divisão), sem percentual global; vendas antigas preservadas (com nota → 15, sem nota → 0, migration + fallback legado). Cálculo único em `lib/financial-calculations.js` (`calculateSaleBase`), usado por servidor e tela. (2) Saúde reclassificada: **comissão recebida − repasses (corretor, gestor, participantes) − nota fiscal − despesas operacionais pagas = resultado líquido**; repasses não são despesas operacionais; realizado e previsto em colunas separadas; cards Repasses, Nota fiscal, Despesas operacionais e Resultado líquido. (3) Despesas da empresa: atalhos "Despesa fixa" (recorrente) e "Despesa variável" (pontual), filtro fixas × variáveis, novas categorias (água, energia, internet, assinaturas de IA, copa e limpeza).
+- **Mapeamento antes de alterar:** nota = bruta × 15% se `invoice_issued`; livre = max(0, bruta − nota − despesas da venda); gestor/corretor/imobiliária dividem a livre. Em produção: 7 vendas (2 com nota, 5 sem; bruta = nota + despesas + gestor + corretor + imobiliária fechava nas 7). A Saúde só reclassifica esses componentes (`splitSaleShares`) — sem dupla dedução.
+- **Banco:** migration `20261002200000_financial_invoice_percentage.sql` (coluna `invoice_percentage`, backfill preservando valores, default 0, check 0–100). Nenhum valor financeiro histórico alterado.
+- **Arquivos afetados:** `lib/financial-calculations.js`, `lib/financial.js`, `lib/financial-health-core.mjs`, `components/AdminFinancialDashboard.jsx`, `components/FinancialHealthTab.jsx`, `components/FinancialHealthCharts.jsx`, `tests/financial-invoice.test.mjs`, `tests/financial-health.test.mjs`, `docs/FINANCEIRO_SAUDE.md`, `docs/BUSINESS_RULES.md` (FIN-1), `docs/DATABASE.md`, `.claude/rules/financeiro.md`, agente/skills financeiros.
+- **Risco/observação:** repasses e nota apropriados proporcionalmente ao recebido (sem data real de pagamento); a divergência herdada do saldo (comissão livre × bruta) continua. Substitui a premissa "15% PENDENTE DE VALIDAÇÃO".
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Saúde financeira: despesa prevista × paga (confirmação manual) e recorrente só dali para frente
 - **Data:** 2026-10-02
 - **Área:** Financeiro / Saúde / banco

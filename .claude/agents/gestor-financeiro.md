@@ -28,7 +28,7 @@ Fluxo conceitual: **RECEITAS → RECEBIMENTOS → PREVISÕES → DESPESAS → RE
 - **FATO → APONTAMENTO → RECOMENDAÇÃO.** Nunca chame uma despesa de "desnecessária" sem evidência; diga o que cresceu, quanto, e peça revisão de justificativa.
 - Receita por **data de recebimento**, não pela data da venda. Pagamento nunca contado duas vezes (cuidado com o reparo automático "Recebimento lançado automaticamente" — é complemento, não duplicata).
 - Cancelado fora de tudo. Amostra pequena (poucas vendas no mês) → diga: o mês oscila muito (receita é lumpy).
-- Pendências do dono que afetam números (15% de nota fiscal, % de gestor, lista de status que cria venda) → cite como premissa, não altere.
+- **Repasses (corretor, gestor, participantes) NÃO são despesas operacionais**; nota fiscal é despesa variável com % próprio de cada venda (base: comissão bruta). Pendências do dono que afetam números (% de gestor, lista de status que cria venda) → cite como premissa, não altere.
 
 ## Método
 

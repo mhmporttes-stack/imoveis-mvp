@@ -44,29 +44,39 @@ A linha guarda **uma vez** a âncora (`expense_date` = 1ª ocorrência), a perio
 **Alterar uma recorrente vale só dali para frente [REGRA OFICIAL — dono, 2026-10-02].** Ao mudar valor, categoria, tipo, descrição ou periodicidade, o sistema (`planRecurringSplit` + `splitRecurringExpense`) **encerra a série antiga no dia anterior à vigência** (padrão: hoje; campo "Aplicar a partir de") e cria uma **nova série** a partir da 1ª ocorrência na/após a vigência (mesmo dia do mês; periodicidade nova ancora na data de vigência). Meses encerrados, valores pagos e relatórios históricos ficam idênticos. Confirmações/reagendamentos com data ≥ vigência que existam na série nova são **migrados**; se alguma não existir na nova, a alteração é recusada (nada se perde em silêncio). Sem nada anterior à vigência (nenhum histórico a preservar) edita no lugar; mudar só observação/encerramento não cria versão. Ordem: cria nova → migra → encerra antiga (com desfazimento se falhar no meio — PostgREST sem transação).
 - **Encerrar** grava `recurrence_end_date` = hoje; **Excluir** apaga a série inteira e suas confirmações (a UI avisa e sugere Encerrar). Uma recorrente não pode virar única (use Encerrar).
 
-## Receita, custos da venda e lucro
+## Classificação financeira (repasses × nota × despesas)
 
-`financial_payments` é medido contra a **comissão bruta** da venda. Cada recebimento gera:
-```
-razão  = recebido ÷ comissão bruta            (máx. 1)
-net    = comissão da imobiliária × razão       (parte da imobiliária)
-custo  = recebido − net                        (repasses, despesas da venda, nota, comissões de corretor/gestor)
-```
-(comissão da imobiliária = `totals.agencyCommission` de `calculateFinancialTotals`, ou seja, já considera nota 15% **[PENDENTE DE VALIDAÇÃO]**, despesas da venda e a distribuição corretor/gestor/imobiliária.) A venda não registra a data em que cada repasse é pago, então os custos são apropriados **proporcionalmente ao recebido** — apropriação gerencial, declarada na tela.
+| Classe | O que é | De onde vem |
+|---|---|---|
+| **Comissão recebida (receita)** | comissão bruta efetivamente recebida | `financial_payments` recebidos |
+| **Repasses** | comissão do **corretor**, do **gestor** e de outros participantes da venda (despesas da venda de categoria Repasse, Corretor parceiro, Captador, Indicador, Bonificação) | cálculo existente da venda (`calculateCommissionDistribution` + despesas da venda). **Não são despesas operacionais** |
+| **Nota fiscal** | despesa **variável** da venda: comissão bruta × `invoice_percentage` **da venda** | `calculateSaleBase` (uma só vez, antes da divisão) |
+| **Despesas operacionais** | (a) da empresa **pagas** (`financial_operating_expenses`, fixas/recorrentes e variáveis/pontuais) + (b) despesas da venda que não são repasse (Documentação, Cartório, ITBI, Engenharia, Marketing, Tráfego pago, Taxa, Outros) | confirmação manual / venda |
+| **Resultado líquido** | o que sobra para a imobiliária | ver fórmula |
+
+**Sem dupla dedução:** a venda já calcula `bruta = nota + despesas da venda + gestor + corretor + imobiliária`. A Saúde só **reclassifica** esses mesmos componentes (`splitSaleShares`): cada real da comissão aparece em uma única classe. Venda com comissão menor que as deduções (livre = 0): fatias reduzidas proporcionalmente para fechar em (bruta − imobiliária). Venda sem detalhamento: o que não é da imobiliária vira repasse.
+
+Cada recebimento é apropriado proporcionalmente: `razão = recebido ÷ comissão bruta`; repasses, nota, despesas da venda e parte da imobiliária = componente × razão (a venda não guarda a data em que cada repasse/nota foi pago).
 
 ```
-RECEITA BRUTA  = Σ recebido (REALIZADO) no período
-DESPESAS       = custos da venda apropriados + despesas operacionais realizadas
-LUCRO LIVRE    = RECEITA BRUTA − DESPESAS            (= parte da imobiliária recebida − despesas operacionais)
-MARGEM         = LUCRO LIVRE ÷ RECEITA BRUTA          (— se receita = 0)
-vs anterior    = (atual − anterior) ÷ anterior, só com base > 0; mês cheio compara com mês anterior; outro intervalo, com o intervalo de mesmo tamanho imediatamente anterior
+RESULTADO LÍQUIDO REALIZADO = COMISSÃO RECEBIDA − REPASSES − NOTA FISCAL − DESPESAS OPERACIONAIS PAGAS
+                            = parte da imobiliária recebida − despesas operacionais da empresa pagas
+MARGEM                      = RESULTADO LÍQUIDO ÷ COMISSÃO RECEBIDA          (— se receita = 0)
+vs anterior                 = (atual − anterior) ÷ anterior, só com base > 0; mês cheio × mês anterior; outro intervalo × intervalo de mesmo tamanho imediatamente anterior
 ```
+Exemplo (nota 12%): comissão bruta 10.000 → nota 1.200 → livre 8.800 → corretor 4.400 / imobiliária 4.400 (sem gestor) → resultado antes das despesas operacionais = 4.400.
+
+## Nota fiscal por venda
+
+`financial_sales.invoice_percentage` (0–100, numeric(7,4)). Campo **"Nota fiscal (%)"** na Edição Financeira de cada venda (só admin geral edita); 0 = sem nota. Mudar o percentual recalcula nota, comissão livre, repasses, resultado, Saúde e projeções (tudo deriva de `calculateSaleBase`). **Não há percentual global**: venda A 6%, B 15%, C 20% convivem. Base = comissão bruta (a regra atual), nunca o VGV. Migration `20261002200000_financial_invoice_percentage.sql` (aditiva/idempotente): vendas existentes → com nota 15, sem nota 0 (exatamente o que já se aplicava; nenhum valor histórico muda). `invoice_issued` segue gravado por compatibilidade (= % > 0).
 
 ## Expectativa do mês e projeção
 
 ```
-RESULTADO PROJETADO = (recebido + previsto a receber)
-                    − (despesas realizadas + custos de venda dos previstos + despesas operacionais futuras/recorrentes do mês)
+RESULTADO LÍQUIDO PROJETADO = REALIZADO (comissão − repasses − nota − despesas pagas)
+                            + PREVISTO (comissão a receber − repasses previstos − nota prevista − despesas previstas)
+  previstos: recebimentos com data + previsão do saldo; repasses e nota proporcionais ao previsto; despesas ainda NÃO confirmadas (inclusive vencidas)
+  a tela mostra Realizado e Previsto em colunas separadas e só então o projetado
 ```
 Exemplo do dono: recebido 25.000, previsto 12.000, despesas realizadas 8.000, previstas 4.000 → 25.000 (coberto em teste). Só existe para o mês corrente. Meses encerrados mostram apenas o realizado (não há "foto" da projeção passada — não inventar).
 
@@ -127,5 +137,5 @@ select opening_cash_balance, opening_cash_date, reserve_months, critical_months 
 - Excluir uma despesa apaga suas confirmações de pagamento (sugere-se Encerrar). A divisão de recorrente não é transacional (compensação manual no código).
 - Custos da venda (repasses/comissões) apropriados proporcionalmente ao recebido, não pela data real de pagamento do repasse.
 - O reparo automático de "Recebido" sem recebimento (`financial-receipt-repair-core.mjs`) lança recebimento complementar com a data de hoje — esse valor entra como receita realizada no mês do lançamento (coerente com a regra do dono de 2026-10-01).
-- Premissas PENDENTES do dono que afetam os números: 15% de nota fiscal, % de gestor por venda, lista de status que cria venda (`.claude/rules/financeiro.md`).
+- Premissas PENDENTES do dono que afetam os números: % de gestor por venda, lista de status que cria venda (`.claude/rules/financeiro.md`).
 - Receita é irregular (poucas vendas grandes): variações mês a mês com poucos recebimentos são ruído de calendário.

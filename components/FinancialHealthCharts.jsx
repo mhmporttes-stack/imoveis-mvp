@@ -75,8 +75,8 @@ export function BrokerResultChart({ rows = [] }) {
             </button>
             {open && (
               <p className="mt-1.5 rounded-xl border border-line bg-mist px-3 py-2 text-xs leading-5 text-muted" role="status">
-                Comissão bruta recebida <strong className="text-navy">{formatMoney(row.grossReceived)}</strong> · repasses e custos da venda{" "}
-                <strong className="text-navy">{formatMoney(row.repasses)}</strong> · {row.salesCount} {row.salesCount === 1 ? "venda" : "vendas"}
+                Comissão bruta recebida <strong className="text-navy">{formatMoney(row.grossReceived)}</strong> · repasses{" "}
+                <strong className="text-navy">{formatMoney(row.repasses)}</strong> · nota e despesas da venda <strong className="text-navy">{formatMoney(row.otherCosts)}</strong> · {row.salesCount} {row.salesCount === 1 ? "venda" : "vendas"}
               </p>
             )}
           </li>

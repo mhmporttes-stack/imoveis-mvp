@@ -99,13 +99,15 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
       )}
 
       {/* Indicadores principais */}
-      <section aria-label="Indicadores principais" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi title="Receita bruta" value={formatMoney(summary.revenueGross)} tag="Recebido" delta={changes.revenue} vsLabel={vsLabel} />
-        <Kpi title="Despesas pagas" value={formatMoney(summary.expenses)} tag="Realizado" delta={changes.expenses} vsLabel={vsLabel} inverse
-          hint={`Pagas: operacionais ${formatMoney(summary.operatingExpenses)} + repasses e custos da venda ${formatMoney(summary.saleCosts)}. Previstas não entram.`} />
-        <Kpi title="Lucro livre" value={formatMoney(summary.profit)} tag="Realizado" delta={changes.profit} vsLabel={vsLabel} negative={summary.profit < 0} />
+      <section aria-label="Indicadores principais" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi title="Comissão recebida" value={formatMoney(summary.revenueGross)} tag="Recebido" delta={changes.revenue} vsLabel={vsLabel} hint="Receita da imobiliária: comissão bruta efetivamente recebida" />
+        <Kpi title="Repasses" value={formatMoney(summary.repasses)} tag="Realizado" delta={changes.repasses} vsLabel={vsLabel} inverse hint="Corretor, gestor e outros participantes da venda. Não são despesas operacionais." />
+        <Kpi title="Nota fiscal" value={formatMoney(summary.invoice)} tag="Realizado" delta={changes.invoice} vsLabel={vsLabel} inverse hint="Despesa fiscal de cada venda (percentual próprio) sobre a comissão recebida" />
+        <Kpi title="Despesas operacionais" value={formatMoney(summary.operatingTotal)} tag="Realizado" delta={changes.operating} vsLabel={vsLabel} inverse
+          hint={`Pagas: da empresa ${formatMoney(summary.operatingExpenses)} + ligadas a vendas ${formatMoney(summary.saleExpenses)}. Previstas não entram.`} />
+        <Kpi title="Resultado líquido" value={formatMoney(summary.profit)} tag="Realizado" delta={changes.profit} vsLabel={vsLabel} negative={summary.profit < 0} hint="Comissão − repasses − nota fiscal − despesas operacionais pagas" />
         <Kpi title="Margem" value={summary.marginPercent === null ? "—" : `${fmtNumber(summary.marginPercent)}%`} tag="Realizado"
-          deltaPoints={changes.marginDeltaPoints} vsLabel={vsLabel} hint="Lucro livre ÷ receita bruta" />
+          deltaPoints={changes.marginDeltaPoints} vsLabel={vsLabel} hint="Resultado líquido ÷ comissão recebida" />
         <Kpi title="Caixa" value={health.cash === null ? "Não config." : formatMoney(health.cash)} tag="Realizado" negative={health.cash !== null && health.cash < 0}
           hint={health.cash === null ? "Configure o saldo inicial do caixa abaixo." : `Saldo inicial de ${formatDate(settings.openingCashDate)} + entradas − saídas`} />
         <Kpi title="Expectativa do mês" value={health.expectation.available ? formatMoney(health.expectation.result) : "—"} tag="Previsto"
@@ -114,7 +116,7 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
 
       <div className="grid items-start gap-6 xl:grid-cols-2">
         {/* Expectativa */}
-        <Card title="Expectativa do mês" subtitle="Real × previsto × estimado">
+        <Card title="Expectativa do mês" subtitle="Comissão − repasses − nota fiscal − despesas, com realizado e previsto separados">
           <ExpectationBlock health={health} />
         </Card>
 
@@ -187,48 +189,61 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
 /* ---------- blocos ---------- */
 
 function ExpectationBlock({ health }) {
-  const { expectation } = health;
+  const { expectation, currentSummary: c } = health;
   if (!expectation.available) {
-    return <p className="rounded-2xl border border-dashed border-line bg-mist px-4 py-6 text-center text-sm font-bold text-muted">A expectativa considera o mês atual. Selecione “Este mês” para vê-la.</p>;
+    return <p className="rounded-2xl border border-dashed border-line bg-mist px-4 py-6 text-center text-sm font-bold text-muted">A expectativa considera o mês atual.</p>;
   }
+  const projected = c.projected;
+  const expectedResult = round(c.expectedGross - c.expectedRepasses - c.expectedInvoice - c.expectedOperating);
   const rows = [
-    { label: "Recebido no mês", value: expectation.received, tag: "Realizado" },
-    { label: "Ainda previsto a receber", value: expectation.expectedRevenue, tag: "Previsto", sub: [expectation.forecastIncluded > 0 ? `inclui ${formatMoney(expectation.forecastIncluded)} da previsão de recebimento do saldo` : null, expectation.overdue > 0 ? `inclui ${formatMoney(expectation.overdue)} vencido` : null].filter(Boolean).join(" · ") || null },
-    { label: "Despesas pagas (confirmadas)", value: -expectation.expensesRealized, tag: "Realizado" },
-    { label: "Despesas previstas (ainda não confirmadas)", value: -expectation.expensesPlanned, tag: "Previsto", sub: expectation.operatingOverdue > 0 ? `inclui ${formatMoney(expectation.operatingOverdue)} vencidas aguardando confirmação` : null }
+    { label: "Comissão (receita)", real: c.revenueGross, planned: c.expectedGross, sign: 1,
+      sub: [expectation.forecastIncluded > 0 ? `previsto inclui ${formatMoney(expectation.forecastIncluded)} da previsão de recebimento do saldo` : null, expectation.overdue > 0 ? `${formatMoney(expectation.overdue)} vencido` : null].filter(Boolean).join(" · ") || null },
+    { label: "Repasses", real: c.repasses, planned: c.expectedRepasses, sign: -1, sub: "corretor, gestor e participantes" },
+    { label: "Nota fiscal", real: c.invoice, planned: c.expectedInvoice, sign: -1 },
+    { label: "Despesas operacionais", real: c.operatingTotal, planned: c.expectedOperating, sign: -1,
+      sub: expectation.operatingOverdue > 0 ? `previstas incluem ${formatMoney(expectation.operatingOverdue)} vencidas aguardando confirmação` : null }
   ];
   return (
     <div>
-      <ul className="divide-y divide-line">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 text-xs font-black uppercase tracking-wide text-muted">
+        <span />
+        <span className="min-w-[92px] text-right"><Tag kind="Realizado" /></span>
+        <span className="min-w-[92px] text-right"><Tag kind="Previsto" /></span>
+      </div>
+      <ul className="mt-1 divide-y divide-line">
         {rows.map((row) => (
-          <li key={row.label} className="flex items-center justify-between gap-3 py-2.5">
-            <span className="min-w-0 text-sm text-muted">
-              {row.label}
-              {row.sub && <span className="block text-xs text-warning">{row.sub}</span>}
-            </span>
-            <span className="flex shrink-0 items-center gap-2">
-              <Tag kind={row.tag} />
-              <span className="min-w-[96px] text-right text-sm font-black text-navy">{formatMoney(row.value)}</span>
-            </span>
+          <li key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 py-2.5">
+            <span className="text-sm text-muted">{row.sign < 0 ? "(−) " : ""}{row.label}{row.sub && <span className="block text-xs leading-4 text-brand">{row.sub}</span>}</span>
+            <span className="min-w-[92px] text-right text-sm font-black text-navy">{formatMoney(row.real)}</span>
+            <span className="min-w-[92px] text-right text-sm font-black text-brand">{formatMoney(row.planned)}</span>
           </li>
         ))}
-        <li className="flex items-center justify-between gap-3 py-3">
-          <span className="text-sm font-black text-navy">Resultado projetado</span>
-          <span className={`text-lg font-black ${expectation.result < 0 ? "text-danger" : "text-navy"}`}>{formatMoney(expectation.result)}</span>
+        <li className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5">
+          <span className="text-sm font-black text-navy">= Resultado líquido</span>
+          <span className={`min-w-[92px] text-right text-sm font-black ${c.profit < 0 ? "text-danger" : "text-navy"}`}>{formatMoney(c.profit)}</span>
+          <span className={`min-w-[92px] text-right text-sm font-black ${expectedResult < 0 ? "text-danger" : "text-brand"}`}>{formatMoney(expectedResult)}</span>
         </li>
       </ul>
-      <p className="text-xs leading-5 text-muted">Inclui custos de venda (repasses, comissões) proporcionais aos recebimentos previstos. Receita bruta projetada: {formatMoney(expectation.projectedRevenue)}.</p>
+      <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-blue-50 px-4 py-3">
+        <span className="text-sm font-black text-navy">Resultado líquido projetado <span className="font-bold text-muted">(realizado + previsto)</span></span>
+        <span className={`text-lg font-black ${projected.result < 0 ? "text-danger" : "text-navy"}`}>{formatMoney(projected.result)}</span>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-muted">A coluna Previsto é o que ainda vai acontecer (recebimentos com data, previsão do saldo, despesas ainda não confirmadas) e nunca é somado ao Realizado nas colunas. Repasses e nota fiscal são apropriados proporcionalmente ao valor recebido.</p>
       {health.estimate && health.estimate.remaining > 0 && (
         <div className="mt-3 rounded-2xl border border-dashed border-brand/40 bg-blue-50/50 px-4 py-3">
           <p className="flex items-center gap-2 text-sm font-black text-navy"><Tag kind="Estimado" /> Despesas variáveis ainda não lançadas</p>
           <p className="mt-1 text-xs leading-5 text-muted">
             Pela média dos 3 meses anteriores ({formatMoney(health.estimate.average3m)}), podem surgir cerca de <strong className="text-navy">{formatMoney(health.estimate.remaining)}</strong> até o fim do mês.
-            Com essa estimativa, o resultado seria <strong className="text-navy">{formatMoney(expectation.result - health.estimate.remaining)}</strong>. A estimativa <u>não</u> está incluída no resultado projetado acima.
+            Com essa estimativa, o resultado seria <strong className="text-navy">{formatMoney(projected.result - health.estimate.remaining)}</strong>. A estimativa <u>não</u> está incluída no resultado projetado acima.
           </p>
         </div>
       )}
     </div>
   );
+}
+
+function round(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 }
 
 function BreakEvenBlock({ be }) {
@@ -371,16 +386,29 @@ function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrences
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [kind, setKind] = useState("all"); // all | fixed | variable
 
   const sorted = useMemo(() => [...expenses].sort((a, b) => {
     const activeA = a.isRecurring && (!a.recurrenceEndDate || a.recurrenceEndDate >= today) ? 1 : 0;
     const activeB = b.isRecurring && (!b.recurrenceEndDate || b.recurrenceEndDate >= today) ? 1 : 0;
     return activeB - activeA || b.expenseDate.localeCompare(a.expenseDate);
   }), [expenses, today]);
-  const visible = showAll ? sorted : sorted.slice(0, 12);
+  // Fixas/recorrentes (aluguel, água, energia, internet, Claude, GPT…) × variáveis/pontuais (galão, café, mouse, manutenção…)
+  const isFixedKind = (e) => e.expenseType === "fixed" || e.isRecurring;
+  const counts = { all: sorted.length, fixed: sorted.filter(isFixedKind).length, variable: sorted.filter((e) => !isFixedKind(e)).length };
+  const filtered = kind === "fixed" ? sorted.filter(isFixedKind) : kind === "variable" ? sorted.filter((e) => !isFixedKind(e)) : sorted;
+  const visible = showAll ? filtered : filtered.slice(0, 12);
 
   function patch(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      // Nova despesa: fixa nasce recorrente (mensal); variável/extraordinária nasce pontual (não recorrente).
+      if (field === "expenseType" && !current.id) {
+        next.isRecurring = value === "fixed";
+        if (value === "fixed" && !next.recurrencePeriod) next.recurrencePeriod = "monthly";
+      }
+      return next;
+    });
   }
 
   // Recarrega despesas e confirmações (uma alteração de recorrente pode criar uma nova versão da série).
@@ -451,12 +479,17 @@ function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrences
 
   return (
     <Card
-      title="Despesas da empresa"
-      subtitle="Cadastradas como previstas; só viram pagas quando você confirma o pagamento. Separadas dos repasses e despesas de cada venda"
+      title="Despesas operacionais da empresa"
+      subtitle="Cadastradas como previstas; só viram pagas quando você confirma o pagamento. Repasses (corretor, gestor) e nota fiscal NÃO são cadastrados aqui: vêm de cada venda."
       action={!form && (
-        <button type="button" onClick={() => setForm({ ...EMPTY_FORM, expenseDate: today })} className="premium-button-primary inline-flex min-h-11 items-center gap-2 px-4 text-sm">
-          <Plus size={16} /> Nova despesa
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setForm({ ...EMPTY_FORM, expenseType: "fixed", isRecurring: true, recurrencePeriod: "monthly", category: "Aluguel", expenseDate: today })} className="premium-button-primary inline-flex min-h-11 items-center gap-2 px-4 text-sm">
+            <Plus size={16} /> Despesa fixa
+          </button>
+          <button type="button" onClick={() => setForm({ ...EMPTY_FORM, expenseType: "variable", isRecurring: false, expenseDate: today })} className="premium-button-secondary inline-flex min-h-11 items-center gap-2 px-4 text-sm">
+            <Plus size={16} /> Despesa variável
+          </button>
+        </div>
       )}
     >
       {form && (
@@ -468,7 +501,14 @@ function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrences
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Descrição" value={form.description} onChange={(v) => patch("description", v)} placeholder="Ex.: Aluguel da sala" />
             <Select label="Categoria" value={form.category} onChange={(v) => patch("category", v)} options={OPERATING_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))} />
-            <Select label="Tipo" value={form.expenseType} onChange={(v) => patch("expenseType", v)} options={OPERATING_EXPENSE_TYPES} />
+            <div>
+              <Select label="Tipo" value={form.expenseType} onChange={(v) => patch("expenseType", v)} options={OPERATING_EXPENSE_TYPES} />
+              <p className="mt-1 text-xs leading-4 text-muted">
+                {form.expenseType === "fixed" ? "Recorrente: aluguel, água, energia, internet, Claude, GPT… Cadastre uma vez; os meses seguintes são previstos automaticamente."
+                  : form.expenseType === "variable" ? "Pontual: galão d'água, café, papel higiênico, computador, mouse, manutenção… Não repete por padrão."
+                  : "Gasto incomum e isolado (reforma, equipamento grande). Não entra no custo mensal de referência."}
+              </p>
+            </div>
             <Field label="Valor (R$)" value={form.amount} onChange={(v) => patch("amount", v)} inputMode="decimal" placeholder="0,00" />
             {form.wasRecurring ? (
               <Field label="Aplicar a partir de" type="date" value={form.effectiveFrom || ""} onChange={(v) => patch("effectiveFrom", v)} />
@@ -501,6 +541,17 @@ function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrences
 
       <PaymentsToConfirm expenses={expenses} occurrences={occurrences} today={today} onOccurrencesChange={onOccurrencesChange} onFeedback={onFeedback} />
 
+      {sorted.length > 0 && (
+        <div className="mb-3 inline-flex max-w-full flex-wrap gap-1 rounded-full border border-line bg-white p-1" role="tablist" aria-label="Filtrar despesas">
+          {[{ key: "all", label: "Todas" }, { key: "fixed", label: "Fixas/recorrentes" }, { key: "variable", label: "Variáveis/pontuais" }].map((tab) => (
+            <button key={tab.key} type="button" role="tab" aria-selected={kind === tab.key} onClick={() => { setKind(tab.key); setShowAll(false); }}
+              className={`min-h-9 rounded-full px-3 text-xs font-black ${kind === tab.key ? "bg-navy text-white" : "text-navy"}`}>
+              {tab.label} ({counts[tab.key]})
+            </button>
+          ))}
+        </div>
+      )}
+
       {!sorted.length ? (
         <p className="rounded-2xl border border-dashed border-line bg-mist px-4 py-8 text-center text-sm font-bold text-muted">Nenhuma despesa cadastrada. Cadastre aluguel, sistemas, anúncios etc. para ver lucro, caixa e projeções.</p>
       ) : (
@@ -532,8 +583,8 @@ function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrences
           })}
         </ul>
       )}
-      {sorted.length > 12 && (
-        <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 text-sm font-black text-brand">{showAll ? "Mostrar menos" : `Ver todas (${sorted.length})`}</button>
+      {filtered.length > 12 && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 text-sm font-black text-brand">{showAll ? "Mostrar menos" : `Ver todas (${filtered.length})`}</button>
       )}
     </Card>
   );
