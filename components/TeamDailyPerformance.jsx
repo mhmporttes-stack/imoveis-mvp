@@ -12,6 +12,8 @@ import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
 // Mensagens internas de supervisão (pedido do dono, 2026-10-01): ícone no
 // card + mini-chat flutuante. Independente do Chat de clientes/WhatsApp.
 import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from "@/components/supervision/SupervisionChatDock";
+// Compensação da janela por restrição VALIDADA (PRO-14): mesmo componente/texto da tela do corretor.
+import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -32,7 +34,10 @@ function progressColor(percent) {
 // Painel gerencial exclusivo do administrador principal — visão consolidada
 // da equipe na Meta Diária. Reaproveita a mesma rota /admin/meta-diaria; o
 // corretor continua vendo o componente DailyGoalDashboard, intocado.
-export default function TeamDailyPerformance({ initialOverview, initialError = "" }) {
+// viewer="manager": gestora — mesma visão, SÓ da equipe dela (recorte no backend) e somente leitura aqui:
+// sem mensagem de supervisão e sem reorganizar fila. Validar/encerrar restrição segue a regra da T-29.
+export default function TeamDailyPerformance({ initialOverview, initialError = "", viewer = "owner" }) {
+  const readOnly = viewer === "manager";
   const [period, setPeriod] = useState(initialOverview?.range?.period || "today");
   const [overview, setOverview] = useState(initialOverview);
   const [error, setError] = useState(initialError);
@@ -106,6 +111,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 onRestrictionChanged={refetchRestrictions}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
                 onRequeued={refetchAutomation}
+                readOnly={readOnly}
                 chatUnread={supervisionInbox.counts[broker.brokerId] || 0}
                 onOpenChat={() => setChatBroker({ id: broker.brokerId, name: broker.name, photoUrl: broker.photoUrl || "" })}
               />
@@ -120,7 +126,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
         </>
       ) : null}
 
-      {chatBroker ? (
+      {chatBroker && !readOnly ? (
         <SupervisionChatDock
           partner={chatBroker}
           inboxVersion={supervisionInbox.version}
@@ -286,7 +292,7 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, readOnly = false, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -354,7 +360,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           />
           <span className="min-w-0 truncate">{broker.name}</span>
         </h3>
-        <SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} />
+        {readOnly ? null : <SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} />}
       </div>
 
       {automation ? (
@@ -366,6 +372,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
           <RestrictionValidationActions brokerId={broker.brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
+          {broker.compensation ? <div className="mt-2"><DailyGoalCompensationNotice notice={broker.compensation} only={["credit", "until", "impacted"]} /></div> : null}
           {automation.avgGapMinutes != null ? (
             <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
           ) : null}
@@ -399,7 +406,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           <p className="text-center text-xs font-bold text-muted">
             Próximo {formatNextDispatchCompact(automation)} · Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}
           </p>
-          {automation.enabled ? (
+          {automation.enabled && !readOnly ? (
             <button
               type="button"
               onClick={handleRequeue}
@@ -492,6 +499,8 @@ function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestr
                 <p className="text-sm font-bold text-muted">Meta: {detail.broker.meta.done} / {detail.broker.meta.total} ({formatPercent(detail.broker.meta.percent)})</p>
               </div>
             </div>
+
+            {detail.broker.compensation ? <DailyGoalCompensationNotice notice={detail.broker.compensation} /> : null}
 
             {automation ? (
               <AutomationSection automation={automation} restriction={restriction} onRestrictionChanged={onRestrictionChanged} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />

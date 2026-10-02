@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Meta Diária: visão da gestora (só a equipe dela) + alerta de conexão do WhatsApp (T-35)
+- **Data:** 2026-10-02
+- **Área:** Meta Diária / WhatsApp / Alertas / Permissões
+- **Alteração:** A gestora passa a ver a tela de equipe da Meta Diária (a mesma do administrador, reaproveitada) restrita aos corretores da equipe dela, com estado do WhatsApp e a compensação por restrição validada em cada card; somente leitura (sem chat de supervisão nem reorganizar fila). O isolamento é no backend: `lib/team-meta-scope-core.mjs` + `resolveTeamScopeOrThrow` (`lib/daily-goal.js`), rotas `/api/daily-goal/team-overview[/<id>]` agora com `requireBrokerManagementApi` e 403 em acesso cruzado; `lib/daily-goal-auto.js` (lista, histórico, pausar/ligar/teto/reorganizar) passou a recortar/checar por equipe para gestora (antes qualquer gestora via API enxergava e operava todos). Novo alerta informativo `whatsapp_connection` à gestora responsável quando o WhatsApp do corretor cai/volta (`lib/whatsapp-connection-alert*.js`, chamado por `applyIndividualSessionStatus`); sem gestora = ninguém alertado.
+- **Motivo:** Pedido do dono (T-35): gestora sem visão operacional da equipe e sem aviso de desconexão.
+- **Arquivos afetados:** `lib/daily-goal.js`, `lib/daily-goal-auto.js`, `lib/team-meta-scope-core.mjs`, `lib/whatsapp-individual.js`, `lib/whatsapp-connection-alert.js`, `lib/whatsapp-connection-alert-core.mjs`, `app/admin/meta-diaria/page.jsx`, `app/api/daily-goal/team-overview/**`, `components/TeamDailyPerformance.jsx`, vitrine (`app/dev/vitrine/**`), migration `20261003200000_whatsapp_connection_alert_definition.sql` (aditiva: 1 INSERT ... ON CONFLICT DO NOTHING), testes `tests/team-meta-scope.test.mjs` e `tests/whatsapp-connection-alert.test.mjs`; regra em `docs/BUSINESS_RULES.md` MD-11 e `.claude/rules/meta-diaria-ranking.md`.
+- **Risco/observação:** Cálculo da Meta, compensação, Prospecção, Ranking, T-28/T-29 e T-33 intocados. Gestora deixa de ver o próprio painel de meta (como o admin, vê só a equipe) — A CONFIRMAR se ela também precisa da própria meta. Corretor sem gestora (manager_id vazio) não gera alerta. Desconexão voluntária (corretor clica Desconectar) também alerta. Detecção depende de o microsserviço chamar o webhook de status (único caminho de escrita). Teste de `despachante` (frontmatter) já falhava antes desta tarefa.
+- **Autor:** Claude (crm-editor, T-20261002-35)
+
 ### 2026-10-02 — Meta Diária: tela mostra a compensação por restrição validada (só interface)
 - **Data:** 2026-10-02
 - **Área:** Meta Diária / Prospecção (interface)

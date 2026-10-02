@@ -4,6 +4,7 @@ import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import SceneGate from "@/components/motion/SceneGate";
 import { isOwnerAdminEmail, requireAdminPage } from "@/lib/admin-auth";
+import { isManagerProfile } from "@/lib/admin-profiles";
 import { canLoadDailyGoal, formatDailyGoalError, getBrokerDailyGoal, getOwnerTeamDailyOverview } from "@/lib/daily-goal";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,13 @@ export default async function MetaDiariaPage() {
   // perfil (corretor, gestor, outro administrador) continua na tela normal,
   // sem nenhuma alteração de comportamento.
   const isOwner = isOwnerAdminEmail(auth.user?.email);
+  // Gestora (REGRA OFICIAL — dono, 2026-10-02): mesma visão operacional do administrador, mas SÓ dos
+  // corretores da equipe dela (o recorte é feito no backend, lib/daily-goal.js). Sem poderes novos.
+  const isTeamManager = isManagerProfile(auth.profile);
+
+  if (isTeamManager) {
+    return <OwnerMetaDiariaView auth={auth} viewer="manager" />;
+  }
 
   if (isOwner) {
     return <OwnerMetaDiariaView auth={auth} />;
@@ -55,13 +63,13 @@ export default async function MetaDiariaPage() {
   );
 }
 
-async function OwnerMetaDiariaView({ auth }) {
+async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
   let overview = null;
   let error = "";
 
   if (canLoadDailyGoal()) {
     try {
-      overview = await getOwnerTeamDailyOverview({ period: "today" }, auth);
+      overview = await getOwnerTeamDailyOverview({ period: "today" }, auth, { withCompensation: true });
     } catch (loadError) {
       error = formatDailyGoalError(loadError);
     }
@@ -83,7 +91,7 @@ async function OwnerMetaDiariaView({ auth }) {
           <p className="mt-3 font-bold text-red-800">{error}</p>
         </section>
       ) : (
-        <TeamDailyPerformance initialOverview={overview} />
+        <TeamDailyPerformance initialOverview={overview} viewer={viewer} />
       )}
     </main>
   );

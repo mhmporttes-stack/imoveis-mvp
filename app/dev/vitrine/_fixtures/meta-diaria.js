@@ -673,6 +673,37 @@ export const compensationVariants = [
   { label: "Dia impactado", notice: buildCompensationNotice({ ...COMP_BASE, creditMinutes: 120, effectiveEndMinutes: 1260, impacted: true }) }
 ];
 
+// Visão da GESTORA (T-35): só os corretores da equipe dela (3 de 5), com o aviso de compensação por
+// restrição validada em alguns cards. Dados fictícios — o recorte real é feito no backend.
+const MANAGER_TEAM = new Set(["vitrine-corretor-ana", "vitrine-corretor-bruno", "vitrine-corretor-carla"]);
+const MANAGER_COMPENSATION = {
+  "vitrine-corretor-ana": () => compensationVariants[2].notice,
+  "vitrine-corretor-bruno": () => compensationVariants[1].notice
+};
+function buildManagerOverview(period) {
+  const base = buildTeamOverview(period);
+  const brokers = base.brokers
+    .filter((broker) => MANAGER_TEAM.has(broker.brokerId))
+    .map((broker) => ({ ...broker, compensation: period === "today" ? (MANAGER_COMPENSATION[broker.brokerId]?.() || null) : null }));
+  const sum = (pick) => brokers.reduce((total, broker) => total + pick(broker), 0);
+  const done = sum((b) => b.meta.done);
+  const total = sum((b) => b.meta.total);
+  const contatos = sum((b) => b.funnel.contatos);
+  const atendimentos = sum((b) => b.funnel.atendimentos);
+  const simulacoes = sum((b) => b.funnel.simulacoes);
+  return {
+    ...base,
+    summary: {
+      ...base.summary,
+      metaPercent: dailyGoalPercent(done, total), atividadesDone: done, atividadesTotal: total,
+      contatos, atendimentos, simulacoes,
+      taxaAtendimento: divideOrNull(atendimentos, contatos), taxaSimulacao: divideOrNull(simulacoes, atendimentos)
+    },
+    brokers
+  };
+}
+export const managerOverview = buildManagerOverview("today");
+
 // Estado mutável da vitrine: registrar tentativa / salvar mensagem altera a
 // cópia local e o GET /api/daily-goal seguinte devolve o novo estado.
 let goalState = clone(brokerGoal);

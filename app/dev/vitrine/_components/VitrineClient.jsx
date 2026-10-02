@@ -101,6 +101,17 @@ const TELAS = {
       </main>
     )
   },
+  "meta-diaria-gestora": {
+    path: "/admin/meta-diaria",
+    titulo: "Meta Diária (visão da gestora — só a equipe dela)",
+    active: "daily-goal",
+    rotas: [...supervisao.routes, ...metaDiaria.routes],
+    render: () => (
+      <main className="min-h-screen bg-mist py-14">
+        <TeamDailyPerformance initialOverview={metaDiaria.managerOverview} viewer="manager" />
+      </main>
+    )
+  },
   "supervisao-corretor": {
     path: "/admin/meta-diaria",
     titulo: "Mensagem da supervisão (corretor)",
