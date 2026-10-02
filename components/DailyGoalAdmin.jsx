@@ -50,6 +50,8 @@ const SKIP_REASON_LABELS = {
   reagendado_por_configuracao: "Fila recalculada automaticamente após salvar a configuração",
   reagendado_fora_da_configuracao: "Fila recalculada: item estava fora da janela/dia atual",
   bloqueado_fora_da_janela_no_envio: "Não enviado: horário fora da janela (fila recalculada)",
+  enviando_sem_confirmacao: "Ficou em \"enviando\" sem confirmação — NÃO reenviado (conferir no WhatsApp)",
+  preso_enviando_obsoleto: "Ficou em \"enviando\" sem ter enviado; tentativa já não era devida",
   opt_out_whatsapp: "Cliente pediu para parar (Não contactar)",
   nao_tem_interesse: "Corretor marcou Não tem interesse"
 };
@@ -380,7 +382,7 @@ function AutomationTab() {
               {broker.enabled ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
-                  <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
+                  <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%${broker.maxAvgGapMinutes ? ` (média máx. ${broker.maxAvgGapMinutes} min)` : ""}` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
                   <span>· {broker.businessDaysOnly ? "Só dias úteis" : "Todos os dias"}</span>
                   <span className="flex items-center gap-1">
                     · Teto diário:
@@ -730,6 +732,24 @@ function GlobalConfigPanel({ onSaved }) {
                     onChange={(event) => setDraft((current) => ({ ...current, oscillatePercent: Number(event.target.value) }))}
                   />
                   <span className="text-sm font-bold text-muted">%</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-black text-navy">Intervalo médio máximo</p>
+                <p className="text-[11px] font-bold text-muted">Só com a oscilação ligada. Limita o intervalo médio entre mensagens: com pouco volume a fila termina cedo (a janela é o limite permitido, não a duração obrigatória). Com muito volume o intervalo diminui sozinho para tudo caber na janela. Vazio = sem limite (usa a janela inteira). Não é o mesmo que o intervalo mín./máx. acima, usado com a oscilação desligada.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={180}
+                    placeholder="sem limite"
+                    disabled={!draft.oscillateEnabled}
+                    className="w-28 rounded-xl border border-line px-3 py-2 text-sm font-bold text-navy outline-none focus:border-brand disabled:opacity-50"
+                    value={draft.maxAvgGapMinutes ?? ""}
+                    onChange={(event) => setDraft((current) => ({ ...current, maxAvgGapMinutes: event.target.value === "" ? null : Number(event.target.value) }))}
+                  />
+                  <span className="text-sm font-bold text-muted">min</span>
                 </div>
               </div>
 

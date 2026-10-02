@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Meta Diária automática: "Intervalo médio máximo" e recuperação segura de itens presos em "enviando"
+- **Data:** 2026-10-02
+- **Área:** Meta Diária (automação WhatsApp) · Banco
+- **Alteração:** (1) nova configuração "Intervalo médio máximo" (`daily_goal_auto_settings.max_avg_gap_minutes`, global, salva com as demais e recalculando a fila pendente): com oscilação ligada, intervalo médio efetivo = menor entre (tempo restante da janela ÷ mensagens) e esse máximo; oscilação ± aplicada depois, nunca fora da janela; vazio = comportamento anterior. Ex.: 07–14h, máx. 4 min, ±30%: 100 msgs 07:00→13:41; 20 msgs 07:00→08:12; 5 msgs 07:00→07:14. (2) Marca `daily_goal_auto_queue.send_started_at` gravada imediatamente antes de chamar o WhatsApp e varredura `recoverStuckSendingItems` no início de cada cron: item em "sending" há mais de 15 min → com prova de envio vira "sent" sem reenviar; sem a marca (envio não começou) volta à fila só se a tentativa ainda é devida; caso contrário/incerto → "error" `enviando_sem_confirmacao` (revisão, nunca reenviado).
+- **Motivo:** pedido do dono (janela é limite, não duração obrigatória; nenhum item eterno em "enviando").
+- **Arquivos afetados:** `lib/daily-goal-auto.js`, `lib/daily-goal-auto-core.mjs`, `components/DailyGoalAdmin.jsx`, `tests/daily-goal-auto-window.test.mjs`, migration `20261002230000_daily_goal_auto_max_avg_gap_and_send_marker.sql` (aditiva, aplicada).
+- **Risco/observação:** os 2 itens presos desde 30/09 não tinham prova de envio nem marca (anteriores à correção) e as tentativas daquelas posições foram registradas depois por outro caminho; vão para revisão ("enviando_sem_confirmacao"), nunca reenviados. Causa provável: processo encerrado (tempo-limite da função) entre reivindicar e concluir. Os 9 corretores estavam `paused=false` no banco (4 retomados pelo usuário do dono às 02:15); foram pausados de novo com o motivo "Pausado por segurança… aguardando o dono reativar" — nenhum reativado.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Meta Diária automática: trava de janela no envio + fila recalculada ao salvar configuração
 - **Data:** 2026-10-02
 - **Área:** Meta Diária (automação WhatsApp)

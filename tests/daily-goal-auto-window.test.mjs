@@ -122,3 +122,91 @@ test("opt-out/Não contactar/cliente que respondeu nunca voltam para a fila; cro
   assert.match(claim, /for update skip locked/, "reivindicação atômica");
   assert.match(claim, /set status = 'sending'/);
 });
+
+// ---- Intervalo médio máximo (2026-10-02, ajuste final) ----
+const span = (list) => Math.round(list[list.length - 1] - list[0]);
+const spread = (count, extra = {}) => spreadScheduleMinutes({ count, windowStartMinutes: W_START, windowEndMinutes: W_END, oscillateEnabled: true, oscillatePercent: 30, maxAverageGapMinutes: 4, nowMinutes: AT_0210, random: seeded(11), ...extra });
+
+test("100 mensagens / janela 07–14 / máx. 4 min / ±30% -> todas dentro da janela", () => {
+  for (const seed of [1, 7, 11, 99, 2024]) {
+    const minutes = spread(100, { random: seeded(seed) });
+    assert.equal(minutes.length, 100);
+    assert.ok(minutes.every((value) => Math.round(value) >= W_START && Math.round(value) <= W_END), `seed ${seed}`);
+    assert.ok(span(minutes) <= 4 * 99 * 1.31, "média respeita o máximo de 4 min (± oscilação)");
+  }
+});
+
+test("20 mensagens / máx. 4 min / ±30% -> termina em pouco mais de 1 hora, não às 14:00", () => {
+  const minutes = spread(20);
+  assert.equal(minutes[0], W_START);
+  assert.ok(span(minutes) >= 19 * 4 * 0.7 && span(minutes) <= 19 * 4 * 1.3, `duração ${span(minutes)} min`);
+  assert.ok(minutes[minutes.length - 1] < 9 * 60, "termina antes das 09:00");
+});
+
+test("5 mensagens -> não espalha durante 7 horas", () => {
+  const minutes = spread(5);
+  assert.ok(span(minutes) <= 4 * 4 * 1.3, `duração ${span(minutes)} min`);
+});
+
+test("sem intervalo médio máximo (vazio) -> comportamento anterior: usa a janela", () => {
+  const minutes = spread(5, { maxAverageGapMinutes: null });
+  assert.ok(span(minutes) > 4 * 60, "espalha pela janela como antes");
+});
+
+test("muito volume: o necessário para caber vence o máximo (intervalo menor)", () => {
+  const minutes = spread(100, { maxAverageGapMinutes: 30 });
+  assert.equal(minutes.length, 100);
+  assert.ok(minutes.every((value) => Math.round(value) <= W_END));
+});
+
+test("oscilação desligada continua usando o intervalo mín./máx. (ignora o máximo médio)", () => {
+  const minutes = spreadScheduleMinutes({ count: 3, windowStartMinutes: W_START, windowEndMinutes: W_END, minGapMinutes: 20, maxGapMinutes: 20, maxAverageGapMinutes: 4, nowMinutes: AT_0210, random: seeded(3) });
+  assert.deepEqual(minutes, [W_START, W_START + 20, W_START + 40]);
+});
+
+test("alterar o intervalo médio máximo recalcula só pendentes (salvar configuração -> requeue de pending)", () => {
+  const code = source("lib/daily-goal-auto.js");
+  const globalConfig = code.slice(code.indexOf("export async function adminUpdateDailyGoalAutoGlobalConfig"), code.indexOf("async function requeueBrokerQueueCore"));
+  assert.match(globalConfig, /max_avg_gap_minutes: maxAvgGapMinutes/);
+  assert.match(globalConfig, /requeueAllEnabledBrokers\(/);
+  assert.match(code, /maxAverageGapMinutes: settingsRow\.max_avg_gap_minutes/);
+});
+
+// ---- Itens presos em "enviando" ----
+import { decideStuckSendingItem } from "../lib/daily-goal-auto-core.mjs";
+const NOW = new Date("2026-10-02T12:00:00Z").getTime();
+const ago = (minutes) => new Date(NOW - minutes * 60000).toISOString();
+const activeRound = { status: "active", attempt_count: 0 };
+
+test("preso em 'enviando': dentro do tempo normal -> espera", () => {
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(5), attempt_number: 1 }, round: activeRound, now: NOW }), "wait");
+});
+
+test("preso com prova de envio -> marcado como enviado, sem reenviar", () => {
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1, wa_message_id: "WA1" }, round: activeRound, now: NOW }), "mark_sent");
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1, delivered_at: ago(29) }, round: activeRound, now: NOW }), "mark_sent");
+});
+
+test("preso com envio iniciado e sem confirmação -> revisão, NUNCA reenvia", () => {
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1, send_started_at: ago(30) }, round: activeRound, now: NOW }), "review");
+});
+
+test("preso antes da marca existir (itens de 30/09) -> revisão, NUNCA reenvia", () => {
+  const old = new Date("2026-09-30T15:00:00Z").getTime();
+  assert.equal(decideStuckSendingItem({ item: { updated_at: "2026-09-30T15:00:00Z", attempt_number: 1 }, round: activeRound, now: old + 3600000 }), "review");
+});
+
+test("preso que provadamente não começou o envio -> volta para a fila só se a tentativa ainda é devida", () => {
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1 }, round: activeRound, now: NOW }), "return_pending");
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1 }, round: activeRound, slotAlreadyAttempted: true, now: NOW }), "skip_obsolete");
+  assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1 }, round: { status: "converted", attempt_count: 0 }, now: NOW }), "skip_obsolete");
+});
+
+test("marca de início do envio é gravada antes de chamar o WhatsApp; varredura roda no cron", () => {
+  const code = source("lib/daily-goal-auto.js");
+  const marker = code.indexOf("send_started_at: new Date().toISOString()");
+  const send = code.indexOf("sendIndividualMessage(brokerId, { to: contactRow.phone_normalized");
+  assert.ok(marker > 0 && marker < send);
+  const run = code.slice(code.indexOf("export async function runDailyGoalAutoDispatch"));
+  assert.match(run.slice(0, 400), /recoverStuckSendingItems\(\)/);
+});
