@@ -2,6 +2,15 @@
 
 > Memória do agente `marketing-posicionamento`. Uma entrada por análise, **mais recente no topo**. Formato e índice: `.claude/skills/auditar-posicionamento/references/metodologia.md`. Compare sempre na mesma base de áreas.
 
+## 2026-10-02 — ALTERAÇÕES PUBLICADAS no Google Meu Negócio (etapa 2: serviços, aprovada pelo dono)
+Via Windsor `update_service_items` (substituição total), aprovação do dono nesta conversa. Duas tentativas falharam com "Internal error" **sem gravar nada** (releitura confirmou os 23 originais); a 3ª, com `category_id` no formato `categories/gcid:real_estate_agents` e sem `language_code`, funcionou.
+- **Antes:** 23 serviços estruturados, sem descrição (administração, avaliação, comercial ×2, luxo ×2, fazenda, sítios, leilão, investimento, terrenos ×2 e os 11 abaixo).
+- **Depois (releitura confirmou exatamente 15):** 11 estruturados mantidos — `first_time_home_buyer_services`, `buying_agent_services`, `sellers_agent_services`, `property_for_sale`, `apartment`, `houses`, `new_real_estate`, `new_construction`, `off_plan_properties`, `developments`, `online_service` — e 4 itens livres em pt-BR: "Simulação de financiamento imobiliário", "Minha Casa Minha Vida", "Financiamento pela Caixa", "Compra do primeiro imóvel" (descrições em `rascunhos/2026-10-02-gbp-pacote.md` §3). Nome, categoria, telefone e site: inalterados.
+- **Área de atendimento ("somente Marília/SP", autorizada): NÃO aplicada.** `update_service_area` exige o Place ID oficial do Google de Marília (`place_id`); a ferramenta pública de Place ID não aceitou a digitação e **não foi usado nenhum ID chutado**. Estado atual: `location_service_area` = vazio. Pendente: obter o Place ID (ou o dono definir no painel do Google em "Área de atendimento").
+- **Medir:** impressões e buscas genéricas (`search_keyword`) em 30/60 dias; posição no Maps para "corretor de imóveis Marília SP". Falhou se, em 60 dias, nenhuma busca genérica levar ao perfil.
+
+---
+
 ## 2026-10-02 — ALTERAÇÕES PUBLICADAS no Google Meu Negócio (etapa 1, aprovada pelo dono)
 Via Windsor `execute_action` (escrita ligada pelo dono em Settings → API Access), uma vez cada, ~12:24 UTC. Aprovação: dono, nesta conversa, por item (respostas + descrição + link).
 - **`update_location`:** descrição e site alterados. **Antes:** descrição antiga ("Especialista na compra do primeiro imóvel em Marília e região… até a aprovação do financiamento…"), site `https://www.matheusmachadoimoveis.com.br/`. **Depois:** descrição nova de 538 caracteres (abre com a frase de posicionamento, CRECI 323106 de forma natural, sem "aprovação"/"garantia") e site `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=google&utm_medium=organic&utm_campaign=gmn`. Telefone, nome, categoria: inalterados. Releitura Windsor confirmou o novo site; a API devolveu o novo texto da descrição. Google pode revisar antes de exibir.

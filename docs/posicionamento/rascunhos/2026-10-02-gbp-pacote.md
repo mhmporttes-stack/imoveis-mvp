@@ -49,7 +49,8 @@ Hoje são 23 itens estruturados. Proposta:
   2. "Minha Casa Minha Vida" — "Explico em qual faixa de renda você se encaixa e conduzo o processo."
   3. "Financiamento pela Caixa" — "Acompanho a documentação e as etapas, da simulação à assinatura."
   4. "Compra do primeiro imóvel" — "Orientação completa para quem vai comprar a primeira casa ou apartamento."
-**Pergunta ao dono:** você atende terrenos, comercial, rural, leilão, avaliação ou luxo? O que sim, fica.
+**REVISÃO 02/10 (aguardando aprovação do dono):** manter 11 (primeiro imóvel, agente de compra, agente de venda, imóvel à venda, apartamentos, casas, imóveis novos ×2, na planta, empreendimentos, atendimento online); remover 12 (administração, avaliação, comercial ×2, luxo ×2, fazenda, sítios, leilão, investimento, terrenos ×2); adicionar 4 itens livres em pt-BR com `category_id` = `gcid:real_estate_agents` (categoria principal atual). Evidência: página `/venda-seu-imovel` no site (justifica manter agente de venda); só 5 de 153 posts do Instagram falam de terreno; nenhum conteúdo sobre leilão, rural, comercial, luxo ou avaliação.
+**Informado pelo dono (02/10):** área de atendimento = somente Marília/SP; os 112 pedidos de rota = clientes/interessados indo ao escritório.
 
 ## 4. Categorias (`update_categories`) — SUBSTITUI; pode pedir reverificação
 Hoje: principal "Agente imobiliário"; adicionais: nenhuma. Proposta: manter "Agente imobiliário" como principal e **adicionar uma categoria adicional que descreva o negócio real** (candidata: "Consultor imobiliário"). O ID exato da categoria e se está disponível em pt-BR: **A CONFIRMAR** (precisa do esquema de `update_categories`). Não adicionar categoria de financeira/correspondente bancário se você não for um.
