@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Meta Diária: tela mostra a compensação por restrição validada (só interface)
+- **Data:** 2026-10-02
+- **Área:** Meta Diária / Prospecção (interface)
+- **Alteração:** faixa compacta de selos (ícone + texto) na Meta Diária do corretor: horário normal da janela, "+Xh por restrição validada", "Prazo estendido até HH:MM", "Dia impactado por restrição. Sem penalidade da Meta Diária neste dia.", "WhatsApp restringido. Meta Diária disponível em modo manual." e, com 100% da Meta, "Prospecção manual liberada" (também no cabeçalho da Prospecção). Restrição só informada, desconexão comum e conectado normal: nada novo (avisos "Conecte seu WhatsApp" mantidos). `GET /api/prospecting/extra-dispatch` passa a devolver 200 com `automaticDispatch: "unavailable_restricted"` (disparo segue indisponível; o POST continua estrito) em vez de erro genérico.
+- **Motivo:** T-20261002-31 (melhoria visual da compensação PRO-14).
+- **Arquivos afetados:** `lib/daily-goal-compensation-view-core.mjs` (novo, puro), `lib/daily-goal-window.js` (`getBrokerCompensationNotice`, só leitura), `lib/daily-goal.js` (campo `compensation` em `getBrokerDailyGoal`), `app/api/prospecting/extra-dispatch/route.js`, `components/DailyGoalCompensationNotice.jsx` (novo), `DailyGoalDashboard.jsx`, `ProspectingManager.jsx`, vitrine `meta-diaria-compensacao`, `tests/daily-goal-compensation-view.test.mjs`.
+- **Risco/observação:** nenhuma regra/cálculo alterado (reusa `resolveEffectiveWindow`/`evaluateDayImpact`); sem migration. "Dia impactado" na tela do dia aberto é projeção com os mesmos critérios do fechamento. `lib/prospecting-extra-dispatch.js` não pode conter "restrict" (testes PRO-11), por isso o estado explícito fica na rota. Admin/gestora: sem mudança.
+
 ### 2026-10-02 — WhatsApp: restrição validada só encerra por admin/gestora (+ "Ver histórico")
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Permissões

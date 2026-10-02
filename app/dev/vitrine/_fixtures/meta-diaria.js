@@ -12,6 +12,8 @@
 // - Diego Fernandes — muito atrás (6%), carteira ativa no limite.
 // - Elisa Martins — corretora nova, zero atividade.
 
+import { buildCompensationNotice } from "../../../../lib/daily-goal-compensation-view-core.mjs";
+
 /* ------------------------------ Utilitários ------------------------------ */
 
 const TZ = "America/Sao_Paulo";
@@ -662,6 +664,14 @@ function buildBrokerGoal() {
 }
 
 export const brokerGoal = buildBrokerGoal();
+
+// Variantes FICTÍCIAS do aviso de compensação (PRO-14) — geradas pelo mesmo núcleo puro que a tela real usa.
+const COMP_BASE = { baseStartMinutes: 390, baseEndMinutes: 1140, restrictionStatus: "validated" };
+export const compensationVariants = [
+  { label: "Validada, sem compensação ainda", notice: buildCompensationNotice({ ...COMP_BASE }) },
+  { label: "Compensação +2h até 21:00, Meta em 100%", notice: buildCompensationNotice({ ...COMP_BASE, creditMinutes: 120, effectiveEndMinutes: 1260, goalComplete: true }) },
+  { label: "Dia impactado", notice: buildCompensationNotice({ ...COMP_BASE, creditMinutes: 120, effectiveEndMinutes: 1260, impacted: true }) }
+];
 
 // Estado mutável da vitrine: registrar tentativa / salvar mensagem altera a
 // cópia local e o GET /api/daily-goal seguinte devolve o novo estado.

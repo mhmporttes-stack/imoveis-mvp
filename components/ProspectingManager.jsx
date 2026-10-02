@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckSquare, History, Lock, Pencil, RotateCcw, Send, Trash2, Upload } from "lucide-react";
+import { Check, CheckSquare, History, Lock, Pencil, RotateCcw, Send, Trash2, Unlock, Upload } from "lucide-react";
 import { formatBrazilianPhone } from "@/lib/phone-utils";
 
 // scope diferencia ORIGEM/PROPRIEDADE da base — nunca quem está atendendo:
@@ -187,7 +187,7 @@ export default function ProspectingManager({
   return (
     <section className="container-page space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{label}</p><h2 className="mt-2 text-3xl font-black text-navy">Prospecção</h2>{!readOnly && dispatchStatus ? <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-muted">{dispatchLocked ? <span className="inline-flex items-center gap-1.5 text-navy"><Lock aria-hidden="true" className="h-4 w-4 text-brand" />{dispatchStatus.message}</span> : null}<span className="rounded-full bg-mist px-2.5 py-0.5 text-xs font-black text-navy" title="Clientes adicionados ao disparo neste ciclo">{dispatchStatus.count}/{dispatchStatus.limit}</span></p> : null}</div>
+        <div><p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{label}</p><h2 className="mt-2 text-3xl font-black text-navy">Prospecção</h2>{!readOnly && dispatchStatus ? <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-muted">{dispatchLocked ? <span className="inline-flex items-center gap-1.5 text-navy"><Lock aria-hidden="true" className="h-4 w-4 text-brand" />{dispatchStatus.message}</span> : null}{dispatchStatus.automaticDispatch === "unavailable_restricted" ? <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-800"><Unlock aria-hidden="true" className="h-3.5 w-3.5" />Prospecção manual liberada</span> : <span className="rounded-full bg-mist px-2.5 py-0.5 text-xs font-black text-navy" title="Clientes adicionados ao disparo neste ciclo">{dispatchStatus.count}/{dispatchStatus.limit}</span>}</p> : null}</div>
         {canImport ? <label className="premium-button-primary cursor-pointer"><Upload className="h-4 w-4" /> Importar Excel<input className="hidden" type="file" accept=".xlsx" onChange={loadExcel} disabled={busy === "import"} /></label> : null}
       </div>
       {importDraft ? (

@@ -5,6 +5,7 @@ import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
 import ClientWorkspace from "@/components/clients/ClientWorkspace";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
+import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import WhatsappChat from "@/components/WhatsappChat";
@@ -67,6 +68,25 @@ const TELAS = {
     render: () => (
       <main className="min-h-screen bg-mist py-14">
         <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} />
+      </main>
+    )
+  },
+  "meta-diaria-compensacao": {
+    path: "/admin/meta-diaria",
+    titulo: "Meta Diária — compensação por restrição validada",
+    active: "daily-goal",
+    rotas: metaDiaria.routes,
+    render: () => (
+      <main className="min-h-screen bg-mist py-14">
+        <div className="container-page mb-6 space-y-3">
+          {metaDiaria.compensationVariants.map((variant) => (
+            <div key={variant.label}>
+              <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">{variant.label}</p>
+              <DailyGoalCompensationNotice notice={variant.notice} />
+            </div>
+          ))}
+        </div>
+        <DailyGoalDashboard initialGoal={{ ...metaDiaria.brokerGoal, compensation: metaDiaria.compensationVariants[2].notice }} />
       </main>
     )
   },
