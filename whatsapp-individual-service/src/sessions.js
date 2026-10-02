@@ -19,6 +19,11 @@ const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED === "true
 // deste processo; o banco (whatsapp_individual_sessions) é a fonte da
 // verdade entre restarts/entre processos.
 const sockets = new Map(); // userId -> { sock, status, qr, connecting: Promise|null }
+// Sockets encerrados de propósito ("começar do zero"): o evento de
+// "conexão fechada" deles chega DEPOIS e não pode ser tratado como queda da
+// sessão atual (zerava entry.sock e agendava reconexão que derrubava o
+// socket novo — 2026-10-02).
+const retiredSockets = new WeakSet();
 const RECONNECT_DELAY_MS = 4000;
 const QR_TTL_MS = 60_000;
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
@@ -94,10 +99,14 @@ function entryFor(userId) {
 // estado realmente não registrado pro requestPairingCode() ter efeito.
 export async function connectSession(userId, { phoneNumber } = {}) {
   const entry = entryFor(userId);
-  const startingFresh = Boolean(phoneNumber) && entry.status !== "connected";
+  // Pedido de QR (sem número) com uma sessão parada no modo código: começa do
+  // zero em modo QR — senão a tela de QR recebia de volta o código antigo
+  // (2026-10-02).
+  const startingFresh = (Boolean(phoneNumber) || Boolean(entry.pairingMode)) && entry.status !== "connected";
 
   if (startingFresh) {
     if (entry.sock) {
+      retiredSockets.add(entry.sock);
       try { entry.sock.end(undefined); } catch { /* socket pode já estar fechado */ }
     }
     entry.sock = null;
@@ -148,7 +157,10 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", (update) => onConnectionUpdate(userId, entry, update));
+  sock.ev.on("connection.update", (update) => {
+    if (retiredSockets.has(sock)) return;
+    return onConnectionUpdate(userId, entry, update);
+  });
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
   sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
   sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
