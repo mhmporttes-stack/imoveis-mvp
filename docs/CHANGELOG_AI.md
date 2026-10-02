@@ -1672,3 +1672,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/daily-goal-window-core.mjs` (novo), `lib/daily-goal-window.js` (novo), `lib/prospecting-eligibility-core.mjs`, `lib/prospecting-eligibility.js`, `lib/daily-goal-auto-core.mjs`, `lib/daily-goal-auto.js`, `lib/daily-goal.js`, `lib/performance-overview.js`, `lib/prospecting-extra-dispatch.js`, migration `20261003160000`, testes `tests/daily-goal-window-credit.test.mjs` (novo) e ajustes em `tests/prospecting-eligibility.test.mjs`, `tests/whatsapp-restriction*.test.mjs` (que fixavam a regra antiga "restrição não libera nada").
 - **Risco/observação:** "cadência segura" para a impossibilidade = `min_gap_minutes` configurado (conservador a favor do corretor em modo oscilação); a avaliação usa o que faltou no FECHAMENTO. Falha ao avaliar o impacto não impede o fechamento (log). Sem mudança de tela: o corretor não vê ainda o fim efetivo da janela. Nenhum dado existente alterado.
 - **Autor:** Claude Code
+
+### 2026-10-02 — Ponte ChatGPT -> Central de Comando, fase 1 (T-20261002-33)
+- **Data:** 2026-10-02
+- **Área:** Infraestrutura da Central (fora dos módulos do CRM)
+- **Alteração:** fila `central_tasks` (migration `20261003190000`), rotas `/api/central/*` com segredos próprios (ChatGPT / executor / aprovação), poller local `scripts/central-bridge/` com executor de eco, `docs/central/openapi.yaml` e `docs/CENTRAL_PONTE.md`.
+- **Motivo:** permitir que o Custom GPT enfileire tarefas e consulte resultados sem expor o PC; Claude real DESATIVADO (adapter vazio, flag false).
+- **Arquivos afetados:** `lib/central/*`, `app/api/central/**`, `scripts/central-bridge/**`, `tests/central-bridge.test.mjs`, `docs/PERMISSIONS.md` §6. `proxy.js` não mudou (já não exige cookie em /api e aplica no-store).
+- **Risco/observação:** política da Anthropic sobre gatilho externo segue aberta; só consulta/eco executam; escrita fica em AGUARDANDO_DECISAO.
+- **Autor:** Claude Code (crm-editor)
