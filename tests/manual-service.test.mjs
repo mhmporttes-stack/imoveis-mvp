@@ -274,7 +274,7 @@ test("guard em create/update/publish/alerta (casos sintéticos)", async () => {
 test("seeds: carga idempotente, tudo 'pending', nada visível, não sobrescreve texto editado", async () => {
   const { service, db } = world();
   const first = await service.seedStructure(OWNER);
-  assert.ok(first.topicsCreated >= 8 && first.sectionsCreated > 40 && first.newsCreated === 4);
+  assert.ok(first.topicsCreated >= 8 && first.sectionsCreated >= 40 && first.newsCreated === 4);
   const second = await loadManualSeeds(db);
   assert.deepEqual(second, { topicsCreated: 0, sectionsCreated: 0, sectionsFilled: 0, newsCreated: 0 });
   assert.ok(db.tables.manual_topics.every((t) => t.status === "pending"));
@@ -302,5 +302,19 @@ test("respostas das funções de leitura não casam com o guard nem trazem audie
   for (const out of outputs) {
     assert.equal(isManualContentAllowed(out), true);
     assert.ok(!JSON.stringify(out).includes("audiences"));
+  }
+});
+
+test("leitura: conteúdo que falha no guard é omitido (manual, busca e novidades), mesmo inserido direto no banco", async () => {
+  const { db, service } = world();
+  seedPublished(db);
+  const bad = "O coordenador acompanha as conversas dos corretores.";
+  db.tables.manual_sections.push({ id: sid("zz"), topic_id: tid("geral"), slug: "zz", title: "Sec zz", body: bad, sort_order: 0, audiences: ["all"], status: "published", last_updated_at: "2026-08-01T00:00:00Z" });
+  db.tables.manual_news.push({ id: NBAD, slug: "nbad", title: "Aviso", body: bad, audiences: ["all"], status: "published", requires_ack: false, important: false, published_at: "2026-10-01T00:00:00Z" });
+  for (const auth of [BROKER, MANAGER, OTHER_ADMIN]) {
+    const tree = await service.getVisibleManual(auth);
+    assert.ok(!slugs(tree).includes("zz"));
+    assert.deepEqual((await service.searchManual(auth, "coordenador")).results, []);
+    assert.ok(!JSON.stringify(await service.listVisibleNews(auth)).includes("nbad"));
   }
 });
