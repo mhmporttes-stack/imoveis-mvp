@@ -1,7 +1,7 @@
 import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
-import { useSupabaseAuthState } from "./auth-state.js";
+import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds } from "./db.js";
 import { notifyHistoryBatch, notifyMessage, notifyMessageStatus, notifyStatus } from "./webhook.js";
 import { extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
@@ -279,12 +279,22 @@ async function onConnectionUpdate(userId, entry, update) {
 
     // Queda transitória (rede, restart do processo, etc.): reconecta sozinho
     // usando os MESMOS creds já persistidos — nunca gera QR à toa.
+    // Inclui o "restart required" (515) que o WhatsApp SEMPRE manda logo
+    // depois de o celular aceitar o QR/código: a reconexão precisa sair do
+    // modo código (senão connectSession tratava como "começar do zero" e
+    // APAGAVA as credenciais recém-registradas — bug real, 2026-10-02) e
+    // esperar as credenciais terminarem de ser gravadas.
     entry.status = "reconnecting";
+    entry.pairingMode = false;
+    entry.pairingCode = null;
+    entry.pairingError = null;
     const errorMessage = String(lastDisconnect?.error?.message || "").slice(0, 300);
     await notifyStatus(userId, { status: "reconnecting", error: errorMessage });
-    setTimeout(() => {
+    const restartRequired = statusCode === DisconnectReason.restartRequired;
+    setTimeout(async () => {
+      try { await Promise.all([...pendingWrites]); } catch { /* falha de gravação já foi logada */ }
       connectSession(userId).catch((error) => console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message));
-    }, RECONNECT_DELAY_MS);
+    }, restartRequired ? 1000 : RECONNECT_DELAY_MS);
   }
 }
 
