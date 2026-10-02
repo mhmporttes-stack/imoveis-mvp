@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Conversas/mensagens cruzando entre corretores no Chat
+- **Data:** 2026-10-02
+- **Sintoma:** mesmo depois do isolamento de visibilidade por hierarquia, dados de conversas ainda apareciam cruzados entre corretores (prévia/não lidas de outro número, resposta saindo pelo WhatsApp errado, mensagem entre colegas faltando numa das pontas).
+- **Área:** WhatsApp
+- **Impacto:** todo cliente que falou com o WhatsApp de mais de um corretor (e conversas entre integrantes da equipe); 16 conversas históricas misturavam mensagens de números diferentes.
+- **Causa raiz:** UNIQUE(`contact_phone`) em `whatsapp_conversations` — uma conversa por telefone compartilhada por TODAS as sessões. Preview, não lidas, atribuição, status, `client_id` e o canal de envio (`assigned_user_id`) eram da conversa, não da sessão; a visibilidade filtrava só as mensagens depois. E o índice `(channel, wa_message_id)` era global: a mesma mensagem entre dois colegas (mesmo id nas duas pontas) era descartada na segunda sessão (`23505` tratado como duplicata).
+- **Correção:** conversa = (`contact_phone`, `session_key`); dedupe por sessão; envio, visibilidade, não lidas e card usam a sessão. Histórico: ver CHANGELOG_AI de 2026-10-02.
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-02, "Chat: conversa passa a ser telefone + sessão")
+- **Prevenção/teste:** `tests/whatsapp-conversation-per-session.test.mjs` roda o código real contra um banco falso com as mesmas travas (inclui a prova da causa raiz com o UNIQUE antigo).
+- **Status:** Resolvido
+
 ### 2026-10-02 — Recebido em dobro no "Pago" e "1.500" lido como R$ 1,50 (Financeiro)
 - **Data:** 2026-10-02
 - **Sintoma:** (a) com nota fiscal/despesa na venda, confirmar a previsão de recebimento e depois mover o cliente para "Pago" podia lançar um 2º recebimento automático; (b) valor digitado "1.500" virava R$ 1,50 (campos da Saúde, do modal de recebimento e da Edição Financeira).

@@ -40,5 +40,7 @@ test("abrir pelo card nunca muda atendente/status e nunca duplica conversa", () 
   assert.match(body, /if \(assign && isResponsible && !conversation\.assigned_user_id\)/);
   assert.ok(body.indexOf('.eq("client_id", client.id)') < body.indexOf("phoneLookupCandidates(phone)"), "procura a conversa vinculada ao cliente antes da do telefone");
   assert.match(body, /createError\.code !== "23505"/, "corrida na criação reaproveita a conversa existente");
-  assert.match(body, /scope\.all \|\| scope\.brokerIds\.includes\(client\.responsible_user_id\)/, "escopo/hierarquia do Chat mantido");
+  assert.match(body, /!scope\.all && !scope\.brokerIds\.includes\(client\.responsible_user_id\)/, "escopo/hierarquia do Chat mantido");
+  // Conversa = telefone + sessão (2026-10-02): o card abre a conversa do WhatsApp do RESPONSÁVEL, nunca a de outro número.
+  assert.match(body, /\.eq\("session_key", sessionKey\)/, "busca sempre dentro da sessão do responsável");
 });

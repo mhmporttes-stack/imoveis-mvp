@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allowedBrokerFilter, buildChatScope, canAssignTo, canSeeConversation, canSeeMessage } from "../lib/whatsapp-chat-scope.mjs";
+import { OFFICIAL_SESSION_KEY, allowedBrokerFilter, buildChatScope, canAssignTo, canSeeConversation, canSeeMessage, conversationOwnerIds, conversationSessionOwner, scopeSessionIds } from "../lib/whatsapp-chat-scope.mjs";
 
 // Ids sintéticos: dono (admin), Gestor A com C1/C2, Gestor B com C3.
 const admin = buildChatScope({ generalAdmin: true, profileId: "dono" });
@@ -66,4 +66,34 @@ test("filtro de corretor e atribuição respeitam o escopo do gestor", () => {
   assert.equal(canAssignTo(gestorA, "c3"), false);
   assert.equal(canAssignTo(admin, "c3"), true);
   assert.equal(canAssignTo(corretor1, "c2"), false);
+});
+
+// Conversa = telefone + sessão (2026-10-02): a conversa do WhatsApp pessoal de
+// alguém só é visível a quem é da linha dele, nunca por atribuição/cliente.
+test("conversa de sessão: só o dono, o gestor dele e o admin; atribuído/responsável de outro número não veem", () => {
+  const sessionConv = (sessionKey, extra = {}) => ({ sessionKey, ...extra });
+  assert.equal(canSeeConversation(admin, sessionConv("c3")), true);
+  assert.equal(canSeeConversation(gestorA, sessionConv("c1")), true);
+  assert.equal(canSeeConversation(gestorA, sessionConv("c3")), false);
+  assert.equal(canSeeConversation(corretor1, sessionConv("c1")), true);
+  assert.equal(canSeeConversation(corretor1, sessionConv("c2", { assignedUserId: "c1", responsibleUserId: "c1" })), false);
+  assert.equal(canSeeConversation(associado, sessionConv("c1")), true);
+  assert.equal(canSeeConversation(associado, sessionConv("c2")), false);
+});
+
+test("conversa do número oficial (chave vazia) mantém a regra de atribuição/responsável", () => {
+  assert.equal(canSeeConversation(corretor1, { sessionKey: OFFICIAL_SESSION_KEY, assignedUserId: "c1" }), true);
+  assert.equal(canSeeConversation(corretor1, { sessionKey: OFFICIAL_SESSION_KEY, assignedUserId: "c2" }), false);
+  assert.equal(canSeeConversation(corretor1, { sessionKey: null, responsibleUserId: "c1" }), true);
+  // escopo sem perfil (id vazio) nunca "é dono" da chave do oficial
+  const semPerfil = buildChatScope({});
+  assert.equal(canSeeConversation(semPerfil, { sessionKey: OFFICIAL_SESSION_KEY }), false);
+  assert.deepEqual(scopeSessionIds(semPerfil), []);
+});
+
+test("dono da sessão e contadores por corretor", () => {
+  assert.equal(conversationSessionOwner({ session_key: OFFICIAL_SESSION_KEY }), null);
+  assert.equal(conversationSessionOwner({ session_key: "c1" }), "c1");
+  assert.deepEqual(conversationOwnerIds({ sessionKey: "c1", assignedUserId: "c2", responsibleUserId: "c3" }), ["c1"]);
+  assert.deepEqual(conversationOwnerIds({ sessionKey: OFFICIAL_SESSION_KEY, assignedUserId: "c2", responsibleUserId: "c3" }), ["c2", "c3"]);
 });

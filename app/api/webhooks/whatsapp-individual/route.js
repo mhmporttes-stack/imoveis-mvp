@@ -115,7 +115,7 @@ export async function POST(request) {
     }
 
     if (payload.type === "message_status") {
-      const result = await projectIndividualMessageStatus({ waMessageId: payload.waMessageId, status: payload.status });
+      const result = await projectIndividualMessageStatus({ userId, waMessageId: payload.waMessageId, status: payload.status });
       return NextResponse.json({ ok: true, ...result });
     }
 
