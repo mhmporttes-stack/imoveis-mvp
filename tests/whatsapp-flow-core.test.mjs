@@ -438,7 +438,9 @@ test("modelo 'Menu principal': dois caminhos — simulação (link direto) e cor
       evaluateCondition: async (data, vars) => (data.kind === "has_name" ? Boolean(vars.nome) : true),
       runActions: async (actions) => {
         if (actions.some((action) => action.type === "handoff")) return { handoff: true };
-        return { vars: { corretor: "Ana", link_simulacao: "https://x.com/simulacao?ref=ana&jornada=simulacao" } };
+        // Em produção a roleta devolve também as variáveis de gênero/cargo
+        // (buildBrokerGenderVars, lib/whatsapp-flows.js) que o modelo usa.
+        return { vars: { corretor: "Ana", nosso_cargo: "nossa corretora", o_a: "a", link_simulacao: "https://x.com/simulacao?ref=ana&jornada=simulacao" } };
       },
       ...opts
     });
@@ -466,7 +468,7 @@ test("modelo 'Menu principal': dois caminhos — simulação (link direto) e cor
   assert.equal(broker.result.session.awaiting.type, "text");
   const named = await run({ kind: "reply", text: "Joana Silva" }, broker.result.session);
   assert.equal(named.result.status, "handoff");
-  assert.match(named.deps.calls.sent.at(-1).outgoing.display.text, /por Ana, nosso especialista/);
+  assert.match(named.deps.calls.sent.at(-1).outgoing.display.text, /atendido\(a\) por Ana, nossa corretora\. Já avisamos a Ana/);
 });
 
 test("condição 'has_name' recebe as variáveis da sessão", async () => {

@@ -65,9 +65,12 @@ export default function ProspectingManager({
     let active = true;
     const load = () => fetch("/api/prospecting/extra-dispatch").then((response) => response.ok ? response.json() : null).then((data) => { if (active && data) setDispatchStatus(data); }).catch(() => {});
     load();
-    // Cooldown/processamento mudam com o tempo: atualiza de minuto em minuto.
-    const timer = setInterval(load, 60000);
-    return () => { active = false; clearInterval(timer); };
+    // Cooldown/processamento mudam com o tempo: atualiza de minuto em minuto — só com a aba visível (cada
+    // leitura custa ~10 consultas no servidor; aba em segundo plano não precisa) e relê ao voltar.
+    const timer = setInterval(() => { if (document.visibilityState === "visible") load(); }, 60000);
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { active = false; clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [readOnly]);
   const dispatchLocked = !dispatchStatus || !dispatchStatus.available;
 

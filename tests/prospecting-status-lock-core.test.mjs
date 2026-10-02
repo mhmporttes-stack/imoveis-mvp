@@ -55,7 +55,8 @@ test("mensagem curta pedida pelo dono", () => {
 // Todas as portas de mudança de status pela equipe passam pela trava ANTES de
 // gravar (sem histórico/pontuação de tentativa bloqueada).
 test("rotas/telas: a trava é chamada antes de gravar em todos os caminhos da equipe", () => {
-  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+  // Normaliza CRLF: no checkout Windows (core.autocrlf) os fontes vêm com \r\n e as buscas multilinha abaixo falhavam.
+  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const registrations = read("lib/simulation-registrations.js");
   const guardAt = registrations.indexOf("await assertProspectingStatusChangeAllowed(");
   const updateAt = registrations.indexOf('.from("simulation_registrations")\n    .update(record)');

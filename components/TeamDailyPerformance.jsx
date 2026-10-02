@@ -205,6 +205,7 @@ const AUTOMATION_SESSION_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
   reconnecting: { label: "Reconectando", className: "bg-amber-50 text-amber-700" },
   qr_required: { label: "Aguardando QR", className: "bg-amber-50 text-amber-700" },
+  pairing_code_required: { label: "Aguardando código", className: "bg-amber-50 text-amber-700" },
   connecting: { label: "Conectando", className: "bg-amber-50 text-amber-700" },
   disconnected: { label: "Desconectado", className: "bg-red-50 text-red-700" },
   error: { label: "Erro", className: "bg-red-50 text-red-700" },

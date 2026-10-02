@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3, BookOpen, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
-  MessageCircle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
+  MessageCircle, MessageSquarePlus, MessageSquareQuote, MessageSquareReply, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
   UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
 import { getAdminMenuGroups } from "@/components/AdminMenu";
@@ -218,7 +218,8 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
     { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
     { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: Clock },
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
-    { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle }
+    { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
+    { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
   ].filter((item) => item.count > 0);
 
   return (
