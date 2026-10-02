@@ -39,6 +39,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Entrada simulada diferente entre o Gerador de Simulações e a Apresentação (Casa Paulista)
+- **Sintoma:** "O PDF/simulação não desconta o Casa Paulista" — o mesmo cliente e imóvel mostravam entradas diferentes conforme a tela.
+- **Causa raiz:** o valor do Casa Paulista era uma constante escrita em dois componentes com valores diferentes: `EmpreendimentoPresentation.jsx` enviava 10000 e `SimulationGenerator.jsx` enviava 0 ao `/api/simular-entrada` (o motor só aplica se o empreendimento aceita). Nenhum campo de cadastro definia o valor.
+- **Correção:** valor fixo único em `lib/simulacao-entrada/casa-paulista.mjs`, aplicado só no motor; clientes deixam de enviar o campo. Detalhes e arquivos: `docs/CHANGELOG_AI.md` (2026-10-02, T-48). Snapshots antigos não reescritos.
 
 ### 2026-10-02 — Alerta/mensagem enviado só para uma corretora apareceu para outras pessoas
 - **Data:** 2026-10-02

@@ -190,6 +190,12 @@
 
 ---
 
+## 16-A. Simulação de entrada e Proposta de Valores
+
+- **SIM-1 Casa Paulista = R$ 10.000 fixos.** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02] Empreendimento que aceita (`regras.aceitaCasaPaulista`) recebe R$ 10.000 automaticamente; que não aceita, R$ 0. Não é campo por cliente/simulação. Abate a entrada (imóvel 200.000, financiamento 150.000, MCMV 20.000, Casa Paulista 10.000 → entrada 20.000). Fonte única: `lib/simulacao-entrada/casa-paulista.mjs`, aplicada em `calculator.ts`.
+- **SIM-2 Fonte única da apresentação.** [COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO] `buildPresentationModel` (`lib/simulacao-entrada/presentation-model.mjs`) alimenta a tela de apresentação e o PDF "Proposta de Valores"; o gerador do PDF só desenha.
+- **SIM-3 Documentação gratuita = 5% do imóvel na apresentação.** [PENDENTE DE VALIDAÇÃO] Implementação histórica (commit f9992ec), preservada igual; o cadastro do empreendimento já tem valor próprio em `beneficiosInformativos`.
+
 ## Consolidado — pontos **A CONFIRMAR**
 
 1. Estado real do banco de produção (nada foi consultado nesta auditoria): regras em `crm_automation_rules`, `scoring_rule_versions` vigentes, cota diária, `whatsapp_automation_replies` ativas, `crm_settings`.

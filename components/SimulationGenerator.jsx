@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
+import { montarClienteEntrada } from "@/lib/simulacao-entrada/presentation-model.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import {
   MARITAL_STATUS_OPTIONS,
@@ -145,17 +146,17 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   const clienteParaEntrada = useMemo(() => {
     const registration = form.registration || {};
-    return {
+    // Casa Paulista não entra aqui: é valor fixo por empreendimento, aplicado pelo motor (casa-paulista.mjs).
+    return montarClienteEntrada({
       rendaTotal: calculateFamilyIncome(registration),
-      financiamentoAprovado: Number(totals.financing) || 0,
-      subsidioMcmv: Number(totals.subsidy) || 0,
-      casaPaulista: 0,
+      financiamentoAprovado: totals.financing,
+      subsidioMcmv: totals.subsidy,
       parcelaFinanciamento: parseCurrencyNumber(form.firstInstallment),
       fgtsDisponivel: parseCurrencyNumber(form.downPaymentValue) + parseCurrencyNumber(form.fgtsValue),
-      temDependente: Boolean(registration.hasChildrenUnder18),
-      fgtsMaisDe3Anos: Boolean(registration.hasOverThreeYearsRegisteredWork),
+      temDependente: registration.hasChildrenUnder18,
+      fgtsMaisDe3Anos: registration.hasOverThreeYearsRegisteredWork,
       tipoRenda: registration.primaryIncomeType || ""
-    };
+    });
   }, [form.registration, form.firstInstallment, form.downPaymentValue, form.fgtsValue, totals]);
 
   const propertyIdsParaEntrada = useMemo(
@@ -1245,6 +1246,7 @@ function EntradaSimuladaCard({ resultado, loading }) {
         <Metric label="Valor do imóvel" value={formatCurrency(resultado.valorImovel)} />
         <Metric label="Desconto" value={formatCurrency(resultado.totalDescontos)} />
         <Metric label="Preço efetivo" value={formatCurrency(resultado.valorFinalImovel)} />
+        {resultado.casaPaulista > 0 ? <Metric label="Casa Paulista" value={formatCurrency(resultado.casaPaulista)} /> : null}
         <Metric label="Financiamento e benefícios" value={formatCurrency(resultado.totalCoberto)} />
         <Metric label="Entrada total" value={formatCurrency(entradaTotal)} />
         {detalhePagamento.ato > 0 ? <Metric label="ATO (à vista)" value={formatCurrency(detalhePagamento.ato)} /> : null}

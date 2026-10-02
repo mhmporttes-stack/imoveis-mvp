@@ -8,6 +8,7 @@ import type {
   RegraPeriodoObraBalao,
   RegraTabelaCondicoes,
 } from "./types";
+import { valorCasaPaulista } from "./casa-paulista.mjs";
 
 /**
  * Ponto de entrada principal: recebe os dados do cliente (do cadastro) e a
@@ -30,13 +31,8 @@ export function simularEntrada(
   );
   const valorFinalImovel = empreendimento.valorImovel - totalDescontos;
 
-  const casaPaulista =
-    empreendimento.aceitaCasaPaulista ? cliente.casaPaulista : 0;
-  if (!empreendimento.aceitaCasaPaulista && cliente.casaPaulista > 0) {
-    avisos.push(
-      "Cliente tem Casa Paulista aprovado, mas este empreendimento não aceita esse subsídio."
-    );
-  }
+  // Casa Paulista: valor fixo definido em casa-paulista.mjs (R$ 10.000 se o empreendimento aceita).
+  const casaPaulista = valorCasaPaulista(empreendimento.aceitaCasaPaulista);
 
   const totalCoberto =
     cliente.financiamentoAprovado + cliente.subsidioMcmv + casaPaulista;

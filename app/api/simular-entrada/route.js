@@ -62,7 +62,6 @@ function normalizeCliente(input = {}) {
     rendaTotal: num(input.rendaTotal),
     financiamentoAprovado: num(input.financiamentoAprovado),
     subsidioMcmv: num(input.subsidioMcmv),
-    casaPaulista: num(input.casaPaulista),
     parcelaFinanciamento: num(input.parcelaFinanciamento),
     fgtsDisponivel: num(input.fgtsDisponivel),
     temDependente: Boolean(input.temDependente),

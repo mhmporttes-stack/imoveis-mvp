@@ -16,8 +16,8 @@ export interface DadosCliente {
   financiamentoAprovado: number;
   /** Valor de subsídio MCMV aprovado (0 se não elegível / Faixa 3-4). */
   subsidioMcmv: number;
-  /** Valor de Casa Paulista aprovado, se houver (0 se não elegível/aplicável). */
-  casaPaulista: number;
+  /** @deprecated Ignorado: Casa Paulista é valor fixo por empreendimento (ver casa-paulista.mjs). */
+  casaPaulista?: number;
   /** Valor da parcela mensal do financiamento aprovado pelo banco. */
   parcelaFinanciamento: number;
   /** FGTS ou outro valor que o cliente já tem disponível para abater a entrada. */
