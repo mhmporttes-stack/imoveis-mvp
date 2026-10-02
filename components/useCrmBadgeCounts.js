@@ -30,5 +30,5 @@ export function useCrmBadgeCounts() {
     return () => listeners.delete(setCurrent);
   }, []);
   const chat = summary.unreadMessages || 0;
-  return { ...current, chat, total: (current.newAttendances || 0) + (current.awaitingSimulation || 0) + current.agenda + chat };
+  return { ...current, chat, total: (current.newAttendances || 0) + (current.awaitingSimulation || 0) + (current.prospectingReplies || 0) + current.agenda + chat };
 }

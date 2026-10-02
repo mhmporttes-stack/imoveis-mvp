@@ -43,7 +43,7 @@ function destinationsFor({ isAdmin }) {
 function badgeFor(key, counts) {
   if (key === "chat") return counts.chat || 0;
   if (key === "calendar") return counts.agenda || 0;
-  if (key === "simulations") return (counts.newAttendances || 0) + (counts.awaitingSimulation || 0);
+  if (key === "simulations") return (counts.newAttendances || 0) + (counts.awaitingSimulation || 0) + (counts.prospectingReplies || 0);
   return 0;
 }
 

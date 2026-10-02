@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds } from "./db.js";
 import { notifyHistoryBatch, notifyMessage, notifyMessageStatus, notifyStatus } from "./webhook.js";
+import { extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -20,6 +21,36 @@ const sockets = new Map(); // userId -> { sock, status, qr, connecting: Promise|
 const RECONNECT_DELAY_MS = 4000;
 const QR_TTL_MS = 60_000;
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
+
+// LID -> telefone por corretor (ver message-extract.js). Só em memória:
+// aprendido das mensagens recebidas (key.senderPn) e dos eventos de
+// contato; serve para saber o telefone de uma mensagem que o corretor mandou
+// pelo app numa conversa endereçada por LID. Fica fora de `sockets` para
+// sobreviver a uma reconexão do mesmo corretor.
+const lidMaps = new Map(); // userId -> Map(lid -> phone)
+const LID_MAP_LIMIT = 5000;
+
+function lidMapFor(userId) {
+  let map = lidMaps.get(userId);
+  if (!map) {
+    map = new Map();
+    lidMaps.set(userId, map);
+  }
+  return map;
+}
+
+function rememberLid(userId, mapping) {
+  if (!mapping) return;
+  const map = lidMapFor(userId);
+  if (map.size >= LID_MAP_LIMIT && !map.has(mapping[0])) map.delete(map.keys().next().value);
+  map.set(mapping[0], mapping[1]);
+}
+
+function rememberLidsFromContacts(userId, contacts) {
+  for (const contact of contacts || []) {
+    try { rememberLid(userId, lidMappingFromContact(contact)); } catch { /* contato malformado: ignora */ }
+  }
+}
 
 function entryFor(userId) {
   let entry = sockets.get(userId);
@@ -112,6 +143,9 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
   sock.ev.on("connection.update", (update) => onConnectionUpdate(userId, entry, update));
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
   sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
+  sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
+  sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
+  sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
   if (HISTORY_SYNC_ENABLED) {
     sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
   }
@@ -210,41 +244,17 @@ async function onConnectionUpdate(userId, entry, update) {
   }
 }
 
-// Extrai { from, text, waMessageId, at, contactName, fromMe } de uma
-// mensagem crua do Baileys, ou null se deve ser ignorada — usado tanto para
-// mensagem em tempo real (onMessagesUpsert) quanto para o histórico
-// sincronizado ao conectar (onHistorySync). Só conversa individual (1:1) e
-// só texto nesta primeira versão (mídia fica para uma etapa futura); grupo
-// (@g.us), lista de transmissão (@broadcast) e LID (@lid) nunca viram
-// "cliente" no CRM — o JID deles não é um telefone e já causou lixo real
-// (conversa fantasma a partir de mensagem de grupo).
-function extractTextMessage(msg) {
-  const fromMe = Boolean(msg.key?.fromMe);
-  const remoteJid = String(msg.key?.remoteJid || "");
-  if (!remoteJid.endsWith("@s.whatsapp.net")) return null;
-  const text = msg.message?.conversation
-    || msg.message?.extendedTextMessage?.text
-    || msg.message?.imageMessage?.caption
-    || msg.message?.videoMessage?.caption
-    || "";
-  if (!text) return null;
-  const from = remoteJid.split("@")[0];
-  if (!from) return null;
-  return {
-    from,
-    text,
-    waMessageId: msg.key?.id || "",
-    at: new Date(Number(msg.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
-    contactName: fromMe ? "" : (msg.pushName || ""),
-    fromMe
-  };
-}
-
+// Extração da mensagem (inclusive conversas endereçadas por LID): ver
+// message-extract.js — usada tanto para mensagem em tempo real
+// (onMessagesUpsert) quanto para o histórico sincronizado (onHistorySync).
 async function onMessagesUpsert(userId, messages, type) {
+  for (const msg of messages || []) {
+    try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
+  }
   if (type !== "notify") return;
   for (const msg of messages || []) {
     try {
-      const item = extractTextMessage(msg);
+      const item = extractTextMessage(msg, lidMapFor(userId));
       if (!item) continue;
       await notifyMessage(userId, item);
     } catch (error) {
@@ -298,7 +308,10 @@ async function onMessagesUpdate(userId, updates) {
 // real chegando junto. Mais chamadas, cada uma rápida, é mais seguro.
 const HISTORY_BATCH_SIZE = 40;
 async function onHistorySync(userId, messages) {
-  const items = (messages || []).map(extractTextMessage).filter(Boolean);
+  for (const msg of messages || []) {
+    try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
+  }
+  const items = (messages || []).map((msg) => extractTextMessage(msg, lidMapFor(userId))).filter(Boolean);
   if (!items.length) return;
   for (let i = 0; i < items.length; i += HISTORY_BATCH_SIZE) {
     try {

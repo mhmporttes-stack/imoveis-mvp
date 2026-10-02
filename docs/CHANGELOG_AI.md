@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Resposta à Prospecção pelo WhatsApp (pendência + opt-out) independente do Chat; conversas LID voltam a chegar
+- **Data:** 2026-10-02
+- **Área:** WhatsApp · Prospecção · Meta Diária · Clientes · Notificações · Banco
+- **Alteração:** (1) Serviço do WhatsApp individual passou a aceitar conversas endereçadas por LID (`message-extract.js`: telefone de `key.senderPn`; mapa LID→telefone para mensagens do corretor pelo app). (2) Webhook chama dois consumidores independentes da mensagem recebida: Prospecção (`lib/prospecting-reply.js`) e Chat (`projectIndividualInboundMessage`, sem a parte de prospecção que foi movida). (3) Cliente em prospecção que responde: para a cadência, rodada `converted`, status NÃO muda, abre UMA pendência "Cliente respondeu — atualizar status" ([Iniciar atendimento]/[Não tem interesse]) + push; pedido inequívoco de parar → Não contactar automático com registro; Não contactar + nova mensagem → pendência de reativação. (4) Contador "Respostas da prospecção" no total de notificações, painel na tela de Clientes e item no menu de pendências. (5) Não contactar pesquisável por nome/telefone e ficha acessível a quem tem acesso pelo responsável. (6) O Chat não move mais sozinho para "Em atendimento" quem está em prospecção. (7) Cliente com pendência aberta não volta à fila por inatividade.
+- **Motivo:** pedido do dono; e incidente: nenhuma resposta de cliente chegava ao CRM desde 29/09 (`docs/INCIDENTES.md`).
+- **Arquivos afetados:** `whatsapp-individual-service/src/{message-extract,sessions}.js`, `app/api/webhooks/whatsapp-individual/route.js`, `lib/prospecting-reply.js`, `lib/prospecting-reply-core.mjs`, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-client-status.js`, `lib/prospecting-auto-return.js`, `lib/simulation-registrations.js`, `lib/simulation-list-query.js`, `app/api/admin/prospecting-replies/**`, `app/api/admin/crm-badge-counts/route.js`, `components/clients/{ClientWorkspace,ProspectingRepliesPanel}.jsx`, `components/{AdminMenu,AdminBottomNav}.jsx`, `components/useCrmBadgeCounts.js`, migration `20261002200000_prospecting_reply_alerts.sql` (aditiva, aplicada em produção), `docs/BUSINESS_RULES.md` (PRO-8, CLI-9), `docs/DATABASE.md`, `docs/INCIDENTES.md`, rules de roleta/prospecção e integrações.
+- **Risco/observação:** a correção LID só vale depois do redeploy do microsserviço no Railway (reinício reconecta com as credenciais salvas, sem QR). Ação manual "Não contactar" da Prospecção (`handleProspectingClientAction`) continua zerando o responsável — esses clientes não aparecem na pesquisa do corretor (não alterado; decisão do dono). Mensagens automáticas da Meta Diária continuam fora do Chat (como antes). Testes: `tests/prospecting-reply-core.test.mjs`, `tests/whatsapp-individual-extract.test.mjs`; RPC validada no banco em transação desfeita.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Clientes (mobile): 3 cards "Para agir agora" lado a lado e funil mais compacto
 - **Data:** 2026-10-02
 - **Área:** Frontend (só visual; filtros, contadores e dados inalterados)

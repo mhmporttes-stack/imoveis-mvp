@@ -17,6 +17,7 @@ import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import ClientCard from "./ClientCard";
 import ClientSheet from "./ClientSheet";
+import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
 import { PAGE_SIZE_OPTIONS } from "./client-format";
 import { useClientList } from "./useClientList";
 
@@ -44,10 +45,15 @@ export default function ClientWorkspace(props) {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const [repliesOpen, setRepliesOpen] = useState(false);
+
   // Vindo de outra tela (/admin/simulacoes?clientId=X): abre a ficha.
+  // ?prospectingReplies=1 (menu de pendências, push): abre "Respostas da prospecção".
   useEffect(() => {
-    const clientId = new URLSearchParams(window.location.search).get("clientId");
+    const params = new URLSearchParams(window.location.search);
+    const clientId = params.get("clientId");
     if (clientId) setOpenClientId(clientId);
+    if (params.get("prospectingReplies") === "1") setRepliesOpen(true);
   }, []);
 
   const openClient = list.items.find((item) => item.id === openClientId) || null;
@@ -116,7 +122,14 @@ export default function ClientWorkspace(props) {
       </header>
 
       {/* 2. Para agir agora */}
-      <FocusStrip list={list} badgeCounts={badgeCounts} />
+      <FocusStrip list={list} badgeCounts={badgeCounts} onOpenReplies={() => setRepliesOpen(true)} />
+      <ProspectingRepliesPanel
+        open={repliesOpen}
+        onClose={() => setRepliesOpen(false)}
+        notify={notify}
+        onChanged={() => list.fetchClients?.()}
+        onOpenClient={(clientId) => { setRepliesOpen(false); openFicha(clientId); }}
+      />
 
       {/* 3. Funil */}
       <PipelineStrip list={list} />
@@ -261,7 +274,7 @@ const SHORTCUT = "relative inline-flex h-touch w-touch items-center justify-cent
 // "Para agir agora": atalhos para os recortes que pedem ação. Cada um aplica
 // o mesmo filtro de servidor que já existia (pendentes, novos atendimentos,
 // aguardando simulação).
-function FocusStrip({ list, badgeCounts }) {
+function FocusStrip({ list, badgeCounts, onOpenReplies }) {
   const { filters } = list;
   const items = [
     {
@@ -292,7 +305,18 @@ function FocusStrip({ list, badgeCounts }) {
       onClick: () => list.updateFilters(filters.status === CLIENT_STATUS.PENDING
         ? { statusGroup: "all", status: "all" }
         : { statusGroup: "simulation", status: CLIENT_STATUS.PENDING, pendingOnly: false, needsFirstContact: false })
-    }
+    },
+    // Só aparece quando há resposta aguardando classificação (pedido do dono,
+    // 2026-10-02) — abre o painel em vez de filtrar a lista.
+    ...(badgeCounts.prospectingReplies ? [{
+      key: "prospecting-replies",
+      label: "Respostas da prospecção",
+      hint: "responderam e aguardam status",
+      count: badgeCounts.prospectingReplies,
+      tone: "warning",
+      active: false,
+      onClick: onOpenReplies
+    }] : [])
   ];
   const dot = { danger: "bg-danger-strong", warning: "bg-warning-strong", info: "bg-info-strong" };
   // Celular: contador > 0 ganha um tom suave de borda/fundo (desktop inalterado).
@@ -305,8 +329,9 @@ function FocusStrip({ list, badgeCounts }) {
   return (
     <div className="mt-4 sm:mt-5">
       <h2 className="sr-only">Para agir agora</h2>
-      {/* Celular: os 3 cards lado a lado, sem rolagem horizontal. */}
-      <ul className="grid grid-cols-3 gap-1.5 sm:gap-3">
+      {/* Celular: os cards lado a lado, sem rolagem horizontal (2×2 quando
+          aparece o 4º card, "Respostas da prospecção"). */}
+      <ul className={cx("grid gap-1.5 sm:gap-3", items.length > 3 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}>
         {items.map((item) => (
           <li key={item.key} className="min-w-0">
             <button

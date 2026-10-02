@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
 import { projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
+import { processProspectingInboundReply } from "@/lib/prospecting-reply";
+import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,7 +55,7 @@ export async function POST(request) {
     }
 
     if (payload.type === "message") {
-      const result = await projectIndividualInboundMessage({
+      const event = {
         userId,
         from: payload.from,
         text: payload.text,
@@ -61,8 +63,24 @@ export async function POST(request) {
         at: payload.at,
         contactName: payload.contactName,
         fromMe: Boolean(payload.fromMe)
+      };
+      // Dois consumidores INDEPENDENTES do mesmo evento (pedido do dono,
+      // 2026-10-02): A) resposta à Prospecção e B) Chat do CRM. Rodam em
+      // paralelo, cada um com a própria idempotência; a falha de um (ex.: erro
+      // ao gravar no Chat) nunca impede o outro.
+      const results = await runIndependentConsumers({
+        prospecting: () => processProspectingInboundReply(event),
+        chat: () => projectIndividualInboundMessage(event)
       });
-      return NextResponse.json({ ok: true, ...result });
+      for (const [name, result] of Object.entries(results)) {
+        if (!result.ok) console.error(`Erro no webhook do WhatsApp individual (${name}):`, result.error?.message || result.error);
+      }
+      const failed = Object.values(results).some((result) => !result.ok);
+      return NextResponse.json({
+        ok: !failed,
+        prospecting: results.prospecting.ok ? results.prospecting.value : { error: true },
+        chat: results.chat.ok ? results.chat.value : { error: true }
+      }, { status: failed ? 500 : 200 });
     }
 
     if (payload.type === "history") {

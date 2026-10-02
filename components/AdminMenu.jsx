@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
-import { CalendarDays, CircleDot, MessageCircle, UserRoundPlus } from "lucide-react";
+import { CalendarDays, CircleDot, MessageCircle, MessageSquareReply, UserRoundPlus } from "lucide-react";
 
 const buttonBase =
   "inline-flex min-h-10 flex-1 items-center justify-center rounded-full font-extrabold transition duration-300";
@@ -194,7 +194,8 @@ function CrmBreakdown({ counts, onClose, alignLeft = false }) {
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
     { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
-    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot }
+    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot },
+    { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
   ].filter((item) => item.count > 0);
 
   return (

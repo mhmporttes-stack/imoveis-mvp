@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Respostas de clientes no WhatsApp não aparecem no Chat nem param a prospecção
+- **Data:** 2026-10-02
+- **Sintoma:** desde 29/09 nenhuma mensagem recebida pelo WhatsApp conectado por QR entrava no Chat do CRM; resposta de cliente não cancelava os envios automáticos da Meta Diária nem o opt-out ("PARAR").
+- **Área:** WhatsApp / Meta Diária / Prospecção
+- **Impacto:** 0 mensagens recebidas no Chat de 29/09 a 02/10 com 372 envios da automação em 3 dias; nenhum cancelamento "lead_respondeu".
+- **Causa raiz:** (provável, confirmada no código do Baileys 6.7.24 que o Railway instala) o WhatsApp passou a endereçar conversas 1:1 por LID (`<id>@lid`); o serviço descartava todo JID que não fosse `@s.whatsapp.net`. O telefone real vem em `key.senderPn`. Agravante: a parte da prospecção (cancelar fila/opt-out) só rodava depois de gravar no Chat — qualquer falha ali também a impedia.
+- **Correção:** `whatsapp-individual-service/src/message-extract.js` resolve o telefone de conversas `@lid` (`senderPn` nas recebidas; mapa LID→telefone aprendido dos eventos nas enviadas pelo app); webhook passou a chamar Prospecção e Chat como consumidores independentes.
+- **Arquivos/commit:** `whatsapp-individual-service/src/message-extract.js`, `whatsapp-individual-service/src/sessions.js`, `app/api/webhooks/whatsapp-individual/route.js`, `lib/prospecting-reply.js`
+- **Prevenção/teste:** `tests/whatsapp-individual-extract.test.mjs`, `tests/prospecting-reply-core.test.mjs`. Conferir após o deploy do serviço no Railway se `whatsapp_messages` volta a receber `direction = inbound`.
+- **Status:** Monitorando (depende do deploy do microsserviço no Railway)
+
 ### 2026-10-02 — Venda marcada como "Pago" não aparece em Financeiro > Recebimentos (R$ 0,00 em tudo)
 - **Data:** 2026-10-02
 - **Sintoma:** Financeiro > Recebimentos com "Todo período": "A receber neste mês", "Recebido neste mês" e "A receber 30/60/90" em R$ 0,00 e agenda vazia, embora uma venda já recebida (cliente em "Pago") existisse.
