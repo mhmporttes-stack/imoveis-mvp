@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { composeReplyAlertSpeech, findUnansweredStreaks, isReplyAlertHour, normalizeReplyAlertSettings } from "../lib/alexa-reply-alert-core.mjs";
+import { composeGroupedReplyAlertSpeech, groupReplyAlertsByBroker, findUnansweredStreaks, isReplyAlertHour, normalizeReplyAlertSettings } from "../lib/alexa-reply-alert-core.mjs";
 
 const at = (m) => new Date(Date.UTC(2026, 9, 2, 14, 0) + m * 60000).toISOString(); // 14:00Z = 11:00 BRT
 const now = (m) => new Date(at(m));
@@ -36,19 +36,35 @@ test("fila antiga (mais de 60 min) não é falada", () => {
   assert.equal(findUnansweredStreaks([inbound(0)], now(61)).length, 0);
 });
 
-test("frase do alerta", () => {
+test("frase do alerta: 1 cliente fala o nome; 2 ou mais só a quantidade", () => {
   assert.equal(
-    composeReplyAlertSpeech({ brokerName: "Carol Alves", brokerGender: "female", clientName: "João Silva", waitingMinutes: 10 }),
-    "Atenção, corretora Carol. O cliente João Silva está aguardando uma resposta há 10 minutos."
+    composeGroupedReplyAlertSpeech({ brokerName: "Jennifer Souza", count: 1, clientName: "João Silva" }),
+    "Atenção, Jennifer. O cliente João Silva está aguardando resposta há mais de 10 minutos."
   );
-  assert.match(composeReplyAlertSpeech({ brokerName: "Edu", brokerGender: "male", clientName: "", waitingMinutes: 10 }), /^Atenção, corretor Edu\. Um cliente está/);
-  assert.match(composeReplyAlertSpeech({ brokerName: "", clientName: "5511999998888", waitingMinutes: 11 }), /^Atenção\. Um cliente está aguardando uma resposta há 11 minutos\.$/);
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Carol", count: 2, clientName: "João" }), "Atenção, Carol. Você possui 2 clientes aguardando resposta há mais de 10 minutos.");
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Eduardo Lima", count: 4 }), "Atenção, Eduardo. Você possui 4 clientes aguardando resposta há mais de 10 minutos.");
+  assert.match(composeGroupedReplyAlertSpeech({ brokerName: "Edu", count: 1, clientName: "5511999998888" }), /^Atenção, Edu\. Um cliente está aguardando/);
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "", count: 3 }), "Atenção. Há 3 clientes sem responsável aguardando resposta há mais de 10 minutos.");
+});
+
+test("agrupa por corretor: um grupo por responsável, cliente repetido não duplica a espera", () => {
+  // 3 clientes da Carol (c1 mandou 2 mensagens = 1 espera só), 1 do Eduardo
+  const msgs = [inbound(0, "c1"), inbound(3, "c1"), inbound(1, "c2"), inbound(2, "c3"), inbound(2, "c4")];
+  const owner = { c1: "carol", c2: "carol", c3: "carol", c4: "edu" };
+  const waiting = findUnansweredStreaks(msgs, now(12)).map((item) => ({ ...item, brokerId: owner[item.conversationId] }));
+  assert.equal(waiting.length, 4);
+  const groups = groupReplyAlertsByBroker(waiting);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups.map((g) => [g.brokerId, g.items.length]).sort(), [["carol", 3], ["edu", 1]]);
+  // quem já respondeu sai da contagem
+  const answered = findUnansweredStreaks([...msgs, reply(5, "c2")], now(12)).map((item) => ({ ...item, brokerId: owner[item.conversationId] }));
+  assert.equal(groupReplyAlertsByBroker(answered).find((g) => g.brokerId === "carol").items.length, 2);
 });
 
 test("configuração: valores válidos valem, inválidos voltam ao padrão atual", () => {
-  assert.deepEqual(normalizeReplyAlertSettings(null), { startHour: 7, endHour: 20, maxAgeMinutes: 60, maxPerRun: 3 });
-  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 8, end_hour: 18, max_age_minutes: 120, max_per_run: 5 }), { startHour: 8, endHour: 18, maxAgeMinutes: 120, maxPerRun: 5 });
-  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 20, end_hour: 8, max_age_minutes: 5, max_per_run: 99 }), { startHour: 7, endHour: 20, maxAgeMinutes: 60, maxPerRun: 3 });
+  assert.deepEqual(normalizeReplyAlertSettings(null), { startHour: 7, endHour: 20, maxAgeMinutes: 60 });
+  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 8, end_hour: 18, max_age_minutes: 120 }), { startHour: 8, endHour: 18, maxAgeMinutes: 120 });
+  assert.deepEqual(normalizeReplyAlertSettings({ start_hour: 20, end_hour: 8, max_age_minutes: 5 }), { startHour: 7, endHour: 20, maxAgeMinutes: 60 });
   assert.equal(isReplyAlertHour(now(0), { startHour: 12, endHour: 18 }), false); // 11h fora de 12–18
   assert.equal(findUnansweredStreaks([inbound(0)], now(61), { maxAgeMinutes: 120 }).length, 1);
 });
