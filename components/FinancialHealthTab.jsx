@@ -93,15 +93,14 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
         </div>
       </header>
 
-      {/* 2. Faixa principal: 3 números */}
-      <section aria-label="Resultado, caixa e expectativa" className="grid gap-3 lg:grid-cols-[1.15fr_1fr_1fr]">
-        <ResultCard summary={summary} changes={changes} vsLabel={vsLabel} />
-        <CashCard health={health} settings={settings} onConfigure={() => setSettingsOpen(true)} />
-        <ExpectationCard health={health} />
-      </section>
-
-      {/* 3. Contas a pagar */}
-      <AccountsPanel acc={acc} periodLabel={periodTitle} />
+      {/* 2 e 3. Faixa de 3 números + Contas a pagar. Desktop: 3 cartões lado a lado e as contas abaixo.
+          Celular: Resultado, depois Contas a pagar ("o que pago agora?"), depois Caixa e Expectativa. */}
+      <div className="grid gap-x-3 gap-y-4 lg:grid-cols-[1.15fr_1fr_1fr] lg:gap-y-5">
+        <section aria-label="Resultado líquido" className="order-1 flex flex-col"><ResultCard summary={summary} changes={changes} vsLabel={vsLabel} /></section>
+        <section aria-label="Caixa" className="order-3 flex flex-col lg:order-2"><CashCard health={health} settings={settings} onConfigure={() => setSettingsOpen(true)} /></section>
+        <section aria-label="Expectativa do mês" className="order-4 flex flex-col lg:order-3"><ExpectationCard health={health} /></section>
+        <div className="order-2 min-w-0 lg:order-4 lg:col-span-3"><AccountsPanel acc={acc} periodLabel={periodTitle} /></div>
+      </div>
 
       {/* 6. Indicadores secundários + como o mês fecha */}
       <Panel title="Indicadores do período" subtitle={`${periodTitle} · só o que de fato entrou e saiu`}>
@@ -177,7 +176,7 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
 
 function HeroCard({ label, tag, children, action, className }) {
   return (
-    <article className={cx("flex min-w-0 flex-col rounded-card border border-line bg-white p-4 sm:p-5", className)}>
+    <article className={cx("flex min-w-0 flex-1 flex-col rounded-card border border-line bg-white p-4 sm:p-5", className)}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <h3 className="text-sm font-semibold text-ink-2">{label}</h3>
