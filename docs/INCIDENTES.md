@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — "Conectar com código" do WhatsApp não funciona no celular (código não aparece / some / dá erro ao conectar)
+- **Data:** 2026-10-02
+- **Sintoma:** no celular (sem como escanear o QR), "Pedir código" não mostrava código; depois mostrava por ~1 s; depois o WhatsApp dizia "Não foi possível conectar o dispositivo".
+- **Área:** WhatsApp individual (serviço Railway)
+- **Impacto:** nenhum corretor conseguia conectar pelo celular só com o código.
+- **Causa raiz:** cinco falhas em cadeia em `whatsapp-individual-service/src/sessions.js`/`webhook.js`: (1) número enviado sem o 55 → WhatsApp recusava (logged_out); (2) código pedido antes de a conexão abrir e com nome de navegador personalizado → "Connection Closed"; (3) `notifyStatus` descartava o `pairingCode` → o CRM não gravava e a tela apagava o código; (4) código antigo sobrevivia no banco ao reinício do serviço; (5) após o celular aceitar o código, o "restart required" do WhatsApp era tratado como "começar do zero" e apagava as credenciais recém-registradas.
+- **Correção:** `normalizePairingNumber` (55), espera do 1º QR + `Browsers.macOS("Chrome")` no modo código, `pairingCode` repassado ao CRM e preservado na tela, código expira em 3 min/limpo em qualquer outro status, sockets aposentados ignorados, reconexão pós-pareamento sai do modo código e espera a gravação das credenciais.
+- **Arquivos/commit:** `whatsapp-individual-service/src/{sessions,webhook,pairing-number}.js`, `lib/whatsapp-individual.js`, `app/api/admin/whatsapp-individual/status/route.js`, `components/WhatsappIndividualStatus.jsx` — commits `ac8d29d`, `2cdd56f`, `002897b`, `965d024`, `36e697d`, `d0b07b9`
+- **Prevenção/teste:** `tests/whatsapp-individual-extract.test.mjs` (normalização do número). Validado pelo dono: conectou pelo celular com código em 02/10 03:42. Atenção: todo push reinicia o serviço no Railway — não pedir código durante um deploy.
+- **Status:** Resolvido
+
 ### 2026-10-02 — Meta Diária: fila com horários fora da janela depois de mudar a configuração ("reagendou para 02:10")
 - **Data:** 2026-10-02
 - **Sintoma:** com janela 07:00–14:00 salva, as atividades já agendadas não mudaram; ao clicar em "Reagendar" a tela mostrou várias atividades às 02:10 ("Fila reorganizada manualmente pelo admin").
