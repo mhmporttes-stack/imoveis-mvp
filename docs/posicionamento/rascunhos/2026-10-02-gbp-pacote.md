@@ -53,7 +53,7 @@ Hoje são 23 itens estruturados. Proposta:
 **Informado pelo dono (02/10):** área de atendimento = somente Marília/SP; os 112 pedidos de rota = clientes/interessados indo ao escritório.
 
 ## 4. Categorias (`update_categories`) — SUBSTITUI; pode pedir reverificação
-Hoje: principal "Agente imobiliário"; adicionais: nenhuma. Proposta: manter "Agente imobiliário" como principal e **adicionar uma categoria adicional que descreva o negócio real** (candidata: "Consultor imobiliário"). O ID exato da categoria e se está disponível em pt-BR: **A CONFIRMAR** (precisa do esquema de `update_categories`). Não adicionar categoria de financeira/correspondente bancário se você não for um.
+Hoje: principal "Agente imobiliário"; adicionais: nenhuma. Proposta: manter "Agente imobiliário" como principal e **adicionar uma categoria adicional que descreva o negócio real** **REVISADO 02/10 (pesquisa somente leitura):** o rótulo em português é **"Consultor de imóveis"** (não "Consultor imobiliário"), `gcid:real_estate_consultant`; no Maps do Brasil a Toca Imóveis (Marília) aparece como "Consultora de imóveis". Ação futura: `update_categories` com `primary_category_id=categories/gcid:real_estate_agents` e `additional_category_ids=["categories/gcid:real_estate_consultant"]`. Aguardando aprovação. Não adicionar categoria de financeira/correspondente bancário se você não for um.
 
 ## 5. Área de atendimento (`update_service_area`) — SUBSTITUI
 Hoje: vazia. Candidatos pelas cidades do seu público no Instagram (30 dias): Marília, Garça, Vera Cruz, Oriente, Pompéia, Quintana. **Confirme quais cidades você realmente atende.**

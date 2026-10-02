@@ -2,6 +2,26 @@
 
 > Memória do agente `marketing-posicionamento`. Uma entrada por análise, **mais recente no topo**. Formato e índice: `.claude/skills/auditar-posicionamento/references/metodologia.md`. Compare sempre na mesma base de áreas.
 
+## 2026-10-02 — ALTERAÇÃO PUBLICADA no Google Meu Negócio (etapa 3: categoria adicional, aprovada pelo dono)
+Via Windsor `update_categories` (substitui as categorias), uma única chamada, aceita na 1ª tentativa; aprovação do dono nesta conversa.
+- **Antes:** principal `gcid:real_estate_agents` ("Agente imobiliário"); adicionais: nenhuma.
+- **Depois (releitura confirmou):** principal **`gcid:real_estate_agents` ("Agente imobiliário") — inalterada**; adicional **`gcid:real_estate_consultant`** (o Google exibe "Consultora de imóveis").
+- **Conferido sem alteração:** nome "Matheus Machado", telefone `(14) 99840-7380`, site com UTM `gmn`, status OPEN, `has_voice_of_merchant=true` (sem sinal de reverificação) e os 15 serviços. Área de atendimento continua vazia.
+- **Aviso do Google:** `location_metadata_has_pending_edits = true` — há edições em revisão do lado do Google (provavelmente descrição, serviços e/ou categoria). Não é recusa nem pedido de reverificação; **reler em 24–72 h** para ver se a revisão terminou e se tudo continua publicado. Nada foi feito para contornar.
+- **Medir:** impressões e buscas genéricas em 30/60 dias; falhou se, em 60 dias, nenhuma busca genérica levar ao perfil.
+
+---
+
+## 2026-10-02 — Pesquisa de categoria adicional (SOMENTE LEITURA; nada alterado)
+Fontes: lista pública de 4.053 categorias do Google (repositório `lobstrio/google-business-categories`, terceiros, atualizado set/2026, 70 países) + Google Maps Brasil em navegador sem login.
+- `gcid:real_estate_consultant` ("Real estate consultant") **existe e consta nos 70 países**; no Maps Brasil o rótulo aparece como **"Consultor(a) de imóveis"** (Toca Imóveis, Marília, usa essa categoria). Perfil atual: principal `gcid:real_estate_agents` ("Agente imobiliário"), adicionais: nenhuma.
+- **Recomendado como adicional:** "Consultor de imóveis" (`gcid:real_estate_consultant`) — combina com o posicionamento de orientação ao comprador.
+- **Não recomendado:** "Corretor de hipotecas"/`mortgage_broker`, `mortgage_lender`, `loan_agency`, `financial_consultant` (não é instituição/correspondente financeiro; Google exige categoria que descreva o negócio principal), `real_estate_agency` ("Imobiliária", só se houver empresa/CRECI jurídico — A CONFIRMAR), `real_estate_developer`, `property_investment`, `real_estate_appraiser`.
+- **Não existe categoria oficial para "Minha Casa Minha Vida" nem "primeiro imóvel"**: isso se resolve com serviços, descrição e posts (já aplicados em parte).
+- Limite da evidência: a lista é de terceiros; a validação definitiva é a aceitação pelo Google na hora da alteração (pode ir para revisão/reverificação). Nada aplicado.
+
+---
+
 ## 2026-10-02 — ALTERAÇÕES PUBLICADAS no Google Meu Negócio (etapa 2: serviços, aprovada pelo dono)
 Via Windsor `update_service_items` (substituição total), aprovação do dono nesta conversa. Duas tentativas falharam com "Internal error" **sem gravar nada** (releitura confirmou os 23 originais); a 3ª, com `category_id` no formato `categories/gcid:real_estate_agents` e sem `language_code`, funcionou.
 - **Antes:** 23 serviços estruturados, sem descrição (administração, avaliação, comercial ×2, luxo ×2, fazenda, sítios, leilão, investimento, terrenos ×2 e os 11 abaixo).
