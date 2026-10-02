@@ -29,6 +29,12 @@ test("sem push nem atribuição para conversa escondida; card não reabre conver
   assert.match(inbound, /!hiddenConversation && conversation\.assigned_user_id/);
   assert.match(inbound, /!conversation\.assigned_user_id && !conversation\.deleted_at/);
   const chat = source("lib/whatsapp-chat.js");
-  assert.match(chat, /client\.status === "archived"[\s\S]{0,200}CLIENT_ARCHIVED/);
+  // Card de cliente arquivado: só o dono abre a conversa (somente leitura);
+  // qualquer outro (inclusive o corretor) recebe Chat em branco.
+  assert.match(chat, /client\.status === "archived"[\s\S]{0,600}if \(!isOwnerAdminEmail\(auth\?\.user\?\.email\)\) return \{ conversationId: null \}/);
+  assert.match(chat, /return \{ conversationId: archivedRows\[0\]\.id, archivedReadOnly: true \}/);
+  assert.match(chat, /function canViewArchivedConversation[\s\S]{0,250}isOwnerAdminEmail\(auth\?\.user\?\.email\)/);
+  assert.match(chat, /archivedReadOnly \? \{ canReply: false, canReact: false, canEdit: false, canDelete: false \}/);
+  assert.match(source("components/WhatsappChat.jsx"), /if \(data\.conversationId\) openConversation\(data\.conversationId\)/);
   assert.match(chat, /pushTargets\.delete\(row\.id\)/);
 });

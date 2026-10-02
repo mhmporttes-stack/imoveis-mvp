@@ -44,6 +44,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Cliente arquivado: só o dono lê a conversa pelo card; demais veem o Chat em branco
+- **Data:** 2026-10-02
+- **Área:** WhatsApp · Chat · Permissões
+- **Alteração:**
+  - Complemento da WA-13. Pelo card de cliente arquivado, o dono (e-mail real da sessão) abre a conversa existente em modo somente leitura: sem caixa de mensagem, sem ações e sem "Assumir". A conversa continua fora da lista do Chat.
+  - Os demais, inclusive o corretor do cliente, recebem o Chat em branco (`conversationId: null`), sem erro.
+  - Escrita (enviar, reagir, editar, apagar, atribuir) continua respondendo 404 para conversa escondida.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, `lib/client-documents.js`, `tests/whatsapp-archived-client-hidden.test.mjs`, BUSINESS_RULES WA-13, WHATSAPP §6.
+- **Risco/observação:** sem login real no painel, não testei a tela com usuário logado. Ficou coberto por teste estrutural e pela regra no servidor.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Cliente arquivado sai do Chat e não volta com mensagem nova
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Chat · Banco

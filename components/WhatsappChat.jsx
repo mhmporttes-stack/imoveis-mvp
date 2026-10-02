@@ -273,7 +273,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         window.history.replaceState(null, "", "/admin/chat");
         setTab("conversations");
         await loadList({ silent: true });
-        openConversation(data.conversationId);
+        // Cliente arquivado (WA-13) para quem não é o dono: Chat em branco, nenhuma conversa aberta.
+        if (data.conversationId) openConversation(data.conversationId);
       })
       .catch((error) => { if (!cancelled) setOpenError(error.message); });
     return () => { cancelled = true; };
@@ -609,7 +610,7 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
   const conversation = detail?.conversation;
   const messages = detail?.messages || [];
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
-  const showAssume = Boolean(conversation) && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
+  const showAssume = Boolean(conversation) && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -857,7 +858,12 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
         {!rows.length ? <p className="py-8 text-center text-sm font-bold text-muted">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
 
-      <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
+      {conversation.archivedReadOnly ? (
+        // Cliente arquivado (WA-13): só o dono abre, pelo card, para LER. Fica fora da caixa do Chat.
+        <p role="status" className="border-t border-line bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">Cliente arquivado — conversa fora do Chat, somente leitura. Desarquive o cliente para voltar a conversar.</p>
+      ) : (
+        <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
+      )}
 
       {actionTarget ? <MessageActionsMenu target={actionTarget} onClose={() => setActionTarget(null)} onReply={startReply} onReact={reactTo} onEdit={startEdit} onDelete={deleteForEveryone} /> : null}
 
