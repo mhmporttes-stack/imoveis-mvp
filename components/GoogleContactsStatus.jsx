@@ -26,7 +26,7 @@ const STATUS_LABEL = {
   error: "Requer reconexão"
 };
 
-export default function GoogleContactsStatus() {
+export default function GoogleContactsStatus({ align = "center" }) {
   const [status, setStatus] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -89,6 +89,7 @@ export default function GoogleContactsStatus() {
         tone={googleContactsTone(currentStatus)}
         label={`Google Contacts: ${STATUS_LABEL[currentStatus] || "Não conectado"}`}
         onClick={() => setModalOpen(true)}
+        align={align}
       />
 
       {modalOpen ? (

@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Indicadores WhatsApp/Google Contacts movidos para dentro dos cards do ranking
+- **Data:** 2026-10-02
+- **Área:** Frontend (só posição; estados, cores, tamanho, modal e tooltip inalterados)
+- **Alteração:** `TopRankingBadge` recebe os dois indicadores do layout e os posiciona dentro de "Campeão da Semana" (WhatsApp) e "Melhor do Dia" (Google Contacts), centro a 75% da largura do próprio card (`left-3/4`, sem transform) e na mesma coluna; em `lg` vão para a direita do card. A faixa branca que os continha no cabeçalho foi removida. Se um card não existir, o indicador cai numa linha própria (nunca some). Nomes truncam antes do indicador.
+- **Arquivos afetados:** `components/TopRankingBadge.jsx`, `app/admin/layout.jsx`, `components/GoogleContactsStatus.jsx` (prop `align`).
+- **Risco/observação:** a 360px o nome do "Melhor do Dia" pode truncar mais cedo; os indicadores só aparecem após a 1ª resposta de `/api/daily-goal/top-ranking`.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Ajustes mobile/PWA: rodapé do site fora do painel, menu "Mais", Desempenho, status WhatsApp/Google em ícones
 - **Data:** 2026-10-02
 - **Área:** Frontend (só interface; nenhuma lib/API/banco)

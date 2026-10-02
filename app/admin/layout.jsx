@@ -50,22 +50,15 @@ export default async function AdminLayout({ children }) {
               nasceria atrás dela. O fundo da barra continua se estendendo
               até o topo real (comportamento padrão esperado em PWAs). */}
           <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
-            <TopRankingBadge />
-            {/* Os dois chips de integração ficam num grupo à parte, sempre
-                um em cima do outro (pedido do dono, 2026-10-01: Google
-                Contacts "solto" longe do WhatsApp parecia outra coisa) —
-                o flex-wrap do header nunca mais separa um do outro. */}
-            <div className="flex items-center gap-2">
-              {/* Fixo em toda aba, igual o campeão semanal/melhor do dia
-                  (pedido do dono, 2026-09-30: corretor não percebia o
-                  próprio WhatsApp cair porque esse indicador só existia
-                  dentro do Chat) — mesmo componente, agora sempre visível. */}
-              <WhatsappIndividualStatus />
-              {/* Integração paralela, independente do WhatsApp (pedido do
-                  dono, 2026-10-01) — mesmo lugar, mesmo padrão visual, nunca
-                  confundida com o status do WhatsApp. */}
-              <GoogleContactsStatus />
-            </div>
+            {/* Os indicadores de integração ficam DENTRO dos cards do ranking
+                (WhatsApp no Campeão da Semana, Google Contacts no Melhor do
+                Dia, mesma coluna a ~75% da largura) — ver TopRankingBadge.
+                WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
+                corretor não percebia o próprio WhatsApp cair). */}
+            <TopRankingBadge
+              weeklyIndicator={<WhatsappIndividualStatus align="end" />}
+              dailyIndicator={<GoogleContactsStatus align="end" />}
+            />
           </header>
         </div>
       ) : null}

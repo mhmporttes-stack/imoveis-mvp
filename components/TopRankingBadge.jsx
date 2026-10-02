@@ -13,8 +13,28 @@ const REFRESH_MS = 5 * 60 * 1000;
 // um elemento flutuante) — busca uma vez ao montar (o layout autenticado
 // mantém este componente vivo entre navegações do App Router) e atualiza
 // periodicamente, nunca a cada troca de página.
-export default function TopRankingBadge() {
+// weeklyIndicator / dailyIndicator: indicadores de integração (WhatsApp /
+// Google Contacts, vindos do layout) exibidos DENTRO dos cards Campeão da
+// Semana / Melhor do Dia, a ~75% da largura do próprio card (referência = o
+// card, nunca a viewport). Se o card correspondente não existir, o indicador
+// cai numa linha própria — nunca some (o corretor precisa ver a conexão).
+// Sem transform (-ml-4 = metade dos 32px do ícone): um transform viraria o
+// bloco de referência dos modais `fixed` dos indicadores.
+// Desktop (lg): cards lado a lado e mais largos — o indicador vai para a
+// direita do card, sem estreitar o nome.
+const INDICATOR_POSITION = "absolute left-3/4 z-20 -ml-4 lg:left-auto lg:right-3 lg:ml-0";
+// Campeão da Semana: o título ("Campeão(ã) da Semana", ~181px) chega perto
+// dos 75% em celulares estreitos, então o indicador fica logo abaixo dele;
+// no Melhor do Dia o título é curto e o indicador vai ao topo.
+const WEEKLY_TOP = "top-[1.625rem]";
+const DAILY_TOP = "top-2";
+// O nome termina antes do indicador: 75% do próprio card ≈ 75% da
+// coluna de texto − 2rem (a coluna começa depois da foto).
+const CLEAR_OF_INDICATOR = "max-w-[calc(75%-2rem)] lg:max-w-[calc(100%-2.75rem)]";
+
+export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator = null }) {
   const [data, setData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -27,6 +47,8 @@ export default function TopRankingBadge() {
         if (active) setData(payload);
       } catch {
         // Falha silenciosa: é um widget decorativo, não deve interromper a navegação.
+      } finally {
+        if (active) setLoaded(true);
       }
     }
 
@@ -45,41 +67,55 @@ export default function TopRankingBadge() {
     };
   }, []);
 
-  if (!data?.top1 && !data?.weeklyTop1) return null;
+  // Antes da primeira resposta nada é desenhado (evita o indicador pular de
+  // lugar e remontar quando os cards aparecem).
+  if (!loaded) return null;
+  if (!data?.top1 && !data?.weeklyTop1) {
+    return <div className="flex items-center gap-2 py-2">{weeklyIndicator}{dailyIndicator}</div>;
+  }
   const showMyRank = Boolean(data.top1 && !data.isMeTop1 && data.myRank);
 
+  const orphanIndicators = [!data.weeklyTop1 ? weeklyIndicator : null, !data.top1 ? dailyIndicator : null].filter(Boolean);
+
   return (
+    <>
     <div className={`grid w-full gap-2 py-2.5 lg:items-stretch ${showMyRank
       ? "max-w-5xl lg:grid-cols-[1.3fr_1fr_0.9fr]"
       : data.top1 ? "max-w-3xl lg:grid-cols-[1.3fr_1fr]" : "max-w-lg lg:grid-cols-1"}`}>
       {data.weeklyTop1 ? (
+        <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
-          className="relative flex min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-[#E9CB73] bg-[#FFF9E9] px-3.5 py-3 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8]">
+          className="relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-[#E9CB73] bg-[#FFF9E9] px-3.5 py-3 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8]">
           <Laurel className="-left-2 bottom-0" />
           <Laurel className="-right-2 bottom-0 -scale-x-100" />
           <span className="relative z-10 shrink-0">
             <Avatar name={data.weeklyTop1.name} photoUrl={data.weeklyTop1.photoUrl} size={64} className="border-2 !border-[#DBA735] shadow-sm" />
           </span>
-          <span className="relative z-10 min-w-0 leading-tight">
-            <span className="block text-[11px] font-black uppercase tracking-wide text-[#9B6419]">👑 {weeklyChampionTitle(data.weeklyTop1.gender)}</span>
-            <span className="mt-0.5 block truncate text-lg font-extrabold text-navy">{data.weeklyTop1.name}</span>
+          <span className="relative z-10 min-w-0 flex-1 leading-tight">
+            <span className={`block text-[11px] font-black uppercase tracking-wide text-[#9B6419]`}>👑 {weeklyChampionTitle(data.weeklyTop1.gender)}</span>
+            <span className={`mt-0.5 block truncate ${CLEAR_OF_INDICATOR} text-lg font-extrabold text-navy`}>{data.weeklyTop1.name}</span>
             <span className="block text-base font-extrabold text-[#B77C17]">{formatPoints(data.weeklyTop1.points)} pontos</span>
             <span className="block text-xs font-medium text-slate-600">Semana anterior</span>
           </span>
         </SceneTransitionLink>
+        {weeklyIndicator ? <span className={`${INDICATOR_POSITION} ${WEEKLY_TOP}`}>{weeklyIndicator}</span> : null}
+        </div>
       ) : null}
       {data.top1 ? (
+        <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
-          className="flex min-w-0 items-center gap-3 rounded-3xl border border-[#C9DDF6] bg-[#F8FBFF] px-3.5 py-3 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF]">
+          className="flex w-full min-w-0 items-center gap-3 rounded-3xl border border-[#C9DDF6] bg-[#F8FBFF] px-3.5 py-3 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF]">
           <span className="relative shrink-0">
             <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={58} className="border-2 !border-[#A9C8EC]" />
           </span>
-          <span className="min-w-0 leading-tight">
-            <span className="block text-[11px] font-black uppercase tracking-wide text-[#2370BC]">🥇 Melhor do Dia</span>
-            <span className="mt-0.5 block truncate text-lg font-extrabold text-navy">{data.top1.name}</span>
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className={`block text-[11px] font-black uppercase tracking-wide text-[#2370BC]`}>🥇 Melhor do Dia</span>
+            <span className={`mt-0.5 block truncate ${CLEAR_OF_INDICATOR} text-lg font-extrabold text-navy`}>{data.top1.name}</span>
             <span className="block text-base font-extrabold text-[#2370BC]">{formatPoints(data.top1.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
           </span>
         </SceneTransitionLink>
+        {dailyIndicator ? <span className={`${INDICATOR_POSITION} ${DAILY_TOP}`}>{dailyIndicator}</span> : null}
+        </div>
       ) : null}
       {showMyRank ? (
         <div className="flex min-w-0 items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 text-navy shadow-[0_2px_10px_rgba(13,59,102,0.06)]">
@@ -90,6 +126,8 @@ export default function TopRankingBadge() {
         </div>
       ) : null}
     </div>
+    {orphanIndicators.length ? <div className="flex items-center gap-2 pb-2">{orphanIndicators}</div> : null}
+    </>
   );
 }
 
