@@ -76,3 +76,27 @@ test("falha no registro do contato avisa no Chat sem bloquear a navegação", as
   assert.match(contactWarningMessage("Lu"), /O Chat foi aberto, mas o contato de Lu não pôde ser salvo\/sincronizado/);
   assert.match(contactWarningMessage(""), /O Chat foi aberto, mas o contato não pôde ser salvo\/sincronizado/);
 });
+
+// Celular/PWA (2026-10-02): o botão "WhatsApp" abriu o app EXTERNO no celular porque o app instalado
+// ficava aberto por dias rodando JavaScript antigo (de antes da regra "abre o Chat do CRM"). O código
+// atual não tem nenhum caminho externo, nem por ramo mobile/PWA; e o app passa a procurar versão nova.
+test("card e ficha (mobile/desktop) só têm o caminho do Chat — nenhum deep link, wa.me ou ramo por dispositivo", () => {
+  const card = source("components/clients/ClientCard.jsx");
+  const sheet = source("components/clients/ClientSheet.jsx");
+  for (const [name, code] of [["ClientCard", card], ["ClientSheet", sheet]]) {
+    assert.match(code, /list\.openWhatsApp\(client\)/, `${name}: botão WhatsApp usa list.openWhatsApp`);
+    assert.doesNotMatch(code, /wa\.me|whatsapp:\/\/|api\.whatsapp\.com|web\.whatsapp|intent:\/\//, `${name}: sem link externo do WhatsApp`);
+  }
+  const hook = source("components/clients/useClientList.js");
+  const body = functionBody(hook, "function openWhatsApp(client)");
+  assert.doesNotMatch(body, /isMobile|standalone|display-mode|userAgent|matchMedia|navigator\./, "sem ramo por celular/PWA/user-agent");
+  assert.doesNotMatch(body, /window\.open|location\.(assign|href|replace)|<a /, "sem abrir janela/URL externa");
+});
+
+test("app instalado procura versão nova ao voltar e a cada 10 min, sem recarregar no meio da digitação", () => {
+  const pwa = source("components/PwaLifecycle.jsx");
+  assert.match(pwa, /document\.addEventListener\("visibilitychange", checkForNewVersion\)/);
+  assert.match(pwa, /UPDATE_CHECK_INTERVAL_MS = 10 \* 60 \* 1000/);
+  assert.match(pwa, /updateRegistration\?\.update\(\)/);
+  assert.match(pwa, /if \(!userIsTyping\(\)\) \{\s*window\.location\.reload\(\);/);
+});

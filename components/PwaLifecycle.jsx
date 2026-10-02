@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, WifiOff, X } from "lucide-react";
 
+const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+
 export default function PwaLifecycle() {
   const [updateWorker, setUpdateWorker] = useState(null);
   const [offline, setOffline] = useState(false);
@@ -35,16 +37,54 @@ export default function PwaLifecycle() {
 
     let refreshing = false;
 
+    // Com a procura de versão a cada 10 min (abaixo) o app recarrega sozinho depois de cada
+    // deploy — nunca no meio de uma mensagem/campo sendo digitado: espera parar de digitar.
+    function userIsTyping() {
+      const element = document.activeElement;
+      if (!element) return false;
+      const isField = element.tagName === "TEXTAREA"
+        || (element.tagName === "INPUT" && !["button", "checkbox", "radio", "submit", "range", "file"].includes(element.type))
+        || element.isContentEditable;
+      return Boolean(isField && String(element.value ?? element.textContent ?? "").length > 0);
+    }
+
     function handleControllerChange() {
       if (refreshing) return;
       refreshing = true;
-      window.location.reload();
+      if (!userIsTyping()) {
+        window.location.reload();
+        return;
+      }
+      const waiter = window.setInterval(() => {
+        if (userIsTyping()) return;
+        window.clearInterval(waiter);
+        window.location.reload();
+      }, 3000);
     }
+
+    // App instalado (PWA) fica ABERTO por dias sem nenhuma navegação de página, e o
+    // navegador só procura service worker novo em navegação (ou no máx. a cada 24 h por
+    // push): o app seguia rodando o JavaScript de versões antigas — foi o que fez o botão
+    // "WhatsApp" do card abrir o WhatsApp externo (código antigo) depois de a regra mudar
+    // (2026-10-02). Procura versão nova ao voltar para o app e a cada 10 min com ele
+    // aberto; o service worker novo assume sozinho (skipWaiting + controllerchange abaixo
+    // recarrega) e o app passa a rodar o código atual.
+    let updateRegistration = null;
+    function checkForNewVersion() {
+      if (document.visibilityState !== "visible") return;
+      updateRegistration?.update().catch(() => {
+        // Sem rede: tenta de novo na próxima volta ao app.
+      });
+    }
+    document.addEventListener("visibilitychange", checkForNewVersion);
+    const updateTimer = window.setInterval(checkForNewVersion, UPDATE_CHECK_INTERVAL_MS);
 
     function registerServiceWorker() {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then((registration) => {
+          updateRegistration = registration;
+          checkForNewVersion();
           registration.addEventListener("updatefound", () => {
             const worker = registration.installing;
             if (!worker) return;
@@ -72,6 +112,8 @@ export default function PwaLifecycle() {
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       window.removeEventListener("load", registerServiceWorker);
+      document.removeEventListener("visibilitychange", checkForNewVersion);
+      window.clearInterval(updateTimer);
     };
   }, []);
 

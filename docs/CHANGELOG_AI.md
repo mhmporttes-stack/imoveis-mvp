@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Botão WhatsApp do card abriu o WhatsApp externo no celular: app instalado procura versão nova
+- **Data:** 2026-10-02
+- **Área:** Clientes / PWA
+- **Alteração:** `components/PwaLifecycle.jsx` passa a procurar service worker novo ao voltar para o app (`visibilitychange`) e a cada 10 min com o app aberto; o service worker novo já assumia sozinho (`skipWaiting` + `controllerchange` recarrega) — agora a recarga espera o usuário parar de digitar (campo com texto em foco). Nenhuma mudança no botão: o código atual do card/ficha só abre `/admin/chat?client=` (sem ramo mobile/PWA/user-agent/deep link — teste estrutural em `tests/client-card-whatsapp-chat.test.mjs`).
+- **Motivo:** no celular o botão abriu o app externo do WhatsApp. Causa provável (não reproduzível no código atual): o PWA fica aberto por dias sem navegação de página e o navegador só procura versão nova em navegação (ou ≤ 1×/24 h por push), então o app seguia com o JavaScript de antes da regra "abre o Chat". Prova indireta: não existe caminho externo no código atual (verificado em desktop e no componente da ficha/mobile) e o cliente arquivado segue o mesmo caminho.
+- **Arquivos afetados:** `components/PwaLifecycle.jsx`, `tests/client-card-whatsapp-chat.test.mjs`, `docs/BUSINESS_RULES.md`
+- **Risco/observação:** quem estiver com o app aberto numa versão antiga precisa fechar e abrir o app (ou tocar em "Atualizar") uma vez para receber esta correção. Outros botões "WhatsApp" (Meta Diária, Agenda "Enviar parabéns") continuam externos por desenho próprio — não alterados. Cliente arquivado + usuário não-dono: o Chat abre em branco (regra existente); corretor responsável não foi testado ao vivo (sem trocar de conta).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Cliente arquivado: Chat vazio para o corretor, leitura só do dono (backend)
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Permissões
