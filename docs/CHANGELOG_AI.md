@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Meta Diária: ícone do WhatsApp só verde/cinza (T-20261002-54)
+
+- `components/TeamDailyPerformance.jsx` (cards da equipe, da própria gestora e gaveta do corretor): o ícone de WhatsApp deixou de usar `whatsappTone` (que pintava laranja em conectando/reconectando/QR/código) e passou a `whatsappCardIconTone` (`lib/whatsapp-restriction-core.mjs`): verde só quando `resolveWhatsappBadge` = conectado; todo o resto (aguardando, desconectado, restrição informada/validada, desconhecido) = cinza. Só visual: badges, tooltips, clique e Google Contacts intactos; `whatsappTone` segue valendo no cabeçalho/chat. Teste: `tests/whatsapp-icon-tone.test.mjs`.
+
 ### 2026-10-02 — Meta Diária: card da própria gestora + cabeçalho padronizado dos cards (T-49/T-50)
 - **Data:** 2026-10-02
 - **Área:** Meta Diária

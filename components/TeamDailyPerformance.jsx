@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X, History, ListRestart } from "lucide-react";
-import { WHATSAPP_BADGE_LEGEND } from "@/lib/whatsapp-restriction-core.mjs";
+import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
 import Avatar from "@/components/Avatar";
 import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
-import IntegrationStatusIcon, { googleContactsTone, whatsappTone } from "@/components/IntegrationStatusIcon";
+import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
 import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
@@ -372,7 +372,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
             <WhatsappStateChip small sessionStatus={automation.sessionStatus} restriction={restriction} />
           </div>
           <div data-card-icons className="mt-1.5 flex items-center gap-2">
-            <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
+            <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappCardIconTone({ sessionStatus: automation.sessionStatus, openRestriction: restriction ? { validation_status: restriction.validationStatus } : null })} label={`WhatsApp: ${sessionInfo.label}`} />
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
           <RestrictionValidationActions brokerId={broker.brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
@@ -573,7 +573,7 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, show
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
         <WhatsappStateChip sessionStatus={automation.sessionStatus} restriction={restriction} />
-        <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
+        <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappCardIconTone({ sessionStatus: automation.sessionStatus, openRestriction: restriction ? { validation_status: restriction.validationStatus } : null })} label={`WhatsApp: ${sessionInfo.label}`} />
         <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
       <RestrictionValidationActions brokerId={brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
