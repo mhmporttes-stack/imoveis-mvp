@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Supabase MCP estável (`Supabase`, somente leitura) e banco realmente read-only para agentes analíticos
+- **Data:** 2026-10-02
+- **Área:** Infra · Permissões · Banco
+- **Alteração:**
+  - `.mcp.json` com o servidor `Supabase`: MCP oficial hospedado, `project_ref` do projeto, `read_only=true`, OAuth.
+  - Hook `guard-destructive-sql.mjs` agora vale para qualquer servidor Supabase (matcher `mcp__.*__…`). Para os agentes analíticos, força `set transaction read only` (o Postgres recusa escrita) e nega escrita explícita e migration. Para a sessão principal, escrita, DDL e migration pedem confirmação.
+  - `apply_migration` saiu de `allow` e foi para `ask`.
+  - `enabledMcpjsonServers` aprova o servidor `Supabase`.
+- **Motivo:** no desktop o conector da conta tem prefixo UUID e os agentes (`mcp__Supabase__*`) ficavam sem banco. O "somente leitura" era só texto de prompt.
+- **Arquivos afetados:** `.mcp.json`, `.claude/settings.json`, `.claude/hooks/guard-destructive-sql.mjs`, `tests/guard-destructive-sql.test.mjs`, `docs/PLANO_SUPABASE_MCP_ALIAS.md`, `.claude/rules/workflow-dev.md`.
+- **Risco/observação:**
+  - Validado com o `analista-dados` real (`/analisar-funil`): `transaction_read_only = on`.
+  - Escrita em transação read-only é recusada pelo banco (25006).
+  - No desktop é preciso autenticar o servidor `Supabase` uma vez em `/mcp`.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Chat: conversa passa a ser (telefone + sessão do WhatsApp) — fim do cruzamento entre corretores
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Banco

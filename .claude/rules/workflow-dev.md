@@ -10,7 +10,7 @@ Esta rule é **global** (sem `paths:`), carregada em toda sessão. Mantenha-a cu
 
 ## Permissões do Claude Code
 
-`.claude/settings.json` (versionado) libera sem perguntar o trabalho rotineiro (ler/editar arquivos do projeto, `pnpm`/`node`, testes/build, git do dia a dia, leitura e SQL rotineiro no Supabase, deploy `vercel --prod`). Continua pedindo autorização: `rm`, force-push/reset --hard/clean/apagar branch, editar `.env*`/o próprio settings, `vercel env|rm|domains`, CLI `supabase`, branches/pausa/restauração de projeto Supabase e SQL de alto risco (DROP, TRUNCATE, DELETE, UPDATE sem WHERE, GRANT público, RLS/policy, papéis/senhas — hook `.claude/hooks/guard-destructive-sql.mjs`). Ao mudar essa política, edite os dois arquivos juntos.
+`.claude/settings.json` (versionado) libera sem perguntar o trabalho rotineiro (ler/editar arquivos do projeto, `pnpm`/`node`, testes/build, git do dia a dia, leitura e SQL rotineiro no Supabase, deploy `vercel --prod`). Continua pedindo autorização: `rm`, force-push/reset --hard/clean/apagar branch, editar `.env*`/o próprio settings, `vercel env|rm|domains`, CLI `supabase`, branches/pausa/restauração de projeto Supabase `apply_migration`, escrita no banco e SQL de alto risco (DROP, TRUNCATE, DELETE, UPDATE sem WHERE, GRANT/REVOKE, RLS/policy, papéis/senhas, secrets — hook `.claude/hooks/guard-destructive-sql.mjs`, que vale para qualquer servidor Supabase). Agentes analíticos têm banco **somente leitura de verdade** (o hook força `set transaction read only`). MCP estável `Supabase` (somente leitura) em `.mcp.json`: ver `docs/PLANO_SUPABASE_MCP_ALIAS.md`. Ao mudar essa política, edite settings + hook + teste `tests/guard-destructive-sql.test.mjs` juntos.
 
 ## Validação (não há `lint` nem `test` no `package.json`)
 

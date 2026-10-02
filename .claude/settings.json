@@ -69,7 +69,11 @@
       "mcp__Supabase__query_logs",
       "mcp__Supabase__search_docs",
       "mcp__Supabase__execute_sql",
-      "mcp__Supabase__apply_migration"
+      "mcp__Supabase__get_logs",
+      "mcp__Supabase__list_edge_functions",
+      "mcp__Supabase__get_edge_function",
+      "mcp__Supabase__list_branches",
+      "mcp__Supabase__generate_typescript_types"
     ],
     "ask": [
       "Bash(git push --force*)",
@@ -102,6 +106,7 @@
       "Edit(/**/.env*)",
       "Edit(/.claude/settings.json)",
       "Edit(/.claude/hooks/**)",
+      "mcp__Supabase__apply_migration",
       "mcp__Supabase__delete_branch",
       "mcp__Supabase__reset_branch",
       "mcp__Supabase__merge_branch",
@@ -116,7 +121,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__Supabase__execute_sql|mcp__Supabase__apply_migration",
+        "matcher": "mcp__.*__execute_sql|mcp__.*__apply_migration",
         "hooks": [
           {
             "type": "command",
@@ -127,5 +132,8 @@
         ]
       }
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "Supabase"
+  ]
 }
