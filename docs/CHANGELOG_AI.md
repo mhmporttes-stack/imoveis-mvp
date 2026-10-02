@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — "Não contactar" automático: número errado, pessoa errada e negativa clara (opção B)
+- **Data:** 2026-10-02
+- **Área:** Prospecção / WhatsApp
+- **Alteração:** `isClearOptOut` passa a reconhecer também número errado ("número errado", "você ligou pra pessoa errada", "foi engano") e pessoa errada ("não sou eu", "não sou o cliente", "não sou o <Nome>"), além das negativas claras que já existiam ("não tenho interesse" sozinho). Ressalvas/condição/futuro ("mas", "se", "quando", "ou", "mais pra frente"), pergunta ("?", "quem", "qual") e palavras de papel após "não sou o" (dono, responsável, pai…) deixam a mensagem ambígua: o cliente continua indo para "Em atendimento" (PRO-8, commit 05e0b57). Cliente já em Não contactar que escreve segue gerando pendência de reativação.
+- **Motivo:** decisão do dono (opção B, tarefa T-20261002-13): marcar sozinho só com intenção inequívoca; em dúvida, humano.
+- **Docs atualizados:** `.claude/rules/roleta-prospeccao-campanhas.md`, `docs/BUSINESS_RULES.md` (PRO-8).
+- **Arquivos afetados:** `lib/prospecting-reply-core.mjs`, `tests/prospecting-reply-core.test.mjs`
+
 
 ### 2026-10-02 — Estados do WhatsApp: restrição informada x validada + instrumentação de desconexão (T-20261002-23)
 - **Data:** 2026-10-02

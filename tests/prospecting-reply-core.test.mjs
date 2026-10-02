@@ -126,3 +126,39 @@ test("falha do Chat não impede a automação da Prospecção (e vice-versa)", a
   assert.equal(reverse.prospecting.ok, false);
   assert.equal(reverse.chat.ok, true);
 });
+
+// Opção B do dono (2026-10-02): "Não contactar" automático só com intenção
+// INEQUÍVOCA — número errado, pessoa errada ou negativa clara sozinha.
+test("opção B: número errado / pessoa errada / negativa clara -> Não contactar automático", () => {
+  const clear = [
+    "Número errado", "numero errado!", "Esse número está errado", "esse telefone é errado", "Foi engano",
+    "Você ligou pra pessoa errada", "vc mandou mensagem pro número errado", "Pessoa errada", "Desculpe, número errado",
+    "Não sou eu", "não sou o cliente", "Não sou o Carlos", "Não sou a Maria Silva", "não é comigo", "Aqui não mora ninguém com esse nome",
+    "Não tenho interesse", "não tenho interesse.", "Não tenho interesse, obrigado", "NÃO TENHO INTERESSE!!!", "Sem interesse", "não estou interessada",
+    "Infelizmente não tenho interesse"
+  ];
+  for (const text of clear) {
+    assert.equal(isClearOptOut(text), true, text);
+    assert.equal(decide(text), REPLY_ACTION.OPT_OUT, text);
+  }
+});
+
+test("opção B: ambíguo, temporário, condicional ou pergunta -> permanece Em atendimento (ALERT_REPLY)", () => {
+  const ambiguous = [
+    "agora não", "no momento não", "não tenho interesse agora", "Não tenho interesse no momento", "por enquanto não",
+    "depois eu te chamo", "outro momento", "mais pra frente talvez", "não tenho interesse nesse imóvel, mas quero outro",
+    "não tenho interesse, mas se baixar o valor eu vejo", "não tenho interesse por enquanto", "não tenho interesse. me chama em dezembro? aí eu vejo",
+    "não tenho interesse quando posso ver outro?", "não sou o dono, fala com meu marido", "não sou o responsável", "não sou o pai dele",
+    "número errado? quem é?", "não sou eu quem decide", "não sou o Carlos mas conheço ele", "não tenho interesse?", "não tenho interesse ou não posso agora",
+    "não sou o titular do imóvel", "tenho interesse", "oi", "quem é você?", "esse número mudou, me chama no outro", "não sei"
+  ];
+  for (const text of ambiguous) {
+    assert.equal(isClearOptOut(text), false, text);
+    assert.equal(decide(text), REPLY_ACTION.ALERT_REPLY, text);
+  }
+});
+
+test("opção B: Não contactar que escreve de novo continua pendência de reativação (não reativa sozinho)", () => {
+  assert.equal(decide("agora posso sim, me chama", { clientStatus: "do_not_contact" }), REPLY_ACTION.ALERT_REACTIVATION);
+  assert.equal(decide("número errado", { clientStatus: "do_not_contact" }), REPLY_ACTION.IGNORE);
+});
