@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — P-01 Etapa 2b: #C3846 separado em três contatos (dados)
+- **Data:** 2026-10-02
+- **Área:** Dados · Meta Diária / Prospecção
+- **Alteração:** confirmado pela Caroline, …2973 (Alex) e …3947 ganharam cards próprios (#C4523 e #C4524, responsável Caroline, `awaiting_return`) e saíram do #C3846; …0409 continua nele. Contato, rodada, tentativa e histórico de cada telefone, e a conversa do Chat do Alex, foram re-apontados para o card próprio. Auditoria em `prospecting_history` (`details.fix = p01-stage2b-20261002`).
+- **Motivo:** o bug P-01 (nome "Sem Nome") juntou três telefones num só card em 28/09.
+- **Arquivos afetados:** só dados. Backup: `p01s3_backup_20261002_*` (client, contacts, rounds, attempts, history, conversations, journey, status_history). #C3919 intocado.
+- **Risco/observação:** sem recálculo de pontuação; impressão digital das fontes do ranking idêntica antes/depois. Reverter = restaurar das tabelas de backup.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — SQL canônico do funil: Venda = primeira entrada (MET-12)
 - **Data:** 2026-10-02
 - **Área:** Docs · Métricas
