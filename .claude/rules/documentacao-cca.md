@@ -33,6 +33,12 @@ Separação deliberada, não misture as duas responsabilidades de volta:
 
 Se um pedido futuro for "mudar a regra de quais documentos são obrigatórios", a mudança é **sempre** em `document-requirements-engine.js`, nunca no prompt da IA.
 
+## Regras documentais do dono e agente especialista
+
+**[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-02]** As regras documentais Caixa/MCMV (identificação, comprovante de residência, estado civil/cônjuge, dependentes, CLT, renda informal, FGTS, IR, duplicados, proponente principal, validação cruzada, devolutiva, ficha do PDF) e onde cada uma vive (Base Mestra × código × falta) estão na **matriz de cobertura** de `.claude/analista-documental/REGRAS-DOCUMENTAIS.md` — fonte única, não duplique aqui. Lacunas listadas lá (ex.: validade do comprovante "mês atual/anterior", CPF cruzado determinístico) **não estão implementadas** e só viram código com pedido explícito do dono.
+
+Hierarquia de autoridade: regras fixas do código > regras **ativas** da Base Mestra > cadastro > documentos > mensagens selecionadas. Caso sem regra ⇒ revisão humana, nunca exigência inventada. Para auditar/testar/explicar a análise use o agente `analista-documental` (`/analisar-documentacao`, `/auditar-analise-documental`, `/testar-regra-documental`); regressão sintética em `tests/document-regression.test.mjs`. Base Mestra: o comportamento é ligado por `rule_key` no código; o texto `instruction` só orienta a IA (`ctps_format` não tem efeito em código).
+
 ## Identidade das linhas do checklist
 
 Princípio geral (`person_role` vs. `person_label`) em `.claude/rules/crm-clientes-funil.md` — aplicado aqui via um índice único parcial em `client_document_checklist_items`: `(client_id, person_role, document_type) where document_id is null`, para as linhas de "requisito".
@@ -45,7 +51,7 @@ Duas categorias de linha na mesma tabela: linhas de **classificação** (`docume
 
 ## PDF e envio à CCA
 
-`buildClientDocumentPdf` (pdf-lib): capa digitada (nunca extraída de OCR) com dados do cadastro + tabela de conferência, PDF nativo mesclado (não foto de cada arquivo). WEBP/HEIC/HEIF não são suportados nativamente pelo pdf-lib — ficam de fora da mesclagem e aparecem em `skipped` para download manual (decisão deliberada, não adicione uma dependência nativa de conversão sem avaliar o risco de build na Vercel). Nome/e-mail/PIS são obrigatórios antes de gerar o PDF ou enviar à CCA (`assertClientReadyForPdf`) — sem eles, lança erro com `.code === "MISSING_CLIENT_FIELDS"` para a UI pedir os campos, nunca trava sem explicação.
+`buildClientDocumentPdf` (pdf-lib): 1ª página "Ficha cadastral" digitada (logo, proponente principal = o mais velho via `coverFacts` em `lib/document-cover-facts.mjs`, endereço, cônjuge/2º proponente, renda por extratos) — não há mais tabela de conferência — seguida do PDF nativo mesclado (não foto de cada arquivo). WEBP/HEIC/HEIF não são suportados nativamente pelo pdf-lib — ficam de fora da mesclagem e aparecem em `skipped` para download manual (decisão deliberada, não adicione uma dependência nativa de conversão sem avaliar o risco de build na Vercel). Hoje só o **nome** é obrigatório antes de gerar o PDF ou enviar à CCA (`assertClientReadyForPdf`; o comentário em `submitToCca` que fala em e-mail/PIS está desatualizado) — sem ele, lança erro com `.code === "MISSING_CLIENT_FIELDS"` para a UI pedir os campos, nunca trava sem explicação.
 
 Envio à CCA muda o status do cliente para `APPROVAL_PENDING` automaticamente — regra de negócio explícita do pedido original, não remova sem confirmar.
 

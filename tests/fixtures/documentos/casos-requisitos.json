@@ -1,0 +1,138 @@
+{
+  "_sobre": "Casos SINTÉTICOS de regressão do motor de requisitos documentais (lib/document-requirements-engine.js). Nenhum dado real de cliente: nomes fictícios, sem CPF/telefone. Cada caso diz o cadastro, o que a IA já classificou e o que o motor DEVE (esperado) e NÃO DEVE (proibido) exigir, no formato papel:tipo:status. Como adicionar um caso: skill /testar-regra-documental.",
+  "regrasAtivasPadrao": ["residence_income_ownership", "residence_source", "marriage_spouse", "fgts_updated", "bank_income", "ctps_format"],
+  "casos": [
+    {
+      "nome": "CLT completo — nada pendente",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment" },
+      "classificados": [
+        { "personRole": "titular", "documentType": "rg", "status": "conforme" },
+        { "personRole": "titular", "documentType": "certidao_nascimento", "status": "conforme" },
+        { "personRole": "titular", "documentType": "holerite", "status": "conforme" },
+        { "personRole": "titular", "documentType": "holerite", "status": "conforme" },
+        { "personRole": "titular", "documentType": "ctps", "status": "conforme", "extractedData": { "pis": "SINTETICO" } },
+        { "personRole": "titular", "documentType": "fgts", "status": "conforme" },
+        { "personRole": "titular", "documentType": "comprovante_residencia", "status": "conforme" }
+      ],
+      "esperado": [],
+      "exatamente": true
+    },
+    {
+      "nome": "CLT faltando 1 holerite",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment" },
+      "classificados": [
+        { "personRole": "titular", "documentType": "cnh", "status": "conforme" },
+        { "personRole": "titular", "documentType": "certidao_nascimento", "status": "conforme" },
+        { "personRole": "titular", "documentType": "holerite", "status": "conforme" },
+        { "personRole": "titular", "documentType": "ctps", "status": "conforme", "extractedData": { "pis": "SINTETICO" } },
+        { "personRole": "titular", "documentType": "fgts", "status": "conforme" },
+        { "personRole": "titular", "documentType": "comprovante_residencia", "status": "conforme" }
+      ],
+      "esperado": ["titular:holerite:pendencia"],
+      "exatamente": true
+    },
+    {
+      "nome": "CNH sozinha satisfaz identificação (RG+CPF não é exigido junto)",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment", "pis": "SINTETICO" },
+      "classificados": [{ "personRole": "titular", "documentType": "cnh", "status": "conforme" }],
+      "proibido": ["titular:rg", "titular:cpf"]
+    },
+    {
+      "nome": "Renda informal por 3 faturas — fatura serve de comprovante quando não há conta de consumo",
+      "cadastro": { "fullName": "Bruno Teste Sintético", "primaryMaritalStatus": "single", "primaryIncomeType": "self_employed_unregistered", "pis": "SINTETICO" },
+      "classificados": [
+        { "personRole": "titular", "documentType": "rg", "status": "conforme" },
+        { "personRole": "titular", "documentType": "certidao_nascimento", "status": "conforme" },
+        { "personRole": "titular", "documentType": "fatura_cartao", "status": "conforme" },
+        { "personRole": "titular", "documentType": "fatura_cartao", "status": "conforme" },
+        { "personRole": "titular", "documentType": "fatura_cartao", "status": "conforme" }
+      ],
+      "proibido": ["titular:comprovante_residencia", "titular:extrato_bancario", "titular:holerite", "titular:ctps"]
+    },
+    {
+      "nome": "Renda informal com 2 de 3 extratos",
+      "cadastro": { "fullName": "Bruno Teste Sintético", "primaryMaritalStatus": "single", "primaryIncomeType": "self_employed_unregistered" },
+      "classificados": [
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" },
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" }
+      ],
+      "esperado": ["titular:extrato_bancario:pendencia"],
+      "proibido": ["titular:holerite", "titular:declaracao_ir"]
+    },
+    {
+      "nome": "Documento ilegível conta como apresentado (vira ilegível na classificação, não ausente)",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment" },
+      "classificados": [{ "personRole": "titular", "documentType": "rg", "status": "ilegivel" }],
+      "proibido": ["titular:rg"]
+    },
+    {
+      "nome": "Casado com certidão sem averbação — exige documentos do cônjuge, sem nova certidão nem novo comprovante",
+      "cadastro": { "fullName": "Carlos Teste Sintético", "primaryMaritalStatus": "married", "primaryIncomeType": "registered_employment" },
+      "classificados": [{ "personRole": "titular", "documentType": "certidao_casamento", "status": "conforme", "extractedData": { "divorceAnnotation": false } }],
+      "esperado": ["conjuge:rg:ausente"],
+      "proibido": ["conjuge:certidao_casamento", "conjuge:comprovante_residencia"]
+    },
+    {
+      "nome": "Solteiro — nenhuma exigência de cônjuge",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment" },
+      "classificados": [],
+      "esperado": ["titular:certidao_nascimento:ausente"],
+      "proibido": ["conjuge:rg", "conjuge:holerite", "conjuge:fgts", "titular:certidao_casamento"]
+    },
+    {
+      "nome": "Divórcio averbado — cônjuge não se aplica",
+      "cadastro": { "fullName": "Carlos Teste Sintético", "primaryMaritalStatus": "married", "primaryIncomeType": "registered_employment" },
+      "classificados": [{ "personRole": "titular", "documentType": "certidao_casamento", "status": "conforme", "extractedData": { "divorceAnnotation": true } }],
+      "proibido": ["conjuge:rg", "conjuge:holerite", "conjuge:fgts", "conjuge:pis"]
+    },
+    {
+      "nome": "Financiamento com segunda pessoa (cadastro conjunto) — exige documentos do segundo proponente",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment", "simulationType": "joint", "secondaryMaritalStatus": "single", "secondaryIncomeType": "self_employed_unregistered" },
+      "classificados": [],
+      "esperado": ["outro:rg:ausente", "outro:extrato_bancario:ausente"],
+      "proibido": ["conjuge:rg"]
+    },
+    {
+      "nome": "Dependente menor informado no cadastro — exige certidão de nascimento do dependente",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment", "hasChildrenUnder18": true },
+      "classificados": [],
+      "esperado": ["dependente:certidao_nascimento:ausente"]
+    },
+    {
+      "nome": "Sem filho menor no cadastro — não inventa certidão de dependente",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment", "hasChildrenUnder18": false },
+      "classificados": [],
+      "proibido": ["dependente:certidao_nascimento"]
+    },
+    {
+      "nome": "IR aplicável — declaração sem recibo",
+      "cadastro": { "fullName": "Diana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "income_tax_declarant" },
+      "classificados": [{ "personRole": "titular", "documentType": "declaracao_ir", "status": "conforme" }],
+      "esperado": ["titular:recibo_entrega_ir:pendencia"],
+      "proibido": ["titular:holerite", "titular:extrato_bancario"]
+    },
+    {
+      "nome": "IR não é exigido de quem é CLT",
+      "cadastro": { "fullName": "Ana Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "registered_employment" },
+      "classificados": [],
+      "proibido": ["titular:declaracao_ir", "titular:recibo_entrega_ir"]
+    },
+    {
+      "nome": "Renda/estado civil desconhecidos — nenhuma exigência inventada",
+      "cadastro": { "fullName": "Eva Teste Sintética" },
+      "classificados": [],
+      "proibido": ["titular:holerite", "titular:extrato_bancario", "titular:declaracao_ir", "titular:certidao_nascimento", "titular:certidao_casamento", "titular:ctps", "conjuge:rg"]
+    },
+    {
+      "nome": "Vários arquivos do mesmo tipo (múltiplos PDFs/imagens) contam juntos",
+      "cadastro": { "fullName": "Bruno Teste Sintético", "primaryMaritalStatus": "single", "primaryIncomeType": "self_employed_unregistered", "pis": "SINTETICO" },
+      "classificados": [
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" },
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" },
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" },
+        { "personRole": "titular", "documentType": "extrato_bancario", "status": "conforme" }
+      ],
+      "proibido": ["titular:extrato_bancario"]
+    }
+  ]
+}

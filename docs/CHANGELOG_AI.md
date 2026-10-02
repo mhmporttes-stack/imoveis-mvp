@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Agente `analista-documental` + skills e regressão sintética da análise documental
+- **Data:** 2026-10-02
+- **Área:** Documentação/CCA · Docs/agentes (nenhuma mudança de comportamento em produção)
+- **Alteração:** novo subagente `analista-documental` (entende, audita e testa o fluxo documental existente — não o recria) com skills `/analisar-documentacao` (13 passos, script local `inspecionar-arquivos.mjs`), `/auditar-analise-documental` e `/testar-regra-documental`; referência sob demanda em `.claude/analista-documental/` (ARQUITETURA com arquivo:linha e REGRAS-DOCUMENTAIS com matriz regra do dono × Base Mestra × código × falta). Regressão sintética `tests/document-regression.test.mjs` + `tests/fixtures/documentos/casos-requisitos.json` (27 casos passam; 4 lacunas como `todo`). `documentacao-cca.md`: bloco das regras do dono (ponteiro para a matriz) e correção de fatos desatualizados do PDF (não há tabela de conferência; só o nome é obrigatório).
+- **Motivo:** pedido do dono (agente especialista em análise documental com as regras Caixa/MCMV dele).
+- **Arquivos afetados:** `.claude/agents/analista-documental.md`, `.claude/analista-documental/*`, `.claude/skills/{analisar-documentacao,auditar-analise-documental,testar-regra-documental}/**`, `tests/document-regression.test.mjs`, `tests/fixtures/documentos/casos-requisitos.json`, `.claude/rules/documentacao-cca.md`, `AGENTS.md`, `CLAUDE.md`.
+- **Risco/observação:** (1) o motor de IA da análise documental é **Anthropic** (`claude-sonnet-5`), não OpenAI como o pedido supunha — nada foi trocado; mudança de provedor é decisão do dono. (2) **Não corrigido, aguarda aprovação:** tabelas `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions` e `ai_usage_log` com RLS desligado e SELECT para `anon`/`authenticated` (dados pessoais legíveis com a anon key pública); `cca` com grant de select para anon. (3) Lacunas regra × código: validade do comprovante (mês atual/anterior), CPF cruzado determinístico, comprovante no motor sem filtro de papel/validade, reescaneado como duplicado, `ctps_format` sem efeito, `fgts_updated` exigindo FGTS de não-CLT (a validar).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Financeiro: previsão de recebimento da comissão + atividade "Confirmar recebimento" na Agenda
 - **Data:** 2026-10-02
 - **Área:** Financeiro / Agenda / Banco
