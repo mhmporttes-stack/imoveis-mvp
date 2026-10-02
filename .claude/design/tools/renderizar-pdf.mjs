@@ -72,7 +72,34 @@ for (const key of ["Path2D", "DOMMatrix", "ImageData"]) if (canvasLib[key]) glob
 const pdfjs = await import(pathToFileURL(pdfjsPath).href);
 
 const data = new Uint8Array(readFileSync(input));
-const doc = await pdfjs.getDocument({ data, useSystemFonts: true, isEvalSupported: false, verbosity: 0 }).promise;
+// Fábrica de canvas própria: sem ela o pdfjs carrega OUTRA cópia do módulo nativo e desenhar imagens
+// (ex.: a logo PNG com transparência) derruba o processo (segfault). Mesma cópia para tudo = estável.
+class CanvasFactory {
+  create(width, height) {
+    const canvas = createCanvas(width, height);
+    return { canvas, context: canvas.getContext("2d") };
+  }
+  reset(pair, width, height) {
+    pair.canvas.width = width;
+    pair.canvas.height = height;
+  }
+  destroy(pair) {
+    pair.canvas.width = 0;
+    pair.canvas.height = 0;
+    pair.canvas = null;
+    pair.context = null;
+  }
+}
+// Fontes padrão do PDF (Helvetica etc.) renderizadas com as métricas Liberation Sans/Foxit do próprio pdfjs,
+// para o Visual QA enxergar sans-serif como o leitor de PDF do cliente (sem isso cai numa serifa do sistema).
+const fontsDir = path.join(path.dirname(path.dirname(path.dirname(pdfjsPath))), "standard_fonts") + path.sep;
+// O canvas nativo não acha "sans-serif" por conta própria e cai numa serifa: registre a Liberation Sans (métrica da Helvetica).
+if (canvasLib.GlobalFonts) {
+  for (const file of ["LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf", "LiberationSans-Italic.ttf", "LiberationSans-BoldItalic.ttf"]) {
+    try { canvasLib.GlobalFonts.registerFromPath(path.join(fontsDir, file), "sans-serif"); } catch {}
+  }
+}
+const doc = await pdfjs.getDocument({ data, useSystemFonts: false, standardFontDataUrl: pathToFileURL(fontsDir).href, isEvalSupported: false, verbosity: 0, CanvasFactory }).promise;
 mkdirSync(outDir, { recursive: true });
 const base = path.basename(input).replace(/\.pdf$/i, "");
 

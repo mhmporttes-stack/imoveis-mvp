@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — PDF "Proposta de Valores" redesenhado (v2) — NA BRANCH `design/proposta-valores-v2`, aguardando avaliação do dono
+- **Data:** 2026-10-02
+- **Área:** Clientes / Apresentação ao cliente (PDF) — primeira missão do Diretor de Design
+- **Alteração:** `lib/simulacao-entrada/proposta-pdf.mjs` redesenhado só em apresentação: página 1 conta a proposta em 10 s (palco marinho com o **ato inicial** em destaque, trio Imóvel · Financiamento · Entrada total, "Suas parcelas", descontos e benefícios, vantagens, próximo passo); página 2 reúne cada valor por assunto e as vantagens do empreendimento (continuam em páginas seguintes se forem muitas). Sem cartões; paleta e logo medidos na marca (`#031D3A`/`#3673C2`); nenhum texto cortado (descrições longas quebram linha); documentação gratuita aparece como "benefício adicional". Mesmo contrato do gerador (`{bytes, boxes, texts, pageCount, page}`, agora com `size` em `texts`) e mesma rota. `.claude/design/tools/renderizar-pdf.mjs`: corrigido segfault ao renderizar PDF com imagem (fábrica de canvas própria) e fontes sans-serif fiéis no Visual QA.
+- **Motivo:** pedido do dono (hierarquia, valorização de benefícios, ato inicial e parcelamento em destaque).
+- **Arquivos afetados:** `lib/simulacao-entrada/proposta-pdf.mjs`, `tests/proposta-valores.test.mjs` (+7 testes do novo contrato visual; os 17 anteriores passam sem alteração), `.claude/design/tools/renderizar-pdf.mjs`.
+- **Risco/observação:** NENHUM cálculo, regra, dado ou rota alterado — o gerador só desenha o `buildPresentationModel`. Processo: análise do PDF renderizado → 3 direções → implementação → render real (4 cenários fictícios) → `design-critic` independente (2 rodadas) → correções. **Pendências para o dono (não resolvidas por serem decisão/dado):** (1) a regra de 5% da "Documentação gratuita" (`DOCUMENTACAO_GRATUITA_PERCENTUAL`) está "PENDENTE DE VALIDAÇÃO" e entra no total de descontos exibido, que não "fecha" com a entrada (a documentação não abate a entrada no motor); (2) rótulo "Financiamento aprovado" × ressalva de análise de crédito; (3) próximo passo sem canal: o gerador não recebe telefone/WhatsApp/CRECI do corretor; (4) fonte própria exigiria `@pdf-lib/fontkit`. Não publicado em produção (branch).
+- **Autor:** Claude Code (designer-crm / Diretor de Design)
+
 ### 2026-10-02 — Testes estruturais tolerantes a CRLF (despachante.test.mjs)
 - **Data:** 2026-10-02
 - **Área:** Infra / Testes
