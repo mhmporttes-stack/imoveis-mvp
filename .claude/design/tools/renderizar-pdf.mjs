@@ -1,0 +1,93 @@
+// Renderiza TODAS as páginas de um PDF em PNG para revisão visual (Visual QA de PDF).
+// Não altera o PDF, não envia nada para fora, não adiciona dependência ao projeto.
+//
+// Uso:
+//   node .claude/design/tools/renderizar-pdf.mjs <arquivo.pdf> [--saida scratch/pdf] [--escala 1.5]
+//
+// Saída: <saida>/<nome>-p01.png, -p02.png … e uma linha por página com o tamanho.
+// Abra os PNG com a ferramenta Read para ver a composição real (não leia só o código do gerador).
+//
+// Requer: `pdfjs-dist` (já é dependência do projeto) e `@napi-rs/canvas`
+// (NÃO está no package.json; instale fora do projeto — ex.: `npm i -g @napi-rs/canvas` —
+// ou aponte NODE_PATH para uma pasta node_modules que o contenha).
+// Dado de cliente: use PDF gerado com dados fictícios; apague scratch/ ao terminar.
+
+import { createRequire } from "node:module";
+import { execSync } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const require = createRequire(path.join(process.cwd(), "noop.js"));
+
+function resolveFrom(name, extra = []) {
+  const bases = [process.cwd(), ...String(process.env.NODE_PATH || "").split(path.delimiter).filter(Boolean), ...extra];
+  for (const base of bases) {
+    try {
+      return require.resolve(name, { paths: [base, path.join(base, "node_modules")] });
+    } catch {}
+  }
+  return null;
+}
+
+function globalRoot() {
+  try {
+    return execSync("npm root -g", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+}
+
+function arg(name, fallback) {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index === -1) return fallback;
+  const value = process.argv[index + 1];
+  return value && !value.startsWith("--") ? value : fallback;
+}
+
+const input = process.argv[2];
+if (!input || input.startsWith("--")) {
+  console.error("Uso: node .claude/design/tools/renderizar-pdf.mjs <arquivo.pdf> [--saida scratch/pdf] [--escala 1.5]");
+  process.exit(1);
+}
+const outDir = arg("saida", "scratch/pdf");
+const scale = Number(arg("escala", "1.5")) || 1.5;
+
+const extra = globalRoot() ? [globalRoot()] : [];
+const pdfjsPath = resolveFrom("pdfjs-dist/legacy/build/pdf.mjs", extra);
+const canvasPath = resolveFrom("@napi-rs/canvas", extra);
+if (!pdfjsPath) {
+  console.error("pdfjs-dist não encontrado (rode `pnpm install` no projeto).");
+  process.exit(1);
+}
+if (!canvasPath) {
+  console.error("@napi-rs/canvas não encontrado. Instale-o FORA do projeto (npm i -g @napi-rs/canvas) ou aponte NODE_PATH; não adicione ao package.json sem aprovação do dono.");
+  process.exit(1);
+}
+
+const canvasLib = require(canvasPath);
+const { createCanvas } = canvasLib;
+// O pdfjs precisa que Path2D/DOMMatrix/ImageData venham da MESMA cópia do canvas usada para desenhar.
+for (const key of ["Path2D", "DOMMatrix", "ImageData"]) if (canvasLib[key]) globalThis[key] = canvasLib[key];
+const pdfjs = await import(pathToFileURL(pdfjsPath).href);
+
+const data = new Uint8Array(readFileSync(input));
+const doc = await pdfjs.getDocument({ data, useSystemFonts: true, isEvalSupported: false, verbosity: 0 }).promise;
+mkdirSync(outDir, { recursive: true });
+const base = path.basename(input).replace(/\.pdf$/i, "");
+
+for (let n = 1; n <= doc.numPages; n += 1) {
+  const page = await doc.getPage(n);
+  const viewport = page.getViewport({ scale });
+  const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: context, viewport, canvas }).promise;
+  const file = path.join(outDir, `${base}-p${String(n).padStart(2, "0")}.png`);
+  writeFileSync(file, canvas.toBuffer("image/png"));
+  const pt = page.getViewport({ scale: 1 });
+  console.log(`${file}  ${Math.round(pt.width)}x${Math.round(pt.height)} pt  (${canvas.width}x${canvas.height}px)`);
+  page.cleanup();
+}
+console.log(`${doc.numPages} página(s) renderizada(s). Apague ${outDir}/ ao terminar.`);

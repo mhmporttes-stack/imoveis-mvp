@@ -95,7 +95,7 @@ Regras que só existem aqui:
 - `gestor-trafego` (Meta, **nunca altera** campanha/orçamento, só recomenda) e `gestor-financeiro` (somente leitura; definições em `docs/FINANCEIRO_SAUDE.md`). Atribuição de anúncio/CPL é do `gestor-trafego`.
 - `analista-dados`/qualquer cálculo de funil, conversão ou tempo: definição canônica `docs/METRICAS_FUNIL.md` (SQL em `docs/analytics/`).
 - `analista-documental` **nunca inventa exigência** nem cria regra documental sem o dono; regressão sintética: `tests/document-regression.test.mjs`.
-- `designer-crm` altera **só interface** (azul/branco + logo; funcionalidade e regras preservadas); revisão visual sem login em `app/dev/vitrine` (só `next dev`).
+- `designer-crm` = **Diretor de Design**: UX/UI, PDF/material comercial, direção de arte, imagem/foto, design system; altera **só apresentação** (âncoras: logo + paleta; fatos, funcionalidade e regras preservados). Conhecimento modular em `.claude/design/` (índice `README.md`; carregue só os módulos da tarefa); crítica independente pelo subagente `design-critic`; revisão visual sem login em `app/dev/vitrine` (só `next dev`), PDF via `.claude/design/tools/renderizar-pdf.mjs`.
 - `marketing-posicionamento`: orgânico; nunca publica/responde/envia em nome do dono sem "sim" por ação; memória em `docs/posicionamento/`.
 - `auditor-crm`/`/pre-mortem`: somente leitura, severidade P0-P3 com evidência; ledger de riscos em `docs/SYSTEM_ARCHITECTURE.md` §13.
 - `performance-pc`: PC do dono, fora do CRM; memória fora do repo.

@@ -1,6 +1,6 @@
 # Sistema visual do CRM (memória do design)
 
-Fonte de verdade das decisões visuais. Status de cada item: **[ADOTADO]** = vale e está no código · **[PROPOSTO]** = direção aprovada para a estrutura, entra no código no primeiro redesenho que o usar (aí vira ADOTADO e vai para a tabela de decisões) · **[OBRIGATÓRIO]** = identidade definida pelo dono. O que está ADOTADO/OBRIGATÓRIO aqui é decisão, não defeito — não "corrija" em revisão.
+Fonte de verdade das decisões visuais. Status de cada item: **[ADOTADO]** = vale e está no código · **[PROPOSTO]** = direção aprovada para a estrutura, entra no código no primeiro redesenho que o usar (aí vira ADOTADO e vai para a tabela de decisões) · **[OBRIGATÓRIO]** = identidade definida pelo dono. O que está ADOTADO/OBRIGATÓRIO aqui é decisão vigente, não defeito — não "corrija" por reflexo em revisão. **Vigente não é imutável (2026-10-02):** só a identidade (logo + paleta, `.claude/design/DESIGN.md` §1) é âncora; o resto pode ser revisto com justificativa e registro na tabela §6. Este arquivo é o **registro de implementação** do painel (tokens, componentes, decisões); a intenção de marca e o porquê ficam em `.claude/design/DESIGN.md`, e um padrão não vira "padrão de design" só por aparecer muitas vezes.
 
 ## 1. Identidade e direção
 
