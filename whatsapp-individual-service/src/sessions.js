@@ -5,6 +5,7 @@ import { useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds } from "./db.js";
 import { notifyHistoryBatch, notifyMessage, notifyMessageStatus, notifyStatus } from "./webhook.js";
 import { extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
+import { normalizePairingNumber } from "./pairing-number.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -115,6 +116,8 @@ export async function connectSession(userId, { phoneNumber } = {}) {
 
 async function startSocket(userId, entry, { phoneNumber } = {}) {
   entry.status = "connecting";
+  entry.pairingMode = false;
+  entry.pairingError = null;
   entry.qr = null;
   entry.pairingCode = null;
 
@@ -157,14 +160,34 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
   // onConnectionUpdate ignora um evento de QR que chegue depois (guarda
   // entry.pairingCode) pra não sobrescrever o código pelo QR à toa.
   if (phoneNumber && !state.creds.registered) {
+    // Modo código: o QR que o Baileys emitir é suprimido (ver
+    // onConnectionUpdate) e o código só é pedido DEPOIS que o socket abriu a
+    // conexão com o WhatsApp (1º evento de QR) — pedir antes falhava. Número
+    // sempre no formato internacional (55 + DDD + número).
+    entry.pairingMode = true;
+    const digits = normalizePairingNumber(phoneNumber);
     try {
-      const digits = String(phoneNumber).replace(/\D/g, "");
+      if (!digits) throw new Error("Número inválido — informe o celular com DDD (ex.: 14 99999-0000).");
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 10000);
+        const onReady = (update) => {
+          if (update.qr || update.connection === "connecting") {
+            clearTimeout(timer);
+            sock.ev.off("connection.update", onReady);
+            resolve();
+          }
+        };
+        sock.ev.on("connection.update", onReady);
+      });
       const code = await sock.requestPairingCode(digits);
       entry.pairingCode = code;
       entry.status = "pairing_code_required";
       await notifyStatus(userId, { status: "pairing_code_required", pairingCode: code });
     } catch (error) {
       console.error(`[${userId}] Falha ao pedir código de pareamento:`, error.message);
+      entry.pairingMode = false;
+      entry.pairingError = String(error.message || "Falha ao gerar o código.").slice(0, 200);
+      await notifyStatus(userId, { status: entry.status || "connecting", error: `pairing_failed: ${entry.pairingError}` });
     }
   }
 
@@ -178,9 +201,9 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
     const finish = () => {
       if (settled) return;
       settled = true;
-      resolve({ status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode });
+      resolve({ status: entry.status, qr: entry.pairingMode ? null : entry.qr, pairingCode: entry.pairingCode, pairingError: entry.pairingError || null });
     };
-    if (entry.pairingCode) { finish(); return; }
+    if (entry.pairingCode || entry.pairingError) { finish(); return; }
     const onUpdate = (update) => {
       if (update.qr || update.connection === "open" || update.connection === "close") finish();
     };
@@ -196,7 +219,7 @@ async function onConnectionUpdate(userId, entry, update) {
     // Sessão em modo pareamento por código já tem o código gerado — um QR
     // que chegue depois (Baileys às vezes ainda emite, mesmo pedindo o
     // código antes) é ignorado, nunca substitui o código na tela.
-    if (entry.pairingCode) return;
+    if (entry.pairingCode || entry.pairingMode) return;
     try {
       const qrDataUrl = await QRCode.toDataURL(qr);
       entry.status = "qr_required";
@@ -212,6 +235,8 @@ async function onConnectionUpdate(userId, entry, update) {
     entry.status = "connected";
     entry.qr = null;
     entry.pairingCode = null;
+    entry.pairingMode = false;
+    entry.pairingError = null;
     const phoneNumber = String(entry.sock?.user?.id || "").split(":")[0] || "";
     await notifyStatus(userId, { status: "connected", phoneNumber, qr: null });
     return;

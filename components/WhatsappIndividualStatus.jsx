@@ -89,6 +89,11 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível conectar.");
+      // Pediu código e o WhatsApp não devolveu: mostra o motivo em vez de
+      // ficar sem nada na tela (achado real, 2026-10-02).
+      if (phoneNumber && !data.pairingCode) {
+        throw new Error(data.pairingError ? `O WhatsApp não gerou o código: ${data.pairingError}` : "O WhatsApp não gerou o código. Confira o número (com DDD) e tente de novo em alguns segundos.");
+      }
       setStatus((current) => ({ ...current, status: data.status, qr: data.qr || current?.qr || "", pairingCode: data.pairingCode || "" }));
       await loadStatus();
     } catch (connectError) {

@@ -49,3 +49,14 @@ test("sem texto (figurinha, áudio) continua ignorado; legenda de foto conta", (
   const item = extractTextMessage({ key: { remoteJid: "5514999990001@s.whatsapp.net", id: "y" }, message: { imageMessage: { caption: "olha essa" } }, messageTimestamp: 1790000000 });
   assert.equal(item.text, "olha essa");
 });
+
+import { normalizePairingNumber } from "../whatsapp-individual-service/src/pairing-number.js";
+
+test("pareamento por código: número com DDD ganha o 55; formato internacional é mantido", () => {
+  assert.equal(normalizePairingNumber("14 99999-0001"), "5514999990001");
+  assert.equal(normalizePairingNumber("(14) 9999-0001"), "551499990001");
+  assert.equal(normalizePairingNumber("+55 14 99999-0001"), "5514999990001");
+  assert.equal(normalizePairingNumber("5514999990001"), "5514999990001");
+  assert.equal(normalizePairingNumber("014999990001"), "5514999990001");
+  assert.equal(normalizePairingNumber("12345"), "");
+});
