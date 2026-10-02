@@ -23,7 +23,7 @@ const sunday10h = new Date("2026-10-04T13:00:00Z");
 test("padrão da rotina de chegada: desligada, 3 min, seg-sex", () => {
   const routine = getDefaultAlexaSettings().routines.arrival;
   assert.equal(routine.enabled, false);
-  assert.equal(routine.delayMinutes, 3);
+  assert.equal(routine.delayMinutes, 2);
   assert.deepEqual(routine.allowedWeekdays, [1, 2, 3, 4, 5]);
 });
 
