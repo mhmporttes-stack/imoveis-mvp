@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Chat: conversa da Lorgna Zapata separada por sessão + clique do botão WhatsApp com resposta imediata
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Clientes / Banco
+- **Alteração:** (1) Conversa `39647f9f…` (criada pelo código antigo com chave de número oficial): as 2 mensagens recebidas pela sessão da ketlin (canal `whatsapp_individual`, `session_user_id` = ketlin, `remote_jid` @lid, 11:21 UTC) foram para a conversa (telefone + sessão ketlin), sem atribuição (igual à original); o envio das 12:22 UTC (canal `whatsapp_cloud_api`, sem sessão, `failed`, feito pelo Chat antes do deploy do código novo) ficou na conversa do número oficial. O alerta "sem resposta" (`whatsapp_reply_alerts`) acompanhou as mensagens recebidas. Backup em `p_backup_20261002_lorgna_split` e log em `whatsapp_conversation_split_log` (`reason = session_split_lorgna_20261002`). (2) Botão "WhatsApp" do card: o registro do contato passou a rodar em paralelo (`keepalive`) e a navegação em transição com o card ocupado.
+- **Motivo:** pendências do pedido do dono sobre o isolamento por sessão e o "primeiro clique parado". Causa do 1º clique: nos testes o navegador automatizado estava em aba oculta (`visibilityState = hidden`), então o 1º clique só trazia a aba ao foco (nenhum evento `click` chegava à página); no uso real o que existia era latência sem aviso (~2 s do registro do contato + ~0,5 s da navegação, em série).
+- **Arquivos afetados:** `supabase/migrations/20261002310000_whatsapp_lorgna_conversation_session_split.sql` (já aplicada), `components/clients/useClientList.js`, `tests/client-card-whatsapp-chat.test.mjs`, `docs/BUSINESS_RULES.md` (WA-13)
+- **Risco/observação:** falha ao registrar o contato não bloqueia mais a abertura do Chat (best-effort). Reverter a separação: mover as 2 mensagens de volta pelo log. Não rodei `node --test` (sem Node no ambiente).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — P-01 Etapa 2b: #C3846 separado em três contatos (dados)
 - **Data:** 2026-10-02
 - **Área:** Dados · Meta Diária / Prospecção

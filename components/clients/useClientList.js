@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
@@ -38,6 +38,8 @@ export function useClientList({
   const [loadError, setLoadError] = useState("");
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [busyClientId, setBusyClientId] = useState("");
+  const [openingChatClientId, setOpeningChatClientId] = useState("");
+  const [chatNavPending, startChatNavigation] = useTransition();
   const [dncTarget, setDncTarget] = useState(null);
   const [receivedDateTarget, setReceivedDateTarget] = useState(null);
 
@@ -566,7 +568,7 @@ export function useClientList({
     notify("Tag excluída.");
   }
 
-  async function openWhatsApp(client) {
+  function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
     if (!toWhatsAppDigits(value)) {
       notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
@@ -576,17 +578,17 @@ export function useClientList({
     // do CRM (nada de WhatsApp Web/app externo). O Chat localiza a conversa vinculada
     // (ou a do mesmo telefone), cria uma só se não houver nenhuma e já a deixa
     // selecionada — sem mudar atendente/responsável (POST /whatsapp-chat/open-client).
-    // O clique continua registrando o contato, como antes.
-    try {
-      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/whatsapp-contact`, { method: "POST" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível registrar o contato.");
-      patchClientRegistration(client.id, data, { refreshAfter: filters.staleContactOnly || filters.pendingOnly });
-    } catch (error) {
-      notify(error.message || "Não foi possível registrar o contato via WhatsApp.", "danger");
-      return;
-    }
-    router.push(`/admin/chat?client=${encodeURIComponent(client.registration.id)}`);
+    // O clique continua registrando o contato, como antes — mas em PARALELO
+    // (keepalive sobrevive à troca de página): antes a navegação esperava essa
+    // chamada (~2 s) sem nenhum aviso na tela e o clique parecia não ter feito
+    // nada. A navegação roda em transição e o card fica "ocupado" até a página
+    // do Chat chegar (retorno visual imediato, sem permitir clique repetido).
+    const registrationId = client.registration.id;
+    fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true }).catch(() => {});
+    setOpeningChatClientId(client.id);
+    startChatNavigation(() => {
+      router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
+    });
   }
 
   async function copyBrokerSimulationLink() {
@@ -601,7 +603,7 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId, dncTarget, receivedDateTarget, responsibleProfiles, responsibleProfileMap,
+    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), dncTarget, receivedDateTarget, responsibleProfiles, responsibleProfileMap,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações

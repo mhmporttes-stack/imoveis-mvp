@@ -20,10 +20,24 @@ function functionBody(code, signature) {
 }
 
 test("botão WhatsApp do card navega para o Chat focado no cliente (sem WhatsApp externo)", () => {
-  const body = functionBody(source("components/clients/useClientList.js"), "async function openWhatsApp(client)");
-  assert.match(body, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(client\.registration\.id\)\}`\)/);
+  const hook = source("components/clients/useClientList.js");
+  const body = functionBody(hook, "function openWhatsApp(client)");
+  assert.match(body, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}`\)/);
+  assert.match(body, /const registrationId = client\.registration\.id;/);
   assert.doesNotMatch(body, /window\.open|window\.location|buildWhatsAppUrl|wa\.me|api\.whatsapp\.com|web\.whatsapp/);
   assert.match(body, /toWhatsAppDigits\(value\)/, "telefone inválido continua barrado antes de sair da lista");
+});
+
+// 1º clique "parado" (2026-10-02): a navegação esperava o registro do contato (~2 s) sem nenhum aviso
+// na tela, então o clique parecia não ter feito nada. Registro em paralelo + transição com card ocupado.
+test("clique no botão WhatsApp responde na hora: sem espera antes de navegar e com card ocupado", () => {
+  const hook = source("components/clients/useClientList.js");
+  const body = functionBody(hook, "function openWhatsApp(client)");
+  assert.doesNotMatch(body, /\bawait\b/, "nenhuma espera antes de navegar");
+  assert.match(body, /whatsapp-contact`, \{ method: "POST", keepalive: true \}/);
+  assert.match(body, /startChatNavigation\(\(\) => \{\s*router\.push/);
+  assert.match(hook, /busyClientId: busyClientId \|\| \(chatNavPending \? openingChatClientId : ""\)/);
+  assert.match(source("components/clients/ClientCard.jsx"), /onClick=\{\(\) => list\.openWhatsApp\(client\)\} disabled=\{busy\}/, "botão desabilitado enquanto abre (sem clique repetido)");
 });
 
 test("o Chat recebe ?client= e abre a conversa (mobile e desktop usam a mesma página)", () => {
