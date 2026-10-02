@@ -51,6 +51,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/daily-goal.js`, `lib/daily-goal-auto.js`, `lib/team-meta-scope-core.mjs`, `lib/whatsapp-individual.js`, `lib/whatsapp-connection-alert.js`, `lib/whatsapp-connection-alert-core.mjs`, `app/admin/meta-diaria/page.jsx`, `app/api/daily-goal/team-overview/**`, `components/TeamDailyPerformance.jsx`, vitrine (`app/dev/vitrine/**`), migration `20261003200000_whatsapp_connection_alert_definition.sql` (aditiva: 1 INSERT ... ON CONFLICT DO NOTHING), testes `tests/team-meta-scope.test.mjs` e `tests/whatsapp-connection-alert.test.mjs`; regra em `docs/BUSINESS_RULES.md` MD-11 e `.claude/rules/meta-diaria-ranking.md`.
 - **Risco/observação:** Cálculo da Meta, compensação, Prospecção, Ranking, T-28/T-29 e T-33 intocados. Gestora deixa de ver o próprio painel de meta (como o admin, vê só a equipe) — A CONFIRMAR se ela também precisa da própria meta. Corretor sem gestora (manager_id vazio) não gera alerta. Desconexão voluntária (corretor clica Desconectar) também alerta. Detecção depende de o microsserviço chamar o webhook de status (único caminho de escrita). Teste de `despachante` (frontmatter) já falhava antes desta tarefa.
 - **Autor:** Claude (crm-editor, T-20261002-35)
+### 2026-10-02 — Meta Diária: carteira 100 → 50 e novos contatos 20 → 10 (T-20261002-38)
+
+- **Antes → depois:** teto da carteira ativa 100 → 50 (`daily_goal_wallet_config.wallet_limit`); cota diária de 1º contato 20 → 10 (`daily_goal_quota_versions`, versão nova). Padrão de código `?? 100` → `DEFAULT_WALLET_LIMIT` (50) em `lib/daily-goal-wallet.js`.
+- **Quem está acima de 50:** mantém todos (nada removido) e não recebe novos até ficar abaixo de 50; a RPC `daily_goal_reserve_wallet_slots` já devolvia `greatest(limite - atual, 0)`, sem mudança de lógica. Antes da mudança, 6 corretores estavam acima do novo teto (83, 72, 60, 57, 56, 52).
+- **Não mudou:** `HARD_DAILY_CAP` 100, fila extra, PRO-14, pontuação/ranking, 100% da Meta, `daily_goals` já gravados. Migration aditiva `20261003220000_meta_diaria_limites_50_10.sql` (idempotente: só altera se o valor ainda for 100/20). Testes: `tests/daily-goal-limites-50-10.test.mjs`. Regra: `docs/BUSINESS_RULES.md` MD-12.
 
 ### 2026-10-02 — Meta Diária: tela mostra a compensação por restrição validada (só interface)
 - **Data:** 2026-10-02
