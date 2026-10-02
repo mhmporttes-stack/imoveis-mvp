@@ -1681,3 +1681,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/central/*`, `app/api/central/**`, `scripts/central-bridge/**`, `tests/central-bridge.test.mjs`, `docs/PERMISSIONS.md` §6. `proxy.js` não mudou (já não exige cookie em /api e aplica no-store).
 - **Risco/observação:** política da Anthropic sobre gatilho externo segue aberta; só consulta/eco executam; escrita fica em AGUARDANDO_DECISAO.
 - **Autor:** Claude Code (crm-editor)
+
+### 2026-10-02 — Ponte da Central: chaves conferidas por hash SHA-256 no Supabase (T-20261002-36, conclui a T-33)
+- Decisão do dono: o relé não guarda chave nenhuma (nem na Vercel nem no Supabase); confere o Bearer calculando SHA-256 e comparando (timing-safe) com `central_credentials.secret_sha256`. Sem linha ativa do papel = 503; chave errada = 401; papel cruzado = 403. Removida a dependência de `CENTRAL_*_SECRET` no relé (`lib/central/core.mjs`, `store.getCredentials`).
+- Migration `20261003210000_central_credentials.sql` (aditiva, RLS, só service_role). Chaves do executor/aprovação nunca saem do PC. Testes em `tests/central-bridge.test.mjs`. Claude executor segue DESATIVADO. Detalhe e rotação: `docs/CENTRAL_PONTE.md`.

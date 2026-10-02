@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { createHandlers } from "../lib/central/core.mjs";
+import { createHandlers, sha256Hex } from "../lib/central/core.mjs";
 import { runOnce } from "../scripts/central-bridge/poller.mjs";
 import { echoExecutor } from "../scripts/central-bridge/executors/echo.mjs";
 import { createClaudeExecutor } from "../scripts/central-bridge/executors/claude.mjs";
@@ -13,10 +13,11 @@ import { loadConfig } from "../scripts/central-bridge/config.mjs";
 const CHATGPT = "c".repeat(40) + "-chatgpt-secret-aaaaaaaa";
 const EXECUTOR = "e".repeat(40) + "-executor-secret-bbbbbbb";
 const APPROVER = "a".repeat(40) + "-approver-secret-ccccccc";
-const ENV = { CENTRAL_CHATGPT_SECRET: CHATGPT, CENTRAL_EXECUTOR_SECRET: EXECUTOR, CENTRAL_APPROVER_SECRET: APPROVER };
+const row = (role, secret, active = true) => ({ role, secret_sha256: sha256Hex(secret), active });
+const CREDS = [row("chatgpt", CHATGPT), row("executor", EXECUTOR), row("approver", APPROVER)];
 
 // Store simulado com a mesma semantica das funcoes SQL (inclusive lease e max_attempts).
-function memoryStore({ now = () => Date.now(), limits = true } = {}) {
+function memoryStore({ now = () => Date.now(), limits = true, creds = CREDS } = {}) {
   const tasks = new Map();
   const counters = new Map();
   const iso = (ms) => new Date(ms).toISOString();
@@ -31,6 +32,10 @@ function memoryStore({ now = () => Date.now(), limits = true } = {}) {
   };
   return {
     tasks,
+    async getCredentials() {
+      if (creds === "erro") throw new Error("falha no banco");
+      return creds;
+    },
     async create(row) {
       if (row.idempotency_key) {
         for (const t of tasks.values()) {
@@ -91,7 +96,7 @@ function memoryStore({ now = () => Date.now(), limits = true } = {}) {
 const hdr = (token, extra = {}) => ({ get: (k) => ({ authorization: token ? `Bearer ${token}` : undefined, ...extra })[k.toLowerCase()] ?? null });
 const setup = (opts) => {
   const store = memoryStore(opts);
-  const h = createHandlers({ store, env: ENV });
+  const h = createHandlers({ store });
   const create = (body, token = CHATGPT) => h.createTask({ headers: hdr(token), rawBody: JSON.stringify(body), ip: "1.1.1.1" });
   const get = (id, token = CHATGPT) => h.getTask({ headers: hdr(token), id, ip: "1.1.1.1" });
   const execClient = (worker = "pc-test-1") => ({
@@ -154,13 +159,31 @@ test("credencial ausente/invalida = 401 sem vazar; cruzada = 403; cookie de admi
   assert.equal(cookieOnly.status, 401);
 });
 
-test("segredos ausentes/curtos/iguais = ponte indisponivel (503)", async () => {
-  const store = memoryStore();
-  for (const env of [{}, { ...ENV, CENTRAL_CHATGPT_SECRET: "curto" }, { ...ENV, CENTRAL_EXECUTOR_SECRET: CHATGPT }]) {
-    const h = createHandlers({ store, env });
+test("hash cadastrado ausente/inativo/invalido/duplicado/erro de banco = ponte indisponivel (503)", async () => {
+  const bad = { role: "chatgpt", secret_sha256: "curto", active: true };
+  const cases = [
+    [],
+    CREDS.filter((c) => c.role !== "chatgpt"),
+    [row("chatgpt", CHATGPT, false), row("executor", EXECUTOR), row("approver", APPROVER)],
+    [bad, row("executor", EXECUTOR), row("approver", APPROVER)],
+    [{ ...bad, secret_sha256: CHATGPT }, row("executor", EXECUTOR)],
+    [row("chatgpt", CHATGPT), row("executor", CHATGPT), row("approver", APPROVER)],
+    "erro"
+  ];
+  for (const creds of cases) {
+    const h = createHandlers({ store: memoryStore({ creds }) });
     const r = await h.createTask({ headers: hdr(CHATGPT), rawBody: '{"instruction_text":"x"}' });
     assert.equal(r.status, 503);
   }
+});
+
+test("papel sem linha ativa nao bloqueia os outros; hash em maiusculas e aceito; texto claro na tabela nunca autentica", async () => {
+  const onlyChat = createHandlers({ store: memoryStore({ creds: [row("chatgpt", CHATGPT)] }) });
+  assert.equal((await onlyChat.createTask({ headers: hdr(CHATGPT), rawBody: '{"instruction_text":"x"}' })).status, 201);
+  assert.equal((await onlyChat.claim({ headers: hdr(EXECUTOR), rawBody: '{"worker_id":"abc"}' })).status, 503);
+  const upper = createHandlers({ store: memoryStore({ creds: [{ ...row("chatgpt", CHATGPT), secret_sha256: sha256Hex(CHATGPT).toUpperCase() }] }) });
+  assert.equal((await upper.createTask({ headers: hdr(CHATGPT), rawBody: '{"instruction_text":"x"}' })).status, 201);
+  assert.equal(sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 });
 
 test("limite de falhas de autenticacao por IP (429)", async () => {
@@ -321,7 +344,7 @@ test("estatico: sem child_process/spawn/exec nem claude.exe no poller; rotas nao
 });
 
 test("estatico: nenhum segredo real no codigo, docs e migration da ponte", () => {
-  const files = [...walk("scripts/central-bridge"), ...walk("lib/central"), ...walk("app/api/central"), ...walk("docs/central"), "docs/CENTRAL_PONTE.md", "supabase/migrations/20261003190000_central_tasks.sql"];
+  const files = [...walk("scripts/central-bridge"), ...walk("lib/central"), ...walk("app/api/central"), ...walk("docs/central"), "docs/CENTRAL_PONTE.md", "supabase/migrations/20261003190000_central_tasks.sql", "supabase/migrations/20261003210000_central_credentials.sql"];
   const secretLike = /(Bearer\s+[A-Za-z0-9_\-]{30,})|(sk-[A-Za-z0-9]{20,})|(eyJ[A-Za-z0-9_-]{20,}\.)|(CENTRAL_[A-Z_]*SECRET\s*=\s*[A-Za-z0-9_\-]{20,})/;
   for (const f of files) assert.ok(!secretLike.test(readFileSync(f, "utf8")), `segredo em ${f}`);
 });
@@ -337,4 +360,18 @@ test("logs do poller e respostas nao contem segredos", async () => {
   ];
   const all = JSON.stringify([lines, responses]);
   for (const s of [CHATGPT, EXECUTOR, APPROVER]) assert.ok(!all.includes(s));
+});
+
+test("hash nunca aparece em respostas nem logs; migration nao grava chave nem hash; rotas nao leem env CENTRAL_*_SECRET", async () => {
+  const { create, get, execClient, h } = setup();
+  const t = await create({ tipo: "eco", instruction_text: "x" });
+  const lines = [];
+  await runOnce({ client: execClient(), executor: echoExecutor, log: (m) => lines.push(m) });
+  const all = JSON.stringify([t, await get(t.body.task_id), await create({ instruction_text: "x" }, "errado"), await create({ instruction_text: "x" }, EXECUTOR), lines]);
+  for (const c of CREDS) assert.ok(!all.includes(c.secret_sha256));
+  const mig = readFileSync("supabase/migrations/20261003210000_central_credentials.sql", "utf8");
+  assert.ok(!/[0-9a-f]{64}/i.test(mig), "migration nao pode conter hash");
+  for (const f of [...walk("lib/central"), ...walk("app/api/central")]) {
+    assert.ok(!/CENTRAL_[A-Z_]*SECRET|process\.env/.test(readFileSync(f, "utf8")), `env de segredo em ${f}`);
+  }
 });
