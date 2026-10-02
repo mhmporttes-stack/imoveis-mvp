@@ -23,6 +23,7 @@ import { calculateReceivableMetrics, computeForecastAmount, flattenReceivableEnt
 import { parseBrazilianDecimal, parseBrazilianMoney } from "@/lib/money-br.mjs";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
+import EmptyState from "@/components/ui/EmptyState";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -468,7 +469,16 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       )}
 
       {health && activeTab === "saude" && (
-        health.error ? <Feedback tone="error">{health.error}</Feedback> : (
+        health.error ? (
+          <div className="rounded-card border border-danger-line bg-white">
+            <EmptyState
+              tone="danger"
+              icon={HeartPulse}
+              title="Não foi possível carregar a Saúde financeira"
+              description={`${health.error} O restante do Financeiro continua funcionando; cadastrar contas e confirmar pagamentos na Saúde só volta depois dessa atualização do banco.`}
+            />
+          </div>
+        ) : (
           <FinancialHealthTab sales={sales} initialExpenses={health.expenses} initialOccurrences={health.occurrences} initialSettings={health.settings} eligibleBrokers={brokers} today={health.today} />
         )
       )}

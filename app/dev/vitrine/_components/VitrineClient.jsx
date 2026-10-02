@@ -20,6 +20,8 @@ import * as desempenho from "../_fixtures/desempenho";
 import * as supervisao from "../_fixtures/supervisao";
 import * as alertas from "../_fixtures/alertas";
 import AlertCenterGate from "@/components/alerts/AlertCenterGate";
+import FinancialHealthTab from "@/components/FinancialHealthTab";
+import * as financeiroSaude from "../_fixtures/financeiro-saude";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -100,6 +102,20 @@ const TELAS = {
       </main>
     )
   },
+  "financeiro-saude": {
+    path: "/admin/financeiro",
+    titulo: "Financeiro > Saúde (só admin geral; ?variante=semcaixa|vazio)",
+    active: "financial",
+    rotas: financeiroSaude.routes,
+    // Reproduz o wrapper de AdminFinancialDashboard (container-page) com o componente real da aba.
+    render: (perfil, variante) => (
+      <main className="bg-mist py-14">
+        <section className="container-page space-y-6">
+          <FinancialHealthTab {...financeiroSaude.propsFor(variante)} />
+        </section>
+      </main>
+    )
+  },
   desempenho: {
     path: "/admin/desempenho",
     titulo: "Desempenho",
@@ -120,7 +136,7 @@ const PERFIS = {
   associado: { isAssociate: true }
 };
 
-export default function VitrineClient({ tela, perfil, estado, limpo, fonte }) {
+export default function VitrineClient({ tela, perfil, estado, limpo, fonte, variante = "" }) {
   const atual = TELAS[tela];
   const perfilValido = PERFIS[perfil] ? perfil : "admin";
   const fonteValida = FONTES[fonte] ? fonte : "manrope";
@@ -159,7 +175,7 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte }) {
           </div>
         </div>
       ) : null}
-      {atual.render(perfilValido)}
+      {atual.render(perfilValido, variante)}
       <AdminBottomNav {...PERFIS[perfilValido]} currentPath={atual.path || ""} />
     </>
   );

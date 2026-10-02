@@ -21,6 +21,7 @@ export default async function VitrinePage({ searchParams }) {
       estado={typeof params.estado === "string" ? params.estado : "normal"}
       limpo={params.limpo === "1"}
       fonte={typeof params.fonte === "string" ? params.fonte : "manrope"}
+      variante={typeof params.variante === "string" ? params.variante : ""}
     />
   );
 }
