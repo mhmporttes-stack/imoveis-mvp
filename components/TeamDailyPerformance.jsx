@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, History, ListRestart } from "lucide-react";
+import { X, History, ListRestart, Ban } from "lucide-react";
+import { WHATSAPP_BADGE_LEGEND } from "@/lib/whatsapp-restriction-core.mjs";
 import Avatar from "@/components/Avatar";
 import IntegrationStatusIcon, { googleContactsTone, whatsappTone } from "@/components/IntegrationStatusIcon";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
@@ -295,13 +296,16 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
     ? !automation.enabled ? "Automação desligada"
     : automation.paused ? "Automação pausada"
     : sessionConnected ? "Automação rodando"
+    : automation.whatsappRestricted ? "WhatsApp restringido"
     : "Aguardando WhatsApp"
     : "";
   const autoClassName = automation
     ? !automation.enabled ? "bg-mist text-muted"
-    : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700"
+    : automation.paused ? "bg-amber-50 text-amber-700"
+    : !sessionConnected ? (automation.whatsappRestricted ? "bg-navy/10 text-navy ring-1 ring-navy/30" : "bg-amber-50 text-amber-700")
     : "bg-emerald-50 text-emerald-700"
     : "";
+  const showRestrictedIcon = autoLabel === "WhatsApp restringido";
 
   // Reorganiza a fila de disparos de hoje deste corretor (pedido do dono,
   // 2026-10-02): cancela os itens pendentes/atrasados e gera uma agenda
@@ -352,7 +356,7 @@ function BrokerCard({ broker, presenceStatus, automation, onClick, onRequeued, c
       {automation ? (
         <>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{showRestrictedIcon ? <Ban aria-hidden="true" className="mr-0.5 inline h-2.5 w-2.5" /> : null}{autoLabel}</span>
             <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
@@ -528,8 +532,9 @@ function BrokerDetailDrawer({ brokerId, period, automation, onClose }) {
 function AutomationSection({ automation, showHistory, onToggleHistory, brokerId }) {
   const sessionInfo = AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou;
   const sessionConnected = automation.sessionStatus === "connected";
-  const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : "Aguardando WhatsApp";
-  const autoClassName = !automation.enabled ? "bg-mist text-muted" : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+  const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : automation.whatsappRestricted ? "WhatsApp restringido" : "Aguardando WhatsApp";
+  const showRestrictedIcon = autoLabel === "WhatsApp restringido";
+  const autoClassName = !automation.enabled ? "bg-mist text-muted" : showRestrictedIcon ? "bg-navy/10 text-navy ring-1 ring-navy/30" : automation.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
   const sentToday = (automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0);
 
   return (
@@ -548,10 +553,11 @@ function AutomationSection({ automation, showHistory, onToggleHistory, brokerId 
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{showRestrictedIcon ? <Ban aria-hidden="true" className="mr-1 inline h-3 w-3" /> : null}{autoLabel}</span>
         <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
         <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
+      {!sessionConnected ? <p className="mt-1 text-[10px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p> : null}
       {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 
       {automation.enabled ? (

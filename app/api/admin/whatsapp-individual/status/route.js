@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { getIndividualSessionRow } from "@/lib/whatsapp-individual";
+import { endRestrictionIfConnected } from "@/lib/whatsapp-restriction";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export async function GET(request) {
 
   try {
     const row = await getIndividualSessionRow(userId);
+    // Conectou: encerra a restrição informada (se houver) — status operacional apenas.
+    await endRestrictionIfConnected(userId, row?.status).catch(() => {});
     // Código de pareamento expira em poucos minutos no WhatsApp (e morre se o
     // serviço reiniciar): passados 3 min sem conectar, a tela volta a
     // oferecer um código novo em vez de mostrar um código morto (2026-10-02).

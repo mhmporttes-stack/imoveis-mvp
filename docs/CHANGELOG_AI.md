@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-03 — Status operacional "WhatsApp restringido"
+- **Data:** 2026-10-03
+- **Área:** WhatsApp / Meta Diária / Banco
+- **Alteração:** corretor informa "Meu WhatsApp está restringido" (e "Restrição resolvida") no modal do WhatsApp; cards do gestor/admin (Meta Diária) mostram o selo "WhatsApp restringido", distinto de "Aguardando WhatsApp"; encerra sozinha ao voltar a `connected`. Nova tabela aditiva `whatsapp_restrictions` (histórico) e rota `/api/admin/whatsapp-individual/restriction`.
+- **Motivo:** pedido do dono (Despachante T-20261002-16): diferenciar "ainda não conectou" de "impedido porque o WhatsApp foi restringido".
+- **Arquivos afetados:** `supabase/migrations/20261003140000_whatsapp_restrictions.sql`, `lib/whatsapp-restriction-core.mjs`, `lib/whatsapp-restriction.js`, `lib/whatsapp-individual.js`, `lib/daily-goal-auto.js`, `app/api/admin/whatsapp-individual/{restriction,status}/route.js`, `components/WhatsappIndividualStatus.jsx`, `components/TeamDailyPerformance.jsx`, `components/DailyGoalAdmin.jsx`, `tests/whatsapp-restriction.test.mjs`, regra PRO-12 (rule do módulo + BUSINESS_RULES).
+- **Risco/observação:** apenas informativo — elegibilidade (PRO-11) intocada, teste prova. Encerramento automático é preguiçoso (leitura do status/painel + webhook), pois o microsserviço grava a sessão direto no banco. Durante "Alterar conta" a ação fica atribuída ao perfil efetivo (regra operacional existente).
+- **Autor:** crm-editor (Claude Sonnet 5.5)
+
+
 ### 2026-10-02 — Despachante de tarefas + política de autonomia dos agentes
 - **O quê:** novo agente `despachante` (`.claude/agents/despachante.md`), skill `/despachar`, mapa de agentes e registro de tarefas em `.claude/despachante/`, documento `docs/DESPACHANTE.md` (capacidades reais, auditoria de permissões, política de autonomia), teste `tests/despachante.test.mjs` (mapa completo + invariantes de segurança). `CLAUDE.md` e `AGENTS.md` apontam para eles.
 - **Por quê:** o dono quer um único chat de entrada que delegue em segundo plano e só o interrompa em decisão de produto/impacto destrutivo.

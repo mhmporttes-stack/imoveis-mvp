@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Ban, Loader2, X } from "lucide-react";
 import IntegrationStatusIcon, { whatsappTone } from "@/components/IntegrationStatusIcon";
 
 // Indicador discreto de conexão da sessão INDIVIDUAL de WhatsApp (Baileys,
@@ -49,6 +49,38 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
   const [phoneMode, setPhoneMode] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const pollRef = useRef(null);
+  // WhatsApp restringido: só status operacional informado pelo próprio corretor
+  // (não libera Prospecção/Meta Diária/disparos — isso exige sessão conectada).
+  const [restriction, setRestriction] = useState({ restricted: false, reportedAt: null });
+  const [confirmingRestriction, setConfirmingRestriction] = useState(false);
+
+  const loadRestriction = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/whatsapp-individual/restriction", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) setRestriction({ restricted: Boolean(data.restricted), reportedAt: data.reportedAt || null });
+    } catch { /* silencioso: o selo some, o resto da tela segue */ }
+  }, []);
+
+  const sendRestriction = useCallback(async (action) => {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-individual/restriction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(action === "report" ? { action, confirm: true } : { action })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar.");
+      setRestriction({ restricted: Boolean(data.restricted), reportedAt: data.reportedAt || null });
+      setConfirmingRestriction(false);
+    } catch (err) {
+      setError(err.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -135,8 +167,10 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
     setError("");
     setPhoneMode(false);
     setModalOpen(true);
+    setConfirmingRestriction(false);
+    loadRestriction();
     if (!status || status.status === "disconnected" || status.status === "error") handleConnect();
-  }, [status, handleConnect]);
+  }, [status, handleConnect, loadRestriction]);
 
   // "Conectar WhatsApp" de outras telas (Prospecção/Meta Diária bloqueadas sem a sessão
   // conectada, 2026-10-02) abre este mesmo modal — não existe rota própria de conexão.
@@ -242,6 +276,31 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
                 >
                   {phoneMode ? "Prefere escanear o QR?" : "Prefere conectar com um código, sem QR?"}
                 </button>
+              ) : null}
+
+              {currentStatus !== "connected" ? (
+                <div className="w-full rounded-2xl border border-navy/15 bg-mist/40 p-3">
+                  {restriction.restricted ? (
+                    <>
+                      <p className="flex items-center gap-1.5 text-xs font-black text-navy"><Ban aria-hidden="true" className="h-3.5 w-3.5" />WhatsApp restringido</p>
+                      <p className="mt-1 text-[11px] text-navy/70">Informado em {restriction.reportedAt ? new Date(restriction.reportedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—"}. Seu gestor vê esse aviso. A Prospecção e a Meta Diária continuam bloqueadas até o WhatsApp conectar.</p>
+                      <button type="button" disabled={busy} onClick={() => sendRestriction("resolve")} className="mt-2 w-full rounded-full border border-navy/20 bg-white px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Restrição resolvida</button>
+                    </>
+                  ) : confirmingRestriction ? (
+                    <>
+                      <p className="text-xs font-bold text-navy">Confirma que o seu WhatsApp foi restringido ou bloqueado pelo WhatsApp?</p>
+                      <p className="mt-1 text-[11px] text-navy/70">Isso apenas avisa seu gestor. Não libera a Prospecção nem a Meta Diária.</p>
+                      <div className="mt-2 flex gap-2">
+                        <button type="button" disabled={busy} onClick={() => sendRestriction("report")} className="flex-1 rounded-full bg-navy px-3 py-2 text-xs font-extrabold text-white hover:bg-navy/90 disabled:opacity-50">Sim, confirmo</button>
+                        <button type="button" disabled={busy} onClick={() => setConfirmingRestriction(false)} className="flex-1 rounded-full border border-navy/15 px-3 py-2 text-xs font-extrabold text-navy disabled:opacity-50">Cancelar</button>
+                      </div>
+                    </>
+                  ) : (
+                    <button type="button" disabled={busy} onClick={() => setConfirmingRestriction(true)} className="flex w-full items-center justify-center gap-1.5 rounded-full border border-navy/20 bg-white px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">
+                      <Ban aria-hidden="true" className="h-3.5 w-3.5" />Meu WhatsApp está restringido
+                    </button>
+                  )}
+                </div>
               ) : null}
             </div>
           </div>

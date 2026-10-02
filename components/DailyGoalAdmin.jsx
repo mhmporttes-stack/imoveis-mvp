@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Ban, Save } from "lucide-react";
 import Avatar from "./Avatar";
 
 const SESSION_STATUS_LABELS = {
@@ -303,8 +303,9 @@ function AutomationTab() {
           // verdade — ligada+sem pausa mas sem sessão vira "Aguardando
           // WhatsApp", nunca "Rodando" (o dispatcher pula, nada é enviado).
           const sessionConnected = broker.sessionStatus === "connected";
-          const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : sessionConnected ? "Rodando" : "Aguardando WhatsApp";
-          const autoClassName = !broker.enabled ? "bg-mist text-muted" : broker.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+          const autoLabel = !broker.enabled ? "Desligada" : broker.paused ? "Pausada" : sessionConnected ? "Rodando" : broker.whatsappRestricted ? "WhatsApp restringido" : "Aguardando WhatsApp";
+          const showRestrictedIcon = autoLabel === "WhatsApp restringido";
+          const autoClassName = !broker.enabled ? "bg-mist text-muted" : showRestrictedIcon ? "bg-navy/10 text-navy ring-1 ring-navy/30" : broker.paused || !sessionConnected ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
           const healthy = isAutoHealthy(broker);
           return (
             <div key={broker.brokerId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
@@ -317,7 +318,7 @@ function AutomationTab() {
                       <span title={healthy ? "Tudo certo" : "Precisa de atenção"}>{healthy ? "✅" : "⚠️"}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>Automação: {autoLabel}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{showRestrictedIcon ? <Ban aria-hidden="true" className="mr-1 inline h-3 w-3" /> : null}Automação: {autoLabel}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${sessionInfo.className}`}>WhatsApp: {sessionInfo.label}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${(GOOGLE_CONTACTS_STATUS_LABELS[broker.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).className}`}>
                         Google Contacts: {(GOOGLE_CONTACTS_STATUS_LABELS[broker.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}
