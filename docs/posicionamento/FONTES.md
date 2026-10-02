@@ -18,6 +18,6 @@ Atenção: o servidor `windsor` declarado em `.mcp.json` (login próprio) contin
 
 Nota de segurança: o conector Instagram expõe ações de escrita (`create_*_post`, `create_story`, `reply_to_comment`, `delete_comment` etc.). O agente **não usa nenhuma** — Instagram é só leitura; qualquer escrita exige pedido explícito do dono por ação. O interruptor "escrita de ações" do Windsor ficou **desligado** na conexão. As permissões da Meta concedidas ao Windsor incluem `ads_management`, `business_management` e `catalog_management` (pedido padrão do Windsor, autorizado pelo dono em 2026-10-01).
 
-**Escrita no Windsor (verificado 2026-10-02):** `list_actions` funciona, mas `execute_action` falha com "Write actions are disabled for the Windsor user" — o dono precisa ligar em Windsor → Settings → API Access → "Enable write actions for Claude, ChatGPT & API". Enquanto estiver desligado, nenhuma alteração no Google é possível (e nada foi alterado).
+**Escrita no Windsor (02/10):** estava desligada ("Write actions are disabled for the Windsor user"); o dono ligou em Windsor → Settings → API Access → "Enable write actions for Claude, ChatGPT & API" e as 7 ações aprovadas do Google foram aplicadas. A chave vale para todos os conectores (inclui Meta Ads e Instagram): o agente só escreve no Google, com "sim" do dono por ação. Sugestão ao dono: desligar de novo após cada lote.
 
 Pendência para o dono: decidir upgrade do Windsor (ou trocar uma fonte) para Search Console/GA4/Facebook orgânico.

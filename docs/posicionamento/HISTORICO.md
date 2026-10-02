@@ -2,6 +2,15 @@
 
 > Memória do agente `marketing-posicionamento`. Uma entrada por análise, **mais recente no topo**. Formato e índice: `.claude/skills/auditar-posicionamento/references/metodologia.md`. Compare sempre na mesma base de áreas.
 
+## 2026-10-02 — ALTERAÇÕES PUBLICADAS no Google Meu Negócio (etapa 1, aprovada pelo dono)
+Via Windsor `execute_action` (escrita ligada pelo dono em Settings → API Access), uma vez cada, ~12:24 UTC. Aprovação: dono, nesta conversa, por item (respostas + descrição + link).
+- **`update_location`:** descrição e site alterados. **Antes:** descrição antiga ("Especialista na compra do primeiro imóvel em Marília e região… até a aprovação do financiamento…"), site `https://www.matheusmachadoimoveis.com.br/`. **Depois:** descrição nova de 538 caracteres (abre com a frase de posicionamento, CRECI 323106 de forma natural, sem "aprovação"/"garantia") e site `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=google&utm_medium=organic&utm_campaign=gmn`. Telefone, nome, categoria: inalterados. Releitura Windsor confirmou o novo site; a API devolveu o novo texto da descrição. Google pode revisar antes de exibir.
+- **`reply_to_review` ×6:** respostas públicas individuais a Bruna Vitória, Maria Eduarda Bencke, Luana Souza, Ketlin Santos, Eduardo Gabriel e Caroline Mayumi Nagaishi (textos em `rascunhos/2026-10-02-gbp-pacote.md`). **Antes:** 0 respondidas. **Depois:** 6 de 6 (confirmado por `get_data` e, para 3, no Maps público).
+- **NÃO alterados (aguardam aprovação):** serviços, categorias, área de atendimento, fotos, publicações, perguntas e respostas, horário.
+- **Medir:** impressões/cliques em 30 e 60 dias (hoje 252 em 90 dias, 0 cliques no site) e leads com origem "Link — gmn" no CRM (`client_origins`). Falhou se, em 30 dias, não houver nenhum clique no site nem lead "gmn".
+
+---
+
 ## 2026-10-02 — Snapshot 3 (Google Meu Negócio: auditoria aprofundada + concorrentes no Maps)
 **Método:** Windsor (perfil, desempenho 90 dias, avaliações, mídia, posts) + Google Maps público em navegador sem login (`hl=pt-BR&gl=br`, centro de Marília; amostra com personalização mínima, **confiança média**). **Nada alterado.** `list_actions` foi bloqueado pela trava de segurança da sessão (não contornado).
 - **Perfil público confirmado no Maps:** "Matheus Machado", Agente imobiliário, 5,0 (6), Av. Ipiranga, 147, matheusmachadoimoveis.com.br, (14) 99840-7380, "Atualizado por esta empresa há 11 semanas".

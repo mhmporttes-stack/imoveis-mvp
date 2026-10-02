@@ -3,7 +3,7 @@
 > Status: **NADA APLICADO.** Cada item abaixo precisa do "sim" do dono, por ação (`.claude/agents/marketing-posicionamento.md`, "Alterações externas"). Antes de aplicar, reler o estado atual (`get_data`) e o esquema da ação (`list_actions` — bloqueado pela trava da sessão em 2026-10-02: precisa liberar).
 > Perfil: `locations/11870750752232851669` ("Matheus Machado"). Fonte do "antes": Windsor 2026-10-02 e Google Maps público.
 
-## ✅ ETAPA 1 APROVADA PELO DONO (02/10) — textos FINAIS (substituem §1 e §2 abaixo) — **AINDA NÃO PUBLICADA**
+## ✅ ETAPA 1 APROVADA E **PUBLICADA em 02/10** (6 respostas + descrição + link; ver `HISTORICO.md`). Itens §3–§9 abaixo seguem **pendentes de aprovação**. Textos FINAIS (substituem §1 e §2):
 Bloqueio: "Write actions are disabled for the Windsor user" (configuração do dono em Windsor → Settings → API Access → "Enable write actions for Claude, ChatGPT & API"). Aguardando o dono ligar; nenhuma alteração foi feita no Google. Estado "antes" (02/10): descrição antiga (abria com "Especialista na compra do primeiro imóvel em Marília e região… até a aprovação do financiamento…"), site `https://www.matheusmachadoimoveis.com.br/` sem UTM, 0 respostas.
 
 **Descrição final (538/750):** Especialista na compra do primeiro imóvel em Marília/SP. Sou Matheus Machado, corretor de imóveis (CRECI 323106), e ajudo você a sair do aluguel: simulação de financiamento pela Caixa, Minha Casa Minha Vida, análise de renda (formal e informal) e acompanhamento de todas as etapas, da escolha do imóvel até a assinatura do contrato. Trabalho com imóveis na planta, novos e usados em Marília e região, com atendimento transparente e sem enrolação. Faça a simulação da sua entrada, sem compromisso, e descubra qual imóvel cabe no seu bolso.
