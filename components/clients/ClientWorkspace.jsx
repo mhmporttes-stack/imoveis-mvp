@@ -439,7 +439,7 @@ function StageTab({ label, count, ratio = null, active, onClick, muted = false }
       aria-selected={active}
       onClick={onClick}
       className={cx(
-        "relative flex w-1/3 shrink-0 grow-0 snap-start flex-col justify-between gap-1.5 px-2.5 pb-2 pt-2 text-left sm:pb-3 sm:pt-2.5 sm:w-auto sm:min-w-[6.75rem] sm:flex-1 sm:snap-align-none sm:gap-2 sm:px-3.5 transition-colors duration-150",
+        "relative flex w-1/3 shrink-0 grow-0 snap-start flex-col items-center justify-between gap-1.5 px-2.5 pb-2 pt-2 text-center sm:items-stretch sm:text-left sm:pb-3 sm:pt-2.5 sm:w-auto sm:min-w-[6.75rem] sm:flex-1 sm:snap-align-none sm:gap-2 sm:px-3.5 transition-colors duration-150",
         "border-r border-line/70 last:border-r-0 sm:border-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
         active ? "bg-info-soft/70 sm:bg-info-soft" : "hover:bg-navy/[0.025]"
       )}
