@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   computeHealth, expandExpenseOccurrences, addMonthsClamped, rangeFromPeriod, previousRange,
-  collectRevenueEvents, cashAt, evaluateReserve, monthlyOperatingCost, percentChange, formatBRL
+  collectRevenueEvents, collectExpenseEvents, planRecurringSplit, planOverrideMigration, cashAt, evaluateReserve, monthlyOperatingCost, percentChange, formatBRL
 } from "../lib/financial-health-core.mjs";
 
 const TODAY = "2026-10-15";
@@ -12,6 +12,7 @@ const sale = (over = {}) => ({
   payments: [], ...over
 });
 const pay = (over) => ({ amount: 0, status: "received", receivedDate: "", expectedDate: "", ...over });
+const paid = (expenseId, occurrenceDate, paidAmount, paidDate = occurrenceDate) => ({ expenseId, occurrenceDate, status: "paid", paidDate, paidAmount });
 const exp = (over = {}) => ({ id: "e1", description: "Aluguel", category: "Aluguel", expenseType: "fixed", amount: 2000, expenseDate: "2026-08-05", isRecurring: false, recurrencePeriod: null, recurrenceEndDate: null, ...over });
 
 test("despesa única só aparece no mês da data", () => {
@@ -53,7 +54,7 @@ test("receita recebida × prevista nunca se misturam; cancelado é ignorado", ()
 test("lucro, margem: apropria custos da venda proporcionalmente ao recebido", () => {
   const sales = [sale({ payments: [pay({ amount: 5000, receivedDate: "2026-10-03" })] })];
   const expenses = [exp({ expenseDate: "2026-10-05", expenseType: "variable", amount: 1000 })];
-  const h = computeHealth({ sales, expenses, today: TODAY });
+  const h = computeHealth({ sales, expenses, overrides: [paid("e1", "2026-10-05", 1000)], today: TODAY });
   // 5000 recebido: parte da imobiliária 40% = 2000; custos da venda 3000
   assert.equal(h.summary.netRevenue, 2000);
   assert.equal(h.summary.saleCosts, 3000);
@@ -91,7 +92,7 @@ test("exemplo do dono: expectativa separa real de projetado", () => {
     pay({ amount: 12000, status: "expected", expectedDate: "2026-10-28" })
   ] })];
   const expenses = [exp({ expenseDate: "2026-10-03", amount: 8000, expenseType: "variable" }), exp({ id: "e2", expenseDate: "2026-10-29", amount: 4000, expenseType: "variable" })];
-  const h = computeHealth({ sales, expenses, today: TODAY });
+  const h = computeHealth({ sales, expenses, overrides: [paid("e1", "2026-10-03", 8000)], today: TODAY });
   assert.equal(h.summary.profit, 17000);
   assert.equal(h.summary.projected.result, 25000);
   assert.equal(h.expectation.result, 25000);
@@ -105,8 +106,11 @@ test("caixa: não inventa saldo; com saldo inicial soma entradas e subtrai saíd
   assert.equal(cashAt({ settings: { openingCashBalance: null, openingCashDate: "" }, revenueEvents: events, expenses, atDate: TODAY, today: TODAY }), null);
   const settings = { openingCashBalance: 10000, openingCashDate: "2026-09-01" };
   // entradas líquidas: 1000*0.4 + 5000*0.4 = 2400; saídas operacionais: 09-10 e 10-10 = 1000
-  assert.equal(cashAt({ settings, revenueEvents: events, expenses, atDate: TODAY, today: TODAY }), 11400);
-  assert.equal(cashAt({ settings, revenueEvents: events, expenses, atDate: "2026-08-31", today: TODAY }), null);
+  const overrides = [paid("e1", "2026-09-10", 500), paid("e1", "2026-10-10", 500)];
+  assert.equal(cashAt({ settings, revenueEvents: events, expenses, overrides, atDate: TODAY, today: TODAY }), 11400);
+  // sem confirmação manual a despesa NÃO sai do caixa, mesmo com a data vencida
+  assert.equal(cashAt({ settings, revenueEvents: events, expenses, overrides: [], atDate: TODAY, today: TODAY }), 12400);
+  assert.equal(cashAt({ settings, revenueEvents: events, expenses, overrides, atDate: "2026-08-31", today: TODAY }), null);
 });
 
 test("reserva/cobertura: critérios matemáticos configuráveis", () => {
@@ -176,7 +180,8 @@ test("apontamentos: fato/apontamento/recomendação, sem chamar de desnecessári
     exp({ id: "b", description: "Anúncio", category: "Anúncios", expenseType: "variable", amount: 2000, expenseDate: "2026-10-10" }),
     exp({ id: "c", description: "Anúncio", category: "Anúncios", expenseType: "variable", amount: 2000, expenseDate: "2026-10-10" })
   ];
-  const h = computeHealth({ sales: [], expenses, today: TODAY });
+  const overrides = expenses.map((e) => paid(e.id, e.expenseDate, e.amount));
+  const h = computeHealth({ sales: [], expenses, overrides, today: TODAY });
   const ids = h.insights.map((i) => i.id);
   assert.ok(ids.includes("expenses-variation"));
   assert.ok(ids.includes("possible-duplicates"));
@@ -192,7 +197,8 @@ test("estimativa fica separada do previsto", () => {
     exp({ id: "b", expenseType: "variable", amount: 900, expenseDate: "2026-08-10" }),
     exp({ id: "c", expenseType: "variable", amount: 900, expenseDate: "2026-09-10" })
   ];
-  const h = computeHealth({ sales: [], expenses, today: TODAY });
+  const overrides = expenses.map((e) => paid(e.id, e.expenseDate, e.amount));
+  const h = computeHealth({ sales: [], expenses, overrides, today: TODAY });
   assert.equal(h.estimate.remaining, 900);
   assert.equal(h.summary.projected.result, 0); // estimativa não entra no projetado
 });
@@ -218,4 +224,148 @@ test("previsão de recebimento do saldo entra como PREVISTO (sem dupla contagem 
   // venda recebida nunca tem previsão
   const done = computeHealth({ sales: [{ ...base, financialStatus: "received" }], expenses: [], today: TODAY });
   assert.equal(done.expectation.forecastIncluded, 0);
+});
+
+// ---------- despesa prevista × paga (confirmação manual) ----------
+
+const rent = (over = {}) => exp({ id: "r1", description: "Aluguel", amount: 2000, expenseDate: "2026-10-05", expenseType: "fixed", ...over });
+
+test("prevista ≠ paga: despesa com data vencida NÃO vira paga sozinha", () => {
+  const h = computeHealth({ sales: [], expenses: [rent()], overrides: [], today: TODAY });
+  assert.equal(h.summary.operatingExpenses, 0); // realizado não considera
+  assert.equal(h.summary.expenses, 0);
+  assert.equal(h.summary.profit, 0);
+  assert.equal(h.summary.plannedOperating, 2000); // continua prevista
+  assert.equal(h.summary.overdueOperating, 2000); // e vencida
+  assert.equal(h.summary.projected.result, -2000); // projeção considera a prevista
+});
+
+test("vencimento não confirma pagamento em nenhuma data posterior", () => {
+  const later = computeHealth({ sales: [], expenses: [rent()], today: "2027-03-20" });
+  assert.equal(later.summary.operatingExpenses, 0);
+  assert.equal(later.history.every((r) => r.expenses === 0), true);
+});
+
+test("confirmação manual: entra no realizado, no caixa e sai da projeção; usa data e valor pagos", () => {
+  const sales = [sale({ payments: [pay({ amount: 5000, receivedDate: "2026-10-03" })] })];
+  const settings = { openingCashBalance: 10000, openingCashDate: "2026-10-01" };
+  const base = { sales, expenses: [rent()], settings, today: TODAY };
+  const before = computeHealth({ ...base, overrides: [] });
+  const after = computeHealth({ ...base, overrides: [paid("r1", "2026-10-05", 1950, "2026-10-08")] });
+  assert.equal(before.summary.operatingExpenses, 0);
+  assert.equal(after.summary.operatingExpenses, 1950); // valor efetivamente pago
+  assert.equal(after.summary.plannedOperating, 0);
+  assert.equal(before.cash, 12000); // 10000 + 2000 (parte da imobiliária)
+  assert.equal(after.cash, 10050);
+  assert.equal(after.history.at(-1).expenses, 3000 + 1950);
+});
+
+test("pagamento vale na data paga: pago em outro mês cai naquele mês", () => {
+  const e = rent({ expenseDate: "2026-09-28" });
+  const o = [paid("r1", "2026-09-28", 2000, "2026-10-02")];
+  assert.equal(computeHealth({ sales: [], expenses: [e], overrides: o, today: TODAY }).summary.operatingExpenses, 2000);
+  assert.equal(computeHealth({ sales: [], expenses: [e], overrides: o, today: TODAY, period: "lastMonth" }).summary.operatingExpenses, 0);
+});
+
+test("reagendamento: muda só a data prevista, não paga, e pode mudar de mês", () => {
+  const o = [{ expenseId: "r1", occurrenceDate: "2026-10-05", status: "pending", rescheduledTo: "2026-10-28" }];
+  const h = computeHealth({ sales: [], expenses: [rent()], overrides: o, today: TODAY });
+  assert.equal(h.summary.operatingExpenses, 0);
+  assert.equal(h.summary.plannedOperating, 2000);
+  assert.equal(h.summary.overdueOperating, 0); // agora vence no futuro
+  const moved = computeHealth({ sales: [], expenses: [rent()], overrides: [{ ...o[0], rescheduledTo: "2026-11-10" }], today: TODAY });
+  assert.equal(moved.summary.plannedOperating, 0); // saiu de outubro
+  assert.equal(computeHealth({ sales: [], expenses: [rent()], overrides: [{ ...o[0], rescheduledTo: "2026-11-10" }], today: TODAY, period: "custom", custom: { start: "2026-11-01", end: "2026-11-30" } }).summary.plannedOperating, 2000);
+});
+
+test("reagendar uma ocorrência de recorrente não mexe nas demais", () => {
+  const e = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-08-05" });
+  const o = [{ expenseId: "r1", occurrenceDate: "2026-10-05", status: "pending", rescheduledTo: "2026-10-20" }];
+  const events = collectExpenseEvents([e], { start: "2026-08-01", end: "2026-11-30" }, TODAY, o);
+  assert.deepEqual(events.map((x) => x.date), ["2026-08-05", "2026-09-05", "2026-10-20", "2026-11-05"]);
+  assert.deepEqual(events.map((x) => x.status), ["planned", "planned", "planned", "planned"]);
+});
+
+test("realizado × projetado: realizado só com pagas; projetado soma previstas (inclusive vencidas) sem estimativa", () => {
+  const sales = [sale({ grossCommission: 20000, totals: { agencyCommission: 20000 }, payments: [pay({ amount: 10000, receivedDate: "2026-10-02" }), pay({ amount: 5000, status: "expected", expectedDate: "2026-10-25" })] })];
+  const expenses = [rent({ amount: 3000 }), rent({ id: "r2", description: "Sistema", amount: 500, expenseDate: "2026-10-10" }), rent({ id: "r3", description: "Anúncio", amount: 700, expenseDate: "2026-10-30" })];
+  const h = computeHealth({ sales, expenses, overrides: [paid("r1", "2026-10-05", 3000)], today: TODAY });
+  assert.equal(h.summary.profit, 7000); // 10000 − 3000 paga
+  assert.equal(h.summary.projected.result, 10000 + 5000 - 3000 - 500 - 700);
+  assert.equal(h.expectation.operatingPlanned, 1200);
+  assert.equal(h.expectation.operatingOverdue, 500);
+});
+
+test("vencidas de meses anteriores seguem na projeção como obrigação em aberto", () => {
+  const e = rent({ expenseDate: "2026-08-05" });
+  const h = computeHealth({ sales: [], expenses: [e], overrides: [], today: TODAY });
+  assert.equal(h.summary.operatingExpenses, 0);
+  assert.equal(h.summary.pendingPriorAmount, 2000);
+  assert.equal(h.summary.projected.result, -2000);
+  assert.ok(h.insights.some((i) => i.id === "expenses-pending-confirmation"));
+  assert.equal(h.evolution.realized.expenses[14], 0); // nunca no realizado
+  assert.equal(h.evolution.projected.expenses[30], 2000);
+});
+
+test("desfazer confirmação (status pending) volta a prevista", () => {
+  const o = [{ expenseId: "r1", occurrenceDate: "2026-10-05", status: "pending", paidDate: null, paidAmount: null }];
+  assert.equal(computeHealth({ sales: [], expenses: [rent()], overrides: o, today: TODAY }).summary.operatingExpenses, 0);
+});
+
+// ---------- recorrente alterada só dali para frente ----------
+
+test("splitRecurringExpense: histórico intacto, novo valor só a partir da data", () => {
+  const old = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-07-05", amount: 2000 });
+  const plan = planRecurringSplit(old, { amount: 2600, category: "Aluguel" }, "2026-10-05");
+  assert.equal(plan.mode, "split");
+  assert.equal(plan.closeOld.recurrenceEndDate, "2026-10-04");
+  assert.equal(plan.newRow.expenseDate, "2026-10-05");
+  assert.equal(plan.newRow.amount, 2600);
+  const rows = [{ ...old, recurrenceEndDate: plan.closeOld.recurrenceEndDate }, { ...plan.newRow, id: "r2" }];
+  const all = collectExpenseEvents(rows, { start: "2026-07-01", end: "2026-12-31" }, "2027-01-01", []);
+  assert.deepEqual(all.map((e) => [e.date, e.amount]), [["2026-07-05", 2000], ["2026-08-05", 2000], ["2026-09-05", 2000], ["2026-10-05", 2600], ["2026-11-05", 2600], ["2026-12-05", 2600]]);
+});
+
+test("split: ocorrências pagas/passadas mantêm o valor pago e o resumo dos meses encerrados não muda", () => {
+  const old = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-07-05", amount: 2000 });
+  const overrides = [paid("r1", "2026-07-05", 2000), paid("r1", "2026-08-05", 2000), paid("r1", "2026-09-05", 2000)];
+  const sales = [];
+  const before = computeHealth({ sales, expenses: [old], overrides, today: TODAY, period: "lastMonth" });
+  const plan = planRecurringSplit(old, { amount: 3000 }, "2026-10-05");
+  const rows = [{ ...old, recurrenceEndDate: plan.closeOld.recurrenceEndDate }, { ...plan.newRow, id: "r2" }];
+  const after = computeHealth({ sales, expenses: rows, overrides, today: TODAY, period: "lastMonth" });
+  assert.equal(after.summary.operatingExpenses, before.summary.operatingExpenses);
+  assert.deepEqual(after.history.slice(0, 5).map((r) => r.expenses), before.history.slice(0, 5).map((r) => r.expenses));
+  // outubro em diante usa o novo valor (previsto)
+  assert.equal(computeHealth({ sales, expenses: rows, overrides, today: TODAY }).summary.plannedOperating, 3000);
+});
+
+test("split: mudança de periodicidade ancora na data de vigência; sem passado, edita no lugar", () => {
+  const old = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-07-05", amount: 2000 });
+  const q = planRecurringSplit(old, { recurrencePeriod: "quarterly" }, "2026-11-12");
+  assert.equal(q.newRow.expenseDate, "2026-11-12");
+  assert.equal(q.newRow.recurrencePeriod, "quarterly");
+  assert.equal(q.closeOld.recurrenceEndDate, "2026-11-11");
+  const fresh = planRecurringSplit(rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-11-05" }), { amount: 10 }, "2026-10-01");
+  assert.equal(fresh.mode, "in_place");
+  const note = planRecurringSplit(old, { note: "só observação" }, "2026-10-05");
+  assert.equal(note.mode, "in_place");
+});
+
+test("split: sem alteração relevante não gera versão; mantém o dia do mês quando a periodicidade é a mesma", () => {
+  const old = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-07-31", amount: 100 });
+  const plan = planRecurringSplit(old, { amount: 150 }, "2026-10-01");
+  assert.equal(plan.newRow.expenseDate, "2026-10-31");
+  assert.equal(plan.closeOld.recurrenceEndDate, "2026-09-30");
+  assert.equal(planRecurringSplit(old, { amount: 100 }, "2026-10-01").mode, "none");
+});
+
+test("migração de confirmações na divisão: leva as que existem na série nova e bloqueia as que sumiriam", () => {
+  const old = rent({ isRecurring: true, recurrencePeriod: "monthly", expenseDate: "2026-07-05", amount: 2000 });
+  const plan = planRecurringSplit(old, { amount: 2600 }, "2026-10-05");
+  const ok = planOverrideMigration([paid("r1", "2026-10-05", 2000), paid("r1", "2026-09-05", 2000)], plan.newRow, "2026-10-05");
+  assert.deepEqual(ok.migrate.map((o) => o.occurrenceDate), ["2026-10-05"]); // 09-05 é histórico: fica na série antiga
+  const q = planRecurringSplit(old, { recurrencePeriod: "quarterly" }, "2026-10-01");
+  const blocked = planOverrideMigration([paid("r1", "2026-11-05", 2000)], q.newRow, "2026-10-01");
+  assert.equal(blocked.blocked.length, 1);
 });

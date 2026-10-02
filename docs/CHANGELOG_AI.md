@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Saúde financeira: despesa prevista × paga (confirmação manual) e recorrente só dali para frente
+- **Data:** 2026-10-02
+- **Área:** Financeiro / Saúde / banco
+- **Alteração:** (1) despesa operacional deixa de ser "paga" quando a data chega: nasce **prevista** e só vira **paga** com a ação **Confirmar pagamento** (data e valor pagos); há **Reagendar** e **Desfazer**. Lucro/margem/caixa realizados usam só pagas; projeção/expectativa/ponto de equilíbrio usam previstas (inclusive vencidas). Novo bloco "Pagamentos a confirmar" e apontamento de vencidas sem confirmação. (2) Editar valor/categoria/tipo/descrição/periodicidade de recorrente vale **só dali para frente** ("Aplicar a partir de"): série antiga encerrada no dia anterior e nova série criada; histórico e relatórios passados inalterados.
+- **Banco:** migration `20261002190000_financial_expense_occurrences.sql` — tabela `financial_operating_expense_occurrences` (aditiva, idempotente, RLS sem policy). Despesas existentes não foram alteradas.
+- **Arquivos afetados:** `lib/financial-health-core.mjs`, `lib/financial-health.js`, `app/api/financeiro/saude/despesas/[id]/{route,ocorrencias/route}.js`, `app/api/financeiro/saude/ocorrencias/route.js`, `app/admin/financeiro/page.jsx`, `components/FinancialHealthTab.jsx`, `components/AdminFinancialDashboard.jsx`, `tests/financial-health.test.mjs`, `docs/FINANCEIRO_SAUDE.md`, `.claude/rules/financeiro.md`, `.claude/agents/gestor-financeiro.md`.
+- **Risco/observação:** a divisão da recorrente não é transacional (compensação em código); excluir despesa apaga suas confirmações. Substitui a limitação "despesa com data ≤ hoje é paga" da entrada anterior.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Segurança: Documentação/CCA e log de IA fechados para a chave pública (RLS + revoke)
 - **Data:** 2026-10-02
 - **Área:** Banco · Documentação/CCA · Permissões

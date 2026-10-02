@@ -6,6 +6,8 @@ import {
   OPERATING_EXPENSE_CATEGORIES,
   OPERATING_EXPENSE_TYPES,
   RECURRENCE_PERIODS,
+  addDays,
+  collectExpenseEvents,
   computeHealth,
   monthLabel,
   monthRange
@@ -40,8 +42,9 @@ const EMPTY_FORM = {
   note: ""
 };
 
-export default function FinancialHealthTab({ sales = [], initialExpenses = [], initialSettings = {}, today }) {
+export default function FinancialHealthTab({ sales = [], initialExpenses = [], initialOccurrences = [], initialSettings = {}, today }) {
   const [expenses, setExpenses] = useState(initialExpenses);
+  const [occurrences, setOccurrences] = useState(initialOccurrences);
   const [settings, setSettings] = useState(initialSettings);
   const [period, setPeriod] = useState("month");
   const [pickedMonth, setPickedMonth] = useState(today.slice(0, 7));
@@ -58,8 +61,8 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
   }, [period, pickedMonth, customStart, customEnd, today]);
 
   const health = useMemo(
-    () => computeHealth({ sales, expenses, settings, today, period: effective.period, custom: effective.custom }),
-    [sales, expenses, settings, today, effective]
+    () => computeHealth({ sales, expenses, overrides: occurrences, settings, today, period: effective.period, custom: effective.custom }),
+    [sales, expenses, occurrences, settings, today, effective]
   );
 
   const { summary, changes } = health;
@@ -98,8 +101,8 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
       {/* Indicadores principais */}
       <section aria-label="Indicadores principais" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi title="Receita bruta" value={formatMoney(summary.revenueGross)} tag="Recebido" delta={changes.revenue} vsLabel={vsLabel} />
-        <Kpi title="Despesas" value={formatMoney(summary.expenses)} tag="Realizado" delta={changes.expenses} vsLabel={vsLabel} inverse
-          hint={`Operacionais ${formatMoney(summary.operatingExpenses)} + repasses e custos da venda ${formatMoney(summary.saleCosts)}`} />
+        <Kpi title="Despesas pagas" value={formatMoney(summary.expenses)} tag="Realizado" delta={changes.expenses} vsLabel={vsLabel} inverse
+          hint={`Pagas: operacionais ${formatMoney(summary.operatingExpenses)} + repasses e custos da venda ${formatMoney(summary.saleCosts)}. Previstas não entram.`} />
         <Kpi title="Lucro livre" value={formatMoney(summary.profit)} tag="Realizado" delta={changes.profit} vsLabel={vsLabel} negative={summary.profit < 0} />
         <Kpi title="Margem" value={summary.marginPercent === null ? "—" : `${fmtNumber(summary.marginPercent)}%`} tag="Realizado"
           deltaPoints={changes.marginDeltaPoints} vsLabel={vsLabel} hint="Lucro livre ÷ receita bruta" />
@@ -171,8 +174,10 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
       {/* Despesas */}
       <ExpensesSection
         expenses={expenses}
+        occurrences={occurrences}
         today={today}
         onChange={setExpenses}
+        onOccurrencesChange={setOccurrences}
         onFeedback={(tone, text) => setFeedback({ tone, text })}
       />
     </div>
@@ -189,8 +194,8 @@ function ExpectationBlock({ health }) {
   const rows = [
     { label: "Recebido no mês", value: expectation.received, tag: "Realizado" },
     { label: "Ainda previsto a receber", value: expectation.expectedRevenue, tag: "Previsto", sub: [expectation.forecastIncluded > 0 ? `inclui ${formatMoney(expectation.forecastIncluded)} da previsão de recebimento do saldo` : null, expectation.overdue > 0 ? `inclui ${formatMoney(expectation.overdue)} vencido` : null].filter(Boolean).join(" · ") || null },
-    { label: "Despesas realizadas", value: -expectation.expensesRealized, tag: "Realizado" },
-    { label: "Despesas previstas (recorrentes e agendadas)", value: -expectation.expensesPlanned, tag: "Previsto" }
+    { label: "Despesas pagas (confirmadas)", value: -expectation.expensesRealized, tag: "Realizado" },
+    { label: "Despesas previstas (ainda não confirmadas)", value: -expectation.expensesPlanned, tag: "Previsto", sub: expectation.operatingOverdue > 0 ? `inclui ${formatMoney(expectation.operatingOverdue)} vencidas aguardando confirmação` : null }
   ];
   return (
     <div>
@@ -362,7 +367,7 @@ function SettingsForm({ settings, onSaved, onError }) {
   );
 }
 
-function ExpensesSection({ expenses, today, onChange, onFeedback }) {
+function ExpensesSection({ expenses, occurrences, today, onChange, onOccurrencesChange, onFeedback }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -378,6 +383,15 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  // Recarrega despesas e confirmações (uma alteração de recorrente pode criar uma nova versão da série).
+  async function reload() {
+    const [expensesResponse, occurrencesResponse] = await Promise.all([fetch("/api/financeiro/saude/despesas"), fetch("/api/financeiro/saude/ocorrencias")]);
+    const expensesPayload = await expensesResponse.json().catch(() => ({}));
+    const occurrencesPayload = await occurrencesResponse.json().catch(() => ({}));
+    if (expensesResponse.ok) onChange(expensesPayload.expenses || []);
+    if (occurrencesResponse.ok) onOccurrencesChange(occurrencesPayload.occurrences || []);
+  }
+
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
@@ -386,13 +400,14 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
       const response = await fetch(editing ? `/api/financeiro/saude/despesas/${form.id}` : "/api/financeiro/saude/despesas", {
         method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, recurrenceEndDate: form.isRecurring ? form.recurrenceEndDate || null : null })
+        body: JSON.stringify({ ...form, recurrenceEndDate: form.isRecurring ? form.recurrenceEndDate || null : null, effectiveFrom: form.effectiveFrom || undefined })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Não foi possível salvar a despesa.");
-      onChange(editing ? expenses.map((e) => (e.id === payload.id ? payload : e)) : [payload, ...expenses]);
+      if (editing && form.wasRecurring) await reload();
+      else onChange(editing ? expenses.map((e) => (e.id === payload.id ? payload : e)) : [payload, ...expenses]);
       setForm(null);
-      onFeedback("success", editing ? "Despesa atualizada." : "Despesa cadastrada.");
+      onFeedback("success", editing ? (form.wasRecurring ? `Despesa atualizada. A mudança vale a partir de ${formatDate(form.effectiveFrom || today)}; os meses anteriores foram preservados.` : "Despesa atualizada.") : "Despesa cadastrada.");
     } catch (error) {
       onFeedback("error", error.message || "Não foi possível salvar a despesa.");
     } finally {
@@ -437,7 +452,7 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
   return (
     <Card
       title="Despesas da empresa"
-      subtitle="Fixas/recorrentes, variáveis e extraordinárias — separadas dos repasses e despesas de cada venda"
+      subtitle="Cadastradas como previstas; só viram pagas quando você confirma o pagamento. Separadas dos repasses e despesas de cada venda"
       action={!form && (
         <button type="button" onClick={() => setForm({ ...EMPTY_FORM, expenseDate: today })} className="premium-button-primary inline-flex min-h-11 items-center gap-2 px-4 text-sm">
           <Plus size={16} /> Nova despesa
@@ -455,9 +470,13 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
             <Select label="Categoria" value={form.category} onChange={(v) => patch("category", v)} options={OPERATING_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))} />
             <Select label="Tipo" value={form.expenseType} onChange={(v) => patch("expenseType", v)} options={OPERATING_EXPENSE_TYPES} />
             <Field label="Valor (R$)" value={form.amount} onChange={(v) => patch("amount", v)} inputMode="decimal" placeholder="0,00" />
-            <Field label={form.isRecurring ? "Primeira ocorrência" : "Data"} type="date" value={form.expenseDate} onChange={(v) => patch("expenseDate", v)} />
+            {form.wasRecurring ? (
+              <Field label="Aplicar a partir de" type="date" value={form.effectiveFrom || ""} onChange={(v) => patch("effectiveFrom", v)} />
+            ) : (
+              <Field label={form.isRecurring ? "Primeira ocorrência" : "Data prevista"} type="date" value={form.expenseDate} onChange={(v) => patch("expenseDate", v)} />
+            )}
             <label className="flex min-h-12 items-center gap-3 self-end rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy">
-              <input type="checkbox" checked={form.isRecurring} onChange={(e) => patch("isRecurring", e.target.checked)} className="h-5 w-5 accent-brand" />
+              <input type="checkbox" checked={form.isRecurring} disabled={form.wasRecurring} onChange={(e) => patch("isRecurring", e.target.checked)} className="h-5 w-5 accent-brand" />
               Recorrente
             </label>
             {form.isRecurring && (
@@ -470,8 +489,8 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
               <Field label="Observação (opcional)" value={form.note} onChange={(v) => patch("note", v)} />
             </div>
           </div>
-          {form.isRecurring && form.id && (
-            <p className="mt-3 text-xs leading-5 text-warning">Alterar valor, data ou periodicidade muda também os meses passados. Para mudar o valor só daqui para frente, encerre esta despesa e cadastre uma nova.</p>
+          {form.wasRecurring && form.id && (
+            <p className="mt-3 text-xs leading-5 text-muted">A alteração vale <strong className="text-navy">somente a partir da data acima</strong>: os meses anteriores, os pagamentos já confirmados e os relatórios históricos ficam como estão. Mudanças só na observação ou no encerramento não criam nova versão.</p>
           )}
           <div className="mt-4 flex flex-wrap gap-3">
             <button type="submit" disabled={saving} className="premium-button-primary min-h-11 px-5">{saving ? "Salvando..." : "Salvar despesa"}</button>
@@ -479,6 +498,8 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
           </div>
         </form>
       )}
+
+      <PaymentsToConfirm expenses={expenses} occurrences={occurrences} today={today} onOccurrencesChange={onOccurrencesChange} onFeedback={onFeedback} />
 
       {!sorted.length ? (
         <p className="rounded-2xl border border-dashed border-line bg-mist px-4 py-8 text-center text-sm font-bold text-muted">Nenhuma despesa cadastrada. Cadastre aluguel, sistemas, anúncios etc. para ver lucro, caixa e projeções.</p>
@@ -502,7 +523,7 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
                   <span className="text-base font-black text-navy">{formatMoney(expense.amount)}</span>
                   <span className="flex gap-1.5">
                     {active && <button type="button" onClick={() => endRecurrence(expense)} className="min-h-10 rounded-xl border border-line bg-white px-3 text-xs font-black text-navy hover:border-brand">Encerrar</button>}
-                    <button type="button" aria-label={`Editar ${expense.description}`} onClick={() => setForm({ ...EMPTY_FORM, ...expense, amount: String(expense.amount).replace(".", ","), recurrenceEndDate: expense.recurrenceEndDate || "", recurrencePeriod: expense.recurrencePeriod || "monthly" })} className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-navy hover:border-brand"><Pencil size={16} /></button>
+                    <button type="button" aria-label={`Editar ${expense.description}`} onClick={() => setForm({ ...EMPTY_FORM, ...expense, amount: String(expense.amount).replace(".", ","), recurrenceEndDate: expense.recurrenceEndDate || "", recurrencePeriod: expense.recurrencePeriod || "monthly", wasRecurring: expense.isRecurring, effectiveFrom: expense.isRecurring ? today : "" })} className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-navy hover:border-brand"><Pencil size={16} /></button>
                     <button type="button" aria-label={`Excluir ${expense.description}`} onClick={() => remove(expense)} className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-white text-red-700 hover:bg-red-50"><Trash2 size={16} /></button>
                   </span>
                 </div>
@@ -515,6 +536,121 @@ function ExpensesSection({ expenses, today, onChange, onFeedback }) {
         <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 text-sm font-black text-brand">{showAll ? "Mostrar menos" : `Ver todas (${sorted.length})`}</button>
       )}
     </Card>
+  );
+}
+
+function PaymentsToConfirm({ expenses, occurrences, today, onOccurrencesChange, onFeedback }) {
+  const [panel, setPanel] = useState(null); // { key, mode: "pay" | "reschedule", date, amount }
+  const [busy, setBusy] = useState(false);
+  const [showAllDue, setShowAllDue] = useState(false);
+
+  const { due, paidRecent } = useMemo(() => {
+    const all = collectExpenseEvents(expenses, { start: "2000-01-01", end: addDays(today, 45) }, today, occurrences);
+    return {
+      due: all.filter((e) => e.status === "planned").sort((a, b) => a.date.localeCompare(b.date)),
+      paidRecent: all.filter((e) => e.status === "realized" && e.date >= addDays(today, -45)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
+    };
+  }, [expenses, occurrences, today]);
+
+  async function send(event, body, okText) {
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/financeiro/saude/despesas/${event.expenseId}/ocorrencias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ occurrenceDate: event.originalDate, ...body })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Não foi possível salvar.");
+      onOccurrencesChange([...occurrences.filter((o) => !(o.expenseId === payload.expenseId && o.occurrenceDate === payload.occurrenceDate)), payload]);
+      setPanel(null);
+      onFeedback("success", okText);
+    } catch (error) {
+      onFeedback("error", error.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const keyOf = (e) => `${e.expenseId}|${e.originalDate}`;
+  const visibleDue = showAllDue ? due : due.slice(0, 8);
+  if (!due.length && !paidRecent.length) return null;
+
+  return (
+    <div className="mb-5 rounded-2xl border border-brand/25 bg-blue-50/40 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-black text-navy">Pagamentos a confirmar</p>
+        <Tag kind="Previsto" />
+      </div>
+      <p className="mt-0.5 text-xs leading-5 text-muted">Despesa prevista só entra no lucro e no caixa depois que você confirma o pagamento. A data chegar não confirma.</p>
+
+      {!due.length ? <p className="mt-3 text-sm font-bold text-muted">Nenhuma despesa prevista nos próximos 45 dias.</p> : (
+        <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-white">
+          {visibleDue.map((e) => {
+            const key = keyOf(e);
+            const open = panel?.key === key;
+            const days = Math.round((new Date(`${today}T00:00:00Z`) - new Date(`${e.date}T00:00:00Z`)) / 86400000);
+            return (
+              <li key={key} className="p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate font-black text-navy">{e.description}</p>
+                    <p className="text-xs leading-5 text-muted">
+                      {e.overdue ? <span className="font-black text-danger">Venceu há {days} {days === 1 ? "dia" : "dias"} ({formatDate(e.date)})</span> : e.date === today ? <span className="font-black text-warning">Vence hoje</span> : <>Vence em {formatDate(e.date)}</>}
+                      {e.rescheduled && <> · reagendada (original {formatDate(e.originalDate)})</>} · {e.category}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <span className="font-black text-navy">{formatMoney(e.amount)}</span>
+                    <span className="grid grid-cols-2 gap-1.5">
+                      <button type="button" onClick={() => setPanel(open && panel.mode === "pay" ? null : { key, mode: "pay", date: today, amount: String(e.amount).replace(".", ",") })} className="min-h-10 rounded-xl bg-navy px-3 text-xs font-black leading-4 text-white">Confirmar pagamento</button>
+                      <button type="button" onClick={() => setPanel(open && panel.mode === "reschedule" ? null : { key, mode: "reschedule", date: e.date < today ? today : e.date })} className="min-h-10 rounded-xl border border-line bg-white px-3 text-xs font-black text-navy hover:border-brand">Reagendar</button>
+                    </span>
+                  </div>
+                </div>
+                {open && panel.mode === "pay" && (
+                  <div className="mt-3 grid gap-3 rounded-xl bg-mist p-3 min-[420px]:grid-cols-2">
+                    <Field label="Data do pagamento" type="date" value={panel.date} onChange={(v) => setPanel({ ...panel, date: v })} />
+                    <Field label="Valor pago (R$)" value={panel.amount} inputMode="decimal" onChange={(v) => setPanel({ ...panel, amount: v })} />
+                    <div className="grid grid-cols-2 gap-2 min-[420px]:col-span-2">
+                      <button type="button" disabled={busy} onClick={() => send(e, { action: "pay", paidDate: panel.date, paidAmount: panel.amount }, "Pagamento confirmado.")} className="premium-button-primary min-h-11 px-3 text-sm">{busy ? "Salvando..." : "Confirmar"}</button>
+                      <button type="button" onClick={() => setPanel(null)} className="premium-button-secondary min-h-11 px-3 text-sm">Cancelar</button>
+                    </div>
+                  </div>
+                )}
+                {open && panel.mode === "reschedule" && (
+                  <div className="mt-3 grid gap-3 rounded-xl bg-mist p-3 min-[420px]:grid-cols-2">
+                    <Field label="Nova data prevista" type="date" value={panel.date} onChange={(v) => setPanel({ ...panel, date: v })} />
+                    <div className="grid grid-cols-2 items-end gap-2">
+                      <button type="button" disabled={busy} onClick={() => send(e, { action: "reschedule", rescheduledTo: panel.date }, "Despesa reagendada.")} className="premium-button-primary min-h-11 px-3 text-sm">{busy ? "Salvando..." : "Reagendar"}</button>
+                      <button type="button" onClick={() => setPanel(null)} className="premium-button-secondary min-h-11 px-3 text-sm">Cancelar</button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {due.length > 8 && <button type="button" onClick={() => setShowAllDue((v) => !v)} className="mt-2 text-sm font-black text-brand">{showAllDue ? "Mostrar menos" : `Ver todas (${due.length})`}</button>}
+
+      {paidRecent.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-black text-navy">Pagas recentemente ({paidRecent.length})</summary>
+          <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-white">
+            {paidRecent.map((e) => (
+              <li key={keyOf(e)} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-navy">{e.description}</p>
+                  <p className="text-xs text-muted">Paga em {formatDate(e.date)} · {formatMoney(e.amount)}</p>
+                </div>
+                <button type="button" disabled={busy} onClick={() => { if (confirm(`Desfazer a confirmação de "${e.description}"? Ela volta a ser prevista.`)) send(e, { action: "undo" }, "Confirmação desfeita."); }} className="min-h-10 shrink-0 rounded-xl border border-line bg-white px-3 text-xs font-black text-navy hover:border-brand">Desfazer</button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }
 

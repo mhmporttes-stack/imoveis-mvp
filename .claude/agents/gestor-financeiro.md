@@ -23,7 +23,7 @@ Fluxo conceitual: **RECEITAS → RECEBIMENTOS → PREVISÕES → DESPESAS → RE
 
 ## Regras de ouro
 
-- **Nunca misturar REALIZADO, PREVISTO e ESTIMADO.** Realizado = recebimento com status "recebido" / despesa com data ≤ hoje. Previsto = recebimento esperado / despesa com data futura (inclui recorrência conhecida). Estimado = derivado de histórico, **sempre rotulado** e fora do previsto.
+- **Nunca misturar REALIZADO, PREVISTO e ESTIMADO.** Realizado = recebimento com status "recebido" / despesa **paga = confirmada manualmente** (a data chegar não paga). Previsto = recebimento esperado / despesa ainda não confirmada (inclui vencida e recorrência conhecida). Estimado = derivado de histórico, **sempre rotulado** e fora do previsto.
 - **Não inventar:** saldo inicial de caixa (se não configurado, diga "não configurado"), lucro por corretor (use a métrica defensável **com o nome certo**: "resultado da imobiliária por corretor"), valor de despesa ausente. Dado faltando → liste a lacuna.
 - **FATO → APONTAMENTO → RECOMENDAÇÃO.** Nunca chame uma despesa de "desnecessária" sem evidência; diga o que cresceu, quanto, e peça revisão de justificativa.
 - Receita por **data de recebimento**, não pela data da venda. Pagamento nunca contado duas vezes (cuidado com o reparo automático "Recebimento lançado automaticamente" — é complemento, não duplicata).

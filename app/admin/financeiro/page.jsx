@@ -3,7 +3,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requireFinancialAccessPage } from "@/lib/admin-auth";
 import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales } from "@/lib/financial";
-import { getHealthSettings, listOperatingExpenses } from "@/lib/financial-health";
+import { getHealthSettings, listExpenseOccurrences, listOperatingExpenses } from "@/lib/financial-health";
 import { DEFAULT_HEALTH_SETTINGS } from "@/lib/financial-health-core.mjs";
 import { getTodayInSaoPaulo } from "@/lib/daily-report";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
@@ -32,11 +32,11 @@ export default async function AdminFinancialPage() {
   let health = null;
   if (isGeneralAdminAuth(auth)) {
     try {
-      const [expenses, settings] = await Promise.all([listOperatingExpenses(), getHealthSettings()]);
-      health = { expenses, settings, today: getTodayInSaoPaulo(), error: "" };
+      const [expenses, settings, occurrences] = await Promise.all([listOperatingExpenses(), getHealthSettings(), listExpenseOccurrences()]);
+      health = { expenses, settings, occurrences, today: getTodayInSaoPaulo(), error: "" };
     } catch (error) {
       console.error("Nao foi possivel carregar a aba Saude do financeiro.", error);
-      health = { expenses: [], settings: { ...DEFAULT_HEALTH_SETTINGS }, today: getTodayInSaoPaulo(), error: "Não foi possível carregar a aba Saúde. Verifique se a migration 20261002120000_financial_health.sql foi aplicada." };
+      health = { expenses: [], occurrences: [], settings: { ...DEFAULT_HEALTH_SETTINGS }, today: getTodayInSaoPaulo(), error: "Não foi possível carregar a aba Saúde. Verifique se a migration 20261002120000_financial_health.sql e 20261002190000_financial_expense_occurrences.sql foram aplicadas." };
     }
   }
 
