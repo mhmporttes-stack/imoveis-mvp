@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Novos modelos das mensagens automáticas aplicados (4/4/10) + variáveis {saudacao} e {associado_a}
+- **Data:** 2026-10-02
+- **Área:** Meta Diária · Prospecção · WhatsApp
+- **Alteração:** modelos aprovados pelo dono gravados em produção (`crm_settings.daily_goal_auto_messages`) e como padrão do código (`lib/daily-goal-auto-messages.mjs`). `renderAutoMessage` passou a resolver `{saudacao}` (hora real do envio) e `{associado_a}`; texto com variável sobrando não é enviado; salvar pela tela mantém parágrafos (antes `cleanText` juntava tudo numa linha) e recusa variável desconhecida.
+- **Motivo:** correção — o commit anterior só ampliou o limite para 10 modelos; os textos novos não tinham sido aplicados e as variáveis novas sairiam cruas.
+- **Arquivos afetados:** `lib/daily-goal-auto-messages.mjs`, `lib/daily-goal-auto-core.mjs`, `lib/daily-goal-auto.js`, `lib/prospecting-extra-dispatch.js`, `lib/daily-goal.js`, `components/DailyGoalAdmin.jsx`, `tests/daily-goal-auto-messages.test.mjs`.
+- **Risco/observação:** ordem segura: código publicado ANTES de gravar os textos no banco (o código anterior não resolvia `{saudacao}`). Anti-repetição do commit 3356ba0 intacta. Caroline Mayumi e ketlin estão sem gênero cadastrado → recebem a frase neutra até o gênero ser preenchido.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Modelos das mensagens automáticas: sorteio com anti-repetição no momento do envio
 - **Data:** 2026-10-02
 - **Área:** Meta Diária · Prospecção · WhatsApp

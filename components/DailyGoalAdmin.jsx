@@ -32,6 +32,8 @@ const SKIP_REASON_LABELS = {
   sessao_nao_conectada: "WhatsApp desconectado no momento",
   fila_vazia: "Fila vazia",
   responsavel_mudou: "Cliente mudou de corretor antes do disparo",
+  sem_modelo_de_mensagem: "Tentativa sem modelo de mensagem cadastrado",
+  modelo_com_variavel_invalida: "Modelo com variável desconhecida — corrigir em Mensagens da automação",
   falha_ao_preparar_cliente: "Disparar desfeito (falha ao preparar o cliente)",
   round_nao_esta_mais_ativo: "Cliente não estava mais ativo (já converteu/encerrou)",
   contato_do_not_contact: "Contato pediu para não ser contactado (PARAR)",
@@ -849,7 +851,7 @@ function AutoMessagesEditor() {
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
           <h3 className="text-lg font-black text-navy">Mensagens da automação (até 4 variações na 1ª e 2ª tentativa, até 10 na 3ª)</h3>
-          <p className="mt-1 text-xs font-bold text-muted">Sorteadas no envio sem repetir nenhuma até todas daquela tentativa terem saído pelo mesmo WhatsApp. Campo vazio é ignorado. Variáveis disponíveis: {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_associada}"}</p>
+          <p className="mt-1 text-xs font-bold text-muted">Sorteadas no envio sem repetir nenhuma até todas daquela tentativa terem saído pelo mesmo WhatsApp. Campo vazio é ignorado. Variáveis disponíveis: {"{saudacao}"}, {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_a}"}</p>
         </div>
         <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
       </button>
@@ -867,7 +869,7 @@ function AutoMessagesEditor() {
                     <textarea
                       key={index}
                       className="w-full rounded-2xl border border-line p-3 text-sm font-normal text-navy outline-none focus:border-brand"
-                      rows={2}
+                      rows={field.key === "message2" ? 6 : 2}
                       placeholder={`Variação ${index + 1}`}
                       value={text}
                       onChange={(event) => updateVariant(field.key, index, event.target.value)}
