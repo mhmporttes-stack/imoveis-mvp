@@ -108,6 +108,11 @@ const TELAS = {
     rotas: [...supervisao.routes, ...metaDiaria.routes],
     render: () => (
       <main className="min-h-screen bg-mist py-14">
+        <section className="container-page mb-6">
+          <div className="mx-auto max-w-3xl">
+            <DailyGoalDashboard variant="card" initialGoal={{ ...metaDiaria.brokerGoal, compensation: metaDiaria.compensationVariants[2].notice }} />
+          </div>
+        </section>
         <TeamDailyPerformance initialOverview={metaDiaria.managerOverview} viewer="manager" />
       </main>
     )

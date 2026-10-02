@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — Meta Diária: card da própria gestora + cabeçalho padronizado dos cards (T-49/T-50)
+- **Data:** 2026-10-02
+- **Área:** Meta Diária
+- **Alteração:** (1) Em `/admin/meta-diaria`, a gestora volta a ver PRIMEIRO o card da própria meta (mesmo componente do corretor, `DailyGoalDashboard variant="card"`: progresso, prospecção, pendentes, carteira, grupos, compensação por restrição e aviso de WhatsApp), e abaixo a equipe dela como antes. Dados via `getBrokerDailyGoal(auth)` (só o perfil da sessão), pelas regras atuais — sem regra nova; sem lista de contatos nem painel de automação no card. (2) Cabeçalho de todos os cards da equipe: linha 1 foto/nome/online/chat; linha 2 só badges de status (podem quebrar); linha 3 ícones WhatsApp + Google Contacts sempre juntos. Só visual.
+- **Motivo:** pedido do dono (a gestora deixou de ver a própria meta) e padronização visual.
+- **Arquivos afetados:** `app/admin/meta-diaria/page.jsx`, `components/DailyGoalDashboard.jsx`, `components/TeamDailyPerformance.jsx`, `app/dev/vitrine/_components/VitrineClient.jsx`, `tests/team-meta-card-gestora.test.mjs`, `docs/BUSINESS_RULES.md` (MD-11), `.claude/rules/meta-diaria-ranking.md`
+- **Como validar:** `node --test tests/team-meta-card-gestora.test.mjs`; vitrine `?tela=meta-diaria-gestora` em 1366 e 390 px.
+- **Pendências:** nenhuma migration. Se a gestora estiver sem WhatsApp conectado, a regra atual não gera cota nova para ela (card mostra o aviso).
+
 ### 2026-10-02 — Meta Diária: visão da gestora (só a equipe dela) + alerta de conexão do WhatsApp (T-35)
 - **Data:** 2026-10-02
 - **Área:** Meta Diária / WhatsApp / Alertas / Permissões

@@ -24,13 +24,17 @@ const GROUPS = [
   { key: "third", title: "Última tentativa", chipLabel: "Última tentativa" }
 ];
 
-export default function DailyGoalDashboard({ initialGoal }) {
+// variant="card": só o cartão-resumo da PRÓPRIA meta (progresso, quantidades, pendências, carteira, grupos,
+// compensação e aviso do WhatsApp) — usado pela gestora no topo da Meta Diária da equipe (T-49). Mesmo cálculo e
+// mesmas regras do corretor (getBrokerDailyGoal); sem lista de contatos e sem painel de automação.
+export default function DailyGoalDashboard({ initialGoal, variant = "full" }) {
+  const isCard = variant === "card";
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState("");
 
   if (!goal) {
     return (
-      <section className="container-page rounded-[24px] border border-line bg-white p-10 text-center shadow-soft">
+      <section className={`${isCard ? "" : "container-page "}rounded-[24px] border border-line bg-white p-10 text-center shadow-soft`}>
         <p className="font-bold text-muted">Não foi possível carregar sua Meta Diária agora.</p>
       </section>
     );
@@ -79,8 +83,9 @@ export default function DailyGoalDashboard({ initialGoal }) {
   }
 
   return (
-    <section className="container-page space-y-8">
+    <section className={isCard ? "space-y-4" : "container-page space-y-8"}>
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
+        {isCard ? <h2 className="mb-4 text-center text-sm font-black uppercase tracking-[0.14em] text-navy">Minha Meta Diária</h2> : null}
         <div className="flex flex-col items-center gap-3">
           <div className="relative h-40 w-40">
             <AnimatedRing
@@ -121,7 +126,7 @@ export default function DailyGoalDashboard({ initialGoal }) {
               />
             ) : null}
           </ul>
-          {goal.pending?.remaining > 0 ? (
+          {goal.pending?.remaining > 0 && !isCard ? (
             <a href="/admin/simulacoes?pending=1" className="text-xs font-black text-brand underline-offset-2 hover:underline">
               Ver clientes pendentes
             </a>
@@ -172,7 +177,7 @@ export default function DailyGoalDashboard({ initialGoal }) {
 
       <DailyGoalCompensationNotice notice={goal.compensation} />
 
-      <DailyGoalAutoPanel />
+      {isCard ? null : <DailyGoalAutoPanel />}
 
       {goal.prospectingBlocked ? (
         <p role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
@@ -182,7 +187,7 @@ export default function DailyGoalDashboard({ initialGoal }) {
       ) : null}
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
-      <StaggerContainer className="space-y-8" staggerChildren={0.08} delayChildren={0.2}>
+      {isCard ? null : <StaggerContainer className="space-y-8" staggerChildren={0.08} delayChildren={0.2}>
         {GROUPS.map((group) => (
           <StaggerItem key={group.key}>
             <ClientGroup
@@ -194,7 +199,7 @@ export default function DailyGoalDashboard({ initialGoal }) {
             />
           </StaggerItem>
         ))}
-      </StaggerContainer>
+      </StaggerContainer>}
     </section>
   );
 }

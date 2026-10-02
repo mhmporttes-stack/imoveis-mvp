@@ -353,21 +353,25 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
     >
       <div className="flex items-center gap-3">
         <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
-        <h3 className="flex min-w-0 items-center gap-2 text-base font-black text-navy">
+        <h3 className="flex min-w-0 flex-1 items-center gap-2 text-base font-black text-navy">
           <span
             aria-hidden="true"
             className={`h-3 w-3 shrink-0 rounded-full ${PRESENCE_DOT[presenceStatus] || PRESENCE_DOT.offline}`}
           />
           <span className="min-w-0 truncate">{broker.name}</span>
         </h3>
-        {readOnly ? null : <SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} />}
+        {readOnly ? null : <span className="ml-auto shrink-0"><SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} /></span>}
       </div>
 
       {automation ? (
         <>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {/* Cabeçalho padronizado (T-50): linha 2 = só badges de status (podem quebrar linha);
+              linha 3 = ícones de ação (WhatsApp + Google Contacts SEMPRE juntos, mesma posição em todo card). */}
+          <div data-card-badges className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
             <WhatsappStateChip small sessionStatus={automation.sessionStatus} restriction={restriction} />
+          </div>
+          <div data-card-icons className="mt-1.5 flex items-center gap-2">
             <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappTone(automation.sessionStatus)} label={`WhatsApp: ${sessionInfo.label}`} />
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>

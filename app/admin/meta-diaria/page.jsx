@@ -66,6 +66,18 @@ export default async function MetaDiariaPage() {
 async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
   let overview = null;
   let error = "";
+  // Gestora: PRIMEIRO o card da própria meta (T-49) — mesmo cálculo/regras do corretor (getBrokerDailyGoal usa só
+  // o perfil da sessão: não há parâmetro de outro usuário). Falha aqui não derruba a visão da equipe.
+  let ownGoal = null;
+  let ownGoalError = "";
+
+  if (viewer === "manager" && canLoadDailyGoal()) {
+    try {
+      ownGoal = await getBrokerDailyGoal(auth);
+    } catch (loadError) {
+      ownGoalError = formatDailyGoalError(loadError);
+    }
+  }
 
   if (canLoadDailyGoal()) {
     try {
@@ -91,7 +103,22 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
           <p className="mt-3 font-bold text-red-800">{error}</p>
         </section>
       ) : (
-        <TeamDailyPerformance initialOverview={overview} viewer={viewer} />
+        <>
+          {viewer === "manager" ? (
+            <section className="container-page mb-6">
+              <div className="mx-auto max-w-3xl">
+                {ownGoal ? (
+                  <DailyGoalDashboard initialGoal={ownGoal} variant="card" />
+                ) : (
+                  <p className="rounded-[20px] border border-line bg-white p-5 text-center text-sm font-bold text-muted">
+                    {ownGoalError || "Não foi possível carregar sua Meta Diária agora."}
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : null}
+          <TeamDailyPerformance initialOverview={overview} viewer={viewer} />
+        </>
       )}
     </main>
   );
