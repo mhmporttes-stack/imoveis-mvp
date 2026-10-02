@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Número do dono não faz disparo automático da Meta Diária
+- **Data:** 2026-10-02
+- **Área:** Meta Diária (automação WhatsApp)
+- **Alteração:** `ensureDailyGoalAutoEnabledOnConnect` não liga mais a automação quando quem conecta o WhatsApp é o dono (`isOwnerAdminEmail`). Dado: automação do dono desligada (`enabled=false`) e 20 envios pendentes cancelados (`numero_do_dono_sem_disparo`); nenhum envio automático jamais saiu do número dele.
+- **Motivo:** decisão do dono — só os números dos corretores fazem disparo; ao conectar o WhatsApp do dono por código (02/10 03:42) a regra de 30/09 ligou a automação dele com 20 envios para clientes reais.
+- **Arquivos afetados:** `lib/daily-goal-auto.js`.
+- **Risco/observação:** a regra "liga sozinha ao conectar" continua valendo para os corretores.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Meta Diária automática: "Intervalo médio máximo" e recuperação segura de itens presos em "enviando"
 - **Data:** 2026-10-02
 - **Área:** Meta Diária (automação WhatsApp) · Banco
