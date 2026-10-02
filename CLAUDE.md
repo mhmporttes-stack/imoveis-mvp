@@ -87,6 +87,7 @@ Quando uma REGRA OFICIAL diverge do COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO, o ar
 
 ## Agente e skills deste projeto
 
+- Agente `despachante` — **porta de entrada única**: recebe qualquer tarefa do dono, escolhe o(s) especialista(s) pelo mapa (`.claude/despachante/MAPA-AGENTES.md`), delega em segundo plano, registra (`.claude/despachante/REGISTRO.md`) e devolve curto; não faz o trabalho pesado. Use com `claude --agent despachante` ou skill `/despachar`. **Política de autonomia de TODOS os agentes** (executar sem pedir confirmação; parar só em decisão de produto/negócio ou ação irreversível em dado real, em português simples e com o impacto, nunca SQL/comando): `docs/DESPACHANTE.md` §5. Agente em segundo plano não pergunta: termina com `DECISÃO NECESSÁRIA`.
 - Subagente `crm-editor` (persona **CRM Architect**) — use-o para qualquer alteração de código neste CRM; ele já carrega a filosofia de investigar causa raiz e impacto antes de editar.
 - Subagente `gestor-trafego` — análise de tráfego pago (Meta) **somente leitura**, cruzando investimento com o funil do CRM; skills `/auditar-trafego`, `/criar-anuncio`, `/planejar-campanha`. Nunca altera campanha/orçamento — só recomenda. Contexto: `docs/TRAFEGO_META.md` §6-A.
 - Subagente `designer-crm` — Product Design/UI-UX: critica, redesenha e implementa **só interface** (identidade obrigatória: azul/branco + logo; funcionalidades e regras preservadas); skill `/design-crm`; revisão visual sem login na vitrine `app/dev/vitrine` (só `next dev`).

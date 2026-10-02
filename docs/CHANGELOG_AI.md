@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Despachante de tarefas + política de autonomia dos agentes
+- **O quê:** novo agente `despachante` (`.claude/agents/despachante.md`), skill `/despachar`, mapa de agentes e registro de tarefas em `.claude/despachante/`, documento `docs/DESPACHANTE.md` (capacidades reais, auditoria de permissões, política de autonomia), teste `tests/despachante.test.mjs` (mapa completo + invariantes de segurança). `CLAUDE.md` e `AGENTS.md` apontam para eles.
+- **Por quê:** o dono quer um único chat de entrada que delegue em segundo plano e só o interrompa em decisão de produto/impacto destrutivo.
+- **Não alterado:** hook de SQL, `.mcp.json` read-only, `ask` de migration/force-push/rm. **`.claude/settings.json` NÃO foi alterado** — o app bloqueou a autoedição de permissões; a proposta está em `docs/DESPACHANTE.md` §4 aguardando o dono.
+- **Risco/observação:** MCP `Supabase` do `.mcp.json` não conecta (token ausente/inválido); agentes WhatsApp/Alexa/Diretor não existem como agentes (ver mapa).
+
 ### 2026-10-02 — Central de Alertas (Informativo / Importante)
 - **Data:** 2026-10-02
 - **Área:** Notificações · Painel · Banco · Alexa
