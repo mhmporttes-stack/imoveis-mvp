@@ -373,9 +373,24 @@ function PipelineStrip({ list }) {
 
   const select = (key) => list.updateFilters({ statusGroup: key, status: "all", pendingOnly: false, needsFirstContact: false });
 
+  // Celular: ao selecionar uma etapa, rola a faixa só o necessário para ela
+  // ficar inteira à vista (se já está visível, não mexe).
+  const tabsRef = useRef(null);
+  useEffect(() => {
+    const scroller = tabsRef.current;
+    const tab = scroller?.querySelector('[aria-selected="true"]');
+    if (!scroller || !tab) return;
+    const box = scroller.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
+    let delta = 0;
+    if (rect.left < box.left) delta = rect.left - box.left;
+    else if (rect.right > box.right) delta = rect.right - box.right;
+    if (Math.abs(delta) > 1) scroller.scrollBy({ left: delta, behavior: "smooth" });
+  }, [filters.statusGroup]);
+
   return (
-    <div className="mt-2.5 rounded-card border border-line bg-white sm:mt-4">
-      <div className="flex items-stretch overflow-x-auto" role="tablist" aria-label="Etapas do funil">
+    <div className="mt-2.5 overflow-hidden rounded-card border border-line bg-white sm:mt-4">
+      <div ref={tabsRef} className="flex snap-x snap-mandatory items-stretch overflow-x-auto [scrollbar-width:none] sm:snap-none [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Etapas do funil">
         <StageTab label="Todos" count={counters.byGroup?.all ?? counters.all ?? 0} active={filters.statusGroup === "all"} onClick={() => select("all")} />
         {funnel.map((group) => (
           <StageTab
@@ -424,18 +439,18 @@ function StageTab({ label, count, ratio = null, active, onClick, muted = false }
       aria-selected={active}
       onClick={onClick}
       className={cx(
-        "relative flex min-w-[30%] flex-1 shrink-0 flex-col justify-between gap-2 px-3 pb-3 pt-2.5 text-left sm:min-w-[6.75rem] sm:px-3.5 transition-colors duration-150",
-        "border-r border-line last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
-        active ? "bg-info-soft" : "hover:bg-navy/[0.025]"
+        "relative flex w-1/3 shrink-0 grow-0 snap-start flex-col justify-between gap-1.5 px-2.5 pb-2 pt-2 text-left sm:pb-3 sm:pt-2.5 sm:w-auto sm:min-w-[6.75rem] sm:flex-1 sm:snap-align-none sm:gap-2 sm:px-3.5 transition-colors duration-150",
+        "border-r border-line/70 last:border-r-0 sm:border-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
+        active ? "bg-info-soft/70 sm:bg-info-soft" : "hover:bg-navy/[0.025]"
       )}
     >
-      <span className={cx("text-xs font-medium", active ? "text-navy" : muted ? "text-muted" : "text-ink-2")}>{label}</span>
-      <span className={cx("text-xl font-bold leading-none tracking-[-0.01em] tabular-nums", active ? "text-navy" : count ? "text-ink" : "text-faint")}>{count}</span>
+      <span className={cx("text-[11px] font-medium leading-none sm:text-xs", active ? "text-navy" : muted ? "text-muted" : "text-muted sm:text-ink-2")}>{label}</span>
+      <span className={cx("text-[22px] font-bold leading-none tracking-[-0.01em] tabular-nums sm:text-xl sm:leading-none", active ? "text-navy" : count ? "text-ink" : "text-faint")}>{count}</span>
       {ratio !== null ? (
-        <span className="block h-1 w-full overflow-hidden rounded-full bg-navy/[0.06]" aria-hidden="true">
+        <span className="block h-[3px] w-full overflow-hidden rounded-full bg-navy/[0.06] sm:h-1" aria-hidden="true">
           <span className={cx("block h-full rounded-full", active ? "bg-brand" : "bg-navy/30")} style={{ width: `${Math.max(count ? 6 : 0, Math.round(ratio * 100))}%` }} />
         </span>
-      ) : <span className="block h-1" aria-hidden="true" />}
+      ) : <span className="block h-[3px] sm:h-1" aria-hidden="true" />}
       {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand" aria-hidden="true" /> : null}
     </button>
   );

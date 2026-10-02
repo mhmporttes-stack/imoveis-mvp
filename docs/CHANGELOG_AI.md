@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Clientes (mobile): faixa de etapas do funil com 3 abas inteiras e rolagem encaixada
+- **Data:** 2026-10-02
+- **Área:** Frontend (só visual; contadores, barras, filtros e seleção inalterados)
+- **Alteração:** `PipelineStrip`/`StageTab` — no celular cada aba ocupa 1/3 da faixa (Todos/Prospecção/Atendimento inteiros, sem corte), rolagem horizontal com encaixe (`snap`), aba menor (64px), nome secundário e número maior, barra de 3px, divisórias discretas, cantos arredondados só no conjunto; ao selecionar uma etapa a faixa rola só o necessário para ela ficar totalmente visível. `sm+` inalterado (altura 78px, igual a antes).
+- **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Resposta à Prospecção pelo WhatsApp (pendência + opt-out) independente do Chat; conversas LID voltam a chegar
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Prospecção · Meta Diária · Clientes · Notificações · Banco
