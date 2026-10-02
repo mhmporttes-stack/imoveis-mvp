@@ -51,6 +51,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Motivo:** pedido do dono (agente especialista em análise documental com as regras Caixa/MCMV dele).
 - **Arquivos afetados:** `.claude/agents/analista-documental.md`, `.claude/analista-documental/*`, `.claude/skills/{analisar-documentacao,auditar-analise-documental,testar-regra-documental}/**`, `tests/document-regression.test.mjs`, `tests/fixtures/documentos/casos-requisitos.json`, `.claude/rules/documentacao-cca.md`, `AGENTS.md`, `CLAUDE.md`.
 - **Risco/observação:** (1) o motor de IA da análise documental é **Anthropic** (`claude-sonnet-5`), não OpenAI como o pedido supunha — nada foi trocado; mudança de provedor é decisão do dono. (2) **Não corrigido, aguarda aprovação:** tabelas `client_documents`, `client_document_batches`, `client_document_checklist_items`, `client_document_submissions` e `ai_usage_log` com RLS desligado e SELECT para `anon`/`authenticated` (dados pessoais legíveis com a anon key pública); `cca` com grant de select para anon. (3) Lacunas regra × código: validade do comprovante (mês atual/anterior), CPF cruzado determinístico, comprovante no motor sem filtro de papel/validade, reescaneado como duplicado, `ctps_format` sem efeito, `fgts_updated` exigindo FGTS de não-CLT (a validar).
+
+### 2026-10-02 — Previsão de recebimento: restrita ao dono (lançar, alterar e ver)
+- **Data:** 2026-10-02
+- **Área:** Financeiro / Permissões
+- **Alteração:** pedido do dono — "apenas eu lanço as datas, altero e visualizo". `expectedReceiptDate` só trafega para `isOwnerAdminEmail` (omitido para os demais em `listFinancialSales`/`getFinancialSale`, portanto na API e na tela); campo, linhas "Previsão do saldo" e botões só para o dono; salvar a venda por outro admin geral preserva a previsão; `POST /api/financeiro/[id]/receipt` exige o dono (403) e a Agenda só entrega os dados dos botões ao dono. A atividade criada pelo cron/outro admin é atribuída ao dono. Antes disso qualquer admin geral editava e corretor/associado via a previsão das próprias vendas.
+- **Arquivos afetados:** `lib/financial.js`, `lib/financial-expected-receipt-core.mjs` (`applyExpectedReceiptVisibility`), `app/api/financeiro/[id]/receipt/route.js`, `app/api/calendar-activities/route.js`, `app/admin/financeiro/page.jsx`, `components/AdminFinancialDashboard.jsx`, `tests/financial-expected-receipt.test.mjs`, `.claude/rules/financeiro.md`, `docs/BUSINESS_RULES.md` (FIN-5).
+- **Risco/observação:** a identidade do dono usa `isOwnerAdminEmail` do usuário efetivo (mesmo critério de `assertOwnerAdmin`; lista fixa por e-mail em `lib/admin-profiles.js`, P-10). Atividades já criadas antes desta restrição: nenhuma existia (0 previsões em produção).
+
 - **Autor:** Claude Code
 
 ### 2026-10-02 — Financeiro: previsão de recebimento da comissão + atividade "Confirmar recebimento" na Agenda

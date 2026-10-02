@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyExpectedReceiptVisibility,
   buildActivityTexts,
   buildForecastEntry,
   calculateReceivableMetrics,
@@ -115,6 +116,20 @@ const gustavo = (extra = {}) => ({ id: "sale-gustavo", client_id: "client-1", cl
 const pendingActivities = (db) => db.tables.calendar_activities.filter((activity) => activity.status === "pending");
 const paymentsOf = (db, saleId) => db.tables.financial_payments.filter((payment) => payment.sale_id === saleId);
 const actor = { actorProfileId: "admin-1", actorUserId: "user-1", adminEmail: "admin@x.com" };
+
+// ---------- visibilidade: só o dono ----------
+
+test("previsão é só do dono: não-dono não recebe a data; dono e chamada interna mantêm", () => {
+  const sale = { id: "s1", expectedReceiptDate: "2026-10-15", clientName: "G", financialStatus: "pending", payments: [] };
+  assert.equal(applyExpectedReceiptVisibility(sale, false).expectedReceiptDate, "");
+  assert.equal(applyExpectedReceiptVisibility(sale, true).expectedReceiptDate, "2026-10-15");
+  assert.equal(applyExpectedReceiptVisibility(sale, null).expectedReceiptDate, "2026-10-15");
+  assert.equal(applyExpectedReceiptVisibility(null, false), null);
+  assert.equal(sale.expectedReceiptDate, "2026-10-15"); // não muta o original
+  // sem data visível, nada entra nos indicadores do não-dono
+  const hidden = applyExpectedReceiptVisibility(sale, false);
+  assert.deepEqual(flattenReceivableEntries([hidden], () => 9000), []);
+});
 
 // ---------- previsão e indicadores ----------
 

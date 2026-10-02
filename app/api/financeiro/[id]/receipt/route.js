@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireGeneralAdminApi } from "@/lib/admin-auth";
-import { canManageFinancial, confirmExpectedReceipt, formatFinancialError, rescheduleExpectedReceipt } from "@/lib/financial";
+import { canManageFinancial, confirmExpectedReceipt, formatFinancialError, isExpectedReceiptOwner, rescheduleExpectedReceipt } from "@/lib/financial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +13,11 @@ export async function POST(request, { params }) {
   const auth = await requireGeneralAdminApi(request, "Apenas o administrador geral pode alterar o financeiro.");
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  // Previsão de recebimento: só o administrador principal (dono) lança, altera e vê.
+  if (!isExpectedReceiptOwner(auth)) {
+    return NextResponse.json({ error: "Apenas o administrador principal pode lançar ou alterar a previsão de recebimento." }, { status: 403 });
   }
 
   if (!canManageFinancial()) {

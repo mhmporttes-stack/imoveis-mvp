@@ -2,7 +2,7 @@ import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import { requireFinancialAccessPage } from "@/lib/admin-auth";
-import { canManageFinancial, formatFinancialError, listFinancialSales } from "@/lib/financial";
+import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales } from "@/lib/financial";
 import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function AdminFinancialPage() {
   return (
     <main className="bg-mist py-14">
       <AdminSectionNav active="financial" />
-      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
+      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} canManageForecast={isExpectedReceiptOwner(auth)} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
     </main>
   );
 }

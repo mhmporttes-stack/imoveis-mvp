@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
+import { listAdminProfiles } from "@/lib/admin-profiles";
 import { createCalendarActivity, listCalendarActivities, listCalendarClientOptions } from "@/lib/calendar-activities";
-import { listExpectedReceiptSummaries } from "@/lib/financial";
+import { isExpectedReceiptOwner, listExpectedReceiptSummaries } from "@/lib/financial";
 import {
   formatSimulationRegistrationError,
   listBirthdayRegistrations,
@@ -62,10 +62,10 @@ export async function GET(request) {
       };
     });
 
-    // Atividades "Confirmar recebimento": valor/data previstos para os botões da Agenda. Dado financeiro
-    // só vai para o admin geral (sem isso o card aparece, mas sem os botões).
+    // Atividades "Confirmar recebimento": valor/data previstos para os botões da Agenda. Só o dono
+    // (administrador principal) recebe esse dado financeiro; sem isso o card aparece, mas sem os botões.
     let receiptSummaries = new Map();
-    const receiptSaleIds = isGeneralAdminAuth(auth)
+    const receiptSaleIds = isExpectedReceiptOwner(auth)
       ? savedActivities.filter((activity) => activity.financialSaleId && activity.status === "pending").map((activity) => activity.financialSaleId)
       : [];
     if (receiptSaleIds.length) {

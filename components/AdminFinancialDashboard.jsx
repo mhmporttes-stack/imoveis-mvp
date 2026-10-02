@@ -88,7 +88,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false }) {
+export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false, canManageForecast = false }) {
   const isAssociate = currentUser?.role === "associate";
   const [sales, setSales] = useState(() => ensureArray(initialSales));
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -299,7 +299,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
           grossCommission: draftSale.grossCommission,
           commissionInputMode: draftSale.commissionInputMode,
           financialStatus: draftSale.financialStatus,
-          expectedReceiptDate: draftSale.expectedReceiptDate || "",
+          ...(canManageForecast ? { expectedReceiptDate: draftSale.expectedReceiptDate || "" } : {}),
           manualStatus: draftSale.manualStatus,
           invoiceIssued: draftSale.invoiceIssued,
           brokerId: draftSale.brokerId,
@@ -456,6 +456,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
             onPaymentChange={updatePayment}
             onPaymentAdd={addPayment}
             onPaymentRemove={removePayment}
+            canManageForecast={canManageForecast}
             brokers={brokers}
             managers={managers}
           />
@@ -463,7 +464,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       )}
 
       {activeTab === "recebimentos" && (
-        <ReceivablesTab payments={payments} metrics={receivableMetrics} canEdit={canEdit} onReceiptAction={setReceiptAction} />
+        <ReceivablesTab payments={payments} metrics={receivableMetrics} canEdit={canEdit && canManageForecast} onReceiptAction={setReceiptAction} />
       )}
       {receiptAction?.type === "confirm" ? (
         <ConfirmReceiptModal receipt={receiptAction.receipt} onClose={() => setReceiptAction(null)} onDone={applyReceiptResult} />
@@ -587,7 +588,8 @@ function SaleEditor({
   onPaymentAdd,
   onPaymentRemove,
   brokers,
-  managers
+  managers,
+  canManageForecast = false
 }) {
   const draftForecast = computeForecastAmount({ freeCommission: draftTotals.freeCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
   if (!sale?.id || !draftSale?.id) {
@@ -629,14 +631,14 @@ function SaleEditor({
           <SelectField label="Corretor responsável" value={draftSale.brokerId} onChange={(value) => onFieldChange("brokerId", value)} options={[{ value: "", label: "Selecione o corretor" }, ...brokers.map((user) => ({ value: user.id, label: user.name }))]} />
           <TextField label="Data da venda" type="date" value={draftSale.saleDate} onChange={(value) => onFieldChange("saleDate", value)} />
           <SelectField label="Status financeiro" value={draftSale.financialStatus} onChange={(value) => onFieldChange("financialStatus", value)} options={FINANCIAL_STATUS_OPTIONS} />
-          <div>
+          {canManageForecast ? <div>
             <TextField label="Previsão de recebimento" type="date" value={draftSale.expectedReceiptDate} onChange={(value) => onFieldChange("expectedReceiptDate", value)} />
             <p className="mt-1 text-xs font-bold text-muted">
               {draftForecast > 0
                 ? `Previsto: ${formatCurrency(draftForecast)} (saldo a receber). Não é dinheiro recebido.`
                 : "Quando você espera receber o saldo da comissão. Gera uma atividade na Agenda."}
             </p>
-          </div>
+          </div> : null}
           <TextField label="Valor da venda / VGV" value={draftSale.saleValue} onChange={(value) => onFieldChange("saleValue", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
           <TextField label="Percentual da comissão" value={draftSale.commissionPercentage} onChange={(value) => onFieldChange("commissionPercentage", value)} placeholder="0%" inputMode="decimal" formatOnBlur={formatPercentInput} />
           <TextField label="Comissão bruta" value={draftSale.grossCommission} onChange={(value) => onFieldChange("grossCommission", value)} placeholder="R$ 0,00" inputMode="decimal" formatOnBlur={formatCurrencyInput} />
