@@ -1,6 +1,6 @@
 ---
 name: revisar-permissoes
-description: Verifica o comportamento de permissões entre Admin, Gestor, Corretor e Associado no CRM imoveis-mvp — se os guards de API/página realmente restringem o que deveriam, e se o escopo por responsável/equipe está correto. Use para uma auditoria dedicada de permissões, ou antes de mexer em qualquer rota/tela que deveria se comportar diferente por perfil.
+description: "Verifica se guards de API/página restringem Admin, Gestor, Corretor e Associado e o escopo por equipe. Use para auditoria de permissões ou antes de mexer em rota por perfil."
 ---
 
 # Revisão de permissões

@@ -1,6 +1,6 @@
 ---
 name: auditar-crm
-description: Auditoria preventiva do CRM imoveis-mvp — acha risco, inconsistência, regressão, código obsoleto, falha de arquitetura ou violação de regra de negócio antes que vire bug percebido pelo usuário. Use para "audite X", um pente-fino geral, "procure coisas que podem quebrar", "verifique se existe código antigo", ou "audite essa implementação antes de publicar" — com ou sem módulo específico apontado.
+description: "Auditoria preventiva do CRM: acha risco, inconsistência, regressão, código morto ou regra violada antes de virar bug. Use para \"audite X\", pente-fino, \"antes de publicar\"."
 ---
 
 # Auditoria preventiva do CRM

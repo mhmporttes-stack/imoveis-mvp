@@ -1,6 +1,6 @@
 ---
 name: nova-funcionalidade
-description: Planeja e implementa uma funcionalidade nova no CRM imoveis-mvp, analisando arquitetura e impacto antes de escrever código. Use quando o usuário pedir algo que ainda não existe no sistema (uma tela nova, uma regra nova, um campo novo, uma automação nova).
+description: "Planeja e implementa funcionalidade nova no CRM analisando arquitetura e impacto antes do código. Use para algo que ainda não existe (tela, regra, campo, automação)."
 ---
 
 # Implementar uma funcionalidade nova

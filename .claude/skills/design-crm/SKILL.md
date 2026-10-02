@@ -1,6 +1,6 @@
 ---
 name: design-crm
-description: Crítica, redesenho e limpeza visual de telas do CRM (painel admin, dashboards, listas/tabelas, chat, funil, ranking, Meta Diária, formulários, modais, mobile/PWA) com o sistema visual do projeto, padrões de CRM e revisão visual por screenshot na vitrine de desenvolvimento. Use para "critica essa tela", "redesenha", "melhora o layout/mobile", "está poluído", "padroniza", "revisão visual", ou antes de qualquer mudança de interface relevante.
+description: "Crítica, redesenho e limpeza visual de telas do CRM (admin, mobile/PWA) com revisão visual na vitrine. Use para \"critica essa tela\", \"melhora o layout\", \"está poluído\"."
 ---
 
 # Design do CRM

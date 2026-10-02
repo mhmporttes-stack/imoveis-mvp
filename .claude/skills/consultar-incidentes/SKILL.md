@@ -1,6 +1,6 @@
 ---
 name: consultar-incidentes
-description: Busca em docs/INCIDENTES.md (histórico de bugs já diagnosticados no CRM imoveis-mvp) por sintoma ou área antes de investigar um problema do zero. Use no início de qualquer diagnóstico de bug, antes de formular hipóteses.
+description: "Busca em docs/INCIDENTES.md por sintoma ou área antes de investigar um bug do zero. Use no início de qualquer diagnóstico."
 ---
 
 # Consultar o histórico de incidentes

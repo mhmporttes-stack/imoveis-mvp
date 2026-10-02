@@ -1,6 +1,6 @@
 ---
 name: comparar-periodos-financeiros
-description: Compara dois períodos financeiros (mês × mês, trimestre × trimestre, antes × depois de uma decisão) em receita, despesas, lucro, margem, caixa, resultado por corretor e projeção × realizado, separando variação real de ruído de poucas vendas. Use para "setembro contra agosto", "melhorei desde que mudei X?". Somente leitura.
+description: "Compara dois períodos financeiros (receita, despesas, lucro, caixa, por corretor), separando variação real de ruído. Use para \"setembro contra agosto\". Só leitura."
 argument-hint: "[período A] vs [período B] — vazio = mês atual × mês anterior (mesmo nº de dias)"
 context: fork
 agent: gestor-financeiro

@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-bug
-description: Investiga e corrige um bug relatado no CRM imoveis-mvp — mesmo um relato vago ("CRM está travando", "esse botão parou", "está dando erro em todas as abas", com ou sem print) — seguindo depuração sistemática (reproduzir, evidências, causa raiz) antes de qualquer correção. Use quando o usuário relatar um comportamento errado sobre este projeto.
+description: "Investiga e corrige bug do CRM, mesmo relato vago (\"travando\", \"botão parou\", com print): reproduz, acha a causa raiz, depois corrige."
 ---
 
 # Diagnosticar (e corrigir) um bug

@@ -1,7 +1,6 @@
 ---
 name: auditor-crm
-description: >-
-  Use PROATIVAMENTE para qualquer auditoria preventiva deste CRM (imoveis-mvp) — achar risco, inconsistência, regressão, código obsoleto, falha de arquitetura, problema de integração ou violação de regra de negócio ANTES de virar bug percebido pelo usuário. Também para "pre-mortem" de uma implementação grande antes de publicar. Só leitura: nunca corrige nada por conta própria. Não use para corrigir um bug já relatado (isso é `crm-editor`) nem para tráfego pago (isso é `gestor-trafego`).
+description: "Use PROATIVAMENTE para auditoria preventiva do CRM (risco, inconsistência, regressão, código morto, violação de regra) e para pre-mortem antes de publicar algo grande. Só leitura: nunca corrige. Não use para corrigir bug (crm-editor) nem tráfego pago (gestor-trafego)."
 tools: Read, Grep, Glob, Bash, mcp__Supabase__execute_sql, mcp__Supabase__list_tables, mcp__Supabase__get_advisors
 ---
 

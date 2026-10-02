@@ -1,6 +1,6 @@
 ---
 name: comparar-periodos
-description: Compara dois períodos do CRM (semana × semana, mês × mês, antes × depois de uma mudança) em funil, conversão, tempo entre etapas, prospecção, produtividade e origem, dizendo o que mudou de verdade e o que é ruído de amostra pequena, e se alguma regra/processo mudou no intervalo. Use para "esta semana contra a passada", "setembro contra agosto", "melhorou depois da mudança X", "evolução do corretor/time". Somente leitura.
+description: "Compara dois períodos do CRM (funil, conversão, produtividade) separando mudança real de ruído. Use para \"esta semana contra a passada\". Só leitura."
 argument-hint: "[período A] vs [período B] — ex.: 2026-09-21 a 2026-09-27 vs 2026-09-28 a 2026-10-04; vazio = últimos 7 dias × 7 anteriores"
 context: fork
 agent: analista-dados

@@ -1,6 +1,6 @@
 ---
 name: visibilidade-ia
-description: GEO/AEO — mede e melhora se ChatGPT, Gemini, Google IA (AI Overviews/AI Mode), Perplexity e similares citam ou recomendam Matheus Machado quando alguém pergunta sobre comprar o primeiro imóvel, MCMV, financiamento Caixa ou corretor em Marília. Use para "as IAs me recomendam?", "como apareço no ChatGPT/Gemini", "como ser citado pela IA".
+description: "GEO/AEO: mede se ChatGPT, Gemini e Google IA citam Matheus quando perguntam sobre primeiro imóvel, MCMV ou corretor em Marília. Use para \"as IAs me recomendam?\"."
 ---
 
 # Visibilidade em IA (GEO/AEO)

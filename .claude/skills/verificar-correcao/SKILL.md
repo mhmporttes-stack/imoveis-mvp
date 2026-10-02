@@ -1,6 +1,6 @@
 ---
 name: verificar-correcao
-description: Verifica se uma correção aplicada no CRM imoveis-mvp realmente resolveu o problema — reproduz o cenário original, testa o fluxo afetado, procura regressão em componentes compartilhados, roda testes e build. Use depois de qualquer correção de bug, mesmo pequena, antes de considerar resolvido ou publicar.
+description: "Verifica se uma correção resolveu: reproduz o cenário, testa o fluxo, procura regressão, roda testes e build. Use depois de qualquer correção, antes de dar por resolvido."
 ---
 
 # Verificar uma correção

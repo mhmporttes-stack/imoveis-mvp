@@ -33,3 +33,30 @@ Outros tipos nativos (não são do CRM, use só quando couber): `Explore` (busca
 ## Regra de escolha rápida (palavra-chave → agente)
 visual/layout/tela/mobile → designer-crm · bug/erro/corrigir/criar/regra/permissão/WhatsApp/Alexa/banco → crm-editor · audite/risco/antes de publicar → auditor-crm · funil/conversão/padrão/período → analista-dados · documento/IA errou/Base Mestra/CCA → analista-documental · financeiro/caixa/despesa/comissão (análise) → gestor-financeiro · campanha/anúncio/CPL → gestor-trafego · Google/avaliação/SEO/Instagram/concorrente → marketing-posicionamento · PC/Chrome/Claude lento → performance-pc · resto → claude.
 Comissão/despesa **como funcionalidade do sistema** (alterar tela/regra) = crm-editor; **análise** dos números = gestor-financeiro.
+
+## Cabeçalho de delegação (use este formato; ≤8 linhas; não cole regras que já estão no CLAUDE.md)
+```
+TAREFA/MODO: <objetivo em 1-2 frases> · LEITURA|ESCRITA · PUBLICAR: sim|não
+ESCOPO: <caminho:linha> · NÃO TOCAR: <o que evitar>
+LER (1-2 arquivos exatos): <rule/doc do módulo; seção, não o arquivo inteiro>
+JÁ SABEMOS: <fatos verificados; não reinvestigue>
+NÃO LER INTEIRO: CHANGELOG_AI, BUSINESS_RULES, WHATSAPP, arquivos >20 KB (Grep + offset/limit)
+VALIDAR: <testes node --test da área / pnpm build / verificação>
+PARAR E AVISAR SE: decisão de produto/negócio ou ação irreversível em dado real (bloco DECISÃO NECESSÁRIA)
+ENTREGA: ≤N linhas, decisão e números primeiro
+```
+
+## Contexto mínimo por especialista (o que ler primeiro)
+| Agente | Ler primeiro (só a seção pertinente) |
+|---|---|
+| `crm-editor` | rule do módulo em `.claude/rules/` (tabela do CLAUDE.md) + `docs/SYSTEM_ARCHITECTURE.md` só da área; WhatsApp: `docs/WHATSAPP.md` §da rota + `integracoes-externas.md`; Alexa: `integracoes-externas.md` |
+| `designer-crm` | `.claude/rules/frontend-pwa.md` + o componente da tela; vitrine `app/dev/vitrine` |
+| `auditor-crm` | rule do módulo auditado + `docs/SYSTEM_ARCHITECTURE.md` §13 (ledger) e `docs/INCIDENTES.md` por Grep |
+| `analista-dados` | `docs/METRICAS_FUNIL.md` + `docs/analytics/` |
+| `analista-documental` | `.claude/rules/documentacao-cca.md` + `.claude/analista-documental/` (ARQUITETURA, REGRAS-DOCUMENTAIS) |
+| `gestor-financeiro` | `.claude/rules/financeiro.md` + `docs/FINANCEIRO_SAUDE.md` só por seção |
+| `gestor-trafego` | `docs/TRAFEGO_META.md` §6-A + `.claude/rules/roleta-prospeccao-campanhas.md` |
+| `marketing-posicionamento` | `docs/MARKETING_POSICIONAMENTO.md` + `docs/posicionamento/` (PERFIL, HISTORICO, BACKLOG) |
+| `performance-pc` | `.claude/performance-pc/` (fora do CRM; não ler rules do CRM) |
+
+Referências soltas em `docs/` (candidatas a organizar no incremento 2): `alexa-interaction-model.json` (gerado por `scripts/build-alexa-model.mjs`), `PERFORMANCE_AUDIT.md`.

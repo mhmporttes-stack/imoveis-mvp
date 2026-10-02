@@ -1,6 +1,6 @@
 ---
 name: analisar-documentacao
-description: Analisa a documentação de um cliente (Caixa/MCMV) do jeito que o CRM deveria — proponentes, classificação, duplicados, regras ativas da Base Mestra, extração, conferência cruzada, legibilidade, pendências, divergências e renda — sem inventar exigência. Use para "analise a documentação do cliente X", "por que esse documento ficou pendente?", "esse lote está certo?" ou para inspecionar arquivos sintéticos/locais. Execute com o agente `analista-documental`.
+description: "Analisa a documentação de cliente Caixa/MCMV (Base Mestra, pendências, renda) sem inventar exigência. Use para \"analise a documentação do cliente X\"."
 ---
 
 # Analisar documentação

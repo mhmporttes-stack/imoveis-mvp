@@ -1,6 +1,6 @@
 ---
 name: conteudo-social
-description: Instagram (@mhm.machado) e Facebook orgânicos de Matheus Machado — auditoria de bio, destaques, pilares de conteúdo, formatos que performam, prova social, CTA e conexão com o site/CRM; também autoridade e citações locais (parcerias, imprensa, diretórios). Use para "como melhorar meu Instagram", "o que postar", "como ganhar autoridade em Marília". Entrega rascunhos prontos; não publica.
+description: "Instagram/Facebook orgânicos de Matheus: bio, pilares, formatos, prova social. Use para \"o que postar\", \"melhorar meu Instagram\". Entrega rascunhos; não publica."
 ---
 
 # Conteúdo social orgânico e autoridade

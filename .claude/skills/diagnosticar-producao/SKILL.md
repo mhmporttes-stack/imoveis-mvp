@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-producao
-description: Investiga um problema que acontece em produção no CRM imoveis-mvp (erro no site/painel, cron, webhook, WhatsApp, automação) esgotando primeiro logs e consultas somente leitura, antes de publicar qualquer código de diagnóstico. Use quando o comportamento errado só aparece em produção, ou antes de pensar em "subir um log temporário".
+description: "Investiga problema que só ocorre em produção (erro, cron, webhook, WhatsApp, automação) com logs e consultas somente leitura antes de publicar código de diagnóstico."
 ---
 
 # Diagnosticar um problema em produção

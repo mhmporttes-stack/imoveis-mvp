@@ -1,6 +1,6 @@
 ---
 name: auditar-posicionamento
-description: Auditoria geral do posicionamento digital orgânico de Matheus Machado (Marília/SP) e gravação de um snapshot comparável no histórico. Use para "analise meu posicionamento digital", "como estou no Google", "como apareço quando pesquisam corretor em Marília", "o que mudou desde a última análise". Gera Índice de Presença por área, amostra de consultas-alvo e backlog priorizado. Não trata de mídia paga.
+description: "Auditoria do posicionamento digital orgânico de Matheus (Google, site, redes) com snapshot. Use para \"como estou no Google\", \"o que mudou\". Não é mídia paga."
 ---
 
 # Auditar posicionamento (visão geral + snapshot)

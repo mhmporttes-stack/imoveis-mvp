@@ -1,6 +1,6 @@
 ---
 name: auditar-analise-documental
-description: Audita um resultado da análise documental do CRM — compara documentos originais + regras ativas da Base Mestra + resultado gravado pela IA/motor e aponta falso aprovado, falsa pendência, regra ignorada, regra inventada, classificação errada, extração errada, divergência exagerada, ilegível tratado como válido, interferência de duplicado e cálculo de renda errado. Use para "a IA errou nesse cliente?", "confira esse lote", "audite a análise documental" (um cliente ou uma amostra). Somente leitura. Execute com o agente `analista-documental`.
+description: "Audita a análise documental da IA (falso aprovado, falsa pendência, regra inventada, renda errada). Use para \"a IA errou nesse cliente?\". Só leitura."
 ---
 
 # Auditar análise documental

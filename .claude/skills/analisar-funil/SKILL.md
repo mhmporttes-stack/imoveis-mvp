@@ -1,6 +1,6 @@
 ---
 name: analisar-funil
-description: Mede o funil comercial do CRM (prospecção → atendimento → simulação → documentação → aprovação → reunião → venda) num período, com conversão entre etapas, tempo entre etapas, quebra por origem e por corretor, tamanho da amostra e lacunas dos dados. Use para "como está o funil", "onde estou perdendo cliente", "conversão da semana/mês", "gargalo", "quanto tempo leva de uma etapa à outra". Somente leitura. Não faz atribuição de anúncio pago (isso é /auditar-trafego).
+description: "Mede o funil comercial: conversão e tempo entre etapas, por origem e corretor, com amostra. Use para \"como está o funil\", \"gargalo\". Só leitura. CPL é /auditar-trafego."
 argument-hint: "[período: hoje | ontem | 7d | 30d | mês | AAAA-MM-DD a AAAA-MM-DD] [filtro opcional: corretor ou origem]"
 context: fork
 agent: analista-dados

@@ -1,7 +1,6 @@
 ---
 name: performance-pc
-description: >-
-  Use quando o computador Windows do dono estiver lento ou para mantê-lo rápido: diagnóstico de CPU, RAM, SSD, GPU, rede, inicialização, Windows Update, Chrome (inclui ChatGPT no navegador), Claude Desktop e Claude Code (sessões degradadas, MCPs, processos órfãos). Gera baseline, aplica só otimizações seguras/reversíveis com justificativa técnica e compara ANTES x DEPOIS. Foco: estação de trabalho (Claude > ChatGPT > Chrome > desenvolvimento do CRM), nunca jogos. Não use para bug/código do CRM (isso é `crm-editor`/`auditor-crm`).
+description: "Use quando o computador Windows do dono estiver lento: diagnóstico de CPU, RAM, SSD, rede, inicialização, Chrome e Claude, com baseline, otimizações seguras/reversíveis e comparação ANTES x DEPOIS. Não use para bug/código do CRM (crm-editor/auditor-crm)."
 tools: Read, Grep, Glob, Bash, PowerShell, Write, Edit, mcp__chrome-devtools
 memory: user
 ---

@@ -1,6 +1,6 @@
 ---
 name: auditar-trafego
-description: Auditoria e monitoramento SOMENTE LEITURA das campanhas Meta da imobiliária, cruzando investimento com a evolução real do lead no CRM (campanha/conjunto/anúncio → cliente → atendimento → simulação → documentação → aprovação → reunião → venda). Use para "como estão minhas campanhas", "onde estou desperdiçando dinheiro", "qual anúncio traz cliente bom", "CPL/CPM/CTR/frequência", "auditar tráfego", "relatório de tráfego", baseline de custos. Nunca altera nada na Meta; ações saem como recomendações para aprovação.
+description: "Auditoria SOMENTE LEITURA das campanhas Meta cruzando gasto com o lead no CRM. Use para \"como estão minhas campanhas\", CPL/CTR, desperdício. Nunca altera a Meta."
 ---
 
 # Auditar tráfego (auditoria + monitoramento + funil CRM)

@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-claude
-description: Diagnostica Claude Desktop, Claude Code, MCPs e o app ChatGPT/Codex neste PC: processos node/claude, RAM/CPU, órfãos, tamanho de ~/.claude, MCPs configurados e logs. Use quando o Claude estiver lento, travando, com sessão degradada ou consumindo muita RAM.
+description: "Diagnostica Claude Desktop/Code, MCPs e Codex neste PC: processos node, RAM, órfãos, tamanho de ~/.claude. Use quando o Claude estiver lento ou travando."
 ---
 
 # Diagnosticar Claude / Claude Code

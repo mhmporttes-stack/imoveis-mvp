@@ -1,6 +1,6 @@
 ---
 name: verificar-inicializacao
-description: Audita o que inicia com o Windows (Run, pasta Startup, tarefas de logon, serviços de terceiros, tempo dos últimos boots) e aponta itens que atrasam o boot ou consomem em segundo plano (somente leitura). Use para lentidão ao ligar ou processos desnecessários em segundo plano.
+description: "Audita o que inicia com o Windows (Run, Startup, tarefas, serviços) e o tempo de boot (só leitura). Use para lentidão ao ligar."
 ---
 
 # Verificar inicialização

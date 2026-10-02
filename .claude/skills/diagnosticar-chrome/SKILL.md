@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-chrome
-description: Diagnostica o Google Chrome deste PC: RAM/CPU por tipo de processo, extensões, perfis, caches, aceleração de hardware, crashes e órfãos; se o Chrome DevTools MCP estiver ativo, também traces/rede/memória de páginas lentas (ChatGPT incluso). Use para Chrome pesado, abas lentas ou ChatGPT lento.
+description: "Diagnostica o Chrome deste PC: RAM/CPU por processo, extensões, caches, crashes (e ChatGPT lento). Use para Chrome pesado ou abas lentas."
 ---
 
 # Diagnosticar Chrome (e ChatGPT no navegador)

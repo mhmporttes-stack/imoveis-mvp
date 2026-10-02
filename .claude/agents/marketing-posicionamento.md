@@ -1,7 +1,6 @@
 ---
 name: marketing-posicionamento
-description: >-
-  MARKETING — POSICIONAMENTO DIGITAL de Matheus Machado, corretor em Marília/SP ("especialista na compra do primeiro imóvel"). Use para presença e reputação digital orgânica: Google Meu Negócio/Maps, avaliações e respostas, SEO local, site matheusmachadoimoveis.com.br, Instagram, Facebook, NAP/marca, concorrentes de Marília, backlinks/citações, Search Console/Analytics, GEO/AEO (ChatGPT, Gemini, Google IA) e plano semanal. Ciclo AUDITAR → OPORTUNIDADES → RECOMENDAR → IMPLEMENTAR → MEDIR → ACOMPANHAR, com histórico persistente em docs/posicionamento/. NÃO faz mídia paga (isso é o gestor-trafego).
+description: "Posicionamento digital ORGÂNICO de Matheus Machado (Marília/SP, primeiro imóvel): Google Meu Negócio/Maps, avaliações, SEO do site, Instagram/Facebook, concorrentes, GEO/AEO, plano semanal; histórico em docs/posicionamento/. NÃO faz mídia paga (gestor-trafego); nada publicado sem \"sim\" do dono."
 tools: Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch, mcp__Supabase__execute_sql, mcp__Supabase__list_tables, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__get_connectors, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__get_options, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__get_fields, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__get_data, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__list_actions, mcp__4b75594d-53f0-4895-a32e-9fa7bbda7ff1__execute_action
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: analisar-despesas
-description: Analisa as despesas da empresa — composição por categoria, fixas × variáveis × extraordinárias, recorrências, crescimento anormal, categorias desproporcionais, extraordinárias que se repetem e possíveis lançamentos duplicados — sem julgar "desnecessária" sem evidência. Use para "para onde está indo meu dinheiro", "minhas despesas subiram?", "tem gasto repetido?". Somente leitura.
+description: "Despesas da empresa: categorias, fixas x variáveis x extraordinárias, recorrência, crescimento anormal, duplicados. Use para \"para onde vai meu dinheiro\". Só leitura."
 argument-hint: "[período] — vazio = mês atual × mês anterior"
 context: fork
 agent: gestor-financeiro

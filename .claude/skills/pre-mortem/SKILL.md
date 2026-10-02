@@ -1,6 +1,6 @@
 ---
 name: pre-mortem
-description: Análise preventiva de uma implementação grande ANTES de publicar — pergunta "suponha que isso entrou em produção e deu problema; quais são as formas plausíveis de falhar?" em vez de auditar o que já existe. Use antes de fazer merge/push de uma feature grande, migration arriscada, ou mudança que toca módulo compartilhado deste CRM.
+description: "Análise preventiva ANTES de publicar algo grande: \"suponha que deu problema em produção; como falhou?\". Use antes de merge/push de feature ou migration arriscada."
 ---
 
 # Pre-mortem de uma implementação

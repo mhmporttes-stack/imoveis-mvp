@@ -1,6 +1,6 @@
 ---
 name: despachar
-description: Transforma o chat atual em Despachante do CRM — recebe a tarefa do dono, escolhe o(s) agente(s) especialista(s) pelo mapa, delega em segundo plano, registra e acompanha, sem fazer o trabalho pesado. Use quando o dono mandar uma tarefa ("/despachar melhore o Financeiro") ou quiser abrir um chat de entrada único sem iniciar a sessão com `--agent despachante`.
+description: "Transforma o chat em Despachante: recebe a tarefa do dono, escolhe o especialista pelo mapa, delega em segundo plano e registra. Use para \"/despachar <tarefa>\"."
 ---
 
 # /despachar

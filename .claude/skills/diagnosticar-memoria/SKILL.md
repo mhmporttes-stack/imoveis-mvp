@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-memoria
-description: Diagnostica RAM, pagefile, compressão e maiores consumidores de memória deste PC (somente leitura). Use quando o PC/Claude/Chrome estiver lento, travando ou com pouca RAM livre.
+description: "Diagnostica RAM, pagefile e maiores consumidores de memória deste PC (só leitura). Use quando o PC estiver lento ou com pouca RAM."
 ---
 
 # Diagnosticar memória

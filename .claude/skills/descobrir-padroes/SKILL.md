@@ -1,6 +1,6 @@
 ---
 name: descobrir-padroes
-description: Busca sistemática de padrões e correlações não óbvios nos dados do CRM — origem do lead, corretor, dia da semana/horário, tempo até o primeiro avanço, prospecção, simulação, documentação, aprovação, reunião, venda, produtividade e ranking — separando padrão real de artefato (amostra pequena, definição, dado de teste, coorte imatura). Use para "tem algum padrão que eu não estou vendo", "o que diferencia os clientes que fecham", "que horário converte mais", "por que o corretor X converte diferente". Somente leitura; resultados são candidatos até validados.
+description: "Busca padrões e correlações não óbvios nos dados do CRM, separando padrão real de artefato. Use para \"tem algum padrão que não vejo\", \"que horário converte mais\". Só leitura."
 argument-hint: "[tema ou pergunta] [período: padrão últimos 30 dias]"
 context: fork
 agent: analista-dados

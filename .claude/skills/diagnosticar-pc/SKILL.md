@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-pc
-description: Diagnóstico completo (somente leitura) deste PC Windows — hardware, Windows, CPU, RAM, SSD, GPU, energia, rede, inicialização, Chrome e Claude — e geração do BASELINE ANTES de qualquer otimização. Use quando o PC estiver lento, antes de otimizar, ou para registrar o estado geral.
+description: "Diagnóstico completo (só leitura) deste PC Windows e BASELINE antes de otimizar. Use para \"meu PC está lento\" ou antes de otimizar."
 ---
 
 # Diagnosticar PC (e gerar baseline)

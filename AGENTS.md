@@ -28,43 +28,31 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Tabelas, migrations, funções/triggers SQL, crons | `docs/DATABASE.md` |
 | WhatsApp (Chat, Fluxos, Disparo, webhook, janela 24h, templates) | `docs/WHATSAPP.md` |
 | Pixel, Conversions API, Meta Ads, UTMs, campanhas/links | `docs/TRAFEGO_META.md` |
-| Análise de tráfego pago (auditoria, funil anúncio → venda, copy, planejamento) | agente `gestor-trafego` + skills `/auditar-trafego`, `/criar-anuncio`, `/planejar-campanha` (somente leitura) |
-| Interface: crítica, redesenho, layout, mobile, sistema visual, revisão visual | agente `designer-crm` + skill `/design-crm` (vitrine sem login: `app/dev/vitrine`, só `next dev`) |
-| Auditoria preventiva (achar risco/código morto/regra violada antes de virar bug), ou pre-mortem antes de publicar algo grande | agente `auditor-crm` + skills `/auditar-crm`, `/pre-mortem` — **somente leitura, nunca corrige**; achados conhecidos ficam em `docs/SYSTEM_ARCHITECTURE.md` §13 |
-| Posicionamento digital orgânico (Google Meu Negócio, avaliações, SEO do site, Instagram, concorrentes, IA) | agente `marketing-posicionamento` + skills `/auditar-posicionamento`, `/google-perfil-avaliacoes`, `/concorrentes-marilia`, `/seo-site`, `/visibilidade-ia`, `/conteudo-social`, `/plano-semanal`; memória em `docs/posicionamento/` (guia: `docs/MARKETING_POSICIONAMENTO.md`). Mídia paga continua com `gestor-trafego` |
-| Análise de dados/BI (funil, conversão, tempo entre etapas, padrões, comparar períodos) | agente `analista-dados` + skills `/analisar-funil`, `/descobrir-padroes`, `/comparar-periodos` — **somente leitura**; definições canônicas em `docs/METRICAS_FUNIL.md`, SQL em `docs/analytics/` |
-| Análise documental Caixa/MCMV (entender/auditar/testar a análise de documentos por IA, Base Mestra, pendências, devolutiva, PDF) | agente `analista-documental` + skills `/analisar-documentacao`, `/auditar-analise-documental`, `/testar-regra-documental` — **leitura por padrão; regra documental nova só com o dono**; referência em `.claude/analista-documental/` |
-| Análise financeira da empresa (saúde, despesas, caixa/reserva, ponto de equilíbrio, projeção, resultado por corretor) | agente `gestor-financeiro` + skills `/analisar-saude-financeira`, `/analisar-despesas`, `/projetar-fluxo-caixa`, `/comparar-periodos-financeiros` — **somente leitura**; definições canônicas em `docs/FINANCEIRO_SAUDE.md`; aba **Saúde** do Financeiro (só admin geral) |
-| Desempenho do PC do dono (lentidão de Windows/Chrome/Claude, baseline, otimização segura) — fora do CRM | agente `performance-pc` + skills `/diagnosticar-pc`, `/otimizar-pc`, `/comparar-performance`, `/diagnosticar-chrome`, `/diagnosticar-claude`, `/diagnosticar-rede`, `/diagnosticar-memoria`, `/diagnosticar-disco`, `/verificar-inicializacao`; pesquisa em `.claude/performance-pc/` |
-| Mandar uma tarefa sem saber qual agente (porta de entrada), ou política de autonomia/permissões dos agentes | agente `despachante` + skill `/despachar`; mapa `.claude/despachante/MAPA-AGENTES.md`; registro `.claude/despachante/REGISTRO.md`; detalhe `docs/DESPACHANTE.md` |
+| Qual agente/skill usar (roteamento, política de autonomia, cabeçalho de delegação) | `.claude/despachante/MAPA-AGENTES.md` (fonte única); `docs/DESPACHANTE.md`; registro em `.claude/despachante/REGISTRO.md` |
+| Métricas de funil/conversão/tempo | `docs/METRICAS_FUNIL.md` (SQL em `docs/analytics/`) |
+| Saúde financeira da empresa | `docs/FINANCEIRO_SAUDE.md` |
+| Posicionamento orgânico (Google, SEO, Instagram) | `docs/MARKETING_POSICIONAMENTO.md`, `docs/posicionamento/` |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
-| Registrar uma regra nova confirmada pelo dono | skill `/registrar-regra` |
-| Um bug foi relatado (mesmo vago: "travou", "deu erro", + print) | skill `/diagnosticar-bug` — nunca corrija antes de achar a causa raiz (`.claude/agents/crm-editor.md` §"Diagnóstico sistemático de bugs") |
-| Investigar um problema em produção | skill `/diagnosticar-producao` |
-| Conferir se já aconteceu um bug parecido antes | skill `/consultar-incidentes` (busca em `docs/INCIDENTES.md`) |
-| Confirmar se uma correção de bug realmente resolveu | skill `/verificar-correcao` |
+| Bug (mesmo vago), produção, incidente repetido, verificação de correção | skills em `CLAUDE.md` §Agentes e skills — nunca corrija antes de achar a causa raiz |
 | Regras detalhadas de um módulo específico | `.claude/rules/<módulo>.md` (tabela em `CLAUDE.md`) |
 
 ## Regras de segurança (inegociáveis)
 
 - **Nunca** escreva, imprima, commite ou cole tokens, chaves, segredos, valores de variáveis de ambiente ou `.env`. Documente só o **nome** da variável (e em `.env.example`, sem valor).
-- `SUPABASE_SERVICE_ROLE_KEY` só existe no servidor. Componente client nunca acessa o banco direto; toda leitura/escrita passa por `lib/*.js`.
-- RLS está ligado **sem policy pública** (proposital). A autorização real é feita em código — nunca a tela. Toda rota `app/api/admin/**` e página `app/admin/**` precisa de guard **antes** de tocar em dado (`docs/PERMISSIONS.md`).
-- Este é um sistema **vivo**: mensagens de WhatsApp reais, dados pessoais de clientes (CPF, renda, documentos), dinheiro (comissões). Nunca envie mensagem/e-mail/push real, rode disparo, ou grave em produção como “teste”.
+- Service role, RLS sem policy pública e guards `app/api/admin/**`/`app/admin/**`: ver `CLAUDE.md` (regras 1-3) e `docs/PERMISSIONS.md`.
+- Sistema **vivo** (WhatsApp real, CPF/renda/documentos, comissões): ver `CLAUDE.md` regra 9.
 - Não publique (push em `main` = deploy automático), não aplique migration em produção e não rode nada destrutivo **sem pedido explícito** da tarefa. Nunca `git push --force`, nunca pular hooks.
-- Cliente `do_not_contact` (“não contactar”) e telefones bloqueados nunca podem receber contato automático.
 
 ## Antes de alterar código
 
 1. **Nunca assumir que uma funcionalidade não existe. Pesquisar primeiro no código** (Grep em `lib/`, `app/api/`, `components/`, `supabase/migrations/`). Nomes de arquivo não provam comportamento — leia a implementação.
 2. **Não alterar regras de negócio não relacionadas à tarefa.** Muito código “estranho” aqui é correção de incidente real (veja comentários e `docs/BUSINESS_RULES.md`).
-3. **Não criar migrations ou alterar banco sem necessidade confirmada.** Nome do arquivo `YYYYMMDDHHMMSS_descricao.sql` (14 dígitos), idempotente (`if not exists`); aplicação segue `.claude/rules/database-supabase.md` (não é `supabase db push`).
+3. **Não criar migrations ou alterar banco sem necessidade confirmada** — nome e aplicação: `CLAUDE.md` regra 6 e `.claude/rules/database-supabase.md`.
 4. **Antes de alterar uma área compartilhada, verificar dependências.** `simulation_registrations`, `lib/client-status.js`, `lib/admin-profiles.js`, `lib/whatsapp-master.js`, `lib/phone-utils.js`, `lib/crm-automations.js` e `lib/performance-overview.js` alimentam muitos módulos (mapa em `docs/SYSTEM_ARCHITECTURE.md`).
 5. **Preservar compatibilidade**: rotas, formato de payload, colunas e links já publicados (URLs de campanha `?c=`/`?ref=`, `/minha-jornada/<token>`, webhook da Meta, cron URLs) não podem quebrar.
 6. **Analisar impacto** em: perfis (admin/gestor/corretor/associado), funil e status, ranking/pontuação, Meta Diária, WhatsApp, financeiro, notificações e banco.
 7. Fonte única: status em `lib/client-status.js`; telefone em `lib/phone-utils.js` + `lib/client-phone-lookup.js`; rótulos de documento em `lib/document-status-labels.js`; saudação/fuso em `lib/daily-report.js`. Não crie cópias.
-8. **Nunca** crie UNIQUE por telefone em `simulation_registrations` (um telefone pode ter vários atendimentos — incidente real).
-9. Bug fora do escopo? **Não corrija junto**: registre em `docs/CHANGELOG_AI.md` (Risco/observação) e avise o dono.
+8. Bug fora do escopo? **Não corrija junto**: registre em `docs/CHANGELOG_AI.md` (Risco/observação) e avise o dono.
 
 ## Comandos de validação (reais)
 

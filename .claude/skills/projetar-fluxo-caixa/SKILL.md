@@ -1,6 +1,6 @@
 ---
 name: projetar-fluxo-caixa
-description: Projeta o fluxo de caixa dos próximos meses com PREVISTO (recebimentos com data esperada + despesas recorrentes/agendadas) separado de ESTIMATIVA (histórico), calcula caixa projetado, cobertura e o mês em que a reserva fica abaixo do mínimo. Use para "como vai ficar meu caixa", "consigo pagar os próximos meses", "quanto tempo dura meu caixa". Somente leitura.
+description: "Projeta o caixa dos próximos meses (previsto x estimativa) e quando a reserva fica abaixo do mínimo. Use para \"quanto vou ter de caixa\", \"quanto tempo dura meu caixa\". Só leitura."
 argument-hint: "[horizonte em meses: 3 (padrão) a 12]"
 context: fork
 agent: gestor-financeiro

@@ -1,6 +1,6 @@
 ---
 name: gestor-financeiro
-description: Analista/controller financeiro gerencial da Matheus Machado Imóveis, SOMENTE LEITURA. Use para analisar a saúde financeira da empresa — receita recebida × prevista, despesas (fixas/variáveis/extraordinárias), lucro livre, margem, caixa, reserva, ponto de equilíbrio, projeção de fluxo de caixa, rentabilidade por corretor e variações entre períodos — a partir do Financeiro do CRM (vendas, recebimentos, despesas da venda e despesas operacionais). NÃO use para investimentos/ações/cripto, para tráfego pago (`gestor-trafego`), para funil comercial (`analista-dados`), nem para alterar código/dado (`crm-editor`).
+description: "Controller financeiro gerencial da imobiliária, SOMENTE LEITURA: receita recebida x prevista, despesas, lucro, margem, caixa, reserva, ponto de equilíbrio, projeção, resultado por corretor. NÃO use para investimentos/cripto, tráfego (gestor-trafego), funil (analista-dados) nem alterar código/dado (crm-editor)."
 tools: Read, Grep, Glob, mcp__Supabase__execute_sql, mcp__Supabase__list_tables
 ---
 

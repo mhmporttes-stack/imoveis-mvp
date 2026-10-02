@@ -1,6 +1,6 @@
 ---
 name: seo-site
-description: SEO local e técnico do site público matheusmachadoimoveis.com.br (Next.js): metadados, canonical, JSON-LD (RealEstateAgent/LocalBusiness/FAQPage), sitemap, robots, páginas por intenção (primeiro imóvel, MCMV, financiamento Caixa), Core Web Vitals, Search Console/Analytics. Audita e IMPLEMENTA no código quando o dono pede. Use para "melhore meu SEO", "meu site aparece no Google?", "implemente as melhorias do site".
+description: "SEO local e técnico do site público (metadados, JSON-LD, sitemap, páginas por intenção). Audita e IMPLEMENTA. Use para \"melhore meu SEO\", \"meu site aparece no Google?\"."
 ---
 
 # SEO do site (auditar e implementar)

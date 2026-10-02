@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-disco
-description: Diagnostica SSD/disco deste PC: espaço livre, saúde, desgaste, latência, fila, TRIM e lixo limpável (somente leitura). Use quando houver lentidão de abertura/gravação ou pouco espaço.
+description: "Diagnostica SSD/disco deste PC: espaço, saúde, latência, lixo limpável (só leitura). Use para lentidão de abertura/gravação ou pouco espaço."
 ---
 
 # Diagnosticar disco/SSD

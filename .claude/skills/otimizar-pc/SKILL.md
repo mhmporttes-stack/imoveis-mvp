@@ -1,6 +1,6 @@
 ---
 name: otimizar-pc
-description: Aplica otimizações seguras e reversíveis neste PC Windows (limpeza de temporários, correções de baixo risco), sempre com baseline ANTES e comparação DEPOIS. Use só depois de /diagnosticar-pc e quando o dono pedir para otimizar/corrigir.
+description: "Aplica otimizações seguras e reversíveis neste PC, com baseline ANTES e comparação DEPOIS. Use só após /diagnosticar-pc e quando o dono pedir."
 ---
 
 # Otimizar PC

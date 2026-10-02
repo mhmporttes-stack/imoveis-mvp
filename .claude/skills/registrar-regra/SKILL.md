@@ -1,6 +1,6 @@
 ---
 name: registrar-regra
-description: Registra uma regra de negócio nova (ou alterada) confirmada pelo dono do CRM imoveis-mvp no lugar certo — rule do módulo + docs/BUSINESS_RULES.md — com a etiqueta de proveniência correta, sem duplicar nem sobrescrever regra oficial existente. Use quando o dono definir/confirmar como algo deve funcionar ("a regra é...", "a partir de agora...", "confirmo que..."), mesmo que a tarefa também envolva código.
+description: "Registra regra de negócio confirmada pelo dono (rule do módulo + BUSINESS_RULES, com etiqueta de proveniência). Use para \"a regra é...\", \"a partir de agora...\"."
 ---
 
 # Registrar uma regra do dono

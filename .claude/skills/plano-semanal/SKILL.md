@@ -1,6 +1,6 @@
 ---
 name: plano-semanal
-description: Fecha o ciclo do Marketing/Posicionamento — define o que melhorar esta semana (máx. 7 itens priorizados), implementa o que for autorizado, mede o resultado contra o histórico e acompanha o BACKLOG. Use para "o que devemos melhorar esta semana", "implemente as melhorias que você encontrou", "o que mudou desde a última vez", "funcionou?".
+description: "Ciclo semanal do Marketing/Posicionamento: até 7 melhorias priorizadas, implementa o autorizado, mede contra o histórico. Use para \"o que melhorar esta semana\", \"funcionou?\"."
 ---
 
 # Plano semanal, implementação e medição

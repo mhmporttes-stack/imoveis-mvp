@@ -1,6 +1,6 @@
 ---
 name: planejar-campanha
-description: Planeja uma campanha Meta nova (ou reestruturação) para a imobiliária em Marília/SP como ESPECIFICAÇÃO para revisão, sempre para criação PAUSADA — objetivo por canal (WhatsApp, formulário, simulação no site), público/região, orçamento com base no histórico real, estrutura de conjuntos/anúncios, UTMs que o CRM entende e checklist de lançamento. Use para "monta uma campanha", "planejar campanha de MCMV", "estrutura para WhatsApp", "quanto investir". Nunca cria nem ativa nada na Meta.
+description: "Planeja campanha Meta nova como ESPECIFICAÇÃO, sempre PAUSADA (objetivo, público, orçamento, UTMs). Use para \"monta uma campanha\", \"quanto investir\". Nunca ativa nada."
 ---
 
 # Planejar campanha (especificação pausada)

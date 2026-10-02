@@ -1,6 +1,6 @@
 ---
 name: auditar-banco
-description: Revisa schema, migrations, relacionamentos, constraints, RLS, triggers e consistência dos dados do banco Supabase do CRM imoveis-mvp. Use para uma auditoria dedicada de banco de dados, ou quando o usuário suspeitar de inconsistência de dados/schema.
+description: "Revisa schema, migrations, constraints, RLS, triggers e consistência dos dados do Supabase do CRM. Use para auditoria dedicada de banco ou suspeita de dado inconsistente."
 ---
 
 # Auditoria de banco de dados

@@ -1,6 +1,6 @@
 ---
 name: criar-anuncio
-description: Cria ângulos, copies (texto principal, título, descrição, CTA) e briefing visual de anúncios Meta para a imobiliária em Marília/SP — primeiro imóvel, Minha Casa Minha Vida, financiamento — para WhatsApp, formulário ou simulação no site. Use para "cria um anúncio", "copy para campanha", "ideias de criativo", "texto para o Instagram/Facebook Ads". Entrega um lote para aprovação; nunca publica nada.
+description: "Cria ângulos, copies e briefing visual de anúncios Meta (primeiro imóvel, MCMV). Use para \"cria um anúncio\", \"copy para campanha\". Entrega lote para aprovação; nunca publica."
 ---
 
 # Criar anúncio (copy + briefing de criativo)

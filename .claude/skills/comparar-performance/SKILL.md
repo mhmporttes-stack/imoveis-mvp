@@ -1,6 +1,6 @@
 ---
 name: comparar-performance
-description: Compara dois snapshots de desempenho deste PC (ANTES x DEPOIS) e diz o que melhorou, piorou ou foi ruído. Use após /otimizar-pc ou para acompanhar a evolução do PC entre semanas.
+description: "Compara snapshots ANTES x DEPOIS de desempenho deste PC. Use após /otimizar-pc ou para acompanhar a evolução do PC."
 ---
 
 # Comparar performance (ANTES × DEPOIS)

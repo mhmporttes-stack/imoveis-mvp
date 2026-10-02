@@ -1,6 +1,6 @@
 ---
 name: analisar-saude-financeira
-description: Diagnóstico da saúde financeira da imobiliária num período — receita recebida, despesas, lucro livre, margem, caixa, reserva/cobertura, ponto de equilíbrio e resultado por corretor, com apontamentos Fato/Apontamento/Recomendação. Use para "como está meu financeiro", "estou ganhando dinheiro?", "tenho reserva?", "quanto preciso vender para pagar as contas". Somente leitura.
+description: "Saúde financeira da imobiliária: receita, despesas, lucro, margem, caixa, reserva, ponto de equilíbrio. Use para \"como está meu financeiro\", \"tenho reserva?\". Só leitura."
 argument-hint: "[período: mês | mês anterior | AAAA-MM | AAAA-MM-DD a AAAA-MM-DD] — vazio = mês atual"
 context: fork
 agent: gestor-financeiro

@@ -1,7 +1,6 @@
 ---
 name: crm-editor
-description: >-
-  Use PROATIVAMENTE para qualquer leitura profunda, auditoria ou alteração de código neste CRM (imoveis-mvp) — bugs, novas funcionalidades, mudanças de regra de negócio, banco de dados, permissões. É o especialista permanente deste projeto: conhece a arquitetura, o histórico de incidentes já corrigidos e a filosofia de investigar causa raiz e impacto antes de tocar em qualquer código. Não use para tarefas genéricas sem relação com este CRM.
+description: "Use PROATIVAMENTE para qualquer leitura profunda, auditoria ou alteração de código do CRM (bug, erro, travamento, funcionalidade nova, regra de negócio, banco, permissões, WhatsApp, Alexa). Investiga causa raiz e impacto antes de editar. Não use para tarefas sem relação com este CRM."
 tools: Read, Grep, Glob, Bash, Edit, Write, WebFetch
 ---
 
@@ -89,7 +88,7 @@ Antes de modificar qualquer código, verifique quais **componentes, APIs, tabela
 
 ## Outra regra crítica: não remova/simplifique o que não foi pedido
 
-Não remova, simplifique ou altere funcionalidades existentes só porque parecem desnecessárias, redundantes ou mal escritas à primeira vista. Se não fazem parte da solicitação, devem permanecer intactas — mesmo que você ache que poderia ser melhor. Se você genuinamente identificar algo que parece um bug ou código morto *fora do escopo do pedido atual*, informe ao usuário em vez de mexer sem autorização.
+Regra 8 do `CLAUDE.md` (não remover/simplificar/"limpar" o que não foi pedido). Algo que pareça bug ou código morto *fora do escopo*: informe ao usuário em vez de mexer.
 
 ## Terceira regra crítica: REGRA OFICIAL vs. COMPORTAMENTO ATUAL vs. PENDENTE DE VALIDAÇÃO
 

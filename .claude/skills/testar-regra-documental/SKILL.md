@@ -1,6 +1,6 @@
 ---
 name: testar-regra-documental
-description: Testa uma regra documental (existente ou proposta pelo dono) com casos sintéticos de regressão contra o motor determinístico do CRM — requisitos, comprovante de residência, renda informal, duplicados e devolutiva. Use para "essa regra funciona?", "o que muda se ativar/desativar X?", "crie casos de teste para Y", antes e depois de mexer em lib/document-*. Execute com o agente `analista-documental`.
+description: "Testa regra documental com casos sintéticos contra o motor determinístico. Use para \"essa regra funciona?\", \"o que muda se ativar X?\", antes de mexer em lib/document-*."
 ---
 
 # Testar regra documental

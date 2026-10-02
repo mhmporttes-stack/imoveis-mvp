@@ -1,6 +1,6 @@
 ---
 name: google-perfil-avaliacoes
-description: Auditoria e otimização do Google Meu Negócio / Google Maps de Matheus Machado, avaliações (nota, volume, recência, sentimento, temas) e rascunho de respostas, mais consistência de NAP. Use para "veja minhas avaliações", "responda esta avaliação", "como está meu perfil no Google/Maps", "como pedir mais avaliações". Rascunha e, quando o dono aprovar cada ação, aplica no perfil pelo Windsor (posts, respostas, fotos, descrição, serviços etc.) — nada é alterado sem aprovação.
+description: "Auditoria do Google Meu Negócio/Maps e avaliações, com rascunho de respostas. Use para \"veja minhas avaliações\", \"responda esta avaliação\". Nada muda sem aprovação."
 ---
 
 # Google Meu Negócio, Maps e avaliações

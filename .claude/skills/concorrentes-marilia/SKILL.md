@@ -1,6 +1,6 @@
 ---
 name: concorrentes-marilia
-description: Análise de concorrentes orgânicos de Matheus Machado em Marília/SP (corretores, imobiliárias, construtoras com corretor próprio) por consulta-alvo, perfil no Google, reputação, site, Instagram e posicionamento. Use para "analise meus concorrentes", "quem aparece antes de mim", "o que os concorrentes fazem que eu não faço".
+description: "Analisa concorrentes orgânicos de Matheus em Marília/SP (Google, reputação, site, Instagram). Use para \"analise meus concorrentes\", \"quem aparece antes de mim\"."
 ---
 
 # Concorrentes de Marília

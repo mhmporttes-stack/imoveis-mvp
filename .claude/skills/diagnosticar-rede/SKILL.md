@@ -1,6 +1,6 @@
 ---
 name: diagnosticar-rede
-description: Diagnostica rede deste PC: adaptador, Wi-Fi, gateway, DNS, latência/perda e alcance de claude.ai, api.anthropic.com, chatgpt.com e google.com (somente leitura). Use quando Claude/ChatGPT/sites estiverem lentos ou caindo.
+description: "Diagnostica a rede deste PC: Wi-Fi, DNS, latência/perda e alcance de claude.ai e chatgpt.com (só leitura). Use quando sites ou IA caírem ou ficarem lentos."
 ---
 
 # Diagnosticar rede
