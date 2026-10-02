@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Alerta/mensagem enviado só para uma corretora apareceu para outras pessoas
+- **Data:** 2026-10-02
+- **Sintoma:** aviso direcionado a uma corretora apareceu também para outra corretora e para a gestora.
+- **Área:** Automações/Notificações
+- **Impacto:** nenhuma entrega indevida comprovada no banco (`crm_alert_deliveries` vazia; as mensagens de supervisão têm um único destinatário cada). Não há como provar o vazamento de push, que não fica gravado.
+- **Causa raiz:** (1) PUSH: `push_subscriptions` é amarrada ao navegador (endpoint). `AdminPushSubscription` só assinava quando NÃO existia assinatura e nem rodava se o aviso tivesse sido dispensado; o logout não removia a assinatura. Em navegador/aparelho compartilhado, o push privado de quem usou antes continuava aparecendo para o próximo usuário. (2) `lib/crm.js` mostrava as notificações de TODOS ao admin geral (lista, contagem e marcar como lida). Alertas e Supervisão já filtravam por destinatário no backend (confirmado) e o realtime é só um "ping" sem conteúdo em tópico secreto por usuário.
+- **Correção:** reassociação do push a cada carga + desassociação no logout; notificações só do próprio usuário; filtro extra por destinatário nas consultas de alerta/supervisão; modelo de audiência explícito.
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-02, alertas privados).
+- **Prevenção/teste:** `tests/private-alerts.test.mjs`. Risco residual: Alexa falada é compartilhada por natureza.
+- **Status:** Resolvido (causa de push inferida, não reproduzida)
+
 ### 2026-10-02 — Conversas/mensagens cruzando entre corretores no Chat
 - **Data:** 2026-10-02
 - **Sintoma:** mesmo depois do isolamento de visibilidade por hierarquia, dados de conversas ainda apareciam cruzados entre corretores (prévia/não lidas de outro número, resposta saindo pelo WhatsApp errado, mensagem entre colegas faltando numa das pontas).

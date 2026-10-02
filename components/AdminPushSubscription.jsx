@@ -62,7 +62,12 @@ export default function AdminPushSubscription() {
 
   useEffect(() => {
     if (!shouldRun || typeof window === "undefined" || !isPushSupported()) return undefined;
-    if (window.localStorage.getItem(DISMISS_KEY) === "1") return undefined;
+    // Permissão já concedida: SEMPRE reassocia a assinatura deste navegador ao
+    // usuário logado agora (upsert por endpoint no servidor). Sem isso, o push
+    // de quem usou este navegador antes continuava chegando aqui para o próximo
+    // usuário (alerta privado vazando em aparelho compartilhado — 2026-10-02).
+    const dismissed = window.localStorage.getItem(DISMISS_KEY) === "1";
+    if (dismissed && Notification.permission !== "granted") return undefined;
 
     let cancelled = false;
 
@@ -74,8 +79,7 @@ export default function AdminPushSubscription() {
           // Permissão já concedida antes (ou por outro fluxo): não precisa de
           // gesto do usuário para (re)assinar, só para pedir permissão.
           const registration = await navigator.serviceWorker.ready;
-          const existing = await registration.pushManager.getSubscription();
-          if (!existing && !cancelled) await subscribeAndSave();
+          if (!cancelled) await subscribeAndSave();
           return;
         }
 

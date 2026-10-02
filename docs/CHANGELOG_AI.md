@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-02 — Alertas e mensagens direcionadas privadas ao destinatário (T-20261002-28)
+- **O quê:** regra oficial do dono (alerta/mensagem a um usuário é visível só a ele). Núcleo: `resolveAudienceRecipients` (user|team|global|role), `onlyOwnRows`, `canViewDelivery` em `lib/crm-alerts-core.mjs`; `onlyRecipientRows` na Supervisão; `createAlertsForAudience` em `lib/crm-alerts.js`; `lib/crm.js` (notificações) filtra pelo próprio usuário também para admin geral; push: `AdminPushSubscription` reassocia o navegador ao usuário logado a cada carga e `AdminLogoutButton` desassocia no logout.
+- **Por quê:** causa raiz em INCIDENTES.md. Sem migration. Documentos: rule `automacoes-notificacoes.md`, BUSINESS_RULES (AL-PRIV).
+- **Testes:** `tests/private-alerts.test.mjs` (novo) + regressão `crm-alerts-core`, `alexa-reply-alert`, `supervision-messages-core`.
+- **Risco/observação:** o aviso FALADO da Alexa (`lib/alexa-reply-alert.js`) sai num alto-falante compartilhado do escritório — por natureza audível a todos; não foi alterado (decisão do dono).
 ### 2026-10-02 — Economia de tokens, incremento 1 (contexto fixo da sessão)
 - **Data:** 2026-10-02 (tarefa T-20261002-18; só configuração de contexto/documentação)
 - **Área:** Contexto dos agentes (`CLAUDE.md`, `AGENTS.md`, descrições de skills/agentes, Despachante)
