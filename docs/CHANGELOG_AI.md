@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Chat: entrada redundante do número oficial some da lista + aviso discreto se o contato não for salvo
+- **Data:** 2026-10-02
+- **Área:** WhatsApp / Clientes
+- **Alteração:** (1) Lista normal do Chat e Visão geral escondem a conversa do número OFICIAL que não tem nenhuma mensagem útil (recebida, nota interna ou envio que não falhou; vazia também conta) quando existe, para o mesmo telefone, a conversa de WhatsApp pessoal que quem olha enxerga (`lib/whatsapp-chat-redundant.mjs`, `hideRedundantOfficialRows`). Só apresentação: nada é alterado nem apagado; a conversa continua acessível por id e no banco/auditoria. Caso real: conversa oficial da Lorgna Zapata, só com o envio que falhou. (2) Se o registro do contato (botão WhatsApp do card, em paralelo) falhar, o Chat mostra um aviso discreto (amarelo, com "Fechar"): "O Chat foi aberto, mas o contato … não pôde ser salvo/sincronizado" (`lib/whatsapp-contact-warning.mjs`); a navegação continua sem esperar o registro.
+- **Motivo:** acabamentos pedidos pelo dono.
+- **Arquivos afetados:** `lib/whatsapp-chat-redundant.mjs`, `lib/whatsapp-chat.js`, `lib/whatsapp-contact-warning.mjs`, `components/WhatsappChat.jsx`, `components/clients/useClientList.js`, `tests/whatsapp-chat-redundant.test.mjs`, `tests/client-card-whatsapp-chat.test.mjs`, `docs/BUSINESS_RULES.md`
+- **Risco/observação:** a lista nunca mostra a entrada oficial redundante, mas contadores/resumo não mudam (ela não tem não lidas nem "aguardando"). Se a página fizer navegação completa (em vez de suave), a falha do registro não é detectada (o navegador cancela o callback). Sem Node no ambiente: testes não executados localmente.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Chat: conversa da Lorgna Zapata separada por sessão + clique do botão WhatsApp com resposta imediata
 - **Data:** 2026-10-02
 - **Área:** WhatsApp / Clientes / Banco

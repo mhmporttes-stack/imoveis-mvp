@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
+import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
@@ -584,7 +585,11 @@ export function useClientList({
     // nada. A navegação roda em transição e o card fica "ocupado" até a página
     // do Chat chegar (retorno visual imediato, sem permitir clique repetido).
     const registrationId = client.registration.id;
-    fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true }).catch(() => {});
+    // Falha no registro NUNCA bloqueia a navegação: só deixa um aviso discreto no Chat
+    // ("aberto, mas o contato não pôde ser salvo/sincronizado" — lib/whatsapp-contact-warning.mjs).
+    fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true })
+      .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
+      .catch(() => flagContactNotSaved(client.name || client.registration?.fullName || ""));
     setOpeningChatClientId(client.id);
     startChatNavigation(() => {
       router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);

@@ -39,6 +39,7 @@ import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
+import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarning } from "@/lib/whatsapp-contact-warning.mjs";
 import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
@@ -111,6 +112,17 @@ function formatPhone(phone) {
 export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "" }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
+  // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
+  const [contactWarning, setContactWarning] = useState("");
+  useEffect(() => {
+    const check = () => {
+      const pending = takeContactNotSavedWarning();
+      if (pending) setContactWarning(contactWarningMessage(pending.name));
+    };
+    check();
+    window.addEventListener(CONTACT_WARNING_EVENT, check);
+    return () => window.removeEventListener(CONTACT_WARNING_EVENT, check);
+  }, []);
   const [brokers, setBrokers] = useState([]);
   const [filter, setFilter] = useState("all");
   const [searchInput, setSearchInput] = useState("");
@@ -294,6 +306,12 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   return (
     <section className="container-page scroll-mt-[72px]" ref={sectionRef}>
       {openError ? <p className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
+      {contactWarning ? (
+        <p role="status" className="mb-3 flex items-start justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800">
+          <span>{contactWarning}</span>
+          <button type="button" className="shrink-0 underline" onClick={() => setContactWarning("")}>Fechar</button>
+        </p>
+      ) : null}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setTab("conversations")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "conversations" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
           <MessageCircle className="h-4 w-4" />Conversas

@@ -58,3 +58,21 @@ test("abrir pelo card nunca muda atendente/status e nunca duplica conversa", () 
   // Conversa = telefone + sessão (2026-10-02): o card abre a conversa do WhatsApp do RESPONSÁVEL, nunca a de outro número.
   assert.match(body, /\.eq\("session_key", sessionKey\)/, "busca sempre dentro da sessão do responsável");
 });
+
+// Falha ao registrar o contato (2026-10-02): nunca bloqueia a abertura do Chat; deixa um aviso
+// discreto lá ("aberto, mas o contato não pôde ser salvo/sincronizado").
+test("falha no registro do contato avisa no Chat sem bloquear a navegação", async () => {
+  const hook = source("components/clients/useClientList.js");
+  const body = functionBody(hook, "function openWhatsApp(client)");
+  assert.match(body, /\.then\(\(response\) => \{ if \(!response\.ok\) throw new Error/);
+  assert.match(body, /\.catch\(\(\) => flagContactNotSaved\(/);
+  assert.ok(body.indexOf("flagContactNotSaved(") < body.indexOf("startChatNavigation("), "o registro é disparado sem esperar (não há await entre eles)");
+  assert.doesNotMatch(body, /\bawait\b/);
+  const chat = source("components/WhatsappChat.jsx");
+  assert.match(chat, /takeContactNotSavedWarning\(\)/);
+  assert.match(chat, /addEventListener\(CONTACT_WARNING_EVENT, check\)/);
+  assert.match(chat, /\{contactWarning \? \(/);
+  const { contactWarningMessage } = await import("../lib/whatsapp-contact-warning.mjs");
+  assert.match(contactWarningMessage("Lu"), /O Chat foi aberto, mas o contato de Lu não pôde ser salvo\/sincronizado/);
+  assert.match(contactWarningMessage(""), /O Chat foi aberto, mas o contato não pôde ser salvo\/sincronizado/);
+});
