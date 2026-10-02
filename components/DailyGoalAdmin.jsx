@@ -31,6 +31,8 @@ const SKIP_REASON_LABELS = {
   fim_de_semana: "Fim de semana (dias úteis apenas)",
   sessao_nao_conectada: "WhatsApp desconectado no momento",
   fila_vazia: "Fila vazia",
+  responsavel_mudou: "Cliente mudou de corretor antes do disparo",
+  falha_ao_preparar_cliente: "Disparar desfeito (falha ao preparar o cliente)",
   round_nao_esta_mais_ativo: "Cliente não estava mais ativo (já converteu/encerrou)",
   contato_do_not_contact: "Contato pediu para não ser contactado (PARAR)",
   ja_teve_tentativa_hoje: "Cliente já tinha recebido tentativa hoje",
@@ -514,6 +516,7 @@ export function BrokerHistoryPanel({ brokerId }) {
                     <span className="font-bold text-navy">{event.contactName || "Contato sem nome"}</span>{" "}
                     {event.attemptNumber ? <span className="text-muted">· {event.attemptNumber}ª tentativa</span> : null}
                     {event.variant ? <span className="text-muted"> · Modelo {event.variant}</span> : null}
+                    {event.source === "extra" ? <span className="text-muted"> · Disparar</span> : null}
                     {" · "}
                     <span className={
                       event.status === "sent" ? "font-bold text-emerald-700"

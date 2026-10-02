@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, History, MessageCircle, Pencil, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Check, CheckSquare, History, Lock, Pencil, RotateCcw, Send, Trash2, Upload } from "lucide-react";
 import { formatBrazilianPhone } from "@/lib/phone-utils";
 
 // scope diferencia ORIGEM/PROPRIEDADE da base — nunca quem está atendendo:
@@ -46,6 +46,10 @@ export default function ProspectingManager({
   const [bulkBrokerId, setBulkBrokerId] = useState("");
   const [pageSize, setPageSize] = useState("10");
   const [currentPage, setCurrentPage] = useState(1);
+  // "Disparar" (2026-10-02): estado vem sempre do servidor (Meta 100%, X/10,
+  // cooldown) — a tela só mostra; a trava real está na API.
+  const [dispatchStatus, setDispatchStatus] = useState(null);
+  const [queuedIds, setQueuedIds] = useState([]);
   const filteredContacts = useMemo(() => contacts.filter((contact) => {
     if (dddMode === "equal" && dddValue.length === 2) return getPhoneDdd(contact.phone) === dddValue;
     if (dddMode === "different" && dddValue.length === 2) return getPhoneDdd(contact.phone) !== dddValue;
@@ -56,6 +60,16 @@ export default function ProspectingManager({
   const allVisibleSelected = filteredContacts.length > 0 && filteredContacts.every((contact) => selectedIds.includes(contact.id));
 
   useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
+  useEffect(() => {
+    if (readOnly) return undefined;
+    let active = true;
+    const load = () => fetch("/api/prospecting/extra-dispatch").then((response) => response.ok ? response.json() : null).then((data) => { if (active && data) setDispatchStatus(data); }).catch(() => {});
+    load();
+    // Cooldown/processamento mudam com o tempo: atualiza de minuto em minuto.
+    const timer = setInterval(load, 60000);
+    return () => { active = false; clearInterval(timer); };
+  }, [readOnly]);
+  const dispatchLocked = !dispatchStatus || !dispatchStatus.available;
 
   function toggleSelectAll() {
     const visibleIds = filteredContacts.map((contact) => contact.id);
@@ -110,21 +124,17 @@ export default function ProspectingManager({
     finally { setBusy(""); }
   }
 
-  async function claim(contact) {
-    // Abre a aba em branco no clique (gesto do usuário) e só troca a URL
-    // dela depois do fetch — window.open só depois do fetch resolver é
-    // bloqueado como pop-up em vários navegadores.
-    const popup = window.open("about:blank", "_blank");
-    if (popup) popup.opener = null;
+  // Não abre o WhatsApp nem envia: põe o cliente na fila de disparo do
+  // corretor (um por clique, sem lote).
+  async function dispatch(contact) {
     setBusy(contact.id);
     try {
       const response = await fetch(`/api/prospecting/${contact.id}`, { method: "POST" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setContacts((current) => current.filter((item) => item.id !== contact.id));
-      if (data.whatsappUrl) { if (popup) popup.location.href = data.whatsappUrl; else window.location.assign(data.whatsappUrl); }
-      else popup?.close();
-    } catch (error) { popup?.close(); alert(error.message); }
+      const data = await response.json().catch(() => ({}));
+      if (data.status) setDispatchStatus(data.status);
+      if (!response.ok) throw new Error(data.error || "Não foi possível adicionar à fila de disparo.");
+      setQueuedIds((current) => current.includes(contact.id) ? current : [...current, contact.id]);
+    } catch (error) { alert(error.message); }
     finally { setBusy(""); }
   }
 
@@ -174,7 +184,7 @@ export default function ProspectingManager({
   return (
     <section className="container-page space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{label}</p><h2 className="mt-2 text-3xl font-black text-navy">Prospecção</h2></div>
+        <div><p className="text-sm font-black uppercase tracking-[0.16em] text-brand">{label}</p><h2 className="mt-2 text-3xl font-black text-navy">Prospecção</h2>{!readOnly && dispatchStatus ? <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-muted">{dispatchLocked ? <span className="inline-flex items-center gap-1.5 text-navy"><Lock aria-hidden="true" className="h-4 w-4 text-brand" />{dispatchStatus.message}</span> : null}<span className="rounded-full bg-mist px-2.5 py-0.5 text-xs font-black text-navy" title="Clientes adicionados ao disparo neste ciclo">{dispatchStatus.count}/{dispatchStatus.limit}</span></p> : null}</div>
         {canImport ? <label className="premium-button-primary cursor-pointer"><Upload className="h-4 w-4" /> Importar Excel<input className="hidden" type="file" accept=".xlsx" onChange={loadExcel} disabled={busy === "import"} /></label> : null}
       </div>
       {importDraft ? (
@@ -206,7 +216,11 @@ export default function ProspectingManager({
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">{canBulkManage ? <input aria-label={`Selecionar ${contact.name}`} checked={selectedIds.includes(contact.id)} className="mt-1 h-5 w-5 shrink-0 accent-brand" onChange={() => toggleContact(contact.id)} type="checkbox" /> : null}<div><h3 className="text-xl font-black text-navy">{contact.name}</h3><p className="mt-1 font-bold text-muted">{formatBrazilianPhone(contact.phone)}</p><p className={`mt-2 text-sm font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>{statusLabel}</p>{contact.status === "recent_attempt" ? <p className="text-sm font-bold text-muted">Disponível novamente em {formatDate(contact.availableAfter)}</p> : null}{canManage && contact.registrationId ? <select className="mt-3 h-9 rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy" value={contact.assignedUserId} onChange={(event) => mutate(contact.id, "PATCH", { assignedUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select> : null}</div></div>
               <div className="flex flex-wrap gap-2">
-                {!readOnly ? <button className="premium-button-secondary" disabled={blocked || busy === contact.id} onClick={() => claim(contact)} type="button"><MessageCircle className="h-4 w-4" /> WhatsApp</button> : null}
+                {!readOnly ? (queuedIds.includes(contact.id)
+                  ? <button className="premium-button-secondary" disabled type="button"><Check className="h-4 w-4" /> Na fila</button>
+                  : dispatchLocked
+                    ? <button className="premium-button-secondary" disabled title={dispatchStatus?.message || "Carregando…"} type="button"><Lock className="h-4 w-4" /> Disparar</button>
+                    : <button className="premium-button-secondary" disabled={blocked || busy === contact.id} onClick={() => dispatch(contact)} type="button"><Send className="h-4 w-4" /> Disparar</button>) : null}
                 {canManage ? <><button className="icon-button" title="Histórico" onClick={() => showHistory(contact)}><History className="h-4 w-4" /></button><button className="icon-button" title="Editar" onClick={() => edit(contact)}><Pencil className="h-4 w-4" /></button>{["recent_attempt", "do_not_contact"].includes(contact.status) ? <button className="icon-button" title="Retirar bloqueio" onClick={() => unblock(contact)}><RotateCcw className="h-4 w-4" /></button> : null}<button className="icon-button text-red-600" title="Excluir" onClick={() => remove(contact)}><Trash2 className="h-4 w-4" /></button></> : null}
               </div>
             </div>

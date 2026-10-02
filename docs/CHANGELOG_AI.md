@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Prospecção: botão "Disparar" (fila extra 10 + cooldown 1 h) e trava de status sem resposta real
+- **Data:** 2026-10-02
+- **Área:** Prospecção · Meta Diária · Ranking · WhatsApp · Banco
+- **Alteração:** (1) Trava de status: cliente de disparo (tentativa automática ou Disparar) em "Tentando contato" não avança à mão até resposta real (fonte: pendência "Cliente respondeu"/rodada convertida pela automação de resposta) — barrada no servidor antes de gravar (sem histórico/pontos). (2) Botão WhatsApp da Prospecção → "Disparar": põe UM cliente na fila do corretor (sem lote), envio pelo mesmo motor da automação (4 modelos da 1ª tentativa), Meta 100% obrigatória, até 10 por ciclo, 1 h de pausa depois dos 10 processados, cadeado + X/10 na tela. 2ª/3ª tentativa seguem na Meta Diária do mesmo corretor. (3) Um envio por vez por número e intervalo contado do último envio de qualquer fila. (4) Reserva do Disparar não conta como atividade (conta a mensagem enviada).
+- **Motivo:** regras do dono (impedir que disparos sem resposta virem Atendimento/Simulação para inflar o Ranking; prospecção extra controlada).
+- **Arquivos afetados:** `lib/prospecting-status-lock.js`, `lib/prospecting-status-lock-core.mjs`, `lib/prospecting-extra-dispatch.js`, `lib/prospecting-extra-core.mjs`, `lib/daily-goal-auto.js`, `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `lib/performance-overview.js`, `lib/prospecting.js`, `lib/simulation-registrations.js`, `lib/client-documents.js`, `app/api/prospecting/[id]/route.js`, `app/api/prospecting/extra-dispatch/route.js`, `components/ProspectingManager.jsx`, `components/DailyGoalAdmin.jsx`, migration `20261002240000_prospecting_extra_dispatch_queue.sql` (aplicada), testes `tests/prospecting-status-lock-core.test.mjs`, `tests/prospecting-extra-core.test.mjs`.
+- **Risco/observação:** trava só para rodadas criadas a partir de 2026-10-02 09:00 UTC (não retroativa). Admin geral real (fora do "Alterar conta") pode destravar — escolha técnica, a confirmar com o dono. Fila extra respeita pausa da automação: com os corretores pausados, o Disparar fica travado ("Disparos automáticos pausados"). Funções do banco testadas em transação desfeita (1→10, 11º recusado, duplo clique, cooldown, reset após 1 h, Não contactar/mesma pessoa/base de outro recusados, um envio por vez). Nenhuma mensagem real enviada; nenhum corretor reativado. `claim_next_daily_goal_auto_item` passou a pegar só itens da Meta e a não liberar item enquanto houver outro "enviando" do mesmo número; EXECUTE revogado de anon/authenticated nas funções novas.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Corretor vê os próprios clientes em "Não contactar"
 - **Data:** 2026-10-02
 - **Área:** Clientes · Permissões
