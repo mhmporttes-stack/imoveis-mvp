@@ -75,6 +75,7 @@ Asserts de negócio (`lib/admin-access.js`, dentro dos `lib/*.js`): `assertGener
 | Chat: mensagens internas / excluir conversa | tudo | tudo | só se for atendente da conversa ou responsável pelo cliente | só se **ele próprio** for atendente/responsável (o vínculo com o corretor não vale) |
 | Gerador de Links / Campanhas | sim | sim | não | não |
 | Usuários (criar/editar/excluir) | sim | só **corretores e associados** (anti-escalonamento: não cria nem promove admin/gestor) | não | não |
+| Remover corretor/associado (`DELETE /api/admin-users/[id]`) | qualquer um (exceto o dono), com os clientes transferidos | **só da própria equipe** (`manager_id` = ele; `canRemoveBroker` em `lib/broker-removal-core.mjs`; a rota e `previewBrokerRemoval`/`deleteAdminProfile` checam no servidor) — corretor fora da equipe: 403 | não | não |
 | Imóveis/depoimentos: criar | sim | sim | sim (**não publicado**) | sim (não publicado) |
 | Imóveis/depoimentos: publicar/editar/excluir | sim | sim | não | não |
 | Captações: ver/editar | sim | sim (**sem** dados internos) | não | não |
