@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Documentação: segundo proponente não precisa de comprovante de residência
+- **Data:** 2026-10-02
+- **Área:** Documentação/CCA
+- **Alteração:** a regra de titularidade do comprovante de residência (Base Mestra `residence_income_ownership`) e a validação da fonte da conta (`residence_source`) eram aplicadas a QUALQUER pessoa do lote, comparando o nome do documento com o do proponente principal e usando a renda do principal — um comprovante do segundo proponente virava pendência ("Renda informal exige comprovante em nome do próprio cliente."). Regra do dono: comprovante de residência só do principal. Fonte única em `lib/document-policy.mjs` (`isResidenceRequiredForRole`, `normalizeNonPrincipalResidenceItem`): `residenceDecision` recebe `personRole`, `document-analysis.js` descarta qualquer pendência/validação/divergência/ilegível de comprovante de não-principal (inclusive as vindas da própria IA) e o prompt da IA ganhou a instrução. `recomputeRequirements` (`lib/client-documents.js`) também limpa linhas já gravadas — então reanálise/recálculo corrige análises antigas sem custo de IA e não recria a pendência. O motor (`document-requirements-engine.js`) continua exigindo comprovante só do titular; comprovante neutralizado de um não-principal que era "precisa_confirmacao" segue sem valer como prova do principal.
+- **Motivo:** pedido do dono (caso real: segundo proponente com renda informal recebeu a pendência indevida). Correção genérica, sem tratamento por cliente.
+- **Arquivos afetados:** `lib/document-policy.mjs`, `lib/document-ai-rule-core.mjs`, `lib/document-analysis.js`, `lib/document-requirements-engine.js`, `lib/client-documents.js`, `tests/document-second-proponent-residence.test.mjs`, `.claude/analista-documental/REGRAS-DOCUMENTAIS.md`.
+- **Risco/observação:** `node --test tests/document-*.test.mjs` passa (57 ok, 4 todo já existentes). Regras do principal inalteradas. Sem migration.
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Chat: números internos não viram cliente, visibilidade por hierarquia e limpeza de conversas particulares do dono
 - **Data:** 2026-10-02
 - **Área:** WhatsApp · Chat · Permissões · Banco

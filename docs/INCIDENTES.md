@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Segundo proponente recebia pendência de comprovante de residência
+- **Data:** 2026-10-02
+- **Sintoma:** análise documental exigia comprovante de residência do SEGUNDO PROPONENTE ("Renda informal exige comprovante em nome do próprio cliente.").
+- **Área:** Documentação/CCA
+- **Impacto:** qualquer lote com comprovante do segundo proponente/cônjuge (renda informal ou CLT) — pendência indevida na devolutiva e no PDF.
+- **Causa raiz:** `residenceDecision` e a validação de fonte (`lib/document-analysis.js`) rodavam para todo item `comprovante_residencia` sem olhar `personRole`, comparando o documento com o nome/renda do titular. A regra "só do principal" não existia em lugar nenhum.
+- **Correção:** regra única em `lib/document-policy.mjs`, aplicada na análise, em `residenceDecision` e em todo recálculo (limpa também análises já gravadas).
+- **Arquivos/commit:** ver `docs/CHANGELOG_AI.md` 2026-10-02.
+- **Prevenção/teste:** `tests/document-second-proponent-residence.test.mjs` (principal informal mantém regra; 2º informal e 2º CLT sem pendência; reanálise idempotente).
+- **Status:** Resolvido
+
 ### 2026-10-02 — Automação da Meta Diária do número do dono religou sozinha depois de um deploy (20 envios agendados)
 - **Data:** 2026-10-02
 - **Sintoma:** número do dono, que não deve fazer disparo automático, voltou a ficar com a automação ligada e 20 envios na fila para as 07:00.
