@@ -46,7 +46,12 @@ const SKIP_REASON_LABELS = {
   falha_destinatario_3_3: "Falha técnica ao enviar (3ª de 3)",
   google_contacts_sync_falhou: "Aguardando sincronização com o Google Contacts — será tentado de novo",
   reordenado_manualmente: "Fila reorganizada manualmente pelo admin",
-  reordenado_automaticamente_reconexao: "Fila redistribuída automaticamente após reconectar o WhatsApp"
+  reordenado_automaticamente_reconexao: "Fila redistribuída automaticamente após reconectar o WhatsApp",
+  reagendado_por_configuracao: "Fila recalculada automaticamente após salvar a configuração",
+  reagendado_fora_da_configuracao: "Fila recalculada: item estava fora da janela/dia atual",
+  bloqueado_fora_da_janela_no_envio: "Não enviado: horário fora da janela (fila recalculada)",
+  opt_out_whatsapp: "Cliente pediu para parar (Não contactar)",
+  nao_tem_interesse: "Corretor marcou Não tem interesse"
 };
 
 function minutesToTime(minutes) {
@@ -501,7 +506,9 @@ export function BrokerHistoryPanel({ brokerId }) {
               <ul className="divide-y divide-line">
                 {data.timeline.map((event) => (
                   <li key={event.id} className="px-3 py-2 text-xs">
-                    <span className="font-black text-navy">{formatTime(event.at)}</span>{" "}
+                    {/* Para item NÃO enviado, `at` é a hora do registro
+                        (ex.: cancelado ao reagendar) — nunca horário de envio. */}
+                    <span className="font-black text-navy" title={event.status === "sent" ? "Enviado às" : "Registrado às"}>{formatTime(event.at)}</span>{" "}
                     <span className="font-bold text-navy">{event.contactName || "Contato sem nome"}</span>{" "}
                     {event.attemptNumber ? <span className="text-muted">· {event.attemptNumber}ª tentativa</span> : null}
                     {event.variant ? <span className="text-muted"> · Modelo {event.variant}</span> : null}
@@ -513,6 +520,7 @@ export function BrokerHistoryPanel({ brokerId }) {
                     }>
                       {event.status === "sent" ? "Enviado" : SKIP_REASON_LABELS[event.reason] || event.reason || event.status}
                     </span>
+                    {event.status !== "sent" && event.scheduledFor ? <span className="text-muted"> · estava agendado para {formatTime(event.scheduledFor)}</span> : null}
                   </li>
                 ))}
               </ul>

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Meta Diária automática: trava de janela no envio + fila recalculada ao salvar configuração
+- **Data:** 2026-10-02
+- **Área:** Meta Diária (automação WhatsApp)
+- **Alteração:** (1) trava final no servidor imediatamente antes de cada envio (`sendBlockReason`, `lib/daily-goal-auto-core.mjs`), com a configuração relida naquele instante: fora da janela/dia útil/pausada não envia; item agendado para outro dia ou fora da janela atual é cancelado e a fila recalculada. (2) Antes de qualquer envio, `repairInvalidPendingQueue` recalcula a fila do corretor se houver pendente fora da configuração atual. (3) Salvar a configuração global (janela, oscilação, %, intervalo, dias, teto) e o teto individual recalcula automaticamente a fila pendente (`requeueAllEnabledBrokers`/`requeueBrokerQueueCore`; só `pending`). (4) Oscilação: intervalos sorteados são encolhidos proporcionalmente se passarem do fim — todas as mensagens cabem na janela. (5) Histórico do admin passa a mostrar "estava agendado para" nos itens não enviados.
+- **Motivo:** bug crítico relatado pelo dono (janela 07:00–14:00): após salvar regras novas a fila antiga continuou com 139 pendências fora da janela (06:30–18:53) e pendências de 30/09–01/10; o "02:10" visto na tela era a hora do CANCELAMENTO exibida como se fosse horário (o reagendar das 02:10 gerou 36 itens corretos, 07:00–13:50). Ver `docs/INCIDENTES.md`.
+- **Arquivos afetados:** `lib/daily-goal-auto.js`, `lib/daily-goal-auto-core.mjs`, `components/DailyGoalAdmin.jsx`, `tests/daily-goal-auto-window.test.mjs`.
+- **Risco/observação:** salvar a configuração agora cancela e regenera a fila pendente de todos os corretores com a automação ligada (mais lento: alguns segundos). Corretores pausados têm a fila recalculada quando o cron voltar a processá-los (a trava do envio protege antes disso). 2 itens presos em "sending" desde 30/09 não são reenviados (o claim só pega `pending`).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — "Não contactar" passa a manter o responsável em todos os fluxos
 - **Data:** 2026-10-02
 - **Área:** Prospecção · Clientes

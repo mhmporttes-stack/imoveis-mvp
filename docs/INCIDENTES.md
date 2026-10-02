@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-02 — Meta Diária: fila com horários fora da janela depois de mudar a configuração ("reagendou para 02:10")
+- **Data:** 2026-10-02
+- **Sintoma:** com janela 07:00–14:00 salva, as atividades já agendadas não mudaram; ao clicar em "Reagendar" a tela mostrou várias atividades às 02:10 ("Fila reorganizada manualmente pelo admin").
+- **Área:** Meta Diária
+- **Impacto:** 139 pendências fora da nova janela (06:30–18:53) e pendências de dias anteriores; nenhum envio fora da janela confirmado (o executor já checava a hora atual).
+- **Causa raiz:** (1) salvar a configuração só atualizava `daily_goal_auto_settings`, nunca a fila já gerada; (2) o executor checava só a hora atual, não o horário/dia do item (itens de 06:30 ou de dias anteriores sairiam em sequência às 07:00); (3) o "02:10" era `updated_at` dos itens CANCELADOS pelo reagendar, exibido no histórico como se fosse horário — o reagendar gerou itens corretos (07:00–13:50, `cursor = max(início, agora)`); (4) a oscilação podia deixar mensagens de fora do fim da janela.
+- **Correção:** trava final no envio com configuração relida, recálculo da fila inválida antes de enviar, recálculo automático ao salvar configuração/teto, oscilação que sempre cabe na janela, histórico mostrando o horário agendado.
+- **Arquivos/commit:** `lib/daily-goal-auto.js`, `lib/daily-goal-auto-core.mjs`, `components/DailyGoalAdmin.jsx`
+- **Prevenção/teste:** `tests/daily-goal-auto-window.test.mjs` (02:10, 14:00, 100 mensagens, oscilação, teto, travas de código).
+- **Status:** Resolvido
+
 ### 2026-10-02 — Respostas de clientes no WhatsApp não aparecem no Chat nem param a prospecção
 - **Data:** 2026-10-02
 - **Sintoma:** desde 29/09 nenhuma mensagem recebida pelo WhatsApp conectado por QR entrava no Chat do CRM; resposta de cliente não cancelava os envios automáticos da Meta Diária nem o opt-out ("PARAR").
