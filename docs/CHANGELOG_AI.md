@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Meta Diária: hoje 100% dos disparos e janela até 18:00 (corte de 50% revogado)
+- **Pedido do dono:** em 03/10/2026 enviar 100% da fila (não mais 50%) e esticar o fim da janela de 14:00 para 18:00; domingo 04/10 sem disparo; segunda 05/10 regra normal (seg–sáb, carteira 50, 10 novos/dia).
+- **Mudança:** `TEMPORARY_DISPATCH_REDUCTIONS` (`lib/daily-goal-auto-core.mjs`) ficou vazia (o corte de 32e337c deixa de agir; o mecanismo permanece inerte). Nova exceção por data `TEMPORARY_WINDOW_END_EXTENSIONS` (`lib/daily-goal-window-core.mjs`, só `2026-10-03` → 18:00), aplicada em `withEffectiveWindow` (`lib/daily-goal-window.js`) com `Math.max` — só o FIM da janela; início, intervalo (5–10 min) e configurações gravadas intactos. Em 04/10 a data não casa e tudo volta sozinho ao configurado.
+- **Domingo:** `isBusinessDay` segue 1..6, domingo bloqueado (testado). **Segunda:** sem exceção de data; limites 50/10 cobertos por `tests/daily-goal-limites-50-10.test.mjs`.
+- **Observação:** itens que o corte já descartou hoje (`canceled`/`reducao_temporaria_2026_10_03`) deixam de ser protegidos e podem ser re-enfileirados pelo cron de hoje, respeitando o teto diário. Testes: `tests/daily-goal-temporary-reduction.test.mjs` atualizado.
+- **Autor:** Claude Code
+
 ### 2026-10-03 — Meta Diária automática passa a disparar também aos SÁBADOS (segunda a sábado)
 - **Pedido do dono:** corretora (ketlin) com a carteira acima de 50 não iniciava o disparo do dia. **Causa raiz:** todos os corretores têm "só dias úteis" ligado (`daily_goal_auto_settings.business_days_only = true`) e `isBusinessDay` só aceitava segunda a sexta; no sábado o envio ficava bloqueado (`fim_de_semana`) mesmo com WhatsApp conectado e fila pronta (46 itens pendentes). A carteira > 50 NÃO bloqueia o disparo (só impede entrada de novos contatos).
 - **Mudança mínima:** `isBusinessDay` (`lib/daily-goal-auto-core.mjs`) agora aceita 1..6 (segunda a sábado); `extraSendBlockReason` (`lib/prospecting-extra-core.mjs`) idem (só domingo bloqueia). Vale para envio, trava final, agendamento, crédito de janela (PRO-14) e fila extra, sem alterar nenhuma configuração gravada no banco. **Domingo continua bloqueado** com a opção ligada. Textos da tela de Automação ajustados ("Segunda a sábado"). Testes ajustados: `daily-goal-auto-core`, `daily-goal-auto-window`, `daily-goal-window-credit`, `prospecting-extra-core`.

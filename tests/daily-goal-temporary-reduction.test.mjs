@@ -5,8 +5,10 @@ import {
   TEMPORARY_DISPATCH_REDUCTIONS,
   decideTemporaryReduction,
   reducedDispatchTarget,
-  temporaryDispatchReductionFor
+  temporaryDispatchReductionFor,
+  isBusinessDay
 } from "../lib/daily-goal-auto-core.mjs";
+import { TEMPORARY_WINDOW_END_EXTENSIONS, temporaryWindowEndFor } from "../lib/daily-goal-window-core.mjs";
 
 // PRNG determinístico (mulberry32) para simular o dia inteiro sem depender de sorte.
 function prng(seed) {
@@ -51,19 +53,30 @@ function simulateDay({ pending, sent = 0, factor = 0.5, random, vanishEvery = 0 
   return { totalSent, dropped, keptPositions };
 }
 
-test("exceção por data: vale SOMENTE em 03/10/2026 e some sozinha depois", () => {
-  const hoje = temporaryDispatchReductionFor("2026-10-03");
-  assert.deepEqual(hoje, { date: "2026-10-03", factor: 0.5, skipReason: "reducao_temporaria_2026_10_03" });
-  for (const date of ["2026-10-02", "2026-10-04", "2026-10-05", "2026-11-03", "2027-10-03", "2025-10-03", "", undefined, null]) {
-    assert.equal(temporaryDispatchReductionFor(date), null, `não pode valer em ${date}`);
+test("corte de 50% REVOGADO (2026-10-03): nenhuma data reduz envio; hoje sai 100%", () => {
+  assert.equal(TEMPORARY_DISPATCH_REDUCTIONS.length, 0);
+  for (const date of ["2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "", undefined, null]) {
+    assert.equal(temporaryDispatchReductionFor(date), null, `não pode reduzir em ${date}`);
   }
-  // a lista tem exatamente uma exceção (fácil de remover) e nenhuma outra data
-  assert.equal(TEMPORARY_DISPATCH_REDUCTIONS.length, 1);
-  // entradas inválidas nunca reduzem nada
+  // mecanismo continua inerte/valido se alguem reativar uma entrada: entradas invalidas nunca reduzem
+  assert.deepEqual(temporaryDispatchReductionFor("2026-10-03", [{ date: "2026-10-03", factor: 0.5, skipReason: "x" }]), { date: "2026-10-03", factor: 0.5, skipReason: "x" });
   assert.equal(temporaryDispatchReductionFor("2026-10-03", [{ date: "2026-10-03", factor: 1, skipReason: "x" }]), null);
-  assert.equal(temporaryDispatchReductionFor("2026-10-03", [{ date: "2026-10-03", factor: 0, skipReason: "x" }]), null);
   assert.equal(temporaryDispatchReductionFor("2026-10-03", [{ date: "2026-10-03", factor: 0.5 }]), null);
-  assert.equal(temporaryDispatchReductionFor("2026-10-03", []), null);
+});
+
+test("janela estendida ate 18:00 vale SOMENTE em 03/10/2026 (domingo e segunda voltam ao configurado)", () => {
+  assert.equal(TEMPORARY_WINDOW_END_EXTENSIONS.length, 1);
+  assert.equal(temporaryWindowEndFor("2026-10-03"), 1080);
+  for (const date of ["2026-10-02", "2026-10-04", "2026-10-05", "2026-10-10", "", undefined, null]) {
+    assert.equal(temporaryWindowEndFor(date), null, `não pode estender em ${date}`);
+  }
+  assert.equal(temporaryWindowEndFor("2026-10-03", [{ date: "2026-10-03", endMinutes: 5000 }]), null);
+});
+
+test("domingo segue bloqueado e sabado liberado (isBusinessDay)", () => {
+  assert.equal(isBusinessDay(0), false);
+  assert.equal(isBusinessDay(6), true);
+  assert.equal(isBusinessDay(1), true);
 });
 
 test("alvo de envios: 80→40, 50→25, 20→10 (e arredondamento seguro)", () => {
