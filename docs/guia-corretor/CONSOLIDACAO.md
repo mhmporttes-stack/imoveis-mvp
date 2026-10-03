@@ -542,3 +542,13 @@ Consolidado: seção 0, decisões 1 a 15.
 **RESULTADO:** documento consolidado, 15 decisões do dono com recomendação, 29 pendências classificadas A-E com bloqueio por página, arquitetura aditiva sobre o Manual, inventário de 7 livros (todos RASCUNHO; sem fonte = PENDENTE), ficha viva com lista branca, page flip com as duas alternativas e critérios de protótipo. Notas internas de empreendimento visíveis a todo perfil confirmadas por leitura (`page.jsx:28`). Nada implementado, publicado ou corrigido.
 **ARQUIVOS:** `docs/guia-corretor/CONSOLIDACAO.md` (único criado).
 **PENDÊNCIAS:** decisões 1 a 15 do dono; validação das pendências classe A; R3 (outros consumidores de `internalNotes` não auditados); contagens FUN-1/FUN-2 vêm de A3 (não refeitas); texto dos 134 nós × seed não comparado; coluna `properties.updated_at` e normalização de acento na busca atual a confirmar no código.
+
+---
+
+## 15. DECISÕES DO DONO REGISTRADAS (2026-10-03)
+
+**Aprovadas (estruturais):** #2 preço e condições NÃO entram na ficha (fase 1) · #3 notas internas NÃO entram · #4 agrupamento em 7 livros · #5 manter "Guia do Corretor"; árvore do Chat passa a "Roteiro de atendimento" (só na tela, quando implementar) · #6 estender o Manual existente, sem recriar o módulo e sem alterar os 8 tópicos/40 seções publicados · #12 page flip NÃO escolhido: primeiro protótipo isolado no celular (12 critérios, seção 11) · #13 "Recentes" na v1; Fixados e sincronização entre aparelhos só depois do piloto · #14 camada de gestão: somente Admin na v1 · #15 risco das notas internas: NÃO corrigir aqui; tarefa separada de auditoria/correção.
+
+**Ainda NÃO autorizadas (não presumir resposta):** #1 comprovante mês atual/anterior e FGTS não-CLT · #7 conflitos C-2 a C-6 e "documentação aplicável do cônjuge" · #8 correção das contagens de status · #9 validação das pendências classe A · #10 regras fixas do motor na Base Mestra · #11 prazo de revisão das fontes externas.
+
+**Próximo passo autorizado:** somente o PROTÓTIPO ISOLADO do page flip (conteúdo fictício; sem banco, migration, Manual ou CRM; sem biblioteca definitiva).
