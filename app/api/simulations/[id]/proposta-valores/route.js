@@ -6,7 +6,8 @@ import { getProperty } from "@/lib/properties";
 import { canManageSimulations, formatSimulationError, getSimulation } from "@/lib/simulations";
 import { simularEntrada } from "@/lib/simulacao-entrada/calculator";
 import { clienteEntradaFromSimulation, parcelasFinanciamentoFromSimulation } from "@/lib/simulacao-entrada/cliente-entrada";
-import { aplicarParcelasManuais, buildPresentationModel } from "@/lib/simulacao-entrada/presentation-model.mjs";
+import { aplicarParcelasManuais, buildPresentationModel, formatZona } from "@/lib/simulacao-entrada/presentation-model.mjs";
+import { carregarImagemPrincipal } from "@/lib/simulacao-entrada/proposta-imagem.mjs";
 import { gerarPropostaValoresPdf, sanitizeFileName } from "@/lib/simulacao-entrada/proposta-pdf.mjs";
 import { canManageEmpreendimentoRegras, getEmpreendimentoRegras } from "@/lib/simulacao-entrada/repository";
 
@@ -73,13 +74,17 @@ export async function POST(request, { params }) {
       }
     }
 
+    // Foto real cadastrada do empreendimento (a primeira é a principal); sem foto o PDF usa a composição alternativa.
+    const imagemBytes = await carregarImagemPrincipal(property, { origin: new URL(request.url).origin });
+
     const dataTexto = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date());
     const { bytes } = await gerarPropostaValoresPdf({
       model,
       clienteNome: simulation.clientName || "Cliente",
       dataTexto,
-      empreendimento: { nome: property.name || row.nome, construtora: property.builder || "", localizacao: property.location || "" },
-      logoBytes
+      empreendimento: { nome: property.name || row.nome, construtora: property.builder || "", zona: formatZona(property.region) },
+      logoBytes,
+      imagemBytes
     });
 
     const fileName = `proposta-${sanitizeFileName(simulation.clientName) || "cliente"}-${sanitizeFileName(property.name) || "empreendimento"}.pdf`;

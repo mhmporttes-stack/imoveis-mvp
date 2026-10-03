@@ -2,7 +2,9 @@
 // Não altera o PDF, não envia nada para fora, não adiciona dependência ao projeto.
 //
 // Uso:
-//   node .claude/design/tools/renderizar-pdf.mjs <arquivo.pdf> [--saida scratch/pdf] [--escala 1.5]
+//   node .claude/design/tools/renderizar-pdf.mjs <arquivo.pdf> [--saida scratch/pdf] [--escala 1.5] [--recorte x,y,largura,altura]
+//   --sonda x,y;x,y: imprime a cor RGB (0-255) dos pontos (em pt, origem no topo esquerdo) — mede emendas e contraste.
+//   --recorte: renderiza só uma região (em pt, origem no topo esquerdo) para inspecionar detalhes em zoom.
 //
 // Saída: <saida>/<nome>-p01.png, -p02.png … e uma linha por página com o tamanho.
 // Abra os PNG com a ferramenta Read para ver a composição real (não leia só o código do gerador).
@@ -52,6 +54,9 @@ if (!input || input.startsWith("--")) {
 }
 const outDir = arg("saida", "scratch/pdf");
 const scale = Number(arg("escala", "1.5")) || 1.5;
+const crop = arg("recorte", "").split(",").map(Number);
+const probes = arg("sonda", "").split(";").map((s) => s.split(",").map(Number)).filter((p) => p.length === 2 && p.every(Number.isFinite));
+const hasCrop = crop.length === 4 && crop.every(Number.isFinite);
 
 const extra = globalRoot() ? [globalRoot()] : [];
 const pdfjsPath = resolveFrom("pdfjs-dist/legacy/build/pdf.mjs", extra);
@@ -112,13 +117,17 @@ const base = path.basename(input).replace(/\.pdf$/i, "");
 
 for (let n = 1; n <= doc.numPages; n += 1) {
   const page = await doc.getPage(n);
-  const viewport = page.getViewport({ scale });
-  const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+  const viewport = hasCrop ? page.getViewport({ scale, offsetX: -crop[0] * scale, offsetY: -crop[1] * scale }) : page.getViewport({ scale });
+  const canvas = hasCrop ? createCanvas(Math.ceil(crop[2] * scale), Math.ceil(crop[3] * scale)) : createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
   const context = canvas.getContext("2d");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: context, viewport, canvas }).promise;
-  const file = path.join(outDir, `${base}-p${String(n).padStart(2, "0")}.png`);
+  for (const [px, py] of probes) {
+    const d = context.getImageData(Math.round((px - (hasCrop ? crop[0] : 0)) * scale), Math.round((py - (hasCrop ? crop[1] : 0)) * scale), 1, 1).data;
+    console.log(`sonda (${px},${py}) pág ${n}: rgb(${d[0]}, ${d[1]}, ${d[2]})`);
+  }
+  const file = path.join(outDir, `${base}-p${String(n).padStart(2, "0")}${hasCrop ? "-recorte" : ""}.png`);
   writeFileSync(file, canvas.toBuffer("image/png"));
   const pt = page.getViewport({ scale: 1 });
   console.log(`${file}  ${Math.round(pt.width)}x${Math.round(pt.height)} pt  (${canvas.width}x${canvas.height}px)`);
