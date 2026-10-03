@@ -80,6 +80,7 @@ test("fila extra pode rodar fora da janela da Meta (07–21h), respeitando pausa
   assert.equal(extraSendBlockReason({ now: new Date("2026-10-05T19:30:00Z"), settings }), null, "16:30, depois da janela da Meta");
   assert.equal(extraSendBlockReason({ now: new Date("2026-10-06T01:00:00Z"), settings }), "fora_do_horario_extra", "22:00");
   assert.equal(extraSendBlockReason({ now: new Date("2026-10-04T15:00:00Z"), settings }), "fim_de_semana", "domingo");
+  assert.equal(extraSendBlockReason({ now: new Date("2026-10-03T15:00:00Z"), settings }), null, "sabado");
   assert.equal(extraSendBlockReason({ now: NOW, settings: { ...settings, paused: true } }), "automacao_pausada");
   assert.equal(extraSendBlockReason({ now: NOW, settings: { ...settings, enabled: false } }), "automacao_desligada");
 });

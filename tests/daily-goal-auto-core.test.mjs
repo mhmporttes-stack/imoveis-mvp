@@ -112,11 +112,11 @@ test("isWithinWindow", () => {
   assert.equal(isWithinWindow(1081, 480, 1080), false);
 });
 
-test("isBusinessDay: segunda a sexta são dias úteis, sábado e domingo não", () => {
+test("isBusinessDay: segunda a sabado disparam, domingo nao", () => {
   assert.equal(isBusinessDay(0), false); // domingo
   assert.equal(isBusinessDay(1), true);
   assert.equal(isBusinessDay(5), true);
-  assert.equal(isBusinessDay(6), false); // sábado
+  assert.equal(isBusinessDay(6), true); // sabado (liberado em 2026-10-03)
 });
 
 test("isOptOutMessage reconhece PARAR/SAIR/CANCELAR ignorando maiúsculas e acentos", () => {

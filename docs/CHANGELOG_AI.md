@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Meta Diária automática passa a disparar também aos SÁBADOS (segunda a sábado)
+- **Pedido do dono:** corretora (ketlin) com a carteira acima de 50 não iniciava o disparo do dia. **Causa raiz:** todos os corretores têm "só dias úteis" ligado (`daily_goal_auto_settings.business_days_only = true`) e `isBusinessDay` só aceitava segunda a sexta; no sábado o envio ficava bloqueado (`fim_de_semana`) mesmo com WhatsApp conectado e fila pronta (46 itens pendentes). A carteira > 50 NÃO bloqueia o disparo (só impede entrada de novos contatos).
+- **Mudança mínima:** `isBusinessDay` (`lib/daily-goal-auto-core.mjs`) agora aceita 1..6 (segunda a sábado); `extraSendBlockReason` (`lib/prospecting-extra-core.mjs`) idem (só domingo bloqueia). Vale para envio, trava final, agendamento, crédito de janela (PRO-14) e fila extra, sem alterar nenhuma configuração gravada no banco. **Domingo continua bloqueado** com a opção ligada. Textos da tela de Automação ajustados ("Segunda a sábado"). Testes ajustados: `daily-goal-auto-core`, `daily-goal-auto-window`, `daily-goal-window-credit`, `prospecting-extra-core`.
+- **Valores confirmados no banco:** carteira 50 (`daily_goal_wallet_config`), cota 10 (`daily_goal_quota_versions`). A redução temporária de 50% dos disparos de 03/10 (entrada abaixo) NÃO foi alterada: continua valendo só hoje e some sozinha amanhã.
 ### 2026-10-03 — Diretor de Atendimento (Fase 1): agente de marca + 2 executores + perfis em docs/atendimento
 - **Data:** 2026-10-03
 - **Área:** Docs / Agentes (nenhuma tela, `lib/`, `app/`, `components/`, banco, rota, disparo, WhatsApp ou automação alterados)

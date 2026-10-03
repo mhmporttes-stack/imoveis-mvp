@@ -76,7 +76,8 @@ test("item válido dentro da janela -> pode enviar; pausa/desligada/fim de seman
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings }), null);
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: { ...settings, paused: true } }), "automacao_pausada");
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: { ...settings, enabled: false } }), "automacao_desligada");
-  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-03").toISOString(), now: brt("09:15", "2026-10-03"), settings }), "fim_de_semana");
+  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-04").toISOString(), now: brt("09:15", "2026-10-04"), settings }), "fim_de_semana", "domingo");
+  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-03").toISOString(), now: brt("09:15", "2026-10-03"), settings }), null, "sabado dispara");
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: null }), "automacao_desligada");
 });
 

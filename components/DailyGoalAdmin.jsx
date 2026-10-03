@@ -29,7 +29,7 @@ const GOOGLE_CONTACTS_STATUS_LABELS = {
 // erro de verdade na maioria das vezes (ex.: cliente que já respondeu).
 const SKIP_REASON_LABELS = {
   fora_da_janela: "Fora do horário configurado",
-  fim_de_semana: "Fim de semana (dias úteis apenas)",
+  fim_de_semana: "Domingo (disparo só de segunda a sábado)",
   sessao_nao_conectada: "WhatsApp desconectado no momento",
   fila_vazia: "Fila vazia",
   responsavel_mudou: "Cliente mudou de corretor antes do disparo",
@@ -390,7 +390,7 @@ function AutomationTab() {
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
                   <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%${broker.maxAvgGapMinutes ? ` (média máx. ${broker.maxAvgGapMinutes} min)` : ""}` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
-                  <span>· {broker.businessDaysOnly ? "Só dias úteis" : "Todos os dias"}</span>
+                  <span>· {broker.businessDaysOnly ? "Segunda a sábado" : "Todos os dias"}</span>
                   <span className="flex items-center gap-1">
                     · Teto diário:
                     <BrokerCapInput
@@ -783,7 +783,7 @@ function GlobalConfigPanel({ onSaved }) {
                     checked={Boolean(draft.businessDaysOnly)}
                     onChange={(event) => setDraft((current) => ({ ...current, businessDaysOnly: event.target.checked }))}
                   />
-                  Enviar só em dias úteis (seg. a sex.)
+                  Enviar só de segunda a sábado (não envia aos domingos)
                 </label>
               </div>
             </div>
