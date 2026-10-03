@@ -42,7 +42,7 @@ export async function main() {
     process.exit(1);
   }
   const client = createHttpClient({ baseUrl: config.baseUrl, secret: config.executorSecret, workerId: config.workerId });
-  const executor = selectExecutor(config);
+  const executor = selectExecutor({ ...config, log: defaultLog });
   const once = process.argv.includes("--once");
   let stopping = false;
   let wake = null;

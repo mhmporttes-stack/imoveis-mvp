@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Ponte ChatGPT→Central: executor Claude headless (somente leitura, só `consulta`), DESLIGADO
+- **Data:** 2026-10-03
+- **Área:** Infra (ponte / Central de Comando)
+- **Alteração:** `scripts/central-bridge/executors/claude.mjs` deixou de ser adaptador vazio: chama `claude -p` (spawn sem shell, processo novo por tarefa, texto da tarefa só por stdin) com ferramentas fixas Read/Grep/Glob, `--restricted`, `--permission-mode dontAsk`, sem MCP, deny de leitura de .env/settings/credenciais/.git/node_modules, env do filho por allowlist, redação de segredos na saída, truncamento em 8000 caracteres, timeout (120 s) e erros genéricos. `escrita`/`eco` são recusados no próprio executor. Novas variáveis locais: `CENTRAL_CLAUDE_BIN`, `CENTRAL_CLAUDE_CWD`, `CENTRAL_CLAUDE_TIMEOUT_SECONDS`. Só roda com `CENTRAL_EXECUTOR=claude` E `CENTRAL_CLAUDE_EXECUTOR_ENABLED=true` (padrões: `echo`/`false`). Teste estático ajustado: `child_process`/`spawn` continuam proibidos em todo o resto da ponte e permitidos só nesse arquivo; novo teste proíbe flags perigosas. CRM, banco e rotas não foram alterados.
+- **Motivo:** decisão do dono (T-78 Opção A): ponte pode usar Claude Code headless só para consultas.
+- **Arquivos afetados:** `scripts/central-bridge/executors/claude.mjs`, `scripts/central-bridge/executors/index.mjs`, `scripts/central-bridge/config.mjs`, `scripts/central-bridge/poller.mjs`, `tests/central-bridge.test.mjs`, `docs/CENTRAL_PONTE.md`
+- **Risco/observação:** não ativado (nenhuma execução real do Claude foi feita; `--restricted` e as regras deny são do Claude Code e precisam ser validados no teste de ativação). Política da Anthropic para gatilho externo/assinatura PENDENTE (T-79). Nenhum dado de produção foi gravado.
+
 ### 2026-10-03 — Meta Diária: hoje 100% dos disparos e janela até 18:00 (corte de 50% revogado)
 - **Pedido do dono:** em 03/10/2026 enviar 100% da fila (não mais 50%) e esticar o fim da janela de 14:00 para 18:00; domingo 04/10 sem disparo; segunda 05/10 regra normal (seg–sáb, carteira 50, 10 novos/dia).
 - **Mudança:** `TEMPORARY_DISPATCH_REDUCTIONS` (`lib/daily-goal-auto-core.mjs`) ficou vazia (o corte de 32e337c deixa de agir; o mecanismo permanece inerte). Nova exceção por data `TEMPORARY_WINDOW_END_EXTENSIONS` (`lib/daily-goal-window-core.mjs`, só `2026-10-03` → 18:00), aplicada em `withEffectiveWindow` (`lib/daily-goal-window.js`) com `Math.max` — só o FIM da janela; início, intervalo (5–10 min) e configurações gravadas intactos. Em 04/10 a data não casa e tudo volta sozinho ao configurado.

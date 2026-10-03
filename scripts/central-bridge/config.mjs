@@ -27,6 +27,7 @@ export function loadConfig(env = process.env, readFile = (p) => readFileSync(p, 
   }
   const get = (k, d = "") => String(env[k] ?? fromFile[k] ?? d);
   const poll = Number(get("CENTRAL_POLL_SECONDS", "15"));
+  const timeout = Number(get("CENTRAL_CLAUDE_TIMEOUT_SECONDS", "120"));
   return {
     baseUrl: get("CENTRAL_BASE_URL", DEFAULT_BASE_URL).replace(/\/+$/, ""),
     executorSecret: get("CENTRAL_EXECUTOR_SECRET"),
@@ -34,6 +35,10 @@ export function loadConfig(env = process.env, readFile = (p) => readFileSync(p, 
     pollSeconds: Number.isFinite(poll) ? Math.min(Math.max(poll, 5), 300) : 15,
     workerId: get("CENTRAL_WORKER_ID", "pc-central-1"),
     executor: get("CENTRAL_EXECUTOR", "echo"),
-    claudeEnabled: get("CENTRAL_CLAUDE_EXECUTOR_ENABLED", "false").toLowerCase() === "true"
+    claudeEnabled: get("CENTRAL_CLAUDE_EXECUTOR_ENABLED", "false").toLowerCase() === "true",
+    // Executor Claude (so usados se CENTRAL_EXECUTOR=claude E a flag acima = true). Nunca vem do payload.
+    claudeBin: get("CENTRAL_CLAUDE_BIN", "claude"),
+    claudeCwd: get("CENTRAL_CLAUDE_CWD", ""),
+    claudeTimeoutMs: Number.isFinite(timeout) ? Math.min(Math.max(timeout, 10), 600) * 1000 : 120000
   };
 }
