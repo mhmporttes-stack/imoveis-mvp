@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-02 — PDF "Proposta de Valores" v3 "Carta" (substitui a v2 rejeitada) — NA BRANCH `design/proposta-valores-v3`, aguardando aprovação do dono
+- **Data:** 2026-10-02
+- **Área:** Clientes / Apresentação ao cliente (PDF) — Diretor de Design
+- **Alteração:** a v2 foi rejeitada pelo dono (carregada, números enormes). `lib/simulacao-entrada/proposta-pdf.mjs` reescrito do zero: faixa marinha fina com logo em todas as páginas; nome do cliente em serifa; 4 frases curtas com UM valor em negrito por frase (ato inicial → entrada total → financiamento e parcelas → descontos e benefícios); "ficha" em duas colunas como fonte única do detalhe; próximo passo antes das vantagens; vantagens em 2 colunas com quebra completa (nunca "…"); título das vantagens nunca fica sozinho no fim da página. Nenhum valor em corpo grande (máx. 30pt, só o nome). 3 direções prototipadas (Carta / Resumo lateral / Três passos), avaliadas pelo `design-critic` (28/22/20) — Carta escolhida.
+- **Motivo:** pedido do dono (elegante, leve, compacta, sem números gigantes, boa no celular e na impressão).
+- **Arquivos afetados:** `lib/simulacao-entrada/proposta-pdf.mjs`, `tests/proposta-valores.test.mjs`, `.claude/design/tools/renderizar-pdf.mjs` (fonte serifada fiel no Visual QA).
+- **Risco/observação:** NENHUM cálculo, regra, dado ou rota alterado. Testes: 26/26 do arquivo; build ok. UMA asserção legada ajustada: o rótulo do ato inicial agora é "ATO INICIAL" (maiúsculas) e os testes da v2 foram substituídos pelos da v3. Pendências do dono: regra de 5% da documentação gratuita ("PENDENTE DE VALIDAÇÃO"); rótulo "Financiamento aprovado"; CTA sem contato do corretor (gerador não recebe telefone); fonte própria exigiria `@pdf-lib/fontkit`; vantagem "Entrada 100% parcelada" pode repetir a prosa (conteúdo do cadastro). Não publicado na main.
+- **Autor:** Claude Code (Diretor de Design)
+
 ### 2026-10-02 — PDF "Proposta de Valores" redesenhado (v2) — NA BRANCH `design/proposta-valores-v2`, aguardando avaliação do dono
 - **Data:** 2026-10-02
 - **Área:** Clientes / Apresentação ao cliente (PDF) — primeira missão do Diretor de Design

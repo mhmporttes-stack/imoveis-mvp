@@ -14,7 +14,7 @@
 
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -97,6 +97,13 @@ const fontsDir = path.join(path.dirname(path.dirname(path.dirname(pdfjsPath))), 
 if (canvasLib.GlobalFonts) {
   for (const file of ["LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf", "LiberationSans-Italic.ttf", "LiberationSans-BoldItalic.ttf"]) {
     try { canvasLib.GlobalFonts.registerFromPath(path.join(fontsDir, file), "sans-serif"); } catch {}
+  }
+  // Times-Roman do PDF: usa a Times New Roman do sistema (mesmas métricas) quando existir; sem ela cai numa fonte genérica.
+  for (const dir of ["C:/Windows/Fonts", "/usr/share/fonts/truetype/msttcorefonts", "/Library/Fonts"]) {
+    for (const file of ["times.ttf", "timesbd.ttf", "timesi.ttf", "timesbi.ttf", "Times New Roman.ttf", "Times New Roman Bold.ttf", "Times New Roman Italic.ttf"]) {
+      const full = path.join(dir, file);
+      if (existsSync(full)) { try { canvasLib.GlobalFonts.registerFromPath(full, "serif"); } catch {} }
+    }
   }
 }
 const doc = await pdfjs.getDocument({ data, useSystemFonts: false, standardFontDataUrl: pathToFileURL(fontsDir).href, isEvalSupported: false, verbosity: 0, CanvasFactory }).promise;

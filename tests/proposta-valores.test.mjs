@@ -259,89 +259,119 @@ test("logo: PDF traz a imagem com a razão de aspecto do asset, dentro da faixa 
   assert.equal(logos.length, out.pageCount, "logo repetida em todas as páginas, sempre na faixa");
 });
 
-// ---- Direção visual v2 (página 1 conta a proposta; página 2 mostra de onde vem cada valor) -----
+// ---- Direção visual v3 "Carta" (texto corrido + ficha única; sem números grandes) ---------------
 
-test("PDF v2: na página 1 o ATO INICIAL é o maior texto e os números essenciais estão todos nela", async () => {
+const compact = (s) => s.replace(/\s+/g, " ").replace(/ ([.,;:])/g, "$1"); // trechos em negrito são itens separados do PDF
+
+test("PDF v3: a capa abre pelo ato inicial e nenhum valor é desenhado em corpo grande", async () => {
   const { model } = modelo(regras({ beneficiosInformativos: [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 11500 }] }),
     cliente, { financingInstallments: { first: 650.5, last: 710.25 }, propertyFeatures: ["Entrada parcelada", "Isenção de IPTU"] });
   const out = await gerarPropostaValoresPdf({ ...base, model });
   const p1 = out.texts.filter((t) => t.page === 0);
-  const maior = p1.reduce((a, b) => (b.size > a.size ? b : a));
-  assert.equal(maior.text, formatBRL(model.atoInicial), "o maior texto da capa é o ato inicial");
-  const capa = p1.map((t) => t.text).join(" ");
-  for (const valor of [model.valorImovel, model.financiamentoAprovado, model.entradaTotal, model.totalDescontosEBeneficios, model.primeiraParcelaFinanciamento, model.ultimaParcelaFinanciamento].map(formatBRL)) {
-    assert.ok(capa.includes(valor), `capa sem ${valor}`);
+  const lead = p1.map((t) => t.text).join(" ");
+  const primeira = lead.indexOf("Seu ato inicial é");
+  assert.ok(primeira >= 0 && primeira < lead.indexOf("A entrada total") && lead.indexOf("A entrada total") < lead.indexOf("O financiamento é de"), "ordem: ato → entrada → financiamento");
+  assert.ok(lead.indexOf("O financiamento é de") < lead.indexOf("Você ainda conta com"), "descontos por último na prosa");
+  for (const t of out.texts.filter((x) => x.text.includes("R$"))) assert.ok(t.size <= 16, `valor em corpo grande (${t.size}pt): ${t.text}`);
+  assert.ok(Math.max(...out.texts.map((t) => t.size)) <= 30, "o maior texto é o nome do cliente (serifa), nunca um número");
+});
+
+test("PDF v3: a prosa traz um destaque por frase e a ficha é a fonte única do detalhe (todos os valores do modelo)", async () => {
+  const { model } = modelo(regras({ beneficiosInformativos: [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 11500 }] }),
+    cliente, { financingInstallments: { first: 650.5, last: 710.25 }, propertyFeatures: ["Entrada parcelada"] });
+  const out = await gerarPropostaValoresPdf({ ...base, model });
+  const exatos = out.texts.map((t) => t.text);
+  for (const valor of [model.valorImovel, model.financiamentoAprovado, model.entradaTotal, model.atoInicial, model.saldoParcelado, model.primeiraParcelaFinanciamento, model.ultimaParcelaFinanciamento, model.totalDescontosEBeneficios].map(formatBRL)) {
+    assert.ok(exatos.includes(valor), `ficha sem a linha de valor ${valor}`);
   }
-  assert.ok(capa.includes(`${model.parcelamento.parcelas}x de ${formatBRL(model.parcelamento.valorParcela)}`));
-  assert.ok(capa.includes("PRÓXIMO PASSO"));
-  assert.ok(out.pageCount >= 2);
+  assert.ok(exatos.includes(`${model.parcelamento.parcelas}x de ${formatBRL(model.parcelamento.valorParcela)}`));
 });
 
-test("PDF v2: ato inicial maior que zero aparece como destaque, com entrada total e mensalidade na capa", async () => {
-  const { model } = modelo(regras(), cliente, { ajustes: { atoDesejado: 5000 } });
-  const out = await gerarPropostaValoresPdf({ ...base, model });
-  const p1 = out.texts.filter((t) => t.page === 0);
-  const maior = p1.reduce((a, b) => (b.size > a.size ? b : a));
-  assert.equal(maior.text, formatBRL(5000));
-  const capa = p1.map((t) => t.text).join(" ");
-  assert.ok(capa.includes("ENTRADA TOTAL") && capa.includes(formatBRL(model.entradaTotal)));
-  assert.ok(capa.includes(`${model.parcelamento.parcelas}x de ${formatBRL(model.parcelamento.valorParcela)}`));
-  assert.equal(capa.includes("Entrada 100% parcelada"), false);
+test("PDF v3: variantes da prosa seguem os dados (ato > 0, sem entrada, sem parcelas de financiamento)", async () => {
+  const a = modelo(regras(), cliente, { ajustes: { atoDesejado: 5000 } }).model;
+  const outA = await gerarPropostaValoresPdf({ ...base, model: a });
+  const textoA = compact(outA.texts.filter((t) => t.page === 0).map((t) => t.text).join(" "));
+  assert.ok(textoA.includes(`Seu ato inicial é ${formatBRL(5000)}, o pagamento para começar.`));
+  assert.ok(textoA.includes(`o valor parcelado (${formatBRL(a.saldoParcelado)}) é pago em ${a.parcelamento.parcelas}x de`));
+  assert.equal(textoA.includes("Entrada 100% parcelada"), false);
+  assert.equal(textoA.includes("com parcelas de"), false, "sem parcelas de financiamento no modelo, a frase não as inventa");
+
+  const sem = modelo(regras({ valorImovel: 200000 }), montarClienteEntrada({ financiamentoAprovado: 190000, subsidioMcmv: 10000 }), { financingInstallments: { first: 700, last: 0 } }).model;
+  assert.equal(sem.entradaTotal, 0);
+  const outS = await gerarPropostaValoresPdf({ ...base, model: sem });
+  const textoS = compact(outS.texts.filter((t) => t.page === 0).map((t) => t.text).join(" "));
+  assert.ok(textoS.includes("Não há valor de entrada a pagar."));
+  assert.ok(textoS.includes(`com 1ª parcela de ${formatBRL(700)}.`));
 });
 
-test("PDF v2: a capa ancora o preço (imóvel, financiamento e entrada) logo abaixo do ato inicial", async () => {
-  const { model } = modelo(regras());
-  const out = await gerarPropostaValoresPdf({ ...base, model });
-  const capa = out.texts.filter((t) => t.page === 0);
-  const idx = (texto) => capa.findIndex((t) => t.text === texto);
-  const ato = idx(formatBRL(model.atoInicial));
-  for (const [rotulo, valor] of [["VALOR DO IMÓVEL", model.valorImovel], ["FINANCIAMENTO APROVADO", model.financiamentoAprovado], ["ENTRADA TOTAL", model.entradaTotal]]) {
-    assert.ok(idx(rotulo) > ato, `${rotulo} depois do ato inicial`);
-    assert.ok(idx(formatBRL(valor)) > ato, `${formatBRL(valor)} depois do ato inicial`);
-  }
-});
-
-test("PDF v2: documentação gratuita aparece como benefício adicional, sem misturar com os abatimentos", async () => {
-  const { model } = modelo(regras({ beneficiosInformativos: [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 11500 }] }));
-  const out = await gerarPropostaValoresPdf({ ...base, model });
-  const { pages } = await extractText(out.bytes);
-  assert.ok(pages[1].includes("Documentação gratuita (benefício adicional)"));
-  assert.ok(pages[1].indexOf("Casa Paulista") < pages[1].indexOf("Documentação gratuita"), "abatimentos antes do benefício adicional");
-  assert.ok(pages[1].includes(formatBRL(model.totalDescontosEBeneficios)), "total do modelo exibido sem recalcular");
-});
-
-test("PDF v2: proposta enxuta (sem benefícios nem vantagens) ancora o próximo passo no pé da capa, sem buraco", async () => {
-  const { model } = modelo(regras({ aceitaCasaPaulista: false }), montarClienteEntrada({ rendaTotal: 4000, financiamentoAprovado: 150000, subsidioMcmv: 0 }));
-  const out = await gerarPropostaValoresPdf({ ...base, model });
-  const cta = out.boxes.find((b) => b.page === 0 && b.kind === "text" && out.texts.some((t) => t.page === 0 && t.text === "PRÓXIMO PASSO"));
-  const passo = out.texts.findIndex((t) => t.page === 0 && t.text === "PRÓXIMO PASSO");
-  assert.ok(passo >= 0 && cta);
-  const faixa = out.boxes.filter((b) => b.page === 0 && b.kind === "rect" && b.w > 400 && b.h >= 48 && b.h <= 66).at(-1);
-  assert.ok(faixa && faixa.y > 600, "faixa do próximo passo no terço final da página");
-  const { all } = await extractText(out.bytes);
-  assert.equal(all.includes("VANTAGENS DO EMPREENDIMENTO"), false);
-  assert.equal(all.includes("Benefícios do empreendimento"), false);
-});
-
-test("PDF v2: descrição longa de desconto não é cortada nos detalhes", async () => {
+test("PDF v3: nada é cortado com reticências (descontos e vantagens longos quebram linha)", async () => {
   const longo = "Desconto promocional de lançamento válido somente para a primeira etapa de vendas";
-  const { model } = modelo(regras({ descontos: [{ tipo: "desconto", label: longo, valor: 5000 }] }));
+  const feats = Array.from({ length: 24 }, (_, i) => `Diferencial exclusivo número ${i + 1} do empreendimento com texto relativamente longo`);
+  const { model } = modelo(regras({ descontos: [{ tipo: "desconto", label: longo, valor: 5000 }] }), cliente, { propertyFeatures: feats });
   const out = await gerarPropostaValoresPdf({ ...base, model });
-  const { pages } = await extractText(out.bytes);
-  assert.ok(pages[1].includes(longo), "texto completo na página de detalhes");
+  const { all } = await extractText(out.bytes);
+  assert.equal(all.includes("…"), false);
+  assert.ok(all.includes(longo));
+  for (const f of feats) assert.ok(all.includes(f), `vantagem ausente: ${f}`);
   assertInsideA4(out);
 });
 
-test("PDF v2: cada página tem faixa e logo; benefícios longos continuam em páginas seguintes", async () => {
+test("PDF v3: valores em dinheiro não quebram no meio (\"R$\" e número sempre juntos)", async () => {
+  const { model } = modelo(regras({ descontos: [{ tipo: "desconto", label: "Desconto", valor: 5000 }] }), cliente, { financingInstallments: { first: 1498.32, last: 842.17 } });
+  const out = await gerarPropostaValoresPdf({ ...base, clienteNome: "Maria Fernanda Oliveira Santos", model });
+  assert.equal(out.texts.some((t) => t.text.includes("?")), false, "nenhum caractere trocado por ? (valores e acentos intactos)");
+  for (const t of out.texts) {
+    assert.equal(/R\$$/.test(t.text.trim()), false, `linha termina em "R$": ${t.text}`);
+    assert.equal(/\d+x$/.test(t.text.trim()), false, `linha termina em "36x": ${t.text}`);
+  }
+});
+
+test("PDF v3: próximo passo vem antes das vantagens; lista longa continua na página seguinte com título", async () => {
   const feats = Array.from({ length: 30 }, (_, i) => `Vantagem ${i + 1} do empreendimento`);
   const { model } = modelo(regras(), cliente, { propertyFeatures: feats });
   const out = await gerarPropostaValoresPdf({ ...base, model });
-  assert.ok(out.pageCount >= 3);
+  const todos = out.texts.map((t) => t.text);
+  assert.ok(todos.findIndex((t) => t.startsWith("Próximo passo")) < todos.findIndex((t) => t === "VANTAGENS DO EMPREENDIMENTO"));
+  assert.ok(out.pageCount >= 2);
+  assert.ok(todos.includes("VANTAGENS DO EMPREENDIMENTO (CONTINUAÇÃO)"));
   for (let i = 0; i < out.pageCount; i += 1) {
     assert.ok(out.boxes.some((b) => b.page === i && b.kind === "logo"), `logo na página ${i + 1}`);
     assert.ok(out.boxes.some((b) => b.page === i && b.kind === "band"), `faixa na página ${i + 1}`);
   }
-  const { all } = await extractText(out.bytes);
-  for (const f of feats) assert.ok(all.includes(f), `vantagem ausente: ${f}`);
   assertInsideA4(out);
+});
+
+test("PDF v3: título das vantagens nunca fica sozinho no fim da página", async () => {
+  const feats = Array.from({ length: 24 }, (_, i) => `Diferencial exclusivo número ${i + 1} do empreendimento com texto relativamente longo`);
+  const { model } = modelo(regras({ descontos: [{ tipo: "desconto", label: "Desconto promocional de lançamento válido somente para a primeira etapa de vendas", valor: 5000 }] }), cliente, { propertyFeatures: feats });
+  const out = await gerarPropostaValoresPdf({ ...base, clienteNome: "Maria Aparecida de Nazaré Conceição dos Santos Albuquerque Figueiredo Vasconcelos Pereira", model });
+  for (let i = 0; i < out.pageCount; i += 1) {
+    const doPage = out.texts.filter((t) => t.page === i).map((t) => t.text);
+    const idx = doPage.findIndex((t) => t.startsWith("VANTAGENS DO EMPREENDIMENTO"));
+    if (idx >= 0) assert.ok(doPage[idx + 1] && !doPage[idx + 1].startsWith("Simulação estimada"), `página ${i + 1}: título seguido de itens`);
+  }
+});
+
+test("PDF v3: proposta típica cabe em uma página; sem vantagens nem descontos continua equilibrada", async () => {
+  const { model } = modelo(regras({ beneficiosInformativos: [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 11500 }] }),
+    cliente, { financingInstallments: { first: 650.5, last: 710.25 }, propertyFeatures: ["Entrada parcelada", "Isenção de IPTU", "Portaria", "Playground"] });
+  const tipico = await gerarPropostaValoresPdf({ ...base, model });
+  assert.equal(tipico.pageCount, 1);
+  assertInsideA4(tipico);
+  const enxuta = modelo(regras({ aceitaCasaPaulista: false }), montarClienteEntrada({ rendaTotal: 4000, financiamentoAprovado: 150000 })).model;
+  const out = await gerarPropostaValoresPdf({ ...base, model: enxuta });
+  assert.equal(out.pageCount, 1);
+  const { all } = await extractText(out.bytes);
+  assert.equal(all.includes("Vantagens do empreendimento"), false);
+  assert.equal(/DESCONTOS E BENEFÍCIOS/.test(all), false);
+  assertInsideA4(out);
+});
+
+test("PDF v3: documentação gratuita aparece como benefício adicional, depois dos abatimentos", async () => {
+  const { model } = modelo(regras({ beneficiosInformativos: [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 11500 }] }));
+  const out = await gerarPropostaValoresPdf({ ...base, model });
+  const { all } = await extractText(out.bytes);
+  assert.ok(all.includes("Documentação gratuita (benefício adicional)"));
+  assert.ok(all.indexOf("Casa Paulista") < all.indexOf("Documentação gratuita (benefício adicional)"), "abatimentos antes do benefício adicional");
+  assert.ok(all.includes(formatBRL(model.totalDescontosEBeneficios)), "total do modelo exibido sem recalcular");
 });
