@@ -1778,3 +1778,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `supabase/migrations/20261003230000_manual_crm.sql`, `docs/BUSINESS_RULES.md`, `docs/PERMISSIONS.md`, `.claude/rules/manual.md`, `AGENTS.md`, `docs/CHANGELOG_AI.md`.
 - **Risco/observação:** O dono carrega a estrutura inicial em `/admin/manual/gerenciar` ("Carregar estrutura inicial") e revisa/aprova cada tópico e novidade; até lá a equipe vê o estado vazio.
 - **Autor:** Claude (crm-editor, T-20261002-57)
+
+### 2026-10-02 — Descrições do Designer encurtadas para os limites de contexto
+- **Alteração:** `description` de `designer-crm` (agente, 278 caracteres, antes ~427) e de `direcao-criativa` (skill, <180, antes ~408) encurtadas; gatilhos de roteamento mantidos; o detalhe removido já está no corpo da skill/agente.
+- **Motivo:** `tests/context-budget.test.mjs` (limites 380/180) falhava.
+- **Arquivos afetados:** `.claude/agents/designer-crm.md`, `.claude/skills/direcao-criativa/SKILL.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** nenhum; só texto de roteamento. Limites dos testes inalterados.
+- **Autor:** Claude (T-20261002-60)

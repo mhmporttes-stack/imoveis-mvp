@@ -1,6 +1,6 @@
 ---
 name: direcao-criativa
-description: "Direção criativa para peças fora da tela do CRM: PDF/proposta, apresentação, material comercial, imagem/banner/foto de imóvel, design editorial. Define a história, a hierarquia e a composição a partir do zero (layout atual é só contexto), explora direções, escreve a especificação e prepara a revisão independente. Use para \"crie a direção do PDF\", \"como contar essa proposta\", \"preciso de uma imagem para…\"."
+description: "Direção criativa fora da tela: PDF/proposta, apresentação, material comercial, imagem/banner/foto de imóvel, editorial. Define história e hierarquia; usa revisão independente."
 ---
 
 # Direção criativa

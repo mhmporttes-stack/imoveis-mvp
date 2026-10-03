@@ -1,6 +1,6 @@
 ---
 name: designer-crm
-description: "Diretor de Design (Creative Design Lead) do projeto: UX/UI do CRM e do site (telas, fluxos, mobile/PWA, design system, motion, acessibilidade), materiais para o cliente (PDF, proposta, apresentação, design editorial/comercial), direção de arte, imagem e fotografia de imóveis, crítica e revisão visual. Ponto de entrada de toda tarefa de design. Altera só apresentação — nunca lib/, API, banco ou regra de negócio (crm-editor)."
+description: "Diretor de Design: UX/UI do CRM e site (telas, mobile/PWA, design system, acessibilidade), PDF/proposta/material comercial, imagem e fotografia de imóveis, crítica e revisão visual (design-critic). Altera só apresentação: nunca lib/, API, banco ou regra de negócio (crm-editor)."
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, WebSearch, Agent(design-critic)
 ---
 
