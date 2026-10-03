@@ -83,11 +83,11 @@ test("Central: MAPA lista os 3 agentes, marca executores como internos e traz a 
   assert.match(d, /MODO PLANO/);
 });
 
-test("EQUIPE.md: 16 especialistas previstos, colunas obrigatórias e linha para os descobertos pelo Scout", () => {
+test("EQUIPE.md: especialistas previstos, colunas obrigatórias e linha para os descobertos pelo Scout", () => {
   const header = equipe.split("\n").find((l) => l.startsWith("| id |"));
   const cols = header.split("|").map((c) => c.trim()).filter(Boolean);
   assert.deepEqual(cols, ["id", "Especialidade", "Quando convocar", "Perfil", "Executor", "Origem", "Estado"]);
-  const ids = ["atend-imobiliario", "vendas-conversao", "followup-vacuo", "copy-comercial", "comportamento-lead", "whatsapp-oficial-meta", "primeiro-imovel-mcmv", "simulacao", "documentacao", "reativacao-30-60-90", "customer-success-jornada", "qualidade-atendimento", "portugues-comunicacao", "dados-conversao", "experimentacao-ab", "auditor-automacoes"];
+  const ids = ["atendimento-imobiliario", "vendas-conversao", "followup-vacuo", "copy-comercial", "comportamento-lead", "whatsapp-oficial-meta", "primeiro-imovel-mcmv", "simulacao", "documentacao", "reativacao-30-60-90", "customer-success-jornada", "qualidade-atendimento", "portugues-comunicacao", "dados-conversao", "experimentacao-ab", "auditor-automacoes"];
   for (const id of ids) assert.ok(equipe.includes(`| \`${id}\` |`), id);
   assert.match(equipe, /\| `outros-descobertos` \|/);
   assert.match(equipe, /\| `whatsapp-oficial-meta` \|[^\n]*\| web \|/);
