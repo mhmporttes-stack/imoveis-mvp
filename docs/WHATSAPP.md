@@ -195,7 +195,7 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 
 Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Problemas. Resumo:
 1. **P-04** lembrete de atividade falha em loop quando o modelo não existe/aprovado (erro Meta “#132001”, registrado na memória operacional de 2026-09-24) — bloqueia também push/e-mail.
-2. **P-11** resposta pelo Chat não conta como “contato” (por desenho); automações “sem primeiro atendimento” e o indicador “aguardando ação” continuam vendo o cliente como não contatado.
+2. ~~**P-11**~~ **resolvido em 2026-10-03**: resposta pelo Chat **e** pelo celular do corretor grava o contato do cliente (função única `registerHumanContact`, `lib/whatsapp-human-contact.js`); regras em `docs/BUSINESS_RULES.md` WA-4a. Cadência da Meta Diária não envia sobre conversa humana recente (MD-13).
 3. ~~P-06~~ **resolvido** (migration `20260924210000`): a roleta acionada por WhatsApp agora grava `lead_distribution_history` e vincula a conversa.
 4. **P-16** gatilho de Fluxo por palavra-chave “contém” sem fronteira de palavra.
 5. Sem **opt-out** (PARAR/SAIR) no fluxo de mensagens; “não contactar” só vale para a base de prospecção/Disparo. **A CONFIRMAR** requisito.
@@ -203,6 +203,8 @@ Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Probl
 7. Modelos aprovados na WABA atual e o número ativo: **A CONFIRMAR** (a memória operacional de 2026-09-24 registra 0 modelos aprovados na WABA nova).
 8. Falhas de projeção do Chat não têm reprocesso/alerta (o bruto fica em `whatsapp_master_events`). O lead patrocinado tem rede de segurança (cron); o áudio tem “Tentar novamente”/recuperação manual.
 9. ~~Código TEMPORÁRIO de testes na `main`~~ **encerrado** (P-21). O código foi removido no commit `9bcae0c` (2026-09-25): os commits `TEMP:` de 2026-09-24 tinham introduzido `dryRunForFictionalRecipient` em `lib/whatsapp-master.js` (destinos `+5500…` não chamavam a Meta e devolviam ID `wamid.DRYRUN…`), o pulo do push em `notifyInternalMessage` para conversas `+5500…` e a rota `app/api/admin/tmp-chat-tests`; os envios voltaram a ser sempre reais. O `maxDuration = 30` do webhook (`app/api/webhooks/whatsapp-master/route.js`) é legítimo e permanece. Os dados de teste (12 linhas `TESTE CRITICO` em `crm_clients`) foram removidos do banco e a verificação final achou 0 resíduos; nenhuma conversa, mensagem ou auditoria do WhatsApp tinha resíduo (detalhes em `SYSTEM_ARCHITECTURE.md` P-21).
+
+**Pendência separada (registrada em 2026-10-03, fora de escopo desta tarefa): WhatsApp Oficial — verificar webhook e estado real.** O último webhook recebido do número oficial foi em 29/09/2026 (número banido em 28/09). Confirmar com o dono o estado real da WABA/número, do webhook e dos modelos antes de assumir que Fluxos, palavra-chave e Disparo oficial funcionam. Nada foi alterado.
 
 ## 15. Como testar sem enviar mensagem real
 

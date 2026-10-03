@@ -45,6 +45,8 @@ const SKIP_REASON_LABELS = {
   reducao_temporaria_2026_10_03: "Redução temporária de 50% dos disparos (somente 03/10/2026)",
   pausado_para_investigacao: "Pausado manualmente para investigação",
   lead_respondeu: "Cliente respondeu — atendimento humano assumiu",
+  conversa_humana_recente: "Não enviado: uma pessoa da equipe conversou com o cliente nas últimas 24 h",
+  cliente_conversando_recente: "Não enviado: o cliente escreveu nas últimas 24 h (conversa em andamento)",
   falha_infraestrutura: "Instabilidade temporária (sessão/WhatsApp) — cliente não foi penalizado",
   movido_para_erro: "Cliente movido para \"Erro\" após 3 falhas técnicas seguidas",
   falha_destinatario_1_3: "Falha técnica ao enviar (1ª de 3) — será tentado de novo",

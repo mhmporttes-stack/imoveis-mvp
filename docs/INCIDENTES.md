@@ -39,6 +39,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Cliente devolvido à fila voltava para o dono; resposta pelo celular não contava como contato
+- **Sintoma:** "o dono acumula clientes que a Prospecção devolveu" (~2 mil, 1.049 em "Tentando contato"); corretor que respondia pelo celular continuava aparecendo como "sem contato" (cobrança à toa / lead redistribuído pela roleta).
+- **Causa raiz:** (1) a rede de segurança `reassignOrphanedClientsToOwner` (cron de 2 em 2 min) devolvia ao dono todo cliente sem responsável, sem distinguir quem a Prospecção zerou de propósito; (2) `recordBrokerAppMessage` (mensagem pelo celular) gravava só a conversa, nunca o cliente, e a conversa nascia sem `client_id`, fora da proteção da roleta.
+- **Correção:** cron ignora cliente devolvido à fila (P-05); função única de contato humano para Chat e celular (P-11); trava na cadência da Meta Diária. Detalhes e arquivos: `docs/CHANGELOG_AI.md` (2026-10-03). Dado antigo (~1.049 com o dono) não alterado.
+
 ### 2026-10-02 — Entrada simulada diferente entre o Gerador de Simulações e a Apresentação (Casa Paulista)
 - **Sintoma:** "O PDF/simulação não desconta o Casa Paulista" — o mesmo cliente e imóvel mostravam entradas diferentes conforme a tela.
 - **Causa raiz:** o valor do Casa Paulista era uma constante escrita em dois componentes com valores diferentes: `EmpreendimentoPresentation.jsx` enviava 10000 e `SimulationGenerator.jsx` enviava 0 ao `/api/simular-entrada` (o motor só aplica se o empreendimento aceita). Nenhum campo de cadastro definia o valor.

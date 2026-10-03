@@ -30,6 +30,7 @@ function setupStubs() {
     "whatsapp-client-status": { markClientsInServiceOnReply: async () => {}, markClientOnHumanMessage: async () => {}, startServiceOnManualAdd: async () => {} },
     "internal-phones": { findInternalTeamPhone: async () => null },
     "whatsapp-attendance": { markConversationHumanReply: async () => {} },
+    "whatsapp-human-contact": { registerHumanContact: async () => ({ counted: true }), isAutomationEchoForBroker: async () => false },
     "push-subscriptions": { sendPushToUser: async () => {} },
     "whatsapp-flows": { endLiveFlowSession: async () => {} },
     "whatsapp-chat": { broadcastChatChanged: async () => {}, getUnreadMessageCountForBroker: async () => 0 },
