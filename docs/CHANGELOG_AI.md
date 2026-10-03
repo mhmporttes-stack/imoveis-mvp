@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Ponte ChatGPT→Central: operação `listarTarefas` (somente leitura)
+- **Data:** 2026-10-03
+- **Área:** Infra (ponte / Central de Comando)
+- **Alteração:** `GET /api/central/tasks` lista tarefas recentes (filtros status/tipo/limite/horas, máx. 50) com resumo por allowlist (instrução e erro truncados em 200 caracteres, `has_result`, `awaiting_decision`); sem resultado completo. Mesma autenticação `chatgpt` e rate limit; só `select`. `criarTarefa`/`verResultado` inalterados. O dono precisa reimportar `docs/central/openapi.yaml` na Action do ChatGPT.
+- **Motivo:** `verResultado` exigia conhecer o `task_id`.
+- **Arquivos afetados:** `lib/central/core.mjs`, `lib/central/store-supabase.js`, `lib/central/route.js`, `app/api/central/tasks/route.js`, `docs/central/openapi.yaml`, `docs/CENTRAL_PONTE.md`, `tests/central-list.test.mjs`
+- **Risco/observação:** `executor` só aparece enquanto a tarefa está em execução (o banco limpa o worker ao concluir). Sem banco nem migration novos.
+
 ### 2026-10-03 — Ponte ChatGPT→Central: executor Claude headless (somente leitura, só `consulta`), DESLIGADO
 - **Data:** 2026-10-03
 - **Área:** Infra (ponte / Central de Comando)

@@ -12,7 +12,7 @@ Custom GPT (Action HTTPS) -> `/api/central/*` na Vercel -> tabela `central_tasks
 ## Rotas e credenciais (Bearer; nunca cookie de admin)
 | Rota | Papel (central_credentials.role) |
 |---|---|
-| `POST /api/central/tasks`, `GET /api/central/tasks/{id}` | `chatgpt` |
+| `POST /api/central/tasks`, `GET /api/central/tasks` (listarTarefas), `GET /api/central/tasks/{id}` | `chatgpt` |
 | `POST /api/central/executor/claim`, `.../requeue`, `.../tasks/{id}/result`, `.../tasks/{id}/heartbeat` | `executor` |
 | `POST /api/central/approver/tasks/{id}/decision` | `approver` |
 
@@ -36,6 +36,9 @@ Crie tarefa `{"tipo":"eco","instruction_text":"oi"}` -> rode o poller -> consult
 
 ## Action no ChatGPT
 Importe `docs/central/openapi.yaml` (Authentication: API Key tipo Bearer, cole o valor de `CENTRAL_CHATGPT_SECRET` do arquivo local; feito pelo dono). As instrucoes sugeridas para o GPT estao no fim do arquivo.
+
+### listarTarefas (somente leitura)
+`GET /api/central/tasks?status=&tipo=&limite=&horas=&ordenar_por=` (mesma credencial `chatgpt`; limite 60/min). Padrao: 10 itens, maximo duro 50, mais recentes primeiro (`created_at`, ou `updated_at`); `horas` = janela (1 a 8760). Parametro desconhecido/invalido/repetido = 400 generico. Sem paginacao (limite + janela bastam). Por tarefa devolve so uma allowlist: `task_id, status, tipo, origem, executor` (worker, so durante a execucao), `instruction_summary` (200 chars, `instruction_truncated`), `created_at, updated_at, completed_at, has_result, awaiting_decision, error_summary` (200 chars). O resultado completo continua so em `verResultado(task_id)`. Apenas `select`; `PUT/PATCH/DELETE` nao existem (405). Depois de publicar, o dono precisa **reimportar o `openapi.yaml` na Action do ChatGPT** para a operacao aparecer. Testes: `tests/central-list.test.mjs`.
 
 ## Executor Claude (headless, SOMENTE LEITURA) — implementado, DESLIGADO por padrao
 `scripts/central-bridge/executors/claude.mjs` chama `claude -p` (CLI do Claude Code) so quando **as duas chaves locais** indicam isso: `CENTRAL_EXECUTOR=claude` **e** `CENTRAL_CLAUDE_EXECUTOR_ENABLED=true` (lidas so do ambiente/arquivo local do PC, nunca do payload). Padrao: `echo` e `false`. Decisao do dono (T-78 Opcao A): so `consulta`.
