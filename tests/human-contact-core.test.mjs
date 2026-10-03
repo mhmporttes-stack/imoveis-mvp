@@ -5,6 +5,7 @@ import {
   AUTOMATION_ECHO_WINDOW_MS,
   isAutomationEcho,
   isHumanContactMessage,
+  contactCreditsResponsible,
   pickUnambiguousRegistration,
   resolveContactChangedBy,
   shouldAdvanceContactAt
@@ -155,4 +156,23 @@ test("15: o contato só avança no tempo (reprocessar ou entrega atrasada não m
   assert.equal(shouldAdvanceContactAt("2026-10-03T12:00:00Z", "2026-10-03T11:00:00Z"), false, "mensagem antiga chegando atrasada");
   assert.equal(shouldAdvanceContactAt("2026-10-03T12:00:00Z", "2026-10-03T12:00:01Z"), true);
   assert.equal(shouldAdvanceContactAt(null, "lixo"), false);
+});
+
+// Decisão do dono 2026-10-03: gestor/admin respondendo não credita o corretor responsável
+test("5b: resposta de gestor/admin não credita o responsável (não grava o contato do cliente); a do responsável/associado sim", () => {
+  assert.equal(contactCreditsResponsible({ actor: { userId: "gestor-1" }, responsibleUserId: "corretor-1" }), false);
+  assert.equal(contactCreditsResponsible({ actor: { userId: "admin-1" }, responsibleUserId: "corretor-1" }), false);
+  assert.equal(contactCreditsResponsible({ actor: { userId: "corretor-1" }, responsibleUserId: "corretor-1" }), true);
+  assert.equal(contactCreditsResponsible({ actor: { userId: "assoc-1", linkedBrokerId: "corretor-1" }, responsibleUserId: "corretor-1" }), true);
+  assert.equal(contactCreditsResponsible({ actor: { userId: "gestor-1" }, responsibleUserId: null }), true, "sem responsável não há a quem atribuir");
+});
+
+test("5b: o Chat e o celular passam pelo mesmo gate (mesma função) e a autoria da mudança de status é a de quem enviou", () => {
+  const status = read("lib/whatsapp-client-status.js");
+  assert.match(status, /contactCreditsResponsible\(/);
+  assert.match(status, /creditsResponsible && shouldAdvanceContactAt/);
+  // Chat e celular chamam registerHumanContact -> markClientOnHumanMessage (único gravador)
+  assert.match(read("lib/whatsapp-human-contact.js"), /markClientOnHumanMessage\(clientId, actor/);
+  const changed = resolveContactChangedBy({ nextStatus: CLIENT_STATUS.IN_SERVICE, inServiceStatus: CLIENT_STATUS.IN_SERVICE, actor: { userId: "admin-1", email: "admin@x.com" }, responsibleUserId: "corretor-1", responsibleEmail: "corretor@x.com" });
+  assert.equal(changed, "admin@x.com");
 });

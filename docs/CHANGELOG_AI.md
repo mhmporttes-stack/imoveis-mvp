@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Atendimento (fecho): autoria de gestor/admin sem campo novo; backfill e cliente isolado pendentes de escrita
+- **Data:** 2026-10-03
+- **Área:** WhatsApp/Chat, Meta Diária (pendência/progresso), docs
+- **Alteração:** resposta de gestor/admin/outro usuário (que não é o responsável nem o associado dele) conta como cliente atendido (`last_human_reply_at`, autor em `whatsapp_messages.sender_user_id`, `changed_by` = autor real, Chat e celular pelo mesmo caminho) mas **não grava `last_whatsapp_contact_at`** (`contactCreditsResponsible`, `lib/human-contact-core.mjs`, aplicado em `markClientOnHumanMessage`). **Campo novo NÃO foi necessário:** o único consumidor de mérito individual era `last_whatsapp_contact_at` (pendências/progresso da Meta Diária); `last_human_reply_at` só protege (roleta, trava da cadência, rótulo da lista). Testes em `tests/human-contact-core.test.mjs` (5b). Dono ("Alterar conta") inalterado; RAN-2 inalterada.
+- **Backfill (migration 20261003240000):** reconferido por SELECT em 2026-10-03: o universo MUDOU (saiu 1 cliente que o Chat já atualizou, entrou 1 com mensagem de 13:18) — **não aplicado**; além disso a sessão só tinha acesso de leitura ao banco. **Cliente isolado em "Atendimento automático":** a conversa parece interna da equipe ("O atendimento está atribuído a você", "passando mal de rir"), evidência não inequívoca — **não alterado**. ~1.050 clientes históricos com o dono: mantidos (decisão do dono).
+- **Autor:** Claude (CRM Architect)
+
 ### 2026-10-03 — Ponte ChatGPT→Central: operação `listarTarefas` (somente leitura)
 - **Data:** 2026-10-03
 - **Área:** Infra (ponte / Central de Comando)

@@ -98,3 +98,45 @@ Perguntar e responder você mesmo é permitido pelo Google. Sugestão (5):
 
 ## 9. Horário (`set_regular_hours`) — só se estiver desatualizado
 Hoje: seg–sex 8h–18h, sáb 8h–12h. **Confirme** se atende também por WhatsApp fora desse horário e se o horário está correto.
+
+---
+
+## 7-REVISÃO (02/10, após feedback do dono) — Posts 1 e 2 APROVADOS como estão; Post 3 reescrito; Post 4 NÃO publicar (modelo para caso real)
+Link de todos: `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=google&utm_medium=organic&utm_campaign=gmn_post&utm_content=postN` · botão "Saiba mais" · `language_code=pt-BR`. **Nada publicado.**
+
+**Post 3 — versão final proposta (536 caracteres), aguardando aprovação:**
+> Simulação feita. E agora? O próximo passo do seu primeiro imóvel é a documentação.
+> 
+> É a etapa em que o seu projeto ganha forma: com os documentos em dia, seguimos para a análise da Caixa. Em geral, ela pede documento de identificação, CPF, comprovante de renda, comprovante de residência e certidão de estado civil. A lista exata depende do seu caso (renda informal, casado, FGTS…), e eu acompanho você em cada item.
+> 
+> Ainda não simulou? Comece pela simulação gratuita e vamos avançar juntos.
+> 
+> Matheus Machado · CRECI 323106 · Marília/SP
+
+**Post 4 — substituído por MODELO de caso real (não publicar até haver caso e autorização):**
+Estrutura: nome (com autorização) + conquista + trecho do depoimento nas palavras do cliente + a jornada em etapas (simulação → documentação → análise da Caixa → chaves) com mês/ano + aviso "cada caso é analisado pela Caixa" + convite à simulação. Proibido: valores, renda, parcela, nome de banco além da Caixa, qualquer promessa de resultado, dados do contrato.
+> [NOME], conquistou o primeiro imóvel em Marília! 🔑
+> “[trecho curto do depoimento, nas palavras do cliente, aprovado por ele]”
+> A jornada: simulação em [mês/ano], documentação, análise da Caixa e entrega das chaves em [mês/ano]. Cada caso é analisado individualmente pela Caixa.
+> Quer começar a sua história? Faça a simulação gratuita.
+> Matheus Machado · CRECI 323106 · Marília/SP
+Condições antes de publicar: (1) autorização **por escrito** do cliente para nome, foto/vídeo e depoimento; (2) foto/vídeo da entrega de chaves enviado por ele ou feito com consentimento; (3) o cliente lê o texto final e aprova; (4) sem dado financeiro ou documental; (5) registrar a autorização (arquivo fora do repositório, sem dado pessoal nos docs).
+
+---
+
+## 7-FINAL (02/10) — Posts 1, 2 e 3 APROVADOS EM TEXTO (imagens ainda não criadas; NADA publicado). Post 4 = modelo aguardando caso real.
+**Conferência do Post 3 com a documentação real do CRM** (matriz oficial `.claude/analista-documental/REGRAS-DOCUMENTAIS.md`, 6 regras ativas da Base Mestra no banco — `bank_income`, `ctps_format`, `fgts_updated`, `marriage_spouse`, `residence_income_ownership`, `residence_source` — e `lib/document-requirements-engine.js`). Divergências na lista, corrigidas só nela:
+1. "documento de identificação, CPF" → regra real: **RG (com CPF) ou CNH** (nunca CPF cobrado à parte; motor, item 1).
+2. "comprovante de renda" genérico → real: **CLT = 2 últimos holerites; informal = 3 extratos ou 3 faturas** (texto: "holerites ou extratos, conforme a sua renda").
+3. "comprovante de residência" → real: **recente** (mês atual/anterior, regra oficial do dono) e só conta de **água, energia, internet ou telefone** (`residence_source`); exigido só do proponente principal.
+4. "certidão de estado civil" → real: **certidão de nascimento (solteiro) ou de casamento (casado/união estável/divorciado)**.
+Mantido fora da lista: CTPS, PIS, FGTS, IR, dependentes e documentos do cônjuge — dependem do caso (FGTS: `fgts_updated` ativa; se vale para quem não é CLT é [PENDENTE DE VALIDAÇÃO], L-7). O texto diz "depende do seu caso (renda CLT ou informal, FGTS…)".
+
+**Post 3 — versão final aprovada em texto (670 caracteres):**
+> Simulação feita. E agora? O próximo passo do seu primeiro imóvel é a documentação.
+> 
+> É a etapa em que o seu projeto ganha forma: com os documentos em dia, seguimos para a análise da Caixa. Em geral, são necessários RG (com CPF) ou CNH, comprovante de renda (holerites ou extratos, conforme a sua renda), comprovante de residência recente (conta de água, luz, internet ou telefone) e certidão de nascimento ou de casamento, conforme o seu estado civil. A lista exata depende do seu caso (renda CLT ou informal, FGTS…), e eu acompanho você em cada item.
+> 
+> Ainda não simulou? Comece pela simulação gratuita e vamos avançar juntos.
+> 
+> Matheus Machado · CRECI 323106 · Marília/SP
