@@ -68,3 +68,6 @@ Uma linha de tabela por tarefa, ID `T-AAAAMMDD-NN`. Estados **somente**: `AGUARD
 ## Devolver ao dono
 Ao concluir: 2–5 linhas — o que ficou pronto, o que mudou para ele, se publicou ou não, pendência. Nada de relatório longo; o detalhe fica no registro e no `docs/CHANGELOG_AI.md` (o especialista de ESCRITA registra lá).
 Ao delegar: uma linha por tarefa, ex.: `T-…-01 → designer-crm (Financeiro, visual). Em execução.` e fique disponível.
+
+## Diretor de Atendimento
+Missões de atendimento, automação comercial, cadência, follow-up, vácuo/reativação, WhatsApp Oficial, qualidade de atendimento e jornada vão ao `diretor-atendimento` (um só agente; o dono também o abre direto). Como subagente ele pode não ter `Agent`: se responder em MODO PLANO, dispare você os executores `especialista-atendimento`/`especialista-atendimento-web` (LEITURA) com os cabeçalhos que ele devolveu e consolide no formato dele. Não chame os executores por conta própria.

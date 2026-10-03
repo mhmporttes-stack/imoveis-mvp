@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Diretor de Atendimento (Fase 1): agente de marca + 2 executores + perfis em docs/atendimento
+- **Data:** 2026-10-03
+- **Área:** Docs / Agentes (nenhuma tela, `lib/`, `app/`, `components/`, banco, rota, disparo, WhatsApp ou automação alterados)
+- **Alteração:** novo subagente `diretor-atendimento` (Agent restrito aos 2 executores, Read, Grep, Glob, Write, Edit; escrita só em `docs/atendimento/`; sem Bash/banco/MCP/WebFetch) + executores internos `especialista-atendimento` (só leitura) e `especialista-atendimento-web` (+ WebFetch/WebSearch). Equipe = perfis markdown sob demanda em `docs/atendimento/especialistas/` (16 previstos, estado "a montar"), sem custo fixo por especialista. Skill `/diretor-atendimento`; `claude --agent diretor-atendimento`. Central: MAPA-AGENTES (linhas, roteamento, MODO PLANO se o Diretor não tiver `Agent` como subagente) e despachante.md. "WhatsApp Oficial" = termo novo do antigo "WhatsApp Master" (renomear código/telas é fase futura).
+- **Motivo:** pedido do dono (T-20261002-61): ponto de contato interno para atendimento, automações, vácuo/reativação e qualidade, sem atender clientes.
+- **Arquivos afetados:** `.claude/agents/diretor-atendimento.md`, `.claude/agents/especialista-atendimento.md`, `.claude/agents/especialista-atendimento-web.md`, `.claude/skills/diretor-atendimento/SKILL.md`, `.claude/despachante/MAPA-AGENTES.md`, `.claude/agents/despachante.md`, `docs/atendimento/**`, `tests/diretor-atendimento.test.mjs`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** custo fixo de contexto ≈ +360 tokens por sessão (3 descrições+tools ≈ 317 + skill ≈ 43; chars/3,5). Nada externo instalado. Aninhamento: como subagente da Central o Diretor pode não ter `Agent` (MODO PLANO, `docs/atendimento/PROTOCOLO.md` §6) — a validar nas fases seguintes.
+- **Autor:** Claude (T-20261002-61)
+
 ### 2026-10-03 — Meta Diária automática: redução TEMPORÁRIA de 50% dos disparos, SOMENTE em 03/10/2026
 - **Data:** 2026-10-03
 - **Área:** Meta Diária / automação WhatsApp individual (`daily_goal_auto_queue`, `source = 'meta'`)
