@@ -42,6 +42,7 @@ const SKIP_REASON_LABELS = {
   sem_telefone: "Contato sem telefone cadastrado",
   sem_nome: "Contato sem nome cadastrado",
   automacao_desligada: "Automação foi desligada",
+  reducao_temporaria_2026_10_03: "Redução temporária de 50% dos disparos (somente 03/10/2026)",
   pausado_para_investigacao: "Pausado manualmente para investigação",
   lead_respondeu: "Cliente respondeu — atendimento humano assumiu",
   falha_infraestrutura: "Instabilidade temporária (sessão/WhatsApp) — cliente não foi penalizado",

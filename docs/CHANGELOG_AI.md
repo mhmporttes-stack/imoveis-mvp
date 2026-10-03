@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-03 — Meta Diária automática: redução TEMPORÁRIA de 50% dos disparos, SOMENTE em 03/10/2026
+- **Data:** 2026-10-03
+- **Área:** Meta Diária / automação WhatsApp individual (`daily_goal_auto_queue`, `source = 'meta'`)
+- **Alteração:** exceção por data (`TEMPORARY_DISPATCH_REDUCTIONS` em `lib/daily-goal-auto-core.mjs`, uma única linha: `2026-10-03`, fator 0,5). No envio, `dropItemByTemporaryReduction` (`lib/daily-goal-auto.js`) decide cada item reivindicado: total do dia = enviados + pendentes + descartados pela redução (o que seria enviado sem a exceção); alvo = metade, arredondada para baixo, mínimo 1 (80→40, 50→25, 20→10, 21→10). Descarte = `status 'canceled'` + `skip_reason 'reducao_temporaria_2026_10_03'`, ANTES de qualquer envio, com probabilidade (vagas que faltam ÷ pendentes) — fecha exatamente no alvo e espalha os envios pelos mesmos horários da fila. A fila não refaz hoje quem foi descartado (consulta em `enqueueTodayItemsForBroker`). Em 04/10 a data deixa de casar e tudo volta ao normal sozinho; nenhuma configuração permanente (Gestão › Meta Diária, `daily_cap_override`, `HARD_DAILY_CAP`, janela, intervalos) foi alterada.
+- **Motivo:** pedido do dono (volume reduzido pela metade somente hoje).
+- **Arquivos afetados:** `lib/daily-goal-auto-core.mjs`, `lib/daily-goal-auto.js`, `components/DailyGoalAdmin.jsx` (rótulo do motivo no histórico), `tests/daily-goal-temporary-reduction.test.mjs`.
+- **Risco/observação:** só a fila da Meta Diária (`source = 'meta'`); a fila extra do "Disparar" não é tocada. Elegibilidade, prioridade, bloqueios, janela, intervalo e travas de segurança seguem como estavam (o descarte vem depois do claim e antes do envio; falha ao decidir devolve o item à fila e NÃO envia). Rodadas descartadas continuam ativas e voltam a ser elegíveis amanhã; nenhuma tentativa é registrada para elas. Corretor que depende da automação para bater a meta fecha o dia com menos tentativas automáticas (efeito esperado da exceção). PARA REMOVER: apagar a entrada de `TEMPORARY_DISPATCH_REDUCTIONS` (e, se quiser, o teste e o rótulo).
+- **Autor:** Claude Code
+
 ### 2026-10-02 — Testes estruturais tolerantes a CRLF (despachante.test.mjs)
 - **Data:** 2026-10-02
 - **Área:** Infra / Testes
