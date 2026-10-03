@@ -68,3 +68,22 @@ Leitura típica do Diretor: 1 a 4 componentes por missão (1 a 8 mil tokens); cu
 | Zero-Lero e demais humanizers pt-BR | projetos jovens, risco | (citados nos relatórios do Scout em `docs/scout/relatorios/`) |
 | VoltAgent `customer-success-manager` | não escolhido (original melhor: hoangtng) | https://github.com/VoltAgent/awesome-claude-code-subagents/blob/main/categories/08-business-product/customer-success-manager.md |
 | agency-agents, workflow-orchestrator, wshobson/agents | fora da seleção do dono | (relatório do Scout de metodologia) |
+
+## Registro — Fase 4: AGENTES PRÓPRIOS (10) e classificação dos 17 especialistas
+
+**Campos comuns às 10 linhas próprias:** Licença: código/documentação do projeto (sem terceiro). Versão: commit do branch na publicação (hash no `docs/CHANGELOG_AI.md`, entrada da Fase 4). Data: 2026-10-03. Dependências: nenhuma. Permissões: executor restrito (Read/Grep/Glob), ou web (+WebFetch/WebSearch) só em `whatsapp-oficial-meta`. Modificações locais: n/a (não há original). Custo externo: nenhum; só o consumo normal de tokens do Claude. Atualizar: editar `especialistas/<id>.md` e manter a linha no `EQUIPE.md`. Remover: apagar `especialistas/<id>.md` e a linha no `EQUIPE.md`.
+
+| id | Especialidade | Origem | Motivo (relatório do Scout em `docs/scout/relatorios/2026-10-03-atendimento-*.md`) |
+|---|---|---|---|
+| atendimento-imobiliario | Atendimento e Guia de Atendimento | próprio — sem original adequado | critério é o NOSSO Guia (`docs/GUIA_ATENDIMENTO.md`); nada externo o conhece |
+| followup-vacuo | Follow-up e vácuo | próprio — sem original adequado | melhor conteúdo externo sem licença; demais são B2B por e-mail; exige janela de 24 h e motor de vácuo do CRM |
+| comportamento-lead | Comportamento do lead | próprio — sem original adequado | depende de dados reais do CRM (horário, recorrência, origem) que só o `analista-dados` extrai |
+| whatsapp-oficial-meta | WhatsApp Oficial / Meta | próprio — sem original adequado | regra da Meta muda; terceiros ficam velhos e pedem token; perfil é mapa de fontes oficiais |
+| primeiro-imovel-mcmv | Primeiro imóvel e MCMV | próprio — sem original adequado | conhecimento específico do público e do MCMV; regra numérica fica no motor e na Base Mestra |
+| simulacao | Simulação no atendimento | próprio — sem original adequado | motor de cálculo e funil próprios; a IA só diz quando/como falar, números só do motor |
+| documentacao | Documentação do cliente | próprio — sem original adequado | fluxo CCA/Base Mestra é nosso; únicos candidatos são fluxo dos EUA (só referência) |
+| reativacao-30-60-90 | Reativação 30/60/90 | próprio — sem original adequado | melhor referência sem licença; operação exige Não contactar, janela e opt-out do CRM |
+| qualidade-atendimento | Qualidade dos corretores | próprio — sem original adequado | aderência ao nosso Guia é conhecimento muito específico |
+| portugues-comunicacao | Português e comunicação | próprio — sem original adequado | nenhum candidato maduro cobre ortografia/gramática pt-BR; humanizers jovens ficam como inspiração |
+
+**Classificação dos 17 (bate com `EQUIPE.md`; verificada por teste):** ORIGINAL EXTERNO puro: nenhum (a preferência é original + extensão; os 3 arquivos de `metodologia/` e as 3 licenças são apoio, não especialistas). ORIGINAL + EXTENSÃO LOCAL (7): vendas-conversao, copy-comercial, customer-success-jornada, dados-conversao, experimentacao-ab, auditor-automacoes, compliance-lgpd. AGENTE PRÓPRIO (10): os da tabela acima.

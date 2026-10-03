@@ -1,6 +1,7 @@
 # copy-comercial — extensão local (pt-BR, operação do CRM)
 
 Complementa `copy-comercial.original.coreyhaines31-copywriting.md`. O original fica intacto; em conflito vale este arquivo e docs/atendimento/PROTOCOLO.md §1.
+Licença dos originais: MIT (Corey Haines) em `licencas/coreyhaines31-marketingskills-LICENSE.txt`. Cabeçalho de proveniência em cada original; detalhe em ../INVENTARIO.md.
 
 ## Contexto da operação
 - Comprador pessoa física de primeiro imóvel (MCMV), atendimento por WhatsApp, Marília/SP. Nada de premissas B2B ou dos EUA.

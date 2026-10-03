@@ -1,0 +1,5 @@
+# Preserva byte a byte os originais vendorizados (sem conversao de fim de linha pelo autocrlf do Windows).
+# Auditoria e SHA256: docs/atendimento/AUDITORIA-ORIGINAIS.md
+docs/atendimento/especialistas/*.original.*.md -text
+docs/atendimento/metodologia/*.md -text
+docs/atendimento/especialistas/licencas/* -text

@@ -1,6 +1,7 @@
 # customer-success-jornada — extensão local (pt-BR, operação do CRM)
 
 Complementa `customer-success-jornada.original.hoangtng-client-relationship-manager.md`. O original fica intacto; em conflito vale este arquivo e docs/atendimento/PROTOCOLO.md §1.
+Licença dos originais: MIT (Hoang T Nguyen) em `licencas/hoangtng-real-estate-agents-LICENSE.txt`. Cabeçalho de proveniência em cada original; detalhe em ../INVENTARIO.md.
 
 ## Contexto da operação
 - Comprador pessoa física de primeiro imóvel (MCMV), atendimento por WhatsApp, Marília/SP. Nada de premissas B2B ou dos EUA.

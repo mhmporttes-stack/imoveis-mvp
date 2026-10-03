@@ -1803,3 +1803,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `.claude/agents/designer-crm.md`, `.claude/skills/direcao-criativa/SKILL.md`, `docs/CHANGELOG_AI.md`.
 - **Risco/observação:** nenhum; só texto de roteamento. Limites dos testes inalterados.
 - **Autor:** Claude (T-20261002-60)
+
+### 2026-10-03 — Diretor de Atendimento, Fase 4: equipe consolidada e publicada (T-20261002-65)
+- **Alteração:** equipe de 17 especialistas em `docs/atendimento/` (7 ORIGINAL + EXTENSÃO LOCAL com 15 originais vendorizados verbatim MIT/Apache-2.0 + licenças; 10 AGENTES PRÓPRIOS), `INVENTARIO.md` com a classificação e os motivos, `AUDITORIA-ORIGINAIS.md`, 5 relatórios do Scout em `docs/scout/relatorios/`. `.gitattributes` novo (só `-text` nos vendorizados, para o autocrlf do Windows não alterar os bytes). Cada `.local.md` cita sua licença. Novo `tests/proveniencia-atendimento.test.mjs` (SHA256 do corpo, licença, inventário x EQUIPE, sem script/hook/MCP).
+- **Motivo:** publicar a missão de montagem da equipe; originais verificados byte a byte contra o SHA registrado.
+- **Arquivos afetados:** `.gitattributes`, `docs/atendimento/**`, `docs/scout/relatorios/*`, `tests/equipe-atendimento.test.mjs`, `tests/proveniencia-atendimento.test.mjs`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** só texto lido sob demanda; custo fixo de contexto da missão ~2,25 mil tokens (diretor + 2 executores + skill, 7.868 caracteres / 3,5), perfis e originais não entram. Sem migration, sem código do CRM.
+- **Autor:** Claude (crm-editor, T-20261002-65)

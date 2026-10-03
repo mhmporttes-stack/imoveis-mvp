@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 // Equipe do Diretor de Atendimento: perfis, extensões locais, segurança e seleção de equipe mínima.
@@ -60,9 +61,8 @@ test("ORIGINAL + EXTENSÃO: .local.md existe, declara os originais e (quando ven
     assert.ok(declarados.length >= 1 && declarados.every((d) => /\.md$/.test(d) && (d.includes(".original.") || d.startsWith("../metodologia/"))), `${r.id}: originais mal declarados`);
     const loc = read(path.join(esp, h.extensao_local));
     for (const d of declarados) assert.ok(loc.includes(d), `${r.id}.local.md não cita ${d}`);
-    // Condicional: se a vendorização (T-63) já aconteceu para este id, todos os declarados devem existir.
-    const vendorizado = fs.readdirSync(esp).some((f) => f.startsWith(`${r.id}.original.`));
-    if (vendorizado) for (const d of declarados) assert.ok(fs.existsSync(path.join(esp, d)), `${r.id}: original declarado não existe: ${d}`);
+    // Existência real (vendorização feita na Fase 3a): todo original declarado existe.
+    for (const d of declarados) assert.ok(fs.existsSync(path.join(esp, d)), `${r.id}: original declarado não existe: ${d}`);
     assert.ok(read(path.join(esp, h.extensao_local)).split("\n").length <= 60, `${r.id}.local.md > 60 linhas`);
   }
   for (const r of montados.filter((x) => x.origem === "AGENTE PRÓPRIO")) {

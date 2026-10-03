@@ -1,6 +1,7 @@
 # vendas-conversao — extensão local (pt-BR, operação do CRM)
 
 Complementa `vendas-conversao.original.anthropic-handle-objection.md`, `vendas-conversao.original.anthropic-deal-advance-gap.md`, `vendas-conversao.original.anthropic-lead-triage.md`. O original fica intacto; em conflito vale este arquivo e docs/atendimento/PROTOCOLO.md §1.
+Licença dos originais: Apache-2.0 (Anthropic) em `licencas/anthropics-knowledge-work-plugins-LICENSE.txt`. Cabeçalho de proveniência em cada original; detalhe em ../INVENTARIO.md.
 
 ## Contexto da operação
 - Comprador pessoa física de primeiro imóvel (MCMV), atendimento por WhatsApp, Marília/SP. Nada de premissas B2B ou dos EUA.
