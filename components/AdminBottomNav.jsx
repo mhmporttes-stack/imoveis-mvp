@@ -14,6 +14,7 @@ import Sheet from "@/components/ui/Sheet";
 import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 
 // Navegação principal do painel no celular (< md): barra inferior fixa com os
 // 4 destinos mais usados do perfil + "Mais" (sheet com TODOS os grupos do
@@ -57,14 +58,16 @@ function isEditableTarget(target) {
 
 // `currentPath` só existe para a vitrine de desenvolvimento simular a rota;
 // no painel o caminho vem do roteador.
-export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, currentPath = "" }) {
+export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, currentPath = "" }) {
   const routerPath = usePathname() || "";
   const pathname = currentPath || routerPath;
   const counts = useCrmBadgeCounts();
   const [moreOpen, setMoreOpen] = useState(false);
   const [typing, setTyping] = useState(false);
-  const flags = { isAdmin, isBroker, isAssociate, isManager };
-  const destinations = destinationsFor(flags);
+  const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked };
+  // Acesso WhatsApp bloqueado (2026-10-04): Chat e Meta Diária do corretor NÃO são renderizados (nada de botão cinza).
+  const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
+  const destinations = destinationsFor(flags).filter((item) => !hiddenKeys.has(item.key));
   const activeKey = destinations.find((item) => item.match(pathname))?.key || "";
 
   // Reserva o espaço da barra no fim da página (ver --admin-bottom-nav-space
@@ -101,7 +104,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
           typing && "translate-y-full"
         )}
       >
-        <ul className="mx-auto grid h-16 max-w-lg grid-cols-5">
+        <ul className="mx-auto grid h-16 max-w-lg" style={{ gridTemplateColumns: `repeat(${destinations.length + 1}, minmax(0, 1fr))` }}>
           {destinations.map((item) => {
             const active = item.key === activeKey;
             const badge = badgeFor(item.key, counts);
@@ -221,7 +224,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
-  ].filter((item) => item.count > 0);
+  ].filter((item) => item.count > 0 && !(flags.whatsappBlocked && item.label === "Chat"));
 
   return (
     <div className="space-y-3.5">

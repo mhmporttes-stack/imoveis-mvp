@@ -42,6 +42,7 @@ import {
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
 const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
@@ -49,6 +50,8 @@ const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 // `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
 // agendamento aberto), "tags" (editor aberto) ou "documents" (modal).
 export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName, focus = "" }) {
+  // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado.
+  const whatsappBlocked = useWhatsappBlocked();
   const [showDocuments, setShowDocuments] = useState(false);
   useEffect(() => {
     if (!open || !focus) return undefined;
@@ -83,9 +86,9 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         <div className="space-y-6" aria-busy={busy || undefined}>
           {/* Ações principais */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Button className="col-span-2 sm:col-span-3" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+            {whatsappBlocked ? null : <Button className="col-span-2 sm:col-span-3" onClick={() => list.openWhatsApp(client)} disabled={busy}>
               <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
-            </Button>
+            </Button>}
             <Button variant="secondary" onClick={() => setShowDocuments(true)} disabled={busy || !registration?.id}>
               <FileText className="h-4 w-4" aria-hidden="true" /> Documentos
             </Button>

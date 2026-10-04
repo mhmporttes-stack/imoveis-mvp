@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin-profiles";
 import { calculateCrmMetrics, countUnreadCrmNotifications } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
+import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 
 export default async function AdminSectionNav({ active = "properties" }) {
   const admin = await getAdminFromCookies();
@@ -38,7 +39,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
 
   return (
     <div className={`container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
-      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} />
+      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={isEffectivelyBlocked(profile)} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
       {isManager && ["performance", "daily-report", "financial", "ai-usage", "scoring", "online", "audit"].includes(active) ? (

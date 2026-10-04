@@ -3,7 +3,9 @@ import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import SceneGate from "@/components/motion/SceneGate";
+import { redirect } from "next/navigation";
 import { isOwnerAdminEmail, requireAdminPage } from "@/lib/admin-auth";
+import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 import { isManagerProfile } from "@/lib/admin-profiles";
 import { canLoadDailyGoal, formatDailyGoalError, getBrokerDailyGoal, getOwnerTeamDailyOverview } from "@/lib/daily-goal";
 
@@ -19,9 +21,13 @@ export default async function MetaDiariaPage() {
   // Gestora (REGRA OFICIAL — dono, 2026-10-02): mesma visão operacional do administrador, mas SÓ dos
   // corretores da equipe dela (o recorte é feito no backend, lib/daily-goal.js). Sem poderes novos.
   const isTeamManager = isManagerProfile(auth.profile);
+  // Acesso WhatsApp bloqueado (2026-10-04): a Meta Diária do CORRETOR nem abre (volta ao painel de clientes); a visão de
+  // supervisão do admin/gestor continua, só sem o card da própria meta do gestor bloqueado.
+  const whatsappBlocked = isEffectivelyBlocked(auth.profile);
+  if (whatsappBlocked && !isOwner && !isTeamManager) redirect("/admin/simulacoes");
 
   if (isTeamManager) {
-    return <OwnerMetaDiariaView auth={auth} viewer="manager" />;
+    return <OwnerMetaDiariaView auth={auth} viewer="manager" ownGoalHidden={whatsappBlocked} />;
   }
 
   if (isOwner) {
@@ -63,7 +69,7 @@ export default async function MetaDiariaPage() {
   );
 }
 
-async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
+async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = false }) {
   let overview = null;
   let error = "";
   // Gestora: PRIMEIRO o card da própria meta (T-49) — mesmo cálculo/regras do corretor (getBrokerDailyGoal usa só
@@ -71,7 +77,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
   let ownGoal = null;
   let ownGoalError = "";
 
-  if (viewer === "manager" && canLoadDailyGoal()) {
+  if (viewer === "manager" && !ownGoalHidden && canLoadDailyGoal()) {
     try {
       ownGoal = await getBrokerDailyGoal(auth);
     } catch (loadError) {
@@ -104,7 +110,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner" }) {
         </section>
       ) : (
         <>
-          {viewer === "manager" ? (
+          {viewer === "manager" && !ownGoalHidden ? (
             <section className="container-page mb-6">
               <div className="mx-auto max-w-3xl">
                 {ownGoal ? (

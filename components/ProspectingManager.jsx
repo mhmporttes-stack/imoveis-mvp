@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, CheckSquare, History, Lock, Pencil, RotateCcw, Send, Trash2, Unlock, Upload } from "lucide-react";
 import { formatBrazilianPhone } from "@/lib/phone-utils";
+import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 
 // scope diferencia ORIGEM/PROPRIEDADE da base — nunca quem está atendendo:
 // "company" = Base da Imobiliária (fila compartilhada, comportamento
@@ -19,6 +20,8 @@ export default function ProspectingManager({
   brokerId = ""
 }) {
   const readOnly = scope === "broker";
+  // Acesso WhatsApp bloqueado (2026-10-04): o "Disparar" NÃO é renderizado (o servidor também recusa).
+  const whatsappBlocked = useWhatsappBlocked();
   // "Minha Base": o corretor pode importar e prospectar a própria base, mas
   // editar/ver histórico/desbloquear/excluir continuam restritos a
   // admin/gestor (mesma regra de hoje na Base da Imobiliária) — não amplia
@@ -219,7 +222,7 @@ export default function ProspectingManager({
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">{canBulkManage ? <input aria-label={`Selecionar ${contact.name}`} checked={selectedIds.includes(contact.id)} className="mt-1 h-5 w-5 shrink-0 accent-brand" onChange={() => toggleContact(contact.id)} type="checkbox" /> : null}<div><h3 className="text-xl font-black text-navy">{contact.name}</h3><p className="mt-1 font-bold text-muted">{formatBrazilianPhone(contact.phone)}</p><p className={`mt-2 text-sm font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>{statusLabel}</p>{contact.status === "recent_attempt" ? <p className="text-sm font-bold text-muted">Disponível novamente em {formatDate(contact.availableAfter)}</p> : null}{canManage && contact.registrationId ? <select className="mt-3 h-9 rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy" value={contact.assignedUserId} onChange={(event) => mutate(contact.id, "PATCH", { assignedUserId: event.target.value })}><option value="">Sem responsável</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select> : null}</div></div>
               <div className="flex flex-wrap gap-2">
-                {!readOnly ? (queuedIds.includes(contact.id)
+                {!readOnly && !whatsappBlocked ? (queuedIds.includes(contact.id)
                   ? <button className="premium-button-secondary" disabled type="button"><Check className="h-4 w-4" /> Na fila</button>
                   : dispatchLocked
                     ? <button className="premium-button-secondary" disabled title={dispatchStatus?.message || "Carregando…"} type="button"><Lock className="h-4 w-4" /> Disparar</button>

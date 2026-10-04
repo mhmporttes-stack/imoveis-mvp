@@ -195,6 +195,7 @@
 - A autorização real é **em código**; RLS sem policy pública. Filtro visual nunca é barreira. Gestor = ele + subordinados diretos + associados dos corretores subordinados. Dono identificado por e-mails fixos no código. “Alterar conta” troca o contexto de autorização dentro da sessão do admin real.
 
 ---
+- **Acesso aos recursos WhatsApp por corretor (2026-10-04).** Chave individual `admin_users.whatsapp_access_blocked` (padrão `false` = LIBERADO), distinta da automação ligada/desligada. O administrador geral alterna no topo do card do corretor (Meta Diária > supervisão); gestor só vê; corretor nunca altera a própria; administrador geral nunca é bloqueado. Bloqueado: Chat, Meta Diária do corretor, status/QR/conexão e botões de WhatsApp não são renderizados; as APIs respondem 403 (`WHATSAPP_ACCESS_BLOCKED`) por barreira central em `requireAdminApi` (`lib/whatsapp-access-core.mjs`), e `lib/whatsapp-individual.js` (conectar/enviar/reagir/editar/apagar) tem a última barreira; o cron ignora o corretor antes de gerar/reservar. Bloquear não desconecta, não apaga sessão/fila/histórico/clientes e não arquiva nem marca "Não contactar". Ao liberar, a fila é reprogramada pela política vigente (30/dia, 10/10/10, janela, intervalo 5–8 min) sem compensar o período parado. Auditoria em `whatsapp_access_audit`.
 
 ## 16-A. Simulação de entrada e Proposta de Valores
 

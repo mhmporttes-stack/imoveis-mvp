@@ -29,6 +29,7 @@ import { CLIENT_STATUS, clientStatusLabel } from "@/lib/client-status";
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
 
 // Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
@@ -43,6 +44,8 @@ const MAX_ACTIVITIES = 2;
 const MAX_TAGS = 4;
 
 export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
+  // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado (o restante do card segue igual).
+  const whatsappBlocked = useWhatsappBlocked();
   const name = client.name || "Cliente sem nome";
   const registration = client.registration || {};
   const urgency = getUrgencySignal(client, activities);
@@ -125,9 +128,9 @@ export default function ClientCard({ client, activities, responsibleName, respon
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
       <footer className="mt-auto flex items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
-        <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+        {whatsappBlocked ? null : <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
-        </Button>
+        </Button>}
         <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => onOpen("agenda")} disabled={busy}>
           <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Agendar
         </Button>

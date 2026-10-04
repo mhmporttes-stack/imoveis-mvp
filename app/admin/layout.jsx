@@ -15,6 +15,8 @@ import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { Manrope } from "next/font/google";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
+import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
+import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,8 @@ const ADMIN_FONT_CSS = `:root{--font-ui:${manrope.style.fontFamily}, ui-sans-ser
 
 export default async function AdminLayout({ children }) {
   const auth = await getAdminFromCookies();
+  // Acesso WhatsApp bloqueado (2026-10-04): conexão/status da sessão, Chat e Meta Diária do corretor não são renderizados.
+  const whatsappBlocked = auth.ok && isEffectivelyBlocked(auth.profile);
 
   return (
     <>
@@ -59,13 +63,13 @@ export default async function AdminLayout({ children }) {
                 WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
                 corretor não percebia o próprio WhatsApp cair). */}
             <TopRankingBadge
-              weeklyIndicator={<WhatsappIndividualStatus align="end" />}
+              weeklyIndicator={whatsappBlocked ? null : <WhatsappIndividualStatus align="end" />}
               dailyIndicator={<GoogleContactsStatus align="end" />}
             />
           </header>
         </div>
       ) : null}
-      <SceneTransitionRoot>{children}</SceneTransitionRoot>
+      <WhatsappAccessProvider blocked={whatsappBlocked}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
       <SceneSkipCatcher />
       {/* Navegação principal no celular (< md); do tablet para cima continua
           o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
@@ -75,6 +79,7 @@ export default async function AdminLayout({ children }) {
           isBroker={isBrokerProfile(auth.profile)}
           isAssociate={isAssociateProfile(auth.profile)}
           isManager={isManagerProfile(auth.profile)}
+          whatsappBlocked={whatsappBlocked}
         />
       ) : null}
       {auth.ok ? (
