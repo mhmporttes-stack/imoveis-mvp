@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Regra do dono: Academia, 2ª rodada (publicação, tentativas, nota, formação, certificado, histórico)
+- **Data:** 2026-10-04
+- **Área:** Docs / Regras (nenhum código, banco, rota ou chave alterado)
+- **Alteração:** registrado como REGRA OFICIAL (`.claude/rules/academia.md`, `docs/BUSINESS_RULES.md` ACA-1, 2, 7 a 10): Admin e Gerente publicam direto sem aprovação extra; máximo de 3 tentativas por prova; 70% também nas provas de módulo e final; Formação Inicial obrigatória para novos associados/corretores; certificado só com 100% e nota mínima (verificação pública depois); associados participam e todo histórico é preservado; "Alterar conta" somente leitura na Academia. Plano e `docs/ACADEMIA.md` atualizados onde estavam pendentes (guard de publicar, matriz, itens do §8).
+- **Motivo:** decisão do dono, fechando os pontos que a 1ª rodada deixou pendentes.
+- **Arquivos afetados:** `.claude/rules/academia.md`, `docs/BUSINESS_RULES.md`, `docs/academia/PLANO_TECNICO.md`, `docs/ACADEMIA.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** nada implementado (F2+). "Alterar conta" somente leitura vale só para a Academia; no resto do CRM o comportamento segue o de `auth-permissoes.md`. Restam abertos: nova tentativa liberada pelo gestor, Formação Inicial para os atuais, quem vê o certificado, prova final como coroa, prazo de guarda, restrição por equipe.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Regra do dono: decisões da Academia (edição, nota mínima, Fraunces, guindaste, orçamento)
 - **Data:** 2026-10-04
 - **Área:** Docs / Regras (nenhum código, banco, rota ou chave alterado)

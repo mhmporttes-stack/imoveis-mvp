@@ -19,7 +19,7 @@ Só plano. Nada foi alterado no repositório nem no Supabase. Base: AGENTS.md, C
 
 **Guards (login reaproveitado).** Página: `requireAdminPage()` (l.293) para aluno; `requireBrokerManagementPage("/academia")` para `gestao`; `requireBrokerManagementPage("/academia")` para `editor` **[ATUALIZADO 2026-10-04: Admin e Gerente editam (ACA-1); antes era só `requireGeneralAdminPage`]**. Observação: os redirects desses helpers vão a `/admin/login` e fallback `/admin`; aceitável (login é um só), mas o fallback deve ser passado explicitamente (`"/academia"`).
 
-**"Alterar conta" (view-as, P-17).** Regra vigente: ação **operacional** feita pelo admin como corretor fica atribuída ao emulado (`.claude/rules/auth-permissoes.md`). Treinamento não é ação operacional: se o admin concluísse aulas/provas "como" um corretor, falsificaria progresso e geraria certificado em nome de outra pessoa. **Proposta:** em `auth.accountSwitchMode` a Academia é **somente leitura** (admin vê a Academia como o corretor vê, mas toda escrita de progresso/tentativa/certificado é recusada 403 no servidor, `lib/academy-access.js`), igual à lógica ainda PENDENTE da Supervisão (`automacoes-notificacoes.md`). Ações administrativas (publicar, atribuir) gravam o admin real via `getActingAdminEmail` (`lib/admin-auth.js:208`). Decisão do dono (item 8).
+**"Alterar conta" (view-as, P-17).** Regra vigente: ação **operacional** feita pelo admin como corretor fica atribuída ao emulado (`.claude/rules/auth-permissoes.md`). Treinamento não é ação operacional: se o admin concluísse aulas/provas "como" um corretor, falsificaria progresso e geraria certificado em nome de outra pessoa. **[ATUALIZADO 2026-10-04: DECIDIDO pelo dono, ACA-10, somente leitura só na Academia]** Em `auth.accountSwitchMode` a Academia é **somente leitura** (admin vê a Academia como o corretor vê, mas toda escrita de progresso/tentativa/certificado é recusada 403 no servidor, `lib/academy-access.js`), igual à lógica ainda PENDENTE da Supervisão (`automacoes-notificacoes.md`). Ações administrativas (publicar, atribuir) gravam o admin real via `getActingAdminEmail` (`lib/admin-auth.js:208`). Decisão do dono: ACA-10.
 
 **Entrada no CRM.** Item "Academia" em `components/AdminMenu.jsx` dentro de `getAdminMenuGroups` (l.194, fonte única também da barra inferior `AdminBottomNav`), para os 4 perfis, atrás da flag (seção 5). É um `<a href="/academia">` simples (navegação completa, fora do `SceneTransitionRoot`). "Voltar ao CRM" discreto na Academia = link para `/admin/simulacoes` (start_url do app). A flag decide se o item existe; a rota continua protegida pelo servidor mesmo com o item escondido.
 
@@ -69,7 +69,7 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | `GET /academia/team` e `/team/[userId]` | `requireBrokerManagementApi` | `managedUserIds` (admin: todos) |
 | `POST /academia/enrollments` (atribuir) | `requireBrokerManagementApi` | gestor só para sua equipe; trilha obrigatória para todos = só admin |
 | `GET/POST/PATCH /academia/content/**` (criar/editar) | `requireBrokerManagementApi` **[ATUALIZADO 2026-10-04: Admin e Gerente, ACA-1]** | conteúdo é global (sem escopo por equipe); comportamento em "Alterar conta" a confirmar na F3 |
-| `POST .../publish` | `requireGeneralAdminApi` **até o dono decidir quem publica (ACA-1, pendente)** | admin geral efetivo (em view-as vira 403 de propósito) |
+| `POST .../publish` | `requireBrokerManagementApi` **[ATUALIZADO 2026-10-04: Admin e Gerente publicam direto, sem aprovação extra, ACA-1]** | em "Alterar conta" a escrita é recusada (ACA-10) |
 | `POST /academia/certificates` (emitir manual/revogar) | `requireGeneralAdminApi` | admin |
 | `GET /academia/certificates/[id]` | `requireAdminApi` + checagem de dono/equipe | ver abaixo |
 
@@ -81,7 +81,7 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | Ver o próprio progresso | sim | sim | sim | sim* |
 | Ver progresso da equipe | todos | só equipe (`managedUserIds`, inclui associados) | não | não |
 | Criar/editar conteúdo **[ATUALIZADO 2026-10-04, ACA-1]** | sim | sim | não | não |
-| Publicar versão* (pendente, ACA-1) | sim | a decidir | não | não |
+| Publicar versão **[ATUALIZADO 2026-10-04, ACA-1]** | sim | sim | não | não |
 | Atribuir treinamento | todos | sua equipe | não | não |
 | Emitir/revogar certificado | sim | não | não (auto-emissão por regra) | não |
 | Ver certificado de outro | todos | só equipe | não | não |
@@ -130,16 +130,16 @@ Outros pontos: `app/api/admin/*` hoje ~85 rotas (inventário em `docs/PERMISSION
 
 ## 8. Decisões do dono (linguagem simples)
 
-1. **Quem edita o conteúdo?** **DECIDIDO pelo dono em 2026-10-04: Admin e Gerente podem criar e editar** (ACA-1; substitui a recomendação anterior de só o admin geral). Em aberto: quem **publica** e se há aprovação.
-2. **A Formação Inicial é obrigatória? Para quem?** Recomendo obrigatória para todo corretor novo e opcional para os atuais (você decide se quer exigir dos atuais). Por enquanto só orienta e mostra atraso; não trava nada do CRM.
-3. **Nota mínima e tentativas.** **DECIDIDO em 2026-10-04: nota mínima dos quizzes 70% (7,0)** (ACA-2). Em aberto: tentativas (recomendação: 3 por prova, com o gestor liberando nova ao esgotar), nota das provas de módulo e final e se é ajustável por prova.
-4. **Certificado só com 100%?** Recomendo: certificado só com todas as aulas concluídas e a prova final aprovada. Se a trilha mudar depois, quem já tem certificado mantém o da versão que fez.
-5. **Admin em "Alterar conta".** Recomendo que, vendo como o corretor, o admin só olhe: não conclui aula nem prova pelo corretor (senão o progresso e o certificado ficam falsos). O admin faz a própria formação com o próprio login.
+1. **Quem edita o conteúdo?** **DECIDIDO em 2026-10-04: Admin e Gerente criam, editam e publicam diretamente, sem aprovação adicional** (ACA-1; substitui a recomendação anterior de só o admin geral).
+2. **A Formação Inicial é obrigatória? Para quem?** **DECIDIDO em 2026-10-04: obrigatória para novos associados e corretores** (ACA-7). Em aberto: se vale para os atuais (recomendação: opcional). Por enquanto só orienta e mostra atraso; não trava nada do CRM.
+3. **Nota mínima e tentativas.** **DECIDIDO em 2026-10-04: 70% (7,0) em quizzes, provas de módulo e prova final; máximo de 3 tentativas por prova** (ACA-2). Em aberto: se o gestor libera nova tentativa ao esgotar e se a nota é ajustável por prova.
+4. **Certificado só com 100%?** **DECIDIDO em 2026-10-04: só após 100% da formação concluída e a nota mínima cumprida; verificação pública em fase posterior** (ACA-8). Se a trilha mudar depois, quem já tem certificado mantém o da versão que fez.
+5. **Admin em "Alterar conta".** **DECIDIDO em 2026-10-04: somente leitura na Academia** (ACA-10); o admin faz a própria formação com o próprio login.
 6. **Prova final = último andar (a coroa)?** Recomendo sim: coroa só acende após a prova final aprovada.
 7. **Fonte Fraunces.** **DECIDIDO em 2026-10-04: aprovada**, hospedada no app (ACA-3); fontes ≈92 KB aprovadas (ACA-6).
 8. **Metáfora do prédio com guindaste.** **DECIDIDO em 2026-10-04: aprovada** (ACA-4).
-9. **Associados participam?** Recomendo sim, fazendo a própria trilha; o gestor da equipe enxerga o progresso deles. Se não, ficam fora das matrículas.
-10. **Quem vê o certificado e existe verificação pública por código?** Recomendo certificado visível ao próprio, ao gestor da equipe e ao admin; verificação pública só se você quiser (exige uma página sem login, com dados mínimos).
-11. **Retenção e versionamento.** Recomendo nunca apagar conteúdo publicado nem tentativas (só arquivar), para provar o que cada corretor estudou e quando. Prazo de guarda e se corretor desligado mantém histórico: definir.
-12. **Conteúdo técnico.** A implementação inicial leva só estrutura e títulos neutros; o conteúdo real (financiamento, MCMV, documentação) entra depois, vindo de regras/Base Mestra aprovadas. Preciso saber quem aprova cada aula antes de publicar.
+9. **Associados participam?** **DECIDIDO em 2026-10-04: sim, participam normalmente** (ACA-9); o gestor da equipe enxerga o progresso deles.
+10. **Quem vê o certificado?** Verificação pública por código: **adiada para fase posterior** (decisão de 2026-10-04, ACA-8). Em aberto: quem vê o certificado (recomendação: o próprio, o gestor da equipe e o admin).
+11. **Retenção e versionamento.** **DECIDIDO em 2026-10-04: todo o histórico é preservado, nunca apagado, só arquivado** (ACA-9). Em aberto: prazo de guarda e se o corretor desligado mantém o histórico.
+12. **Conteúdo técnico.** A implementação inicial leva só estrutura e títulos neutros; o conteúdo real (financiamento, MCMV, documentação) entra depois, vindo de regras/Base Mestra aprovadas. Como Admin e Gerente publicam direto (ACA-1), a origem aprovada do conteúdo técnico continua sendo cuidado de quem publica.
 13. **Bloqueio de funções do CRM por treinamento** (ex.: não receber leads sem a Formação): fora desta fase; só com decisão sua depois de ver o uso real.

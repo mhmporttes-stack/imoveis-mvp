@@ -14,7 +14,7 @@ Variável de ambiente `ACADEMIA_ENABLED` (`lib/academy-flags.js`; lida a cada re
 - Vitrine sem login (só `next dev`): `app/dev/vitrine/academia/page.dev.jsx` (`?ate=N` conclui N aulas; `?rm=1` movimento reduzido). Não entra no `next build`.
 
 ## Permissões e "Alterar conta"
-Os 4 perfis com sessão válida entram (`requireAdminPage`). **Edição de conteúdo: Admin e Gerente** (regra oficial de 2026-10-04, ACA-1; implementação na F3). A decisão por perfil dos demais pontos (associado, gestão, publicação) fica para a F2+ (plano §3). Na F1 não há escrita real: tudo é exemplo na memória da página (reinicia ao recarregar; só a preferência "Reduzir movimento" usa `localStorage`). Em "Alterar conta" a Academia se comporta igual (leitura de exemplo); o bloqueio de escrita em view-as é regra da F2 (plano §1, decisão do dono pendente).
+Os 4 perfis com sessão válida entram (`requireAdminPage`). **Edição e publicação de conteúdo: Admin e Gerente, direto, sem aprovação extra** (regra oficial de 2026-10-04, ACA-1; implementação na F3). Associados participam normalmente (ACA-9). Na F1 não há escrita real: tudo é exemplo na memória da página (reinicia ao recarregar; só a preferência "Reduzir movimento" usa `localStorage`). Em "Alterar conta" a Academia se comporta igual (leitura de exemplo); o bloqueio de escrita em view-as é regra oficial (somente leitura na Academia, ACA-10), implementada na F2 (plano §1).
 
 ## Limitações conhecidas da F1
 - O gabarito dos exemplos (`SAMPLE_QUESTIONS`) está no bundle do navegador porque a correção roda no cliente. Só existe com dado de exemplo; na F2 a correção passa ao servidor e o gabarito nunca vai ao cliente.
@@ -23,3 +23,6 @@ Os 4 perfis com sessão válida entram (`requireAdminPage`). **Edição de conte
 
 ## O que a F2 troca
 `lib/academy-sample*.mjs` por leitura/escrita no banco (`academy_*`, migrations 14 dígitos), rotas `app/api/admin/academia/**` com guard e escopo (registrar em `PERMISSIONS.md` §6), progresso real do próprio corretor, bloqueio de escrita em "Alterar conta". O formato do snapshot é o contrato: a interface não muda.
+
+## Decisões do dono (2026-10-04)
+Registradas em `.claude/rules/academia.md` e `docs/BUSINESS_RULES.md` (ACA-1 a ACA-10): publicação direta por Admin e Gerente, 3 tentativas, nota 70% em todas as provas, Formação Inicial obrigatória para novos, certificado só com 100% e nota mínima (verificação pública depois), histórico preservado e "Alterar conta" somente leitura. Nada disso está implementado ainda (F2 em diante).
