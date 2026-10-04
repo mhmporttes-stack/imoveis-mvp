@@ -30,7 +30,7 @@ Os 4 perfis com sessão válida entram (`requireAdminPage`). **Edição e public
 - Falta teste em iPhone real, DPR 2 e 1920 em tempo real (handoff §7).
 
 ## O que vem depois
-F3: painel de edição/publicação de conteúdo (Admin e Gerente, ACA-1) e conteúdo real; F4: banco de questões e provas com várias questões na interface; F5: certificados; F6: gestão (equipe, liberar tentativa extra); F7: reciclagens e recomendações. O contrato do snapshot continua sendo a fronteira: a interface não muda.
+F3: painel de edição/publicação de conteúdo (Admin e Gerente, ACA-1) e conteúdo real; F4: banco de questões e provas com várias questões na interface; F5: certificados; F6: gestão (equipe, atrasos; a liberação de tentativa extra já vem na F3); F7: reciclagens e recomendações. O contrato do snapshot continua sendo a fronteira: a interface não muda.
 
 ## Decisões do dono (2026-10-04)
 Registradas em `.claude/rules/academia.md` e `docs/BUSINESS_RULES.md` (ACA-1 a ACA-10): publicação direta por Admin e Gerente, 3 tentativas por prova, nota 70% em todas as provas, Formação Inicial obrigatória para novos, certificado só com 100% e nota mínima (verificação pública depois), histórico preservado e "Alterar conta" somente leitura. Aplicadas na F2: nota 70%, 3 tentativas por prova, histórico preservado, somente leitura em "Alterar conta"; as demais entram nas fases indicadas acima.

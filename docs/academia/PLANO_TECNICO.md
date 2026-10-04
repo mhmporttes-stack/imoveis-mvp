@@ -132,7 +132,7 @@ Outros pontos: `app/api/admin/*` hoje ~85 rotas (inventário em `docs/PERMISSION
 
 1. **Quem edita o conteúdo?** **DECIDIDO em 2026-10-04: Admin e Gerente criam, editam e publicam diretamente, sem aprovação adicional** (ACA-1; substitui a recomendação anterior de só o admin geral).
 2. **A Formação Inicial é obrigatória? Para quem?** **DECIDIDO em 2026-10-04: obrigatória para novos associados e corretores** (ACA-7). Em aberto: se vale para os atuais (recomendação: opcional). Por enquanto só orienta e mostra atraso; não trava nada do CRM.
-3. **Nota mínima e tentativas.** **DECIDIDO em 2026-10-04: 70% (7,0) em quizzes, provas de módulo e prova final; máximo de 3 tentativas por prova** (ACA-2). Em aberto: se o gestor libera nova tentativa ao esgotar e se a nota é ajustável por prova.
+3. **Nota mínima e tentativas.** **DECIDIDO em 2026-10-04: 70% (7,0) em quizzes, provas de módulo e prova final; máximo de 3 tentativas por prova** (ACA-2). **DECIDIDO em 2026-10-04:** esgotadas as 3, Admin e Gerente podem liberar +1 tentativa extra, manual, por aluno e prova, com registro de quem e quando (nunca automático/ilimitado). Em aberto: se a nota é ajustável por prova.
 4. **Certificado só com 100%?** **DECIDIDO em 2026-10-04: só após 100% da formação concluída e a nota mínima cumprida; verificação pública em fase posterior** (ACA-8). Se a trilha mudar depois, quem já tem certificado mantém o da versão que fez.
 5. **Admin em "Alterar conta".** **DECIDIDO em 2026-10-04: somente leitura na Academia** (ACA-10); o admin faz a própria formação com o próprio login.
 6. **Prova final = último andar (a coroa)?** Recomendo sim: coroa só acende após a prova final aprovada.
