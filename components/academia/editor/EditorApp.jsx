@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import s from "./editor.module.css";
 import { academiaSans, academiaSerif } from "../fonts";
-import { act, getVersion, listTracks } from "./api";
+import { act, getBank, getVersion, listTracks } from "./api";
+import BankPanel from "./BankPanel";
 import GrantsPanel from "./GrantsPanel";
 import VersionEditor from "./VersionEditor";
 
@@ -24,6 +25,9 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [draftNote, setDraftNote] = useState("");
+  const [bank, setBank] = useState(null);
+  const reloadBank = useCallback(async () => { try { setBank((await getBank()).questions); } catch (e) { setError(e.message); } }, []);
+  useEffect(() => { reloadBank(); }, [reloadBank]);
 
   const refreshTracks = useCallback(async () => {
     const { tracks: list } = await listTracks();
@@ -48,6 +52,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
     try {
       const { result } = await act(action, input);
       if (okMessage) setNote(okMessage);
+      if (action === "setQuestion") reloadBank();
       const list = await refreshTracks();
       if (opts.closeVersion) { setVersionId(""); setTree(null); }
       else if (action === "createDraft") setVersionId(result.versionId);
@@ -58,7 +63,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
       setError(e.code === "publish_blocked" && e.extra?.issues?.length ? `${e.message} ${e.extra.issues.map((i) => i.message).join(" ")}` : e.message);
       if (versionId) refreshTree(versionId).catch(() => {});
     } finally { setBusy(false); }
-  }, [readOnly, refreshTracks, refreshTree, versionId]);
+  }, [readOnly, refreshTracks, refreshTree, reloadBank, versionId]);
 
   const published = track?.versions.find((v) => v.status === "published");
   const hasDraft = track?.versions.some((v) => v.status === "draft");
@@ -72,6 +77,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
         </div>
         <div className={s.tabs} role="tablist" aria-label="Seções da gestão">
           <button type="button" role="tab" className={s.tab} aria-selected={tab === "content"} onClick={() => setTab("content")}>Conteúdo</button>
+          <button type="button" role="tab" className={s.tab} aria-selected={tab === "bank"} onClick={() => setTab("bank")}>Banco de questões</button>
           <button type="button" role="tab" className={s.tab} aria-selected={tab === "grants"} onClick={() => setTab("grants")}>Liberações de tentativa</button>
         </div>
         {readOnly ? <p className={`${s.msg} ${s.err}`}>Modo de visualização ("Alterar conta"): você pode ver, mas nada é gravado.</p> : null}
@@ -79,6 +85,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
         {note ? <p className={`${s.msg} ${s.ok}`} role="status">{note}</p> : null}
 
         {tab === "grants" ? <GrantsPanel readOnly={readOnly} /> : null}
+        {tab === "bank" ? <BankPanel bank={bank} readOnly={readOnly} reload={reloadBank} onError={setError} onNote={setNote} /> : null}
 
         {tab === "content" ? (
           !tracks ? <p className={s.muted}>Carregando…</p> : !track ? <p className={s.muted}>Nenhuma trilha cadastrada.</p> : (
@@ -114,7 +121,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
                 {!published && !hasDraft ? <button type="button" className={`${s.btn} ${s.pri}`} style={{ marginTop: 10 }} disabled={busy || readOnly} onClick={() => run("createDraft", { trackId: track.id }, "Rascunho vazio criado.")}>Criar rascunho</button> : null}
                 {!hasDraft ? <><label className={s.lab} htmlFor="dn">Nota do rascunho (opcional)</label><input id="dn" className={s.in} value={draftNote} maxLength={400} onChange={(e) => setDraftNote(e.target.value)} /></> : <p className={s.muted}>Já existe um rascunho nesta trilha (só um por vez).</p>}
               </div>
-              {tree ? <VersionEditor key={tree.version.id} tree={tree} run={run} busy={busy} /> : <p className={s.muted}>Escolha uma versão para ver ou editar.</p>}
+              {tree ? <VersionEditor key={tree.version.id} tree={tree} run={run} busy={busy} bank={bank} /> : <p className={s.muted}>Escolha uma versão para ver ou editar.</p>}
               <div className={s.card}>
                 <h2>Histórico</h2>
                 {track.history.length === 0 ? <p className={s.muted}>Sem registros ainda.</p> : <ul className={s.hist}>{track.history.map((h) => <li key={h.id}>{fmt(h.at)} · {ACTION_LABEL[h.action] || h.action}{h.versionNumber ? ` (v${h.versionNumber})` : ""}{h.by ? ` · ${h.by}` : ""}</li>)}</ul>}

@@ -34,7 +34,7 @@ function Activities({ items }) {
 
 export default function LessonScreen({ lesson, on, review, onBack, onNext, headingRef, isSample }) {
   const hasQuiz = lesson.hasQuiz !== false;
-  const label = hasQuiz ? (review ? "Revisar questão" : "Fazer a questão") : review ? "Voltar à trilha" : "Concluir aula";
+  const label = lesson.multiExam ? (review ? "Revisar prova" : "Fazer a prova") : hasQuiz ? (review ? "Revisar questão" : "Fazer a questão") : review ? "Voltar à trilha" : "Concluir aula";
   return (
     <section className={`${s.scr} ${on ? s.on : ""}`} aria-labelledby="acd-aH">
       <div className={s.pbar}>

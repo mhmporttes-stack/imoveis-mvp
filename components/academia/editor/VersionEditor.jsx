@@ -4,6 +4,7 @@ import { useState } from "react";
 import s from "./editor.module.css";
 import ConfirmButton from "./ConfirmButton";
 import LessonEditor from "./LessonEditor";
+import ExamComposer from "./ExamComposer";
 
 const move = (arr, i, d) => { const a = [...arr]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; };
 
@@ -25,7 +26,7 @@ function ModuleTitle({ mod, editable, run }) {
 }
 
 // Árvore de uma versão: módulos > aulas. Só rascunho é editável; versões publicadas/aposentadas são somente leitura.
-export default function VersionEditor({ tree, run, busy }) {
+export default function VersionEditor({ tree, run, busy, bank }) {
   const { version, modules, validation } = tree;
   const editable = version.editable;
   const [open, setOpen] = useState({});
@@ -65,6 +66,16 @@ export default function VersionEditor({ tree, run, busy }) {
               <ConfirmButton onConfirm={() => run("deleteModule", { moduleId: m.id }, "Módulo excluído.")}>Excluir</ConfirmButton>
             </div> : null}
           </div>
+          {(m.exam || editable) ? (
+            <div className={s.lesson}>
+              <div className={s.lessonH}>
+                <strong>Prova do módulo {mi + 1}</strong>
+                <span className={s.muted}>{m.exam ? `${m.exam.questions.length} questão(ões)` : "sem prova"}{m.requires_exam ? " · obrigatória para concluir o módulo" : ""}</span>
+                <button type="button" className={`${s.btn} ${s.sm}`} aria-expanded={Boolean(open[`ex-${m.id}`])} onClick={() => toggle(`ex-${m.id}`)}>{open[`ex-${m.id}`] ? "Fechar" : editable ? "Configurar" : "Ver"}</button>
+              </div>
+              {open[`ex-${m.id}`] ? <ExamComposer key={`${m.id}-${m.exam?.examId || "none"}-${m.exam?.questions?.length || 0}`} target={{ moduleId: m.id }} exam={m.exam} bank={bank} editable={editable} run={run} title="Prova do módulo (questões do banco)" /> : null}
+            </div>
+          ) : null}
           {m.lessons.map((l, li) => (
             <div key={l.id} className={s.lesson}>
               <div className={s.lessonH}>
@@ -76,7 +87,7 @@ export default function VersionEditor({ tree, run, busy }) {
                 </> : null}
                 <button type="button" className={`${s.btn} ${s.sm}`} aria-expanded={Boolean(open[l.id])} onClick={() => toggle(l.id)}>{open[l.id] ? "Fechar" : editable ? "Editar" : "Ver"}</button>
               </div>
-              {open[l.id] ? <LessonEditor lesson={l} modules={modules} editable={editable} run={run} /> : null}
+              {open[l.id] ? <LessonEditor lesson={l} modules={modules} editable={editable} run={run} bank={bank} /> : null}
             </div>
           ))}
           {editable ? (

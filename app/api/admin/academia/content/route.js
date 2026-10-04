@@ -8,10 +8,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ID_KEYS = ["trackId", "fromVersionId", "versionId", "moduleId", "lessonId", "activityId", "toModuleId", "parentId"];
+const ID_KEYS = ["trackId", "fromVersionId", "versionId", "moduleId", "lessonId", "activityId", "toModuleId", "parentId", "questionId"];
 const ACTIONS = [
   "createDraft", "discardDraft", "publish", "addModule", "updateModule", "deleteModule", "addLesson", "updateLesson", "deleteLesson",
-  "moveLesson", "setQuestion", "removeQuestion", "addActivity", "updateActivity", "deleteActivity", "reorder"
+  "moveLesson", "setQuestion", "removeQuestion", "addActivity", "updateActivity", "deleteActivity", "reorder",
+  "bankSave", "bankRetire", "setExam", "removeExam"
 ];
 const bodySchema = z.object({ action: z.enum(ACTIONS) }).passthrough();
 
@@ -24,6 +25,7 @@ export async function GET(request) {
   try {
     const content = getAcademyContent();
     if (!content) return NextResponse.json({ error: "Banco indisponível." }, { status: 503 });
+    if (new URL(request.url).searchParams.get("bank") === "1") return NextResponse.json({ questions: await content.bankList() });
     return NextResponse.json({ tracks: await content.listTracks() });
   } catch (error) {
     return academyErrorResponse(error);
@@ -47,6 +49,9 @@ export async function POST(request) {
   }
   if (input.orderedIds != null && !(Array.isArray(input.orderedIds) && input.orderedIds.every((id) => typeof id === "string" && UUID.test(id)))) {
     return NextResponse.json({ error: "Ordem inválida.", code: "invalid_order" }, { status: 400 });
+  }
+  if (input.questionIds != null && !(Array.isArray(input.questionIds) && input.questionIds.every((id) => typeof id === "string" && UUID.test(id)))) {
+    return NextResponse.json({ error: "Questões inválidas.", code: "invalid_exam" }, { status: 400 });
   }
   try {
     const actor = assertCanManage(resolveManagementActor(auth));

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import s from "./editor.module.css";
 import ConfirmButton from "./ConfirmButton";
+import ExamComposer from "./ExamComposer";
 
 const BLOCK_LABEL = { heading: "Título", paragraph: "Parágrafo", list: "Lista", callout: "Destaque" };
 const ACT_LABEL = { tip: "Dica", example: "Exemplo", checklist: "Lista de verificação" };
@@ -107,7 +108,7 @@ function ActivityEditor({ activity, editable, run, onUp, onDown }) {
   );
 }
 
-export default function LessonEditor({ lesson, modules, editable, run }) {
+export default function LessonEditor({ lesson, modules, editable, run, bank }) {
   const [title, setTitle] = useState(lesson.title);
   const [minutes, setMinutes] = useState(String(lesson.est_minutes));
   const [newKind, setNewKind] = useState("tip");
@@ -123,6 +124,8 @@ export default function LessonEditor({ lesson, modules, editable, run }) {
       </div>
       <BlocksEditor key={`b-${lesson.id}-${JSON.stringify(lesson.body?.blocks || [])}`} lesson={lesson} editable={editable} run={run} />
       <QuestionEditor key={`q-${lesson.id}-${lesson.question?.id || "none"}`} lesson={lesson} editable={editable} run={run} />
+      <ExamComposer key={`x-${lesson.id}-${lesson.exam?.examId || "none"}-${lesson.exam?.questions?.length || 0}`} target={{ lessonId: lesson.id }} exam={lesson.exam && lesson.exam.questions.length > 1 ? lesson.exam : null}
+        bank={bank} editable={editable} run={run} title={lesson.kind === "final_exam" ? "Prova final com várias questões (do banco)" : "Prova com várias questões (do banco)"} />
       <div className={s.sub}>
         <h3>Atividades da aula</h3>
         {lesson.activities.length === 0 ? <p className={s.muted}>Nenhuma atividade.</p> : null}

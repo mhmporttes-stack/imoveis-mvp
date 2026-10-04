@@ -118,7 +118,7 @@ export function createEngine(styles) {
       t.lz = z(lerp(wide ? 1.1 : 1.05, 0.52, q));
       t.tx = wide ? 0.68 : 0.76; t.ay = lerp(0.52, 0.55, q); t.pcm = 1; t.cs = 0.4;
       OM.fl = 6; OM.bb = 7; OM.pv = 7; OM.lz = 5;
-    } else if (v === "aula" || v === "quiz") {
+    } else if (v === "aula" || v === "quiz" || v === "prova") {
       t.fl = ctx.open + 0.5; t.cx = WINX(1) + 17; t.lz = z(4.2); t.tx = 0.5; t.ay = 0.5; t.dive = 1; t.o_pct = 0; t.o_lbl = 0; t.o_nav = 0; t.bb = ctx.n; OM.lz = 4.2;
     } else if (v === "conq") {
       const ph = ctx.cq;

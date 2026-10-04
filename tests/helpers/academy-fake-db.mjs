@@ -201,6 +201,7 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
       const exams = t.academy_exams.filter((x) => x.track_version_id === v.id);
       if (mods.some((m) => lessonsOf(m).some((l) => l.kind === "final_exam" && !exams.some((x) => x.lesson_id === l.id)))) return { error: err("publish_invalid_final_without_exam") };
       if (exams.some((x) => !t.academy_exam_questions.some((q) => q.exam_id === x.id))) return { error: err("publish_invalid_exam_without_question") };
+      if (mods.some((m) => m.requires_exam && !exams.some((x) => x.module_id === m.id && x.kind === "module"))) return { error: err("publish_invalid_module_exam_missing") };
       const prev = t.academy_track_versions.find((x) => x.track_id === v.track_id && x.status === "published");
       if (prev) prev.status = "retired";
       v.status = "published"; v.published_at = now(); v.published_by = p.p_actor; if (p.p_note) v.change_note = p.p_note;

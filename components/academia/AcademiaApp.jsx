@@ -19,6 +19,7 @@ import TrailView from "./TrailView";
 import EvolutionView from "./EvolutionView";
 import LessonScreen from "./LessonScreen";
 import QuestionScreen from "./QuestionScreen";
+import ExamScreen from "./ExamScreen";
 import AchievementMoment from "./AchievementMoment";
 import CertificationMoment from "./CertificationMoment";
 import MenuSheet from "./MenuSheet";
@@ -26,8 +27,8 @@ import AcademiaToast from "./AcademiaToast";
 
 const SceneStage = dynamic(() => import("./scene/SceneStage"), { ssr: false, loading: () => null });
 
-const NAMES = { home: "Início", trilha: "Trilha", evo: "Evolução", aula: "Aula", quiz: "Questão", conq: "Conquista", cert: "Certificação" };
-const HOLD = new Set(["aula", "quiz", "conq"]); // a cena mostra o "antes" até a Conquista animar
+const NAMES = { home: "Início", trilha: "Trilha", evo: "Evolução", aula: "Aula", quiz: "Questão", prova: "Prova", conq: "Conquista", cert: "Certificação" };
+const HOLD = new Set(["aula", "quiz", "prova", "conq"]); // a cena mostra o "antes" até a Conquista animar
 const LS_KEY = "mm-academia-reduzir-movimento";
 
 // `initial` = dados reais do servidor (F2); sem `initial` nem `store`, roda com os dados de exemplo (vitrine/testes).
@@ -57,7 +58,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
   const fromRef = useRef("trilha");
   const keepHome = useRef(false);
   const prevView = useRef("home");
-  const heads = { aula: useRef(null), quiz: useRef(null), conq: useRef(null), cert: useRef(null) };
+  const heads = { aula: useRef(null), quiz: useRef(null), prova: useRef(null), conq: useRef(null), cert: useRef(null) };
   const pcRef = useRef(null);
 
   /* ---------- dados derivados (nada de regra: só reorganiza o snapshot) ---------- */
@@ -185,11 +186,15 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
   // Aula do aluno: com questão vai à tela da questão; sem questão (F3) conclui por botão (o servidor valida a ordem).
   const onLessonAction = async () => {
     if (!lesson) return;
+    if (lesson.multiExam) { store.openExam(lesson.id); goTo("prova"); focusSoon("prova", 50); return; }
     if (lesson.hasQuiz !== false) { goTo("quiz"); focusSoon("quiz", 50); return; }
     if (lesson.state === "done") { closeLesson(); return; }
     const r = await store.completeLesson(lesson.id);
     if (r?.changed) startConq();
   };
+  const examState = snap.exam || null;
+  const examBack = () => { store.closeExam(); goTo("aula"); };
+  const examFinish = () => { const ev = store.getSnapshot().achievement; store.closeExam(); if (ev.available) startConq(); else closeLesson(); };
   const exhausted = Boolean(quiz?.exhausted);
   const onQuizAction = () => {
     if (!quiz) return;
@@ -254,7 +259,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
     else if (act.kind === "get_certificate") goTo("cert");
   };
 
-  const onPlane = view === "aula" || view === "quiz";
+  const onPlane = view === "aula" || view === "quiz" || view === "prova";
   return (
     <AcademiaShell engine={engine} view={view} reduced={reduced} sceneReady={sceneReady}>
       <SceneStage engine={engine} total={total} mr={mr} onReady={() => setSceneReady(true)} />
@@ -279,6 +284,11 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
           {lesson ? (
             <LessonScreen lesson={lesson} on={view === "aula"} review={lesson.state === "done"} isSample={snap.isSample} headingRef={heads.aula}
               onBack={closeLesson} onNext={onLessonAction} />
+          ) : null}
+          {examState ? (
+            <ExamScreen exam={examState} title={lesson?.title || "Prova"} on={view === "prova"} headingRef={heads.prova}
+              onAnswer={(qid, oid, multiple) => store.answerExam(qid, oid, multiple)} onSubmit={() => store.submitExam()}
+              onRetry={() => store.openExam(lesson.id)} onFinish={examFinish} onBack={examBack} />
           ) : null}
           {quiz ? (
             <QuestionScreen quiz={quiz} on={view === "quiz"} sel={sel} answered={answered} actionLabel={quizLabel} headingRef={heads.quiz}

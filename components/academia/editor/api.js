@@ -19,3 +19,4 @@ export const getVersion = (id) => request(`/content/versions/${id}`);
 export const act = (action, input = {}) => request("/content", { method: "POST", body: JSON.stringify({ action, ...input }) });
 export const listGrants = () => request("/grants");
 export const grantExtra = (enrollmentId, examId, reason) => request("/grants", { method: "POST", body: JSON.stringify({ enrollmentId, examId, ...(reason ? { reason } : {}) }) });
+export const getBank = () => request("/content?bank=1");

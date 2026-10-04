@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Academia F4: avaliações completas e banco de questões
+- **Data:** 2026-10-04
+- **Área:** Backend / Frontend / Banco (Academia atrás de `ACADEMIA_ENABLED`, desligada)
+- **Alteração:** provas com várias questões do banco (fixas ou sorteadas, sorteio determinístico), prova de módulo (aula virtual no fim do módulo), nota mínima 70% ajustável só para cima, histórico de tentativas, `ExamScreen`, rota `GET exams/[examId]/questions`; editor com banco de questões (versionado) e compositor de prova; migration `20261004150000_academy_f4_exams_bank` (publicação exige prova em módulo com prova obrigatória; índice por tema), aplicada em produção.
+- **Motivo:** execução do plano (F4) a pedido do dono. Decisões menores: sem tempo limite aplicado; nota mínima nunca abaixo de 70%; limite de tentativas não editável.
+- **Arquivos afetados:** `lib/academy-{core,service,content,content-core,content-repo,repo,remote-store,views,server}`, `app/api/admin/academia/{content,exams/[examId]/questions}`, `components/academia/{ExamScreen,AcademiaApp,LessonScreen}.jsx`, `components/academia/editor/{BankPanel,ExamComposer,...}`, testes `tests/academy-exams.test.mjs`, `supabase/tests/academy_f4.sql`, docs.
+- **Risco/observação:** fluxo do aluno e do editor validados no navegador com a API simulada; sem login real nem iPhone real.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Academia F3: gestão de conteúdo (Admin e Gerente) + liberação de +1 tentativa
 - **Data:** 2026-10-04
 - **Área:** Banco / Backend / Frontend (`/academia/editor`, `app/api/admin/academia/{content,grants}`; Academia segue atrás de `ACADEMIA_ENABLED`, desligada)
