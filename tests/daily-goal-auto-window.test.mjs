@@ -116,7 +116,8 @@ test("trava final relê a configuração antes do envio e roda antes de sendIndi
 
 test("opt-out/Não contactar/cliente que respondeu nunca voltam para a fila; cron duplicado não envia duas vezes", () => {
   const code = source("lib/daily-goal-auto.js");
-  const enqueue = code.slice(code.indexOf("async function enqueueTodayItemsForBroker"), code.indexOf("function minutesTodayToIso"));
+  // A busca/filtro de rodadas elegíveis foi extraída para loadEligibleEnqueueRounds (2026-10-04, compartilhada com a política v2).
+  const enqueue = code.slice(code.indexOf("async function loadEligibleEnqueueRounds"), code.indexOf("function minutesTodayToIso"));
   assert.match(enqueue, /\.eq\("status", "active"\)/, "rodada convertida (respondeu) ou encerrada (opt-out) não entra");
   assert.match(enqueue, /round\.contact\?\.status !== "do_not_contact"/);
   const claim = source("supabase/migrations/20260929190000_daily_goal_auto_dispatch.sql");

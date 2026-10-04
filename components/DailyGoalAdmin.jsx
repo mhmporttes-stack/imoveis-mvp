@@ -218,6 +218,31 @@ function AutomationTab() {
     }
   }
 
+  // Política nova de disparos (2026-10-04): chave por corretor, só o administrador geral consegue (o servidor recusa
+  // os demais). Troca as regras da fila pendente de agora (refeita uma vez).
+  async function togglePolicyV2(brokerId, brokerName, policyV2Enabled) {
+    const question = policyV2Enabled
+      ? `Ligar a política nova de disparos para ${brokerName}? Máximo de 30 mensagens por dia, das 6h30 às 15h30, de segunda a sábado, com intervalos e pausas. A fila de hoje será refeita.`
+      : `Voltar ${brokerName} para a política antiga de disparos? A fila de hoje será refeita.`;
+    if (typeof window !== "undefined" && !window.confirm(question)) return;
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, policyV2Enabled })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível atualizar.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   // Liga/desliga a automação de um corretor — o corretor não controla mais
   // isso sozinho (pedido do dono, 2026-09-30), então precisa ter como o
   // admin ativar pela 1ª vez ou desligar de vez (diferente de "Pausar", que
@@ -393,6 +418,15 @@ function AutomationTab() {
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
                   <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%${broker.maxAvgGapMinutes ? ` (média máx. ${broker.maxAvgGapMinutes} min)` : ""}` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
                   <span>· {broker.businessDaysOnly ? "Segunda a sábado" : "Todos os dias"}</span>
+                  <span>· Política: {broker.policyV2Enabled ? "nova (30 por dia, 6h30–15h30)" : "antiga"}</span>
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-brand hover:underline"
+                    disabled={busyId === broker.brokerId}
+                    onClick={() => togglePolicyV2(broker.brokerId, broker.brokerName, !broker.policyV2Enabled)}
+                  >
+                    {broker.policyV2Enabled ? "Voltar à política antiga" : "Ligar política nova"}
+                  </button>
                   <span className="flex items-center gap-1">
                     · Teto diário:
                     <BrokerCapInput

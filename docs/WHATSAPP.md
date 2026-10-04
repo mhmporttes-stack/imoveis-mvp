@@ -105,6 +105,10 @@ Definição `whatsapp_session_attention` em `crm_alert_definitions` (Importante,
 - **Clique:** `context.link = /admin/meta-diaria` (visão da equipe com o chip de WhatsApp por corretor; para admin que não é o dono abre a Meta Diária pessoal). A Central mostra "Entendi e abrir" (Importante) / "Abrir" (Informativo) para qualquer alerta com `context.link` interno (`alertLink`, só `/admin/...`).
 - Sem a linha da definição no banco o código não alerta (`definicao_ausente`, sem erro).
 
+## 1-C. Política de disparos v2 e monitor de entrega (2026-10-04) — **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]**
+
+Disparos automáticos do WhatsApp individual (Meta Diária automática + fila extra "Disparar") de um corretor com `daily_goal_auto_settings.policy_v2_enabled = true` (padrão false; chave por corretor, só admin geral): 30/dia (10/10/10), seg–sáb 06:30–15:30, intervalo 90 s–8 min, pausa 15–30 min a cada ~10, reconexão sem rajada (atrasados reprogramados; 1º envio ≥ 5 min após `last_connected_at`), modelos novos com "responda SAIR". Um **monitor** (sempre ligado, leitura + e-mail à gestora via Resend, sem migration) avisa quando a % de `delivered_at` cai abaixo de 60% (amostra ≥ 20, 1–24 h atrás); não pausa nada. O serviço do Railway não foi alterado. Detalhe e como pausar à mão: `docs/OPERACAO_DISPAROS.md`; regras: `.claude/rules/meta-diaria-ranking.md`.
+
 ## 2. Configuração (nomes de variáveis — nunca valores)
 
 `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_DISPLAY_PHONE_NUMBER` (número público do botão “Receber minha simulação”), `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_GRAPH_API_VERSION` (padrão do código `v23.0`), `WHATSAPP_REMINDER_TEMPLATE_NAME`/`_LANGUAGE`, `WHATSAPP_APP_ID`/`META_APP_ID` (upload da foto de perfil — Resumable Upload), `APP_SECRET` (alias/fallback de `WHATSAPP_APP_SECRET` na validação da assinatura do webhook — `getAppSecret()` em `lib/whatsapp-master.js`). Só as 9 primeiras estão em `.env.example`.
