@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Academia F5: certificados
+- **Data:** 2026-10-04
+- **Área:** Banco / Backend / Frontend (Academia atrás de `ACADEMIA_ENABLED`, desligada)
+- **Alteração:** certificado emitido automaticamente pelo banco ao concluir a matrícula (idempotente, código `MM-XXXX-XXXX-XXXX`, snapshot), PDF (pdf-lib), tela de Certificação com código e download reais, revogação/reemissão (só Admin, com motivo, auditada), verificação interna por código; migration `20261004160000_academy_f5_certificates` aplicada em produção; regularização de matrículas concluídas sem certificado.
+- **Motivo:** execução do plano (F5). Decisão menor: verificação pública não implementada (o dono adiou); a interna exige login de Admin/Gerente.
+- **Arquivos afetados:** `supabase/migrations/20261004160000_*`, `supabase/tests/academy_f5.sql`, `lib/academy-{certificates,certificate-pdf,service,repo,views,remote-store,server}`, `app/api/admin/academia/certificates/**`, `components/academia/CertificationMoment.jsx`, `tests/academy-certificates.test.mjs`, docs.
+- **Risco/observação:** PDF validado por estrutura (`%PDF`), não visualmente em leitor real.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Academia F4: avaliações completas e banco de questões
 - **Data:** 2026-10-04
 - **Área:** Backend / Frontend / Banco (Academia atrás de `ACADEMIA_ENABLED`, desligada)

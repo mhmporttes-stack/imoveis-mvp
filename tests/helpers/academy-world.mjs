@@ -7,6 +7,7 @@ import { createAcademyContentRepo } from "../../lib/academy-content-repo.mjs";
 import { createAcademyService } from "../../lib/academy-service.mjs";
 import { createAcademyContent } from "../../lib/academy-content.mjs";
 import { createAcademyGrants } from "../../lib/academy-grants.mjs";
+import { createAcademyCertificates } from "../../lib/academy-certificates.mjs";
 
 export const ADMIN = { userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", email: "admin@x.com", readOnly: false };
 export const MANAGER = { userId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", email: "gestor@x.com", readOnly: false };
@@ -35,7 +36,8 @@ export function buildWorld({ finalMax = 3 } = {}) {
     db, track, ver, m: [m1, m2], l, e, ins,
     svc: createAcademyService(repo, { now: () => "2026-10-04T12:00:00.000Z" }),
     content: createAcademyContent(repo),
-    grants: createAcademyGrants(repo)
+    grants: createAcademyGrants(repo),
+    certificates: createAcademyCertificates(repo)
   };
 }
 export const answer = (e, optionId) => ({ [e.q.id]: [optionId] });

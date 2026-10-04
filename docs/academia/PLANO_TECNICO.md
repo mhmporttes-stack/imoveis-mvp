@@ -1,5 +1,5 @@
 > Origem: plano técnico aprovado da Academia (feat/academia), copiado do repasse de 2026-10-04 e atualizado no mesmo dia com as decisões do dono (`.claude/rules/academia.md`, `docs/BUSINESS_RULES.md` ACA-1 a ACA-7). Trechos atualizados trazem **[ATUALIZADO 2026-10-04]**.
-> Estado: F0 a F4 feitas (ver `../ACADEMIA.md`); F5 em diante são PLANO. Visão geral atual: [`../ACADEMIA.md`](../ACADEMIA.md).
+> Estado: F0 a F5 feitas (ver `../ACADEMIA.md`); F6 em diante são PLANO. Visão geral atual: [`../ACADEMIA.md`](../ACADEMIA.md).
 > O que vale sobre o código é `../ACADEMIA.md`; este arquivo é a referência do plano.
 
 # Plano técnico: Academia dentro do CRM (imoveis-mvp)
@@ -109,7 +109,7 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | F2 **[FEITA 2026-10-04; incluiu também as migrations de provas/tentativas/respostas e o seed; correção e limite no servidor e em funções SQL atômicas]** | Migrations 1-2 + `lib` de matrícula/progresso + rotas `me`/`complete` + `academy_events`; trilha "Formação Inicial" com títulos neutros | Progresso real do próprio corretor persiste; view-as bloqueia escrita; testes de desbloqueio e permissão verdes | Flag off; tabelas ficam inertes |
 | F3 **[FEITA 2026-10-04; incluiu também a liberação manual de +1 tentativa (regra do dono) e atividades de leitura]** | Editor de aulas/atividades, rascunho/publicar/versão | Publicar cria versão imutável; matrícula antiga mantém a versão; histórico visível | Despublicar = voltar versão anterior (nada apagado) |
 | F4 **[FEITA 2026-10-04]** | Banco de questões, provas, tentativas, nota mínima, histórico | Correção só no servidor; limite de tentativas; snapshot do servido; nota e aprovação deterministas | Desligar prova por trilha (settings) |
-| F5 | Certificados internos com código, Conquista/Certificação com dados reais | Emissão idempotente (1 por matrícula), regra aprovada pelo dono; revogação auditada | Revogar, sem apagar |
+| F5 **[FEITA 2026-10-04; verificação pública adiada por decisão do dono]** | Certificados internos com código, Conquista/Certificação com dados reais | Emissão idempotente (1 por matrícula), regra aprovada pelo dono; revogação auditada | Revogar, sem apagar |
 | F6 | Visão de gestão (equipe, atrasos, filtros), atribuição por gestor | Gestor vê só `managedUserIds`; admin tudo; teste negativo (gestor tentando fora da equipe = 403) | Flag de gestão |
 | F7 | Reciclagens com prazo, auto-matrícula do novo corretor, recomendação por auditoria de atendimento (**só preparar/ler, sem disparar**) | Regras criadas desligadas; nenhuma notificação/WhatsApp real sem decisão do dono | Regras `off` |
 

@@ -116,12 +116,30 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
   }
 
   // ---- espelho em JS das funções SQL (a versão real é testada em supabase/tests/academy_f2.sql) ----
+  const issueCert = (e, actor, email) => {
+    const valid = t.academy_certificates.find((c) => c.enrollment_id === e.id && !c.revoked_at);
+    if (valid) return { certificate_id: valid.id, code: valid.code, issued_at: valid.issued_at, created: false };
+    const user = t.admin_users.find((u) => u.id === e.user_id);
+    const lessons = t.academy_lessons.filter((l) => t.academy_modules.find((m) => m.id === l.module_id)?.track_version_id === e.track_version_id).length;
+    const best = t.academy_exam_attempts.filter((a) => a.enrollment_id === e.id && a.passed && t.academy_exams.find((x) => x.id === a.exam_id)?.kind === "final").reduce((m, a) => Math.max(m, Number(a.score ?? 0)), 0) || null;
+    const track = t.academy_tracks.find((x) => x.id === e.track_id);
+    const hex = randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+    const c = { id: randomUUID(), enrollment_id: e.id, user_id: e.user_id, track_version_id: e.track_version_id, code: `MM-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`, issued_at: now(), issued_by: actor, issued_by_email: email,
+      snapshot: { holder_name: user?.name || user?.email || "Aluno", track_title: track?.title, track_slug: track?.slug, lessons_total: lessons, final_score: best, completed_at: e.completed_at }, revoked_at: null, revoked_reason: null };
+    t.academy_certificates.push(c);
+    t.academy_events.push({ id: randomUUID(), actor_user_id: actor, real_actor_email: email, user_id: e.user_id, action: "certificate_issued", ref: c.id, meta: { automatic: !actor && !email } });
+    return { certificate_id: c.id, code: c.code, issued_at: c.issued_at, created: true };
+  };
   const refresh = (enrollment) => {
     const lessons = t.academy_lessons.filter((l) => t.academy_modules.find((m) => m.id === l.module_id)?.track_version_id === enrollment.track_version_id);
     const done = t.academy_lesson_progress.filter((p) => p.enrollment_id === enrollment.id && p.status === "completed").length;
     const pending = t.academy_exams.filter((x) => x.track_version_id === enrollment.track_version_id && ["module", "final"].includes(x.kind)
       && !t.academy_exam_attempts.some((a) => a.enrollment_id === enrollment.id && a.exam_id === x.id && a.passed === true));
-    if (lessons.length && done >= lessons.length && !pending.length) { enrollment.status = "completed"; enrollment.completed_at ??= now(); }
+    if (lessons.length && done >= lessons.length && !pending.length) {
+      const was = enrollment.status;
+      enrollment.status = "completed"; enrollment.completed_at ??= now();
+      if (was !== "completed") issueCert(enrollment, null, null);
+    }
     return enrollment.status;
   };
   const rpcs = {
@@ -207,6 +225,21 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
       v.status = "published"; v.published_at = now(); v.published_by = p.p_actor; if (p.p_note) v.change_note = p.p_note;
       t.academy_events.push({ id: randomUUID(), actor_user_id: p.p_actor, real_actor_email: p.p_actor_email, action: "version_published", ref: v.id, meta: { track_id: v.track_id, version_number: v.version_number }, created_at: now() });
       return { data: { version_id: v.id, version_number: v.version_number, previous_version_id: prev?.id || null } };
+    },
+    academy_issue_certificate(p) {
+      const e = t.academy_enrollments.find((x) => x.id === p.p_enrollment_id);
+      if (!e) return { error: err("enrollment_not_found") };
+      if (e.status !== "completed") return { error: err("enrollment_not_completed") };
+      return { data: issueCert(e, p.p_actor, p.p_actor_email) };
+    },
+    academy_revoke_certificate(p) {
+      const c = t.academy_certificates.find((x) => x.id === p.p_certificate_id);
+      if (!c) return { error: err("certificate_not_found") };
+      if (c.revoked_at) return { error: err("already_revoked") };
+      if (!String(p.p_reason || "").trim()) return { error: err("reason_required") };
+      c.revoked_at = now(); c.revoked_reason = p.p_reason.trim(); c.revoked_by = p.p_actor; c.revoked_by_email = p.p_actor_email;
+      t.academy_events.push({ id: randomUUID(), actor_user_id: p.p_actor, real_actor_email: p.p_actor_email, user_id: c.user_id, action: "certificate_revoked", ref: c.id, meta: { code: c.code } });
+      return { data: { certificate_id: c.id, code: c.code } };
     },
     academy_complete_lesson(p) {
       const e = t.academy_enrollments.find((x) => x.id === p.p_enrollment_id);
