@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-04 — Regra do dono: decisões da Academia (edição, nota mínima, Fraunces, guindaste, orçamento)
+- **Data:** 2026-10-04
+- **Área:** Docs / Regras (nenhum código, banco, rota ou chave alterado)
+- **Alteração:** registradas como REGRA OFICIAL em `.claude/rules/academia.md` (nova) e `docs/BUSINESS_RULES.md` §18 (ACA-1 a ACA-7): Admin e Gerente criam/editam conteúdo; nota mínima dos quizzes 70%; Fraunces aprovada; metáfora do prédio com guindaste aprovada; teto de 150 KB só para a parte própria da Academia; fontes ≈92 KB aprovadas. Plano, `docs/ACADEMIA.md` e repasse de design atualizados onde conflitavam (matriz de permissões, guard das rotas de edição, itens do §8). Linhas de referência em `CLAUDE.md`, `AGENTS.md`, `auth-permissoes.md` e `frontend-pwa.md`.
+- **Motivo:** decisão do dono; a proposta anterior previa edição só pelo admin geral e orçamento/fontes como limites do plano.
+- **Arquivos afetados:** `.claude/rules/academia.md`, `docs/BUSINESS_RULES.md`, `docs/academia/PLANO_TECNICO.md`, `docs/academia/HANDOFF_DESIGN.md`, `docs/ACADEMIA.md`, `CLAUDE.md`, `AGENTS.md`, `.claude/rules/auth-permissoes.md`, `.claude/rules/frontend-pwa.md`, `docs/CHANGELOG_AI.md`.
+- **Risco/observação:** a edição por Admin e Gerente ainda não existe (F3). Seguem PENDENTES (ACA-1/2/7): quem publica, tentativas, nota das provas de módulo/final, Formação Inicial obrigatória, certificado, "Alterar conta" somente leitura, associados, retenção.
+- **Autor:** Claude Code
 ### 2026-10-04 — Academia F0/F1: rota /academia atrás de chave, experiência completa com dados de exemplo
 - **Data:** 2026-10-04
 - **Área:** Infra / Frontend (nova rota `/academia`; sem banco, sem API)

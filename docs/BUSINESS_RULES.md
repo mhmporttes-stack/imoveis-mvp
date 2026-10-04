@@ -204,6 +204,18 @@
 - **MAN-4 Confirmação de leitura e histórico.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Confirmação de leitura é opcional por novidade (`requires_ack`). Histórico de versões e leituras: só administrador.
 - **MAN-5 Confidencialidade permanente.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Manual, Novidades, notificações, busca, ajuda e API **nunca** documentam capacidades administrativas confidenciais relacionadas à visualização de conversas, históricos ou acessos que usuários comuns não possuem, e não as descrevem. Há guarda de conteúdo na escrita e a leitura omite conteúdo barrado (`lib/manual-guard.mjs`).
 
+## 18. Academia (ACA-x)
+
+> Decisões do dono de 2026-10-04. Nesta fase a Academia roda só com dados de exemplo (sem banco nem API). Estado e arquivos: [`ACADEMIA.md`](ACADEMIA.md) · Rule: `.claude/rules/academia.md` · Plano: [`academia/PLANO_TECNICO.md`](academia/PLANO_TECNICO.md).
+
+- **ACA-1 Quem edita o conteúdo.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** **Admin e Gerente (gestor)** criam e editam conteúdos (trilhas, módulos, aulas, atividades, questões); corretor e associado só estudam. **Substitui** a proposta do plano que previa edição só pelo admin geral (plano §3 e §8 atualizados). *Onde:* ainda não implementada (F3; rotas `app/api/admin/academia/content/**`). **[PENDENTE DE VALIDAÇÃO]** quem **publica**/aprova uma versão (só admin? o gerente também?), se o conteúdo tem alguma restrição por equipe (hoje é global) e quem aprova conteúdo técnico (financiamento, MCMV, documentação) antes de publicar.
+- **ACA-2 Nota mínima dos quizzes.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** Nota mínima para aprovação nos quizzes: **70% (7,0)**. *Onde:* `lib/academy-sample.mjs` (`settings.pass_score`), `lib/academy-core.mjs` (correção); a aplicação no servidor é a F4. **[PENDENTE DE VALIDAÇÃO]** número de tentativas (o plano recomenda 3), nota das provas de módulo e da prova final e se a nota é ajustável por prova.
+- **ACA-3 Fonte Fraunces.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** Fraunces aprovada (junto da Manrope), hospedada no app, sem Google Fonts em runtime. *Onde:* `components/academia/fonts/` (`next/font/local`, licença OFL).
+- **ACA-4 Metáfora do prédio com guindaste.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** Aprovada: o prédio em obra, com guindaste, visto por uma câmera; cada aula concluída acende um andar. *Onde:* `components/academia/scene/**`.
+- **ACA-5 Orçamento de peso.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** O teto de 150 KB (JS gz) aplica-se **somente à parte própria da Academia** (hoje 21,5 KB), não ao peso base do site. *Medição:* `.next/diagnostics/route-bundle-stats.json` (o First Load JS das rotas do CRM deve seguir idêntico).
+- **ACA-6 Fontes ≈92 KB.** **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]** Fontes de aproximadamente 92 KB (Fraunces 67.304 B + Manrope 24.836 B) aprovadas; o teto de 90 KB do plano deixa de valer.
+- **ACA-7 Em aberto (plano §8).** **[PENDENTE DE VALIDAÇÃO]** Formação Inicial obrigatória e para quem; regra do certificado e verificação pública; "Alterar conta" somente leitura (o plano recomenda); prova final como último andar; associados participam; retenção do histórico; bloqueio de funções do CRM por treinamento (fora de escopo). São recomendações do plano, ainda não decididas pelo dono.
+
 ## Consolidado — pontos **A CONFIRMAR**
 
 1. Estado real do banco de produção (nada foi consultado nesta auditoria): regras em `crm_automation_rules`, `scoring_rule_versions` vigentes, cota diária, `whatsapp_automation_replies` ativas, `crm_settings`.
@@ -214,3 +226,4 @@
 6. Se as respostas por “sim/não” semeadas continuam ativas e como o dono quer lidar com opt-out (PARAR/SAIR) — sem implementação hoje.
 7. Se os dados da tabela `leads` (modal da home) são consumidos por alguém fora do sistema (não há leitor no código).
 8. Volume real de clientes (> 1000 linhas afeta P-01).
+9. Academia: quem publica conteúdo, tentativas e notas de prova, e os demais pontos de ACA-7 (decisões do dono ainda não tomadas).

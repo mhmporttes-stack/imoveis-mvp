@@ -74,6 +74,7 @@ Quatro papéis em `admin_users.role`: **admin** (geral), **manager** (gestor de 
 | Financeiro (comissões, despesas, recebimentos) | `.claude/rules/financeiro.md` |
 | Integrações externas (WhatsApp, IA, e-mail, cron) | `.claude/rules/integracoes-externas.md` |
 | Convenções de frontend, PWA | `.claude/rules/frontend-pwa.md` |
+| Academia (formação dos corretores) | `.claude/rules/academia.md` |
 | Workflow de dev, build, deploy, testes | `.claude/rules/workflow-dev.md` |
 
 **Como isso é carregado (verificado na doc oficial do Claude Code em 2026-10-01):** `CLAUDE.md` é lido no início da sessão. Skills só carregam a descrição no início; o corpo entra quando são invocadas. Rules **sem** `paths:` no frontmatter (`workflow-dev.md`, `auth-permissoes.md`) carregam em toda sessão. As demais têm `paths:` e **só entram no contexto quando o Claude lê (ferramenta Read) um arquivo que casa com os globs** — inclusive em subagentes. `grep`/`cat` pelo Bash **não** disparam o carregamento. Por isso: ao responder sobre um módulo sem ter lido arquivo dele (pergunta direta no chat, planejamento), leia manualmente a rule da tabela acima. Ao criar arquivo novo de um módulo, confira se o nome casa com o `paths:` da rule; se não casar, ajuste os globs.

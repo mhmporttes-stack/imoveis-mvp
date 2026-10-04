@@ -32,6 +32,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Métricas de funil/conversão/tempo | `docs/METRICAS_FUNIL.md` (SQL em `docs/analytics/`) |
 | Saúde financeira da empresa | `docs/FINANCEIRO_SAUDE.md` |
 | Manual do CRM e Novidades | `.claude/rules/manual.md`, `docs/BUSINESS_RULES.md` (MAN-x) |
+| Academia (formação dos corretores) | `.claude/rules/academia.md`, `docs/ACADEMIA.md`, `docs/BUSINESS_RULES.md` (ACA-x) |
 | Posicionamento orgânico (Google, SEO, Instagram) | `docs/MARKETING_POSICIONAMENTO.md`, `docs/posicionamento/` |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
 | Bug (mesmo vago), produção, incidente repetido, verificação de correção | skills em `CLAUDE.md` §Agentes e skills — nunca corrija antes de achar a causa raiz |

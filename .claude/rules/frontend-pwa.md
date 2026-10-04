@@ -29,6 +29,8 @@ A Lista de clientes é `components/clients/` (`ClientWorkspace` tela, `useClient
 
 Tailwind CSS, identidade visual azul institucional/navy, português do Brasil em toda a interface. Datas/horários sempre em `America/Sao_Paulo` (helpers em `lib/daily-report.js`: `getTodayInSaoPaulo`, `getTimeGreeting`, etc. — reutilize, não reimplemente cálculo de fuso horário). Valores monetários em BRL com formatação brasileira (`Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`).
 
+Academia (`/academia`): fonte Fraunces e a metáfora do prédio com guindaste aprovadas pelo dono; o orçamento de 150 KB vale só para a parte própria da Academia — `.claude/rules/academia.md` (ACA-3 a ACA-6).
+
 ## PWA
 
 `app/manifest.js`, `public/sw.js`, `public/offline.html`. `public/sw.js` é **regenerado automaticamente** a cada build (`scripts/stamp-service-worker.mjs`, script `prebuild`) — não edite o hash de versão nele manualmente nem commit uma mudança nesse arquivo que seja só o hash mudando (reverta com `git checkout -- public/sw.js` antes de commitar se não houver mudança de lógica real no service worker). Doc dedicada: `docs/pwa-admin.md`.

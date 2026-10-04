@@ -1,4 +1,4 @@
-> Origem: plano técnico aprovado da Academia (feat/academia), copiado sem alterações do repasse de 2026-10-04.
+> Origem: plano técnico aprovado da Academia (feat/academia), copiado do repasse de 2026-10-04 e atualizado no mesmo dia com as decisões do dono (`.claude/rules/academia.md`, `docs/BUSINESS_RULES.md` ACA-1 a ACA-7). Trechos atualizados trazem **[ATUALIZADO 2026-10-04]**.
 > Estado: F0 e F1 feitas; F2 em diante são PLANO. Visão geral atual: [`../ACADEMIA.md`](../ACADEMIA.md).
 > O que vale sobre o código é `../ACADEMIA.md`; este arquivo é a referência do plano.
 
@@ -17,7 +17,7 @@ Só plano. Nada foi alterado no repositório nem no Supabase. Base: AGENTS.md, C
 
 **Service worker/PWA.** `public/sw.js:138-140`: `isPrivateRoute` cobre só `/admin` e `/api`; `/academia` cairia em `networkFirstNavigation` (l.179) e o HTML autenticado poderia ser guardado. Acrescentar `|| pathname.startsWith("/academia")` ali (mudança real de lógica no SW, então o `public/sw.js` entra no commit; o hash do prebuild continua sendo revertido se for só ele). Offline: nenhum no MVP (a Academia exige login e rede; `networkOnly` já devolve `/offline.html`). `app/manifest.js` não muda (scope `/`, start_url do CRM). Arte pesada vai em `public/academia/` e fica coberta pelo cache-first de `/_next/static` só se for importada pelo bundle; arquivos em `public/` NÃO são cacheados (só `/assets` e `/icons` são, l.142-149): usar `/assets/academia/**` se quisermos cache imutável.
 
-**Guards (login reaproveitado).** Página: `requireAdminPage()` (l.293) para aluno; `requireBrokerManagementPage("/academia")` para `gestao`; `requireGeneralAdminPage("/academia")` para `editor`. Observação: os redirects desses helpers vão a `/admin/login` e fallback `/admin`; aceitável (login é um só), mas o fallback deve ser passado explicitamente (`"/academia"`).
+**Guards (login reaproveitado).** Página: `requireAdminPage()` (l.293) para aluno; `requireBrokerManagementPage("/academia")` para `gestao`; `requireBrokerManagementPage("/academia")` para `editor` **[ATUALIZADO 2026-10-04: Admin e Gerente editam (ACA-1); antes era só `requireGeneralAdminPage`]**. Observação: os redirects desses helpers vão a `/admin/login` e fallback `/admin`; aceitável (login é um só), mas o fallback deve ser passado explicitamente (`"/academia"`).
 
 **"Alterar conta" (view-as, P-17).** Regra vigente: ação **operacional** feita pelo admin como corretor fica atribuída ao emulado (`.claude/rules/auth-permissoes.md`). Treinamento não é ação operacional: se o admin concluísse aulas/provas "como" um corretor, falsificaria progresso e geraria certificado em nome de outra pessoa. **Proposta:** em `auth.accountSwitchMode` a Academia é **somente leitura** (admin vê a Academia como o corretor vê, mas toda escrita de progresso/tentativa/certificado é recusada 403 no servidor, `lib/academy-access.js`), igual à lógica ainda PENDENTE da Supervisão (`automacoes-notificacoes.md`). Ações administrativas (publicar, atribuir) gravam o admin real via `getActingAdminEmail` (`lib/admin-auth.js:208`). Decisão do dono (item 8).
 
@@ -68,7 +68,8 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | `POST /academia/exams/[id]/attempts`, `PUT .../attempts/[id]` | idem | próprio; nota/gabarito só no servidor |
 | `GET /academia/team` e `/team/[userId]` | `requireBrokerManagementApi` | `managedUserIds` (admin: todos) |
 | `POST /academia/enrollments` (atribuir) | `requireBrokerManagementApi` | gestor só para sua equipe; trilha obrigatória para todos = só admin |
-| `GET/POST/PATCH /academia/content/**`, `POST .../publish` | `requireGeneralAdminApi` | admin geral efetivo (em view-as vira 403 de propósito) |
+| `GET/POST/PATCH /academia/content/**` (criar/editar) | `requireBrokerManagementApi` **[ATUALIZADO 2026-10-04: Admin e Gerente, ACA-1]** | conteúdo é global (sem escopo por equipe); comportamento em "Alterar conta" a confirmar na F3 |
+| `POST .../publish` | `requireGeneralAdminApi` **até o dono decidir quem publica (ACA-1, pendente)** | admin geral efetivo (em view-as vira 403 de propósito) |
 | `POST /academia/certificates` (emitir manual/revogar) | `requireGeneralAdminApi` | admin |
 | `GET /academia/certificates/[id]` | `requireAdminApi` + checagem de dono/equipe | ver abaixo |
 
@@ -79,7 +80,8 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | Fazer aulas/provas | sim (como ele mesmo) | sim | sim | sim* |
 | Ver o próprio progresso | sim | sim | sim | sim* |
 | Ver progresso da equipe | todos | só equipe (`managedUserIds`, inclui associados) | não | não |
-| Editar conteúdo/publicar | sim | não* | não | não |
+| Criar/editar conteúdo **[ATUALIZADO 2026-10-04, ACA-1]** | sim | sim | não | não |
+| Publicar versão* (pendente, ACA-1) | sim | a decidir | não | não |
 | Atribuir treinamento | todos | sua equipe | não | não |
 | Emitir/revogar certificado | sim | não | não (auto-emissão por regra) | não |
 | Ver certificado de outro | todos | só equipe | não | não |
@@ -90,10 +92,10 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 - **Server vs client.** Páginas = Server Components que buscam dados em `lib/` e passam props iniciais a um client `AcademiaShell` (estado: tela atual, câmera, reduced motion). Aula/Questão = planos sólidos, majoritariamente server + formulário client pequeno. JS puro (sem TS), `.jsx`, `pnpm`.
 - **Motor de cena** em `components/academia/scene/` como módulo client carregado com `next/dynamic({ ssr: false })` só dentro de `app/academia/**` (nunca importado por layout/menu do CRM, então o bundle do CRM não muda; o item do menu é um link, não um import). Portar o protótipo em: `camera.js` (estado único + mola criticamente amortecida, passo ≤50 ms, rAF só enquanto algo se move, `visibilitychange`), `quality.js` (níveis N1-N3: mediana dt >24 ms ou >10% >33 ms, §6.1 do direcao.md), `layers/*.jsx` (céu, nuvens, skyline, torre 18 andares, guindaste, tinta/luzes: SVG/CSS rasterizado uma vez, só `transform`/`opacity` animam), `useScrollCamera` (rolagem passiva, sem scroll-jacking). Estado dos andares vem dos dados reais (aulas concluídas), a cena é função pura do snapshot.
 - **Tokens/CSS isolados:** CSS Module + variáveis `--ac-*` escopadas em `.academia-root` (nada em `:root`, nada em `app/globals.css` nem em `tailwind.config.cjs`). Tailwind só onde não houver risco de vazar; cena e transições em CSS Module (clip-path, camadas), pela precisão do protótipo. Não usar `components/ui/*` do CRM na cena (visual independente), mas reutilizar `cx.js`/ícones `lucide-react`. Visual segue `designer-crm`/`design-critic` (decisão visual não é deste plano).
-- **Fontes.** Hoje o protótipo usa Google Fonts por `<link>` (runtime, dependência externa, risco de privacidade/LCP). Em Next: `next/font/google` (Fraunces + Manrope) no `app/academia/layout.jsx`, baixada e hospedada no build (como `app/admin/layout.jsx:26` faz com Manrope), com `display: "swap"` e subset `latin`. Variáveis só no wrapper da Academia. Risco: o build precisa de rede para as fontes (`NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_USE_ENV_PROXY=1`, `workflow-dev.md`). Fraunces é fonte nova: pedir OK do dono (item 8); fallback Georgia.
+- **Fontes.** **[ATUALIZADO 2026-10-04: Fraunces aprovada pelo dono (ACA-3) e fontes ≈92 KB aprovadas (ACA-6); na F1 foram hospedadas com `next/font/local` em `components/academia/fonts/`, sem `next/font/google`; o trecho a seguir é o plano original]** Hoje o protótipo usa Google Fonts por `<link>` (runtime, dependência externa, risco de privacidade/LCP). Em Next: `next/font/google` (Fraunces + Manrope) no `app/academia/layout.jsx`, baixada e hospedada no build (como `app/admin/layout.jsx:26` faz com Manrope), com `display: "swap"` e subset `latin`. Variáveis só no wrapper da Academia. Risco: o build precisa de rede para as fontes (`NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_USE_ENV_PROXY=1`, `workflow-dev.md`). Fraunces é fonte nova: **OK do dono dado em 2026-10-04**; fallback Georgia.
 - **Reduced motion:** reaproveitar `components/motion/usePrefersReducedMotion.js` + botão "Reduzir movimento" (`aria-pressed`), persistido em `localStorage`; estados trocam na hora, Evolução abre no presente, Conquista em texto ("de 50% para 56%").
 - **Acessibilidade:** `aria-label` na navegação (nada de texto visually-hidden duplicado, lição do §10 do direcao.md), foco visível 3 px, alvos ≥44 px, ordem de foco lógica, região viva dentro do app, contraste do §6.5, estado nunca só por cor. Layout com `safe-area-inset-top` (iPhone standalone, `app/layout.jsx:47` já usa `viewportFit: cover`).
-- **Assets/performance.** SVG inline/CSS; imagens (se houver) em `public/assets/academia/`. Orçamento proposto: JS inicial da rota ≤150 KB gz, cena (chunk dinâmico) ≤60 KB gz, fontes ≤90 KB, 0 imagem raster na cena; meta de quadros do protótipo (≤3% >33 ms a 4x no celular). Início e Trilha renderizam texto antes da cena (cena carrega depois, com placeholder de gradiente igual ao céu, sem layout shift). Medir com `@vercel/speed-insights` já global. Impacto no bundle do CRM: nulo, desde que nenhum arquivo de `app/admin`/`components/` do CRM importe `components/academia/**`.
+- **Assets/performance.** SVG inline/CSS; imagens (se houver) em `public/assets/academia/`. Orçamento **[ATUALIZADO 2026-10-04, ACA-5/ACA-6: o teto de 150 KB gz vale só para a parte própria da Academia (hoje 21,5 KB), não para o peso base do site; fontes ≈92 KB aprovadas, o teto de 90 KB deixa de valer]**: JS próprio da rota ≤150 KB gz, cena (chunk dinâmico) ≤60 KB gz, fontes ≈92 KB, 0 imagem raster na cena; meta de quadros do protótipo (≤3% >33 ms a 4x no celular). Início e Trilha renderizam texto antes da cena (cena carrega depois, com placeholder de gradiente igual ao céu, sem layout shift). Medir com `@vercel/speed-insights` já global. Impacto no bundle do CRM: nulo, desde que nenhum arquivo de `app/admin`/`components/` do CRM importe `components/academia/**`.
 - **Alerta de herança do root:** `app/layout.jsx` monta Analytics/SpeedInsights e `ViewportZoomLock` (zoom travado, ok). `MetaPixel`/`CampaignLinkCapture` ficam fora pelo ramo do `AppChrome`.
 
 ## 5. Fases, flag e publicação
@@ -128,14 +130,14 @@ Outros pontos: `app/api/admin/*` hoje ~85 rotas (inventário em `docs/PERMISSION
 
 ## 8. Decisões do dono (linguagem simples)
 
-1. **Quem edita o conteúdo?** Recomendo só o administrador geral. Gestor editar traz risco de conteúdo divergente da regra da empresa; pode vir depois como "sugerir alteração".
+1. **Quem edita o conteúdo?** **DECIDIDO pelo dono em 2026-10-04: Admin e Gerente podem criar e editar** (ACA-1; substitui a recomendação anterior de só o admin geral). Em aberto: quem **publica** e se há aprovação.
 2. **A Formação Inicial é obrigatória? Para quem?** Recomendo obrigatória para todo corretor novo e opcional para os atuais (você decide se quer exigir dos atuais). Por enquanto só orienta e mostra atraso; não trava nada do CRM.
-3. **Nota mínima e tentativas.** Recomendo nota mínima 70% e 3 tentativas por prova, ajustável por prova; ao esgotar, o gestor libera nova tentativa.
+3. **Nota mínima e tentativas.** **DECIDIDO em 2026-10-04: nota mínima dos quizzes 70% (7,0)** (ACA-2). Em aberto: tentativas (recomendação: 3 por prova, com o gestor liberando nova ao esgotar), nota das provas de módulo e final e se é ajustável por prova.
 4. **Certificado só com 100%?** Recomendo: certificado só com todas as aulas concluídas e a prova final aprovada. Se a trilha mudar depois, quem já tem certificado mantém o da versão que fez.
 5. **Admin em "Alterar conta".** Recomendo que, vendo como o corretor, o admin só olhe: não conclui aula nem prova pelo corretor (senão o progresso e o certificado ficam falsos). O admin faz a própria formação com o próprio login.
 6. **Prova final = último andar (a coroa)?** Recomendo sim: coroa só acende após a prova final aprovada.
-7. **Fonte Fraunces.** Hospedamos no nosso site (sem depender do Google em tempo de uso). Preciso do seu OK para adotar uma fonte nova só na Academia; alternativa: usar a Manrope do painel em tudo (visual um pouco menos editorial).
-8. **Metáfora do prédio com guindaste.** Aprovar ou trocar o guindaste (marca, tom). Impacto só visual, sem custo técnico relevante.
+7. **Fonte Fraunces.** **DECIDIDO em 2026-10-04: aprovada**, hospedada no app (ACA-3); fontes ≈92 KB aprovadas (ACA-6).
+8. **Metáfora do prédio com guindaste.** **DECIDIDO em 2026-10-04: aprovada** (ACA-4).
 9. **Associados participam?** Recomendo sim, fazendo a própria trilha; o gestor da equipe enxerga o progresso deles. Se não, ficam fora das matrículas.
 10. **Quem vê o certificado e existe verificação pública por código?** Recomendo certificado visível ao próprio, ao gestor da equipe e ao admin; verificação pública só se você quiser (exige uma página sem login, com dados mínimos).
 11. **Retenção e versionamento.** Recomendo nunca apagar conteúdo publicado nem tentativas (só arquivar), para provar o que cada corretor estudou e quando. Prazo de guarda e se corretor desligado mantém histórico: definir.

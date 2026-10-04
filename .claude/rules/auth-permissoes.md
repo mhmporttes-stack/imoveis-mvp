@@ -25,6 +25,7 @@ Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrim
 - **manager** (gestor) — vê e opera sobre sua equipe: ele mesmo + subordinados diretos + associados vinculados aos corretores subordinados. Essa lista é montada por `attachDataAccessScope`/`listVisibleTeamProfiles` (`lib/admin-profiles.js`) e chega como `managedUserIds`.
 - **broker** (corretor) — clientes/financeiro próprios (`responsible_user_id` == ele).
 - **associate** (associado) — clientes/financeiro do corretor ao qual está vinculado (`linked_broker_id`), com visão financeira **projetada** (ver `.claude/rules/financeiro.md`), não a real.
+- **Academia:** conteúdo criado/editado por **admin e manager**; corretor e associado só estudam (regra oficial de 2026-10-04, ainda não implementada) — `.claude/rules/academia.md` (ACA-1).
 
 ## Escopo por responsável
 

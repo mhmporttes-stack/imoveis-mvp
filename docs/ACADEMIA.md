@@ -14,11 +14,11 @@ Variável de ambiente `ACADEMIA_ENABLED` (`lib/academy-flags.js`; lida a cada re
 - Vitrine sem login (só `next dev`): `app/dev/vitrine/academia/page.dev.jsx` (`?ate=N` conclui N aulas; `?rm=1` movimento reduzido). Não entra no `next build`.
 
 ## Permissões e "Alterar conta"
-Os 4 perfis com sessão válida entram (`requireAdminPage`). A decisão por perfil (associado, gestão, edição) fica para a F2+ (plano §3). Na F1 não há escrita real: tudo é exemplo na memória da página (reinicia ao recarregar; só a preferência "Reduzir movimento" usa `localStorage`). Em "Alterar conta" a Academia se comporta igual (leitura de exemplo); o bloqueio de escrita em view-as é regra da F2 (plano §1, decisão do dono pendente).
+Os 4 perfis com sessão válida entram (`requireAdminPage`). **Edição de conteúdo: Admin e Gerente** (regra oficial de 2026-10-04, ACA-1; implementação na F3). A decisão por perfil dos demais pontos (associado, gestão, publicação) fica para a F2+ (plano §3). Na F1 não há escrita real: tudo é exemplo na memória da página (reinicia ao recarregar; só a preferência "Reduzir movimento" usa `localStorage`). Em "Alterar conta" a Academia se comporta igual (leitura de exemplo); o bloqueio de escrita em view-as é regra da F2 (plano §1, decisão do dono pendente).
 
 ## Limitações conhecidas da F1
 - O gabarito dos exemplos (`SAMPLE_QUESTIONS`) está no bundle do navegador porque a correção roda no cliente. Só existe com dado de exemplo; na F2 a correção passa ao servidor e o gabarito nunca vai ao cliente.
-- Fraunces é fonte nova (plano §8 item 7): confirmar com o dono.
+- Fraunces, guindaste, orçamento de 150 KB (só a parte própria da Academia) e fontes ≈92 KB: **aprovados pelo dono em 2026-10-04** (ACA-3 a ACA-6). Decisões do dono registradas em `.claude/rules/academia.md` e `docs/BUSINESS_RULES.md` (ACA-1 a ACA-7); a nota mínima dos quizzes é 70% (ACA-2).
 - Falta teste em iPhone real, DPR 2 e 1920 em tempo real (handoff §7).
 
 ## O que a F2 troca
