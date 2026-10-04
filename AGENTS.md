@@ -62,7 +62,7 @@ Não há scripts `lint` nem `test` no `package.json`. O que existe:
 
 - `pnpm build` — compila e checa o TS do motor de entrada (`prebuild` regenera `public/sw.js`: se só o hash mudou, `git checkout -- public/sw.js`). No Windows do dono `npm` puro não funciona: use `pnpm`, ou `node node_modules/next/dist/bin/next ...` (detalhes em `.claude/rules/workflow-dev.md`). Builds podem levar minutos.
 - Testes unitários (Node ≥ 20, sem dependências): `node --test tests/<arquivo>.test.mjs` e `node --test lib/financial-calculations.test.js`.
-  Estado em 2026-09-24: passam todos, **exceto** `tests/whatsapp-flow-core.test.mjs` → 1 falha conhecida (`modelo 'Menu principal'`, texto esperado desatualizado; existe desde antes desta documentação). `tests/journey-http.test.mjs` exige servidor local em `:3107`; `tests/journey-auth.integration.mjs` exige `JOURNEY_QA_CLIENT_ID` + credenciais (mexe em banco — **não rode contra produção**).
+  Estado em 2026-10-04: passam todos, 0 falhas (o antigo `tests/whatsapp-flow-core.test.mjs` quebrado, `modelo 'Menu principal'`, foi corrigido: P-15 resolvido só na parte do teste; CI/lint/script `test` continuam inexistentes e um CI mínimo está em implantação). `tests/journey-http.test.mjs` exige servidor local em `:3107`; `tests/journey-auth.integration.mjs` exige `JOURNEY_QA_CLIENT_ID` + credenciais (mexe em banco — **não rode contra produção**).
 - Dev server: `.claude/launch.json` (`dev`, porta 3020).
 - Scripts de investigação descartáveis vão em `scratch/` e são apagados ao terminar (nunca commitados). Rotas temporárias de diagnóstico não podem começar com `_` (o App Router as ignora) e devem ser removidas e reimplantadas depois.
 

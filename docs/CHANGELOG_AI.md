@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — P-15 (parte do teste quebrado) marcado como resolvido
+- **Data:** 2026-10-04
+- **Área:** Docs
+- **Alteração:** `whatsapp-flow-core` deixou de falhar. Reverificado rodando `node --test` em todos os `tests/*.test.mjs` (exceto `journey-http`, que exige servidor) + `lib/financial-calculations.test.js`: 0 falhas, 1.192 de 1.198 testes passam (2 ignorados, 4 pendentes por desenho). O "32/32" informado pelo dono não bate com a contagem por arquivo (122 arquivos hoje); o dado real é 0 falhas. P-15 segue em aberto na parte "sem CI/lint/script `test`": CI mínimo em implantação, ainda inexistente.
+- **Motivo:** dono informou suíte verde em 2026-10-04; documentação ainda listava a falha.
+- **Arquivos afetados:** `docs/SYSTEM_ARCHITECTURE.md` (P-15 e tabela de testes), `AGENTS.md` (Comandos de validação), `docs/CHANGELOG_AI.md`
+- **Risco/observação:** nenhum código alterado.
+
 ### 2026-10-04 — Ponte: aprovarTarefa/rejeitarTarefa, retomada e executor de ESCRITA aprovada em worktree isolada (desligado por padrão)
 - **Data:** 2026-10-04
 - **Área:** Infra (Central/ponte ChatGPT), Permissões, Docs
