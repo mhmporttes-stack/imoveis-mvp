@@ -10,6 +10,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const REAL = new Set(["client-tags"]);
 
+// Cada arquivo de teste pode pedir módulos extras REAIS: register(url, { parentURL, data: { real: ["nome"] } }).
+export async function initialize(data) {
+  for (const name of data?.real || []) REAL.add(name);
+}
+
 function findFile(target) {
   for (const candidate of [target, `${target}.js`, `${target}.mjs`]) {
     if (/\.[a-z]+$/.test(candidate) && existsSync(candidate)) return candidate;
@@ -57,7 +62,8 @@ export async function load(url, context, nextLoad) {
     return {
       format: "module",
       shortCircuit: true,
-      source: "export const NextResponse = { json: (body, init = {}) => ({ status: init.status || 200, body }) };"
+      // json(): { status, body } (+ headers só quando informados); new NextResponse(corpo, init) serve às rotas de arquivo (PDF).
+      source: "export class NextResponse { constructor(body, init = {}) { this.body = body; this.status = init.status || 200; this.headers = init.headers || {}; } static json(body, init = {}) { return init.headers ? { status: init.status || 200, body, headers: init.headers } : { status: init.status || 200, body }; } }"
     };
   }
   if (url.startsWith("stub:")) {
