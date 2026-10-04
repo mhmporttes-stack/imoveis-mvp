@@ -20,6 +20,10 @@ Atualizado em 2026-10-04. Vale para os disparos **automáticos** pelo WhatsApp d
 
 **Janela e intervalo vêm da própria política** (06h30–15h30 e 5 a 8 min), **não** dos valores antigos gravados no banco (07h–14h, 5 a 10 min), que deixam de valer. A configuração gravada de quem tem a automação ligada foi alinhada aos mesmos valores e a tela mostra os valores novos.
 
+### 1.2 Como ler os números do card da Meta Diária
+
+Três números diferentes, que NÃO se somam: (a) **Fila automática de hoje X de 30 (1ª a/10 · 2ª b/10 · 3ª c/10)** = o que a automação realmente envia (enviadas hoje + na fila, máximo 10 por tentativa); (b) **x / y atividades da meta (carteira N + pendentes P)** = a meta do dia, que inclui acumulados e o que é feito à mão, congelada de manhã; (c) **Carteira ativa N/50 (aguardando 1ª · 2ª · 3ª)** = clientes em cadência; o teto 50 só impede a ENTRADA de novos (quem tem 83 mantém os 83). A limpeza da política v2 mexe só em (a).
+
 ### 1.1 Limpeza do excesso da fila
 
 Corretores chegaram a ter 40, 60, 80 itens acumulados na fila. Ao valer a política nova, o sistema (código do servidor, sem enviar nada) **reduz cada tentativa a no máximo 10 itens**, ficando com os **10 prioritários** na ordem normal da fila (os de horário mais cedo; empate pelo mais antigo). Os demais são **cancelados só na fila** (motivo `policy_v2_trim_excess`): **nenhum cliente é excluído, arquivado, marcado como contatado ou muda de etapa do funil, e nenhum histórico é apagado**. Os retirados **não voltam** nem hoje nem amanhã como pendência automática (o corretor os trabalha pelo botão manual). A limpeza roda sozinha a cada ciclo do disparo (inclusive com a sessão desconectada) e na reconexão; é **idempotente** (rodar de novo não retira mais nada). Auditoria: tabela `daily_goal_policy_trim_log` (corretor, tentativa, quantos ficaram, quantos saíram, quando) e o motivo em cada item cancelado. O dia seguinte gera no máximo 10 por tentativa, pela cota de 10 novos por dia e carteira de 50 já existentes (regras inalteradas).

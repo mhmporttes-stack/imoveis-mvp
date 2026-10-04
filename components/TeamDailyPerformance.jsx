@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, History, ListRestart } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
+import { formatAutoQueueCardLine } from "@/lib/daily-goal-policy-core.mjs";
 import Avatar from "@/components/Avatar";
 import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
 import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
@@ -401,9 +402,17 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         </div>
       </div>
 
-      <p className="mt-2 text-center text-xs font-bold text-muted">
-        {broker.meta.done} / {broker.meta.total} atividades
+      <p
+        className="mt-2 text-center text-xs font-bold text-muted"
+        title="Atividades da meta do dia: carteira ativa congelada de manhã (inclui rodadas acumuladas e manuais) + clientes pendentes. Não é a fila de envio automático."
+      >
+        {broker.meta.done} / {broker.meta.total} atividades da meta
       </p>
+      {broker.meta.prospecting && broker.meta.pending ? (
+        <p className="text-center text-[10px] font-bold text-muted">
+          carteira {broker.meta.prospecting.target} + pendentes {broker.meta.pending.total}
+        </p>
+      ) : null}
 
       {automation ? (
         <div className="mt-1 flex items-center justify-center gap-1">
@@ -425,10 +434,24 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         </div>
       ) : null}
 
+      {automation?.enabled && automation.policyV2Queue ? (
+        <p
+          className="mt-1 text-center text-xs font-extrabold text-navy"
+          title="O que a automação realmente envia hoje: no máximo 10 de 1ª, 10 de 2ª e 10 de 3ª tentativa (30 por dia). Conta as enviadas hoje mais as que estão na fila."
+        >
+          {formatAutoQueueCardLine(automation.policyV2Queue)}
+        </p>
+      ) : null}
+
       {broker.wallet ? (
-        <p className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}>
+        <p
+          className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}
+          title={broker.wallet.current > broker.wallet.limit
+            ? "A carteira passou do teto: ninguém é removido, mas não entram contatos novos até ficar abaixo do teto. O teto limita a entrada, não o envio automático."
+            : "Clientes que estão em cadência (aguardando 1ª, 2ª ou 3ª tentativa). O teto limita a entrada de contatos novos."}
+        >
           Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
-          <span className="ml-1 font-bold text-muted">(1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
+          <span className="ml-1 font-bold text-muted">(aguardando 1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
         </p>
       ) : null}
 
@@ -585,6 +608,7 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, show
           <p className="mt-2 text-xs font-bold text-navy">
             Próximo disparo: <span className="font-black">{formatNextDispatchCompact(automation)}</span>
           </p>
+          {automation.policyV2Queue ? <p className="mt-2 text-xs font-extrabold text-navy">{formatAutoQueueCardLine(automation.policyV2Queue)}</p> : null}
           <div className="mt-2 grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
             <MiniStat label="Enviadas" value={sentToday} />
             <MiniStat label="Aguard." value={automation.sentUnconfirmedToday || 0} />
