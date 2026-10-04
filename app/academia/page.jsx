@@ -1,3 +1,12 @@
+import AcademiaApp from "@/components/academia/AcademiaApp";
+
+export const metadata = {
+  title: "Academia · Matheus Machado",
+  robots: { index: false, follow: false }
+};
+
+// Server Component fino: o app inteiro (cena, trilha, aula, questão) é um client component com
+// dados de exemplo em memória (F1). Sem rede depois do carregamento.
 export default function AcademiaPage() {
-  return <p className="px-4 py-10 text-center text-slate sm:px-6">Academia · em construção</p>;
+  return <AcademiaApp backHref="/admin/simulacoes" />;
 }

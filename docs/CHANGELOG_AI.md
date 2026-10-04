@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Academia F0/F1: rota /academia atrás de chave, experiência completa com dados de exemplo
+- **Data:** 2026-10-04
+- **Área:** Infra / Frontend (nova rota `/academia`; sem banco, sem API)
+- **Alteração:** chave `ACADEMIA_ENABLED` (padrão desligada, `lib/academy-flags.js`); rota `/academia` com 404 desligada e `requireAdminPage` ligada; ajustes aditivos em `components/AppChrome.jsx`, `components/AdminSessionKeeper.jsx`, `proxy.js` e `public/sw.js` (`isPrivateRoute`); grupo "ACADEMIA" no menu só com a chave ligada; lógica pura + store de exemplo (`lib/academy-*.mjs`) e interface em `components/academia/**`, com dados de exemplo em memória.
+- **Motivo:** pedido do dono: plataforma de treinamento (Formação Inicial) dentro do CRM, entregue por fases (plano em `docs/academia/PLANO_TECNICO.md`).
+- **Arquivos afetados:** `lib/academy-flags.js`, `lib/academy-menu.mjs`, `lib/academy-core.mjs`, `lib/academy-sample.mjs`, `lib/academy-sample-store.mjs`, `app/academia/**`, `app/dev/vitrine/academia/`, `components/academia/**`, `components/AcademyMenuContext.jsx`, `components/AppChrome.jsx`, `components/AdminSessionKeeper.jsx`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`, `app/admin/layout.jsx`, `proxy.js`, `public/sw.js`, `tests/academy-*.test.mjs`, `docs/ACADEMIA.md`, `docs/academia/*`.
+- **Risco/observação:** NÃO feito: banco, migrations, API, progresso real, certificado real, bloqueio de escrita em "Alterar conta", conteúdo técnico real. Com a chave desligada o CRM fica igual (confirmado: 404/redirect e menu sem o item). Gabarito dos exemplos está no bundle do cliente (só exemplo; F2 corrige no servidor). Fonte Fraunces nova e metáfora do guindaste aguardam OK do dono; decisões abertas em `docs/academia/PLANO_TECNICO.md` §8. `public/sw.js` mudou de lógica (`/academia` é rota privada).
+- **Autor:** Claude Code
+
 ### 2026-10-03 — Diretor de Atendimento (Fase 1): agente de marca + 2 executores + perfis em docs/atendimento
 - **Data:** 2026-10-03
 - **Área:** Docs / Agentes (nenhuma tela, `lib/`, `app/`, `components/`, banco, rota, disparo, WhatsApp ou automação alterados)
