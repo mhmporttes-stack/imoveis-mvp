@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
 
 // Mesmo espírito de NewClientSoundListener: intervalo fixo e moderado, só
 // enquanto a aba está visível — nunca polling agressivo nem uma requisição
@@ -309,7 +310,7 @@ function MemberRow({ member }) {
         </span>
         <div className="min-w-0">
           <p className="truncate font-extrabold text-navy">{member.name}</p>
-          <p className="text-xs font-bold text-slate-500">{formatRelativeActivity(member.status, member.lastActivityAt)}</p>
+          <p className="text-xs font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
         </div>
       </div>
       <div className="shrink-0 text-right">
@@ -320,19 +321,6 @@ function MemberRow({ member }) {
       </div>
     </div>
   );
-}
-
-function formatRelativeActivity(status, lastActivityAt) {
-  if (!lastActivityAt) return "Sem atividade registrada";
-  if (status === "online") return "Ativo agora";
-
-  const elapsedMs = Date.now() - new Date(lastActivityAt).getTime();
-  const minutes = Math.max(1, Math.round(elapsedMs / 60000));
-  if (minutes < 60) return `Última atividade há ${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `Última atividade há ${hours}h`;
-  const days = Math.round(hours / 24);
-  return `Última atividade há ${days} dia${days > 1 ? "s" : ""}`;
 }
 
 const DAY_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });

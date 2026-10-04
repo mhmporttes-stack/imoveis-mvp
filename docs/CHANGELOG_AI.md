@@ -49,6 +49,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Verificação:** varredura Playwright (Chromium, 320/375/390/430 px) em início, trilha, aula, questão, erro/acerto, conquista e evolução: 0 textos cortados e 0 overflow horizontal. Só `engine.js` e `academia.module.css`. **Limitação:** não testado em iPhone físico.
 - **Autor:** Claude Code
 
+### 2026-10-04 — Presença só do usuário real ("Alterar conta" não gera presença); heartbeat e texto relativo
+- **Data:** 2026-10-04
+- **Área:** Roleta / Ranking (presença) / Permissões
+- **Alteração:** Durante "Alterar conta" o sinal de presença (`admin_presence.last_activity_at` e marcas de `admin_presence_activity`, base do relatório de horas e dos pontos "tempo online") passou a ser gravado no admin REAL, nunca no corretor emulado (antes usava `auth.profile.id`, o perfil efetivo). Vale para o heartbeat do navegador e para `recordAdminGrace`/`recordAdminHeartbeat` (Chat, WhatsApp, Meta Diária, Prospecção): ações operacionais continuam atribuídas ao corretor emulado (histórico/pontuação de ação); só o carimbo de presença usa o usuário real. Opção escolhida: gravar no usuário real (ele está de fato na frente da tela; se for elegível na roleta, a presença real dele é legítima); se o perfil real não tiver id, nada é gravado. Heartbeat do navegador: confere `response.ok`, 1 nova tentativa (após 5 s) em falha de rede/5xx, nenhuma tentativa em 401/403 (AdminSessionKeeper renova/redireciona), dispara também no evento `online`; segue 1 sinal/min, só com aba visível, sem timer periódico, sem sendBeacon. Texto "Última atividade há…" usa piso (90 min = 1h; 36 h = 1 dia).
+- **Motivo:** Auditoria de presença (T-106): o emulado aparecia Online, entrava na Roleta e ganhava pontos sem estar presente. Regra do dono (2026-10-04).
+- **Arquivos afetados:** `lib/admin-presence-core.mjs`, `lib/admin-presence-heartbeat-core.mjs` (novo), `lib/admin-presence.js`, `components/AdminPresenceHeartbeat.jsx`, `components/OnlinePresenceBoard.jsx`, `app/admin/layout.jsx`, `tests/admin-presence-real-user.test.mjs` (novo), `docs/BUSINESS_RULES.md` (ROL-2c), `.claude/rules/roleta-prospeccao-campanhas.md`
+- **Impacto/riscos:** Sem migration; limiares inalterados (Online 5 min / Ausente 30 min / Roleta 5 min). Linhas de presença passadas do emulado não foram corrigidas (não há como saber quais). Não provado sem login: a navegação real em "Alterar conta" no navegador.
+
 ### 2026-10-04 — Academia F6 e F7: gestão, várias trilhas, regras de matrícula e recomendações
 - **Data:** 2026-10-04
 - **Área:** Banco / Backend / Frontend (Academia atrás de `ACADEMIA_ENABLED`, desligada)

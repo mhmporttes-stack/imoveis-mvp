@@ -1,44 +1,34 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-// Intervalo mínimo entre heartbeats — mesmo com interação contínua, no máximo
-// 1 por minuto (evita escritas excessivas).
-const MIN_INTERVAL_MS = 60000;
+import { useEffect } from "react";
+import { createHeartbeatController } from "@/lib/admin-presence-heartbeat-core.mjs";
 
 // Componente global (montado em app/admin/layout.jsx para TODO usuário
 // autenticado) — sem UI própria, sem Realtime.
 //
 // Regra de presença: só INTERAÇÃO real conta (clique, tecla, rolagem, toque,
-// movimento do mouse, carregar/voltar para a página). NÃO existe timer
-// periódico: um CRM aberto e abandonado não gera nenhum sinal, então em 5 min
-// sem interagir o usuário passa a "ausente" e o tempo online pausa (o cálculo
-// fica em lib/admin-presence.js). Cada sinal vale no máximo 1 por minuto.
+// movimento do mouse, carregar/voltar para a página, voltar a internet). NÃO
+// existe timer periódico: um CRM aberto e abandonado não gera nenhum sinal,
+// então em 5 min sem interagir o usuário passa a "ausente" e o tempo online
+// pausa (o cálculo fica em lib/admin-presence.js). Cada sinal vale no máximo
+// 1 por minuto, só com a aba visível. A lógica (1/min, checagem de resposta,
+// 1 nova tentativa em falha de rede/5xx, nenhuma tentativa em 401) fica em
+// lib/admin-presence-heartbeat-core.mjs (testada).
+//
+// O cliente NUNCA informa quem é: o POST não leva corpo nem id — o servidor
+// decide a identidade pela sessão (e, em "Alterar conta", carimba o admin REAL,
+// nunca o corretor emulado). A prop `userId` serve só para remontar o efeito
+// quando a sessão muda. 401 (sessão expirada): não insiste; a renovação/
+// redirecionamento já é feita pelo AdminSessionKeeper.
 export default function AdminPresenceHeartbeat({ userId }) {
-  const lastSentRef = useRef(0);
-  const inFlightRef = useRef(false);
-
   useEffect(() => {
     if (!userId) return;
 
-    let cancelled = false;
-
-    async function ping() {
-      if (cancelled || inFlightRef.current) return;
-      if (document.visibilityState !== "visible") return;
-      const now = Date.now();
-      if (now - lastSentRef.current < MIN_INTERVAL_MS) return;
-
-      inFlightRef.current = true;
-      lastSentRef.current = now;
-      try {
-        await fetch("/api/admin/heartbeat", { method: "POST" });
-      } catch {
-        // Falha de rede pontual — a próxima interação tenta de novo.
-      } finally {
-        inFlightRef.current = false;
-      }
-    }
+    const controller = createHeartbeatController({
+      send: () => fetch("/api/admin/heartbeat", { method: "POST", credentials: "same-origin" }),
+      isVisible: () => document.visibilityState === "visible"
+    });
+    const ping = () => controller.ping();
 
     ping();
 
@@ -52,12 +42,15 @@ export default function AdminPresenceHeartbeat({ userId }) {
     for (const eventName of interactionEvents) window.addEventListener(eventName, ping, options);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleVisibility);
+    // Voltou a internet: tenta de novo (continua valendo 1/min e aba visível).
+    window.addEventListener("online", handleVisibility);
 
     return () => {
-      cancelled = true;
+      controller.cancel();
       for (const eventName of interactionEvents) window.removeEventListener(eventName, ping, options);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleVisibility);
+      window.removeEventListener("online", handleVisibility);
     };
   }, [userId]);
 

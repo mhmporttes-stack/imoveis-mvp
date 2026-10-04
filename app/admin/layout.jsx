@@ -14,6 +14,7 @@ import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { Manrope } from "next/font/google";
 import { getAdminFromCookies } from "@/lib/admin-auth";
+import { resolvePresenceProfileId } from "@/lib/admin-presence-core.mjs";
 import { isAcademyEnabled } from "@/lib/academy-flags";
 import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
@@ -38,7 +39,8 @@ export default async function AdminLayout({ children }) {
   return (
     <AcademyMenuProvider enabled={isAcademyEnabled()}>
       <style dangerouslySetInnerHTML={{ __html: ADMIN_FONT_CSS }} />
-      {auth.ok ? <AdminPresenceHeartbeat userId={auth.profile?.id} /> : null}
+      {/* Presença é do usuário REAL: em "Alterar conta" não usa o id do corretor emulado. */}
+      {auth.ok ? <AdminPresenceHeartbeat userId={resolvePresenceProfileId(auth)} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
