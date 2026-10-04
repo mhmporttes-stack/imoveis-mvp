@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
+import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { deleteTag } from "@/lib/client-tags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function DELETE(request, { params }) {
-  const auth = await requireAdminApi(request);
+  // Excluir etiqueta apaga os vínculos de TODOS os clientes (ON DELETE CASCADE):
+  // só dono (admin) e gestor — decisão do dono em 2026-10-04.
+  const auth = await requireBrokerManagementApi(request);
   if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const error = auth.status === 403 ? "Só o gestor ou o administrador pode excluir etiquetas." : auth.error;
+    return NextResponse.json({ error }, { status: auth.status });
   }
 
   try {

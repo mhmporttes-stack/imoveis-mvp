@@ -3,12 +3,14 @@ import { ArrowLeft } from "lucide-react";
 import SimulationGenerator from "@/components/SimulationGenerator";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { canManageProperties, listProperties } from "@/lib/properties";
+import { redactPropertiesForAuth } from "@/lib/property-visibility";
+import { withoutPropertyPdf } from "@/lib/property-visibility-core.mjs";
 import { canManageSimulations } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewSimulationPage() {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
 
   if (!canManageSimulations() || !canManageProperties()) {
     return (
@@ -33,7 +35,7 @@ export default async function NewSimulationPage() {
           Voltar para clientes
         </Link>
       </section>
-      <SimulationGenerator properties={properties} />
+      <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))} />
     </main>
   );
 }

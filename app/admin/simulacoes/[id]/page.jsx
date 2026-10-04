@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import SimulationGenerator from "@/components/SimulationGenerator";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listProperties } from "@/lib/properties";
+import { redactPropertiesForAuth } from "@/lib/property-visibility";
+import { withoutPropertyPdf } from "@/lib/property-visibility-core.mjs";
 import { getSimulation } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +29,7 @@ export default async function EditSimulationPage({ params }) {
           Voltar para clientes
         </Link>
       </section>
-      <SimulationGenerator properties={properties} initialSimulation={simulation} />
+      <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))} initialSimulation={simulation} />
     </main>
   );
 }

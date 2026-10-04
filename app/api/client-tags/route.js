@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin-auth";
-import { createTag, listTags } from "@/lib/client-tags";
+import { isGeneralAdmin, requireAdminApi } from "@/lib/admin-auth";
+import { isManagerProfile } from "@/lib/admin-profiles";
+import { createTag, createTagKeepingExisting, listTags } from "@/lib/client-tags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,15 @@ export async function POST(request) {
   }
 
   try {
-    const tag = await createTag(await request.json());
+    const payload = await request.json();
+    // Qualquer perfil logado cria etiqueta NOVA. Repetir o nome de uma que já
+    // existe só recolore (upsert) para dono/gestor; corretor e associado
+    // recebem a etiqueta existente intacta (200), sem alterar cor/nome.
+    if (!isGeneralAdmin(auth) && !isManagerProfile(auth.profile)) {
+      const { tag, created } = await createTagKeepingExisting(payload);
+      return NextResponse.json(tag, { status: created ? 201 : 200 });
+    }
+    const tag = await createTag(payload);
     return NextResponse.json(tag, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Nao foi possivel criar a tag." }, { status: 400 });

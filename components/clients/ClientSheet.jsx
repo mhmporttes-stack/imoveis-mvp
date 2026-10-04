@@ -141,7 +141,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
 
           {/* Tags */}
           <Section title="Tags" anchor="ficha-tags">
-            <TagsPanel client={client} tags={tags} busy={busy} list={list} autoEdit={focus === "tags"} />
+            <TagsPanel client={client} tags={tags} busy={busy} list={list} canDeleteTags={Boolean(canManage)} autoEdit={focus === "tags"} />
           </Section>
 
           {/* Cadastro */}
@@ -422,7 +422,7 @@ function SimulationSummary({ client }) {
   );
 }
 
-function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
+function TagsPanel({ client, tags, busy, list, canDeleteTags = false, autoEdit = false }) {
   const [editing, setEditing] = useState(autoEdit);
   useEffect(() => { if (autoEdit) setEditing(true); }, [autoEdit, client.id]);
   const [name, setName] = useState("");
@@ -463,15 +463,17 @@ function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
                       {active ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} aria-hidden="true" />}
                       {tag.name}
                     </button>
-                    <button
-                      type="button"
-                      aria-label={`Excluir a tag ${tag.name} do sistema`}
-                      title="Excluir do sistema"
-                      onClick={() => list.deleteTagFromSystem(tag)}
-                      className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                    {canDeleteTags ? (
+                      <button
+                        type="button"
+                        aria-label={`Excluir a tag ${tag.name} do sistema`}
+                        title="Excluir do sistema"
+                        onClick={() => list.deleteTagFromSystem(tag)}
+                        className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    ) : null}
                   </li>
                 );
               })}
@@ -481,7 +483,7 @@ function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
             className="space-y-2"
             onSubmit={async (event) => {
               event.preventDefault();
-              if (await list.createTagForClient(client, name, color)) setName("");
+              if (await list.createTagForClient(client, name, color, { keepExisting: !canDeleteTags })) setName("");
             }}
           >
             <label htmlFor={nameId} className="text-xs font-medium text-muted">Nova tag</label>

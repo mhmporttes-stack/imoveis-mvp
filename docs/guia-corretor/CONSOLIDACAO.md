@@ -491,6 +491,8 @@ Consolidado: seção 0, decisões 1 a 15.
 
 ## 13. RISCO ENCONTRADO FORA DO ESCOPO (nada foi corrigido)
 
+> **Atualização 2026-10-04:** o risco R1/R3 (notas internas visíveis a todo perfil) **foi corrigido em tarefa separada** — só admin e gestor recebem `internalNotes`, com filtro no servidor (ver `docs/SYSTEM_ARCHITECTURE.md` P-22 e `docs/CHANGELOG_AI.md`). O texto abaixo é o registro original, preservado.
+
 | # | Achado | Evidência | Gravidade |
 |---|---|---|---|
 | R1 | **Notas internas de empreendimento visíveis a todo perfil.** A tela interna usa `requireAdminPage()` (qualquer perfil ativo, incluindo associado) e mostra o bloco "Informações internas" quando existe `internalNotes` | `app/admin/empreendimentos/consulta/[id]/page.jsx:13` (guard) e **`:28`** (bloco). A1 citou L26; por leitura, a linha correta é a 28 (a 26 é "Informações comerciais"). `internalNotes` vem de `lib/property-mapper.js:30` | **P1** se as notas tiverem dado sensível; P3 se forem só observações de equipe. Intenção não confirmada |

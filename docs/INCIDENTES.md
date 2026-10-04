@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Corretor/associado via observações internas de empreendimento e podia apagar etiqueta de todos
+- **Data:** 2026-10-04
+- **Sintoma:** (achado de auditoria, sem relato de uso indevido) "Informações internas" do empreendimento visíveis a todo perfil; corretor/associado podia excluir ou recolorir etiqueta global pela ficha do cliente.
+- **Área:** Permissões
+- **Impacto:** vazamento de observações da gestão para corretor/associado (e para o código enviado ao navegador); exclusão de etiqueta apaga o vínculo de todos os clientes (23 etiquetas, 146 vínculos em produção) e o histórico de campanha.
+- **Causa raiz:** páginas com `requireAdminPage` repassavam o objeto inteiro de `properties` (select *) sem filtro por perfil; rotas `client-tags` usavam só `requireAdminApi` (qualquer perfil) e o `POST` fazia upsert por nome (recolore); a lixeira aparecia para os 4 perfis.
+- **Correção:** filtro no servidor por perfil efetivo (`lib/property-visibility*`); `DELETE` com `requireBrokerManagementApi`; `POST` não recolore para corretor/associado; lixeira só para admin/gestor.
+- **Arquivos/commit:** `lib/property-visibility.js`, `lib/client-tags.js`, `app/api/client-tags/**`, `components/clients/ClientSheet.jsx` — commit no `CHANGELOG_AI.md` de 2026-10-04.
+- **Prevenção/teste:** `tests/permissoes-tags-notas-internas.test.mjs`. Risco residual: `addTagToClient` (campanha/fluxo) ainda recolore por upsert.
+- **Status:** Resolvido
 ### 2026-10-04 — WhatsApp individual: contas presas em laço de reconexão (403) por horas
 - **Data:** 2026-10-04
 - **Sintoma:** sessões em "reconectando" por ~22 h, ~15 h e 26 min com código 403, sem nunca voltar; telemetria só mostrava o último erro.

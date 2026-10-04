@@ -6,13 +6,15 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { buildGoogleMapsUrl, coverImage } from "@/lib/format";
 import { getProperty } from "@/lib/properties";
+import { redactPropertyForAuth } from "@/lib/property-visibility";
 
 export const dynamic = "force-dynamic";
 
 export default async function InternalDevelopmentPage({ params }) {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
   const { id } = await params;
-  const property = await getProperty(id);
+  // Informações internas: só dono/gestor (T-75); filtro no servidor, antes de renderizar.
+  const property = redactPropertyForAuth(await getProperty(id), auth);
   if (!property?.isDevelopment) notFound();
 
   return <main className="min-h-screen bg-mist py-10 sm:py-14">
