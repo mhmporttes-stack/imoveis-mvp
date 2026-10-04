@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Conferência em produção: remoção de corretor com redistribuição (migration já aplicada; teste em banco bloqueado)
+- **Data:** 2026-10-04
+- **Área:** Banco / Permissões / Clientes
+- **Alteração:** nenhuma de código. Conferido por leitura: a migration `broker_removal_reassign` consta aplicada desde 2026-10-02 (`supabase_migrations` versão `20261002155852`, às ~12:58 -03:00, antes do commit `165a417` das 13:05); tabela `broker_removal_audit` (0 linhas = função nunca usada em produção) e função `remove_broker_reassigning_clients` existem, executável só por `postgres`/`service_role`. O commit `07ef1de` está em `origin/main` e no deploy de produção atual (`2ebc367`, Vercel success; CI `build-and-test` success). O 07ef1de em si não tem CI (o CI nasceu em `2ebc367`).
+- **Motivo:** ordem pedida pelo dono (migration antes do código).
+- **Risco/observação:** o token do conector Supabase disponível é somente leitura (nem a API de gestão grava), então o teste com equipe fictícia em transação revertida NÃO foi executado no banco. Provado só no núcleo puro (`tests/broker-removal-core.test.mjs`, 11 de 11): gestora remove da própria equipe, não de outra, corretor nunca, distribuição com diferença máxima de 1. Pendente: rodar o script de teste (transação sempre revertida) no SQL Editor do Supabase e, se desejado, um teste ponta a ponta pela tela. A função não toca a configuração de leads da Izabela.
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-04 — P-15 (parte do teste quebrado) marcado como resolvido
 - **Data:** 2026-10-04
 - **Área:** Docs
