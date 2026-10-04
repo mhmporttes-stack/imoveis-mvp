@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Nova frente E-MAIL: agente `email-specialist` (Diretor de E-mail), 5 skills, rule e memória (somente preparação)
+- **Data:** 2026-10-04
+- **Área:** Infra (agentes), Docs, Marketing
+- **Alteração:** criados `.claude/agents/email-specialist.md`, skills `diretor-email`, `planejar-campanha-email`, `criar-email` (com `references/` e `tools/lint-email.mjs`), `auditar-entregabilidade` e `analisar-campanha-email`, rule `.claude/rules/email-marketing.md` (com `paths:`), memória `docs/email/` (PERFIL, CAMPANHAS, templates) e relatório do Scout. Integrado em `MAPA-AGENTES.md` (linha, palavra-chave, equipe, contexto mínimo), `CLAUDE.md` e `AGENTS.md`. Teste `tests/email-specialist.test.mjs`.
+- **Motivo:** pedido do dono: especialista permanente em prospecção/campanhas de e-mail, no padrão da Central de Comando. Nada de terceiros foi instalado (referências só como ideia; `docs/scout/relatorios/2026-10-04-email-marketing-diretor-email.md`).
+- **Arquivos afetados:** os acima; nenhum arquivo de `lib/`, `app/`, banco, settings ou agente existente.
+- **Risco/observação:** nenhum envio, provedor ou domínio foi configurado. Pendências do dono: provedor/domínio remetente, base legal LGPD (advogado), origem da lista, descadastro/supressão no CRM (`crm-editor`). Origem/consentimento do e-mail em `prospecting_contacts`: A CONFIRMAR (Supabase MCP indisponível nesta sessão).
 ### 2026-10-04 — Ponte da Central: localizador permanente do Claude Code CLI + launcher com `poller-ctl` (ativação operacional)
 - **Data:** 2026-10-04
 - **Área:** Central/ponte ChatGPT→Claude (scripts locais), docs
