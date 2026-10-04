@@ -249,7 +249,11 @@ test("escrita fica AGUARDANDO_DECISAO e nunca executa; so a credencial de aprova
   assert.equal((await h.decide({ headers: hdr(null), id, rawBody: '{"decision":"approve"}' })).status, 401);
   assert.equal((await get(id)).body.status, "AGUARDANDO_DECISAO");
   assert.equal((await h.decide({ headers: hdr(APPROVER), id, rawBody: '{"decision":"approve"}' })).status, 200);
-  assert.equal((await h.decide({ headers: hdr(APPROVER), id, rawBody: '{"decision":"approve"}' })).status, 409);
+  // repetir a mesma decisao e idempotente (200, sem efeito); decidir o contrario depois de aprovada = 409
+  const replay = await h.decide({ headers: hdr(APPROVER), id, rawBody: '{"decision":"approve"}' });
+  assert.equal(replay.status, 200);
+  assert.equal(replay.body.idempotent_replay, true);
+  assert.equal((await h.decide({ headers: hdr(APPROVER), id, rawBody: '{"decision":"reject"}' })).status, 409);
   const rej = await create({ tipo: "escrita", instruction_text: "outra" });
   assert.equal((await h.decide({ headers: hdr(APPROVER), id: rej.body.task_id, rawBody: '{"decision":"reject"}' })).body.status, "ERRO");
   assert.equal(await runOnce({ client: execClient(), executor: echoExecutor, log: quiet }), "done"); // aprovada
@@ -337,8 +341,10 @@ test("estatico: sem child_process/spawn/exec nem claude -p fora de executors/cla
   const files = [...walk("scripts/central-bridge"), ...walk("lib/central"), ...walk("app/api/central")];
   for (const f of files) {
     const src = readFileSync(f, "utf8");
-    // Unica excecao: o executor Claude (somente leitura, flag desligada). Poller, echo, client, config, lib e rotas continuam proibidos.
+    // Unicas excecoes: o executor Claude e o modulo de worktree git (cada um com teste estatico proprio em
+    // tests/central-approval.test.mjs). Poller, echo, client, config, lib e rotas continuam proibidos.
     if (f.replace(/\\/g, "/").endsWith("central-bridge/executors/claude.mjs")) continue;
+    if (f.replace(/\\/g, "/").endsWith("central-bridge/executors/worktree.mjs")) continue;
     // O localizador so le o sistema de arquivos: precisa citar claude.exe, mas child_process/spawn/exec continuam proibidos nele.
     const isLocator = f.replace(/\\/g, "/").endsWith("central-bridge/executors/claude-locator.mjs");
     const banned = isLocator

@@ -28,6 +28,7 @@ export function loadConfig(env = process.env, readFile = (p) => readFileSync(p, 
   const get = (k, d = "") => String(env[k] ?? fromFile[k] ?? d);
   const poll = Number(get("CENTRAL_POLL_SECONDS", "15"));
   const timeout = Number(get("CENTRAL_CLAUDE_TIMEOUT_SECONDS", "120"));
+  const writeTimeout = Number(get("CENTRAL_CLAUDE_WRITE_TIMEOUT_SECONDS", "900"));
   return {
     baseUrl: get("CENTRAL_BASE_URL", DEFAULT_BASE_URL).replace(/\/+$/, ""),
     executorSecret: get("CENTRAL_EXECUTOR_SECRET"),
@@ -39,6 +40,11 @@ export function loadConfig(env = process.env, readFile = (p) => readFileSync(p, 
     // Executor Claude (so usados se CENTRAL_EXECUTOR=claude E a flag acima = true). Nunca vem do payload.
     claudeBin: get("CENTRAL_CLAUDE_BIN", ""),
     claudeCwd: get("CENTRAL_CLAUDE_CWD", ""),
+    // Escrita aprovada (worktree isolada): flag PROPRIA, separada da de consulta; padrao desligada. Nunca vem do payload.
+    claudeWriteEnabled: get("CENTRAL_CLAUDE_WRITE_ENABLED", "false").toLowerCase() === "true",
+    claudeWriteTimeoutMs: Number.isFinite(writeTimeout) ? Math.min(Math.max(writeTimeout, 60), 1800) * 1000 : 900000,
+    writeWorktreeDir: get("CENTRAL_WRITE_WORKTREE_DIR", ""),
+    gitBin: get("CENTRAL_GIT_BIN", "git"),
     claudeTimeoutMs: Number.isFinite(timeout) ? Math.min(Math.max(timeout, 10), 600) * 1000 : 120000
   };
 }
