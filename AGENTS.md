@@ -33,6 +33,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 | Saúde financeira da empresa | `docs/FINANCEIRO_SAUDE.md` |
 | Manual do CRM e Novidades | `.claude/rules/manual.md`, `docs/BUSINESS_RULES.md` (MAN-x) |
 | Academia (formação dos corretores) | `.claude/rules/academia.md`, `docs/ACADEMIA.md`, `docs/BUSINESS_RULES.md` (ACA-x) |
+| E-mail marketing / prospecção por e-mail | `.claude/rules/email-marketing.md`, `docs/email/` |
 | Posicionamento orgânico (Google, SEO, Instagram) | `docs/MARKETING_POSICIONAMENTO.md`, `docs/posicionamento/` |
 | Registrar o que você mudou | `docs/CHANGELOG_AI.md` (leia só as entradas recentes — não o arquivo inteiro) |
 | Bug (mesmo vago), produção, incidente repetido, verificação de correção | skills em `CLAUDE.md` §Agentes e skills — nunca corrija antes de achar a causa raiz |
@@ -62,7 +63,7 @@ Não há scripts `lint` nem `test` no `package.json`. O que existe:
 
 - `pnpm build` — compila e checa o TS do motor de entrada (`prebuild` regenera `public/sw.js`: se só o hash mudou, `git checkout -- public/sw.js`). No Windows do dono `npm` puro não funciona: use `pnpm`, ou `node node_modules/next/dist/bin/next ...` (detalhes em `.claude/rules/workflow-dev.md`). Builds podem levar minutos.
 - Testes unitários (Node ≥ 20, sem dependências): `node --test tests/<arquivo>.test.mjs` e `node --test lib/financial-calculations.test.js`.
-  Estado em 2026-09-24: passam todos, **exceto** `tests/whatsapp-flow-core.test.mjs` → 1 falha conhecida (`modelo 'Menu principal'`, texto esperado desatualizado; existe desde antes desta documentação). `tests/journey-http.test.mjs` exige servidor local em `:3107`; `tests/journey-auth.integration.mjs` exige `JOURNEY_QA_CLIENT_ID` + credenciais (mexe em banco — **não rode contra produção**).
+  Estado em 2026-10-04: passam todos, 0 falhas (o antigo `tests/whatsapp-flow-core.test.mjs` quebrado, `modelo 'Menu principal'`, foi corrigido: P-15 resolvido só na parte do teste; CI/lint/script `test` continuam inexistentes e um CI mínimo está em implantação). `tests/journey-http.test.mjs` exige servidor local em `:3107`; `tests/journey-auth.integration.mjs` exige `JOURNEY_QA_CLIENT_ID` + credenciais (mexe em banco — **não rode contra produção**).
 - Dev server: `.claude/launch.json` (`dev`, porta 3020).
 - Scripts de investigação descartáveis vão em `scratch/` e são apagados ao terminar (nunca commitados). Rotas temporárias de diagnóstico não podem começar com `_` (o App Router as ignora) e devem ser removidas e reimplantadas depois.
 

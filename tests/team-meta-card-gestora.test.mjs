@@ -10,7 +10,7 @@ const m1 = resolveTeamMetaScope({ isManager: true, profileId: "M1", managedUserI
 
 test("T-49: o card próprio usa getBrokerDailyGoal(auth) — só o perfil da sessão, sem id externo", () => {
   const page = src("app/admin/meta-diaria/page.jsx");
-  assert.match(page, /viewer === "manager" && canLoadDailyGoal\(\)/);
+  assert.match(page, /viewer === "manager" && !ownGoalHidden && canLoadDailyGoal\(\)/);
   assert.match(page, /ownGoal = await getBrokerDailyGoal\(auth\)/);
   assert.doesNotMatch(page, /getBrokerDailyGoal\((?!auth\))/);
   const lib = src("lib/daily-goal.js");
@@ -40,7 +40,7 @@ test("T-49: equipe continua isolada; a gestora não aparece na lista e não lê 
 test("T-49: corretor e admin sem regressão (variant padrão = tela completa; admin usa visão de equipe sem card)", () => {
   const page = src("app/admin/meta-diaria/page.jsx");
   assert.match(page, /<DailyGoalDashboard initialGoal=\{goal\} \/>/);
-  assert.match(page, /viewer === "manager" \? \(/);
+  assert.match(page, /viewer === "manager" && !ownGoalHidden \? \(/);
 });
 
 test("T-50: cabeçalho do card — badges numa linha e WhatsApp + Google Contacts juntos na linha de ícones", () => {

@@ -73,6 +73,7 @@ Quatro papéis em `admin_users.role`: **admin** (geral), **manager** (gestor de 
 | Automações, notificações, push, mensagem diária | `.claude/rules/automacoes-notificacoes.md` |
 | Financeiro (comissões, despesas, recebimentos) | `.claude/rules/financeiro.md` |
 | Integrações externas (WhatsApp, IA, e-mail, cron) | `.claude/rules/integracoes-externas.md` |
+| E-mail marketing / prospecção por e-mail | `.claude/rules/email-marketing.md` |
 | Convenções de frontend, PWA | `.claude/rules/frontend-pwa.md` |
 | Academia (formação dos corretores) | `.claude/rules/academia.md` |
 | Workflow de dev, build, deploy, testes | `.claude/rules/workflow-dev.md` |
@@ -99,6 +100,7 @@ Regras que só existem aqui:
 - `designer-crm` = **Diretor de Design**: UX/UI, PDF/material comercial, direção de arte, imagem/foto, design system; altera **só apresentação** (âncoras: logo + paleta; fatos, funcionalidade e regras preservados). Conhecimento modular em `.claude/design/` (índice `README.md`; carregue só os módulos da tarefa); crítica independente pelo subagente `design-critic`; revisão visual sem login em `app/dev/vitrine` (só `next dev`), PDF via `.claude/design/tools/renderizar-pdf.mjs`.
 - `marketing-posicionamento`: orgânico; nunca publica/responde/envia em nome do dono sem "sim" por ação; memória em `docs/posicionamento/`.
 - `auditor-crm`/`/pre-mortem`: somente leitura, severidade P0-P3 com evidência; ledger de riscos em `docs/SYSTEM_ARCHITECTURE.md` §13.
+- `email-specialist` (**Diretor de E-mail**): estratégia, copy, HTML/MJML, entregabilidade, conformidade e métricas de e-mail; escreve só em `docs/email/`; **não envia nada** nem configura provedor/domínio sem decisão do dono; implementação no CRM é do `crm-editor`. Skills `/diretor-email`, `/planejar-campanha-email`, `/criar-email`, `/auditar-entregabilidade`, `/analisar-campanha-email`; memória em `docs/email/`.
 - `performance-pc`: PC do dono, fora do CRM; memória fora do repo.
 - Agentes analíticos têm banco somente leitura (hook força); não contorne.
 

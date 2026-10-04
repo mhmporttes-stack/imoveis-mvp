@@ -51,11 +51,63 @@ Celular do corretor ⇄ WhatsApp ⇄ whatsapp-individual-service (Railway, Baile
 - **Histórico do celular** (`projectIndividualHistoryBatch`): decisão do dono de importar ao conectar, ciente de que traz conversas pessoais. Só popula conversas: nunca cria cliente, push nem não lidas. **Desligado** por padrão (`WHATSAPP_HISTORY_SYNC_ENABLED`) depois de causar 504 no webhook.
 - **Outros usos:** automação da Meta Diária (`lib/daily-goal-auto.js`, só por este canal, nunca pelo oficial). Chat › Corretores mostra o status real da sessão de cada corretor. Google Contacts (`lib/google-contacts.js`) salva o cliente na agenda do corretor antes do envio automático. O Disparo (`lib/whatsapp-broadcasts.js`) **não** usa este canal (trava + teste `tests/whatsapp-broadcast-no-individual-channel.test.mjs`).
 - **Banco:** `whatsapp_individual_sessions` (1 por corretor; status, número, QR/código, credenciais cifradas, erro); colunas `channel`/`session_user_id` em `whatsapp_messages`; selo de conta na conversa. Migrations `20260928130000_whatsapp_individual_sessions`, `20260928180000_whatsapp_individual_direct_broker`, `20260928190000_whatsapp_conversation_account_badge`, `20260930160000_whatsapp_individual_pairing_code`.
+- **Política de reconexão do microsserviço (2026-10-04, `whatsapp-individual-service/src/reconnect-policy.js` + `session-lifecycle.js`; testes `tests/whatsapp-reconnect-policy.test.mjs`).** **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — decidido pelo dono; códigos conforme `DisconnectReason` do Baileys 6.7.24]** Antes só o 401 encerrava; todo outro código reconectava em 4 s fixos, para sempre (laços de 403 de ~22 h e ~15 h em duas contas). Hoje:
+
+  | Código | Significado (Baileys 6.7.24) | Ação |
+  |---|---|---|
+  | 401 | logout / aparelho removido | sem reconexão; apaga credenciais; `disconnected` + `logged_out` (como antes) |
+  | 403, 440, 411 e qualquer outro código numérico não previsto (ex.: 402, 405) | recusa do WhatsApp / outra conexão assumiu / multi-aparelho | **NÃO reconecta**; encerra o socket (`end` + `removeAllListeners`); `status = 'error'` + `last_error = 'needs_attention:<motivo>: <texto>'` + `last_disconnect_code`; credenciais preservadas |
+  | 408, 428, 500, 503 e 5xx, sem código | queda/timeout/servidor | backoff exponencial (4 s, 8 s … teto 120 s, jitter ±25%), no máximo 6 reconexões por ciclo |
+  | 515 | restart exigido após parear | reconecta em 1 s (conta no limite) |
+  | Sessão ainda não pareada (QR sem escanear) | `QR refs attempts ended` (408) | 2 s entre QRs, no máximo 5; depois `disconnected` + `qr_expired` (não é erro da conta) |
+  | Estourou o limite | — | para; `status = 'error'`, `last_error = 'needs_attention:retry_limit: …'`; telemetria `interrupted_limit` |
+
+  O contador só zera depois da sessão ficar **conectada por 3 min seguidos** (`stableMs`); um "open" que cai antes disso NÃO zera. `POST /connect` (botão Conectar) abre um ciclo novo e cancela qualquer tentativa agendada. `status = 'error'` já existia no CHECK: **nenhuma migration de status**; a tela mostra "Erro" e o botão Conectar continua valendo. Ajustes opcionais por variável da Railway: `WHATSAPP_RECONNECT_MAX_RETRIES` (1–10) e `WHATSAPP_RECONNECT_STABLE_MS` (30 s–1 h). Retomada no boot (`resumeSessions`): só reabre quem o banco diz `connected`; `reconnecting`, `error`, `qr_required`, `disconnected`... ficam quietas (telemetria `resume_skipped`); intervalo de 5–8 s entre sessões. **Alerta de intervenção (2026-10-04, `lib/whatsapp-session-attention*.{js,mjs}`):** `error`/`needs_attention:*`, `retry_limit` e `qr_expired` de conta que já esteve conectada geram o alerta Importante `whatsapp_session_attention` para a gestora responsável + admins gerais (ver tabela e regras em §1-B abaixo). **Pendência:** uma sessão que ficou `reconnecting` no banco de antes continua assim até alguém clicar Conectar (o boot não grava status).
+- **Telemetria de conexão** (`whatsapp_session_telemetry`, migration `20261004100000_whatsapp_session_telemetry`, append-only, RLS sem policy pública): uma linha por fato, **sem deduplicar** (ao contrário de `whatsapp_session_events`, que só guarda erros e agrupa em 10 min — esse continua como estava, assim como `whatsapp_restriction_events`). Tipos: `service_boot`, `service_shutdown`, `resume_skipped`, `resume_done`, `cycle_start`, `cycle_end` (`stable`/`limit`/`intervention`/`logout`/`superseded`/`manual_disconnect`), `connect_attempt` (nº da tentativa no ciclo + gatilho `manual`/`resume`/`auto_reconnect`), `connected`, `disconnected` (código, motivo, tempo que ficou conectada), `retry_scheduled` (atraso), `interrupted_limit`, `intervention_required`. Todo evento carrega `boot_id`, `baileys_version` (lida do pacote instalado em runtime), `wa_version` (+ `wa_version_is_latest`; vem de `fetchLatestBaileysVersion`, que consulta o GitHub do Baileys a cada conexão — **não** é fixada pelo lockfile) e, se existirem, `deploy_id`/`commit_sha` (variáveis `RAILWAY_DEPLOYMENT_ID`/`RAILWAY_GIT_COMMIT_SHA`). Transporte: o serviço junta em lote (5 s / 50 eventos, fila máx. 500) e envia para `POST /api/webhooks/whatsapp-individual/telemetry` (mesmo `X-Service-Secret`); o servidor só aceita campos de uma lista fixa (`lib/whatsapp-session-telemetry-core.mjs`) e descarta texto parecido com telefone. Nunca credenciais, mensagens ou telefones; falha de telemetria nunca derruba a sessão. Sem a tabela criada, o endpoint responde 500 e o serviço só perde a telemetria.
+
+  ```sql
+  -- Quantas vezes esta sessão tentou reconectar e em qual intervalo? (por ciclo)
+  select cycle_id, count(*) filter (where event_type = 'connect_attempt') as tentativas,
+         min(occurred_at) filter (where event_type = 'connect_attempt') as primeira,
+         max(occurred_at) filter (where event_type = 'connect_attempt') as ultima,
+         max(occurred_at) filter (where event_type = 'cycle_end') as fim_ciclo,
+         max(reason) filter (where event_type = 'cycle_end') as como_terminou
+  from public.whatsapp_session_telemetry where user_id = '<id interno do corretor>'
+  group by cycle_id order by primeira desc;
+  -- Intervalo entre tentativas:
+  select occurred_at, attempt, trigger, occurred_at - lag(occurred_at) over (partition by cycle_id order by occurred_at) as desde_a_anterior
+  from public.whatsapp_session_telemetry where user_id = '<id>' and event_type = 'connect_attempt' order by occurred_at desc limit 50;
+  ```
+- **Versão do Baileys / build:** `package.json` com versão EXATA `6.7.24` + `package-lock.json` + `npm ci` no Dockerfile (antes `^6.7.9` sem lockfile). Evidência de que 6.7.24 já era a versão em produção: ela foi publicada em 2026-07-29, antes de o serviço existir (2026-09-28), e é a maior 6.x não deprecada (6.17.16 e 6.7.9 estão deprecadas por falha de segurança, que o npm evita) — logo toda build desde a criação resolveu 6.7.24 (`docs/INCIDENTES.md` já cita "Baileys 6.7.24 que o Railway instala"). Certeza alta para o Baileys; as dependências transitivas (axios, ws, protobufjs, libsignal via git) não têm como ser comprovadas para builds antigas — o lockfile fixa as de 2026-10-04. A versão do protocolo WA Web continua sendo buscada em runtime (ver telemetria). **Não houve upgrade.** O lockfile registra `libsignal` como `git+ssh`; o Dockerfile troca para https (`git config url.insteadOf`) porque o container não tem chave SSH.
 - **Riscos:**
   - A sessão depende do celular do corretor ligado e com internet.
   - Números pessoais podem ser banidos por volume. Mitigações na automação: variações de mensagem, ordem embaralhada, intervalo oscilante, teto diário. Troca de número depois de banimento foi corrigida em 30/09.
   - Perder `SESSION_ENCRYPTION_KEY` derruba todas as sessões.
   - Mídia recebida acima de 16 MB não é baixada (fica `failed`, "abra no WhatsApp do celular").
+
+## 1-B. Alerta "WhatsApp precisa de atenção" (2026-10-04) — **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]**
+
+Definição `whatsapp_session_attention` em `crm_alert_definitions` (Importante, ligável em Automações › Alertas; migration `20261004120000`). Detecção em `applyIndividualSessionStatus` (webhook de status do microsserviço — nada no Railway), regras puras em `lib/whatsapp-session-attention-core.mjs`, testes `tests/whatsapp-session-attention.test.mjs`. Decide pelo `error` do evento recebido, não pelo `last_error` antigo.
+
+| Estado gravado pelo microsserviço | Alerta? | Observação |
+|---|---|---|
+| `error` + `needs_attention:<motivo>` (403, 440, 411, desconhecido) | **Sim** | a reconexão automática parou; texto por motivo |
+| `error` + `needs_attention:retry_limit` | **Sim** | limite de reconexões esgotado |
+| `disconnected` + `qr_expired` e a conta já esteve conectada (`last_connected_at`) | **Sim** | precisa de QR novo |
+| `disconnected` + `qr_expired` de conta que nunca conectou | Não | primeira conexão abandonada |
+| `reconnecting`, retry agendado, `connecting`, `qr_required`, `pairing_code_required` | Não | tentativa automática ou ação humana em curso |
+| `disconnected` + `logged_out` (401) / queda `connected→disconnected` | Não aqui | já avisado por `whatsapp_connection` (só gestora) |
+| `connected` | Fecha | pendentes do corretor são encerrados sozinhos (`acknowledged_by` nulo = sistema) |
+
+- **Quem recebe:** gestora responsável ativa (`manager_id`; associado → gestora do corretor) + administradores gerais ativos. Nunca o corretor afetado nem outras equipes (alerta direcionado é privado — `automacoes-notificacoes.md`).
+- **Idempotência:** `dedupe_key = wa_attn:<corretor>:<motivo>:<last_connected_at | nunca:AAAA-MM-DD>` + UNIQUE `(recipient_id, dedupe_key)` da Central (cobre eventos simultâneos) + cooldown de 10 min por corretor/motivo. Nova conexão bem-sucedida que cai de novo, ou motivo diferente = ocorrência nova.
+- **Texto:** nome do corretor, estado, motivo e ação em português simples, horário de Brasília. Nunca telefone, código cru, credencial ou mensagem. Variáveis editáveis na definição: `{corretor} {estado} {motivo} {acao} {horario}`.
+- **Clique:** `context.link = /admin/meta-diaria` (visão da equipe com o chip de WhatsApp por corretor; para admin que não é o dono abre a Meta Diária pessoal). A Central mostra "Entendi e abrir" (Importante) / "Abrir" (Informativo) para qualquer alerta com `context.link` interno (`alertLink`, só `/admin/...`).
+- Sem a linha da definição no banco o código não alerta (`definicao_ausente`, sem erro).
+
+## 1-C. Política de disparos v2 e monitor de entrega (2026-10-04) — **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-04]**
+
+Disparos automáticos do WhatsApp individual (Meta Diária automática + fila extra "Disparar") de um corretor com a automação ligada seguem a política v2 (VIGENTE por padrão desde 2026-10-04: `daily_goal_auto_settings.policy_v2_enabled` ausente/NULL/true; só `false` explícito é opt-out, interruptor por corretor só admin geral): 30/dia (10/10/10 sem empréstimo; excedente da fila é retirado, `policy_v2_trim_excess`), seg–sáb 06:30–15:30, intervalo 5–8 min (constantes da política, não o banco), pausa 15–30 min a cada ~10, reconexão sem rajada (atrasados reprogramados; 1º envio ≥ 5 min após `last_connected_at`), modelos novos com "responda SAIR". Um **monitor** (sempre ligado, leitura + e-mail à gestora via Resend, sem migration) avisa quando a % de `delivered_at` cai abaixo de 60% (amostra ≥ 20, 1–24 h atrás); não pausa nada. O serviço do Railway não foi alterado. Detalhe e como pausar à mão: `docs/OPERACAO_DISPAROS.md`; regras: `.claude/rules/meta-diaria-ranking.md`.
 
 ## 2. Configuração (nomes de variáveis — nunca valores)
 
@@ -195,7 +247,7 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 
 Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Problemas. Resumo:
 1. **P-04** lembrete de atividade falha em loop quando o modelo não existe/aprovado (erro Meta “#132001”, registrado na memória operacional de 2026-09-24) — bloqueia também push/e-mail.
-2. **P-11** resposta pelo Chat não conta como “contato” (por desenho); automações “sem primeiro atendimento” e o indicador “aguardando ação” continuam vendo o cliente como não contatado.
+2. ~~**P-11**~~ **resolvido em 2026-10-03**: resposta pelo Chat **e** pelo celular do corretor grava o contato do cliente (função única `registerHumanContact`, `lib/whatsapp-human-contact.js`); regras em `docs/BUSINESS_RULES.md` WA-4a. Cadência da Meta Diária não envia sobre conversa humana recente (MD-13).
 3. ~~P-06~~ **resolvido** (migration `20260924210000`): a roleta acionada por WhatsApp agora grava `lead_distribution_history` e vincula a conversa.
 4. **P-16** gatilho de Fluxo por palavra-chave “contém” sem fronteira de palavra.
 5. Sem **opt-out** (PARAR/SAIR) no fluxo de mensagens; “não contactar” só vale para a base de prospecção/Disparo. **A CONFIRMAR** requisito.
@@ -203,6 +255,8 @@ Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Probl
 7. Modelos aprovados na WABA atual e o número ativo: **A CONFIRMAR** (a memória operacional de 2026-09-24 registra 0 modelos aprovados na WABA nova).
 8. Falhas de projeção do Chat não têm reprocesso/alerta (o bruto fica em `whatsapp_master_events`). O lead patrocinado tem rede de segurança (cron); o áudio tem “Tentar novamente”/recuperação manual.
 9. ~~Código TEMPORÁRIO de testes na `main`~~ **encerrado** (P-21). O código foi removido no commit `9bcae0c` (2026-09-25): os commits `TEMP:` de 2026-09-24 tinham introduzido `dryRunForFictionalRecipient` em `lib/whatsapp-master.js` (destinos `+5500…` não chamavam a Meta e devolviam ID `wamid.DRYRUN…`), o pulo do push em `notifyInternalMessage` para conversas `+5500…` e a rota `app/api/admin/tmp-chat-tests`; os envios voltaram a ser sempre reais. O `maxDuration = 30` do webhook (`app/api/webhooks/whatsapp-master/route.js`) é legítimo e permanece. Os dados de teste (12 linhas `TESTE CRITICO` em `crm_clients`) foram removidos do banco e a verificação final achou 0 resíduos; nenhuma conversa, mensagem ou auditoria do WhatsApp tinha resíduo (detalhes em `SYSTEM_ARCHITECTURE.md` P-21).
+
+**Pendência separada (registrada em 2026-10-03, fora de escopo desta tarefa): WhatsApp Oficial — verificar webhook e estado real.** O último webhook recebido do número oficial foi em 29/09/2026 (número banido em 28/09). Confirmar com o dono o estado real da WABA/número, do webhook e dos modelos antes de assumir que Fluxos, palavra-chave e Disparo oficial funcionam. Nada foi alterado.
 
 ## 15. Como testar sem enviar mensagem real
 

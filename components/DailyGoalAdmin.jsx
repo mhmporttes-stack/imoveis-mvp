@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Save } from "lucide-react";
 import Avatar from "./Avatar";
+import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
 
 const SESSION_STATUS_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
@@ -29,7 +30,7 @@ const GOOGLE_CONTACTS_STATUS_LABELS = {
 // erro de verdade na maioria das vezes (ex.: cliente que já respondeu).
 const SKIP_REASON_LABELS = {
   fora_da_janela: "Fora do horário configurado",
-  fim_de_semana: "Fim de semana (dias úteis apenas)",
+  fim_de_semana: "Domingo (disparo só de segunda a sábado)",
   sessao_nao_conectada: "WhatsApp desconectado no momento",
   fila_vazia: "Fila vazia",
   responsavel_mudou: "Cliente mudou de corretor antes do disparo",
@@ -45,6 +46,8 @@ const SKIP_REASON_LABELS = {
   reducao_temporaria_2026_10_03: "Redução temporária de 50% dos disparos (somente 03/10/2026)",
   pausado_para_investigacao: "Pausado manualmente para investigação",
   lead_respondeu: "Cliente respondeu — atendimento humano assumiu",
+  conversa_humana_recente: "Não enviado: uma pessoa da equipe conversou com o cliente nas últimas 24 h",
+  cliente_conversando_recente: "Não enviado: o cliente escreveu nas últimas 24 h (conversa em andamento)",
   falha_infraestrutura: "Instabilidade temporária (sessão/WhatsApp) — cliente não foi penalizado",
   movido_para_erro: "Cliente movido para \"Erro\" após 3 falhas técnicas seguidas",
   falha_destinatario_1_3: "Falha técnica ao enviar (1ª de 3) — será tentado de novo",
@@ -205,6 +208,31 @@ function AutomationTab() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brokerId, paused })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível atualizar.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  // Política nova de disparos (2026-10-04): chave por corretor, só o administrador geral consegue (o servidor recusa
+  // os demais). Troca as regras da fila pendente de agora (refeita uma vez).
+  async function togglePolicyV2(brokerId, brokerName, policyV2Enabled) {
+    const question = policyV2Enabled
+      ? `Ligar a política nova de disparos para ${brokerName}? Máximo de 30 mensagens por dia, das 6h30 às 15h30, de segunda a sábado, com intervalos e pausas. A fila de hoje será refeita.`
+      : `Voltar ${brokerName} para a política antiga de disparos? A fila de hoje será refeita.`;
+    if (typeof window !== "undefined" && !window.confirm(question)) return;
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, policyV2Enabled })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
@@ -390,7 +418,16 @@ function AutomationTab() {
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
                   <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%${broker.maxAvgGapMinutes ? ` (média máx. ${broker.maxAvgGapMinutes} min)` : ""}` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
-                  <span>· {broker.businessDaysOnly ? "Só dias úteis" : "Todos os dias"}</span>
+                  <span>· {broker.businessDaysOnly ? "Segunda a sábado" : "Todos os dias"}</span>
+                  <span>· Política: {broker.policyV2Enabled ? "nova (30 por dia, 6h30–15h30)" : "antiga"}</span>
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-brand hover:underline"
+                    disabled={busyId === broker.brokerId}
+                    onClick={() => togglePolicyV2(broker.brokerId, broker.brokerName, !broker.policyV2Enabled)}
+                  >
+                    {broker.policyV2Enabled ? "Voltar à política antiga" : "Ligar política nova"}
+                  </button>
                   <span className="flex items-center gap-1">
                     · Teto diário:
                     <BrokerCapInput
@@ -783,7 +820,7 @@ function GlobalConfigPanel({ onSaved }) {
                     checked={Boolean(draft.businessDaysOnly)}
                     onChange={(event) => setDraft((current) => ({ ...current, businessDaysOnly: event.target.checked }))}
                   />
-                  Enviar só em dias úteis (seg. a sex.)
+                  Enviar só de segunda a sábado (não envia aos domingos)
                 </label>
               </div>
             </div>
@@ -914,7 +951,7 @@ async function saveSettings(payload, setBusy, setFeedback, setSettings) {
 
 function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
   const [quota, setQuota] = useState(settings?.quota || 30);
-  const [walletLimit, setWalletLimit] = useState(settings?.wallet?.walletLimit ?? 100);
+  const [walletLimit, setWalletLimit] = useState(settings?.wallet?.walletLimit ?? DEFAULT_WALLET_LIMIT);
   const [blockOnLimit, setBlockOnLimit] = useState(settings?.wallet?.blockOnLimit ?? true);
 
   return (
@@ -961,10 +998,10 @@ function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="text-sm font-black text-navy">
-            Limite máximo da carteira ativa
+            Limite máximo da carteira ativa (até {MAX_WALLET_LIMIT})
             <input
               className="mt-2 h-12 w-40 rounded-2xl border border-line bg-white px-4 font-bold text-navy outline-none focus:border-brand"
-              max={5000}
+              max={MAX_WALLET_LIMIT}
               min={1}
               onChange={(event) => setWalletLimit(event.target.value)}
               type="number"

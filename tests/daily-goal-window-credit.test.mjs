@@ -13,6 +13,7 @@ const W_START = 7 * 60;
 const W_END = 14 * 60;
 const FRI = "2026-10-02"; // sexta
 const SAT = "2026-10-03";
+const SUN = "2026-10-04";
 const at = (hhmm, day = FRI) => new Date(`${day}T${hhmm}:00-03:00`).toISOString();
 const validated = (from, to, day = FRI, toDay = day) => ({ validation_status: "validated", validated_at: at(from, day), ended_at: to ? at(to, toDay) : null });
 const credit = (restrictions, extra = {}) => computeDayWindowCredit({
@@ -100,8 +101,8 @@ test("restriÃ§Ã£o que atravessa a meia-noite: cada dia sÃ³ recebe a sua pa
   assert.equal(computeDayWindowCredit({ ...base, date: SAT }).creditMinutes, 60, "sÃ¡bado: 07:00-08:00 (janela do prÃ³prio dia)");
 });
 test("dia nÃ£o Ãºtil (business_days_only) nÃ£o gera crÃ©dito", () => {
-  const row = validated("09:00", "11:00", SAT);
-  const base = { date: SAT, restrictions: [row], windowStartMinutes: W_START, windowEndMinutes: W_END, nowMs: new Date(at("20:00", SAT)).getTime() };
+  const row = validated("09:00", "11:00", SUN);
+  const base = { date: SUN, restrictions: [row], windowStartMinutes: W_START, windowEndMinutes: W_END, nowMs: new Date(at("20:00", SUN)).getTime() };
   assert.equal(computeDayWindowCredit({ ...base, businessDaysOnly: true }).creditMinutes, 0);
   assert.equal(computeDayWindowCredit({ ...base, businessDaysOnly: false }).creditMinutes, 120);
 });

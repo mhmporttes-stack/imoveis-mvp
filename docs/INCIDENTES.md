@@ -39,6 +39,43 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Corretor com mais de 30 clientes na "Carteira ativa" (83/50, 60/50...)
+- **Data:** 2026-10-04
+- **Sintoma:** "alguns corretores continuam com mais de 30 clientes ativos na carteira"; card "Carteira ativa 83/50".
+- **Área:** Meta Diária
+- **Impacto:** 6 corretores acima do novo teto de 30 (Bruna 83, Eduardo 70, Caroline 60, Paulo 57, ketlin 55, Jennyfer 52...); 94 das rodadas contadas já não eram do corretor.
+- **Causa raiz:** (1) o teto só impedia a ENTRADA, nunca removia o excedente de antes. (2) retorno automático de 7 dias, "Devolver" e reatribuição devolviam o contato à fila mas deixavam `daily_goal_rounds` ativa: rodada "zumbi" contada na carteira (e no card) de quem já não tinha o contato.
+- **Correção:** teto 30 numa constante; `releaseActiveRoundsForContacts` nos 4 caminhos; migration `20261004200000` + `daily_goal_wallet_trim` (rebalanceamento manual com backup, auditoria e reversão).
+- **Arquivos/commit:** `lib/daily-goal-round-release.mjs`, `lib/prospecting.js`, `lib/prospecting-auto-return.js`, `lib/daily-goal-wallet-core.mjs`, `supabase/migrations/20261004200000_meta_diaria_carteira_30.sql` — commit no `CHANGELOG_AI.md` de 2026-10-04.
+- **Prevenção/teste:** `tests/daily-goal-carteira-30*.test.mjs`. Risco residual: o interruptor de bloqueio da carteira (Configurações) desliga o teto.
+- **Status:** Resolvido (dados corrigidos pela Central; ver CHANGELOG_AI)
+
+### 2026-10-04 — Corretor/associado via observações internas de empreendimento e podia apagar etiqueta de todos
+- **Data:** 2026-10-04
+- **Sintoma:** (achado de auditoria, sem relato de uso indevido) "Informações internas" do empreendimento visíveis a todo perfil; corretor/associado podia excluir ou recolorir etiqueta global pela ficha do cliente.
+- **Área:** Permissões
+- **Impacto:** vazamento de observações da gestão para corretor/associado (e para o código enviado ao navegador); exclusão de etiqueta apaga o vínculo de todos os clientes (23 etiquetas, 146 vínculos em produção) e o histórico de campanha.
+- **Causa raiz:** páginas com `requireAdminPage` repassavam o objeto inteiro de `properties` (select *) sem filtro por perfil; rotas `client-tags` usavam só `requireAdminApi` (qualquer perfil) e o `POST` fazia upsert por nome (recolore); a lixeira aparecia para os 4 perfis.
+- **Correção:** filtro no servidor por perfil efetivo (`lib/property-visibility*`); `DELETE` com `requireBrokerManagementApi`; `POST` não recolore para corretor/associado; lixeira só para admin/gestor.
+- **Arquivos/commit:** `lib/property-visibility.js`, `lib/client-tags.js`, `app/api/client-tags/**`, `components/clients/ClientSheet.jsx` — commit no `CHANGELOG_AI.md` de 2026-10-04.
+- **Prevenção/teste:** `tests/permissoes-tags-notas-internas.test.mjs`. Risco residual: `addTagToClient` (campanha/fluxo) ainda recolore por upsert.
+- **Status:** Resolvido
+### 2026-10-04 — WhatsApp individual: contas presas em laço de reconexão (403) por horas
+- **Data:** 2026-10-04
+- **Sintoma:** sessões em "reconectando" por ~22 h, ~15 h e 26 min com código 403, sem nunca voltar; telemetria só mostrava o último erro.
+- **Área:** WhatsApp individual (serviço Railway)
+- **Impacto:** 3 contas em laço de conexões repetidas contra o WhatsApp (risco de agravar restrição/bloqueio); impossível reconstruir quantas tentativas houve.
+- **Causa raiz:** `onConnectionUpdate` só tratava 401 como fim; qualquer outro código (403, 440, 428...) reconectava em 4 s fixos, sem contador, teto nem backoff; o socket fechado não era encerrado com `end`/`removeAllListeners`; `resumeSessions()` reabria TODAS as sessões com credenciais a cada deploy; telemetria deduplicava em 10 min e só guardava erros; Baileys `^6.7.9` sem lockfile.
+- **Correção:** política de reconexão pura (`reconnect-policy.js`): 403/440/411/códigos desconhecidos não reconectam (`status='error'`, `needs_attention:`), quedas recuperáveis com backoff+jitter e limite de 6 por ciclo, contador só zera após 3 min estável; retomada no boot só de sessões `connected`; telemetria append-only `whatsapp_session_telemetry`; Baileys fixado em 6.7.24 com `npm ci`. Detalhes: `docs/WHATSAPP.md`.
+- **Arquivos/commit:** `whatsapp-individual-service/src/{reconnect-policy,session-lifecycle,telemetry,sessions,server,webhook}.js`, `app/api/webhooks/whatsapp-individual/telemetry/route.js`, `lib/whatsapp-session-telemetry*.{js,mjs}`, migration `20261004100000_whatsapp_session_telemetry.sql`
+- **Prevenção/teste:** `tests/whatsapp-reconnect-policy.test.mjs`. Depois do deploy: `select event_type, count(*) from whatsapp_session_telemetry group by 1`. Risco residual: conta de 403 só volta por ação consciente (Conectar); `needs_attention` ainda não alerta a gestora.
+- **Status:** Corrigido no código, aguardando aplicar a migration e publicar
+
+### 2026-10-03 — Cliente devolvido à fila voltava para o dono; resposta pelo celular não contava como contato
+- **Sintoma:** "o dono acumula clientes que a Prospecção devolveu" (~2 mil, 1.049 em "Tentando contato"); corretor que respondia pelo celular continuava aparecendo como "sem contato" (cobrança à toa / lead redistribuído pela roleta).
+- **Causa raiz:** (1) a rede de segurança `reassignOrphanedClientsToOwner` (cron de 2 em 2 min) devolvia ao dono todo cliente sem responsável, sem distinguir quem a Prospecção zerou de propósito; (2) `recordBrokerAppMessage` (mensagem pelo celular) gravava só a conversa, nunca o cliente, e a conversa nascia sem `client_id`, fora da proteção da roleta.
+- **Correção:** cron ignora cliente devolvido à fila (P-05); função única de contato humano para Chat e celular (P-11); trava na cadência da Meta Diária. Detalhes e arquivos: `docs/CHANGELOG_AI.md` (2026-10-03). Dado antigo (~1.049 com o dono) não alterado.
+
 ### 2026-10-02 — Entrada simulada diferente entre o Gerador de Simulações e a Apresentação (Casa Paulista)
 - **Sintoma:** "O PDF/simulação não desconta o Casa Paulista" — o mesmo cliente e imóvel mostravam entradas diferentes conforme a tela.
 - **Causa raiz:** o valor do Casa Paulista era uma constante escrita em dois componentes com valores diferentes: `EmpreendimentoPresentation.jsx` enviava 10000 e `SimulationGenerator.jsx` enviava 0 ao `/api/simular-entrada` (o motor só aplica se o empreendimento aceita). Nenhum campo de cadastro definia o valor.

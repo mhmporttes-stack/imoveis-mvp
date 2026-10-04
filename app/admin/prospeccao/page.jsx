@@ -2,7 +2,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import ProspectingConnectGate from "@/components/ProspectingConnectGate";
 import ProspectingTabs from "@/components/ProspectingTabs";
 import { isOwnerAdminEmail, requireAdminPage } from "@/lib/admin-auth";
-import { isGeneralAdminAuth } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listProspectingContacts } from "@/lib/prospecting";
 import { getProspectingGate } from "@/lib/prospecting-eligibility";
@@ -25,6 +25,6 @@ export default async function ProspectingPage() {
   const [contacts, users] = await Promise.all([listProspectingContacts(auth, "company"), isAdmin ? listAdminProfiles() : []]);
   return <main className="min-h-screen bg-mist py-14">
     <AdminSectionNav active="prospecting" />
-    <ProspectingTabs initialCompanyContacts={contacts} isAdmin={isAdmin} isOwner={isOwner} users={users.filter((user) => user.status === "active")} />
+    <ProspectingTabs initialCompanyContacts={contacts} isAdmin={isAdmin} isOwner={isOwner} canPrintLists={isAdmin || isManagerProfile(auth.profile)} users={users.filter((user) => user.status === "active")} />
   </main>;
 }

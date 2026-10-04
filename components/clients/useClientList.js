@@ -554,9 +554,27 @@ export function useClientList({
     });
   }
 
-  async function createTagForClient(client, name, color = TAG_COLORS[0].value) {
+  // keepExisting (corretor/associado): nome que já existe NÃO é enviado de novo ao
+  // servidor — só marca a etiqueta existente no cliente, sem mudar a cor dela.
+  // A barreira real é o servidor (POST /api/client-tags não recolore para esses perfis).
+  async function createTagForClient(client, name, color = TAG_COLORS[0].value, { keepExisting = false } = {}) {
     const cleanName = String(name || "").replace(/\s+/g, " ").trim();
     if (!cleanName) return false;
+    if (keepExisting) {
+      const key = (value) => String(value || "").replace(/\s+/g, " ").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const existingTag = localTags.find((item) => key(item.name) === key(cleanName));
+      if (existingTag) {
+        const currentItem = items.find((item) => item.id === client.id);
+        const currentIds = ensureArray(currentItem?.tags).map((item) => item.id);
+        if (currentIds.includes(existingTag.id)) {
+          notify(`A etiqueta "${existingTag.name}" já existe e já está neste cliente.`);
+        } else {
+          notify(`A etiqueta "${existingTag.name}" já existe; foi marcada neste cliente.`);
+          await saveClientTags(client, [...currentIds, existingTag.id]);
+        }
+        return true;
+      }
+    }
     const response = await fetch("/api/client-tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -584,7 +602,7 @@ export function useClientList({
     const response = await fetch(`/api/client-tags/${tagItem.id}`, { method: "DELETE" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      notify(data.error || "Não foi possível excluir a tag.", "danger");
+      notify(response.status === 403 ? "Só o gestor ou o administrador pode excluir etiquetas." : (data.error || "Não foi possível excluir a tag."), "danger");
       return;
     }
     setLocalTags((current) => current.filter((item) => item.id !== tagItem.id));

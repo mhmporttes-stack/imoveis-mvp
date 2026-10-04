@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Bell, Clock, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
-import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
+import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -51,6 +53,7 @@ export default function AlertCenterGate({ userId }) {
   const seenInformative = useRef(new Set());
   const shownImportant = useRef(new Set());
   const isMobile = useIsMobile();
+  const router = useRouter();
 
   const load = useCallback(async () => {
     try {
@@ -96,9 +99,12 @@ export default function AlertCenterGate({ userId }) {
 
   const dismissInformative = useCallback((id) => setQueue((current) => current.filter((item) => item.id !== id)), []);
 
-  async function acknowledge(alert) {
+  // openLink: "Entendi e abrir" leva ao destino do alerta (context.link, só rota interna /admin/...) depois da ciência.
+  async function acknowledge(alert, openLink = false) {
     await postJson(`/api/admin/alerts/${alert.id}/ack`);
     setImportant((current) => current.filter((item) => item.id !== alert.id));
+    const link = openLink ? alertLink(alert.context) : "";
+    if (link) router.push(link);
   }
 
   if (!userId) return null;
@@ -167,6 +173,7 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
     };
   }, [paused, hovered, item.id, onDone]);
 
+  const link = alertLink(item.context);
   const motionProps = reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.15 } }, exit: { opacity: 0, transition: { duration: 0.15 } } }
     : {
@@ -190,6 +197,7 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-navy line-clamp-1">{item.title}</span>
         <span className="block text-[13px] leading-5 text-ink-2 line-clamp-2">{item.body}</span>
+        {link ? <Link href={link} onClick={() => onDone(item.id)} className="mt-1 inline-block text-[13px] font-semibold text-brand hover:underline">Abrir</Link> : null}
       </span>
       <button
         type="button"
@@ -233,12 +241,13 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
     cardRef.current.animate([{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(6px)" }, { transform: "translateX(0)" }], { duration: 200 });
   }
 
-  async function confirm() {
+  const link = alertLink(alert.context);
+  async function confirm(openLink = false) {
     if (state === "sending") return;
     setState("sending");
     try {
       if (dialogRef.current) dialogRef.current.dataset.ack = "1";
-      await onAcknowledge(alert);
+      await onAcknowledge(alert, openLink);
       dialogRef.current?.close();
     } catch {
       if (dialogRef.current) delete dialogRef.current.dataset.ack;
@@ -272,9 +281,14 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
         <h2 id={`alert-title-${alert.id}`} className="mt-3 text-lg font-semibold text-navy text-balance">{alert.title}</h2>
         <p id={`alert-body-${alert.id}`} className="mt-2 text-[15px] leading-6 text-ink-2">{alert.body}</p>
         {state === "error" ? <p role="alert" className="mt-3 text-xs text-danger">Não foi possível confirmar. Tente de novo.</p> : null}
-        <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={confirm} autoFocus data-alert-ack="true">
+        <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={() => confirm(false)} autoFocus data-alert-ack="true">
           {state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
         </Button>
+        {link ? (
+          <Button size="lg" block variant="secondary" className="mt-2" disabled={state === "sending"} onClick={() => confirm(true)} data-alert-open="true">
+            Entendi e abrir
+          </Button>
+        ) : null}
       </motion.div>
     </dialog>
   );

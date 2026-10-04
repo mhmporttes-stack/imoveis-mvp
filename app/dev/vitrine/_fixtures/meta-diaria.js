@@ -103,7 +103,7 @@ const TODAY_DATA = {
   "vitrine-corretor-ana": {
     prospectingDone: 40,
     pending: { total: 4, done: 4 },
-    wallet: { current: 22, limit: 100, endedWorkedToday: 8, byAttempt: { first: 10, second: 7, third: 5 }, stages: { first: { done: 12, total: 12 }, second: { done: 10, total: 10 }, third: { done: 8, total: 8 } } },
+    wallet: { current: 22, limit: 30, endedWorkedToday: 8, byAttempt: { first: 10, second: 7, third: 5 }, stages: { first: { done: 12, total: 12 }, second: { done: 10, total: 10 }, third: { done: 8, total: 8 } } },
     porMensagem: { 1: { abordados: 12, convertidos: 2 }, 2: { abordados: 10, convertidos: 1 }, 3: { abordados: 8, convertidos: 0 } },
     atendimentos: 6,
     simulacoes: 3,
@@ -114,7 +114,7 @@ const TODAY_DATA = {
   "vitrine-corretor-bruno": {
     prospectingDone: 20,
     pending: { total: 5, done: 2 },
-    wallet: { current: 27, limit: 100, endedWorkedToday: 3, byAttempt: { first: 12, second: 9, third: 6 }, stages: { first: { done: 8, total: 12 }, second: { done: 7, total: 10 }, third: { done: 3, total: 8 } } },
+    wallet: { current: 27, limit: 30, endedWorkedToday: 3, byAttempt: { first: 12, second: 9, third: 6 }, stages: { first: { done: 8, total: 12 }, second: { done: 7, total: 10 }, third: { done: 3, total: 8 } } },
     porMensagem: { 1: { abordados: 8, convertidos: 1 }, 2: { abordados: 7, convertidos: 1 }, 3: { abordados: 3, convertidos: 0 } },
     atendimentos: 3,
     simulacoes: 1,
@@ -129,7 +129,7 @@ const TODAY_DATA = {
   "vitrine-corretor-carla": {
     prospectingDone: 12,
     pending: { total: 6, done: 1 },
-    wallet: { current: 24, limit: 100, endedWorkedToday: 1, byAttempt: { first: 10, second: 8, third: 6 }, stages: { first: { done: 6, total: 10 }, second: { done: 4, total: 8 }, third: { done: 2, total: 7 } } },
+    wallet: { current: 24, limit: 30, endedWorkedToday: 1, byAttempt: { first: 10, second: 8, third: 6 }, stages: { first: { done: 6, total: 10 }, second: { done: 4, total: 8 }, third: { done: 2, total: 7 } } },
     porMensagem: { 1: { abordados: 6, convertidos: 1 }, 2: { abordados: 4, convertidos: 0 }, 3: { abordados: 2, convertidos: 0 } },
     atendimentos: 1,
     simulacoes: 1,
@@ -146,7 +146,7 @@ const TODAY_DATA = {
   "vitrine-corretor-diego": {
     prospectingDone: 4,
     pending: { total: 9, done: 0 },
-    wallet: { current: 60, limit: 60, endedWorkedToday: 1, byAttempt: { first: 30, second: 18, third: 12 }, stages: { first: { done: 2, total: 31 }, second: { done: 1, total: 18 }, third: { done: 1, total: 12 } } },
+    wallet: { current: 30, limit: 30, endedWorkedToday: 1, byAttempt: { first: 15, second: 9, third: 6 }, stages: { first: { done: 2, total: 16 }, second: { done: 1, total: 9 }, third: { done: 1, total: 6 } } },
     porMensagem: { 1: { abordados: 2, convertidos: 0 }, 2: { abordados: 1, convertidos: 0 }, 3: { abordados: 1, convertidos: 0 } },
     atendimentos: 0,
     simulacoes: 0,
@@ -167,7 +167,7 @@ const TODAY_DATA = {
   "vitrine-corretor-elisa": {
     prospectingDone: 0,
     pending: { total: 0, done: 0 },
-    wallet: { current: 20, limit: 100, endedWorkedToday: 0, byAttempt: { first: 20, second: 0, third: 0 }, stages: { first: { done: 0, total: 20 }, second: { done: 0, total: 0 }, third: { done: 0, total: 0 } } },
+    wallet: { current: 20, limit: 30, endedWorkedToday: 0, byAttempt: { first: 20, second: 0, third: 0 }, stages: { first: { done: 0, total: 20 }, second: { done: 0, total: 0 }, third: { done: 0, total: 0 } } },
     porMensagem: null,
     atendimentos: 0,
     simulacoes: 0,
@@ -810,7 +810,7 @@ export const routes = [
     }
   },
   { match: /^\/api\/daily-goal\/auto(\?|$)/, response: () => buildOwnAutoStatus() },
-  { match: /^\/api\/daily-goal\/settings(\?|$)/, response: () => ({ quota: 20, messages: clone(MESSAGE_TEMPLATES), wallet: { walletLimit: 100, blockOnLimit: true } }) },
+  { match: /^\/api\/daily-goal\/settings(\?|$)/, response: () => ({ quota: 20, messages: clone(MESSAGE_TEMPLATES), wallet: { walletLimit: 30, blockOnLimit: true } }) },
 
   // Visão do dono
   {

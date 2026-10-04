@@ -42,6 +42,7 @@ import {
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
 const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
@@ -49,6 +50,8 @@ const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 // `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
 // agendamento aberto), "tags" (editor aberto) ou "documents" (modal).
 export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName, focus = "" }) {
+  // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado.
+  const whatsappBlocked = useWhatsappBlocked();
   const [showDocuments, setShowDocuments] = useState(false);
   useEffect(() => {
     if (!open || !focus) return undefined;
@@ -83,9 +86,9 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         <div className="space-y-6" aria-busy={busy || undefined}>
           {/* Ações principais */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Button className="col-span-2 sm:col-span-3" onClick={() => list.openWhatsApp(client)} disabled={busy}>
+            {whatsappBlocked ? null : <Button className="col-span-2 sm:col-span-3" onClick={() => list.openWhatsApp(client)} disabled={busy}>
               <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
-            </Button>
+            </Button>}
             <Button variant="secondary" onClick={() => setShowDocuments(true)} disabled={busy || !registration?.id}>
               <FileText className="h-4 w-4" aria-hidden="true" /> Documentos
             </Button>
@@ -141,7 +144,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
 
           {/* Tags */}
           <Section title="Tags" anchor="ficha-tags">
-            <TagsPanel client={client} tags={tags} busy={busy} list={list} autoEdit={focus === "tags"} />
+            <TagsPanel client={client} tags={tags} busy={busy} list={list} canDeleteTags={Boolean(canManage)} autoEdit={focus === "tags"} />
           </Section>
 
           {/* Cadastro */}
@@ -422,7 +425,7 @@ function SimulationSummary({ client }) {
   );
 }
 
-function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
+function TagsPanel({ client, tags, busy, list, canDeleteTags = false, autoEdit = false }) {
   const [editing, setEditing] = useState(autoEdit);
   useEffect(() => { if (autoEdit) setEditing(true); }, [autoEdit, client.id]);
   const [name, setName] = useState("");
@@ -463,15 +466,17 @@ function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
                       {active ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} aria-hidden="true" />}
                       {tag.name}
                     </button>
-                    <button
-                      type="button"
-                      aria-label={`Excluir a tag ${tag.name} do sistema`}
-                      title="Excluir do sistema"
-                      onClick={() => list.deleteTagFromSystem(tag)}
-                      className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                    {canDeleteTags ? (
+                      <button
+                        type="button"
+                        aria-label={`Excluir a tag ${tag.name} do sistema`}
+                        title="Excluir do sistema"
+                        onClick={() => list.deleteTagFromSystem(tag)}
+                        className="inline-flex h-9 w-8 items-center justify-center border-l border-line text-muted hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    ) : null}
                   </li>
                 );
               })}
@@ -481,7 +486,7 @@ function TagsPanel({ client, tags, busy, list, autoEdit = false }) {
             className="space-y-2"
             onSubmit={async (event) => {
               event.preventDefault();
-              if (await list.createTagForClient(client, name, color)) setName("");
+              if (await list.createTagForClient(client, name, color, { keepExisting: !canDeleteTags })) setName("");
             }}
           >
             <label htmlFor={nameId} className="text-xs font-medium text-muted">Nova tag</label>

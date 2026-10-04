@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, History, ListRestart } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
+import { formatAutoQueueCardLine } from "@/lib/daily-goal-policy-core.mjs";
 import Avatar from "@/components/Avatar";
 import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
 import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
@@ -111,6 +112,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 onRestrictionChanged={refetchRestrictions}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
                 onRequeued={refetchAutomation}
+                onAccessChanged={refetchAutomation}
                 readOnly={readOnly}
                 chatUnread={supervisionInbox.counts[broker.brokerId] || 0}
                 onOpenChat={() => setChatBroker({ id: broker.brokerId, name: broker.name, photoUrl: broker.photoUrl || "" })}
@@ -292,7 +294,7 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, readOnly = false, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
   const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -362,6 +364,9 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         </h3>
         {readOnly ? null : <span className="ml-auto shrink-0"><SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} /></span>}
       </div>
+      {automation?.whatsappAccessControllable ? (
+        <WhatsappAccessControl brokerId={broker.brokerId} blocked={automation.whatsappAccessBlocked === true} readOnly={readOnly} onChanged={onAccessChanged} />
+      ) : null}
 
       {automation ? (
         <>
@@ -401,9 +406,17 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         </div>
       </div>
 
-      <p className="mt-2 text-center text-xs font-bold text-muted">
-        {broker.meta.done} / {broker.meta.total} atividades
+      <p
+        className="mt-2 text-center text-xs font-bold text-muted"
+        title="Atividades da meta do dia: carteira ativa congelada de manhã (inclui rodadas acumuladas e manuais) + clientes pendentes. Não é a fila de envio automático."
+      >
+        {broker.meta.done} / {broker.meta.total} atividades da meta
       </p>
+      {broker.meta.prospecting && broker.meta.pending ? (
+        <p className="text-center text-[10px] font-bold text-muted">
+          carteira {broker.meta.prospecting.target} + pendentes {broker.meta.pending.total}
+        </p>
+      ) : null}
 
       {automation ? (
         <div className="mt-1 flex items-center justify-center gap-1">
@@ -425,10 +438,24 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         </div>
       ) : null}
 
+      {automation?.enabled && automation.policyV2Queue ? (
+        <p
+          className="mt-1 text-center text-xs font-extrabold text-navy"
+          title="O que a automação realmente envia hoje: no máximo 10 de 1ª, 10 de 2ª e 10 de 3ª tentativa (30 por dia). Conta as enviadas hoje mais as que estão na fila."
+        >
+          {formatAutoQueueCardLine(automation.policyV2Queue)}
+        </p>
+      ) : null}
+
       {broker.wallet ? (
-        <p className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}>
+        <p
+          className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}
+          title={broker.wallet.current > broker.wallet.limit
+            ? "A carteira passou do teto: ninguém é removido, mas não entram contatos novos até ficar abaixo do teto. O teto limita a entrada, não o envio automático."
+            : "Clientes que estão em cadência (aguardando 1ª, 2ª ou 3ª tentativa). O teto limita a entrada de contatos novos."}
+        >
           Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
-          <span className="ml-1 font-bold text-muted">(1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
+          <span className="ml-1 font-bold text-muted">(aguardando 1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
         </p>
       ) : null}
 
@@ -585,6 +612,7 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, show
           <p className="mt-2 text-xs font-bold text-navy">
             Próximo disparo: <span className="font-black">{formatNextDispatchCompact(automation)}</span>
           </p>
+          {automation.policyV2Queue ? <p className="mt-2 text-xs font-extrabold text-navy">{formatAutoQueueCardLine(automation.policyV2Queue)}</p> : null}
           <div className="mt-2 grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
             <MiniStat label="Enviadas" value={sentToday} />
             <MiniStat label="Aguard." value={automation.sentUnconfirmedToday || 0} />
@@ -782,4 +810,62 @@ function formatPercent(value) {
 function formatRate(value) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 }).format(value);
+}
+
+// Controle INDIVIDUAL de acesso aos recursos WhatsApp do corretor (2026-10-04) — conceito diferente da automação
+// ligada/desligada (que controla só os disparos automáticos). Bloqueado: o corretor não vê Chat, Meta Diária nem
+// conexão do WhatsApp e o servidor recusa qualquer uso; nada é desconectado nem apagado. O gestor vê o estado (somente
+// leitura); só o administrador geral alterna. stopPropagation: o card inteiro é clicável (abre o painel do dia).
+function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function toggle(event) {
+    event.stopPropagation();
+    if (busy || readOnly) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-access", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, blocked: !blocked })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível alterar o acesso.");
+      await onChanged?.();
+    } catch (toggleError) {
+      setError(toggleError.message || "Não foi possível alterar o acesso.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-mist/60 px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-wide text-muted">Acesso WhatsApp</p>
+          <p className={`text-xs font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>
+            <span aria-hidden="true">●</span> {blocked ? "Bloqueado" : "Liberado"}
+          </p>
+        </div>
+        {readOnly ? null : (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!blocked}
+            aria-label={blocked ? "Liberar acesso ao WhatsApp" : "Bloquear acesso ao WhatsApp"}
+            title={blocked ? "Liberar acesso ao WhatsApp" : "Bloquear acesso ao WhatsApp"}
+            disabled={busy}
+            onClick={toggle}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${blocked ? "bg-red-400" : "bg-emerald-500"}`}
+          >
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${blocked ? "left-0.5" : "left-[22px]"}`} />
+          </button>
+        )}
+      </div>
+      {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
+    </div>
+  );
 }

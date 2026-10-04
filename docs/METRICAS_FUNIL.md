@@ -51,7 +51,12 @@ Cliente **criado** em `[início, fim)`, acompanhado até **hoje**: % que alcanç
 
 - Instante em que o cliente **alcançou** a etapa `r` = `min(changed_at)` das linhas do histórico com `new_status` na etapa `r`. Tempo `r → r+1` = diferença entre os dois instantes, **só para clientes que têm os dois eventos**.
 - Reportar **mediana, p75 e n** (nunca média — cauda longa). Diferenças **negativas** (a etapa seguinte aconteceu antes: ex. formulário/simulação preenchido antes do atendimento) são **excluídas da mediana e contadas à parte** como "fora de ordem".
-- Clientes que "pularam" etapa não têm instante nela: ficam fora do par (declarar n). Tempo desde a **criação** usa `simulation_registrations.created_at`. Tempo de resposta/1º contato no Chat vem de `whatsapp_messages` (fora do escopo desta definição — ver `auditor-atendimento`, futuro).
+- Clientes que "pularam" etapa não têm instante nela: ficam fora do par (declarar n). Tempo desde a **criação** usa `simulation_registrations.created_at`. Tempo de resposta/1º contato no Chat vem de `whatsapp_messages`.
+
+**[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-03] Definições de atendimento (só definição — nenhum painel, alerta ou métrica nova foi criado):**
+- **PRIMEIRO CONTATO** = entrada do lead → **primeira mensagem humana efetivamente enviada ao cliente** (`whatsapp_messages`: `direction = 'outbound'`, `sender_type = 'user'`, status `sent/delivered/read`, fora `failed`, `history`, reação, nota interna). **Não conta:** clique no botão WhatsApp (`last_whatsapp_contact_at` também é gravado por clique, Meta Diária e Prospecção — **não é evidência de mensagem enviada**), abertura de conversa, nota interna, mensagem automática (inclui o eco da Meta Diária no celular), tentativa sem evidência de envio. Autoria preservada (`sender_user_id`): resposta de gestor/admin conta como atendimento humano do cliente, mas não como ação do corretor responsável.
+- **TEMPO DE RESPOSTA** = **mensagem do cliente → primeira resposta humana subsequente**, em **TEMPO BRUTO** (relógio corrido, sem desconto de expediente; não misturar com um futuro "dentro do expediente"). Dados necessários já registrados: autoria (`sender_user_id`), direção, humano × automação (`sender_type`), canal/sessão (`channel`, `session_user_id`), hora (`message_at`); mensagem do celular entra com os mesmos campos (P-11).
+- Limitação: conversa sem WhatsApp conectado do corretor não tem mensagens gravadas (cobertura por corretor ainda não medida).
 
 ## MET-7 — Perdidos e estoque
 

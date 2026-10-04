@@ -1,6 +1,6 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import WhatsappChat from "@/components/WhatsappChat";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { requireWhatsappAccessPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 // tudo; corretor e associado veem só as conversas dos SEUS clientes (o
 // escopo é aplicado no servidor, em lib/whatsapp-chat.js).
 export default async function ChatPage({ searchParams }) {
-  const auth = await requireAdminPage();
+  // Acesso WhatsApp bloqueado (2026-10-04): o Chat nem abre — volta para o painel de clientes.
+  const auth = await requireWhatsappAccessPage();
   const params = (await searchParams) || {};
   const canManage = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
 

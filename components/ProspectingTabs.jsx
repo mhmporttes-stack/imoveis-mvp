@@ -3,12 +3,13 @@
 import { useState } from "react";
 import ProspectingManager from "@/components/ProspectingManager";
 import BrokerBasesOverview from "@/components/BrokerBasesOverview";
+import ProspectingManualLists from "@/components/ProspectingManualLists";
 
 // "Base da Imobiliária" é a prospecção compartilhada de sempre (sem nenhuma
 // mudança de comportamento). A segunda aba muda conforme quem está logado:
 // dono da operação -> "Bases dos Corretores" (visão gerencial de todo mundo);
 // qualquer outro perfil -> "Minha Base" (só a própria).
-export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin = false, isOwner = false, users = [] }) {
+export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin = false, isOwner = false, canPrintLists = false, users = [] }) {
   const [tab, setTab] = useState("company");
   const [mineContacts, setMineContacts] = useState(null);
   const [mineError, setMineError] = useState("");
@@ -53,7 +54,7 @@ export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin =
       </div>
 
       {tab === "company" ? (
-        <div className="admin-motion-enter"><ProspectingManager key="company" initialContacts={initialCompanyContacts} isAdmin={isAdmin} users={users} scope="company" label="Fila compartilhada" /></div>
+        <div className="admin-motion-enter space-y-5">{canPrintLists ? <ProspectingManualLists /> : null}<ProspectingManager key="company" initialContacts={initialCompanyContacts} isAdmin={isAdmin} users={users} scope="company" label="Fila compartilhada" /></div>
       ) : isOwner ? (
         <div className="admin-motion-enter"><BrokerBasesOverview isOwner={isOwner} users={users} /></div>
       ) : mineError ? (

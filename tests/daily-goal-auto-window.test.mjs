@@ -76,7 +76,8 @@ test("item válido dentro da janela -> pode enviar; pausa/desligada/fim de seman
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings }), null);
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: { ...settings, paused: true } }), "automacao_pausada");
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: { ...settings, enabled: false } }), "automacao_desligada");
-  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-03").toISOString(), now: brt("09:15", "2026-10-03"), settings }), "fim_de_semana");
+  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-04").toISOString(), now: brt("09:15", "2026-10-04"), settings }), "fim_de_semana", "domingo");
+  assert.equal(sendBlockReason({ scheduledFor: brt("09:12", "2026-10-03").toISOString(), now: brt("09:15", "2026-10-03"), settings }), null, "sabado dispara");
   assert.equal(sendBlockReason({ scheduledFor: brt("09:12").toISOString(), now: brt("09:15"), settings: null }), "automacao_desligada");
 });
 
@@ -115,7 +116,8 @@ test("trava final relê a configuração antes do envio e roda antes de sendIndi
 
 test("opt-out/Não contactar/cliente que respondeu nunca voltam para a fila; cron duplicado não envia duas vezes", () => {
   const code = source("lib/daily-goal-auto.js");
-  const enqueue = code.slice(code.indexOf("async function enqueueTodayItemsForBroker"), code.indexOf("function minutesTodayToIso"));
+  // A busca/filtro de rodadas elegíveis foi extraída para loadEligibleEnqueueRounds (2026-10-04, compartilhada com a política v2).
+  const enqueue = code.slice(code.indexOf("async function loadEligibleEnqueueRounds"), code.indexOf("function minutesTodayToIso"));
   assert.match(enqueue, /\.eq\("status", "active"\)/, "rodada convertida (respondeu) ou encerrada (opt-out) não entra");
   assert.match(enqueue, /round\.contact\?\.status !== "do_not_contact"/);
   const claim = source("supabase/migrations/20260929190000_daily_goal_auto_dispatch.sql");
