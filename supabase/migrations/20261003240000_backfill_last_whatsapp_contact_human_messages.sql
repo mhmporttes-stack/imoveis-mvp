@@ -45,5 +45,8 @@ update public.simulation_registrations r
   from latest l
  where r.id = l.client_id
    and r.status not in ('archived', 'do_not_contact')
+   -- Decisão do dono (2026-10-04): cliente 3f80e85f investigado e EXCLUÍDO por evidência insuficiente
+   -- (mensagens parecem conversa interna/teste). Registro preservado exatamente como está.
+   and r.id <> '3f80e85f-ea9f-46c3-9bac-0a98baa8164e'::uuid
    and (r.last_whatsapp_contact_at is null or r.last_whatsapp_contact_at < l.last_human_at)
    and (select count(*) from public.simulation_registrations o where o.phone_normalized = r.phone_normalized) = 1;

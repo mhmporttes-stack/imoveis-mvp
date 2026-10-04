@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Backfill do contato humano APLICADO (7 clientes)
+- **Data:** 2026-10-04
+- **Área:** banco (dados), docs
+- **Alteração:** migration `20261003240000_backfill_last_whatsapp_contact_human_messages.sql` aplicada em produção pelo coordenador via MCP Supabase (escrita legítima, 04/10/2026). Universo recalculado pelos critérios da migration: 8 candidatos; **7 corrigidos** (só `last_whatsapp_contact_at`; ids curtos 72115c21, 57d34475, 899d6054, 82a5a3c7, c739ee6b, 9c26e07c, 67ac9911). O 7ccc1dcf da auditoria anterior saiu (o Chat já o corrigira) e o 67ac9911 entrou (mensagem humana de 03/10 13:18). **Idempotência comprovada:** reconferência depois = 0 pendentes.
+- **Cliente 3f80e85f:** investigado e **excluído** por decisão do dono (evidência insuficiente: a conversa parece interna/teste da equipe). O arquivo da migration ganhou a exclusão explícita (`r.id <> '3f80e85f-...'`; só restringe). Nenhum status inferido: segue "Atendimento automático" e sem contato gravado.
+- **Não alterado:** os ~1.052 clientes históricos em "Tentando contato" com o dono.
+- **Também incluído:** `docs/atendimento/diagnostico-inicial-2026-10-03.md` (revisado: sem credenciais, telefones, nomes ou e-mails de clientes; só contagens agregadas).
+- **Autor:** Claude (CRM Architect)
+
 ### 2026-10-03 — Atendimento (fecho): autoria de gestor/admin sem campo novo; backfill e cliente isolado pendentes de escrita
 - **Data:** 2026-10-03
 - **Área:** WhatsApp/Chat, Meta Diária (pendência/progresso), docs
