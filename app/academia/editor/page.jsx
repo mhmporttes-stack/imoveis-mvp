@@ -1,5 +1,5 @@
 import EditorApp from "@/components/academia/editor/EditorApp";
-import { requireBrokerManagementPage } from "@/lib/admin-auth";
+import { isGeneralAdmin, requireBrokerManagementPage } from "@/lib/admin-auth";
 
 export const metadata = {
   title: "Gestão da Academia · Matheus Machado",
@@ -11,5 +11,5 @@ export const metadata = {
 // de novo nas rotas /api/admin/academia/content e /grants.
 export default async function AcademiaEditorPage() {
   const auth = await requireBrokerManagementPage("/academia");
-  return <EditorApp readOnly={Boolean(auth.accountSwitchMode)} backHref="/academia" />;
+  return <EditorApp readOnly={Boolean(auth.accountSwitchMode)} isAdmin={isGeneralAdmin(auth)} backHref="/academia" />;
 }

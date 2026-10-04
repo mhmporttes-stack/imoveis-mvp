@@ -5,7 +5,7 @@ import s from "./academia.module.css";
 
 // Opções: <dialog> nativo (foco preso, Esc fecha, fundo inerte). Reduzir movimento (único lugar no celular),
 // reiniciar o exemplo COM confirmação (diálogo próprio, nunca confirm() do navegador) e Voltar ao CRM.
-export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onReset, backHref, manageHref, isSample }) {
+export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onReset, backHref, manageHref, tracks = [], isSample }) {
   const ref = useRef(null);
   const [ask, setAsk] = useState(false);
   useEffect(() => {
@@ -27,6 +27,16 @@ export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onRe
         <>
           <h2 id="acd-sh-h">Opções</h2>
           {isSample ? <p className={s.nt}>Dados de exemplo: nada aqui é conteúdo ou progresso real.</p> : null}
+          {tracks.length > 1 ? (
+            <div role="group" aria-label="Formações">
+              <p className={s.nt}>Formações</p>
+              {tracks.map((t) => (
+                <a key={t.slug} className={s.shLink} href={t.current ? undefined : `/academia?trilha=${t.slug}`} aria-current={t.current ? "page" : undefined}>
+                  {t.title}{t.current ? " (atual)" : ""}{t.required ? " · obrigatória" : ""}{t.overdue ? " · atrasada" : t.status === "completed" ? " · concluída" : t.status ? " · em andamento" : ""}
+                </a>
+              ))}
+            </div>
+          ) : null}
           <button type="button" className={s.shRow} aria-pressed={reduced} onClick={onToggleReduce}>Reduzir movimento<i className={s.swI} /></button>
           {isSample ? <button type="button" className={s.shLink} onClick={() => setAsk(true)}>Reiniciar exemplo (volta a 50%)</button> : null}
           {manageHref ? <a className={s.shLink} href={manageHref}>Gerenciar conteúdo</a> : null}

@@ -20,3 +20,11 @@ export const act = (action, input = {}) => request("/content", { method: "POST",
 export const listGrants = () => request("/grants");
 export const grantExtra = (enrollmentId, examId, reason) => request("/grants", { method: "POST", body: JSON.stringify({ enrollmentId, examId, ...(reason ? { reason } : {}) }) });
 export const getBank = () => request("/content?bank=1");
+export const listTeam = (params = {}) => request(`/team?${new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()}`);
+export const getStudent = (id) => request(`/team/${id}`);
+export const enrollAction = (body) => request("/enrollments", { method: "POST", body: JSON.stringify(body) });
+export const certAction = (body) => request("/certificates", { method: "POST", body: JSON.stringify(body) });
+export const listRules = () => request("/rules");
+export const ruleAction = (body) => request("/rules", { method: "POST", body: JSON.stringify(body) });
+export const listRecs = (status) => request(`/recommendations${status ? `?status=${status}` : ""}`);
+export const recAction = (body) => request("/recommendations", { method: "POST", body: JSON.stringify(body) });

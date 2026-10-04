@@ -5,6 +5,9 @@ import s from "./editor.module.css";
 import { academiaSans, academiaSerif } from "../fonts";
 import { act, getBank, getVersion, listTracks } from "./api";
 import BankPanel from "./BankPanel";
+import TeamPanel from "./TeamPanel";
+import RecommendationsPanel from "./RecommendationsPanel";
+import RulesPanel from "./RulesPanel";
 import GrantsPanel from "./GrantsPanel";
 import VersionEditor from "./VersionEditor";
 
@@ -15,7 +18,7 @@ const fmt = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "
 
 // Gestão da Academia (F3) para Admin e Gerente: versões, edição do rascunho, publicação e liberação de tentativa extra.
 // Toda regra (permissão, rascunho x publicada, validação) é do servidor; aqui só chamadas às rotas.
-export default function EditorApp({ readOnly = false, backHref = "/academia" }) {
+export default function EditorApp({ readOnly = false, isAdmin = false, backHref = "/academia" }) {
   const [tab, setTab] = useState("content");
   const [tracks, setTracks] = useState(null);
   const [trackId, setTrackId] = useState("");
@@ -26,6 +29,8 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
   const [note, setNote] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [bank, setBank] = useState(null);
+  const [newTrack, setNewTrack] = useState("");
+  const [newKind, setNewKind] = useState("aperfeicoamento");
   const reloadBank = useCallback(async () => { try { setBank((await getBank()).questions); } catch (e) { setError(e.message); } }, []);
   useEffect(() => { reloadBank(); }, [reloadBank]);
 
@@ -56,6 +61,7 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
       const list = await refreshTracks();
       if (opts.closeVersion) { setVersionId(""); setTree(null); }
       else if (action === "createDraft") setVersionId(result.versionId);
+      else if (action === "createTrack") { setTrackId(result.trackId); setVersionId(result.versionId); }
       else if (action === "publish") await refreshTree(result.versionId);
       else if (versionId) await refreshTree(versionId);
       return { result, list };
@@ -77,6 +83,9 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
         </div>
         <div className={s.tabs} role="tablist" aria-label="Seções da gestão">
           <button type="button" role="tab" className={s.tab} aria-selected={tab === "content"} onClick={() => setTab("content")}>Conteúdo</button>
+          <button type="button" role="tab" className={s.tab} aria-selected={tab === "team"} onClick={() => setTab("team")}>Equipe</button>
+          <button type="button" role="tab" className={s.tab} aria-selected={tab === "recs"} onClick={() => setTab("recs")}>Recomendações</button>
+          {isAdmin ? <button type="button" role="tab" className={s.tab} aria-selected={tab === "rules"} onClick={() => setTab("rules")}>Regras</button> : null}
           <button type="button" role="tab" className={s.tab} aria-selected={tab === "bank"} onClick={() => setTab("bank")}>Banco de questões</button>
           <button type="button" role="tab" className={s.tab} aria-selected={tab === "grants"} onClick={() => setTab("grants")}>Liberações de tentativa</button>
         </div>
@@ -85,6 +94,9 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
         {note ? <p className={`${s.msg} ${s.ok}`} role="status">{note}</p> : null}
 
         {tab === "grants" ? <GrantsPanel readOnly={readOnly} /> : null}
+        {tab === "team" ? <TeamPanel readOnly={readOnly} isAdmin={isAdmin} tracks={tracks || []} onError={setError} onNote={setNote} /> : null}
+        {tab === "recs" ? <RecommendationsPanel readOnly={readOnly} tracks={tracks || []} onError={setError} onNote={setNote} /> : null}
+        {tab === "rules" && isAdmin ? <RulesPanel readOnly={readOnly} onError={setError} onNote={setNote} /> : null}
         {tab === "bank" ? <BankPanel bank={bank} readOnly={readOnly} reload={reloadBank} onError={setError} onNote={setNote} /> : null}
 
         {tab === "content" ? (
@@ -97,6 +109,13 @@ export default function EditorApp({ readOnly = false, backHref = "/academia" }) 
                       {tracks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
                     </select>
                   </label>
+                </div>
+                <div className={s.row} style={{ marginTop: 10 }}>
+                  <input className={`${s.in} ${s.grow}`} aria-label="Título da nova trilha" placeholder="Nova trilha (ex.: Atendimento avançado)" maxLength={160} value={newTrack} onChange={(e) => setNewTrack(e.target.value)} />
+                  <select className={s.sel} style={{ width: 200 }} aria-label="Tipo da nova trilha" value={newKind} onChange={(e) => setNewKind(e.target.value)}>
+                    <option value="aperfeicoamento">Aperfeiçoamento</option><option value="especializacao">Especialização</option><option value="reciclagem">Reciclagem</option><option value="atualizacao">Atualização</option><option value="formacao_inicial">Formação inicial</option>
+                  </select>
+                  <button type="button" className={`${s.btn} ${s.sm}`} disabled={busy || readOnly || !newTrack.trim()} onClick={async () => { const r = await run("createTrack", { title: newTrack, kind: newKind }, "Trilha criada em rascunho: monte o conteúdo e publique."); if (r) { setNewTrack(""); setTrackId(r.result.trackId); setVersionId(r.result.versionId); } }}>+ Nova trilha</button>
                 </div>
                 <h2 style={{ marginTop: 14 }}>Versões</h2>
                 <p className={s.muted}>O que está publicado nunca muda. Para editar, crie um rascunho; ao publicar, alunos novos entram na versão nova e quem já começou continua na versão em que estava.</p>

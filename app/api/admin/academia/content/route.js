@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireBrokerManagementApi } from "@/lib/admin-auth";
 import { assertCanManage, resolveManagementActor } from "@/lib/academy-access-core.mjs";
-import { academyDisabledResponse, academyErrorResponse, getAcademyContent } from "@/lib/academy-server";
+import { academyDisabledResponse, academyErrorResponse, getAcademyContent, getAcademyManagement } from "@/lib/academy-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ const ID_KEYS = ["trackId", "fromVersionId", "versionId", "moduleId", "lessonId"
 const ACTIONS = [
   "createDraft", "discardDraft", "publish", "addModule", "updateModule", "deleteModule", "addLesson", "updateLesson", "deleteLesson",
   "moveLesson", "setQuestion", "removeQuestion", "addActivity", "updateActivity", "deleteActivity", "reorder",
-  "bankSave", "bankRetire", "setExam", "removeExam"
+  "bankSave", "bankRetire", "setExam", "removeExam", "createTrack"
 ];
 const bodySchema = z.object({ action: z.enum(ACTIONS) }).passthrough();
 
@@ -57,6 +57,10 @@ export async function POST(request) {
     const actor = assertCanManage(resolveManagementActor(auth));
     const content = getAcademyContent();
     if (!content) return NextResponse.json({ error: "Banco indisponível." }, { status: 503 });
+    if (action === "createTrack") {
+      const management = getAcademyManagement();
+      return NextResponse.json({ ok: true, result: await management.createTrack(actor, input) });
+    }
     return NextResponse.json({ ok: true, result: await content.run(actor, action, input) });
   } catch (error) {
     return academyErrorResponse(error);

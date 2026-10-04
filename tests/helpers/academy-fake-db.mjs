@@ -14,7 +14,7 @@ for (const m of sql.matchAll(/create table if not exists public\.(academy_\w+) \
   SCHEMA[m[1]] = [...m[2].matchAll(/^  ([a-z_]+) (?:uuid|text|integer|boolean|timestamptz|jsonb|numeric)/gm)].map((x) => x[1]);
 }
 // tabela do CRM lida só para mostrar nomes (admin_users): colunas que o repo consulta
-SCHEMA.admin_users = ["id", "name", "email", "role", "status"];
+SCHEMA.admin_users = ["id", "name", "email", "role", "status", "created_at"];
 export const RPC_PARAMS = {};
 for (const m of sql.matchAll(/create or replace function public\.(academy_\w+)\(([^)]*)\)\s*returns (?:jsonb|uuid|void)/g)) {
   RPC_PARAMS[m[1]] = [...m[2].matchAll(/(p_[a-z_]+) /g)].map((x) => x[1]).sort();
@@ -56,6 +56,14 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
     if (table === "academy_modules") { r.is_final ??= false; r.requires_exam ??= false; }
     if (table === "academy_lessons") { r.body ??= {}; r.est_minutes ??= 0; r.kind ??= "lesson"; }
     if (table === "academy_exam_questions") { delete r.id; delete r.created_at; }
+    if (table === "academy_recommendations") {
+      r.status ??= "open";
+      if (r.status === "open" && t[table].some((x) => x.user_id === r.user_id && x.track_id === r.track_id && x.status === "open")) return { error: err("duplicate key value violates unique constraint", "23505") };
+    }
+    if (table === "academy_assignment_rules") {
+      r.active ??= false;
+      if (t[table].some((x) => x.track_id === r.track_id && x.kind === r.kind)) return { error: err("duplicate key value violates unique constraint", "23505") };
+    }
     const blocked = skipGuard ? null : guard(table, "INSERT", null, r);
     if (blocked) return { error: err(blocked) };
     if (table === "academy_enrollments") {
@@ -223,6 +231,7 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
       const prev = t.academy_track_versions.find((x) => x.track_id === v.track_id && x.status === "published");
       if (prev) prev.status = "retired";
       v.status = "published"; v.published_at = now(); v.published_by = p.p_actor; if (p.p_note) v.change_note = p.p_note;
+      const trk = t.academy_tracks.find((x) => x.id === v.track_id); if (trk && trk.status !== "archived") trk.status = "active";
       t.academy_events.push({ id: randomUUID(), actor_user_id: p.p_actor, real_actor_email: p.p_actor_email, action: "version_published", ref: v.id, meta: { track_id: v.track_id, version_number: v.version_number }, created_at: now() });
       return { data: { version_id: v.id, version_number: v.version_number, previous_version_id: prev?.id || null } };
     },

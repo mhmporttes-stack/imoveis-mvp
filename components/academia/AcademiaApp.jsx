@@ -32,7 +32,7 @@ const HOLD = new Set(["aula", "quiz", "prova", "conq"]); // a cena mostra o "ant
 const LS_KEY = "mm-academia-reduzir-movimento";
 
 // `initial` = dados reais do servidor (F2); sem `initial` nem `store`, roda com os dados de exemplo (vitrine/testes).
-export default function AcademiaApp({ store: injected, initial, backHref = "/admin/simulacoes", manageHref = null }) {
+export default function AcademiaApp({ store: injected, initial, backHref = "/admin/simulacoes", manageHref = null, tracks = [] }) {
   const [store] = useState(() => injected || (initial ? createAcademyRemoteStore({ initial }) : createAcademyDemoStore()));
   const snap = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [engine] = useState(() => createEngine(s));
@@ -302,7 +302,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
       <AcademiaHeader engine={engine} backHref={backHref} reduced={reduced} isSample={snap.isSample} onToggleReduce={toggleReduce} onOpenMenu={() => setMenu(true)} />
       <FloatingNav engine={engine} view={view} onGo={onNav} />
 
-      <MenuSheet open={menu} onClose={() => setMenu(false)} reduced={reduced} onToggleReduce={toggleReduce} onReset={reset} backHref={backHref} manageHref={manageHref} isSample={snap.isSample} />
+      <MenuSheet open={menu} onClose={() => setMenu(false)} reduced={reduced} onToggleReduce={toggleReduce} onReset={reset} backHref={backHref} manageHref={manageHref} tracks={tracks} isSample={snap.isSample} />
       <AcademiaToast message={toast} />
       {hint ? <p className={s.hint}>Role para voltar no tempo</p> : null}
       <p className={s.sr} role="status" aria-live="polite" aria-atomic="true">{live}</p>

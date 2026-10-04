@@ -1,7 +1,7 @@
 import AcademiaApp from "@/components/academia/AcademiaApp";
 import { isGeneralAdmin, requireAdminPage } from "@/lib/admin-auth";
 import { resolveAcademyActor } from "@/lib/academy-access-core.mjs";
-import { getAcademyService } from "@/lib/academy-server";
+import { getAcademyRules, getAcademyService } from "@/lib/academy-server";
 
 export const metadata = {
   title: "Academia · Matheus Machado",
@@ -13,12 +13,19 @@ const BACK_HREF = "/admin/simulacoes";
 // Server Component: carrega do banco o estado do PRÓPRIO aluno (perfil efetivo da sessão) e entrega ao app, que
 // é um client component. O gabarito nunca vai junto (lib/academy-service.mjs). Em "Alterar conta" a tela mostra o
 // progresso do perfil escolhido em modo somente leitura (ACA-10).
-export default async function AcademiaPage() {
+export default async function AcademiaPage({ searchParams }) {
   const auth = await requireAdminPage();
+  const { trilha } = (await searchParams) || {};
+  const slug = typeof trilha === "string" && /^[a-z0-9-]{1,80}$/.test(trilha) ? trilha : undefined;
   let data = null;
   try {
     const service = getAcademyService();
-    if (service) data = await service.loadStudent(resolveAcademyActor(auth));
+    const actor = resolveAcademyActor(auth);
+    // Matrícula automática (regras ativas, ex.: Formação Inicial para novos): só do PRÓPRIO usuário e só se puder gravar.
+    if (actor.userId && !actor.readOnly) {
+      try { await getAcademyRules()?.apply({ userId: actor.userId, email: null }, { onlyUserId: actor.userId }); } catch (e) { console.error("academia: regra automática", e?.message || e); }
+    }
+    if (service) data = await service.loadStudent(actor, { slug });
   } catch (error) {
     console.error("academia: falha ao carregar o estado do aluno", error?.cause?.message || error?.message || error);
   }
@@ -34,5 +41,5 @@ export default async function AcademiaPage() {
   }
   // Admin e Gerente (efetivos) veem o atalho da gestão; a página e as rotas conferem de novo no servidor.
   const canManage = isGeneralAdmin(auth) || auth?.profile?.role === "manager";
-  return <AcademiaApp initial={data} backHref={BACK_HREF} manageHref={canManage ? "/academia/editor" : null} />;
+  return <AcademiaApp initial={data} backHref={BACK_HREF} manageHref={canManage ? "/academia/editor" : null} tracks={data.tracks || []} />;
 }

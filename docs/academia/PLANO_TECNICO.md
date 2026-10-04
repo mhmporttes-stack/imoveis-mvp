@@ -1,5 +1,5 @@
 > Origem: plano técnico aprovado da Academia (feat/academia), copiado do repasse de 2026-10-04 e atualizado no mesmo dia com as decisões do dono (`.claude/rules/academia.md`, `docs/BUSINESS_RULES.md` ACA-1 a ACA-7). Trechos atualizados trazem **[ATUALIZADO 2026-10-04]**.
-> Estado: F0 a F5 feitas (ver `../ACADEMIA.md`); F6 em diante são PLANO. Visão geral atual: [`../ACADEMIA.md`](../ACADEMIA.md).
+> Estado: F0 a F7 feitas (ver `../ACADEMIA.md`): projeto concluído, atrás de `ACADEMIA_ENABLED` desligada. Visão geral atual: [`../ACADEMIA.md`](../ACADEMIA.md).
 > O que vale sobre o código é `../ACADEMIA.md`; este arquivo é a referência do plano.
 
 # Plano técnico: Academia dentro do CRM (imoveis-mvp)
@@ -110,8 +110,8 @@ Progresso de módulo = **derivado** (aulas concluídas + prova aprovada) em `lib
 | F3 **[FEITA 2026-10-04; incluiu também a liberação manual de +1 tentativa (regra do dono) e atividades de leitura]** | Editor de aulas/atividades, rascunho/publicar/versão | Publicar cria versão imutável; matrícula antiga mantém a versão; histórico visível | Despublicar = voltar versão anterior (nada apagado) |
 | F4 **[FEITA 2026-10-04]** | Banco de questões, provas, tentativas, nota mínima, histórico | Correção só no servidor; limite de tentativas; snapshot do servido; nota e aprovação deterministas | Desligar prova por trilha (settings) |
 | F5 **[FEITA 2026-10-04; verificação pública adiada por decisão do dono]** | Certificados internos com código, Conquista/Certificação com dados reais | Emissão idempotente (1 por matrícula), regra aprovada pelo dono; revogação auditada | Revogar, sem apagar |
-| F6 | Visão de gestão (equipe, atrasos, filtros), atribuição por gestor | Gestor vê só `managedUserIds`; admin tudo; teste negativo (gestor tentando fora da equipe = 403) | Flag de gestão |
-| F7 | Reciclagens com prazo, auto-matrícula do novo corretor, recomendação por auditoria de atendimento (**só preparar/ler, sem disparar**) | Regras criadas desligadas; nenhuma notificação/WhatsApp real sem decisão do dono | Regras `off` |
+| F6 **[FEITA 2026-10-04]** | Visão de gestão (equipe, atrasos, filtros), atribuição por gestor | Gestor vê só `managedUserIds`; admin tudo; teste negativo (gestor tentando fora da equipe = 403) | Flag de gestão |
+| F7 **[FEITA 2026-10-04; regras da Formação Inicial ligadas por decisão do dono (obrigatória p/ novos); sem notificações]** | Reciclagens com prazo, auto-matrícula do novo corretor, recomendação por auditoria de atendimento (**só preparar/ler, sem disparar**) | Regras criadas desligadas; nenhuma notificação/WhatsApp real sem decisão do dono | Regras `off` |
 
 Notificação de prazo (push/`crm_notifications`) fica para F7 e reutiliza o ponto único existente (`automacoes-notificacoes.md`); nunca criar outro mecanismo.
 

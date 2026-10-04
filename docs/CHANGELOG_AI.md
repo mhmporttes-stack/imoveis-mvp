@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Academia F6 e F7: gestão, várias trilhas, regras de matrícula e recomendações
+- **Data:** 2026-10-04
+- **Área:** Banco / Backend / Frontend (Academia atrás de `ACADEMIA_ENABLED`, desligada)
+- **Alteração:** F6: aba Equipe (andamento, atrasos, histórico de provas, atribuição com prazo/obrigatoriedade, mudar prazo; gestor só na equipe), várias trilhas para o aluno (menu "Formações", `?trilha=`), criar trilha no editor. F7: regras de matrícula automática (novos usuários, reciclagem), regra da Formação Inicial obrigatória para novos corretores/associados semeada LIGADA (30 dias), matrícula automática ao abrir a Academia, aplicar/simular (Admin), recomendações de treinamento (aceitar matricula). Migration `20261004170000_academy_f7_rules_recommendations` aplicada em produção.
+- **Motivo:** execução do plano (F6/F7). Decisões menores (reversíveis, registradas em ACA-7/8/9): atuais não são afetados pela obrigatoriedade; nada bloqueia o CRM; sem notificação/mensagem; certificado visível ao aluno, gestor da equipe e admin; histórico sem prazo de guarda.
+- **Arquivos afetados:** `lib/academy-{management,rules,content-repo,server,service}`, `app/api/admin/academia/{team,enrollments,rules,recommendations}`, `app/academia/page.jsx`, `components/academia/{MenuSheet,AcademiaApp}.jsx`, `components/academia/editor/{TeamPanel,RulesPanel,RecommendationsPanel,EditorApp}`, testes `academy-{management,rules}.test.mjs`, `supabase/tests/academy_f7.sql`, docs/rule.
+- **Risco/observação:** com a chave ligada, novos corretores/associados passam a receber a Formação Inicial como obrigatória (só orienta/mostra atraso). Sem login real/iPhone.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Academia F5: certificados
 - **Data:** 2026-10-04
 - **Área:** Banco / Backend / Frontend (Academia atrás de `ACADEMIA_ENABLED`, desligada)
