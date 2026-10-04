@@ -83,6 +83,18 @@ alguma delas):
    e escaneie o QR com o celular do corretor (WhatsApp > Aparelhos
    conectados > Conectar um aparelho).
 
+## Reconexão, telemetria e versão do Baileys (2026-10-04)
+
+- Reconexão automática com política (`src/reconnect-policy.js`): 401 encerra; 403/440 e códigos
+  desconhecidos NÃO reconectam (estado `error` com `needs_attention:` até alguém clicar Conectar);
+  quedas recuperáveis têm backoff com teto e no máximo 6 reconexões por ciclo. No boot, só sessões
+  que o banco marca `connected` são retomadas. Detalhes e tabela de códigos: `docs/WHATSAPP.md`.
+- Telemetria de conexão em lote para `/api/webhooks/whatsapp-individual/telemetry` (`src/telemetry.js`).
+  Opcionais: `WHATSAPP_RECONNECT_MAX_RETRIES`, `WHATSAPP_RECONNECT_STABLE_MS`.
+- Build reproduzível: Baileys em versão exata + `package-lock.json` + `npm ci`. Para mudar a versão:
+  altere `package.json`, rode `npm install --package-lock-only` e faça deploy conscientemente.
+  O Dockerfile troca `ssh://git@github.com/` por https (a dependência `libsignal` vem do git).
+
 ## Limitações desta primeira versão
 
 - Mídia recebida (até 16 MB) é baixada e enviada ao storage do CRM por URL

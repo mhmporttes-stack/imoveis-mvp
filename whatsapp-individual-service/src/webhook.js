@@ -44,6 +44,24 @@ export function notifyStatus(userId, { status, qr, phoneNumber, error, pairingCo
   return post({ userId, type: "status", status, qr, phoneNumber, error, pairingCode, statusCode, output });
 }
 
+// Telemetria de conexão em lote (ver telemetry.js) — rota própria, mesmo segredo.
+// Best-effort: falha só vai para o log, nunca derruba a sessão.
+export async function notifyTelemetry(events) {
+  const baseUrl = String(process.env.APP_WEBHOOK_URL || "").replace(/\/+$/, "");
+  const secret = process.env.WHATSAPP_INDIVIDUAL_SERVICE_SECRET || "";
+  if (!baseUrl || !secret || !events?.length) return;
+  try {
+    const response = await fetch(`${baseUrl}/api/webhooks/whatsapp-individual/telemetry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Service-Secret": secret },
+      body: JSON.stringify({ events })
+    });
+    if (!response.ok) console.error(`Telemetria de sessão recusada pelo CRM (HTTP ${response.status}).`);
+  } catch (error) {
+    console.error("Falha ao enviar telemetria ao CRM:", error.message);
+  }
+}
+
 // Confirmação de entrega ("delivered") ou leitura ("read") de uma mensagem
 // que o corretor mandou — as setinhas do WhatsApp (ver sessions.js: onMessagesUpdate).
 export function notifyMessageStatus(userId, { waMessageId, status }) {

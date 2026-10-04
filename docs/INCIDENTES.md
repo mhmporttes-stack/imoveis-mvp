@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — WhatsApp individual: contas presas em laço de reconexão (403) por horas
+- **Data:** 2026-10-04
+- **Sintoma:** sessões em "reconectando" por ~22 h, ~15 h e 26 min com código 403, sem nunca voltar; telemetria só mostrava o último erro.
+- **Área:** WhatsApp individual (serviço Railway)
+- **Impacto:** 3 contas em laço de conexões repetidas contra o WhatsApp (risco de agravar restrição/bloqueio); impossível reconstruir quantas tentativas houve.
+- **Causa raiz:** `onConnectionUpdate` só tratava 401 como fim; qualquer outro código (403, 440, 428...) reconectava em 4 s fixos, sem contador, teto nem backoff; o socket fechado não era encerrado com `end`/`removeAllListeners`; `resumeSessions()` reabria TODAS as sessões com credenciais a cada deploy; telemetria deduplicava em 10 min e só guardava erros; Baileys `^6.7.9` sem lockfile.
+- **Correção:** política de reconexão pura (`reconnect-policy.js`): 403/440/411/códigos desconhecidos não reconectam (`status='error'`, `needs_attention:`), quedas recuperáveis com backoff+jitter e limite de 6 por ciclo, contador só zera após 3 min estável; retomada no boot só de sessões `connected`; telemetria append-only `whatsapp_session_telemetry`; Baileys fixado em 6.7.24 com `npm ci`. Detalhes: `docs/WHATSAPP.md`.
+- **Arquivos/commit:** `whatsapp-individual-service/src/{reconnect-policy,session-lifecycle,telemetry,sessions,server,webhook}.js`, `app/api/webhooks/whatsapp-individual/telemetry/route.js`, `lib/whatsapp-session-telemetry*.{js,mjs}`, migration `20261004100000_whatsapp_session_telemetry.sql`
+- **Prevenção/teste:** `tests/whatsapp-reconnect-policy.test.mjs`. Depois do deploy: `select event_type, count(*) from whatsapp_session_telemetry group by 1`. Risco residual: conta de 403 só volta por ação consciente (Conectar); `needs_attention` ainda não alerta a gestora.
+- **Status:** Corrigido no código, aguardando aplicar a migration e publicar
+
 ### 2026-10-03 — Cliente devolvido à fila voltava para o dono; resposta pelo celular não contava como contato
 - **Sintoma:** "o dono acumula clientes que a Prospecção devolveu" (~2 mil, 1.049 em "Tentando contato"); corretor que respondia pelo celular continuava aparecendo como "sem contato" (cobrança à toa / lead redistribuído pela roleta).
 - **Causa raiz:** (1) a rede de segurança `reassignOrphanedClientsToOwner` (cron de 2 em 2 min) devolvia ao dono todo cliente sem responsável, sem distinguir quem a Prospecção zerou de propósito; (2) `recordBrokerAppMessage` (mensagem pelo celular) gravava só a conversa, nunca o cliente, e a conversa nascia sem `client_id`, fora da proteção da roleta.

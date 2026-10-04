@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, DisconnectReason, downloadMediaMessage, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -6,6 +6,9 @@ import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
 import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus } from "./webhook.js";
 import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
+import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
+import { createCloseHandler } from "./session-lifecycle.js";
+import { telemetry } from "./telemetry.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -24,7 +27,10 @@ const sockets = new Map(); // userId -> { sock, status, qr, connecting: Promise|
 // sessão atual (zerava entry.sock e agendava reconexão que derrubava o
 // socket novo — 2026-10-02).
 const retiredSockets = new WeakSet();
-const RECONNECT_DELAY_MS = 4000;
+// Política de reconexão (backoff com teto, limite por ciclo, códigos de
+// conflito/bloqueio NÃO reconectam): reconnect-policy.js. Antes: 4 s fixos,
+// para sempre, para qualquer código que não fosse 401.
+const reconnectConfig = configFromEnv(process.env);
 const QR_TTL_MS = 60_000;
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
 
@@ -61,10 +67,72 @@ function rememberLidsFromContacts(userId, contacts) {
 function entryFor(userId) {
   let entry = sockets.get(userId);
   if (!entry) {
-    entry = { sock: null, status: "disconnected", qr: null, pairingCode: null, connecting: null };
+    entry = { sock: null, status: "disconnected", qr: null, pairingCode: null, connecting: null, controller: null, closeHandler: null, retryTimer: null };
     sockets.set(userId, entry);
   }
   return entry;
+}
+
+function controllerFor(userId, entry) {
+  if (!entry.controller) {
+    entry.controller = createReconnectController({
+      config: reconnectConfig,
+      record: (type, fields) => telemetry.record(userId, type, fields)
+    });
+  }
+  return entry.controller;
+}
+
+function clearRetryTimer(entry) {
+  if (entry.retryTimer) clearTimeout(entry.retryTimer);
+  entry.retryTimer = null;
+}
+
+// Encerra de vez um socket que não será mais usado: espera as gravações de
+// credenciais em andamento, fecha (end) e remove TODOS os listeners — sem isso
+// o socket velho ficava vivo na memória com os handlers de mensagem/credencial.
+async function retireSocket(sock) {
+  if (!sock) return;
+  retiredSockets.add(sock);
+  try { await Promise.allSettled([...pendingWrites]); } catch { /* falha de gravação já foi logada */ }
+  try { sock.end(undefined); } catch { /* socket pode já estar fechado */ }
+  try { sock.ev?.removeAllListeners(); } catch { /* idem */ }
+}
+
+function closeHandlerFor(userId, entry) {
+  if (!entry.closeHandler) {
+    entry.closeHandler = createCloseHandler({
+      userId,
+      entry,
+      controller: controllerFor(userId, entry),
+      notifyStatus,
+      clearSessionCreds,
+      retireSocket,
+      scheduleRetry: ({ delayMs, sock }) => {
+        clearRetryTimer(entry);
+        const timer = setTimeout(async () => {
+          if (entry.retryTimer !== timer) return; // cancelada (conexão manual / desconectar)
+          entry.retryTimer = null;
+          await retireSocket(sock);
+          connectSession(userId, { trigger: "auto" }).catch((error) => onAutoReconnectFailure(userId, entry, error));
+        }, delayMs);
+        entry.retryTimer = timer;
+      }
+    });
+  }
+  return entry.closeHandler;
+}
+
+// A tentativa automática nem chegou a abrir socket (ex.: falha ao ler as
+// credenciais no CRM): conta como queda recuperável — respeita o mesmo backoff
+// e o mesmo limite, nunca fica parada em "reconectando" sem ninguém tentando.
+async function onAutoReconnectFailure(userId, entry, error) {
+  console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message);
+  try {
+    await closeHandlerFor(userId, entry)({ sock: null, statusCode: undefined, errorMessage: `startup_failed: ${error.message}` });
+  } catch (inner) {
+    console.error(`[${userId}] Falha ao tratar a falha de reconexão:`, inner.message);
+  }
 }
 
 // connect(): idempotente — se já existe socket vivo (ou uma conexão em
@@ -97,7 +165,12 @@ function entryFor(userId) {
 // não importa o status atual: derruba o socket em memória (se houver) E
 // apaga as credenciais salvas antes de criar um socket novo, garantindo um
 // estado realmente não registrado pro requestPairingCode() ter efeito.
-export async function connectSession(userId, { phoneNumber } = {}) {
+//
+// trigger: de onde veio o pedido — "manual" (botão Conectar / POST /connect) e
+// "resume" (retomada no boot) abrem um CICLO novo de reconexão (contador
+// zerado); "auto" é a reconexão agendada pela própria política (continua o
+// ciclo atual, com backoff e limite).
+export async function connectSession(userId, { phoneNumber, trigger = "manual" } = {}) {
   const entry = entryFor(userId);
   // Pedido de QR (sem número) com uma sessão parada no modo código: começa do
   // zero em modo QR — senão a tela de QR recebia de volta o código antigo
@@ -119,19 +192,27 @@ export async function connectSession(userId, { phoneNumber } = {}) {
     if (entry.connecting) return entry.connecting;
   }
 
-  entry.connecting = startSocket(userId, entry, { phoneNumber }).finally(() => { entry.connecting = null; });
+  // Conexão pedida de fora cancela qualquer reconexão automática agendada.
+  if (trigger !== "auto") clearRetryTimer(entry);
+  entry.connecting = startSocket(userId, entry, { phoneNumber, trigger }).finally(() => { entry.connecting = null; });
   return entry.connecting;
 }
 
-async function startSocket(userId, entry, { phoneNumber } = {}) {
+async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = {}) {
   entry.status = "connecting";
   entry.pairingMode = false;
   entry.pairingError = null;
   entry.qr = null;
   entry.pairingCode = null;
 
+  // Versão do protocolo WA Web (buscada no GitHub do Baileys a cada conexão —
+  // NÃO é fixada pelo lockfile; por isso vai na telemetria).
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+  telemetry.setWaVersion(version, isLatest);
+  const controller = controllerFor(userId, entry);
+  if (trigger === "auto") controller.beginRetry();
+  else controller.beginCycle(trigger);
   const { state, saveCreds } = await useSupabaseAuthState(userId);
-  const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     version,
@@ -159,7 +240,9 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
 
   sock.ev.on("connection.update", (update) => {
     if (retiredSockets.has(sock)) return;
-    return onConnectionUpdate(userId, entry, update);
+    // Evento de um socket que não é mais o atual desta sessão: nunca age.
+    if (entry.sock && entry.sock !== sock) return;
+    return onConnectionUpdate(userId, entry, sock, update);
   });
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
   sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
@@ -231,7 +314,7 @@ async function startSocket(userId, entry, { phoneNumber } = {}) {
   });
 }
 
-async function onConnectionUpdate(userId, entry, update) {
+async function onConnectionUpdate(userId, entry, sock, update) {
   const { connection, lastDisconnect, qr } = update;
 
   if (qr) {
@@ -257,44 +340,22 @@ async function onConnectionUpdate(userId, entry, update) {
     entry.pairingMode = false;
     entry.pairingError = null;
     const phoneNumber = String(entry.sock?.user?.id || "").split(":")[0] || "";
+    // A conexão só zera o contador depois de ficar ESTÁVEL (reconnect-policy.js).
+    controllerFor(userId, entry).onOpen();
     await notifyStatus(userId, { status: "connected", phoneNumber, qr: null });
     return;
   }
 
   if (connection === "close") {
-    const statusCode = lastDisconnect?.error?.output?.statusCode;
-    const loggedOut = statusCode === DisconnectReason.loggedOut;
-    entry.sock = null;
-
-    if (loggedOut) {
-      // Corretor desconectou pelo próprio celular (WhatsApp > Aparelhos
-      // conectados): credenciais não servem mais — precisa de QR/código novo.
-      entry.status = "disconnected";
-      entry.qr = null;
-      entry.pairingCode = null;
-      await clearSessionCreds(userId);
-      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out", statusCode, output: lastDisconnect?.error?.output?.payload });
-      return;
-    }
-
-    // Queda transitória (rede, restart do processo, etc.): reconecta sozinho
-    // usando os MESMOS creds já persistidos — nunca gera QR à toa.
-    // Inclui o "restart required" (515) que o WhatsApp SEMPRE manda logo
-    // depois de o celular aceitar o QR/código: a reconexão precisa sair do
-    // modo código (senão connectSession tratava como "começar do zero" e
-    // APAGAVA as credenciais recém-registradas — bug real, 2026-10-02) e
-    // esperar as credenciais terminarem de ser gravadas.
-    entry.status = "reconnecting";
-    entry.pairingMode = false;
-    entry.pairingCode = null;
-    entry.pairingError = null;
-    const errorMessage = String(lastDisconnect?.error?.message || "").slice(0, 300);
-    await notifyStatus(userId, { status: "reconnecting", error: errorMessage, statusCode, output: lastDisconnect?.error?.output?.payload });
-    const restartRequired = statusCode === DisconnectReason.restartRequired;
-    setTimeout(async () => {
-      try { await Promise.all([...pendingWrites]); } catch { /* falha de gravação já foi logada */ }
-      connectSession(userId).catch((error) => console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message));
-    }, restartRequired ? 1000 : RECONNECT_DELAY_MS);
+    // Política (reconnect-policy.js + session-lifecycle.js): 401 = logout;
+    // 403/440/... = NÃO reconecta (status 'error', needs_attention); queda
+    // recuperável = backoff com teto e limite de tentativas por ciclo.
+    await closeHandlerFor(userId, entry)({
+      sock,
+      statusCode: lastDisconnect?.error?.output?.statusCode,
+      errorMessage: lastDisconnect?.error?.message,
+      payload: lastDisconnect?.error?.output?.payload
+    });
   }
 }
 
@@ -414,7 +475,14 @@ export function getLiveSessionStatus(userId) {
 
 export async function disconnectSession(userId) {
   const entry = sockets.get(userId);
+  if (entry) {
+    // Desconexão pedida: nenhuma reconexão automática pode sobreviver a ela.
+    clearRetryTimer(entry);
+    entry.controller?.cancel("manual_disconnect");
+  }
   if (entry?.sock) {
+    // O fechamento causado pelo logout abaixo não é uma "queda" a tratar.
+    retiredSockets.add(entry.sock);
     try { await entry.sock.logout(); } catch { /* pode já estar fechado do lado do WhatsApp */ }
     try { entry.sock.end(undefined); } catch { /* idem */ }
   }

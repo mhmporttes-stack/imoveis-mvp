@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — WhatsApp individual: política de reconexão, telemetria de conexão e Baileys fixado
+- **Data:** 2026-10-04
+- **Área:** WhatsApp / Banco / Infra
+- **Alteração:** microsserviço deixa de reconectar para sempre: 401 encerra (como antes); 403/440/411/códigos desconhecidos NÃO reconectam (socket encerrado, `status='error'` + `needs_attention:`); quedas recuperáveis com backoff exponencial+jitter, teto de atraso e 6 reconexões por ciclo, contador só zera após 3 min conectada; sessão não pareada tem limite próprio (5 QRs). Boot só retoma sessões `connected` (5–8 s entre elas). Nova tabela append-only `whatsapp_session_telemetry` (sem dedup; tentativas, quedas, ciclos, boot, versão do Baileys/WA Web, origem do deploy) alimentada por `POST /api/webhooks/whatsapp-individual/telemetry`. `whatsapp_session_events`/`whatsapp_restriction_events` inalterados. Baileys fixado em `6.7.24` + `package-lock.json` + `npm ci` (sem upgrade; evidência em `docs/WHATSAPP.md`). Teste antigo `whatsapp-restriction-states` (afirmava "serviço não trata 403") atualizado para a nova premissa.
+- **Motivo:** pedido do dono; loops de 403 em 3 contas (~22 h, ~15 h, 26 min) e falta de dados para reconstruí-los.
+- **Arquivos afetados:** `whatsapp-individual-service/{Dockerfile,package.json,package-lock.json,src/*}`, `app/api/webhooks/whatsapp-individual/telemetry/route.js`, `lib/whatsapp-session-telemetry.js`, `lib/whatsapp-session-telemetry-core.mjs`, `supabase/migrations/20261004100000_whatsapp_session_telemetry.sql` (PENDENTE de aplicar), `tests/whatsapp-reconnect-policy.test.mjs`, `tests/whatsapp-restriction-states.test.mjs`, `docs/WHATSAPP.md`, `docs/DATABASE.md`, `docs/INCIDENTES.md`
+- **Risco/observação:** `needs_attention` não alerta a gestora; sessão que já estava `reconnecting` no banco continua assim até alguém clicar Conectar (o boot não grava status); alerta de conexão só cobre connected/disconnected. Dependências transitivas antigas não comprováveis. Ordem de publicação: aplicar a migration, conferir por SELECT que nenhuma sessão está `connected` (todas seriam reabertas no boot, como sempre foi), depois push.
 ### 2026-10-04 — Backfill do contato humano APLICADO (7 clientes)
 - **Data:** 2026-10-04
 - **Área:** banco (dados), docs

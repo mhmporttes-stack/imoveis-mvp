@@ -4,8 +4,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+# Build reproduzível: package-lock.json + `npm ci` (versão EXATA do Baileys e de
+# todas as dependências). Antes era `npm install` com "^6.7.9" e sem lockfile —
+# cada build podia resolver uma versão diferente. O lockfile registra a
+# dependência libsignal (git) como ssh://git@github.com/...; o container não tem
+# chave SSH, então a troca abaixo faz o git usar https.
+COPY package.json package-lock.json ./
+RUN git config --global url."https://github.com/".insteadOf ssh://git@github.com/ \
+  && npm ci --omit=dev
 
 COPY src ./src
 

@@ -94,11 +94,17 @@ test("código de desconexão: normaliza, registra e não muda a lógica do servi
   assert.match(lib, /last_disconnect_code = disconnectCode/);
   assert.match(lib, /recordSessionEvent/);
   assert.match(src("app/api/webhooks/whatsapp-individual/route.js"), /statusCode: payload\.statusCode/);
+  // Atualizado em 2026-10-04 (decisão do dono: reconexão e observabilidade). Antes este teste
+  // afirmava que o serviço NÃO tratava 403; agora a política de reconexão
+  // (reconnect-policy.js, testada em whatsapp-reconnect-policy.test.mjs) trata 403/440 como
+  // intervenção, mas o código continua sendo repassado e registrado (statusCode) a cada mudança.
   const sess = src("whatsapp-individual-service/src/sessions.js");
-  assert.match(sess, /status: "reconnecting", error: errorMessage, statusCode/);
-  assert.match(sess, /statusCode === DisconnectReason\.loggedOut/);
-  assert.match(sess, /statusCode === DisconnectReason\.restartRequired/);
-  assert.doesNotMatch(sess, /DisconnectReason\.forbidden|statusCode === 403/);
+  assert.match(sess, /closeHandlerFor\(userId, entry\)\(\{/);
+  assert.match(sess, /statusCode: lastDisconnect\?\.error\?\.output\?\.statusCode/);
+  const lifecycle = src("whatsapp-individual-service/src/session-lifecycle.js");
+  assert.match(lifecycle, /status: "reconnecting", error: message, statusCode/);
+  assert.match(lifecycle, /error: "logged_out", statusCode/);
+  assert.match(src("whatsapp-individual-service/src/reconnect-policy.js"), /code === 403\) return \{ kind: KIND\.INTERVENTION/);
 });
 
 test("rotas novas: guard antes de tocar em dado; validar grava o admin REAL; rota do corretor não valida", () => {

@@ -3,6 +3,8 @@ import express from "express";
 import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, reactToMessage, sendMessage } from "./sessions.js";
 import { listResumableUserIds, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
+import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
+import { telemetry } from "./telemetry.js";
 
 const REQUIRED_ENV = ["APP_WEBHOOK_URL", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
@@ -121,6 +123,9 @@ app.post("/sessions/:userId/delete", async (req, res) => {
 const port = Number(process.env.PORT) || 3100;
 app.listen(port, () => {
   console.log(`whatsapp-individual-service ouvindo na porta ${port}`);
+  // Marcador de boot: id do processo + versão do Baileys + origem do deploy
+  // (variáveis da Railway, se houver) — vai junto de todo evento seguinte.
+  telemetry.record(null, "service_boot", { detail: `baileys_${telemetry.context.baileysVersion}` });
   resumeSessions();
 });
 
@@ -131,8 +136,9 @@ app.listen(port, () => {
 // gravações pendentes (ver auth-state.js) terminar antes de sair.
 function gracefulShutdown(signal) {
   console.log(`${signal} recebido — aguardando gravações pendentes antes de encerrar…`);
+  telemetry.record(null, "service_shutdown", { reason: signal });
   Promise.race([
-    Promise.allSettled([...pendingWrites]),
+    Promise.allSettled([...pendingWrites, telemetry.flush()]),
     new Promise((resolve) => setTimeout(resolve, 8000))
   ]).finally(() => process.exit(0));
 }
@@ -142,8 +148,14 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 // A cada restart/redeploy o socket em memória se perde, mas as credenciais
 // continuam persistidas (cifradas) no Supabase — sem isso o corretor ficava
 // "conectado" no banco sem socket vivo nenhum até clicar Reconectar. Um de
-// cada vez, com um intervalo curto entre eles, pra não abrir várias conexões
-// simultâneas com o WhatsApp no boot.
+// cada vez, com intervalo (e jitter) entre eles, pra não abrir várias conexões
+// coladas com o WhatsApp no boot.
+//
+// SÓ retoma quem o banco diz que estava 'connected' quando o processo caiu
+// (reconnect-policy.js: shouldResumeSession). Sessão em 'reconnecting', 'error'
+// (intervenção/needs_attention), 'qr_required', 'disconnected'... NÃO é reaberta
+// por restart/deploy — antes, todo deploy reabria todas, inclusive as que
+// estavam em laço de recusa (403). Quem foi pulado fica registrado na telemetria.
 async function resumeSessions() {
   let userIds = [];
   try {
@@ -152,13 +164,30 @@ async function resumeSessions() {
     console.error("Falha ao listar sessões para retomar:", error.message);
     return;
   }
+  let resumed = 0;
   for (const userId of userIds) {
+    let row = null;
     try {
-      await connectSession(userId);
+      row = await readSessionRow(userId);
+    } catch (error) {
+      // Sem confirmar o estado no banco, não reabre (conservador).
+      console.error(`[${userId}] Não foi possível ler o estado para retomar; sessão não retomada:`, error.message);
+      telemetry.record(userId, "resume_skipped", { reason: "state_unreadable" });
+      continue;
+    }
+    if (!shouldResumeSession(row)) {
+      console.log(`[${userId}] Sessão não retomada no boot (estado: ${row?.status || "sem linha"}).`);
+      telemetry.record(userId, "resume_skipped", { reason: row?.status ? `status_${row.status}` : "no_row" });
+      continue;
+    }
+    try {
+      await connectSession(userId, { trigger: "resume" });
+      resumed += 1;
       console.log(`[${userId}] Sessão retomada após subir o processo.`);
     } catch (error) {
       console.error(`[${userId}] Falha ao retomar a sessão:`, error.message);
     }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, resumeSpacingMs()));
   }
+  telemetry.record(null, "resume_done", { detail: `resumed_${resumed}_of_${userIds.length}` });
 }
