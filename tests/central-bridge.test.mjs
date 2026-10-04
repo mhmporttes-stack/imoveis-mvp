@@ -339,7 +339,12 @@ test("estatico: sem child_process/spawn/exec nem claude -p fora de executors/cla
     const src = readFileSync(f, "utf8");
     // Unica excecao: o executor Claude (somente leitura, flag desligada). Poller, echo, client, config, lib e rotas continuam proibidos.
     if (f.replace(/\\/g, "/").endsWith("central-bridge/executors/claude.mjs")) continue;
-    assert.ok(!/child_process|\bspawn\b|\bexec(Sync|File)?\s*\(|claude\.exe|claude\s+-p|agent-sdk/i.test(src), `proibido em ${f}`);
+    // O localizador so le o sistema de arquivos: precisa citar claude.exe, mas child_process/spawn/exec continuam proibidos nele.
+    const isLocator = f.replace(/\\/g, "/").endsWith("central-bridge/executors/claude-locator.mjs");
+    const banned = isLocator
+      ? /child_process|\bspawn\b|\bexec(Sync|File)?\s*\(|claude\s+-p|agent-sdk|node:(http|https|net)|fetch\(/i
+      : /child_process|\bspawn\b|\bexec(Sync|File)?\s*\(|claude\.exe|claude\s+-p|agent-sdk/i;
+    assert.ok(!banned.test(src), `proibido em ${f}`);
     assert.ok(!/cookies?\(|request\.cookies|mm_admin_|requireAdmin|CRON_SECRET/i.test(src), `cookie/admin/cron em ${f}`);
   }
   const proxy = readFileSync("proxy.js", "utf8");

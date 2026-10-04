@@ -42,7 +42,14 @@ O poller so roda **uma instancia por usuario**. Na partida cria, de forma atomic
 - Limite conhecido: um poller iniciado por versao anterior (sem trava) nao e visto pelo ctl; conferir uma vez com `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ? { $_.CommandLine -like '*poller.mjs*' }`.
 - Causa da falha do T-83 (04/10): o filtro `-match 'central-bridge[\/]poller'` nao casou porque em regex .NET `[\/]` e so a barra `/` (`\/` e uma barra escapada); o Windows grava a linha de comando com `\` (`...node.exe" scripts\central-bridge\poller.mjs`). O poller estava la; o padrao nunca o encontraria. Correto: `[\\/]` ou `-like '*poller.mjs*'`, ou melhor, o ctl pela trava. O launcher `iniciar-poller-central.ps1` ja usa `[\\/]` (correto).
 
-**Na ativacao permanente** (o launcher `iniciar-poller-central.ps1` fica fora do repositorio e NAO foi alterado nesta tarefa):
+### Resolucao permanente do Claude Code (`executors/claude-locator.mjs`)
+- Roda a cada execucao de tarefa (sem cache, sem reiniciar o poller para pegar atualizacao). So le o sistema de arquivos: sem `child_process`, sem rede.
+- Ordem: (a) `CENTRAL_CLAUDE_BIN` se absoluto, arquivo `claude.exe`/`claude`, dentro de pasta `claude-code`, realpath ainda valido; (b) varredura de `%APPDATA%\Claude\claude-code` e `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code`: maior versao semver (numerica: 2.10.0 > 2.1.286 > 2.1.9), subpasta hash com `claude.exe`; formato obrigatorio `<raiz>\<semver>\<hash>\claude.exe` com realpath dentro da raiz; (c) nada achado: erro claro, nunca o `claude` do PATH.
+- Nao aceita: executavel do Claude Desktop (outra pasta), `.cmd/.bat/.ps1`, link simbolico que saia da arvore. Versao mais nova sem hash/`claude.exe` e pulada para a proxima.
+- `CENTRAL_CLAUDE_BIN` invalido NAO derruba a ponte: cai na varredura e o log mostra `claude: CENTRAL_CLAUDE_BIN ignorado (motivo)`. Caminho resolvido sempre logado (`claude: binario <caminho> (origem versao)`).
+- Testes: `tests/central-claude-locator.test.mjs` (diretorios temporarios falsos).
+
+**Na ativacao permanente** (o launcher `iniciar-poller-central.ps1` fica fora do repositorio; foi atualizado na ativacao operacional de 04/10 conforme os itens 1-2 abaixo, com copia de seguranca ao lado):
 1. Hoje ele detecta instancia por `Get-CimInstance ... -match 'scripts[\\/]central-bridge[\\/]poller\.mjs'`. Trocar por `node scripts\central-bridge\poller-ctl.mjs check` (codigo 0 = pode iniciar) ou deixar o proprio poller recusar (codigo 3).
 2. Tratar saida **3** do poller como "ja ha um rodando" (`exit 0`), nao como queda (hoje qualquer saida vira `exit 1`).
 3. Para reiniciar apos mudar o `.env`: `poller-ctl.mjs stop` (o launcher termina com 1 ao ver o filho sair) e depois `Start-ScheduledTask Central-Claude-Poller`, ou novo logon. O poller le a config so na partida.
@@ -52,7 +59,7 @@ O poller so roda **uma instancia por usuario**. Na partida cria, de forma atomic
 ### Checklist de ativacao permanente (nada disso foi feito; so com decisao do dono)
 - [ ] Politica da Anthropic para gatilho externo resolvida (T-79) e uso por assinatura autorizado.
 - [ ] Checkout `imoveis-mvp` atualizado (trava presente); `poller-ctl check` = 0 e nenhum `node` com `poller.mjs`.
-- [ ] `CENTRAL_CLAUDE_BIN` aponta para um `claude.exe` valido (o caminho atual contem a versao, ex. `...\claude-code\2.1.286\...\claude.exe`, e muda a cada atualizacao do app: revisar a cada atualizacao ou apontar para um caminho estavel).
+- [x] Binario do Claude Code: resolvido a cada execucao por `executors/claude-locator.mjs` (ver "Resolucao permanente do Claude Code" abaixo); `CENTRAL_CLAUDE_BIN` virou so a primeira opcao e deixou de ser fragil.
 - [ ] `ANTHROPIC_API_KEY` ausente (usuario/maquina/.env) e credencial por assinatura presente.
 - [ ] `.central-bridge.env`: `CENTRAL_EXECUTOR=claude`, `CENTRAL_CLAUDE_EXECUTOR_ENABLED=true` (editar so as linhas; conferir tamanho/valores sem imprimir segredos).
 - [ ] Ajustar o launcher conforme acima; reiniciar o poller por `poller-ctl stop` + tarefa agendada.

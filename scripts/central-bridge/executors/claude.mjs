@@ -10,6 +10,7 @@
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveClaudeBin } from "./claude-locator.mjs";
 
 export const RESULT_MAX_CHARS = 8000;
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -171,6 +172,11 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "
 export function createClaudeExecutor({
   enabled = false,
   bin = "claude",
+  // Producao (selectExecutor) liga o localizador: resolve o CLI a cada execucao (sobrevive a atualizacoes do app).
+  // Sem `useLocator` (testes/uso direto) vale `bin` como esta.
+  useLocator = false,
+  locator = resolveClaudeBin,
+  configuredBin = "",
   cwd = REPO_ROOT,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   runner = createSpawnRunner(),
@@ -187,10 +193,18 @@ export function createClaudeExecutor({
       }
       const prompt = buildPrompt(task);
       if (!prompt.trim()) throw new Error("Tarefa sem texto.");
+      let runBin = bin;
+      if (useLocator) {
+        const r = locator({ configured: configuredBin, env });
+        for (const note of r.skipped || []) log(`claude: ${note}`);
+        if (!r.ok) throw new Error(r.reason);
+        runBin = r.path;
+        log(`claude: binario ${r.path} (${r.source}${r.version ? ` ${r.version}` : ""})`);
+      }
       const started = Date.now();
       let res;
       try {
-        res = await runner({ bin, args: buildArgs(), input: prompt, cwd, env: buildChildEnv(env), timeoutMs });
+        res = await runner({ bin: runBin, args: buildArgs(), input: prompt, cwd, env: buildChildEnv(env), timeoutMs });
       } catch {
         throw new Error("Falha ao executar o Claude.");
       }

@@ -37,7 +37,7 @@ export function loadConfig(env = process.env, readFile = (p) => readFileSync(p, 
     executor: get("CENTRAL_EXECUTOR", "echo"),
     claudeEnabled: get("CENTRAL_CLAUDE_EXECUTOR_ENABLED", "false").toLowerCase() === "true",
     // Executor Claude (so usados se CENTRAL_EXECUTOR=claude E a flag acima = true). Nunca vem do payload.
-    claudeBin: get("CENTRAL_CLAUDE_BIN", "claude"),
+    claudeBin: get("CENTRAL_CLAUDE_BIN", ""),
     claudeCwd: get("CENTRAL_CLAUDE_CWD", ""),
     claudeTimeoutMs: Number.isFinite(timeout) ? Math.min(Math.max(timeout, 10), 600) * 1000 : 120000
   };

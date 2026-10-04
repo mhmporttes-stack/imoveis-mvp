@@ -6,7 +6,8 @@ export function selectExecutor(config) {
   if (config.executor === "claude") {
     return createClaudeExecutor({
       enabled: config.claudeEnabled === true,
-      ...(config.claudeBin ? { bin: config.claudeBin } : {}),
+      useLocator: true,
+      configuredBin: config.claudeBin || "",
       ...(config.claudeCwd ? { cwd: config.claudeCwd } : {}),
       ...(config.claudeTimeoutMs ? { timeoutMs: config.claudeTimeoutMs } : {}),
       ...(config.log ? { log: config.log } : {})

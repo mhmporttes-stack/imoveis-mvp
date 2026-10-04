@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Ponte da Central: localizador permanente do Claude Code CLI + launcher com `poller-ctl` (ativação operacional)
+- **Data:** 2026-10-04
+- **Área:** Central/ponte ChatGPT→Claude (scripts locais), docs
+- **Alteração:** novo `scripts/central-bridge/executors/claude-locator.mjs` (só sistema de arquivos, sem executar nada, sem rede). A cada execução do executor Claude resolve o binário nesta ordem: (a) `CENTRAL_CLAUDE_BIN` se for caminho absoluto de arquivo `claude.exe`/`claude` dentro de pasta `claude-code`; (b) senão varre `%APPDATA%\Claude\claude-code` e `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code`, escolhe a MAIOR versão semver (comparação numérica) e o subdiretório hash com `claude.exe`, só aceitando `<raiz>\<semver>\<hash>\claude.exe` com realpath dentro da raiz (links simbólicos, `.cmd/.bat/.ps1` e o executável do Desktop não valem); (c) nada achado → erro claro, sem cair no `claude` do PATH. `CENTRAL_CLAUDE_BIN` inválido não falha: cai na varredura e registra o motivo no log. Versão mais nova sem hash/`claude.exe` (atualização incompleta) é pulada para a próxima. O caminho resolvido é logado (`claude: binario <caminho> (origem versao)`). `config.mjs`: padrão de `CENTRAL_CLAUDE_BIN` passa de `claude` para vazio.
+- **Motivo:** o caminho do CLI contém versão/hash e muda a cada atualização do app; fixar no `.env` quebraria a ponte silenciosamente.
+- **Arquivos afetados:** `scripts/central-bridge/executors/{claude-locator.mjs,claude.mjs,index.mjs}`, `scripts/central-bridge/config.mjs`, `tests/central-claude-locator.test.mjs` (novo), `tests/central-bridge.test.mjs` (teste estático: o localizador pode citar `claude.exe`, mas `child_process/spawn/exec`, rede e `claude -p` seguem proibidos nele; `child_process` continua só em `claude.mjs`), `docs/CENTRAL_PONTE.md`.
+- **Risco/observação:** launcher `iniciar-poller-central.ps1` (fora do repositório) atualizado para usar `poller-ctl check`, tratar saída 3 do poller como "já rodando" e varredura legada `-like '*poller.mjs*'`; tarefa agendada intacta. Nenhuma mudança no CRM.
 ### 2026-10-04 — Ponte da Central: trava de instância única do poller + `poller-ctl` (preparação, sem ativar)
 - **Data:** 2026-10-04
 - **Área:** Central/ponte ChatGPT→Claude (scripts locais), docs
