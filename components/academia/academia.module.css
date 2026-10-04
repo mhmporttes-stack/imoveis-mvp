@@ -124,7 +124,7 @@
 .pw::after{content:"";position:absolute;left:100%;top:50%;width:14px;height:2px;margin-top:-1px;background:var(--ac-blue)}
 .pinDot{width:12px;height:12px;border-radius:50%;background:var(--ac-blue);box-shadow:0 0 0 3px rgba(54,115,194,.22);flex:none;margin-top:2px}
 .pt{display:flex;flex-direction:column;line-height:1.2;min-width:0}
-.pd{display:block;font-weight:600;color:var(--ac-ink2);font-size:14px;overflow:hidden;max-height:44px;white-space:normal}
+.pd{display:block;font-weight:600;color:var(--ac-ink2);font-size:14px;overflow:hidden;white-space:normal;overflow-wrap:anywhere}
 .chev{width:16px;height:16px;margin:1px 0 0 0;align-self:flex-start;animation:bob 1.8s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(2px)}50%{transform:translateY(-4px)}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:var(--ac-bh);padding:0 24px;border-radius:var(--ac-r);background:var(--ac-ink);color:#fff;font-weight:800;font-size:17px;letter-spacing:.005em;box-shadow:0 8px 20px rgba(3,29,58,.22);pointer-events:auto;white-space:nowrap}

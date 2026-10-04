@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Academia: card "Você está aqui" cortado no iPhone
+- **Causa raiz:** `components/academia/scene/engine.js` limitava a altura do texto do pino a no máximo 54 px (`cam.hp * 54`) com `overflow:hidden`; em tela estreita o título da aula quebra em 3+ linhas e a última era cortada (medido: 13 px cortados a 320 px). **Correção:** a altura máxima passa a ser a altura natural medida do texto (re-medida quando o texto ou a largura do card mudam), sem teto fixo; `.pd` ganha `overflow-wrap:anywhere`. Conceito visual inalterado.
+- **Verificação:** varredura Playwright (Chromium, 320/375/390/430 px) em início, trilha, aula, questão, erro/acerto, conquista e evolução: 0 textos cortados e 0 overflow horizontal. Só `engine.js` e `academia.module.css`. **Limitação:** não testado em iPhone físico.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Academia F6 e F7: gestão, várias trilhas, regras de matrícula e recomendações
 - **Data:** 2026-10-04
 - **Área:** Banco / Backend / Frontend (Academia atrás de `ACADEMIA_ENABLED`, desligada)

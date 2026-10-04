@@ -252,16 +252,21 @@ export function createEngine(styles) {
       if (pinW) {
         ss(pinW, "transform", "translate(0,-50%)");
         const mw = Math.max(110, Math.min(wide ? 260 : 190, sx - 20));
-        if (pinW._mw !== Math.round(mw)) { pinW._mw = Math.round(mw); pinW.style.maxWidth = Math.round(mw) + "px"; }
+        if (pinW._mw !== Math.round(mw)) { pinW._mw = Math.round(mw); pinW.style.maxWidth = Math.round(mw) + "px"; if (E.pinD) E.pinD._t = null; }
       }
       ss(pw, "opacity", clamp(cam.o_pin, 0, 1).toFixed(3));
       const pd = E.pinD;
       if (pd) {
         if (cam.hp > 0.03) ctx._g = true;
         const pt = ctx._g ? ctx.pinText : "Role para subir";
-        if (pd._t !== pt) { pd._t = pt; pd.textContent = pt; }
-        if (ctx._g) { ss(pd, "maxHeight", (cam.hp * 54).toFixed(0) + "px"); ss(pd, "opacity", clamp((cam.hp - 0.35) / 0.5, 0, 1).toFixed(3)); }
-        else { ss(pd, "maxHeight", "44px"); ss(pd, "opacity", "1"); }
+        if (pd._t !== pt) {
+          pd._t = pt; pd.textContent = pt;
+          // altura natural do texto (quebra em várias linhas em tela estreita): sem teto fixo, nada fica cortado
+          pd.style.maxHeight = "none"; pd._nh = (Math.ceil(pd.getBoundingClientRect().height) + 2) || 44; pd._maxHeight = null;
+        }
+        const nh = pd._nh || 44;
+        if (ctx._g) { ss(pd, "maxHeight", (cam.hp * nh).toFixed(0) + "px"); ss(pd, "opacity", clamp((cam.hp - 0.35) / 0.5, 0, 1).toFixed(3)); }
+        else { ss(pd, "maxHeight", nh + "px"); ss(pd, "opacity", "1"); }
       }
     }
     ss(E.cta, "opacity", clamp(cam.o_cta, 0, 1).toFixed(3));
