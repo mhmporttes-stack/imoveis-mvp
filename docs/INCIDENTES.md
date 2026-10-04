@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Corretor com mais de 30 clientes na "Carteira ativa" (83/50, 60/50...)
+- **Data:** 2026-10-04
+- **Sintoma:** "alguns corretores continuam com mais de 30 clientes ativos na carteira"; card "Carteira ativa 83/50".
+- **Área:** Meta Diária
+- **Impacto:** 6 corretores acima do novo teto de 30 (Bruna 83, Eduardo 70, Caroline 60, Paulo 57, ketlin 55, Jennyfer 52...); 94 das rodadas contadas já não eram do corretor.
+- **Causa raiz:** (1) o teto só impedia a ENTRADA, nunca removia o excedente de antes. (2) retorno automático de 7 dias, "Devolver" e reatribuição devolviam o contato à fila mas deixavam `daily_goal_rounds` ativa: rodada "zumbi" contada na carteira (e no card) de quem já não tinha o contato.
+- **Correção:** teto 30 numa constante; `releaseActiveRoundsForContacts` nos 4 caminhos; migration `20261004200000` + `daily_goal_wallet_trim` (rebalanceamento manual com backup, auditoria e reversão).
+- **Arquivos/commit:** `lib/daily-goal-round-release.mjs`, `lib/prospecting.js`, `lib/prospecting-auto-return.js`, `lib/daily-goal-wallet-core.mjs`, `supabase/migrations/20261004200000_meta_diaria_carteira_30.sql` — commit no `CHANGELOG_AI.md` de 2026-10-04.
+- **Prevenção/teste:** `tests/daily-goal-carteira-30*.test.mjs`. Risco residual: o interruptor de bloqueio da carteira (Configurações) desliga o teto.
+- **Status:** Resolvido (dados corrigidos pela Central; ver CHANGELOG_AI)
+
 ### 2026-10-04 — Corretor/associado via observações internas de empreendimento e podia apagar etiqueta de todos
 - **Data:** 2026-10-04
 - **Sintoma:** (achado de auditoria, sem relato de uso indevido) "Informações internas" do empreendimento visíveis a todo perfil; corretor/associado podia excluir ou recolorir etiqueta global pela ficha do cliente.

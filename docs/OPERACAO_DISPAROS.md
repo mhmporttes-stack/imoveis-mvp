@@ -22,13 +22,13 @@ Atualizado em 2026-10-04. Vale para os disparos **automáticos** pelo WhatsApp d
 
 ### 1.2 Como ler os números do card da Meta Diária
 
-Três números diferentes, que NÃO se somam: (a) **Fila automática de hoje X de 30 (1ª a/10 · 2ª b/10 · 3ª c/10)** = o que a automação realmente envia (enviadas hoje + na fila, máximo 10 por tentativa); (b) **x / y atividades da meta (carteira N + pendentes P)** = a meta do dia, que inclui acumulados e o que é feito à mão, congelada de manhã; (c) **Carteira ativa N/50 (aguardando 1ª · 2ª · 3ª)** = clientes em cadência; o teto 50 só impede a ENTRADA de novos (quem tem 83 mantém os 83). A limpeza da política v2 mexe só em (a).
+Três números diferentes, que NÃO se somam: (a) **Fila automática de hoje X de 30 (1ª a/10 · 2ª b/10 · 3ª c/10)** = o que a automação realmente envia (enviadas hoje + na fila, máximo 10 por tentativa); (b) **x / y atividades da meta (carteira N + pendentes P)** = a meta do dia, que inclui acumulados e o que é feito à mão, congelada de manhã; (c) **Carteira ativa N/30 (aguardando 1ª · 2ª · 3ª)** = clientes em cadência; o teto é 30 (era 50 até 2026-10-04: o excedente foi devolvido à Prospecção, MD-14). A limpeza da política v2 mexe só em (a).
 
 ### 1.1 Limpeza do excesso da fila
 
 Corretores chegaram a ter 40, 60, 80 itens acumulados na fila. Ao valer a política nova, o sistema (código do servidor, sem enviar nada) **reduz cada tentativa a no máximo 10 itens**, ficando com os **10 prioritários** na ordem normal da fila (os de horário mais cedo; empate pelo mais antigo). Os demais são **cancelados só na fila** (motivo `policy_v2_trim_excess`): **nenhum cliente é excluído, arquivado, marcado como contatado ou muda de etapa do funil, e nenhum histórico é apagado**. Os retirados **não voltam** nem hoje nem amanhã como pendência automática (o corretor os trabalha pelo botão manual). A limpeza roda sozinha a cada ciclo do disparo (inclusive com a sessão desconectada) e na reconexão; é **idempotente** (rodar de novo não retira mais nada). Auditoria: tabela `daily_goal_policy_trim_log` (corretor, tentativa, quantos ficaram, quantos saíram, quando) e o motivo em cada item cancelado. O dia seguinte gera no máximo 10 por tentativa, pela cota de 10 novos por dia e carteira de 50 já existentes (regras inalteradas).
 
-Não mudam: a cota de 10 novos por dia, a carteira de 50, a pontuação, o ranking e a Meta de 100%. Atenção: com o teto de 30, a automação não cobre sozinha toda a Meta de quem tem mais de 30 atividades no dia; o restante continua sendo feito à mão pelo botão manual.
+Não mudam: a cota de 10 novos por dia, a carteira de 30, a pontuação, o ranking e a Meta de 100%. Atenção: com o teto de 30, a automação não cobre sozinha toda a Meta de quem tem mais de 30 atividades no dia; o restante continua sendo feito à mão pelo botão manual.
 
 ## 2. Estado da política e como desligar para UM corretor
 

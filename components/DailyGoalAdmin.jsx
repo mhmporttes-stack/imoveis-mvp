@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Save } from "lucide-react";
 import Avatar from "./Avatar";
+import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
 
 const SESSION_STATUS_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
@@ -950,7 +951,7 @@ async function saveSettings(payload, setBusy, setFeedback, setSettings) {
 
 function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
   const [quota, setQuota] = useState(settings?.quota || 30);
-  const [walletLimit, setWalletLimit] = useState(settings?.wallet?.walletLimit ?? 100);
+  const [walletLimit, setWalletLimit] = useState(settings?.wallet?.walletLimit ?? DEFAULT_WALLET_LIMIT);
   const [blockOnLimit, setBlockOnLimit] = useState(settings?.wallet?.blockOnLimit ?? true);
 
   return (
@@ -997,10 +998,10 @@ function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="text-sm font-black text-navy">
-            Limite máximo da carteira ativa
+            Limite máximo da carteira ativa (até {MAX_WALLET_LIMIT})
             <input
               className="mt-2 h-12 w-40 rounded-2xl border border-line bg-white px-4 font-bold text-navy outline-none focus:border-brand"
-              max={5000}
+              max={MAX_WALLET_LIMIT}
               min={1}
               onChange={(event) => setWalletLimit(event.target.value)}
               type="number"
