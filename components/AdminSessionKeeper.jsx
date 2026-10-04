@@ -10,9 +10,11 @@ export default function AdminSessionKeeper() {
   const pathname = usePathname();
   const router = useRouter();
   const shouldCheckSession =
-    pathname?.startsWith("/admin") &&
-    !pathname?.startsWith("/admin/login") &&
-    !pathname?.startsWith("/admin/reset-password");
+    (pathname?.startsWith("/admin") &&
+      !pathname?.startsWith("/admin/login") &&
+      !pathname?.startsWith("/admin/reset-password")) ||
+    // Academia: mesma sessão do painel; renova para não expirar numa prova.
+    pathname?.startsWith("/academia");
 
   useEffect(() => {
     if (!shouldCheckSession) return undefined;

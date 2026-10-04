@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
+import { withAcademyMenuGroup } from "@/lib/academy-menu.mjs";
 import { CalendarDays, CircleDot, MessageCircle, MessageSquareReply, UserRoundPlus } from "lucide-react";
 
 const buttonBase =
@@ -191,9 +193,11 @@ const ownerGroups = [
 // Fonte única dos grupos do menu por perfil — usada também pela barra
 // inferior do celular (components/AdminBottomNav.jsx, sheet "Mais"), para
 // que nenhum destino exista em um menu e falte no outro.
-export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false } = {}) {
+export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, academiaEnabled = false } = {}) {
   const treatAsBroker = isBroker || isManager;
-  return isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  const groups = isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
+  // Chave da Academia desligada (padrão): devolve exatamente os mesmos grupos de sempre.
+  return withAcademyMenuGroup(groups, academiaEnabled);
 }
 
 function getGroupKeyForActive(active, groups = adminGroups) {
@@ -234,7 +238,11 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   // 2026-09-29). A checagem de permissão/escopo real continua nas próprias
   // páginas — isso aqui é só o menu.
   const treatAsBroker = isBroker || isManager;
-  const groups = getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager });
+  const academiaEnabled = useAcademyMenuEnabled();
+  const groups = useMemo(
+    () => getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager, academiaEnabled }),
+    [isAdmin, isBroker, isAssociate, isManager, academiaEnabled]
+  );
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
   const crmCounts = useCrmBadgeCounts();
@@ -298,6 +306,17 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
         {groups.map((group) => {
           const groupActive = group.items.some((item) => isActiveItem(item, active));
           const highlighted = groupActive || visibleGroup === group.key;
+
+          if (group.key === "academia") {
+            // Academia fica fora de /admin: navegação completa (<a>), não Link.
+            return (
+              <div key={group.key} className="relative flex min-w-[130px] flex-1">
+                <a href={group.href} className={`${buttonClass(false, treatAsBroker)} w-full`}>
+                  {group.label}
+                </a>
+              </div>
+            );
+          }
 
           if (group.href) {
             if (treatAsBroker && group.key === "crm") {

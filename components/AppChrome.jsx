@@ -35,6 +35,18 @@ export default function AppChrome({ children }) {
   // Vitrine de componentes (app/dev/vitrine) — rota que só existe no
   // `next dev`; renderiza sem o cabeçalho/rodapé do site público.
   if (pathname?.startsWith("/dev/")) return children;
+  // Academia (rota própria, fora do /admin): sem cabeçalho/rodapé do site,
+  // Pixel, captura de campanha nem botões flutuantes. Sem ViewportZoomLock:
+  // o zoom fica liberado só aqui. Renova a sessão (prova longa).
+  if (pathname?.startsWith("/academia")) {
+    return (
+      <>
+        <PwaLifecycle />
+        <AdminSessionKeeper />
+        {children}
+      </>
+    );
+  }
 
   return (
     <>

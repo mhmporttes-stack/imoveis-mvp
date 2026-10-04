@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  BarChart3, BookOpen, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
+  BarChart3, BookOpen, GraduationCap, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
   MessageCircle, MessageSquarePlus, MessageSquareQuote, MessageSquareReply, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
   UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
 import { getAdminMenuGroups } from "@/components/AdminMenu";
+import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Sheet from "@/components/ui/Sheet";
 import { CountBadge } from "@/components/ui/Badge";
@@ -185,14 +186,17 @@ const ITEM_ICONS = {
   "ai-usage": BrainCircuit,
   scoring: Trophy,
   "document-rules": FileText,
-  alexa: Mic
+  alexa: Mic,
+  academy: GraduationCap
 };
 
 // Mesma unidade visual para todo item do menu: ícone em ladrilho + nome (até
 // 2 linhas) + badge quando existir. Altura mínima de 44px (toque).
-function MenuTile({ href, label, Icon, current = false, count = 0 }) {
+function MenuTile({ href, label, Icon, current = false, count = 0, fullPage = false }) {
+  // fullPage: destino fora de /admin (Academia) — navegação completa com <a>.
+  const TileLink = fullPage ? "a" : Link;
   return (
-    <Link
+    <TileLink
       href={href}
       aria-current={current ? "page" : undefined}
       className={cx(
@@ -207,14 +211,15 @@ function MenuTile({ href, label, Icon, current = false, count = 0 }) {
       <span className="min-w-0 flex-1 break-words">{label}</span>
       {/* Badge preso ao canto do próprio item: não disputa largura com o nome. */}
       <CountBadge count={count} label={`${count} ${label}`} className="absolute -right-1 -top-1.5 ring-2 ring-white" />
-    </Link>
+    </TileLink>
   );
 }
 
 const SECTION_TITLE = "mb-1.5 px-0.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted";
 
 function MoreMenu({ flags, counts, pathname, barKeys }) {
-  const groups = getAdminMenuGroups(flags);
+  const academiaEnabled = useAcademyMenuEnabled();
+  const groups = getAdminMenuGroups({ ...flags, academiaEnabled });
   const pending = [
     { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
     { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: Clock },
@@ -253,7 +258,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
                 const current = pathname === itemPath && !item.href.includes("?");
                 return (
                   <li key={`${group.key}-${item.key}`}>
-                    <MenuTile href={item.href} label={item.label} Icon={ITEM_ICONS[item.key] || CircleDot} current={current} />
+                    <MenuTile href={item.href} label={item.label} Icon={ITEM_ICONS[item.key] || CircleDot} current={current} fullPage={item.fullPage} />
                   </li>
                 );
               })}

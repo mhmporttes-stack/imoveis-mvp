@@ -136,7 +136,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 function isPrivateRoute(pathname) {
-  return pathname.startsWith("/admin") || pathname.startsWith("/api");
+  return pathname.startsWith("/admin") || pathname.startsWith("/api") || pathname.startsWith("/academia");
 }
 
 function isStaticAsset(pathname) {

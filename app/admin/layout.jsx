@@ -14,6 +14,8 @@ import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { Manrope } from "next/font/google";
 import { getAdminFromCookies } from "@/lib/admin-auth";
+import { isAcademyEnabled } from "@/lib/academy-flags";
+import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +32,7 @@ export default async function AdminLayout({ children }) {
   const auth = await getAdminFromCookies();
 
   return (
-    <>
+    <AcademyMenuProvider enabled={isAcademyEnabled()}>
       <style dangerouslySetInnerHTML={{ __html: ADMIN_FONT_CSS }} />
       {auth.ok ? <AdminPresenceHeartbeat userId={auth.profile?.id} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
@@ -82,7 +84,7 @@ export default async function AdminLayout({ children }) {
           <AdminLogoutButton />
         </div>
       ) : null}
-    </>
+    </AcademyMenuProvider>
   );
 }
 

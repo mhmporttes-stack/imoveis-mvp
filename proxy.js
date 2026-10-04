@@ -8,6 +8,7 @@ export function proxy(request) {
   const { pathname } = request.nextUrl;
   const isAdminPath = pathname.startsWith("/admin");
   const isApiPath = pathname.startsWith("/api");
+  const isAcademyPath = pathname.startsWith("/academia");
 
   if (isAdminPath && !isPublicAdminPath(pathname)) {
     const hasSessionCookie =
@@ -19,6 +20,21 @@ export function proxy(request) {
       loginUrl.search = "";
       return noStoreResponse(NextResponse.redirect(loginUrl));
     }
+  }
+
+  // Academia: mesma proteção de /admin (sem cookie de sessão => login).
+  if (isAcademyPath) {
+    const hasSessionCookie =
+      request.cookies.has(ADMIN_ACCESS_COOKIE) || request.cookies.has(ADMIN_REFRESH_COOKIE);
+
+    if (!hasSessionCookie) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      loginUrl.search = "";
+      return noStoreResponse(NextResponse.redirect(loginUrl));
+    }
+
+    return noStoreResponse(NextResponse.next());
   }
 
   if (isAdminPath || isApiPath) {
@@ -38,5 +54,5 @@ function noStoreResponse(response) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/:path*"]
+  matcher: ["/admin/:path*", "/api/:path*", "/academia/:path*"]
 };
