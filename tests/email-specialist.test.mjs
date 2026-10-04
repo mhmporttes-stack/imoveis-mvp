@@ -53,3 +53,11 @@ test("lint de e-mail: aprova peça mínima conforme e reprova problemas conhecid
     assert.ok(bad.errors.some((e) => e.includes(frag)), `erro esperado: ${frag}`);
   }
 });
+
+test("template da campanha poder-de-compra passa no lint e mantém o CTA e o rodapé obrigatórios", () => {
+  const html = read("docs/email/templates/poder-de-compra-v1.html");
+  assert.deepEqual(lintEmail(html).errors, []);
+  assert.match(html, /simulacao\?jornada=simulacao&amp;utm_source=email&amp;utm_medium=email/);
+  assert.match(html, /Descobrir meu poder de compra/);
+  assert.ok(fs.existsSync(path.join(root, "docs/email/templates/poder-de-compra-v1.txt")));
+});

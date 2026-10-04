@@ -26,5 +26,9 @@
 ## Oferta da 1ª campanha (rascunho do dono, 2026-10-04)
 "Descubra seu poder de compra para o primeiro imóvel" → CTA para a simulação do site. Segmentação, cadência e volume: a definir em `/planejar-campanha-email`.
 
+## Fatos do site que valem para qualquer campanha [VERIFICADO 2026-10-04]
+- CTA direto ao formulário completo: `/simulacao?jornada=simulacao` (`components/simulation-form/LinkJourneyGate.jsx`).
+- O formulário **não** mostra resultado na hora (análise por correspondente Caixa e contato depois) e **não** coleta e-mail (nome, celular, nascimento, renda…). Copy nunca promete resultado imediato.
+
 ## Decisões abertas do dono
 1. Provedor de envio e domínio remetente. 2. Base legal e texto de consentimento/descadastro. 3. Quem entra na primeira lista (origem). 4. Limite de contatos por pessoa/período. 5. Paleta definitiva (tokens do CRM × logo).

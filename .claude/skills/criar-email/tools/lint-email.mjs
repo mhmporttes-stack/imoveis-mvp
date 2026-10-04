@@ -31,7 +31,7 @@ export function lintEmail(html) {
     if (h.startsWith("{{") || h.startsWith("mailto:") || h.startsWith("#")) continue;
     if (!/^https:\/\//i.test(h)) errors.push(`link não-https: ${h.slice(0, 60)}`);
     if (/\b(bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly)\//i.test(h)) errors.push(`encurtador de terceiros: ${h.slice(0, 60)}`);
-    if (/matheusmachadoimoveis\.com\.br/i.test(h) && !/utm_source=email/.test(h)) warns.push(`link do site sem utm_source=email: ${h.slice(0, 70)}`);
+    if (/matheusmachadoimoveis\.com\.br\/simulacao/i.test(h) && !/utm_source=email/.test(h)) warns.push(`link do site sem utm_source=email: ${h.slice(0, 70)}`);
     if (/utm_medium=(paid|anuncio|cpc|ppc)/i.test(h)) errors.push("utm_medium de mídia paga em e-mail (classifica o lead como pago)");
   }
   if (hrefs.length === 0) errors.push("nenhum link/CTA");
