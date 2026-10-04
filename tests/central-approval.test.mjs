@@ -461,7 +461,7 @@ test("consulta continua somente leitura mesmo com a escrita ligada", async () =>
 test("fluxo completo: criar -> AGUARDANDO_DECISAO (nao executa) -> aprovarTarefa (chatgpt) -> executor de escrita -> CONCLUIDA", async () => {
   const ctx = setup();
   const id = await ctx.newWrite("crie a funcao x");
-  const { exe, runner } = writer();
+  const { exe, runner } = writer({ opts: { now: () => Date.now() } }); // relogio real: a aprovacao gravada pelo fake store usa o relogio real
   assert.equal(await runOnce({ client: ctx.execClient(), executor: exe, log: quiet }), "idle", "sem aprovacao a fila nao entrega");
   assert.equal(runner.calls.length, 0);
   await ctx.approve(id, CHATGPT);
@@ -480,7 +480,7 @@ test("fluxo: tarefa de escrita aprovada falha com a flag de escrita off, e a ret
   assert.equal(await runOnce({ client: ctx.execClient(), executor: off, log: quiet }), "error");
   assert.equal(ctx.store.tasks.get(id).status, "ERRO");
   assert.equal((await ctx.resume(id)).status, 200);
-  const { exe } = writer();
+  const { exe } = writer({ opts: { now: () => Date.now() } }); // idem (NOW fixo faria a aprovacao parecer "no futuro" apos 15:01Z)
   assert.equal(await runOnce({ client: ctx.execClient(), executor: exe, log: quiet }), "done");
   const t = ctx.store.tasks.get(id);
   assert.equal(t.status, "CONCLUIDA");

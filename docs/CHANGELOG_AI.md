@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Disparos v2: ativação (vigente por padrão), 10/10/10 sem empréstimo, intervalo 5–8 min, limpeza do excesso da fila
+- **Regra do dono (confirmada em chat 04/10, autorização expressa):** política v2 passa a ser a VIGENTE (coluna `policy_v2_enabled` ausente/NULL = ligada; só `false` explícito é opt-out; automação desligada nunca é ligada); intervalo 5–8 min (antes 90 s–8 min); janela 06:30–15:30 e intervalo vêm das constantes da política (o 07–14 / 5–10 antigo do banco não prevalece); cada tentativa guarda no máximo 10 itens pendentes na fila (sem empréstimo entre etapas).
+- **Limpeza do excesso:** `planV2Trim` + `trimV2QueueExcess` (`lib/daily-goal-auto.js`) cancelam só os excedentes da fila (`skip_reason = policy_v2_trim_excess`, ficam os 10 prioritários na ordem do envio), no cron (antes da checagem de sessão), na reconexão e na geração/reprogramação da fila; idempotente; nunca recriados (`loadEligibleEnqueueRounds` os exclui); pendentes de qualquer dia contam na vaga da tentativa. Não toca cliente/funil/histórico/rodadas.
+- **Banco:** migration complementar `20261004150000_daily_goal_policy_v2_activation.sql` (coluna com default true, tabela `daily_goal_policy_trim_log`, alinhamento da configuração dos corretores com automação ligada). Estado de aplicação: ver `docs/OPERACAO_DISPAROS.md` §7 e `docs/sql-manual/aplicar-politica-v2-disparos.sql`.
+- **CI:** 2 testes de `tests/central-approval.test.mjs` passam a usar o relógio real no executor (o NOW fixo tornava a aprovação "no futuro" após 15:01Z); regra da Central inalterada.
+- Docs: OPERACAO_DISPAROS, rule meta-diaria-ranking, BUSINESS_RULES MD-14, WHATSAPP, DATABASE. Reconexão sem rajada, modelos de mensagem e monitor de entrega preservados.
+
 ### 2026-10-04 — Disparos do WhatsApp: política v2 por corretor (30/dia, 06:30–15:30, intervalos e pausas, reconexão sem rajada, modelos novos) + monitor de taxa de entrega
 - **Data:** 2026-10-04
 - **Área:** Meta Diária automática / fila extra "Disparar" / WhatsApp individual / e-mail interno

@@ -2,34 +2,33 @@
 
 Atualizado em 2026-10-04. Vale para os disparos **automáticos** pelo WhatsApp do corretor (Meta Diária automática e a fila do botão "Disparar" da Prospecção). Não vale para o botão manual (o clique do corretor no link do WhatsApp), nem para o Disparo em massa oficial.
 
-## 1. A política nova ("v2") — o que muda para o corretor que estiver com ela ligada
+## 1. A política nova ("v2") — VIGENTE para todo corretor com a automação ligada (desde 2026-10-04)
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-04]**
 
 | Item | Regra |
 |---|---|
-| Quantas por dia | no máximo **30 mensagens por número**: 10 de 1ª tentativa, 10 de 2ª e 10 de 3ª. A fila "Disparar" conta no total de 30 (não aumenta o teto) |
+| Quantas por dia | no máximo **30 mensagens por número**: 10 de 1ª tentativa, 10 de 2ª e 10 de 3ª, **sem emprestar** de uma etapa para outra (10+6+10 = 26, nunca 30). A fila "Disparar" conta no total de 30 (não aumenta o teto). O botão manual não muda |
+| Tamanho da fila | cada tentativa guarda **no máximo 10 itens pendentes** na fila automática. O que passa disso é **retirado só da fila** (ver 1.1) |
 | Dias e horário | **segunda a sábado, das 6h30 às 15h30** (horário de Brasília). Domingo e fora do horário: não tenta |
-| Intervalo | mínimo **90 segundos**, máximo **8 minutos** entre uma mensagem e outra (sorteado dentro dessa faixa). Nunca duas ao mesmo tempo |
+| Intervalo | mínimo **5 minutos**, máximo **8 minutos** entre uma mensagem e outra (sorteado dentro dessa faixa). Nunca menos de 5 min. Se o sistema atrasar além de 8 min (atraso técnico), tudo bem; 8 min é o limite do agendamento |
 | Pausa | **15 a 30 minutos** de pausa a cada ~10 envios (8 a 12, sorteado) |
 | Cada número | envia sozinho, sem combinar com os outros corretores |
 | Mensagens | modelos novos, **curtos e longos alternados**, nunca repete o modelo anterior nem o penúltimo; a 1ª, 2ª e 3ª **sem promessa** (sem "sem entrada", aprovação, valor, prazo) e **sem link**; todas terminam com **"responda SAIR"** em destaque. Quem responde SAIR vira "Não contactar" na hora (já funcionava) |
 | Reconexão | quando o WhatsApp volta, **não sai tudo atrasado de uma vez**: os atrasados são **reagendados** para os próximos horários livres, e o 1º envio só acontece **5 minutos depois** de conectar |
 | O que não saiu no dia | **não é cancelado**: passa para o dia seguinte (sem duplicar), respeitando o teto de 30 e os 10/10/10 |
 
-Os limites antigos de configuração (janela, intervalo) continuam valendo **só se forem mais restritivos**. Hoje o banco está em 07h–14h com intervalo de 5 a 10 min: nesse caso a política nova usa 07h–14h (mais curto que 6h30–15h30) e intervalo de 5 a 8 min (o mínimo de 5 min do banco é mais restrito que os 90 s). Para valer a faixa completa do dono (6h30–15h30 e 90 s a 8 min), alinhe a configuração em Gestão › Meta Diária › Automação (janela 6h30–15h30, intervalo mínimo 1 min, máximo 8 min).
+**Janela e intervalo vêm da própria política** (06h30–15h30 e 5 a 8 min), **não** dos valores antigos gravados no banco (07h–14h, 5 a 10 min), que deixam de valer. A configuração gravada de quem tem a automação ligada foi alinhada aos mesmos valores e a tela mostra os valores novos.
+
+### 1.1 Limpeza do excesso da fila
+
+Corretores chegaram a ter 40, 60, 80 itens acumulados na fila. Ao valer a política nova, o sistema (código do servidor, sem enviar nada) **reduz cada tentativa a no máximo 10 itens**, ficando com os **10 prioritários** na ordem normal da fila (os de horário mais cedo; empate pelo mais antigo). Os demais são **cancelados só na fila** (motivo `policy_v2_trim_excess`): **nenhum cliente é excluído, arquivado, marcado como contatado ou muda de etapa do funil, e nenhum histórico é apagado**. Os retirados **não voltam** nem hoje nem amanhã como pendência automática (o corretor os trabalha pelo botão manual). A limpeza roda sozinha a cada ciclo do disparo (inclusive com a sessão desconectada) e na reconexão; é **idempotente** (rodar de novo não retira mais nada). Auditoria: tabela `daily_goal_policy_trim_log` (corretor, tentativa, quantos ficaram, quantos saíram, quando) e o motivo em cada item cancelado. O dia seguinte gera no máximo 10 por tentativa, pela cota de 10 novos por dia e carteira de 50 já existentes (regras inalteradas).
 
 Não mudam: a cota de 10 novos por dia, a carteira de 50, a pontuação, o ranking e a Meta de 100%. Atenção: com o teto de 30, a automação não cobre sozinha toda a Meta de quem tem mais de 30 atividades no dia; o restante continua sendo feito à mão pelo botão manual.
 
-## 2. Como ligar a política nova (e como desligar)
+## 2. Estado da política e como desligar para UM corretor
 
-**Importante — o padrão é DESLIGADO para todos.** Nada muda para ninguém até alguém ligar a chave de um corretor.
-
-**Passo 0 (uma vez só): aplicar a migration.** O arquivo é `supabase/migrations/20261004130000_daily_goal_policy_v2.sql` (só cria a coluna `policy_v2_enabled`, padrão "desligada"; não mexe em nenhum dado). Aplique como as outras migrations deste projeto (fluxo em `.claude/rules/database-supabase.md`). Enquanto ela não for aplicada, o sistema funciona como hoje e o botão da tela mostra um aviso claro.
-
-**Ligar para UM corretor (piloto), pela tela:** Gestão › Meta Diária › aba **Automação** › no cartão do corretor, linha de configuração (embaixo), clique em **"Ligar política nova"** e confirme. Só o administrador geral consegue. A fila pendente do corretor é refeita uma vez com as regras novas. Para voltar: **"Voltar à política antiga"**.
-
-**Ligar para todos:** repita o passo acima em cada corretor (não existe chave global de propósito — a ideia é ligar um por vez). Se preferir por SQL (escrita em produção: **peça confirmação do dono antes**): `update daily_goal_auto_settings set policy_v2_enabled = true where broker_id = '<id do corretor>';` — para todos, tirar o `where` (só depois de o piloto dar certo). Pela tela é mais seguro, porque também refaz a fila.
+**A política v2 é a vigente por padrão** para todo corretor com a automação ligada (a coluna `policy_v2_enabled` ausente ou vazia vale como ligada). Quem está com a automação **desligada continua desligado**: a política nunca liga a automação de ninguém. **Para desligar a política de UM corretor (voltar à antiga):** Gestão › Meta Diária › aba **Automação** › cartão do corretor › **"Voltar à política antiga"** (só administrador geral; é o único opt-out; "Ligar política nova" reverte). Não envolve migration para funcionar, mas o interruptor só grava depois da migration (§7).
 
 ## 3. Como PAUSAR manualmente (fica na mão da gestora)
 
@@ -60,4 +59,14 @@ Não mudam: a cota de 10 novos por dia, a carteira de 50, a pontuação, o ranki
 
 ## 6. Onde está no código (para o desenvolvedor)
 
-Regras puras e testadas: `lib/daily-goal-policy-core.mjs` (política), `lib/daily-goal-policy-messages.mjs` (modelos), `lib/daily-goal-delivery-monitor-core.mjs` (monitor). Ligação com o banco: `lib/daily-goal-auto.js` e `lib/daily-goal-delivery-monitor.js`. Testes: `tests/daily-goal-policy-v2.test.mjs`, `tests/daily-goal-delivery-monitor.test.mjs`.
+Limpeza do excesso: `planV2Trim` (puro) e `trimV2QueueExcess` (`lib/daily-goal-auto.js`). Regras puras e testadas: `lib/daily-goal-policy-core.mjs` (política), `lib/daily-goal-policy-messages.mjs` (modelos), `lib/daily-goal-delivery-monitor-core.mjs` (monitor). Ligação com o banco: `lib/daily-goal-auto.js` e `lib/daily-goal-delivery-monitor.js`. Testes: `tests/daily-goal-policy-v2.test.mjs`, `tests/daily-goal-delivery-monitor.test.mjs`.
+
+## 7. Aplicar a migration de ativação (passo a passo para quem não é técnico)
+
+O código já funciona **sem** a migration (política vigente por padrão; limpeza feita pelo servidor; janela e intervalo vindos da política). A migration só (a) cria a coluna do interruptor por corretor, (b) cria a tabela de auditoria `daily_goal_policy_trim_log` e (c) alinha a configuração gravada (06h30–15h30, 5–8 min) de quem tem a automação ligada. **Não envia nada, não toca clientes, funil, histórico nem a fila, e não liga automação de ninguém.**
+
+1. Abra o Supabase › projeto do imóveis › **SQL Editor** › **New query**.
+2. Abra o arquivo `docs/sql-manual/aplicar-politica-v2-disparos.sql` (no repositório), copie **tudo** e cole na query.
+3. Clique **Run**. Pode rodar mais de uma vez com segurança.
+4. Deve aparecer, no final, uma tabela "DEPOIS" com cada corretor, `policy_v2_enabled = true` para quem tem a automação ligada, janela `390`–`930` e intervalo `5`–`8`. A linha de quem está desligado (ex.: o dono) mostra `enabled = false` e continua assim.
+5. Se der erro: não faz mal, a query roda em transação e nada é gravado pela metade. Copie a mensagem e envie ao suporte.
