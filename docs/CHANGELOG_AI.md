@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-04 — Academia F2: persistência real (conteúdo, matrícula, progresso, provas, tentativas)
+- **Data:** 2026-10-04
+- **Área:** Banco / Backend / Frontend (rota `/academia` e `app/api/admin/academia/**`, ainda atrás de `ACADEMIA_ENABLED`, desligada)
+- **Alteração:** 4 migrations aditivas aplicadas em produção (12 tabelas `academy_*`, RLS sem policy, funções atômicas `academy_record_attempt`/`academy_complete_lesson`, triggers de imutabilidade e de limite) + seed da Formação Inicial v1 (estrutura da F1). Camada `lib/academy-{service,repo,server,access-core,views,remote-store}`; 3 rotas (`me`, `exams/[examId]/attempts`, `lessons/[lessonId]/complete`); `app/academia/page.jsx` carrega o estado do aluno. Regras do dono aplicadas: nota 70% (comparação exata), 3 tentativas por prova (quiz de aula sem limite), gabarito só depois de aprovado, histórico preservado, "Alterar conta" somente leitura. Interface da F1 preservada; únicos ajustes: aviso de tentativas esgotadas na questão, toast de avisos do store real e botão "Reiniciar exemplo" só nos dados de exemplo.
+- **Motivo:** pedido do dono (executar a F2). Decisão de modelagem: aula com prova só conclui aprovada (a prova de cada aula é uma linha de `academy_exams`); tentativa + conclusão gravadas na mesma transação para o limite de 3 não furar com acessos simultâneos.
+- **Arquivos afetados:** `supabase/migrations/20261004{100000,110000,120000,130000}_academy_*.sql`, `supabase/tests/academy_f2.sql`, `lib/academy-*`, `app/academia/page.jsx`, `app/api/admin/academia/**`, `components/academia/{AcademiaApp,QuestionScreen,MenuSheet}.jsx`, `tests/academy-*.test.mjs`, `tests/helpers/academy-fake-db.mjs`, docs (`ACADEMIA`, `BUSINESS_RULES` ACA, `DATABASE`, `PERMISSIONS`, plano) e a rule `academia.md`.
+- **Risco/observação:** nada ligado: com a chave desligada o CRM fica igual (404). A aplicação em produção foi feita em partes (a ferramenta expira em 60 s com lotes grandes e com `$$`; as funções foram aplicadas com `$fn$`); o resultado em produção foi conferido contra um Postgres local por checksum do conteúdo e impressão digital do esquema (colunas, constraints, índices, triggers, funções, RLS, grants), todos iguais. Um defeito achado no teste SQL antes da produção: `academy_refresh_enrollment` precisava de `grant execute` ao `service_role`. Pendências: tentativa extra liberada pelo gestor (F6), painel de edição (F3), certificado (F5), conteúdo real, várias questões por prova na interface (F4). Não testado em iPhone real nem contra login real (sem sessão nesta máquina); fluxo validado no navegador com a API simulada.
+- **Autor:** Claude Code
+
 ### 2026-10-04 — Regra do dono: Academia, 2ª rodada (publicação, tentativas, nota, formação, certificado, histórico)
 - **Data:** 2026-10-04
 - **Área:** Docs / Regras (nenhum código, banco, rota ou chave alterado)

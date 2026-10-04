@@ -23,13 +23,14 @@
 - **Ainda com RLS desligado** (advisor `rls_disabled_in_public`, 2026-10-02 — não corrigido, aguarda decisão): `crm_clients`, `crm_attendances`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates`, `daily_goal_abuse_flags`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides`, `daily_goal_do_not_contact_log`. A função `log_client_meta_attribution()` (SECURITY DEFINER) é executável por `anon`/`authenticated`.
 - O navegador usa a **anon key** só para o Supabase Auth (login/reset) e para o canal Realtime (Broadcast) do Chat; nunca lê tabelas.
 
-## 3. Tabelas por domínio (74 = 73 em migrations + `properties` em `schema.sql`)
+## 3. Tabelas por domínio (86 = 85 em migrations + `properties` em `schema.sql`; as 12 da Academia entraram em 2026-10-04)
 
 | Domínio | Tabelas |
 |---|---|
 | Métricas / cache | `crm_metric_cache` (cache volátil + locks dos cálculos pesados da voz), `crm_metric_snapshots` (histórico diário por métrica/dimensão; reutilizável por gráficos e relatórios) — RLS ligada, só service role |
 | Usuários / presença | `alexa_settings` (config única da Alexa, sem credenciais), `alexa_arrival_state` (estado da rotina de chegada; só hash da chave), `admin_users`, `admin_presence` (1 linha/usuário, `last_activity_at`), `admin_presence_activity` (marcas por minuto p/ relatório), `push_subscriptions` |
 | Catálogo público | `properties` (imóveis **e** empreendimentos de catálogo, `is_development`), `empreendimentos` (regras de entrada em JSON, mesmo id do produto), `testimonials`, `captacoes` (imóveis ofertados por proprietários), `leads` (modal da home — sem leitor no código) |
+| **Academia** | `academy_tracks`, `academy_track_versions`, `academy_modules`, `academy_lessons` (conteúdo versionado, versão publicada imutável), `academy_enrollments`, `academy_lesson_progress`, `academy_events`, `academy_questions` (com gabarito, só servidor), `academy_exams`, `academy_exam_questions`, `academy_exam_attempts`, `academy_attempt_answers` — RLS ligado, sem policy, `revoke` de `anon`/`authenticated`; FKs `restrict` (histórico nunca apagado). Detalhes: `docs/ACADEMIA.md`. |
 | Simulação | `simulations`, `simulation_properties`, `simulation_property_benefits` |
 | **Clientes** | **`simulation_registrations`** (entidade central), `client_status_history`, `tags`, `client_tags`, `calendar_activities`, camada de compatibilidade `crm_clients` (único por `canonical_phone`) + `crm_attendances` (por `legacy_registration_id`) |
 | Jornada / origem | `client_journeys` (token, progresso), `client_journey_events` (timeline), `client_origins` (origem imutável, campanha, UTM) |
@@ -54,6 +55,7 @@
 
 | Função | Papel |
 |---|---|
+| `academy_record_attempt(...)`, `academy_complete_lesson(...)`, `academy_refresh_enrollment(...)` | Academia: gravação atômica de tentativa/conclusão (trava a matrícula, aplica o limite de tentativas); só `service_role`. Triggers `academy_*_guard`/`academy_exam_attempts_limit` mantêm versão publicada e questões imutáveis e barram tentativa acima do limite |
 | `crm_status_counts_by_broker()` | clientes por responsável e status em uma consulta agrupada (estoque por corretor da voz; só service role) |
 | `crm_status_counts()` | contagem de clientes por status em uma consulta (usada pela voz e pelos snapshots; só service role) |
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
