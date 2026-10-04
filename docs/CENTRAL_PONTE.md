@@ -29,7 +29,35 @@ Credencial de outro papel = 403; ausente/invalida = 401; papel sem hash ativo ca
 ```
 C:\Users\User\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe scripts\central-bridge\poller.mjs
 ```
-Parar: Ctrl+C (termina a tarefa atual e sai). `--once` processa ate a fila esvaziar e sai. Ao iniciar, devolve a fila leases proprios expirados.
+Parar: Ctrl+C (termina a tarefa atual e sai) ou `poller-ctl stop` (abaixo). `--once` processa ate a fila esvaziar e sai. Ao iniciar, devolve a fila leases proprios expirados.
+
+### Instancia unica, status/stop/check (`poller-lock.mjs`, `poller-ctl.mjs`)
+O poller so roda **uma instancia por usuario**. Na partida cria, de forma atomica (flag `wx`), `%USERPROFILE%\.central-bridge.poller.lock` (fora do repositorio; `CENTRAL_BRIDGE_LOCK` troca o caminho) com `{pid, token, startedAt, processStartTime, bootTime, script, host}`. Segundo inicio: recusado com mensagem clara e **codigo de saida 3**, antes de consultar a fila. A trava e removida na saida (fim normal, Ctrl+C/SIGTERM, `process.exit`, excecao nao tratada; so se o token ainda for dele).
+
+- **Como a trava prova que o dono esta vivo (e nao um PID reaproveitado):** o poller renova o arquivo a cada 10 s (mtime). Trava e **obsoleta** se: o PID nao existe; o PC reiniciou depois dela (`bootTime`); o PID existe mas ninguem renova ha mais de 120 s; ou (quando houver como obter) a hora de inicio do PID difere da registrada. Obsoleta e assumida sozinha no proximo inicio: reiniciar o PC ou matar o processo a forca nunca bloqueia a partida seguinte. Windows nao oferece API nativa para a hora de inicio de PID alheio sem processo auxiliar; por isso a prova principal e o batimento (o poller registra a propria hora de inicio por `process.uptime()`).
+- Sem busca textual na linha de comando, sem processo auxiliar, sem nova porta, sem dependencia npm.
+- `node scripts\central-bridge\poller-ctl.mjs status` mostra RODANDO (PID, inicio, ultimo batimento) ou PARADO (sem trava / trava obsoleta e o motivo).
+- `... poller-ctl.mjs stop` le o PID da trava, pede parada graciosa por arquivo (`<trava>.stop`, conferido a cada batimento; termina a tarefa atual; ate 20 s), depois encerra exatamente esse PID (`process.kill`; confere de novo que a mesma trava ainda vale), remove a trava e **confirma 0 instancias** (codigo 0; 1 se ainda houver). Trava obsoleta: so limpa a trava, **nao mata nenhum processo** (nada prova que o PID e o poller).
+- `... poller-ctl.mjs check` codigo 0 se 0 instancias, 1 se ha poller rodando (so le).
+- Limite conhecido: um poller iniciado por versao anterior (sem trava) nao e visto pelo ctl; conferir uma vez com `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ? { $_.CommandLine -like '*poller.mjs*' }`.
+- Causa da falha do T-83 (04/10): o filtro `-match 'central-bridge[\/]poller'` nao casou porque em regex .NET `[\/]` e so a barra `/` (`\/` e uma barra escapada); o Windows grava a linha de comando com `\` (`...node.exe" scripts\central-bridge\poller.mjs`). O poller estava la; o padrao nunca o encontraria. Correto: `[\\/]` ou `-like '*poller.mjs*'`, ou melhor, o ctl pela trava. O launcher `iniciar-poller-central.ps1` ja usa `[\\/]` (correto).
+
+**Na ativacao permanente** (o launcher `iniciar-poller-central.ps1` fica fora do repositorio e NAO foi alterado nesta tarefa):
+1. Hoje ele detecta instancia por `Get-CimInstance ... -match 'scripts[\\/]central-bridge[\\/]poller\.mjs'`. Trocar por `node scripts\central-bridge\poller-ctl.mjs check` (codigo 0 = pode iniciar) ou deixar o proprio poller recusar (codigo 3).
+2. Tratar saida **3** do poller como "ja ha um rodando" (`exit 0`), nao como queda (hoje qualquer saida vira `exit 1`).
+3. Para reiniciar apos mudar o `.env`: `poller-ctl.mjs stop` (o launcher termina com 1 ao ver o filho sair) e depois `Start-ScheduledTask Central-Claude-Poller`, ou novo logon. O poller le a config so na partida.
+4. Ele zera `CENTRAL_EXECUTOR`/`CENTRAL_CLAUDE_*` do ambiente: a ativacao e so editar o `.central-bridge.env` (nunca o launcher).
+5. No codigo do repositorio, o checkout `imoveis-mvp` precisa estar com este commit (`git pull --ff-only`), pois o launcher roda os scripts de la.
+
+### Checklist de ativacao permanente (nada disso foi feito; so com decisao do dono)
+- [ ] Politica da Anthropic para gatilho externo resolvida (T-79) e uso por assinatura autorizado.
+- [ ] Checkout `imoveis-mvp` atualizado (trava presente); `poller-ctl check` = 0 e nenhum `node` com `poller.mjs`.
+- [ ] `CENTRAL_CLAUDE_BIN` aponta para um `claude.exe` valido (o caminho atual contem a versao, ex. `...\claude-code\2.1.286\...\claude.exe`, e muda a cada atualizacao do app: revisar a cada atualizacao ou apontar para um caminho estavel).
+- [ ] `ANTHROPIC_API_KEY` ausente (usuario/maquina/.env) e credencial por assinatura presente.
+- [ ] `.central-bridge.env`: `CENTRAL_EXECUTOR=claude`, `CENTRAL_CLAUDE_EXECUTOR_ENABLED=true` (editar so as linhas; conferir tamanho/valores sem imprimir segredos).
+- [ ] Ajustar o launcher conforme acima; reiniciar o poller por `poller-ctl stop` + tarefa agendada.
+- [ ] Teste de ativacao com UMA tarefa `consulta` inocua; confirmar `poller-ctl check`/`status`, nenhum `claude.exe -p` sobrando e que as regras `deny` do executor Claude funcionam de fato (limitacao conhecida abaixo).
+- [ ] Para desativar: flag volta a `false` e `poller-ctl stop`.
 
 ## Testar com eco
 Crie tarefa `{"tipo":"eco","instruction_text":"oi"}` -> rode o poller -> consulte: resultado `PONTE_OK / task_id / recebido / executor: echo`. Testes: `node --test tests/central-bridge.test.mjs`.

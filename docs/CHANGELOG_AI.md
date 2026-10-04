@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Ponte da Central: trava de instância única do poller + `poller-ctl` (preparação, sem ativar)
+- **Data:** 2026-10-04
+- **Área:** Central/ponte ChatGPT→Claude (scripts locais), docs
+- **Alteração:** o poller passa a manter uma trava por usuário (`%USERPROFILE%\.central-bridge.poller.lock`, criada de forma atômica, renovada a cada 10 s, removida na saída; segundo início recusado com código 3; trava obsoleta por PID morto, reinício do PC, PID sem batimento ou hora de início diferente é assumida). Nova ferramenta `scripts/central-bridge/poller-ctl.mjs` (`status`, `stop` com parada graciosa por arquivo e depois só o PID da trava, `check`), sem busca textual, sem processo auxiliar e sem dependência nova. `main()` do poller ganhou parâmetros injetáveis (teste). Config do poller continua lida só na partida.
+- **Motivo:** no teste controlado T-83 o poller ficou ativo ~3 min a mais porque o filtro PowerShell `-match 'central-bridge[\/]poller'` não casa com a linha de comando do Windows (em regex .NET `[\/]` é só `/`; o caminho usa `\`). Identificação e encerramento passam a ser por PID/trava.
+- **Arquivos afetados:** `scripts/central-bridge/{poller.mjs,poller-lock.mjs,poller-ctl.mjs}`, `tests/central-poller-lock.test.mjs`, `docs/CENTRAL_PONTE.md`.
+- **Risco/observação:** nada ativado (executor Claude segue desligado; launcher `iniciar-poller-central.ps1` e tarefa de logon não alterados). Na ativação permanente o launcher deve tratar saída 3 como "já rodando" e usar `poller-ctl check` (ver `docs/CENTRAL_PONTE.md`). Poller antigo (sem trava) não é visto pelo ctl. Checkout `imoveis-mvp` precisa de `git pull --ff-only` para o launcher usar a trava.
 ### 2026-10-04 — WhatsApp individual: política de reconexão, telemetria de conexão e Baileys fixado
 - **Data:** 2026-10-04
 - **Área:** WhatsApp / Banco / Infra
