@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — CI verde: 3 testes desatualizados após o acesso WhatsApp por corretor (só testes)
+- `tests/team-meta-card-gestora.test.mjs` (2 testes): a página da Meta Diária ganhou a condição `!ownGoalHidden` (card próprio escondido da gestora com WhatsApp bloqueado); expectativas atualizadas. `tests/whatsapp-conversation-per-session.test.mjs` (1 teste): stub de `whatsapp-access.isWhatsappAccessBlocked` (o push agora consulta o bloqueio). Nenhum código/regra alterado.
+
 ### 2026-10-04 — Carteira ativa de NO MÁXIMO 30 por corretor + devolução do excedente à Prospecção
 - **Pedido (dono):** "alguns corretores continuam com mais de 30 clientes ativos": o limite real passa a ser 30 (era 50 desde 2026-10-02); excedente volta à Prospecção sem excluir ninguém nem marcar contato; novas atribuições nunca passam de 30. **Regra nova oficial (dono, 2026-10-04): MD-14.**
 - **Causa raiz (provada em produção, só leitura):** (1) o teto de 50 só limitava a ENTRADA (`daily_goal_reserve_wallet_slots`); quem já tinha mais (83, 70, 60...) nunca perdeu ninguém. (2) **Vazamento de rodada:** o retorno automático de 7 dias (PRO-4), o "Devolver" do corretor e a reatribuição pelo administrador devolviam o contato à fila mas **deixavam a rodada da Meta Diária ativa** — 94 rodadas "zumbi" (contato já sem corretor) inflavam a "Carteira ativa N/50" (Paulo 37, Caroline 17, Liyssa 19, Luis 9...). "Carteira ativa" = `daily_goal_rounds.status = 'active'` (o mesmo número do card e da trava), não clientes por etapa do funil. Nenhum excedente era negócio em andamento: 100% "Tentando contato" ou ainda sem cadastro.
