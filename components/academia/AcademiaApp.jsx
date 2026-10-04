@@ -7,6 +7,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createAcademyDemoStore } from "@/lib/academy-sample-store.mjs";
+import { createAcademyRemoteStore } from "@/lib/academy-remote-store.mjs";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import s from "./academia.module.css";
 import { createEngine } from "./scene/engine";
@@ -29,8 +30,9 @@ const NAMES = { home: "Início", trilha: "Trilha", evo: "Evolução", aula: "Aul
 const HOLD = new Set(["aula", "quiz", "conq"]); // a cena mostra o "antes" até a Conquista animar
 const LS_KEY = "mm-academia-reduzir-movimento";
 
-export default function AcademiaApp({ store: injected, backHref = "/admin/simulacoes" }) {
-  const [store] = useState(() => injected || createAcademyDemoStore());
+// `initial` = dados reais do servidor (F2); sem `initial` nem `store`, roda com os dados de exemplo (vitrine/testes).
+export default function AcademiaApp({ store: injected, initial, backHref = "/admin/simulacoes" }) {
+  const [store] = useState(() => injected || (initial ? createAcademyRemoteStore({ initial }) : createAcademyDemoStore()));
   const snap = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [engine] = useState(() => createEngine(s));
   const sysReduced = usePrefersReducedMotion();
@@ -117,6 +119,8 @@ export default function AcademiaApp({ store: injected, backHref = "/admin/simula
     return () => { engine.unmount(); clearTimeout(toastId.current); timers.current.forEach(clearTimeout); };
   }, [engine, showToast]);
   useEffect(() => { if (view === "home" || view === "trilha" || view === "evo") say(NAMES[view]); }, [view, say]);
+  // avisos do store real (sem conexão, modo de visualização, tentativas esgotadas)
+  useEffect(() => { if (snap.notice?.text) showToast(snap.notice.text); }, [snap.notice, showToast]);
   useEffect(() => { if (cqShow && a.available) say(`${a.moduleCompleted ? `Módulo ${a.moduleCompleted.n} concluído` : "Aula concluída"}. ${a.text}`); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cqShow]);
   useEffect(() => { if (answered && quiz) say(quiz.status === "correct" ? (quiz.feedback || "Correto.") : "Não foi dessa vez. Tente de novo."); // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,8 +182,10 @@ export default function AcademiaApp({ store: injected, backHref = "/admin/simula
     if (pending) { startConq(); return; }
     goTo(fromRef.current === "home" ? "home" : "trilha", { keepHome: true });
   };
+  const exhausted = Boolean(quiz?.exhausted);
   const onQuizAction = () => {
     if (!quiz) return;
+    if (exhausted) { closeLesson(); return; }
     if (!answered) {
       if (sel === null) { showToast("Escolha uma alternativa"); return; }
       store.answerQuiz(quiz.lessonId, sel);
@@ -188,7 +194,7 @@ export default function AcademiaApp({ store: injected, backHref = "/admin/simula
     if (quiz.status === "incorrect") { setRetriedAt(quiz.attempts); setSel(null); return; }
     if (pending) startConq(); else closeLesson();
   };
-  const quizLabel = !answered ? "Responder" : quiz?.status === "incorrect" ? "Tentar de novo" : pending ? "Concluir aula" : "Voltar à trilha";
+  const quizLabel = exhausted ? "Voltar à trilha" : !answered ? "Responder" : quiz?.status === "incorrect" ? "Tentar de novo" : pending ? "Concluir aula" : "Voltar à trilha";
 
   // dica da Evolução: some em 6 s ou no primeiro toque/rolagem (nada de animação nova em movimento reduzido)
   useEffect(() => {

@@ -28,7 +28,7 @@ export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onRe
           <h2 id="acd-sh-h">Opções</h2>
           {isSample ? <p className={s.nt}>Dados de exemplo: nada aqui é conteúdo ou progresso real.</p> : null}
           <button type="button" className={s.shRow} aria-pressed={reduced} onClick={onToggleReduce}>Reduzir movimento<i className={s.swI} /></button>
-          <button type="button" className={s.shLink} onClick={() => setAsk(true)}>Reiniciar exemplo (volta a 50%)</button>
+          {isSample ? <button type="button" className={s.shLink} onClick={() => setAsk(true)}>Reiniciar exemplo (volta a 50%)</button> : null}
           <a className={s.shLink} href={backHref}>Voltar ao CRM</a>
           <button type="button" className={s.shLink} onClick={onClose}>Fechar</button>
         </>
