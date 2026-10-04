@@ -1,0 +1,50 @@
+# CI minimo: instala dependencias, roda os testes unitarios e compila o app.
+# Sem secrets, sem acesso a banco, sem deploy (o deploy continua na Vercel).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # package.json nao tem "packageManager"; o lockfile e v9 e o dono usa pnpm 11.19.0.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      # Node 24 e o que a documentacao do projeto usou para validar os testes (pnpm 11 exige Node >= 22).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Equivale a `node --test tests/`, com dois desvios minimos:
+      # (1) no Node >= 22 passar a pasta `tests/` falha ("Cannot find module"), entao usamos a lista de arquivos *.test.mjs
+      #     (isso ja deixa de fora tests/journey-auth.integration.mjs, que mexe em banco e exige credenciais);
+      # (2) tests/journey-http.test.mjs e excluido porque exige servidor local em :3107.
+      # Inclui tambem lib/financial-calculations.test.js (teste puro listado no AGENTS.md).
+      - name: Testes unitarios
+        run: |
+          files=$(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'journey-http.test.mjs' | sort)
+          node --test $files lib/financial-calculations.test.js
+
+      # Sem variaveis de ambiente de proposito: sem NEXT_PUBLIC_SUPABASE_*/SUPABASE_*, o app compila
+      # (lib/supabase.js usa fallback vazio) e nenhum segredo e necessario.
+      # O prebuild altera public/sw.js so dentro do runner; nada e commitado.
+      - name: Build
+        run: pnpm build
