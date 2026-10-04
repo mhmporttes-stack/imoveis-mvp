@@ -1,5 +1,5 @@
 import AcademiaApp from "@/components/academia/AcademiaApp";
-import { requireAdminPage } from "@/lib/admin-auth";
+import { isGeneralAdmin, requireAdminPage } from "@/lib/admin-auth";
 import { resolveAcademyActor } from "@/lib/academy-access-core.mjs";
 import { getAcademyService } from "@/lib/academy-server";
 
@@ -32,5 +32,7 @@ export default async function AcademiaPage() {
       </main>
     );
   }
-  return <AcademiaApp initial={data} backHref={BACK_HREF} />;
+  // Admin e Gerente (efetivos) veem o atalho da gestão; a página e as rotas conferem de novo no servidor.
+  const canManage = isGeneralAdmin(auth) || auth?.profile?.role === "manager";
+  return <AcademiaApp initial={data} backHref={BACK_HREF} manageHref={canManage ? "/academia/editor" : null} />;
 }

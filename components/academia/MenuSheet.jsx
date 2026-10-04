@@ -5,7 +5,7 @@ import s from "./academia.module.css";
 
 // Opções: <dialog> nativo (foco preso, Esc fecha, fundo inerte). Reduzir movimento (único lugar no celular),
 // reiniciar o exemplo COM confirmação (diálogo próprio, nunca confirm() do navegador) e Voltar ao CRM.
-export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onReset, backHref, isSample }) {
+export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onReset, backHref, manageHref, isSample }) {
   const ref = useRef(null);
   const [ask, setAsk] = useState(false);
   useEffect(() => {
@@ -29,6 +29,7 @@ export default function MenuSheet({ open, onClose, reduced, onToggleReduce, onRe
           {isSample ? <p className={s.nt}>Dados de exemplo: nada aqui é conteúdo ou progresso real.</p> : null}
           <button type="button" className={s.shRow} aria-pressed={reduced} onClick={onToggleReduce}>Reduzir movimento<i className={s.swI} /></button>
           {isSample ? <button type="button" className={s.shLink} onClick={() => setAsk(true)}>Reiniciar exemplo (volta a 50%)</button> : null}
+          {manageHref ? <a className={s.shLink} href={manageHref}>Gerenciar conteúdo</a> : null}
           <a className={s.shLink} href={backHref}>Voltar ao CRM</a>
           <button type="button" className={s.shLink} onClick={onClose}>Fechar</button>
         </>

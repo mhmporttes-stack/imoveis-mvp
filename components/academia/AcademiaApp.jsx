@@ -31,7 +31,7 @@ const HOLD = new Set(["aula", "quiz", "conq"]); // a cena mostra o "antes" até 
 const LS_KEY = "mm-academia-reduzir-movimento";
 
 // `initial` = dados reais do servidor (F2); sem `initial` nem `store`, roda com os dados de exemplo (vitrine/testes).
-export default function AcademiaApp({ store: injected, initial, backHref = "/admin/simulacoes" }) {
+export default function AcademiaApp({ store: injected, initial, backHref = "/admin/simulacoes", manageHref = null }) {
   const [store] = useState(() => injected || (initial ? createAcademyRemoteStore({ initial }) : createAcademyDemoStore()));
   const snap = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [engine] = useState(() => createEngine(s));
@@ -182,6 +182,14 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
     if (pending) { startConq(); return; }
     goTo(fromRef.current === "home" ? "home" : "trilha", { keepHome: true });
   };
+  // Aula do aluno: com questão vai à tela da questão; sem questão (F3) conclui por botão (o servidor valida a ordem).
+  const onLessonAction = async () => {
+    if (!lesson) return;
+    if (lesson.hasQuiz !== false) { goTo("quiz"); focusSoon("quiz", 50); return; }
+    if (lesson.state === "done") { closeLesson(); return; }
+    const r = await store.completeLesson(lesson.id);
+    if (r?.changed) startConq();
+  };
   const exhausted = Boolean(quiz?.exhausted);
   const onQuizAction = () => {
     if (!quiz) return;
@@ -270,7 +278,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
         <div className={s.planePc} ref={(el) => { pcRef.current = el; engine.ref("pc")(el); }}>
           {lesson ? (
             <LessonScreen lesson={lesson} on={view === "aula"} review={lesson.state === "done"} isSample={snap.isSample} headingRef={heads.aula}
-              onBack={closeLesson} onNext={() => { goTo("quiz"); focusSoon("quiz", 50); }} />
+              onBack={closeLesson} onNext={onLessonAction} />
           ) : null}
           {quiz ? (
             <QuestionScreen quiz={quiz} on={view === "quiz"} sel={sel} answered={answered} actionLabel={quizLabel} headingRef={heads.quiz}
@@ -284,7 +292,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
       <AcademiaHeader engine={engine} backHref={backHref} reduced={reduced} isSample={snap.isSample} onToggleReduce={toggleReduce} onOpenMenu={() => setMenu(true)} />
       <FloatingNav engine={engine} view={view} onGo={onNav} />
 
-      <MenuSheet open={menu} onClose={() => setMenu(false)} reduced={reduced} onToggleReduce={toggleReduce} onReset={reset} backHref={backHref} isSample={snap.isSample} />
+      <MenuSheet open={menu} onClose={() => setMenu(false)} reduced={reduced} onToggleReduce={toggleReduce} onReset={reset} backHref={backHref} manageHref={manageHref} isSample={snap.isSample} />
       <AcademiaToast message={toast} />
       {hint ? <p className={s.hint}>Role para voltar no tempo</p> : null}
       <p className={s.sr} role="status" aria-live="polite" aria-atomic="true">{live}</p>
