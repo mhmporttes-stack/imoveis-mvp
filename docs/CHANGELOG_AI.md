@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Prévia dos links curtos: o próprio link curto responde com Open Graph (corrige "não aparece a prévia")
+- **Sintoma (dono):** depois dos links curtos, WhatsApp/Instagram deixaram de mostrar o cartão de prévia.
+- **Causa:** `/s`, `/s/{codigo}`, `/c/{codigo}`, `/v…` respondiam 307 sem corpo; o crawler precisava seguir redirecionamentos (e, com o link colado sem `https://www.`, ainda passava por http→https→www) e o Instagram Direct não segue bem.
+- **Correção:** essas rotas agora respondem **200** com um HTML mínimo (Open Graph + Twitter Card + canonical) direto no endereço curto — `lib/share-preview-html.mjs`; quem abre no navegador é levado ao destino na hora (meta refresh + `location.replace`), com os mesmos parâmetros (`ref`, `c`, `jornada`, `utm_*`). Textos/imagem num lugar só (`lib/simulacao-share.mjs`, também usado por `app/simulacao/page.jsx`); `/v` usa título/descrição da captação. `/j/{token}` (privado) continua redirect 307. Atribuição/roleta/rastreio inalterados.
+
 ### 2026-10-05 — Código curto por usuário nos links (/s/mhm, /s/1…) e cópia sem "https://www."
 - **Pedido (dono):** o link do Matheus passa a usar "mhm"; cada outro usuário recebe um número; o CRM copia/mostra os links sem `https://www.`.
 - **Mudança:** nova coluna `admin_users.short_ref` (único; Matheus = `mhm`; demais 1, 2, 3… por ordem de cadastro; novos usuários recebem o próximo número por sequência). `/s/{codigo}` e `/v/{codigo}` resolvem o código para o `simulation_ref`/`captacao_ref` de atribuição (`lib/short-ref-resolver.js`) e redirecionam para `/simulacao?ref=…` / `/captacao?ref=…`; o ref longo antigo continua aceito. `buildBrokerSimulationLink`/`buildBrokerCaptacaoLink` usam o código curto; `buildCampaignLink` (link oficial) também. `displayLink` (`lib/short-links.mjs`) tira `https://www.` só na cópia/exibição do Gerador de Links e do botão "Meu link"; mensagens automáticas e botões continuam com a URL completa. Migration `20261005010000_admin_users_short_ref.sql`.

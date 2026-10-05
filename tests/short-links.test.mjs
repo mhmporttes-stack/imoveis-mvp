@@ -28,16 +28,21 @@ test("os construtores de link do CRM geram a versão curta e as rotas redirecion
   assert.match(source("lib/admin-profiles.js"), /\$\{getSiteBaseUrl\(\)\}\$\{shortCaptacaoPath\(ref\)\}/);
   assert.match(source("lib/campaigns.js"), /shortCampaignPath\(campaign\.shortCode\)/);
   assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/, "sem código mantém o link longo");
-  assert.match(source("app/s/route.js"), /url\.pathname = "\/simulacao"/);
-  assert.match(source("app/s/[ref]/route.js"), /searchParams\.set\("ref", clean\)/);
+  assert.match(source("app/s/route.js"), /target\.pathname = "\/simulacao"/);
+  assert.match(source("app/s/[ref]/route.js"), /target\.searchParams\.set\("ref", resolved\)/);
   assert.match(source("app/c/[code]/route.js"), /from\("campaigns"\)\.select\("id"\)\.eq\("short_code", clean\)/);
-  assert.match(source("app/c/[code]/route.js"), /searchParams\.set\("c", campaignId\)/);
-  assert.match(source("app/v/[ref]/route.js"), /pathname = "\/captacao"/);
+  assert.match(source("app/c/[code]/route.js"), /target\.searchParams\.set\("c", campaignId\)/);
+  assert.match(source("app/v/[ref]/route.js"), /target\.pathname = "\/captacao"/);
   assert.match(source("app/j/[token]/route.js"), /\/minha-jornada\//);
-  for (const file of ["app/s/route.js", "app/s/[ref]/route.js", "app/c/[code]/route.js", "app/v/route.js", "app/v/[ref]/route.js", "app/j/[token]/route.js"]) {
-    assert.match(source(file), /NextResponse\.redirect\(url, 307\)/, file);
+  // Prévia: simulação/captação respondem 200 com Open Graph direto no link curto (crawlers não seguem redirects bem);
+  // quem abre no navegador é levado ao destino (meta refresh + script). /j (token privado) continua redirect 307.
+  for (const file of ["app/s/route.js", "app/s/[ref]/route.js", "app/c/[code]/route.js", "app/v/route.js", "app/v/[ref]/route.js"]) {
+    assert.match(source(file), /sharePreviewResponse\(request, target,/, file);
     assert.match(source(file), /request\.nextUrl\.clone\(\)/, `${file} repassa os demais parâmetros (utm, jornada…)`);
   }
+  assert.match(source("app/j/[token]/route.js"), /NextResponse\.redirect\(url, 307\)/);
+  const html = source("lib/share-preview-html.mjs");
+  for (const tag of ["og:title", "og:description", "og:image\"", "og:url", "twitter:card", "rel=\"canonical\"", "http-equiv=\"refresh\"", "location.replace"]) assert.ok(html.includes(tag), tag);
 });
 
 test("código curto por usuário (short_ref): resolve para o ref de atribuição e o ref longo antigo continua valendo", () => {

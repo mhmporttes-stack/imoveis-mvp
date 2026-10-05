@@ -6,7 +6,7 @@ Descubra quanto você pode financiar |import path from "node:path";
 Descubra quanto você pode financiar |
 Descubra quanto você pode financiar |// Prévia de compartilhamento de /simulacao (2026-10-04): metadados no HTML estático + imagem 1200x630 existente.
 Descubra quanto você pode financiar |const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-Descubra quanto você pode financiar |const page = readFileSync(path.join(root, "app/simulacao/page.jsx"), "utf8");
+Descubra quanto você pode financiar |const page = readFileSync(path.join(root, "app/simulacao/page.jsx"), "utf8") + readFileSync(path.join(root, "lib/simulacao-share.mjs"), "utf8");
 Descubra quanto você pode financiar |
 Descubra quanto você pode financiar |test("/simulacao declara título, descrição, canonical, Open Graph e Twitter Card", () => {
 Descubra quanto você pode financiar |  assert.match(page, /SHARE_TITLE = "Simule seu primeiro imóvel \| Matheus Machado"/);

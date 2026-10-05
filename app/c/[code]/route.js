@@ -1,17 +1,19 @@
-import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { isUuid, safeDecode } from "@/lib/short-links.mjs";
+import { SHARE_DESCRIPTION, SHARE_IMAGE, SHARE_IMAGE_ALT, SHARE_TITLE } from "@/lib/simulacao-share.mjs";
+import { sharePreviewResponse } from "@/lib/share-preview-html.mjs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // Link curto de campanha/patrocinado: /c/{codigo} → /simulacao?c={id da campanha}. O código é campaigns.short_code
-// (também aceita o próprio id). Código desconhecido cai na simulação padrão (nunca em página de erro).
+// (também aceita o próprio id). Código desconhecido cai na simulação padrão (nunca em página de erro). Responde 200
+// com a prévia (Open Graph) e leva a pessoa ao destino na hora.
 export async function GET(request, { params }) {
   const { code } = await params;
   const clean = safeDecode(String(code || "")).trim().toLowerCase();
-  const url = request.nextUrl.clone();
-  url.pathname = "/simulacao";
+  const target = request.nextUrl.clone();
+  target.pathname = "/simulacao";
 
   let campaignId = "";
   if (isUuid(clean)) {
@@ -25,6 +27,6 @@ export async function GET(request, { params }) {
       campaignId = "";
     }
   }
-  if (campaignId) url.searchParams.set("c", campaignId);
-  return NextResponse.redirect(url, 307);
+  if (campaignId) target.searchParams.set("c", campaignId);
+  return sharePreviewResponse(request, target, { title: SHARE_TITLE, description: SHARE_DESCRIPTION, image: SHARE_IMAGE, imageAlt: SHARE_IMAGE_ALT });
 }
