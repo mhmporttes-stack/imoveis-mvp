@@ -14,7 +14,7 @@ import {
   buildDocumentItemsFor,
   deriveDocumentProfile
 } from "../lib/simulation-presentation-documents.mjs";
-import { DOCUMENTS_LAYOUT, buildSummaryImageModel, documentsImageSize, getDocumentItems, estimateLines } from "../lib/simulation-presentation-image-core.mjs";
+import { DOCUMENTS_LAYOUT, buildSummaryImageModel, documentItemHeight, documentsImageSize, getDocumentItems, estimateLines } from "../lib/simulation-presentation-image-core.mjs";
 import { renderDocumentsImage, renderSummaryImage } from "../lib/simulation-presentation-image.mjs";
 import { branchStep, createPlayerState, isAutoAdvancing, isLastScene, playerReducer, propertiesButtonLabel, sceneMetricEvents } from "../components/presentation/player-core.mjs";
 import { navigableSceneCount } from "../lib/simulation-presentation-gate.mjs";
@@ -75,12 +75,20 @@ test("renda: formal/CLT/IR → holerites ou IR; informal → extratos ou faturas
   assert.equal(renda(reg({ simulationType: "individual", primaryIncomeType: "registered_employment", secondaryIncomeType: "self_employed_unregistered" })).description, formal);
 });
 
-test("estado civil: solteiro → nascimento; casado/união estável → casamento; divorciado → casamento com averbação; viúvo/desconhecido → ou", () => {
+test("estado civil (dono 2026-10-05): solteiro e união estável → nascimento; casado → casamento; divorciado → casamento + obs de averbação; viúvo/desconhecido → ou", () => {
   const civil = (registration) => byId(buildDocumentItemsFor(registration), "estado-civil").description;
   assert.equal(civil(reg({ primaryMaritalStatus: "single" })), "Certidão de nascimento");
   assert.equal(civil(reg({ primaryMaritalStatus: "married" })), "Certidão de casamento");
-  assert.equal(civil(reg({ primaryMaritalStatus: "stable_union" })), "Certidão de casamento");
-  assert.equal(civil(reg({ primaryMaritalStatus: "divorced" })), "Certidão de casamento com a averbação do divórcio");
+  assert.equal(civil(reg({ primaryMaritalStatus: "stable_union" })), "Certidão de nascimento");
+  assert.equal(civil(reg({ primaryMaritalStatus: "divorced" })), "Certidão de casamento");
+  const obsOf = (status) => byId(buildDocumentItemsFor(reg({ primaryMaritalStatus: status })), "estado-civil").obs;
+  assert.equal(obsOf("divorced"), "Com averbação do divórcio");
+  for (const status of ["single", "married", "stable_union", "widowed", ""]) assert.equal(obsOf(status), undefined, status);
+  // cadastro conjunto: só personaliza se os dois coincidirem (regra mantida); divorciados nos dois → obs
+  const joint = (a, b) => byId(buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: a, secondaryMaritalStatus: b })), "estado-civil");
+  assert.equal(joint("divorced", "divorced").obs, "Com averbação do divórcio");
+  assert.equal(joint("divorced", "single").description, "Certidão de nascimento ou casamento");
+  assert.equal(joint("divorced", "single").obs, undefined);
   assert.equal(civil(reg({ primaryMaritalStatus: "widowed" })), "Certidão de nascimento ou casamento");
   assert.equal(civil(reg({ primaryMaritalStatus: "" })), "Certidão de nascimento ou casamento");
   assert.equal(civil(undefined), "Certidão de nascimento ou casamento");
@@ -345,4 +353,25 @@ test("resumo em imagem: rótulo singular/plural dos imóveis sugeridos e nomes v
 
 test("buildPresentationScenes continua devolvendo só o roteiro principal (contagem do CRM)", () => {
   assert.equal(buildPresentationScenes({ simulation: sim() }).length, 7);
+});
+
+// ---------- observação (obs) do estado civil: DTO, PNG e folha ----------
+test("obs do divorciado: vai no DTO só como texto final, entra na altura do PNG (1 e 2 linhas) e a folha a renderiza", async () => {
+  const dto = buildPublicPresentation({ simulation: sim({ registration: reg({ primaryMaritalStatus: "divorced" }) }), defaultReason: DEFAULT_REASON });
+  const civil = byId(getDocumentItems(dto), "estado-civil");
+  assert.equal(civil.description, "Certidão de casamento");
+  assert.equal(civil.obs, "Com averbação do divórcio");
+  const plain = { id: "x", title: "COMPROVANTE DE ESTADO CIVIL", description: "Certidão de casamento", lines: [] };
+  assert.ok(documentItemHeight({ ...plain, obs: "Com averbação do divórcio" }) > documentItemHeight(plain));
+  const long = "Com averbação do divórcio, emitida há no máximo 90 dias, com carimbo do cartório e assinatura do oficial responsável pelo registro";
+  assert.ok(documentItemHeight({ ...plain, obs: long }) > documentItemHeight({ ...plain, obs: "Com averbação do divórcio" }));
+  for (const obs of ["Com averbação do divórcio", long]) {
+    const png = await renderDocumentsImage({ scenes: [{ id: "documentos", items: [{ ...plain, obs }] }], firstName: "Ana" }, { download: false });
+    assert.equal(png.status, 200);
+  }
+  assert.ok(code("components/presentation/DocumentsSheet.jsx").includes("item.obs"));
+  for (const status of ["single", "married", "stable_union"]) {
+    const other = buildPublicPresentation({ simulation: sim({ registration: reg({ primaryMaritalStatus: status }) }), defaultReason: DEFAULT_REASON });
+    assert.equal(byId(getDocumentItems(other), "estado-civil").obs, "");
+  }
 });

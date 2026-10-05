@@ -43,6 +43,7 @@ export default function DocumentsSheet({ items = [], onClose }) {
                 <div className={styles.docText}>
                   <h3 className={styles.docTitle}>{item.title}</h3>
                   {item.description ? <p className={styles.docDesc}>{item.description}</p> : null}
+                  {item.obs ? <p className={styles.docObs}>{item.obs}</p> : null}
                   {item.lines?.length ? (
                     <ul className={styles.docLines}>
                       {item.lines.map((line) => <li key={line}>{line}</li>)}

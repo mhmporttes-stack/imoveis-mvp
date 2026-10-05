@@ -342,6 +342,7 @@
 .docText { min-width: 0; }
 .docTitle { margin: 0; font-size: max(15px, calc(var(--u) * 17)); font-weight: 800; line-height: 1.25; letter-spacing: 0.01em; color: #0b2b52; overflow-wrap: anywhere; }
 .docDesc { margin: calc(var(--u) * 3) 0 0; font-size: max(14px, calc(var(--u) * 15.5)); line-height: 1.4; color: #3a5878; }
+.docObs { margin: calc(var(--u) * 2) 0 0; font-size: max(12.5px, calc(var(--u) * 13)); line-height: 1.35; color: #3f8fe6; }
 .docLines { list-style: disc; margin: calc(var(--u) * 4) 0 0; padding-left: calc(var(--u) * 18); display: grid; gap: calc(var(--u) * 6); font-size: max(14px, calc(var(--u) * 15.5)); line-height: 1.4; color: #3a5878; }
 
 /* setas laterais (só com mouse): ao lado do palco */
