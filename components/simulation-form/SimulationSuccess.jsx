@@ -1,109 +1,56 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Camera } from "lucide-react";
+import { Camera, CheckCircle2 } from "lucide-react";
 
-export default function SimulationSuccess({ brokerRef = "", registrationId = "", accessToken = "" }) {
+// Tela final da simulação: um bloco de confirmação + convite para o Instagram. Visual limpo, azul e branco;
+// só o botão do Instagram usa o degradê da rede.
+export default function SimulationSuccess() {
   return (
-    <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-[36px] border border-line bg-white p-6 text-center shadow-[0_24px_70px_rgba(13,59,102,0.12)] sm:p-10 lg:p-12">
-      <div className="relative mx-auto h-20 w-full max-w-[340px] sm:h-24">
+    <article className="mx-auto w-full max-w-xl rounded-[28px] border border-line bg-white px-6 py-8 text-center shadow-[0_24px_70px_rgba(13,59,102,0.12)] sm:px-10 sm:py-10">
+      <div className="relative mx-auto h-12 w-44 sm:h-14 sm:w-52">
         <Image
           alt="Caixa"
           className="object-contain"
           fill
           priority
-          sizes="(max-width: 640px) 70vw, 340px"
+          sizes="208px"
           src="/assets/caixa-logo-transparent.png"
         />
       </div>
 
-      <h1 className="mx-auto mt-8 max-w-3xl text-[clamp(1.9rem,4.3vw,3.25rem)] font-black leading-[1.08] tracking-[-0.02em] text-navy">
+      <div className="mx-auto mt-6 grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-brand">
+        <CheckCircle2 aria-hidden="true" className="h-8 w-8" />
+      </div>
+
+      <h1 className="mt-5 text-[clamp(1.55rem,5.5vw,2.1rem)] font-black leading-tight tracking-[-0.02em] text-navy">
         Estamos adicionando seu atendimento
       </h1>
-      <p className="mx-auto mt-7 max-w-3xl text-base font-semibold leading-8 text-muted sm:text-lg">
+      <p className="mx-auto mt-3 max-w-md text-base font-semibold leading-7 text-muted">
         Em instantes, um associado entrará em contato para apresentar os valores da sua simulação e orientar os próximos passos.
       </p>
 
-      <div className="relative mx-auto mt-12 max-w-3xl overflow-hidden border-t border-line px-1 pt-10">
-        <DecorativeBubble className="pointer-events-none absolute left-0 top-[145px] z-0 hidden h-20 w-20 text-brand lg:block" />
-        <DecorativeHouse className="pointer-events-none absolute right-0 top-[135px] z-0 hidden h-24 w-24 text-brand lg:block" />
-        <DecorativeArrow className="pointer-events-none absolute bottom-[86px] left-[9%] z-0 hidden h-14 w-14 text-brand lg:block" />
-        <DecorativeHeart className="pointer-events-none absolute bottom-0 right-[24%] z-0 hidden h-7 w-7 text-brand lg:block" />
-        <p className="relative z-10 text-[clamp(0.72rem,1.5vw,1rem)] font-black uppercase tracking-[0.28em] text-brand">
+      <div className="mt-8 border-t border-line pt-7">
+        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand sm:text-xs">
           Enquanto sua simulação é preparada...
         </p>
-        <h2
-          className="relative z-10 mx-auto mt-4 inline-block max-w-[720px] pb-3 text-[clamp(2rem,5.2vw,3.6rem)] font-black leading-[0.98] tracking-[-0.045em] text-navy after:absolute after:bottom-0 after:left-7 after:right-7 after:h-1.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-['']"
-          style={{ fontFamily: '"Trebuchet MS", "Comic Sans MS", "Arial Rounded MT Bold", system-ui, sans-serif' }}
-        >
+        <h2 className="mt-3 text-[clamp(1.35rem,4.6vw,1.75rem)] font-black leading-tight tracking-[-0.01em] text-navy">
           Acompanhe Matheus Machado no Instagram
-          <span className="absolute -right-10 top-0 hidden text-brand sm:block" aria-hidden="true">
-            <AccentMarks />
-          </span>
         </h2>
-        <p className="relative z-10 mx-auto mt-8 max-w-2xl text-base font-semibold leading-7 text-navy sm:text-lg">
+        <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-muted sm:text-base">
           Conteúdos sobre primeiro imóvel, financiamento e Minha Casa Minha Vida.
         </p>
         <Link
           aria-label="Seguir Matheus Machado no Instagram"
-          className="relative z-10 mt-9 inline-flex min-h-[58px] w-full max-w-md items-center justify-center rounded-full bg-[linear-gradient(90deg,#f58529_0%,#dd2a7b_40%,#8134af_75%,#515bd4_100%)] px-7 py-3 text-lg font-black text-white shadow-[0_18px_45px_rgba(221,42,123,0.22)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(221,42,123,0.3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+          className="mx-auto mt-6 inline-flex min-h-[54px] w-full max-w-sm items-center justify-center gap-2.5 rounded-full bg-[linear-gradient(90deg,#f58529_0%,#dd2a7b_40%,#8134af_75%,#515bd4_100%)] px-6 py-3 text-base font-black text-white shadow-[0_10px_24px_rgba(221,42,123,0.25)] transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
           href="https://www.instagram.com/mhm.machado/"
           rel="noopener noreferrer"
           target="_blank"
         >
-          <Camera className="mr-3 h-7 w-7" aria-hidden="true" />
+          <Camera className="h-6 w-6" aria-hidden="true" />
           Seguir no Instagram
         </Link>
-        <p className="relative z-10 mt-4 text-sm font-bold text-navy sm:text-base">@mhm.machado</p>
+        <p className="mt-3 text-sm font-bold text-navy">@mhm.machado</p>
       </div>
     </article>
-  );
-}
-
-function AccentMarks() {
-  return (
-    <svg viewBox="0 0 58 58" className="h-12 w-12" aria-hidden="true" fill="none">
-      <path d="M15 33 4 44" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-      <path d="M28 25 30 7" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-      <path d="M39 37 53 30" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DecorativeBubble({ className }) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} aria-hidden="true" fill="none">
-      <path d="M19 37c8-20 69-25 81 7 10 27-8 49-37 49-9 0-18-2-25-5L16 103l8-28C14 65 13 51 19 37Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M45 51c7-13 27-7 19 10 11-12 29 0 15 16-9 10-25 16-25 16s-15-12-20-24c-3-8 4-18 11-18Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 26 1 15M20 18 18 5" stroke="#FF9F1C" strokeWidth="5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DecorativeHouse({ className }) {
-  return (
-    <svg viewBox="0 0 130 130" className={className} aria-hidden="true" fill="none">
-      <path d="M35 59 67 31l34 28" stroke="#FF9F1C" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M43 58v43h49V58" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M61 101V78h14v23M56 67h12v12H56Z" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
-      <path d="M105 28 115 14M113 40h14M96 20l-2-15" stroke="#FF9F1C" strokeWidth="5" strokeLinecap="round" />
-      <path d="M88 109c9-9 23-6 25 5 2 10-9 18-18 12-8-5-8-15-7-17Zm-6 11-20 20m20-20 8 8m-18 2 8 8" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function DecorativeArrow({ className }) {
-  return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden="true" fill="none">
-      <path d="M80 18C38 24 18 51 29 78" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M26 78 12 65m14 13 10-17" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function DecorativeHeart({ className }) {
-  return (
-    <svg viewBox="0 0 60 60" className={className} aria-hidden="true" fill="none">
-      <path d="M30 50S8 37 10 22c1-10 15-14 20-4 5-10 19-6 20 4 2 15-20 28-20 28Z" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
