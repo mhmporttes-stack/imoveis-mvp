@@ -78,6 +78,16 @@
   width: var(--fw);
 }
 
+/* rodapé que clareia (só cenas escuras): nos últimos ~30% da tela o azul-marinho vira azul bem claro, para a logo da Caixa (azul e laranja,
+   sem sombra) ficar legível. É só fundo: fica ABAIXO do palco (conteúdo e botões) e não recebe clique. Cenas claras não têm. */
+.frame::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(7, 27, 49, 0) 0%, rgba(40, 96, 168, 0.28) 38%, rgba(120, 170, 230, 0.55) 62%, #bcd5f3 82%, #e6f0fc 100%);
+  transition: opacity 0.7s ease;
+}
+.root[data-theme="light"] .frame::before { opacity: 0; }
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) { .frame::before { left: 0; right: 0; } }
+
 /* fundo de marca: formas arquitetônicas em traço fino, no pé do palco */
 .backdrop {
   position: absolute;
@@ -294,7 +304,7 @@
   font-size: max(16px, calc(var(--u) * 18)); font-weight: 760; text-decoration: none; cursor: pointer; text-align: center;
   transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.cta { background: var(--fg); color: var(--bg); box-shadow: 0 calc(var(--u) * 10) calc(var(--u) * 26) rgba(2, 12, 24, 0.28); }
+.cta { background: var(--fg); color: var(--bg); box-shadow: 0 0 0 1px rgba(7, 27, 49, 0.2), 0 calc(var(--u) * 10) calc(var(--u) * 26) rgba(2, 12, 24, 0.32); }
 .ghostBtn { background: var(--bg); color: var(--fg); border-color: var(--btn-line); font-weight: 680; }
 .cta:active, .ghostBtn:active { transform: scale(0.97); }
 .ctaCaps { letter-spacing: 0.08em; }
