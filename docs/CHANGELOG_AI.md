@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Simulação: calendário compacto, tela final limpa e Instagram também na etapa "Cadastro concluído"
+- **Pedido (dono):** o calendário e a tela final estavam feios; incluir o Instagram também na etapa "Cadastro concluído com sucesso! / Responder agora" (nem todo cliente chega ao final).
+- **Mudança:** `DateInputStep.jsx` — calendário em linha (não cobre mais o botão Continuar), controles e dias compactos e redondos; `SimulationSuccess.jsx` — layout limpo (logo menor, ícone de confirmação, textos legíveis, sem a "caixa" rosa que o overflow criava atrás do botão); novo `InstagramFollow.jsx` (título, texto, botão em degradê do Instagram e @mhm.machado) usado em `SimulationSuccess` e em `PropertyPreferencesInvite`. Só visual.
+
 ### 2026-10-05 — Simulação: só o questionário, tela fixa (sem rodapé do site e sem título grande)
 - **Pedido (dono):** remover a parte de baixo (rodapé "Especialista no mercado imobiliário de Marília…") e deixar o questionário fixo, sem rolagem, mais confortável para o cliente.
 - **Mudança:** `components/AppChrome.jsx` (rodapé não aparece em `/simulacao`), `app/simulacao/page.jsx` (`main` fixo em tela cheia, conteúdo centralizado; só rola dentro da área se não couber — celular pequeno/tela final), `components/simulation-form/LinkJourneyGate.jsx` (título/subtítulo grandes viram `sr-only`). Formulário, atribuição, roleta e cadastro inalterados.

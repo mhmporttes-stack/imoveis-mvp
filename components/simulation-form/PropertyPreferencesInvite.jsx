@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Handshake as HandshakeIcon } from "lucide-react";
+import InstagramFollow from "@/components/simulation-form/InstagramFollow";
 
 export default function PropertyPreferencesInvite({ onStart }) {
   return (
@@ -31,6 +32,7 @@ export default function PropertyPreferencesInvite({ onStart }) {
           <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
         </button>
       </div>
+      <InstagramFollow compact />
     </article>
   );
 }
