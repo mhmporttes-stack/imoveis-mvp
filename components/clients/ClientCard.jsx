@@ -181,7 +181,7 @@ function ResponsibleAvatar({ responsibleProfile }) {
   }
   return (
     <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black" aria-hidden="true">
-      <img src="/assets/company-mark-avatar.png" alt="" className="h-full w-full object-cover" />
+      <img src="/icons/icon-192-mm.png" alt="" className="h-full w-full object-cover" />
     </span>
   );
 }

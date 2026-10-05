@@ -4,7 +4,7 @@ Fonte de verdade das decisões visuais. Status de cada item: **[ADOTADO]** = val
 
 ## 1. Identidade e direção
 
-- **[OBRIGATÓRIO — dono, 2026-10-01]** Cores principais **azul e branco** e a **logo Matheus Machado** (`public/assets/matheus-machado-logo*`, `matheus-machado-symbol*`). Todo o resto pode mudar.
+- **[OBRIGATÓRIO — dono, 2026-10-01]** Cores principais **azul e branco** e a **logo Matheus Machado** (`public/assets/matheus-machado-symbol.png`, `og-matheus-machado-v2.png`, `public/icons/*-mm.png`). Todo o resto pode mudar.
 - **Direção [PROPOSTO]:** *ferramenta de trabalho confiável e rápida* — "mesa de corretor organizada", não "landing page". Branco como superfície, navy como estrutura e texto forte, azul `brand` como **o** acento de ação (~10% da tela). Ousadia vai para hierarquia, densidade e composição, não para a paleta. Momentos de celebração (ranking, Top 1, meta batida, mensagem diária) são o único lugar com expressividade alta — e já têm componentes próprios (`components/motion/*`, `celebrations/*`).
 
 ## 2. Estado atual (auditoria 2026-10-01 — use como diagnóstico, não como modelo)

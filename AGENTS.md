@@ -44,6 +44,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 - **Nunca** escreva, imprima, commite ou cole tokens, chaves, segredos, valores de variáveis de ambiente ou `.env`. Documente só o **nome** da variável (e em `.env.example`, sem valor).
 - Service role, RLS sem policy pública e guards `app/api/admin/**`/`app/admin/**`: ver `CLAUDE.md` (regras 1-3) e `docs/PERMISSIONS.md`.
 - Sistema **vivo** (WhatsApp real, CPF/renda/documentos, comissões): ver `CLAUDE.md` regra 9.
+- **Identidade visual:** só a atual do Matheus Machado; logos antigas são proibidas (usar, copiar, restaurar ou tomar como referência). Reutilize os assets oficiais — ver `CLAUDE.md` regra 10.
 - Não publique (push em `main` = deploy automático), não aplique migration em produção e não rode nada destrutivo **sem pedido explícito** da tarefa. Nunca `git push --force`, nunca pular hooks.
 
 ## Antes de alterar código

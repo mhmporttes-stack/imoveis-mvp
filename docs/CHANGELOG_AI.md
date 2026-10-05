@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-04 — Logo antiga removida do projeto e regra permanente de identidade visual
+- **Data:** 2026-10-04
+- **Área:** Docs / Identidade visual
+- **Alteração:** apagados 11 assets da logo antiga (prédios/skyline): `public/assets/matheus-machado-logo.png`, `-logo-transparent.png`, `-logo-premium.jpeg`, `-symbol-premium.png`, `company-mark-avatar.png` e os 6 ícones sem `-mm` em `public/icons/`. Nenhum código de produção (site, OG, manifest, PDFs) os usava; dois usos residuais foram trocados para `public/icons/icon-192-mm.png`: avatar padrão do card de cliente (`components/clients/ClientCard.jsx`) e foto fictícia da vitrine. Docs/skills que citavam a logo antiga (`DESIGN.md`, `marca-email.md`, `sistema-visual.md`, rascunho GBP) apontam agora para os assets oficiais. Regra 10 em `CLAUDE.md` (+ ponteiro em `AGENTS.md`) e trava `tests/brand-assets.test.mjs`.
+- **Motivo:** novas telas/PDFs/imagens reaproveitavam a logo antiga por ela existir no repositório (pedido do dono).
+- **Arquivos afetados:** os acima, `CLAUDE.md`, `AGENTS.md`, `tests/brand-assets.test.mjs`.
+- **Risco/observação:** logo oficial = `public/assets/matheus-machado-symbol.png` (símbolo), `og-matheus-machado-v2.png` (marca completa) e `public/icons/*-mm.png`. Links externos antigos para os arquivos removidos passam a dar 404 (nada interno os usa). Não verificado: imagens guardadas fora do repositório (Supabase Storage, perfil do WhatsApp/Google). `CHANGELOG_AI` e o histórico do git continuam citando os nomes antigos (histórico, não referência).
 ### 2026-10-04 — Prévia de compartilhamento de /simulacao (Instagram Direct, WhatsApp, demais)
 - **Situação:** o HTML já trazia og:title/description/image e Twitter Card, mas com o texto antigo ("Simulação de financiamento…") e a imagem genérica da marca; faltavam `og:url` e `canonical`, que o Instagram Direct usa para montar o cartão (sem eles só aparecia a URL).
 - **Mudança:** `app/simulacao/page.jsx` — título "Simule seu primeiro imóvel | Matheus Machado", descrição "Descubra seu poder de compra e dê o primeiro passo para o seu imóvel.", `canonical` e `og:url` = `https://www.matheusmachadoimoveis.com.br/simulacao`, `og:image`/`twitter:image` absolutas 1200x630 (`og:image:secure_url`, tipo e alt), `twitter:card=summary_large_image`. Tudo no HTML estático (crawlers não executam JS). Nova imagem `public/assets/og-simulacao-v2.png` (1200x630, logo atual M azul/branco sobre azul-marinho; texto "SIMULE SEU PRIMEIRO IMÓVEL / Descubra seu poder de compra"). Teste `tests/simulacao-share-preview.test.mjs`.
