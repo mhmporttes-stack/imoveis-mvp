@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, FileText, House, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -25,6 +25,7 @@ import {
   transitionPlan
 } from "./player-core.mjs";
 import DocumentsSheet from "./DocumentsSheet";
+import ForecastSheet from "./ForecastSheet";
 import OpeningAnimation from "./OpeningAnimation";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
 import styles from "./presentation.module.css";
@@ -353,18 +354,25 @@ function SceneValidar({ scene }) {
   );
 }
 
-function SceneDocumentos({ onRestart, hrefs, onOpenList }) {
+function SceneDocumentos({ onRestart, onOpenList, canReceiveList, onOpenForecast }) {
   return (
     <div className={styles.sceneInner}>
       <FolderArt />
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Documentos</p>
       <h2 className={`${styles.title} ${styles.titleSm} ${styles.rise}`} style={{ "--d": "350ms" }}>{DOCUMENTS_SCENE_TEXT}</h2>
       <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1000ms" }}>
-        <button type="button" className={styles.cta} onClick={onOpenList} data-no-nav="" data-open-docs="">
+        {/* O cliente não baixa mais a lista (decisão do dono, round 4): ele a RECEBE do corretor pelo WhatsApp. O botão
+            só existe quando há responsável ativo com WhatsApp válido (`canReceiveList`); senão fica só a folha de visualização. */}
+        {canReceiveList ? (
+          <button type="button" className={styles.cta} onClick={onOpenForecast} data-no-nav="" data-open-forecast="">
+            <MessageCircle aria-hidden="true" />
+            Receber lista de documentos
+          </button>
+        ) : null}
+        <button type="button" className={canReceiveList ? styles.ghostBtn : styles.cta} onClick={onOpenList} data-no-nav="" data-open-docs="">
           <FileText aria-hidden="true" />
           Lista de documentos
         </button>
-        <DownloadAction href={hrefs.documents} label="Baixar imagem da lista de documentos" className={styles.ghostBtn} hint="Disponível no link enviado ao cliente" />
         <button type="button" className={styles.textBtn} onClick={onRestart} data-no-nav="">Rever a apresentação</button>
       </div>
     </div>
@@ -381,7 +389,7 @@ function renderScene(scene, ctx) {
     case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={scene.position >= scene.count} fast={ctx.fast} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
-    case "documentos": return <SceneDocumentos onRestart={ctx.restart} hrefs={ctx.hrefs} onOpenList={ctx.openList} />;
+    case "documentos": return <SceneDocumentos onRestart={ctx.restart} onOpenList={ctx.openList} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;
   }
 }
@@ -398,7 +406,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "" }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -412,6 +420,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const [leaving, setLeaving] = useState(null);
   const [direction, setDirection] = useState("forward");
   const [docsOpen, setDocsOpen] = useState(false);
+  const [forecastOpen, setForecastOpen] = useState(false);
   // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
   // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
   const [branchIndex, setBranchIndex] = useState(() => (initialBranch > 0 && branch.length ? Math.min(Math.floor(initialBranch), branch.length) - 1 : null));
@@ -432,6 +441,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   useEffect(() => {
     elapsed.current = 0;
     setDocsOpen(false);
+    setForecastOpen(false);
     if (fillRef.current) fillRef.current.style.transform = isLastScene(stateRef.current) ? "scaleX(1)" : "scaleX(0)";
     const plan = transitionPlan(effective, prevIndex.current);
     prevIndex.current = state.index;
@@ -535,6 +545,14 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     setDocsOpen(false);
     if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
   }, []);
+  const openForecast = useCallback((event) => {
+    openerRef.current = event?.currentTarget || null;
+    setForecastOpen(true);
+  }, []);
+  const closeForecast = useCallback(() => {
+    setForecastOpen(false);
+    if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
+  }, []);
 
   const onPointerDown = (event) => {
     if (event.target.closest("a,button,[data-no-nav]")) {
@@ -576,7 +594,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openList, hrefs, openProperties, branchNext, propertyCount: branch.length, fast: returned };
+  const ctx = { reduced, restart, validate, openList, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, fast: returned };
 
   return (
     <div
@@ -637,6 +655,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
             {renderScene(current, ctx)}
           </div>
           {docsOpen && current.id === "documentos" ? <DocumentsSheet items={current.items} onClose={closeList} /> : null}
+          {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
         </div>
 
         {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas, direto sobre o fundo (sem pílula,

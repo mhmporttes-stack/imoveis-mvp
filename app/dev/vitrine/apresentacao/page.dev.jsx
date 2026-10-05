@@ -6,6 +6,8 @@ import { presentationBranch, presentationScenes } from "../_fixtures/apresentaca
 // métrica (token vazio). Os botões de download apontam para as rotas de imagem DEV desta mesma vitrine.
 //   ?v=completo (padrão) | informal | minimo | sem-juros-sem-subsidio | igual | sem-imovel | sem-justificativa | longo
 //   ?ramo=N (abre direto no imóvel N do ramo de imóveis sugeridos, 1-based)
+//   ?lista=nao (cena de documentos SEM o botão "Receber lista de documentos": sem responsável com WhatsApp válido)
+//   ?envio=erro (revisão do estado de erro da folha da previsão: token fora do formato, o servidor responde 404 sem tocar no banco)
 //   ?cena=N (começa na cena N, 0-based; cenas finais abrem já liberadas) · use o botão de pausa para parar o auto-avanço.
 export const dynamic = "force-dynamic";
 
@@ -20,11 +22,12 @@ export default async function PresentationVitrine({ searchParams }) {
     <PresentationPlayer
       scenes={scenes}
       branch={presentationBranch(variant)}
-      token=""
+      token={query?.envio === "erro" ? "x" : ""}
       initialIndex={initialIndex}
       initialBranch={ramo}
       assetsBase="/dev/vitrine/apresentacao"
       assetsQuery={`v=${encodeURIComponent(variant)}`}
+      canReceiveList={query?.lista !== "nao"}
     />
   );
 }

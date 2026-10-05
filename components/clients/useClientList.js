@@ -6,6 +6,7 @@ import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { decideCardWhatsapp, detectDevice, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
+import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
@@ -55,6 +56,8 @@ export function useClientList({
   const [waState, setWaState] = useState(null);
   const [dncTarget, setDncTarget] = useState(null);
   const [receivedDateTarget, setReceivedDateTarget] = useState(null);
+  // Botão "Enviar lista de documentos" da ficha: mensagem pronta aguardando a confirmação do corretor ({ client, message, decision })
+  const [docsListTarget, setDocsListTarget] = useState(null);
 
   const responsibleProfiles = useMemo(() => (
     ensureArray(adminProfiles).filter((profile) => profile.id && profile.status !== "inactive")
@@ -654,6 +657,89 @@ export function useClientList({
     });
   }
 
+  // Destino do WhatsApp do card (mesma decisão do botão "WhatsApp"): Chat se a sessão do corretor está conectada; senão link externo.
+  function decideClientWhatsapp(client, phone) {
+    return decideCardWhatsapp({
+      stateKnown: Boolean(waState),
+      sessionStatus: waState?.sessionStatus ?? null,
+      restricted: waState?.restricted === true,
+      device: readCardDevice(),
+      clientStatus: client.status,
+      isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
+      phone
+    });
+  }
+
+  // "Enviar lista de documentos" (round 4): o servidor monta texto + link da lista PERSONALIZADA; a mensagem só sai depois que o
+  // corretor confirma a prévia (nunca sozinha). Não muda o status do cliente.
+  async function prepareDocumentsList(client) {
+    const registrationId = client.registration?.id;
+    const value = client.registration?.phoneNormalized || client.registration?.phone;
+    if (!registrationId) return;
+    if (!toWhatsAppDigits(value)) {
+      notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
+      return;
+    }
+    await withBusy(client, async () => {
+      const response = await fetch(`/api/admin/clients/${registrationId}/lista-documentos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "preparar" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        notify(data.error || "Não foi possível preparar a lista de documentos.", "danger");
+        return;
+      }
+      setDocsListTarget({ client, message: data.message, decision: decideClientWhatsapp(client, value) });
+    });
+  }
+
+  async function confirmDocumentsList() {
+    const target = docsListTarget;
+    if (!target) return;
+    setDocsListTarget(null);
+    const { client, message, decision } = target;
+    const registrationId = client.registration.id;
+    await withBusy(client, async () => {
+      if (decision.action === CARD_WA_EXTERNAL) {
+        // sem nenhum await antes: o navegador só deixa abrir a janela dentro do clique do corretor
+        window.open(withWhatsappText(decision.url, message), "_blank", "noopener,noreferrer");
+        fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true })
+          .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
+          .catch(() => flagContactNotSaved(client.name || client.registration?.fullName || ""));
+      } else {
+        const opened = await fetch("/api/admin/whatsapp-chat/open-client", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId: registrationId })
+        });
+        const conversation = await opened.json().catch(() => ({}));
+        if (!opened.ok || !conversation.conversationId) {
+          notify(conversation.error || "Não foi possível abrir a conversa no Chat.", "danger");
+          return;
+        }
+        const sent = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.conversationId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: message })
+        });
+        const sentData = await sent.json().catch(() => ({}));
+        if (!sent.ok) {
+          notify(sentData.error || "Não foi possível enviar a mensagem pelo Chat.", "danger");
+          return;
+        }
+      }
+      const logged = await fetch(`/api/admin/clients/${registrationId}/lista-documentos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "registrar" })
+      }).catch(() => null);
+      if (!logged?.ok) notify("A mensagem foi encaminhada, mas o registro na jornada do cliente falhou.", "danger");
+      else notify(decision.action === CARD_WA_EXTERNAL ? "WhatsApp aberto com a lista de documentos. Envie por lá." : "Lista de documentos enviada pelo Chat.");
+    });
+  }
+
   async function copyBrokerSimulationLink() {
     try {
       await navigator.clipboard.writeText(brokerSimulationLink);
@@ -666,7 +752,7 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), dncTarget, receivedDateTarget, responsibleProfiles, responsibleProfileMap,
+    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), dncTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
@@ -674,6 +760,6 @@ export function useClientList({
     handleProspectingAction, confirmDoNotContact, cancelDoNotContact: () => setDncTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
-    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, copyBrokerSimulationLink, getScheduleDraft
+    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
   };
 }

@@ -397,7 +397,9 @@ test("lib: token inválido/inexistente/revogado/tabela ausente → null; escrita
   assert.match(source, /Recurso ainda não ativado no banco\./);
   assert.match(source, /import "server-only"/);
   // round 2: nenhum contato do corretor na apresentação (sem "Falar com meu corretor")
-  assert.ok(!/resolveReceiveSimulationContact|wa\.me|toWhatsAppDigits|loadBrokerContact/.test(source));
+  // round 4 (PRES-17): a lib só VERIFICA se há responsável com WhatsApp válido (booleano podeReceberLista); nunca monta wa.me
+  assert.ok(!/wa\.me|loadBrokerContact/.test(source));
+  assert.match(source, /export async function canReceiveDocumentsList/);
   assert.ok(!/OFFICIAL|WHATSAPP_OFICIAL|official/i.test(source));
 });
 

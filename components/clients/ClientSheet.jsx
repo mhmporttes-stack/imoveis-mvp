@@ -9,6 +9,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  ListChecks,
   MessageCircle,
   Pencil,
   Phone,
@@ -98,6 +99,10 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
             <Button variant="secondary" className="col-span-2 sm:col-span-1" onClick={() => list.openValues(client)} disabled={busy}>
               <Calculator className="h-4 w-4" aria-hidden="true" /> Valores
             </Button>
+            {/* Round 4: o corretor envia a lista personalizada (texto + link) depois de conferir a prévia; não muda a etapa. */}
+            {whatsappBlocked ? null : <Button variant="secondary" className="col-span-2 sm:col-span-3" onClick={() => list.prepareDocumentsList(client)} disabled={busy || !registration?.id || [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)} data-send-documents-list="">
+              <ListChecks className="h-4 w-4" aria-hidden="true" /> Enviar lista de documentos
+            </Button>}
           </div>
 
           {/* Situação */}
@@ -182,6 +187,12 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         client={list.dncTarget}
         onCancel={list.cancelDoNotContact}
         onConfirm={list.confirmDoNotContact}
+      />
+
+      <DocumentsListDialog
+        target={list.docsListTarget}
+        onCancel={list.cancelDocumentsList}
+        onConfirm={list.confirmDocumentsList}
       />
 
       <ReceivedDateDialog
@@ -712,6 +723,37 @@ function DoNotContactDialog({ client, onCancel, onConfirm }) {
             <Button type="submit" variant="danger" disabled={invalid}>Confirmar</Button>
           </div>
         </form>
+      ) : null}
+    </dialog>
+  );
+}
+
+// Prévia + confirmação do "Enviar lista de documentos": a mensagem NUNCA sai sozinha; o corretor confere e confirma.
+function DocumentsListDialog({ target, onCancel, onConfirm }) {
+  const ref = useRef(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (target && !dialog.open) dialog.showModal();
+    if (!target && dialog.open) dialog.close();
+  }, [target]);
+
+  const external = target?.decision?.action === "external";
+  return (
+    <dialog ref={ref} aria-labelledby={titleId} className="ui-confirm" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
+      {target ? (
+        <div className="p-5 sm:p-6">
+          <h2 id={titleId} className="text-base font-semibold text-ink">Enviar lista de documentos</h2>
+          <p className="mt-1 text-sm text-ink-2">Confira a mensagem para {target.client.name || "o cliente"}. O link abre a lista personalizada pelo cadastro dele.</p>
+          <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
+          <p className="mt-2 text-xs text-muted">{external ? "O WhatsApp vai abrir com a mensagem pronta; você envia por lá." : "A mensagem será enviada pelo Chat do CRM."}</p>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+            <Button onClick={onConfirm}>{external ? "Abrir no WhatsApp" : "Enviar pelo Chat"}</Button>
+          </div>
+        </div>
       ) : null}
     </dialog>
   );

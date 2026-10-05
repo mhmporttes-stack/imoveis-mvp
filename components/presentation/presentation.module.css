@@ -471,3 +471,40 @@
   .sheetBackdrop { align-items: center; }
   .sheet { width: min(92%, calc(var(--u) * 680)); max-height: 88%; border-radius: calc(var(--u) * 28); }
 }
+
+/* round 4 — folha "Receber lista de documentos": calendário de 10 dias, período e botão final (visual simples; o designer pode refinar) */
+.fcGroup { margin: 0 0 calc(var(--u) * 22); padding: 0; border: 0; min-width: 0; }
+.fcGroup:disabled { opacity: 0.7; }
+.fcQuestion { padding: 0; margin: 0 0 calc(var(--u) * 14); font-size: max(17px, calc(var(--u) * 20)); font-weight: 780; line-height: 1.35; color: var(--navy-2); text-wrap: balance; }
+.fcDays { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(var(--u) * 8); }
+.fcDay, .fcPeriod {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 64px; padding: calc(var(--u) * 8) 4px; border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 16);
+  background: #f4f8fe; color: var(--navy-2); font: inherit; cursor: pointer; text-align: center;
+  transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.fcDay:active, .fcPeriod:active { transform: scale(0.97); }
+.fcDay:focus-visible, .fcPeriod:focus-visible, .fcSubmit:focus-visible, .fcLink:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.fcWeek { font-size: max(12px, calc(var(--u) * 13)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #3a5878; }
+.fcNum { font-size: max(24px, calc(var(--u) * 28)); font-weight: 820; line-height: 1.05; }
+.fcMonth { font-size: max(12px, calc(var(--u) * 13)); font-weight: 650; color: #3a5878; }
+.fcOn { background: var(--navy-2); border-color: var(--navy-2); color: #fff; }
+.fcOn .fcWeek, .fcOn .fcMonth { color: rgba(255, 255, 255, 0.85); }
+.fcPeriods { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--u) * 10); }
+.fcPeriod { min-height: 56px; font-size: max(16px, calc(var(--u) * 18)); font-weight: 760; }
+.fcFoot { display: grid; gap: calc(var(--u) * 12); }
+.fcSubmit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: max(56px, calc(var(--u) * 62)); padding: 0 calc(var(--u) * 20);
+  border: 0; border-radius: 999px; background: var(--navy-2); color: #fff; font: inherit; font-size: max(16px, calc(var(--u) * 17)); font-weight: 780; text-align: center; cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+.fcSubmit svg { width: 22px; height: 22px; flex: none; }
+.fcSubmit:active:not(:disabled) { transform: scale(0.98); }
+.fcSubmit:disabled { opacity: 0.45; cursor: not-allowed; }
+.fcNote { margin: 0; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: #3a5878; text-align: center; }
+.fcError { color: #b3261e; font-weight: 700; }
+.fcLink { color: var(--blue); font-weight: 700; text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  .fcDay, .fcPeriod, .fcSubmit { transition: none; }
+  .fcDay:active, .fcPeriod:active, .fcSubmit:active:not(:disabled) { transform: none; }
+}

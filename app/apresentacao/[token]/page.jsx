@@ -16,5 +16,5 @@ export default async function PresentationPage({ params }) {
   const { token } = await params;
   const dto = await getPublicPresentation(token);
   if (!dto) notFound();
-  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} />;
+  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} />;
 }

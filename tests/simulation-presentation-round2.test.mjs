@@ -174,7 +174,10 @@ test("abertura: título e subtítulo exatos", () => {
 test("'Falar com meu corretor' removido: nenhum telefone, wa.me ou botão do corretor no player, no DTO ou no HTML", () => {
   for (const file of ["components/presentation/PresentationPlayer.jsx", "components/presentation/DocumentsSheet.jsx", "components/presentation/player-core.mjs", "lib/simulation-presentation-core.mjs", "lib/simulation-presentation.js", "app/apresentacao/[token]/page.jsx"]) {
     const code = read(file).replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
-    assert.ok(!/Falar com meu corretor|wa\.me|whatsappUrl|MessageCircle|broker/i.test(code), file);
+    assert.ok(!/Falar com meu corretor|wa\.me|whatsappUrl/i.test(code), file);
+    // round 4 (PRES-17): só o BOOLEANO podeReceberLista consulta o responsável (lib/simulation-presentation.js); o ícone só no botão de receber
+    if (file !== "lib/simulation-presentation.js") assert.ok(!/broker/i.test(code), file);
+    if (file !== "components/presentation/PresentationPlayer.jsx") assert.ok(!/MessageCircle/.test(code), file);
   }
 });
 
@@ -182,7 +185,8 @@ test("proximo: botões VALIDAR SIMULAÇÃO (maiúsculas) e Baixar apresentação
   const source = read("components/presentation/PresentationPlayer.jsx");
   assert.match(source, />\s*VALIDAR SIMULAÇÃO\s*</);
   assert.match(source, /label="Baixar apresentação"/);
-  assert.match(source, /label="Baixar imagem da lista de documentos"/);
+  // round 4: o cliente não baixa mais a lista (ele a recebe do corretor); a folha que MOSTRA a lista continua
+  assert.ok(!/Baixar imagem da lista de documentos/.test(source));
   assert.match(source, />\s*Lista de documentos\s*</);
   // VALIDAR só libera as cenas e avança: nenhum fetch/mailto/whatsapp no handler
   const handler = /const validate = useCallback\(\(\) => \{([\s\S]*?)\}, \[total\]\);/.exec(source)?.[1] || "";
