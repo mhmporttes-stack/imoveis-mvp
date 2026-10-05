@@ -23,7 +23,6 @@ export default function InstagramFollow({ eyebrow = "", heading = "Acompanhe Mat
         <Camera className="h-6 w-6" aria-hidden="true" />
         Seguir no Instagram
       </Link>
-      <p className="mt-3 text-sm font-bold text-navy">@mhm.machado</p>
     </div>
   );
 }

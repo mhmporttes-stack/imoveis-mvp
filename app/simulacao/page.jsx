@@ -40,8 +40,13 @@ export function SimulationPageContent({ brokerRef = "" }) {
   return (
     // Tela fixa (2026-10-05): o questionário ocupa a tela inteira, centralizado e sem rolagem da página. Só se o conteúdo
     // for maior que a tela (celular pequeno, tela final) a própria área rola — nada fica cortado.
-    <main className="fixed inset-0 z-10 flex overflow-y-auto bg-mist px-0">
-      <section className="container-page m-auto w-full py-4 sm:py-6">
+    <main className="fixed inset-0 z-10 flex overflow-y-auto bg-[#f6f9fd] px-0">
+      {/* Fundo leve (2026-10-05): degradê azul/violeta quase transparente + marca d'água do M da logo bem suave. */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(60%_50%_at_12%_8%,rgba(23,105,209,0.12),transparent_70%),radial-gradient(55%_45%_at_92%_88%,rgba(129,52,175,0.09),transparent_70%),radial-gradient(40%_35%_at_85%_10%,rgba(245,133,41,0.06),transparent_70%),linear-gradient(180deg,#fafcff_0%,#eef3fb_100%)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt="" className="absolute -bottom-10 -right-16 w-[300px] rotate-[-8deg] opacity-[0.045] sm:w-[420px]" src="/assets/matheus-machado-symbol.png" />
+      </div>
+      <section className="container-page relative z-10 m-auto w-full py-4 sm:py-6">
         <Suspense fallback={<SimulationFormFallback />}>
           <LinkJourneyGate brokerRefOverride={brokerRef} />
         </Suspense>
