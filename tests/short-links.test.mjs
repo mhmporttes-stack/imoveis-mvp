@@ -1,0 +1,41 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { cleanRef, isUuid, safeDecode, shortCampaignPath, shortCaptacaoPath, shortJourneyPath, shortSimulationPath } from "../lib/short-links.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const source = (file) => readFileSync(path.join(root, file), "utf8");
+
+test("caminhos curtos", () => {
+  assert.equal(shortSimulationPath(""), "/s");
+  assert.equal(shortSimulationPath("Ana-Souza_1"), "/s/ana-souza_1");
+  assert.equal(shortSimulationPath("a b/../c"), "/s/abc");
+  assert.equal(shortCaptacaoPath(""), "/v");
+  assert.equal(shortCaptacaoPath("ana"), "/v/ana");
+  assert.equal(shortCampaignPath("A3F9B21"), "/c/a3f9b21");
+  assert.equal(shortCampaignPath(""), "");
+  assert.equal(shortJourneyPath("abc123"), "/j/abc123");
+  assert.equal(cleanRef(" Ref!! "), "ref");
+  assert.equal(isUuid("3f2b8c1e-1111-4222-8333-444455556666"), true);
+  assert.equal(isUuid("a3f9b21"), false);
+  assert.equal(safeDecode("%E0%A4%A"), "%E0%A4%A", "percent-encoding malformado não lança");
+});
+
+test("os construtores de link do CRM geram a versão curta e as rotas redirecionam para a URL longa de sempre", () => {
+  assert.match(source("lib/admin-profiles.js"), /\$\{getSiteBaseUrl\(\)\}\$\{shortSimulationPath\(ref\)\}/);
+  assert.match(source("lib/admin-profiles.js"), /\$\{getSiteBaseUrl\(\)\}\$\{shortCaptacaoPath\(ref\)\}/);
+  assert.match(source("lib/campaigns.js"), /shortCampaignPath\(campaign\.shortCode\)/);
+  assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/, "sem código mantém o link longo");
+  assert.match(source("app/s/route.js"), /url\.pathname = "\/simulacao"/);
+  assert.match(source("app/s/[ref]/route.js"), /searchParams\.set\("ref", clean\)/);
+  assert.match(source("app/c/[code]/route.js"), /from\("campaigns"\)\.select\("id"\)\.eq\("short_code", clean\)/);
+  assert.match(source("app/c/[code]/route.js"), /searchParams\.set\("c", campaignId\)/);
+  assert.match(source("app/v/[ref]/route.js"), /pathname = "\/captacao"/);
+  assert.match(source("app/j/[token]/route.js"), /\/minha-jornada\//);
+  for (const file of ["app/s/route.js", "app/s/[ref]/route.js", "app/c/[code]/route.js", "app/v/route.js", "app/v/[ref]/route.js", "app/j/[token]/route.js"]) {
+    assert.match(source(file), /NextResponse\.redirect\(url, 307\)/, file);
+    assert.match(source(file), /request\.nextUrl\.clone\(\)/, `${file} repassa os demais parâmetros (utm, jornada…)`);
+  }
+});

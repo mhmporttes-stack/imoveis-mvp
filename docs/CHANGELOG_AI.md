@@ -43,6 +43,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Links curtos no próprio domínio (/s, /s/{ref}, /c/{codigo}, /v, /j)
+- **Pedido (dono):** encurtar todos os links públicos gerados pelo CRM, sem serviço externo, preservando atribuição, roleta, origem, campanha, rastreio e cadastros; links antigos continuam valendo.
+- **Como funciona:** rotas de atalho que redirecionam (307) para a URL longa de sempre, repassando os demais parâmetros (`jornada`, `utm_*`…): `/s` → `/simulacao`; `/s/{ref}` → `/simulacao?ref={ref}`; `/c/{codigo}` → `/simulacao?c={id}` (código = nova coluna `campaigns.short_code`, 7 caracteres, único, preenchida nas campanhas existentes e por DEFAULT nas novas; aceita também o id); `/v` e `/v/{ref}` → `/captacao` (venda seu imóvel); `/j/{token}` → `/minha-jornada/{token}`. Toda a lógica continua nas páginas de destino.
+- **Geradores atualizados:** `buildBrokerSimulationLink`/`buildBrokerCaptacaoLink` (`lib/admin-profiles.js`), `buildCampaignLink` (`lib/campaigns.js`, usada pelo Gerador de Links e pelo Disparo), link da Minha Jornada (`lib/client-journey.js`), respostas automáticas e Fluxos do WhatsApp. Migration `20261004220000_campaigns_short_code.sql`. Teste `tests/short-links.test.mjs`.
+- **Não mudou:** o botão de URL dos modelos aprovados do WhatsApp (`/simulacao?c={{1}}`, formato fixo no modelo aprovado pela Meta); links antigos (`?ref=`, `?c=`, `/simulacao/equipe`, `/minha-jornada/{token}`).
+
 ### 2026-10-04 — Tela final da simulação: bloco único + seção do Instagram
 - **Pedido (dono):** remover o botão do WhatsApp ("Receber minha simulação") e qualquer aviso de manter a página aberta; deixar um só bloco ("Estamos adicionando seu atendimento" + texto do associado) e a seção do Instagram com os novos textos e botão em degradê do Instagram.
 - **Mudança:** `components/simulation-form/SimulationSuccess.jsx` (só visual). `ReceiveSimulationWhatsappButton` deixou de ser usado nesta tela (arquivo mantido). O @ exibido é `@mhm.machado` (perfil real e destino do link); `@matheusmachadoimoveis`, citado no pedido, não existe no Instagram.
