@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { displayLink } from "@/lib/short-links.mjs";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
@@ -657,10 +656,10 @@ export function useClientList({
 
   async function copyBrokerSimulationLink() {
     try {
-      await navigator.clipboard.writeText(displayLink(brokerSimulationLink));
+      await navigator.clipboard.writeText(brokerSimulationLink);
       notify("Link de simulação copiado.");
     } catch {
-      notify("Não foi possível copiar. Seu link: " + displayLink(brokerSimulationLink), "danger");
+      notify("Não foi possível copiar. Seu link: " + brokerSimulationLink, "danger");
     }
   }
 

@@ -1,5 +1,4 @@
 "use client";
-import { displayLink } from "@/lib/short-links.mjs";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -182,11 +181,11 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
 
   async function copyLink(campaign) {
     try {
-      await navigator.clipboard.writeText(displayLink(campaign.link));
+      await navigator.clipboard.writeText(campaign.link);
       setCopiedId(campaign.id);
       setTimeout(() => setCopiedId(""), 2000);
     } catch {
-      setError("Não foi possível copiar o link automaticamente. Copie manualmente: " + displayLink(campaign.link));
+      setError("Não foi possível copiar o link automaticamente. Copie manualmente: " + campaign.link);
     }
   }
 
@@ -317,7 +316,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
                   {campaign.brokerName ? (
                     <p className="mt-1 font-bold text-muted">Corretor: <strong className="text-navy">{campaign.brokerName}</strong></p>
                   ) : null}
-                  <p className="mt-1 break-all font-bold text-brand">{displayLink(campaign.link)}</p>
+                  <p className="mt-1 break-all font-bold text-brand">{campaign.link}</p>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-xl sm:grid-cols-4">
                     <MiniStat label="Cliques" value={campaign.viewCount || 0} />

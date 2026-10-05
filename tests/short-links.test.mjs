@@ -24,10 +24,10 @@ test("caminhos curtos", () => {
 });
 
 test("os construtores de link do CRM geram a versão curta e as rotas redirecionam para a URL longa de sempre", () => {
-  assert.match(source("lib/admin-profiles.js"), /\$\{getSiteBaseUrl\(\)\}\$\{shortSimulationPath\(ref\)\}/);
-  assert.match(source("lib/admin-profiles.js"), /\$\{getSiteBaseUrl\(\)\}\$\{shortCaptacaoPath\(ref\)\}/);
-  assert.match(source("lib/campaigns.js"), /shortCampaignPath\(campaign\.shortCode\)/);
-  assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/, "sem código mantém o link longo");
+  // Os links GERADOS pelo CRM voltaram ao formato longo (decisão do dono 2026-10-05); as rotas curtas seguem funcionando.
+  assert.match(source("lib/admin-profiles.js"), //simulacao?ref=${encodeURIComponent(ref)}/);
+  assert.match(source("lib/campaigns.js"), //simulacao?c=${encodeURIComponent(campaign.id)}/);
+  assert.doesNotMatch(source("lib/admin-profiles.js"), /shortSimulationPath/);
   assert.match(source("app/s/route.js"), /target\.pathname = "\/simulacao"/);
   assert.match(source("app/s/[ref]/route.js"), /target\.searchParams\.set\("ref", resolved\)/);
   assert.match(source("app/c/[code]/route.js"), /from\("campaigns"\)\.select\("id"\)\.eq\("short_code", clean\)/);
@@ -47,12 +47,9 @@ test("os construtores de link do CRM geram a versão curta e as rotas redirecion
 
 test("código curto por usuário (short_ref): resolve para o ref de atribuição e o ref longo antigo continua valendo", () => {
   assert.equal(displayLink("https://www.matheusmachadoimoveis.com.br/s/mhm"), "matheusmachadoimoveis.com.br/s/mhm");
-  assert.match(source("lib/admin-profiles.js"), /shortSimulationPath\(normalizeBrokerRef\(profile\?\.shortRef\) \|\| ref\)/);
   assert.match(source("lib/short-ref-resolver.js"), /\.eq\("short_ref", clean\)/);
   assert.match(source("lib/short-ref-resolver.js"), /return resolved \|\| clean;/, "sem código curto, o valor é o ref de sempre");
   assert.match(source("app/s/[ref]/route.js"), /resolveShortRef\(.*"simulation"\)/);
   assert.match(source("app/v/[ref]/route.js"), /resolveShortRef\(.*"captacao"\)/);
-  assert.match(source("components/CampaignsManager.jsx"), /writeText\(displayLink\(campaign\.link\)\)/);
-  assert.match(source("components/clients/useClientList.js"), /writeText\(displayLink\(brokerSimulationLink\)\)/);
   assert.match(source("supabase/migrations/20261005010000_admin_users_short_ref.sql"), /set short_ref = 'mhm'/);
 });

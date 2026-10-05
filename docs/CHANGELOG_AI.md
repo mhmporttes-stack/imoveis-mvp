@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Links gerados pelo CRM voltam ao formato longo (decisão do dono); links curtos continuam funcionando
+- **Pedido (dono):** "Deixe como estava antes" (a prévia de compartilhamento deixou de aparecer com os links curtos).
+- **Mudança:** `buildBrokerSimulationLink`, `buildBrokerCaptacaoLink`, `buildCampaignLink`, link da Minha Jornada, Fluxos/respostas automáticas e "Meu link"/Gerador de Links voltaram a gerar e copiar `https://www…/simulacao?ref=…`, `/simulacao?c=…`, `/captacao?ref=…` e `/minha-jornada/{token}` (com `https://www.`). As rotas `/s`, `/s/{codigo}`, `/c/{codigo}`, `/v…`, `/j/{token}` e as colunas `campaigns.short_code`/`admin_users.short_ref` ficam no ar (inofensivas; links curtos já compartilhados continuam abrindo). Atribuição, roleta, rastreio e cadastros nunca foram alterados.
+
 ### 2026-10-05 — Prévia dos links curtos: o próprio link curto responde com Open Graph (corrige "não aparece a prévia")
 - **Sintoma (dono):** depois dos links curtos, WhatsApp/Instagram deixaram de mostrar o cartão de prévia.
 - **Causa:** `/s`, `/s/{codigo}`, `/c/{codigo}`, `/v…` respondiam 307 sem corpo; o crawler precisava seguir redirecionamentos (e, com o link colado sem `https://www.`, ainda passava por http→https→www) e o Instagram Direct não segue bem.
