@@ -57,6 +57,7 @@ Next.js 16 (App Router) · React 19 · Supabase (Postgres + Auth + Storage + Rea
 6. **Analisar impacto** em: perfis (admin/gestor/corretor/associado), funil e status, ranking/pontuação, Meta Diária, WhatsApp, financeiro, notificações e banco.
 7. Fonte única: status em `lib/client-status.js`; telefone em `lib/phone-utils.js` + `lib/client-phone-lookup.js`; rótulos de documento em `lib/document-status-labels.js`; saudação/fuso em `lib/daily-report.js`. Não crie cópias.
 8. Bug fora do escopo? **Não corrija junto**: registre em `docs/CHANGELOG_AI.md` (Risco/observação) e avise o dono.
+9. **Menos código é melhor (regra de economia).** Antes de escrever código novo, responda em silêncio: esse código precisa existir? Já existe algo equivalente no sistema (helper, componente, rota)? A linguagem/biblioteca já resolve? Dá em menos linhas? Prefira reaproveitar e a solução mais curta que cumpre o pedido; não crie abstração, arquivo ou camada extra "para o futuro".
 
 ## Comandos de validação (reais)
 
