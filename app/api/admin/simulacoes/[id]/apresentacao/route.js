@@ -136,7 +136,12 @@ export async function POST(request, { params }) {
         new Promise((resolve) => setTimeout(resolve, 8000))
       ]).catch(() => {});
       return NextResponse.json(
-        { link, message: buildPresentationSendMessage({ fullName: simulation.clientName, link }) },
+        // Cada envio leva um sufixo ?p= próprio: o WhatsApp guarda a prévia por URL, e um link já raspado com a imagem lenta
+        // (miniatura pequena) continuaria saindo assim. URL nova = raspagem nova, já com a imagem aquecida (cartão grande).
+        (() => {
+          const sendLink = `${link}?p=${Math.random().toString(36).slice(2, 8)}`;
+          return { link: sendLink, message: buildPresentationSendMessage({ fullName: simulation.clientName, link: sendLink }) };
+        })(),
         { headers: { "Cache-Control": "no-store" } }
       );
     }

@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Apresentação: cada envio usa URL própria (?p=) para o WhatsApp raspar a prévia de novo
+- **Sintoma (dono):** o link da Sara seguiu com miniatura pequena mesmo depois da imagem cacheável; o da Carol saiu como cartão grande.
+- **Causa provável:** o WhatsApp guarda a prévia por URL; o link da Sara foi raspado quando a imagem ainda era lenta e esse resultado fica em cache.
+- **Mudança:** `enviar-preparar` (`app/api/admin/simulacoes/[id]/apresentacao/route.js`) devolve `link?p=<código curto>`; a página `/s/<token>` ignora a query (`proxy.js` zera `search` da página). Link da Sara: usar de novo "Enviar apresentação" (gera a URL nova). Mensagem continua só com o link.
+
 ### 2026-10-05 — Prévia da apresentação: cartão grande no WhatsApp (imagem cacheável + aquecida)
 - **Sintoma (dono):** o link da apresentação às vezes abre a prévia com miniatura pequena e texto cortado (Sara) em vez do cartão grande (Carol).
 - **Causa:** a imagem `/s/<token>/og` era gerada a cada acesso (2–4 s, `no-store`, MISS); se o crawler do WhatsApp chega nesse intervalo, mostra só miniatura.
