@@ -127,6 +127,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 | `GET /api/whatsapp-contact` | WhatsApp do corretor responsável p/ botão “Receber minha simulação” (WA-10) | exige `registrationId` + token do próprio cadastro (`preferences_access_token`); devolve só estado e telefone do corretor, nunca dados do cliente; sem token só resolve link pessoal `?ref=` |
 | `POST /api/admin/session`, `DELETE` | criar/limpar cookies | valida o access token no Supabase |
 | `/minha-jornada/[token]` (página) | jornada pública | token de 64 hex; allowlist de campos; `no-store` |
+| `/s/<token>/imagem` e `/s/<token>/documentos` (proxy → `/apresentacao/[token]/imagem|documentos`, PNG) | imagens da apresentação (resumo e lista de documentos) | mesmo token e mesma regra da página (404 igual); só DTO allowlist; `no-store`, `noindex`; `?baixar=1` = anexo |
 | `/s/<token>` (reescrito pelo `proxy.js` para `/apresentacao/[token]`, página) | apresentação interativa da simulação | token de 24 caracteres base62 (~143 bits); só o DTO allowlist; `no-store`, `noindex`, `no-referrer`; token inválido/revogado = 404 genérico |
 | `POST /api/s/[token]/evento` | métricas da apresentação | allowlist `{tipo: abriu/cena/concluiu, cena, nova}`; sem IP/user-agent gravados; limite de taxa em memória; bots ignorados; token inválido 404 |
 

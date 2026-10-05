@@ -5,8 +5,9 @@ const ADMIN_REFRESH_COOKIE = "mm_admin_refresh_token";
 const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/reset-password"];
 // Link da apresentação interativa da simulação: /s/<token> (24 caracteres base62 com maiúscula, minúscula e dígito;
 // lib/simulation-presentation-core.mjs). O ref curto de corretor (/s/mhm, /s/1) é sempre minúsculo e continua na
-// rota de redirecionamento de sempre; só o formato do token é reescrito para a página pública.
-const PRESENTATION_TOKEN_PATH = /^\/s\/(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*[0-9])([A-Za-z0-9]{24})\/?$/;
+// rota de redirecionamento de sempre; só o formato do token é reescrito para a página pública. Os dois subcaminhos
+// (/imagem e /documentos) são as imagens PNG da apresentação (resumo e lista de documentos), do mesmo token.
+const PRESENTATION_TOKEN_PATH = /^\/s\/(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*[0-9])([A-Za-z0-9]{24})(?:\/(imagem|documentos))?\/?$/;
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;
@@ -14,8 +15,9 @@ export function proxy(request) {
   const presentationMatch = PRESENTATION_TOKEN_PATH.exec(pathname);
   if (presentationMatch) {
     const target = request.nextUrl.clone();
-    target.pathname = `/apresentacao/${presentationMatch[1]}`;
-    target.search = "";
+    target.pathname = `/apresentacao/${presentationMatch[1]}${presentationMatch[2] ? `/${presentationMatch[2]}` : ""}`;
+    // a página não usa query; as imagens usam só ?baixar=1 (anexo)
+    if (!presentationMatch[2]) target.search = "";
     return privatePresentationResponse(NextResponse.rewrite(target));
   }
   if (pathname.startsWith("/apresentacao/")) return privatePresentationResponse(NextResponse.next());

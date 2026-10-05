@@ -7,7 +7,7 @@ export function createPlayerState(total, { reducedMotion = false } = {}) {
 
 const clampIndex = (state, index) => Math.min(Math.max(0, index), Math.max(0, state.total - 1));
 
-/** Ações: next | prev | goto(index) | pause | resume | toggle | hidden | visible | auto (relógio da cena venceu). */
+/** Ações: next | prev | goto(index) | unlock(total) | pause | resume | toggle | hidden | visible | auto (relógio da cena venceu). */
 export function playerReducer(state, action = {}) {
   switch (action.type) {
     case "next": {
@@ -24,6 +24,11 @@ export function playerReducer(state, action = {}) {
     case "goto": {
       const index = clampIndex(state, Number(action.index) || 0);
       return index === state.index ? state : { ...state, index, ended: false };
+    }
+    case "unlock": {
+      // VALIDAR SIMULAÇÃO: libera as cenas finais (o total passa a incluí-las) e segue para a próxima.
+      const total = Math.max(state.total, Math.floor(Number(action.total)) || 0);
+      return { ...state, total, index: Math.min(state.index + 1, total - 1), ended: false };
     }
     case "pause":
       return state.paused ? state : { ...state, paused: true };
@@ -94,4 +99,12 @@ export function sceneMetricEvents({ index, total, maxReached }) {
   if (scene > maxReached) events.push({ tipo: "cena", cena: scene });
   if (total > 0 && scene === total) events.push({ tipo: "concluiu", cena: scene });
   return { events, maxReached: Math.max(maxReached, scene) };
+}
+
+/** Links das imagens do MESMO token (/s/<token>/imagem e /documentos, com ?baixar=1). Sem token/base: sem link. */
+export function buildAssetHrefs({ token = "", preview = false, assetsBase = "", assetsQuery = "" } = {}) {
+  const base = assetsBase || (token && !preview ? `/s/${encodeURIComponent(token)}` : "");
+  if (!base) return { summary: "", documents: "" };
+  const query = `${assetsQuery ? `${assetsQuery}&` : ""}baixar=1`;
+  return { summary: `${base}/imagem?${query}`, documents: `${base}/documentos?${query}` };
 }

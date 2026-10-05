@@ -77,7 +77,6 @@ function sensitiveSimulation(over = {}) {
     ...over
   };
 }
-const broker = { firstName: "Carlos", whatsappUrl: "https://wa.me/5514911112222?text=Ol%C3%A1" };
 const ids = (scenes) => scenes.map((scene) => scene.id);
 
 // ---------- token ----------
@@ -149,7 +148,7 @@ test("formatação pt-BR: R$ 232.000,00", () => {
 
 // ---------- DTO público (allowlist) ----------
 test("DTO público: nenhum dado sensível sai; só o primeiro nome", () => {
-  const dto = buildPublicPresentation({ simulation: sensitiveSimulation(), broker, defaultReason: DEFAULT_REASON });
+  const dto = buildPublicPresentation({ simulation: sensitiveSimulation(), defaultReason: DEFAULT_REASON });
   const json = JSON.stringify(dto);
   for (const forbidden of [
     "Souza", "Lima", "123.456.789-09", "14999887766", "mariana@cliente.com", "1990-02-03", "Rua Secreta", "8123", "NOTA-INTERNA", "NOTA-PUBLICA",
@@ -169,13 +168,12 @@ test("DTO público: nenhum dado sensível sai; só o primeiro nome", () => {
   assert.equal(firstNameOf(""), "");
 });
 
-test("DTO público: o WhatsApp do corretor só entra quando decidido no servidor", () => {
-  const withBroker = buildPresentationScenes({ simulation: sensitiveSimulation(), broker, defaultReason: DEFAULT_REASON });
-  assert.deepEqual(withBroker.at(-1).broker, broker);
-  for (const empty of [null, undefined, {}, { firstName: "X" }]) {
-    const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), broker: empty, defaultReason: DEFAULT_REASON });
-    assert.equal(scenes.at(-1).broker, null, "sem responsável com WhatsApp válido não há botão");
-  }
+test("DTO público: sem botão/telefone do corretor (removido no round 2): nenhum wa.me nem broker no DTO", () => {
+  // mesmo que alguém ainda passe um "broker" para a função, ele é ignorado
+  const dto = buildPublicPresentation({ simulation: sensitiveSimulation(), broker: { firstName: "Carlos", whatsappUrl: "https://wa.me/5514911112222" }, defaultReason: DEFAULT_REASON });
+  const json = JSON.stringify(dto);
+  assert.ok(!/wa\.me|whatsapp|broker|Carlos|5514911112222/i.test(json));
+  for (const scene of dto.scenes) assert.ok(!("broker" in scene));
 });
 
 test("imagem: só https ou caminho do próprio site; nunca data:, javascript: nem a imagem-padrão", () => {
@@ -187,17 +185,17 @@ test("imagem: só https ou caminho do próprio site; nunca data:, javascript: ne
 });
 
 // ---------- seleção de cenas ----------
-test("cenas: completo com subsídio, novo=usado, imóvel, justificativa real e responsável", () => {
-  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), broker, defaultReason: DEFAULT_REASON });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "imovel", "porque", "proximo"]);
+test("cenas: completo com subsídio igual, imóvel e justificativa real (cenas 9 e 10 ao final)", () => {
+  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), defaultReason: DEFAULT_REASON });
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "imovel", "porque", "proximo", "validar", "documentos"]);
   assert.equal(scenes[2].mode, "soma");
-  assert.equal(scenes[1].modelLabel, "", "sem rótulo quando novo = usado");
-  assert.equal(scenes[6].dateLabel, "03/10/2026");
+  assert.ok(!("modelLabel" in scenes[1]), "sem rótulo de modelo");
+  assert.equal(scenes.find((scene) => scene.id === "proximo").dateLabel, "03/10/2026");
 });
 
 test("cenas: subsídio R$ 0 → financiamento como valor total, sem destacar zero", () => {
   const sim = sensitiveSimulation({ simulationModels: { novo: { ...same, subsidyValue: 0 }, usado: { ...same, subsidyValue: 0 } } });
-  const formacao = buildPresentationScenes({ simulation: sim, broker, defaultReason: DEFAULT_REASON }).find((scene) => scene.id === "formacao");
+  const formacao = buildPresentationScenes({ simulation: sim, defaultReason: DEFAULT_REASON }).find((scene) => scene.id === "formacao");
   assert.equal(formacao.mode, "financiamento");
   assert.equal(formacao.total, 190000);
   assert.equal(formacao.subsidy, 0);
@@ -206,26 +204,29 @@ test("cenas: subsídio R$ 0 → financiamento como valor total, sem destacar zer
   assert.equal(buildPresentationScenes({ simulation: onlySubsidy }).find((scene) => scene.id === "formacao").mode, "subsidio");
 });
 
-test("cenas: novo diferente de usado → cena de comparação; iguais → nenhuma cena redundante", () => {
+test("cenas: só o SUBSÍDIO diferente entre novo e usado gera a cena de diferença; financiamento/parcela diferentes não", () => {
   const diff = sensitiveSimulation({ simulationModels: { novo: { ...same }, usado: { ...same, financingValue: 150000, subsidyValue: 0 } } });
-  const scenes = buildPresentationScenes({ simulation: diff, broker, defaultReason: DEFAULT_REASON });
-  assert.ok(ids(scenes).includes("comparativo"));
-  assert.ok(ids(scenes).indexOf("comparativo") > ids(scenes).indexOf("parcelas"));
-  const comparativo = scenes.find((scene) => scene.id === "comparativo");
-  assert.deepEqual(comparativo.columns.map((column) => column.label), ["Imóvel novo", "Imóvel usado"]);
-  assert.equal(comparativo.showSubsidy, true);
-  assert.equal(scenes.find((scene) => scene.id === "poder").modelLabel, "Imóvel novo", "com dois resultados, a cena diz de qual é");
-  // diferença só na parcela também conta como diferente
-  const onlyInstallment = sensitiveSimulation({ simulationModels: { novo: { ...same }, usado: { ...same, lastInstallment: 700 } } });
-  assert.ok(ids(buildPresentationScenes({ simulation: onlyInstallment })).includes("comparativo"));
-  // iguais (inclusive um escrito como texto e o outro como número)
+  const scenes = buildPresentationScenes({ simulation: diff, defaultReason: DEFAULT_REASON });
+  assert.ok(ids(scenes).includes("diferenca"));
+  assert.ok(ids(scenes).indexOf("diferenca") > ids(scenes).indexOf("parcelas"));
+  const scene = scenes.find((item) => item.id === "diferenca");
+  assert.deepEqual({ novo: scene.novo, usado: scene.usado, difference: scene.difference, scenario: scene.scenario }, { novo: 42000, usado: 0, difference: 42000, scenario: "novo" });
+  // só a parcela/financiamento diferente NÃO conta: a única diferença apresentada é o subsídio
+  const onlyInstallment = sensitiveSimulation({ simulationModels: { novo: { ...same }, usado: { ...same, lastInstallment: 700, financingValue: 100000 } } });
+  assert.ok(!ids(buildPresentationScenes({ simulation: onlyInstallment })).includes("diferenca"));
+  // iguais (inclusive um escrito como texto e o outro como número) e centavos comparados como o PDF
   const text = sensitiveSimulation({ simulationModels: { novo: { ...same }, usado: { financingValue: "190.000,00", subsidyValue: "42.000,00", firstInstallment: "1.085,40", lastInstallment: "812,15" } } });
-  assert.ok(!ids(buildPresentationScenes({ simulation: text })).includes("comparativo"));
+  assert.ok(!ids(buildPresentationScenes({ simulation: text })).includes("diferenca"));
+  const cents = sensitiveSimulation({ simulationModels: { novo: { ...same, subsidyValue: "42.000,001" }, usado: { ...same, subsidyValue: 42000 } } });
+  assert.ok(!ids(buildPresentationScenes({ simulation: cents })).includes("diferenca"), "42.000,001 = 42.000,00 em centavos");
+  // diferença de 1 centavo conta
+  const oneCent = sensitiveSimulation({ simulationModels: { novo: { ...same, subsidyValue: "42.000,01" }, usado: { ...same } } });
+  assert.equal(buildPresentationScenes({ simulation: oneCent }).find((item) => item.id === "diferenca").difference, 0.01);
 });
 
 test("cenas: sem imóvel sugerido não há cena de imóvel nem de justificativa", () => {
-  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation({ properties: [] }), broker, defaultReason: DEFAULT_REASON });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo"]);
+  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation({ properties: [] }), defaultReason: DEFAULT_REASON });
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"]);
   const nameless = buildPresentationScenes({ simulation: sensitiveSimulation({ properties: [{ customName: "  ", benefits: [] }] }) });
   assert.ok(!ids(nameless).includes("imovel"));
 });
@@ -275,7 +276,7 @@ test("cenas: só uma parcela cadastrada mostra só ela; nenhuma parcela dispensa
 test("tempo de cada cena cresce com o texto (auto-avanço respeita a leitura)", () => {
   assert.ok(sceneDurationMs({ id: "porque", reason: "x".repeat(300) }) > sceneDurationMs({ id: "porque", reason: "curto" }));
   assert.ok(sceneDurationMs({ id: "poder" }) >= 4000);
-  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), broker, defaultReason: DEFAULT_REASON });
+  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), defaultReason: DEFAULT_REASON });
   assert.ok(scenes.every((scene) => scene.durationMs >= 4000 && scene.durationMs <= 20000));
 });
 
@@ -302,10 +303,11 @@ test("números da apresentação = números que o PDF usa (mesma função getRen
     assert.equal(parcelas.first, pdfMoney(pdfModels[0].values.firstInstallment));
     assert.equal(parcelas.last, pdfMoney(pdfModels[0].values.lastInstallment));
     assert.equal(norm(formatBRL(poder.value)), norm(formatBRL(pdfModels[0].totals.total)));
-    const comparativo = scenes.find((scene) => scene.id === "comparativo");
-    if (comparativo) {
-      assert.equal(comparativo.columns[1].total, pdfModels[1].totals.total);
-      assert.equal(comparativo.columns[1].last, pdfMoney(pdfModels[1].values.lastInstallment));
+    const diferenca = scenes.find((scene) => scene.id === "diferenca");
+    if (diferenca) {
+      const byType = Object.fromEntries(pdfModels.map((model) => [model.type, model]));
+      assert.equal(diferenca.novo, byType.novo.totals.subsidy);
+      assert.equal(diferenca.usado, byType.usado.totals.subsidy);
     }
   }
 });
@@ -328,7 +330,8 @@ test("a apresentação não recalcula nada: o modelo do PDF (presentation-model)
     const source = read(file);
     assert.ok(!/proposta-pdf|presentation-model|pdf-lib|buildSimulationResultSvg|buildPresentationPages/.test(source.replace(/\/\/.*$/gm, "")), `${file} toca no PDF`);
     // nada de fórmula financeira nova: sem cálculo de juros/amortização/percentual
-    assert.ok(!/Math\.pow\(1 \+|amortiza|juros|taxa/i.test(source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")) || file.endsWith("player-core.mjs"), `${file} parece calcular financeiro`);
+    // (a taxa de juros anual é só um valor cadastrado que se exibe: nenhuma fórmula)
+    assert.ok(!/Math\.pow\(1 \+|amortiza|\*\s*taxa|taxa\s*\*/i.test(source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")) || file.endsWith("player-core.mjs"), `${file} parece calcular financeiro`);
   }
   // a rota do PDF segue usando o modelo e o gerador de sempre
   const pdfRoute = read("app/api/simulations/[id]/proposta-valores/route.js");
@@ -382,8 +385,8 @@ test("lib: token inválido/inexistente/revogado/tabela ausente → null; escrita
   assert.match(source, /rpc\("record_simulation_presentation_event"/);
   assert.match(source, /Recurso ainda não ativado no banco\./);
   assert.match(source, /import "server-only"/);
-  // contato do responsável: só o caminho existente do "Receber minha simulação"
-  assert.match(source, /resolveReceiveSimulationContact/);
+  // round 2: nenhum contato do corretor na apresentação (sem "Falar com meu corretor")
+  assert.ok(!/resolveReceiveSimulationContact|wa\.me|toWhatsAppDigits|loadBrokerContact/.test(source));
   assert.ok(!/OFFICIAL|WHATSAPP_OFICIAL|official/i.test(source));
 });
 
@@ -518,12 +521,12 @@ const realShape = (over = {}) => ({
 });
 
 test("regressão: simulação usado só com campos soltos (sem modelos, sem imóveis, sem snapshots) gera a apresentação", () => {
-  const scenes = buildPresentationScenes({ simulation: realShape(), broker: null, defaultReason: DEFAULT_REASON });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo"]);
+  const scenes = buildPresentationScenes({ simulation: realShape(), defaultReason: DEFAULT_REASON });
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"]);
   assert.equal(scenes[0].firstName, "Teste");
   assert.equal(scenes[1].value, 200000);
   assert.equal(scenes[3].first, 1050.9);
-  assert.equal(scenes.at(-1).broker, null);
+  assert.equal(scenes[3].interestRate, null);
 });
 
 test("regressão: nota com modelos vazios (autosave) + campos soltos preenchidos usa os campos soltos, como o PDF", () => {

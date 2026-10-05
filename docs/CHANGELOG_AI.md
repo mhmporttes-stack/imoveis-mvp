@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-05 — Apresentação interativa, round 2 (juros, diferença de subsídio, VALIDAR SIMULAÇÃO, documentos, logo da Caixa, imagens PNG)
+- **Data:** 2026-10-05
+- **Área:** Simulação (apresentação ao cliente), Banco, Rotas públicas
+- **Mudou:** (1) botão "Baixar apresentação" → PNG 1080x1920 do resumo (`/s/<token>/imagem`, `next/og`, mesmos números do DTO; visual do PDF; PDF intocado); (2) removido "Falar com meu corretor" e todo uso do telefone do corretor; (3) botão VALIDAR SIMULAÇÃO abre a cena "{nome}, esse é o próximo passo!" (só avanço interno; nada enviado nem gravado); (4) cena de documentos com folha "Lista de documentos" e PNG da lista (`/s/<token>/documentos`); (5) logo da Caixa (`public/assets/caixa-logo-transparent.png`, a do formulário público) no rodapé de todas as cenas e das imagens; (6) palco escalável (unidade `--u`, 100dvh, desktop retrato centralizado); (7) `OpeningAnimation.jsx` isolado (ponto de extensão para o designer); (8) cena "Diferença entre imóvel novo e usado" só quando o subsídio difere (senão apresentação neutra, sem as palavras novo/usado); (9) campo opcional "Taxa de juros (% ao ano)" no gerador (coluna `simulations.interest_rate_annual`), exibido na cena de parcelas e na imagem, NUNCA no PDF; (10) abertura com título/subtítulo novos.
+- **Arquivos:** `lib/interest-rate.mjs`, `lib/simulation-presentation-{core,gate,documents,image,image-core}.mjs`, `lib/simulation-presentation.js`, `lib/simulation-mapper.js`, `lib/simulations.js`, `components/presentation/*`, `components/SimulationGenerator.jsx`, `app/apresentacao/[token]/{imagem,documentos}/route.js`, `proxy.js`, `app/dev/vitrine/apresentacao/*`, migration `20261005150000_simulations_interest_rate.sql` (NÃO aplicada), testes `tests/simulation-presentation*.test.mjs`.
+- **Banco:** coluna nova `interest_rate_annual numeric(5,2)` null, check 0..30 (aditiva, idempotente). Tolerância: sem a coluna, salvar a simulação continua funcionando (a taxa não é gravada e a API devolve `saveWarning`); leituras usam `select("*")`.
+- **Lista de documentos:** reaproveita as exigências do motor (`lib/document-requirements-engine.js`) e da Base Mestra (`residence_source`, `fgts_updated`), item a item com fonte (teste confere os trechos). PENDENTE DE VALIDAÇÃO do dono: ver PRES-13.
+- **Risco/observação:** a cena "Próximo passo" deixou de ser a última (métrica "concluiu" agora = última cena de todas, 'documentos'); "Rever a apresentação" foi movido para a cena final. Testes de outras frentes continuam vermelhos: `short-links`, `simulacao-share-preview`, tamanho do `CLAUDE.md`.
+
 ### 2026-10-05 — Apresentação interativa da simulação (link individual /s/<token>)
 - **Data:** 2026-10-05
 - **Área:** Clientes / Simulação (apresentação ao cliente), Banco, Permissões

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
+import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { montarClienteEntrada } from "@/lib/simulacao-entrada/presentation-model.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import {
@@ -81,6 +82,7 @@ const INITIAL_FORM = {
   subsidyValue: "",
   firstInstallment: "",
   lastInstallment: "",
+  interestRateAnnual: "",
   downPaymentValue: "",
   fgtsValue: "",
   showExpandedPower: false,
@@ -120,6 +122,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [error, setError] = useState("");
 
   const normalizedModels = useMemo(() => normalizeSimulationModels(form.simulationModels, form), [form]);
+  const interestRateCheck = useMemo(() => parseInterestRateInput(form.interestRateAnnual), [form.interestRateAnnual]);
   const modelTotals = useMemo(
     () => Object.fromEntries(
       SIMULATION_MODEL_TYPES.map(({ key }) => [key, simulationModelTotals(normalizedModels[key], form)])
@@ -561,6 +564,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
     const method = currentForm.id ? "PUT" : "POST";
 
+    // Taxa de juros digitada e inválida: o clique em Salvar avisa em vez de gravar sem ela (o autosave só a omite).
+    const interestCheck = parseInterestRateInput(formToSave.interestRateAnnual);
+    if (!interestCheck.ok && !silent) {
+      setError(interestCheck.error);
+      return null;
+    }
+
     if (payload === lastSavedPayloadRef.current) {
       setAutoSaveStatus("saved");
       if (!silent) setMessage("Simulacao salva com sucesso.");
@@ -603,6 +613,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       lastSavedPayloadRef.current = payload;
       setAutoSaveStatus("saved");
       if (!silent) setMessage("Simulacao salva com sucesso.");
+      // Coluna da taxa de juros ainda não existe no banco: o resto foi salvo, mas a taxa não (aviso claro, nada some em silêncio).
+      if (data?.saveWarning) setError(data.saveWarning);
 
       if (data?.id || data?.registrationId || data?.registration) {
         setForm((current) => {
@@ -916,6 +928,32 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 sm:p-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+                Taxa de juros (% ao ano)
+                <input
+                  className="admin-input min-w-0"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  enterKeyHint="next"
+                  maxLength={8}
+                  placeholder="Ex.: 5,4"
+                  value={form.interestRateAnnual || ""}
+                  onChange={(event) => update("interestRateAnnual", event.target.value)}
+                  aria-invalid={!interestRateCheck.ok}
+                  aria-describedby="interest-rate-help"
+                />
+              </label>
+              <p id="interest-rate-help" className={`self-end text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
+                {interestRateCheck.ok
+                  ? "Opcional. Aparece ao lado das parcelas na apresentação interativa do cliente (não entra no PDF). Vale para a simulação toda."
+                  : interestRateCheck.error}
+              </p>
+            </div>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -1308,6 +1346,7 @@ function normalizeInitialSimulation(simulation) {
     subsidyValue: formatStoredCurrencyInput(simulation.subsidyValue),
     firstInstallment: formatStoredCurrencyInput(simulation.firstInstallment),
     lastInstallment: formatStoredCurrencyInput(simulation.lastInstallment),
+    interestRateAnnual: formatInterestRateInput(simulation.interestRateAnnual),
     downPaymentValue: formatStoredCurrencyInput(simulation.downPaymentValue),
     fgtsValue: formatStoredCurrencyInput(simulation.fgtsValue),
     properties: (simulation.properties || []).map((property, index) => ({
@@ -1384,8 +1423,13 @@ function serializeForm(form) {
     models
   );
 
+  // Taxa de juros: válida/vazia vai como número/null; digitada e inválida é OMITIDA (o servidor não mexe na taxa gravada
+  // e o formulário mostra o erro) — nunca grava lixo nem apaga a taxa enquanto se digita ("5," → "5,4").
+  const interestRate = parseInterestRateInput(form.interestRateAnnual);
+
   return {
     ...simulationForm,
+    interestRateAnnual: interestRate.ok ? interestRate.value : undefined,
     internalNote,
     simulationType: primaryModel.type,
     financingValue: primaryModel.totals.financing,
