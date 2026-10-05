@@ -200,7 +200,7 @@ test("ramo: foto grande em revelação, características em sequência escalonad
   const player = read("components/presentation/PresentationPlayer.jsx");
   const scene = /function SceneImovel[\s\S]*?\n}\n/.exec(player)?.[0] || "";
   assert.match(scene, /styles\.photoReveal/);
-  assert.match(scene, /900 \+ i \* 260/); // entrada escalonada
+  assert.match(scene, /800 \+ i \* 240/); // entrada escalonada
   assert.match(scene, /styles\.propReason/);
   assert.match(scene, /\{scene\.reason\}/);
   assert.match(read("components/presentation/presentation.module.css"), /@keyframes photoReveal/);
@@ -227,7 +227,7 @@ test("logo da Caixa: sem pílula branca, sem caixa/borda/fundo; direto sobre o f
   }
   assert.ok(!css.includes("caixaPill"));
   const logo = rules.find((rule) => rule.selector === ".caixaLogo");
-  assert.match(logo.body, /width: calc\(var\(--cw\) \* 0\.42\)/); // 42% da largura útil
+  assert.match(logo.body, /width: calc\(var\(--cw\) \* 0\.52\)/); // 52% da largura útil
   assert.match(css, /data-theme="dark"\] \.caixaLogo \{ filter: drop-shadow/);
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.ok(!player.includes("caixaPill"));
@@ -263,7 +263,7 @@ test("'+' no eixo dos valores: item do fluxo (sem altura zero), mesmo respiro ac
   const plus = /\n\.plus \{([^}]*)\}/.exec(css)?.[1] || "";
   assert.ok(plus && !/height: 0/.test(plus));
   assert.match(plus, /justify-content: center/);
-  assert.match(plus, /margin: calc\(var\(--u\) \* 4\) 0/); // simétrico
+  assert.match(plus, /margin: calc\(var\(--u\) \* 2\) 0/); // simétrico
   assert.match(css, /\.rowsSoma \.rowPart \{[^}]*border-bottom: 0[^}]*align-items: center; text-align: center/);
   // desktop: valores e "+" na mesma coluna à esquerda
   assert.match(css, /\.rowsSoma \.rowPart \{ align-items: flex-start; text-align: left/);
