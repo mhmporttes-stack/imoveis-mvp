@@ -752,7 +752,7 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
           <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
           {external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
-              <p>Seu WhatsApp não está conectado ao CRM. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
+              <p>{target.decision?.reason === "no_conversation" || target.decision?.reason === "unknown" ? "Este cliente ainda não conversou com você pelo Chat do CRM; para proteger seu número, o envio é feito pelo WhatsApp do seu aparelho." : target.decision?.reason === "hourly_cap" ? "Você atingiu o limite de envios por hora do Chat; o envio é feito pelo WhatsApp do seu aparelho." : "Seu WhatsApp não está conectado ao CRM."} O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
               <a href={target.link} download className="mt-2 inline-flex font-semibold text-navy underline">Baixar imagem da lista</a>
             </div>
           ) : (

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
-import { decideCardWhatsapp, detectDevice, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
+import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
@@ -658,8 +658,10 @@ export function useClientList({
   }
 
   // Destino do WhatsApp do card (mesma decisão do botão "WhatsApp"): Chat se a sessão do corretor está conectada; senão link externo.
-  function decideClientWhatsapp(client, phone) {
-    return decideCardWhatsapp({
+  // `chatReady` vem do SERVIDOR (lista-documentos → getChatReplyReadiness): o Chat só responde, nunca inicia conversa (proteção
+  // do número, 2026-10-05). Sem conversa do cliente no Chat (ou limite/hora): sempre o WhatsApp externo (ação humana do corretor).
+  function decideClientWhatsapp(client, phone, { chatReady = false, chatReason = "no_conversation" } = {}) {
+    const decision = decideCardWhatsapp({
       stateKnown: Boolean(waState),
       sessionStatus: waState?.sessionStatus ?? null,
       restricted: waState?.restricted === true,
@@ -668,6 +670,11 @@ export function useClientList({
       isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
       phone
     });
+    if (decision.action !== CARD_WA_EXTERNAL && !chatReady) {
+      const url = buildExternalWhatsappUrl(phone, readCardDevice());
+      if (url) return { action: CARD_WA_EXTERNAL, url, reason: chatReason };
+    }
+    return decision;
   }
 
   // "Enviar lista de documentos" (round 4): o servidor monta texto + link da lista PERSONALIZADA; a mensagem só sai depois que o
@@ -691,7 +698,7 @@ export function useClientList({
         notify(data.error || "Não foi possível preparar a lista de documentos.", "danger");
         return;
       }
-      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision: decideClientWhatsapp(client, value) });
+      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision: decideClientWhatsapp(client, value, { chatReady: data.chatReady === true, chatReason: data.chatReason }) });
     });
   }
 

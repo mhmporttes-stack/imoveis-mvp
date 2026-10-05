@@ -591,7 +591,17 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   const confirmFn = /async function confirmDocumentsList[\s\S]*?\n  }\n/.exec(hook)?.[0] || "";
   assert.ok(prepare && confirmFn);
   assert.match(hook, /function decideClientWhatsapp[\s\S]*?decideCardWhatsapp\(/);
-  assert.match(prepare, /decideClientWhatsapp\(client, value\)/);
+  assert.match(prepare, /decideClientWhatsapp\(client, value, \{ chatReady: data\.chatReady === true/);
+  // Chat só responde (2026-10-05): sem conversa do cliente no Chat (decisão do SERVIDOR) cai SEMPRE no WhatsApp externo
+  assert.match(hook, /function decideClientWhatsapp[\s\S]*?decision\.action !== CARD_WA_EXTERNAL && !chatReady[\s\S]*?buildExternalWhatsappUrl\(/);
+  const routeCode = stripComments(read("app/api/admin/clients/[id]/lista-documentos/route.js"));
+  assert.match(routeCode, /getChatReplyReadiness\(id\)/);
+  assert.match(routeCode, /chatReady: chat\.ready/);
+  assert.match(routeCode, /let chat = \{ ready: false/); // falha ao checar = wa.me, nunca Chat
+  const chatLib = stripComments(read("lib/whatsapp-chat.js"));
+  const readiness = chatLib.slice(chatLib.indexOf("export async function getChatReplyReadiness("), chatLib.indexOf("export async function sendChatMessage("));
+  assert.match(readiness, /assertIndividualChatReplyOnly\(conversation, "individual", sessionKey\)/); // mesmo critério do envio real (limite 80/h incluído)
+  assert.ok(!/\.insert\(|\.update\(|\.upsert\(/.test(readiness)); // somente leitura: nunca cria conversa
   assert.match(prepare, /setDocsListTarget/); // só prepara a prévia: nada é enviado aqui
   assert.ok(!/whatsapp-chat|window\.open/.test(prepare));
   // externo: window.open(wa.me|web.whatsapp + ?text=) sem nenhum await antes (bloqueador de pop-up)
