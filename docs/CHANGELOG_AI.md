@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Simulação: calendário da "Data de nascimento" abre em janeiro/2000
+- **Pedido (dono):** ao abrir o calendário, mostrar janeiro de 2000 em vez do mês atual, sem preencher nada sozinho.
+- **Mudança:** `components/simulation-form/DateInputStep.jsx` — o `<input type="date">` nativo não permite escolher o mês inicial, então virou um calendário próprio (mês/ano em listas + setas; abre em jan/2000 com o campo vazio, ou no mês da data já escolhida). Valor continua "AAAA-MM-DD", só definido ao clicar num dia; mesma idade mínima (dias após a data máxima ficam desativados). Sem mudança em validação/cadastro.
+
 ### 2026-10-04 — Entrada dos links de simulação: direto no formulário (tela de escolha só para campanha)
 - **Pedido (dono):** links do Matheus, individuais dos corretores e da equipe abrem direto a Simulação; a tela "Como podemos te ajudar?" (Atendimento rápido × Simulação) fica só para links de campanha.
 - **Mudança:** `components/simulation-form/LinkJourneyGate.jsx` — sem `?c=` o estado inicial já é "simulation" (sem botão Voltar); com `?c=` nada muda (tela de escolha, ou a jornada direta já configurada na campanha/Disparo). `?ref=`, atribuição, roleta, cadastro e formulários não foram alterados.
