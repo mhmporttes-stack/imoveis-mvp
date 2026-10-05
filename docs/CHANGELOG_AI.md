@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Prévia de compartilhamento de /simulacao (Instagram Direct, WhatsApp, demais)
+- **Situação:** o HTML já trazia og:title/description/image e Twitter Card, mas com o texto antigo ("Simulação de financiamento…") e a imagem genérica da marca; faltavam `og:url` e `canonical`, que o Instagram Direct usa para montar o cartão (sem eles só aparecia a URL).
+- **Mudança:** `app/simulacao/page.jsx` — título "Simule seu primeiro imóvel | Matheus Machado", descrição "Descubra seu poder de compra e dê o primeiro passo para o seu imóvel.", `canonical` e `og:url` = `https://www.matheusmachadoimoveis.com.br/simulacao`, `og:image`/`twitter:image` absolutas 1200x630 (`og:image:secure_url`, tipo e alt), `twitter:card=summary_large_image`. Tudo no HTML estático (crawlers não executam JS). Nova imagem `public/assets/og-simulacao-v2.png` (1200x630, logo atual M azul/branco sobre azul-marinho; texto "SIMULE SEU PRIMEIRO IMÓVEL / Descubra seu poder de compra"). Teste `tests/simulacao-share-preview.test.mjs`.
+- **Não mexe:** formulário/jornada da simulação, `/simulacao/equipe` (continua com a prévia padrão da marca). Para trocar a imagem no futuro, mude o sufixo do arquivo (cache das plataformas).
+
 
 ### 2026-10-04 — Estabilização das sessões do WhatsApp individual (lease, política por código, deploy) [NÃO publicado]
 - **Data:** 2026-10-04

@@ -1,9 +1,35 @@
 import { Suspense } from "react";
 import LinkJourneyGate from "@/components/simulation-form/LinkJourneyGate";
 
+// Prévia de compartilhamento (WhatsApp, Instagram Direct, Facebook, X…): título, descrição, canonical, Open Graph e
+// Twitter Card ficam no HTML estático desta página (crawlers não executam JavaScript). A imagem 1200x630 é um PNG
+// estático (public/assets/og-simulacao-v2.png) com a logo atual; ao trocá-la, mude o sufixo do nome para o cache das
+// plataformas não segurar a versão antiga.
+const SHARE_URL = "https://www.matheusmachadoimoveis.com.br/simulacao";
+const SHARE_TITLE = "Simule seu primeiro imóvel | Matheus Machado";
+const SHARE_DESCRIPTION = "Descubra seu poder de compra e dê o primeiro passo para o seu imóvel.";
+const SHARE_IMAGE = "https://www.matheusmachadoimoveis.com.br/assets/og-simulacao-v2.png";
+const SHARE_IMAGE_ALT = "Simule seu primeiro imóvel — Descubra seu poder de compra | Matheus Machado, Corretor de Imóveis";
+
 export const metadata = {
-  title: "Simulação de financiamento | Matheus Machado",
-  description: "Responda algumas perguntas para avaliar possibilidades de financiamento imobiliário."
+  title: SHARE_TITLE,
+  description: SHARE_DESCRIPTION,
+  alternates: { canonical: SHARE_URL },
+  openGraph: {
+    type: "website",
+    url: SHARE_URL,
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
+    siteName: "Matheus Machado Imóveis",
+    locale: "pt_BR",
+    images: [{ url: SHARE_IMAGE, secureUrl: SHARE_IMAGE, width: 1200, height: 630, type: "image/png", alt: SHARE_IMAGE_ALT }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
+    images: [{ url: SHARE_IMAGE, alt: SHARE_IMAGE_ALT }]
+  }
 };
 
 export default function SimulationPage() {
