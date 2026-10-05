@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { cleanRef, isUuid, safeDecode, shortCampaignPath, shortCaptacaoPath, shortJourneyPath, shortSimulationPath } from "../lib/short-links.mjs";
+import { cleanRef, displayLink, isUuid, safeDecode, shortCampaignPath, shortCaptacaoPath, shortJourneyPath, shortSimulationPath } from "../lib/short-links.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = (file) => readFileSync(path.join(root, file), "utf8");
@@ -38,4 +38,16 @@ test("os construtores de link do CRM geram a versão curta e as rotas redirecion
     assert.match(source(file), /NextResponse\.redirect\(url, 307\)/, file);
     assert.match(source(file), /request\.nextUrl\.clone\(\)/, `${file} repassa os demais parâmetros (utm, jornada…)`);
   }
+});
+
+test("código curto por usuário (short_ref): resolve para o ref de atribuição e o ref longo antigo continua valendo", () => {
+  assert.equal(displayLink("https://www.matheusmachadoimoveis.com.br/s/mhm"), "matheusmachadoimoveis.com.br/s/mhm");
+  assert.match(source("lib/admin-profiles.js"), /shortSimulationPath\(normalizeBrokerRef\(profile\?\.shortRef\) \|\| ref\)/);
+  assert.match(source("lib/short-ref-resolver.js"), /\.eq\("short_ref", clean\)/);
+  assert.match(source("lib/short-ref-resolver.js"), /return resolved \|\| clean;/, "sem código curto, o valor é o ref de sempre");
+  assert.match(source("app/s/[ref]/route.js"), /resolveShortRef\(.*"simulation"\)/);
+  assert.match(source("app/v/[ref]/route.js"), /resolveShortRef\(.*"captacao"\)/);
+  assert.match(source("components/CampaignsManager.jsx"), /writeText\(displayLink\(campaign\.link\)\)/);
+  assert.match(source("components/clients/useClientList.js"), /writeText\(displayLink\(brokerSimulationLink\)\)/);
+  assert.match(source("supabase/migrations/20261005010000_admin_users_short_ref.sql"), /set short_ref = 'mhm'/);
 });

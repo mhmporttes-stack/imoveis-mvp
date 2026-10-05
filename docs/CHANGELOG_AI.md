@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Código curto por usuário nos links (/s/mhm, /s/1…) e cópia sem "https://www."
+- **Pedido (dono):** o link do Matheus passa a usar "mhm"; cada outro usuário recebe um número; o CRM copia/mostra os links sem `https://www.`.
+- **Mudança:** nova coluna `admin_users.short_ref` (único; Matheus = `mhm`; demais 1, 2, 3… por ordem de cadastro; novos usuários recebem o próximo número por sequência). `/s/{codigo}` e `/v/{codigo}` resolvem o código para o `simulation_ref`/`captacao_ref` de atribuição (`lib/short-ref-resolver.js`) e redirecionam para `/simulacao?ref=…` / `/captacao?ref=…`; o ref longo antigo continua aceito. `buildBrokerSimulationLink`/`buildBrokerCaptacaoLink` usam o código curto; `buildCampaignLink` (link oficial) também. `displayLink` (`lib/short-links.mjs`) tira `https://www.` só na cópia/exibição do Gerador de Links e do botão "Meu link"; mensagens automáticas e botões continuam com a URL completa. Migration `20261005010000_admin_users_short_ref.sql`.
+
 ### 2026-10-04 — Links curtos no próprio domínio (/s, /s/{ref}, /c/{codigo}, /v, /j)
 - **Pedido (dono):** encurtar todos os links públicos gerados pelo CRM, sem serviço externo, preservando atribuição, roleta, origem, campanha, rastreio e cadastros; links antigos continuam valendo.
 - **Como funciona:** rotas de atalho que redirecionam (307) para a URL longa de sempre, repassando os demais parâmetros (`jornada`, `utm_*`…): `/s` → `/simulacao`; `/s/{ref}` → `/simulacao?ref={ref}`; `/c/{codigo}` → `/simulacao?c={id}` (código = nova coluna `campaigns.short_code`, 7 caracteres, único, preenchida nas campanhas existentes e por DEFAULT nas novas; aceita também o id); `/v` e `/v/{ref}` → `/captacao` (venda seu imóvel); `/j/{token}` → `/minha-jornada/{token}`. Toda a lógica continua nas páginas de destino.
