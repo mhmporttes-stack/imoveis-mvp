@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Enviar apresentação da simulação: só o link na mensagem
+- **Pedido (dono):** com texto junto ("Olá, Sara! Preparei a sua simulação…: link") a pré-visualização do link não abre no WhatsApp; deve ir apenas o link.
+- **Mudança:** `buildPresentationSendMessage` (`lib/simulation-presentation-send.mjs`) devolve só a URL `/s/<token>`; teste `tests/simulation-presentation-send.test.mjs` atualizado.
+
 ### 2026-10-05 — Chat: conversa sem mensagem do cliente → enviar pelo celular ou link para o cliente chamar
 - **Pedido (dono):** se o cliente já escreveu, o Chat envia normalmente; se não, avisar e mandar o corretor enviar pelo celular (abre o app do WhatsApp com a mensagem pronta), além de um link para o cliente chamar o corretor.
 - **Mudança:** `getChatConversation` (`lib/whatsapp-chat.js`) devolve `awaitingCustomer` (sessão individual sem nenhuma mensagem recebida) e `brokerWhatsapp`; `components/WhatsappChat.jsx` mostra o aviso, troca o botão de enviar por "Abrir no WhatsApp do celular" (`wa.me/{cliente}?text=…`, texto digitado), desativa anexo/atalhos/áudio nesse estado e oferece "Copiar link para o cliente te chamar" (`wa.me/{corretor}` com a mensagem do cadastro). O backend continua recusando envio sem mensagem do cliente (`CHAT_REPLY_ONLY`).

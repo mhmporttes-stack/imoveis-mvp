@@ -9,14 +9,10 @@ import {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("mensagem da apresentacao: so o primeiro nome e o link", () => {
+test("mensagem da apresentacao: somente o link (sem texto) para abrir a pre-visualizacao", () => {
   const message = buildPresentationSendMessage({ fullName: "Maria da Silva Souza", link: "https://x.com.br/s/abc" });
-  assert.equal(message, "Olá, Maria! Preparei a sua simulação de financiamento de um jeito interativo: https://x.com.br/s/abc");
-  assert.ok(!message.includes("Silva"));
-});
-
-test("mensagem sem nome nao quebra", () => {
-  assert.equal(buildPresentationSendMessage({ fullName: "  ", link: "L" }), "Olá! Preparei a sua simulação de financiamento de um jeito interativo: L");
+  assert.equal(message, "https://x.com.br/s/abc");
+  assert.equal(buildPresentationSendMessage({ link: "  L  " }), "L");
 });
 
 test("arquivado e nao contactar nao recebem; sem cadastro e demais status recebem", () => {
