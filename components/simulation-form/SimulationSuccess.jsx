@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Camera } from "lucide-react";
-import ReceiveSimulationWhatsappButton from "@/components/simulation-form/ReceiveSimulationWhatsappButton";
 
 export default function SimulationSuccess({ brokerRef = "", registrationId = "", accessToken = "" }) {
   return (
@@ -18,18 +17,11 @@ export default function SimulationSuccess({ brokerRef = "", registrationId = "",
       </div>
 
       <h1 className="mx-auto mt-8 max-w-3xl text-[clamp(1.9rem,4.3vw,3.25rem)] font-black leading-[1.08] tracking-[-0.02em] text-navy">
-        Recebemos suas informações com sucesso!
+        Estamos adicionando seu atendimento
       </h1>
-      <p className="mx-auto mt-6 max-w-3xl text-[clamp(1.05rem,2vw,1.35rem)] font-black leading-8 text-navy">
-        Sua solicitação de simulação foi enviada para análise.
-      </p>
       <p className="mx-auto mt-7 max-w-3xl text-base font-semibold leading-8 text-muted sm:text-lg">
-        Seus dados serão analisados por uma correspondente credenciada da Caixa Econômica Federal.
-        Assim que a análise for concluída, entraremos em contato para apresentar as melhores
-        condições disponíveis para o seu perfil.
+        Em instantes, um associado entrará em contato para apresentar os valores da sua simulação e orientar os próximos passos.
       </p>
-
-      <ReceiveSimulationWhatsappButton accessToken={accessToken} brokerRef={brokerRef} registrationId={registrationId} />
 
       <div className="relative mx-auto mt-12 max-w-3xl overflow-hidden border-t border-line px-1 pt-10">
         <DecorativeBubble className="pointer-events-none absolute left-0 top-[145px] z-0 hidden h-20 w-20 text-brand lg:block" />
@@ -40,34 +32,28 @@ export default function SimulationSuccess({ brokerRef = "", registrationId = "",
           Enquanto sua simulação é preparada...
         </p>
         <h2
-          className="relative z-10 mx-auto mt-4 inline-block max-w-[720px] pb-3 text-[clamp(2.25rem,6.2vw,4.4rem)] font-black leading-[0.92] tracking-[-0.055em] text-navy after:absolute after:bottom-0 after:left-7 after:right-7 after:h-1.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-['']"
+          className="relative z-10 mx-auto mt-4 inline-block max-w-[720px] pb-3 text-[clamp(2rem,5.2vw,3.6rem)] font-black leading-[0.98] tracking-[-0.045em] text-navy after:absolute after:bottom-0 after:left-7 after:right-7 after:h-1.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-['']"
           style={{ fontFamily: '"Trebuchet MS", "Comic Sans MS", "Arial Rounded MT Bold", system-ui, sans-serif' }}
         >
-          Conheça melhor o seu corretor.
+          Acompanhe Matheus Machado no Instagram
           <span className="absolute -right-10 top-0 hidden text-brand sm:block" aria-hidden="true">
             <AccentMarks />
           </span>
         </h2>
         <p className="relative z-10 mx-auto mt-8 max-w-2xl text-base font-semibold leading-7 text-navy sm:text-lg">
-          No meu Instagram você encontra dicas práticas, conteúdos exclusivos e novidades sobre
-          financiamento imobiliário, Minha Casa Minha Vida e muito mais{" "}
-          <strong className="font-black text-brand">
-            para te ajudar a conquistar o seu imóvel!
-          </strong>
+          Conteúdos sobre primeiro imóvel, financiamento e Minha Casa Minha Vida.
         </p>
         <Link
-          aria-label="Conhecer o Instagram de Matheus Machado"
-          className="relative z-10 mt-9 inline-flex min-h-[58px] w-full max-w-md items-center justify-center rounded-full bg-[linear-gradient(90deg,#ff8a00_0%,#ff2f75_48%,#8a2be2_100%)] px-7 py-3 text-lg font-black text-white shadow-[0_18px_45px_rgba(138,43,226,0.18)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(138,43,226,0.24)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+          aria-label="Seguir Matheus Machado no Instagram"
+          className="relative z-10 mt-9 inline-flex min-h-[58px] w-full max-w-md items-center justify-center rounded-full bg-[linear-gradient(90deg,#f58529_0%,#dd2a7b_40%,#8134af_75%,#515bd4_100%)] px-7 py-3 text-lg font-black text-white shadow-[0_18px_45px_rgba(221,42,123,0.22)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(221,42,123,0.3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
           href="https://www.instagram.com/mhm.machado/"
           rel="noopener noreferrer"
           target="_blank"
         >
           <Camera className="mr-3 h-7 w-7" aria-hidden="true" />
-          Me siga no Instagram!
+          Seguir no Instagram
         </Link>
-        <p className="relative z-10 mx-auto mt-5 inline-block max-w-xl pb-2 text-sm italic leading-6 text-navy after:absolute after:bottom-0 after:left-8 after:right-8 after:h-0.5 after:-rotate-1 after:rounded-full after:bg-brand after:content-[''] sm:text-base">
-          Conteúdos que aproximam você do seu sonho.
-        </p>
+        <p className="relative z-10 mt-4 text-sm font-bold text-navy sm:text-base">@mhm.machado</p>
       </div>
     </article>
   );

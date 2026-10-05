@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Tela final da simulação: bloco único + seção do Instagram
+- **Pedido (dono):** remover o botão do WhatsApp ("Receber minha simulação") e qualquer aviso de manter a página aberta; deixar um só bloco ("Estamos adicionando seu atendimento" + texto do associado) e a seção do Instagram com os novos textos e botão em degradê do Instagram.
+- **Mudança:** `components/simulation-form/SimulationSuccess.jsx` (só visual). `ReceiveSimulationWhatsappButton` deixou de ser usado nesta tela (arquivo mantido). O @ exibido é `@mhm.machado` (perfil real e destino do link); `@matheusmachadoimoveis`, citado no pedido, não existe no Instagram.
+
 ### 2026-10-04 — Simulação: calendário da "Data de nascimento" abre em janeiro/2000
 - **Pedido (dono):** ao abrir o calendário, mostrar janeiro de 2000 em vez do mês atual, sem preencher nada sozinho.
 - **Mudança:** `components/simulation-form/DateInputStep.jsx` — o `<input type="date">` nativo não permite escolher o mês inicial, então virou um calendário próprio (mês/ano em listas + setas; abre em jan/2000 com o campo vazio, ou no mês da data já escolhida). Valor continua "AAAA-MM-DD", só definido ao clicar num dia; mesma idade mínima (dias após a data máxima ficam desativados). Sem mudança em validação/cadastro.
