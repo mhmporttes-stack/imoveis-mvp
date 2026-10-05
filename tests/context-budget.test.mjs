@@ -11,7 +11,9 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g,
 
 const SKILL_MAX = 180; // chars da description
 const AGENT_MAX = 380;
-const CLAUDE_MD_MAX = 13500; // chars; CLAUDE.md é carregado em toda sessão
+// Limite subido de 13500 para 14500 em 2026-10-05: a regra 10 (identidade visual única, do dono) somou ~540 chars e foi
+// preferido não enxugar o CLAUDE.md (regras invioláveis). Mantém o teto como freio contra crescimento sem controle.
+const CLAUDE_MD_MAX = 14500; // chars; CLAUDE.md é carregado em toda sessão
 
 function description(text) {
   const m = text.match(/^---\n([\s\S]*?)\n---/);

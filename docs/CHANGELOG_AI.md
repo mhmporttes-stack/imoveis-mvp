@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — CI verde: 3 testes vermelhos corrigidos (só testes, sem código de produção)
+- **Quê:** `tests/short-links.test.mjs` tinha dois regex sem escape (erro de sintaxe, commit 8c8a22f); `tests/simulacao-share-preview.test.mjs` tinha todas as linhas prefixadas com o título novo da prévia (substituição em massa errada no commit e419e9e) e ainda esperava o título antigo — restaurado e atualizado para "Descubra quanto você pode financiar | Matheus Machado" (valor real de `lib/simulacao-share.mjs`); `tests/context-budget.test.mjs`: limite do CLAUDE.md subido de 13500 para 14500 chars (a regra 10 de identidade visual somou ~540; escolhido por ser o menor risco, sem remover regra).
+- **Validação:** todos os `*.test.mjs` do ci.yml (menos journey-http) + financial-calculations em checkout LF, node 24: 0 falhas. No Windows com autocrlf=true alguns testes de código-fonte falham por CRLF (ambiente local, não do repo).
+
 ### 2026-10-05 — Apresentação interativa: prévia de compartilhamento do link /s/<token> (PRES-18)
 - **O quê:** `generateMetadata` na página pública (og:title/description, Twitter Card `summary_large_image`) + imagem 1200x630 por token em `/s/<token>/og` (rota `app/apresentacao/[token]/og`, `lib/simulation-presentation-share.mjs`, `proxy.js` reescreve `/og`). Título com SÓ o primeiro nome do cliente (regra do dono, exceção consciente à imagem sem dado do cliente).
 - **Segurança:** token inválido/revogado → 404 na página e na imagem, prévia genérica; `noindex`/`no-store`; não grava evento de visualização (métricas vêm do navegador; bots já ignorados no endpoint). PDF e player intocados. Teste novo: `tests/simulation-presentation-share.test.mjs`.
