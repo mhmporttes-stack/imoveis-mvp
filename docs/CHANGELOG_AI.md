@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Prévia da apresentação: cartão grande no WhatsApp (imagem cacheável + aquecida)
+- **Sintoma (dono):** o link da apresentação às vezes abre a prévia com miniatura pequena e texto cortado (Sara) em vez do cartão grande (Carol).
+- **Causa:** a imagem `/s/<token>/og` era gerada a cada acesso (2–4 s, `no-store`, MISS); se o crawler do WhatsApp chega nesse intervalo, mostra só miniatura.
+- **Correção:** imagem `/og` com `Cache-Control: public, s-maxage=86400, stale-while-revalidate` (`proxy.js` e `lib/simulation-presentation-share.mjs`; página e demais imagens seguem `no-store`) e aquecimento da imagem + página ao preparar o envio (`enviar-preparar` em `app/api/admin/simulacoes/[id]/apresentacao/route.js`, espera no máximo 8 s). Imagem só leva o primeiro nome (PRES-18). Links já enviados com miniatura não mudam no WhatsApp (cache do app).
+
 ### 2026-10-05 — Trava: "Simulação realizada" só com simulação real
 - **Data:** 2026-10-05
 - **Área:** Clientes / Funil

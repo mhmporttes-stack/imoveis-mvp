@@ -47,3 +47,11 @@ test("jornada: evento presentation_sent tem rotulo e categoria", () => {
   assert.match(src, new RegExp(`${PRESENTATION_SENT_EVENT}: "atividades"`));
   assert.match(src, /case "presentation_sent"/);
 });
+
+test("prévia grande no WhatsApp: imagem /og cacheável no CDN e aquecida ao preparar o envio", () => {
+  const proxy = read("proxy.js");
+  assert.match(proxy, /cacheableShareImage: presentationMatch\[2\] === "og"/);
+  assert.match(proxy, /cacheableShareImage \? "public, max-age=300, s-maxage=86400/);
+  assert.match(read("lib/simulation-presentation-share.mjs"), /"Cache-Control": "public, max-age=300, s-maxage=86400/);
+  assert.match(read("app/api/admin/simulacoes/[id]/apresentacao/route.js"), /fetch\(`\$\{link\}\/og`/);
+});

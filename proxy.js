@@ -18,7 +18,9 @@ export function proxy(request) {
     target.pathname = `/apresentacao/${presentationMatch[1]}${presentationMatch[2] ? `/${presentationMatch[2]}` : ""}`;
     // a página não usa query; as imagens usam só ?baixar=1 (anexo)
     if (!presentationMatch[2]) target.search = "";
-    return privatePresentationResponse(NextResponse.rewrite(target));
+    // A imagem de prévia (/og) pode ficar no CDN (só o primeiro nome do cliente): sem cache o crawler do WhatsApp espera a
+    // geração (2–4 s), desiste e mostra miniatura pequena. A página e as demais imagens continuam no-store.
+    return privatePresentationResponse(NextResponse.rewrite(target), { cacheableShareImage: presentationMatch[2] === "og" });
   }
   if (pathname.startsWith("/apresentacao/")) return privatePresentationResponse(NextResponse.next());
   if (pathname.startsWith("/s/")) return NextResponse.next(); // ref curto de corretor: comportamento de sempre
@@ -65,8 +67,8 @@ function isPublicAdminPath(pathname) {
 }
 
 // Página pública por link: nunca em cache, nunca indexada, sem Referer.
-function privatePresentationResponse(response) {
-  response.headers.set("Cache-Control", "no-store, max-age=0");
+function privatePresentationResponse(response, { cacheableShareImage = false } = {}) {
+  response.headers.set("Cache-Control", cacheableShareImage ? "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800" : "no-store, max-age=0");
   response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   response.headers.set("Referrer-Policy", "no-referrer");
   return response;

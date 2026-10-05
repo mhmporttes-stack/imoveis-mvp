@@ -128,6 +128,13 @@ export async function POST(request, { params }) {
         return NextResponse.json({ error: PRESENTATION_SCHEMA_MESSAGE }, { status: 503 });
       }
       const link = presentationUrl(result.presentation.token, origin(request));
+      // Aquece a imagem da prévia (e a página) ANTES de o corretor enviar: gerar a imagem leva alguns segundos e, se o
+      // crawler do WhatsApp chega antes, ele mostra só uma miniatura. Com o CDN já aquecido o cartão grande abre.
+      // Nunca bloqueia nem quebra o envio (espera no máximo 8 s).
+      await Promise.race([
+        Promise.allSettled([fetch(`${link}/og`, { cache: "no-store" }), fetch(link, { cache: "no-store", headers: { "User-Agent": "WhatsApp/2" } })]),
+        new Promise((resolve) => setTimeout(resolve, 8000))
+      ]).catch(() => {});
       return NextResponse.json(
         { link, message: buildPresentationSendMessage({ fullName: simulation.clientName, link }) },
         { headers: { "Cache-Control": "no-store" } }
