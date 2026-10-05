@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-05 — Corretora não acha, pelo telefone, o cliente que ela disparou
+- **Data:** 2026-10-05
+- **Sintoma:** "pesquisei o telefone em todos os clientes e não aparece nenhum cliente" — cliente disparado pelo WhatsApp da corretora (número errado) que ela precisava marcar como Não contactar. Já havia sido relatado antes.
+- **Área:** Clientes / Prospecção
+- **Impacto:** 159 clientes em "Tentando contato" sem responsável desde 29/09 (Jennyfer, Eduardo, Bruna, Caroline, Izabela, ketlin, Bencke); resposta negativa de disparo sem como tratar.
+- **Causa raiz:** o cliente é devolvido à fila (retorno automático, hibernação, "Devolver", rebalanceamento da carteira 30) com `responsible_user_id = null` (regra P-05) e o corretor só enxerga clientes em que `responsible_user_id` é ele. No caso reportado o rebalanceamento rodou 6 min depois do disparo.
+- **Correção:** `returned_from_user_id` (gatilho + retroativo) dá acesso por busca/ficha ao corretor que disparou enquanto o cliente está sem responsável.
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-05)
+- **Prevenção/teste:** `tests/client-returned-scope.test.mjs`
+- **Status:** Resolvido
+
 ### 2026-10-05 — Cliente em "Simulação realizada" sem nenhuma simulação
 - **Data:** 2026-10-05
 - **Sintoma:** card em "Simulação realizada" mas com "Simulação ainda não realizada" (só renda/recurso do cadastro).

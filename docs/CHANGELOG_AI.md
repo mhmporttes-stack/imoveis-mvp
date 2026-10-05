@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-05 — Cliente devolvido à fila continua achável por quem disparou
+- **Data:** 2026-10-05
+- **Área:** Clientes / Prospecção / Permissões
+- **Alteração:** `simulation_registrations.returned_from_user_id` (quem era o responsável quando a Prospecção devolveu o cliente à fila, preenchido por gatilho `client_returned_from_user`) + acesso extra só enquanto o cliente está sem responsável: a PESQUISA por nome/telefone da lista de Clientes, a ficha (`getSimulationRegistration`/`updateSimulationRegistration`, inclusive "Não contactar"), o link direto e o acesso à simulação passam a incluir o cliente devolvido que era do corretor. As abas e contadores não mudam. Preenchimento retroativo: 159 clientes em "Tentando contato" sem responsável.
+- **Motivo:** pedido do dono — a Jennyfer disparou para um número errado e não achava o cliente (nem por telefone) para marcar "Não contactar"; o rebalanceamento da carteira (30) devolveu à fila, 6 min após o disparo, o cliente que ela acabara de contatar e a regra P-05 tira o responsável.
+- **Arquivos afetados:** `supabase/migrations/20261005190000_client_returned_from_user.sql`, `lib/client-returned-scope-core.mjs`, `lib/admin-access.js`, `lib/simulation-list-query.js`, `lib/simulation-registrations.js`, `lib/simulations.js`, `tests/client-returned-scope.test.mjs`
+- **Risco/observação:** a regra P-05 (devolvido à fila fica sem responsável) NÃO mudou — só a visibilidade de quem disparou, e só enquanto ninguém assumir (quando outro corretor reivindica o contato, o gatilho zera a coluna). Gestor e administrador já enxergavam cliente sem responsável. Não corrigido: o rebalanceamento da carteira 30 devolve cliente disparado minutos antes (decisão do dono, MD-14).
+- **Autor:** Claude Code
 ### 2026-10-05 — Opt-out automático em linguagem natural ("Não tenho interesse, agradeço." / "SAIR")
 - **Sintoma (dono):** a cliente "Gisele Indique Lucas" respondeu à automação "Não tenho interesse, agradeço." e, 3 s depois, "SAIR", e ficou em "Em atendimento" em vez de "Não contactar".
 - **Causa:** (1) "agradeço" não estava entre as cortesias aceitas, então a 1ª frase não era "pedido claro" e virou resposta → promoção automática a "Em atendimento"; (2) o "SAIR" seguinte não valia porque o cliente já não estava em "Tentando contato" (só a fila de prospecção recebeu o descadastro, o status do cliente não mudou).
