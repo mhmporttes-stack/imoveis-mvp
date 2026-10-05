@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Lista de documentos completa: renda por tipo, obs de residência, PIS, conjunto em blocos, motor alinhado (PRES-16)
+- [REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-05] Detalhe das regras em PRES-16 (`docs/BUSINESS_RULES.md`). Mudou: `lib/simulation-presentation-documents.mjs` (perfil por pessoa; blocos PROPONENTE 1/2 + PARA OS DOIS; PIS cadastrado sai; telefone fora; obs de residência por renda; IR/CLT separados), imagem PNG (`image-core`/`image`: subtítulos de bloco) e folha do player (`DocumentsSheet`/CSS `docGroup`).
+- Motor `lib/document-requirements-engine.js`: união estável → `certidao_nascimento`; CTPS cobrada de todos (informal/IR/desconhecido agora também). Efeito real: checklists de documentação passam a mostrar CTPS ausente para quem não é CLT. Fixture `tests/fixtures/documentos/casos-requisitos.json` atualizada (2 casos que proibiam CTPS + 2 novos); `.claude/analista-documental/REGRAS-DOCUMENTAIS.md` linha 8.
+- Divergência registrada, sem mexer: motor não tem regra para viúvo. DTO continua só com texto final (nunca estado civil/renda crus). Sem migration, sem rota nova.
 ### 2026-10-05 — CI verde: 3 testes vermelhos corrigidos (só testes, sem código de produção)
 - **Quê:** `tests/short-links.test.mjs` tinha dois regex sem escape (erro de sintaxe, commit 8c8a22f); `tests/simulacao-share-preview.test.mjs` tinha todas as linhas prefixadas com o título novo da prévia (substituição em massa errada no commit e419e9e) e ainda esperava o título antigo — restaurado e atualizado para "Descubra quanto você pode financiar | Matheus Machado" (valor real de `lib/simulacao-share.mjs`); `tests/context-budget.test.mjs`: limite do CLAUDE.md subido de 13500 para 14500 chars (a regra 10 de identidade visual somou ~540; escolhido por ser o menor risco, sem remover regra).
 - **Validação:** todos os `*.test.mjs` do ci.yml (menos journey-http) + financial-calculations em checkout LF, node 24: 0 falhas. No Windows com autocrlf=true alguns testes de código-fonte falham por CRLF (ambiente local, não do repo).

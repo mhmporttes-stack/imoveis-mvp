@@ -336,6 +336,8 @@
 .sheetIntro { margin: 0; font-size: max(16px, calc(var(--u) * 19)); line-height: 1.5; color: #2f4d6e; }
 /* itens da lista: caixa azul de marcar (SVG), título em negrito e descrição menor */
 .docList { list-style: none; margin: calc(var(--u) * 14) 0 0; padding: 0; display: grid; gap: calc(var(--u) * 16); }
+.docGroup { margin: calc(var(--u) * 6) 0 0; padding-bottom: calc(var(--u) * 4); border-bottom: 2px solid #1769d1; font-size: max(13px, calc(var(--u) * 14)); font-weight: 800; letter-spacing: 0.12em; color: #1769d1; }
+.docGroup:first-child { margin-top: 0; }
 .docItem { display: flex; align-items: flex-start; gap: calc(var(--u) * 14); }
 .docCheck { flex: none; display: grid; place-items: center; width: max(26px, calc(var(--u) * 30)); height: max(26px, calc(var(--u) * 30)); margin-top: 2px; border: 2.5px solid #1769d1; border-radius: calc(var(--u) * 8); color: #1769d1; background: #f4f8fe; }
 .docCheck svg { width: 78%; height: 78%; }

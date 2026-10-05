@@ -35,7 +35,9 @@ export default function DocumentsSheet({ items = [], onClose }) {
         <div className={styles.sheetBody} tabIndex={0}>
           <p className={styles.sheetIntro}>{DOCUMENTS_SCENE_TEXT}</p>
           <ul className={styles.docList}>
-            {items.map((item) => (
+            {items.map((item) => item.heading ? (
+              <li key={item.id} className={styles.docGroup}>{item.title}</li>
+            ) : (
               <li key={item.id} className={styles.docItem}>
                 <span className={styles.docCheck} aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M5.5 12.5 L10 17 L18.5 7.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
