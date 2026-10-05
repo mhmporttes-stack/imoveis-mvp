@@ -11,6 +11,9 @@ export const PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9CC3F5"/><stop offset="0.62" stop-color="#DCE9F9"/><stop offset="1" stop-color="#7FA6D6"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/><rect x="170" y="420" width="740" height="560" fill="#F3F7FC"/><rect x="170" y="420" width="740" height="40" fill="#4C7BB5"/><rect x="250" y="520" width="150" height="150" fill="#9CC3F5"/><rect x="460" y="520" width="150" height="150" fill="#9CC3F5"/><rect x="670" y="520" width="150" height="150" fill="#9CC3F5"/><rect x="480" y="760" width="120" height="220" fill="#4C7BB5"/></svg>`
 )}`;
 
+// fotos reais de exemplo do próprio repositório (paisagem e retrato), só para a revisão visual
+const REAL_PHOTOS = ["/assets/hero-marilia.png", "/assets/hero-premium-casal.png"];
+
 export function presentationSimulation(variant = "completo") {
   const base = {
     id: "dev",
@@ -77,5 +80,5 @@ export function presentationScenes(variant) {
 /** Ramo de imóveis sugeridos, com a foto fictícia no lugar da URL de teste. */
 export function presentationBranch(variant) {
   // sem-foto: o imóvel não tem imagem (vê o fallback elegante)
-  return presentationDto(variant).branch.map((scene) => ({ ...scene, imageUrl: variant === "sem-foto" ? "" : PHOTO }));
+  return presentationDto(variant).branch.map((scene, index) => ({ ...scene, imageUrl: variant === "sem-foto" ? "" : variant === "foto-real" ? REAL_PHOTOS[index % 2] : PHOTO }));
 }
