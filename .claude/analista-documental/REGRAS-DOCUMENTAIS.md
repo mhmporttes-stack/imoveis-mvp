@@ -18,7 +18,7 @@ Legenda: **BM** = Base Mestra (`rule_key`) · **CÓDIGO** = fixo no motor/polít
 | 5 | Certidão de casamento sem averbação ⇒ pedir documentos do cônjuge, **sem** nova certidão nem novo comprovante para ele; sem a regra, não pedir nada do cônjuge | BM `marriage_spouse` + CÓDIGO (motor) | casos "casado sem averbação", "solteiro", "divórcio averbado" |
 | 6 | Exceção: segunda pessoa no financiamento | CÓDIGO (motor: `simulationType === "joint"` ⇒ linhas `outro`) | caso "financiamento conjunto" |
 | 7 | Dependentes < 18 conforme cadastro | CÓDIGO (motor: `hasChildrenUnder18`) | casos "com/sem dependente" |
-| 8 | CLT: 2 últimos holerites + CTPS (foto ou PDF) | CÓDIGO (holerite ×2, CTPS); formato da CTPS = BM `ctps_format` (só texto para IA) | "CLT completo", "CLT 1 holerite" |
+| 8 | CLT: 2 últimos holerites; CTPS para TODOS (dono 2026-10-05); união estável pede certidão de **nascimento** (dono 2026-10-05; viúvo = casamento só na lista da apresentação, motor sem regra) | CÓDIGO (holerite ×2, CTPS); formato da CTPS = BM `ctps_format` (só texto para IA) | "CLT completo", "CLT 1 holerite" |
 | 9 | Informal: 3 extratos **ou** 3 faturas (quando permitido) | CÓDIGO (motor) | "informal 2 de 3 extratos", "vários extratos" |
 | 10 | Renda informal: média bruta = soma/3; excluir PIX próprio, parente de 1º grau e cônjuge **quando identificável**; calcular média líquida | BM `bank_income` + CÓDIGO (`calculateBankIncomeForClient`) | "média bruta/líquida", "parentesco não comprovado" |
 | 11 | FGTS: extrato atualizado quando a regra estiver ativa | BM `fgts_updated` + CÓDIGO (CLT sempre exige FGTS no motor) | — |

@@ -14,7 +14,7 @@ import {
   buildDocumentItemsFor,
   deriveDocumentProfile
 } from "../lib/simulation-presentation-documents.mjs";
-import { DOCUMENTS_LAYOUT, buildSummaryImageModel, documentsImageSize, getDocumentItems, estimateLines } from "../lib/simulation-presentation-image-core.mjs";
+import { DOCUMENTS_LAYOUT, buildSummaryImageModel, documentItemHeight, documentsImageSize, getDocumentItems, estimateLines } from "../lib/simulation-presentation-image-core.mjs";
 import { renderDocumentsImage, renderSummaryImage } from "../lib/simulation-presentation-image.mjs";
 import { branchStep, createPlayerState, isAutoAdvancing, isLastScene, playerReducer, propertiesButtonLabel, sceneMetricEvents } from "../components/presentation/player-core.mjs";
 import { navigableSceneCount } from "../lib/simulation-presentation-gate.mjs";
@@ -38,7 +38,7 @@ const sim = (over = {}) => ({
 });
 
 // ---------- (B) texto exato da referência do dono ----------
-test("lista completa (cadastro desconhecido): textos EXATOS da referência do dono, na ordem da referência", () => {
+test("lista completa (cadastro desconhecido): textos EXATOS da referência do dono, na ordem da referência (sem telefone)", () => {
   const items = buildDocumentItems({});
   assert.deepEqual(ids(items), ["identidade", "residencia", "estado-civil", "dependentes", "renda", "carteira", "pis", "fgts", "contato"]);
   assert.deepEqual(
@@ -52,39 +52,73 @@ test("lista completa (cadastro desconhecido): textos EXATOS da referência do do
       ["CARTEIRA DE TRABALHO", "Foto, identificação e todos os registros", []],
       ["DOCUMENTAÇÃO COM O NÚMERO DO PIS", "Pode ser encontrado na carteira de trabalho física e nos aplicativos Meu INSS, Carteira de Trabalho Digital, FGTS, Caixa Trabalhador e Caixa Tem", []],
       ["EXTRATO DO FGTS ATUALIZADO", "", []],
-      ["E-MAIL E TELEFONE COM DDD", "", []]
+      ["E-MAIL", "", []]
     ]
   );
+  // desconhecido: sem observação inventada no comprovante de residência
+  assert.equal(byId(items, "residencia").obs, undefined);
 });
 
 // ---------- (C) personalização ----------
-test("renda: formal/CLT/IR → holerites ou IR; informal → extratos ou faturas; desconhecido ou misto → as duas linhas", () => {
-  const formal = "Os 2 últimos holerites (sem férias) ou Imposto de Renda do ano vigente";
-  const informal = "Os 3 últimos extratos bancários ou as 3 últimas faturas de cartão de crédito";
+test("renda (dono 2026-10-05): CLT → só holerites; IR → declaração + recibo com obs 'no seu nome'; informal → extratos ou faturas; desconhecido → as duas linhas", () => {
   const renda = (registration) => byId(buildDocumentItemsFor(registration), "renda");
-  assert.equal(renda(reg({ primaryIncomeType: "registered_employment" })).description, formal);
-  assert.equal(renda(reg({ primaryIncomeType: "income_tax_declarant" })).description, formal);
-  assert.equal(renda(reg({ primaryIncomeType: "self_employed_unregistered" })).description, informal);
-  assert.deepEqual(renda(reg({ primaryIncomeType: "self_employed_unregistered" })).lines, []);
+  const clt = renda(reg({ primaryIncomeType: "registered_employment" }));
+  assert.equal(clt.description, "Os 2 últimos holerites (sem férias)");
+  assert.ok(!/imposto/i.test(clt.description), "a linha do CLT não oferece IR como alternativa");
+  assert.equal(clt.obs, undefined);
+  const ir = renda(reg({ primaryIncomeType: "income_tax_declarant" }));
+  assert.equal(ir.description, "Declaração completa do Imposto de Renda do ano vigente e recibo de entrega");
+  assert.equal(ir.obs, "Deve estar no seu nome");
+  const informal = renda(reg({ primaryIncomeType: "self_employed_unregistered" }));
+  assert.equal(informal.description, "Os 3 últimos extratos bancários ou as 3 últimas faturas de cartão de crédito");
+  assert.deepEqual(informal.lines, []);
   assert.equal(renda(reg({ primaryIncomeType: "outro-valor" })).lines.length, 2);
   assert.equal(renda(null).lines.length, 2);
-  // proponentes com rendas diferentes (cadastro conjunto): lista completa
-  assert.equal(renda(reg({ simulationType: "joint", primaryIncomeType: "registered_employment", secondaryIncomeType: "self_employed_unregistered" })).lines.length, 2);
-  assert.equal(renda(reg({ simulationType: "joint", primaryIncomeType: "registered_employment", secondaryIncomeType: "income_tax_declarant" })).description, formal);
+  // sem novos tipos de renda: aposentado/pensionista/servidor caem em "desconhecido"
+  for (const value of ["retired", "pensioner", "civil_servant"]) assert.equal(renda(reg({ primaryIncomeType: value })).lines.length, 2, value);
   // o 2º proponente só conta no cadastro conjunto
-  assert.equal(renda(reg({ simulationType: "individual", primaryIncomeType: "registered_employment", secondaryIncomeType: "self_employed_unregistered" })).description, formal);
+  assert.equal(renda(reg({ simulationType: "individual", primaryIncomeType: "registered_employment", secondaryIncomeType: "self_employed_unregistered" })).description, "Os 2 últimos holerites (sem férias)");
 });
 
-test("estado civil: solteiro → nascimento; casado/união estável → casamento; divorciado → casamento com averbação; viúvo/desconhecido → ou", () => {
+test("estado civil (dono 2026-10-05): solteiro e união estável → nascimento; casado e viúvo → casamento; divorciado → casamento + obs de averbação; desconhecido → ou", () => {
   const civil = (registration) => byId(buildDocumentItemsFor(registration), "estado-civil").description;
   assert.equal(civil(reg({ primaryMaritalStatus: "single" })), "Certidão de nascimento");
   assert.equal(civil(reg({ primaryMaritalStatus: "married" })), "Certidão de casamento");
-  assert.equal(civil(reg({ primaryMaritalStatus: "stable_union" })), "Certidão de casamento");
-  assert.equal(civil(reg({ primaryMaritalStatus: "divorced" })), "Certidão de casamento com a averbação do divórcio");
-  assert.equal(civil(reg({ primaryMaritalStatus: "widowed" })), "Certidão de nascimento ou casamento");
+  assert.equal(civil(reg({ primaryMaritalStatus: "stable_union" })), "Certidão de nascimento");
+  assert.equal(civil(reg({ primaryMaritalStatus: "divorced" })), "Certidão de casamento");
+  assert.equal(civil(reg({ primaryMaritalStatus: "widowed" })), "Certidão de casamento");
+  const obsOf = (status) => byId(buildDocumentItemsFor(reg({ primaryMaritalStatus: status })), "estado-civil").obs;
+  assert.equal(obsOf("divorced"), "Com averbação do divórcio");
+  for (const status of ["single", "married", "stable_union", "widowed", ""]) assert.equal(obsOf(status), undefined, status);
   assert.equal(civil(reg({ primaryMaritalStatus: "" })), "Certidão de nascimento ou casamento");
   assert.equal(civil(undefined), "Certidão de nascimento ou casamento");
   assert.equal(byId(buildDocumentItemsFor(reg()), "estado-civil").title, "COMPROVANTE DE ESTADO CIVIL");
+});
+
+test("comprovante de residência (dono 2026-10-05): obs depende da renda da pessoa; o texto 'máximo dois meses' continua", () => {
+  const res = (income) => byId(buildDocumentItemsFor(reg({ primaryIncomeType: income })), "residencia");
+  assert.equal(res("registered_employment").obs, "Pode estar no nome de um parente ou de outra pessoa");
+  assert.equal(res("self_employed_unregistered").obs, "Obrigatoriamente no seu nome");
+  assert.equal(res("income_tax_declarant").obs, "Obrigatoriamente no seu nome");
+  assert.equal(res("").obs, undefined);
+  for (const income of ["registered_employment", "self_employed_unregistered", "income_tax_declarant", ""]) assert.equal(res(income).description, "Máximo de dois meses atrás");
+});
+
+test("PIS (dono 2026-10-05): PIS já cadastrado tira o item da lista; sem PIS o item aparece", () => {
+  assert.equal(byId(buildDocumentItemsFor(reg({ pis: "12345678901" })), "pis"), undefined);
+  assert.ok(byId(buildDocumentItemsFor(reg({ pis: "" })), "pis"));
+  assert.ok(byId(buildDocumentItemsFor(reg({ pis: "   " })), "pis"));
+  assert.ok(byId(buildDocumentItemsFor(reg()), "pis"));
+});
+
+test("carteira de trabalho aparece para todos (CLT, IR, informal); FGTS e e-mail sem mudança; telefone saiu", () => {
+  for (const income of ["registered_employment", "income_tax_declarant", "self_employed_unregistered", ""]) {
+    const list = buildDocumentItemsFor(reg({ primaryIncomeType: income }));
+    assert.ok(byId(list, "carteira"), income);
+    assert.ok(byId(list, "fgts"), income);
+    assert.equal(byId(list, "contato").title, "E-MAIL");
+    assert.ok(!/telefone|ddd/i.test(JSON.stringify(list)));
+  }
 });
 
 test("dependentes: sem filhos menores omite o item; com filhos ou desconhecido mostra", () => {
@@ -96,7 +130,7 @@ test("dependentes: sem filhos menores omite o item; com filhos ou desconhecido m
 });
 
 test("itens fixos aparecem para todos os perfis e a ordem é sempre a da referência", () => {
-  const fixed = ["identidade", "residencia", "carteira", "pis", "fgts", "contato"];
+  const fixed = ["identidade", "residencia", "carteira", "fgts", "contato"];
   const order = ["identidade", "residencia", "estado-civil", "dependentes", "renda", "carteira", "pis", "fgts", "contato"];
   for (const registration of [undefined, null, reg(), reg({ primaryIncomeType: "self_employed_unregistered", primaryMaritalStatus: "divorced", hasChildrenUnder18: true }), reg({ hasChildrenUnder18: false, primaryMaritalStatus: "widowed" })]) {
     const list = ids(buildDocumentItemsFor(registration));
@@ -107,11 +141,48 @@ test("itens fixos aparecem para todos os perfis e a ordem é sempre a da referê
 
 test("cadastro manual (data de nascimento-marcador 1900-01-01): renda/estado civil/filhos são placeholders → lista completa", () => {
   const manual = reg({ oldestBirthDate: "1900-01-01", primaryIncomeType: "self_employed_unregistered", primaryMaritalStatus: "single", hasChildrenUnder18: false });
-  assert.deepEqual(deriveDocumentProfile(manual), { income: "desconhecido", marital: "desconhecido", dependents: "desconhecido" });
+  assert.deepEqual(deriveDocumentProfile(manual), { income: "desconhecido", marital: "desconhecido", pisKnown: false, dependents: "desconhecido", people: [{ income: "desconhecido", marital: "desconhecido", pisKnown: false }] });
   const items = buildDocumentItemsFor(manual);
   assert.equal(byId(items, "renda").lines.length, 2);
   assert.equal(byId(items, "estado-civil").description, "Certidão de nascimento ou casamento");
   assert.ok(byId(items, "dependentes"));
+  // mesmo marcado como conjunto, o cadastro manual não vira dois blocos
+  assert.ok(!buildDocumentItemsFor({ ...manual, simulationType: "joint", secondaryIncomeType: "registered_employment" }).some((item) => item.heading));
+});
+
+test("cadastro CONJUNTO (dono 2026-10-05): documentação completa de cada proponente em blocos; dependentes e e-mail uma vez só", () => {
+  const joint = buildDocumentItemsFor(reg({
+    simulationType: "joint",
+    primaryIncomeType: "registered_employment", primaryMaritalStatus: "married",
+    secondaryIncomeType: "self_employed_unregistered", secondaryMaritalStatus: "single",
+    hasChildrenUnder18: true
+  }));
+  assert.deepEqual(ids(joint), [
+    "grupo-p1", "identidade-p1", "residencia-p1", "estado-civil-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1",
+    "grupo-p2", "identidade-p2", "residencia-p2", "estado-civil-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2",
+    "grupo-familia", "dependentes", "contato"
+  ]);
+  assert.deepEqual(joint.filter((item) => item.heading).map((item) => item.title), ["PROPONENTE 1", "PROPONENTE 2", "PARA OS DOIS"]);
+  assert.equal(new Set(ids(joint)).size, joint.length, "ids únicos (chave do React)");
+  // cada pessoa com o PRÓPRIO estado civil e renda
+  assert.equal(byId(joint, "estado-civil-p1").description, "Certidão de casamento");
+  assert.equal(byId(joint, "estado-civil-p2").description, "Certidão de nascimento");
+  assert.equal(byId(joint, "renda-p1").description, "Os 2 últimos holerites (sem férias)");
+  assert.equal(byId(joint, "renda-p2").description, "Os 3 últimos extratos bancários ou as 3 últimas faturas de cartão de crédito");
+  assert.equal(byId(joint, "residencia-p1").obs, "Pode estar no nome de um parente ou de outra pessoa");
+  assert.equal(byId(joint, "residencia-p2").obs, "Obrigatoriamente no seu nome");
+  // sem nome/sobrenome: só PROPONENTE 1/2
+  assert.ok(!JSON.stringify(joint).includes("Souza"));
+  // sem filhos: dependentes saem; divorciados nos dois → obs nos dois
+  const semFilhos = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: "divorced", secondaryMaritalStatus: "divorced", secondaryIncomeType: "income_tax_declarant", hasChildrenUnder18: false }));
+  assert.equal(byId(semFilhos, "dependentes"), undefined);
+  assert.equal(byId(semFilhos, "estado-civil-p1").obs, "Com averbação do divórcio");
+  assert.equal(byId(semFilhos, "estado-civil-p2").obs, "Com averbação do divórcio");
+  assert.equal(byId(semFilhos, "renda-p2").obs, "Deve estar no seu nome");
+  // PIS cadastrado (titular) sai só do proponente 1; o 2º proponente não tem PIS na tabela → continua pedindo
+  const comPis = buildDocumentItemsFor(reg({ simulationType: "joint", pis: "12345678901", secondaryIncomeType: "registered_employment", secondaryMaritalStatus: "single" }));
+  assert.equal(byId(comPis, "pis-p1"), undefined);
+  assert.ok(byId(comPis, "pis-p2"));
 });
 
 test("a personalização espelha o motor documental do CRM (os trechos citados existem no arquivo)", () => {
@@ -120,7 +191,7 @@ test("a personalização espelha o motor documental do CRM (os trechos citados e
 
 test("cenário do dono: renda formal + casado + com filhos / informal + solteiro + sem filhos", () => {
   const a = buildDocumentItemsFor(reg({ primaryIncomeType: "registered_employment", primaryMaritalStatus: "married", hasChildrenUnder18: true }));
-  assert.equal(byId(a, "renda").description, "Os 2 últimos holerites (sem férias) ou Imposto de Renda do ano vigente");
+  assert.equal(byId(a, "renda").description, "Os 2 últimos holerites (sem férias)");
   assert.equal(byId(a, "estado-civil").description, "Certidão de casamento");
   assert.ok(byId(a, "dependentes"));
   const b = buildDocumentItemsFor(reg({ primaryIncomeType: "self_employed_unregistered", primaryMaritalStatus: "single", hasChildrenUnder18: false }));
@@ -139,7 +210,7 @@ test("DTO e HTML nunca carregam o valor cru do cadastro (renda, estado civil, fi
   }
   const doc = dto.scenes.find((scene) => scene.id === "documentos");
   assert.deepEqual(Object.keys(doc).sort(), [...PUBLIC_SCENE_FIELDS.documentos].sort());
-  for (const item of doc.items) assert.deepEqual(Object.keys(item).sort(), ["description", "id", "lines", "title"]);
+  for (const item of doc.items) for (const key of Object.keys(item)) assert.ok(["description", "id", "lines", "title", "obs", "heading"].includes(key), `campo fora da allowlist: ${key}`);
   // quem desenha (cena, folha, imagem) só recebe a lista final: nenhum acesso ao cadastro
   for (const file of ["components/presentation/DocumentsSheet.jsx", "components/presentation/PresentationPlayer.jsx", "lib/simulation-presentation-image.mjs", "lib/simulation-presentation-image-core.mjs", "app/apresentacao/[token]/page.jsx", "app/apresentacao/[token]/documentos/route.js"]) {
     assert.ok(!/primaryIncomeType|primaryMaritalStatus|hasChildrenUnder18|deriveDocumentProfile|\.registration\b/.test(code(file)), file);
@@ -345,4 +416,25 @@ test("resumo em imagem: rótulo singular/plural dos imóveis sugeridos e nomes v
 
 test("buildPresentationScenes continua devolvendo só o roteiro principal (contagem do CRM)", () => {
   assert.equal(buildPresentationScenes({ simulation: sim() }).length, 7);
+});
+
+// ---------- observação (obs) do estado civil: DTO, PNG e folha ----------
+test("obs do divorciado: vai no DTO só como texto final, entra na altura do PNG (1 e 2 linhas) e a folha a renderiza", async () => {
+  const dto = buildPublicPresentation({ simulation: sim({ registration: reg({ primaryMaritalStatus: "divorced" }) }), defaultReason: DEFAULT_REASON });
+  const civil = byId(getDocumentItems(dto), "estado-civil");
+  assert.equal(civil.description, "Certidão de casamento");
+  assert.equal(civil.obs, "Com averbação do divórcio");
+  const plain = { id: "x", title: "COMPROVANTE DE ESTADO CIVIL", description: "Certidão de casamento", lines: [] };
+  assert.ok(documentItemHeight({ ...plain, obs: "Com averbação do divórcio" }) > documentItemHeight(plain));
+  const long = "Com averbação do divórcio, emitida há no máximo 90 dias, com carimbo do cartório e assinatura do oficial responsável pelo registro";
+  assert.ok(documentItemHeight({ ...plain, obs: long }) > documentItemHeight({ ...plain, obs: "Com averbação do divórcio" }));
+  for (const obs of ["Com averbação do divórcio", long]) {
+    const png = await renderDocumentsImage({ scenes: [{ id: "documentos", items: [{ ...plain, obs }] }], firstName: "Ana" }, { download: false });
+    assert.equal(png.status, 200);
+  }
+  assert.ok(code("components/presentation/DocumentsSheet.jsx").includes("item.obs"));
+  for (const status of ["single", "married", "stable_union"]) {
+    const other = buildPublicPresentation({ simulation: sim({ registration: reg({ primaryMaritalStatus: status }) }), defaultReason: DEFAULT_REASON });
+    assert.equal(byId(getDocumentItems(other), "estado-civil").obs, "");
+  }
 });

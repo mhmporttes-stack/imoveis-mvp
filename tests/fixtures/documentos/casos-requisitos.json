@@ -47,7 +47,8 @@
         { "personRole": "titular", "documentType": "fatura_cartao", "status": "conforme" },
         { "personRole": "titular", "documentType": "fatura_cartao", "status": "conforme" }
       ],
-      "proibido": ["titular:comprovante_residencia", "titular:extrato_bancario", "titular:holerite", "titular:ctps"]
+      "esperado": ["titular:ctps:ausente"],
+      "proibido": ["titular:comprovante_residencia", "titular:extrato_bancario", "titular:holerite"]
     },
     {
       "nome": "Renda informal com 2 de 3 extratos",
@@ -121,7 +122,20 @@
       "nome": "Renda/estado civil desconhecidos — nenhuma exigência inventada",
       "cadastro": { "fullName": "Eva Teste Sintética" },
       "classificados": [],
-      "proibido": ["titular:holerite", "titular:extrato_bancario", "titular:declaracao_ir", "titular:certidao_nascimento", "titular:certidao_casamento", "titular:ctps", "conjuge:rg"]
+      "proibido": ["titular:holerite", "titular:extrato_bancario", "titular:declaracao_ir", "titular:certidao_nascimento", "titular:certidao_casamento", "conjuge:rg"]
+    },
+    {
+      "nome": "União estável pede certidão de nascimento, não a de casamento (regra do dono 2026-10-05)",
+      "cadastro": { "fullName": "Fabio Teste Sintético", "primaryMaritalStatus": "stable_union", "primaryIncomeType": "registered_employment", "pis": "SINTETICO" },
+      "classificados": [],
+      "esperado": ["titular:certidao_nascimento:ausente"],
+      "proibido": ["titular:certidao_casamento"]
+    },
+    {
+      "nome": "Carteira de trabalho é exigida de todos, inclusive quem declara IR (regra do dono 2026-10-05)",
+      "cadastro": { "fullName": "Gina Teste Sintética", "primaryMaritalStatus": "single", "primaryIncomeType": "income_tax_declarant", "pis": "SINTETICO" },
+      "classificados": [],
+      "esperado": ["titular:ctps:ausente"]
     },
     {
       "nome": "Vários arquivos do mesmo tipo (múltiplos PDFs/imagens) contam juntos",

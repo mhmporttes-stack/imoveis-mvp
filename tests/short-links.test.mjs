@@ -25,8 +25,8 @@ test("caminhos curtos", () => {
 
 test("os construtores de link do CRM geram a versão curta e as rotas redirecionam para a URL longa de sempre", () => {
   // Os links GERADOS pelo CRM voltaram ao formato longo (decisão do dono 2026-10-05); as rotas curtas seguem funcionando.
-  assert.match(source("lib/admin-profiles.js"), //simulacao?ref=${encodeURIComponent(ref)}/);
-  assert.match(source("lib/campaigns.js"), //simulacao?c=${encodeURIComponent(campaign.id)}/);
+  assert.match(source("lib/admin-profiles.js"), /\/simulacao\?ref=\$\{encodeURIComponent\(ref\)\}/);
+  assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/);
   assert.doesNotMatch(source("lib/admin-profiles.js"), /shortSimulationPath/);
   assert.match(source("app/s/route.js"), /target\.pathname = "\/simulacao"/);
   assert.match(source("app/s/[ref]/route.js"), /target\.searchParams\.set\("ref", resolved\)/);

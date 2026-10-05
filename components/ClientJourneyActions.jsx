@@ -47,7 +47,7 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", presentation_sent: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
@@ -133,6 +133,8 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "PREVISÃO DE DOCUMENTOS", description: [d.text || "Cliente previu enviar documentos"] };
     case "documents_list_sent":
       return { title: "LISTA DE DOCUMENTOS ENVIADA", description: ["Lista de documentos enviada"] };
+    case "presentation_sent":
+      return { title: "APRESENTAÇÃO DA SIMULAÇÃO ENVIADA", description: ["Apresentação da simulação enviada"] };
     case "sale_registered":
       return { title: "VENDA REALIZADA", description: [] };
     case "prospecting:claimed":
