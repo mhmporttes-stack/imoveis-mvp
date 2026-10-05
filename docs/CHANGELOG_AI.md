@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Apresentação interativa: prévia de compartilhamento do link /s/<token> (PRES-18)
+- **O quê:** `generateMetadata` na página pública (og:title/description, Twitter Card `summary_large_image`) + imagem 1200x630 por token em `/s/<token>/og` (rota `app/apresentacao/[token]/og`, `lib/simulation-presentation-share.mjs`, `proxy.js` reescreve `/og`). Título com SÓ o primeiro nome do cliente (regra do dono, exceção consciente à imagem sem dado do cliente).
+- **Segurança:** token inválido/revogado → 404 na página e na imagem, prévia genérica; `noindex`/`no-store`; não grava evento de visualização (métricas vêm do navegador; bots já ignorados no endpoint). PDF e player intocados. Teste novo: `tests/simulation-presentation-share.test.mjs`.
+- **Risco/observação:** `tests/simulacao-share-preview.test.mjs` na `origin/main` está corrompido (prefixo "Descubra quanto você pode financiar |" em cada linha, SyntaxError) e 2 testes de `simulation-presentation-round3` (ramo/logo da Caixa) já falhavam antes desta mudança; fora do escopo, não corrigidos.
+
 ### 2026-10-05 — AGENTS.md: regra "menos código é melhor"
 - **Pedido (dono):** incluir a ideia de checar, antes de codar, se o código precisa existir/já existe/dá em menos linhas (sem instalar plugin externo). Só documentação (`AGENTS.md`, "Antes de alterar código", item 9).
 

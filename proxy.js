@@ -6,8 +6,8 @@ const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/reset-password"];
 // Link da apresentação interativa da simulação: /s/<token> (24 caracteres base62 com maiúscula, minúscula e dígito;
 // lib/simulation-presentation-core.mjs). O ref curto de corretor (/s/mhm, /s/1) é sempre minúsculo e continua na
 // rota de redirecionamento de sempre; só o formato do token é reescrito para a página pública. Os dois subcaminhos
-// (/imagem e /documentos) são as imagens PNG da apresentação (resumo e lista de documentos), do mesmo token.
-const PRESENTATION_TOKEN_PATH = /^\/s\/(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*[0-9])([A-Za-z0-9]{24})(?:\/(imagem|documentos))?\/?$/;
+// (/imagem, /documentos e /og) são as imagens PNG da apresentação (resumo, lista de documentos e prévia de compartilhamento), do mesmo token.
+const PRESENTATION_TOKEN_PATH = /^\/s\/(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*[0-9])([A-Za-z0-9]{24})(?:\/(imagem|documentos|og))?\/?$/;
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;
