@@ -1,0 +1,472 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, House, KeyRound, MessageCircle, Pause, Play } from "lucide-react";
+import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
+import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
+import {
+  advanceClock,
+  countValue,
+  createPlayerState,
+  isAutoAdvancing,
+  isLastScene,
+  isPaused,
+  keyAction,
+  playerReducer,
+  sceneMetricEvents,
+  swipeAction,
+  tapAction,
+  transitionPlan
+} from "./player-core.mjs";
+import styles from "./presentation.module.css";
+
+// Player da apresentação interativa da simulação. Recebe só o DTO público (cenas já decididas no servidor) e nunca
+// calcula valor financeiro: apenas anima e formata o que veio. Sem biblioteca de animação nem áudio.
+// `token` vazio ou `preview` = prévia do CRM: não envia nenhuma métrica.
+
+const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "proximo"]);
+const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
+const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
+
+function announcement(scene, index, total) {
+  const head = `Cena ${index + 1} de ${total}. `;
+  switch (scene.id) {
+    case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação está pronta.`;
+    case "poder": return `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
+    case "formacao": return `${head}Como esse valor é formado. Poder total de compra: ${formatBRL(scene.total)}.`;
+    case "parcelas": return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}.`;
+    case "comparativo": return `${head}Imóvel novo e usado, lado a lado.`;
+    case "imovel": return `${head}Encontramos uma opção compatível com sua simulação: ${scene.name}.`;
+    case "porque": return `${head}Por que este imóvel? ${scene.reason}`;
+    default: return `${head}Próximo passo.`;
+  }
+}
+
+/** Número que sobe até o valor final (rAF + easing). Reduced-motion: valor final direto. A largura é reservada pelo texto final. */
+function Count({ value, reduced, duration = 1700, delay = 350, className = "" }) {
+  const [shown, setShown] = useState(reduced ? value : 0);
+  useEffect(() => {
+    if (reduced) {
+      setShown(value);
+      return undefined;
+    }
+    let raf = 0;
+    const timer = setTimeout(() => {
+      const start = performance.now();
+      const step = (now) => {
+        const progress = Math.min(1, (now - start) / duration);
+        setShown(countValue(value, progress));
+        if (progress < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
+  }, [value, reduced, duration, delay]);
+  const final = formatBRL(value);
+  return (
+    <span className={`${styles.count} ${className}`}>
+      <span className={styles.countGhost} aria-hidden="true">{final}</span>
+      <span aria-hidden="true">{formatBRL(shown)}</span>
+      <span className={styles.sr}>{final}</span>
+    </span>
+  );
+}
+
+function ModelChip({ label }) {
+  return label ? <span className={`${styles.chip} ${styles.fade}`} style={{ "--d": "200ms" }}>{label}</span> : null;
+}
+
+function SceneAbertura({ scene }) {
+  return (
+    <div className={styles.sceneInner}>
+      <div className={styles.track} aria-hidden="true">
+        <span className={styles.trackLine} />
+        <span className={`${styles.node} ${styles.nodeKey}`}><KeyRound /></span>
+        <span className={`${styles.node} ${styles.nodeHouse}`}><House /></span>
+      </div>
+      <h1 className={`${styles.title} ${styles.rise}`} style={{ "--d": "900ms" }}>
+        {scene.firstName ? `${scene.firstName}, sua simulação está pronta` : "Sua simulação está pronta"}
+      </h1>
+      <p className={`${styles.lead} ${styles.rise}`} style={{ "--d": "1500ms" }}>Vamos conhecer, passo a passo, o seu poder de compra.</p>
+    </div>
+  );
+}
+
+function ScenePoder({ scene, reduced }) {
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "100ms" }}>Seu poder de compra</p>
+      <strong className={styles.bigNumber}><Count value={scene.value} reduced={reduced} /></strong>
+      <span className={styles.underline} style={{ "--d": "2000ms" }} aria-hidden="true" />
+      <div><ModelChip label={scene.modelLabel} /></div>
+    </div>
+  );
+}
+
+function SceneFormacao({ scene, reduced }) {
+  const single = scene.mode !== "soma";
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Como esse valor é formado</p>
+      <div className={styles.rows}>
+        {single ? (
+          <>
+            <div className={`${styles.row} ${styles.rowTotal} ${styles.rise}`} style={{ "--d": "400ms" }}>
+              <span className={styles.rowLabel}>{scene.mode === "subsidio" ? "Subsídio" : "Financiamento"}</span>
+              <span className={styles.rowValue}><Count value={scene.total} reduced={reduced} duration={1100} delay={450} /></span>
+            </div>
+            <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "1300ms" }}>
+              {scene.mode === "subsidio" ? "Seu poder de compra vem do subsídio." : "Seu poder de compra vem do financiamento."}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className={`${styles.row} ${styles.rise}`} style={{ "--d": "400ms" }}>
+              <span className={styles.rowLabel}>Financiamento</span>
+              <span className={styles.rowValue}>{formatBRL(scene.financing)}</span>
+            </div>
+            <div className={`${styles.plus} ${styles.rise}`} style={{ "--d": "900ms" }} aria-hidden="true">+</div>
+            <div className={`${styles.row} ${styles.rise}`} style={{ "--d": "1200ms" }}>
+              <span className={styles.rowLabel}>Subsídio</span>
+              <span className={styles.rowValue}>{formatBRL(scene.subsidy)}</span>
+            </div>
+            <div className={`${styles.row} ${styles.rowTotal} ${styles.rise}`} style={{ "--d": "2000ms" }}>
+              <span className={styles.rowLabel}>= Poder total</span>
+              <span className={styles.rowValue}><Count value={scene.total} reduced={reduced} duration={1000} delay={2050} /></span>
+            </div>
+          </>
+        )}
+      </div>
+      <div><ModelChip label={scene.modelLabel} /></div>
+    </div>
+  );
+}
+
+function SceneParcelas({ scene }) {
+  const both = scene.first > 0 && scene.last > 0;
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Condição de pagamento</p>
+      <div className={styles.stats}>
+        {scene.first > 0 ? (
+          <div className={`${styles.stat} ${styles.rise}`} style={{ "--d": "400ms" }}>
+            <span className={styles.statLabel}>Primeira parcela</span>
+            <strong className={styles.statValue}>{formatBRL(scene.first)}</strong>
+          </div>
+        ) : null}
+        {both ? <div className={styles.statLink} style={{ "--d": "900ms" }} aria-hidden="true" /> : null}
+        {scene.last > 0 ? (
+          <div className={`${styles.stat} ${styles.rise}`} style={{ "--d": both ? "1500ms" : "400ms" }}>
+            <span className={styles.statLabel}>Última parcela</span>
+            <strong className={styles.statValue}>{formatBRL(scene.last)}</strong>
+          </div>
+        ) : null}
+      </div>
+      <p className={`${styles.note} ${styles.rise}`} style={{ "--d": both ? "2100ms" : "900ms" }}>Valores da simulação realizada.</p>
+      <div><ModelChip label={scene.modelLabel} /></div>
+    </div>
+  );
+}
+
+function SceneComparativo({ scene }) {
+  const [a, b] = scene.columns;
+  const rows = [
+    { key: "total", label: "Poder de compra", strong: true, get: (c) => c.total },
+    { key: "financing", label: "Financiamento", get: (c) => c.financing },
+    ...(scene.showSubsidy ? [{ key: "subsidy", label: "Subsídio", get: (c) => c.subsidy }] : []),
+    { key: "first", label: "Primeira parcela", get: (c) => c.first },
+    { key: "last", label: "Última parcela", get: (c) => c.last }
+  ];
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Novo e usado, lado a lado</p>
+      <div className={styles.compare}>
+        <div className={`${styles.compareHead} ${styles.rise}`} style={{ "--d": "300ms" }}>
+          <span>{a.label}</span>
+          <span>{b.label}</span>
+        </div>
+        {rows.map((row, i) => (
+          <div key={row.key} className={`${styles.compareRow} ${row.strong ? styles.compareStrong : ""} ${styles.rise}`} style={{ "--d": `${650 + i * 280}ms` }}>
+            <span className={styles.compareLabel}>{row.label}</span>
+            <span className={styles.compareValue}>{row.get(a) > 0 ? formatBRL(row.get(a)) : "—"}</span>
+            <span className={styles.compareValue}>{row.get(b) > 0 ? formatBRL(row.get(b)) : "—"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SceneImovel({ scene }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <>
+      <div className={styles.photoWrap}>
+        {scene.imageUrl && !failed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className={styles.photo} src={scene.imageUrl} alt={`Foto de ${scene.name}`} width={1080} height={1350} decoding="async" onError={() => setFailed(true)} />
+        ) : (
+          <div className={styles.photoFallback} aria-hidden="true"><House /></div>
+        )}
+        <div className={styles.photoShade} />
+      </div>
+      <div className={styles.photoText}>
+        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "250ms" }}>Encontramos uma opção compatível com sua simulação</p>
+        <h2 className={styles.rise} style={{ "--d": "600ms" }}>{scene.name}</h2>
+        {scene.benefits.length ? (
+          <ul className={styles.benefits}>
+            {scene.benefits.map((benefit, i) => (
+              <li key={`${i}-${benefit}`} className={styles.rise} style={{ "--d": `${1000 + i * 260}ms` }}>{benefit}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function ScenePorque({ scene }) {
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Por que este imóvel?</p>
+      <div className={`${styles.reasonBox} ${styles.rise}`} style={{ "--d": "500ms" }}>
+        <p className={styles.reason}>{scene.reason}</p>
+      </div>
+    </div>
+  );
+}
+
+function SceneProximo({ scene, onRestart }) {
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Próximo passo</p>
+      <h2 className={`${styles.title} ${styles.rise}`} style={{ "--d": "450ms", fontSize: "clamp(25px, 7vw, 32px)" }}>
+        Agora que você conhece seu poder de compra, podemos avançar para encontrar a melhor opção dentro dessas condições.
+      </h2>
+      {scene.dateLabel ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "1100ms" }}>Simulação realizada em {scene.dateLabel}</p> : null}
+      <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1500ms" }}>
+        {scene.broker ? (
+          <a className={styles.cta} href={scene.broker.whatsappUrl} target="_blank" rel="noopener noreferrer" data-no-nav="">
+            <MessageCircle aria-hidden="true" />
+            Falar com meu corretor
+          </a>
+        ) : null}
+        <button type="button" className={styles.ghostBtn} onClick={onRestart} data-no-nav="">Rever a apresentação</button>
+      </div>
+    </div>
+  );
+}
+
+function renderScene(scene, ctx) {
+  switch (scene.id) {
+    case "abertura": return <SceneAbertura scene={scene} />;
+    case "poder": return <ScenePoder scene={scene} reduced={ctx.reduced} />;
+    case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
+    case "parcelas": return <SceneParcelas scene={scene} />;
+    case "comparativo": return <SceneComparativo scene={scene} />;
+    case "imovel": return <SceneImovel scene={scene} />;
+    case "porque": return <ScenePorque scene={scene} />;
+    case "proximo": return <SceneProximo scene={scene} onRestart={ctx.restart} />;
+    default: return null;
+  }
+}
+
+function sendEvent(token, body) {
+  // Métrica é acessória: falha de rede nunca atrapalha a apresentação (e não há o que corrigir no cliente).
+  fetch(`/api/s/${encodeURIComponent(token)}/evento`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    keepalive: true,
+    cache: "no-store",
+    credentials: "omit"
+  }).catch(() => {});
+}
+
+export default function PresentationPlayer({ scenes, token = "", preview = false, initialIndex = 0 }) {
+  const reduced = usePrefersReducedMotion();
+  const total = scenes.length;
+  // `initialIndex` só é usado pela vitrine de desenvolvimento (revisão visual cena a cena); o link real começa na cena 1.
+  const [state, dispatch] = useReducer(playerReducer, total, (n) => ({ ...createPlayerState(n), index: Math.min(Math.max(0, Number(initialIndex) || 0), Math.max(0, n - 1)) }));
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const [leaving, setLeaving] = useState(null);
+  const [direction, setDirection] = useState("forward");
+  const prevIndex = useRef(null);
+  const elapsed = useRef(0);
+  const fillRef = useRef(null);
+  const pointer = useRef(null);
+  const maxReached = useRef(0);
+  const tracking = Boolean(token) && !preview;
+  const scene = scenes[state.index];
+  const effective = { ...state, reducedMotion: reduced };
+
+  // troca de cena: relógio e barra zerados, saída suave da cena anterior (sem saída em movimento reduzido)
+  useEffect(() => {
+    elapsed.current = 0;
+    if (fillRef.current) fillRef.current.style.transform = isLastScene(stateRef.current) ? "scaleX(1)" : "scaleX(0)";
+    const plan = transitionPlan(effective, prevIndex.current);
+    prevIndex.current = state.index;
+    setDirection(plan.direction);
+    setLeaving(plan.leaving);
+    if (plan.leaving === null) return undefined;
+    const timer = setTimeout(() => setLeaving(null), 380);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.index]);
+
+  // auto-avanço: relógio que só corre sem pausa (aba oculta também pausa) e respeita o tempo de leitura da cena
+  const auto = isAutoAdvancing(state);
+  useEffect(() => {
+    if (!auto) return undefined;
+    const duration = scene.durationMs;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now) => {
+      const clock = advanceClock({ elapsed: elapsed.current, delta: now - last, duration });
+      last = now;
+      elapsed.current = clock.elapsed;
+      if (fillRef.current) fillRef.current.style.transform = `scaleX(${duration ? clock.elapsed / duration : 1})`;
+      if (clock.done) dispatch({ type: "auto" });
+      else raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [auto, state.index, scene.durationMs]);
+
+  useEffect(() => {
+    const onVisibility = () => dispatch({ type: document.hidden ? "hidden" : "visible" });
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  // pré-carrega só a foto da PRÓXIMA cena
+  useEffect(() => {
+    const next = scenes[state.index + 1];
+    if (next?.id === "imovel" && next.imageUrl) {
+      const image = new Image();
+      image.src = next.imageUrl;
+    }
+  }, [scenes, state.index]);
+
+  // métricas (só link real): abertura da sessão (recarga não conta de novo) + última cena + conclusão
+  useEffect(() => {
+    if (!tracking) return;
+    let isNew = false;
+    try {
+      const key = SESSION_KEY(token);
+      isNew = !window.sessionStorage.getItem(key);
+      if (isNew) window.sessionStorage.setItem(key, "1");
+    } catch {
+      isNew = false;
+    }
+    sendEvent(token, { tipo: "abriu", nova: isNew });
+  }, [tracking, token]);
+
+  useEffect(() => {
+    if (!tracking) return;
+    const result = sceneMetricEvents({ index: state.index, total, maxReached: maxReached.current });
+    maxReached.current = result.maxReached;
+    result.events.forEach((event) => sendEvent(token, event));
+  }, [tracking, token, state.index, total]);
+
+  const act = useCallback((action) => {
+    if (action === "next") dispatch({ type: "next" });
+    else if (action === "prev") dispatch({ type: "prev" });
+    else if (action === "toggle") dispatch({ type: "toggle" });
+  }, []);
+
+  const onPointerDown = (event) => {
+    if (event.target.closest("a,button,[data-no-nav]")) {
+      pointer.current = null;
+      return;
+    }
+    pointer.current = { x: event.clientX, y: event.clientY };
+  };
+  const onPointerUp = (event) => {
+    const start = pointer.current;
+    pointer.current = null;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const swipe = swipeAction(dx, dy);
+    if (swipe) return act(swipe);
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) act(tapAction(event.clientX, event.currentTarget.clientWidth));
+  };
+  const onKeyDown = (event) => {
+    if (event.target.closest("a,button") && (event.key === " " || event.key === "Enter")) return;
+    const action = keyAction(event.key);
+    if (action) {
+      event.preventDefault();
+      act(action);
+    }
+  };
+
+  const paused = isPaused(state);
+  const current = scenes[state.index];
+  const announce = useMemo(() => announcement(current, state.index, total), [current, state.index, total]);
+  const leavingScene = leaving !== null ? scenes[leaving] : null;
+  const restart = useCallback(() => dispatch({ type: "goto", index: 0 }), []);
+  const dir = direction === "back" ? styles.back : "";
+
+  return (
+    <div
+      className={styles.root}
+      data-theme={theme(current)}
+      role="region"
+      aria-roledescription="apresentação"
+      aria-label="Apresentação da sua simulação"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+    >
+      <div className={styles.halo} aria-hidden="true" />
+
+      <div className={styles.chrome}>
+        <div className={styles.bars} aria-hidden="true">
+          {scenes.map((item, i) => (
+            <span key={`${item.id}-${i}`} className={`${styles.bar} ${i < state.index ? styles.barDone : ""}`}>
+              {i === state.index ? <span ref={fillRef} className={styles.barFill} /> : <span className={styles.barFill} />}
+            </span>
+          ))}
+        </div>
+        <div className={styles.chromeRow}>
+          <span className={styles.brand}>
+            {/* logo oficial (único do projeto): o branco do M exige fundo escuro, por isso vai sempre sobre azul-marinho */}
+            <span className={styles.brandMark}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/matheus-machado-symbol.png" alt="" width={24} height={19} />
+            </span>
+            Matheus Machado Imóveis
+          </span>
+          <button type="button" className={styles.iconBtn} onClick={() => dispatch({ type: "toggle" })} aria-label={state.paused ? "Continuar apresentação" : "Pausar apresentação"} aria-pressed={state.paused}>
+            {state.paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+          </button>
+        </div>
+        {preview ? <p className={styles.preview}>Prévia: esta visualização não conta como abertura</p> : null}
+      </div>
+
+      <div className={styles.stage} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = null; }}>
+        {leavingScene ? (
+          <div key={`leave-${leaving}`} className={`${styles.scene} ${styles.leave} ${leavingScene.id === "imovel" ? styles.photoScene : ""}`} aria-hidden="true">
+            {renderScene(leavingScene, { reduced: true, restart })}
+          </div>
+        ) : null}
+        <div key={`scene-${state.index}`} className={`${styles.scene} ${styles.enter} ${dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
+          {renderScene(current, { reduced, restart })}
+        </div>
+      </div>
+
+      <button type="button" className={`${styles.side} ${styles.sidePrev}`} onClick={() => dispatch({ type: "prev" })} disabled={state.index === 0} aria-label="Cena anterior">
+        <ChevronLeft aria-hidden="true" />
+      </button>
+      <button type="button" className={`${styles.side} ${styles.sideNext}`} onClick={() => dispatch({ type: "next" })} disabled={isLastScene(state)} aria-label="Próxima cena">
+        <ChevronRight aria-hidden="true" />
+      </button>
+
+      <div className={styles.sr} aria-live="polite" role="status">{announce}{paused ? " Pausado." : ""}</div>
+    </div>
+  );
+}

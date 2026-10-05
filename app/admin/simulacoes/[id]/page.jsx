@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import SimulationGenerator from "@/components/SimulationGenerator";
+import SimulationPresentationPanel from "@/components/presentation/SimulationPresentationPanel";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { listProperties } from "@/lib/properties";
 import { redactPropertiesForAuth } from "@/lib/property-visibility";
@@ -29,6 +30,8 @@ export default async function EditSimulationPage({ params }) {
           Voltar para clientes
         </Link>
       </section>
+      {/* Apresentação interativa: opção ADICIONAL ao PDF (que continua sendo gerado pelo gerador abaixo, sem mudança). */}
+      <SimulationPresentationPanel simulationId={simulation.id} />
       <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))} initialSimulation={simulation} />
     </main>
   );

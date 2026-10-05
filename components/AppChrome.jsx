@@ -32,6 +32,9 @@ export default function AppChrome({ children }) {
   }, [isAdminRoute]);
 
   if (pathname?.startsWith("/minha-jornada/")) return children;
+  // Apresentação interativa da simulação (/s/<token> reescrito para /apresentacao/<token> pelo proxy.js): tela cheia,
+  // sem cabeçalho/rodapé/botões do site, sem Pixel nem captura de campanha. O ref curto /s/{ref} é só redirecionamento.
+  if (pathname?.startsWith("/apresentacao/") || /^\/s\/[A-Za-z0-9]{24}\/?$/.test(pathname || "")) return children;
   // Vitrine de componentes (app/dev/vitrine) — rota que só existe no
   // `next dev`; renderiza sem o cabeçalho/rodapé do site público.
   if (pathname?.startsWith("/dev/")) return children;
