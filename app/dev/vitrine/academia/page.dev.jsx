@@ -6,7 +6,7 @@
 // ?real=1 monta o store REAL da F2 (lib/academy-remote-store.mjs) com um payload montado dos dados de exemplo; as chamadas
 // à API ficam por conta de quem testa (ex.: Playwright com page.route). ?ro=1 = somente leitura ("Alterar conta"); ?max=3 = limite de 3 tentativas em todas as provas; ?multi=1 = a aula atual tem prova com 3 questões.
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import AcademiaApp from "@/components/academia/AcademiaApp";
 import { createAcademyDemoStore } from "@/lib/academy-sample-store.mjs";
 import { createAcademyRemoteStore } from "@/lib/academy-remote-store.mjs";
@@ -31,9 +31,17 @@ function realInitial(readOnly, max, multi) {
   return { status: "ok", readOnly, holderName: "Aluno real", core, questions, exams };
 }
 
+function Remote({ src, q }) {
+  const [store, setStore] = useState(null);
+  useEffect(() => { fetch(src).then((r) => r.json()).then((initial) => setStore(createAcademyRemoteStore({ initial }))); }, [src]);
+  return store ? <AcademiaApp store={store} backHref="/dev/vitrine" /> : null;
+}
+
 function Demo() {
   const q = useSearchParams();
+  const src = q.get("src");
   const [store] = useState(() => {
+    if (src) return null;
     if (q.get("real") === "1") return createAcademyRemoteStore({ initial: realInitial(q.get("ro") === "1", q.get("max") === "3", q.get("multi") === "1") });
     const st = createAcademyDemoStore();
     const ate = Number(q.get("ate"));
@@ -44,7 +52,7 @@ function Demo() {
     if (q.get("rm") === "1") st.setReducedMotion(true);
     return st;
   });
-  return <AcademiaApp store={store} backHref="/dev/vitrine" />;
+  return src ? <Remote src={src} q={q} /> : <AcademiaApp store={store} backHref="/dev/vitrine" />;
 }
 
 export default function AcademiaVitrine() {
