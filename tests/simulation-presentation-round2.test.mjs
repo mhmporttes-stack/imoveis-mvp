@@ -143,6 +143,29 @@ test("com diferença: só a cena de diferença usa novo/usado e diz qual cenári
   assert.ok(!ids(onlyUsed).includes("diferenca"));
 });
 
+test("um modelo só (ou segundo modelo só 'sincronizado', subsídio em branco) NÃO gera diferença nem as palavras novo/usado", () => {
+  const blank = { financingValue: "190.000,00", subsidyValue: "", firstInstallment: "1.085,40", lastInstallment: "812,15" }; // o gerador copia financiamento/parcelas
+  const cases = [
+    { novo: model(), usado: { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "" } }, // um modelo só, subsídio > 0
+    { novo: model({ subsidyValue: "6.258,00" }), usado: blank }, // caso real (Carol): usado só sincronizado
+    { novo: blank, usado: model() }
+  ];
+  for (const models of cases) {
+    const dto = buildPublicPresentation({ simulation: sim({ simulationModels: models }), defaultReason: DEFAULT_REASON });
+    assert.ok(!ids(dto.scenes).includes("diferenca"));
+    assert.ok(!WORD.test(JSON.stringify(dto)));
+    assert.ok(!WORD.test(JSON.stringify(buildSummaryImageModel(dto))));
+    assert.equal(buildSummaryImageModel(dto).difference, null);
+  }
+  // simulação antiga (campos soltos, sem modelos) com subsídio: um modelo só
+  const legacy = buildPresentationScenes({ simulation: { clientName: "Ana", simulationType: "novo", financingValue: 100000, subsidyValue: 6258, firstInstallment: 900, lastInstallment: 700, properties: [] } });
+  assert.ok(!ids(legacy).includes("diferenca"));
+  // dois modelos com subsídio informado e diferente (inclusive 0 digitado) geram a diferença
+  for (const usado of [model({ subsidyValue: 0 }), model({ subsidyValue: "0,00" }), model({ subsidyValue: "1.000,00" })]) {
+    assert.ok(ids(buildPresentationScenes({ simulation: sim({ simulationModels: { novo: model({ subsidyValue: "6.258,00" }), usado } }) })).includes("diferenca"));
+  }
+});
+
 // ---------- player: texto, botões, remoção do corretor, logo ----------
 test("abertura: título e subtítulo exatos", () => {
   const source = read("components/presentation/PresentationPlayer.jsx");

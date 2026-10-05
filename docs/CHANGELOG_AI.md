@@ -44,6 +44,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-05 — Correção: cena de diferença novo×usado só com os dois subsídios informados
+- **Causa raiz:** `SYNCED_MODEL_FIELDS` do gerador copia financiamento e parcelas entre os modelos novo/usado; numa simulação de um modelo só o outro ficava "preenchido" com subsídio em branco, tratado como R$ 0,00 → diferença inventada (cena e imagem). **Correção:** `subsidyInformed` em `lib/simulation-presentation-core.mjs` exige subsídio informado nos dois modelos. Testes em `tests/simulation-presentation-round2.test.mjs`. Registro também em PRES-10.
+
 ### 2026-10-05 — Apresentação interativa, round 2 (juros, diferença de subsídio, VALIDAR SIMULAÇÃO, documentos, logo da Caixa, imagens PNG)
 - **Data:** 2026-10-05
 - **Área:** Simulação (apresentação ao cliente), Banco, Rotas públicas
