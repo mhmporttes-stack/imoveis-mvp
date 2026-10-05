@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getSimulation } from "@/lib/simulations";
@@ -12,6 +13,7 @@ export const metadata = { title: "Prévia da apresentação", robots: { index: f
 export default async function PresentationPreviewPage({ params }) {
   const auth = await requireAdminPage();
   const { id } = await params;
+  if (isBasicMode(auth.profile)) redirect(`/admin/simulacoes/${encodeURIComponent(id)}`);
   const simulation = await getSimulation(id, auth);
   if (!simulation) notFound();
   const dto = await buildSimulationPresentationDto(simulation);

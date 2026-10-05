@@ -32,7 +32,10 @@ test("B — rotas de WhatsApp protegidas para o corretor bloqueado (acesso diret
     ["/api/daily-goal/message-override", "POST"],
     ["/api/prospecting/extra-dispatch", "GET"],
     ["/api/prospecting/6f1c2a", "POST"],
-    ["/api/admin/client-documents/from-chat", "POST"]
+    ["/api/admin/client-documents/from-chat", "POST"],
+    ["/api/simulations/abc/proposta-valores", "POST"],
+    ["/api/admin/simulacoes/abc/apresentacao", "GET"],
+    ["/api/admin/simulacoes/abc/apresentacao", "POST"]
   ]) {
     assert.equal(isWhatsappPathProtected(p, method), true, `${method} ${p}`);
   }
@@ -41,6 +44,8 @@ test("B — rotas de WhatsApp protegidas para o corretor bloqueado (acesso diret
 test("o que NÃO é recurso de WhatsApp fica livre (clientes, supervisão, ranking, bulk, configuração)", () => {
   for (const [p, method] of [
     ["/api/simulation-registrations/list", "GET"],
+    ["/api/simulations", "POST"], // lançar/salvar os valores da simulação segue no modo básico
+    ["/api/simulations/abc", "PUT"],
     ["/api/daily-goal/team-overview", "GET"],
     ["/api/daily-goal/top-ranking", "GET"],
     ["/api/daily-goal/settings", "GET"],
@@ -75,7 +80,7 @@ test("interface: itens do bloqueado NÃO são renderizados (Chat e Meta Diária 
   assert.match(source("components/AdminBottomNav.jsx"), /destinationsFor\(flags\)\.filter\(\(item\) => !hiddenKeys\.has\(item\.key\)\)/);
   const layout = source("app/admin/layout.jsx");
   assert.match(layout, /weeklyIndicator=\{whatsappBlocked \? null : <WhatsappIndividualStatus/);
-  assert.match(layout, /<WhatsappAccessProvider blocked=\{whatsappBlocked\}>/);
+  assert.match(layout, /<WhatsappAccessProvider blocked=\{whatsappBlocked\} basic=/);
   assert.match(source("components/clients/ClientCard.jsx"), /\{whatsappBlocked \? null : <Button/);
   assert.match(source("components/clients/ClientSheet.jsx"), /\{whatsappBlocked \? null : <Button/);
   assert.match(source("components/ProspectingManager.jsx"), /!readOnly && !whatsappBlocked \?/);
@@ -158,10 +163,34 @@ test("estado inicial: todos LIBERADOS — migration aditiva, default false, sem 
 
 test("administração: switch no card (Liberado/Bloqueado) chama a API que persiste e audita", () => {
   const card = source("components/TeamDailyPerformance.jsx");
-  assert.match(card, /Acesso WhatsApp/);
-  assert.match(card, /\{blocked \? "Bloqueado" : "Liberado"\}/);
+  assert.match(card, />Automação<\/p>/);
+  assert.match(card, /\{blocked \? "Desativada · CRM básico" : "Ativa · CRM completo"\}/);
+  assert.match(card, /window\.confirm\(BASIC_MODE_CONFIRM\)/);
   assert.match(card, /fetch\("\/api\/admin\/whatsapp-access", \{\s*method: "PATCH"/);
   assert.match(card, /automation\?\.whatsappAccessControllable \? \(/);
   assert.match(source("app/api/admin/whatsapp-access/route.js"), /setWhatsappAccessBlocked\(auth,/);
   assert.match(source("lib/daily-goal-auto.js"), /whatsappAccessBlocked: broker\.whatsapp_access_blocked === true/);
+});
+
+test("MODO BÁSICO (automação desativada): PDF e apresentação só caem para corretor; gestor e admin seguem; salvar simulação segue", async () => {
+  const { isBasicMode } = await import("../lib/whatsapp-access-core.mjs");
+  assert.equal(isWhatsappPathProtected("/api/simulations/abc/proposta-valores", "POST", "broker"), true);
+  assert.equal(isWhatsappPathProtected("/api/admin/simulacoes/abc/apresentacao", "POST", "associate"), true);
+  assert.equal(isWhatsappPathProtected("/api/simulations/abc/proposta-valores", "POST", "manager"), false, "gestor administra normalmente");
+  assert.equal(isWhatsappPathProtected("/api/admin/whatsapp-chat/conversations", "GET", "manager"), true, "o resto do bloqueio não mudou");
+  assert.equal(isBasicMode({ role: "broker", whatsappAccessBlocked: true }), true);
+  assert.equal(isBasicMode({ role: "manager", whatsappAccessBlocked: true }), false);
+  assert.equal(isBasicMode({ role: "admin", whatsappAccessBlocked: true }), false);
+  assert.equal(isBasicMode({ role: "broker", whatsappAccessBlocked: false }), false, "automação ativa = CRM completo");
+  assert.match(source("app/admin/layout.jsx"), /basic=\{auth\.ok && isBasicMode\(auth\.profile\)\}/);
+  for (const page of ["app/admin/simulacoes/[id]/apresentacao/page.jsx", "app/admin/simulacoes/[id]/empreendimentos/page.jsx"]) {
+    assert.match(source(page), /if \(isBasicMode\(auth\.profile\)\) redirect\(/, page);
+  }
+  assert.match(source("app/admin/simulacoes/[id]/page.jsx"), /isBasicMode\(auth\.profile\) \? null : <SimulationPresentationPanel/);
+  const generator = source("components/SimulationGenerator.jsx");
+  assert.match(generator, /const basicMode = useBasicMode\(\);/);
+  assert.match(generator, /\{basicMode \? null : \(<>/);
+  assert.match(generator, /\{basicMode \? null : <aside/);
+  assert.match(source("components/clients/ClientCard.jsx"), /hidden: basicMode/);
+  assert.match(source("components/clients/ClientSheet.jsx"), /\{basicMode \? null : <Button variant="secondary" onClick=\{\(\) => list\.openSimulation/);
 });

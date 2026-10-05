@@ -43,7 +43,7 @@ import {
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
-import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
+import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
 const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
@@ -53,6 +53,8 @@ const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName, focus = "" }) {
   // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado.
   const whatsappBlocked = useWhatsappBlocked();
+  // Modo básico (automação desativada, 2026-10-05): sem "Empreendimentos" (PDF/apresentação); "Valores" segue.
+  const basicMode = useBasicMode();
   const [showDocuments, setShowDocuments] = useState(false);
   useEffect(() => {
     if (!open || !focus) return undefined;
@@ -93,9 +95,9 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
             <Button variant="secondary" onClick={() => setShowDocuments(true)} disabled={busy || !registration?.id}>
               <FileText className="h-4 w-4" aria-hidden="true" /> Documentos
             </Button>
-            <Button variant="secondary" onClick={() => list.openSimulation(client)} disabled={busy}>
+            {basicMode ? null : <Button variant="secondary" onClick={() => list.openSimulation(client)} disabled={busy}>
               <ExternalLink className="h-4 w-4" aria-hidden="true" /> Empreendimentos
-            </Button>
+            </Button>}
             <Button variant="secondary" className="col-span-2 sm:col-span-1" onClick={() => list.openValues(client)} disabled={busy}>
               <Calculator className="h-4 w-4" aria-hidden="true" /> Valores
             </Button>

@@ -19,7 +19,7 @@ import { isAcademyEnabled } from "@/lib/academy-flags";
 import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
-import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
+import { isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +73,7 @@ export default async function AdminLayout({ children }) {
           </header>
         </div>
       ) : null}
-      <WhatsappAccessProvider blocked={whatsappBlocked}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
+      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
       <SceneSkipCatcher />
       {/* Navegação principal no celular (< md); do tablet para cima continua
           o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}

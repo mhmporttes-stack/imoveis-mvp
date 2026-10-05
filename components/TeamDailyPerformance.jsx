@@ -812,10 +812,15 @@ function formatRate(value) {
   return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 }).format(value);
 }
 
-// Controle INDIVIDUAL de acesso aos recursos WhatsApp do corretor (2026-10-04) — conceito diferente da automação
+// Chave ÚNICA "Automação ativa × desativada (CRM básico)" por corretor (2026-10-05; nasceu em 2026-10-04 como acesso ao WhatsApp) — conceito diferente da automação
 // ligada/desligada (que controla só os disparos automáticos). Bloqueado: o corretor não vê Chat, Meta Diária nem
 // conexão do WhatsApp e o servidor recusa qualquer uso; nada é desconectado nem apagado. O gestor vê o estado (somente
 // leitura); só o administrador geral alterna. stopPropagation: o card inteiro é clicável (abre o painel do dia).
+const BASIC_MODE_HINT = "Com a automação desativada o corretor passa para o modo básico: mantém Clientes, Funil, Agenda e o lançamento de valores, mas perde Chat, Meta Diária, disparos, PDF e apresentação interativa.";
+const BASIC_MODE_CONFIRM = `${BASIC_MODE_HINT}
+
+Desativar a automação deste corretor?`;
+
 function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -823,6 +828,8 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
   async function toggle(event) {
     event.stopPropagation();
     if (busy || readOnly) return;
+    // Desativar = modo básico: confirma antes (o efeito é grande). Reativar não precisa.
+    if (!blocked && typeof window !== "undefined" && !window.confirm(BASIC_MODE_CONFIRM)) return;
     setBusy(true);
     setError("");
     try {
@@ -845,9 +852,9 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
     <div className="mt-3" onClick={(event) => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-3 rounded-xl bg-mist/60 px-3 py-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wide text-muted">Acesso WhatsApp</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-muted">Automação</p>
           <p className={`text-xs font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>
-            <span aria-hidden="true">●</span> {blocked ? "Bloqueado" : "Liberado"}
+            <span aria-hidden="true">●</span> {blocked ? "Desativada · CRM básico" : "Ativa · CRM completo"}
           </p>
         </div>
         {readOnly ? null : (
@@ -855,8 +862,8 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
             type="button"
             role="switch"
             aria-checked={!blocked}
-            aria-label={blocked ? "Liberar acesso ao WhatsApp" : "Bloquear acesso ao WhatsApp"}
-            title={blocked ? "Liberar acesso ao WhatsApp" : "Bloquear acesso ao WhatsApp"}
+            aria-label={blocked ? "Ativar a automação (CRM completo)" : "Desativar a automação (CRM básico)"}
+            title={blocked ? "Ativar a automação (CRM completo)" : BASIC_MODE_HINT}
             disabled={busy}
             onClick={toggle}
             className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${blocked ? "bg-red-400" : "bg-emerald-500"}`}
@@ -865,6 +872,7 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
           </button>
         )}
       </div>
+      {blocked ? <p className="mt-1 text-[11px] font-semibold text-muted">{BASIC_MODE_HINT}</p> : null}
       {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
     </div>
   );
