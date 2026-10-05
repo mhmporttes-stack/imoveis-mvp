@@ -309,33 +309,41 @@ function SceneValores({ scene, onNext, last, reduced, fast }) {
   const lines = [
     scene.financiamento > 0 ? { label: "Financiamento", value: scene.financiamento } : null,
     scene.desconto > 0 ? { label: "Desconto", value: scene.desconto } : null,
-    scene.casaPaulista > 0 ? { label: "Casa Paulista", value: scene.casaPaulista } : null
+    scene.casaPaulista > 0 ? { label: "Casa Paulista", value: scene.casaPaulista } : null,
+    scene.subsidio > 0 ? { label: "Subsídio Minha Casa Minha Vida", value: scene.subsidio } : null,
+    scene.documentacaoGratuita > 0 ? { label: "Documentação gratuita", value: scene.documentacaoGratuita } : null
   ].filter(Boolean);
+  const hasTotal = scene.totalDescontos > 0;
   const hasEntry = scene.entradaTotal > 0;
   const installments = Array.isArray(scene.parcelas) ? scene.parcelas : [];
   const free = hasEntry && scene.ato === 0;
   const hasAto = hasEntry && scene.ato > 0;
-  const base = 1000 + lines.length * 220;
+  const totalAt = 700 + (lines.length + 1) * 200;
+  const base = totalAt + (hasTotal ? 400 : 0);
   const atoAt = base + 700;
   const afterAto = atoAt + (free || hasAto ? 500 : 0);
   const end = afterAto + installments.length * 260 + 300;
   return (
     <div className={`${styles.sceneInner} ${styles.valInner}`}>
       <div className={styles.valBody}>
-      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": d(50) }}>Valores deste imóvel</p>
-      <p className={`${styles.valName} ${styles.rise}`} style={{ "--d": d(200) }}>{scene.name}</p>
-      <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": d(400) }}>
+      <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": d(150) }}>
         <span className={styles.rowLabel}>Valor do imóvel</span>
-        <span className={styles.rowValue}><Count value={scene.valorImovel} reduced={reduced || fast} duration={1300} delay={fast ? 0 : 450} /></span>
+        <span className={styles.rowValue}><Count value={scene.valorImovel} reduced={reduced || fast} duration={1300} delay={fast ? 0 : 250} /></span>
       </div>
-      {lines.length ? (
+      {lines.length || hasTotal ? (
         <div className={styles.valList}>
           {lines.map((line, i) => (
-            <p key={line.label} className={`${styles.valRow} ${styles.rise}`} style={{ "--d": d(1000 + i * 220) }}>
+            <p key={line.label} className={`${styles.valRow} ${styles.rise}`} style={{ "--d": d(700 + i * 200) }}>
               <span>{line.label}</span>
               <strong>{formatBRL(line.value)}</strong>
             </p>
           ))}
+          {hasTotal ? (
+            <p className={`${styles.valRow} ${styles.valTotal} ${styles.rise}`} style={{ "--d": d(totalAt) }}>
+              <span>Total de descontos</span>
+              <strong><Count value={scene.totalDescontos} reduced={reduced || fast} duration={900} delay={fast ? 0 : totalAt + 100} /></strong>
+            </p>
+          ) : null}
         </div>
       ) : null}
       {hasEntry ? (
@@ -746,10 +754,13 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
 
         {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas, direto sobre o fundo (sem pílula,
             sem caixa); nas cenas escuras ganha um brilho suave para o azul não sumir no azul-marinho. Só a logo, sem texto. */}
-        <div className={styles.caixa}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={styles.caixaLogo} src={CAIXA_LOGO} alt="Caixa Econômica Federal" width={780} height={196} />
-        </div>
+        {/* exceção (pedido do dono, 2026-10-05): a cena de valores do imóvel NÃO leva a logo (o espaço vai para os valores e o botão) */}
+        {current.id !== "valores" ? (
+          <div className={styles.caixa}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={styles.caixaLogo} src={CAIXA_LOGO} alt="Caixa Econômica Federal" width={780} height={196} />
+          </div>
+        ) : null}
       </div>
 
       <button type="button" className={`${styles.side} ${styles.sidePrev}`} onClick={() => act("prev")} disabled={!inBranch && state.index === 0} aria-label="Cena anterior">

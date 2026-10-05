@@ -338,7 +338,9 @@ test("a apresentação não recalcula nada: o modelo do PDF (presentation-model)
     "app/admin/simulacoes/[id]/apresentacao/page.jsx"
   ];
   for (const file of files) {
-    const source = read(file);
+    // Exceção única (2026-10-05, PRES-20): o core reutiliza `buildPresentationModel` (função PURA, sem PDF) só para a conta da
+    // documentação gratuita; continua proibido importar o PDF em si.
+    const source = read(file).replace(/^import \{ buildPresentationModel \} from "\.\/simulacao-entrada\/presentation-model\.mjs";\r?$/m, "");
     assert.ok(!/proposta-pdf|presentation-model|pdf-lib|buildSimulationResultSvg|buildPresentationPages/.test(source.replace(/\/\/.*$/gm, "")), `${file} toca no PDF`);
     // nada de fórmula financeira nova: sem cálculo de juros/amortização/percentual
     // (a taxa de juros anual é só um valor cadastrado que se exibe: nenhuma fórmula)

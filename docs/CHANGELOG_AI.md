@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Apresentação: cena de valores com documentação gratuita, total de descontos e layout enxuto (PRES-20)
+- **Data:** 2026-10-05
+- **Área:** Clientes (apresentação interativa)
+- **Alteração:** na cena de valores do imóvel sugerido entram as linhas "Subsídio Minha Casa Minha Vida" (só se informado) e "Documentação gratuita" (5% do valor do imóvel, reaproveitando `buildPresentationModel`) e o "Total de descontos" (soma exata das linhas mostradas). Só nesta cena: sem logo da Caixa (e sem o rodapé claro dela), sem título "Valores deste imóvel" nem nome do empreendimento, valor do imóvel no topo, botão na base; check do "Sem ato" verde. Outras cenas, PDF e motor intocados.
+- **Motivo:** pedido do dono ([REGRA OFICIAL DE NEGÓCIO — confirmada em 2026-10-05]); teste com Eco Village mostrava os descontos sem o total.
+- **Arquivos afetados:** `lib/simulation-presentation-core.mjs` (DTO: `subsidio`, `documentacaoGratuita`, `totalDescontos`), `components/presentation/PresentationPlayer.jsx`, `presentation.module.css`, `app/dev/vitrine/_fixtures/apresentacao.js`, `tests/simulation-presentation-values.test.mjs`, `tests/simulation-presentation.test.mjs` (guard "toca no PDF" libera só o import de `presentation-model.mjs` no core), `docs/BUSINESS_RULES.md` (PRES-20)
+- **Risco/observação:** o subsídio precisou virar linha própria para o total bater com as linhas. A documentação gratuita também é reconhecida pelos diferenciais do imóvel na simulação (além do cadastro do empreendimento no resultado salvo); o PDF usa os diferenciais do empreendimento — pode divergir se só um dos dois trouxer o benefício. O percentual de 5% segue [PENDENTE DE VALIDAÇÃO] (ver `presentation-model.mjs`). Dois testes antigos de round3 continuam falhando só no Windows por CRLF. Sem migration.
+- **Autor:** Claude Code (crm-architect)
 ### 2026-10-05 — Apresentação: nova cena de valores de cada imóvel sugerido (PRES-20)
 - **Data:** 2026-10-05
 - **Área:** Clientes (apresentação interativa)

@@ -520,12 +520,14 @@
 .valBody::-webkit-scrollbar { display: none; }
 .valBody > :first-child { margin-top: auto; }
 .valBody > :last-child { margin-bottom: auto; }
-.valBody > .eyebrow { text-align: center; }
-.valName { margin: calc(var(--u) * 6) 0 0; text-align: center; font-size: max(16px, calc(var(--u) * 19)); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.valHero { margin-top: calc(var(--u) * 12); padding: calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 16); text-align: center; border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
+.valHero { margin-top: 0; padding: calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 16); text-align: center; border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
 .valHero .rowLabel { display: block; color: #cfe3fa; }
 .valHero .rowValue { display: block; margin-top: calc(var(--u) * 6); font-size: min(calc(var(--u) * 46), calc(var(--cw) * 0.118)); letter-spacing: -0.02em; }
-.valList { margin-top: calc(var(--u) * 4); }
+.valList { margin-top: calc(var(--u) * 6); }
+/* total de descontos: fecha a lista de benefícios, em destaque (mesmo número que a soma das linhas acima) */
+.valRow.valTotal { margin-top: calc(var(--u) * 2); border-bottom: 0; border-top: 2px solid var(--sky); padding-top: calc(var(--u) * 9); }
+.valRow.valTotal > span { color: var(--sky); font-weight: 800; letter-spacing: 0.12em; }
+.valRow.valTotal > strong { font-size: max(22px, calc(var(--u) * 26)); font-weight: 800; color: #fff; }
 .valRow { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: calc(var(--u) * 12); padding: calc(var(--u) * 7) calc(var(--u) * 4); border-bottom: 1px solid var(--line); }
 .valRow > span { min-width: 0; line-height: 1.25; font-size: max(12.5px, calc(var(--u) * 13.5)); font-weight: 750; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .valRow > strong { flex: none; font-size: max(18px, calc(var(--u) * 21)); font-weight: 780; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -537,18 +539,28 @@
 .valEntry > .valRow:last-child { border-bottom: 0; }
 /* ATO = R$ 0,00 INFORMADO: destaque positivo (selo claro sobre o azul-marinho), nunca escondido */
 .valFree { display: flex; align-items: center; gap: calc(var(--u) * 12); margin: calc(var(--u) * 4) 0 calc(var(--u) * 8); padding: calc(var(--u) * 11) calc(var(--u) * 14); border-radius: calc(var(--u) * 18); background: #fff; color: var(--navy-2); box-shadow: 0 calc(var(--u) * 10) calc(var(--u) * 26) rgba(2, 12, 24, 0.35); opacity: 0; animation: valPop 0.7s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: var(--d, 0ms); }
-.valFreeIcon { flex: none; display: grid; place-items: center; width: max(30px, calc(var(--u) * 34)); height: max(30px, calc(var(--u) * 34)); border-radius: 999px; background: var(--blue); color: #fff; }
+.valFreeIcon { flex: none; display: grid; place-items: center; width: max(30px, calc(var(--u) * 34)); height: max(30px, calc(var(--u) * 34)); border-radius: 999px; background: #15803d; color: #fff; }
 .valFreeIcon svg { width: 62%; height: 62%; stroke-width: 3; }
 .valFree strong { display: block; font-size: max(19px, calc(var(--u) * 22)); font-weight: 800; line-height: 1.1; }
 .valFree small { display: block; margin-top: 2px; font-size: max(14px, calc(var(--u) * 15)); font-weight: 600; line-height: 1.3; color: #3a5878; }
 @keyframes valPop { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+/* sem logo da Caixa nesta cena: some o rodapé claro e o espaço dela passa a ser do botão, que desce para a base */
+.scene[data-scene="valores"] { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 22); }
+.root[data-scene="valores"] .frame::before { opacity: 0; }
+/* compacto: valor do imóvel + até 5 linhas + total + entrada com ato e parcelas cabem em 375x667 sem rolar */
+.valInner .valHero { padding: calc(var(--u) * 10) calc(var(--u) * 14) calc(var(--u) * 12); }
+.valInner .valHero .rowValue { margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.11)); }
+.valInner .valRow { padding: calc(var(--u) * 5) calc(var(--u) * 4); gap: calc(var(--u) * 8); }
+.valInner .valRow > span { letter-spacing: 0.03em; }
+.valInner .valEntry { margin-top: calc(var(--u) * 8); padding: calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * 2); }
+.valInner .valFree { margin: 0 0 calc(var(--u) * 4); padding: calc(var(--u) * 8) calc(var(--u) * 12); }
 .valActions { margin-top: calc(var(--u) * 10); }
 .valActions .cta { min-height: max(50px, calc(var(--u) * 54)); }
 @media (prefers-reduced-motion: reduce) {
   .valFree { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
 }
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
-  .scene[data-scene="valores"] { --u: calc(var(--u0) * 0.8); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u0) * 108); }
-  .valInner, .valBody > .eyebrow, .valName, .valHero { text-align: left; }
+  .scene[data-scene="valores"] { --u: calc(var(--u0) * 0.8); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u0) * 40); }
+  .valInner, .valHero { text-align: left; }
   .valActions { max-width: calc(var(--u) * 400); }
 }

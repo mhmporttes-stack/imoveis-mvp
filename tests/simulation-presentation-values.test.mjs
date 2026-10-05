@@ -72,6 +72,8 @@ test("valores: com resultado de entrada salvo do imóvel, o item do ramo ganha `
     valorImovel: 250000,
     financiamento: 190000,
     desconto: 8000,
+    subsidio: 42000,
+    totalDescontos: 50000,
     entradaTotal: 24000,
     ato: 0,
     parcelas: [{ label: "Parcelas da entrada", quantidade: 24, valor: 1000 }]
@@ -81,6 +83,8 @@ test("valores: com resultado de entrada salvo do imóvel, o item do ramo ganha `
     valorImovel: 289900,
     financiamento: 190000,
     casaPaulista: 10000,
+    subsidio: 42000,
+    totalDescontos: 52000,
     entradaTotal: 31500,
     ato: 6500,
     parcelas: [{ label: "Obra", quantidade: 18, valor: 900 }, { label: "Pós-obra", quantidade: 12, valor: 812.5 }]
@@ -132,7 +136,60 @@ test("valores: campo ausente ou zero não aplicável é omitido (sem desconto, s
   assert.deepEqual(messy.parcelas.map((block) => block.label), ["Ok 1", "Ok 2", "Ok 3"]);
   // entrada zero: sem entrada, sem ato e sem parcelas (nada de "sem ato" para quem não paga entrada)
   const free = valuesOf(withSnapshot({ entradaTotal: 0, detalhePagamento: { ato: 0, blocos: [] } })).valores;
-  assert.deepEqual(Object.keys(free).sort(), ["desconto", "financiamento", "valorImovel"]);
+  assert.deepEqual(Object.keys(free).sort(), ["desconto", "financiamento", "subsidio", "totalDescontos", "valorImovel"]);
+});
+
+// ---------- documentação gratuita e total de descontos (2026-10-05) ----------
+const DOC = { tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 1 };
+
+test("total de descontos: soma exatamente as linhas mostradas (desconto + Casa Paulista + subsídio + documentação gratuita)", () => {
+  // tudo junto: documentação = 5% do valor do imóvel (mesma conta do modelo da Proposta de Valores)
+  const all = valuesOf(withSnapshot({ casaPaulista: 10000, beneficiosInformativos: [DOC] })).valores;
+  assert.equal(all.documentacaoGratuita, 12500);
+  assert.equal(all.totalDescontos, 8000 + 10000 + 42000 + 12500);
+  const parts = ["desconto", "casaPaulista", "subsidio", "documentacaoGratuita"].reduce((sum, key) => sum + (all[key] || 0), 0);
+  assert.equal(all.totalDescontos, parts);
+  // sem subsídio informado (em branco/0): não entra no total (a simulação também sem subsídio, senão o resultado seria descartado)
+  const noSub = simulation({ simulationModels: { novo: { ...money, subsidyValue: "" }, usado: { ...money, subsidyValue: "" } } });
+  noSub.entrySimulationSnapshots = [snapshot("emp-1", { subsidioMcmv: 0, clienteSnapshot: { fgtsDisponivel: 0, financiamentoAprovado: 190000, subsidioMcmv: 0 }, casaPaulista: 10000, beneficiosInformativos: [DOC] })];
+  const semSubsidio = valuesOf(noSub).valores;
+  assert.ok(!("subsidio" in semSubsidio));
+  assert.equal(semSubsidio.totalDescontos, 8000 + 10000 + 12500);
+  // sem documentação gratuita no cadastro: nada de linha nem de soma
+  assert.ok(!("documentacaoGratuita" in valuesOf(withSnapshot()).valores));
+  assert.equal(valuesOf(withSnapshot()).valores.totalDescontos, 50000);
+  // o benefício também pode vir dos diferenciais do imóvel na simulação (mesma regra `hasFreeDocuments`)
+  const viaBenefit = simulation();
+  viaBenefit.properties[0].benefits = [{ text: "Documentação gratuita" }];
+  assert.equal(valuesOf(viaBenefit).valores.documentacaoGratuita, 12500);
+  // nada a somar: sem total
+  const none = valuesOf(withSnapshot({ totalDescontos: 0, subsidioMcmv: 0, clienteSnapshot: undefined, descontosAplicados: [] }), 0);
+  assert.ok(!("valores" in none) || !("totalDescontos" in none.valores));
+});
+
+test("documentação gratuita: sem valor do imóvel não há cena (nunca 5% de zero); DTO só leva números finais", () => {
+  assert.ok(!("valores" in valuesOf(withSnapshot({ valorImovel: 0, beneficiosInformativos: [DOC] }))));
+  const dto = buildPublicPresentation({ simulation: withSnapshot({ beneficiosInformativos: [DOC] }), defaultReason: DEFAULT_REASON });
+  const v = dto.branch[0].valores;
+  assert.equal(typeof v.documentacaoGratuita, "number");
+  assert.equal(typeof v.totalDescontos, "number");
+  assert.ok(!JSON.stringify(dto).includes("documentacao_gratuita"));
+});
+
+test("player: logo da Caixa ausente na cena de valores, sem título/nome, total ao final e selo 'Sem ato' verde", () => {
+  const player = read("components/presentation/PresentationPlayer.jsx");
+  assert.match(player, /\{current\.id !== "valores" \? \(\s*<div className=\{styles\.caixa\}>/);
+  const scene = /function SceneValores[\s\S]*?\n}\r?\n/.exec(player)?.[0] || "";
+  assert.ok(!/Valores deste imóvel|scene\.name|valName/.test(scene), "sem título nem nome do empreendimento");
+  assert.match(scene, /Total de descontos/);
+  assert.match(scene, /Documentação gratuita/);
+  assert.match(scene, /Subsídio Minha Casa Minha Vida/);
+  // o valor do imóvel é o primeiro bloco da cena
+  assert.ok(scene.indexOf("valHero") < scene.indexOf("valList"));
+  const css = read("components/presentation/presentation.module.css");
+  assert.match(css, /\.valFreeIcon \{[^}]*background: #15803d/);
+  assert.ok(!/\.valFreeIcon \{[^}]*var\(--blue\)/.test(css), "check do ato 0 não é mais azul");
+  assert.match(css, /\.root\[data-scene="valores"\] \.frame::before \{ opacity: 0; \}/);
 });
 
 // ---------- ATO ----------

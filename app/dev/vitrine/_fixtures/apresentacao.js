@@ -16,7 +16,7 @@ const REAL_PHOTOS = ["/assets/hero-marilia.png", "/assets/hero-premium-casal.png
 
 // Resultado do motor de entrada FICTÍCIO (mesmo formato que o Gerador salva em `entry_simulation_snapshots`), com os valores do
 // modelo "novo" da vitrine (financiamento 190.000 / subsídio 42.000). ato 0 = "Sem ato" destacado; ato > 0 = valor do ato.
-function entrySnapshot(propertyId, { valorImovel, descontos = 0, casaPaulista = 0, entradaTotal, ato, blocos }) {
+function entrySnapshot(propertyId, { valorImovel, descontos = 0, casaPaulista = 0, entradaTotal, ato, blocos, documentacao = false }) {
   return {
     empreendimentoId: propertyId,
     empreendimentoNome: "Interno",
@@ -28,7 +28,7 @@ function entrySnapshot(propertyId, { valorImovel, descontos = 0, casaPaulista = 
     financiamentoAprovado: 190000,
     entradaTotal,
     detalhePagamento: { ato, blocos },
-    beneficiosInformativos: [],
+    beneficiosInformativos: documentacao ? [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 0 }] : [],
     classificacao: "viavel",
     clienteSnapshot: { rendaTotal: 8123.45, financiamentoAprovado: 190000, subsidioMcmv: 42000, fgtsDisponivel: 0 }
   };
@@ -48,7 +48,7 @@ export function presentationSimulation(variant = "completo") {
     },
     entrySimulationSnapshots: [
       // imóvel 1: entrada TOTALMENTE parcelada, ato R$ 0,00 → selo "Sem ato"
-      entrySnapshot("dev-imovel-1", { valorImovel: 250000, descontos: 8000, entradaTotal: 24000, ato: 0, blocos: [{ label: "Parcelas da entrada", parcelas: 24, valorParcela: 1000, periodicidadeMeses: 1 }] }),
+      entrySnapshot("dev-imovel-1", { valorImovel: 250000, descontos: 8000, documentacao: true, entradaTotal: 24000, ato: 0, blocos: [{ label: "Parcelas da entrada", parcelas: 24, valorParcela: 1000, periodicidadeMeses: 1 }] }),
       // imóvel 2: com ato + entrada parcelada em dois blocos (obra e pós-obra) + Casa Paulista
       entrySnapshot("dev-imovel-2", { valorImovel: 289900, descontos: 5000, casaPaulista: 10000, entradaTotal: 31500, ato: 6500, blocos: [{ label: "Parcelas durante a obra", parcelas: 18, valorParcela: 900, periodicidadeMeses: 1 }, { label: "Parcelas pós-obra", parcelas: 12, valorParcela: 775, valorParcelaComJuros: 812.5, periodicidadeMeses: 1 }] })
     ],
@@ -96,6 +96,14 @@ export function presentationSimulation(variant = "completo") {
   if (variant === "sem-valores") base.entrySimulationSnapshots = [];
   // ato-ausente: o motor não informou o ato → cena sem a linha de ato (nunca "Sem ato")
   if (variant === "ato-ausente") base.entrySimulationSnapshots = base.entrySimulationSnapshots.map((snap) => ({ ...snap, detalhePagamento: { blocos: snap.detalhePagamento.blocos } }));
+  // valores-sem-subsidio: subsídio em branco na simulação → a cena não mostra a linha de subsídio e o total não o soma
+  if (variant === "valores-sem-subsidio") {
+    base.simulationModels = {
+      novo: { ...base.simulationModels.novo, subsidyValue: "" },
+      usado: { ...base.simulationModels.usado, subsidyValue: "" }
+    };
+    base.entrySimulationSnapshots = base.entrySimulationSnapshots.map((snap) => ({ ...snap, subsidioMcmv: 0, clienteSnapshot: { ...snap.clienteSnapshot, subsidioMcmv: 0 } }));
+  }
   // entrada-unica: um imóvel só, entrada parcelada com ato
   if (variant === "entrada-unica") {
     base.properties = base.properties.slice(1);
