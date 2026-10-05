@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useBasicMode } from "@/components/WhatsappAccessProvider";
 import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
@@ -99,6 +100,8 @@ const MODEL_PEER = { novo: "usado", usado: "novo" };
 
 export default function SimulationGenerator({ properties = [], initialSimulation = null }) {
   const router = useRouter();
+  // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
+  const basicMode = useBasicMode();
   const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
   const formRef = useRef(form);
   const autoSaveTimerRef = useRef(null);
@@ -821,7 +824,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   }
 
   return (
-    <div className="container-page grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_460px]">
+    <div className={`container-page grid min-w-0 gap-8 ${basicMode ? "" : "xl:grid-cols-[minmax(0,1fr)_460px]"}`}>
       <div className="grid min-w-0 gap-6">
         <Panel title="Dados do cliente" eyebrow="Etapa A">
           <div className="grid gap-4 md:grid-cols-2">
@@ -1145,6 +1148,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         {message ? <Alert tone="success">{message}</Alert> : null}
 
         <div className="grid gap-4 rounded-3xl border border-line bg-white p-4 shadow-soft sm:p-5">
+          {basicMode ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-black uppercase tracking-[0.14em] text-amber-800">CRM básico</p>
+              <p className="mt-1 text-sm font-semibold text-amber-900">Sua automação está desativada: aqui você lança e salva os valores da simulação para controle. PDF, imagens e apresentação interativa ficam indisponíveis. Fale com a gestão para reativar.</p>
+            </div>
+          ) : (
           <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
@@ -1167,6 +1176,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               ))}
             </div>
           </div>
+          )}
           <button className="premium-button-primary" disabled={saving} onClick={saveSimulation} type="button">
             <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : "Salvar simulação"}
           </button>
@@ -1180,6 +1190,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               ) : null}
             </div>
           ) : null}
+          {basicMode ? null : (<>
           <button className="premium-button-secondary" onClick={downloadImages} type="button">
             <ImageDown className="mr-2 h-5 w-5" /> Baixar imagens
           </button>
@@ -1194,11 +1205,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           >
             <WhatsAppIcon className="mr-2 h-5 w-5" /> {sendingSimulation ? "Preparando..." : "Enviar simulação"}
           </button>
+          </>)}
           <Link href="/admin/simulacoes" className="premium-button-secondary">Histórico</Link>
         </div>
       </div>
 
-      <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+      {basicMode ? null : <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
         <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -1229,7 +1241,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             ))}
           </div>
         </div>
-      </aside>
+      </aside>}
     </div>
   );
 }

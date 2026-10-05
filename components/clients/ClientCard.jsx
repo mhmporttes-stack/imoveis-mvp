@@ -29,7 +29,7 @@ import { CLIENT_STATUS, clientStatusLabel } from "@/lib/client-status";
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
-import { useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
+import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
 
 // Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
@@ -46,6 +46,8 @@ const MAX_TAGS = 4;
 export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
   // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado (o restante do card segue igual).
   const whatsappBlocked = useWhatsappBlocked();
+  // Modo básico (automação desativada, 2026-10-05): sem "Empreendimentos" (PDF/apresentação); "Valores" segue.
+  const basicMode = useBasicMode();
   const name = client.name || "Cliente sem nome";
   const registration = client.registration || {};
   const urgency = getUrgencySignal(client, activities);
@@ -140,7 +142,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
           className="ml-auto"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
-            { label: "Empreendimentos", icon: ExternalLink, onSelect: () => list.openSimulation(client) },
+            { label: "Empreendimentos", icon: ExternalLink, hidden: basicMode, onSelect: () => list.openSimulation(client) },
             { label: "Valores", icon: Calculator, onSelect: () => list.openValues(client) },
             { label: "Ficha completa", icon: ChevronRight, onSelect: () => onOpen() },
             { label: "Excluir cliente", icon: Trash2, tone: "danger", separatorBefore: true, hidden: !isOwner, onSelect: () => list.removeClient(client) }

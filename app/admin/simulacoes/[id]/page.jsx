@@ -8,6 +8,7 @@ import { listProperties } from "@/lib/properties";
 import { redactPropertiesForAuth } from "@/lib/property-visibility";
 import { withoutPropertyPdf } from "@/lib/property-visibility-core.mjs";
 import { getSimulation } from "@/lib/simulations";
+import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,8 @@ export default async function EditSimulationPage({ params }) {
         </Link>
       </section>
       {/* Apresentação interativa: opção ADICIONAL ao PDF (que continua sendo gerado pelo gerador abaixo, sem mudança). */}
-      <SimulationPresentationPanel simulationId={simulation.id} />
+      {/* Modo básico (automação desativada): sem apresentação interativa; o lançamento dos valores segue. */}
+      {isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}
       <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))} initialSimulation={simulation} />
     </main>
   );
