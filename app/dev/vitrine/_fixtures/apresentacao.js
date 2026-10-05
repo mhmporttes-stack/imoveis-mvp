@@ -36,6 +36,15 @@ export function presentationSimulation(variant = "completo") {
       usado: { financingValue: "232.000,00", subsidyValue: "0", firstInstallment: "1.320,00", lastInstallment: "980,55" }
     };
   }
+  if (variant === "minimo") {
+    // sem juros, sem subsídio algum e sem imóvel (a apresentação mais enxuta possível)
+    base.interestRateAnnual = null;
+    base.simulationModels = {
+      novo: { financingValue: "158.500,00", subsidyValue: "0", firstInstallment: "", lastInstallment: "" },
+      usado: { financingValue: "158.500,00", subsidyValue: "0", firstInstallment: "", lastInstallment: "" }
+    };
+    base.properties = [];
+  }
   if (variant === "igual") base.simulationModels.usado = { ...base.simulationModels.novo };
   if (variant === "sem-imovel") base.properties = [];
   if (variant === "sem-justificativa") base.properties[0].recommendationReason = DEFAULT_REASON;

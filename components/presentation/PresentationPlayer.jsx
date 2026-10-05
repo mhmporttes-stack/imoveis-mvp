@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, FileText, House, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
@@ -24,6 +24,7 @@ import {
 } from "./player-core.mjs";
 import DocumentsSheet from "./DocumentsSheet";
 import OpeningAnimation from "./OpeningAnimation";
+import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
 import styles from "./presentation.module.css";
 
 // Player da apresentação interativa da simulação. Recebe só o DTO público (cenas já decididas no servidor) e nunca
@@ -55,7 +56,8 @@ function announcement(scene, index, total) {
   }
 }
 
-/** Número que sobe até o valor final (rAF + easing). Reduced-motion: valor final direto. A largura é reservada pelo texto final. */
+/** Número que sobe até o valor final (rAF + easing). Reduced-motion: valor final direto. A largura é reservada pelo texto final.
+ *  Os centavos ficam menores (só tipografia: o texto lido é o mesmo valor); --len guarda o tamanho do número para o ajuste de fonte. */
 function Count({ value, reduced, duration = 1700, delay = 350, className = "" }) {
   const [shown, setShown] = useState(reduced ? value : 0);
   useEffect(() => {
@@ -81,23 +83,45 @@ function Count({ value, reduced, duration = 1700, delay = 350, className = "" })
   const final = formatBRL(value);
   const part = splitBRL(shown);
   const ghost = splitBRL(value);
+  const body = (parts) => {
+    const cut = parts.number.lastIndexOf(",");
+    return cut > 0 ? (<span className={styles.num}>{parts.number.slice(0, cut)}<em>{parts.number.slice(cut)}</em></span>) : (<span className={styles.num}>{parts.number}</span>);
+  };
+  const cutGhost = ghost.number.lastIndexOf(",");
+  const len = cutGhost > 0 ? cutGhost : ghost.number.length;
   return (
-    <span className={`${styles.count} ${className}`}>
-      <span className={styles.countGhost} aria-hidden="true"><small>{ghost.symbol}</small>{ghost.number}</span>
-      <span aria-hidden="true"><small>{part.symbol}</small>{part.number}</span>
+    <span className={`${styles.count} ${className}`} style={{ "--len": len }}>
+      <span className={styles.countGhost} aria-hidden="true"><small>{ghost.symbol}</small>{body(ghost)}</span>
+      <span aria-hidden="true"><small>{part.symbol}</small>{body(part)}</span>
       <span className={styles.sr}>{final}</span>
     </span>
   );
 }
 
+/** Texto que se revela palavra por palavra (só opacity e transform). O texto lido é o mesmo. */
+function RevealWords({ text, start = 0, step = 55 }) {
+  const words = text.split(" ");
+  return words.map((word, i) => (
+    <Fragment key={`${i}-${word}`}>
+      <span className={styles.word} style={{ "--d": `${start + i * step}ms` }}>{word}</span>
+      {i < words.length - 1 ? " " : null}
+    </Fragment>
+  ));
+}
+
 function SceneAbertura({ scene, reduced }) {
+  const title = scene.firstName ? `${scene.firstName}, sua simulação de financiamento está pronta` : "Sua simulação de financiamento está pronta";
   return (
-    <div className={styles.sceneInner}>
-      <OpeningAnimation reducedMotion={reduced} />
-      <h1 className={`${styles.title} ${styles.rise}`} style={{ "--d": "900ms" }}>
-        {scene.firstName ? `${scene.firstName}, sua simulação de financiamento está pronta` : "Sua simulação de financiamento está pronta"}
-      </h1>
-      <p className={`${styles.lead} ${styles.rise}`} style={{ "--d": "1500ms" }}>Você já está um passo mais próximo da compra do seu imóvel</p>
+    <div className={`${styles.sceneInner} ${styles.openingInner}`}>
+      <div className={styles.openArt}>
+        <OpeningAnimation reducedMotion={reduced} />
+      </div>
+      <div className={styles.openText}>
+        <h1 className={`${styles.title} ${styles.titleHero}`}>
+          {reduced ? title : <RevealWords text={title} start={1000} />}
+        </h1>
+        <p className={`${styles.lead} ${styles.rise}`} style={{ "--d": reduced ? "0ms" : "1500ms" }}>Você já está um passo mais próximo da compra do seu imóvel</p>
+      </div>
     </div>
   );
 }
@@ -105,9 +129,12 @@ function SceneAbertura({ scene, reduced }) {
 function ScenePoder({ scene, reduced }) {
   return (
     <div className={styles.sceneInner}>
-      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "100ms" }}>Seu poder de compra</p>
-      <strong className={styles.bigNumber}><Count value={scene.value} reduced={reduced} /></strong>
-      <span className={styles.underline} style={{ "--d": "2000ms" }} aria-hidden="true" />
+      <div className={styles.powerWrap}>
+        <PowerRings />
+        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "100ms" }}>Seu poder de compra</p>
+        <strong className={styles.bigNumber}><Count value={scene.value} reduced={reduced} /></strong>
+        <span className={styles.underline} style={{ "--d": "2000ms" }} aria-hidden="true" />
+      </div>
     </div>
   );
 }
@@ -134,7 +161,7 @@ function SceneFormacao({ scene, reduced }) {
               <span className={styles.rowLabel}>Financiamento</span>
               <span className={styles.rowValue}>{formatBRL(scene.financing)}</span>
             </div>
-            <div className={`${styles.plus} ${styles.rise}`} style={{ "--d": "900ms" }} aria-hidden="true">+</div>
+            <div className={`${styles.plus} ${styles.rise}`} style={{ "--d": "900ms" }} aria-hidden="true"><span>+</span></div>
             <div className={`${styles.row} ${styles.rise}`} style={{ "--d": "1200ms" }}>
               <span className={styles.rowLabel}>Subsídio</span>
               <span className={styles.rowValue}>{formatBRL(scene.subsidy)}</span>
@@ -163,7 +190,7 @@ function SceneParcelas({ scene }) {
             <strong className={styles.statValue}>{formatBRL(scene.first)}</strong>
           </div>
         ) : null}
-        {both ? <div className={styles.statLink} style={{ "--d": "900ms" }} aria-hidden="true" /> : null}
+        {both ? <div className={styles.statLink} style={{ "--d": "900ms" }} aria-hidden="true"><svg viewBox="0 0 24 56"><path d="M12 2 V50 M4 42 L12 52 L20 42" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg></div> : null}
         {scene.last > 0 ? (
           <div className={`${styles.stat} ${styles.rise}`} style={{ "--d": both ? "1500ms" : "400ms" }}>
             <span className={styles.statLabel}>Última parcela</span>
@@ -242,6 +269,7 @@ function ScenePorque({ scene }) {
     <div className={styles.sceneInner}>
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Por que este imóvel?</p>
       <div className={`${styles.reasonBox} ${styles.rise}`} style={{ "--d": "500ms" }}>
+        <QuoteMark />
         <p className={styles.reason}>{scene.reason}</p>
       </div>
     </div>
@@ -287,6 +315,7 @@ function SceneProximo({ scene, onValidate, hrefs }) {
 function SceneValidar({ scene }) {
   return (
     <div className={styles.sceneInner}>
+      <StepArrow />
       <h2 className={`${styles.title} ${styles.rise}`} style={{ "--d": "150ms" }}>
         {scene.firstName ? `${scene.firstName}, esse é o próximo passo!` : "Esse é o próximo passo!"}
       </h2>
@@ -301,6 +330,7 @@ function SceneValidar({ scene }) {
 function SceneDocumentos({ onRestart, hrefs, onOpenList }) {
   return (
     <div className={styles.sceneInner}>
+      <FolderArt />
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Documentos</p>
       <h2 className={`${styles.title} ${styles.titleSm} ${styles.rise}`} style={{ "--d": "350ms" }}>{DOCUMENTS_SCENE_TEXT}</h2>
       <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1000ms" }}>
@@ -498,6 +528,7 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
     <div
       className={styles.root}
       data-theme={theme(current)}
+      data-scene={current.id}
       role="region"
       aria-roledescription="apresentação"
       aria-label="Apresentação da sua simulação"
@@ -507,6 +538,7 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
       <div className={styles.halo} aria-hidden="true" />
 
       <div className={styles.frame}>
+        <ArchBackdrop />
         <div className={styles.chrome}>
           <div className={styles.bars} aria-hidden="true">
             {scenes.slice(0, navTotal).map((item, i) => (
@@ -533,11 +565,11 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
 
         <div className={styles.stage} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = null; }}>
           {leavingScene ? (
-            <div key={`leave-${leaving}`} className={`${styles.scene} ${styles.leave} ${leavingScene.id === "imovel" ? styles.photoScene : ""}`} aria-hidden="true">
+            <div key={`leave-${leaving}`} data-scene={leavingScene.id} className={`${styles.scene} ${styles.leave} ${leavingScene.id === "imovel" ? styles.photoScene : ""}`} aria-hidden="true">
               {renderScene(leavingScene, { ...ctx, reduced: true })}
             </div>
           ) : null}
-          <div key={`scene-${state.index}`} className={`${styles.scene} ${styles.enter} ${dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
+          <div key={`scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
             {renderScene(current, ctx)}
           </div>
           {docsOpen && current.id === "documentos" ? <DocumentsSheet onClose={closeList} /> : null}

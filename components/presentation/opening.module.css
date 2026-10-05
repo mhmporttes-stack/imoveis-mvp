@@ -1,0 +1,84 @@
+/* Animação de abertura (cena 1). Só transform, opacity e stroke-dashoffset. Valores BASE = estado FINAL (casa acesa,
+   sem chave): assim o estado estático (movimento reduzido) é o próprio CSS sem animação, e as animações só definem de onde partem.
+   Tempos: delays/durações vêm inline (frações de --open-dur); as curvas ficam aqui. */
+.stage {
+  --open-dur: 4200ms;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 400 / 320;
+  contain: layout paint;
+  pointer-events: none;
+}
+.svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
+
+.lines path:not(.ground), .lines circle { stroke: #dcebfc; }
+.ring { stroke: #9cc3f5; stroke-opacity: 0.28; stroke-width: 1.2; fill: none; stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+
+/* traço que se desenha */
+.draw { stroke-dasharray: 1 1; stroke-dashoffset: 0; animation: oaDraw 700ms cubic-bezier(0.45, 0, 0.2, 1) both; }
+@keyframes oaDraw {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  3% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.coolHalo { animation: oaFade 900ms ease-out both; }
+.body { animation: oaFade 900ms ease-out both; }
+.warmHalo { animation: oaGlow 1100ms cubic-bezier(0.2, 0, 0, 1) both; transform-box: fill-box; transform-origin: 50% 70%; }
+.floorLight { animation: oaFade 900ms ease-out both; }
+.doorLight, .winLit { animation: oaLit 480ms ease-out both; }
+@keyframes oaFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes oaGlow { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes oaLit { from { opacity: 0; } 55% { opacity: 1; } to { opacity: 0.96; } }
+
+/* folha da porta: aparece, fica fechada até a chave girar, abre como que para dentro (scaleX no eixo da dobradiça) */
+.leaf {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  transform: scaleX(0.16) skewY(-3deg);
+  animation: oaLeafIn var(--leaf-in-d, 450ms) var(--leaf-in, 1500ms) ease-out backwards, oaLeafOpen var(--leaf-open-d, 750ms) var(--leaf-open, 2600ms) cubic-bezier(0.55, 0, 0.25, 1) backwards;
+}
+@keyframes oaLeafIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes oaLeafOpen { from { transform: scaleX(1) skewY(0deg); } to { transform: scaleX(0.16) skewY(-3deg); } }
+.leaf { opacity: 1; }
+
+.ripple { fill: none; stroke: #cfe3fa; stroke-width: 1.4; opacity: 0; transform-box: fill-box; transform-origin: center; animation: oaRipple 700ms ease-out backwards; }
+@keyframes oaRipple { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(3.4); } }
+
+/* chave: 5 momentos (entra grande · brilha · desce · encaixa · gira) e some */
+.key {
+  transform-origin: 0 0;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: oaKey 2800ms linear backwards;
+}
+@keyframes oaKey {
+  0% { opacity: 0; transform: translate(330px, 36px) rotate(-14deg) scale(2.1, 2.1); animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+  10% { opacity: 1; }
+  26% { opacity: 1; transform: translate(236px, 58px) rotate(-6deg) scale(1.9, 1.9); animation-timing-function: linear; }
+  36% { opacity: 1; transform: translate(236px, 58px) rotate(-6deg) scale(1.9, 1.9); animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1); }
+  58% { opacity: 1; transform: translate(268px, 232px) rotate(0deg) scale(1, 1); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  70% { opacity: 1; transform: translate(213px, 232px) rotate(0deg) scale(1, 1); animation-timing-function: linear; }
+  76% { opacity: 1; transform: translate(213px, 232px) rotate(0deg) scale(1, 1); animation-timing-function: cubic-bezier(0.6, 0, 0.3, 1); }
+  90% { opacity: 1; transform: translate(213px, 232px) rotate(0deg) scale(1, -1); }
+  93% { opacity: 1; transform: translate(213px, 232px) rotate(0deg) scale(1, -1); }
+  100% { opacity: 0; transform: translate(213px, 232px) rotate(0deg) scale(1, -1); }
+}
+.shine { transform: translateX(120px) skewX(-20deg); animation: oaShine 760ms ease-in-out backwards; }
+@keyframes oaShine { from { transform: translateX(-30px) skewX(-20deg); } to { transform: translateX(120px) skewX(-20deg); } }
+
+/* partículas de luz */
+.spark { fill: #fff1cf; opacity: 0; animation: oaSpark 1200ms ease-out backwards; }
+@keyframes oaSpark {
+  0% { opacity: 0; transform: translateY(0); }
+  18% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(var(--rise, -90px)); }
+}
+
+/* movimento reduzido: estado final, sem movimento algum */
+.static *, .static { animation: none !important; }
+.static .key, .static .ripple, .static .spark { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .stage *, .stage { animation: none !important; }
+  .key, .ripple, .spark { display: none; }
+}
