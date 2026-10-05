@@ -3,13 +3,13 @@ import LinkJourneyGate from "@/components/simulation-form/LinkJourneyGate";
 
 // Prévia de compartilhamento (WhatsApp, Instagram Direct, Facebook, X…): título, descrição, canonical, Open Graph e
 // Twitter Card ficam no HTML estático desta página (crawlers não executam JavaScript). A imagem 1200x630 é um PNG
-// estático (public/assets/og-simulacao-v2.png) com a logo atual; ao trocá-la, mude o sufixo do nome para o cache das
+// estático (public/assets/og-simulacao-v3.png) com a logo atual; ao trocá-la, mude o sufixo do nome para o cache das
 // plataformas não segurar a versão antiga.
 const SHARE_URL = "https://www.matheusmachadoimoveis.com.br/simulacao";
-const SHARE_TITLE = "Simule seu primeiro imóvel | Matheus Machado";
+const SHARE_TITLE = "Descubra quanto você pode financiar | Matheus Machado";
 const SHARE_DESCRIPTION = "Descubra seu poder de compra e dê o primeiro passo para o seu imóvel.";
-const SHARE_IMAGE = "https://www.matheusmachadoimoveis.com.br/assets/og-simulacao-v2.png";
-const SHARE_IMAGE_ALT = "Simule seu primeiro imóvel — Descubra seu poder de compra | Matheus Machado, Corretor de Imóveis";
+const SHARE_IMAGE = "https://www.matheusmachadoimoveis.com.br/assets/og-simulacao-v3.png";
+const SHARE_IMAGE_ALT = "Descubra quanto você pode financiar — Descubra seu poder de compra em menos de 2 min | Matheus Machado, Corretor de Imóveis";
 
 export const metadata = {
   title: SHARE_TITLE,
