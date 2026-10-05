@@ -228,7 +228,7 @@ test("logo da Caixa: sem pílula branca, sem caixa/borda/fundo; direto sobre o f
   assert.ok(!css.includes("caixaPill"));
   const logo = rules.find((rule) => rule.selector === ".caixaLogo");
   assert.match(logo.body, /width: calc\(var\(--cw\) \* 0\.52\)/); // 52% da largura útil
-  assert.match(css, /data-theme="dark"\] \.caixaLogo \{ filter: drop-shadow/);
+  assert.doesNotMatch(css, /.caixaLogo { filter: drop-shadow/);
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.ok(!player.includes("caixaPill"));
   assert.match(player, /className=\{styles\.caixaLogo\}/);

@@ -310,9 +310,9 @@
 /* logo da Caixa: rodapé fixo de TODAS as cenas (pílula branca: a logo é azul e laranja e precisa de fundo claro) */
 .caixa { position: absolute; z-index: 6; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 14); display: flex; justify-content: center; pointer-events: none; }
 /* Direto sobre o fundo (sem pílula, sem borda, sem caixa), larga (~42% da largura útil). Nas cenas escuras o azul da logo some
-   no azul-marinho: um halo claro suave por trás (drop-shadow, como na referência do dono). */
+   no azul-marinho; o dono pediu SEM sombra/brilho, então a logo fica limpa. */
 .caixaLogo { display: block; width: calc(var(--cw) * 0.52); height: auto; aspect-ratio: 780 / 196; }
-.root[data-theme="dark"] .caixaLogo { filter: drop-shadow(0 0 calc(var(--u) * 9) rgba(190, 220, 255, 0.85)) drop-shadow(0 0 calc(var(--u) * 2.5) rgba(255, 255, 255, 0.7)); }
+/* sem brilho/sombra atrás da logo (pedido do dono, 2026-10-05) */
 
 /* lista de documentos: folha sobre a cena, rolável */
 .sheetBackdrop { position: absolute; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; background: rgba(3, 14, 28, 0.84); animation: fade 0.25s ease both; }
