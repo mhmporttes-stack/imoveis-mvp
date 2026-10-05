@@ -9,6 +9,13 @@ import {
   presentationUrl,
   regeneratePresentation
 } from "@/lib/simulation-presentation";
+import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journey";
+import {
+  PRESENTATION_SENT_EVENT,
+  PRESENTATION_SENT_JOURNEY_TEXT,
+  buildPresentationSendMessage,
+  canSendPresentationTo
+} from "@/lib/simulation-presentation-send.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +24,7 @@ export const dynamic = "force-dynamic";
 // `getSimulation(id, auth)` valida se o usuário pode ver aquela simulação (admin tudo; gestor a equipe; corretor os
 // próprios clientes; associado os do corretor vinculado). Nada daqui é público.
 //   GET  → estado do link + métricas discretas
+//   POST → { action: "enviar-preparar" } (get-or-create + mensagem com o link; não envia) / { action: "enviar-registrar" } (jornada)
 //   POST → { action: "generate" } (idempotente: devolve o mesmo link) ou { action: "regenerate" } (revoga e cria novo)
 
 function origin(request) {
@@ -91,10 +99,41 @@ export async function POST(request, { params }) {
   } catch {
     payload = {};
   }
-  const action = payload?.action === "regenerate" ? "regenerate" : "generate";
+  const action = ["regenerate", "enviar-preparar", "enviar-registrar"].includes(payload?.action) ? payload.action : "generate";
 
   try {
     const { simulation, auth } = loaded;
+
+    // Terceira opção do "Enviar simulação" (PDF / Imagem / Apresentação). Nunca envia: devolve a mensagem para o corretor confirmar.
+    if (action === "enviar-preparar" || action === "enviar-registrar") {
+      if (!canSendPresentationTo(simulation.registration)) {
+        return NextResponse.json({ error: "Este cliente não pode receber mensagens." }, { status: 409 });
+      }
+      if (action === "enviar-registrar") {
+        if (simulation.registrationId) {
+          await logClientJourneyEvent({
+            clientId: simulation.registrationId,
+            eventType: PRESENTATION_SENT_EVENT,
+            actor: resolveActorSnapshot(auth),
+            details: { text: PRESENTATION_SENT_JOURNEY_TEXT }
+          });
+        }
+        return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+      }
+      if (!countPresentationScenes(simulation)) {
+        return NextResponse.json({ error: "Preencha os valores da simulação (financiamento, subsídio ou parcelas) antes de gerar a apresentação." }, { status: 422 });
+      }
+      const result = await ensurePresentation({ simulation, userId: auth.profile?.id || "" });
+      if (!result?.schemaReady || !result.presentation?.token) {
+        return NextResponse.json({ error: PRESENTATION_SCHEMA_MESSAGE }, { status: 503 });
+      }
+      const link = presentationUrl(result.presentation.token, origin(request));
+      return NextResponse.json(
+        { link, message: buildPresentationSendMessage({ fullName: simulation.clientName, link }) },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const sceneCount = await countPresentationScenes(simulation);
     if (!sceneCount) {
       return NextResponse.json({ error: "Preencha os valores da simulação (financiamento, subsídio ou parcelas) antes de gerar a apresentação." }, { status: 422 });

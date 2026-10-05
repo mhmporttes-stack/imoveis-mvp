@@ -32,7 +32,8 @@ const CLIENT_WHATSAPP_NOTE_PREFIX = "WhatsApp do cadastro:";
 
 const SEND_FORMAT_OPTIONS = [
   { value: "pdf", label: "PDF" },
-  { value: "image", label: "Imagem" }
+  { value: "image", label: "Imagem" },
+  { value: "presentation", label: "Apresentação" }
 ];
 
 const BENEFIT_OPTIONS = [
@@ -736,6 +737,11 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       return;
     }
 
+    if (sendFormat === "presentation") {
+      await sendPresentationToWhatsApp(phone);
+      return;
+    }
+
     setSendingSimulation(true);
     setError("");
     setMessage("");
@@ -764,6 +770,51 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     } catch (sendError) {
       if (whatsappWindow) whatsappWindow.close();
       setError(sendError.message || "Não foi possível preparar o envio da simulação.");
+    } finally {
+      setSendingSimulation(false);
+    }
+  }
+
+  // Terceira opção do envio: link da apresentação interativa (/s/<token>). O servidor faz o get-or-create do link e monta a
+  // mensagem; o WhatsApp do cliente abre com ela pronta e quem envia é o corretor (nunca automático). Vale o que está SALVO.
+  async function sendPresentationToWhatsApp(phone) {
+    if (!form.id) {
+      setError("Salve a simulação antes de enviar a apresentação.");
+      setMessage("");
+      return;
+    }
+    setSendingSimulation(true);
+    setError("");
+    setMessage("");
+    const whatsappWindow = window.open("about:blank", "_blank");
+    const endpoint = `/api/admin/simulacoes/${encodeURIComponent(form.id)}/apresentacao`;
+    const post = (action) => fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action })
+    });
+
+    try {
+      const saved = await persistSimulation({ entrySimulationSnapshots: Object.values(entradaResultados) });
+      if (!saved) throw new Error("Salve a simulação antes de enviar a apresentação.");
+      const response = await post("enviar-preparar");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.message) throw new Error(data.error || "Não foi possível preparar a apresentação.");
+
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`;
+      if (whatsappWindow) {
+        whatsappWindow.opener = null;
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }
+
+      const logged = await post("enviar-registrar").catch(() => null);
+      if (logged?.ok) setMessage("O WhatsApp do cliente foi aberto com o link da apresentação. Envie por lá.");
+      else setError("O WhatsApp foi aberto, mas o registro na jornada do cliente falhou.");
+    } catch (sendError) {
+      if (whatsappWindow) whatsappWindow.close();
+      setError(sendError.message || "Não foi possível preparar o envio da apresentação.");
     } finally {
       setSendingSimulation(false);
     }
@@ -1097,13 +1148,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
-              <p className="mt-1 text-sm font-semibold text-muted">Escolha se deseja preparar PDF ou imagem para anexar no WhatsApp.</p>
+              <p className="mt-1 text-sm font-semibold text-muted">Escolha se deseja enviar PDF, imagem (para anexar no WhatsApp) ou a apresentação interativa (por link).</p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {SEND_FORMAT_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  className={`rounded-full px-5 py-3 text-sm font-black transition ${
+                  className={`rounded-full px-3 py-3 text-sm font-black transition sm:px-5 ${
                     sendFormat === option.value
                       ? "bg-navy text-white shadow-soft"
                       : "border border-line bg-white text-navy hover:border-brand"
