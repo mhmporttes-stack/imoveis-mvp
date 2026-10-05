@@ -92,7 +92,7 @@ export default function AcademiaApp({ store: injected, initial, backHref = "/adm
   const lesson = snap.lesson;
   const answered = Boolean(quiz) && quiz.status !== "unanswered" && quiz.attempts !== retriedAt;
   const pending = Boolean(quiz) && quiz.status === "correct" && a.available;
-  const pinText = snap.home.lesson ? `${snap.home.lesson.title} · ${snap.home.lesson.minutes} min` : "Formação concluída";
+  const pinText = snap.home.lesson ? `${snap.home.lesson.title} · ${snap.home.lesson.minutes} min` : snap.home.partial ? "Novos módulos em breve" : "Formação concluída";
 
   /* ---------- motor: entradas, montagem, troca de tela ---------- */
   useLayoutEffect(() => {

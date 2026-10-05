@@ -90,3 +90,15 @@ test("PDF do certificado: válido, com acentos e nome longo/estranho, e marca RE
   const long = await buildCertificatePdf({ ...base, holderName: "Nome Muito Comprido ".repeat(6), revoked: true });
   assert.equal(long.subarray(0, 5).toString(), "%PDF-");
 });
+
+test("versão parcial (trilha em construção): concluir tudo que existe NÃO conclui a matrícula nem emite certificado", async () => {
+  const w = buildWorld();
+  const ver = w.db.tables.academy_track_versions.find((v) => v.status === "published");
+  ver.settings = { ...(ver.settings || {}), partial: true };
+  const enr = await finish(w, STUDENT_A);
+  assert.notEqual(enr.status, "completed");
+  assert.equal(w.db.tables.academy_certificates.length, 0);
+  const p = await w.svc.loadStudent(student(STUDENT_A));
+  assert.equal(p.certificate, null);
+  assert.equal(p.core.settings.partial, true);
+});

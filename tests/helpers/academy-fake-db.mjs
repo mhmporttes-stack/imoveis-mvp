@@ -143,7 +143,8 @@ export function createFakeDb({ now = () => new Date().toISOString() } = {}) {
     const done = t.academy_lesson_progress.filter((p) => p.enrollment_id === enrollment.id && p.status === "completed").length;
     const pending = t.academy_exams.filter((x) => x.track_version_id === enrollment.track_version_id && ["module", "final"].includes(x.kind)
       && !t.academy_exam_attempts.some((a) => a.enrollment_id === enrollment.id && a.exam_id === x.id && a.passed === true));
-    if (lessons.length && done >= lessons.length && !pending.length) {
+    const partial = t.academy_track_versions.find((v) => v.id === enrollment.track_version_id)?.settings?.partial === true;
+    if (lessons.length && done >= lessons.length && !pending.length && !partial) {
       const was = enrollment.status;
       enrollment.status = "completed"; enrollment.completed_at ??= now();
       if (was !== "completed") issueCert(enrollment, null, null);
