@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, FileText, House, MessageCircle, Pause, Play } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, FileText, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -13,6 +13,7 @@ import {
   buildAssetHrefs,
   countValue,
   createPlayerState,
+  flattenBranch,
   isAutoAdvancing,
   isLastScene,
   isPaused,
@@ -36,13 +37,18 @@ import styles from "./presentation.module.css";
 // A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
 // Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
 
-const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "proximo", "validar"]);
+const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "proximo", "validar"]);
 const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
 const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
 const CAIXA_LOGO = "/assets/caixa-logo-transparent.png";
 
 function announcement(scene, index, total) {
   if (scene.id === "imovel") return `Imóvel ${scene.position} de ${scene.count}: ${scene.name}. ${scene.reason}`;
+  if (scene.id === "valores") {
+    const entry = scene.entradaTotal ? ` Entrada ${formatBRL(scene.entradaTotal)}.` : "";
+    const ato = scene.ato === 0 ? " Sem ato: você pode avançar sem pagamento de ato." : scene.ato > 0 ? ` Ato ${formatBRL(scene.ato)}.` : "";
+    return `Valores de ${scene.name}. Valor do imóvel ${formatBRL(scene.valorImovel)}.${entry}${ato}`;
+  }
   const head = `Cena ${index + 1} de ${total}. `;
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
@@ -240,7 +246,7 @@ function SceneDiferenca({ scene }) {
 }
 
 /** Cena do RAMO de imóveis (uma por imóvel sugerido): foto em revelação, características em sequência e a mensagem. */
-function SceneImovel({ scene, onNext, last, fast }) {
+function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
   const [failed, setFailed] = useState(false);
   const multi = scene.count > 1;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
@@ -287,11 +293,87 @@ function SceneImovel({ scene, onNext, last, fast }) {
         </div>
         <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 500) }}>
           <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
-            {last ? "Continuar" : "Próximo imóvel"}
+            {last ? "Continuar" : nextIsValues ? "Ver valores" : "Próximo imóvel"}
           </button>
         </div>
       </div>
     </>
+  );
+}
+
+/** Cena do RAMO logo depois da cena do imóvel (PRES-20): as condições financeiras DAQUELE imóvel, já prontas no servidor.
+ *  Só mostra o que veio no DTO; os números entram com o mesmo contador das cenas de valores. `ato === 0` (informado) ganha
+ *  destaque positivo; `ato` ausente nunca vira "sem ato". Sem cálculo aqui: apenas formata. */
+function SceneValores({ scene, onNext, last, reduced, fast }) {
+  const d = (ms) => (fast ? "0ms" : `${ms}ms`);
+  const lines = [
+    scene.financiamento > 0 ? { label: "Financiamento", value: scene.financiamento } : null,
+    scene.desconto > 0 ? { label: "Desconto", value: scene.desconto } : null,
+    scene.casaPaulista > 0 ? { label: "Casa Paulista", value: scene.casaPaulista } : null
+  ].filter(Boolean);
+  const hasEntry = scene.entradaTotal > 0;
+  const installments = Array.isArray(scene.parcelas) ? scene.parcelas : [];
+  const free = hasEntry && scene.ato === 0;
+  const hasAto = hasEntry && scene.ato > 0;
+  const base = 1000 + lines.length * 220;
+  const atoAt = base + 700;
+  const afterAto = atoAt + (free || hasAto ? 500 : 0);
+  const end = afterAto + installments.length * 260 + 300;
+  return (
+    <div className={`${styles.sceneInner} ${styles.valInner}`}>
+      <div className={styles.valBody}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": d(50) }}>Valores deste imóvel</p>
+      <p className={`${styles.valName} ${styles.rise}`} style={{ "--d": d(200) }}>{scene.name}</p>
+      <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": d(400) }}>
+        <span className={styles.rowLabel}>Valor do imóvel</span>
+        <span className={styles.rowValue}><Count value={scene.valorImovel} reduced={reduced || fast} duration={1300} delay={fast ? 0 : 450} /></span>
+      </div>
+      {lines.length ? (
+        <div className={styles.valList}>
+          {lines.map((line, i) => (
+            <p key={line.label} className={`${styles.valRow} ${styles.rise}`} style={{ "--d": d(1000 + i * 220) }}>
+              <span>{line.label}</span>
+              <strong>{formatBRL(line.value)}</strong>
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {hasEntry ? (
+        <div className={`${styles.valEntry} ${styles.rise}`} style={{ "--d": d(base) }}>
+          <div className={styles.valEntryHead}>
+            <span className={styles.rowLabel}>Entrada</span>
+            <span className={styles.valEntryValue}><Count value={scene.entradaTotal} reduced={reduced || fast} duration={1000} delay={fast ? 0 : base + 150} /></span>
+          </div>
+          {free ? (
+            <div className={styles.valFree} style={{ "--d": d(atoAt) }}>
+              <span className={styles.valFreeIcon} aria-hidden="true"><Check /></span>
+              <span>
+                <strong>Sem ato</strong>
+                <small>Você pode avançar sem pagamento de ato</small>
+              </span>
+            </div>
+          ) : null}
+          {hasAto ? (
+            <p className={`${styles.valRow} ${styles.rise}`} style={{ "--d": d(atoAt) }}>
+              <span>Ato</span>
+              <strong><Count value={scene.ato} reduced={reduced || fast} duration={900} delay={fast ? 0 : atoAt + 100} /></strong>
+            </p>
+          ) : null}
+          {installments.map((block, i) => (
+            <p key={`${i}-${block.label}`} className={`${styles.valRow} ${styles.rise}`} style={{ "--d": d(afterAto + i * 260) }}>
+              <span>{block.label || "Parcelas"}</span>
+              <strong>{`${block.quantidade}x de ${formatBRL(block.valor)}`}</strong>
+            </p>
+          ))}
+        </div>
+      ) : null}
+      </div>
+      <div className={`${styles.propActions} ${styles.valActions} ${styles.rise}`} style={{ "--d": d(end) }}>
+        <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
+          {last ? "Continuar" : "Próximo imóvel"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -386,7 +468,8 @@ function renderScene(scene, ctx) {
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
-    case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={scene.position >= scene.count} fast={ctx.fast} />;
+    case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />;
+    case "valores": return <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} onOpenList={ctx.openList} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
@@ -423,7 +506,10 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const [forecastOpen, setForecastOpen] = useState(false);
   // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
   // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
-  const [branchIndex, setBranchIndex] = useState(() => (initialBranch > 0 && branch.length ? Math.min(Math.floor(initialBranch), branch.length) - 1 : null));
+  // O ramo anda cena a cena: [imóvel, valores do imóvel (se houver)] para cada imóvel sugerido. `branch` continua sendo 1 item por
+  // imóvel (é o que conta para o botão e para a imagem-resumo); `flat` é só a sequência de cenas do ramo.
+  const flat = useMemo(() => flattenBranch(branch), [branch]);
+  const [branchIndex, setBranchIndex] = useState(() => (initialBranch > 0 && flat.length ? Math.min(Math.floor(initialBranch), flat.length) - 1 : null));
   const [returned, setReturned] = useState(false);
   const inBranch = branchIndex !== null;
   const prevIndex = useRef(null);
@@ -480,12 +566,12 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
 
   // pré-carrega só a foto da PRÓXIMA cena do ramo (a primeira, enquanto o cliente está no "Próximo passo")
   useEffect(() => {
-    const target = inBranch ? branch[branchIndex + 1] : scenes[state.index]?.id === "proximo" ? branch[0] : null;
+    const target = inBranch ? flat.slice(branchIndex + 1).find((item) => item.imageUrl) : scenes[state.index]?.id === "proximo" ? flat[0] : null;
     if (target?.imageUrl) {
       const image = new Image();
       image.src = target.imageUrl;
     }
-  }, [scenes, branch, state.index, inBranch, branchIndex]);
+  }, [scenes, flat, state.index, inBranch, branchIndex]);
 
   // métricas (só link real): abertura da sessão (recarga não conta de novo) + última cena + conclusão
   useEffect(() => {
@@ -509,8 +595,8 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     result.events.forEach((event) => sendEvent(token, event));
   }, [tracking, token, state.index, total]);
 
-  const branchRef = useRef({ branchIndex, length: branch.length });
-  branchRef.current = { branchIndex, length: branch.length };
+  const branchRef = useRef({ branchIndex, length: flat.length });
+  branchRef.current = { branchIndex, length: flat.length };
   const stepBranch = useCallback((action) => {
     const { branchIndex: current, length } = branchRef.current;
     const result = branchStep({ index: current ?? 0, total: length }, action);
@@ -586,7 +672,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   };
 
   const paused = isPaused(state);
-  const current = inBranch ? branch[branchIndex] : scenes[state.index];
+  const current = inBranch ? flat[branchIndex] : scenes[state.index];
   const announce = useMemo(() => announcement(current, state.index, total), [current, state.index, total]);
   const leavingScene = leaving !== null ? scenes[leaving] : null;
   const restart = useCallback(() => {
@@ -594,7 +680,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openList, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, fast: returned };
+  const ctx = { reduced, restart, validate, openList, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned };
 
   return (
     <div
@@ -614,7 +700,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
         <div className={styles.chrome}>
           <div className={styles.bars} aria-hidden="true">
             {inBranch
-              ? branch.map((item, i) => (
+              ? flat.map((item, i) => (
                   <span key={`branch-${i}`} className={`${styles.bar} ${i <= branchIndex ? styles.barDone : ""}`}>
                     <span className={styles.barFill} />
                   </span>

@@ -5,7 +5,8 @@ import { presentationBranch, presentationScenes } from "../_fixtures/apresentaca
 // Renderiza o MESMO player com DADOS 100% FICTÍCIOS (../_fixtures/apresentacao.js), sem login e sem banco, e SEM enviar
 // métrica (token vazio). Os botões de download apontam para as rotas de imagem DEV desta mesma vitrine.
 //   ?v=completo (padrão) | informal | minimo | sem-juros-sem-subsidio | igual | sem-imovel | sem-justificativa | longo
-//   ?ramo=N (abre direto no imóvel N do ramo de imóveis sugeridos, 1-based)
+//   (extras da cena de valores do imóvel: ?v=sem-valores | ato-ausente | entrada-unica)
+//   ?ramo=N (abre direto na cena N do ramo de imóveis sugeridos, 1-based: imóvel e valores do imóvel se alternam)
 //   ?lista=nao (cena de documentos SEM o botão "Receber lista de documentos": sem responsável com WhatsApp válido)
 //   ?envio=erro (revisão do estado de erro da folha da previsão: token fora do formato, o servidor responde 404 sem tocar no banco)
 //   ?cena=N (começa na cena N, 0-based; cenas finais abrem já liberadas) · use o botão de pausa para parar o auto-avanço.

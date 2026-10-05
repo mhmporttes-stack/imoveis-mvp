@@ -127,3 +127,14 @@ export function branchStep({ index = 0, total = 0 } = {}, action) {
   if (action === "prev") return index <= 0 ? { index: 0, exit: true } : { index: index - 1, exit: false };
   return { index, exit: false };
 }
+
+/**
+ * Sequência de cenas do ramo (PRES-20): para cada imóvel, a cena do imóvel e, logo depois, a cena de valores DELE (só se o
+ * servidor mandou `valores`). Sem `valores` o imóvel fica sozinho (nunca cena vazia). O DTO continua com 1 item por imóvel.
+ */
+export function flattenBranch(branch = []) {
+  return branch.flatMap((item) => {
+    const { valores, ...scene } = item;
+    return valores ? [scene, { ...valores, id: "valores", name: scene.name, position: scene.position, count: scene.count }] : [scene];
+  });
+}

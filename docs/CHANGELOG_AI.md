@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Apresentação: nova cena de valores de cada imóvel sugerido (PRES-20)
+- **Data:** 2026-10-05
+- **Área:** Clientes (apresentação interativa)
+- **Alteração:** no ramo de imóveis sugeridos, depois da cena de cada imóvel entra a cena com valor do imóvel, financiamento, desconto, Casa Paulista, entrada, ato (R$ 0,00 informado vira "Sem ato" destacado; não informado é omitido) e parcelas da entrada. Sem dado, sem cena. Cena do imóvel, PDF e roteiro principal intocados.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `lib/simulation-presentation-core.mjs`, `components/presentation/PresentationPlayer.jsx`, `player-core.mjs`, `presentation.module.css`, `app/dev/vitrine/**` (dados fictícios), `tests/simulation-presentation-values.test.mjs`, `docs/BUSINESS_RULES.md` (PRES-20)
+- **Risco/observação:** valores vêm do resultado do motor salvo em `entry_simulation_snapshots` (gravado ao clicar Salvar ou enviar a apresentação; o autosave não o atualiza): se a simulação mudou depois, a cena some em vez de mostrar número velho. Resultado "inviável" também não vira cena (PENDENTE DE VALIDAÇÃO). Sem migration. Dois testes antigos (round3: `SceneImovel` e `logoFooter`) falham só no Windows por CRLF do autocrlf; passam em LF. Estado real do banco A CONFIRMAR.
+- **Autor:** Claude Code (crm-architect)
+
 ### 2026-10-05 — Apresentação: cada envio usa URL própria (?p=) para o WhatsApp raspar a prévia de novo
 - **Sintoma (dono):** o link da Sara seguiu com miniatura pequena mesmo depois da imagem cacheável; o da Carol saiu como cartão grande.
 - **Causa provável:** o WhatsApp guarda a prévia por URL; o link da Sara foi raspado quando a imagem ainda era lenta e esse resultado fica em cache.
