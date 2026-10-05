@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Chat: conversa sem mensagem do cliente → enviar pelo celular ou link para o cliente chamar
+- **Pedido (dono):** se o cliente já escreveu, o Chat envia normalmente; se não, avisar e mandar o corretor enviar pelo celular (abre o app do WhatsApp com a mensagem pronta), além de um link para o cliente chamar o corretor.
+- **Mudança:** `getChatConversation` (`lib/whatsapp-chat.js`) devolve `awaitingCustomer` (sessão individual sem nenhuma mensagem recebida) e `brokerWhatsapp`; `components/WhatsappChat.jsx` mostra o aviso, troca o botão de enviar por "Abrir no WhatsApp do celular" (`wa.me/{cliente}?text=…`, texto digitado), desativa anexo/atalhos/áudio nesse estado e oferece "Copiar link para o cliente te chamar" (`wa.me/{corretor}` com a mensagem do cadastro). O backend continua recusando envio sem mensagem do cliente (`CHAT_REPLY_ONLY`).
+
 
 ### 2026-10-05 — Academia: conteúdo real dos Módulos 1, 2 e 3 (Formação Inicial v3) + versão parcial
 - **Alteração:** a Formação Inicial passa a ter conteúdo real: Módulo 1 "O que faz um bom corretor" (6 aulas + prova de 10 questões), Módulo 2 "Condução de atendimento e técnicas de venda" (6 aulas + prova de 10 questões, mais difícil) e Módulo 3 "Fundamentos do MCMV e financiamento Caixa" (3 aulas, **sem prova ainda**; a avaliação prática de 3 simulações vem depois). Nova versão 3, publicada pelo fluxo normal (a v1 de exemplo fica aposentada, intocada; a v2 foi um rascunho técnico descartado/aposentado). Provas: nota mínima 70%, 3 tentativas (regras existentes, nada alterado). As aulas dos módulos 4–6 de exemplo não estão na v3.

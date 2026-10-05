@@ -1403,7 +1403,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
 
   async function send() {
     const value = text.trim();
-    if ((!value && !attachment) || sending) return;
+    if ((!value && !attachment) || sending || conversation.awaitingCustomer) return;
     if (replyTo && attachment) { setError("Para responder a uma mensagem específica, envie apenas texto."); return; }
     setSending(true);
     setError("");
@@ -1469,6 +1469,21 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   const processing = recorder.state === "processing";
   const hasContent = Boolean(text.trim()) || Boolean(attachment);
   const shownError = error || recorder.error;
+  // Chat só responde: contato que ainda não escreveu -> envio pelo app do celular do corretor (ou link para o cliente chamar).
+  const awaiting = conversation.awaitingCustomer === true && !editTarget;
+  const customerDigits = String(conversation.phone || "").replace(/D/g, "");
+  const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
+  const callLink = conversation.brokerWhatsapp ? `https://wa.me/${conversation.brokerWhatsapp}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}` : "";
+  async function copyCallLink() {
+    try {
+      await navigator.clipboard.writeText(callLink);
+      setError("");
+      setProgress("Link copiado. Envie ao cliente para ele te chamar no WhatsApp.");
+      setTimeout(() => setProgress(""), 4000);
+    } catch {
+      setError("Não foi possível copiar. Link: " + callLink);
+    }
+  }
 
   return (
     <div className="border-t border-line bg-white p-3">
@@ -1476,6 +1491,13 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {progress ? <p className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-brand"><Loader2 className="h-3.5 w-3.5 animate-spin" />{progress}</p> : null}
+      {awaiting ? (
+        <div className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold leading-5 text-navy">
+          <p className="font-black">Este cliente ainda não escreveu para você.</p>
+          <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
+          {callLink ? <button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
+        </div>
+      ) : null}
 
       {attachment ? (
         <div className="mb-2 rounded-2xl border border-line bg-mist/60 p-2">
@@ -1521,10 +1543,10 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       ) : (
         <div className="flex items-end gap-1">
           <input ref={fileInput} type="file" accept="image/*,video/mp4,video/3gpp,video/quicktime,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
             <Paperclip className="h-5 w-5" />
           </button>
-          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} />
+          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} />
           {canInternal && !editTarget ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
           <EmojiPicker disabled={sending} onPick={insertEmoji} />
           <textarea
@@ -1537,7 +1559,18 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
             rows={1}
             value={text}
           />
-          {hasContent || !canRecord ? (
+          {awaiting ? (
+            <a
+              href={phoneSendHref || undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir no WhatsApp do celular"
+              title="Abrir no WhatsApp do celular"
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#25D366] text-white transition hover:bg-[#1fb857] ${phoneSendHref ? "" : "pointer-events-none opacity-40"}`}
+            >
+              <Send className="h-5 w-5" />
+            </a>
+          ) : hasContent || !canRecord ? (
             <button
               type="button"
               onClick={send}
