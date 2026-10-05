@@ -20,6 +20,7 @@ import {
   canTouchClientOnForecast,
   describeForecastDate,
   documentsListLink,
+  documentsListImageUrl,
   forecastScheduledAt,
   forecastWindow,
   isDateInForecastWindow,
@@ -598,16 +599,23 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   assert.ok(external.includes("window.open(withWhatsappText(decision.url, message)"));
   assert.ok(!/await/.test(external.slice(0, external.indexOf("window.open"))));
   assert.match(confirmFn, /\/api\/admin\/whatsapp-chat\/open-client/);
-  assert.match(confirmFn, /conversations\/\$\{conversation\.conversationId\}\/messages/);
+  assert.match(confirmFn, /conversations\/\$\{conversation\.conversationId\}\/media/); // a lista vai como IMAGEM pelo envio de mídia do Chat
+  assert.match(confirmFn, /form\.append\("caption", message\)/);
+  assert.match(confirmFn, /image\/png/);
+  assert.ok(!/conversations\/\$\{conversation\.conversationId\}\/messages/.test(confirmFn)); // nada de link de texto
   assert.match(confirmFn, /action: "registrar"/);
   assert.ok(!/updateClientStatus|prospecting\/clients|status:/.test(confirmFn + prepare));
-  // a mensagem é texto + link (nada de anexo)
-  assert.ok(!/postMedia|attachment|FormData/.test(confirmFn));
+  // externo (wa.me não anexa imagem): só texto curto; o corretor baixa a imagem pelo botão da confirmação
+  assert.ok(!/imageUrl|FormData/.test(external));
+  const sheetDialog = read("components/clients/ClientSheet.jsx");
+  assert.match(sheetDialog, /Baixar imagem da lista/);
+  assert.match(sheetDialog, /não anexa imagem/);
+  assert.match(sheetDialog, /href=\{target\.link\} download/);
 });
 
 test("ficha: decisão do Chat × externo (decideCardWhatsapp) devolve o link certo e withWhatsappText acrescenta o texto", async () => {
   const { decideCardWhatsapp } = await import("../lib/client-card-whatsapp-core.mjs");
-  const message = buildDocumentsListMessage({ fullName: "Maria da Silva", link: documentsListLink(TOKEN) });
+  const message = buildDocumentsListMessage({ fullName: "Maria da Silva" });
   const base = { stateKnown: true, clientStatus: "in_service", isOwnClient: true, phone: "(14) 99888-7766" };
   assert.equal(decideCardWhatsapp({ ...base, sessionStatus: "connected" }).action, "chat");
   const mobile = decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "mobile" });
@@ -619,12 +627,14 @@ test("ficha: decisão do Chat × externo (decideCardWhatsapp) devolve o link cer
   assert.equal(withWhatsappText("", "x"), "");
 });
 
-test("mensagem da ficha: texto + link da lista personalizada (?baixar=1), só o primeiro nome", () => {
+test("mensagem da ficha: legenda curta (sem link), só o primeiro nome; imagem sem ?baixar=1 para o Chat e com ?baixar=1 para baixar", () => {
   const link = documentsListLink(TOKEN, "https://www.matheusmachadoimoveis.com.br/");
   assert.equal(link, `https://www.matheusmachadoimoveis.com.br/s/${TOKEN}/documentos?baixar=1`);
-  assert.equal(buildDocumentsListMessage({ fullName: "Maria da Silva Souza", link }), `Olá, Maria! Segue a lista de documentos para validarmos a sua simulação junto à Caixa: ${link}`);
-  assert.ok(!/Silva|Souza/.test(buildDocumentsListMessage({ fullName: "Maria da Silva Souza", link })));
-  assert.match(buildDocumentsListMessage({ fullName: "", link }), /^Olá! Segue a lista/);
+  assert.equal(documentsListImageUrl(TOKEN, "https://www.matheusmachadoimoveis.com.br/"), `https://www.matheusmachadoimoveis.com.br/s/${TOKEN}/documentos`);
+  const message = buildDocumentsListMessage({ fullName: "Maria da Silva Souza" });
+  assert.equal(message, "Olá, Maria! Segue a lista de documentos para a sua simulação.");
+  assert.ok(!/Silva|Souza|http/.test(message));
+  assert.match(buildDocumentsListMessage({ fullName: "" }), /^Olá! Segue a lista/);
 });
 
 test("prepareDocumentsList: bloqueia arquivado/não contactar, avisa sem simulação, e o get-or-create devolve sempre o mesmo link", async () => {
@@ -648,7 +658,8 @@ test("prepareDocumentsList: bloqueia arquivado/não contactar, avisa sem simula�
   assert.equal(first.kind, "ok");
   assert.equal(first.link, second.link);
   assert.equal(first.link, `https://www.matheusmachadoimoveis.com.br/s/${token}/documentos?baixar=1`);
-  assert.equal(first.message, `Olá, Maria! Segue a lista de documentos para validarmos a sua simulação junto à Caixa: ${first.link}`);
+  assert.equal(first.imageUrl, `https://www.matheusmachadoimoveis.com.br/s/${token}/documentos`);
+  assert.equal(first.message, "Olá, Maria! Segue a lista de documentos para a sua simulação.");
   // todo status que não seja arquivado/não contactar pode receber (a lista não muda o funil)
   for (const status of Object.values(CLIENT_STATUS).filter((value) => !["archived", "do_not_contact"].includes(value))) {
     assert.equal((await prepareDocumentsList({ client: client(status), findSimulation: simulation, ensurePresentation: ensure })).kind, "ok", status);

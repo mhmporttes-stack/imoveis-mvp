@@ -746,9 +746,16 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
       {target ? (
         <div className="p-5 sm:p-6">
           <h2 id={titleId} className="text-base font-semibold text-ink">Enviar lista de documentos</h2>
-          <p className="mt-1 text-sm text-ink-2">Confira a mensagem para {target.client.name || "o cliente"}. O link abre a lista personalizada pelo cadastro dele.</p>
+          <p className="mt-1 text-sm text-ink-2">Confira a mensagem para {target.client.name || "o cliente"}. A lista de documentos vai como imagem, personalizada pela simulação dele.</p>
           <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
-          <p className="mt-2 text-xs text-muted">{external ? "O WhatsApp vai abrir com a mensagem pronta; você envia por lá." : "A mensagem será enviada pelo Chat do CRM."}</p>
+          {external ? (
+            <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
+              <p>Seu WhatsApp não está conectado ao CRM. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
+              <a href={target.link} download className="mt-2 inline-flex font-semibold text-navy underline">Baixar imagem da lista</a>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-muted">A imagem da lista, com essa mensagem como legenda, será enviada pelo Chat do CRM.</p>
+          )}
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
             <Button onClick={onConfirm}>{external ? "Abrir no WhatsApp" : "Enviar pelo Chat"}</Button>

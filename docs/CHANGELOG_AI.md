@@ -2156,3 +2156,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `.gitattributes`, `docs/atendimento/**`, `docs/scout/relatorios/*`, `tests/equipe-atendimento.test.mjs`, `tests/proveniencia-atendimento.test.mjs`, `docs/CHANGELOG_AI.md`.
 - **Risco/observação:** só texto lido sob demanda; custo fixo de contexto da missão ~2,25 mil tokens (diretor + 2 executores + skill, 7.868 caracteres / 3,5), perfis e originais não entram. Sem migration, sem código do CRM.
 - **Autor:** Claude (crm-editor, T-20261002-65)
+
+### 2026-10-05 — "Enviar lista de documentos" da ficha agora envia a IMAGEM (não o link)
+- **Pedido (dono):** a lista deve ir como imagem PNG personalizada, não como link de texto com `?baixar=1`.
+- **Mudou:** (1) Chat (WhatsApp do corretor conectado): o navegador busca `/s/<token>/documentos` (pública pelo token, mesma origem) e envia pelo envio de mídia existente (`POST /api/admin/whatsapp-chat/conversations/[id]/media`), com legenda "Olá, {primeiro nome}! Segue a lista de documentos para a sua simulação."; o storage entrega a URL pública ao serviço do WhatsApp (Baileys baixa sozinho; nada novo exposto). (2) Sem conexão: `wa.me`/WhatsApp Web abre só com o texto curto (não anexa imagem) e a confirmação mostra "Baixar imagem da lista" (`?baixar=1`) com aviso claro. Rota `lista-documentos` agora devolve também `imageUrl`. Mantidos: confirmação prévia, bloqueio arquivado/"Não contactar", registro na jornada, sem mudar status.
+- **Arquivos:** `lib/documents-forecast-{core,store}.mjs`, `app/api/admin/clients/[id]/lista-documentos/route.js`, `components/clients/{ClientSheet.jsx,useClientList.js}`, `tests/documents-forecast.test.mjs`.
+- **Docs:** BUSINESS_RULES PRES-17, PERMISSIONS.
+- **Risco/observação:** limite de 4 MB do envio de mídia (a imagem é bem menor; se passar, o Chat avisa). Envio real de WhatsApp não foi testado (regra de produção).

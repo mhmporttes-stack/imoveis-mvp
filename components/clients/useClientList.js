@@ -691,7 +691,7 @@ export function useClientList({
         notify(data.error || "Não foi possível preparar a lista de documentos.", "danger");
         return;
       }
-      setDocsListTarget({ client, message: data.message, decision: decideClientWhatsapp(client, value) });
+      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision: decideClientWhatsapp(client, value) });
     });
   }
 
@@ -699,7 +699,7 @@ export function useClientList({
     const target = docsListTarget;
     if (!target) return;
     setDocsListTarget(null);
-    const { client, message, decision } = target;
+    const { client, message, imageUrl, decision } = target;
     const registrationId = client.registration.id;
     await withBusy(client, async () => {
       if (decision.action === CARD_WA_EXTERNAL) {
@@ -719,14 +719,26 @@ export function useClientList({
           notify(conversation.error || "Não foi possível abrir a conversa no Chat.", "danger");
           return;
         }
-        const sent = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.conversationId}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: message })
-        });
+        // A lista vai como IMAGEM (PNG personalizada, a mesma da apresentação) com a legenda curta. O navegador busca a imagem
+        // pública (mesma origem) e a entrega ao envio de mídia do Chat, que a guarda no storage e manda pelo WhatsApp do corretor.
+        let imageBlob = null;
+        try {
+          const imageResponse = await fetch(new URL(imageUrl, window.location.origin).pathname, { cache: "no-store" });
+          if (imageResponse.ok) imageBlob = await imageResponse.blob();
+        } catch {
+          imageBlob = null;
+        }
+        if (!imageBlob || !imageBlob.size) {
+          notify("Não foi possível gerar a imagem da lista de documentos. Tente novamente.", "danger");
+          return;
+        }
+        const form = new FormData();
+        form.append("file", new File([imageBlob], "lista-de-documentos.png", { type: "image/png" }));
+        form.append("caption", message);
+        const sent = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.conversationId}/media`, { method: "POST", body: form });
         const sentData = await sent.json().catch(() => ({}));
         if (!sent.ok) {
-          notify(sentData.error || "Não foi possível enviar a mensagem pelo Chat.", "danger");
+          notify(sentData.error || "Não foi possível enviar a imagem pelo Chat.", "danger");
           return;
         }
       }
@@ -736,7 +748,7 @@ export function useClientList({
         body: JSON.stringify({ action: "registrar" })
       }).catch(() => null);
       if (!logged?.ok) notify("A mensagem foi encaminhada, mas o registro na jornada do cliente falhou.", "danger");
-      else notify(decision.action === CARD_WA_EXTERNAL ? "WhatsApp aberto com a lista de documentos. Envie por lá." : "Lista de documentos enviada pelo Chat.");
+      else notify(decision.action === CARD_WA_EXTERNAL ? "WhatsApp aberto. Baixe a imagem da lista, anexe e envie por lá." : "Imagem da lista de documentos enviada pelo Chat.");
     });
   }
 
