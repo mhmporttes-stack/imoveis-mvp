@@ -111,7 +111,11 @@
 .barFill { position: absolute; inset: 0; background: var(--bar-fill); transform-origin: left center; transform: scaleX(0); }
 .barDone .barFill { transform: scaleX(1); }
 .chromeRow { display: flex; align-items: center; justify-content: space-between; margin-top: calc(var(--u) * 6); min-height: 48px; }
-.brand { display: flex; align-items: center; gap: calc(var(--u) * 8); font-size: max(12px, calc(var(--u) * 13)); font-weight: 700; color: var(--muted); }
+.brand { display: flex; align-items: center; gap: calc(var(--u) * 10); color: var(--fg); }
+/* assinatura da logo: nome em caixa alta, negrito e espaçado; função menor, espaçada, em azul claro */
+.brandText { display: flex; flex-direction: column; gap: calc(var(--u) * 2); line-height: 1.1; }
+.brandText strong { font-size: max(11px, calc(var(--u) * 12.5)); font-weight: 800; letter-spacing: 0.17em; text-transform: uppercase; }
+.brandText span { font-size: max(9px, calc(var(--u) * 9.5)); font-weight: 650; letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); }
 .brandMark { display: grid; place-items: center; padding: calc(var(--u) * 5) calc(var(--u) * 6); border-radius: 8px; background: var(--navy); }
 .brandMark img { width: max(22px, calc(var(--u) * 26)); height: auto; display: block; }
 .iconBtn {
@@ -195,7 +199,10 @@
 .row { display: flex; flex-direction: column; align-items: flex-start; gap: calc(var(--u) * 6); padding: calc(var(--u) * 20) calc(var(--u) * 4); border-bottom: 1px solid var(--line); }
 .rowLabel { font-size: max(13px, calc(var(--u) * 15)); font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .rowValue { font-size: max(27px, calc(var(--u) * 40)); font-weight: 780; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.plus { display: grid; place-items: center; height: 0; position: relative; z-index: 1; }
+/* FINANCIAMENTO + SUBSÍDIO: tudo no MESMO eixo (centralizado no celular; na coluna dos rótulos no desktop). O "+" é um item
+   do fluxo, com o mesmo respiro acima e abaixo, e nenhuma divisória passa por baixo dele. */
+.rowsSoma .rowPart { border-bottom: 0; align-items: center; text-align: center; padding-top: calc(var(--u) * 12); padding-bottom: calc(var(--u) * 12); }
+.plus { display: flex; justify-content: center; align-items: center; margin: calc(var(--u) * 4) 0; position: relative; z-index: 1; }
 .plus span { display: grid; place-items: center; width: calc(var(--u) * 34); height: calc(var(--u) * 34); border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--accent); font-size: calc(var(--u) * 22); line-height: 1; font-weight: 600; transition: background-color 0.7s ease; }
 .rowTotal { display: block; text-align: center; margin-top: calc(var(--u) * 20); padding: calc(var(--u) * 26) calc(var(--u) * 16) calc(var(--u) * 28); border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
 .rowTotal .rowLabel { display: block; color: #cfe3fa; }
@@ -228,6 +235,11 @@
 .photoWrap { position: absolute; inset: 0; overflow: hidden; background: var(--navy-2); }
 .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 40%; animation: slowZoom 9s ease-out both; }
 @keyframes slowZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+/* revelação da foto do imóvel (só opacity e transform) */
+.photoReveal { animation: photoReveal 1.1s cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes photoReveal { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: none; } }
+.propReason { margin: calc(var(--u) * 18) 0 0; padding-left: calc(var(--u) * 14); border-left: 3px solid var(--sky); font-size: max(14px, calc(var(--u) * 16)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); overflow-wrap: anywhere; text-wrap: pretty; }
+.propActions { margin: calc(var(--u) * 20) 0 0; display: grid; max-width: calc(var(--u) * 300); }
 .photoFallback { position: absolute; inset: 0; display: grid; place-items: start center; padding-top: 24vh; color: rgba(255, 255, 255, 0.35); }
 .photoFallback svg { width: 96px; height: 96px; stroke-width: 1.2; }
 .photoShade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7, 27, 49, 0.66) 0%, rgba(7, 27, 49, 0) 24%), linear-gradient(to top, rgba(7, 27, 49, 0.97) 0%, rgba(7, 27, 49, 0.9) 44%, rgba(7, 27, 49, 0.12) 74%, rgba(7, 27, 49, 0.25) 100%); }
@@ -271,8 +283,10 @@
 
 /* logo da Caixa: rodapé fixo de TODAS as cenas (pílula branca: a logo é azul e laranja e precisa de fundo claro) */
 .caixa { position: absolute; z-index: 6; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 14); display: flex; justify-content: center; pointer-events: none; }
-.caixaPill { display: inline-flex; align-items: center; justify-content: center; padding: calc(var(--u) * 8) calc(var(--u) * 22); border-radius: 999px; background: #fff; box-shadow: 0 2px 12px rgba(7, 27, 49, 0.24); border: 1px solid rgba(13, 59, 102, 0.12); }
-.caixaPill img { display: block; height: calc(var(--u) * 23); width: auto; aspect-ratio: 780 / 196; }
+/* Direto sobre o fundo (sem pílula, sem borda, sem caixa), larga (~42% da largura útil). Nas cenas escuras o azul da logo some
+   no azul-marinho: um halo claro suave por trás (drop-shadow, como na referência do dono). */
+.caixaLogo { display: block; width: calc(var(--cw) * 0.42); height: auto; aspect-ratio: 780 / 196; }
+.root[data-theme="dark"] .caixaLogo { filter: drop-shadow(0 0 calc(var(--u) * 9) rgba(190, 220, 255, 0.85)) drop-shadow(0 0 calc(var(--u) * 2.5) rgba(255, 255, 255, 0.7)); }
 
 /* lista de documentos: folha sobre a cena, rolável */
 .sheetBackdrop { position: absolute; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; background: rgba(7, 27, 49, 0.68); animation: fade 0.25s ease both; }
@@ -284,13 +298,15 @@
 .sheetClose svg { width: 24px; height: 24px; }
 .sheetBody { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: calc(var(--u) * 18) calc(var(--u) * 24) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 34); touch-action: pan-y; outline: none; }
 .sheetIntro { margin: 0; font-size: max(16px, calc(var(--u) * 19)); line-height: 1.5; color: #2f4d6e; }
-.sheetGroup { margin-top: calc(var(--u) * 22); }
-.sheetGroupTitle { margin: 0; padding-bottom: calc(var(--u) * 8); border-bottom: 2px solid #dbe8f7; font-size: max(13px, calc(var(--u) * 14)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #0f58b8; }
-.sheetList { list-style: none; margin: 0; padding: 0; }
-.sheetList li { position: relative; padding: calc(var(--u) * 12) 0 calc(var(--u) * 12) calc(var(--u) * 32); border-bottom: 1px solid #e8f0fa; font-size: max(16px, calc(var(--u) * 19)); line-height: 1.42; color: var(--navy-2); }
-.sheetList li:last-child { border-bottom: 0; }
-.sheetList li::before { content: ""; position: absolute; left: 0; top: calc(var(--u) * 15); width: calc(var(--u) * 18); height: calc(var(--u) * 18); min-width: 14px; min-height: 14px; border-radius: 5px; border: 2px solid #1769d1; background: #eef4fc; }
-.sheetNote { margin: calc(var(--u) * 24) 0 0; padding: calc(var(--u) * 16) calc(var(--u) * 18); border-radius: calc(var(--u) * 16); background: #eef4fc; font-size: max(16px, calc(var(--u) * 18)); font-weight: 700; line-height: 1.45; color: var(--navy-2); }
+/* itens da lista: caixa azul de marcar (SVG), título em negrito e descrição menor */
+.docList { list-style: none; margin: calc(var(--u) * 14) 0 0; padding: 0; display: grid; gap: calc(var(--u) * 16); }
+.docItem { display: flex; align-items: flex-start; gap: calc(var(--u) * 14); }
+.docCheck { flex: none; display: grid; place-items: center; width: max(26px, calc(var(--u) * 30)); height: max(26px, calc(var(--u) * 30)); margin-top: 2px; border: 2.5px solid #1769d1; border-radius: calc(var(--u) * 8); color: #1769d1; background: #f4f8fe; }
+.docCheck svg { width: 78%; height: 78%; }
+.docText { min-width: 0; }
+.docTitle { margin: 0; font-size: max(15px, calc(var(--u) * 17)); font-weight: 800; line-height: 1.25; letter-spacing: 0.01em; color: #0b2b52; overflow-wrap: anywhere; }
+.docDesc { margin: calc(var(--u) * 3) 0 0; font-size: max(14px, calc(var(--u) * 15.5)); line-height: 1.4; color: #3a5878; }
+.docLines { list-style: disc; margin: calc(var(--u) * 4) 0 0; padding-left: calc(var(--u) * 18); display: grid; gap: calc(var(--u) * 6); font-size: max(14px, calc(var(--u) * 15.5)); line-height: 1.4; color: #3a5878; }
 
 /* setas laterais (só com mouse): ao lado do palco */
 .side { position: absolute; z-index: 5; top: 50%; width: 48px; height: 48px; margin-top: -24px; display: none; place-items: center; border: 1.5px solid var(--btn-line); border-radius: 999px; background: transparent; color: var(--fg); cursor: pointer; }
@@ -363,6 +379,9 @@
   .bigNumber .count > span { align-items: flex-start; }
   .bigNumber .count { justify-items: start; }
   .rowTotal { text-align: left; }
+  /* desktop: valores à esquerda; o "+" fica na mesma coluna dos rótulos */
+  .rowsSoma .rowPart { align-items: flex-start; text-align: left; padding-top: calc(var(--u) * 10); padding-bottom: calc(var(--u) * 10); }
+  .plus { justify-content: flex-start; padding-left: calc(var(--u) * 4); }
   .diffTotal { text-align: left; }
   .powerWrap { position: static; }
   .rings { left: 75.5%; top: 50%; width: calc(var(--u) * 400); height: calc(var(--u) * 400); opacity: 0.42; }

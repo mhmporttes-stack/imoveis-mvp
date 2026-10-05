@@ -15,15 +15,12 @@ import {
 import { PUBLIC_SCENE_FIELDS, buildPresentationScenes, buildPublicPresentation, generatePresentationToken } from "../lib/simulation-presentation-core.mjs";
 import { PRESENTATION_GATED_SCENES, navigableSceneCount } from "../lib/simulation-presentation-gate.mjs";
 import { formatBRL, splitBRL } from "../lib/simulation-presentation-format.mjs";
-import {
-  DOCUMENTS_EXTRA_NOTE,
-  DOCUMENTS_SCENE_TEXT,
-  PRESENTATION_DOCUMENT_ITEMS,
-  PRESENTATION_DOCUMENT_GROUPS
-} from "../lib/simulation-presentation-documents.mjs";
+import { DOCUMENTS_SCENE_TEXT } from "../lib/simulation-presentation-documents.mjs";
 import {
   buildSummaryImageModel,
   documentsFileName,
+  documentsImageSize,
+  getDocumentItems,
   imageResponseHeaders,
   summaryFileName,
   wantsDownload
@@ -114,9 +111,9 @@ test("DTO: a taxa entra na allowlist; nada sensível entra junto", () => {
 });
 
 // ---------- cenas: ordem e cena de diferença ----------
-test("ordem final das cenas (adaptativa) com diferença de subsídio, imóvel e justificativa", () => {
+test("ordem final das cenas (adaptativa) com diferença de subsídio; o próximo passo é a última do roteiro automático", () => {
   const scenes = scenesOf({ simulationModels: { novo: model(), usado: model({ subsidyValue: 0 }) }, interestRateAnnual: 5.4 });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "diferenca", "imovel", "porque", "proximo", "validar", "documentos"]);
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "diferenca", "proximo", "validar", "documentos"]);
 });
 
 test("neutro: subsídio igual ou zero nos dois → sem cena e SEM as palavras novo/usado em lugar nenhum do DTO", () => {
@@ -212,7 +209,7 @@ test("trava: cenas validar/documentos só depois de VALIDAR; sem auto-avanço pa
   state = playerReducer(state, { type: "next" });
   assert.equal(scenesOf()[state.index].id, "documentos");
   assert.equal(isLastScene(state), true);
-  // métrica: 'concluiu' só na última de TODAS (10, aqui 9)
+  // métrica: 'concluiu' só na última de TODAS as cenas do roteiro principal
   const total = scenes.length;
   assert.deepEqual(sceneMetricEvents({ index: before - 1, total, maxReached: 0 }).events, [{ tipo: "cena", cena: before }]);
   assert.deepEqual(sceneMetricEvents({ index: total - 1, total, maxReached: total - 1 }).events, [{ tipo: "cena", cena: total }, { tipo: "concluiu", cena: total }]);
@@ -238,11 +235,10 @@ test("logo da Caixa: a MESMA do formulário, no rodapé fixo do palco (todas as 
   assert.ok(fs.existsSync(path.join(root, "public/assets/caixa-logo-transparent.png")));
   assert.ok(!/parceir|aprovad|homologad|oficial da caixa/i.test(player.replace(/\/\/.*$/gm, "")));
   const css = read("components/presentation/presentation.module.css");
-  assert.match(css, /\.caixaPill \{[^}]*background: #fff/); // fundo claro para a logo azul/laranja, sem deformar
-  assert.match(css, /aspect-ratio: 780 \/ 196/);
+  assert.match(css, /aspect-ratio: 780 \/ 196/); // sem deformar
   const image = read("lib/simulation-presentation-image.mjs");
   assert.ok(image.includes('"caixa-logo-transparent.png"'));
-  assert.ok((image.match(/logoFooter\(assets\)/g) || []).length >= 3, "rodapé das duas imagens");
+  assert.ok((image.match(/logoFooter\(assets\)/g) || []).length >= 2, "logo no resumo (a lista de documentos não tem rodapé)");
 });
 
 test("escala: palco com altura total e unidade --u; sem coluna fixa estreita", () => {
@@ -268,31 +264,12 @@ test("documentos: o painel é rolável, fecha (botão e Escape) e não navega a 
   assert.match(read("components/presentation/presentation.module.css"), /\.sheetBody \{[^}]*overflow-y: auto/);
 });
 
-// ---------- lista de documentos: rastreável, sem inventar ----------
-const EXPECTED_ITEMS = [
-  "rg-cnh", "comprovante-residencia", "estado-civil-solteiro", "estado-civil-casado", "estado-civil-divorciado",
-  "renda-clt-holerites", "renda-clt-ctps", "renda-clt-fgts", "renda-informal", "renda-ir", "pis-numero"
-];
-
-test("documentos: só os itens esperados, cada um com fonte; o trecho citado existe no arquivo da regra", () => {
-  assert.deepEqual(PRESENTATION_DOCUMENT_ITEMS.map((item) => item.id), EXPECTED_ITEMS, "item novo exige decisão do dono e atualização desta lista");
-  for (const item of PRESENTATION_DOCUMENT_ITEMS) {
-    assert.ok(item.sources?.length, `${item.id} sem fonte`);
-    for (const source of item.sources) {
-      assert.ok(read(source.file).includes(source.anchor), `${item.id}: trecho "${source.anchor}" não está em ${source.file}`);
-    }
-  }
-  assert.equal(PRESENTATION_DOCUMENT_GROUPS.flatMap((group) => group.items).length, EXPECTED_ITEMS.length);
-});
-
-test("documentos: texto da cena, observação geral e nada personalizado por dado do cliente", () => {
+// ---------- lista de documentos: texto-base (o conteúdo e a personalização estão no round 3) ----------
+test("documentos: texto da cena e lista final como item do DTO da cena (sem observação extra de rodapé)", () => {
   assert.equal(DOCUMENTS_SCENE_TEXT, "Para validarmos esses valores junto à Caixa, vamos precisar montar a sua pasta. Para isso, preciso de alguns documentos.");
-  assert.equal(DOCUMENTS_EXTRA_NOTE, "Podem ser pedidos documentos adicionais conforme o seu perfil.");
-  const source = read("lib/simulation-presentation-documents.mjs");
-  assert.ok(!/clientContext|primaryIncomeType|maritalStatus|hasChildren/.test(source.replace(/\/\/.*$/gm, "")));
-  // aposentado/pensionista e outros itens sem regra confirmada NÃO entram na lista
-  const text = PRESENTATION_DOCUMENT_ITEMS.map((item) => item.text).join(" ");
-  assert.ok(!/aposentad|pension|benef[ií]cio|vi[uú]v|cônjuge|dependente/i.test(text));
+  const doc = scenesOf().find((scene) => scene.id === "documentos");
+  assert.ok(Array.isArray(doc.items) && doc.items.length >= 8);
+  assert.ok(!/adicionais conforme o seu perfil/.test(read("lib/simulation-presentation-documents.mjs")));
 });
 
 // ---------- imagens PNG ----------
@@ -319,12 +296,14 @@ test("imagem-resumo: PNG válido 1080x1920, anexo com nome simulacao-<primeirono
   assert.match(inline.headers.get("content-disposition"), /^inline;/);
 });
 
-test("imagem-lista: PNG válido 1080x1920, nome lista-de-documentos-<primeironome>.png", async () => {
+test("imagem-lista: PNG válido 1080 de largura, altura da lista, nome lista-de-documentos-<primeironome>.png", async () => {
   const dto = buildPublicPresentation({ simulation: sim({ clientName: "José Álvaro Silva" }), defaultReason: DEFAULT_REASON });
   const response = await renderDocumentsImage(dto, { download: true });
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="lista-de-documentos-jose.png"');
   const info = await pngInfo(response);
-  assert.deepEqual([info.width, info.height], [1080, 1920]);
+  const expected = documentsImageSize(getDocumentItems(dto));
+  assert.deepEqual([info.width, info.height], [expected.width, expected.height]);
+  assert.equal(info.width, 1080);
 });
 
 test("imagem: textos vêm só do DTO (números do PDF, taxa se houver, nada sensível)", () => {

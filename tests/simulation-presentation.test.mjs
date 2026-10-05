@@ -6,8 +6,10 @@ import path from "node:path";
 import {
   EVENT_TYPES,
   PRESENTATION_TOKEN_LENGTH,
+  PUBLIC_BRANCH_FIELDS,
   PUBLIC_SCENE_FIELDS,
   buildPresentationScenes,
+  buildPropertyBranch,
   buildPublicPresentation,
   createRateLimiter,
   firstNameOf,
@@ -26,7 +28,7 @@ import { buildPresentationModel } from "../lib/simulacao-entrada/presentation-mo
 const root = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const norm = (text) => String(text).replace(/ /g, " ");
-const DEFAULT_REASON = "Este imóvel foi selecionado buscando reduzir ao máximo o desembolso inicial da compra.";
+const DEFAULT_REASON = "Este imóvel foi selecionado buscando reduzir ao máximo o desembolso inicial da compra e proporcionar o melhor aproveitamento das condições disponíveis.";
 
 const same = { financingValue: 190000, subsidyValue: 42000, firstInstallment: 1085.4, lastInstallment: 812.15 };
 
@@ -157,12 +159,14 @@ test("DTO público: nenhum dado sensível sai; só o primeiro nome", () => {
   ]) {
     assert.ok(!json.includes(forbidden), `vazou: ${forbidden}`);
   }
-  assert.deepEqual(Object.keys(dto), ["version", "scenes"]);
+  assert.deepEqual(Object.keys(dto), ["version", "scenes", "branch"]);
   for (const scene of dto.scenes) {
     const allowed = PUBLIC_SCENE_FIELDS[scene.id];
     assert.ok(allowed, `cena sem allowlist: ${scene.id}`);
     for (const key of Object.keys(scene)) assert.ok(allowed.includes(key), `${scene.id} expôs campo fora da allowlist: ${key}`);
   }
+  assert.ok(dto.branch.length > 0);
+  for (const scene of dto.branch) for (const key of Object.keys(scene)) assert.ok(PUBLIC_BRANCH_FIELDS.includes(key), `ramo expôs campo fora da allowlist: ${key}`);
   assert.equal(dto.scenes[0].firstName, "Mariana");
   assert.equal(firstNameOf("  Ana   Clara Souza "), "Ana");
   assert.equal(firstNameOf(""), "");
@@ -185,9 +189,9 @@ test("imagem: só https ou caminho do próprio site; nunca data:, javascript: ne
 });
 
 // ---------- seleção de cenas ----------
-test("cenas: completo com subsídio igual, imóvel e justificativa real (cenas 9 e 10 ao final)", () => {
+test("cenas: roteiro principal (os imóveis sugeridos NÃO entram: vivem no ramo opcional)", () => {
   const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), defaultReason: DEFAULT_REASON });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "imovel", "porque", "proximo", "validar", "documentos"]);
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"]);
   assert.equal(scenes[2].mode, "soma");
   assert.ok(!("modelLabel" in scenes[1]), "sem rótulo de modelo");
   assert.equal(scenes.find((scene) => scene.id === "proximo").dateLabel, "03/10/2026");
@@ -224,31 +228,39 @@ test("cenas: só o SUBSÍDIO diferente entre novo e usado gera a cena de diferen
   assert.equal(buildPresentationScenes({ simulation: oneCent }).find((item) => item.id === "diferenca").difference, 0.01);
 });
 
-test("cenas: sem imóvel sugerido não há cena de imóvel nem de justificativa", () => {
-  const scenes = buildPresentationScenes({ simulation: sensitiveSimulation({ properties: [] }), defaultReason: DEFAULT_REASON });
-  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"]);
-  const nameless = buildPresentationScenes({ simulation: sensitiveSimulation({ properties: [{ customName: "  ", benefits: [] }] }) });
-  assert.ok(!ids(nameless).includes("imovel"));
+test("ramo: sem imóvel sugerido não há cena de imóvel (ramo vazio, nenhum botão)", () => {
+  const dto = buildPublicPresentation({ simulation: sensitiveSimulation({ properties: [] }), defaultReason: DEFAULT_REASON });
+  assert.deepEqual(dto.branch, []);
+  assert.deepEqual(ids(dto.scenes), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"]);
+  assert.deepEqual(buildPropertyBranch({ simulation: sensitiveSimulation({ properties: [{ customName: "  ", benefits: [] }] }) }), []);
 });
 
-test("cenas: sem justificativa REAL (vazia ou texto-padrão do sistema) não há cena 'Por que este imóvel'", () => {
-  for (const reason of ["", "   ", DEFAULT_REASON, `  ${DEFAULT_REASON.replace(" ", "  ")} `]) {
+test("ramo: justificativa REAL do corretor é usada; vazia ou texto-padrão vira o texto-padrão do dono (mesma constante do gerador)", () => {
+  const real = sensitiveSimulation();
+  assert.equal(buildPropertyBranch({ simulation: real, defaultReason: DEFAULT_REASON })[0].reason, "Fica perto da escola dos filhos e cabe no orçamento.");
+  for (const reason of ["", "   ", undefined, null, DEFAULT_REASON]) {
     const sim = sensitiveSimulation();
     sim.properties[0].recommendationReason = reason;
-    const scenes = buildPresentationScenes({ simulation: sim, defaultReason: DEFAULT_REASON });
-    assert.ok(ids(scenes).includes("imovel"));
-    assert.ok(!ids(scenes).includes("porque"), JSON.stringify(reason));
+    assert.equal(buildPropertyBranch({ simulation: sim, defaultReason: DEFAULT_REASON })[0].reason, DEFAULT_REASON, JSON.stringify(reason));
   }
+  // a constante do texto-padrão é a do gerador/PDF (simulation-mapper), não uma cópia
+  assert.match(read("lib/simulation-mapper.js"), /Este imóvel foi selecionado buscando reduzir ao máximo o desembolso inicial da compra e proporcionar o melhor aproveitamento das condições disponíveis\./);
+  assert.match(read("lib/simulation-presentation.js"), /defaultReason: DEFAULT_RECOMMENDATION_REASON/);
 });
 
-test("cenas: imóvel mostra nome, foto segura e até 6 benefícios; sem foto não quebra", () => {
+test("ramo: uma cena por imóvel sugerido, na ordem do cadastro, com posição e total; nome, foto segura e até 6 benefícios", () => {
   const sim = sensitiveSimulation();
   sim.properties[0].benefits = Array.from({ length: 9 }, (_, i) => ({ text: `Benefício ${i + 1}` }));
   sim.properties[0].imageUrl = "data:image/png;base64,AAAA";
-  const imovel = buildPresentationScenes({ simulation: sim }).find((scene) => scene.id === "imovel");
-  assert.equal(imovel.name, "Residencial Aurora");
-  assert.equal(imovel.imageUrl, "");
-  assert.equal(imovel.benefits.length, 6);
+  sim.properties.push({ customName: "Condomínio Segundo", benefits: [{ text: "Vaga coberta" }], imageUrl: "https://cdn.exemplo.com/2.jpg", recommendationReason: "" });
+  sim.properties.push({ customName: "", benefits: [] }); // sem nome: não conta
+  const branch = buildPropertyBranch({ simulation: sim, defaultReason: DEFAULT_REASON });
+  assert.equal(branch.length, 2);
+  assert.deepEqual(branch.map((scene) => [scene.name, scene.position, scene.count]), [["Residencial Aurora", 1, 2], ["Condomínio Segundo", 2, 2]]);
+  assert.equal(branch[0].imageUrl, "");
+  assert.equal(branch[0].benefits.length, 6);
+  assert.equal(branch[1].imageUrl, "https://cdn.exemplo.com/2.jpg");
+  assert.ok(branch.every((scene) => scene.id === "imovel"));
 });
 
 test("cenas: sem valores na simulação → null (nada a apresentar)", () => {
@@ -273,8 +285,7 @@ test("cenas: só uma parcela cadastrada mostra só ela; nenhuma parcela dispensa
   assert.ok(!ids(none).includes("parcelas"));
 });
 
-test("tempo de cada cena cresce com o texto (auto-avanço respeita a leitura)", () => {
-  assert.ok(sceneDurationMs({ id: "porque", reason: "x".repeat(300) }) > sceneDurationMs({ id: "porque", reason: "curto" }));
+test("tempo de cada cena do roteiro principal (auto-avanço respeita a leitura)", () => {
   assert.ok(sceneDurationMs({ id: "poder" }) >= 4000);
   const scenes = buildPresentationScenes({ simulation: sensitiveSimulation(), defaultReason: DEFAULT_REASON });
   assert.ok(scenes.every((scene) => scene.durationMs >= 4000 && scene.durationMs <= 20000));

@@ -2,16 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import {
-  DOCUMENTS_EXTRA_NOTE,
-  DOCUMENTS_SCENE_TEXT,
-  PRESENTATION_DOCUMENT_GROUPS
-} from "@/lib/simulation-presentation-documents.mjs";
+import { DOCUMENTS_SCENE_TEXT } from "@/lib/simulation-presentation-documents.mjs";
 import styles from "./presentation.module.css";
 
-// Folha "Lista de documentos": abre sobre a cena final, rolável, com botão de fechar. Mostra a lista BASE
-// (lib/simulation-presentation-documents.mjs) — a mesma da imagem para baixar. Não usa nenhum dado do cliente.
-export default function DocumentsSheet({ onClose }) {
+// Folha "Lista de documentos": abre sobre a cena final, rolável, com botão de fechar. Mostra a lista FINAL que veio no DTO
+// (`items`: títulos e descrições já resolvidos no servidor, personalizados pelo cadastro) — a mesma da imagem para baixar.
+// Este componente nunca vê dado cru do cadastro.
+export default function DocumentsSheet({ items = [], onClose }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
@@ -37,15 +34,24 @@ export default function DocumentsSheet({ onClose }) {
         </header>
         <div className={styles.sheetBody} tabIndex={0}>
           <p className={styles.sheetIntro}>{DOCUMENTS_SCENE_TEXT}</p>
-          {PRESENTATION_DOCUMENT_GROUPS.map((group) => (
-            <div key={group.id} className={styles.sheetGroup}>
-              <h3 className={styles.sheetGroupTitle}>{group.title}</h3>
-              <ul className={styles.sheetList}>
-                {group.items.map((item) => <li key={item.id}>{item.text}</li>)}
-              </ul>
-            </div>
-          ))}
-          <p className={styles.sheetNote}>{DOCUMENTS_EXTRA_NOTE}</p>
+          <ul className={styles.docList}>
+            {items.map((item) => (
+              <li key={item.id} className={styles.docItem}>
+                <span className={styles.docCheck} aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5.5 12.5 L10 17 L18.5 7.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+                <div className={styles.docText}>
+                  <h3 className={styles.docTitle}>{item.title}</h3>
+                  {item.description ? <p className={styles.docDesc}>{item.description}</p> : null}
+                  {item.lines?.length ? (
+                    <ul className={styles.docLines}>
+                      {item.lines.map((line) => <li key={line}>{line}</li>)}
+                    </ul>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </div>

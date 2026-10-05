@@ -108,3 +108,22 @@ export function buildAssetHrefs({ token = "", preview = false, assetsBase = "", 
   const query = `${assetsQuery ? `${assetsQuery}&` : ""}baixar=1`;
   return { summary: `${base}/imagem?${query}`, documents: `${base}/documentos?${query}` };
 }
+
+// ---------- ramo opcional de imóveis sugeridos ----------
+// O botão da cena "Próximo passo" abre uma sequência secundária (uma cena por imóvel). Ela NÃO faz parte do roteiro
+// principal: o índice do roteiro fica parado em "Próximo passo" e é retomado ao sair do ramo. Sem relógio: o cliente avança
+// (botão, toque, deslize ou teclado). Métrica: só as cenas do roteiro principal geram evento "cena"/"concluiu".
+
+/** Rótulo EXATO do botão: singular com 1 imóvel, plural com mais de 1; sem imóvel não há botão (null). */
+export function propertiesButtonLabel(count) {
+  const total = Math.floor(Number(count)) || 0;
+  if (total <= 0) return null;
+  return total === 1 ? "IMÓVEL SUGERIDO" : "IMÓVEIS SUGERIDOS";
+}
+
+/** Passo dentro do ramo: `next` no último e `prev` no primeiro SAEM do ramo (voltam ao "Próximo passo"). */
+export function branchStep({ index = 0, total = 0 } = {}, action) {
+  if (action === "next") return index >= total - 1 ? { index, exit: true } : { index: index + 1, exit: false };
+  if (action === "prev") return index <= 0 ? { index: 0, exit: true } : { index: index - 1, exit: false };
+  return { index, exit: false };
+}

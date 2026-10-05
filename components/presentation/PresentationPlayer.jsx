@@ -6,9 +6,10 @@ import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMo
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
 import { navigableSceneCount } from "@/lib/simulation-presentation-gate.mjs";
-import { DOCUMENTS_SCENE_TEXT } from "@/lib/simulation-presentation-documents.mjs";
+import { BRAND_NAME, BRAND_ROLE, DOCUMENTS_SCENE_TEXT } from "@/lib/simulation-presentation-documents.mjs";
 import {
   advanceClock,
+  branchStep,
   buildAssetHrefs,
   countValue,
   createPlayerState,
@@ -17,6 +18,7 @@ import {
   isPaused,
   keyAction,
   playerReducer,
+  propertiesButtonLabel,
   sceneMetricEvents,
   swipeAction,
   tapAction,
@@ -30,7 +32,8 @@ import styles from "./presentation.module.css";
 // Player da apresentação interativa da simulação. Recebe só o DTO público (cenas já decididas no servidor) e nunca
 // calcula valor financeiro: apenas anima e formata o que veio. Sem biblioteca de animação nem áudio.
 // `token` vazio ou `preview` = prévia do CRM: não envia nenhuma métrica e os botões de download ficam desativados.
-// A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas.
+// A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
+// Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
 
 const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "proximo", "validar"]);
 const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
@@ -38,6 +41,7 @@ const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
 const CAIXA_LOGO = "/assets/caixa-logo-transparent.png";
 
 function announcement(scene, index, total) {
+  if (scene.id === "imovel") return `Imóvel ${scene.position} de ${scene.count}: ${scene.name}. ${scene.reason}`;
   const head = `Cena ${index + 1} de ${total}. `;
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
@@ -48,8 +52,6 @@ function announcement(scene, index, total) {
       return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
-    case "imovel": return `${head}Encontramos uma opção compatível com sua simulação: ${scene.name}.`;
-    case "porque": return `${head}Por que este imóvel? ${scene.reason}`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
     case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT}`;
     default: return `${head}Próximo passo.`;
@@ -144,7 +146,7 @@ function SceneFormacao({ scene, reduced }) {
   return (
     <div className={styles.sceneInner}>
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Como esse valor é formado</p>
-      <div className={styles.rows}>
+      <div className={`${styles.rows} ${single ? "" : styles.rowsSoma}`}>
         {single ? (
           <>
             <div className={`${styles.row} ${styles.rowTotal} ${styles.rise}`} style={{ "--d": "400ms" }}>
@@ -157,12 +159,12 @@ function SceneFormacao({ scene, reduced }) {
           </>
         ) : (
           <>
-            <div className={`${styles.row} ${styles.rise}`} style={{ "--d": "400ms" }}>
+            <div className={`${styles.row} ${styles.rowPart} ${styles.rise}`} style={{ "--d": "400ms" }}>
               <span className={styles.rowLabel}>Financiamento</span>
               <span className={styles.rowValue}>{formatBRL(scene.financing)}</span>
             </div>
             <div className={`${styles.plus} ${styles.rise}`} style={{ "--d": "900ms" }} aria-hidden="true"><span>+</span></div>
-            <div className={`${styles.row} ${styles.rise}`} style={{ "--d": "1200ms" }}>
+            <div className={`${styles.row} ${styles.rowPart} ${styles.rise}`} style={{ "--d": "1200ms" }}>
               <span className={styles.rowLabel}>Subsídio</span>
               <span className={styles.rowValue}>{formatBRL(scene.subsidy)}</span>
             </div>
@@ -236,11 +238,15 @@ function SceneDiferenca({ scene }) {
   );
 }
 
-function SceneImovel({ scene }) {
+/** Cena do RAMO de imóveis (uma por imóvel sugerido): foto em revelação, características em sequência e a mensagem. */
+function SceneImovel({ scene, onNext, last, fast }) {
   const [failed, setFailed] = useState(false);
+  const multi = scene.count > 1;
+  const d = (ms) => (fast ? "0ms" : `${ms}ms`);
+  const afterBenefits = 1000 + scene.benefits.length * 260;
   return (
     <>
-      <div className={styles.photoWrap}>
+      <div className={`${styles.photoWrap} ${styles.photoReveal}`}>
         {scene.imageUrl && !failed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className={styles.photo} src={scene.imageUrl} alt={`Foto de ${scene.name}`} width={1080} height={1350} decoding="async" onError={() => setFailed(true)} />
@@ -250,29 +256,23 @@ function SceneImovel({ scene }) {
         <div className={styles.photoShade} />
       </div>
       <div className={styles.photoText}>
-        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "250ms" }}>Encontramos uma opção compatível com sua simulação</p>
-        <h2 className={styles.rise} style={{ "--d": "600ms" }}>{scene.name}</h2>
+        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": d(250) }}>{multi ? `Imóvel ${scene.position} de ${scene.count}` : "Imóvel sugerido"}</p>
+        <h2 className={styles.rise} style={{ "--d": d(500) }}>{scene.name}</h2>
         {scene.benefits.length ? (
           <ul className={styles.benefits}>
             {scene.benefits.map((benefit, i) => (
-              <li key={`${i}-${benefit}`} className={styles.rise} style={{ "--d": `${1000 + i * 260}ms` }}>{benefit}</li>
+              <li key={`${i}-${benefit}`} className={styles.rise} style={{ "--d": d(900 + i * 260) }}>{benefit}</li>
             ))}
           </ul>
         ) : null}
+        <p className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 200) }}>{scene.reason}</p>
+        <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 700) }}>
+          <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
+            {last ? "Continuar" : "Próximo imóvel"}
+          </button>
+        </div>
       </div>
     </>
-  );
-}
-
-function ScenePorque({ scene }) {
-  return (
-    <div className={styles.sceneInner}>
-      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Por que este imóvel?</p>
-      <div className={`${styles.reasonBox} ${styles.rise}`} style={{ "--d": "500ms" }}>
-        <QuoteMark />
-        <p className={styles.reason}>{scene.reason}</p>
-      </div>
-    </div>
   );
 }
 
@@ -294,15 +294,23 @@ function DownloadAction({ href, label, className, hint }) {
   );
 }
 
-function SceneProximo({ scene, onValidate, hrefs }) {
+function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast }) {
+  const propertiesLabel = propertiesButtonLabel(propertyCount);
+  const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   return (
     <div className={styles.sceneInner}>
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Próximo passo</p>
-      <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": "450ms" }}>
+      <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": d(450) }}>
         Agora que você conhece seu poder de compra, podemos avançar para encontrar a melhor opção dentro dessas condições.
       </h2>
-      {scene.dateLabel ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "1100ms" }}>Simulação realizada em {scene.dateLabel}</p> : null}
-      <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1500ms" }}>
+      {scene.dateLabel ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": d(1100) }}>Simulação realizada em {scene.dateLabel}</p> : null}
+      <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": d(1500) }}>
+        {propertiesLabel ? (
+          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenProperties} data-no-nav="" data-open-properties="">
+            <House aria-hidden="true" />
+            {propertiesLabel}
+          </button>
+        ) : null}
         <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onValidate} data-no-nav="">
           VALIDAR SIMULAÇÃO
         </button>
@@ -352,9 +360,8 @@ function renderScene(scene, ctx) {
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
-    case "imovel": return <SceneImovel scene={scene} />;
-    case "porque": return <ScenePorque scene={scene} />;
-    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} hrefs={ctx.hrefs} />;
+    case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={scene.position >= scene.count} fast={ctx.fast} />;
+    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} hrefs={ctx.hrefs} onOpenList={ctx.openList} />;
     default: return null;
@@ -373,7 +380,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, token = "", preview = false, initialIndex = 0, assetsBase = "", assetsQuery = "" }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "" }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -387,6 +394,11 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
   const [leaving, setLeaving] = useState(null);
   const [direction, setDirection] = useState("forward");
   const [docsOpen, setDocsOpen] = useState(false);
+  // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
+  // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
+  const [branchIndex, setBranchIndex] = useState(() => (initialBranch > 0 && branch.length ? Math.min(Math.floor(initialBranch), branch.length) - 1 : null));
+  const [returned, setReturned] = useState(false);
+  const inBranch = branchIndex !== null;
   const prevIndex = useRef(null);
   const elapsed = useRef(0);
   const fillRef = useRef(null);
@@ -414,7 +426,7 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
   }, [state.index]);
 
   // auto-avanço: relógio que só corre sem pausa (aba oculta também pausa) e respeita o tempo de leitura da cena
-  const auto = isAutoAdvancing(state);
+  const auto = isAutoAdvancing(state) && !inBranch; // no ramo de imóveis quem avança é o cliente
   useEffect(() => {
     if (!auto) return undefined;
     const duration = scene.durationMs;
@@ -438,14 +450,14 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  // pré-carrega só a foto da PRÓXIMA cena
+  // pré-carrega só a foto da PRÓXIMA cena do ramo (a primeira, enquanto o cliente está no "Próximo passo")
   useEffect(() => {
-    const next = scenes[state.index + 1];
-    if (next?.id === "imovel" && next.imageUrl) {
+    const target = inBranch ? branch[branchIndex + 1] : scenes[state.index]?.id === "proximo" ? branch[0] : null;
+    if (target?.imageUrl) {
       const image = new Image();
-      image.src = next.imageUrl;
+      image.src = target.imageUrl;
     }
-  }, [scenes, state.index]);
+  }, [scenes, branch, state.index, inBranch, branchIndex]);
 
   // métricas (só link real): abertura da sessão (recarga não conta de novo) + última cena + conclusão
   useEffect(() => {
@@ -469,11 +481,28 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
     result.events.forEach((event) => sendEvent(token, event));
   }, [tracking, token, state.index, total]);
 
+  const branchRef = useRef({ branchIndex, length: branch.length });
+  branchRef.current = { branchIndex, length: branch.length };
+  const stepBranch = useCallback((action) => {
+    const { branchIndex: current, length } = branchRef.current;
+    const result = branchStep({ index: current ?? 0, total: length }, action);
+    if (result.exit) {
+      setBranchIndex(null); // volta ao "Próximo passo" do roteiro principal (o índice dele nunca saiu de lá)
+      setReturned(true);
+    } else setBranchIndex(result.index);
+  }, []);
   const act = useCallback((action) => {
+    if (action === "toggle") return dispatch({ type: "toggle" });
+    if (branchRef.current.branchIndex !== null) return stepBranch(action);
     if (action === "next") dispatch({ type: "next" });
     else if (action === "prev") dispatch({ type: "prev" });
-    else if (action === "toggle") dispatch({ type: "toggle" });
+  }, [stepBranch]);
+  const openProperties = useCallback(() => {
+    if (!branchRef.current.length) return;
+    setReturned(false);
+    setBranchIndex(0);
   }, []);
+  const branchNext = useCallback(() => stepBranch("next"), [stepBranch]);
 
   // VALIDAR SIMULAÇÃO: só um avanço dentro da apresentação (nenhuma mensagem enviada, nenhum dado gravado além da métrica de cena).
   const validate = useCallback(() => {
@@ -509,6 +538,10 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
   const onKeyDown = (event) => {
     if (event.target.closest("[data-sheet]")) return; // lista de documentos aberta: o teclado é dela
     if (event.target.closest("a,button") && (event.key === " " || event.key === "Enter")) return;
+    if (event.key === "Escape" && branchRef.current.branchIndex !== null) {
+      event.preventDefault();
+      return stepBranch("prev");
+    }
     const action = keyAction(event.key);
     if (action) {
       event.preventDefault();
@@ -517,12 +550,15 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
   };
 
   const paused = isPaused(state);
-  const current = scenes[state.index];
+  const current = inBranch ? branch[branchIndex] : scenes[state.index];
   const announce = useMemo(() => announcement(current, state.index, total), [current, state.index, total]);
   const leavingScene = leaving !== null ? scenes[leaving] : null;
-  const restart = useCallback(() => dispatch({ type: "goto", index: 0 }), []);
+  const restart = useCallback(() => {
+    setBranchIndex(null);
+    dispatch({ type: "goto", index: 0 });
+  }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openList, hrefs };
+  const ctx = { reduced, restart, validate, openList, hrefs, openProperties, branchNext, propertyCount: branch.length, fast: returned };
 
   return (
     <div
@@ -541,11 +577,17 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
         <ArchBackdrop />
         <div className={styles.chrome}>
           <div className={styles.bars} aria-hidden="true">
-            {scenes.slice(0, navTotal).map((item, i) => (
-              <span key={`${item.id}-${i}`} className={`${styles.bar} ${i < state.index ? styles.barDone : ""}`}>
-                {i === state.index ? <span ref={fillRef} className={styles.barFill} /> : <span className={styles.barFill} />}
-              </span>
-            ))}
+            {inBranch
+              ? branch.map((item, i) => (
+                  <span key={`branch-${i}`} className={`${styles.bar} ${i <= branchIndex ? styles.barDone : ""}`}>
+                    <span className={styles.barFill} />
+                  </span>
+                ))
+              : scenes.slice(0, navTotal).map((item, i) => (
+                  <span key={`${item.id}-${i}`} className={`${styles.bar} ${i < state.index ? styles.barDone : ""}`}>
+                    {i === state.index ? <span ref={fillRef} className={styles.barFill} /> : <span className={styles.barFill} />}
+                  </span>
+                ))}
           </div>
           <div className={styles.chromeRow}>
             <span className={styles.brand}>
@@ -554,7 +596,11 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/assets/matheus-machado-symbol.png" alt="" width={24} height={19} />
               </span>
-              Matheus Machado Imóveis
+              {/* mesma assinatura da logo: nome em destaque e a função logo abaixo */}
+              <span className={styles.brandText}>
+                <strong>{BRAND_NAME}</strong>
+                <span>{BRAND_ROLE}</span>
+              </span>
             </span>
             <button type="button" className={styles.iconBtn} onClick={() => dispatch({ type: "toggle" })} aria-label={state.paused ? "Continuar apresentação" : "Pausar apresentação"} aria-pressed={state.paused}>
               {state.paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
@@ -564,30 +610,29 @@ export default function PresentationPlayer({ scenes, token = "", preview = false
         </div>
 
         <div className={styles.stage} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = null; }}>
-          {leavingScene ? (
+          {leavingScene && !inBranch ? (
             <div key={`leave-${leaving}`} data-scene={leavingScene.id} className={`${styles.scene} ${styles.leave} ${leavingScene.id === "imovel" ? styles.photoScene : ""}`} aria-hidden="true">
               {renderScene(leavingScene, { ...ctx, reduced: true })}
             </div>
           ) : null}
-          <div key={`scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
+          <div key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
             {renderScene(current, ctx)}
           </div>
-          {docsOpen && current.id === "documentos" ? <DocumentsSheet onClose={closeList} /> : null}
+          {docsOpen && current.id === "documentos" ? <DocumentsSheet items={current.items} onClose={closeList} /> : null}
         </div>
 
-        {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas; só a logo, sem texto de parceria */}
+        {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas, direto sobre o fundo (sem pílula,
+            sem caixa); nas cenas escuras ganha um brilho suave para o azul não sumir no azul-marinho. Só a logo, sem texto. */}
         <div className={styles.caixa}>
-          <span className={styles.caixaPill}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={CAIXA_LOGO} alt="Caixa Econômica Federal" width={780} height={196} />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.caixaLogo} src={CAIXA_LOGO} alt="Caixa Econômica Federal" width={780} height={196} />
         </div>
       </div>
 
-      <button type="button" className={`${styles.side} ${styles.sidePrev}`} onClick={() => dispatch({ type: "prev" })} disabled={state.index === 0} aria-label="Cena anterior">
+      <button type="button" className={`${styles.side} ${styles.sidePrev}`} onClick={() => act("prev")} disabled={!inBranch && state.index === 0} aria-label="Cena anterior">
         <ChevronLeft aria-hidden="true" />
       </button>
-      <button type="button" className={`${styles.side} ${styles.sideNext}`} onClick={() => dispatch({ type: "next" })} disabled={isLastScene(state)} aria-label="Próxima cena">
+      <button type="button" className={`${styles.side} ${styles.sideNext}`} onClick={() => act("next")} disabled={!inBranch && isLastScene(state)} aria-label="Próxima cena">
         <ChevronRight aria-hidden="true" />
       </button>
 

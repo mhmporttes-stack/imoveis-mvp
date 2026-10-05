@@ -16,5 +16,5 @@ export default async function PresentationPreviewPage({ params }) {
   if (!simulation) notFound();
   const dto = await buildSimulationPresentationDto(simulation);
   if (!dto) notFound();
-  return <PresentationPlayer scenes={dto.scenes} token="" preview />;
+  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token="" preview />;
 }

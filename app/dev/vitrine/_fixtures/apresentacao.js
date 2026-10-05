@@ -1,9 +1,10 @@
 import { buildPublicPresentation } from "@/lib/simulation-presentation-core.mjs";
 
 // Dados 100% FICTÍCIOS da vitrine da Apresentação interativa (só `next dev`; nunca vão para produção).
-//   v = completo (juros 5,4 + subsídio novo ≠ usado + imóvel com foto) | sem-juros-sem-subsidio | igual (novo = usado,
+//   v = completo (formal + casado + com filhos + 2 imóveis + juros 5,4 + subsídio novo ≠ usado) | informal (informal + solteiro + sem
+//       filhos + 1 imóvel) | minimo (sem cadastro e sem imóvel) | | sem-juros-sem-subsidio | igual (novo = usado,
 //       com subsídio igual: sem cena de diferença) | sem-imovel | sem-justificativa | longo (nome de imóvel muito longo)
-export const DEFAULT_REASON = "Texto padrão do sistema.";
+export const DEFAULT_REASON = "Este imóvel foi selecionado buscando reduzir ao máximo o desembolso inicial da compra e proporcionar o melhor aproveitamento das condições disponíveis.";
 
 // Foto fictícia e neutra (gradiente com formas simples), nada de imóvel ou cliente real.
 export const PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -16,6 +17,8 @@ export function presentationSimulation(variant = "completo") {
     clientName: "Mariana Souza Lima",
     simulationDate: "2026-10-03",
     interestRateAnnual: 5.4,
+    // cadastro FICTÍCIO: só alimenta a personalização da lista de documentos (o valor cru nunca sai do servidor)
+    registration: { simulationType: "individual", oldestBirthDate: "1990-05-10", primaryIncomeType: "registered_employment", primaryMaritalStatus: "married", hasChildrenUnder18: true },
     simulationModels: {
       novo: { financingValue: "190.000,00", subsidyValue: "42.000,00", firstInstallment: "1.085,40", lastInstallment: "812,15" },
       usado: { financingValue: "190.000,00", subsidyValue: "0", firstInstallment: "1.085,40", lastInstallment: "812,15" }
@@ -26,6 +29,12 @@ export function presentationSimulation(variant = "completo") {
         imageUrl: "https://dev.invalid/foto.jpg",
         benefits: [{ text: "2 dormitórios com varanda" }, { text: "Condomínio com lazer completo" }, { text: "Próximo a escolas e comércio" }, { text: "Entrada parcelada" }],
         recommendationReason: "Boa localização para a rotina da família e parcelas que cabem dentro do orçamento informado na simulação."
+      },
+      {
+        customName: "Condomínio Parque das Flores",
+        imageUrl: "https://dev.invalid/foto2.jpg",
+        benefits: [{ text: "3 dormitórios com suíte" }, { text: "Vaga coberta" }, { text: "Portaria 24 horas" }],
+        recommendationReason: DEFAULT_REASON
       }
     ]
   };
@@ -45,6 +54,11 @@ export function presentationSimulation(variant = "completo") {
     };
     base.properties = [];
   }
+  if (variant === "informal") {
+    base.registration = { simulationType: "individual", oldestBirthDate: "1988-02-01", primaryIncomeType: "self_employed_unregistered", primaryMaritalStatus: "single", hasChildrenUnder18: false };
+    base.properties = base.properties.slice(0, 1);
+  }
+  if (variant === "minimo") base.registration = undefined;
   if (variant === "igual") base.simulationModels.usado = { ...base.simulationModels.novo };
   if (variant === "sem-imovel") base.properties = [];
   if (variant === "sem-justificativa") base.properties[0].recommendationReason = DEFAULT_REASON;
@@ -57,5 +71,10 @@ export function presentationDto(variant) {
 }
 
 export function presentationScenes(variant) {
-  return presentationDto(variant).scenes.map((scene) => (scene.id === "imovel" ? { ...scene, imageUrl: PHOTO } : scene));
+  return presentationDto(variant).scenes;
+}
+
+/** Ramo de imóveis sugeridos, com a foto fictícia no lugar da URL de teste. */
+export function presentationBranch(variant) {
+  return presentationDto(variant).branch.map((scene) => ({ ...scene, imageUrl: PHOTO }));
 }

@@ -47,6 +47,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Pedido (dono):** incluir a ideia de checar, antes de codar, se o código precisa existir/já existe/dá em menos linhas (sem instalar plugin externo). Só documentação (`AGENTS.md`, "Antes de alterar código", item 9).
 
 
+### 2026-10-05 — Apresentação interativa, round 3 (lista do dono personalizada, ramo de imóveis, logo da Caixa, cabeçalho, "+")
+- **Data:** 2026-10-05 · **Área:** Simulação (apresentação ao cliente) · **Banco:** nenhuma migration, nenhuma escrita.
+- **Mudou:** (A/B) imagem e folha "Lista de documentos" seguem a referência do dono (cabeçalho azul-marinho com a logo atual, itens com caixa de marcar em SVG; SEM rodapé: nada de WhatsApp/Instagram, por decisão do dono); altura do PNG acompanha a lista (1080 de largura). (C) lista personalizada no servidor pelo cadastro (renda, estado civil, filhos); só a lista final sai no DTO. (D) imóveis saem do roteiro automático e viram um ramo opcional (botão IMÓVEL/IMÓVEIS SUGERIDO(S) no "Próximo passo"; uma cena por imóvel; justificativa real ou texto padrão do dono; "Continuar" volta ao próximo passo). (E) logo da Caixa sem pílula, maior, com halo nas cenas escuras. (F) "+" da cena de formação no mesmo eixo dos valores. (G) cabeçalho "MATHEUS MACHADO / CORRETOR DE IMÓVEIS" nas cenas e no PNG-resumo.
+- **Arquivos:** `lib/simulation-presentation-{core,documents,image,image-core}.mjs`, `components/presentation/*`, `app/apresentacao/[token]/page.jsx`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, vitrine dev, testes `tests/simulation-presentation*.test.mjs` (novo: `-round3`). PDF e regras financeiras intocados.
+- **Docs:** `docs/BUSINESS_RULES.md` PRES-4, 8, 12, 13, 14 revisadas; PRES-15 e PRES-16 novas.
+- **Risco/observação:** o cadastro manual (marcador 1900-01-01) cai na lista completa (SUPOSIÇÃO: seus campos são placeholders). Testes de outras frentes continuam vermelhos: `short-links`, `simulacao-share-preview` e tamanho do `CLAUDE.md`.
+
 ### 2026-10-05 — Correção: cena de diferença novo×usado só com os dois subsídios informados
 - **Causa raiz:** `SYNCED_MODEL_FIELDS` do gerador copia financiamento e parcelas entre os modelos novo/usado; numa simulação de um modelo só o outro ficava "preenchido" com subsídio em branco, tratado como R$ 0,00 → diferença inventada (cena e imagem). **Correção:** `subsidyInformed` em `lib/simulation-presentation-core.mjs` exige subsídio informado nos dois modelos. Testes em `tests/simulation-presentation-round2.test.mjs`. Registro também em PRES-10.
 
