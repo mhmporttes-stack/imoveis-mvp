@@ -19,7 +19,12 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   // ?jornada=simulacao (links dos Fluxos do WhatsApp): abre direto o formulário
   // de simulação, sem a tela de escolha com "Atendimento rápido". Sem esse
   // parâmetro nada muda — todo link existente continua mostrando a escolha.
-  const directSimulation = searchParams.get("jornada") === "simulacao";
+  // Entrada (2026-10-04): a tela "Como podemos te ajudar?" (Atendimento rápido × Simulação) existe só para link de
+  // CAMPANHA (?c=, configurado como "choice"). Link do Matheus (/simulacao), link individual do corretor (?ref=) e
+  // link da equipe/roleta (/simulacao/equipe) abrem direto o formulário de Simulação — ?ref=, atribuição e roleta
+  // seguem exatamente como antes (SimulationForm/track-view não mudam).
+  const isCampaignLink = Boolean(searchParams.get("c"));
+  const directSimulation = searchParams.get("jornada") === "simulacao" || !isCampaignLink;
   const [journey, setJourney] = useState(directSimulation ? "simulation" : "");
   // Quando a jornada foi definida automaticamente pelo link (Disparo do
   // WhatsApp Master com destino "Atendimento rápido"/"Simulação completa",

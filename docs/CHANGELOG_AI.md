@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-04 — Entrada dos links de simulação: direto no formulário (tela de escolha só para campanha)
+- **Pedido (dono):** links do Matheus, individuais dos corretores e da equipe abrem direto a Simulação; a tela "Como podemos te ajudar?" (Atendimento rápido × Simulação) fica só para links de campanha.
+- **Mudança:** `components/simulation-form/LinkJourneyGate.jsx` — sem `?c=` o estado inicial já é "simulation" (sem botão Voltar); com `?c=` nada muda (tela de escolha, ou a jornada direta já configurada na campanha/Disparo). `?ref=`, atribuição, roleta, cadastro e formulários não foram alterados.
+
 
 ### 2026-10-04 — Logo antiga removida do projeto e regra permanente de identidade visual
 - **Data:** 2026-10-04
