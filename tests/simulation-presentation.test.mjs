@@ -376,9 +376,9 @@ test("página pública: noindex, no-referrer, 404 genérico e nenhum guard de lo
 
 test("lib: token inválido/inexistente/revogado/tabela ausente → null; escrita só pela função atômica", () => {
   const source = read("lib/simulation-presentation.js");
-  assert.match(source, /if \(!isPresentationToken\(token\)\) return null/);
-  assert.match(source, /data\.status !== "active"\) return null/);
-  assert.match(source, /isPresentationSchemaMissing\(error\)\) return null/);
+  assert.ok(source.includes("return notFound(\"token_fora_do_formato\")"));
+  assert.ok(source.includes("return notFound(\"link_revogado\")"));
+  assert.ok(source.includes("return notFound(\"migration_ausente\")"));
   assert.match(source, /rpc\("record_simulation_presentation_event"/);
   assert.match(source, /Recurso ainda não ativado no banco\./);
   assert.match(source, /import "server-only"/);
@@ -489,4 +489,55 @@ test("AppChrome: apresentação em tela cheia, sem cabeçalho/rodapé do site", 
   const chrome = read("components/AppChrome.jsx");
   assert.match(chrome, /\/apresentacao\//);
   assert.match(chrome, /\\\/s\\\/\[A-Za-z0-9\]\{24\}/);
+});
+
+// ---------- regressão: simulação "usado" no formato real de `rowToSimulation` (campos soltos, sem imóveis) ----------
+// Caso de produção (link de teste, 2026-10-05): o link 404 devia ser diagnosticável. Estas formas vêm de rowToSimulation.
+const realShape = (over = {}) => ({
+  id: "9aa9d38a-0c0b-4d28-aa38-505443579a5a",
+  registrationId: "",
+  clientName: "Teste Test",
+  simulationType: "usado",
+  financingValue: 180000,
+  subsidyValue: 20000,
+  firstInstallment: 1050.9,
+  lastInstallment: 780.3,
+  downPaymentValue: 0,
+  fgtsValue: 0,
+  totalPurchasePower: 200000,
+  expandedPurchasePower: 200000,
+  showExpandedPower: false,
+  simulationDate: "2026-10-01",
+  publicNote: "",
+  internalNote: "",
+  simulationModels: null,
+  outputMode: "individual",
+  entrySimulationSnapshots: [],
+  properties: [],
+  ...over
+});
+
+test("regressão: simulação usado só com campos soltos (sem modelos, sem imóveis, sem snapshots) gera a apresentação", () => {
+  const scenes = buildPresentationScenes({ simulation: realShape(), broker: null, defaultReason: DEFAULT_REASON });
+  assert.deepEqual(ids(scenes), ["abertura", "poder", "formacao", "parcelas", "proximo"]);
+  assert.equal(scenes[0].firstName, "Teste");
+  assert.equal(scenes[1].value, 200000);
+  assert.equal(scenes[3].first, 1050.9);
+  assert.equal(scenes.at(-1).broker, null);
+});
+
+test("regressão: nota com modelos vazios (autosave) + campos soltos preenchidos usa os campos soltos, como o PDF", () => {
+  const empty = { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "" };
+  const scenes = buildPresentationScenes({ simulation: realShape({ simulationModels: { novo: { ...empty }, usado: { ...empty } } }) });
+  assert.equal(scenes.find((scene) => scene.id === "poder").value, 200000);
+});
+
+test("simulação aguardando valores (tudo zerado) não tem o que apresentar: null (404 com motivo no log)", () => {
+  const pending = realShape({ financingValue: 0, subsidyValue: 0, firstInstallment: 0, lastInstallment: 0, totalPurchasePower: 0 });
+  assert.equal(buildPresentationScenes({ simulation: pending }), null);
+  const source = read("lib/simulation-presentation.js");
+  for (const reason of ["token_fora_do_formato", "migration_ausente", "token_inexistente", "link_revogado", "simulacao_inexistente", "simulacao_sem_valores"]) {
+    assert.ok(source.includes(`notFound("${reason}")`), reason);
+  }
+  assert.match(source, /console\.warn\("\[apresentacao\] 404 publico:", reason\)/);
 });
