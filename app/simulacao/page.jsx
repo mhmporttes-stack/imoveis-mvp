@@ -38,8 +38,10 @@ export default function SimulationPage() {
 // então um cabeçalho fixo aqui ficaria repetido/errado nessas duas etapas.
 export function SimulationPageContent({ brokerRef = "" }) {
   return (
-    <main className="bg-mist py-12 sm:py-16">
-      <section className="container-page">
+    // Tela fixa (2026-10-05): o questionário ocupa a tela inteira, centralizado e sem rolagem da página. Só se o conteúdo
+    // for maior que a tela (celular pequeno, tela final) a própria área rola — nada fica cortado.
+    <main className="fixed inset-0 z-10 flex overflow-y-auto bg-mist px-0">
+      <section className="container-page m-auto w-full py-4 sm:py-6">
         <Suspense fallback={<SimulationFormFallback />}>
           <LinkJourneyGate brokerRefOverride={brokerRef} />
         </Suspense>

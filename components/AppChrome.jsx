@@ -64,7 +64,8 @@ export default function AppChrome({ children }) {
       ) : null}
       {!isAdminRoute ? <Header /> : null}
       {children}
-      {!isAdminRoute ? <Footer /> : null}
+      {/* Simulação (/simulacao): só o questionário, sem rodapé do site (pedido do dono, 2026-10-05). */}
+      {!isAdminRoute && !isSimulationRoute ? <Footer /> : null}
       {!isAdminRoute && !isSimulationRoute ? (
         <>
           <LeadCaptureModal />

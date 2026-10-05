@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Simulação: só o questionário, tela fixa (sem rodapé do site e sem título grande)
+- **Pedido (dono):** remover a parte de baixo (rodapé "Especialista no mercado imobiliário de Marília…") e deixar o questionário fixo, sem rolagem, mais confortável para o cliente.
+- **Mudança:** `components/AppChrome.jsx` (rodapé não aparece em `/simulacao`), `app/simulacao/page.jsx` (`main` fixo em tela cheia, conteúdo centralizado; só rola dentro da área se não couber — celular pequeno/tela final), `components/simulation-form/LinkJourneyGate.jsx` (título/subtítulo grandes viram `sr-only`). Formulário, atribuição, roleta e cadastro inalterados.
+
 ### 2026-10-05 — Links gerados pelo CRM voltam ao formato longo (decisão do dono); links curtos continuam funcionando
 - **Pedido (dono):** "Deixe como estava antes" (a prévia de compartilhamento deixou de aparecer com os links curtos).
 - **Mudança:** `buildBrokerSimulationLink`, `buildBrokerCaptacaoLink`, `buildCampaignLink`, link da Minha Jornada, Fluxos/respostas automáticas e "Meu link"/Gerador de Links voltaram a gerar e copiar `https://www…/simulacao?ref=…`, `/simulacao?c=…`, `/captacao?ref=…` e `/minha-jornada/{token}` (com `https://www.`). As rotas `/s`, `/s/{codigo}`, `/c/{codigo}`, `/v…`, `/j/{token}` e as colunas `campaigns.short_code`/`admin_users.short_ref` ficam no ar (inofensivas; links curtos já compartilhados continuam abrindo). Atribuição, roleta, rastreio e cadastros nunca foram alterados.

@@ -76,15 +76,8 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
     const canGoBack = journeySource !== "direct_link";
     return (
       <div>
-        <div className="mx-auto mb-9 max-w-4xl text-center">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-brand">Financiamento imobiliário</p>
-          <h1 className="mt-4 text-[clamp(2.4rem,5vw,4.75rem)] font-black leading-[0.98] text-navy">
-            Simulação de financiamento
-          </h1>
-          <p className="mx-auto mt-5 max-w-3xl text-[clamp(1rem,1.8vw,1.25rem)] leading-8 text-muted">
-            Responda algumas perguntas para entendermos o seu perfil e avaliarmos as melhores possibilidades de financiamento.
-          </p>
-        </div>
+        {/* Só o questionário na tela (sem título/subtítulo grandes): o cabeçalho continua para leitores de tela. */}
+        <h1 className="sr-only">Simulação de financiamento</h1>
         {canGoBack ? (
           <div className="mx-auto mb-4 w-full max-w-3xl">
             <button
