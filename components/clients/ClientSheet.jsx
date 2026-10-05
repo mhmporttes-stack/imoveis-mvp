@@ -234,7 +234,7 @@ function LabeledSelect({ label, value, disabled, onChange, children }) {
 function StatusSelect({ client, busy, onChange }) {
   return (
     <LabeledSelect label="Etapa" value={client.status} disabled={busy} onChange={onChange}>
-      <StatusOptions current={client.status} />
+      <StatusOptions current={client.status} hasRealSimulation={client.summary ? Boolean(client.summary.completed) : true} />
     </LabeledSelect>
   );
 }

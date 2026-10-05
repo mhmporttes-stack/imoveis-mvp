@@ -1,4 +1,5 @@
 import { CLIENT_FUNNEL_SALE_STATUS_VALUES, CLIENT_STATUS, CLIENT_STATUS_META } from "@/lib/client-status";
+import { isSimulationDoneOptionBlocked } from "@/lib/simulation-status-lock-core.mjs";
 
 // Etapas que o usuário pode escolher, na mesma ordem do funil. O grupo
 // "Venda" lista TODAS as subetapas de pós-venda (Formulários...Pagamento,
@@ -15,10 +16,15 @@ export const SELECTABLE_STATUS_VALUES = [
   CLIENT_STATUS.MEETING_PENDING, CLIENT_STATUS.MEETING_DONE, CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT
 ];
 
-export default function StatusOptions() {
+// "Simulação realizada" só existe com simulação de verdade (financiamento ou
+// subsídio): sem ela a opção aparece bloqueada (o servidor também recusa).
+export default function StatusOptions({ current = "", hasRealSimulation = true }) {
+  const simulationBlocked = isSimulationDoneOptionBlocked({ currentStatus: current, hasRealSimulation });
   return (
     <>
-      {SELECTABLE_STATUS_VALUES.map((value) => <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
+      {SELECTABLE_STATUS_VALUES.map((value) => value === CLIENT_STATUS.COMPLETED && simulationBlocked
+        ? <option key={value} value={value} disabled>{CLIENT_STATUS_META[value].label} (gere a simulação primeiro)</option>
+        : <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
       <optgroup label="Venda">
         {CLIENT_FUNNEL_SALE_STATUS_VALUES.map((value) => <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
       </optgroup>

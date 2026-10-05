@@ -214,7 +214,7 @@ function StatusControl({ client, name, busy, list, confirmAction }) {
         disabled={busy}
         onChange={(event) => change(event.target.value)}
       >
-        <StatusOptions current={client.status} />
+        <StatusOptions current={client.status} hasRealSimulation={client.summary ? Boolean(client.summary.completed) : true} />
       </select>
     </span>
   );

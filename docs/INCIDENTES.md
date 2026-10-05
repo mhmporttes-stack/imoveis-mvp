@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-05 — Cliente em "Simulação realizada" sem nenhuma simulação
+- **Data:** 2026-10-05
+- **Sintoma:** card em "Simulação realizada" mas com "Simulação ainda não realizada" (só renda/recurso do cadastro).
+- **Área:** Clientes / Funil
+- **Impacto:** 1 cliente em produção; risco de distorcer funil e previsões.
+- **Causa raiz:** o seletor de etapa liberava "Simulação realizada" para qualquer cliente e o servidor não validava se havia simulação com valor (a regra só existia na pontuação e na marcação automática).
+- **Correção:** trava no servidor + opção bloqueada na tela; cliente afetado voltou para "Aguardando simulação".
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-05)
+- **Prevenção/teste:** `tests/simulation-status-lock.test.mjs`
+- **Status:** Resolvido
+
 ### 2026-10-04 — WhatsApp individual: erro 440 a cada deploy e laços de reconexão (403/408/440/500/515)
 
 - **Sintoma:** sessões do WhatsApp caindo com "conexão substituída" (440) bem na hora de um `git push`; contas em laço de reconexão por horas; sessão presa em "reconectando"; QR de conta já pareada reconectando de 2 em 2 s.

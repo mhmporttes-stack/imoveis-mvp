@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Trava: "Simulação realizada" só com simulação real
+- **Data:** 2026-10-05
+- **Área:** Clientes / Funil
+- **Alteração:** `completed` exige simulação com financiamento ou subsídio > 0 (servidor + opção bloqueada na tela). Cliente em "Simulação realizada" sem simulação real voltou para "Aguardando simulação" (1 cliente).
+- **Motivo:** pedido do dono — um corretor marcou manualmente "Simulação realizada" num cliente sem nenhuma simulação.
+- **Arquivos afetados:** `lib/simulation-status-lock-core.mjs`, `lib/simulation-registrations.js`, `components/clients/StatusOptions.jsx`, `components/clients/ClientCard.jsx`, `components/clients/ClientSheet.jsx`, `tests/simulation-status-lock.test.mjs`
+- **Risco/observação:** a marcação automática após salvar simulação só com parcelas/entrada (sem financiamento nem subsídio) deixou de mover o cliente — alinhado à regra de pontuação. Sem migration; a trava é só de aplicação (única porta de escrita do status `completed`).
+- **Autor:** Claude Code
+
 ### 2026-10-05 — Enviar apresentação da simulação: só o link na mensagem
 - **Pedido (dono):** com texto junto ("Olá, Sara! Preparei a sua simulação…: link") a pré-visualização do link não abre no WhatsApp; deve ir apenas o link.
 - **Mudança:** `buildPresentationSendMessage` (`lib/simulation-presentation-send.mjs`) devolve só a URL `/s/<token>`; teste `tests/simulation-presentation-send.test.mjs` atualizado.
