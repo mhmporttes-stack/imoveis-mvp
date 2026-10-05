@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-05 — Dia de teste lento da Meta Diária (Izabela, Caroline, Jennyfer) — exceção só de hoje
+- **Pedido (dono):** após os testes de disparo da Caroline e da Jennyfer (sem bloqueio), zerar a carteira das 3, colocar 10 contatos novos da base em cada uma e disparar hoje de forma bem lenta (janela até 18:00, intervalo máximo, oscilação ~10–15%, teto do dia 15).
+- **Mudança:** `TEMPORARY_POLICY_OVERRIDES` em `lib/daily-goal-policy-core.mjs` (data 2026-10-05 + 3 corretores): janela até 18:00, intervalo 17–21 min (média 19), sem pausas programadas, teto 15/dia; `applyPolicyV2` aplica e `planV2Schedule`/`v2SendBlockReason` respeitam `policy_no_pauses`. Em 06/10 a data não casa e volta à política normal (06:30–15:30, 5–8 min, 30/dia). Teste `tests/daily-goal-temporary-policy.test.mjs`. Dados: carteira das 3 zerada pela função `daily_goal_wallet_trim` (backup + auditoria, reversível) e 10 contatos novos por corretora via `claim_daily_goal_contacts`.
+
 ### 2026-10-05 — Apresentação: cena de valores com documentação gratuita, total de descontos e layout enxuto (PRES-20)
 - **Data:** 2026-10-05
 - **Área:** Clientes (apresentação interativa)
