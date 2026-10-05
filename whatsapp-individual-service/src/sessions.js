@@ -8,6 +8,7 @@ import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMapping
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
+import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
@@ -32,6 +33,25 @@ const retiredSockets = new WeakSet();
 // para sempre, para qualquer código que não fosse 401.
 const reconnectConfig = configFromEnv(process.env);
 const QR_TTL_MS = 60_000;
+
+// Exclusão mútua por corretor: conectar (retomada no boot / botão Conectar / QR / reconexão automática)
+// e desconectar nunca correm ao mesmo tempo para a MESMA sessão neste processo.
+const sessionLocks = createKeyedMutex();
+
+// Guarda de conexão (lease): server.js injeta uma função que devolve null quando PODE conectar ou o
+// motivo ("shutting_down" | "waiting_lease") quando não. Sem guarda instalada, tudo é permitido.
+let connectGuard = () => null;
+let shuttingDown = false;
+export function setConnectGuard(fn) { connectGuard = typeof fn === "function" ? fn : () => null; }
+export function isShuttingDown() { return shuttingDown; }
+
+function notReadyError(reason) {
+  const error = new Error(reason === "shutting_down"
+    ? "O serviço de WhatsApp está sendo reiniciado. Tente de novo em instantes."
+    : "O serviço de WhatsApp está sendo atualizado e ainda não assumiu as sessões. Tente de novo em instantes.");
+  error.code = "SERVICE_NOT_READY";
+  return error;
+}
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
 
 // LID -> telefone por corretor (ver message-extract.js). Só em memória:
@@ -108,13 +128,17 @@ function closeHandlerFor(userId, entry) {
       notifyStatus,
       clearSessionCreds,
       retireSocket,
-      scheduleRetry: ({ delayMs, sock }) => {
+      isShuttingDown: () => shuttingDown,
+      // trigger: "auto" (queda recuperável, com backoff) ou "restart" (515 normal pós-pareamento).
+      scheduleRetry: ({ delayMs, sock, trigger = "auto" }) => {
         clearRetryTimer(entry);
         const timer = setTimeout(async () => {
           if (entry.retryTimer !== timer) return; // cancelada (conexão manual / desconectar)
           entry.retryTimer = null;
           await retireSocket(sock);
-          connectSession(userId, { trigger: "auto" }).catch((error) => onAutoReconnectFailure(userId, entry, error));
+          // Sem o lease (ou encerrando) nenhuma reconexão automática: quem retoma é o dono do lease.
+          if (connectGuard(trigger)) return;
+          connectSession(userId, { trigger }).catch((error) => onAutoReconnectFailure(userId, entry, error));
         }, delayMs);
         entry.retryTimer = timer;
       }
@@ -127,6 +151,11 @@ function closeHandlerFor(userId, entry) {
 // credenciais no CRM): conta como queda recuperável — respeita o mesmo backoff
 // e o mesmo limite, nunca fica parada em "reconectando" sem ninguém tentando.
 async function onAutoReconnectFailure(userId, entry, error) {
+  // Sem o lease / encerrando: não é falha da sessão — nada a contar nem a gravar; quem retoma é o dono do lease.
+  if (error?.code === "SERVICE_NOT_READY") {
+    console.warn(`[${userId}] Reconexão automática adiada: ${error.message}`);
+    return;
+  }
   console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message);
   try {
     await closeHandlerFor(userId, entry)({ sock: null, statusCode: undefined, errorMessage: `startup_failed: ${error.message}` });
@@ -170,7 +199,19 @@ async function onAutoReconnectFailure(userId, entry, error) {
 // "resume" (retomada no boot) abrem um CICLO novo de reconexão (contador
 // zerado); "auto" é a reconexão agendada pela própria política (continua o
 // ciclo atual, com backoff e limite).
-export async function connectSession(userId, { phoneNumber, trigger = "manual" } = {}) {
+export async function connectSession(userId, options = {}) {
+  // Sem o lease do serviço (outra instância é a dona) ou encerrando: nenhuma conexão — duas instâncias
+  // com a mesma sessão derrubam uma à outra (erro 440).
+  const blocked = connectGuard(options.trigger || "manual");
+  if (blocked) throw notReadyError(blocked);
+  // Uma operação por corretor de cada vez (mutex): resume x manual/QR x automático nunca correm juntos.
+  return sessionLocks.run(userId, () => connectSessionLocked(userId, options));
+}
+
+async function connectSessionLocked(userId, { phoneNumber, trigger = "manual" } = {}) {
+  // O lease pode ter sido perdido enquanto esta chamada esperava a vez.
+  const blockedAfterWait = connectGuard(trigger);
+  if (blockedAfterWait) throw notReadyError(blockedAfterWait);
   const entry = entryFor(userId);
   // Pedido de QR (sem número) com uma sessão parada no modo código: começa do
   // zero em modo QR — senão a tela de QR recebia de volta o código antigo
@@ -193,7 +234,7 @@ export async function connectSession(userId, { phoneNumber, trigger = "manual" }
   }
 
   // Conexão pedida de fora cancela qualquer reconexão automática agendada.
-  if (trigger !== "auto") clearRetryTimer(entry);
+  if (trigger !== "auto" && trigger !== "restart") clearRetryTimer(entry);
   entry.connecting = startSocket(userId, entry, { phoneNumber, trigger }).finally(() => { entry.connecting = null; });
   return entry.connecting;
 }
@@ -211,8 +252,17 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   telemetry.setWaVersion(version, isLatest);
   const controller = controllerFor(userId, entry);
   if (trigger === "auto") controller.beginRetry();
+  else if (trigger === "restart") controller.beginRestart();
   else controller.beginCycle(trigger);
   const { state, saveCreds } = await useSupabaseAuthState(userId);
+
+  // As esperas acima (versão do WA, credenciais) podem ter durado o bastante para o lease ser perdido
+  // ou o SIGTERM chegar: nenhum socket novo nasce sem o lease.
+  const blockedNow = connectGuard(trigger);
+  if (blockedNow) {
+    entry.status = "disconnected";
+    throw notReadyError(blockedNow);
+  }
 
   const sock = makeWASocket({
     version,
@@ -473,7 +523,41 @@ export function getLiveSessionStatus(userId) {
   return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
 }
 
+// Há tentativa real em andamento para este corretor NESTE processo? (socket vivo, conexão em curso ou
+// reconexão agendada). Usado pela reconciliação e pela retomada.
+export function isSessionActive(userId) {
+  const entry = sockets.get(userId);
+  return Boolean(entry && (entry.sock || entry.connecting || entry.retryTimer));
+}
+
+// Para TODAS as sessões deste processo SEM logout e SEM apagar credenciais nem gravar estado no banco
+// (a sessão continua 'connected' lá, para o próximo dono do lease retomar). Usado no SIGTERM e quando
+// o lease é perdido. `flag`: true no encerramento do serviço (nada mais conecta nem reconecta).
+export async function suspendAllSessions({ shutdown = false } = {}) {
+  if (shutdown) shuttingDown = true;
+  const retired = [];
+  for (const [, entry] of sockets) {
+    clearRetryTimer(entry);
+    entry.controller?.cancel(shutdown ? "service_shutdown" : "lease_lost");
+    if (entry.sock) {
+      retired.push(retireSocket(entry.sock));
+      entry.sock = null;
+    }
+    entry.connecting = null;
+    entry.qr = null;
+    entry.pairingCode = null;
+    entry.pairingMode = false;
+    entry.status = "disconnected";
+  }
+  await Promise.allSettled(retired);
+  return retired.length;
+}
+
 export async function disconnectSession(userId) {
+  return sessionLocks.run(userId, () => disconnectSessionLocked(userId));
+}
+
+async function disconnectSessionLocked(userId) {
   const entry = sockets.get(userId);
   if (entry) {
     // Desconexão pedida: nenhuma reconexão automática pode sobreviver a ela.

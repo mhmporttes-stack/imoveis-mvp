@@ -61,3 +61,40 @@ export async function listResumableUserIds() {
 export async function requestMediaUploadTarget(userId, { waMessageId, mime, kind }) {
   return call("POST", "/api/webhooks/whatsapp-individual/media-upload", { userId, waMessageId, mime, kind });
 }
+
+// Sessões gravadas como 'reconnecting'/'connecting' (reconcile.js): [{ user_id, status, updated_at }].
+export async function listTransientSessionRows() {
+  const { rows } = await call("GET", "/api/webhooks/whatsapp-individual/state?field=transient");
+  return Array.isArray(rows) ? rows : [];
+}
+
+// LEASE (lease.js): acquire/renew/release pelo CRM (rota /api/webhooks/whatsapp-individual/lease), que
+// chama as funções atômicas do banco. Devolve SEMPRE um resultado normalizado, nunca lança:
+//   { acquired, ... } | { renewed } | { released } | { unavailable: true, reason }
+// "unavailable" = endpoint ausente (CRM antigo, 404), tabela/função ausente (503) ou rede/5xx.
+export function createLeaseApi({ bootId, deployId }) {
+  async function leaseCall(action, extra = {}) {
+    let response;
+    try {
+      response = await fetch(`${baseUrl()}/api/webhooks/whatsapp-individual/lease`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Service-Secret": secret() },
+        body: JSON.stringify({ action, bootId, deployId: deployId || null, ...extra }),
+        signal: AbortSignal.timeout(8000)
+      });
+    } catch (error) {
+      return { unavailable: true, reason: error?.name === "TimeoutError" ? "timeout" : "network" };
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 404) return { unavailable: true, reason: "endpoint_missing" };
+    if (response.status === 503 && payload?.unavailable) return { unavailable: true, reason: payload.reason || "lease_table_missing" };
+    if (response.status === 401) return { unavailable: true, reason: "unauthorized" };
+    if (!response.ok || payload?.error) return { unavailable: true, reason: `http_${response.status}` };
+    return payload;
+  }
+  return {
+    acquire: ({ ttlSeconds }) => leaseCall("acquire", { ttlSeconds }),
+    renew: ({ ttlSeconds }) => leaseCall("renew", { ttlSeconds }),
+    release: () => leaseCall("release")
+  };
+}

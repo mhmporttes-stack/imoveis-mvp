@@ -107,3 +107,20 @@ alguma delas):
 - Sem retry automático de envio: se o `send` falhar, o Chat mostra o erro e
   preserva o texto digitado — tentar de novo é uma ação manual (mesmo padrão
   do canal oficial hoje).
+
+## Dono único (lease), encerramento gracioso e deploy (2026-10-04)
+
+- O serviço só conecta/retoma sessões enquanto detém o **lease** (`src/lease.js`; tabela
+  `whatsapp_service_lease` no Supabase, acessada pelo CRM em `/api/webhooks/whatsapp-individual/lease`).
+  No deploy, o serviço novo ESPERA o antigo liberar (SIGTERM) ou o lease expirar (TTL 60 s, renovado
+  a cada 15 s). `/health` responde 200 também enquanto espera (`{"ok":true,"lease":"waiting",...}`).
+- No SIGTERM/SIGINT (`src/shutdown.js`): para de aceitar conexões, fecha os sockets SEM logout, grava as
+  credenciais pendentes, libera o lease e sai (sinal repetido é ignorado).
+- Uma sessão por vez e nunca duas ao mesmo tempo (mutex por corretor); retomada escalonada (5–8 s);
+  `reconnecting`/`connecting` preso há mais de 10 min vira `error` (`src/reconcile.js`).
+- Sem a migration `20261004213000_whatsapp_service_lease` o serviço segue como antes (aviso no log
+  após 90 s). Opcionais (Railway): `WHATSAPP_LEASE_DISABLED=true`, `WHATSAPP_LEASE_UNAVAILABLE_GRACE_MS`,
+  `WHATSAPP_RESUME_SETTLE_MS`, `WHATSAPP_RECONCILE_STALE_MS`.
+- `railway.json`: `build.watchPatterns` (só a pasta do serviço redeploya) e `deploy.drainingSeconds: 30`.
+  No painel: conferir *Root Directory* = `whatsapp-individual-service` e *Watch Paths* =
+  `/whatsapp-individual-service/**`. Detalhe e passo a passo: `docs/WHATSAPP.md`.

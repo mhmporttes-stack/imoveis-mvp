@@ -39,6 +39,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-04 — WhatsApp individual: erro 440 a cada deploy e laços de reconexão (403/408/440/500/515)
+
+- **Sintoma:** sessões do WhatsApp caindo com "conexão substituída" (440) bem na hora de um `git push`; contas em laço de reconexão por horas; sessão presa em "reconectando"; QR de conta já pareada reconectando de 2 em 2 s.
+- **Causa raiz (confirmada no código e no Baileys 6.7.24):** (1) cada push em `main` republica o serviço no Railway; o novo sobe e o antigo só recebe SIGTERM 2–8 s depois — duas instâncias com a mesma sessão = 440; (2) antes de 04/10 qualquer código ≠401 reconectava a cada ~4 s para sempre (403 em laço de ~16–23 h); (3) `creds.registered` do Baileys só vira `true` no pareamento por código, então toda sessão pareada por QR era tratada como "não pareada" (retentativa de 2 s, 5 vezes, e gerando QR novo sozinha); (4) 515 consumia tentativa de reconexão e gravava `reconnecting`; (5) `reconnecting` podia ficar gravado sem nenhuma tentativa real.
+- **Correção:** lease de dono único (`whatsapp_service_lease`), encerramento gracioso sem logout, mutex por sessão, retomada escalonada, reconciliação de estado preso, QR expirado sem retentativa automática, prova de pareamento por `creds.me`, 515 como reinício normal (laço >3/min para), 500 com janela (3 em 10 min), `watchPatterns`/`drainingSeconds` no `railway.json`. Detalhe: `docs/WHATSAPP.md` e `docs/CHANGELOG_AI.md` (2026-10-04, estabilização).
+- **Não depende de nós:** 401/403 vêm do WhatsApp (desvinculou/recusou); `Stream Errored (ack)` é erro de stream enviado pelo servidor do WhatsApp (issue pública Baileys #1910: só rescanear o QR resolveu naquele caso).
 ### 2026-10-04 — Corretor com mais de 30 clientes na "Carteira ativa" (83/50, 60/50...)
 - **Data:** 2026-10-04
 - **Sintoma:** "alguns corretores continuam com mais de 30 clientes ativos na carteira"; card "Carteira ativa 83/50".

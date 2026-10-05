@@ -1,10 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, reactToMessage, sendMessage } from "./sessions.js";
-import { listResumableUserIds, readSessionRow } from "./db.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
+import { createLeaseManager } from "./lease.js";
+import { createResumeRunner } from "./resume.js";
+import { createReconciler } from "./reconcile.js";
+import { createServiceRuntime } from "./runtime.js";
 import { telemetry } from "./telemetry.js";
+import { notifyStatus } from "./webhook.js";
 
 const REQUIRED_ENV = ["APP_WEBHOOK_URL", "SESSION_ENCRYPTION_KEY", "WHATSAPP_INDIVIDUAL_SERVICE_SECRET"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
@@ -13,12 +18,65 @@ if (missingEnv.length) {
   process.exit(1);
 }
 
+// ---- Dono único das sessões (lease), retomada escalonada, reconciliação e encerramento gracioso ----
+// Escotilha: WHATSAPP_LEASE_DISABLED=true liga o comportamento antigo (sem lease) sem novo deploy de código.
+const envInt = (name, fallback, min, max) => {
+  const n = Number(process.env[name]);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+};
+const leaseDisabled = process.env.WHATSAPP_LEASE_DISABLED === "true";
+const leaseApi = createLeaseApi({ bootId: telemetry.context.bootId, deployId: telemetry.context.deployId });
+const record = (userId, type, fields) => telemetry.record(userId, type, fields);
+
+const lease = createLeaseManager({
+  api: leaseDisabled
+    ? { acquire: async () => ({ unavailable: true, reason: "disabled_by_env" }), renew: async () => ({ unavailable: true }), release: async () => ({ released: false }) }
+    : leaseApi,
+  unavailableGraceMs: leaseDisabled ? 0 : envInt("WHATSAPP_LEASE_UNAVAILABLE_GRACE_MS", 90_000, 0, 600_000),
+  record: (type, fields) => record(null, type, fields),
+  onLost: (reason) => runtime.onLost(reason),
+  onRegained: (info) => runtime.onRegained(info)
+});
+
+const resumeRunner = createResumeRunner({
+  listIds: listResumableUserIds,
+  readRow: readSessionRow,
+  shouldResume: shouldResumeSession,
+  connect: (userId) => connectSession(userId, { trigger: "resume" }),
+  isActive: isSessionActive,
+  shouldAbort: () => runtime.shuttingDown || !lease.isHolder(),
+  record,
+  spacingMs: () => resumeSpacingMs()
+});
+
+const reconciler = createReconciler({
+  listTransientRows: listTransientSessionRows,
+  isActive: isSessionActive,
+  notifyStatus,
+  canRun: () => !runtime.shuttingDown && lease.isHolder(),
+  staleMs: envInt("WHATSAPP_RECONCILE_STALE_MS", 10 * 60_000, 60_000, 3_600_000),
+  record
+});
+
+const runtime = createServiceRuntime({
+  lease,
+  resumeRunner,
+  reconciler,
+  suspendAllSessions,
+  flushPendingWrites: () => Promise.allSettled([...pendingWrites]),
+  flushTelemetry: () => telemetry.flush(),
+  record,
+  settleOverrideMs: process.env.WHATSAPP_RESUME_SETTLE_MS === undefined ? null : envInt("WHATSAPP_RESUME_SETTLE_MS", null, 0, 120_000)
+});
+setConnectGuard(runtime.guard);
+
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
-// Health check SEM segredo — é o que a Railway usa pra saber se o serviço
-// está de pé, e não manda o header.
-app.get("/health", (_req, res) => res.json({ ok: true }));
+// Health check SEM segredo — é o que a Railway usa pra saber se o serviço está de pé, e não manda o
+// header. Sempre 200 (também enquanto espera o lease: o deploy precisa ser considerado pronto para o
+// serviço antigo receber o SIGTERM e liberar o lease). Só estado do lease, nada sensível.
+app.get("/health", (_req, res) => res.json(runtime.health()));
 
 function checkSecret(req, res, next) {
   const expected = process.env.WHATSAPP_INDIVIDUAL_SERVICE_SECRET || "";
@@ -42,7 +100,8 @@ app.post("/sessions/:userId/connect", async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error(`[${req.params.userId}] Falha ao conectar:`, error.message);
-    res.status(500).json({ error: error.message });
+    // Serviço aguardando o lease / reiniciando: 503 (tente de novo), não falha da sessão.
+    res.status(error.code === "SERVICE_NOT_READY" ? 503 : 500).json({ error: error.message });
   }
 });
 
@@ -126,68 +185,14 @@ app.listen(port, () => {
   // Marcador de boot: id do processo + versão do Baileys + origem do deploy
   // (variáveis da Railway, se houver) — vai junto de todo evento seguinte.
   telemetry.record(null, "service_boot", { detail: `baileys_${telemetry.context.baileysVersion}` });
-  resumeSessions();
+  // Dono único: só retoma/conecta sessões depois de obter o lease (lease.js). O /health responde 200 já
+  // agora (a Railway só considera o deploy pronto com healthcheck), mesmo esperando o lease.
+  runtime.boot().catch((error) => console.error("Falha na inicialização do serviço:", error?.message || error));
 });
 
-// A Railway manda SIGTERM antes de matar o processo (redeploy/restart) — sem
-// isso, uma gravação de credenciais em andamento podia ser cortada no meio,
-// perdendo o ÚLTIMO estado da sessão do Signal e corrompendo a sessão aos
-// poucos (erro "Bad MAC" nas mensagens seguintes). Espera a fila de
-// gravações pendentes (ver auth-state.js) terminar antes de sair.
-function gracefulShutdown(signal) {
-  console.log(`${signal} recebido — aguardando gravações pendentes antes de encerrar…`);
-  telemetry.record(null, "service_shutdown", { reason: signal });
-  Promise.race([
-    Promise.allSettled([...pendingWrites, telemetry.flush()]),
-    new Promise((resolve) => setTimeout(resolve, 8000))
-  ]).finally(() => process.exit(0));
-}
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-// A cada restart/redeploy o socket em memória se perde, mas as credenciais
-// continuam persistidas (cifradas) no Supabase — sem isso o corretor ficava
-// "conectado" no banco sem socket vivo nenhum até clicar Reconectar. Um de
-// cada vez, com intervalo (e jitter) entre eles, pra não abrir várias conexões
-// coladas com o WhatsApp no boot.
-//
-// SÓ retoma quem o banco diz que estava 'connected' quando o processo caiu
-// (reconnect-policy.js: shouldResumeSession). Sessão em 'reconnecting', 'error'
-// (intervenção/needs_attention), 'qr_required', 'disconnected'... NÃO é reaberta
-// por restart/deploy — antes, todo deploy reabria todas, inclusive as que
-// estavam em laço de recusa (403). Quem foi pulado fica registrado na telemetria.
-async function resumeSessions() {
-  let userIds = [];
-  try {
-    userIds = await listResumableUserIds();
-  } catch (error) {
-    console.error("Falha ao listar sessões para retomar:", error.message);
-    return;
-  }
-  let resumed = 0;
-  for (const userId of userIds) {
-    let row = null;
-    try {
-      row = await readSessionRow(userId);
-    } catch (error) {
-      // Sem confirmar o estado no banco, não reabre (conservador).
-      console.error(`[${userId}] Não foi possível ler o estado para retomar; sessão não retomada:`, error.message);
-      telemetry.record(userId, "resume_skipped", { reason: "state_unreadable" });
-      continue;
-    }
-    if (!shouldResumeSession(row)) {
-      console.log(`[${userId}] Sessão não retomada no boot (estado: ${row?.status || "sem linha"}).`);
-      telemetry.record(userId, "resume_skipped", { reason: row?.status ? `status_${row.status}` : "no_row" });
-      continue;
-    }
-    try {
-      await connectSession(userId, { trigger: "resume" });
-      resumed += 1;
-      console.log(`[${userId}] Sessão retomada após subir o processo.`);
-    } catch (error) {
-      console.error(`[${userId}] Falha ao retomar a sessão:`, error.message);
-    }
-    await new Promise((resolve) => setTimeout(resolve, resumeSpacingMs()));
-  }
-  telemetry.record(null, "resume_done", { detail: `resumed_${resumed}_of_${userIds.length}` });
-}
+// A Railway manda SIGTERM antes de matar o processo (redeploy/restart). Encerramento gracioso
+// (shutdown.js): para de aceitar conexões, fecha os sockets SEM logout, grava as credenciais
+// pendentes (senão o último estado do Signal se perde — erro "Bad MAC"), LIBERA o lease e só então
+// sai. SIGTERM duplo não reexecuta nada.
+process.on("SIGTERM", () => { runtime.shutdown("SIGTERM"); });
+process.on("SIGINT", () => { runtime.shutdown("SIGINT"); });

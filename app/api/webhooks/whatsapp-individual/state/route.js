@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getIndividualSessionRow,
   listIndividualSessionsWithCreds,
+  listTransientIndividualSessionRows,
   readIndividualSessionCredsInternal,
   verifyIndividualServiceSecret,
   writeIndividualSessionCredsInternal
@@ -30,6 +31,11 @@ export async function GET(request) {
     if (field === "resumable") {
       const userIds = await listIndividualSessionsWithCreds();
       return NextResponse.json({ userIds });
+    }
+    // Reconciliação (microsserviço): sessões gravadas como reconnecting/connecting.
+    if (field === "transient") {
+      const rows = await listTransientIndividualSessionRows();
+      return NextResponse.json({ rows });
     }
     if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
     if (field === "creds") {

@@ -133,7 +133,7 @@ test("limite de tentativas: para, registra 'interrupção por limite' e deixa es
   h.controller.beginCycle("manual");
   let last;
   for (let i = 0; i < DEFAULT_CONFIG.maxRetries + 1; i += 1) {
-    last = await h.drop(500);
+    last = await h.drop(408);
     if (last.action === ACTION.RETRY) h.controller.beginRetry();
   }
   assert.equal(last.action, ACTION.GIVE_UP);
@@ -147,13 +147,18 @@ test("limite de tentativas: para, registra 'interrupção por limite' e deixa es
   assert.equal(h.controller.state.active, false);
 });
 
-test("515 (restart após parear) reconecta rápido e também conta no limite", async () => {
+test("515 (restart após parear) é reinício NORMAL: rápido, sem consumir tentativa, sem erro", async () => {
   const h = harness();
   h.controller.beginCycle("manual");
   const decision = await h.drop(515);
-  assert.equal(decision.action, ACTION.RETRY);
+  assert.equal(decision.action, ACTION.RESTART);
   assert.equal(decision.delayMs, DEFAULT_CONFIG.restartDelayMs);
   assert.equal(h.entry.pairingMode, false);
+  assert.equal(h.entry.status, "connecting");
+  assert.equal(h.calls.notify.at(-1).status, "connecting");
+  assert.equal(h.calls.notify.at(-1).error, undefined, "515 não grava erro (nada de alerta de atenção)");
+  assert.equal(h.controller.state.attempt, 1, "515 não consome tentativa de reconexão");
+  assert.equal(h.calls.retries.at(-1).trigger, "restart");
 });
 
 test("conexão ESTABILIZADA zera o ciclo; conexão INSTÁVEL (cai antes da janela) NÃO zera", async () => {
@@ -188,17 +193,15 @@ test("conexão ESTABILIZADA zera o ciclo; conexão INSTÁVEL (cai antes da janel
   assert.ok(stable.events.some((e) => e.type === "cycle_start" && e.trigger === "drop"));
 });
 
-test("sessão ainda não pareada (QR sem escanear): atraso curto, limite próprio e termina como desconectada (não 'erro')", async () => {
+test("sessão ainda não pareada: QR sem escanear NUNCA gera QR sozinho — termina desconectada na hora", async () => {
   const h = harness({ unpaired: true });
   h.controller.beginCycle("manual");
-  let last;
-  let retries = 0;
-  for (let i = 0; i < DEFAULT_CONFIG.maxPairingRetries + 1; i += 1) {
-    last = await h.drop(408);
-    if (last.action === ACTION.RETRY) { retries += 1; assert.equal(last.delayMs, DEFAULT_CONFIG.pairingDelayMs); h.controller.beginRetry(); }
-  }
-  assert.equal(retries, DEFAULT_CONFIG.maxPairingRetries);
+  const sock = h.makeSock();
+  h.entry.sock = sock;
+  const last = await h.handleClose({ sock, statusCode: 408, errorMessage: "QR refs attempts ended" });
   assert.equal(last.action, ACTION.GIVE_UP_PAIRING);
+  assert.equal(last.reason, "qr_expired");
+  assert.equal(h.calls.retries.length, 0, "nenhuma reconexão/QR automático");
   assert.equal(h.entry.status, "disconnected");
   assert.equal(h.calls.notify.at(-1).error, "qr_expired");
   assert.equal(h.calls.clearCreds, 0);

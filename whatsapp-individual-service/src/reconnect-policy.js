@@ -10,11 +10,13 @@
 // pacote instalado, lib/Types/index.js) e de como lib/Socket/socket.js os produz:
 //   401 loggedOut         logout / aparelho removido no celular
 //   403 forbidden         "Connection Failure" com reason 403 (recusa do WhatsApp)
-//   408 timedOut/connectionLost  QR sem escanear, keep-alive perdido, ETIMEDOUT/ENOTFOUND
+//   408 timedOut/connectionLost  QR sem escanear ("QR refs attempts ended"), keep-alive perdido,
+//                         ETIMEDOUT/ENOTFOUND (rede). QR sem escanear NÃO é queda de rede.
 //   411 multideviceMismatch
 //   428 connectionClosed  socket fechado
 //   440 connectionReplaced stream "conflict": outra conexão assumiu a sessão
-//   500 badSession        também é o padrão de erro de stream/WebSocket desconhecido
+//   500 badSession        padrão (default) quando o WhatsApp manda <stream:error> sem código
+//                         conhecido — ex.: "Stream Errored (ack)" — e para erro de WebSocket desconhecido
 //   503 unavailableService
 //   515 restartRequired   o WhatsApp SEMPRE pede isso logo depois de aceitar o QR/código
 // Este módulo não importa o Baileys de propósito (testável sem instalar nada).
@@ -23,12 +25,15 @@ export const KIND = Object.freeze({
   LOGOUT: "logout",
   TRANSIENT: "transient",
   RESTART: "restart",
+  QR_TIMEOUT: "qr_timeout",
   INTERVENTION: "intervention"
 });
 
 export const ACTION = Object.freeze({
   LOGOUT: "logout",
   RETRY: "retry",
+  // 515 normal pós-pareamento: reinício imediato do socket (não é falha, não consome tentativa de reconexão).
+  RESTART: "restart",
   INTERVENE: "intervene",
   GIVE_UP: "give_up",
   GIVE_UP_PAIRING: "give_up_pairing"
@@ -36,19 +41,29 @@ export const ACTION = Object.freeze({
 
 export const DEFAULT_CONFIG = Object.freeze({
   maxRetries: 6, // reconexões automáticas por ciclo (além da tentativa inicial)
-  maxPairingRetries: 5, // sessão ainda sem pareamento (QR sem escanear): ~2 min por QR
+  // (sem retentativa automática de QR: sessão ainda não pareada que cai NUNCA gera QR sozinha)
+  maxPairingRetries: 0,
   baseDelayMs: 4000,
   maxDelayMs: 120_000,
   restartDelayMs: 1000, // 515 depois do pareamento
-  pairingDelayMs: 2000, // renovação do QR de sessão não pareada
+  pairingDelayMs: 2000,
   jitterRatio: 0.25,
-  stableMs: 180_000 // só depois de tanto tempo conectada o ciclo é considerado resolvido
+  stableMs: 180_000, // só depois de tanto tempo conectada o ciclo é considerado resolvido
+  // 515 é esperado UMA vez após parear; mais que isso, sem nunca ter conectado, é laço anormal.
+  restartLoopMax: 3,
+  restartLoopWindowMs: 60_000,
+  // 500/"Stream Errored": reconecta com backoff, mas repetição em janela curta = para e pede atenção.
+  streamErrorMax: 3,
+  streamErrorWindowMs: 600_000
 });
 
 const INTERVENTION_REASONS = Object.freeze({
   forbidden: "O WhatsApp recusou a conexão (403). A reconexão automática foi interrompida para não insistir; verifique o número antes de reconectar manualmente.",
   connection_replaced: "Outra conexão assumiu esta sessão (440). A reconexão automática foi interrompida para as duas não ficarem se derrubando.",
   multidevice_mismatch: "O WhatsApp informou incompatibilidade de multi-aparelho (411). A reconexão automática foi interrompida.",
+  repeated_stream_errors: "O WhatsApp derrubou a conexão com erro de comunicação (500) várias vezes em pouco tempo. A reconexão automática foi interrompida; reconecte manualmente quando for seguro.",
+  restart_loop: "O WhatsApp pediu reinício (515) repetidamente sem a conexão estabilizar. A reconexão automática foi interrompida.",
+  no_active_attempt: "A sessão estava marcada como reconectando, mas nenhuma tentativa estava em andamento. Reconecte manualmente.",
   unrecognized_code: "O WhatsApp encerrou a conexão com um código não previsto. A reconexão automática foi interrompida para evitar insistência."
 });
 
@@ -58,14 +73,23 @@ function toCode(statusCode) {
   return Number.isInteger(code) ? code : null;
 }
 
-// -> { kind, code, reason }
-export function classifyDisconnect(statusCode) {
+// Sessão JÁ PAREADA? `creds.registered` do Baileys só vira true no pareamento por CÓDIGO
+// (messages-recv.js); no pareamento por QR ele continua false para sempre — por isso a prova
+// de pareamento é `creds.me` (preenchido no pair-success). Antes: `registered === false` tratava
+// TODA sessão pareada por QR como "não pareada" (backoff de 2 s em vez do exponencial).
+export function isPairedCreds(creds) {
+  return Boolean(creds?.me?.id) || creds?.registered === true;
+}
+
+// -> { kind, code, reason }. `message` (opcional) distingue QR sem escanear de timeout de rede (ambos 408).
+export function classifyDisconnect(statusCode, message = "") {
   const code = toCode(statusCode);
   if (code === 401) return { kind: KIND.LOGOUT, code, reason: "logged_out" };
   if (code === 515) return { kind: KIND.RESTART, code, reason: "restart_required" };
   if (code === 403) return { kind: KIND.INTERVENTION, code, reason: "forbidden" };
   if (code === 440) return { kind: KIND.INTERVENTION, code, reason: "connection_replaced" };
   if (code === 411) return { kind: KIND.INTERVENTION, code, reason: "multidevice_mismatch" };
+  if (code === 408 && /QR refs attempts ended/i.test(String(message || ""))) return { kind: KIND.QR_TIMEOUT, code, reason: "qr_expired" };
   if (code === 408) return { kind: KIND.TRANSIENT, code, reason: "timed_out" };
   if (code === 428) return { kind: KIND.TRANSIENT, code, reason: "connection_closed" };
   if (code === 500) return { kind: KIND.TRANSIENT, code, reason: "bad_session_or_stream_error" };
@@ -120,7 +144,7 @@ export function createReconnectController({
   newId = () => `${now().toString(36)}-${Math.floor(random() * 1e9).toString(36)}`,
   record = () => {}
 } = {}) {
-  const state = { cycleId: null, active: false, attempt: 0, openedAt: null, stableTimer: null };
+  const state = { cycleId: null, active: false, attempt: 0, openedAt: null, stableTimer: null, restarts: [], streamErrors: [] };
 
   const emit = (type, fields = {}) => {
     try { record(type, { cycleId: state.cycleId, attempt: state.attempt, ...fields }); } catch { /* telemetria nunca derruba a sessão */ }
@@ -146,8 +170,23 @@ export function createReconnectController({
       state.active = true;
       state.attempt = 1;
       state.openedAt = null;
+      state.restarts = [];
       emit("cycle_start", { trigger });
       emit("connect_attempt", { trigger });
+      return { cycleId: state.cycleId, attempt: state.attempt };
+    },
+
+    // Reinício pedido pelo próprio WhatsApp (515, normal logo após parear): NÃO consome tentativa de
+    // reconexão — continua o mesmo ciclo, com o mesmo número de tentativa.
+    beginRestart() {
+      if (!state.active) {
+        state.cycleId = newId();
+        state.active = true;
+        state.attempt = 1;
+        emit("cycle_start", { trigger: "restart" });
+      }
+      state.openedAt = null;
+      emit("connect_attempt", { trigger: "restart" });
       return { cycleId: state.cycleId, attempt: state.attempt };
     },
 
@@ -167,6 +206,7 @@ export function createReconnectController({
 
     onOpen() {
       state.openedAt = now();
+      state.restarts = []; // conectou de verdade: o 515 anterior era o reinício normal
       emit("connected", {});
       clearStable();
       state.stableTimer = setTimer(() => {
@@ -181,11 +221,11 @@ export function createReconnectController({
 
     // Queda da conexão. `unpaired` = sessão que nunca foi pareada (aguardando QR).
     // -> { action, delayMs?, nextAttempt?, code?, reason?, message?, kind }
-    onClose({ statusCode, unpaired = false } = {}) {
+    onClose({ statusCode, unpaired = false, message = "" } = {}) {
       clearStable();
       const connectedMs = state.openedAt ? now() - state.openedAt : null;
       state.openedAt = null;
-      const verdict = classifyDisconnect(statusCode);
+      const verdict = classifyDisconnect(statusCode, message);
       if (!state.active) {
         // Caiu depois de estável (ou sem ciclo): começa um ciclo novo; a conexão
         // que acabou de cair conta como a tentativa 1 dele.
@@ -206,22 +246,49 @@ export function createReconnectController({
         return { action: ACTION.INTERVENE, kind: verdict.kind, code: verdict.code, reason: verdict.reason, message: interventionMessage(verdict.reason) };
       }
 
-      // Recuperável (transitório / restart). Sessão não pareada: política própria, mais curta.
-      const pairing = unpaired && verdict.kind !== KIND.RESTART;
-      const limit = pairing ? config.maxPairingRetries : config.maxRetries;
+      const intervene = (reason) => {
+        emit("intervention_required", { statusCode: verdict.code, reason });
+        endCycle("intervention");
+        return { action: ACTION.INTERVENE, kind: KIND.INTERVENTION, code: verdict.code, reason, message: interventionMessage(reason) };
+      };
+
+      // 515: o WhatsApp manda reiniciar o socket logo depois de aceitar o QR/código — comportamento NORMAL.
+      // Reinício rápido, sem backoff de falha e sem consumir tentativa; só o laço anormal
+      // (mais de `restartLoopMax` em `restartLoopWindowMs` sem nunca conectar) para e pede atenção.
+      if (verdict.kind === KIND.RESTART) {
+        const t = now();
+        state.restarts = state.restarts.filter((at) => t - at < config.restartLoopWindowMs);
+        state.restarts.push(t);
+        if (state.restarts.length > config.restartLoopMax) return intervene("restart_loop");
+        emit("retry_scheduled", { nextAttempt: state.attempt, delayMs: config.restartDelayMs, statusCode: verdict.code, reason: verdict.reason });
+        return { action: ACTION.RESTART, kind: verdict.kind, code: verdict.code, reason: verdict.reason, delayMs: config.restartDelayMs, nextAttempt: state.attempt };
+      }
+
+      // Sessão AINDA NÃO PAREADA que cai (QR sem escanear, falha ao pedir código...): nunca gera QR
+      // sozinha — termina como "desconectada" e só um humano pede QR novo.
+      if (unpaired) {
+        const qr = verdict.kind === KIND.QR_TIMEOUT;
+        endCycle(qr ? "qr_expired" : "pairing_interrupted");
+        return { action: ACTION.GIVE_UP_PAIRING, kind: verdict.kind, code: verdict.code, reason: qr ? "qr_expired" : "pairing_interrupted" };
+      }
+
+      // 500 / "Stream Errored": reconecta com backoff, mas repetição em janela curta para e pede atenção.
+      if (verdict.code === 500) {
+        const t = now();
+        state.streamErrors = state.streamErrors.filter((at) => t - at < config.streamErrorWindowMs);
+        state.streamErrors.push(t);
+        if (state.streamErrors.length >= config.streamErrorMax) return intervene("repeated_stream_errors");
+      }
+
+      // Recuperável (transitório; QR_TIMEOUT de sessão pareada cai aqui como timeout comum).
+      const limit = config.maxRetries;
       const retriesUsed = state.attempt - 1;
       if (retriesUsed >= limit) {
         emit("interrupted_limit", { statusCode: verdict.code, reason: verdict.reason, maxRetries: limit });
         endCycle("limit");
-        return {
-          action: pairing ? ACTION.GIVE_UP_PAIRING : ACTION.GIVE_UP,
-          kind: verdict.kind, code: verdict.code, reason: verdict.reason, maxRetries: limit
-        };
+        return { action: ACTION.GIVE_UP, kind: verdict.kind, code: verdict.code, reason: verdict.reason, maxRetries: limit };
       }
-      let delayMs;
-      if (verdict.kind === KIND.RESTART) delayMs = config.restartDelayMs;
-      else if (pairing) delayMs = config.pairingDelayMs;
-      else delayMs = computeBackoffDelay(retriesUsed + 1, config, random);
+      const delayMs = computeBackoffDelay(retriesUsed + 1, config, random);
       emit("retry_scheduled", { nextAttempt: state.attempt + 1, delayMs, statusCode: verdict.code, reason: verdict.reason });
       return { action: ACTION.RETRY, kind: verdict.kind, code: verdict.code, reason: verdict.reason, delayMs, nextAttempt: state.attempt + 1 };
     },
