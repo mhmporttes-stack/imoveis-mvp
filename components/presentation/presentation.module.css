@@ -202,8 +202,8 @@
 /* FINANCIAMENTO + SUBSÍDIO: tudo no MESMO eixo (centralizado no celular; na coluna dos rótulos no desktop). O "+" é um item
    do fluxo, com o mesmo respiro acima e abaixo, e nenhuma divisória passa por baixo dele. */
 .rowsSoma .rowPart { border-bottom: 0; align-items: center; text-align: center; padding-top: calc(var(--u) * 12); padding-bottom: calc(var(--u) * 12); }
-.plus { display: flex; justify-content: center; align-items: center; margin: calc(var(--u) * 4) 0; position: relative; z-index: 1; }
-.plus span { display: grid; place-items: center; width: calc(var(--u) * 34); height: calc(var(--u) * 34); border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--accent); font-size: calc(var(--u) * 22); line-height: 1; font-weight: 600; transition: background-color 0.7s ease; }
+.plus { display: flex; justify-content: center; align-items: center; margin: calc(var(--u) * 2) 0; position: relative; z-index: 1; }
+.plus span { display: grid; place-items: center; width: calc(var(--u) * 40); height: calc(var(--u) * 40); border-radius: 999px; border: 1.5px solid rgba(156, 195, 245, 0.5); background: rgba(23, 105, 209, 0.22); color: #fff; font-size: calc(var(--u) * 26); line-height: 1; font-weight: 500; box-shadow: 0 0 calc(var(--u) * 16) rgba(23, 105, 209, 0.45); }
 .rowTotal { display: block; text-align: center; margin-top: calc(var(--u) * 20); padding: calc(var(--u) * 26) calc(var(--u) * 16) calc(var(--u) * 28); border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
 .rowTotal .rowLabel { display: block; color: #cfe3fa; }
 .rowTotal .rowValue { display: block; margin-top: calc(var(--u) * 10); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.118)); letter-spacing: -0.02em; }
@@ -230,25 +230,40 @@
 .diffTotalLabel { display: block; font-size: max(13px, calc(var(--u) * 15)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #dcebfc; }
 .diffTotalValue { display: block; margin-top: calc(var(--u) * 8); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.12)); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 
-/* imóvel sugerido (foto em tela cheia do palco) */
+/* imóvel sugerido: CENA CINEMATOGRÁFICA. Celular = foto grande no alto (≈50% da tela) que se desfaz no azul-marinho, texto embaixo
+   (a área do texto rola; o botão fica FIXO acima da logo da Caixa). Só opacity/transform/clip-path nas animações. */
 .photoScene { padding: 0; justify-content: flex-end; align-items: stretch; text-align: left; }
-.photoWrap { position: absolute; inset: 0; overflow: hidden; background: var(--navy-2); }
-.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 40%; animation: slowZoom 9s ease-out both; }
-@keyframes slowZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
-/* revelação da foto do imóvel (só opacity e transform) */
-.photoReveal { animation: photoReveal 1.1s cubic-bezier(0.2, 0, 0, 1) both; }
-@keyframes photoReveal { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: none; } }
-.propReason { margin: calc(var(--u) * 18) 0 0; padding-left: calc(var(--u) * 14); border-left: 3px solid var(--sky); font-size: max(14px, calc(var(--u) * 16)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); overflow-wrap: anywhere; text-wrap: pretty; }
-.propActions { margin: calc(var(--u) * 20) 0 0; display: grid; max-width: calc(var(--u) * 300); }
-.photoFallback { position: absolute; inset: 0; display: grid; place-items: start center; padding-top: 24vh; color: rgba(255, 255, 255, 0.35); }
-.photoFallback svg { width: 96px; height: 96px; stroke-width: 1.2; }
-.photoShade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7, 27, 49, 0.66) 0%, rgba(7, 27, 49, 0) 24%), linear-gradient(to top, rgba(7, 27, 49, 0.97) 0%, rgba(7, 27, 49, 0.9) 44%, rgba(7, 27, 49, 0.12) 74%, rgba(7, 27, 49, 0.25) 100%); }
-.photoText { position: relative; padding: 0 calc(var(--u) * 26) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 84); width: 100%; margin: 0 auto; color: #fff; }
+.photoWrap { position: absolute; left: 0; right: 0; top: 0; height: 47%; overflow: hidden; background: var(--navy-2); }
+.photo { position: absolute; inset: -3%; width: 106%; height: 106%; max-width: none; object-fit: cover; transform-origin: 50% 40%; animation: kenBurns 12s ease-out both; will-change: transform; }
+@keyframes kenBurns { from { transform: scale(1.02) translate3d(0, 0, 0); } to { transform: scale(1.12) translate3d(-1.2%, -1.6%, 0); } }
+/* revelação da foto: abre de cima para baixo com um leve zoom (clip-path + transform: sem layout) */
+.photoReveal { animation: photoReveal 1.25s cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes photoReveal { from { opacity: 0.2; clip-path: inset(0 0 100% 0); transform: scale(1.1); } to { opacity: 1; clip-path: inset(0 0 0 0); transform: none; } }
+.photoFallback { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(156, 195, 245, 0.38); background: radial-gradient(70% 70% at 50% 42%, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.9) 60%, #071b31 100%); }
+.fallbackRings { position: absolute; left: 50%; top: 50%; width: min(120%, calc(var(--u) * 560)); height: auto; transform: translate(-50%, -50%); animation: fade 1.6s ease both; }
+.fallbackIcon { position: relative; display: grid; place-items: center; width: calc(var(--u) * 112); height: calc(var(--u) * 112); border-radius: 999px; border: 1.5px solid rgba(156, 195, 245, 0.5); background: rgba(7, 27, 49, 0.45); color: #cfe3fa; }
+.fallbackIcon svg { width: 52%; height: 52%; stroke-width: 1.4; }
+.photoShade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7, 27, 49, 0.82) 0%, rgba(7, 27, 49, 0.45) 18%, rgba(7, 27, 49, 0) 38%), linear-gradient(to top, #071b31 0%, rgba(7, 27, 49, 0.6) 26%, rgba(7, 27, 49, 0) 60%); }
+.photoText { position: absolute; left: 0; right: 0; bottom: 0; top: 26%; display: flex; flex-direction: column; color: #fff; padding: 0 calc(var(--u) * 24) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 78); }
+.photoScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; display: flex; flex-direction: column; padding: calc(var(--u) * 14) 0 calc(var(--u) * 4); scrollbar-width: none; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); }
+.photoScroll::-webkit-scrollbar { display: none; }
+.photoScroll > :first-child { margin-top: auto; }
 .photoText .eyebrow { color: var(--sky); }
-.photoText h2 { margin: calc(var(--u) * 12) 0 0; font-size: max(28px, calc(var(--u) * 42)); line-height: 1.1; font-weight: 760; letter-spacing: -0.015em; overflow-wrap: anywhere; }
-.benefits { list-style: none; margin: calc(var(--u) * 20) 0 0; padding: 0; display: grid; gap: calc(var(--u) * 10); }
-.benefits li { position: relative; padding-left: calc(var(--u) * 26); font-size: max(15px, calc(var(--u) * 19)); line-height: 1.38; color: rgba(255, 255, 255, 0.94); }
-.benefits li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: calc(var(--u) * 10); height: calc(var(--u) * 10); min-width: 8px; min-height: 8px; border-radius: 999px; background: var(--sky); }
+.counter { display: inline-flex; align-items: center; gap: calc(var(--u) * 12); align-self: flex-start; padding: calc(var(--u) * 7) calc(var(--u) * 14); border-radius: 999px; background: rgba(7, 27, 49, 0.62); border: 1px solid rgba(156, 195, 245, 0.35); font-size: max(12px, calc(var(--u) * 13)); }
+.dots { display: inline-flex; gap: calc(var(--u) * 5); }
+.dots i { display: block; width: calc(var(--u) * 7); height: calc(var(--u) * 7); min-width: 6px; min-height: 6px; border-radius: 999px; background: rgba(156, 195, 245, 0.4); }
+.dots i.dotOn { background: #fff; transform: scale(1.25); }
+.photoText h2 { margin: calc(var(--u) * 12) 0 0; font-size: max(26px, calc(var(--u) * 34)); line-height: 1.08; font-weight: 780; letter-spacing: -0.02em; overflow-wrap: anywhere; text-wrap: balance; text-shadow: 0 2px 18px rgba(2, 12, 24, 0.55); }
+.benefits { list-style: none; margin: calc(var(--u) * 12) 0 0; padding: 0; display: grid; gap: calc(var(--u) * 6); }
+.benefits li { position: relative; padding-left: calc(var(--u) * 24); font-size: max(15px, calc(var(--u) * 17)); line-height: 1.34; color: rgba(255, 255, 255, 0.95); }
+.benefits li::before { content: ""; position: absolute; left: calc(var(--u) * 2); top: 0.45em; width: calc(var(--u) * 9); height: calc(var(--u) * 9); min-width: 8px; min-height: 8px; border-radius: 3px; transform: rotate(45deg); background: var(--sky); }
+/* itens que entram em sequência, deslizando da esquerda */
+.slideIn { opacity: 0; animation: slideIn 0.65s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: var(--d, 0ms); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+/* mensagem de justificativa: destaque legível (cartão claro sobre o azul-marinho) */
+.propReason { margin: calc(var(--u) * 14) 0 0; padding: calc(var(--u) * 12) calc(var(--u) * 14); border-radius: calc(var(--u) * 16); border-left: 4px solid var(--sky); background: rgba(156, 195, 245, 0.14); font-size: max(15px, calc(var(--u) * 16)); line-height: 1.42; color: #fff; overflow-wrap: anywhere; text-wrap: pretty; }
+.propActions { flex: none; margin: calc(var(--u) * 12) 0 0; display: grid; width: 100%; }
+.propActions .cta { width: 100%; min-height: max(56px, calc(var(--u) * 60)); }
 
 /* por que este imóvel */
 .reasonBox { position: relative; margin: calc(var(--u) * 26) auto 0; max-width: calc(var(--u) * 430); text-align: left; padding: calc(var(--u) * 28) calc(var(--u) * 24) calc(var(--u) * 30); border-radius: calc(var(--u) * 26); background: var(--panel); border: 1px solid var(--panel-line); }
@@ -285,7 +300,7 @@
 .caixa { position: absolute; z-index: 6; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 14); display: flex; justify-content: center; pointer-events: none; }
 /* Direto sobre o fundo (sem pílula, sem borda, sem caixa), larga (~42% da largura útil). Nas cenas escuras o azul da logo some
    no azul-marinho: um halo claro suave por trás (drop-shadow, como na referência do dono). */
-.caixaLogo { display: block; width: calc(var(--cw) * 0.42); height: auto; aspect-ratio: 780 / 196; }
+.caixaLogo { display: block; width: calc(var(--cw) * 0.52); height: auto; aspect-ratio: 780 / 196; }
 .root[data-theme="dark"] .caixaLogo { filter: drop-shadow(0 0 calc(var(--u) * 9) rgba(190, 220, 255, 0.85)) drop-shadow(0 0 calc(var(--u) * 2.5) rgba(255, 255, 255, 0.7)); }
 
 /* lista de documentos: folha sobre a cena, rolável */
@@ -322,6 +337,7 @@
   .leave { display: none; }
   .word, .underline, .statLink, .artSun, .sheetsArt, .ringDraw { animation: none; transform: none; opacity: 1; stroke-dashoffset: 0; }
   .photo { animation: none; }
+  .photoReveal, .slideIn, .fallbackRings { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
   .cta, .ghostBtn { transition: none; }
 }
 @keyframes fadeOnly { from { opacity: 0; } to { opacity: 1; } }
@@ -419,11 +435,15 @@
   .openArt > div { width: min(90%, calc(var(--u) * 760)); }
 
   /* imóvel: foto emoldurada à direita, texto à esquerda */
-  .photoWrap { left: 51%; right: calc(var(--u) * 26); top: calc(var(--u) * 26); bottom: calc(var(--u) * 26); border-radius: calc(var(--u) * 32); }
-  .photoShade { background: linear-gradient(to top, rgba(7, 27, 49, 0.35) 0%, rgba(7, 27, 49, 0) 40%); }
-  .photoText { position: absolute; left: 7%; right: 52%; top: 0; bottom: 0; width: auto; margin: 0; padding: calc(env(safe-area-inset-top, 0px) + var(--u) * 74) 0 calc(env(safe-area-inset-bottom, 0px) + var(--u) * 76); display: flex; flex-direction: column; justify-content: center; }
-  .photoText h2 { font-size: max(30px, calc(var(--u) * 52)); }
-  .benefits li { font-size: max(15px, calc(var(--u) * 22)); }
+  .photoWrap { left: 51%; right: calc(var(--u) * 26); top: calc(var(--u) * 26); bottom: calc(var(--u) * 26); height: auto; border-radius: calc(var(--u) * 32); }
+  .photoShade { background: linear-gradient(to top, rgba(7, 27, 49, 0.4) 0%, rgba(7, 27, 49, 0) 38%); }
+  .photoText { left: 7%; right: 52%; top: 0; bottom: 0; padding: calc(env(safe-area-inset-top, 0px) + var(--u) * 74) 0 calc(env(safe-area-inset-bottom, 0px) + var(--u) * 76); justify-content: center; }
+  .photoScroll { flex: 0 1 auto; padding-top: 0; }
+  .photoScroll > :first-child { margin-top: 0; }
+  .photoText h2 { font-size: max(30px, calc(var(--u) * 50)); }
+  .benefits li { font-size: max(15px, calc(var(--u) * 21)); }
+  .propReason { font-size: max(15px, calc(var(--u) * 19)); }
+  .propActions { max-width: calc(var(--u) * 400); }
 
   /* folha de documentos: cartão central, não uma faixa de 1600 px */
   .sheetBackdrop { align-items: center; }

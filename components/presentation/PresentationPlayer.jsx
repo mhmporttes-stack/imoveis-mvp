@@ -243,7 +243,7 @@ function SceneImovel({ scene, onNext, last, fast }) {
   const [failed, setFailed] = useState(false);
   const multi = scene.count > 1;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
-  const afterBenefits = 1000 + scene.benefits.length * 260;
+  const afterBenefits = 800 + scene.benefits.length * 240;
   return (
     <>
       <div className={`${styles.photoWrap} ${styles.photoReveal}`}>
@@ -251,22 +251,40 @@ function SceneImovel({ scene, onNext, last, fast }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img className={styles.photo} src={scene.imageUrl} alt={`Foto de ${scene.name}`} width={1080} height={1350} decoding="async" onError={() => setFailed(true)} />
         ) : (
-          <div className={styles.photoFallback} aria-hidden="true"><House /></div>
+          <div className={styles.photoFallback} aria-hidden="true">
+            <svg className={styles.fallbackRings} viewBox="0 0 400 400" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <circle cx="200" cy="200" r="70" /><circle cx="200" cy="200" r="120" /><circle cx="200" cy="200" r="170" /><circle cx="200" cy="200" r="198" />
+            </svg>
+            <span className={styles.fallbackIcon}><House /></span>
+          </div>
         )}
         <div className={styles.photoShade} />
       </div>
       <div className={styles.photoText}>
-        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": d(250) }}>{multi ? `Imóvel ${scene.position} de ${scene.count}` : "Imóvel sugerido"}</p>
-        <h2 className={styles.rise} style={{ "--d": d(500) }}>{scene.name}</h2>
-        {scene.benefits.length ? (
-          <ul className={styles.benefits}>
-            {scene.benefits.map((benefit, i) => (
-              <li key={`${i}-${benefit}`} className={styles.rise} style={{ "--d": d(900 + i * 260) }}>{benefit}</li>
-            ))}
-          </ul>
-        ) : null}
-        <p className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 200) }}>{scene.reason}</p>
-        <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 700) }}>
+        <div className={styles.photoScroll}>
+          <p className={`${styles.eyebrow} ${styles.counter} ${styles.rise}`} style={{ "--d": d(250) }}>
+            {multi ? (
+              <>
+                <span className={styles.dots} aria-hidden="true">
+                  {Array.from({ length: Math.min(scene.count, 8) }, (_, i) => (
+                    <i key={i} className={i + 1 === scene.position ? styles.dotOn : ""} />
+                  ))}
+                </span>
+                {`Imóvel ${scene.position} de ${scene.count}`}
+              </>
+            ) : "Imóvel sugerido"}
+          </p>
+          <h2 className={styles.rise} style={{ "--d": d(450) }}>{scene.name}</h2>
+          {scene.benefits.length ? (
+            <ul className={styles.benefits}>
+              {scene.benefits.map((benefit, i) => (
+                <li key={`${i}-${benefit}`} className={styles.slideIn} style={{ "--d": d(800 + i * 240) }}>{benefit}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 100) }}>{scene.reason}</p>
+        </div>
+        <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 500) }}>
           <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
             {last ? "Continuar" : "Próximo imóvel"}
           </button>

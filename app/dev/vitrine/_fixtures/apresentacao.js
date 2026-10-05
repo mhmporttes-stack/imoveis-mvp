@@ -76,5 +76,6 @@ export function presentationScenes(variant) {
 
 /** Ramo de imóveis sugeridos, com a foto fictícia no lugar da URL de teste. */
 export function presentationBranch(variant) {
-  return presentationDto(variant).branch.map((scene) => ({ ...scene, imageUrl: PHOTO }));
+  // sem-foto: o imóvel não tem imagem (vê o fallback elegante)
+  return presentationDto(variant).branch.map((scene) => ({ ...scene, imageUrl: variant === "sem-foto" ? "" : PHOTO }));
 }
