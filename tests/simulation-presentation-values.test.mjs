@@ -1,5 +1,5 @@
 // Apresentação interativa — cena de VALORES do imóvel sugerido (PRES-20): só com dado real, ato 0 destacado, ato ausente
-// omitido, ordem no ramo, DTO sem vazamento. Fonte dos valores: resultado do motor de entrada salvo na simulação.
+// omitido, ordem no ramo, DTO sem vazamento. Fonte dos valores: o MESMO resultado do motor que o card do cliente → Empreendimento mostra (calculado na hora pelo servidor).
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -11,10 +11,9 @@ import {
   buildPresentationScenes,
   buildPropertyBranch,
   buildPropertyValues,
-  buildPublicPresentation
+  buildPublicPresentation as buildPublic
 } from "../lib/simulation-presentation-core.mjs";
 import { flattenBranch } from "../components/presentation/player-core.mjs";
-import { getRenderableSimulationModels, simulationModelHasValues } from "../lib/simulation-models.js";
 
 const root = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -42,6 +41,9 @@ function snapshot(propertyId, over = {}) {
   };
 }
 
+// Entrada do ramo = o que o servidor entrega (lib/simulation-presentation-entry.js): resultado do motor + diferenciais do cadastro.
+const entry = (propertyId, over = {}, features = []) => ({ result: snapshot(propertyId, over), features });
+
 function simulation(over = {}) {
   return {
     clientName: "Mariana Souza Lima",
@@ -53,20 +55,22 @@ function simulation(over = {}) {
       { propertyId: "emp-1", customName: "Residencial Aurora", imageUrl: "https://cdn.exemplo.com/1.jpg", benefits: [{ text: "Varanda" }], recommendationReason: "Cabe no orçamento." },
       { propertyId: "emp-2", customName: "Condomínio Segundo", imageUrl: "https://cdn.exemplo.com/2.jpg", benefits: [], recommendationReason: "" }
     ],
-    entrySimulationSnapshots: [
-      snapshot("emp-1"),
-      snapshot("emp-2", { valorImovel: 289900, totalDescontos: 0, casaPaulista: 10000, entradaTotal: 31500, detalhePagamento: { ato: 6500, blocos: [{ label: "Obra", parcelas: 18, valorParcela: 900 }, { label: "Pós-obra", parcelas: 12, valorParcela: 775, valorParcelaComJuros: 812.5 }] } })
-    ],
+    entryResults: {
+      "emp-1": entry("emp-1"),
+      "emp-2": entry("emp-2", { valorImovel: 289900, totalDescontos: 0, casaPaulista: 10000, entradaTotal: 31500, detalhePagamento: { ato: 6500, blocos: [{ label: "Obra", parcelas: 18, valorParcela: 900 }, { label: "Pós-obra", parcelas: 12, valorParcela: 775, valorParcelaComJuros: 812.5 }] } })
+    },
     ...over
   };
 }
 
-const valuesOf = (sim, index = 0) => buildPropertyBranch({ simulation: sim, defaultReason: DEFAULT_REASON })[index];
-const withSnapshot = (over) => simulation({ entrySimulationSnapshots: [snapshot("emp-1", over), snapshot("emp-2")] });
+const branchOf = (sim) => buildPropertyBranch({ simulation: sim, defaultReason: DEFAULT_REASON, entryResults: sim.entryResults });
+const buildPublicPresentation = ({ simulation: sim, defaultReason }) => buildPublic({ simulation: sim, defaultReason, entryResults: sim.entryResults });
+const valuesOf = (sim, index = 0) => branchOf(sim)[index];
+const withSnapshot = (over, features = []) => simulation({ entryResults: { "emp-1": entry("emp-1", over, features), "emp-2": entry("emp-2") } });
 
 // ---------- a cena só existe com dado real ----------
-test("valores: com resultado de entrada salvo do imóvel, o item do ramo ganha `valores` (campos finais, na ordem do cadastro)", () => {
-  const branch = buildPropertyBranch({ simulation: simulation(), defaultReason: DEFAULT_REASON });
+test("valores: com resultado de entrada do imóvel, o item do ramo ganha `valores` (campos finais, na ordem do cadastro)", () => {
+  const branch = branchOf(simulation());
   assert.equal(branch.length, 2);
   assert.deepEqual(branch[0].valores, {
     valorImovel: 250000,
@@ -91,33 +95,21 @@ test("valores: com resultado de entrada salvo do imóvel, o item do ramo ganha `
   });
 });
 
-test("valores: sem dado não há cena (nenhuma cena vazia): sem resultado salvo, sem propertyId, resultado de outro imóvel", () => {
-  assert.ok(!("valores" in valuesOf(simulation({ entrySimulationSnapshots: [] }))));
-  assert.ok(!("valores" in valuesOf(simulation({ entrySimulationSnapshots: undefined }))));
+test("valores: sem dado não há cena (nenhuma cena vazia): sem resultado, sem propertyId, resultado de outro imóvel", () => {
+  assert.ok(!("valores" in valuesOf(simulation({ entryResults: {} }))));
+  assert.ok(!("valores" in valuesOf(simulation({ entryResults: undefined }))));
+  assert.ok(!("valores" in valuesOf(simulation({ entryResults: { "emp-1": { features: [] } } }))), "entrada sem resultado do motor");
   const noId = simulation();
   noId.properties[0].propertyId = "";
   assert.ok(!("valores" in valuesOf(noId)));
-  assert.ok(!("valores" in valuesOf(simulation({ entrySimulationSnapshots: [snapshot("emp-2")] }), 0)), "o resultado do imóvel 2 não vale para o 1");
-  assert.ok("valores" in valuesOf(simulation({ entrySimulationSnapshots: [snapshot("emp-2")] }), 1));
+  assert.ok(!("valores" in valuesOf(simulation({ entryResults: { "emp-2": entry("emp-2") } }), 0)), "o resultado do imóvel 2 não vale para o 1");
+  assert.ok("valores" in valuesOf(simulation({ entryResults: { "emp-2": entry("emp-2") } }), 1));
   // sem valor do imóvel não há o que mostrar
   assert.ok(!("valores" in valuesOf(withSnapshot({ valorImovel: 0 }))));
   assert.ok(!("valores" in valuesOf(withSnapshot({ valorImovel: "250000" }))), "texto não vira número");
   // resultado de entrada INVIÁVEL não vira oferta ao cliente
   assert.ok(!("valores" in valuesOf(withSnapshot({ classificacao: "inviavel" }))));
   assert.ok("valores" in valuesOf(withSnapshot({ classificacao: "ajuste" })));
-});
-
-test("valores: resultado salvo de OUTROS valores (simulação alterada depois do último Salvar) não é mostrado", () => {
-  assert.ok(!("valores" in valuesOf(withSnapshot({ financiamentoAprovado: 180000 }))));
-  assert.ok(!("valores" in valuesOf(withSnapshot({ subsidioMcmv: 0 }))));
-  assert.ok(!("valores" in valuesOf(withSnapshot({ clienteSnapshot: { fgtsDisponivel: 9000, financiamentoAprovado: 190000, subsidioMcmv: 42000 } }))));
-  // FGTS = entrada + FGTS da simulação (como o Gerador manda ao motor)
-  const fgts = simulation({ downPaymentValue: 5000, fgtsValue: 7000 });
-  fgts.entrySimulationSnapshots[0].clienteSnapshot.fgtsDisponivel = 12000;
-  assert.ok("valores" in valuesOf(fgts));
-  // sem clienteSnapshot (resultado antigo) vale pelo financiamento e subsídio
-  const legacy = withSnapshot({ clienteSnapshot: undefined });
-  assert.ok("valores" in valuesOf(legacy));
 });
 
 test("valores: campo ausente ou zero não aplicável é omitido (sem desconto, sem Casa Paulista, sem parcelas, sem entrada)", () => {
@@ -149,21 +141,22 @@ test("total de descontos: soma exatamente as linhas mostradas (desconto + Casa P
   assert.equal(all.totalDescontos, 8000 + 10000 + 42000 + 12500);
   const parts = ["desconto", "casaPaulista", "subsidio", "documentacaoGratuita"].reduce((sum, key) => sum + (all[key] || 0), 0);
   assert.equal(all.totalDescontos, parts);
-  // sem subsídio informado (em branco/0): não entra no total (a simulação também sem subsídio, senão o resultado seria descartado)
-  const noSub = simulation({ simulationModels: { novo: { ...money, subsidyValue: "" }, usado: { ...money, subsidyValue: "" } } });
-  noSub.entrySimulationSnapshots = [snapshot("emp-1", { subsidioMcmv: 0, clienteSnapshot: { fgtsDisponivel: 0, financiamentoAprovado: 190000, subsidioMcmv: 0 }, casaPaulista: 10000, beneficiosInformativos: [DOC] })];
-  const semSubsidio = valuesOf(noSub).valores;
+  // sem subsídio informado (em branco/0 no resultado do motor): não entra no total
+  const semSubsidio = valuesOf(withSnapshot({ subsidioMcmv: 0, casaPaulista: 10000, beneficiosInformativos: [DOC] })).valores;
   assert.ok(!("subsidio" in semSubsidio));
   assert.equal(semSubsidio.totalDescontos, 8000 + 10000 + 12500);
   // sem documentação gratuita no cadastro: nada de linha nem de soma
   assert.ok(!("documentacaoGratuita" in valuesOf(withSnapshot()).valores));
   assert.equal(valuesOf(withSnapshot()).valores.totalDescontos, 50000);
-  // o benefício também pode vir dos diferenciais do imóvel na simulação (mesma regra `hasFreeDocuments`)
-  const viaBenefit = simulation();
-  viaBenefit.properties[0].benefits = [{ text: "Documentação gratuita" }];
-  assert.equal(valuesOf(viaBenefit).valores.documentacaoGratuita, 12500);
+  // o benefício também pode vir dos diferenciais do CADASTRO do empreendimento (mesma regra `hasFreeDocuments`, como `selected.features` do card)
+  assert.equal(valuesOf(withSnapshot({}, ["Documentação gratuita"])).valores.documentacaoGratuita, 12500);
+  assert.equal(valuesOf(withSnapshot({}, [{ text: "Documentação gratuita" }])).valores.documentacaoGratuita, 12500);
+  // diferencial só escrito à mão na simulação (não está no cadastro) NÃO vale: o card também não o mostra
+  const manual = simulation();
+  manual.properties[0].benefits = [{ text: "Documentação gratuita" }];
+  assert.ok(!("documentacaoGratuita" in valuesOf(manual).valores));
   // nada a somar: sem total
-  const none = valuesOf(withSnapshot({ totalDescontos: 0, subsidioMcmv: 0, clienteSnapshot: undefined, descontosAplicados: [] }), 0);
+  const none = valuesOf(withSnapshot({ totalDescontos: 0, subsidioMcmv: 0, descontosAplicados: [] }), 0);
   assert.ok(!("valores" in none) || !("totalDescontos" in none.valores));
 });
 
@@ -234,10 +227,10 @@ test("ordem do ramo: imóvel → valores dele → próximo imóvel → valores d
   assert.ok(flat.every((scene) => !("valores" in scene)));
   assert.deepEqual(flat.map((scene) => scene.position), [1, 1, 2, 2]);
   // só o 2º imóvel com valores
-  const half = buildPublicPresentation({ simulation: simulation({ entrySimulationSnapshots: [snapshot("emp-2")] }), defaultReason: DEFAULT_REASON });
+  const half = buildPublicPresentation({ simulation: simulation({ entryResults: { "emp-2": entry("emp-2") } }), defaultReason: DEFAULT_REASON });
   assert.deepEqual(flattenBranch(half.branch).map((scene) => scene.id), ["imovel", "imovel", "valores"]);
   // nenhum valor: só imóveis, como antes
-  const none = buildPublicPresentation({ simulation: simulation({ entrySimulationSnapshots: [] }), defaultReason: DEFAULT_REASON });
+  const none = buildPublicPresentation({ simulation: simulation({ entryResults: {} }), defaultReason: DEFAULT_REASON });
   assert.deepEqual(flattenBranch(none.branch).map((scene) => scene.id), ["imovel", "imovel"]);
   assert.deepEqual(flattenBranch([]), []);
   // o roteiro principal (e a contagem de cenas do CRM) não muda; a última cena do ramo leva ao "Próximo passo"
@@ -273,13 +266,28 @@ test("DTO público: a cena de valores só carrega a allowlist (nada do resultado
   }
 });
 
-test("fonte única e PDF intocado: usa o resultado do motor salvo na simulação, sem recalcular nem importar o PDF", () => {
+test("fonte única e PDF intocado: o core não recalcula nem importa o PDF; o servidor roda o MESMO motor do card (sem fórmula nova)", () => {
   const core = read("lib/simulation-presentation-core.mjs");
-  assert.match(core, /entrySimulationSnapshots/);
-  assert.ok(!/simularEntrada|proposta-pdf|calculator/.test(core.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")));
-  // o primário usado na checagem é o mesmo modelo das cenas do roteiro (PDF)
-  const sim = simulation();
-  const primary = getRenderableSimulationModels(sim).find((model) => simulationModelHasValues(model.values));
-  assert.ok(buildPropertyValues({ simulation: sim, property: sim.properties[0], primary }));
-  assert.equal(buildPropertyValues({ simulation: sim, property: sim.properties[0], primary: null }), null);
+  const code = core.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/simularEntrada|proposta-pdf|calculator|entrySimulationSnapshots|entry_simulation_snapshots/.test(code));
+  assert.ok(buildPropertyValues({ entry: entry("emp-1") }));
+  assert.equal(buildPropertyValues({ entry: null }), null);
+  assert.equal(buildPropertyValues({}), null);
+  // o carregador do servidor usa os mesmos ingredientes da tela do card e do PDF, sem ajuste manual de ato/parcelas e sem gravar nada
+  const loader = read("lib/simulation-presentation-entry.js");
+  assert.match(loader, /clienteEntradaFromSimulation\(simulation\)/);
+  assert.match(loader, /getEmpreendimentoRegras\(propertyId\)/);
+  assert.match(loader, /simularEntrada\(cliente, aplicarParcelasManuais\(row\.regras, 0\), \{ atoDesejado: 0 \}\)/);
+  assert.match(loader, /property\?\.features/);
+  assert.ok(!/\.(insert|update|upsert|delete)\(/.test(loader));
+  assert.match(read("lib/simulation-presentation.js"), /loadPropertyEntryResults\(simulation\)/);
+});
+
+test("Gerador: o bloco 'Entrada sugerida (simulação automática)' saiu da Etapa C e nada grava mais entry_simulation_snapshots (dados antigos intactos)", () => {
+  const generator = read("components/SimulationGenerator.jsx");
+  assert.ok(!/EntradaSimuladaCard|Entrada sugerida|simular-entrada|entradaResultados/.test(generator));
+  assert.ok(!/entrySimulationSnapshots/.test(generator), "o formulário não manda a coluna: o mapper não a sobrescreve com []");
+  // a tela do card do cliente → Empreendimento e o PDF seguem no motor
+  assert.match(read("components/EmpreendimentoPresentation.jsx"), /\/api\/simular-entrada/);
+  assert.ok(fs.existsSync(path.join(root, "app/api/simular-entrada/route.js")));
 });

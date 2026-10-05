@@ -14,23 +14,27 @@ export const PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
 // fotos reais de exemplo do próprio repositório (paisagem e retrato), só para a revisão visual
 const REAL_PHOTOS = ["/assets/hero-marilia.png", "/assets/hero-premium-casal.png"];
 
-// Resultado do motor de entrada FICTÍCIO (mesmo formato que o Gerador salva em `entry_simulation_snapshots`), com os valores do
-// modelo "novo" da vitrine (financiamento 190.000 / subsídio 42.000). ato 0 = "Sem ato" destacado; ato > 0 = valor do ato.
-function entrySnapshot(propertyId, { valorImovel, descontos = 0, casaPaulista = 0, entradaTotal, ato, blocos, documentacao = false }) {
+// Resultado do motor de entrada FICTÍCIO (mesmo formato que o servidor calcula na hora com o motor do card do cliente → Empreendimento:
+// `lib/simulation-presentation-entry.js`), com os valores do modelo "novo" da vitrine (financiamento 190.000 / subsídio 42.000).
+// ato 0 = "Sem ato" destacado; ato > 0 = valor do ato. `features` = diferenciais do cadastro do empreendimento.
+function entryResult({ valorImovel, descontos = 0, casaPaulista = 0, entradaTotal, ato, blocos, documentacao = false }) {
   return {
-    empreendimentoId: propertyId,
-    empreendimentoNome: "Interno",
-    valorImovel,
-    totalDescontos: descontos,
-    descontosAplicados: [],
-    subsidioMcmv: 42000,
-    casaPaulista,
-    financiamentoAprovado: 190000,
-    entradaTotal,
-    detalhePagamento: { ato, blocos },
-    beneficiosInformativos: documentacao ? [{ tipo: "documentacao_gratuita", label: "Documentação gratuita", valor: 0 }] : [],
-    classificacao: "viavel",
-    clienteSnapshot: { rendaTotal: 8123.45, financiamentoAprovado: 190000, subsidioMcmv: 42000, fgtsDisponivel: 0 }
+    features: documentacao ? ["Documentação gratuita"] : [],
+    result: {
+      empreendimentoId: "interno",
+      empreendimentoNome: "Interno",
+      valorImovel,
+      totalDescontos: descontos,
+      descontosAplicados: [],
+      subsidioMcmv: 42000,
+      casaPaulista,
+      financiamentoAprovado: 190000,
+      entradaTotal,
+      detalhePagamento: { ato, blocos },
+      beneficiosInformativos: [],
+      classificacao: "viavel",
+      clienteSnapshot: { rendaTotal: 8123.45, financiamentoAprovado: 190000, subsidioMcmv: 42000, fgtsDisponivel: 0 }
+    }
   };
 }
 
@@ -46,12 +50,12 @@ export function presentationSimulation(variant = "completo") {
       novo: { financingValue: "190.000,00", subsidyValue: "42.000,00", firstInstallment: "1.085,40", lastInstallment: "812,15" },
       usado: { financingValue: "190.000,00", subsidyValue: "0", firstInstallment: "1.085,40", lastInstallment: "812,15" }
     },
-    entrySimulationSnapshots: [
+    entryResults: {
       // imóvel 1: entrada TOTALMENTE parcelada, ato R$ 0,00 → selo "Sem ato"
-      entrySnapshot("dev-imovel-1", { valorImovel: 250000, descontos: 8000, documentacao: true, entradaTotal: 24000, ato: 0, blocos: [{ label: "Parcelas da entrada", parcelas: 24, valorParcela: 1000, periodicidadeMeses: 1 }] }),
+      "dev-imovel-1": entryResult({ valorImovel: 250000, descontos: 8000, documentacao: true, entradaTotal: 24000, ato: 0, blocos: [{ label: "Parcelas da entrada", parcelas: 24, valorParcela: 1000, periodicidadeMeses: 1 }] }),
       // imóvel 2: com ato + entrada parcelada em dois blocos (obra e pós-obra) + Casa Paulista
-      entrySnapshot("dev-imovel-2", { valorImovel: 289900, descontos: 5000, casaPaulista: 10000, entradaTotal: 31500, ato: 6500, blocos: [{ label: "Parcelas durante a obra", parcelas: 18, valorParcela: 900, periodicidadeMeses: 1 }, { label: "Parcelas pós-obra", parcelas: 12, valorParcela: 775, valorParcelaComJuros: 812.5, periodicidadeMeses: 1 }] })
-    ],
+      "dev-imovel-2": entryResult({ valorImovel: 289900, descontos: 5000, casaPaulista: 10000, entradaTotal: 31500, ato: 6500, blocos: [{ label: "Parcelas durante a obra", parcelas: 18, valorParcela: 900, periodicidadeMeses: 1 }, { label: "Parcelas pós-obra", parcelas: 12, valorParcela: 775, valorParcelaComJuros: 812.5, periodicidadeMeses: 1 }] })
+    },
     properties: [
       {
         propertyId: "dev-imovel-1",
@@ -92,30 +96,29 @@ export function presentationSimulation(variant = "completo") {
   if (variant === "minimo") base.registration = undefined;
   if (variant === "igual") base.simulationModels.usado = { ...base.simulationModels.novo };
   if (variant === "sem-imovel") base.properties = [];
-  // sem-valores: imóveis sugeridos SEM resultado de entrada salvo → só a cena do imóvel (nenhuma cena de valores vazia)
-  if (variant === "sem-valores") base.entrySimulationSnapshots = [];
+  const mapResults = (fn) => Object.fromEntries(Object.entries(base.entryResults).map(([id, entry]) => [id, { ...entry, result: fn(entry.result) }]));
+  // sem-valores: imóveis sugeridos SEM resultado de entrada (sem regras cadastradas) → só a cena do imóvel (nenhuma cena de valores vazia)
+  if (variant === "sem-valores") base.entryResults = {};
   // ato-ausente: o motor não informou o ato → cena sem a linha de ato (nunca "Sem ato")
-  if (variant === "ato-ausente") base.entrySimulationSnapshots = base.entrySimulationSnapshots.map((snap) => ({ ...snap, detalhePagamento: { blocos: snap.detalhePagamento.blocos } }));
+  if (variant === "ato-ausente") base.entryResults = mapResults((snap) => ({ ...snap, detalhePagamento: { blocos: snap.detalhePagamento.blocos } }));
   // valores-sem-subsidio: subsídio em branco na simulação → a cena não mostra a linha de subsídio e o total não o soma
   if (variant === "valores-sem-subsidio") {
     base.simulationModels = {
       novo: { ...base.simulationModels.novo, subsidyValue: "" },
       usado: { ...base.simulationModels.usado, subsidyValue: "" }
     };
-    base.entrySimulationSnapshots = base.entrySimulationSnapshots.map((snap) => ({ ...snap, subsidioMcmv: 0, clienteSnapshot: { ...snap.clienteSnapshot, subsidioMcmv: 0 } }));
+    base.entryResults = mapResults((snap) => ({ ...snap, subsidioMcmv: 0, clienteSnapshot: { ...snap.clienteSnapshot, subsidioMcmv: 0 } }));
   }
   // entrada-unica: um imóvel só, entrada parcelada com ato
-  if (variant === "entrada-unica") {
-    base.properties = base.properties.slice(1);
-    base.entrySimulationSnapshots = base.entrySimulationSnapshots.slice(1);
-  }
+  if (variant === "entrada-unica") base.properties = base.properties.slice(1);
   if (variant === "sem-justificativa") base.properties[0].recommendationReason = DEFAULT_REASON;
   if (variant === "longo") base.properties[0].customName = "Residencial Vila Aurora Jardins do Parque Exclusivo Empreendimento Modelo Muito Longo";
   return base;
 }
 
 export function presentationDto(variant) {
-  return buildPublicPresentation({ simulation: presentationSimulation(variant), defaultReason: DEFAULT_REASON });
+  const simulation = presentationSimulation(variant);
+  return buildPublicPresentation({ simulation, defaultReason: DEFAULT_REASON, entryResults: simulation.entryResults });
 }
 
 export function presentationScenes(variant) {

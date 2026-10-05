@@ -8,14 +8,11 @@ import { ArrowDown, ArrowUp, Check, FileText, ImageDown, Save, Search, Sparkles,
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
-import { montarClienteEntrada } from "@/lib/simulacao-entrada/presentation-model.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import {
   MARITAL_STATUS_OPTIONS,
   PRIMARY_INCOME_OPTIONS,
-  SIMULATION_TYPE_OPTIONS,
-  calculateFamilyIncome,
-  parseCurrencyNumber
+  SIMULATION_TYPE_OPTIONS
 } from "@/lib/simulation-registration-format";
 import {
   SIMULATION_MODEL_TYPES,
@@ -91,8 +88,7 @@ const INITIAL_FORM = {
   publicNote: "",
   internalNote: "",
   outputMode: "individual",
-  properties: [],
-  entrySimulationSnapshots: []
+  properties: []
 };
 
 const SYNCED_MODEL_FIELDS = ["financingValue", "firstInstallment", "lastInstallment"];
@@ -137,7 +133,6 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     () => getRenderableSimulationModels({ ...form, simulationModels: normalizedModels }),
     [form, normalizedModels]
   );
-  const totals = renderableModels[0]?.totals || modelTotals.usado;
 
   const filteredProperties = useMemo(() => {
     const term = propertyQuery.trim().toLowerCase();
@@ -147,57 +142,6 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       return !term || haystack.includes(term);
     });
   }, [form.properties, properties, propertyQuery]);
-
-  const [entradaResultados, setEntradaResultados] = useState({});
-  const [entradaLoading, setEntradaLoading] = useState(false);
-
-  const clienteParaEntrada = useMemo(() => {
-    const registration = form.registration || {};
-    // Casa Paulista não entra aqui: é valor fixo por empreendimento, aplicado pelo motor (casa-paulista.mjs).
-    return montarClienteEntrada({
-      rendaTotal: calculateFamilyIncome(registration),
-      financiamentoAprovado: totals.financing,
-      subsidioMcmv: totals.subsidy,
-      parcelaFinanciamento: parseCurrencyNumber(form.firstInstallment),
-      fgtsDisponivel: parseCurrencyNumber(form.downPaymentValue) + parseCurrencyNumber(form.fgtsValue),
-      temDependente: registration.hasChildrenUnder18,
-      fgtsMaisDe3Anos: registration.hasOverThreeYearsRegisteredWork,
-      tipoRenda: registration.primaryIncomeType || ""
-    });
-  }, [form.registration, form.firstInstallment, form.downPaymentValue, form.fgtsValue, totals]);
-
-  const propertyIdsParaEntrada = useMemo(
-    () => form.properties.map((item) => item.propertyId).filter(Boolean),
-    [form.properties]
-  );
-
-  useEffect(() => {
-    if (!propertyIdsParaEntrada.length) {
-      setEntradaResultados({});
-      return undefined;
-    }
-
-    const timer = window.setTimeout(async () => {
-      setEntradaLoading(true);
-      try {
-        const response = await fetch("/api/simular-entrada", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cliente: clienteParaEntrada, propertyIds: propertyIdsParaEntrada })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) return;
-        const byId = Object.fromEntries((data.resultados || []).map((item) => [item.empreendimentoId, item]));
-        setEntradaResultados(byId);
-      } catch {
-        // Simulação de entrada é um complemento informativo — falha aqui não bloqueia o gerador.
-      } finally {
-        setEntradaLoading(false);
-      }
-    }, 600);
-
-    return () => window.clearTimeout(timer);
-  }, [clienteParaEntrada, propertyIdsParaEntrada]);
 
   useEffect(() => {
     formRef.current = form;
@@ -529,7 +473,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   }
 
   async function saveSimulation() {
-    return persistSimulation({ entrySimulationSnapshots: Object.values(entradaResultados) });
+    return persistSimulation();
   }
 
   /*
@@ -559,11 +503,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
   */
 
-  async function persistSimulation({ silent = false, entrySimulationSnapshots } = {}) {
+  async function persistSimulation({ silent = false } = {}) {
     const currentForm = formRef.current;
-    const formToSave = Array.isArray(entrySimulationSnapshots)
-      ? { ...currentForm, entrySimulationSnapshots }
-      : currentForm;
+    const formToSave = currentForm;
     const payload = JSON.stringify(serializeForm(formToSave));
     const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
     const method = currentForm.id ? "PUT" : "POST";
@@ -630,8 +572,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             id: data.id || current.id,
             registrationId: data.registrationId || current.registrationId,
             registration: nextRegistration,
-            clientName: data.clientName || current.clientName,
-            ...(Array.isArray(entrySimulationSnapshots) ? { entrySimulationSnapshots } : {})
+            clientName: data.clientName || current.clientName
           };
           return JSON.stringify(next) === JSON.stringify(current) ? current : next;
         });
@@ -798,7 +739,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     });
 
     try {
-      const saved = await persistSimulation({ entrySimulationSnapshots: Object.values(entradaResultados) });
+      const saved = await persistSimulation();
       if (!saved) throw new Error("Salve a simulação antes de enviar a apresentação.");
       const response = await post("enviar-preparar");
       const data = await response.json().catch(() => ({}));
@@ -1075,8 +1016,6 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               </button>
             </div>
 
-            <EntradaSimuladaCard resultado={entradaResultados[property.propertyId]} loading={entradaLoading} />
-
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <Field label="Nome na apresentação" value={property.customName} onChange={(value) => updateSelectedProperty(propertyIndex, "customName", value)} />
               <Field label="Valor na apresentação" value={property.customPrice} onChange={(value) => updateSelectedProperty(propertyIndex, "customPrice", value)} />
@@ -1320,57 +1259,6 @@ function Metric({ label, value }) {
     <div className="min-w-0">
       <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">{label}</p>
       <p className="mt-1 break-words text-[clamp(1.5rem,8vw,1.875rem)] font-black leading-tight text-navy">{value}</p>
-    </div>
-  );
-}
-
-function EntradaSimuladaCard({ resultado, loading }) {
-  if (!resultado) {
-    return (
-      <div className="rounded-2xl border border-dashed border-line bg-mist px-5 py-4 text-sm font-bold text-muted">
-        {loading ? "Calculando entrada sugerida..." : "Este empreendimento ainda não tem regras de entrada configuradas (aba \"Regras de Entrada\" na ficha do empreendimento)."}
-      </div>
-    );
-  }
-
-  const { detalhePagamento, entradaTotal, avisos, motivos = [], classificacao = "ajuste" } = resultado;
-  const status = {
-    viavel: { label: "VIÁVEL", className: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-    ajuste: { label: "VIÁVEL COM AJUSTE", className: "border-amber-200 bg-amber-50 text-amber-800" },
-    inviavel: { label: "INVIÁVEL", className: "border-red-200 bg-red-50 text-red-800" }
-  }[classificacao];
-
-  return (
-    <div className="grid gap-4 rounded-2xl border border-brand/20 bg-[#F4F9FF] p-5">
-      <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Entrada sugerida (simulação automática)</p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Metric label="Valor do imóvel" value={formatCurrency(resultado.valorImovel)} />
-        <Metric label="Desconto" value={formatCurrency(resultado.totalDescontos)} />
-        <Metric label="Preço efetivo" value={formatCurrency(resultado.valorFinalImovel)} />
-        {resultado.casaPaulista > 0 ? <Metric label="Casa Paulista" value={formatCurrency(resultado.casaPaulista)} /> : null}
-        <Metric label="Financiamento e benefícios" value={formatCurrency(resultado.totalCoberto)} />
-        <Metric label="Entrada total" value={formatCurrency(entradaTotal)} />
-        {detalhePagamento.ato > 0 ? <Metric label="ATO (à vista)" value={formatCurrency(detalhePagamento.ato)} /> : null}
-        {detalhePagamento.blocos.map((bloco, index) => (
-          <Metric
-            key={`${bloco.label}-${index}`}
-            label={bloco.label}
-            value={`${bloco.parcelas}x de ${formatCurrency(bloco.valorParcelaComJuros ?? bloco.valorParcela)}`}
-          />
-        ))}
-      </div>
-      <div className={`rounded-xl border px-4 py-3 text-sm font-black ${status.className}`}>{status.label}</div>
-      {motivos.length ? <ul className="grid gap-1 text-sm font-bold text-red-800">{motivos.map((motivo, index) => <li key={index}>{motivo}</li>)}</ul> : null}
-      {avisos.length ? (
-        <ul className="grid gap-1 text-sm text-amber-800">
-          {avisos.map((aviso, index) => (
-            <li key={index}>⚠️ {aviso}</li>
-          ))}
-        </ul>
-      ) : null}
-      <p className="text-xs text-muted">
-        Simulação estimada — valores finais dependem da análise de crédito do banco e confirmação da incorporadora.
-      </p>
     </div>
   );
 }
