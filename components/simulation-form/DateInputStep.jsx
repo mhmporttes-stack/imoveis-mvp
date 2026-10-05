@@ -71,7 +71,8 @@ export default function DateInputStep({ error, onChange, step, value }) {
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const cells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, index) => index + 1)];
   const isAfterMax = (day) => Boolean(max) && toIso(view.year, view.month, day) > maximumBirthDate;
-  const selectClass = "h-10 rounded-xl border border-line bg-white px-2 text-sm font-bold capitalize text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10";
+  const selectClass = "h-9 rounded-full border border-line bg-white px-3 text-sm font-bold capitalize text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+  const arrowClass = "grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-white text-ink transition hover:border-brand hover:text-brand disabled:opacity-30";
 
   return (
     <div className="relative" ref={rootRef}>
@@ -88,9 +89,9 @@ export default function DateInputStep({ error, onChange, step, value }) {
         <CalendarDays aria-hidden="true" className="h-5 w-5 text-muted" />
       </button>
       {open ? (
-        <div aria-label="Escolha a data de nascimento" className="absolute left-0 right-0 z-20 mt-2 rounded-2xl border border-line bg-white p-4 shadow-soft sm:max-w-sm" role="dialog">
+        <div aria-label="Escolha a data de nascimento" className="mx-auto mt-3 w-full max-w-sm rounded-2xl border border-line bg-slate-50 p-3" role="dialog">
           <div className="flex items-center gap-2">
-            <button aria-label="Mês anterior" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line text-ink transition hover:border-brand hover:text-brand" onClick={() => shiftMonth(-1)} type="button">
+            <button aria-label="Mês anterior" className={arrowClass} onClick={() => shiftMonth(-1)} type="button">
               <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             </button>
             <select aria-label="Mês" className={`${selectClass} min-w-0 flex-1`} onChange={(event) => setView((current) => clampView({ ...current, month: Number(event.target.value) }, max))} value={view.month}>
@@ -99,21 +100,21 @@ export default function DateInputStep({ error, onChange, step, value }) {
             <select aria-label="Ano" className={selectClass} onChange={(event) => setView((current) => clampView({ ...current, year: Number(event.target.value) }, max))} value={view.year}>
               {years.map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
-            <button aria-label="Próximo mês" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line text-ink transition hover:border-brand hover:text-brand disabled:opacity-30" disabled={Boolean(max) && view.year * 12 + view.month >= max.year * 12 + max.month} onClick={() => shiftMonth(1)} type="button">
+            <button aria-label="Próximo mês" className={arrowClass} disabled={Boolean(max) && view.year * 12 + view.month >= max.year * 12 + max.month} onClick={() => shiftMonth(1)} type="button">
               <ChevronRight aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs font-black uppercase text-muted">
+          <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-black uppercase text-muted">
             {WEEKDAYS.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-y-0.5">
             {cells.map((day, index) => {
               if (!day) return <span key={`empty-${index}`} />;
               const isSelected = selected && selected.year === view.year && selected.month === view.month && selected.day === day;
               const disabled = isAfterMax(day);
               return (
                 <button
-                  className={`h-10 rounded-xl text-sm font-bold transition ${isSelected ? "bg-brand text-white" : "text-ink hover:bg-blue-50"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
+                  className={`mx-auto grid h-9 w-9 place-items-center rounded-full text-sm font-bold transition ${isSelected ? "bg-brand text-white" : "text-ink hover:bg-blue-100"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
                   disabled={disabled}
                   key={day}
                   onClick={() => {
