@@ -155,15 +155,10 @@ begin
     return;
   end if;
 
-  for v_name in
-    select c.conname
-      from pg_constraint c
-     where c.conrelid = 'public.whatsapp_session_telemetry'::regclass
-       and c.contype = 'c'
-       and (pg_get_constraintdef(c.oid) ilike '%event_type in%' or c.conname = 'whatsapp_session_telemetry_user_required')
-  loop
-    execute format('alter table public.whatsapp_session_telemetry drop constraint %I', v_name);
-  end loop;
+  -- Os dois CHECKs são removidos PELO NOME: o Postgres guarda a definição como `event_type = ANY (ARRAY[...])`,
+  -- então um filtro por texto ('event_type in') não os encontra (erro visto na aplicação em produção, 04/10).
+  alter table public.whatsapp_session_telemetry drop constraint if exists whatsapp_session_telemetry_event_type_check;
+  alter table public.whatsapp_session_telemetry drop constraint if exists whatsapp_session_telemetry_user_required;
 
   alter table public.whatsapp_session_telemetry
     add constraint whatsapp_session_telemetry_event_type_check check (event_type in (
