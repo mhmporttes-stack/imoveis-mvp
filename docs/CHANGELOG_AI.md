@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Pendentes da Meta Diária em lote na visão da equipe (sem mudar nenhum número)
+- **Data:** 2026-10-06
+- **Área:** Meta Diária / Desempenho
+- **Alteração:** `getDailyGoalPendingProgressBatch` (`lib/daily-goal-pending.js`) calcula as pendências de todos os corretores com ~6 consultas (antes ~29), usando o MESMO cálculo por corretor (`progressFromLoaded`, agora compartilhado com o caminho individual). A visão da equipe usa o lote e cai no individual se falhar.
+- **Motivo:** continuação da lentidão da Meta Diária do administrador — menos carga no banco.
+- **Arquivos afetados:** `lib/daily-goal-pending.js`, `lib/daily-goal.js`, `tests/daily-goal-pending-batch.test.mjs`
+- **Risco/observação:** conferido em produção ANTES de publicar: lote x individual igual nos 8 corretores e a visão da equipe inteira (`getOwnerTeamDailyOverview`) idêntica à de antes (diff vazio). Consultas por abertura 156 → 133. O tempo medido no PC do desenvolvedor não mudou (~8,4 s, dominado pela latência de cada consulta no caminho crítico); as funções da Vercel rodam em iad1 (EUA leste) e o banco em us-west-2, bem mais perto do que o PC de teste.
+- **Autor:** Claude Code
 ### 2026-10-06 — Meta Diária do administrador mais rápida (menos consultas ao banco)
 - **Data:** 2026-10-06
 - **Área:** Meta Diária / Banco / Desempenho
