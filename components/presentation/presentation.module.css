@@ -553,13 +553,13 @@
 .scene[data-scene="valores"] { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 22); }
 .root[data-scene="valores"] .frame::before { opacity: 0; }
 /* números GRANDES (pedido do dono 2026-10-06: no celular sobrava meia tela vazia acima do valor do imóvel) */
-.valInner .valHero { padding: calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 16); }
+.valInner .valHero { padding: calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 12); }
 .valInner .valHero .rowValue { margin-top: calc(var(--u) * 4); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.135)); }
-.valInner .valRow { padding: calc(var(--u) * 9) calc(var(--u) * 4); gap: calc(var(--u) * 10); align-items: center; }
+.valInner .valRow { padding: calc(var(--u) * 7) calc(var(--u) * 4); gap: calc(var(--u) * 10); align-items: center; }
 .valInner .valRow > span { letter-spacing: 0.03em; font-size: max(12.5px, calc(var(--u) * 13.5)); }
 .valInner .valRow > strong { font-size: min(max(20px, calc(var(--u) * 24)), calc(var(--cw) * 0.068)); font-weight: 800; }
 .valInner .valRow.valTotal > strong { font-size: min(max(24px, calc(var(--u) * 30)), calc(var(--cw) * 0.085)); }
-.valInner .valEntry { margin-top: calc(var(--u) * 14); padding: calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 4); }
+.valInner .valEntry { margin-top: calc(var(--u) * 10); padding: calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 4); }
 .valInner .valEntryValue { font-size: min(calc(var(--u) * 40), calc(var(--cw) * 0.1)); }
 .valInner .valEntry .valRow > strong { font-size: min(max(18px, calc(var(--u) * 21)), calc(var(--cw) * 0.058)); }
 .valInner .valFree { margin: calc(var(--u) * 2) 0 calc(var(--u) * 6); padding: calc(var(--u) * 10) calc(var(--u) * 12); }
@@ -582,21 +582,50 @@
 @media (prefers-reduced-motion: reduce) {
   .valFree { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
 }
-/* cena "Total de descontos" do imóvel (pedido do dono 2026-10-06): número sozinho, com efeito pop-in */
-.discInner { text-align: center; }
-.discPop {
-  margin: calc(var(--u) * 26) auto 0; max-width: calc(var(--u) * 420); padding: calc(var(--u) * 30) calc(var(--u) * 16) calc(var(--u) * 34);
-  border: 1px solid rgba(156, 195, 245, 0.45); border-radius: calc(var(--u) * 30);
-  background: linear-gradient(160deg, rgba(23, 105, 209, 0.6), rgba(13, 59, 102, 0.55));
-  box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 44) rgba(2, 12, 24, 0.4), 0 0 calc(var(--u) * 40) rgba(23, 105, 209, 0.35);
-  opacity: 0; animation: discPop 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: var(--d, 0ms);
+/* TOTAL DE DESCONTOS como CARIMBO (pedido do dono 2026-10-06): selo com borda dupla, levemente inclinado, que "bate" na tela vindo
+   grande e girado, com impacto (achatamento + rebote), onda de choque saindo do selo e tremida da cena no mesmo instante. */
+.valStampWrap { position: relative; margin: calc(var(--u) * 12) auto calc(var(--u) * 2); width: fit-content; max-width: 100%; }
+.valStamp {
+  position: relative; transform: rotate(-3deg); text-align: center;
+  padding: calc(var(--u) * 8) calc(var(--u) * 22) calc(var(--u) * 10);
+  border: 3px solid #fff; border-radius: calc(var(--u) * 14);
+  outline: 2px solid var(--sky); outline-offset: calc(var(--u) * 4);
+  background: linear-gradient(160deg, #1769d1, #0d3b66);
+  box-shadow: 0 0 0 calc(var(--u) * 9) rgba(23, 105, 209, 0.18), 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.55), 0 0 calc(var(--u) * 46) rgba(91, 164, 245, 0.55);
 }
-.discLabel { display: block; font-size: max(14px, calc(var(--u) * 16)); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sky); }
-.discValue { display: block; margin-top: calc(var(--u) * 12); font-size: min(calc(var(--u) * 64), calc(var(--cw) * 0.15)); line-height: 1; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.discActions { margin-top: calc(var(--u) * 34); }
-@keyframes discPop { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+.valStamp > span { display: block; font-size: max(13px, calc(var(--u) * 15)); font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #dcebfc; }
+.valStamp > strong { display: block; margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.11)); line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 2px 0 rgba(2, 12, 24, 0.35); }
+.valStampGo { opacity: 0; animation: stampSlam 0.55s cubic-bezier(0.3, 0, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+.valStampGo::after {
+  content: ""; position: absolute; inset: calc(var(--u) * -6); border: 3px solid rgba(156, 195, 245, 0.9); border-radius: calc(var(--u) * 20);
+  transform: rotate(-3deg); opacity: 0; pointer-events: none;
+  animation: stampWave 0.75s ease-out both; animation-delay: calc(var(--d, 0ms) + 380ms);
+}
+.valShake { animation: stampShake 0.42s ease-out both; animation-delay: var(--shake, 0ms); }
+@keyframes stampSlam {
+  0% { opacity: 0; transform: scale(3.2) rotate(-16deg); filter: blur(3px); }
+  55% { opacity: 1; transform: scale(1.12) rotate(-5deg); filter: blur(0); }
+  70% { transform: scale(0.9, 0.86) rotate(-2deg); }
+  84% { transform: scale(1.05) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes stampWave { 0% { opacity: 0.95; transform: rotate(-3deg) scale(1); } 100% { opacity: 0; transform: rotate(-3deg) scale(1.45, 1.9); } }
+@keyframes stampShake {
+  0%, 100% { transform: none; }
+  15% { transform: translate(-5px, 3px) rotate(-0.6deg); }
+  30% { transform: translate(5px, -3px) rotate(0.5deg); }
+  45% { transform: translate(-4px, 2px); }
+  60% { transform: translate(3px, -1px); }
+  80% { transform: translate(-1px, 1px); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .discPop { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
+  .valStampGo, .valShake { animation: none; opacity: 1; }
+  .valStampGo::after { display: none; }
+}
+@media (max-height: 720px) {
+  .valStampWrap { margin-top: calc(var(--u) * 10); }
+  .valStamp { padding: calc(var(--u) * 8) calc(var(--u) * 18) calc(var(--u) * 10); }
+  .valStamp > strong { font-size: min(calc(var(--u) * 36), calc(var(--cw) * 0.1)); }
 }
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .scene[data-scene="valores"] { --u: calc(var(--u0) * 0.8); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u0) * 40); }

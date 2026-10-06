@@ -44,6 +44,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: "Total de descontos" volta para baixo dos valores, como CARIMBO
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (cena de valores do imóvel)
+- **Alteração:** desfeita a cena separada "Total de descontos" e o botão "Ver total de descontos" (entrada anterior). O total volta para a cena de valores, logo abaixo das linhas, como um carimbo:
+  - selo com borda dupla, levemente inclinado;
+  - entra depois de uma pausa vindo grande, girado e desfocado (escala 3,2), "bate", achata e rebota;
+  - uma onda de choque sai do selo e a cena treme no instante do impacto;
+  - vibração no Android; o valor chega inteiro;
+  - a entrada aparece depois do impacto.
+
+  Com movimento reduzido, nada disso anima. Espaçamentos da cena levemente compactados para caber.
+- **Motivo:** pedido do dono. Ele não queria botão nem cena separada; queria o total abaixo dos valores com um efeito "bem mais forte, como se fosse carimbado".
+- **Arquivos afetados:** `components/presentation/PresentationPlayer.jsx`, `components/presentation/player-core.mjs` (volta ao estado anterior), `components/presentation/presentation.module.css`, `tests/simulation-presentation-values.test.mjs`, `docs/BUSINESS_RULES.md` (PRES-20).
+- **Risco/observação:** conferido na vitrine quadro a quadro (390x844) e em 375x667, no caso mais cheio (4 linhas + entrada + sem ato + parcelas), sem rolagem. A vibração não existe no iPhone (limitação do Safari).
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: "Total de descontos" em cena própria com pop-in
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (ramo de imóveis sugeridos)

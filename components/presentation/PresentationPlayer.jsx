@@ -36,7 +36,7 @@ import styles from "./presentation.module.css";
 // A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
 // Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
 
-const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "descontos", "proximo", "validar"]);
+const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "proximo", "validar"]);
 const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
 const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
 const CAIXA_LOGO = "/assets/caixa-logo-transparent.png";
@@ -48,7 +48,6 @@ function announcement(scene, index, total) {
     const ato = scene.ato === 0 ? " Sem ato: você pode avançar sem pagamento de ato." : scene.ato > 0 ? ` Ato ${formatBRL(scene.ato)}.` : "";
     return `Valores de ${scene.name}. Valor do imóvel ${formatBRL(scene.valorImovel)}.${entry}${ato}`;
   }
-  if (scene.id === "descontos") return `Total de descontos de ${scene.name}: ${formatBRL(scene.total)}.`;
   const head = `Cena ${index + 1} de ${total}. `;
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
@@ -304,7 +303,7 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
 /** Cena do RAMO logo depois da cena do imóvel (PRES-20): as condições financeiras DAQUELE imóvel, já prontas no servidor.
  *  Só mostra o que veio no DTO; os números entram com o mesmo contador das cenas de valores. `ato === 0` (informado) ganha
  *  destaque positivo; `ato` ausente nunca vira "sem ato". Sem cálculo aqui: apenas formata. */
-function SceneValores({ scene, onNext, last, nextIsDiscounts, reduced, fast }) {
+function SceneValores({ scene, onNext, last, reduced, fast }) {
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   const lines = [
     scene.financiamento > 0 ? { label: "Financiamento", value: scene.financiamento } : null,
@@ -313,18 +312,28 @@ function SceneValores({ scene, onNext, last, nextIsDiscounts, reduced, fast }) {
     scene.subsidio > 0 ? { label: "Subsídio Minha Casa Minha Vida", value: scene.subsidio } : null,
     scene.documentacaoGratuita > 0 ? { label: "Documentação gratuita", value: scene.documentacaoGratuita } : null
   ].filter(Boolean);
-  // O total de descontos tem cena própria logo depois desta ("descontos", pedido do dono 2026-10-06): aqui só as linhas.
+  const hasTotal = scene.totalDescontos > 0;
   const hasEntry = scene.entradaTotal > 0;
   const installments = Array.isArray(scene.parcelas) ? scene.parcelas : [];
   const free = hasEntry && scene.ato === 0;
   const hasAto = hasEntry && scene.ato > 0;
-  const base = 700 + (lines.length + 1) * 200;
+  // Total de descontos = CARIMBO (pedido do dono 2026-10-06): uma pausa depois das linhas, o selo "bate" na tela (escala grande
+  // → impacto), a cena treme, uma onda sai do selo e o celular vibra (Android). A entrada só vem depois do impacto.
+  const totalAt = 700 + lines.length * 200 + 450;
+  const stampImpact = totalAt + 380; // ~70% da animação do carimbo (0,55 s) = momento do impacto
+  const base = hasTotal ? stampImpact + 900 : 700 + (lines.length + 1) * 200;
+  const stampMotion = hasTotal && !reduced && !fast;
+  useEffect(() => {
+    if (!stampMotion) return undefined;
+    const timer = setTimeout(() => { try { navigator.vibrate?.([35, 40, 20]); } catch { /* sem suporte */ } }, stampImpact);
+    return () => clearTimeout(timer);
+  }, [stampMotion, stampImpact]);
   const atoAt = base + 700;
   const afterAto = atoAt + (free || hasAto ? 500 : 0);
   const end = afterAto + installments.length * 260 + 300;
   return (
     <div className={`${styles.sceneInner} ${styles.valInner}`}>
-      <div className={styles.valBody}>
+      <div className={`${styles.valBody} ${stampMotion ? styles.valShake : ""}`} style={stampMotion ? { "--shake": `${stampImpact}ms` } : undefined}>
       <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": d(150) }}>
         <span className={styles.rowLabel}>Valor do imóvel</span>
         <span className={styles.rowValue}><Count value={scene.valorImovel} reduced={reduced || fast} duration={1300} delay={fast ? 0 : 250} /></span>
@@ -337,6 +346,15 @@ function SceneValores({ scene, onNext, last, nextIsDiscounts, reduced, fast }) {
               <strong>{formatBRL(line.value)}</strong>
             </p>
           ))}
+        </div>
+      ) : null}
+      {hasTotal ? (
+        <div className={`${styles.valStampWrap} ${stampMotion ? styles.valStampGo : styles.rise}`} style={{ "--d": d(totalAt) }}>
+          <div className={styles.valStamp}>
+            <span>Total de descontos</span>
+            {/* o número já chega inteiro, como um carimbo (sem contador) */}
+            <strong><Count value={scene.totalDescontos} reduced /></strong>
+          </div>
         </div>
       ) : null}
       {hasEntry ? (
@@ -370,28 +388,6 @@ function SceneValores({ scene, onNext, last, nextIsDiscounts, reduced, fast }) {
       ) : null}
       </div>
       <div className={`${styles.propActions} ${styles.valActions} ${styles.rise}`} style={{ "--d": d(end) }}>
-        <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
-          {last ? "Continuar" : nextIsDiscounts ? "Ver total de descontos" : "Próximo imóvel"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Cena do RAMO depois dos valores do imóvel (pedido do dono, 2026-10-06): o TOTAL DE DESCONTOS sozinho, grande, entrando com
- *  efeito pop-in (cresce com um leve "quique") e o número subindo até o valor. Mesmo número da soma das linhas da cena anterior
- *  (calculado no servidor, buildPropertyValues); aqui só formata. Movimento reduzido: aparece direto, sem escala. */
-function SceneDescontos({ scene, onNext, last, reduced, fast }) {
-  const d = (ms) => (fast ? "0ms" : `${ms}ms`);
-  return (
-    <div className={`${styles.sceneInner} ${styles.discInner}`}>
-      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": d(100) }}>{scene.name}</p>
-      <div className={styles.discPop} style={{ "--d": d(350) }}>
-        <span className={styles.discLabel}>Total de descontos</span>
-        <span className={styles.discValue}><Count value={scene.total} reduced={reduced || fast} duration={1200} delay={fast ? 0 : 650} /></span>
-      </div>
-      <p className={`${styles.note} ${styles.rise}`} style={{ "--d": d(1700) }}>Somando descontos e benefícios deste imóvel.</p>
-      <div className={`${styles.propActions} ${styles.discActions} ${styles.rise}`} style={{ "--d": d(2000) }}>
         <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
           {last ? "Continuar" : "Próximo imóvel"}
         </button>
@@ -488,8 +484,7 @@ function renderScene(scene, ctx) {
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
     case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />;
-    case "valores": return <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsDiscounts={ctx.nextIsDiscounts} reduced={ctx.reduced} fast={ctx.fast} />;
-    case "descontos": return <SceneDescontos scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />;
+    case "valores": return <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
@@ -690,7 +685,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", nextIsDiscounts: inBranch && flat[branchIndex + 1]?.id === "descontos", fast: returned };
+  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned };
 
   return (
     <div
