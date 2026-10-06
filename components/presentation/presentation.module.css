@@ -540,6 +540,8 @@
 /* o corpo rola sozinho (telas baixas); o botão fica fixo embaixo e nada vaza para o rodapé da logo */
 .valBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none; display: flex; flex-direction: column; }
 .valBody::-webkit-scrollbar { display: none; }
+/* folga lateral (= margem da cena) para o selo ampliado do total não ser cortado pela área que rola; o resto não se move */
+.valInner .valBody { margin-inline: calc(var(--u) * -24); padding-inline: calc(var(--u) * 24); }
 .valBody > :first-child { margin-top: auto; }
 .valBody > :last-child { margin-bottom: auto; }
 .valHero { margin-top: 0; padding: calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 16); text-align: center; border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
@@ -601,9 +603,11 @@
 }
 /* TOTAL DE DESCONTOS como CARIMBO (pedido do dono 2026-10-06): selo com borda dupla, levemente inclinado, que "bate" na tela vindo
    grande e girado, com impacto (achatamento + rebote), onda de choque saindo do selo e tremida da cena no mesmo instante. */
-.valStampWrap { position: relative; margin: calc(var(--u) * 12) auto calc(var(--u) * 2); width: fit-content; max-width: 100%; }
+.valStampWrap { position: relative; z-index: 2; margin: calc(var(--u) * 12) auto calc(var(--u) * 2); width: fit-content; max-width: 100%; }
 .valStamp {
-  position: relative; transform: rotate(-3deg); text-align: center;
+  /* --stamp-scale: maior SÓ no desenho (pedido do dono 2026-10-06), sem mudar o espaço da cena: o selo invade um pouco a linha de cima e a de baixo */
+  --stamp-scale: 1.25;
+  position: relative; transform: rotate(-3deg) scale(var(--stamp-scale)); text-align: center;
   padding: calc(var(--u) * 8) calc(var(--u) * 22) calc(var(--u) * 10);
   border: 3px solid #fff; border-radius: calc(var(--u) * 14);
   outline: 2px solid var(--sky); outline-offset: calc(var(--u) * 4);
@@ -611,7 +615,7 @@
   box-shadow: 0 0 0 calc(var(--u) * 9) rgba(23, 105, 209, 0.18), 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.55), 0 0 calc(var(--u) * 46) rgba(91, 164, 245, 0.55);
 }
 .valStamp > span { display: block; font-size: max(13px, calc(var(--u) * 15)); font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #dcebfc; }
-.valStamp > strong { display: block; margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.11)); line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 2px 0 rgba(2, 12, 24, 0.35); }
+.valStamp > strong { display: block; margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.105)); line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 2px 0 rgba(2, 12, 24, 0.35); }
 .valStampGo { opacity: 0; animation: stampSlam 0.55s cubic-bezier(0.3, 0, 0.2, 1) both; animation-delay: var(--d, 0ms); }
 .valStampGo::after {
   content: ""; position: absolute; inset: calc(var(--u) * -6); border: 3px solid rgba(156, 195, 245, 0.9); border-radius: calc(var(--u) * 20);
@@ -626,7 +630,7 @@
   84% { transform: scale(1.05) rotate(-1deg); }
   100% { opacity: 1; transform: scale(1) rotate(0deg); }
 }
-@keyframes stampWave { 0% { opacity: 0.95; transform: rotate(-3deg) scale(1); } 100% { opacity: 0; transform: rotate(-3deg) scale(1.45, 1.9); } }
+@keyframes stampWave { 0% { opacity: 0.95; transform: rotate(-3deg) scale(1.25); } 100% { opacity: 0; transform: rotate(-3deg) scale(1.75, 2.25); } }
 @keyframes stampShake {
   0%, 100% { transform: none; }
   15% { transform: translate(-5px, 3px) rotate(-0.6deg); }
@@ -643,6 +647,7 @@
   .valStampWrap { margin-top: calc(var(--u) * 10); }
   .valStamp { padding: calc(var(--u) * 8) calc(var(--u) * 18) calc(var(--u) * 10); }
   .valStamp > strong { font-size: min(calc(var(--u) * 36), calc(var(--cw) * 0.1)); }
+  .valStamp { --stamp-scale: 1.15; }
 }
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .scene[data-scene="valores"] { --u: calc(var(--u0) * 0.8); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u0) * 40); }

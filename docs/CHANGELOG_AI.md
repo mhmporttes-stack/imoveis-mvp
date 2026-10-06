@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: selo "Total de descontos" maior (sobre as linhas vizinhas)
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (cena de valores do imóvel)
+- **Alteração:** o selo do total cresce só no desenho (`--stamp-scale: 1.25`, 1.15 em tela baixa), sem mudar o espaço da cena: avança um pouco sobre a linha de cima e a de baixo, por cima delas (`z-index`). Teto da fonte do número 0,105 × largura do palco, para valores de 6 dígitos ainda caberem. A onda do impacto acompanha a nova escala. A área que rola ganhou folga lateral igual à margem da cena, para o selo não ser cortado. Nada mais mudou.
+- **Motivo:** pedido do dono ("aumente um pouco o total de descontos mesmo que sobreponha um pouco da linha superior e inferior; não altere mais nada").
+- **Arquivos afetados:** `components/presentation/presentation.module.css`.
+- **Risco/observação:** a vitrine usa uma fonte de fallback mais larga que a do site, e lá o selo fica quase na largura da tela. Na fonte real (medida pela captura do dono) fica com cerca de 200 px de 390. Testes de apresentação passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Parcelas da entrada: sempre o maior parcelamento da regra (fim do "1x" por falta do máximo)
 - **Data:** 2026-10-06
 - **Área:** Simulação de entrada (motor) · Apresentação · card → Empreendimento · PDF Proposta de Valores
