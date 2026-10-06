@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Meta Diária do administrador mais rápida (menos consultas ao banco)
+- **Data:** 2026-10-06
+- **Área:** Meta Diária / Banco / Desempenho
+- **Alteração:** (1) índices em `daily_goal_rounds` (`(prospecting_contact_id, status, ended_at)` e `(status, ended_at)`): a hibernação do retorno automático (cron de 2 min) passou de ~227 ms para ~2 ms; (2) a visão da equipe (`getOwnerTeamDailyOverview`) calcula a carteira só de quem aparece na lista (antes, de todos os perfis, inclusive inativos/dono/gestores), roda carteira e pendentes em paralelo e usa memória POR REQUISIÇÃO (`lib/request-memo.mjs`) para não repetir os mesmos números do corretor. Medido no mesmo ambiente: 214 → 155 consultas e ~10,4 s → ~8,2 s por abertura (a maior parte do tempo restante é latência de rede por consulta).
+- **Motivo:** relato do dono — CRM lento e Meta Diária demorando para carregar no acesso dele.
+- **Arquivos afetados:** `supabase/migrations/20261006150000_daily_goal_rounds_contact_status_idx.sql`, `lib/request-memo.mjs`, `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `tests/request-memo.test.mjs`
+- **Risco/observação:** a memória vale só dentro de UMA requisição (nunca entre requisições). Ainda ficam ~155 consultas por abertura; próximo passo seria agrupar os pendentes de todos os corretores numa consulta só (`calendar_activities` 22×, `daily_goal_rounds` 18×).
+- **Autor:** Claude Code
 ### 2026-10-06 — Histórico do cliente abre por cima da ficha (card)
 - **Data:** 2026-10-06
 - **Área:** Frontend / Clientes
