@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Transferência manual não é mais desfeita pela fila de espera da roleta
+- **Data:** 2026-10-06
+- **Área:** Roleta / Clientes
+- **Alteração:** atribuir um cliente a um corretor (`updateSimulationRegistration` com `responsibleUserId`) zera `pending_distribution_at`; a roleta (`reassignPendingRouletteLeads`) só entrega cliente sem responsável ou segurado pelo dono e tira da fila quem já tem corretor (`lib/pending-roulette-core.mjs`).
+- **Motivo:** caso real — cliente do Link Geral (roleta), sem ninguém on-line, ficou com o dono (FUN-11) e na fila de espera; o dono transferiu para a Izabela e 4 min depois a roleta o entregou ao Bencke.
+- **Arquivos afetados:** `lib/simulation-registrations.js`, `lib/lead-distribution.js`, `lib/pending-roulette-core.mjs`, `tests/pending-roulette.test.mjs`
+- **Risco/observação:** o link pessoal do dono (`/simulacao?ref=matheus`) já é direto (fora da roleta); o "Link Geral do Site" (`/simulacao` sem ref) vai para a roleta por desenho (2026-09-30).
+- **Autor:** Claude Code
 ### 2026-10-06 — Nenhum cliente sem responsável + notificações só de cliente novo e atividade agendada
 - **Data:** 2026-10-06
 - **Área:** Clientes / Roleta / Prospecção / Notificações
