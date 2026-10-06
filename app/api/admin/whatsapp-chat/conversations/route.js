@@ -16,7 +16,8 @@ export async function GET(request) {
       filter: params.get("filter") || "all",
       query: params.get("q") || "",
       before: params.get("before") || "",
-      brokerId: params.get("brokerId") || ""
+      brokerId: params.get("brokerId") || "",
+      clientStatus: params.get("clientStatus") || ""
     }, auth);
     return NextResponse.json({ conversations });
   } catch (error) {

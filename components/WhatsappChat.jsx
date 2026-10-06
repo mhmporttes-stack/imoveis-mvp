@@ -109,7 +109,7 @@ function formatPhone(phone) {
   return phone || "";
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "" }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", canSeeArchived = false }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
@@ -125,6 +125,10 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   }, []);
   const [brokers, setBrokers] = useState([]);
   const [filter, setFilter] = useState("all");
+  // Filtro pela ETAPA do cliente (pedido do dono 2026-10-06), aplicado no servidor; "" = todas.
+  const [clientStatus, setClientStatus] = useState("");
+  const clientStatusRef = useRef(clientStatus);
+  clientStatusRef.current = clientStatus;
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState([]);
@@ -195,6 +199,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     try {
       const params = new URLSearchParams({ filter: filterRef.current });
       if (searchRef.current) params.set("q", searchRef.current);
+      if (clientStatusRef.current) params.set("clientStatus", clientStatusRef.current);
       if (scopedBrokerRef.current) params.set("brokerId", scopedBrokerRef.current.id);
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
@@ -254,7 +259,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   useEffect(() => {
     loadList();
-  }, [filter, search, scopedBroker, loadList]);
+  }, [filter, search, scopedBroker, clientStatus, loadList]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -398,6 +403,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             filter={filter}
             loading={listLoading}
             onFilter={setFilter}
+            clientStatus={clientStatus}
+            onClientStatus={setClientStatus}
+            canSeeArchived={canSeeArchived}
             onSearch={setSearchInput}
             onSelect={openConversation}
             search={searchInput}
@@ -482,7 +490,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   );
 }
 
-function ConversationList({ className, conversations, error, filter, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread }) {
+function ConversationList({ className, conversations, error, filter, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false }) {
+  // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
+  const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
     <div className={`${className} min-h-0 min-w-0 flex-col`}>
       <div className="space-y-3 border-b border-line p-4">
@@ -517,6 +527,21 @@ function ConversationList({ className, conversations, error, filter, loading, on
             </button>
           ))}
         </div>
+        <label className="flex items-center gap-2 text-xs font-extrabold text-navy">
+          <span className="shrink-0">Status do cliente</span>
+          <select
+            className={`h-10 min-w-0 flex-1 rounded-2xl border bg-white px-3 text-sm font-bold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 ${clientStatus ? "border-brand text-brand" : "border-line text-navy"}`}
+            value={clientStatus}
+            onChange={(event) => onClientStatus(event.target.value)}
+            data-client-status-filter=""
+          >
+            <option value="">Todos os status</option>
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.filterLabel || option.label}</option>
+            ))}
+          </select>
+        </label>
+        {clientStatus === "archived" ? <p className="text-xs font-semibold text-muted">Conversas de clientes arquivados: só você vê, e só para leitura.</p> : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -526,7 +551,7 @@ function ConversationList({ className, conversations, error, filter, loading, on
         ) : null}
         {!loading && !error && !conversations.length ? (
           <p className="p-8 text-center text-sm font-bold text-muted">
-            {search || filter !== "all" ? "Nenhuma conversa neste filtro." : "Nenhuma conversa ainda. Quando alguém escrever para o número oficial, aparece aqui."}
+            {search || filter !== "all" || clientStatus ? "Nenhuma conversa neste filtro." : "Nenhuma conversa ainda. Quando alguém escrever para o número oficial, aparece aqui."}
           </p>
         ) : null}
         {conversations.map((conversation) => (

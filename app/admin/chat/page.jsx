@@ -3,6 +3,7 @@ import WhatsappChat from "@/components/WhatsappChat";
 import { requireWhatsappAccessPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { isChatDisabled, isChatRestrictedProfile } from "@/lib/chat-control";
+import { isArchivedChatViewer } from "@/lib/whatsapp-chat-scope.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function ChatPage({ searchParams }) {
   return (
     <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="chat" />
-      <WhatsappChat canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} initialClientId={typeof params.client === "string" ? params.client : ""} />
+      <WhatsappChat canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} />
     </main>
   );
 }
