@@ -44,6 +44,19 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Gerador: caixas "Imóvel novo" / "Imóvel usado" (simulação de um tipo só)
+- **Data:** 2026-10-06
+- **Área:** Gerador de simulação · PDF · Apresentação
+- **Alteração:** na Etapa B do Gerador há duas caixas, "Imóvel novo" e "Imóvel usado", marcadas por padrão e com pelo menos uma sempre marcada.
+  - Desmarcar apaga os valores daquele tipo e esconde o quadro dele. A cópia automática de financiamento e parcelas (`SYNCED_MODEL_FIELDS`) deixa de preencher esse tipo.
+  - Assim, PDF, imagem e apresentação mostram só o tipo marcado, sem comparação ou cena de diferença.
+  - Marcar de novo copia financiamento e parcelas do outro tipo; o subsídio fica em branco.
+  - Nada novo é gravado: "ativo = tem valor" (`enabledModelsFromModels`, `toggleSimulationModel` em `lib/simulation-models.js`).
+- **Motivo:** pedido do dono. Às vezes o cliente só quer novo ou só usado, e a comparação é informação desnecessária. Causa de a comparação aparecer: a cópia automática preenchia também o outro tipo.
+- **Arquivos afetados:** `lib/simulation-models.js`, `components/SimulationGenerator.jsx`, `tests/simulation-model-toggle.test.mjs`.
+- **Risco/observação:** o estado das caixas é inferido dos valores. Uma simulação antiga com os dois tipos preenchidos abre com as duas marcadas, como hoje. Não testado com login real (só testes unitários e build).
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação de aprovação (chave manual no link da simulação)
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação · Banco

@@ -16,6 +16,8 @@ import {
 } from "@/lib/simulation-registration-format";
 import {
   SIMULATION_MODEL_TYPES,
+  enabledModelsFromModels,
+  toggleSimulationModel,
   extractSimulationModelsFromNote,
   getPrimarySimulationModel,
   getRenderableSimulationModels,
@@ -104,6 +106,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const autoSaveRequestRef = useRef(null);
   const lastSavedPayloadRef = useRef(JSON.stringify(serializeForm(form)));
   const syncingFieldsRef = useRef(createModelSyncState(form));
+  // Caixas "Imóvel novo" / "Imóvel usado" (pedido do dono 2026-10-06): tipo desligado some da simulação, sem comparação.
+  const [enabledModels, setEnabledModels] = useState(() => enabledModelsFromModels(form.simulationModels));
+  const enabledModelsRef = useRef(enabledModels);
+  enabledModelsRef.current = enabledModels;
   const [caixaLogoDataUri, setCaixaLogoDataUri] = useState("");
   const [simulationAssetDataUris, setSimulationAssetDataUris] = useState({
     financingIconDataUri: "",
@@ -324,7 +330,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   function updateSimulationModel(type, field, value) {
     setForm((current) => {
       const models = normalizeSimulationModels(current.simulationModels, current);
-      const peerType = MODEL_PEER[type];
+      // tipo desligado nas caixas não recebe a cópia automática (senão voltaria a aparecer no PDF/apresentação)
+      const peerType = enabledModelsRef.current[MODEL_PEER[type]] === false ? null : MODEL_PEER[type];
       const syncState = syncingFieldsRef.current[field] || { linked: true, lastSource: "", lastValue: "" };
       const currentValue = models[type]?.[field] || "";
       const peerValue = peerType ? (models[peerType]?.[field] || "") : "";
@@ -383,6 +390,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         }
       };
     });
+  }
+
+  function setModelEnabled(type, on) {
+    const current = normalizeSimulationModels(formRef.current.simulationModels, formRef.current);
+    const result = toggleSimulationModel(current, enabledModelsRef.current, type, on);
+    if (!result) return; // nunca os dois desligados
+    setEnabledModels(result.enabled);
+    const remaining = SIMULATION_MODEL_TYPES.find(({ key }) => result.enabled[key])?.key || "novo";
+    // os valores já estão no formato da tela: copia como estão (sem reformatar)
+    setForm((form) => ({ ...form, simulationType: on ? type : remaining, simulationModels: result.models }));
   }
 
   function addProperty(property) {
@@ -884,8 +901,26 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             </label>
           </div>
 
+          <fieldset className="mt-5 rounded-2xl border border-blue-100 bg-white p-4">
+            <legend className="px-1 text-sm font-extrabold text-ink">Tipos de imóvel desta simulação</legend>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {SIMULATION_MODEL_TYPES.map(({ key, label }) => {
+                const onlyOne = enabledModels[key] && SIMULATION_MODEL_TYPES.filter((item) => enabledModels[item.key]).length === 1;
+                return (
+                  <label key={key} className={`flex min-h-11 items-center gap-2 text-sm font-bold text-navy ${onlyOne ? "opacity-70" : "cursor-pointer"}`}>
+                    <input type="checkbox" className="h-5 w-5 accent-brand" checked={Boolean(enabledModels[key])} disabled={onlyOne} onChange={(event) => setModelEnabled(key, event.target.checked)} data-model-toggle={key} />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              Desmarque o tipo que o cliente não quer: os valores dele são apagados e a simulação (PDF, imagem e apresentação) mostra só o outro, sem comparação entre novo e usado.
+            </p>
+          </fieldset>
+
           <div className="mt-5 grid gap-5">
-            {SIMULATION_MODEL_TYPES.map(({ key, label }) => (
+            {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => (
               <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
