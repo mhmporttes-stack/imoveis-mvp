@@ -39,6 +39,26 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Histórico do cliente fica atrás do card
+- **Data:** 2026-10-06
+- **Sintoma:** ao clicar no ícone de histórico (relógio) no card/ficha do cliente, o painel "Minha Jornada" abre atrás do card, no app e no computador.
+- **Área:** Frontend
+- **Impacto:** histórico inacessível na ficha aberta (mesma classe do incidente de Documentação de 2026-10-01).
+- **Causa raiz:** a ficha é um `<dialog>` com `showModal()` (camada de topo); o modal do histórico era um `div fixed z-[100]`, que nunca fica acima da camada de topo.
+- **Correção:** o histórico virou `<dialog>` com `showModal()`.
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-06)
+- **Prevenção/teste:** `tests/client-journey-modal-layer.test.mjs`
+- **Status:** Resolvido
+### 2026-10-06 — Cliente transferido de volta pela roleta depois que o dono já tinha transferido
+- **Data:** 2026-10-06
+- **Sintoma:** "eu transfiro para um corretor e depois ele transfere de novo, algum sistema de roleta".
+- **Área:** Roleta
+- **Impacto:** transferência manual desfeita em minutos (1 caso confirmado; Link Geral sem corretor on-line).
+- **Causa raiz:** o lead da roleta sem corretor on-line fica na fila de espera (`pending_distribution_at`); a transferência manual mudava o responsável mas não limpava a marca, e a roleta entrega qualquer cliente marcado, sem olhar o responsável.
+- **Correção:** transferência explícita limpa a marca e a roleta ignora quem já tem corretor que não seja o dono.
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-06)
+- **Prevenção/teste:** `tests/pending-roulette.test.mjs`
+- **Status:** Resolvido
 
 ### 2026-10-05 — Corretora não acha, pelo telefone, o cliente que ela disparou
 - **Data:** 2026-10-05

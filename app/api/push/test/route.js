@@ -13,6 +13,7 @@ export async function POST(request) {
 
   try {
     const result = await sendPushToUser(auth.profile?.id, {
+      kind: "test",
       title: "Painel Matheus",
       body: "Notificações push ativadas com sucesso.",
       url: "/admin/simulacoes"

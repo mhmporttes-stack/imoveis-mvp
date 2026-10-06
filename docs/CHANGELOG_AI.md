@@ -43,6 +43,30 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Histórico do cliente abre por cima da ficha (card)
+- **Data:** 2026-10-06
+- **Área:** Frontend / Clientes
+- **Alteração:** o modal "Jornada e histórico" (`components/ClientJourneyActions.jsx`) passou de `div fixed z-[100]` para `<dialog>` nativo com `showModal()`, igual ao modal de Documentação.
+- **Motivo:** relato do dono (celular e computador): o histórico ficava ATRÁS do card do cliente — a ficha (Sheet) é um `<dialog>` na camada de topo do navegador e nenhum z-index passa por cima dela.
+- **Arquivos afetados:** `components/ClientJourneyActions.jsx`, `tests/client-journey-modal-layer.test.mjs`
+- **Risco/observação:** outros modais que abram de dentro da ficha e usem `div fixed` têm o mesmo risco; só este foi reportado/corrigido.
+- **Autor:** Claude Code
+### 2026-10-06 — Transferência manual não é mais desfeita pela fila de espera da roleta
+- **Data:** 2026-10-06
+- **Área:** Roleta / Clientes
+- **Alteração:** atribuir um cliente a um corretor (`updateSimulationRegistration` com `responsibleUserId`) zera `pending_distribution_at`; a roleta (`reassignPendingRouletteLeads`) só entrega cliente sem responsável ou segurado pelo dono e tira da fila quem já tem corretor (`lib/pending-roulette-core.mjs`).
+- **Motivo:** caso real — cliente do Link Geral (roleta), sem ninguém on-line, ficou com o dono (FUN-11) e na fila de espera; o dono transferiu para a Izabela e 4 min depois a roleta o entregou ao Bencke.
+- **Arquivos afetados:** `lib/simulation-registrations.js`, `lib/lead-distribution.js`, `lib/pending-roulette-core.mjs`, `tests/pending-roulette.test.mjs`
+- **Risco/observação:** o link pessoal do dono (`/simulacao?ref=matheus`) já é direto (fora da roleta); o "Link Geral do Site" (`/simulacao` sem ref) vai para a roleta por desenho (2026-09-30).
+- **Autor:** Claude Code
+### 2026-10-06 — Nenhum cliente sem responsável + notificações só de cliente novo e atividade agendada
+- **Data:** 2026-10-06
+- **Área:** Clientes / Roleta / Prospecção / Notificações
+- **Alteração:** (1) A rede de segurança `reassignOrphanedClientsToOwner` passa a cobrir TODO cliente sem responsável (inclusive devolvido à fila e fila de espera da roleta): devolvido volta ao corretor que o tinha; senão o dono segura e a roleta o entrega ao 1º corretor on-line; lead novo sem corretor on-line já nasce com o dono. (2) Política de notificações deny-by-default: `sendPushToUser` só envia `kind` permitido (cliente novo, transferência, atividade agendada, teste) e o gatilho `crm_notifications_policy` descarta no sino qualquer outro tipo; avisos antigos de tipos extintos foram marcados como lidos.
+- **Motivo:** pedido do dono — "não deve haver clientes sem corretor responsável; em último caso atribua a mim até um corretor ficar on-line e aí transfere automaticamente" e "notificações apenas para novos clientes e tarefas agendadas".
+- **Arquivos afetados:** `lib/client-distribution-core.mjs`, `lib/simulation-registrations.js`, `lib/notification-policy-core.mjs`, `lib/push-subscriptions.js`, `lib/crm-automations.js`, `lib/admin-profiles.js`, `lib/scheduled-activity-notifications.js`, `lib/lead-distribution.js`, `lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-flows.js`, `app/api/push/test/route.js`, `supabase/migrations/20261006100000_crm_notifications_policy.sql`, `tests/client-distribution-core.test.mjs`, `tests/notification-policy.test.mjs`
+- **Risco/observação:** a regra P-05 (devolvido à fila fica sem responsável) foi SUBSTITUÍDA; o cartão do cliente devolvido volta a ficar na lista do corretor que disparou (rede em até 2 min). Central de Alertas (popups), alerta sonoro e e-mails NÃO foram alterados — perguntar ao dono se também devem sair. Quem estava em "Aguardando distribuição" com responsável nulo passa a aparecer como do dono (rótulo da lista usa `pendingDistributionAt`).
+- **Autor:** Claude Code
 
 ### 2026-10-06 — Gerador: caixas "Imóvel novo" / "Imóvel usado" (simulação de um tipo só)
 - **Data:** 2026-10-06

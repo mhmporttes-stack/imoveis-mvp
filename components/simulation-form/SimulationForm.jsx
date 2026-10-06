@@ -185,7 +185,8 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       setCompletionView(nextContext.id && nextContext.preferencesAccessToken ? "invite" : "success");
 
       const totalIncome = validation.data.primaryMonthlyIncome + (validation.data.secondaryMonthlyIncome || 0);
-      trackMetaLead({ phone: validation.data.phoneNormalized, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
+      // Só conta lead na Meta quando virou cadastro novo no CRM (mesma regra do servidor).
+      if (data.isNewRegistration !== false) trackMetaLead({ phone: validation.data.phoneNormalized, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
     } finally {

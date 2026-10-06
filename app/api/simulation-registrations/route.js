@@ -55,7 +55,8 @@ export async function POST(request) {
       {
         ok: true,
         registrationId: registration.id,
-        preferencesAccessToken: registration.preferencesAccessToken || ""
+        preferencesAccessToken: registration.preferencesAccessToken || "",
+        isNewRegistration: registration.isNewRegistration !== false
       },
       { status: 201 }
     );

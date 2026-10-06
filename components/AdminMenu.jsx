@@ -138,6 +138,7 @@ const ownerGroups = [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report"] },
       { href: "/admin/desempenho/online", label: "Online", key: "online" },
+      { href: "/admin/desempenho/reentradas", label: "Reentradas", key: "reentries" },
       { href: "/admin/desempenho/auditoria", label: "Auditoria", key: "audit" }
     ]
   },
