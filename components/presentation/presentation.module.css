@@ -212,17 +212,18 @@
 /* FINANCIAMENTO + SUBSÍDIO: tudo no MESMO eixo (centralizado no celular; na coluna dos rótulos no desktop). O "+" é um item
    do fluxo, com o mesmo respiro acima e abaixo, e nenhuma divisória passa por baixo dele. */
 .rowsSoma .rowPart { border-bottom: 0; align-items: center; text-align: center; padding-top: calc(var(--u) * 12); padding-bottom: calc(var(--u) * 12); }
+.rowsSoma .rowPart .rowValue { font-size: min(calc(var(--u) * 46), calc(var(--cw) * 0.12)); }
 .plus { display: flex; justify-content: center; align-items: center; margin: calc(var(--u) * 2) 0; position: relative; z-index: 1; }
 .plus span { display: grid; place-items: center; width: calc(var(--u) * 40); height: calc(var(--u) * 40); border-radius: 999px; border: 1.5px solid rgba(156, 195, 245, 0.5); background: rgba(23, 105, 209, 0.22); color: #fff; font-size: calc(var(--u) * 26); line-height: 1; font-weight: 500; box-shadow: 0 0 calc(var(--u) * 16) rgba(23, 105, 209, 0.45); }
 .rowTotal { display: block; text-align: center; margin-top: calc(var(--u) * 20); padding: calc(var(--u) * 26) calc(var(--u) * 16) calc(var(--u) * 28); border: 1px solid rgba(156, 195, 245, 0.4); border-radius: calc(var(--u) * 26); background: linear-gradient(160deg, rgba(23, 105, 209, 0.55), rgba(13, 59, 102, 0.5)); box-shadow: 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 12, 24, 0.35); }
 .rowTotal .rowLabel { display: block; color: #cfe3fa; }
-.rowTotal .rowValue { display: block; margin-top: calc(var(--u) * 10); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.118)); letter-spacing: -0.02em; }
+.rowTotal .rowValue { display: block; margin-top: calc(var(--u) * 10); font-size: min(calc(var(--u) * 60), calc(var(--cw) * 0.14)); letter-spacing: -0.02em; }
 
 /* parcelas (+ taxa de juros ao ano, se houver) */
 .stats { margin: calc(var(--u) * 26) auto 0; max-width: calc(var(--u) * 420); }
 .stat { text-align: center; padding: calc(var(--u) * 28) calc(var(--u) * 14) calc(var(--u) * 30); border-radius: calc(var(--u) * 26); background: var(--panel); border: 1px solid var(--panel-line); }
 .statLabel { font-size: max(13px, calc(var(--u) * 15)); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.statValue { display: block; margin-top: calc(var(--u) * 8); font-size: min(calc(var(--u) * 62), calc(var(--cw) * 0.15)); line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.statValue { display: block; margin-top: calc(var(--u) * 8); font-size: min(calc(var(--u) * 60), calc(var(--cw) * 0.14)); line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .statValueSmall { display: block; white-space: nowrap; font-size: max(22px, calc(var(--u) * 30)); line-height: 1.1; font-weight: 780; font-variant-numeric: tabular-nums; color: var(--accent); }
 .statRate .statLabel { white-space: nowrap; }
 .statRate { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--u) * 4) 12px; margin-top: calc(var(--u) * 16); padding: calc(var(--u) * 16) calc(var(--u) * 22); text-align: left; background: var(--bg); border-radius: calc(var(--u) * 20); border: 1px solid var(--line); }
@@ -547,13 +548,31 @@
 /* sem logo da Caixa nesta cena: some o rodapé claro e o espaço dela passa a ser do botão, que desce para a base */
 .scene[data-scene="valores"] { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 22); }
 .root[data-scene="valores"] .frame::before { opacity: 0; }
-/* compacto: valor do imóvel + até 5 linhas + total + entrada com ato e parcelas cabem em 375x667 sem rolar */
-.valInner .valHero { padding: calc(var(--u) * 10) calc(var(--u) * 14) calc(var(--u) * 12); }
-.valInner .valHero .rowValue { margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.11)); }
-.valInner .valRow { padding: calc(var(--u) * 5) calc(var(--u) * 4); gap: calc(var(--u) * 8); }
-.valInner .valRow > span { letter-spacing: 0.03em; }
-.valInner .valEntry { margin-top: calc(var(--u) * 8); padding: calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * 2); }
-.valInner .valFree { margin: 0 0 calc(var(--u) * 4); padding: calc(var(--u) * 8) calc(var(--u) * 12); }
+/* números GRANDES (pedido do dono 2026-10-06: no celular sobrava meia tela vazia acima do valor do imóvel) */
+.valInner .valHero { padding: calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 16); }
+.valInner .valHero .rowValue { margin-top: calc(var(--u) * 4); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.135)); }
+.valInner .valRow { padding: calc(var(--u) * 9) calc(var(--u) * 4); gap: calc(var(--u) * 10); align-items: center; }
+.valInner .valRow > span { letter-spacing: 0.03em; font-size: max(12.5px, calc(var(--u) * 13.5)); }
+.valInner .valRow > strong { font-size: min(max(20px, calc(var(--u) * 24)), calc(var(--cw) * 0.068)); font-weight: 800; }
+.valInner .valRow.valTotal > strong { font-size: min(max(24px, calc(var(--u) * 30)), calc(var(--cw) * 0.085)); }
+.valInner .valEntry { margin-top: calc(var(--u) * 14); padding: calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 4); }
+.valInner .valEntryValue { font-size: min(calc(var(--u) * 40), calc(var(--cw) * 0.1)); }
+.valInner .valEntry .valRow > strong { font-size: min(max(18px, calc(var(--u) * 21)), calc(var(--cw) * 0.058)); }
+.valInner .valFree { margin: calc(var(--u) * 2) 0 calc(var(--u) * 6); padding: calc(var(--u) * 10) calc(var(--u) * 12); }
+.valInner .valFree strong { font-size: max(20px, calc(var(--u) * 24)); }
+/* compacto (telas baixas, ex.: 375x667): volta ao tamanho anterior para caber sem rolar */
+@media (max-height: 720px) {
+  .valInner .valHero { padding: calc(var(--u) * 10) calc(var(--u) * 14) calc(var(--u) * 12); }
+  .valInner .valHero .rowValue { margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 42), calc(var(--cw) * 0.11)); }
+  .valInner .valRow { padding: calc(var(--u) * 5) calc(var(--u) * 4); gap: calc(var(--u) * 8); }
+  .valInner .valRow > span { font-size: max(12.5px, calc(var(--u) * 13.5)); }
+  .valInner .valRow > strong, .valInner .valEntry .valRow > strong { font-size: max(18px, calc(var(--u) * 21)); }
+  .valInner .valRow.valTotal > strong { font-size: max(22px, calc(var(--u) * 26)); }
+  .valInner .valEntry { margin-top: calc(var(--u) * 8); padding: calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * 2); }
+  .valInner .valEntryValue { font-size: min(calc(var(--u) * 34), calc(var(--cw) * 0.09)); }
+  .valInner .valFree { margin: 0 0 calc(var(--u) * 4); padding: calc(var(--u) * 8) calc(var(--u) * 12); }
+  .valInner .valFree strong { font-size: max(19px, calc(var(--u) * 22)); }
+}
 .valActions { margin-top: calc(var(--u) * 10); }
 .valActions .cta { min-height: max(50px, calc(var(--u) * 54)); }
 @media (prefers-reduced-motion: reduce) {

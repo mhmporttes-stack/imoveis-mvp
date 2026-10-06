@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: números maiores nas cenas de valores
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (link público /s/)
+- **Alteração:** Na cena "valores do imóvel" os números ficaram maiores: valor do imóvel, linhas de financiamento/desconto/subsídio, total de descontos, entrada e "Sem ato". Na cena "Como esse valor é formado" também cresceram as parcelas e o "Poder total". Em telas baixas (altura até 720 px, ex.: iPhone SE) a cena de valores mantém os tamanhos anteriores para caber sem rolar. Mudança só no CSS (`.valInner …`, `.rowsSoma .rowPart .rowValue`, `.rowTotal .rowValue`), com limites pela largura do palco (`--cw`) para nada vazar.
+- **Motivo:** pedido do dono (capturas do iPhone): os números estavam pequenos e sobrava meia tela vazia.
+- **Arquivos afetados:** `components/presentation/presentation.module.css`.
+- **Risco/observação:** conferido na vitrine (`/dev/vitrine/apresentacao?ramo=2` e `?cena=2`) em 390x844 e 375x667, com 4 linhas de desconto e parcelas. Rótulo longo quebra em 2 linhas. Testes `tests/*presentation*` passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — "Baixar imagem da lista" não prende mais o app do iPhone
 - **Data:** 2026-10-06
 - **Área:** Clientes · PWA
