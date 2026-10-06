@@ -215,6 +215,14 @@ function EventRow({ event, context }) {
   );
 }
 
+// <dialog> nativo com showModal() entra na camada de topo do navegador — nenhum z-index fica acima dela.
+// A ficha do cliente (Sheet) também é um <dialog>; um modal comum (div fixed) abria ATRÁS dela
+// (relato do dono, 2026-10-06: "o histórico fica atrás do card do cliente"). Mesmo padrão do
+// ClientDocumentsModal (fix de 2026-10-01).
+function openAsModal(node) {
+  if (node && !node.open) node.showModal();
+}
+
 export default function ClientJourneyActions({ registration, canManage, responsibleName = "", tags = [] }) {
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -298,7 +306,7 @@ export default function ClientJourneyActions({ registration, canManage, responsi
       {error ? <span role="alert" className="text-red-700">{error}</span> : null}
 
       {open ? createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-label="Jornada e histórico" onMouseDown={() => setOpen(false)}>
+        <dialog ref={openAsModal} className="fixed inset-0 z-[100] m-0 flex max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4" aria-label="Jornada e histórico" onClose={() => setOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]" onMouseDown={(event) => event.stopPropagation()}>
             {/* Cabeçalho fixo: resumo do cliente */}
             <div className="shrink-0 border-b border-line bg-white p-5 sm:p-6">
@@ -368,7 +376,7 @@ export default function ClientJourneyActions({ registration, canManage, responsi
               ) : <div className="h-4" />}
             </div>
           </div>
-        </div>,
+        </dialog>,
         document.body
       ) : null}
     </div>

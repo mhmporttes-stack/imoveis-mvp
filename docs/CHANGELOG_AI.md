@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Histórico do cliente abre por cima da ficha (card)
+- **Data:** 2026-10-06
+- **Área:** Frontend / Clientes
+- **Alteração:** o modal "Jornada e histórico" (`components/ClientJourneyActions.jsx`) passou de `div fixed z-[100]` para `<dialog>` nativo com `showModal()`, igual ao modal de Documentação.
+- **Motivo:** relato do dono (celular e computador): o histórico ficava ATRÁS do card do cliente — a ficha (Sheet) é um `<dialog>` na camada de topo do navegador e nenhum z-index passa por cima dela.
+- **Arquivos afetados:** `components/ClientJourneyActions.jsx`, `tests/client-journey-modal-layer.test.mjs`
+- **Risco/observação:** outros modais que abram de dentro da ficha e usem `div fixed` têm o mesmo risco; só este foi reportado/corrigido.
+- **Autor:** Claude Code
 ### 2026-10-06 — Transferência manual não é mais desfeita pela fila de espera da roleta
 - **Data:** 2026-10-06
 - **Área:** Roleta / Clientes
