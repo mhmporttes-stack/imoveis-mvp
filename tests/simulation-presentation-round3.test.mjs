@@ -271,7 +271,8 @@ test("ramo: foto grande em revelação, características em sequência escalonad
   const player = read("components/presentation/PresentationPlayer.jsx");
   const scene = /function SceneImovel[\s\S]*?\n}\n/.exec(player)?.[0] || "";
   assert.match(scene, /styles\.photoReveal/);
-  assert.match(scene, /800 \+ i \* 240/); // entrada escalonada
+  assert.match(scene, /800 \+ i \* 320/); // entrada escalonada (carimbo, 2026-10-06)
+  assert.match(scene, /className=\{styles\.stampIn\}/);
   assert.match(scene, /styles\.propReason/);
   assert.match(scene, /\{scene\.reason\}/);
   assert.match(read("components/presentation/presentation.module.css"), /@keyframes photoReveal/);

@@ -273,6 +273,22 @@
 /* itens que entram em sequência, deslizando da esquerda */
 .slideIn { opacity: 0; animation: slideIn 0.65s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: var(--d, 0ms); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+/* destaques do imóvel: entram como CARIMBO (mesma linguagem do total de descontos), um a um. Só o MOVIMENTO muda: no fim da
+   animação cada item fica exatamente como antes (sem escala, giro ou sombra). Uma onda curta sai do marcador no impacto. */
+.stampIn { opacity: 0; transform-origin: left center; animation: stampInSlam 0.5s cubic-bezier(0.3, 0, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+.stampIn::after {
+  content: ""; position: absolute; left: calc(var(--u) * -2); top: calc(0.45em - var(--u) * 4); width: calc(var(--u) * 17); height: calc(var(--u) * 17);
+  border: 2px solid var(--sky); border-radius: 999px; opacity: 0; pointer-events: none;
+  animation: stampInWave 0.6s ease-out both; animation-delay: calc(var(--d, 0ms) + 330ms);
+}
+@keyframes stampInSlam {
+  0% { opacity: 0; transform: scale(2.4) rotate(-7deg); filter: blur(2px); }
+  60% { opacity: 1; transform: scale(1.06) rotate(-1.5deg); filter: blur(0); }
+  74% { transform: scale(0.96, 0.9); }
+  88% { transform: scale(1.02); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes stampInWave { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.6); } }
 @media (max-height: 700px) {
   .photoText { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 92); }
   .photoText h2 { font-size: max(24px, calc(var(--u) * 30)); margin-top: calc(var(--u) * 8); }
@@ -379,7 +395,8 @@
   .leave { display: none; }
   .word, .underline, .statLink, .artSun, .sheetsArt, .ringDraw { animation: none; transform: none; opacity: 1; stroke-dashoffset: 0; }
   .photo { animation: none; }
-  .photoReveal, .slideIn, .fallbackRings { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
+  .photoReveal, .slideIn, .stampIn, .fallbackRings { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
+  .stampIn::after { display: none; }
   .cta, .ghostBtn { transition: none; }
 }
 @keyframes fadeOnly { from { opacity: 0; } to { opacity: 1; } }

@@ -249,7 +249,8 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
   const [failed, setFailed] = useState(false);
   const multi = scene.count > 1;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
-  const afterBenefits = 800 + scene.benefits.length * 240;
+  // Destaques entram como CARIMBO, um a um (pedido do dono 2026-10-06: mesmo efeito do total de descontos, visual intacto).
+  const afterBenefits = 800 + scene.benefits.length * 320;
   return (
     <>
       <div className={`${styles.photoWrap} ${styles.photoReveal}`}>
@@ -284,7 +285,7 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
           {scene.benefits.length ? (
             <ul className={styles.benefits}>
               {scene.benefits.map((benefit, i) => (
-                <li key={`${i}-${benefit}`} className={styles.slideIn} style={{ "--d": d(800 + i * 240) }}>{benefit}</li>
+                <li key={`${i}-${benefit}`} className={styles.stampIn} style={{ "--d": d(800 + i * 320) }}>{benefit}</li>
               ))}
             </ul>
           ) : null}

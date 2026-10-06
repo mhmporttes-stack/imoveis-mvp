@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: destaques do imóvel entram como carimbo
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (cena do imóvel sugerido)
+- **Alteração:** os destaques (características) do imóvel trocaram o deslize da esquerda pelo mesmo efeito de carimbo do total de descontos. Cada item, um a um a cada 320 ms (antes 240 ms), vem grande (2,4x), inclinado e desfocado, bate, achata e assenta; uma onda curta sai do marcador no impacto. Só o movimento mudou: no fim cada item fica exatamente como antes (transform identidade, opacidade 1). Com movimento reduzido, só aparece.
+- **Motivo:** pedido do dono ("efeito semelhante ao do total de descontos para os destaques do imóvel; não altere o visual e aparência, apenas os efeitos da cena").
+- **Arquivos afetados:** `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-presentation-round3.test.mjs`.
+- **Risco/observação:** conferido na vitrine quadro a quadro, com o estado final medido. O card "Por que este imóvel" e a dica entram depois do último destaque (atraso recalculado). Testes de apresentação passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: selo "Total de descontos" maior (sobre as linhas vizinhas)
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (cena de valores do imóvel)
