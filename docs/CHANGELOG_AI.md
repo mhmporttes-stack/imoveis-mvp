@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Segurança de envio do WhatsApp individual: freio automático, contatos novos/dia e aquecimento
+- **Data:** 2026-10-06
+- **Área:** WhatsApp individual / Meta Diária automática / fila extra / Central de Alertas
+- **Alteração:** (1) **Freio automático** que pausa sozinho os envios do corretor com 3+ falhas de envio seguidas, taxa de resposta < 3% em 50 entregues (só com a amostra completa) ou sessão com `needs_attention:`; pausa = `daily_goal_auto_settings.paused` + `paused_reason` ("Freio automático: …"), persiste até admin/gestor liberar (`POST /api/admin/daily-goal-auto/brake`, guard `requireBrokerManagementApi`; religar/despausar pelos controles de sempre também registra a liberação); histórico/estado em `crm_settings` (`daily_goal_brake:<corretor>`); alerta via `notifyAutoBrake` reaproveitando a definição `whatsapp_session_attention` (dedupe por pausa; pausa por sessão não duplica o alerta da sessão). (2) **Limite de contatos novos/dia** (`NEW_CONTACT_DAILY_CAP = 12`): contato novo = sem conversa/mensagem prévia com o chip do corretor (`whatsapp_conversations.session_key` + envios anteriores da fila); excedente é ADIADO para o dia seguinte (item volta a `pending` com `scheduled_for` no próximo dia útil), nunca descartado nem enviado; vale para Meta Diária e fila extra (`v2GuardAfterClaim`). (3) **Aquecimento** por `warmup_start_date`: 5/10/20/30 por semana dentro de `dailyCapFor` (vale o menor com `daily_cap_override`); sem data = sem efeito; sem reinício automático.
+- **Arquivos:** `lib/whatsapp-sending-safety-core.mjs` (puro), `lib/whatsapp-sending-safety.js`, `lib/daily-goal-policy-core.mjs` (`dailyCapFor`), `lib/daily-goal-auto.js`, `lib/whatsapp-session-attention{,-core}.{js,mjs}`, `app/api/admin/daily-goal-auto/brake/route.js`; testes `tests/whatsapp-sending-safety.test.mjs`. Docs: `docs/WHATSAPP.md` §1-C, `docs/BUSINESS_RULES.md` MD-15.
+- **Migration:** nenhuma (tudo com campos/tabelas existentes).
+- **Risco/observação:** 12/dia e a escada de aquecimento são **valores sugeridos — PENDENTE DE VALIDAÇÃO**. Nenhuma tela grava `warmup_start_date` (o aquecimento só vale quando a data for preenchida). Falha atribuída ao contato (número inválido) conta nas "3 seguidas". O caminho antigo (política v2 desligada, `computeDailyAutoCap`) não recebe o aquecimento. Código novo não testado contra banco real (sem acesso nesta sessão).
+
 ### 2026-10-05 — Cliente devolvido à fila continua achável por quem disparou
 - **Data:** 2026-10-05
 - **Área:** Clientes / Prospecção / Permissões
