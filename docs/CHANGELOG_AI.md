@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — "Baixar imagem da lista" não prende mais o app do iPhone
+- **Data:** 2026-10-06
+- **Área:** Clientes · PWA
+- **Alteração:** na prévia "Enviar lista de documentos" (envio manual), o link `<a download>` virou botão. Ele busca a imagem no mesmo domínio já ao abrir a prévia. No celular abre o menu de compartilhar do sistema (Salvar imagem / WhatsApp) e no computador baixa sem trocar de página (`components/clients/documentsImageFile.js`).
+- **Motivo:** relato do dono. No app instalado do iPhone, o `<a download>` abria a pré-visualização do iOS sem botão de voltar, e era preciso fechar e reabrir o app.
+- **Arquivos afetados:** `components/clients/ClientSheet.jsx`, `components/clients/documentsImageFile.js`, `tests/documents-forecast.test.mjs`.
+- **Risco/observação:** não testado num iPhone real daqui. Outros `<a download>` do painel (book em PDF de empreendimento, mídia do Chat, certificado) podem ter o mesmo efeito no app do iPhone e não foram alterados. Testes que já falhavam no main antes desta mudança: `chat-disabled`, `prospecting-opt-out-natural`, `prospecting-reply-core`, `whatsapp-access`, `whatsapp-conversation-per-session`, `whatsapp-service-lease` e `journey-http`.
+- **Autor:** Claude Code
+
 ### 2026-10-05 — Cliente devolvido à fila continua achável por quem disparou
 - **Data:** 2026-10-05
 - **Área:** Clientes / Prospecção / Permissões

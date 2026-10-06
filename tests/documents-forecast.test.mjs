@@ -620,7 +620,13 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   const sheetDialog = read("components/clients/ClientSheet.jsx");
   assert.match(sheetDialog, /Baixar imagem da lista/);
   assert.match(sheetDialog, /não anexa imagem/);
-  assert.match(sheetDialog, /href=\{target\.link\} download/);
+  // "Baixar imagem da lista" sem <a download> (no app do iPhone ele abria a pré-visualização sem botão de voltar):
+  // busca a imagem no mesmo domínio e abre o menu de compartilhar (celular) ou baixa (computador).
+  assert.doesNotMatch(sheetDialog, /href=\{target\.link\} download/);
+  assert.match(sheetDialog, /onClick=\{saveImage\}/);
+  const helper = fs.readFileSync(new URL("../components/clients/documentsImageFile.js", import.meta.url), "utf8");
+  assert.match(helper, /navigator\.share\(\{ files: \[file\] \}\)/);
+  assert.match(helper, /sameOriginPath\(link\)/);
 });
 
 test("ficha: decisão do Chat × externo (decideCardWhatsapp) devolve o link certo e withWhatsappText acrescenta o texto", async () => {

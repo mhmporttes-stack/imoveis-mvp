@@ -27,6 +27,7 @@ import { inputClasses } from "@/components/ui/Field";
 import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS } from "@/lib/client-status";
+import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
 import {
@@ -734,6 +735,33 @@ function DoNotContactDialog({ client, onCancel, onConfirm }) {
 function DocumentsListDialog({ target, onCancel, onConfirm }) {
   const ref = useRef(null);
   const titleId = useId();
+  const [imageFile, setImageFile] = useState(null);
+  const [imageState, setImageState] = useState("idle"); // idle | loading | ready | error | done
+
+  // Busca a imagem ao abrir (envio manual): no iPhone o menu de compartilhar
+  // só abre se for chamado logo no toque, sem esperar a rede.
+  const manualLink = target?.decision?.action === "external" ? target.link : "";
+  useEffect(() => {
+    setImageFile(null);
+    if (!manualLink) { setImageState("idle"); return undefined; }
+    let cancelled = false;
+    setImageState("loading");
+    fetchDocumentsImage(manualLink)
+      .then((file) => { if (!cancelled) { setImageFile(file); setImageState("ready"); } })
+      .catch(() => { if (!cancelled) setImageState("error"); });
+    return () => { cancelled = true; };
+  }, [manualLink]);
+
+  async function saveImage() {
+    try {
+      const file = imageFile || await fetchDocumentsImage(manualLink);
+      setImageFile(file);
+      const result = await saveOrShareImage(file);
+      if (result !== "cancelled") setImageState("done");
+    } catch {
+      setImageState("error");
+    }
+  }
 
   useEffect(() => {
     const dialog = ref.current;
@@ -753,7 +781,11 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
           {external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
               <p>{target.decision?.reason === "no_conversation" || target.decision?.reason === "unknown" ? "Este cliente ainda não conversou com você pelo Chat do CRM; para proteger seu número, o envio é feito pelo WhatsApp do seu aparelho." : target.decision?.reason === "hourly_cap" ? "Você atingiu o limite de envios por hora do Chat; o envio é feito pelo WhatsApp do seu aparelho." : "Seu WhatsApp não está conectado ao CRM."} O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
-              <a href={target.link} download className="mt-2 inline-flex font-semibold text-navy underline">Baixar imagem da lista</a>
+              {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
+              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="mt-2 inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
+                {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
+              </button>
+              {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
             </div>
           ) : (
             <p className="mt-2 text-xs text-muted">A imagem da lista, com essa mensagem como legenda, será enviada pelo Chat do CRM.</p>
