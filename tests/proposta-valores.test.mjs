@@ -258,3 +258,25 @@ test("logo: PDF traz a imagem com a razão de aspecto do asset, dentro da faixa 
   const logos = out.boxes.filter((b) => b.kind === "logo");
   assert.equal(logos.length, out.pageCount, "logo repetida em todas as páginas, sempre na faixa");
 });
+
+// 2026-10-06 (pedido do dono): parcelas da entrada = SEMPRE o maior parcelamento que a regra cadastrada permite.
+// Sem "Número máximo de parcelas" nos limites o motor caía em 1x (ex.: Residencial Morumbi, só parcela mínima).
+test("ato + parcelas: sem máximo nos limites, o teto é o nº de parcelas da regra (nunca 1x por falta do campo)", () => {
+  const cliente = { rendaTotal: 7600, financiamentoAprovado: 114329.17, subsidioMcmv: 42915, parcelaFinanciamento: 1500, fgtsDisponivel: 0 };
+  const emp = (limites, numeroParcelasQuandoExcedeLimite) => ({
+    id: "t", nome: "T", valorImovel: 235000, descontos: [{ tipo: "outro", label: "Desconto", valor: 33700 }],
+    regraEntrada: { tipo: "ato_mais_parcelas", limiteParcelavel: 100000, numeroParcelasQuandoExcedeLimite, limites }
+  });
+  const bloco = (r) => r.detalhePagamento.blocos.find((b) => /parcela/i.test(b.label));
+  // caso real reproduzido: entrada 44.055,83, juros 1% → antes 1x de 44.496,39
+  const semMax = simularEntrada(cliente, emp({ parcelaMinima: 100, taxaJurosMensal: 0.01 }, 60), { atoDesejado: 0 });
+  assert.equal(Math.round(semMax.entradaTotal * 100), 4405583);
+  assert.equal(bloco(semMax).parcelas, 60);
+  assert.equal(semMax.detalhePagamento.ato, 0);
+  // máximo cadastrado continua mandando
+  assert.equal(bloco(simularEntrada(cliente, emp({ numeroMaximoParcelas: 36, taxaJurosMensal: 0.01 }, 60), { atoDesejado: 0 })).parcelas, 36);
+  // parcela mínima continua reduzindo o prazo quando necessário
+  assert.equal(bloco(simularEntrada(cliente, emp({ parcelaMinima: 30000 }, 60), { atoDesejado: 0 })).parcelas, 1);
+  // regra sem nenhum nº de parcelas: nada é inventado (comportamento anterior)
+  assert.equal(bloco(simularEntrada(cliente, emp({ parcelaMinima: 100 }, 0), { atoDesejado: 0 })).parcelas, 1);
+});

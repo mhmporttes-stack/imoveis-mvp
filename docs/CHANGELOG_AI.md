@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Parcelas da entrada: sempre o maior parcelamento da regra (fim do "1x" por falta do máximo)
+- **Data:** 2026-10-06
+- **Área:** Simulação de entrada (motor) · Apresentação · card → Empreendimento · PDF Proposta de Valores
+- **Alteração:** na estratégia "ATO + parcelas", quando a regra do empreendimento não tem "Número máximo de parcelas" nos limites, o motor deixa de usar 1 parcela. O teto passa a ser o "Nº de parcelas quando excede o limite" da própria regra (`definirTetoParcelas` em `lib/simulacao-entrada/calculator.ts`). Se o máximo estiver cadastrado, ele continua valendo. Sem nenhum dos dois campos, continua 1 (nada inventado). Nova regra SIM-4 em `docs/BUSINESS_RULES.md`.
+- **Motivo:** pedido do dono com a captura da apresentação: entrada de R$ 44.055,83 mostrada como "1x de R$ 44.496,39" (1x com juros de 1%). Reproduzido com o motor. Causa raiz já apontada em 2026-10-05: o Residencial Morumbi só tem parcela mínima R$ 100 e nenhum `numeroMaximoParcelas`, e `maiorPrazoValido` trata a falta do máximo como 1.
+- **Arquivos afetados:** `lib/simulacao-entrada/calculator.ts`, `tests/proposta-valores.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** NÃO CONFIRMADO no banco (conector Supabase com token inválido nesta sessão): se a regra do Morumbi também não tiver o "Nº de parcelas quando excede o limite", continua 1x até o dono preencher "Número máximo de parcelas" na regra do empreendimento. Parcelas digitadas à mão no card passam a respeitar esse teto. `pnpm build` limpo; suíte `node --test` sem falhas novas.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: cena do imóvel sem botão "Ver valores" e card "Por que este imóvel" redesenhado
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (ramo de imóveis sugeridos)

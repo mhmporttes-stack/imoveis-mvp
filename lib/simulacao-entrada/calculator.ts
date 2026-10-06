@@ -3,6 +3,7 @@ import type {
   Empreendimento,
   ResultadoSimulacao,
   DetalhePagamento,
+  LimitesParcela,
   BlocoPagamento,
   RegraAtoMaisParcelas,
   RegraPeriodoObraBalao,
@@ -258,6 +259,16 @@ function resolverValorParcelaMaxima(
     : rendaCliente * parcelaMaxima.percentual;
 }
 
+/** Teto de parcelas da estratégia "ATO + parcelas": o máximo cadastrado nos limites ou, na falta dele, o nº de parcelas da regra. */
+export function definirTetoParcelas(regra: RegraAtoMaisParcelas): LimitesParcela {
+  const limites = regra.limites || {};
+  const maximo = Number(limites.numeroMaximoParcelas);
+  if (Number.isFinite(maximo) && maximo > 0) return limites;
+  const daRegra = Math.floor(Number(regra.numeroParcelasQuandoExcedeLimite));
+  if (!Number.isFinite(daRegra) || daRegra < 1) return limites;
+  return { ...limites, numeroMaximoParcelas: daRegra };
+}
+
 /** Estratégia "ATO + parcelas" — replica exatamente a lógica de Terras de SP. */
 function calcularAtoMaisParcelas(
   entrada: number,
@@ -273,8 +284,14 @@ function calcularAtoMaisParcelas(
     ? regra.numeroParcelasQuandoExcedeLimite
     : undefined;
 
+  // Parcelas da entrada = SEMPRE o maior parcelamento que a regra cadastrada permite (pedido do dono, 2026-10-06).
+  // Sem "Número máximo de parcelas" nos limites, o motor caía em 1 parcela (ex.: Residencial Morumbi: só parcela mínima);
+  // agora o teto passa a ser o nº de parcelas que a própria regra já cadastra ("Nº de parcelas quando excede o limite").
+  // Sem nenhum dos dois, segue como antes (1) — nunca se inventa um prazo.
+  const limites = definirTetoParcelas(regra);
+
   const { parcelas, valorParcela, valorParcelaComJuros, sobra } =
-    resolverBlocoLinear(valorParcelavel, regra.limites, cliente.rendaTotal, parcelasFixas);
+    resolverBlocoLinear(valorParcelavel, limites, cliente.rendaTotal, parcelasFixas);
 
   ato += sobra;
 
