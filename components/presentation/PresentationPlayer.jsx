@@ -36,7 +36,7 @@ import styles from "./presentation.module.css";
 // A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
 // Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
 
-const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "proximo", "validar"]);
+const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "proximo", "validar", "aprovado", "aprovValores"]);
 const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
 const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
 const CAIXA_LOGO = "/assets/caixa-logo-transparent.png";
@@ -49,6 +49,8 @@ function announcement(scene, index, total) {
     return `Valores de ${scene.name}. Valor do imóvel ${formatBRL(scene.valorImovel)}.${entry}${ato}`;
   }
   const head = `Cena ${index + 1} de ${total}. `;
+  if (scene.id === "aprovado") return `${head}Crédito aprovado!${scene.firstName ? ` Parabéns, ${scene.firstName}!` : " Parabéns!"}`;
+  if (scene.id === "aprovValores") return `${head}Valores aprovados. Financiamento ${formatBRL(scene.financing)}.`;
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
     case "poder": return `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
@@ -245,7 +247,7 @@ function SceneDiferenca({ scene }) {
 }
 
 /** Cena do RAMO de imóveis (uma por imóvel sugerido): foto em revelação, características em sequência e a mensagem. */
-function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
+function SceneImovel({ scene, onNext, last, nextIsValues, final = false, fast }) {
   const [failed, setFailed] = useState(false);
   const multi = scene.count > 1;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
@@ -296,7 +298,8 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
         </div>
         {/* Sem botão "Ver valores" (pedido do dono 2026-10-06): quando a próxima cena é a de valores DESTE imóvel, toque/arraste
             avança (tapAction/swipeAction) e só fica uma dica discreta. Imóvel sem valores mantém o botão. */}
-        {nextIsValues && !last ? (
+        {/* `final`: última cena da apresentação de APROVAÇÃO (PRES-21) — sem botão nem dica (não há para onde ir) */}
+        {final ? null : nextIsValues && !last ? (
           <p className={`${styles.tapHint} ${styles.rise}`} style={{ "--d": d(afterBenefits + 600) }} data-tap-hint="">
             <span>Toque na tela para ver os valores <ChevronRight aria-hidden="true" /></span>
           </p>
@@ -315,7 +318,7 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
 /** Cena do RAMO logo depois da cena do imóvel (PRES-20): as condições financeiras DAQUELE imóvel, já prontas no servidor.
  *  Só mostra o que veio no DTO; os números entram com o mesmo contador das cenas de valores. `ato === 0` (informado) ganha
  *  destaque positivo; `ato` ausente nunca vira "sem ato". Sem cálculo aqui: apenas formata. */
-function SceneValores({ scene, onNext, last, reduced, fast }) {
+function SceneValores({ scene, onNext, last, final = false, reduced, fast }) {
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   const lines = [
     scene.financiamento > 0 ? { label: "Financiamento", value: scene.financiamento } : null,
@@ -399,10 +402,74 @@ function SceneValores({ scene, onNext, last, reduced, fast }) {
         </div>
       ) : null}
       </div>
-      <div className={`${styles.propActions} ${styles.valActions} ${styles.rise}`} style={{ "--d": d(end) }}>
-        <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
-          {last ? "Continuar" : "Próximo imóvel"}
-        </button>
+      {final ? null : (
+        <div className={`${styles.propActions} ${styles.valActions} ${styles.rise}`} style={{ "--d": d(end) }}>
+          <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
+            {last ? "Continuar" : "Próximo imóvel"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** APROVAÇÃO (PRES-21) · cena 1: pausa curta e o carimbo "CRÉDITO APROVADO" batendo na tela (mesma linguagem do carimbo do
+ *  total de descontos: impacto, onda, tremida e vibração no Android). Movimento reduzido: aparece direto. */
+function SceneAprovado({ scene, reduced }) {
+  const pause = 1100; // a pausa curta pedida pelo dono
+  const impact = pause + 380;
+  useEffect(() => {
+    if (reduced) return undefined;
+    const timer = setTimeout(() => { try { navigator.vibrate?.([40, 50, 25]); } catch { /* sem suporte */ } }, impact);
+    return () => clearTimeout(timer);
+  }, [reduced, impact]);
+  return (
+    <div className={`${styles.sceneInner} ${styles.apInner} ${reduced ? "" : styles.valShake}`} style={reduced ? undefined : { "--shake": `${impact}ms` }}>
+      <div className={`${styles.apStampWrap} ${reduced ? styles.rise : styles.valStampGo}`} style={{ "--d": reduced ? "0ms" : `${pause}ms` }}>
+        <div className={styles.apStamp}>
+          <BadgeCheck aria-hidden="true" />
+          <span>Crédito</span>
+          <strong>Aprovado</strong>
+        </div>
+      </div>
+      <p className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": reduced ? "0ms" : `${impact + 700}ms` }}>
+        {scene.firstName ? `Parabéns, ${scene.firstName}!` : "Parabéns!"}
+      </p>
+    </div>
+  );
+}
+
+/** APROVAÇÃO · cena 2: valores do financiamento aprovado (financiamento, subsídio se houver, parcela e taxa de juros).
+ *  Os números são os ATUAIS da simulação (o corretor os corrige para os da aprovação); aqui só formata. */
+function SceneAprovValores({ scene, reduced }) {
+  const both = scene.first > 0 && scene.last > 0 && Math.round(scene.first * 100) !== Math.round(scene.last * 100);
+  const rate = formatInterestRateLabel(scene.interestRate);
+  const rows = [
+    scene.subsidy > 0 ? { label: "Subsídio Minha Casa Minha Vida", value: formatBRL(scene.subsidy) } : null,
+    scene.first > 0 ? { label: both ? "Primeira parcela" : "Parcela do financiamento", value: formatBRL(scene.first) } : null,
+    both ? { label: "Última parcela", value: formatBRL(scene.last) } : null,
+    rate ? { label: "Taxa de juros", value: rate } : null
+  ].filter(Boolean);
+  return (
+    <div className={`${styles.sceneInner} ${styles.valInner}`}>
+      <div className={styles.valBody}>
+        <p className={`${styles.eyebrow} ${styles.apEyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Valores aprovados</p>
+        {scene.financing > 0 ? (
+          <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": "300ms" }}>
+            <span className={styles.rowLabel}>Financiamento aprovado</span>
+            <span className={styles.rowValue}><Count value={scene.financing} reduced={reduced} duration={1300} delay={400} /></span>
+          </div>
+        ) : null}
+        {rows.length ? (
+          <div className={styles.valList}>
+            {rows.map((row, i) => (
+              <p key={row.label} className={`${styles.valRow} ${styles.rise}`} style={{ "--d": `${1000 + i * 260}ms` }}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </p>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -495,8 +562,15 @@ function renderScene(scene, ctx) {
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
-    case "imovel": return <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />;
-    case "valores": return <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />;
+    // imóvel/valores vivem no RAMO da simulação; na apresentação de APROVAÇÃO (PRES-21) fazem parte do roteiro principal
+    case "imovel": return ctx.inBranch
+      ? <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />
+      : <SceneImovel scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} nextIsValues={ctx.mainNextIsValues} final={ctx.mainLast} fast={ctx.fast} />;
+    case "valores": return ctx.inBranch
+      ? <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />
+      : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
+    case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
+    case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
@@ -697,7 +771,9 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned };
+  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
+    // roteiro principal com imóvel/valores (apresentação de aprovação)
+    inBranch, mainNext: () => act("next"), mainLast: !inBranch && isLastScene(state), mainNextIsValues: !inBranch && scenes[state.index + 1]?.id === "valores" };
 
   return (
     <div

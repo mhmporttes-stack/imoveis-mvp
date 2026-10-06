@@ -670,6 +670,24 @@
   .valStamp > strong { font-size: min(calc(var(--u) * 36), calc(var(--cw) * 0.1)); }
   .valStamp { --stamp-scale: 1.15; }
 }
+/* APRESENTAÇÃO DE APROVAÇÃO (PRES-21): carimbo "CRÉDITO APROVADO" (reusa stampSlam/stampWave/stampShake do total de descontos) */
+.apInner { text-align: center; }
+.apStampWrap { position: relative; margin: 0 auto; width: fit-content; max-width: 100%; }
+.apStamp {
+  position: relative; display: grid; justify-items: center; gap: calc(var(--u) * 2); transform: rotate(-6deg);
+  padding: calc(var(--u) * 16) calc(var(--u) * 22) calc(var(--u) * 18);
+  border: 4px solid #fff; border-radius: calc(var(--u) * 18);
+  outline: 3px solid var(--sky); outline-offset: calc(var(--u) * 6);
+  background: linear-gradient(160deg, #1769d1, #0d3b66);
+  box-shadow: 0 0 0 calc(var(--u) * 12) rgba(23, 105, 209, 0.18), 0 calc(var(--u) * 22) calc(var(--u) * 50) rgba(2, 12, 24, 0.55), 0 0 calc(var(--u) * 60) rgba(91, 164, 245, 0.6);
+  color: #fff;
+}
+.apStamp svg { width: max(34px, calc(var(--u) * 40)); height: max(34px, calc(var(--u) * 40)); color: #4ade80; stroke-width: 2.4; margin-bottom: calc(var(--u) * 4); }
+.apStamp span { font-size: min(calc(var(--u) * 26), calc(var(--cw) * 0.07)); font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; color: #dcebfc; line-height: 1; }
+.apStamp strong { font-size: min(calc(var(--u) * 50), calc(var(--cw) * 0.12)); font-weight: 900; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1; text-shadow: 0 3px 0 rgba(2, 12, 24, 0.35); }
+.apInner .title { margin-top: calc(var(--u) * 40); }
+.apEyebrow { text-align: center; margin-bottom: calc(var(--u) * 14); }
+
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .scene[data-scene="valores"] { --u: calc(var(--u0) * 0.8); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u0) * 40); }
   .valInner, .valHero { text-align: left; }

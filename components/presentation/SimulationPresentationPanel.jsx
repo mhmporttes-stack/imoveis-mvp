@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, ExternalLink, Eye, Link2, Presentation, RefreshCw } from "lucide-react";
+import { BadgeCheck, Copy, ExternalLink, Eye, Link2, Presentation, RefreshCw } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import Switch from "@/components/ui/Switch";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { formatDateBR } from "@/lib/simulation-presentation-format.mjs";
@@ -71,6 +72,30 @@ export default function SimulationPresentationPanel({ simulationId }) {
     }
   }
 
+  // Chave "Apresentação de aprovação" (PRES-21): o MESMO link passa a mostrar o crédito aprovado. Não mexe na etapa do cliente.
+  async function setApproval(enabled) {
+    if (enabled) {
+      const ok = await confirmAction({
+        title: "Ligar a apresentação de aprovação?",
+        description: "Ao abrir o link, o cliente verá CRÉDITO APROVADO com os valores atuais da simulação. Confira se eles já são os valores da aprovação.",
+        confirmLabel: "Ligar"
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "aprovacao", enabled }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível alterar a apresentação.");
+      setState(data);
+      notify(enabled ? "Pronto: o link agora mostra o crédito aprovado." : "Pronto: o link voltou a mostrar a simulação.");
+    } catch (error) {
+      notify(error.message || "Não foi possível alterar a apresentação.", "danger");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function copyLink(url) {
     try {
       await navigator.clipboard.writeText(url);
@@ -92,6 +117,25 @@ export default function SimulationPresentationPanel({ simulationId }) {
 
   const presentation = state?.presentation || null;
   const canGenerate = state?.schemaReady && state?.ready;
+  const approvalToggle = canGenerate && state.approvalReady ? (
+    <div className="mt-4 flex items-start justify-between gap-4 rounded-control border border-line bg-white px-4 py-3">
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 text-sm font-bold text-navy">
+          <BadgeCheck className={`h-4 w-4 ${state.approvalEnabled ? "text-success" : "text-brand"}`} aria-hidden="true" />
+          Apresentação de aprovação {state.approvalEnabled ? "· ligada" : "· desligada"}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-muted">
+          {state.approvalEnabled
+            ? "O link mostra CRÉDITO APROVADO com os valores atuais da simulação. Desligue para voltar à simulação."
+            : "Ligue quando o cliente for aprovado: o mesmo link passa a mostrar CRÉDITO APROVADO. Não muda a etapa do cliente."}
+        </p>
+        <a className="mt-1 inline-block text-xs font-bold text-brand underline underline-offset-2" href={`${previewHref}?modo=aprovacao`} target="_blank" rel="noopener">
+          Visualizar a apresentação de aprovação
+        </a>
+      </div>
+      <Switch checked={Boolean(state.approvalEnabled)} onChange={setApproval} disabled={busy} label="Apresentação de aprovação" />
+    </div>
+  ) : null;
 
   return (
     <section className="container-page mb-6" aria-labelledby="presentation-title">
@@ -129,6 +173,7 @@ export default function SimulationPresentationPanel({ simulationId }) {
           <p className="mt-4 text-sm font-semibold text-muted">Preencha e salve os valores da simulação (financiamento, subsídio ou parcelas) para liberar a apresentação.</p>
         ) : null}
 
+        {canGenerate && !presentation ? approvalToggle : null}
         {canGenerate && !presentation ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={() => run("generate")} loading={busy}>
@@ -166,6 +211,7 @@ export default function SimulationPresentationPanel({ simulationId }) {
                 Gerar novo link
               </Button>
             </div>
+            {approvalToggle}
             <Metrics presentation={presentation} sceneCount={state.sceneCount} />
             <p className="text-xs text-faint">"Visualizar antes de enviar" não conta como abertura. "Abrir o link" conta, como se fosse o cliente.</p>
           </div>

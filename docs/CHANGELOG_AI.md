@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação de aprovação (chave manual no link da simulação)
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação · Banco
+- **Alteração:** nova chave "Apresentação de aprovação" no painel da apresentação, com confirmação ao ligar e registro na jornada. Ligada, o mesmo link `/s/<token>` mostra outro roteiro:
+  - pausa curta + carimbo "CRÉDITO APROVADO" (impacto, onda, tremida, vibração no Android) + "Parabéns, {nome}!";
+  - valores aprovados: financiamento, subsídio, parcela(s) e taxa de juros;
+  - imóvel + valores, só se houver imóvel na simulação.
+
+  Sem próximo passo, documentos ou contato. A chave não toca na etapa do funil. As imagens da lista de documentos e do resumo seguem da simulação. Prévia em `?modo=aprovacao`; vitrine `/dev/vitrine/apresentacao?modo=aprovacao` (`&v=sem-imovel`). Regra PRES-21.
+- **Motivo:** pedido do dono. Depois da análise ele corrige a simulação com os valores reais da aprovação e quer uma apresentação bonita de aprovado, controlada manualmente para evitar erro.
+- **Arquivos afetados:** `supabase/migrations/20261006180000_simulation_presentation_approval.sql` (APLICADA em produção via MCP, aditiva), `lib/simulation-presentation.js`, `lib/simulation-presentation-core.mjs`, `lib/simulation-presentation-share.mjs`, `app/api/admin/simulacoes/[id]/apresentacao/route.js`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, `app/apresentacao/[token]/documentos/route.js`, `app/apresentacao/[token]/imagem/route.js`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/SimulationPresentationPanel.jsx`, `components/presentation/presentation.module.css`, `components/ClientJourneyActions.jsx`, vitrine, testes (`tests/simulation-presentation-approval.test.mjs` novo; round2/values ajustados).
+- **Risco/observação:**
+  - O código tolera a coluna ausente: o link segue na simulação e a chave some.
+  - A prévia do WhatsApp (título/imagem) continua a mesma da simulação.
+  - "Imóvel definido" = imóvel sugerido cadastrado; com vários, aparecem todos (a confirmar com o dono).
+  - O teste do round 2 que proibia "aprovad" no player passou a proibir só parceria/homologação/"aprovado pela Caixa".
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: texto da cena do imóvel um pouco mais à direita
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (cena do imóvel sugerido)

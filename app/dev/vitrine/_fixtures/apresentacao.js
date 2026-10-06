@@ -1,4 +1,4 @@
-import { buildPublicPresentation } from "@/lib/simulation-presentation-core.mjs";
+import { buildApprovalPresentation, buildPublicPresentation } from "@/lib/simulation-presentation-core.mjs";
 
 // Dados 100% FICTÍCIOS da vitrine da Apresentação interativa (só `next dev`; nunca vão para produção).
 //   v = completo (formal + casado + com filhos + 2 imóveis + juros 5,4 + subsídio novo ≠ usado) | informal (informal + solteiro + sem
@@ -129,4 +129,12 @@ export function presentationScenes(variant) {
 export function presentationBranch(variant) {
   // sem-foto: o imóvel não tem imagem (vê o fallback elegante)
   return presentationDto(variant).branch.map((scene, index) => ({ ...scene, imageUrl: variant === "sem-foto" ? "" : variant === "foto-real" ? REAL_PHOTOS[index % 2] : PHOTO }));
+}
+
+/** Apresentação de APROVAÇÃO (PRES-21) da vitrine: `?modo=aprovacao` (com imóvel) · `&v=sem-imovel` (só carimbo + valores). */
+export function approvalScenes(variant) {
+  const simulation = presentationSimulation(variant);
+  if (variant !== "sem-imovel") simulation.properties = simulation.properties.slice(0, 1);
+  const dto = buildApprovalPresentation({ simulation, defaultReason: DEFAULT_REASON, entryResults: simulation.entryResults });
+  return dto.scenes.map((scene) => (scene.id === "imovel" ? { ...scene, imageUrl: PHOTO } : scene));
 }

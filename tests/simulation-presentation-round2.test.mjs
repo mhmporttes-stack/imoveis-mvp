@@ -238,7 +238,9 @@ test("logo da Caixa: a MESMA do formulário, no rodapé fixo do palco (todas as 
   assert.ok(frame.indexOf("styles.caixa") > frame.indexOf("styles.stage"), "rodapé fixo depois do palco");
   assert.ok(!/function Scene\w+[\s\S]{0,4000}CAIXA_LOGO/.test(player.replace(/export default[\s\S]*/, "")), "não está dentro de cena específica");
   assert.ok(fs.existsSync(path.join(root, "public/assets/caixa-logo-transparent.png")));
-  assert.ok(!/parceir|aprovad|homologad|oficial da caixa/i.test(player.replace(/\/\/.*$/gm, "")));
+  // 2026-10-06 (PRES-21): "Crédito aprovado" é o conteúdo da apresentação de aprovação (o banco aprovou o crédito do cliente);
+  // continua proibido insinuar parceria/homologação com a Caixa ou "aprovado pela Caixa".
+  assert.ok(!/parceir|homologad|oficial da caixa|aprovad[oa] pela caixa/i.test(player.replace(/\/\/.*$/gm, "")));
   const css = read("components/presentation/presentation.module.css");
   assert.match(css, /aspect-ratio: 780 \/ 196/); // sem deformar
   const image = read("lib/simulation-presentation-image.mjs");
@@ -333,7 +335,7 @@ test("imagem: textos vêm só do DTO (números do PDF, taxa se houver, nada sens
 test("rotas de imagem: mesmo token da página, 404 para token inválido/revogado (mesma função), cabeçalhos e sem login", () => {
   for (const [file, renderer] of [["app/apresentacao/[token]/imagem/route.js", "renderSummaryImage"], ["app/apresentacao/[token]/documentos/route.js", "renderDocumentsImage"]]) {
     const source = read(file);
-    assert.match(source, /await getPublicPresentation\(token\)/); // token inexistente/revogado/inválido → null → 404
+    assert.match(source, /await getPublicPresentation\(token(, \{ simulationOnly: true \})?\)/); // token inexistente/revogado/inválido → null → 404
     assert.match(source, /if \(!dto\) return new Response\("Não encontrado\.", \{ status: 404/);
     assert.ok(source.includes(renderer));
     assert.match(source, /noindex, nofollow, noarchive/);

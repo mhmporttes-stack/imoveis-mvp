@@ -7,7 +7,8 @@ import {
   ensurePresentation,
   getActivePresentation,
   presentationUrl,
-  regeneratePresentation
+  regeneratePresentation,
+  setPresentationApproval
 } from "@/lib/simulation-presentation";
 import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journey";
 import {
@@ -26,6 +27,11 @@ export const dynamic = "force-dynamic";
 //   GET  → estado do link + métricas discretas
 //   POST → { action: "enviar-preparar" } (get-or-create + mensagem com o link; não envia) / { action: "enviar-registrar" } (jornada)
 //   POST → { action: "generate" } (idempotente: devolve o mesmo link) ou { action: "regenerate" } (revoga e cria novo)
+//   POST → { action: "aprovacao", enabled: true|false } — chave "Apresentação de aprovação" (PRES-21): o MESMO link passa a
+//          mostrar o roteiro de CRÉDITO APROVADO. Nunca muda a etapa do cliente; registra no histórico quem ligou/desligou.
+
+const APPROVAL_ON_EVENT = "presentation_approval_on";
+const APPROVAL_OFF_EVENT = "presentation_approval_off";
 
 function origin(request) {
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
@@ -61,6 +67,10 @@ async function stateBody(simulation, result, request) {
     schemaReady: true,
     ready: sceneCount > 0,
     sceneCount,
+    // chave de aprovação: `approvalReady` false = coluna ainda não criada no banco (a chave não aparece)
+    approvalReady: result.approvalReady !== false,
+    approvalEnabled: Boolean(presentation?.approvalEnabledAt),
+    approvalEnabledAt: presentation?.approvalEnabledAt || "",
     clientName: simulation.clientName || "",
     simulationDate: simulation.simulationDate || "",
     presentation: presentation
@@ -99,7 +109,7 @@ export async function POST(request, { params }) {
   } catch {
     payload = {};
   }
-  const action = ["regenerate", "enviar-preparar", "enviar-registrar"].includes(payload?.action) ? payload.action : "generate";
+  const action = ["regenerate", "enviar-preparar", "enviar-registrar", "aprovacao"].includes(payload?.action) ? payload.action : "generate";
 
   try {
     const { simulation, auth } = loaded;
@@ -144,6 +154,30 @@ export async function POST(request, { params }) {
         })(),
         { headers: { "Cache-Control": "no-store" } }
       );
+    }
+
+    if (action === "aprovacao") {
+      if (!countPresentationScenes(simulation)) {
+        return NextResponse.json({ error: "Preencha os valores da simulação antes de ligar a apresentação de aprovação." }, { status: 422 });
+      }
+      const enabled = payload?.enabled === true;
+      const result = await setPresentationApproval({ simulation, userId: auth.profile?.id || "", enabled });
+      if (!result?.schemaReady || result.approvalReady === false) {
+        return NextResponse.json({ error: "Recurso ainda não ativado no banco." }, { status: 503 });
+      }
+      if (simulation.registrationId) {
+        try {
+          await logClientJourneyEvent({
+            clientId: simulation.registrationId,
+            eventType: enabled ? APPROVAL_ON_EVENT : APPROVAL_OFF_EVENT,
+            actor: resolveActorSnapshot(auth),
+            details: { text: enabled ? "Apresentação de aprovação ativada no link" : "Apresentação de aprovação desativada (link volta à simulação)" }
+          });
+        } catch (journeyError) {
+          console.error("Falha ao registrar a chave de aprovação na jornada:", journeyError?.message || journeyError);
+        }
+      }
+      return NextResponse.json(await stateBody(simulation, result, request), { headers: { "Cache-Control": "no-store" } });
     }
 
     const sceneCount = await countPresentationScenes(simulation);

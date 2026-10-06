@@ -1,5 +1,5 @@
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
-import { presentationBranch, presentationScenes } from "../_fixtures/apresentacao";
+import { approvalScenes, presentationBranch, presentationScenes } from "../_fixtures/apresentacao";
 
 // Vitrine DEV da Apresentação interativa da simulação (só existe no `next dev`; *.dev.jsx não entra no build).
 // Renderiza o MESMO player com DADOS 100% FICTÍCIOS (../_fixtures/apresentacao.js), sem login e sem banco, e SEM enviar
@@ -10,11 +10,15 @@ import { presentationBranch, presentationScenes } from "../_fixtures/apresentaca
 //   ?lista=nao (cena de documentos SEM o botão "Receber lista de documentos": sem responsável com WhatsApp válido)
 //   ?envio=erro (revisão do estado de erro da folha da previsão: token fora do formato, o servidor responde 404 sem tocar no banco)
 //   ?cena=N (começa na cena N, 0-based; cenas finais abrem já liberadas) · use o botão de pausa para parar o auto-avanço.
+//   ?modo=aprovacao (apresentação de CRÉDITO APROVADO, PRES-21; com 1 imóvel) · &v=sem-imovel (só carimbo + valores)
 export const dynamic = "force-dynamic";
 
 export default async function PresentationVitrine({ searchParams }) {
   const query = await searchParams;
   const variant = String(query?.v || "completo");
+  if (query?.modo === "aprovacao") {
+    return <PresentationPlayer scenes={approvalScenes(variant)} token="" initialIndex={Number(query?.cena) || 0} assetsBase="/dev/vitrine/apresentacao" />;
+  }
   const scenes = presentationScenes(variant);
   const ramo = Number(query?.ramo) || 0;
   // ?ramo=N abre direto no imóvel N do ramo (o roteiro principal fica parado em "Próximo passo")

@@ -12,7 +12,7 @@ const NOT_FOUND_HEADERS = { "Cache-Control": "no-store, max-age=0", "X-Robots-Ta
 
 export async function GET(request, { params }) {
   const { token } = await params;
-  const dto = await getPublicPresentation(token);
+  const dto = await getPublicPresentation(token, { simulationOnly: true }); // sempre a simulação (PRES-21)
   if (!dto) return new Response("Não encontrado.", { status: 404, headers: { ...NOT_FOUND_HEADERS, "Content-Type": "text/plain; charset=utf-8" } });
   try {
     return await renderDocumentsImage(dto, { download: wantsDownload(request.nextUrl.searchParams) });
