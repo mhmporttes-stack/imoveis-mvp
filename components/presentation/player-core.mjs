@@ -131,10 +131,16 @@ export function branchStep({ index = 0, total = 0 } = {}, action) {
 /**
  * Sequência de cenas do ramo (PRES-20): para cada imóvel, a cena do imóvel e, logo depois, a cena de valores DELE (só se o
  * servidor mandou `valores`). Sem `valores` o imóvel fica sozinho (nunca cena vazia). O DTO continua com 1 item por imóvel.
+ * Pedido do dono (2026-10-06): o TOTAL DE DESCONTOS ganhou uma cena própria ("descontos", número com efeito pop-in), logo
+ * depois da cena de valores — só quando o total existe (> 0); a cena de valores não repete o total.
  */
 export function flattenBranch(branch = []) {
   return branch.flatMap((item) => {
     const { valores, ...scene } = item;
-    return valores ? [scene, { ...valores, id: "valores", name: scene.name, position: scene.position, count: scene.count }] : [scene];
+    if (!valores) return [scene];
+    const ident = { name: scene.name, position: scene.position, count: scene.count };
+    const out = [scene, { ...valores, id: "valores", ...ident }];
+    if (valores.totalDescontos > 0) out.push({ id: "descontos", total: valores.totalDescontos, ...ident });
+    return out;
   });
 }

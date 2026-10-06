@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: "Total de descontos" em cena própria com pop-in
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (ramo de imóveis sugeridos)
+- **Alteração:** a sequência de cada imóvel passa a ser imóvel → valores → **total de descontos** → próximo imóvel. A cena nova mostra o nome do empreendimento e o total num cartão grande que entra com efeito pop-in (escala 0,4 → ~1,06 → 1) e um contador. Embaixo vai "Somando descontos e benefícios deste imóvel." e o botão Próximo imóvel/Continuar. A linha do total saiu da cena de valores, cujo botão agora é "Ver total de descontos". Com movimento reduzido, a cena aparece sem escala. A cena só existe com total > 0 e o número é o mesmo `totalDescontos` do servidor (o DTO não muda).
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/presentation/player-core.mjs`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-presentation-values.test.mjs`, `docs/BUSINESS_RULES.md` (PRES-20).
+- **Risco/observação:** a vitrine `?ramo=N` conta cenas do ramo, que agora são 3 por imóvel com valores. Conferido na vitrine (390x844, quadros da animação medidos). Testes de apresentação e previsão passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Previsão de envio: data e período obrigatórios, com aviso
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (folha "Receber lista de documentos")

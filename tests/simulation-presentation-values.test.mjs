@@ -169,12 +169,17 @@ test("documentação gratuita: sem valor do imóvel não há cena (nunca 5% de z
   assert.ok(!JSON.stringify(dto).includes("documentacao_gratuita"));
 });
 
-test("player: logo da Caixa ausente na cena de valores, sem título/nome, total ao final e selo 'Sem ato' verde", () => {
+test("player: logo da Caixa ausente na cena de valores, sem título/nome, total em cena própria (pop-in) e selo 'Sem ato' verde", () => {
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.match(player, /\{current\.id !== "valores" \? \(\s*<div className=\{styles\.caixa\}>/);
   const scene = /function SceneValores[\s\S]*?\n}\r?\n/.exec(player)?.[0] || "";
   assert.ok(!/Valores deste imóvel|scene\.name|valName/.test(scene), "sem título nem nome do empreendimento");
-  assert.match(scene, /Total de descontos/);
+  // 2026-10-06 (pedido do dono): o total saiu da cena de valores e ganhou a cena "descontos", com efeito pop-in
+  assert.ok(!/Total de descontos|totalDescontos/.test(scene));
+  const disc = /function SceneDescontos[\s\S]*?\n}\r?\n/.exec(player)?.[0] || "";
+  assert.match(disc, /Total de descontos/);
+  assert.match(disc, /<Count value=\{scene\.total\}/);
+  assert.match(read("components/presentation/presentation.module.css"), /\.discPop \{[\s\S]*?animation: discPop/);
   assert.match(scene, /Documentação gratuita/);
   assert.match(scene, /Subsídio Minha Casa Minha Vida/);
   // o valor do imóvel é o primeiro bloco da cena
@@ -217,18 +222,23 @@ test("player: 'Sem ato' só aparece com ato === 0 e entrada a pagar; ato ausente
 });
 
 // ---------- ordem ----------
-test("ordem do ramo: imóvel → valores dele → próximo imóvel → valores dele (e só imóvel quando não há valores)", () => {
+test("ordem do ramo: imóvel → valores → total de descontos dele → próximo imóvel → … (e só imóvel quando não há valores)", () => {
   const dto = buildPublicPresentation({ simulation: simulation(), defaultReason: DEFAULT_REASON });
   assert.equal(dto.branch.length, 2, "o DTO segue com 1 item por imóvel (botão e imagem-resumo contam imóveis)");
   const flat = flattenBranch(dto.branch);
   assert.deepEqual(flat.map((scene) => [scene.id, scene.name]), [
-    ["imovel", "Residencial Aurora"], ["valores", "Residencial Aurora"], ["imovel", "Condomínio Segundo"], ["valores", "Condomínio Segundo"]
+    ["imovel", "Residencial Aurora"], ["valores", "Residencial Aurora"], ["descontos", "Residencial Aurora"],
+    ["imovel", "Condomínio Segundo"], ["valores", "Condomínio Segundo"], ["descontos", "Condomínio Segundo"]
   ]);
   assert.ok(flat.every((scene) => !("valores" in scene)));
-  assert.deepEqual(flat.map((scene) => scene.position), [1, 1, 2, 2]);
+  assert.deepEqual(flat.map((scene) => scene.position), [1, 1, 1, 2, 2, 2]);
+  // a cena de descontos leva o MESMO total calculado no servidor
+  assert.equal(flat[2].total, dto.branch[0].valores.totalDescontos);
+  // sem total (> 0) não há cena de descontos
+  assert.deepEqual(flattenBranch([{ id: "imovel", name: "X", position: 1, count: 1, valores: { valorImovel: 100 } }]).map((scene) => scene.id), ["imovel", "valores"]);
   // só o 2º imóvel com valores
   const half = buildPublicPresentation({ simulation: simulation({ entryResults: { "emp-2": entry("emp-2") } }), defaultReason: DEFAULT_REASON });
-  assert.deepEqual(flattenBranch(half.branch).map((scene) => scene.id), ["imovel", "imovel", "valores"]);
+  assert.deepEqual(flattenBranch(half.branch).map((scene) => scene.id), ["imovel", "imovel", "valores", "descontos"]);
   // nenhum valor: só imóveis, como antes
   const none = buildPublicPresentation({ simulation: simulation({ entryResults: {} }), defaultReason: DEFAULT_REASON });
   assert.deepEqual(flattenBranch(none.branch).map((scene) => scene.id), ["imovel", "imovel"]);
@@ -241,6 +251,7 @@ test("ordem do ramo: imóvel → valores dele → próximo imóvel → valores d
   assert.match(player, /branchLast: inBranch && branchIndex >= flat\.length - 1/);
   assert.match(player, /propertyCount: branch\.length/, "o botão do Próximo passo continua contando imóveis, não cenas");
   assert.match(player, /nextIsValues \? "Ver valores" : "Próximo imóvel"/);
+  assert.match(player, /nextIsDiscounts \? "Ver total de descontos" : "Próximo imóvel"/);
 });
 
 // ---------- vazamento ----------
