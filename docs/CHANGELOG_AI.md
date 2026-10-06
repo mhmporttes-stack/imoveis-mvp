@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Nenhum cliente sem responsável + notificações só de cliente novo e atividade agendada
+- **Data:** 2026-10-06
+- **Área:** Clientes / Roleta / Prospecção / Notificações
+- **Alteração:** (1) A rede de segurança `reassignOrphanedClientsToOwner` passa a cobrir TODO cliente sem responsável (inclusive devolvido à fila e fila de espera da roleta): devolvido volta ao corretor que o tinha; senão o dono segura e a roleta o entrega ao 1º corretor on-line; lead novo sem corretor on-line já nasce com o dono. (2) Política de notificações deny-by-default: `sendPushToUser` só envia `kind` permitido (cliente novo, transferência, atividade agendada, teste) e o gatilho `crm_notifications_policy` descarta no sino qualquer outro tipo; avisos antigos de tipos extintos foram marcados como lidos.
+- **Motivo:** pedido do dono — "não deve haver clientes sem corretor responsável; em último caso atribua a mim até um corretor ficar on-line e aí transfere automaticamente" e "notificações apenas para novos clientes e tarefas agendadas".
+- **Arquivos afetados:** `lib/client-distribution-core.mjs`, `lib/simulation-registrations.js`, `lib/notification-policy-core.mjs`, `lib/push-subscriptions.js`, `lib/crm-automations.js`, `lib/admin-profiles.js`, `lib/scheduled-activity-notifications.js`, `lib/lead-distribution.js`, `lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-flows.js`, `app/api/push/test/route.js`, `supabase/migrations/20261006100000_crm_notifications_policy.sql`, `tests/client-distribution-core.test.mjs`, `tests/notification-policy.test.mjs`
+- **Risco/observação:** a regra P-05 (devolvido à fila fica sem responsável) foi SUBSTITUÍDA; o cartão do cliente devolvido volta a ficar na lista do corretor que disparou (rede em até 2 min). Central de Alertas (popups), alerta sonoro e e-mails NÃO foram alterados — perguntar ao dono se também devem sair. Quem estava em "Aguardando distribuição" com responsável nulo passa a aparecer como do dono (rótulo da lista usa `pendingDistributionAt`).
+- **Autor:** Claude Code
 
 ### 2026-10-06 — Apresentação: texto da cena do imóvel um pouco mais à direita
 - **Data:** 2026-10-06
