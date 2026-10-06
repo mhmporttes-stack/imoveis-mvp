@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
+import { BadgeCheck, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -288,13 +288,24 @@ function SceneImovel({ scene, onNext, last, nextIsValues, fast }) {
               ))}
             </ul>
           ) : null}
-          <p className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 100) }}>{scene.reason}</p>
+          <div className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 100) }}>
+            <span className={styles.propReasonHead}><BadgeCheck aria-hidden="true" />Por que este imóvel</span>
+            <p>{scene.reason}</p>
+          </div>
         </div>
-        <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 500) }}>
-          <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
-            {last ? "Continuar" : nextIsValues ? "Ver valores" : "Próximo imóvel"}
-          </button>
-        </div>
+        {/* Sem botão "Ver valores" (pedido do dono 2026-10-06): quando a próxima cena é a de valores DESTE imóvel, toque/arraste
+            avança (tapAction/swipeAction) e só fica uma dica discreta. Imóvel sem valores mantém o botão. */}
+        {nextIsValues && !last ? (
+          <p className={`${styles.tapHint} ${styles.rise}`} style={{ "--d": d(afterBenefits + 600) }} data-tap-hint="">
+            <span>Toque na tela para ver os valores <ChevronRight aria-hidden="true" /></span>
+          </p>
+        ) : (
+          <div className={`${styles.propActions} ${styles.rise}`} style={{ "--d": d(afterBenefits + 500) }}>
+            <button type="button" className={styles.cta} onClick={onNext} data-no-nav="" data-branch-next="">
+              {last ? "Continuar" : "Próximo imóvel"}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

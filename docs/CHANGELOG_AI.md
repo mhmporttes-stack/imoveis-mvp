@@ -44,6 +44,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: cena do imóvel sem botão "Ver valores" e card "Por que este imóvel" redesenhado
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (ramo de imóveis sugeridos)
+- **Alteração:**
+  - Quando a próxima cena é a de valores do mesmo imóvel, o botão "Ver valores" sai. Toque ou arraste na tela já avançavam (`tapAction`/`swipeAction`); no lugar do botão fica só uma dica em pílula, "Toque na tela para ver os valores ›", com a seta se mexendo de leve (parada com movimento reduzido).
+  - Imóvel sem valores (ou o último) mantém o botão "Próximo imóvel"/"Continuar".
+  - A justificativa virou um card de vidro azul: título "POR QUE ESTE IMÓVEL" com selo, texto maior, borda e sombra. Antes era uma faixa clara com borda à esquerda.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-presentation-values.test.mjs`.
+- **Risco/observação:** conferido na vitrine (`?ramo=1`) em 390x844 e 375x667. Tocar na tela leva à cena de valores. Testes de apresentação passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: "Total de descontos" volta para baixo dos valores, como CARIMBO
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (cena de valores do imóvel)

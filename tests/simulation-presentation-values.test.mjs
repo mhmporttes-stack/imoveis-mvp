@@ -247,7 +247,10 @@ test("ordem do ramo: imóvel → valores dele → próximo imóvel → valores d
   assert.match(player, /const flat = useMemo\(\(\) => flattenBranch\(branch\), \[branch\]\)/);
   assert.match(player, /branchLast: inBranch && branchIndex >= flat\.length - 1/);
   assert.match(player, /propertyCount: branch\.length/, "o botão do Próximo passo continua contando imóveis, não cenas");
-  assert.match(player, /nextIsValues \? "Ver valores" : "Próximo imóvel"/);
+  // 2026-10-06 (pedido do dono): sem botão "Ver valores"; com valores a seguir, o toque avança e fica só a dica
+  assert.ok(!/[?:] "Ver valores"/.test(player));
+  assert.match(player, /\{nextIsValues && !last \? \(\s*<p className=\{`\$\{styles\.tapHint\}/);
+  assert.match(player, /\{last \? "Continuar" : "Próximo imóvel"\}/);
 });
 
 // ---------- vazamento ----------
