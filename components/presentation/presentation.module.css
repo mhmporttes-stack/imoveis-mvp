@@ -260,6 +260,9 @@
 .photoText { position: absolute; left: 0; right: 0; bottom: 0; top: 34%; display: flex; flex-direction: column; color: #fff; padding: 0 calc(var(--u) * 24) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 78); }
 .photoScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; display: flex; flex-direction: column; padding: calc(var(--u) * 14) 0 calc(var(--u) * 4); scrollbar-width: none; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); }
 .photoScroll::-webkit-scrollbar { display: none; }
+/* folga lateral (= margem da cena): a área que rola corta nas próprias bordas; sem isto o carimbo dos destaques e a onda da
+   bolinha eram cortados numa "linha invisível" a 24u da borda da tela (relato do dono 2026-10-06). O texto não se move. */
+.photoScroll { margin-inline: calc(var(--u) * -24); padding-inline: calc(var(--u) * 24); }
 .photoScroll > :first-child { margin-top: auto; }
 .photoText .eyebrow { color: var(--sky); }
 .counter { display: inline-flex; align-items: center; gap: calc(var(--u) * 12); align-self: flex-start; padding: calc(var(--u) * 7) calc(var(--u) * 14); border-radius: 999px; background: rgba(7, 27, 49, 0.62); border: 1px solid rgba(156, 195, 245, 0.35); font-size: max(12px, calc(var(--u) * 13)); }
@@ -282,13 +285,13 @@
   animation: stampInWave 0.6s ease-out both; animation-delay: calc(var(--d, 0ms) + 330ms);
 }
 @keyframes stampInSlam {
-  0% { opacity: 0; transform: scale(2.4) rotate(-7deg); filter: blur(2px); }
-  60% { opacity: 1; transform: scale(1.06) rotate(-1.5deg); filter: blur(0); }
+  0% { opacity: 0; transform: scale(1.7) rotate(-3deg); filter: blur(2px); }
+  60% { opacity: 1; transform: scale(1.05) rotate(-1deg); filter: blur(0); }
   74% { transform: scale(0.96, 0.9); }
   88% { transform: scale(1.02); }
   100% { opacity: 1; transform: none; filter: none; }
 }
-@keyframes stampInWave { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes stampInWave { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2); } }
 @media (max-height: 700px) {
   .photoText { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 92); }
   .photoText h2 { font-size: max(24px, calc(var(--u) * 30)); margin-top: calc(var(--u) * 8); }

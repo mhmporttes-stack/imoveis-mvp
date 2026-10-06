@@ -44,6 +44,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: fim da "linha de corte" no carimbo dos destaques do imóvel
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (cena do imóvel sugerido)
+- **Alteração:** o carimbo dos destaques (entrada anterior) passava da área que rola (`.photoScroll`, com `overflow` e máscara), e o item gigante e a onda da bolinha eram cortados numa linha invisível a 24u da borda da tela.
+  - A área ganhou folga lateral igual à margem da cena (`margin-inline` negativa + `padding-inline`), sem mover o texto.
+  - O carimbo ficou contido: escala 1,7 (era 2,4), giro 3° (era 7°) e onda até 2× (era 2,6×). Continua com impacto, achatamento e rebote.
+- **Motivo:** relato do dono com capturas ("linha de corte invisível que está deixando a apresentação feia").
+- **Arquivos afetados:** `components/presentation/presentation.module.css`.
+- **Risco/observação:** conferido na vitrine (`?v=longo&ramo=1`, nome longo + 4 destaques) em 390x844 e 375x667, quadro a quadro, sem corte. A máscara de rolagem (fade de 14u no topo e 10u no rodapé da área) continua; um item que bata exatamente nessa faixa ainda esmaece durante a animação.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: destaques do imóvel entram como carimbo
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (cena do imóvel sugerido)
