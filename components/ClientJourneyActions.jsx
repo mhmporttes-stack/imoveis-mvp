@@ -45,7 +45,7 @@ const FIELD_LABEL = {
 // (nunca desaparece da timeline por ser um tipo novo/desconhecido).
 const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", notify: "jornada", regenerate: "jornada",
-  responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", tag_added: "sistema", tag_removed: "sistema",
+  responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
   sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", presentation_sent: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao",
@@ -119,6 +119,10 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "TAG REMOVIDA", description: [d.tagName ? `"${d.tagName}"` : ""] };
     case "data_updated":
       return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
+    case "ad_reentry":
+      return d.side === "new"
+        ? { title: "REENTRADA POR ANÚNCIO", description: [d.campaignName ? `Campanha: ${d.campaignName}` : "", "Cliente já existia e voltou por um anúncio"].filter(Boolean) }
+        : { title: "CLIENTE VOLTOU POR ANÚNCIO", description: [d.campaignName ? `Campanha: ${d.campaignName}` : "", "Gerou um novo cadastro na roleta"].filter(Boolean) };
     case "form_resubmitted":
       return { title: "FORMULÁRIO PREENCHIDO NOVAMENTE", description: [d.journeyType === "quick_service" ? "Atendimento rápido" : "Simulação"] };
     case "activity_scheduled":

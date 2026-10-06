@@ -73,7 +73,7 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, jo
       }
 
       setDone(true);
-      trackMetaLead({ phone: toBrazilianE164(phone), eventId });
+      if (data.isNewRegistration !== false) trackMetaLead({ phone: toBrazilianE164(phone), eventId });
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
       setSubmitting(false);

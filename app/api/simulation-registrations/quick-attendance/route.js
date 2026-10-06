@@ -52,7 +52,7 @@ export async function POST(request) {
 
     await announceAlexaEvent("new_client", { clienteNome: registration.fullName, responsibleUserId: registration.responsibleUserId });
     return NextResponse.json(
-      { ok: true, registrationId: registration.id, contactPreference: registration.contactPreference },
+      { ok: true, registrationId: registration.id, contactPreference: registration.contactPreference, isNewRegistration: registration.isNewRegistration !== false },
       { status: 201 }
     );
   } catch (error) {
