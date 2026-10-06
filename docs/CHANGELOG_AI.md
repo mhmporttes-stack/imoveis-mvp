@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: sai o botão "Lista de documentos"
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (link público /s/)
+- **Alteração:** a cena "Documentos" não tem mais o botão que abria a folha com a lista. Ficaram só "Receber lista de documentos" (quando há corretor responsável com WhatsApp válido) e "Rever a apresentação". A lista continua chegando pelo corretor. `DocumentsSheet.jsx` ficou no repositório, mas o player não usa mais.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/presentation/PresentationPlayer.jsx`, `tests/simulation-presentation-round2.test.mjs`, `tests/simulation-presentation-round3.test.mjs`.
+- **Risco/observação:** sem corretor responsável com WhatsApp válido, a cena fica só com "Rever a apresentação" e o cliente não vê a lista na apresentação. Conferido na vitrine (`?cena=9`). Testes `tests/*presentation*` passam.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: números maiores nas cenas de valores
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (link público /s/)

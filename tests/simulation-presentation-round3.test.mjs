@@ -396,7 +396,6 @@ test("folha 'Lista de documentos': mesma lista do DTO, caixa de marcar em SVG e 
   assert.match(sheet, /export default function DocumentsSheet\(\{ items = \[\], onClose \}\)/);
   assert.match(sheet, /<svg viewBox="0 0 24 24">/); // ✓ desenhado, não glifo
   assert.ok(!/✓|✔|☑/.test(sheet));
-  assert.match(read("components/presentation/PresentationPlayer.jsx"), /<DocumentsSheet items=\{current\.items\}/);
 });
 
 // ---------- imagem-resumo ----------

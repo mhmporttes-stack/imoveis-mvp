@@ -185,9 +185,10 @@ test("proximo: botões VALIDAR SIMULAÇÃO (maiúsculas) e Baixar apresentação
   const source = read("components/presentation/PresentationPlayer.jsx");
   assert.match(source, />\s*VALIDAR SIMULAÇÃO\s*</);
   assert.match(source, /label="Baixar apresentação"/);
-  // round 4: o cliente não baixa mais a lista (ele a recebe do corretor); a folha que MOSTRA a lista continua
+  // round 4: o cliente não baixa mais a lista (ele a recebe do corretor); 2026-10-06: nem a visualiza na apresentação
   assert.ok(!/Baixar imagem da lista de documentos/.test(source));
-  assert.match(source, />\s*Lista de documentos\s*</);
+  assert.ok(!/>\s*Lista de documentos\s*</.test(source));
+  assert.ok(!/data-open-docs|<DocumentsSheet/.test(source));
   // VALIDAR só libera as cenas e avança: nenhum fetch/mailto/whatsapp no handler
   const handler = /const validate = useCallback\(\(\) => \{([\s\S]*?)\}, \[total\]\);/.exec(source)?.[1] || "";
   assert.match(handler, /setUnlocked\(true\)/);

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Download, FileText, House, MessageCircle, Pause, Play } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -25,7 +25,6 @@ import {
   tapAction,
   transitionPlan
 } from "./player-core.mjs";
-import DocumentsSheet from "./DocumentsSheet";
 import ForecastSheet from "./ForecastSheet";
 import OpeningAnimation from "./OpeningAnimation";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
@@ -444,25 +443,21 @@ function SceneValidar({ scene }) {
   );
 }
 
-function SceneDocumentos({ onRestart, onOpenList, canReceiveList, onOpenForecast }) {
+function SceneDocumentos({ onRestart, canReceiveList, onOpenForecast }) {
   return (
     <div className={styles.sceneInner}>
       <FolderArt />
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Documentos</p>
       <h2 className={`${styles.title} ${styles.titleSm} ${styles.rise}`} style={{ "--d": "350ms" }}>{DOCUMENTS_SCENE_TEXT}</h2>
       <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1000ms" }}>
-        {/* O cliente não baixa mais a lista (decisão do dono, round 4): ele a RECEBE do corretor pelo WhatsApp. O botão
-            só existe quando há responsável ativo com WhatsApp válido (`canReceiveList`); senão fica só a folha de visualização. */}
+        {/* O cliente não baixa nem visualiza a lista aqui (decisão do dono, round 4 e 2026-10-06): ele a RECEBE do corretor
+            pelo WhatsApp. O botão só existe quando há responsável ativo com WhatsApp válido (`canReceiveList`). */}
         {canReceiveList ? (
           <button type="button" className={styles.cta} onClick={onOpenForecast} data-no-nav="" data-open-forecast="">
             <MessageCircle aria-hidden="true" />
             Receber lista de documentos
           </button>
         ) : null}
-        <button type="button" className={canReceiveList ? styles.ghostBtn : styles.cta} onClick={onOpenList} data-no-nav="" data-open-docs="">
-          <FileText aria-hidden="true" />
-          Lista de documentos
-        </button>
         <button type="button" className={styles.textBtn} onClick={onRestart} data-no-nav="">Rever a apresentação</button>
       </div>
     </div>
@@ -480,7 +475,7 @@ function renderScene(scene, ctx) {
     case "valores": return <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
     case "validar": return <SceneValidar scene={scene} />;
-    case "documentos": return <SceneDocumentos onRestart={ctx.restart} onOpenList={ctx.openList} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
+    case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;
   }
 }
@@ -510,7 +505,6 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   stateRef.current = state;
   const [leaving, setLeaving] = useState(null);
   const [direction, setDirection] = useState("forward");
-  const [docsOpen, setDocsOpen] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
   // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
   // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
@@ -534,7 +528,6 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   // troca de cena: relógio e barra zerados, saída suave da cena anterior (sem saída em movimento reduzido)
   useEffect(() => {
     elapsed.current = 0;
-    setDocsOpen(false);
     setForecastOpen(false);
     if (fillRef.current) fillRef.current.style.transform = isLastScene(stateRef.current) ? "scaleX(1)" : "scaleX(0)";
     const plan = transitionPlan(effective, prevIndex.current);
@@ -631,14 +624,6 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     setUnlocked(true);
     dispatch({ type: "unlock", total });
   }, [total]);
-  const openList = useCallback((event) => {
-    openerRef.current = event?.currentTarget || null;
-    setDocsOpen(true);
-  }, []);
-  const closeList = useCallback(() => {
-    setDocsOpen(false);
-    if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
-  }, []);
   const openForecast = useCallback((event) => {
     openerRef.current = event?.currentTarget || null;
     setForecastOpen(true);
@@ -688,7 +673,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openList, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned };
+  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned };
 
   return (
     <div
@@ -748,7 +733,6 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
           <div key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
             {renderScene(current, ctx)}
           </div>
-          {docsOpen && current.id === "documentos" ? <DocumentsSheet items={current.items} onClose={closeList} /> : null}
           {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
         </div>
 
