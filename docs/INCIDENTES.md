@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — CRM lento / Meta Diária demora para carregar (administrador)
+- **Data:** 2026-10-06
+- **Sintoma:** "CRM está lento e demorando muito para carregar a Meta Diária no meu acesso".
+- **Área:** Meta Diária / Banco
+- **Impacto:** administrador e gestoras (visão da equipe); banco no plano gratuito sofre com a soma de consultas.
+- **Causa raiz:** (a) a visão da equipe fazia ~214 consultas por abertura — carteira de TODOS os perfis (inclusive os que a tela não mostra) e os mesmos números de cada corretor calculados duas vezes, em etapas sequenciais; (b) o cron do retorno automático varria `daily_goal_rounds` inteira para cada contato (sem índice) a cada 2 min, ocupando o banco.
+- **Correção:** índices + só quem aparece + memória por requisição + etapas em paralelo (214 → 155 consultas; hibernação 227 → 2 ms).
+- **Arquivos/commit:** ver CHANGELOG_AI.md (2026-10-06)
+- **Prevenção/teste:** `tests/request-memo.test.mjs`
+- **Status:** Monitorando (resta agrupar os pendentes por corretor para reduzir mais)
 ### 2026-10-06 — Histórico do cliente fica atrás do card
 - **Data:** 2026-10-06
 - **Sintoma:** ao clicar no ícone de histórico (relógio) no card/ficha do cliente, o painel "Minha Jornada" abre atrás do card, no app e no computador.

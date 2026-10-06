@@ -43,6 +43,22 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Pendentes da Meta Diária em lote na visão da equipe (sem mudar nenhum número)
+- **Data:** 2026-10-06
+- **Área:** Meta Diária / Desempenho
+- **Alteração:** `getDailyGoalPendingProgressBatch` (`lib/daily-goal-pending.js`) calcula as pendências de todos os corretores com ~6 consultas (antes ~29), usando o MESMO cálculo por corretor (`progressFromLoaded`, agora compartilhado com o caminho individual). A visão da equipe usa o lote e cai no individual se falhar.
+- **Motivo:** continuação da lentidão da Meta Diária do administrador — menos carga no banco.
+- **Arquivos afetados:** `lib/daily-goal-pending.js`, `lib/daily-goal.js`, `tests/daily-goal-pending-batch.test.mjs`
+- **Risco/observação:** conferido em produção ANTES de publicar: lote x individual igual nos 8 corretores e a visão da equipe inteira (`getOwnerTeamDailyOverview`) idêntica à de antes (diff vazio). Consultas por abertura 156 → 133. O tempo medido no PC do desenvolvedor não mudou (~8,4 s, dominado pela latência de cada consulta no caminho crítico); as funções da Vercel rodam em iad1 (EUA leste) e o banco em us-west-2, bem mais perto do que o PC de teste.
+- **Autor:** Claude Code
+### 2026-10-06 — Meta Diária do administrador mais rápida (menos consultas ao banco)
+- **Data:** 2026-10-06
+- **Área:** Meta Diária / Banco / Desempenho
+- **Alteração:** (1) índices em `daily_goal_rounds` (`(prospecting_contact_id, status, ended_at)` e `(status, ended_at)`): a hibernação do retorno automático (cron de 2 min) passou de ~227 ms para ~2 ms; (2) a visão da equipe (`getOwnerTeamDailyOverview`) calcula a carteira só de quem aparece na lista (antes, de todos os perfis, inclusive inativos/dono/gestores), roda carteira e pendentes em paralelo e usa memória POR REQUISIÇÃO (`lib/request-memo.mjs`) para não repetir os mesmos números do corretor. Medido no mesmo ambiente: 214 → 155 consultas e ~10,4 s → ~8,2 s por abertura (a maior parte do tempo restante é latência de rede por consulta).
+- **Motivo:** relato do dono — CRM lento e Meta Diária demorando para carregar no acesso dele.
+- **Arquivos afetados:** `supabase/migrations/20261006150000_daily_goal_rounds_contact_status_idx.sql`, `lib/request-memo.mjs`, `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `tests/request-memo.test.mjs`
+- **Risco/observação:** a memória vale só dentro de UMA requisição (nunca entre requisições). Ainda ficam ~155 consultas por abertura; próximo passo seria agrupar os pendentes de todos os corretores numa consulta só (`calendar_activities` 22×, `daily_goal_rounds` 18×).
+- **Autor:** Claude Code
 ### 2026-10-06 — Histórico do cliente abre por cima da ficha (card)
 - **Data:** 2026-10-06
 - **Área:** Frontend / Clientes
