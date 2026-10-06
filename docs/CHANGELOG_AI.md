@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Previsão de envio: data e período obrigatórios, com aviso
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (folha "Receber lista de documentos")
+- **Alteração:** as duas perguntas mostram "(obrigatório)". O botão final continua com cara de desativado enquanto falta data ou período, mas agora responde ao toque: não envia e mostra em vermelho o que falta ("Escolha a data em que você vai enviar os documentos." / "Escolha o período do dia."), com contorno no grupo. Antes o botão ficava desativado e sem nenhum retorno. O servidor já recusava (400) envio sem data/período válidos e isso não mudou.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/presentation/ForecastSheet.jsx`, `components/presentation/presentation.module.css`, `tests/documents-forecast.test.mjs` (também corrigida a asserção que o commit anterior, remoção do botão "Lista de documentos", deixou quebrada).
+- **Risco/observação:** conferido na vitrine (`?cena=9&envio=erro`) tocando o botão sem data e sem período. Na prévia do CRM o botão continua realmente desativado.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: sai o botão "Lista de documentos"
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (link público /s/)

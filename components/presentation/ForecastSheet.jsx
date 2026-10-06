@@ -27,6 +27,9 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
   const [phase, setPhase] = useState("idle"); // idle | sending | opening | error
   const [error, setError] = useState("");
   const [fallbackUrl, setFallbackUrl] = useState("");
+  // Data e período são OBRIGATÓRIOS (pedido do dono 2026-10-06). O botão final fica "apagado" mas continua tocável: o toque
+  // sem a escolha não envia nada e mostra o que falta (antes o botão desativado não dava nenhum retorno).
+  const [missing, setMissing] = useState(""); // "" | "date" | "period"
   const disabledByPreview = preview || !token;
   const busy = phase === "sending" || phase === "opening";
 
@@ -43,7 +46,11 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
   }, [onClose]);
 
   const submit = useCallback(async () => {
-    if (disabledByPreview || busy || !date || !period) return;
+    if (disabledByPreview || busy) return;
+    if (!date || !period) {
+      setMissing(!date ? "date" : "period");
+      return;
+    }
     setPhase("sending");
     setError("");
     try {
@@ -92,8 +99,8 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
         </header>
         <div className={styles.sheetBody} tabIndex={0}>
           <fieldset className={styles.fcGroup} disabled={busy}>
-            <legend className={styles.fcQuestion}>Quando você acredita que conseguirá enviar toda a documentação para validarmos a sua aprovação?</legend>
-            <div className={styles.fcDays} role="group" aria-label="Dia previsto para enviar os documentos">
+            <legend className={styles.fcQuestion}>Quando você acredita que conseguirá enviar toda a documentação para validarmos a sua aprovação? <span className={styles.fcRequired}>(obrigatório)</span></legend>
+            <div className={`${styles.fcDays} ${missing === "date" ? styles.fcMissing : ""}`} role="group" aria-label="Dia previsto para enviar os documentos" aria-required="true" aria-invalid={missing === "date"}>
               {days.map((day, index) => {
                 const selected = date === day.iso;
                 return (
@@ -103,7 +110,7 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
                     aria-pressed={selected}
                     aria-label={`${day.weekday}, ${day.day} de ${day.month}${index === 0 ? " (hoje)" : ""}`}
                     className={`${styles.fcDay} ${selected ? styles.fcOn : ""}`}
-                    onClick={() => setDate(day.iso)}
+                    onClick={() => { setDate(day.iso); setMissing(""); }}
                     data-fc-day={day.iso}
                   >
                     <span className={styles.fcWeek}>{index === 0 ? "hoje" : day.weekdayShort}</span>
@@ -117,8 +124,8 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
 
           {date ? (
             <fieldset className={styles.fcGroup} disabled={busy}>
-              <legend className={styles.fcQuestion}>Em qual período do dia?</legend>
-              <div className={styles.fcPeriods} role="group" aria-label="Período do dia">
+              <legend className={styles.fcQuestion}>Em qual período do dia? <span className={styles.fcRequired}>(obrigatório)</span></legend>
+              <div className={`${styles.fcPeriods} ${missing === "period" ? styles.fcMissing : ""}`} role="group" aria-label="Período do dia" aria-required="true" aria-invalid={missing === "period"}>
                 {FORECAST_PERIODS.map((value) => {
                   const selected = period === value;
                   return (
@@ -127,7 +134,7 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
                       type="button"
                       aria-pressed={selected}
                       className={`${styles.fcPeriod} ${selected ? styles.fcOn : ""}`}
-                      onClick={() => setPeriod(value)}
+                      onClick={() => { setPeriod(value); setMissing(""); }}
                       data-fc-period={value}
                     >
                       {FORECAST_PERIOD_LABEL[value].replace(/^./, (letter) => letter.toUpperCase())}
@@ -139,10 +146,15 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
           ) : null}
 
           <div className={styles.fcFoot}>
-            <button type="button" className={styles.fcSubmit} onClick={submit} disabled={!ready} aria-disabled={!ready} data-fc-submit="">
+            <button type="button" className={`${styles.fcSubmit} ${ready ? "" : styles.fcSubmitOff}`} onClick={submit} disabled={disabledByPreview || busy} aria-disabled={!ready} data-fc-submit="">
               <MessageCircle aria-hidden="true" />
               Receber lista de documentos necessários
             </button>
+            {missing ? (
+              <p className={`${styles.fcNote} ${styles.fcError}`} role="alert">
+                {missing === "date" ? "Escolha a data em que você vai enviar os documentos." : "Escolha o período do dia."}
+              </p>
+            ) : null}
             {disabledByPreview ? <p className={styles.fcNote} role="status">Prévia: o envio está desativado</p> : null}
             {phase === "sending" || phase === "opening" ? (
               <p className={styles.fcNote} role="status">

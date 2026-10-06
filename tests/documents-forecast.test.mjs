@@ -487,13 +487,15 @@ test("apresentação: o cliente não baixa mais a lista; o botão 'Receber lista
   const scene = /function SceneDocumentos[\s\S]*?\n}\n/.exec(player)?.[0] || "";
   assert.match(scene, /\{canReceiveList \? \(/);
   assert.match(scene, /Receber lista de documentos/);
-  assert.match(scene, />\s*Lista de documentos\s*</); // a folha que MOSTRA a lista continua
+  assert.ok(!/>\s*Lista de documentos\s*</.test(scene)); // 2026-10-06: a folha que mostrava a lista saiu (pedido do dono)
   assert.match(player, /forecastOpen && current\.id === "documentos" && canReceiveList \? <ForecastSheet token=\{token\} preview=\{preview\}/);
   // as rotas do PNG continuam (o link vai na mensagem do corretor)
   assert.ok(fs.existsSync(path.join(ROOT, "app/apresentacao/[token]/documentos/route.js")));
   assert.match(read("proxy.js"), /imagem\|documentos/);
   assert.equal(buildAssetHrefs({ token: TOKEN }).documents, `/s/${TOKEN}/documentos?baixar=1`);
 });
+
+function submit0(code) { return /const submit = useCallback\(async \(\) => \{[\s\S]*?\}, \[busy/.exec(code)?.[0] || ""; }
 
 test("folha da previsão: pergunta, calendário de 10 dias, período em 3 botões, botão final e estados", () => {
   const sheet = read("components/presentation/ForecastSheet.jsx");
@@ -506,8 +508,11 @@ test("folha da previsão: pergunta, calendário de 10 dias, período em 3 botõe
   assert.match(code, /window\.location\.assign\(body\.url\)/);
   assert.match(code, /Se não abrir, toque aqui/); // fallback clicável
   assert.match(code, /Prévia: o envio está desativado/);
-  // botão final desativado até escolher data e período, e na prévia
+  // data e período obrigatórios: botão "apagado" até escolher; o toque sem escolha não envia e diz o que falta
   assert.match(code, /const ready = Boolean\(date && period\) && !disabledByPreview && !busy;/);
+  assert.match(code, /if \(!date \|\| !period\) \{\s*setMissing\(!date \? "date" : "period"\);\s*return;/);
+  assert.match(code, /Escolha a data em que você vai enviar os documentos\./);
+  assert.ok(submit0(code).indexOf("setMissing") < submit0(code).indexOf("fetch("));
   // a prévia nunca chama a rota: a guarda vem antes do fetch
   const submit = /const submit = useCallback\(async \(\) => \{[\s\S]*?\}, \[busy/.exec(code)?.[0] || "";
   assert.ok(submit.indexOf("if (disabledByPreview") > -1 && submit.indexOf("if (disabledByPreview") < submit.indexOf("fetch("));

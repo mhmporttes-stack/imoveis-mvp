@@ -505,6 +505,10 @@
 .fcSubmit svg { width: 22px; height: 22px; flex: none; }
 .fcSubmit:active:not(:disabled) { transform: scale(0.98); }
 .fcSubmit:disabled { opacity: 0.45; cursor: not-allowed; }
+/* falta data/período: aparência de desativado, mas tocável para mostrar o aviso do que falta */
+.fcSubmitOff { opacity: 0.45; }
+.fcRequired { font-size: 0.78em; font-weight: 700; color: #b3261e; white-space: nowrap; }
+.fcMissing { border-radius: calc(var(--u) * 18); outline: 2px solid #b3261e; outline-offset: 4px; }
 .fcNote { margin: 0; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: #3a5878; text-align: center; }
 .fcError { color: #b3261e; font-weight: 700; }
 .fcLink { color: var(--blue); font-weight: 700; text-decoration: underline; }
