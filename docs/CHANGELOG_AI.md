@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-06 — Apresentação: texto da cena do imóvel um pouco mais à direita
+- **Data:** 2026-10-06
+- **Área:** Apresentação da simulação (cena do imóvel sugerido)
+- **Alteração:** no celular, o bloco de texto da cena do imóvel (selo "Imóvel X de Y", nome, destaques, card "Por que este imóvel", dica/botão) foi 10u para a direita. A margem esquerda passou de 24u para 34u, a direita continua 24u. A folga da área que rola acompanha (34u à esquerda), para o carimbo e a onda terem respiro. Efeito mantido.
+- **Motivo:** pedido do dono ("gostei do efeito, só traga tudo um pouco mais para a direita para o efeito não recortar").
+- **Arquivos afetados:** `components/presentation/presentation.module.css`.
+- **Risco/observação:** conferido na vitrine (390x844 e 375x667). O texto fica 10u mais estreito. A versão de computador (paisagem) não muda.
+- **Autor:** Claude Code
+
 ### 2026-10-06 — Apresentação: fim da "linha de corte" no carimbo dos destaques do imóvel
 - **Data:** 2026-10-06
 - **Área:** Apresentação da simulação (cena do imóvel sugerido)

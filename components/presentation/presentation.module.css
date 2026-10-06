@@ -257,12 +257,13 @@
 .photoShade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7, 27, 49, 0.78) 0%, rgba(7, 27, 49, 0.5) 12%, rgba(7, 27, 49, 0.2) 24%, rgba(7, 27, 49, 0) 36%), linear-gradient(to top, #071b31 0%, rgba(7, 27, 49, 0.92) 14%, rgba(7, 27, 49, 0.62) 32%, rgba(7, 27, 49, 0.22) 52%, rgba(7, 27, 49, 0) 72%); }
 /* nas cenas de imóvel o desenho de fundo (prédio/casa) sai: a foto é a protagonista */
 .root[data-scene="imovel"] .backdrop { opacity: 0; }
-.photoText { position: absolute; left: 0; right: 0; bottom: 0; top: 34%; display: flex; flex-direction: column; color: #fff; padding: 0 calc(var(--u) * 24) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 78); }
+.photoText { position: absolute; left: 0; right: 0; bottom: 0; top: 34%; display: flex; flex-direction: column; color: #fff; padding: 0 calc(var(--u) * 24) calc(env(safe-area-inset-bottom, 0px) + var(--u) * 78) calc(var(--u) * 34); }
 .photoScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; display: flex; flex-direction: column; padding: calc(var(--u) * 14) 0 calc(var(--u) * 4); scrollbar-width: none; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 calc(var(--u) * 14), #000 calc(100% - var(--u) * 10), transparent 100%); }
 .photoScroll::-webkit-scrollbar { display: none; }
 /* folga lateral (= margem da cena): a área que rola corta nas próprias bordas; sem isto o carimbo dos destaques e a onda da
    bolinha eram cortados numa "linha invisível" a 24u da borda da tela (relato do dono 2026-10-06). O texto não se move. */
-.photoScroll { margin-inline: calc(var(--u) * -24); padding-inline: calc(var(--u) * 24); }
+/* 2026-10-06 (pedido do dono): o bloco de texto foi 10u mais para a direita (esquerda 34u), para o carimbo e a onda terem mais respiro */
+.photoScroll { margin-left: calc(var(--u) * -34); margin-right: calc(var(--u) * -24); padding-left: calc(var(--u) * 34); padding-right: calc(var(--u) * 24); }
 .photoScroll > :first-child { margin-top: auto; }
 .photoText .eyebrow { color: var(--sky); }
 .counter { display: inline-flex; align-items: center; gap: calc(var(--u) * 12); align-self: flex-start; padding: calc(var(--u) * 7) calc(var(--u) * 14); border-radius: 999px; background: rgba(7, 27, 49, 0.62); border: 1px solid rgba(156, 195, 245, 0.35); font-size: max(12px, calc(var(--u) * 13)); }
