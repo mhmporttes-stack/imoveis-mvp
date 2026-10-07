@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — "Atividade agendada": um aviso por atividade (não a cada edição do cliente)
+- **Data:** 2026-10-06
+- **Área:** Automações / Notificações
+- **Alteração:** gatilhos de atividade (`activity_created/upcoming/overdue/completed`) passam a usar a chave `gatilho@<data/hora da atividade>` (sem etapa, sem `updated_at`). "Antes da atividade" conta da data/hora agendada; "Atividade agendada" não avisa atividade já passada/concluída. Reagendar = aviso novo.
+- **Motivo:** pedido do dono (só notificar cliente novo e atividade). A regra "ATIVIDADE AGENDADA" (30 min antes) usava `updated_at`+etapa: qualquer edição do cliente gerava push de novo, inclusive de atividades antigas (ex.: atividade de 28/09 avisada 4x em 05–06/10).
+- **Arquivos afetados:** `lib/crm-automation-activity.mjs` (novo), `lib/crm-automations.js`, `tests/crm-automation-activity.test.mjs`
+- **Risco/observação:** na publicação, atividades nos próximos 30 min podem receber um último aviso (chave nova). Sem mudança de banco. Investigação Meta do mesmo dia: a sincronização de insights NÃO está quebrada (campanhas sem veiculação 02–05/10); os "Leads no site" da campanha 52546652319953 (17 em 19 visitas, 1 cadastro no CRM) não vêm do código — suspeita de evento Lead configurado no Gerenciador de Eventos da Meta, a conferir pelo dono.
+- **Autor:** Claude Code
 ### 2026-10-06 — Pendentes da Meta Diária em lote na visão da equipe (sem mudar nenhum número)
 - **Data:** 2026-10-06
 - **Área:** Meta Diária / Desempenho
