@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-07 — Transferência manual desliga a roleta para o cliente
+- **Data:** 2026-10-07
+- **Área:** Roleta / Automações
+- **Alteração:** a automação de devolver à roleta (`return_to_round_robin`, regra "REDISTRIBUIÇÃO DE LEADS") pula todo cliente que já teve transferência manual (`client_journey_events` `responsible_transferred` com `transferType: manual`). Complementa `e9c3e11` (fila de espera).
+- **Motivo:** regra do dono — "depois que eu faço uma transferência manual, a roleta deve ser desativada" (caso #C4673: dono → Matheus 08:04, redistribuição → Eduardo 08:10).
+- **Arquivos afetados:** `lib/crm-automations.js`, `tests/manual-transfer-disables-roulette.test.mjs`
+- **Risco/observação:** 91 clientes já têm transferência manual registrada e deixam de ser redistribuídos automaticamente. Nenhuma métrica/`distribution_type` mudou.
+- **Autor:** Claude Code
 ### 2026-10-07 — Links curtos de volta nos geradores do CRM + "Excluir link" corrigido
 - **Data:** 2026-10-07
 - **Área:** Gerador de Links / Links compartilháveis
