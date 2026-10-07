@@ -11,7 +11,18 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   gender: "",
-  hasCreci: false,
+  creci: "",
+  addressStreet: "",
+  addressNumber: "",
+  addressNeighborhood: "",
+  addressCity: "",
+  addressState: "",
+  residenceType: "",
+  apartmentNumber: "",
+  addressComplement: "",
+  emergencyContactName: "",
+  emergencyContactRelationship: "",
+  emergencyContactPhone: "",
   password: "",
   role: "broker",
   linkedBrokerId: "",
@@ -47,7 +58,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", hasCreci: user.hasCreci === true, password: "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", creci: user.creci || "", addressStreet: user.addressStreet || "", addressNumber: user.addressNumber || "", addressNeighborhood: user.addressNeighborhood || "", addressCity: user.addressCity || "", addressState: user.addressState || "", residenceType: user.residenceType || "", apartmentNumber: user.apartmentNumber || "", addressComplement: user.addressComplement || "", emergencyContactName: user.emergencyContactName || "", emergencyContactRelationship: user.emergencyContactRelationship || "", emergencyContactPhone: user.emergencyContactPhone || "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -229,10 +240,12 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
           <FormGroup layout="profile" title="Perfil e acesso">
             <RoleField restricted={!canManageAllRoles} value={form.role} onChange={(value) => setForm((current) => ({ ...current, role: value, linkedBrokerId: value === "associate" ? current.linkedBrokerId : "", managerId: ["admin", "manager", "broker"].includes(value) ? current.managerId : "" }))} />
             <StatusField value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
-            <CreciField className="self-end" checked={form.hasCreci} onChange={(value) => setForm((current) => ({ ...current, hasCreci: value }))} />
+            <Field label="CRECI" value={form.creci} onChange={(value) => setForm((current) => ({ ...current, creci: value }))} />
             <DistributionField className="self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
             {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
           </FormGroup>
+
+          <ProfileDetailGroups form={form} onChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))} />
 
           {["admin", "manager", "broker"].includes(form.role) ? (
             <FormGroup layout="financial" title="Comissão e gestão">
@@ -293,8 +306,11 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                   <StatusField value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
                   {editForm.role === "associate" ? <BrokerField brokers={brokers.filter((broker) => broker.id !== user.id)} value={editForm.linkedBrokerId} onChange={(value) => setEditForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
                   {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
-                  <CreciField checked={editForm.hasCreci} onChange={(value) => setEditForm((current) => ({ ...current, hasCreci: value }))} />
+                  <Field label="CRECI" value={editForm.creci} onChange={(value) => setEditForm((current) => ({ ...current, creci: value }))} />
                   <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
+                </div>
+                <div className="mt-4 divide-y divide-line">
+                  <ProfileDetailGroups form={editForm} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2"><button className="premium-button-primary" disabled={isSaving} type="submit"><Save className="h-4 w-4" /> Salvar alterações</button><button className="premium-button-secondary" onClick={() => { setEditingId(""); setEditForm(null); }} type="button"><X className="h-4 w-4" /> Cancelar</button></div>
               </form> : null}
@@ -481,8 +497,26 @@ function StatusField({ value, onChange, className = "" }) {
   return <label className={`grid min-w-0 gap-2 text-sm font-black text-navy ${className}`}>Status<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={value} onChange={(event) => onChange(event.target.value)}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>;
 }
 
-function CreciField({ checked, onChange, className = "" }) {
-  return <label className={`flex min-h-11 min-w-0 max-w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy lg:w-fit ${className}`}><input className="h-5 w-5 shrink-0 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><span>Possui CRECI <span className="font-bold text-muted">(sem CRECI, o WhatsApp o chama de associado do corretor Matheus Machado)</span></span></label>;
+// Endereço e contato de emergência do usuário (pedido do dono, 2026-10-07). Sem CEP. "Número do apartamento" só
+// aparece para Apartamento.
+function ProfileDetailGroups({ form, onChange }) {
+  return <>
+    <FormGroup title="Endereço">
+      <Field label="Rua" value={form.addressStreet} onChange={(value) => onChange("addressStreet", value)} />
+      <Field label="Número" value={form.addressNumber} onChange={(value) => onChange("addressNumber", value)} />
+      <Field label="Bairro" value={form.addressNeighborhood} onChange={(value) => onChange("addressNeighborhood", value)} />
+      <Field label="Cidade" value={form.addressCity} onChange={(value) => onChange("addressCity", value)} />
+      <Field label="Estado" value={form.addressState} onChange={(value) => onChange("addressState", value)} />
+      <label className="grid min-w-0 gap-2 text-sm font-black text-navy">Tipo de residência<select className="h-14 min-w-0 w-full rounded-2xl border border-line bg-white px-4 font-extrabold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.residenceType || ""} onChange={(event) => { onChange("residenceType", event.target.value); if (event.target.value !== "apartment") onChange("apartmentNumber", ""); }}><option value="">Selecione</option><option value="house">Casa</option><option value="apartment">Apartamento</option></select></label>
+      {form.residenceType === "apartment" ? <Field label="Número do apartamento" value={form.apartmentNumber} onChange={(value) => onChange("apartmentNumber", value)} /> : null}
+      <Field label="Complemento (opcional)" value={form.addressComplement} onChange={(value) => onChange("addressComplement", value)} />
+    </FormGroup>
+    <FormGroup title="Contato de emergência">
+      <Field label="Nome do contato" value={form.emergencyContactName} onChange={(value) => onChange("emergencyContactName", value)} />
+      <Field label="Grau de parentesco/relação" value={form.emergencyContactRelationship} onChange={(value) => onChange("emergencyContactRelationship", value)} />
+      <Field label="Telefone" value={form.emergencyContactPhone} onChange={(value) => onChange("emergencyContactPhone", value)} />
+    </FormGroup>
+  </>;
 }
 
 function DistributionField({ checked, onChange, className = "" }) {
