@@ -100,7 +100,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
               <ExternalLink className="h-4 w-4" aria-hidden="true" /> Empreendimentos
             </Button>}
             <Button variant="secondary" className="col-span-2 sm:col-span-1" onClick={() => list.openValues(client)} disabled={busy}>
-              <Calculator className="h-4 w-4" aria-hidden="true" /> Valores
+              <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
             </Button>
             {/* Round 4: o corretor envia a lista personalizada (texto + link) depois de conferir a prévia; não muda a etapa. */}
             {whatsappBlocked ? null : <Button variant="secondary" className="col-span-2 sm:col-span-3" onClick={() => list.prepareDocumentsList(client)} disabled={busy || !registration?.id || [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)} data-send-documents-list="">

@@ -133,8 +133,9 @@ export default function ClientCard({ client, activities, responsibleName, respon
         {whatsappBlocked ? null : <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
         </Button>}
-        <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => onOpen("agenda")} disabled={busy}>
-          <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Agendar
+        {/* Pedido do dono (2026-10-07): o botão do card abre os valores (renomeado "Simulação"); "Agendar" foi para o menu. */}
+        <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => list.openValues(client)} disabled={busy}>
+          <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
         </Button>
         <Menu
           label={`Mais ações para ${name}`}
@@ -143,7 +144,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
             { label: "Empreendimentos", icon: ExternalLink, hidden: basicMode, onSelect: () => list.openSimulation(client) },
-            { label: "Valores", icon: Calculator, onSelect: () => list.openValues(client) },
+            { label: "Agendar", icon: CalendarPlus, onSelect: () => onOpen("agenda") },
             { label: "Ficha completa", icon: ChevronRight, onSelect: () => onOpen() },
             { label: "Excluir cliente", icon: Trash2, tone: "danger", separatorBefore: true, hidden: !isOwner, onSelect: () => list.removeClient(client) }
           ]}
