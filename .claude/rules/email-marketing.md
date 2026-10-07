@@ -25,7 +25,7 @@ Dono da frente: agente `email-specialist` (Diretor de E-mail). Vale também para
 
 ## Conformidade (aplicar em toda peça)
 1. Origem do contato rastreável (formulário do site, cadastro do cliente, indicação declarada); sem lista comprada/raspada. Base legal LGPD e texto de consentimento/legítimo interesse: **A CONFIRMAR com advogado** antes do 1º disparo em massa.
-2. Todo e-mail: remetente identificado (Matheus Machado Imóveis + CRECI 323106), descadastro visível em 1 clique, motivo pelo qual a pessoa recebe, endereço/contato. Cabeçalho `List-Unsubscribe` + one-click quando houver envio em escala.
+2. Todo e-mail: remetente identificado (Matheus Machado Imóveis + CRECI 323106-F), descadastro visível em 1 clique, motivo pelo qual a pessoa recebe, endereço/contato. Cabeçalho `List-Unsubscribe` + one-click quando houver envio em escala.
 3. Texto honesto: sem aprovação garantida, sem valor de subsídio/parcela sem fonte, sem urgência falsa; "sujeito a análise de crédito". Fonte única: `.claude/skills/criar-anuncio/references/conformidade-imobiliaria.md`.
 4. Sem técnicas de evasão de filtro (ver `email-specialist`).
 

@@ -314,7 +314,7 @@ test("logo da Caixa: sem pílula branca, sem caixa/borda/fundo; direto sobre o f
 test("cabeçalho: MATHEUS MACHADO (negrito, espaçado) e CORRETOR DE IMÓVEIS (menor, azul claro) nas cenas e nas imagens", () => {
   assert.equal(BRAND_NAME, "MATHEUS MACHADO");
   assert.equal(BRAND_ROLE, "CORRETOR DE IMÓVEIS");
-  assert.equal(BRAND_CRECI, "CRECI 323106");
+  assert.equal(BRAND_CRECI, "CRECI 323106-F");
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.match(player, /<strong>\{BRAND_NAME\}<\/strong>\s*<span>\{BRAND_ROLE\}<\/span>/);
   assert.ok(!player.includes("Matheus Machado Imóveis"));

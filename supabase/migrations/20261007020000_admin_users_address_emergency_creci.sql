@@ -17,4 +17,4 @@ alter table public.admin_users
 
 -- Único usuário com "Possui CRECI" marcado (o dono): recebe o número do CRECI já usado no material da marca,
 -- para o campo novo não aparecer vazio e não mudar o tratamento dele no WhatsApp ao editar.
-update public.admin_users set creci = '323106' where has_creci = true and coalesce(creci, '') = '' and lower(email) = 'mhmporttes@gmail.com';
+update public.admin_users set creci = '323106-F' where has_creci = true and coalesce(creci, '') = '' and lower(email) = 'mhmporttes@gmail.com';

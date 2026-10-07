@@ -18,7 +18,7 @@ Agente: `marketing-posicionamento`. Metodologia, etiquetas e índice: `reference
 7. **Concorrentes e IA** — resumo de `/concorrentes-marilia` e `/visibilidade-ia` se já houver snapshot recente (≤30 dias); senão sugira rodá-los.
 8. **CRM (opcional)** — se houver Supabase: leads por origem orgânica nos últimos 30/90 dias (só contagens).
 9. **Pontue** as 7 áreas; calcule o índice só sobre as áreas medidas; compare com o snapshot anterior.
-   **Consulta de marca:** o nome tem homônimos famosos; rode também "Matheus Machado corretor Marília CRECI 323106" e o domínio. Consultas sem localização (WebSearch só EUA) com valor quase nulo (ex.: "casas à venda em Marília") → pule e diga por quê. Concorrentes e homônimos aparecem em `HISTORICO.md` como evidência interna, nunca em material publicável.
+   **Consulta de marca:** o nome tem homônimos famosos; rode também "Matheus Machado corretor Marília CRECI 323106-F" e o domínio. Consultas sem localização (WebSearch só EUA) com valor quase nulo (ex.: "casas à venda em Marília") → pule e diga por quê. Concorrentes e homônimos aparecem em `HISTORICO.md` como evidência interna, nunca em material publicável.
 10. **Grave** snapshot em `HISTORICO.md` e recomendações em `BACKLOG.md` (máx. 7 ativas, com checagem de falha). Responda no formato do agente.
 
 ## Dados reais primeiro (Windsor)

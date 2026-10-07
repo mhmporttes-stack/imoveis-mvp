@@ -46,7 +46,7 @@ test("rule email-marketing tem paths e o CLAUDE.md a aponta", () => {
 });
 
 test("lint de e-mail: aprova peça mínima conforme e reprova problemas conhecidos", () => {
-  const ok = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title></head><body><div style="display:none;max-height:0;overflow:hidden">pre</div><table role="presentation"><tr><td><img src="https://www.matheusmachadoimoveis.com.br/assets/a.png" alt="Logo" width="160"><a href="https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=email&utm_medium=email">Simular</a><a href="{{unsubscribe_url}}">Descadastrar</a> CRECI 323106</td></tr></table></body></html>`;
+  const ok = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title></head><body><div style="display:none;max-height:0;overflow:hidden">pre</div><table role="presentation"><tr><td><img src="https://www.matheusmachadoimoveis.com.br/assets/a.png" alt="Logo" width="160"><a href="https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=email&utm_medium=email">Simular</a><a href="{{unsubscribe_url}}">Descadastrar</a> CRECI 323106-F</td></tr></table></body></html>`;
   assert.deepEqual(lintEmail(ok).errors, []);
   const bad = lintEmail(`<html><body><script></script><img src="x.png"><a href="http://bit.ly/x">a</a><div style="display:flex">aprovação garantida</div></body></html>`);
   for (const frag of ["DOCTYPE", "<script>", "sem atributo alt", "https", "encurtador", "flex", "descadastro", "CRECI", "termo proibido"]) {

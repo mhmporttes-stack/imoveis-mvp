@@ -19,12 +19,12 @@
   ```
   🏠 Especialista na compra do primeiro imóvel
   📍 Marília/SP · Minha Casa Minha Vida · Financiamento Caixa
-  CRECI 323106
+  CRECI 323106-F
   👇 Simule sua entrada
   ```
 - Link: `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=instagram&utm_medium=organic&utm_campaign=bio_instagram`
 
 ## Pontos a confirmar antes de aplicar
-- Formato do CRECI (o site usa "CRECI 323106"; confirmar se deve levar UF e sufixo, ex.: CRECI-SP 323106-F).
+- Formato do CRECI (o site usa "CRECI 323106-F"; confirmar se deve levar UF e sufixo, ex.: CRECI-SP 323106-F).
 - Categoria do perfil profissional (campo separado do nome) permanece "Corretor de imóveis"/equivalente.
 - O CRM classifica o link como origem "Link — bio_instagram" (`lib/lead-origin.js`: `utm_source` presente e `utm_medium` fora do padrão pago). Conferir no próximo lead real vindo da bio; não gravar lead de teste em produção.

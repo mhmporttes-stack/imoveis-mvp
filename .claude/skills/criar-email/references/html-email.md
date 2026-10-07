@@ -25,7 +25,7 @@ URL absoluta https no domínio do site, 2x para telas retina, `alt` sempre, `wid
 Ver `marca-email.md`; teste de logo em fundo claro e escuro.
 
 ## Rodapé obrigatório
-Identificação (Matheus Machado Imóveis · CRECI 323106 · Marília/SP), motivo do recebimento, link `{{unsubscribe_url}}` visível, link para política de privacidade (`/politica-de-privacidade`), contato.
+Identificação (Matheus Machado Imóveis · CRECI 323106-F · Marília/SP), motivo do recebimento, link `{{unsubscribe_url}}` visível, link para política de privacidade (`/politica-de-privacidade`), contato.
 
 ## Versão texto
 `.txt` multipart com o mesmo conteúdo essencial, links por extenso e descadastro.

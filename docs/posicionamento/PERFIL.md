@@ -9,7 +9,7 @@
 | Campo | Valor | Fonte |
 |---|---|---|
 | Nome | Matheus Machado Imóveis (marca) · Matheus Machado, corretor de imóveis | código do site |
-| CRECI | 323106 | código do site |
+| CRECI | 323106-F | código do site |
 | Site | https://www.matheusmachadoimoveis.com.br | produção |
 | Instagram | https://www.instagram.com/mhm.machado/ | código do site |
 | Endereço | Av. Ipiranga Nº 147, Marília/SP [VERIFICADO no site 2026-10-01] — **A CONFIRMAR** se é o endereço do GMN e se atende público no local | código do site |

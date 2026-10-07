@@ -6,7 +6,7 @@
 ## ✅ ETAPA 1 APROVADA E **PUBLICADA em 02/10** (6 respostas + descrição + link; ver `HISTORICO.md`). Itens §3–§9 abaixo seguem **pendentes de aprovação**. Textos FINAIS (substituem §1 e §2):
 Bloqueio: "Write actions are disabled for the Windsor user" (configuração do dono em Windsor → Settings → API Access → "Enable write actions for Claude, ChatGPT & API"). Aguardando o dono ligar; nenhuma alteração foi feita no Google. Estado "antes" (02/10): descrição antiga (abria com "Especialista na compra do primeiro imóvel em Marília e região… até a aprovação do financiamento…"), site `https://www.matheusmachadoimoveis.com.br/` sem UTM, 0 respostas.
 
-**Descrição final (538/750):** Especialista na compra do primeiro imóvel em Marília/SP. Sou Matheus Machado, corretor de imóveis (CRECI 323106), e ajudo você a sair do aluguel: simulação de financiamento pela Caixa, Minha Casa Minha Vida, análise de renda (formal e informal) e acompanhamento de todas as etapas, da escolha do imóvel até a assinatura do contrato. Trabalho com imóveis na planta, novos e usados em Marília e região, com atendimento transparente e sem enrolação. Faça a simulação da sua entrada, sem compromisso, e descubra qual imóvel cabe no seu bolso.
+**Descrição final (538/750):** Especialista na compra do primeiro imóvel em Marília/SP. Sou Matheus Machado, corretor de imóveis (CRECI 323106-F), e ajudo você a sair do aluguel: simulação de financiamento pela Caixa, Minha Casa Minha Vida, análise de renda (formal e informal) e acompanhamento de todas as etapas, da escolha do imóvel até a assinatura do contrato. Trabalho com imóveis na planta, novos e usados em Marília e região, com atendimento transparente e sem enrolação. Faça a simulação da sua entrada, sem compromisso, e descubra qual imóvel cabe no seu bolso.
 **Site final:** `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=google&utm_medium=organic&utm_campaign=gmn` (ação `update_location`, campos `description` e `website_url`; telefone inalterado).
 
 **Respostas finais (`reply_to_review`; individuais, sem dado do atendimento):**
@@ -35,7 +35,7 @@ Tom do dono; sem dado do atendimento, sem promessa, sem pedir nova avaliação. 
 ## 2. Descrição e link do site (`update_location`) — risco baixo, público; Google pode revisar
 **Antes (resumo):** descrição abre com a frase certa, mas sem CRECI e com "até a aprovação do financiamento" (pode soar como promessa); link do site sem UTM.
 **Depois (491 de 750 caracteres):**
-> Especialista na compra do primeiro imóvel em Marília/SP. Ajudo você a sair do aluguel: simulação de financiamento pela Caixa, Minha Casa Minha Vida, análise de renda (formal e informal) e acompanhamento de todas as etapas, da escolha do imóvel até a assinatura do contrato. Trabalho com imóveis na planta, novos e usados em Marília e região, com atendimento transparente e sem enrolação. Faça a simulação da sua entrada sem compromisso e descubra qual imóvel cabe no seu bolso. CRECI 323106.
+> Especialista na compra do primeiro imóvel em Marília/SP. Ajudo você a sair do aluguel: simulação de financiamento pela Caixa, Minha Casa Minha Vida, análise de renda (formal e informal) e acompanhamento de todas as etapas, da escolha do imóvel até a assinatura do contrato. Trabalho com imóveis na planta, novos e usados em Marília e região, com atendimento transparente e sem enrolação. Faça a simulação da sua entrada sem compromisso e descubra qual imóvel cabe no seu bolso. CRECI 323106-F.
 
 **Link do site:** `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=google&utm_medium=organic&utm_campaign=gmn` (o CRM registra a origem como "Link — gmn"; `lib/lead-origin.js`).
 Telefone permanece `(14) 99840-7380` (igual ao site). **Não alterar nome** ("Matheus Machado": nome real, sem palavra-chave — regra do Google).
@@ -69,24 +69,24 @@ Hoje: 1 foto (14/07), 0 visualizações; sem foto de capa/perfil identificada. M
 > 3) Separe a documentação.
 > 4) Só então escolha o imóvel que cabe na sua realidade.
 > A simulação é gratuita e mostra o caminho. A análise de crédito é feita pela Caixa.
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 
 **Post 2 (371)**
 > Minha Casa Minha Vida em Marília: quem define as condições é a sua renda.
 > O programa tem faixas de renda, e as condições mudam conforme a faixa e as regras vigentes. Não existe resposta única: depende do seu caso.
 > Faça a simulação e eu explico, passo a passo, onde você se encaixa. A aprovação do crédito é decisão da Caixa.
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 
 **Post 3 (375)** — *confirmar a lista com o seu atendimento real antes de publicar*
 > Documentos para financiar o primeiro imóvel
 > Em geral, a Caixa pede documento de identificação, CPF, comprovante de renda, comprovante de residência e certidão de estado civil. A lista exata depende do seu caso (renda informal, casado, FGTS…).
 > Antes de juntar papel, faça a simulação: eu confiro com você o que realmente precisa.
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 
 **Post 4 (266)**
 > Quem já conquistou o primeiro imóvel conta como foi.
 > O retorno de quem comprou com atendimento claro e acompanhamento em cada etapa é o que me move todos os dias. Quer ser o próximo? Faça a sua simulação sem compromisso.
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 
 ## 8. Perguntas e respostas do perfil — fora do alcance da integração: **você publica no painel do Google**
 Perguntar e responder você mesmo é permitido pelo Google. Sugestão (5):
@@ -111,7 +111,7 @@ Link de todos: `https://www.matheusmachadoimoveis.com.br/simulacao?utm_source=go
 > 
 > Ainda não simulou? Comece pela simulação gratuita e vamos avançar juntos.
 > 
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 
 **Post 4 — substituído por MODELO de caso real (não publicar até haver caso e autorização):**
 Estrutura: nome (com autorização) + conquista + trecho do depoimento nas palavras do cliente + a jornada em etapas (simulação → documentação → análise da Caixa → chaves) com mês/ano + aviso "cada caso é analisado pela Caixa" + convite à simulação. Proibido: valores, renda, parcela, nome de banco além da Caixa, qualquer promessa de resultado, dados do contrato.
@@ -119,7 +119,7 @@ Estrutura: nome (com autorização) + conquista + trecho do depoimento nas palav
 > “[trecho curto do depoimento, nas palavras do cliente, aprovado por ele]”
 > A jornada: simulação em [mês/ano], documentação, análise da Caixa e entrega das chaves em [mês/ano]. Cada caso é analisado individualmente pela Caixa.
 > Quer começar a sua história? Faça a simulação gratuita.
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP
 Condições antes de publicar: (1) autorização **por escrito** do cliente para nome, foto/vídeo e depoimento; (2) foto/vídeo da entrega de chaves enviado por ele ou feito com consentimento; (3) o cliente lê o texto final e aprova; (4) sem dado financeiro ou documental; (5) registrar a autorização (arquivo fora do repositório, sem dado pessoal nos docs).
 
 ---
@@ -139,4 +139,4 @@ Mantido fora da lista: CTPS, PIS, FGTS, IR, dependentes e documentos do cônjuge
 > 
 > Ainda não simulou? Comece pela simulação gratuita e vamos avançar juntos.
 > 
-> Matheus Machado · CRECI 323106 · Marília/SP
+> Matheus Machado · CRECI 323106-F · Marília/SP

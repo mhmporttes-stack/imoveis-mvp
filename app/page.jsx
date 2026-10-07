@@ -58,7 +58,7 @@ export default async function HomePage() {
                 MATHEUS MACHADO
               </p>
               <p className="mt-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100/90 sm:text-sm">
-                CORRETOR DE IMÓVEIS · CRECI 323106
+                CORRETOR DE IMÓVEIS · CRECI 323106-F
               </p>
             </div>
             <h1 className="mt-9 max-w-[940px] text-[clamp(1.52rem,3vw,3.4rem)] font-black leading-[1.02] text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)] md:whitespace-nowrap md:leading-[0.96]">

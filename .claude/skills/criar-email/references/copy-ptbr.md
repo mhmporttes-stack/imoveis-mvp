@@ -3,7 +3,7 @@
 Princípios (reescritos; inspiração: disciplina de cold email do `marketingskills`, MIT): claro > criativo; uma ideia; o leitor primeiro; específico; sem hype.
 
 ## Tom
-Direto, acolhedor, profissional; "você"; frases curtas; verbo de ação; sem jargão bancário sem explicar (FGTS, subsídio, entrada, parcela). Assinatura humana: Matheus Machado, corretor (CRECI 323106). Sem emoji em excesso (máx. 1 no assunto, opcional); sem CAIXA ALTA, "!!!", "GRÁTIS", "ÚLTIMA CHANCE".
+Direto, acolhedor, profissional; "você"; frases curtas; verbo de ação; sem jargão bancário sem explicar (FGTS, subsídio, entrada, parcela). Assinatura humana: Matheus Machado, corretor (CRECI 323106-F). Sem emoji em excesso (máx. 1 no assunto, opcional); sem CAIXA ALTA, "!!!", "GRÁTIS", "ÚLTIMA CHANCE".
 
 ## Assunto e preheader
 - 30–50 caracteres (cabe no celular). Específico e honesto: "Quanto você pode financiar no primeiro imóvel?" · "Seu poder de compra, em 2 minutos".

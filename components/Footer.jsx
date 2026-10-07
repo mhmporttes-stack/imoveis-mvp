@@ -13,7 +13,7 @@ export default function Footer() {
     <footer className="mt-28 border-t border-line bg-[#071f38] text-white">
       <div className="container-page grid gap-10 py-14 lg:grid-cols-[1fr_0.55fr_minmax(360px,440px)]">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Matheus Machado · CRECI 323106</p>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Matheus Machado · CRECI 323106-F</p>
           <h2 className="mt-4 max-w-xl text-3xl font-extrabold leading-tight">Especialista no mercado imobiliário de Marília.</h2>
           <p className="mt-4 max-w-xl text-white/70">Simulação de financiamento, aprovação de crédito e acompanhamento personalizado durante todo o processo.</p>
         </div>
