@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-06 — Histórico do cliente inclui o(s) cadastro(s) anterior(es) (reentrada por anúncio)
+- **Data:** 2026-10-06
+- **Área:** Clientes / Jornada
+- **Alteração:** a linha do tempo de um cadastro criado por reentrada por anúncio mescla os eventos do(s) cadastro(s) anterior(es) da mesma pessoa (`metadata.ad_reentry_of`, até 5 níveis), com selo "Cadastro anterior #Cxxxx", evento "PRIMEIRO CADASTRO" (origem, modalidade, destino, corretor) e "Primeira entrada" no cabeçalho. "Cliente cadastrado" mostra também o corretor inicial. Roleta sem corretor on-line: a atribuição inicial registra com quem o cliente ficou (dono, `heldByOwner`) em vez de "Distribuído para: —".
+- **Motivo:** pedido do dono — ver quando o cliente entrou pela primeira vez e para quem foi (ex.: #C4672 → #C3507, 25/09, Caroline Mayumi).
+- **Arquivos afetados:** `lib/client-journey.js`, `lib/simulation-registrations.js`, `components/ClientJourneyActions.jsx`, `tests/client-journey-previous-records.test.mjs`
+- **Risco/observação:** só leitura entre cadastros (nada copiado). Quem pode abrir o cadastro novo vê também o histórico do anterior, inclusive de outro corretor (mesma pessoa) — decisão de produto a confirmar pelo dono. Eventos antigos de atribuição sem responsável aparecem como "ninguém (nenhum corretor on-line)".
+- **Autor:** Claude Code
 ### 2026-10-06 — "Atividade agendada": um aviso por atividade (não a cada edição do cliente)
 - **Data:** 2026-10-06
 - **Área:** Automações / Notificações

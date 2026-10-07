@@ -95,10 +95,20 @@ function eventTitleAndDescription(event, context = {}) {
       // O trigger de banco que grava este evento não preenche `details` —
       // a origem/modalidade já foram carregadas à parte (origin/registration,
       // mesma fonte usada no cabeçalho do modal), reaproveitadas aqui.
+      // Cadastro ANTERIOR (reentrada por anúncio): origem/modalidade/destino vêm no próprio evento (details).
+      if (event.previousRecord) {
+        return { title: "PRIMEIRO CADASTRO", description: [
+          d.originLabel ? `Origem: ${d.originLabel}` : "",
+          JOURNEY_MODALITY_LABEL[d.journeyType] ? `Modalidade: ${JOURNEY_MODALITY_LABEL[d.journeyType]}` : "",
+          d.initialDestination ? `Destino: ${d.initialDestination === "roulette" ? "Roleta" : "Corretor"}` : "",
+          d.initialResponsibleName ? `Corretor: ${d.initialResponsibleName}` : ""
+        ].filter(Boolean) };
+      }
       return { title: "CLIENTE CADASTRADO", description: [
         context.origin?.source_label ? `Origem: ${context.origin.source_label}` : "",
         JOURNEY_MODALITY_LABEL[context.registration?.journeyType] ? `Modalidade: ${JOURNEY_MODALITY_LABEL[context.registration.journeyType]}` : "",
-        context.origin?.initial_destination ? `Destino: ${context.origin.initial_destination === "roulette" ? "Roleta" : "Corretor"}` : ""
+        context.origin?.initial_destination ? `Destino: ${context.origin.initial_destination === "roulette" ? "Roleta" : "Corretor"}` : "",
+        context.origin?.initial_responsible_name ? `Corretor: ${context.origin.initial_responsible_name}` : ""
       ].filter(Boolean) };
     case "status":
     case "legacy_status":
@@ -110,7 +120,9 @@ function eventTitleAndDescription(event, context = {}) {
     case "responsible_transferred":
       return { title: "TRANSFERÊNCIA DE RESPONSÁVEL", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, "Tipo: Transferência manual"] };
     case "distribution:assigned":
-      return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: Distribuição automática"] };
+      if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor on-line — fica com o dono até a roleta entregar ao primeiro corretor on-line"] };
+      if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor on-line)", "Motivo: aguardando a roleta entregar ao primeiro corretor on-line"] };
+      return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName}`, "Motivo: Distribuição automática"] };
     case "distribution:auto_transferred":
       return { title: "TRANSFERÊNCIA AUTOMÁTICA", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, d.reason ? `Motivo: ${d.reason}` : "Motivo: Prazo de atendimento excedido"] };
     case "tag_added":
@@ -204,6 +216,11 @@ function EventRow({ event, context }) {
         <EventIcon type={event.type} />
       </span>
       <div className="min-w-0 flex-1">
+        {event.previousRecord ? (
+          <p className="mb-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+            Cadastro anterior {event.previousRecord.clientCode}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <p className="text-[13px] font-black tracking-wide text-navy">{title}</p>
           <p className="text-[11px] font-bold text-muted">{date(event.occurredAt)}</p>
@@ -328,6 +345,12 @@ export default function ClientJourneyActions({ registration, canManage, responsi
                 <Field label="Modalidade" value={modalidade || "—"} />
                 <Field label="Status atual" value={stageLabel} />
                 <Field label="Entrada" value={dateOnly(registration.createdAt)} />
+                {detail?.previousRecords?.length ? (
+                  <Field
+                    label="Primeira entrada"
+                    value={`${dateOnly(detail.previousRecords.at(-1).createdAt)} · ${detail.previousRecords.at(-1).clientCode}${detail.previousRecords.at(-1).initialResponsibleName ? ` · ${detail.previousRecords.at(-1).initialResponsibleName}` : ""}`}
+                  />
+                ) : null}
               </div>
 
               {tags.length ? (
