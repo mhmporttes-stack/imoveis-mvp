@@ -24,10 +24,10 @@ test("caminhos curtos", () => {
 });
 
 test("os construtores de link do CRM geram a versão curta e as rotas redirecionam para a URL longa de sempre", () => {
-  // Os links GERADOS pelo CRM voltaram ao formato longo (decisão do dono 2026-10-05); as rotas curtas seguem funcionando.
-  assert.match(source("lib/admin-profiles.js"), /\/simulacao\?ref=\$\{encodeURIComponent\(ref\)\}/);
-  assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/);
-  assert.doesNotMatch(source("lib/admin-profiles.js"), /shortSimulationPath/);
+  assert.match(source("lib/admin-profiles.js"), /shortSimulationPath\(normalizeBrokerRef\(profile\?\.shortRef\) \|\| ref\)/);
+  assert.match(source("lib/admin-profiles.js"), /shortCaptacaoPath\(normalizeBrokerRef\(profile\?\.shortRef\) \|\| ref\)/);
+  assert.match(source("lib/campaigns.js"), /shortCampaignPath\(campaign\.shortCode\)/);
+  assert.match(source("lib/campaigns.js"), /\/simulacao\?c=\$\{encodeURIComponent\(campaign\.id\)\}/, "sem código mantém o link longo");
   assert.match(source("app/s/route.js"), /target\.pathname = "\/simulacao"/);
   assert.match(source("app/s/[ref]/route.js"), /target\.searchParams\.set\("ref", resolved\)/);
   assert.match(source("app/c/[code]/route.js"), /from\("campaigns"\)\.select\("id"\)\.eq\("short_code", clean\)/);
@@ -47,9 +47,22 @@ test("os construtores de link do CRM geram a versão curta e as rotas redirecion
 
 test("código curto por usuário (short_ref): resolve para o ref de atribuição e o ref longo antigo continua valendo", () => {
   assert.equal(displayLink("https://www.matheusmachadoimoveis.com.br/s/mhm"), "matheusmachadoimoveis.com.br/s/mhm");
+  assert.match(source("lib/admin-profiles.js"), /shortSimulationPath\(normalizeBrokerRef\(profile\?\.shortRef\) \|\| ref\)/);
   assert.match(source("lib/short-ref-resolver.js"), /\.eq\("short_ref", clean\)/);
   assert.match(source("lib/short-ref-resolver.js"), /return resolved \|\| clean;/, "sem código curto, o valor é o ref de sempre");
   assert.match(source("app/s/[ref]/route.js"), /resolveShortRef\(.*"simulation"\)/);
   assert.match(source("app/v/[ref]/route.js"), /resolveShortRef\(.*"captacao"\)/);
+  // Copiar leva o link curto COMPLETO (https://www…): colado no WhatsApp, a prévia sai sem depender de redirecionamento.
+  assert.match(source("components/CampaignsManager.jsx"), /writeText\(campaign\.link\)/);
+  assert.match(source("components/clients/useClientList.js"), /writeText\(brokerSimulationLink\)/);
   assert.match(source("supabase/migrations/20261005010000_admin_users_short_ref.sql"), /set short_ref = 'mhm'/);
+});
+
+test("excluir link no CRM só tira da lista (deleted_at); a URL já enviada continua resolvendo", () => {
+  const lib = source("lib/campaigns.js");
+  const del = /export async function deleteCampaign[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
+  assert.match(del, /update\(\{ deleted_at: new Date\(\)\.toISOString\(\) \}\)/);
+  assert.doesNotMatch(del, /\.delete\(\)/);
+  assert.match(lib, /select\("\*"\)\.is\("deleted_at", null\)/, "lista do CRM esconde os excluídos");
+  assert.doesNotMatch(source("app/c/[code]/route.js"), /deleted_at/, "link curto resolve mesmo excluído da lista");
 });

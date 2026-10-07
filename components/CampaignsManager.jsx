@@ -1,4 +1,5 @@
 "use client";
+import { displayLink } from "@/lib/short-links.mjs";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -164,7 +165,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
   }
 
   async function removeCampaign(campaign) {
-    if (!confirm(`Excluir a campanha "${campaign.name}"? O link deixa de funcionar. Os cadastros que já vieram por ele continuam no CRM normalmente.`)) return;
+    if (!confirm(`Excluir a campanha "${campaign.name}"? Ele sai da lista do CRM; quem já recebeu o link continua conseguindo abrir, e os cadastros que vieram por ele continuam no CRM normalmente.`)) return;
     setError("");
     setMessage("");
 
@@ -185,7 +186,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
       setCopiedId(campaign.id);
       setTimeout(() => setCopiedId(""), 2000);
     } catch {
-      setError("Não foi possível copiar o link automaticamente. Copie manualmente: " + campaign.link);
+      setError("Não foi possível copiar o link automaticamente. Copie manualmente: " + displayLink(campaign.link));
     }
   }
 
@@ -316,7 +317,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
                   {campaign.brokerName ? (
                     <p className="mt-1 font-bold text-muted">Corretor: <strong className="text-navy">{campaign.brokerName}</strong></p>
                   ) : null}
-                  <p className="mt-1 break-all font-bold text-brand">{campaign.link}</p>
+                  <p className="mt-1 break-all font-bold text-brand">{displayLink(campaign.link)}</p>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-xl sm:grid-cols-4">
                     <MiniStat label="Cliques" value={campaign.viewCount || 0} />

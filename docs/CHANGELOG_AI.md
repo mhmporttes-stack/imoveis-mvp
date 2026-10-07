@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-07 — Links curtos de volta nos geradores do CRM + "Excluir link" corrigido
+- **Data:** 2026-10-07
+- **Área:** Gerador de Links / Links compartilháveis
+- **Alteração:** (1) desfaz `8c8a22f`: link de campanha `/c/{short_code}`, link do corretor `/s/{short_ref}`, captação `/v/{short_ref}`, Minha Jornada `/j/{token}`, link genérico das respostas automáticas `/s`. Copiar leva a URL curta completa (`https://www…`). As rotas longas (`/simulacao?c=`, `?ref=`, `/captacao?ref=`, `/minha-jornada/`) seguem valendo; as curtas respondem 200 com Open Graph (`538aef2`), que resolveu a prévia que motivou a reversão de 04/10. (2) "Excluir" no Gerador de Links passa a marcar `campaigns.deleted_at` (migration `20261007010000_campaigns_soft_delete.sql`, aplicada) e esconder da lista; a linha e o status ficam, então a URL já enviada continua abrindo e atribuindo.
+- **Motivo:** pedido do dono (links curtos; "não consigo excluir links antigos"). Causa do erro: `DELETE` falhava por FK `whatsapp_broadcasts.link_campaign_id` (sem `on delete`) nos links criados pelo Disparo, e a mensagem mapeada era "O corretor selecionado não foi encontrado".
+- **Arquivos afetados:** `lib/campaigns.js`, `lib/admin-profiles.js`, `lib/client-journey.js`, `lib/whatsapp-automation-replies.js`, `lib/whatsapp-flows.js`, `components/CampaignsManager.jsx`, `components/clients/useClientList.js`, `components/flows/FlowPreview.jsx`, `tests/short-links.test.mjs`, migration acima.
+- **Risco/observação:** não mudou: modelo aprovado do Disparo (`/simulacao?c={{1}}`, template da Meta), link da roleta `/simulacao/equipe` (abre direto a Simulação), link da apresentação `/s/{token}` (já curto; token de 128 bits mantido por segurança).
+- **Autor:** Claude Code
 ### 2026-10-06 — Histórico do cliente inclui o(s) cadastro(s) anterior(es) (reentrada por anúncio)
 - **Data:** 2026-10-06
 - **Área:** Clientes / Jornada
