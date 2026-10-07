@@ -37,13 +37,15 @@ test("fila antiga (mais de 60 min) não é falada", () => {
 });
 
 test("frase do alerta: 1 cliente fala o nome; 2 ou mais só a quantidade", () => {
+  // a Alexa fala com o dono, em terceira pessoa, sobre o corretor
   assert.equal(
-    composeGroupedReplyAlertSpeech({ brokerName: "Jennifer Souza", count: 1, clientName: "João Silva" }),
-    "Atenção, Jennifer. O cliente João Silva está aguardando resposta há mais de 10 minutos."
+    composeGroupedReplyAlertSpeech({ brokerName: "Bruna Souza", brokerGender: "female", count: 1, clientName: "Fanny" }),
+    "Atenção. A Bruna está com o cliente Fanny aguardando resposta há mais de 10 minutos."
   );
-  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Carol", count: 2, clientName: "João" }), "Atenção, Carol. Você possui 2 clientes aguardando resposta há mais de 10 minutos.");
-  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Eduardo Lima", count: 4 }), "Atenção, Eduardo. Você possui 4 clientes aguardando resposta há mais de 10 minutos.");
-  assert.match(composeGroupedReplyAlertSpeech({ brokerName: "Edu", count: 1, clientName: "5511999998888" }), /^Atenção, Edu\. Um cliente está aguardando/);
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Kathleen", brokerGender: "female", count: 2, clientName: "João" }), "Atenção. A Kathleen está com 2 clientes aguardando resposta há mais de 10 minutos.");
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Eduardo Lima", brokerGender: "male", count: 4 }), "Atenção. O Eduardo está com 4 clientes aguardando resposta há mais de 10 minutos.");
+  assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "Alex", count: 3 }), "Atenção. Alex está com 3 clientes aguardando resposta há mais de 10 minutos.");
+  assert.match(composeGroupedReplyAlertSpeech({ brokerName: "Edu", brokerGender: "male", count: 1, clientName: "5511999998888" }), /^Atenção\. O Edu está com um cliente aguardando/);
   assert.equal(composeGroupedReplyAlertSpeech({ brokerName: "", count: 3 }), "Atenção. Há 3 clientes sem responsável aguardando resposta há mais de 10 minutos.");
 });
 
