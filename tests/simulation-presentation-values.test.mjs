@@ -107,8 +107,12 @@ test("valores: sem dado não há cena (nenhuma cena vazia): sem resultado, sem p
   // sem valor do imóvel não há o que mostrar
   assert.ok(!("valores" in valuesOf(withSnapshot({ valorImovel: 0 }))));
   assert.ok(!("valores" in valuesOf(withSnapshot({ valorImovel: "250000" }))), "texto não vira número");
-  // resultado de entrada INVIÁVEL não vira oferta ao cliente
-  assert.ok(!("valores" in valuesOf(withSnapshot({ classificacao: "inviavel" }))));
+  // resultado INVIÁVEL pela regra (entrada acima do limite parcelável, empreendimento sem ato) TAMBÉM aparece, com o ato
+  // calculado pelo motor (decisão do dono 2026-10-06; antes ficava escondido)
+  const inviavel = valuesOf(withSnapshot({ classificacao: "inviavel", detalhePagamento: { ato: 5129.22, blocos: [{ label: "Parcelas da entrada", parcelas: 60, valorParcela: 530 }] } }));
+  assert.ok("valores" in inviavel);
+  assert.equal(inviavel.valores.ato, 5129.22);
+  assert.deepEqual(inviavel.valores.parcelas, [{ label: "Parcelas da entrada", quantidade: 60, valor: 530 }]);
   assert.ok("valores" in valuesOf(withSnapshot({ classificacao: "ajuste" })));
 });
 
