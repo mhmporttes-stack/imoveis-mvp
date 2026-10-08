@@ -16,7 +16,7 @@ const STATUS_LABELS = {
 };
 
 export default function WhatsappNumberRegistration() {
-  const [state, setState] = useState({ loading: true, registration: null, subscription: null, lastWebhookAt: null, error: "" });
+  const [state, setState] = useState({ loading: true, registration: null, subscription: null, lastWebhookAt: null, appWebhook: null, error: "" });
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,7 +27,7 @@ export default function WhatsappNumberRegistration() {
       const response = await fetch("/api/admin/whatsapp-master/registration", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível consultar o número.");
-      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, appWebhook: data.appWebhook || null, error: "" });
     } catch (error) {
       setState({ loading: false, registration: null, subscription: null, lastWebhookAt: null, error: error.message });
     }
@@ -48,7 +48,7 @@ export default function WhatsappNumberRegistration() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o número.");
-      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, appWebhook: data.appWebhook || null, error: "" });
       setPin("");
       setMessage("Número registrado. Anote o PIN: ele protege o número (verificação em duas etapas).");
     } catch (error) {
@@ -71,7 +71,7 @@ export default function WhatsappNumberRegistration() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível ativar o recebimento.");
-      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, appWebhook: data.appWebhook || null, error: "" });
       setMessage("Recebimento ativado. Mande uma mensagem de teste para o número e confira se chega no Chat.");
     } catch (error) {
       setMessage(error.message);
@@ -119,6 +119,12 @@ export default function WhatsappNumberRegistration() {
             <button type="button" onClick={activateReceiving} disabled={busy} className="premium-button-primary min-h-10 px-5 disabled:opacity-50">{busy ? "Ativando…" : "Ativar recebimento"}</button>
           ) : null}
         </div>
+      ) : null}
+
+      {registration && state.appWebhook?.known ? (
+        <p className="mt-2 text-xs font-semibold text-muted">
+          Webhook do app da Meta: {state.appWebhook.callbackUrl ? state.appWebhook.callbackUrl : "SEM URL configurada"} · campos: {state.appWebhook.fields?.length ? state.appWebhook.fields.join(", ") : "nenhum"}{state.appWebhook.fields?.includes("messages") ? "" : " — falta assinar \"messages\""}
+        </p>
       ) : null}
 
       {registration && !connected ? (

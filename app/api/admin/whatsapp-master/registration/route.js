@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { getSupabaseAdminClient } from "@/lib/supabase";
-import { WhatsappRegisterError, getNumberRegistrationStatus, getWebhookSubscription, registerNumber, subscribeWebhook } from "@/lib/whatsapp-register";
+import { WhatsappRegisterError, getAppWebhookConfig, getNumberRegistrationStatus, getWebhookSubscription, registerNumber, subscribeWebhook } from "@/lib/whatsapp-register";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +23,13 @@ async function lastWebhookAt() {
 }
 
 async function fullState() {
-  const [registration, subscription, lastWebhook] = await Promise.all([
+  const [registration, subscription, lastWebhook, appWebhook] = await Promise.all([
     getNumberRegistrationStatus(),
     getWebhookSubscription().catch(() => ({ subscribed: null, apps: [] })),
-    lastWebhookAt()
+    lastWebhookAt(),
+    getAppWebhookConfig().catch(() => ({ known: false }))
   ]);
-  return { registration, subscription, lastWebhookAt: lastWebhook };
+  return { registration, subscription, lastWebhookAt: lastWebhook, appWebhook };
 }
 
 // Estado do registro do número oficial + inscrição do webhook (somente administrador geral).
