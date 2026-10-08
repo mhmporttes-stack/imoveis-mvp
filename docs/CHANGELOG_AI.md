@@ -19,15 +19,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro
-### 2026-10-08 — Apresentação: "Agendar atendimento" (presencial ou Meet) com agenda da gestora
-- **Data:** 2026-10-08
-- **Área:** Apresentação interativa / Agenda / Usuários
-- **Alteração:** botão AGENDAR ATENDIMENTO na cena "Próximo passo" (PRES-22): presencial/online, 10 dias, horários de 30 min com escassez em blocos calculada no servidor, agenda compartilhada pela equipe da gestora, "Combinar outro horário", atividade no card, linha do tempo (`appointment_scheduled`/`appointment_requested`), aviso ao corretor e à gestora (`scheduled_activity`), .ics + Google Agenda, WhatsApp do corretor com mensagem pronta. Campo "Link do Google Meet" (admin/gestor) em Usuários. Endereço da imobiliária centralizado em `lib/company-info.mjs` (o rodapé passou a usá-lo).
-- **Motivo:** pedido e especificação do dono (2026-10-08).
-- **Arquivos afetados:** `lib/client-appointments-core.mjs`, `lib/client-appointments.js`, `lib/company-info.mjs`, `lib/admin-profiles.js`, `app/api/s/[token]/agendamento/**`, `components/presentation/AppointmentSheet.jsx`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `components/AdminUsersManager.jsx`, `components/ClientJourneyActions.jsx`, `components/Footer.jsx`, `app/apresentacao/[token]/page.jsx`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, `app/dev/vitrine/apresentacao/page.dev.jsx`, `supabase/migrations/20261008120000_client_appointments.sql`, `tests/client-appointments.test.mjs`.
-- **Risco/observação:** migration aditiva (tabela `client_appointments` + `admin_users.meet_link`). Enquanto não aplicada, o botão não aparece (checagem `isClientAppointmentsReady`) e editar usuários continua funcionando (o link do Meet só é gravado quando muda). Semente da escassez: `APPOINTMENT_SCARCITY_SECRET` (opcional; sem ela usa constante do servidor). Não há tela de agenda da gestora nem cancelamento pelo CRM nesta entrega (status `cancelled` existe na tabela, sem tela). Decisões conservadoras listadas em PRES-22.
-- **Autor:** Claude Code”
+1. Acrescente a entrada logo **abaixo do título “## Registro”
 ### 2026-10-08 — Roleta: prazo de 5 min para a simulação de cliente com dados (ROL-4b)
 - **O quê:** na REDISTRIBUIÇÃO DE LEADS, cliente com `primary_monthly_income > 0` só fica com o corretor se a simulação for feita (status fora de pendente ou linha em `simulations` com o `registration_id`); contato por WhatsApp/resposta no Chat deixam de segurá-lo. Sem dados, nada muda.
 - **Por quê:** regra do dono — a abordagem do corretor é a simulação. Dado de referência (15/09–08/10): de 57 clientes de formulário na roleta, só 1 foi simulado em até 5 min (mediana ~6,6 h); o dono manteve 5 min.
@@ -74,6 +66,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Apresentação: "Agendar atendimento" (presencial ou Meet) com agenda da gestora
+- **Data:** 2026-10-08
+- **Área:** Apresentação interativa / Agenda / Usuários
+- **Alteração:** botão AGENDAR ATENDIMENTO na cena "Próximo passo" (PRES-22): presencial/online, 10 dias, horários de 30 min com escassez em blocos calculada no servidor, agenda compartilhada pela equipe da gestora, "Combinar outro horário", atividade no card, linha do tempo (`appointment_scheduled`/`appointment_requested`), aviso ao corretor e à gestora (`scheduled_activity`), .ics + Google Agenda, WhatsApp do corretor com mensagem pronta. Campo "Link do Google Meet" (admin/gestor) em Usuários. Endereço da imobiliária centralizado em `lib/company-info.mjs` (o rodapé passou a usá-lo).
+- **Motivo:** pedido e especificação do dono (2026-10-08).
+- **Arquivos afetados:** `lib/client-appointments-core.mjs`, `lib/client-appointments.js`, `lib/company-info.mjs`, `lib/admin-profiles.js`, `app/api/s/[token]/agendamento/**`, `components/presentation/AppointmentSheet.jsx`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `components/AdminUsersManager.jsx`, `components/ClientJourneyActions.jsx`, `components/Footer.jsx`, `app/apresentacao/[token]/page.jsx`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, `app/dev/vitrine/apresentacao/page.dev.jsx`, `supabase/migrations/20261008120000_client_appointments.sql`, `tests/client-appointments.test.mjs`.
+- **Risco/observação:** migration aditiva (tabela `client_appointments` + `admin_users.meet_link`). Enquanto não aplicada, o botão não aparece (checagem `isClientAppointmentsReady`) e editar usuários continua funcionando (o link do Meet só é gravado quando muda). Semente da escassez: `APPOINTMENT_SCARCITY_SECRET` (opcional; sem ela usa constante do servidor). Não há tela de agenda da gestora nem cancelamento pelo CRM nesta entrega (status `cancelled` existe na tabela, sem tela). Decisões conservadoras listadas em PRES-22.
+- **Autor:** Claude Code
 ### 2026-10-08 — Fluxo do anúncio (saudação + botão com imagem) e Chat híbrido: etiquetas, filtros, "Enviando por" e janela do oficial
 - **Fluxo "Anúncio WhatsApp — formulário direto"** (v5, publicado direto no banco; cópia anterior em `whatsapp_flows_backup_20261008`): roleta + tag → "{{saudacao}}, {{primeiro_nome}}! Muito bom ter você por aqui… um associado já vai entrar em contato" → mensagem com a imagem de prévia (`og-simulacao-v3.png`) e botão "Preencher formulário" (link da simulação do corretor + UTMs) → entrega ao atendimento. Cooldown 6 h (cliente que clica de novo dentro de 6 h não recebe de novo). Nova variável `{{saudacao}}` (Bom dia/Boa tarde/Boa noite, Marília) em `lib/whatsapp-flows.js`, editor e prévia.
 - **Chat:** filtros "Oficial" e "Pessoal" (`lib/whatsapp-chat.js`/`components/WhatsappChat.jsx`), etiqueta Oficial/Pessoal em cada conversa, linha "Enviando por: número oficial / seu WhatsApp pessoal" no campo de digitar e bloqueio de texto livre no número oficial depois de 24 h da última mensagem do cliente (`WINDOW_CLOSED`; o corretor segue pelo celular). Teste em `tests/chat-disabled.test.mjs` e `tests/whatsapp-flow-saudacao.test.mjs`.
