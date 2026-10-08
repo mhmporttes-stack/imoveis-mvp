@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Custo do patrocinado no card e por corretor (só administrador)
+- **Data:** 2026-10-08
+- **Área:** Clientes / Meta Ads
+- **Alteração:** card de cliente patrocinado mostra "Patrocinado · R$ X" (gasto do anúncio de origem ÷ clientes do CRM desse anúncio) e a aba Patrocinado ganha painel com total, média e "com custo identificado" para a visão atual (respeita o filtro de corretor). Regra CLI-15.
+- **Motivo:** pedido do dono (ligar anúncios da Meta ao custo do cliente e saber quanto de patrocinado há em cada corretor).
+- **Arquivos afetados:** `lib/sponsored-cost-core.mjs`, `lib/sponsored-cost.js`, `lib/simulation-list-query.js`, `components/clients/ClientCard.jsx`, `components/clients/ClientWorkspace.jsx`, `tests/sponsored-cost.test.mjs`
+- **Risco/observação:** sem migration. Só administrador (corretor/gestor não recebem o custo). Usa meta_ad_insights (sincronizado desde 13/09/2026; backfill histórico não executado, então custos de anúncios antigos podem estar incompletos). Conferido por SQL contra produção: 68 de 72 clientes patrocinados casam com anúncio com gasto; ex.: Bruna Santos 10 clientes ≈ R$ 34,49. Duas consultas leves em memória (60 s) por carregamento da lista para admin. A CONFIRMAR em produção: selo no card e painel da aba.
+- **Autor:** Claude Code
 ### 2026-10-08 — Clientes: aba "Patrocinado"
 - **Data:** 2026-10-08
 - **Área:** Clientes

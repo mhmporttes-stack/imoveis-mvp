@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
+import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
 import ClientSheet from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
@@ -405,6 +406,14 @@ function PipelineStrip({ list }) {
         <StageTab label="Arquivados" count={counters.byGroup?.archived || 0} active={filters.statusGroup === "archived"} onClick={() => select("archived")} muted />
         <StageTab label="Patrocinado" count={counters.byGroup?.sponsored || 0} active={filters.statusGroup === "sponsored"} onClick={() => select("sponsored")} />
       </div>
+
+      {filters.statusGroup === "sponsored" && counters.sponsoredCost ? (
+        <div className="grid grid-cols-3 gap-2 border-t border-line px-3 py-2.5 text-center sm:flex sm:flex-wrap sm:items-center sm:justify-start sm:gap-x-6" aria-label="Custo estimado do patrocinado nesta visão">
+          <p className="text-[13px] text-ink-2"><span className="block text-base font-bold tabular-nums text-ink sm:inline">{formatMoneyBR(counters.sponsoredCost.total)}</span> <span className="block sm:inline">investidos nesta visão</span></p>
+          <p className="text-[13px] text-ink-2"><span className="block text-base font-bold tabular-nums text-ink sm:inline">{formatMoneyBR(counters.sponsoredCost.average)}</span> <span className="block sm:inline">por cliente</span></p>
+          <p className="text-[13px] text-ink-2"><span className="block text-base font-bold tabular-nums text-ink sm:inline">{counters.sponsoredCost.withCost}/{counters.sponsoredCost.clients}</span> <span className="block sm:inline">com custo identificado</span></p>
+        </div>
+      ) : null}
 
       {activeGroup && activeGroup.key !== "all" && activeGroup.statuses.length > 1 ? (
         <div className="flex gap-1.5 overflow-x-auto border-t border-line px-3 py-2.5" aria-label={`Status dentro de ${activeGroup.label}`}>

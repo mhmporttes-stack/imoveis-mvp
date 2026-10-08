@@ -97,6 +97,11 @@ export default function ClientCard({ client, activities, responsibleName, respon
         {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
         {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
         {registration.lastFormSubmittedAt ? <Badge tone="info">Novo formulário {formatAgo(registration.lastFormSubmittedAt)}</Badge> : null}
+        {client.sponsoredCost ? (
+          <span title={`Custo estimado: gasto do anúncio de origem (${formatMoneyBR(client.sponsoredCost.adSpend)}) dividido entre os ${client.sponsoredCost.adClients} cliente(s) do CRM que vieram dele.`}>
+            <Badge tone="info">Patrocinado · {formatMoneyBR(client.sponsoredCost.amount)}</Badge>
+          </span>
+        ) : null}
       </div>
 
       {/* Corpo: agenda, simulação e contato */}
