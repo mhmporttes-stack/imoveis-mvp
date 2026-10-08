@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  Archive,
   ArchiveRestore,
   ArrowLeft,
   BookOpen,
@@ -53,6 +54,8 @@ const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !==
 // (e o filtro correspondente em lib/whatsapp-chat.js).
 const FILTERS = [
   { key: "all", label: "Todas" },
+  { key: "official", label: "Oficial" },
+  { key: "personal", label: "Pessoal" },
   { key: "unread", label: "Não lidas" },
   { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
@@ -602,7 +605,10 @@ function ConversationRow({ conversation, selected, onSelect }) {
           <span className={`truncate text-sm text-navy ${unread ? "font-black" : "font-extrabold"}`}>{displayName(conversation)}</span>
           <span className={`shrink-0 text-[11px] font-bold ${unread ? "text-emerald-600" : "text-muted"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
-        <span className="block truncate text-[11px] font-bold text-muted">{formatPhone(conversation.phone)}</span>
+        <span className="flex items-center gap-1.5 truncate text-[11px] font-bold text-muted">
+          {formatPhone(conversation.phone)}
+          <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-black uppercase tracking-wide ${conversation.sessionUserId ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{conversation.sessionUserId ? "Pessoal" : "Oficial"}</span>
+        </span>
         <span className="mt-0.5 flex items-center justify-between gap-2">
           <span className={`flex min-w-0 items-center gap-1 text-xs ${unread ? "font-extrabold text-navy" : "font-semibold text-slate-500"}`}>
             {conversation.lastMessageDirection === "outbound" ? <Check className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Enviada" /> : null}
@@ -807,6 +813,18 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
             {showAssume ? (
               <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
+              </button>
+            ) : null}
+            {!conversation.archivedReadOnly ? (
+              <button
+                type="button"
+                onClick={() => changeStatus(conversation.status === "finished" ? "open" : "finished")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist"
+                aria-label={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa"}
+                title={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa (vai para Finalizadas)"}
+              >
+                {conversation.status === "finished" ? <ArchiveRestore className="h-4 w-4 text-brand" /> : <Archive className="h-4 w-4" />}
+                <span className="hidden sm:inline">{conversation.status === "finished" ? "Reabrir" : "Arquivar"}</span>
               </button>
             ) : null}
             <button
@@ -1428,7 +1446,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
 
   async function send() {
     const value = text.trim();
-    if ((!value && !attachment) || sending || conversation.awaitingCustomer) return;
+    if ((!value && !attachment) || sending || conversation.awaitingCustomer || conversation.individualSendDisabled || (!conversation.sessionUserId && conversation.window?.open === false)) return;
     if (replyTo && attachment) { setError("Para responder a uma mensagem específica, envie apenas texto."); return; }
     setSending(true);
     setError("");
@@ -1495,7 +1513,10 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   const hasContent = Boolean(text.trim()) || Boolean(attachment);
   const shownError = error || recorder.error;
   // Chat só responde: contato que ainda não escreveu -> envio pelo app do celular do corretor (ou link para o cliente chamar).
-  const awaiting = conversation.awaitingCustomer === true && !editTarget;
+  const individualOff = conversation.individualSendDisabled === true;
+  // Número oficial com a janela de 24 h fechada: texto livre bloqueado, o corretor segue pelo celular.
+  const windowClosed = !conversation.sessionUserId && conversation.window?.open === false;
+  const awaiting = (conversation.awaitingCustomer === true || individualOff || windowClosed) && !editTarget;
   const customerDigits = String(conversation.phone || "").replace(/D/g, "");
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
   const callLink = conversation.brokerWhatsapp ? `https://wa.me/${conversation.brokerWhatsapp}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}` : "";
@@ -1518,9 +1539,23 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       {progress ? <p className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-brand"><Loader2 className="h-3.5 w-3.5 animate-spin" />{progress}</p> : null}
       {awaiting ? (
         <div className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold leading-5 text-navy">
-          <p className="font-black">Este cliente ainda não escreveu para você.</p>
-          <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
-          {callLink ? <button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
+          {windowClosed && !individualOff && conversation.awaitingCustomer !== true ? (
+            <>
+              <p className="font-black">A janela de 24 horas deste cliente fechou.</p>
+              <p className="mt-0.5">Pelo número oficial só dá para responder até 24 h depois da última mensagem do cliente. Escreva o texto abaixo e toque no botão verde para enviar pelo WhatsApp do celular.</p>
+            </>
+          ) : individualOff ? (
+            <>
+              <p className="font-black">O envio pelo seu WhatsApp pessoal está desativado por enquanto.</p>
+              <p className="mt-0.5">Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Conversas do número oficial seguem funcionando aqui no Chat.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-black">Este cliente ainda não escreveu para você.</p>
+              <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
+            </>
+          )}
+          {callLink && !individualOff ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
         </div>
       ) : null}
 
@@ -1549,6 +1584,12 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
             </label>
           ) : null}
         </div>
+      ) : null}
+
+      {!awaiting && !recording && !processing ? (
+        <p className="mb-1.5 px-1 text-[11px] font-bold text-muted">
+          Enviando por: <span className="font-black text-navy">{conversation.sessionUserId ? "seu WhatsApp pessoal" : "número oficial"}</span>
+        </p>
       ) : null}
 
       {recording || processing ? (
@@ -1612,7 +1653,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
           )}
         </div>
       )}
-      {closingSoon ? <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">Atenção: a janela de resposta livre fecha em {timeLeftLabel} (às {expires}). Depois disso só é possível enviar um modelo aprovado.</p> : expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
+      {closingSoon ? <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">Atenção: a janela de resposta livre fecha em {timeLeftLabel} (às {expires}). Depois disso, responda pelo WhatsApp do celular.</p> : expires ? <p className="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Mensagem livre permitida até {expires} (24h após a última mensagem do contato).</p> : null}
     </div>
   );
 }

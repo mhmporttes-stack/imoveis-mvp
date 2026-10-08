@@ -25,10 +25,10 @@ test("todos os envios do Chat (texto, mídia, atalhos, modelos) passam pela trav
 
 test("conversa sem mensagem do cliente: aviso, envio pelo app do celular e link para o cliente chamar", () => {
   assert.match(chat, /awaitingCustomer = !\(anyInbound \|\| \[\]\)\.length;/);
-  assert.match(chat, /archivedReadOnly, awaitingCustomer, brokerWhatsapp \}/);
+  assert.match(chat, /archivedReadOnly, awaitingCustomer, brokerWhatsapp, individualSendDisabled \}/);
   const ui = readFileSync(path.join(root, "components/WhatsappChat.jsx"), "utf8");
   assert.match(ui, /conversation\.awaitingCustomer === true/);
   assert.match(ui, /Abrir no WhatsApp do celular/);
   assert.match(ui, /Copiar link para o cliente te chamar/);
-  assert.match(ui, /sending \|\| conversation\.awaitingCustomer\) return;/, "nunca envia pelo CRM enquanto aguarda o cliente");
+  assert.match(ui, /sending \|\| conversation\.awaitingCustomer \|\| conversation\.individualSendDisabled\) return;/, "nunca envia pelo CRM enquanto aguarda o cliente");
 });

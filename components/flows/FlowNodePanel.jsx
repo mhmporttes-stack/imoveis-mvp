@@ -6,6 +6,7 @@ import { LIMITS, TRIGGER_TYPES, defaultCooldownHours, newId } from "@/lib/whatsa
 import { ACTION_LABELS, CONDITION_LABELS, NODE_META, TONES, TRIGGER_LABELS } from "@/components/flows/flow-ui";
 
 const VARIABLES = [
+  ["{{saudacao}}", "Saudação (Bom dia / Boa tarde / Boa noite)"],
   ["{{primeiro_nome}}", "Primeiro nome"],
   ["{{nome}}", "Nome completo"],
   ["{{corretor}}", "Corretor"],
