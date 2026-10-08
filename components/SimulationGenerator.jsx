@@ -392,14 +392,14 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     });
   }
 
-  // Price (2026-10-08): mesmos 4 campos do SAC, independentes (sem a cópia automática entre novo e usado).
-  function updatePriceModel(type, field, value) {
+  // SAC (2026-10-08, opcional, raro): mesmos 4 campos do Price, independentes (sem a cópia automática entre novo e usado).
+  function updateSacModel(type, field, value) {
     setForm((current) => {
       const models = normalizeSimulationModels(current.simulationModels, current);
       return {
         ...current,
         simulationType: type,
-        simulationModels: { ...models, [type]: { ...models[type], price: { ...models[type].price, [field]: value } } }
+        simulationModels: { ...models, [type]: { ...models[type], sac: { ...models[type].sac, [field]: value } } }
       };
     });
   }
@@ -946,8 +946,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                   </span>
                 </div>
 
-                <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">SAC</p>
-                <div className="mt-2 grid gap-4 md:grid-cols-2" data-system="sac">
+                <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
+                <div className="mt-2 grid gap-4 md:grid-cols-2" data-system="price">
                   <MoneyField
                     label="Valor do financiamento"
                     value={normalizedModels[key]?.financingValue || ""}
@@ -971,28 +971,28 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 </div>
 
                 <div className="mt-6 border-t border-blue-100 pt-4">
-                  <p className="text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
-                  <p className="mt-1 text-xs leading-5 text-muted">Opcional. Preencha o Price (além do SAC) para a apresentação do cliente mostrar também o comparativo SAC x Price. Com um sistema só, não há comparação.</p>
-                  <div className="mt-3 grid gap-4 md:grid-cols-2" data-system="price">
+                  <p className="text-sm font-black uppercase tracking-[0.14em] text-navy">SAC</p>
+                  <p className="mt-1 text-xs leading-5 text-muted">Opcional. Preencha o SAC (além do Price) para a apresentação do cliente mostrar também o comparativo SAC x Price. Com um sistema só, não há comparação.</p>
+                  <div className="mt-3 grid gap-4 md:grid-cols-2" data-system="sac">
                     <MoneyField
-                      label="Valor do financiamento (Price)"
-                      value={normalizedModels[key]?.price?.financingValue || ""}
-                      onChange={(value) => updatePriceModel(key, "financingValue", value)}
+                      label="Valor do financiamento (SAC)"
+                      value={normalizedModels[key]?.sac?.financingValue || ""}
+                      onChange={(value) => updateSacModel(key, "financingValue", value)}
                     />
                     <MoneyField
-                      label="Valor do subsídio (Price)"
-                      value={normalizedModels[key]?.price?.subsidyValue || ""}
-                      onChange={(value) => updatePriceModel(key, "subsidyValue", value)}
+                      label="Valor do subsídio (SAC)"
+                      value={normalizedModels[key]?.sac?.subsidyValue || ""}
+                      onChange={(value) => updateSacModel(key, "subsidyValue", value)}
                     />
                     <MoneyField
-                      label="Primeira parcela (Price)"
-                      value={normalizedModels[key]?.price?.firstInstallment || ""}
-                      onChange={(value) => updatePriceModel(key, "firstInstallment", value)}
+                      label="Primeira parcela (SAC)"
+                      value={normalizedModels[key]?.sac?.firstInstallment || ""}
+                      onChange={(value) => updateSacModel(key, "firstInstallment", value)}
                     />
                     <MoneyField
-                      label="Última parcela (Price)"
-                      value={normalizedModels[key]?.price?.lastInstallment || ""}
-                      onChange={(value) => updatePriceModel(key, "lastInstallment", value)}
+                      label="Última parcela (SAC)"
+                      value={normalizedModels[key]?.sac?.lastInstallment || ""}
+                      onChange={(value) => updateSacModel(key, "lastInstallment", value)}
                     />
                   </div>
                 </div>
@@ -1519,11 +1519,11 @@ async function createSimulationImageDownloads(form, simulationAssets, propertyIm
 }
 
 function buildPresentationPages(form, simulationAssets = {}) {
-  // PDF/imagem NÃO levam o Price (dono, 2026-10-08): só o SAC, como sempre. O comparativo SAC x Price existe só na
-  // apresentação do cliente. Simulação preenchida só em Price (sem SAC) ainda gera a página, com os números do Price.
+  // PDF/imagem NÃO levam o SAC (dono, 2026-10-08): só o Price, como sempre. O comparativo SAC x Price existe só na
+  // apresentação do cliente. Simulação preenchida só em SAC (sem Price) ainda gera a página, com os números do SAC.
   const renderable = getRenderableSimulationModels(form);
-  const sacOnly = renderable.filter((model) => model.system !== "price");
-  const pages = (sacOnly.length ? sacOnly : renderable).map((model) => buildSimulationResultSvg({
+  const priceOnly = renderable.filter((model) => model.system !== "sac");
+  const pages = (priceOnly.length ? priceOnly : renderable).map((model) => buildSimulationResultSvg({
     ...form,
     simulationType: model.type,
     financingValue: model.values.financingValue,
@@ -1880,11 +1880,11 @@ function formatSimulationModelsForForm(models) {
         subsidyValue: formatStoredCurrencyInput(normalized[key]?.subsidyValue),
         firstInstallment: formatStoredCurrencyInput(normalized[key]?.firstInstallment),
         lastInstallment: formatStoredCurrencyInput(normalized[key]?.lastInstallment),
-        price: {
-          financingValue: formatStoredCurrencyInput(normalized[key]?.price?.financingValue),
-          subsidyValue: formatStoredCurrencyInput(normalized[key]?.price?.subsidyValue),
-          firstInstallment: formatStoredCurrencyInput(normalized[key]?.price?.firstInstallment),
-          lastInstallment: formatStoredCurrencyInput(normalized[key]?.price?.lastInstallment)
+        sac: {
+          financingValue: formatStoredCurrencyInput(normalized[key]?.sac?.financingValue),
+          subsidyValue: formatStoredCurrencyInput(normalized[key]?.sac?.subsidyValue),
+          firstInstallment: formatStoredCurrencyInput(normalized[key]?.sac?.firstInstallment),
+          lastInstallment: formatStoredCurrencyInput(normalized[key]?.sac?.lastInstallment)
         }
       }
     ])

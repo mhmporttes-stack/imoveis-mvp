@@ -46,10 +46,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ### 2026-10-08 — Simulação em SAC e Price + cena de comparativo na apresentação
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação
-- **Alteração:** cada tipo (Novo/Usado) ganhou o bloco Price ao lado do SAC, com os mesmos 4 campos. A apresentação mostra a cena "SAC x Price" só quando os dois sistemas foram preenchidos no mesmo tipo; com um só, apresentação normal. PDF/imagem seguem só com o SAC. Regra nova PRES-23 em `docs/BUSINESS_RULES.md`.
+- **Alteração:** cada tipo (Novo/Usado) ganhou o bloco SAC (opcional, raro) ao lado do Price (padrão — o que sempre existiu), com os mesmos 4 campos. A apresentação mostra a cena "SAC x Price" só quando os dois sistemas foram preenchidos no mesmo tipo; com um só, apresentação normal. PDF/imagem seguem só com o Price. Regra nova PRES-23 em `docs/BUSINESS_RULES.md`.
 - **Motivo:** pedido do dono (comparar SAC e Price para o cliente).
 - **Arquivos afetados:** `lib/simulation-models.js`, `lib/simulation-presentation-core.mjs`, `lib/simulation-list-utils.js`, `components/SimulationGenerator.jsx`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-systems-comparison.test.mjs`
-- **Risco/observação:** sem migration (o Price vai no JSON da observação interna). Simulações antigas = SAC, sem mudança. Testes novos 11/11; os testes existentes da área têm as mesmas falhas de antes (`ramo`, `logo da Caixa` etc.), nenhuma nova. A CONFIRMAR em produção: abrir um link com os dois sistemas e ver a cena.
+- **Risco/observação:** sem migration (o SAC vai no JSON da observação interna). Simulações antigas = Price, sem mudança. Correção no mesmo dia: a 1ª versão tratou o antigo como SAC; o dono avisou que o antigo é Price. Testes novos 11/11; os testes existentes da área têm as mesmas falhas de antes (`ramo`, `logo da Caixa` etc.), nenhuma nova. A CONFIRMAR em produção: abrir um link com os dois sistemas e ver a cena.
 - **Autor:** Claude Code
 ### 2026-10-08 — Lista de documentos: um e-mail para cada proponente
 - **Data:** 2026-10-08
