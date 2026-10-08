@@ -14,9 +14,9 @@ import { telemetry } from "./telemetry.js";
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
 // (504) e piorando a corrupção de sessão (Bad MAC) quando várias sessões
-// sincronizavam ao mesmo tempo. PAUSADO por padrão; ativar setando
-// WHATSAPP_HISTORY_SYNC_ENABLED=true na Railway (não precisa novo deploy).
-const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED === "true";
+// sincronizavam ao mesmo tempo. 2026-10-08: religado a pedido do dono, agora LIMITADO à última semana (texto, foto e
+// áudio, lotes de 25). Para pausar de novo: WHATSAPP_HISTORY_SYNC_ENABLED=false na Railway (sem novo deploy).
+const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED !== "false";
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
 // listeners pro mesmo corretor. `sockets` é a fonte da verdade EM MEMÓRIA
@@ -501,12 +501,46 @@ async function onMessagesUpdate(userId, updates) {
 // Lote pequeno — um lote grande demorou tanto pra gravar no banco que o
 // webhook do CRM estourou o tempo limite (504) e perdeu mensagem em tempo
 // real chegando junto. Mais chamadas, cada uma rápida, é mais seguro.
-const HISTORY_BATCH_SIZE = 40;
+const HISTORY_BATCH_SIZE = 25;
+// Pedido do dono (2026-10-08): traz só a ÚLTIMA SEMANA, com texto, fotos e áudios (vídeo/documento/figurinha ficam
+// de fora). Limite de mídias por lote para o download não prender a sessão nem estourar o Storage.
+const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const HISTORY_MEDIA_KINDS = new Set(["image", "audio"]);
+const HISTORY_MAX_MEDIA = 200;
+
+function messageTimestampMs(msg) {
+  const raw = msg?.messageTimestamp;
+  const seconds = raw && typeof raw === "object" ? Number(raw.toString()) : Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+}
+
 async function onHistorySync(userId, messages) {
   for (const msg of messages || []) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
   }
-  const items = (messages || []).map((msg) => extractTextMessage(msg, lidMapFor(userId))).filter(Boolean);
+  const cutoff = Date.now() - HISTORY_WINDOW_MS;
+  const items = [];
+  let mediaCount = 0;
+  for (const msg of messages || []) {
+    try {
+      if (messageTimestampMs(msg) < cutoff) continue;
+      const event = extractChatEvent(msg, lidMapFor(userId));
+      if (!event || event.kind !== "message") continue;
+      if (event.media) {
+        // Só foto e áudio. Outros tipos entram apenas se tiverem legenda (como texto).
+        if (!HISTORY_MEDIA_KINDS.has(event.media.kind) || mediaCount >= HISTORY_MAX_MEDIA) {
+          if (!event.text) continue;
+          event.media = null;
+        } else {
+          mediaCount += 1;
+          event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
+        }
+      }
+      items.push(event);
+    } catch (error) {
+      console.error(`[${userId}] Falha ao preparar mensagem do histórico:`, error.message);
+    }
+  }
   if (!items.length) return;
   for (let i = 0; i < items.length; i += HISTORY_BATCH_SIZE) {
     try {

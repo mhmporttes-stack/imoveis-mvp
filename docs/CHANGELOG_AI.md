@@ -51,6 +51,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/admin-auth.js`, `lib/whatsapp-chat.js`, `lib/chat-actor-context-core.mjs`, `components/WhatsappChat.jsx`, `app/api/admin/whatsapp-individual/{connect,disconnect,settings}/route.js`, `tests/chat-actor-context.test.mjs`
 - **Risco/observação:** sem migration (rastro em JSON de metadata). O rastro NÃO impede login compartilhado: mostra de onde saiu o envio. Achados da auditoria NÃO tratados (decisão do dono ou serviço externo): limite de ociosidade da sessão; gestor enviando/editando/apagando pelo número pessoal de corretor (M1); associado vendo o número do corretor vinculado (M3); "liberar" sem restrição (M5); teto de envio do número oficial (M7); alerta de queda de sessão só informativo e só para gestora; vigilância de sessão "conectada e muda"; cadastro arquivado escolhido por "mais recente"; contadores truncados em 1000 linhas; mensagens sem texto/mídia descartadas; serviço Baileys (versão, retry do webhook) não auditado. A CONFIRMAR em produção: enviar uma mensagem pelo Chat e ver a linha do administrador.
 - **Autor:** Claude Code
+
+### 2026-10-08 — Histórico do celular religado (última semana, com foto e áudio)
+- **Data:** 2026-10-08
+- **Área:** WhatsApp
+- **Alteração:** a sincronização de histórico ao parear volta a ficar ligada por padrão (`WHATSAPP_HISTORY_SYNC_ENABLED !== "false"`), limitada aos últimos 7 dias, com texto, fotos e áudios (até 200 mídias por lote, lotes de 25). O CRM grava a mídia do histórico no mesmo formato da mensagem ao vivo.
+- **Motivo:** pedido do dono; ninguém recebia o histórico (estava desligado desde o 504 no webhook). A CONFIRMAR em produção se o lote ainda estoura o tempo do webhook; pausar com `WHATSAPP_HISTORY_SYNC_ENABLED=false` na Railway.
+- **Arquivos afetados:** `whatsapp-individual-service/src/sessions.js`, `lib/whatsapp-individual-inbound.js`, `docs/WHATSAPP.md`
+
 ### 2026-10-08 — Prazo em meses e taxa de juros na cena de parcelas; envio da apresentação pelo computador
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação
