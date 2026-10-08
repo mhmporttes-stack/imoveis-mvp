@@ -119,4 +119,5 @@ test("gerador e player: blocos Price/SAC, PDF/imagem só Price e a cena comparat
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.ok(player.includes('case "comparativo": return <SceneComparativo scene={scene} />;'));
   assert.ok(player.includes("Comparativo entre SAC e Price"));
+  assert.ok(player.includes("COMPARATIVO_SYSTEMS") && !player.includes("COMPARATIVO_ROWS"), "visual limpo: dois cartões, sem a tabela de 5 linhas");
 });

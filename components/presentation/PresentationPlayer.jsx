@@ -222,37 +222,33 @@ function SceneParcelas({ scene }) {
 }
 
 // Comparativo SAC x Price (dono, 2026-10-08): só existe quando a simulação foi feita nos DOIS sistemas (decisão do servidor).
-// Só números já digitados; linhas sem valor nos dois sistemas somem; valor ausente de um lado aparece como "—".
-const COMPARATIVO_ROWS = [
-  ["Poder de compra", "total"],
-  ["Financiamento", "financing"],
-  ["Subsídio", "subsidy"],
-  ["Primeira parcela", "first"],
-  ["Última parcela", "last"]
-];
+// Visual limpo (o dono achou a tabela confusa): dois cartões empilhados, um por sistema, só com primeira e última parcela.
+const COMPARATIVO_SYSTEMS = [["sac", "SAC"], ["price", "Price"]];
 
 function SceneComparativo({ scene }) {
-  const rows = COMPARATIVO_ROWS.filter(([, key]) => scene.sac?.[key] > 0 || scene.price?.[key] > 0);
-  const cell = (system, key) => (scene[system]?.[key] > 0 ? formatBRL(scene[system][key]) : "—");
   return (
     <div className={styles.sceneInner}>
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Comparativo</p>
       <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": "150ms" }}>SAC x Price</h2>
-      <div className={styles.cmpTable} role="table" aria-label="Comparativo entre SAC e Price">
-        <div className={`${styles.cmpHead} ${styles.rise}`} style={{ "--d": "350ms" }} role="row">
-          <span aria-hidden="true" />
-          <span role="columnheader">SAC</span>
-          <span role="columnheader">Price</span>
-        </div>
-        {rows.map(([label, key], index) => (
-          <div key={key} className={`${styles.cmpRow} ${styles.rise}`} style={{ "--d": `${650 + index * 380}ms` }} role="row">
-            <span className={styles.cmpLabel} role="rowheader">{label}</span>
-            <strong className={styles.cmpVal} role="cell">{cell("sac", key)}</strong>
-            <strong className={styles.cmpVal} role="cell">{cell("price", key)}</strong>
+      <div className={styles.cmpCards}>
+        {COMPARATIVO_SYSTEMS.map(([key, label], index) => (
+          <div key={key} className={`${styles.cmpCard} ${styles.rise}`} style={{ "--d": `${450 + index * 700}ms` }} role="group" aria-label={label}>
+            <span className={styles.cmpName}>{label}</span>
+            {scene[key]?.first > 0 ? (
+              <div className={styles.cmpLine}>
+                <span className={styles.cmpLabel}>Primeira parcela</span>
+                <strong className={styles.cmpVal}>{formatBRL(scene[key].first)}</strong>
+              </div>
+            ) : null}
+            {scene[key]?.last > 0 ? (
+              <div className={styles.cmpLine}>
+                <span className={styles.cmpLabel}>Última parcela</span>
+                <strong className={styles.cmpVal}>{formatBRL(scene[key].last)}</strong>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
-      <p className={`${styles.note} ${styles.rise}`} style={{ "--d": `${900 + rows.length * 380}ms` }}>Valores da simulação realizada em cada sistema.</p>
     </div>
   );
 }

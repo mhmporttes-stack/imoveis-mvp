@@ -237,14 +237,14 @@
 .diffLabel { grid-column: 1; white-space: nowrap; font-size: max(18px, calc(var(--u) * 22)); font-weight: 760; }
 .diffText { grid-column: 1; font-size: max(15px, calc(var(--u) * 16)); color: var(--muted); }
 .diffValue { grid-column: 2; grid-row: 1 / span 2; font-size: max(21px, calc(var(--u) * 29)); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* Comparativo SAC x Price (2026-10-08) */
-.cmpTable { margin: calc(var(--u) * 26) auto 0; max-width: calc(var(--u) * 470); text-align: left; }
-.cmpHead, .cmpRow { display: grid; grid-template-columns: 1.05fr 1fr 1fr; column-gap: 10px; align-items: baseline; }
-.cmpHead { padding: 0 calc(var(--u) * 4) calc(var(--u) * 10); border-bottom: 2px solid var(--line); }
-.cmpHead span { font-size: max(14px, calc(var(--u) * 17)); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); text-align: right; }
-.cmpRow { padding: calc(var(--u) * 16) calc(var(--u) * 4); border-bottom: 1px solid var(--line); }
-.cmpLabel { font-size: max(13px, calc(var(--u) * 17)); font-weight: 760; line-height: 1.2; }
-.cmpVal { font-size: max(14px, calc(var(--u) * 21)); font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Comparativo SAC x Price (2026-10-08): dois cartões empilhados, só primeira e última parcela */
+.cmpCards { margin: calc(var(--u) * 26) auto 0; max-width: calc(var(--u) * 420); display: grid; gap: calc(var(--u) * 16); }
+.cmpCard { padding: calc(var(--u) * 22) calc(var(--u) * 24); border-radius: calc(var(--u) * 26); background: var(--panel); border: 1px solid var(--panel-line); text-align: left; }
+.cmpName { display: block; margin-bottom: calc(var(--u) * 8); font-size: max(14px, calc(var(--u) * 17)); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.cmpLine { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: calc(var(--u) * 10) 0; }
+.cmpLine + .cmpLine { border-top: 1px solid var(--line); }
+.cmpLabel { font-size: max(14px, calc(var(--u) * 17)); font-weight: 700; color: var(--muted); }
+.cmpVal { font-size: max(20px, calc(var(--u) * 30)); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .diffTotal { margin-top: calc(var(--u) * 22); padding: calc(var(--u) * 24) calc(var(--u) * 18) calc(var(--u) * 26); border-radius: calc(var(--u) * 26); background: linear-gradient(150deg, var(--navy-2), var(--blue)); color: #fff; text-align: center; box-shadow: 0 calc(var(--u) * 16) calc(var(--u) * 34) rgba(13, 59, 102, 0.28); }
 .diffTotalLabel { display: block; font-size: max(13px, calc(var(--u) * 15)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #dcebfc; }
 .diffTotalValue { display: block; margin-top: calc(var(--u) * 8); font-size: min(calc(var(--u) * 52), calc(var(--cw) * 0.12)); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
