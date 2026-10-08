@@ -121,3 +121,25 @@ test("gerador e player: blocos Price/SAC, PDF/imagem só Price e a cena comparat
   assert.ok(player.includes("Comparativo entre SAC e Price"));
   assert.ok(player.includes("COMPARATIVO_SYSTEMS") && !player.includes("COMPARATIVO_ROWS"), "visual limpo: dois cartões, sem a tabela de 5 linhas");
 });
+
+test("poder de compra com dois valores: só quando SAC e Price liberam valores DIFERENTES (em centavos)", () => {
+  const diff = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac } }) }).find((item) => item.id === "poder");
+  assert.deepEqual(diff.comparison, { sac: 232000, price: 222000 });
+  assert.equal(diff.value, 222000, "o valor principal continua o do Price");
+  assert.ok(diff.durationMs > 5600, "cena mais longa para os dois valores entrarem um depois do outro");
+  const same = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac: { ...sac, financingValue: "180.000,00" } } }) }).find((item) => item.id === "poder");
+  assert.equal(same.comparison, undefined, "mesmo poder de compra: cena normal");
+  for (const models of [{ novo: price }, { novo: { ...emptySimulationModel(), sac } }]) {
+    assert.equal(buildPresentationScenes({ simulation: sim(models) }).find((item) => item.id === "poder").comparison, undefined);
+  }
+});
+
+test("poder com dois valores: DTO público leva só os dois números; player tem a cena animada", () => {
+  const dto = buildPublicPresentation({ simulation: sim({ novo: { ...price, sac } }) });
+  const scene = dto.scenes.find((item) => item.id === "poder");
+  assert.deepEqual(Object.keys(scene.comparison).sort(), ["price", "sac"]);
+  assert.ok(PUBLIC_SCENE_FIELDS.poder.includes("comparison"));
+  const player = read("components/presentation/PresentationPlayer.jsx");
+  assert.ok(player.includes("ScenePoderDuo") && player.includes("if (scene.comparison) return <ScenePoderDuo"));
+  assert.ok(player.includes("No SAC") && player.includes("No Price"));
+});

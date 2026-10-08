@@ -54,7 +54,9 @@ function announcement(scene, index, total) {
   if (scene.id === "aprovValores") return `${head}Valores aprovados. Financiamento ${formatBRL(scene.financing)}.`;
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
-    case "poder": return `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
+    case "poder": return scene.comparison
+      ? `${head}Seu poder de compra. No SAC: ${formatBRL(scene.comparison.sac)}. No Price: ${formatBRL(scene.comparison.price)}.`
+      : `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
     case "formacao": return `${head}Como esse valor é formado. Poder total de compra: ${formatBRL(scene.total)}.`;
     case "parcelas": {
       const rate = formatInterestRateLabel(scene.interestRate);
@@ -138,7 +140,32 @@ function SceneAbertura({ scene, reduced }) {
   );
 }
 
+// Dois valores (SAC x Price diferentes): cada sistema entra com o seu número contando, um depois do outro; no fim os dois
+// ficam na tela (nada de tabela). O servidor só manda `comparison` quando os poderes de compra são diferentes.
+const PODER_DUO = [["sac", "No SAC", 450], ["price", "No Price", 2500]];
+
+function ScenePoderDuo({ scene, reduced }) {
+  return (
+    <div className={styles.sceneInner}>
+      <div className={styles.powerWrap}>
+        <PowerRings />
+        <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "100ms" }}>Seu poder de compra</p>
+        <div className={styles.duo}>
+          {PODER_DUO.map(([key, label, delay]) => (
+            <div key={key} className={`${styles.duoItem} ${styles.rise}`} style={{ "--d": `${delay}ms` }}>
+              <span className={styles.duoTag}>{label}</span>
+              <strong className={styles.bigNumber}><Count value={scene.comparison[key]} reduced={reduced} duration={1500} delay={delay + 250} /></strong>
+            </div>
+          ))}
+        </div>
+        <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "4600ms" }}>Cada sistema libera um valor diferente.</p>
+      </div>
+    </div>
+  );
+}
+
 function ScenePoder({ scene, reduced }) {
+  if (scene.comparison) return <ScenePoderDuo scene={scene} reduced={reduced} />;
   return (
     <div className={styles.sceneInner}>
       <div className={styles.powerWrap}>

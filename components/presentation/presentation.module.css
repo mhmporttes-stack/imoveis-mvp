@@ -201,6 +201,11 @@
 .bigNumber .count small { font-size: 0.24em; margin: 0 0 0.3em; letter-spacing: 0.22em; font-weight: 800; vertical-align: baseline; color: var(--accent); opacity: 1; }
 .bigNumber .num { display: block; }
 .bigNumber .num em { font-size: 0.4em; margin-left: 0.04em; }
+/* Poder de compra com dois valores (SAC x Price) */
+.duo { display: grid; gap: calc(var(--u) * 26); margin-top: calc(var(--u) * 26); justify-items: center; }
+.duoItem { text-align: center; }
+.duoTag { display: inline-block; padding: calc(var(--u) * 6) calc(var(--u) * 18); border-radius: 999px; border: 1px solid var(--panel-line); background: var(--panel); font-size: max(14px, calc(var(--u) * 17)); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.duo .bigNumber { margin-top: calc(var(--u) * 12); font-size: min(calc(var(--u) * 74), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
 .underline { display: block; height: 3px; width: calc(var(--u) * 96); margin: calc(var(--u) * 34) auto 0; background: var(--accent); transform-origin: center; animation: grow 0.9s var(--d, 1.2s) cubic-bezier(0.2, 0, 0, 1) both; }
 @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
