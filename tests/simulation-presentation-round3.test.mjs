@@ -45,7 +45,7 @@ test("lista completa (cadastro desconhecido): textos EXATOS da referência do do
     items.map((item) => [item.title, item.description, item.lines]),
     [
       ["DOCUMENTAÇÃO DE IDENTIDADE COM FOTO", "RG com CPF ou CNH, foto do documento aberto", []],
-      ["COMPROVANTE DE RESIDÊNCIA ATUAL", "Máximo de dois meses atrás", []],
+      ["COMPROVANTE DE RESIDÊNCIA ATUALIZADO", "", []],
       ["COMPROVANTE DE ESTADO CIVIL", "Certidão de nascimento ou casamento", []],
       ["CERTIDÃO DE DEPENDENTES", "Certidão de nascimento de filhos menores de 18 anos", []],
       ["COMPROVANTE DE RENDA", "", ["Formal (2 últimos holerites s/férias) ou Imposto de Renda do ano vigente", "Informal (3 últimos extratos bancários ou 3 últimas faturas de cartão de crédito)"]],
@@ -95,13 +95,17 @@ test("estado civil (dono 2026-10-05): solteiro e união estável → nascimento;
   assert.equal(byId(buildDocumentItemsFor(reg()), "estado-civil").title, "COMPROVANTE DE ESTADO CIVIL");
 });
 
-test("comprovante de residência (dono 2026-10-05): obs depende da renda da pessoa; o texto 'máximo dois meses' continua", () => {
+test("comprovante de residência (dono 2026-10-05; 2026-10-08): obs depende da renda da pessoa; título 'atualizado' e SEM a mensagem de 'máximo de dois meses'", () => {
   const res = (income) => byId(buildDocumentItemsFor(reg({ primaryIncomeType: income })), "residencia");
   assert.equal(res("registered_employment").obs, "Pode estar no nome de um parente ou de outra pessoa");
   assert.equal(res("self_employed_unregistered").obs, "Obrigatoriamente no seu nome");
   assert.equal(res("income_tax_declarant").obs, "Obrigatoriamente no seu nome");
   assert.equal(res("").obs, undefined);
-  for (const income of ["registered_employment", "self_employed_unregistered", "income_tax_declarant", ""]) assert.equal(res(income).description, "Máximo de dois meses atrás");
+  for (const income of ["registered_employment", "self_employed_unregistered", "income_tax_declarant", ""]) {
+    assert.equal(res(income).title, "COMPROVANTE DE RESIDÊNCIA ATUALIZADO");
+    assert.equal(res(income).description, "");
+  }
+  assert.ok(!JSON.stringify(buildDocumentItemsFor(reg())).toLowerCase().includes("dois meses"), "a mensagem de dois meses saiu de toda a lista");
 });
 
 test("PIS (dono 2026-10-05): PIS já cadastrado tira o item da lista; sem PIS o item aparece", () => {
@@ -437,4 +441,54 @@ test("obs do divorciado: vai no DTO só como texto final, entra na altura do PNG
     const other = buildPublicPresentation({ simulation: sim({ registration: reg({ primaryMaritalStatus: status }) }), defaultReason: DEFAULT_REASON });
     assert.equal(byId(getDocumentItems(other), "estado-civil").obs, "");
   }
+});
+
+// ---------- casal (dono 2026-10-08) ----------
+test("casal (os dois casados): certidão de casamento e comprovante de residência aparecem UMA vez, em 'PARA OS DOIS'", () => {
+  const couple = buildDocumentItemsFor(reg({
+    simulationType: "joint",
+    primaryIncomeType: "registered_employment", primaryMaritalStatus: "married",
+    secondaryIncomeType: "registered_employment", secondaryMaritalStatus: "married",
+    hasChildrenUnder18: false
+  }));
+  assert.deepEqual(ids(couple), [
+    "grupo-p1", "identidade-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1",
+    "grupo-p2", "identidade-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2",
+    "grupo-familia", "estado-civil-casal", "residencia-casal", "contato"
+  ]);
+  assert.equal(couple.filter((item) => item.title === "COMPROVANTE DE ESTADO CIVIL").length, 1);
+  assert.equal(couple.filter((item) => /RESIDÊNCIA/.test(item.title)).length, 1);
+  const civil = byId(couple, "estado-civil-casal");
+  assert.equal(civil.description, "Certidão de casamento");
+  const residence = byId(couple, "residencia-casal");
+  assert.equal(residence.title, "COMPROVANTE DE RESIDÊNCIA ATUALIZADO");
+  assert.equal(residence.description, "");
+  assert.equal(residence.obs, "Pode estar no nome de um parente ou de outra pessoa");
+  assert.equal(new Set(ids(couple)).size, couple.length, "ids únicos (chave do React)");
+});
+
+test("casal: o comprovante de residência segue a renda do 1º proponente (o principal); dependentes ficam em 'PARA OS DOIS'", () => {
+  const informal = buildDocumentItemsFor(reg({
+    simulationType: "joint", primaryIncomeType: "self_employed_unregistered", primaryMaritalStatus: "married",
+    secondaryIncomeType: "registered_employment", secondaryMaritalStatus: "married", hasChildrenUnder18: true
+  }));
+  assert.equal(byId(informal, "residencia-casal").obs, "Obrigatoriamente no seu nome");
+  const familia = ids(informal).slice(ids(informal).indexOf("grupo-familia"));
+  assert.deepEqual(familia, ["grupo-familia", "estado-civil-casal", "residencia-casal", "dependentes", "contato"]);
+});
+
+test("não é casal (casado + solteiro, viúvos, união estável): cada proponente continua com o PRÓPRIO estado civil e residência", () => {
+  const cases = [["married", "single"], ["widowed", "widowed"], ["stable_union", "stable_union"], ["married", "widowed"]];
+  for (const [first, second] of cases) {
+    const joint = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: first, secondaryMaritalStatus: second }));
+    assert.ok(byId(joint, "estado-civil-p1") && byId(joint, "estado-civil-p2"), `${first}/${second}`);
+    assert.ok(byId(joint, "residencia-p1") && byId(joint, "residencia-p2"), `${first}/${second}`);
+    assert.equal(byId(joint, "estado-civil-casal"), undefined);
+    assert.equal(byId(joint, "residencia-casal"), undefined);
+  }
+});
+
+test("cadastro individual casado não muda (não existe 'casal' sem 2º proponente)", () => {
+  const single = buildDocumentItemsFor(reg({ primaryMaritalStatus: "married" }));
+  assert.ok(byId(single, "estado-civil") && byId(single, "residencia"));
 });

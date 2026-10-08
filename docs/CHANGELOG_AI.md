@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Lista de documentos: casal sem repetição e comprovante de residência "atualizado"
+- **Data:** 2026-10-08
+- **Área:** Apresentação / Documentos
+- **Alteração:** cadastro conjunto com os dois proponentes casados: certidão de casamento e comprovante de residência aparecem uma vez em "PARA OS DOIS". Título do comprovante virou "COMPROVANTE DE RESIDÊNCIA ATUALIZADO" e a mensagem "Máximo de dois meses atrás" foi removida (vale para todas as listas).
+- **Motivo:** pedido do dono — a lista repetia os mesmos documentos para marido e esposa.
+- **Arquivos afetados:** `lib/simulation-presentation-documents.mjs`, `tests/simulation-presentation-round3.test.mjs`
+- **Risco/observação:** só mexe na montagem da lista (texto); casado + solteiro/viúvos/união estável continuam com cada proponente completo. Dois testes visuais antigos (`ramo`, `logo da Caixa`) já falhavam antes e não têm relação.
+- **Autor:** Claude Code
 ### 2026-10-08 — WhatsApp individual: até 2 números por corretor (WA-15)
 - **O quê:** cada usuário conecta até 2 números ("Número 1", "Número 2"), cada um com QR/código, apelido e chave "Usar para disparo" (padrão: ligada no 1, desligada no 2). A Meta Diária automática (e o "Disparar") só envia por número conectado com a chave ligada, meio a meio quando os dois estão ligados (`chooseDispatchSlot` + `pickDispatchSlot`), tudo pelo outro se um cair; teto/intervalo continuam por corretor (não aumenta volume). Chat: filtros Todas | Número 1 | Número 2 | Oficial, selo do número na conversa, resposta/reação/edição/apagar/limite por hora sempre pelo número da conversa, "Abrir no Número N" no menu e status de cada número em Chat › Corretores. Alertas de sessão e telemetria por número.
 - **Por quê:** regra do dono (2026-10-08).
