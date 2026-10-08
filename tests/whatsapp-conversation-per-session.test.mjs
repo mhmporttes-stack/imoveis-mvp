@@ -48,6 +48,10 @@ function setupStubs() {
     "simulation-registration-schema": { hasSimulationData: () => false },
     "whatsapp-individual": {
       getIndividualSessionStatusForUser: async (userId) => (connected.has(userId) ? "connected" : userId ? "disconnected" : null),
+      // Dois números (2026-10-08): estes cenários só têm o Número 1 de cada corretor.
+      getIndividualSessionStatusForSlot: async (userId, slot = 1) => (slot !== 1 ? null : connected.has(userId) ? "connected" : userId ? "disconnected" : null),
+      listIndividualSessionRows: async (userId) => (userId ? [{ user_id: userId, slot: 1, status: connected.has(userId) ? "connected" : "disconnected" }] : []),
+      listIndividualSessionRowsByUser: async () => new Map(),
       listIndividualSessionStatuses: async () => new Map(),
       sendIndividualMessage: async (userId, payload) => { sent.push({ userId, ...payload }); return { messageId: `WA-OUT-${sent.length}`, remoteJid: "x@s.whatsapp.net" }; },
       editIndividualMessage: async () => ({}), deleteIndividualMessageForEveryone: async () => ({}), reactIndividualMessage: async () => ({})

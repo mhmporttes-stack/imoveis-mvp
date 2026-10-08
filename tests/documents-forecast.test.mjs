@@ -605,7 +605,7 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   assert.match(routeCode, /let chat = \{ ready: false/); // falha ao checar = wa.me, nunca Chat
   const chatLib = stripComments(read("lib/whatsapp-chat.js"));
   const readiness = chatLib.slice(chatLib.indexOf("export async function getChatReplyReadiness("), chatLib.indexOf("export async function sendChatMessage("));
-  assert.match(readiness, /assertIndividualChatReplyOnly\(conversation, "individual", sessionKey\)/); // mesmo critério do envio real (limite 80/h incluído)
+  assert.match(readiness, /assertIndividualChatReplyOnly\(conversation, "individual", sessionKey(, conversationSlot)?\)/); // mesmo critério do envio real (limite 80/h incluído)
   assert.ok(!/\.insert\(|\.update\(|\.upsert\(/.test(readiness)); // somente leitura: nunca cria conversa
   assert.match(prepare, /setDocsListTarget/); // só prepara a prévia: nada é enviado aqui
   assert.ok(!/whatsapp-chat|window\.open/.test(prepare));

@@ -16,7 +16,8 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     if (!body?.clientId) return NextResponse.json({ error: "Informe o cliente." }, { status: 400 });
     // assign: false — abrir a conversa pelo card nunca muda atendente/status.
-    return NextResponse.json(await openChatForClient(String(body.clientId), auth, { assign: false }));
+    // slot (opcional, 2026-10-08): Número 1 ou 2 do WhatsApp do responsável; sem ele, a conversa que já existe.
+    return NextResponse.json(await openChatForClient(String(body.clientId), auth, { assign: false, slot: body.slot ?? null }));
   } catch (error) {
     return chatErrorResponse(error);
   }

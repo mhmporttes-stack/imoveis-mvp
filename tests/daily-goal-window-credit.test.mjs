@@ -50,7 +50,8 @@ test("admin geral segue isento", () => {
 });
 test("o dispatcher segue exigindo sessÃ£o conectada e o disparo extra Ã© strict (cÃ³digo-fonte)", () => {
   const auto = readFileSync(new URL("../lib/daily-goal-auto.js", import.meta.url), "utf8");
-  assert.match(auto, /isSessionOperational\(await getIndividualSessionStatusForUser\(brokerId\)\)\) return \{ brokerId, skipped: "sessao_nao_conectada" \}/);
+  // Dois números (2026-10-08): a checagem é pelo número apto ao disparo (conectado + "Usar para disparo").
+  assert.match(auto, /isSessionOperational\(await getDispatchSessionStatusForUser\(brokerId\)\)\) return \{ brokerId, skipped: "sessao_nao_conectada" \}/);
   assert.match(auto, /channel !== "individual"/);
   const extra = readFileSync(new URL("../lib/prospecting-extra-dispatch.js", import.meta.url), "utf8");
   assert.ok(extra.includes("assertProspectingAccess(auth, { strict: true })") && extra.includes("assertProspectingParticipation(auth, { strict: true })"));

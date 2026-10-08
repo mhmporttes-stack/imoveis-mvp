@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { normalizeSlot } from "@/lib/whatsapp-session-slots.mjs";
 import { disconnectIndividualSession } from "@/lib/whatsapp-individual";
 
 export const runtime = "nodejs";
@@ -12,8 +13,18 @@ export async function POST(request) {
   const userId = auth.profile?.id;
   if (!userId) return NextResponse.json({ error: "Usuário sem perfil administrativo." }, { status: 403 });
 
+  // Número 1 ou 2 do PRÓPRIO usuário (2026-10-08); corpo vazio = Número 1 (como antes).
+  let rawSlot;
   try {
-    const result = await disconnectIndividualSession(userId);
+    rawSlot = (await request.json())?.slot;
+  } catch {
+    rawSlot = undefined;
+  }
+  const slot = normalizeSlot(rawSlot);
+  if (!slot) return NextResponse.json({ error: "Número de WhatsApp inválido." }, { status: 400 });
+
+  try {
+    const result = await disconnectIndividualSession(userId, { slot });
     return NextResponse.json(result);
   } catch (error) {
     console.error("Falha ao desconectar o WhatsApp individual:", error?.message || error);

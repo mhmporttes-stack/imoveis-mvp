@@ -8,7 +8,8 @@ import Avatar from "@/components/Avatar";
 // status REAL da sessão de WhatsApp individual dele (conectado via QR Code
 // ao microsserviço, não presença no CRM) e as conversas atribuídas a
 // ele/dos seus clientes. "Abrir" reaproveita o MESMO Chat (onOpen), só
-// passando o escopo de corretor — nunca uma tela nova.
+// passando o escopo de corretor — nunca uma tela nova. Com dois números
+// (2026-10-08) o card mostra o status de cada um ("Número 1", "Número 2").
 const STATUS_META = {
   connected: { dot: "bg-emerald-500", label: "Conectado", order: 0 },
   qr_required: { dot: "bg-amber-400", label: "Aguardando QR Code", order: 1 },
@@ -60,6 +61,22 @@ export default function WhatsappChatBrokers({ onOpen }) {
                 <p className="text-xs font-bold text-muted">{meta.label}</p>
               </div>
             </div>
+
+            {/* Status de cada número (2026-10-08): o Número 2 só aparece quando foi configurado. */}
+            {Array.isArray(broker.slots) ? (
+              <ul className="mt-3 space-y-1">
+                {broker.slots.filter((item) => item.slot === 1 || item.configured).map((item) => {
+                  const slotMeta = STATUS_META[item.status] || STATUS_META.disconnected;
+                  return (
+                    <li key={item.slot} className="flex items-center gap-2 text-xs font-bold text-navy">
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${slotMeta.dot}`} aria-hidden="true" />
+                      <span className="truncate">{item.label}</span>
+                      <span className="ml-auto shrink-0 text-muted">{slotMeta.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <CountTile label="Não lidas" value={broker.counts.unread} tone={broker.counts.unread > 0 ? "text-emerald-600" : "text-navy"} />

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { normalizeSlot } from "@/lib/whatsapp-session-slots.mjs";
 import { connectIndividualSession } from "@/lib/whatsapp-individual";
 
 export const runtime = "nodejs";
@@ -20,13 +21,18 @@ export async function POST(request) {
     // phoneNumber opcional (pedido do dono, 2026-09-30): pareamento por
     // código numérico em vez de escanear o QR.
     let phoneNumber = "";
+    let rawSlot;
     try {
       const body = await request.json();
       phoneNumber = String(body?.phoneNumber || "");
+      rawSlot = body?.slot;
     } catch {
-      // Corpo vazio (clique normal de "Conectar", sem número) — QR como sempre.
+      // Corpo vazio (clique normal de "Conectar", sem número) — QR como sempre, Número 1.
     }
-    const result = await connectIndividualSession(userId, phoneNumber);
+    // Número 1 ou 2 do PRÓPRIO usuário (2026-10-08); nunca outro id.
+    const slot = normalizeSlot(rawSlot);
+    if (!slot) return NextResponse.json({ error: "Número de WhatsApp inválido." }, { status: 400 });
+    const result = await connectIndividualSession(userId, phoneNumber, { slot });
     return NextResponse.json(result);
   } catch (error) {
     console.error("Falha ao conectar o WhatsApp individual:", error?.message || error);

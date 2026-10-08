@@ -9,6 +9,8 @@ import IntegrationStatusIcon, { whatsappTone } from "@/components/IntegrationSta
 // existente (número oficial banido pela Meta em 28/09/2026). Só mostra
 // estado e deixa conectar/reconectar/desconectar; não mexe em conversa,
 // cliente nem histórico nenhum.
+// Dois números (REGRA OFICIAL — dono, 2026-10-08): "Número 1" e "Número 2", cada um com o próprio QR/código,
+// apelido opcional e a chave "Usar para disparo" (Meta Diária automática). O Número 1 é a sessão de sempre.
 
 const POLL_MS = 3000;
 const STATUS_LABEL = {
@@ -40,6 +42,12 @@ function formatPhoneInput(digits) {
 
 export default function WhatsappIndividualStatus({ align = "center" }) {
   const [status, setStatus] = useState(null);
+  // Número aberto no modal (1 ou 2) e o resumo dos dois (apelido, chave de disparo, status).
+  const [activeSlot, setActiveSlot] = useState(1);
+  const activeSlotRef = useRef(1);
+  const [slots, setSlots] = useState([]);
+  const [overallStatus, setOverallStatus] = useState("disconnected");
+  const [labelInput, setLabelInput] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -83,10 +91,15 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
   }, []);
 
   const loadStatus = useCallback(async () => {
+    const slot = activeSlotRef.current;
     try {
-      const response = await fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" });
+      const response = await fetch(`/api/admin/whatsapp-individual/status?slot=${slot}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Falha ao consultar o status.");
+      if (Array.isArray(data.slots)) setSlots(data.slots);
+      setOverallStatus(data.overallStatus || data.status || "disconnected");
+      // Trocou de número enquanto a consulta voltava: não mistura o estado de um com o do outro.
+      if (activeSlotRef.current !== slot) return data;
       // Código de pareamento já exibido não some numa releitura que ainda não
       // o traga, enquanto a sessão não conectou/caiu (2026-10-02).
       setStatus((current) => (
@@ -123,7 +136,7 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
       const response = await fetch("/api/admin/whatsapp-individual/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(phoneNumber ? { phoneNumber } : {})
+        body: JSON.stringify(phoneNumber ? { phoneNumber, slot: activeSlotRef.current } : { slot: activeSlotRef.current })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível conectar.");
@@ -152,7 +165,11 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/whatsapp-individual/disconnect", { method: "POST" });
+      const response = await fetch("/api/admin/whatsapp-individual/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slot: activeSlotRef.current })
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível desconectar.");
       await loadStatus();
@@ -163,14 +180,45 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
     }
   }, [loadStatus]);
 
+  // Apelido e "Usar para disparo" do número aberto (sempre do próprio usuário; o servidor confere).
+  const saveSlotSettings = useCallback(async (patch) => {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-individual/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slot: activeSlotRef.current, ...patch })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar.");
+      await loadStatus();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  }, [loadStatus]);
+
+  const selectSlot = useCallback((slot) => {
+    activeSlotRef.current = slot;
+    setActiveSlot(slot);
+    setStatus(null);
+    setError("");
+    setPhoneMode(false);
+    loadStatus();
+  }, [loadStatus]);
+
   const openModal = useCallback(() => {
     setError("");
     setPhoneMode(false);
     setModalOpen(true);
     setConfirmingRestriction(false);
     loadRestriction();
+    // Sempre abre no Número 1 (o de sempre); só ele conecta sozinho ao abrir, como antes.
+    if (activeSlotRef.current !== 1) { selectSlot(1); return; }
     if (!status || status.status === "disconnected" || status.status === "error") handleConnect();
-  }, [status, handleConnect, loadRestriction]);
+  }, [status, handleConnect, loadRestriction, selectSlot]);
 
   // "Conectar WhatsApp" de outras telas (Prospecção/Meta Diária bloqueadas sem a sessão
   // conectada, 2026-10-02) abre este mesmo modal — não existe rota própria de conexão.
@@ -181,13 +229,18 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
   }, [openModal]);
 
   const currentStatus = status?.status || "disconnected";
+  const currentSlotInfo = slots.find((item) => item.slot === activeSlot) || { slot: activeSlot, label: "", dispatchEnabled: activeSlot === 1 };
+  useEffect(() => { setLabelInput(currentSlotInfo.label || ""); }, [activeSlot, currentSlotInfo.label]);
+  // Selo do cabeçalho: conectado se QUALQUER número estiver; mostra o telefone do primeiro conectado.
+  const connectedSlot = slots.find((item) => item.status === "connected");
+  const headerStatus = overallStatus || currentStatus;
 
   return (
     <>
       <IntegrationStatusIcon
         kind="whatsapp"
-        tone={whatsappTone(currentStatus)}
-        label={`WhatsApp: ${currentStatus === "connected" && status?.phoneNumber ? formatPhone(status.phoneNumber) : STATUS_LABEL[currentStatus] || "Desconectado"}`}
+        tone={whatsappTone(headerStatus)}
+        label={`WhatsApp: ${headerStatus === "connected" && (connectedSlot?.phoneNumber || status?.phoneNumber) ? formatPhone(connectedSlot?.phoneNumber || status.phoneNumber) : STATUS_LABEL[headerStatus] || "Desconectado"}`}
         onClick={openModal}
         align={align}
       />
@@ -199,7 +252,48 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
               <h2 className="text-base font-black text-navy">WhatsApp individual</h2>
               <button type="button" onClick={() => setModalOpen(false)} aria-label="Fechar"><X className="h-5 w-5 text-navy/60" /></button>
             </div>
-            <p className="mt-1 text-xs text-navy/60">Conecte o SEU WhatsApp pessoal escaneando o QR (como o WhatsApp Web). Só as conversas atribuídas a você usam esta sessão.</p>
+            <p className="mt-1 text-xs text-navy/60">Conecte o SEU WhatsApp pessoal escaneando o QR (como o WhatsApp Web). Você pode ter até 2 números; cada conversa responde pelo número em que está.</p>
+
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-full bg-mist/60 p-1" role="tablist" aria-label="Números de WhatsApp">
+              {[1, 2].map((slot) => {
+                const info = slots.find((item) => item.slot === slot);
+                const on = info?.status === "connected";
+                return (
+                  <button
+                    key={slot}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSlot === slot}
+                    disabled={busy}
+                    onClick={() => (activeSlot === slot ? null : selectSlot(slot))}
+                    className={`flex min-h-9 items-center justify-center gap-1.5 truncate rounded-full px-2 text-xs font-extrabold ${activeSlot === slot ? "bg-white text-navy shadow-sm" : "text-navy/60 hover:text-navy"}`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-emerald-500" : "bg-slate-300"}`} aria-hidden="true" />
+                    <span className="truncate">{info?.label ? `${slot} · ${info.label}` : `Número ${slot}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-line p-3">
+              <label className="text-[11px] font-bold text-navy/70" htmlFor="whatsapp-slot-label">Apelido do Número {activeSlot} (opcional)</label>
+              <div className="flex gap-2">
+                <input
+                  id="whatsapp-slot-label"
+                  type="text"
+                  maxLength={30}
+                  placeholder={activeSlot === 1 ? "Ex.: Pessoal" : "Ex.: Trabalho"}
+                  value={labelInput}
+                  onChange={(event) => setLabelInput(event.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-line px-3 py-1.5 text-sm font-bold text-navy focus:border-brand focus:outline-none"
+                />
+                <button type="button" disabled={busy || labelInput.trim() === (currentSlotInfo.label || "")} onClick={() => saveSlotSettings({ label: labelInput })} className="shrink-0 rounded-full border border-navy/15 px-3 py-1.5 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-40">Salvar</button>
+              </div>
+              <label className="flex min-h-9 cursor-pointer items-center gap-2 text-xs font-bold text-navy">
+                <input type="checkbox" className="h-4 w-4" disabled={busy} checked={Boolean(currentSlotInfo.dispatchEnabled)} onChange={(event) => saveSlotSettings({ dispatchEnabled: event.target.checked })} />
+                Usar para disparo (Meta Diária automática)
+              </label>
+            </div>
 
             {error ? <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
 
@@ -278,7 +372,7 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
                 </button>
               ) : null}
 
-              {currentStatus !== "connected" ? (
+              {currentStatus !== "connected" && activeSlot === 1 ? (
                 <div className="w-full rounded-2xl border border-navy/15 bg-mist/40 p-3">
                   {restriction.restricted ? (
                     <>

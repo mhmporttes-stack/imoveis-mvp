@@ -40,10 +40,13 @@ export function createFakeSupabase({ uniqueMode = "session" } = {}) {
   const state = { tables, rpcCalls: [] };
   const table = (name) => (tables[name] ??= []);
 
-  const conversationUnique = uniqueMode === "legacy" ? ["contact_phone"] : ["contact_phone", "session_key"];
+  // Dois números por corretor (2026-10-08): a conversa é (telefone, sessão, número 1/2).
+  const conversationUnique = uniqueMode === "legacy" ? ["contact_phone"] : ["contact_phone", "session_key", "session_slot"];
   const messageIndividualUnique = (a, b) => (uniqueMode === "legacy"
     ? a.metadata?.wa_message_id && a.metadata.wa_message_id === b.metadata?.wa_message_id
     : a.metadata?.wa_message_id && a.metadata.wa_message_id === b.metadata?.wa_message_id && a.session_user_id === b.session_user_id);
+  // ON CONFLICT aceito pelo banco atual (índice novo da parte 1 de 20261008160000).
+  const conversationConflictTargets = uniqueMode === "legacy" ? [["contact_phone"]] : [["contact_phone", "session_key", "session_slot"]];
 
   function conflict(table, rows, candidate, ignoreId) {
     return rows.find((row) => {
@@ -61,10 +64,10 @@ export function createFakeSupabase({ uniqueMode = "session" } = {}) {
     const now = new Date().toISOString();
     const base = { id: randomUUID(), created_at: now };
     if (table === "whatsapp_conversations") {
-      return { ...base, status: "open", unread_count: 0, origin: {}, session_key: NIL, assigned_user_id: null, client_id: null, deleted_at: null, last_message_at: null, last_message_preview: null, last_message_direction: null, last_inbound_at: null, account_channel: null, account_user_id: null, updated_at: now, ...row };
+      return { ...base, status: "open", unread_count: 0, origin: {}, session_key: NIL, session_slot: 1, assigned_user_id: null, client_id: null, deleted_at: null, last_message_at: null, last_message_preview: null, last_message_direction: null, last_inbound_at: null, account_channel: null, account_user_id: null, updated_at: now, ...row };
     }
     if (table === "whatsapp_messages") {
-      return { ...base, channel: "whatsapp_cloud_api", session_user_id: null, metadata: {}, status: "received", meta_message_id: null, message_at: now, sender_user_id: null, ...row };
+      return { ...base, channel: "whatsapp_cloud_api", session_user_id: null, session_slot: 1, metadata: {}, status: "received", meta_message_id: null, message_at: now, sender_user_id: null, ...row };
     }
     return { ...base, ...row };
   }
@@ -138,7 +141,7 @@ export function createFakeSupabase({ uniqueMode = "session" } = {}) {
         const list = Array.isArray(this.payload) ? this.payload : [this.payload];
         if (this.op === "upsert") {
           const wanted = String(this.opts.onConflict || "").split(",").map((c) => c.trim()).filter(Boolean);
-          if (this.table === "whatsapp_conversations" && wanted.join() !== conversationUnique.join()) {
+          if (this.table === "whatsapp_conversations" && !conversationConflictTargets.some((target) => target.join() === wanted.join())) {
             return { data: null, error: { code: "42P10", message: "there is no unique or exclusion constraint matching the ON CONFLICT specification" } };
           }
         }

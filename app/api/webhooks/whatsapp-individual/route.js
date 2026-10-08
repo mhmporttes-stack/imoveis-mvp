@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { applyIndividualSessionStatus, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
+import { applyIndividualSessionStatus, getIndividualSessionRow, isSlotDispatchEnabled, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
+import { parseSessionId } from "@/lib/whatsapp-session-slots.mjs";
 import { projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
@@ -28,8 +29,13 @@ export async function POST(request) {
     return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
   }
 
-  const userId = String(payload?.userId || "").trim();
-  if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
+  const sessionId = String(payload?.userId || "").trim();
+  if (!sessionId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
+  // "userId" do microsserviço = id da SESSÃO (2026-10-08): "<id do corretor>" = Número 1 (como sempre) ou
+  // "<id>:2" = Número 2. Daqui para baixo `userId` é sempre o corretor dono e `sessionSlot` o número.
+  const session = parseSessionId(sessionId);
+  if (!session) return NextResponse.json({ error: "userId inválido." }, { status: 400 });
+  const { userId, slot: sessionSlot } = session;
 
   try {
     if (payload.type === "status") {
@@ -41,7 +47,8 @@ export async function POST(request) {
         pairingCode: payload.pairingCode,
         error: payload.error,
         statusCode: payload.statusCode,
-        output: payload.output
+        output: payload.output,
+        slot: sessionSlot
       });
       // Ativa a automação da Meta Diária sozinha assim que a sessão
       // individual DESTE corretor conecta (pedido do dono, 2026-09-30) — só
@@ -49,7 +56,9 @@ export async function POST(request) {
       // seguida, se sobrou atrasado de antes da desconexão, redistribui a
       // fila sozinha (pedido do dono, 2026-10-02) — nunca deixa o reconectar
       // despejar uma rajada de mensagens atrasadas fora do intervalo configurado.
-      if (payload.status === "connected") {
+      // Dois números (2026-10-08): só quando o número que conectou está com "Usar para disparo" ligado
+      // (Número 1 por padrão, como antes; o Número 2 nasce desligado e não liga nada sozinho).
+      if (payload.status === "connected" && isSlotDispatchEnabled(await getIndividualSessionRow(userId, sessionSlot))) {
         await ensureDailyGoalAutoEnabledOnConnect(userId);
         await redistributeBrokerQueueOnReconnect(userId);
       }
@@ -64,6 +73,7 @@ export async function POST(request) {
       if (kind !== "message") {
         const result = await projectIndividualChatAction({
           userId,
+          sessionSlot,
           kind,
           from: payload.from,
           fromMe: Boolean(payload.fromMe),
@@ -79,6 +89,7 @@ export async function POST(request) {
       const media = payload.media && typeof payload.media === "object" ? payload.media : null;
       const event = {
         userId,
+        sessionSlot,
         from: payload.from,
         text: payload.text,
         waMessageId: payload.waMessageId,
@@ -112,12 +123,12 @@ export async function POST(request) {
     }
 
     if (payload.type === "history") {
-      const result = await projectIndividualHistoryBatch(userId, Array.isArray(payload.items) ? payload.items : []);
+      const result = await projectIndividualHistoryBatch(userId, Array.isArray(payload.items) ? payload.items : [], { sessionSlot });
       return NextResponse.json({ ok: true, ...result });
     }
 
     if (payload.type === "message_status") {
-      const result = await projectIndividualMessageStatus({ userId, waMessageId: payload.waMessageId, status: payload.status });
+      const result = await projectIndividualMessageStatus({ userId, sessionSlot, waMessageId: payload.waMessageId, status: payload.status });
       return NextResponse.json({ ok: true, ...result });
     }
 

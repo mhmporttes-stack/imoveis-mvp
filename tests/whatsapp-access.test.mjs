@@ -115,7 +115,7 @@ test("backend: barreira central na autenticação das APIs + toda rota protegida
 
 test("backend: conexão/QR/envio/reação/edição/exclusão da sessão têm a barreira final", () => {
   const code = source("lib/whatsapp-individual.js");
-  for (const fn of ["connectIndividualSession(userId, phoneNumber)", "sendIndividualMessage(userId, {", "reactIndividualMessage(userId", "editIndividualMessage(userId", "deleteIndividualMessageForEveryone(userId"]) {
+  for (const fn of ["connectIndividualSession(userId, phoneNumber", "sendIndividualMessage(userId, {", "reactIndividualMessage(userId", "editIndividualMessage(userId", "deleteIndividualMessageForEveryone(userId"]) {
     const start = code.indexOf(`export async function ${fn}`);
     assert.ok(start >= 0, fn);
     assert.match(code.slice(start, start + 400), /await assertWhatsappAccessAllowed\(userId\);/, fn);

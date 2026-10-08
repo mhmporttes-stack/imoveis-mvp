@@ -78,7 +78,8 @@ test("D — barreiras de SERVIDOR (não só visual) em cada caminho que executa/
 test("fila de disparos: sem sessão conectada não entra na fila (nenhum item novo) e a tela mostra o aviso", () => {
   const auto = source("lib/daily-goal-auto.js");
   const cycle = between(auto, "await ensureDailyGoalGeneratedForBroker(brokerId);", "const result = await dispatchOneForBroker");
-  assert.match(cycle, /isSessionOperational\(await getIndividualSessionStatusForUser\(brokerId\)\)\) return \{ brokerId, skipped: "sessao_nao_conectada" \}/);
+  // Dois números (2026-10-08): número conectado com "Usar para disparo" ligado.
+  assert.match(cycle, /isSessionOperational\(await getDispatchSessionStatusForUser\(brokerId\)\)\) return \{ brokerId, skipped: "sessao_nao_conectada" \}/);
   assert.ok(cycle.indexOf("sessao_nao_conectada") < cycle.indexOf("enqueueTodayItemsForBroker"), "checa antes de enfileirar");
 
   const page = source("app/admin/prospeccao/page.jsx");

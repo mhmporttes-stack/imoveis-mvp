@@ -52,10 +52,12 @@ const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !==
 
 // Filtros da lista — para acrescentar outro no futuro basta uma linha aqui
 // (e o filtro correspondente em lib/whatsapp-chat.js).
+// Dois números do WhatsApp pessoal (2026-10-08): "Número 1"/"Número 2" (com o apelido do usuário, quando houver).
 const FILTERS = [
   { key: "all", label: "Todas" },
+  { key: "slot1", label: "Número 1" },
+  { key: "slot2", label: "Número 2" },
   { key: "official", label: "Oficial" },
-  { key: "personal", label: "Pessoal" },
   { key: "unread", label: "Não lidas" },
   { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
@@ -127,6 +129,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     return () => window.removeEventListener(CONTACT_WARNING_EVENT, check);
   }, []);
   const [brokers, setBrokers] = useState([]);
+  // Números do PRÓPRIO usuário (apelido e status) — rótulo dos filtros e "Abrir no outro número".
+  const [mySlots, setMySlots] = useState([]);
   const [filter, setFilter] = useState("all");
   // Filtro pela ETAPA do cliente (pedido do dono 2026-10-06), aplicado no servidor; "" = todas.
   const [clientStatus, setClientStatus] = useState("");
@@ -263,6 +267,27 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   useEffect(() => {
     loadList();
   }, [filter, search, scopedBroker, clientStatus, loadList]);
+
+  useEffect(() => {
+    fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => setMySlots(Array.isArray(payload?.slots) ? payload.slots : []))
+      .catch(() => {});
+  }, []);
+
+  // Abre a conversa deste cliente em outro número do responsável (o próprio usuário escolhe; padrão = Número 1).
+  const openClientInSlot = useCallback(async (clientId, slot) => {
+    const response = await fetch("/api/admin/whatsapp-chat/open-client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, slot })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Não foi possível abrir a conversa neste número.");
+    await loadList({ silent: true });
+    if (data.conversationId) openConversation(data.conversationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadList]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -406,6 +431,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             filter={filter}
             loading={listLoading}
             onFilter={setFilter}
+            filterLabels={Object.fromEntries(mySlots.filter((item) => item.label).map((item) => [`slot${item.slot}`, `Número ${item.slot} · ${item.label}`]))}
             clientStatus={clientStatus}
             onClientStatus={setClientStatus}
             canSeeArchived={canSeeArchived}
@@ -422,6 +448,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
                 canManage={canManage}
                 canEditRules={canEditRules}
                 currentUserId={currentUserId}
+                mySlots={mySlots}
+                onOpenClientSlot={openClientInSlot}
                 detail={detail}
                 error={detailError}
                 infoOpen={infoOpen}
@@ -493,7 +521,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   );
 }
 
-function ConversationList({ className, conversations, error, filter, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false }) {
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false }) {
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
@@ -526,7 +554,7 @@ function ConversationList({ className, conversations, error, filter, loading, on
                 filter === item.key ? "border-brand bg-blue-50 text-brand" : "border-line bg-white text-navy hover:border-brand/40"
               }`}
             >
-              {item.label}
+              {filterLabels[item.key] || item.label}
             </button>
           ))}
         </div>
@@ -607,7 +635,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
         </span>
         <span className="flex items-center gap-1.5 truncate text-[11px] font-bold text-muted">
           {formatPhone(conversation.phone)}
-          <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-black uppercase tracking-wide ${conversation.sessionUserId ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{conversation.sessionUserId ? "Pessoal" : "Oficial"}</span>
+          <span className={`max-w-[150px] shrink-0 truncate rounded-full px-1.5 py-px text-[10px] font-black uppercase tracking-wide ${conversation.sessionUserId ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</span>
         </span>
         <span className="mt-0.5 flex items-center justify-between gap-2">
           <span className={`flex min-w-0 items-center gap-1 text-xs ${unread ? "font-extrabold text-navy" : "font-semibold text-slate-500"}`}>
@@ -630,7 +658,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
   );
 }
 
-function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
+function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenClientSlot = null, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -650,6 +678,10 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
   const messages = detail?.messages || [];
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
   const showAssume = Boolean(conversation) && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
+  // Dois números (2026-10-08): conversa de cliente no MEU WhatsApp pessoal pode ser aberta no meu outro número conectado.
+  const otherSlot = conversation?.client?.id && conversation.sessionUserId && conversation.sessionUserId === currentUserId && !conversation.archivedReadOnly
+    ? mySlots.find((item) => item.slot !== (conversation.sessionSlot || 1) && item.status === "connected") || null
+    : null;
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -859,6 +891,11 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
                       <ArchiveRestore className="h-4 w-4 text-brand" /> Reabrir conversa
                     </button>
                   )}
+                  {otherSlot && onOpenClientSlot ? (
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpenClientSlot(conversation.client.id, otherSlot.slot).catch((failure) => setReactionError(failure.message)); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
+                      <MessageCircle className="h-4 w-4 text-brand" /> Abrir no {otherSlot.label ? `Número ${otherSlot.slot} · ${otherSlot.label}` : `Número ${otherSlot.slot}`}
+                    </button>
+                  ) : null}
                   {conversation.canInternal ? (
                     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDeleteError(""); setConfirmingDelete(true); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-red-600 hover:bg-red-50">
                       <Trash2 className="h-4 w-4" /> Excluir conversa
@@ -1588,7 +1625,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
 
       {!awaiting && !recording && !processing ? (
         <p className="mb-1.5 px-1 text-[11px] font-bold text-muted">
-          Enviando por: <span className="font-black text-navy">{conversation.sessionUserId ? "seu WhatsApp pessoal" : "número oficial"}</span>
+          Enviando por: <span className="font-black text-navy">{conversation.sessionUserId ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>
         </p>
       ) : null}
 

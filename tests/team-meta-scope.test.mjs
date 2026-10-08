@@ -107,7 +107,7 @@ test("backend: automação/WhatsApp da Supervisão só enxerga e opera a equipe 
 
 test("backend: o status do WhatsApp só dispara o alerta pelo caminho único (applyIndividualSessionStatus)", () => {
   const lib = src("lib/whatsapp-individual.js");
-  assert.match(lib, /notifyWhatsappConnectionChange\(userId, prevRow, status\)/);
+  assert.match(lib, /notifyWhatsappConnectionChange\(userId, prevRow, status(, \{ slot: sessionSlot \})?\)/);
   const alert = src("lib/whatsapp-connection-alert.js");
   assert.match(alert, /resolveResponsibleManager/);
   assert.match(alert, /recipient_id|createAlertDeliveries/);

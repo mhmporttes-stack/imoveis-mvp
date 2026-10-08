@@ -7,6 +7,7 @@ import {
   verifyIndividualServiceSecret,
   writeIndividualSessionCredsInternal
 } from "@/lib/whatsapp-individual";
+import { parseSessionId } from "@/lib/whatsapp-session-slots.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,11 +39,14 @@ export async function GET(request) {
       return NextResponse.json({ rows });
     }
     if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
+    // "userId" do microsserviço = id da SESSÃO: "<id do corretor>" (Número 1, como sempre) ou "<id>:2" (Número 2).
+    const session = parseSessionId(userId);
+    if (!session) return NextResponse.json({ error: "userId inválido." }, { status: 400 });
     if (field === "creds") {
-      const encrypted = await readIndividualSessionCredsInternal(userId);
+      const encrypted = await readIndividualSessionCredsInternal(session.userId, session.slot);
       return NextResponse.json({ encrypted });
     }
-    const row = await getIndividualSessionRow(userId);
+    const row = await getIndividualSessionRow(session.userId, session.slot);
     return NextResponse.json({ row });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Falha ao ler estado." }, { status: 500 });
@@ -64,9 +68,11 @@ export async function POST(request) {
 
   const userId = String(payload?.userId || "").trim();
   if (!userId) return NextResponse.json({ error: "userId não informado." }, { status: 400 });
+  const session = parseSessionId(userId);
+  if (!session) return NextResponse.json({ error: "userId inválido." }, { status: 400 });
 
   try {
-    await writeIndividualSessionCredsInternal(userId, payload.encrypted ?? null);
+    await writeIndividualSessionCredsInternal(session.userId, payload.encrypted ?? null, session.slot);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Falha ao gravar estado." }, { status: 500 });

@@ -202,7 +202,7 @@ test("parseAttentionReason extrai o motivo e protege contra formato estranho", (
 
 test("integração no código: gatilho único no applyIndividualSessionStatus, falha nunca derruba o status, rota real existe", () => {
   const lib = readFileSync(new URL("../lib/whatsapp-individual.js", import.meta.url), "utf8");
-  assert.match(lib, /notifyWhatsappSessionAttention\(userId, prevRow, \{ status, error \}\)/);
+  assert.match(lib, /notifyWhatsappSessionAttention\(userId, prevRow, \{ status, error(, slot: sessionSlot)? \}\)/);
   const server = readFileSync(new URL("../lib/whatsapp-session-attention.js", import.meta.url), "utf8");
   assert.match(server, /catch \(err\)[\s\S]*return \{ alerted: false, reason: "erro" \}/);
   assert.match(server, /definicao_ausente/);
