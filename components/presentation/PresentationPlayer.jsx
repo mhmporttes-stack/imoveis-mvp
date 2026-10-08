@@ -61,6 +61,7 @@ function announcement(scene, index, total) {
       return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
+    case "comparativo": return `${head}Comparativo entre SAC e Price. Primeira parcela: SAC ${formatBRL(scene.sac.first)}, Price ${formatBRL(scene.price.first)}. Última parcela: SAC ${formatBRL(scene.sac.last)}, Price ${formatBRL(scene.price.last)}.`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
     case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT}`;
     default: return `${head}Próximo passo.`;
@@ -216,6 +217,42 @@ function SceneParcelas({ scene }) {
         ) : null}
       </div>
       <p className={`${styles.note} ${styles.rise}`} style={{ "--d": rate ? (both ? "2800ms" : "1500ms") : both ? "2100ms" : "900ms" }}>Valores da simulação realizada.</p>
+    </div>
+  );
+}
+
+// Comparativo SAC x Price (dono, 2026-10-08): só existe quando a simulação foi feita nos DOIS sistemas (decisão do servidor).
+// Só números já digitados; linhas sem valor nos dois sistemas somem; valor ausente de um lado aparece como "—".
+const COMPARATIVO_ROWS = [
+  ["Poder de compra", "total"],
+  ["Financiamento", "financing"],
+  ["Subsídio", "subsidy"],
+  ["Primeira parcela", "first"],
+  ["Última parcela", "last"]
+];
+
+function SceneComparativo({ scene }) {
+  const rows = COMPARATIVO_ROWS.filter(([, key]) => scene.sac?.[key] > 0 || scene.price?.[key] > 0);
+  const cell = (system, key) => (scene[system]?.[key] > 0 ? formatBRL(scene[system][key]) : "—");
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Comparativo</p>
+      <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": "150ms" }}>SAC x Price</h2>
+      <div className={styles.cmpTable} role="table" aria-label="Comparativo entre SAC e Price">
+        <div className={`${styles.cmpHead} ${styles.rise}`} style={{ "--d": "350ms" }} role="row">
+          <span aria-hidden="true" />
+          <span role="columnheader">SAC</span>
+          <span role="columnheader">Price</span>
+        </div>
+        {rows.map(([label, key], index) => (
+          <div key={key} className={`${styles.cmpRow} ${styles.rise}`} style={{ "--d": `${650 + index * 380}ms` }} role="row">
+            <span className={styles.cmpLabel} role="rowheader">{label}</span>
+            <strong className={styles.cmpVal} role="cell">{cell("sac", key)}</strong>
+            <strong className={styles.cmpVal} role="cell">{cell("price", key)}</strong>
+          </div>
+        ))}
+      </div>
+      <p className={`${styles.note} ${styles.rise}`} style={{ "--d": `${900 + rows.length * 380}ms` }}>Valores da simulação realizada em cada sistema.</p>
     </div>
   );
 }
@@ -570,6 +607,7 @@ function renderScene(scene, ctx) {
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
+    case "comparativo": return <SceneComparativo scene={scene} />;
     // imóvel/valores vivem no RAMO da simulação; na apresentação de APROVAÇÃO (PRES-21) fazem parte do roteiro principal
     case "imovel": return ctx.inBranch
       ? <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />
