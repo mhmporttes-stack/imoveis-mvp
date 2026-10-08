@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (auth.accountSwitchMode) return NextResponse.json({ error: "Em \"Alterar conta\" não é possível mexer no WhatsApp da outra pessoa. Entre com a própria conta." }, { status: 403 });
   const userId = auth.profile?.id;
   if (!userId) return NextResponse.json({ error: "Usuário sem perfil administrativo." }, { status: 403 });
 

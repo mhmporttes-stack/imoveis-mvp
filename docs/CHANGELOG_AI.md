@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Pente-fino do Chat: rastro de quem enviou, auditoria e correções
+- **Data:** 2026-10-08
+- **Área:** WhatsApp / Chat / Permissões
+- **Alteração:** (1) cada envio do Chat grava sessão/IP/navegador/conta emprestada em `metadata.actor_ctx`, visível só ao administrador; (2) auditoria de status, assumir/atribuir/liberar, editar e apagar mensagem (e o insert da auditoria passa a checar erro); (3) "Alterar conta" não conecta/desconecta/renomeia o WhatsApp de outra pessoa; (4) modelo aprovado só pelo número oficial; (5) eco duplicado do envio (23505) é adotado em vez de dar erro; (6) lista do Chat 40 → 100 conversas. Regra WA-16.
+- **Motivo:** pedido do dono após caso da Bruna enviando como Carol (conta compartilhada) e problemas do Chat; duas auditorias de leitura (privacidade e confiabilidade).
+- **Arquivos afetados:** `lib/admin-auth.js`, `lib/whatsapp-chat.js`, `lib/chat-actor-context-core.mjs`, `components/WhatsappChat.jsx`, `app/api/admin/whatsapp-individual/{connect,disconnect,settings}/route.js`, `tests/chat-actor-context.test.mjs`
+- **Risco/observação:** sem migration (rastro em JSON de metadata). O rastro NÃO impede login compartilhado: mostra de onde saiu o envio. Achados da auditoria NÃO tratados (decisão do dono ou serviço externo): limite de ociosidade da sessão; gestor enviando/editando/apagando pelo número pessoal de corretor (M1); associado vendo o número do corretor vinculado (M3); "liberar" sem restrição (M5); teto de envio do número oficial (M7); alerta de queda de sessão só informativo e só para gestora; vigilância de sessão "conectada e muda"; cadastro arquivado escolhido por "mais recente"; contadores truncados em 1000 linhas; mensagens sem texto/mídia descartadas; serviço Baileys (versão, retry do webhook) não auditado. A CONFIRMAR em produção: enviar uma mensagem pelo Chat e ver a linha do administrador.
+- **Autor:** Claude Code
 ### 2026-10-08 — Prazo em meses e taxa de juros na cena de parcelas; envio da apresentação pelo computador
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação

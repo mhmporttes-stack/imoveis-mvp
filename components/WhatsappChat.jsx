@@ -1182,6 +1182,7 @@ function MessageBubble({ message, quoted, onOpenActions }) {
         ) : null}
         <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
           {outbound && message.senderType === "user" && message.sentByName ? <span className="truncate">Enviada por {message.sentByName}</span> : null}
+          {outbound && message.actorNote ? <span className="truncate font-semibold text-slate-400" title={message.actorNote}>· {message.actorNote}</span> : null}
           {message.editedAt ? <span title={message.originalBody ? `Original: ${message.originalBody}` : undefined}>editada</span> : null}
           <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
           {outbound ? <StatusTicks status={message.status} /> : null}
