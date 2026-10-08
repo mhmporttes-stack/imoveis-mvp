@@ -19,30 +19,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”
-### 2026-10-08 — Roleta: prazo de 5 min para a simulação de cliente com dados (ROL-4b)
-- **O quê:** na REDISTRIBUIÇÃO DE LEADS, cliente com `primary_monthly_income > 0` só fica com o corretor se a simulação for feita (status fora de pendente ou linha em `simulations` com o `registration_id`); contato por WhatsApp/resposta no Chat deixam de segurá-lo. Sem dados, nada muda.
-- **Por quê:** regra do dono — a abordagem do corretor é a simulação. Dado de referência (15/09–08/10): de 57 clientes de formulário na roleta, só 1 foi simulado em até 5 min (mediana ~6,6 h); o dono manteve 5 min.
-- **Arquivos:** `lib/simulation-deadline-core.mjs` (novo), `lib/crm-automations.js`, `tests/simulation-deadline.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4b, `.claude/rules/roleta-prospeccao-campanhas.md`.
-
-### 2026-10-08 — Meta: evento "CadastroCRM" só do servidor (contagem real de cadastros)
-- **O quê:** `sendMetaLeadEvent` (`lib/meta-conversions-api.js`) envia, junto do `Lead`, o evento personalizado `CadastroCRM` (event_id `<id>-crm`), só depois do cadastro novo gravado. Nada muda no pixel do navegador.
-- **Por quê:** pedido do dono — o número de cadastros da Meta não batia. Prova: em 06/10 a Meta contou 22 leads e o site inteiro recebeu 12 cadastros (de todas as origens); nosso código só dispara `Lead` após o insert, então os extras vêm de fora (suspeita: Signals Gateway/Birch). Com a conversão personalizada sobre `CadastroCRM`, o Gerenciador passa a contar só cadastro real.
-- **Pendente do dono:** criar a conversão personalizada "Cadastro CRM" no Gerenciador de Eventos e usá-la como coluna (e, em campanha nova, como evento de otimização). A CONFIRMAR: `META_CONVERSIONS_API_ACCESS_TOKEN` configurado na Vercel (sem ele nada é enviado).
-- **Arquivos:** `lib/meta-conversions-api.js`, `tests/meta-crm-registration-event.test.mjs`, `docs/TRAFEGO_META.md`.
-
-### 2026-10-08 — Roleta: sem atendimento em 5 min e ninguém on-line → fila de espera (ROL-4a)
-- **O quê:** na REDISTRIBUIÇÃO DE LEADS, quando não há outro corretor on-line, o cliente deixa de ficar com quem não atendeu: vai para o dono com `pending_distribution_at` (`moveClientToRouletteWaitingQueue`) e a fila o entrega ao próximo corretor on-line, excluindo quem o perdeu. Cliente na fila é ignorado pela redistribuição. A entrega pela fila agora grava `responsible_changed_at` (o prazo de 5 min conta da entrega).
-- **Por quê:** regra do dono. Bug encontrado junto: clientes entregues pela fila tinham o prazo contado da criação — nunca eram redistribuídos (3 clientes de hoje, 06:26) ou eram tirados em menos de 5 min (07:00 → 07:04).
-- **Mantido (decisão do dono):** quem já mandou WhatsApp/respondeu no Chat fica com o cliente; trava de uma volta pela equipe.
-- **Arquivos:** `lib/lead-distribution.js`, `lib/crm-automations.js`, `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4a, `.claude/rules/roleta-prospeccao-campanhas.md`.
-
-### 2026-10-08 — Roleta: fila de espera entregue 1 por corretor a cada 2 min
-- **O quê:** `reassignPendingRouletteLeads` agora entrega no máximo 1 cliente da fila por corretor on-line em cada rodada do cron `scheduled-activities` (a cada 2 min), do mais antigo para o mais novo. Antes, o primeiro corretor a ficar on-line recebia a fila inteira de uma vez.
-- **Por quê:** regra do dono (ROL-2b): dar chance aos outros corretores entrarem. Sem prazo máximo de espera (decisão do dono).
-- **Arquivos:** `lib/lead-distribution.js` (`countOnlineRouletteBrokers`, mesmo critério de on-line da `pick_round_robin_broker`), `lib/pending-roulette-core.mjs` (`waitingQueueBatchSize`), `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-2b, `.claude/rules/roleta-prospeccao-campanhas.md`.
-- **Não muda:** cadastro novo com corretor on-line continua indo direto pela roleta (não espera atrás da fila); transferência manual continua tirando o cliente da fila.
-** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
+1. Acrescente a entrada logo **abaixo do título “## Registro”** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
 2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
 3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
 4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
@@ -66,7 +43,30 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Roleta: prazo de 5 min para a simulação de cliente com dados (ROL-4b)
+- **O quê:** na REDISTRIBUIÇÃO DE LEADS, cliente com `primary_monthly_income > 0` só fica com o corretor se a simulação for feita (status fora de pendente ou linha em `simulations` com o `registration_id`); contato por WhatsApp/resposta no Chat deixam de segurá-lo. Sem dados, nada muda.
+- **Por quê:** regra do dono — a abordagem do corretor é a simulação. Dado de referência (15/09–08/10): de 57 clientes de formulário na roleta, só 1 foi simulado em até 5 min (mediana ~6,6 h); o dono manteve 5 min.
+- **Arquivos:** `lib/simulation-deadline-core.mjs` (novo), `lib/crm-automations.js`, `tests/simulation-deadline.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4b, `.claude/rules/roleta-prospeccao-campanhas.md`.
+
+### 2026-10-08 — Meta: evento "CadastroCRM" só do servidor (contagem real de cadastros)
+- **O quê:** `sendMetaLeadEvent` (`lib/meta-conversions-api.js`) envia, junto do `Lead`, o evento personalizado `CadastroCRM` (event_id `<id>-crm`), só depois do cadastro novo gravado. Nada muda no pixel do navegador.
+- **Por quê:** pedido do dono — o número de cadastros da Meta não batia. Prova: em 06/10 a Meta contou 22 leads e o site inteiro recebeu 12 cadastros (de todas as origens); nosso código só dispara `Lead` após o insert, então os extras vêm de fora (suspeita: Signals Gateway/Birch). Com a conversão personalizada sobre `CadastroCRM`, o Gerenciador passa a contar só cadastro real.
+- **Pendente do dono:** criar a conversão personalizada "Cadastro CRM" no Gerenciador de Eventos e usá-la como coluna (e, em campanha nova, como evento de otimização). A CONFIRMAR: `META_CONVERSIONS_API_ACCESS_TOKEN` configurado na Vercel (sem ele nada é enviado).
+- **Arquivos:** `lib/meta-conversions-api.js`, `tests/meta-crm-registration-event.test.mjs`, `docs/TRAFEGO_META.md`.
+
+### 2026-10-08 — Roleta: sem atendimento em 5 min e ninguém on-line → fila de espera (ROL-4a)
+- **O quê:** na REDISTRIBUIÇÃO DE LEADS, quando não há outro corretor on-line, o cliente deixa de ficar com quem não atendeu: vai para o dono com `pending_distribution_at` (`moveClientToRouletteWaitingQueue`) e a fila o entrega ao próximo corretor on-line, excluindo quem o perdeu. Cliente na fila é ignorado pela redistribuição. A entrega pela fila agora grava `responsible_changed_at` (o prazo de 5 min conta da entrega).
+- **Por quê:** regra do dono. Bug encontrado junto: clientes entregues pela fila tinham o prazo contado da criação — nunca eram redistribuídos (3 clientes de hoje, 06:26) ou eram tirados em menos de 5 min (07:00 → 07:04).
+- **Mantido (decisão do dono):** quem já mandou WhatsApp/respondeu no Chat fica com o cliente; trava de uma volta pela equipe.
+- **Arquivos:** `lib/lead-distribution.js`, `lib/crm-automations.js`, `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4a, `.claude/rules/roleta-prospeccao-campanhas.md`.
+
+### 2026-10-08 — Roleta: fila de espera entregue 1 por corretor a cada 2 min
+- **O quê:** `reassignPendingRouletteLeads` agora entrega no máximo 1 cliente da fila por corretor on-line em cada rodada do cron `scheduled-activities` (a cada 2 min), do mais antigo para o mais novo. Antes, o primeiro corretor a ficar on-line recebia a fila inteira de uma vez.
+- **Por quê:** regra do dono (ROL-2b): dar chance aos outros corretores entrarem. Sem prazo máximo de espera (decisão do dono).
+- **Arquivos:** `lib/lead-distribution.js` (`countOnlineRouletteBrokers`, mesmo critério de on-line da `pick_round_robin_broker`), `lib/pending-roulette-core.mjs` (`waitingQueueBatchSize`), `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-2b, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Não muda:** cadastro novo com corretor on-line continua indo direto pela roleta (não espera atrás da fila); transferência manual continua tirando o cliente da fila.
 ### 2026-10-08 — Apresentação: "Agendar atendimento" (presencial ou Meet) com agenda da gestora
+- **Atualização:** migration `20261008120000_client_appointments` aplicada em produção em 2026-10-08 (funcionalidade ligada).
 - **Data:** 2026-10-08
 - **Área:** Apresentação interativa / Agenda / Usuários
 - **Alteração:** botão AGENDAR ATENDIMENTO na cena "Próximo passo" (PRES-22): presencial/online, 10 dias, horários de 30 min com escassez em blocos calculada no servidor, agenda compartilhada pela equipe da gestora, "Combinar outro horário", atividade no card, linha do tempo (`appointment_scheduled`/`appointment_requested`), aviso ao corretor e à gestora (`scheduled_activity`), .ics + Google Agenda, WhatsApp do corretor com mensagem pronta. Campo "Link do Google Meet" (admin/gestor) em Usuários. Endereço da imobiliária centralizado em `lib/company-info.mjs` (o rodapé passou a usá-lo).
