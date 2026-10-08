@@ -20,6 +20,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 ## Como registrar
 
 1. Acrescente a entrada logo **abaixo do título “## Registro”
+### 2026-10-08 — Roleta: prazo de 5 min para a simulação de cliente com dados (ROL-4b)
+- **O quê:** na REDISTRIBUIÇÃO DE LEADS, cliente com `primary_monthly_income > 0` só fica com o corretor se a simulação for feita (status fora de pendente ou linha em `simulations` com o `registration_id`); contato por WhatsApp/resposta no Chat deixam de segurá-lo. Sem dados, nada muda.
+- **Por quê:** regra do dono — a abordagem do corretor é a simulação. Dado de referência (15/09–08/10): de 57 clientes de formulário na roleta, só 1 foi simulado em até 5 min (mediana ~6,6 h); o dono manteve 5 min.
+- **Arquivos:** `lib/simulation-deadline-core.mjs` (novo), `lib/crm-automations.js`, `tests/simulation-deadline.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4b, `.claude/rules/roleta-prospeccao-campanhas.md`.
+
 ### 2026-10-08 — Meta: evento "CadastroCRM" só do servidor (contagem real de cadastros)
 - **O quê:** `sendMetaLeadEvent` (`lib/meta-conversions-api.js`) envia, junto do `Lead`, o evento personalizado `CadastroCRM` (event_id `<id>-crm`), só depois do cadastro novo gravado. Nada muda no pixel do navegador.
 - **Por quê:** pedido do dono — o número de cadastros da Meta não batia. Prova: em 06/10 a Meta contou 22 leads e o site inteiro recebeu 12 cadastros (de todas as origens); nosso código só dispara `Lead` após o insert, então os extras vêm de fora (suspeita: Signals Gateway/Birch). Com a conversão personalizada sobre `CadastroCRM`, o Gerenciador passa a contar só cadastro real.
