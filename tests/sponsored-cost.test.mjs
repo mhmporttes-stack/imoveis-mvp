@@ -52,9 +52,9 @@ test("resumo da visão (ex.: filtro por corretora): total, média e quantos fica
   assert.equal(summarizeSponsoredCost(index, ["c1", "c2"]).total, 60);
 });
 
-test("só o administrador recebe o custo (cards e resumo); a tela mostra o selo e o painel", () => {
+test("card: admin recebe o custo real, equipe o valor inflado (2026-10-08); resumo da aba só admin; a tela mostra o selo e o painel", () => {
   const query = read("lib/simulation-list-query.js");
-  assert.ok(query.includes("if (!items.length || !isGeneralAdminAuth(auth)) return items;"));
+  assert.ok(query.includes("const realCost = isGeneralAdminAuth(auth);"));
   assert.ok(query.includes("filters.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth(auth)"));
   assert.equal(query.split("applySponsoredCostSignal(auth, await applyChatContactSignal(supabase, items))").length - 1, 2, "as duas saídas da página");
   assert.ok(query.includes("...(sponsoredCost ? { sponsoredCost } : {})"));
@@ -62,4 +62,15 @@ test("só o administrador recebe o custo (cards e resumo); a tela mostra o selo 
   assert.ok(read("components/clients/ClientWorkspace.jsx").includes('filters.statusGroup === "sponsored" && counters.sponsoredCost'));
   const server = read("lib/sponsored-cost.js");
   assert.ok(server.includes('.eq("entity_type", "ad")') && server.includes("TTL_MS = 60 * 1000"));
+});
+
+test("equipe vê só o valor do card, inflado em 50%; admin vê o real (regra do dono 2026-10-08)", async () => {
+  const { teamSponsoredCost, TEAM_SPONSORED_COST_MULTIPLIER } = await import("../lib/sponsored-cost-core.mjs");
+  assert.equal(TEAM_SPONSORED_COST_MULTIPLIER, 1.5);
+  assert.deepEqual(teamSponsoredCost({ adId: "1", amount: 7.68, adSpend: 76.8, adClients: 10 }), { amount: 11.52 });
+  assert.equal(teamSponsoredCost(null), null);
+  const { readFileSync } = await import("node:fs");
+  const q = readFileSync(new URL("../lib/simulation-list-query.js", import.meta.url), "utf8");
+  assert.match(q, /item\.sponsoredCost = realCost \? cost : teamSponsoredCost\(cost\)/);
+  assert.match(q, /filters\.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth\(auth\)/, "total da aba continua só do admin");
 });

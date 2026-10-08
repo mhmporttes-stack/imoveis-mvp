@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Custo do patrocinado no card para toda a equipe (valor inflado em 50%)
+- **O quê:** o selo "Patrocinado · R$" do card passa a aparecer para corretor, gestor e associado com o custo estimado × 1,5 e só o valor (sem gasto do anúncio nem divisão); o administrador geral continua vendo o real com o detalhe. O resumo da aba Patrocinado (total, média, com custo identificado) continua só do administrador.
+- **Por quê:** decisão do dono.
+- **Arquivos:** `lib/sponsored-cost-core.mjs` (`teamSponsoredCost`), `lib/simulation-list-query.js`, `components/clients/ClientCard.jsx`, `tests/sponsored-cost.test.mjs`.
 ### 2026-10-08 — "Sem contato há +3 dias" não aparece para cliente com atividade futura agendada
 - **O quê:** `isStaleContactClient` (`lib/client-status.js`) ignora cliente com atividade futura pendente; o card passa a considerar também as atividades da agenda (`mergeActivitySignal`); o filtro "Sem contato há +3 dias" (`lib/simulation-list-query.js`) exclui quem tem atividade futura (campo legado e `calendar_activities`). Painéis de desempenho/Alexa usam a mesma função.
 - **Por quê:** regra do dono — com o próximo contato já agendado, o alerta não faz sentido (caso: cliente com reunião marcada para 13/10 aparecendo como "sem contato"). Atividade atrasada ou concluída não protege.
