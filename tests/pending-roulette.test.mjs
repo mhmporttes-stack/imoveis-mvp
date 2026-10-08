@@ -32,3 +32,16 @@ test("transferência explícita encerra a fila de espera e a roleta usa o filtro
   assert.ok(lead.includes("pendingRouletteRowsToDeliver(candidates, ownerId)"));
   assert.ok(lead.includes("responsible_user_id\")") || lead.includes("prospecting_contact_id, responsible_user_id"));
 });
+
+test("fila de espera: no máximo 1 cliente por corretor on-line por rodada (regra do dono 2026-10-08)", async () => {
+  const { waitingQueueBatchSize, WAITING_QUEUE_INTERVAL_MINUTES } = await import("../lib/pending-roulette-core.mjs");
+  assert.equal(waitingQueueBatchSize(4, 1), 1, "1 corretor on-line + 4 aguardando = recebe só 1 nesta rodada");
+  assert.equal(waitingQueueBatchSize(4, 3), 3);
+  assert.equal(waitingQueueBatchSize(2, 5), 2);
+  assert.equal(waitingQueueBatchSize(4, 0), 0);
+  assert.equal(WAITING_QUEUE_INTERVAL_MINUTES, 2);
+  const fs = await import("node:fs");
+  const lib = fs.readFileSync(new URL("../lib/lead-distribution.js", import.meta.url), "utf8");
+  assert.match(lib, /waitingQueueBatchSize\(pending\.length, onlineBrokers\)/);
+  assert.match(lib, /servedThisRound\.has\(roulette\.brokerId\)\) break/);
+});

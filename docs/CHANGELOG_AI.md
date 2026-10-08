@@ -19,7 +19,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
+1. Acrescente a entrada logo **abaixo do título “## Registro”
+### 2026-10-08 — Roleta: fila de espera entregue 1 por corretor a cada 2 min
+- **O quê:** `reassignPendingRouletteLeads` agora entrega no máximo 1 cliente da fila por corretor on-line em cada rodada do cron `scheduled-activities` (a cada 2 min), do mais antigo para o mais novo. Antes, o primeiro corretor a ficar on-line recebia a fila inteira de uma vez.
+- **Por quê:** regra do dono (ROL-2b): dar chance aos outros corretores entrarem. Sem prazo máximo de espera (decisão do dono).
+- **Arquivos:** `lib/lead-distribution.js` (`countOnlineRouletteBrokers`, mesmo critério de on-line da `pick_round_robin_broker`), `lib/pending-roulette-core.mjs` (`waitingQueueBatchSize`), `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-2b, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Não muda:** cadastro novo com corretor on-line continua indo direto pela roleta (não espera atrás da fila); transferência manual continua tirando o cliente da fila.
+** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
 2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
 3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
 4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
