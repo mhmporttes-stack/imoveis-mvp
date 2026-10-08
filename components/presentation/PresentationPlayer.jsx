@@ -61,7 +61,7 @@ function announcement(scene, index, total) {
       return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
-    case "comparativo": return `${head}Comparativo entre SAC e Price. Primeira parcela: SAC ${formatBRL(scene.sac.first)}, Price ${formatBRL(scene.price.first)}. Última parcela: SAC ${formatBRL(scene.sac.last)}, Price ${formatBRL(scene.price.last)}.`;
+    case "comparativo": return `${head}Comparativo entre SAC e Price. Poder de compra: SAC ${formatBRL(scene.sac.total)}, Price ${formatBRL(scene.price.total)}. Primeira parcela: SAC ${formatBRL(scene.sac.first)}, Price ${formatBRL(scene.price.first)}. Última parcela: SAC ${formatBRL(scene.sac.last)}, Price ${formatBRL(scene.price.last)}.`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
     case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT}`;
     default: return `${head}Próximo passo.`;
@@ -222,7 +222,7 @@ function SceneParcelas({ scene }) {
 }
 
 // Comparativo SAC x Price (dono, 2026-10-08): só existe quando a simulação foi feita nos DOIS sistemas (decisão do servidor).
-// Visual limpo (o dono achou a tabela confusa): dois cartões empilhados, um por sistema, só com primeira e última parcela.
+// Visual limpo (o dono achou a tabela confusa): dois cartões empilhados, um por sistema, com poder de compra e primeira/última parcela.
 const COMPARATIVO_SYSTEMS = [["sac", "SAC"], ["price", "Price"]];
 
 function SceneComparativo({ scene }) {
@@ -234,6 +234,12 @@ function SceneComparativo({ scene }) {
         {COMPARATIVO_SYSTEMS.map(([key, label], index) => (
           <div key={key} className={`${styles.cmpCard} ${styles.rise}`} style={{ "--d": `${450 + index * 700}ms` }} role="group" aria-label={label}>
             <span className={styles.cmpName}>{label}</span>
+            {scene[key]?.total > 0 ? (
+              <div className={styles.cmpLine}>
+                <span className={styles.cmpLabel}>Poder de compra</span>
+                <strong className={styles.cmpVal}>{formatBRL(scene[key].total)}</strong>
+              </div>
+            ) : null}
             {scene[key]?.first > 0 ? (
               <div className={styles.cmpLine}>
                 <span className={styles.cmpLabel}>Primeira parcela</span>
