@@ -23,6 +23,7 @@ const EMPTY_FORM = {
   emergencyContactName: "",
   emergencyContactRelationship: "",
   emergencyContactPhone: "",
+  meetLink: "",
   password: "",
   role: "broker",
   linkedBrokerId: "",
@@ -58,7 +59,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", creci: user.creci || "", addressStreet: user.addressStreet || "", addressNumber: user.addressNumber || "", addressNeighborhood: user.addressNeighborhood || "", addressCity: user.addressCity || "", addressState: user.addressState || "", residenceType: user.residenceType || "", apartmentNumber: user.apartmentNumber || "", addressComplement: user.addressComplement || "", emergencyContactName: user.emergencyContactName || "", emergencyContactRelationship: user.emergencyContactRelationship || "", emergencyContactPhone: user.emergencyContactPhone || "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", creci: user.creci || "", addressStreet: user.addressStreet || "", addressNumber: user.addressNumber || "", addressNeighborhood: user.addressNeighborhood || "", addressCity: user.addressCity || "", addressState: user.addressState || "", residenceType: user.residenceType || "", apartmentNumber: user.apartmentNumber || "", addressComplement: user.addressComplement || "", emergencyContactName: user.emergencyContactName || "", emergencyContactRelationship: user.emergencyContactRelationship || "", emergencyContactPhone: user.emergencyContactPhone || "", meetLink: user.meetLink || "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -242,6 +243,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
             <StatusField value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
             <Field label="CRECI" value={form.creci} onChange={(value) => setForm((current) => ({ ...current, creci: value }))} />
             <DistributionField className="self-end" checked={form.leadDistributionEnabled} onChange={(value) => setForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
+            {["admin", "manager"].includes(form.role) ? <MeetLinkField value={form.meetLink} onChange={(value) => setForm((current) => ({ ...current, meetLink: value }))} /> : null}
             {form.role === "associate" ? <BrokerField brokers={brokers} value={form.linkedBrokerId} onChange={(value) => setForm((current) => ({ ...current, linkedBrokerId: value }))} /> : null}
           </FormGroup>
 
@@ -308,6 +310,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                   {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
                   <Field label="CRECI" value={editForm.creci} onChange={(value) => setEditForm((current) => ({ ...current, creci: value }))} />
                   <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
+                  {["admin", "manager"].includes(editForm.role) ? <MeetLinkField value={editForm.meetLink} onChange={(value) => setEditForm((current) => ({ ...current, meetLink: value }))} /> : null}
                 </div>
                 <div className="mt-4 divide-y divide-line">
                   <ProfileDetailGroups form={editForm} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} />
@@ -517,6 +520,11 @@ function ProfileDetailGroups({ form, onChange }) {
       <Field label="Telefone" value={form.emergencyContactPhone} onChange={(value) => onChange("emergencyContactPhone", value)} />
     </FormGroup>
   </>;
+}
+
+// Link fixo do Google Meet da gestora (PRES-22, 2026-10-08): usado na "Reunião online" agendada pelo cliente na apresentação.
+function MeetLinkField({ value, onChange }) {
+  return <Field label="Link do Google Meet (https://meet.google.com/...)" type="url" value={value} onChange={onChange} />;
 }
 
 function DistributionField({ checked, onChange, className = "" }) {

@@ -550,6 +550,34 @@
 .fcNote { margin: 0; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: #3a5878; text-align: center; }
 .fcError { color: #b3261e; font-weight: 700; }
 .fcLink { color: var(--blue); font-weight: 700; text-decoration: underline; }
+/* PRES-22 — folha "Agendar atendimento": reaproveita o calendário/botões da folha de documentos (fc*) */
+.apKinds { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--u) * 10); }
+.apKindIcon { width: 22px; height: 22px; }
+.apInfo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: calc(var(--u) * 12) 0 0; padding: calc(var(--u) * 12) calc(var(--u) * 14); border-radius: calc(var(--u) * 14); background: #eef4fc; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: var(--navy-2); }
+.apInfo svg { width: 18px; height: 18px; flex: none; color: var(--blue); }
+.apDayOff { opacity: 0.45; cursor: not-allowed; }
+.apPart + .apPart { margin-top: calc(var(--u) * 14); }
+.apPartLabel { margin: 0 0 calc(var(--u) * 8); font-size: max(13px, calc(var(--u) * 14)); font-weight: 760; letter-spacing: 0.06em; text-transform: uppercase; color: #3a5878; }
+.apSlots { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(var(--u) * 8); }
+.apSlot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 52px; padding: 4px 2px;
+  border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 14); background: #f4f8fe; color: var(--navy-2); font: inherit;
+  font-size: max(16px, calc(var(--u) * 17)); font-weight: 780; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.apSlot:focus-visible, .apText:focus-visible, .apSecondary:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.apSlotOff { border-style: dashed; border-color: #d6e2f1; background: #f7f9fc; color: #8a9bb0; cursor: not-allowed; font-weight: 650; }
+.apSlotNote { font-size: max(11px, calc(var(--u) * 12)); font-weight: 650; }
+.apText { min-height: 48px; padding: 0 12px; border: 0; background: transparent; color: var(--navy-2); font: inherit; font-size: max(15px, calc(var(--u) * 16)); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.apText:disabled { opacity: 0.5; cursor: not-allowed; }
+.apSecondary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 0 calc(var(--u) * 20); border: 2px solid var(--navy-2); border-radius: 999px; background: #fff; color: var(--navy-2); font-size: max(16px, calc(var(--u) * 17)); font-weight: 760; text-decoration: none; }
+.apSecondary svg { width: 22px; height: 22px; flex: none; }
+.apField { display: grid; margin: 0 0 calc(var(--u) * 22); }
+.apInput { min-height: 56px; padding: 0 calc(var(--u) * 16); border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 14); background: #fff; color: var(--navy-2); font: inherit; font-size: max(16px, calc(var(--u) * 17)); }
+.apInput:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
+.apDone { display: grid; gap: calc(var(--u) * 16); }
+.apDoneWhen { display: grid; gap: 4px; margin: 0; font-size: max(16px, calc(var(--u) * 18)); color: #3a5878; }
+.apDoneWhen strong { font-size: max(22px, calc(var(--u) * 26)); font-weight: 820; color: var(--navy-2); }
+a.fcSubmit { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .fcDay, .fcPeriod, .fcSubmit { transition: none; }
   .fcDay:active, .fcPeriod:active, .fcSubmit:active:not(:disabled) { transform: none; }

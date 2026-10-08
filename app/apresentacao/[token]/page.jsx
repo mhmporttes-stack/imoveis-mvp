@@ -2,6 +2,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
 import { getPublicPresentation as loadPublicPresentation } from "@/lib/simulation-presentation";
+import { isClientAppointmentsReady } from "@/lib/client-appointments";
 import { buildShareMetadata, shareFirstName } from "@/lib/simulation-presentation-share.mjs";
 
 // Página PÚBLICA da apresentação interativa (aberta como /s/<token> via proxy.js). Sem login; o token é o acesso.
@@ -23,5 +24,7 @@ export default async function PresentationPage({ params }) {
   const { token } = await params;
   const dto = await getPublicPresentation(token);
   if (!dto) notFound();
-  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} />;
+  // "Agendar atendimento" (PRES-22): mesma condição do "Receber lista de documentos" + tabela de agendamentos já criada.
+  const canSchedule = dto.podeReceberLista === true && (await isClientAppointmentsReady());
+  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} canSchedule={canSchedule} />;
 }

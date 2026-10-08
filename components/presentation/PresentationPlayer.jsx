@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { BadgeCheck, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
+import { BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -25,6 +25,7 @@ import {
   tapAction,
   transitionPlan
 } from "./player-core.mjs";
+import AppointmentSheet from "./AppointmentSheet";
 import ForecastSheet from "./ForecastSheet";
 import OpeningAnimation from "./OpeningAnimation";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
@@ -493,7 +494,7 @@ function DownloadAction({ href, label, className, hint }) {
   );
 }
 
-function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast }) {
+function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment }) {
   const propertiesLabel = propertiesButtonLabel(propertyCount);
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   return (
@@ -513,6 +514,13 @@ function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, href
         <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onValidate} data-no-nav="">
           VALIDAR SIMULAÇÃO
         </button>
+        {/* PRES-22: só com corretor responsável ativo e WhatsApp válido (mesma condição do "Receber lista de documentos") */}
+        {canSchedule ? (
+          <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onOpenAppointment} data-no-nav="" data-open-appointment="">
+            <CalendarDays aria-hidden="true" />
+            AGENDAR ATENDIMENTO
+          </button>
+        ) : null}
         <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.ghostBtn} hint="Disponível no link enviado ao cliente" />
       </div>
     </div>
@@ -571,7 +579,7 @@ function renderScene(scene, ctx) {
       : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
     case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} />;
-    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} />;
+    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;
@@ -590,7 +598,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -604,6 +612,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const [leaving, setLeaving] = useState(null);
   const [direction, setDirection] = useState("forward");
   const [forecastOpen, setForecastOpen] = useState(false);
+  const [appointmentOpen, setAppointmentOpen] = useState(false);
   // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
   // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
   // O ramo anda cena a cena: [imóvel, valores do imóvel (se houver)] para cada imóvel sugerido. `branch` continua sendo 1 item por
@@ -627,6 +636,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   useEffect(() => {
     elapsed.current = 0;
     setForecastOpen(false);
+    setAppointmentOpen(false);
     if (fillRef.current) fillRef.current.style.transform = isLastScene(stateRef.current) ? "scaleX(1)" : "scaleX(0)";
     const plan = transitionPlan(effective, prevIndex.current);
     prevIndex.current = state.index;
@@ -639,7 +649,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   }, [state.index]);
 
   // auto-avanço: relógio que só corre sem pausa (aba oculta também pausa) e respeita o tempo de leitura da cena
-  const auto = isAutoAdvancing(state) && !inBranch; // no ramo de imóveis quem avança é o cliente
+  const auto = isAutoAdvancing(state) && !inBranch && !appointmentOpen; // no ramo de imóveis quem avança é o cliente; agendando, a cena espera
   useEffect(() => {
     if (!auto) return undefined;
     const duration = scene.durationMs;
@@ -726,6 +736,14 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     openerRef.current = event?.currentTarget || null;
     setForecastOpen(true);
   }, []);
+  const openAppointment = useCallback((event) => {
+    openerRef.current = event?.currentTarget || null;
+    setAppointmentOpen(true);
+  }, []);
+  const closeAppointment = useCallback(() => {
+    setAppointmentOpen(false);
+    if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
+  }, []);
   const closeForecast = useCallback(() => {
     setForecastOpen(false);
     if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
@@ -771,7 +789,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openForecast, canReceiveList, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
+  const ctx = { reduced, restart, validate, openForecast, canReceiveList, openAppointment, canSchedule, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
     // roteiro principal com imóvel/valores (apresentação de aprovação)
     inBranch, mainNext: () => act("next"), mainLast: !inBranch && isLastScene(state), mainNextIsValues: !inBranch && scenes[state.index + 1]?.id === "valores" };
 
@@ -834,6 +852,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
             {renderScene(current, ctx)}
           </div>
           {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
+          {appointmentOpen && current.id === "proximo" && canSchedule ? <AppointmentSheet token={token} preview={preview} onClose={closeAppointment} /> : null}
         </div>
 
         {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas, direto sobre o fundo (sem pílula,

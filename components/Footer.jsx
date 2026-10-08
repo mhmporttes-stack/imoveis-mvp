@@ -1,6 +1,7 @@
 import { Mail, MapPin } from "lucide-react";
 import Link from "next/link";
 import { whatsappMessageLink } from "@/lib/format";
+import { COMPANY_MAPS_URL } from "@/lib/company-info.mjs";
 
 const contactCardClass =
   "inline-flex min-h-[60px] w-full max-w-full min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 px-3 py-3 text-white/75 transition duration-300 hover:border-blue-200/45 hover:bg-white/5 hover:text-white sm:px-4 lg:w-[440px]";
@@ -47,7 +48,7 @@ export default function Footer() {
               <span className={contactTextClass}>MATHEUS.MACHADO.MARILIA@GMAIL.COM</span>
             </a>
             <a
-              href="https://www.google.com/maps/search/?api=1&query=Av.%20Ipiranga%2C%20147%2C%20Mar%C3%ADlia%2C%20SP"
+              href={COMPANY_MAPS_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={contactCardClass}

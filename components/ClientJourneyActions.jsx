@@ -47,7 +47,7 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", presentation_sent: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
@@ -147,6 +147,10 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "ATIVIDADE EXCLUÍDA", description: [d.title || ""] };
     case "document_forecast_set":
       return { title: "PREVISÃO DE DOCUMENTOS", description: [d.text || "Cliente previu enviar documentos"] };
+    case "appointment_scheduled":
+      return { title: "ATENDIMENTO AGENDADO PELO CLIENTE", description: [d.text || "Cliente agendou um atendimento pela apresentação"] };
+    case "appointment_requested":
+      return { title: "CLIENTE PEDIU OUTRO HORÁRIO", description: [d.text || "Cliente pediu outro horário de atendimento"] };
     case "documents_list_sent":
       return { title: "LISTA DE DOCUMENTOS ENVIADA", description: ["Lista de documentos enviada"] };
     case "presentation_sent":

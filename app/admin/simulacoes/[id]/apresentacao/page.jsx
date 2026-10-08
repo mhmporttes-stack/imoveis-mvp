@@ -28,5 +28,5 @@ export default async function PresentationPreviewPage({ params, searchParams }) 
   }
   const dto = await buildSimulationPresentationDto(simulation, { approval });
   if (!dto) notFound();
-  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token="" preview canReceiveList={dto.podeReceberLista === true} />;
+  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token="" preview canReceiveList={dto.podeReceberLista === true} canSchedule={dto.podeReceberLista === true} />;
 }

@@ -33,6 +33,7 @@ export default async function PresentationVitrine({ searchParams }) {
       assetsBase="/dev/vitrine/apresentacao"
       assetsQuery={`v=${encodeURIComponent(variant)}`}
       canReceiveList={query?.lista !== "nao"}
+      canSchedule={query?.lista !== "nao"}
     />
   );
 }
