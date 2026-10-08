@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { BROKER_COST_MARKUP, adIdFromOrigin, buildSponsoredCostIndex, markedUpAmount, sponsoredCostOfClient, summarizeSponsoredCost } from "../lib/sponsored-cost-core.mjs";
+import { adIdFromOrigin, buildSponsoredCostIndex, sponsoredCostOfClient, summarizeSponsoredCost } from "../lib/sponsored-cost-core.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
@@ -52,28 +52,25 @@ test("resumo da visão (ex.: filtro por corretora): total, média e quantos fica
   assert.equal(summarizeSponsoredCost(index, ["c1", "c2"]).total, 60);
 });
 
-test("corretor vê o custo com +50% (R$ 5,00 → R$ 7,50), sem o custo real nem o gasto do anúncio", () => {
-  assert.equal(BROKER_COST_MARKUP, 1.5);
-  assert.equal(markedUpAmount(5), 7.5);
-  assert.equal(markedUpAmount(33.33), 50);
-  assert.equal(markedUpAmount(0), 0);
-  // resumo do corretor = soma dos custos de cada cliente já com o acréscimo
-  assert.deepEqual(summarizeSponsoredCost(index, ["c1", "c3"], { markup: BROKER_COST_MARKUP }), { clients: 2, withCost: 2, withoutCost: 0, total: 95, average: 47.5 });
-  assert.equal(summarizeSponsoredCost(index, ["c1", "c3"]).total, 63.33, "administrador: custo real");
+test("card: admin recebe o custo real, equipe o valor inflado (2026-10-08); resumo da aba só admin; a tela mostra o selo e o painel", () => {
   const query = read("lib/simulation-list-query.js");
-  assert.ok(query.includes("item.sponsoredCost = isAdmin ? cost : { amount: markedUpAmount(cost.amount, BROKER_COST_MARKUP) };"), "o corretor só recebe o valor com acréscimo");
-  assert.ok(query.includes("{ markup: isGeneralAdminAuth(auth) ? 1 : BROKER_COST_MARKUP }"));
-  assert.ok(read("components/clients/ClientCard.jsx").includes("client.sponsoredCost.adSpend !== undefined"));
-});
-
-test("administrador recebe o custo real com detalhes; a tela mostra o selo e o painel", () => {
-  const query = read("lib/simulation-list-query.js");
-  assert.ok(!query.includes("if (!items.length || !isGeneralAdminAuth(auth)) return items;"));
-  assert.ok(query.includes("if (filters.statusGroup === SPONSORED_TAB_KEY) {"));
+  assert.ok(query.includes("const realCost = isGeneralAdminAuth(auth);"));
+  assert.ok(query.includes("filters.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth(auth)"));
   assert.equal(query.split("applySponsoredCostSignal(auth, await applyChatContactSignal(supabase, items))").length - 1, 2, "as duas saídas da página");
   assert.ok(query.includes("...(sponsoredCost ? { sponsoredCost } : {})"));
   assert.ok(read("components/clients/ClientCard.jsx").includes("client.sponsoredCost ?"));
   assert.ok(read("components/clients/ClientWorkspace.jsx").includes('filters.statusGroup === "sponsored" && counters.sponsoredCost'));
   const server = read("lib/sponsored-cost.js");
   assert.ok(server.includes('.eq("entity_type", "ad")') && server.includes("TTL_MS = 60 * 1000"));
+});
+
+test("equipe vê só o valor do card, inflado em 50%; admin vê o real (regra do dono 2026-10-08)", async () => {
+  const { teamSponsoredCost, TEAM_SPONSORED_COST_MULTIPLIER } = await import("../lib/sponsored-cost-core.mjs");
+  assert.equal(TEAM_SPONSORED_COST_MULTIPLIER, 1.5);
+  assert.deepEqual(teamSponsoredCost({ adId: "1", amount: 7.68, adSpend: 76.8, adClients: 10 }), { amount: 11.52 });
+  assert.equal(teamSponsoredCost(null), null);
+  const { readFileSync } = await import("node:fs");
+  const q = readFileSync(new URL("../lib/simulation-list-query.js", import.meta.url), "utf8");
+  assert.match(q, /item\.sponsoredCost = realCost \? cost : teamSponsoredCost\(cost\)/);
+  assert.match(q, /filters\.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth\(auth\)/, "total da aba continua só do admin");
 });

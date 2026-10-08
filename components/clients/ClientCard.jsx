@@ -98,7 +98,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
         {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
         {registration.lastFormSubmittedAt ? <Badge tone="info">Novo formulário {formatAgo(registration.lastFormSubmittedAt)}</Badge> : null}
         {client.sponsoredCost ? (
-          <span title={client.sponsoredCost.adSpend !== undefined ? `Custo estimado: gasto do anúncio de origem (${formatMoneyBR(client.sponsoredCost.adSpend)}) dividido entre os ${client.sponsoredCost.adClients} cliente(s) do CRM que vieram dele.` : "Custo do patrocinado deste cliente."}>
+          <span title={client.sponsoredCost.adSpend ? `Custo estimado: gasto do anúncio de origem (${formatMoneyBR(client.sponsoredCost.adSpend)}) dividido entre os ${client.sponsoredCost.adClients} cliente(s) do CRM que vieram dele.` : "Investimento em anúncio para trazer este cliente."}>
             <Badge tone="info">Patrocinado · {formatMoneyBR(client.sponsoredCost.amount)}</Badge>
           </span>
         ) : null}
