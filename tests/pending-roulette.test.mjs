@@ -42,6 +42,19 @@ test("fila de espera: no máximo 1 cliente por corretor on-line por rodada (regr
   assert.equal(WAITING_QUEUE_INTERVAL_MINUTES, 2);
   const fs = await import("node:fs");
   const lib = fs.readFileSync(new URL("../lib/lead-distribution.js", import.meta.url), "utf8");
-  assert.match(lib, /waitingQueueBatchSize\(pending\.length, onlineBrokers\)/);
-  assert.match(lib, /servedThisRound\.has\(roulette\.brokerId\)\) break/);
+  assert.match(lib, /const maxDeliveries = waitingQueueBatchSize\(pending\.length, onlineBrokers\)/);
+  assert.match(lib, /if \(servedThisRound\.size >= maxDeliveries\) break;/);
+  assert.match(lib, /if \(servedThisRound\.has\(roulette\.brokerId\)\) continue;/);
+});
+
+test("prazo de 5 min sem atender e ninguém mais on-line: cliente vai para a espera do dono e nunca volta a quem o perdeu (2026-10-08)", () => {
+  const automations = read("lib/crm-automations.js");
+  assert.match(automations, /const moved = await moveClientToRouletteWaitingQueue\(client, \{ rule \}\);/);
+  assert.match(automations, /if \(client\.pending_distribution_at\) return;/, "cliente na fila de espera é entregue só pela fila (1 por corretor a cada 2 min)");
+  const lib = read("lib/lead-distribution.js");
+  assert.match(lib, /responsible_user_id: ownerId, previous_responsible_user_id: fromUserId, responsible_changed_at: now, pending_distribution_at: now/);
+  assert.match(lib, /toWaitingQueue: true/);
+  assert.match(lib, /assignRoundRobinLead\(\{ excludedBrokerId \}\)/, "fila exclui quem perdeu o cliente");
+  // o prazo de 5 min conta da ENTREGA pela fila
+  assert.match(lib, /pending_distribution_at: null,\n\s+responsible_changed_at: new Date\(\)\.toISOString\(\)/);
 });

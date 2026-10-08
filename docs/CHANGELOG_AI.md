@@ -20,6 +20,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 ## Como registrar
 
 1. Acrescente a entrada logo **abaixo do título “## Registro”
+### 2026-10-08 — Roleta: sem atendimento em 5 min e ninguém on-line → fila de espera (ROL-4a)
+- **O quê:** na REDISTRIBUIÇÃO DE LEADS, quando não há outro corretor on-line, o cliente deixa de ficar com quem não atendeu: vai para o dono com `pending_distribution_at` (`moveClientToRouletteWaitingQueue`) e a fila o entrega ao próximo corretor on-line, excluindo quem o perdeu. Cliente na fila é ignorado pela redistribuição. A entrega pela fila agora grava `responsible_changed_at` (o prazo de 5 min conta da entrega).
+- **Por quê:** regra do dono. Bug encontrado junto: clientes entregues pela fila tinham o prazo contado da criação — nunca eram redistribuídos (3 clientes de hoje, 06:26) ou eram tirados em menos de 5 min (07:00 → 07:04).
+- **Mantido (decisão do dono):** quem já mandou WhatsApp/respondeu no Chat fica com o cliente; trava de uma volta pela equipe.
+- **Arquivos:** `lib/lead-distribution.js`, `lib/crm-automations.js`, `tests/pending-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4a, `.claude/rules/roleta-prospeccao-campanhas.md`.
+
 ### 2026-10-08 — Roleta: fila de espera entregue 1 por corretor a cada 2 min
 - **O quê:** `reassignPendingRouletteLeads` agora entrega no máximo 1 cliente da fila por corretor on-line em cada rodada do cron `scheduled-activities` (a cada 2 min), do mais antigo para o mais novo. Antes, o primeiro corretor a ficar on-line recebia a fila inteira de uma vez.
 - **Por quê:** regra do dono (ROL-2b): dar chance aos outros corretores entrarem. Sem prazo máximo de espera (decisão do dono).
