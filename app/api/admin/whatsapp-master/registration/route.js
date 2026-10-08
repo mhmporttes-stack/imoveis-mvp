@@ -27,7 +27,7 @@ async function fullState() {
     getNumberRegistrationStatus(),
     getWebhookSubscription().catch(() => ({ subscribed: null, apps: [] })),
     lastWebhookAt(),
-    getAppWebhookConfig().catch(() => ({ known: false }))
+    getAppWebhookConfig().catch((error) => ({ known: false, error: String(error?.message || "falha").slice(0, 200) }))
   ]);
   return { registration, subscription, lastWebhookAt: lastWebhook, appWebhook };
 }
