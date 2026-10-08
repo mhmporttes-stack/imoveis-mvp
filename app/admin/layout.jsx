@@ -13,7 +13,8 @@ import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { Manrope } from "next/font/google";
-import { getAdminFromCookies } from "@/lib/admin-auth";
+import Link from "next/link";
+import { getAdminFromCookies, isOwnerAdminEmail } from "@/lib/admin-auth";
 import { resolvePresenceProfileId } from "@/lib/admin-presence-core.mjs";
 import { isAcademyEnabled } from "@/lib/academy-flags";
 import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
@@ -87,8 +88,14 @@ export default async function AdminLayout({ children }) {
         />
       ) : null}
       {auth.ok ? (
-        <div className="container-page flex justify-center py-10">
+        <div className="container-page flex flex-col items-center gap-3 py-10">
           <AdminLogoutButton />
+          {/* Verificação em duas etapas: só a conta REAL do dono (regra do dono, 2026-10-08). */}
+          {isOwnerAdminEmail((auth.realUser || auth.user)?.email) ? (
+            <Link className="text-sm font-extrabold text-brand transition hover:text-navy" href="/admin/seguranca">
+              Segurança da conta (verificação em duas etapas)
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </AcademyMenuProvider>

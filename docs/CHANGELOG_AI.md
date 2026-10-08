@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Verificação em duas etapas (TOTP) na conta do dono
+- **Data:** 2026-10-08
+- **Área:** Autenticação / Permissões / Banco
+- **Alteração:** código de 6 dígitos de app autenticador SOMENTE para `isOwnerAdminEmail`, opt-in em `/admin/seguranca` (link "Segurança da conta" no rodapé do painel, só para o dono): QR Code + chave manual, confirmação do 1º código, 8 códigos de recuperação de uso único (só hash), "lembrar este aparelho por 30 dias", desativar/gerar novos códigos exigem código. Exigência no SERVIDOR: `applyTwoFactorGuard` em `lib/admin-auth.js` (requireAdminApi, requireRealGeneralAdminApi, getAdminFromCookies — conta real, antes do "Alterar conta"); login com senha mostra a etapa do código (`/api/admin/session` devolve `twoFactorRequired`; `/api/admin/two-factor/verify`). TOTP próprio (RFC 6238, ±1 passo, anti-reuso por `last_used_step`, 5 erros/10 min → bloqueio de 10 min), segredo cifrado com `lib/secrets-crypto.js`. Tabela nova `admin_two_factor` + função `admin_two_factor_consume_recovery_code` (migration `20261008200000_admin_two_factor.sql`, RLS sem policy). Dependência nova `qrcode` (gera o SVG do QR no servidor).
+- **Motivo:** pedido e especificação aprovados pelo dono (AUT-2FA).
+- **Arquivos afetados:** `lib/admin-two-factor.js`, `lib/admin-two-factor-core.mjs`, `lib/admin-auth.js`, `app/api/admin/session/route.js`, `app/api/admin/two-factor/{route.js,verify/route.js}`, `app/admin/seguranca/page.jsx`, `app/admin/login/page.jsx`, `app/admin/layout.jsx`, `components/AdminTwoFactor{Challenge,Settings}.jsx`, `components/AdminLoginForm.jsx`, `components/AdminSessionKeeper.jsx`, `tests/admin-two-factor.test.mjs`, `.env.example`, docs.
+- **Risco/observação:** nada muda para ninguém até o dono ativar. Sem a tabela (migration não aplicada) o guard considera "não ativado" e a tela de ativação avisa; erro de banco com o 2FA do dono → 503 (falha fechada, só para o dono). Ativar exige `CRM_SECRETS_ENCRYPTION_KEY` em produção (configuração A CONFIRMAR; sem ela a tela avisa e não ativa). Preferido TOTP próprio ao MFA nativo do Supabase porque códigos de recuperação e "lembrar aparelho" não existem no nativo e o painel usa cookies próprios. Escolhas sem o dono: logout mantém o aparelho lembrado; "lembrar" vem marcado por padrão na etapa do código; gerar novos códigos também invalida aparelhos lembrados (a sessão atual continua).
+- **Autor:** Claude Code
+
 ### 2026-10-08 — Pente-fino do Chat: rastro de quem enviou, auditoria e correções
 - **Data:** 2026-10-08
 - **Área:** WhatsApp / Chat / Permissões

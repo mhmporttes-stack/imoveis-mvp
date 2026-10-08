@@ -30,6 +30,14 @@ export default function AdminSessionKeeper() {
 
         if (cancelled || response.ok) return;
 
+        // Dono com verificação em duas etapas pendente: volta para a etapa do código, sem derrubar a sessão da senha.
+        const body = await response.clone().json().catch(() => null);
+        if (body?.code === "TWO_FACTOR_REQUIRED") {
+          router.replace("/admin/login");
+          router.refresh();
+          return;
+        }
+
         await getSupabaseBrowserClient()?.auth.signOut();
 
         if (response.status === 403) {

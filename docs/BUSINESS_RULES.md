@@ -205,6 +205,8 @@
 
 ## 16. Permissões (resumo — detalhe em [`PERMISSIONS.md`](PERMISSIONS.md))
 
+- **AUT-2FA [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Verificação em duas etapas só na conta do dono.** Código de 6 dígitos de app autenticador (Google Authenticator / Senhas do iPhone), somente para `isOwnerAdminEmail`; nenhum outro usuário é afetado. Opt-in: nada muda até o dono ativar em `/admin/seguranca` (link "Segurança da conta" no rodapé do painel, só para ele) e confirmar o primeiro código. Ativado: senha → código → painel; a exigência é no servidor (todas as páginas/APIs, inclusive "Alterar conta"). "Lembrar este aparelho por 30 dias" (cookie assinado); logout não apaga o lembrete. 8 códigos de recuperação de uso único mostrados uma vez (só hash guardado). Desativar e gerar novos códigos exigem um código válido e invalidam os aparelhos lembrados. 5 erros em 10 min bloqueiam 10 min. Implementação: `lib/admin-two-factor*.{js,mjs}`, tabela `admin_two_factor` — ver [`PERMISSIONS.md`](PERMISSIONS.md) §1.
+
 - A autorização real é **em código**; RLS sem policy pública. Filtro visual nunca é barreira. Gestor = ele + subordinados diretos + associados dos corretores subordinados. Dono identificado por e-mails fixos no código. “Alterar conta” troca o contexto de autorização dentro da sessão do admin real.
 
 ---

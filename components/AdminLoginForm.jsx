@@ -83,6 +83,13 @@ export default function AdminLoginForm({ initialError = "" }) {
         return;
       }
 
+      // Dono com verificação em duas etapas: a página de login passa a mostrar a etapa do código.
+      const sessionBody = await response.json().catch(() => ({}));
+      if (sessionBody?.twoFactorRequired) {
+        router.refresh();
+        return;
+      }
+
       const mobileApp = window.navigator.standalone === true
         || window.matchMedia("(display-mode: standalone)").matches
         || window.matchMedia("(max-width: 767px)").matches;

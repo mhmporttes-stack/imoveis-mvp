@@ -12,6 +12,7 @@
 - Cada guard revalida o token no Supabase (`auth.getUser`), tenta refresh se expirou, carrega o perfil em `admin_users` (por `auth_user_id` ou e-mail) e aplica o escopo.
 - Sem linha em `admin_users`: só passa se o e-mail estiver na lista de e-mails autorizados (`ADMIN_EMAIL`, `ADMIN_EMAILS` + e-mails fixos no código) e recebe um **perfil de fallback** (`isFallback`, sem escopo de banco). `ADMIN_OWNER_EMAILS` amplia a lista de donos.
 - Usuário `inactive` → 403 (o dono nunca é inativado).
+- **Verificação em duas etapas do dono (2026-10-08, opt-in)** — só contas `isOwnerAdminEmail`, só depois que o dono ativa em `/admin/seguranca`. TOTP de 6 dígitos (app autenticador) feito no servidor (`lib/admin-two-factor.js` + parte pura `lib/admin-two-factor-core.mjs`, tabela `admin_two_factor`). Depois de ativado, `applyTwoFactorGuard` (`lib/admin-auth.js`) roda na conta **real** antes de "Alterar conta" em `requireAdminApi`, `requireRealGeneralAdminApi` e `getAdminFromCookies` (logo em todos os guards de API e página): sem prova do 2º fator o dono recebe 401 `code: TWO_FACTOR_REQUIRED` (páginas vão para `/admin/login`, que mostra a etapa do código). Provas aceitas: cookie `mm_admin_2fa` (HMAC, ligado ao usuário + `session_id` da sessão de login + época, 7 dias) ou `mm_admin_2fa_device` ("lembrar este aparelho", HMAC, usuário + id de aparelho + época, 30 dias). Ambos HttpOnly/SameSite=Lax/Secure. Logout apaga só `mm_admin_2fa`; desativar ou gerar novos códigos de recuperação troca a época (todos os aparelhos lembrados deixam de valer). Limite: 5 códigos errados em 10 min bloqueiam 10 min; o mesmo código TOTP não entra duas vezes. Chave HMAC: `ADMIN_TWO_FACTOR_COOKIE_SECRET` (opcional) ou derivada de `SUPABASE_SERVICE_ROLE_KEY`; segredo TOTP cifrado com `CRM_SECRETS_ENCRYPTION_KEY` (`lib/secrets-crypto.js`).
 
 ## 2. Perfis e funções de classificação (`lib/admin-profiles.js`)
 
@@ -37,6 +38,7 @@
 | `requireFinancialAccessApi` | tudo exceto **gestor** (admin, corretor, associado) |
 | `requireGeneralAdminApi` (e `requirePrimaryAdminApi`) | **administrador geral** (`admin` ou dono, considerando “Alterar conta”). ⚠ `requirePrimaryAdminApi` é só um alias com outra mensagem — **não** restringe ao dono |
 | `requireRealGeneralAdminApi` | administrador geral **real** (ignora “Alterar conta”) — usado em `/api/admin/view-as` |
+| `requireOwnerPendingSecondFactorApi` | conta **real** do dono com a senha conferida e o 2º fator ainda pendente — só `/api/admin/two-factor/verify` (não libera dado do painel) |
 
 Guards de página (`redirect`): `requireAdminPage`, `requirePerformancePage`, `requireBrokerManagementPage`, `requireGeneralAdminPage` (`requirePrimaryAdminPage` = alias), `requireFinancialAccessPage`.
 
@@ -136,6 +138,8 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 | `POST /api/s/[token]/evento` | métricas da apresentação | allowlist `{tipo: abriu/cena/concluiu, cena, nova}`; sem IP/user-agent gravados; limite de taxa em memória; bots ignorados; token inválido 404 |
 
 ## 7. Páginas do painel (guard)
+
+`/admin/seguranca` (2026-10-08): `requireAdminPage` + conta real `isOwnerAdminEmail` (outros → `/admin`). APIs `/api/admin/two-factor` (GET status, POST `start`/`confirm`/`regenerate`/`disable`): `requireRealGeneralAdminApi` + `isOwnerAdminEmail`.
 
 `requireBrokerManagementPage` (admin/gestor): `automacoes`, `automacoes/fluxos/[id]`, `cadastros*`, `captacoes*`, `corretores`, `desempenho*` (inclui `online`, `pontuacao`, `corretor/[id]`), `gerador-de-links*`, `meta-diaria/gestao`, `minha-jornada`. `requireGeneralAdminPage`: `gastos-ia`. `requireFinancialAccessPage`: `financeiro`. `requirePerformancePage`: `relatorio-diario`. `requireAdminPage` (qualquer): `/admin` (redireciona corretor/associado), `calendario`, `chat`, `depoimentos*`, `empreendimentos*`, `meta-diaria`, `notificacoes`, `novo`, `prospeccao`, `simulacoes*`. Sem guard (públicas por natureza): `login`, `reset-password`; `whatsapp-master` apenas redireciona.
 

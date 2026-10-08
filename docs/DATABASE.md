@@ -23,11 +23,12 @@
 - **Ainda com RLS desligado** (advisor `rls_disabled_in_public`, 2026-10-02 — não corrigido, aguarda decisão): `crm_clients`, `crm_attendances`, `whatsapp_broadcasts`, `whatsapp_broadcast_messages`, `whatsapp_templates`, `daily_goal_abuse_flags`, `daily_goal_wallet_config`, `daily_goal_wallet_broker_overrides`, `daily_goal_do_not_contact_log`. A função `log_client_meta_attribution()` (SECURITY DEFINER) é executável por `anon`/`authenticated`.
 - O navegador usa a **anon key** só para o Supabase Auth (login/reset) e para o canal Realtime (Broadcast) do Chat; nunca lê tabelas.
 
-## 3. Tabelas por domínio (92 = 91 em migrations + `properties` em `schema.sql`; as 17 da Academia entraram em 2026-10-04)
+## 3. Tabelas por domínio (93 = 92 em migrations + `properties` em `schema.sql`; as 17 da Academia entraram em 2026-10-04; `admin_two_factor` em 2026-10-08)
 
 | Domínio | Tabelas |
 |---|---|
 | Métricas / cache | `crm_metric_cache` (cache volátil + locks dos cálculos pesados da voz), `crm_metric_snapshots` (histórico diário por métrica/dimensão; reutilizável por gráficos e relatórios) — RLS ligada, só service role |
+| Verificação em duas etapas do dono | `admin_two_factor` (migration `20261008200000`; 1 linha por usuário do Auth, FK `auth.users` ON DELETE CASCADE; segredo TOTP cifrado, hashes dos códigos de recuperação, `last_used_step` anti-reuso, `device_epoch`, contador/bloqueio de tentativas) — RLS ligada sem policy, só service role (`lib/admin-two-factor.js`). Desativar não apaga a linha (zera e troca a época) |
 | Usuários / presença | `alexa_settings` (config única da Alexa, sem credenciais), `alexa_arrival_state` (estado da rotina de chegada; só hash da chave), `admin_users`, `admin_presence` (1 linha/usuário, `last_activity_at`), `admin_presence_activity` (marcas por minuto p/ relatório), `push_subscriptions` |
 | Catálogo público | `properties` (imóveis **e** empreendimentos de catálogo, `is_development`), `empreendimentos` (regras de entrada em JSON, mesmo id do produto), `testimonials`, `captacoes` (imóveis ofertados por proprietários), `leads` (modal da home — sem leitor no código) |
 | Taxa de juros da simulação | `simulations.interest_rate_annual numeric(5,2)` null, check 0..30 (migration `20261005150000`, só apresentação interativa; fora do PDF). O código tolera a coluna ausente (salva sem a taxa e avisa) |
@@ -60,6 +61,7 @@
 |---|---|
 | `academy_record_attempt(...)`, `academy_complete_lesson(...)`, `academy_refresh_enrollment(...)`, `academy_grant_extra_attempt(...)`, `academy_create_draft(...)`, `academy_publish_version(...)`, `academy_issue_certificate(...)`, `academy_revoke_certificate(...)` | Academia: emissão automática/idempotente e revogação de certificado; gravação atômica de tentativa/conclusão (trava a matrícula, aplica o limite de tentativas, +1 se liberado), liberação manual de tentativa extra, rascunho (clone de versão) e publicação (valida, aposenta a anterior); só `service_role`. Triggers `academy_*_guard`/`academy_exam_attempts_limit` mantêm versão publicada e questões imutáveis e barram tentativa acima do limite |
 | `crm_status_counts_by_broker()` | clientes por responsável e status em uma consulta agrupada (estoque por corretor da voz; só service role) |
+| `admin_two_factor_consume_recovery_code(user, hash)` | consome um código de recuperação de forma atômica (retorna true/false); só service role (`lib/admin-two-factor.js`) |
 | `crm_status_counts()` | contagem de clientes por status em uma consulta (usada pela voz e pelos snapshots; só service role) |
 | `pick_round_robin_broker(excluded)` | roleta por presença (advisory lock); chamada só por `lib/lead-distribution.js` |
 | `assign_round_robin_lead(excluded)` | roleta simples (reserva/fallback; **não alterar**) |
