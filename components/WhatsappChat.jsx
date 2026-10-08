@@ -1428,7 +1428,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
 
   async function send() {
     const value = text.trim();
-    if ((!value && !attachment) || sending || conversation.awaitingCustomer) return;
+    if ((!value && !attachment) || sending || conversation.awaitingCustomer || conversation.individualSendDisabled) return;
     if (replyTo && attachment) { setError("Para responder a uma mensagem específica, envie apenas texto."); return; }
     setSending(true);
     setError("");
@@ -1495,7 +1495,8 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   const hasContent = Boolean(text.trim()) || Boolean(attachment);
   const shownError = error || recorder.error;
   // Chat só responde: contato que ainda não escreveu -> envio pelo app do celular do corretor (ou link para o cliente chamar).
-  const awaiting = conversation.awaitingCustomer === true && !editTarget;
+  const individualOff = conversation.individualSendDisabled === true;
+  const awaiting = (conversation.awaitingCustomer === true || individualOff) && !editTarget;
   const customerDigits = String(conversation.phone || "").replace(/D/g, "");
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
   const callLink = conversation.brokerWhatsapp ? `https://wa.me/${conversation.brokerWhatsapp}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}` : "";
@@ -1518,9 +1519,18 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       {progress ? <p className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-brand"><Loader2 className="h-3.5 w-3.5 animate-spin" />{progress}</p> : null}
       {awaiting ? (
         <div className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold leading-5 text-navy">
-          <p className="font-black">Este cliente ainda não escreveu para você.</p>
-          <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
-          {callLink ? <button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
+          {individualOff ? (
+            <>
+              <p className="font-black">O envio pelo seu WhatsApp pessoal está desativado por enquanto.</p>
+              <p className="mt-0.5">Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Conversas do número oficial seguem funcionando aqui no Chat.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-black">Este cliente ainda não escreveu para você.</p>
+              <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
+            </>
+          )}
+          {callLink && !individualOff ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
         </div>
       ) : null}
 

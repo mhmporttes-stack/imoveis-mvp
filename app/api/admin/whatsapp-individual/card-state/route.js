@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { getIndividualSessionStatusForUser } from "@/lib/whatsapp-individual";
 import { getOpenRestriction } from "@/lib/whatsapp-restriction";
-import { isChatDisabled } from "@/lib/chat-control";
+import { isIndividualChatSendDisabled } from "@/lib/chat-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function GET(request) {
   const userId = auth.profile?.id;
   if (!userId) return NextResponse.json({ error: "Usuário sem perfil administrativo." }, { status: 403 });
   try {
-    const [sessionStatus, open, chatDisabled] = await Promise.all([getIndividualSessionStatusForUser(userId), getOpenRestriction(userId), isChatDisabled()]);
+    const [sessionStatus, open, chatDisabled] = await Promise.all([getIndividualSessionStatusForUser(userId), getOpenRestriction(userId), isIndividualChatSendDisabled()]);
     return NextResponse.json({ userId, sessionStatus: sessionStatus || null, restricted: Boolean(open) && sessionStatus !== "connected", chatDisabled });
   } catch (error) {
     console.error("Falha ao ler o estado do WhatsApp para o card:", error?.message || error);

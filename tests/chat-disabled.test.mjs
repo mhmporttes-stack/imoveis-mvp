@@ -27,3 +27,13 @@ test("backend: envio/reação/edição/exclusão/modelo exigem o Chat ligado; AP
   assert.match(source("app/admin/chat/page.jsx"), /isChatRestrictedProfile\(auth\.profile\) && \(await isChatDisabled\(\)\)/);
   assert.match(source("lib/chat-control.js"), /whatsapp_chat_control/);
 });
+
+test("Chat híbrido: oficial envia, sessão pessoal não (individualSendDisabled)", () => {
+  const control = source("lib/chat-control.js");
+  assert.match(control, /individualSendDisabled: data\?\.setting_value\?\.individualSendDisabled === true/);
+  const chat = source("lib/whatsapp-chat.js");
+  assert.match(chat, /if \(await isIndividualChatSendDisabled\(\)\) return \{ sendChannel: "cloud_api", sessionUserId: null \};/);
+  assert.match(chat, /code: CHAT_INDIVIDUAL_DISABLED_CODE/);
+  const individual = source("lib/whatsapp-individual.js");
+  assert.equal((individual.match(/await assertChatActionsOnPersonalSession\(\);/g) || []).length, 3);
+});

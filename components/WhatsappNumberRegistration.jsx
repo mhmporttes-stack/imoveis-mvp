@@ -16,7 +16,7 @@ const STATUS_LABELS = {
 };
 
 export default function WhatsappNumberRegistration() {
-  const [state, setState] = useState({ loading: true, registration: null, error: "" });
+  const [state, setState] = useState({ loading: true, registration: null, subscription: null, lastWebhookAt: null, error: "" });
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,9 +27,9 @@ export default function WhatsappNumberRegistration() {
       const response = await fetch("/api/admin/whatsapp-master/registration", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível consultar o número.");
-      setState({ loading: false, registration: data.registration, error: "" });
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
     } catch (error) {
-      setState({ loading: false, registration: null, error: error.message });
+      setState({ loading: false, registration: null, subscription: null, lastWebhookAt: null, error: error.message });
     }
   }, []);
 
@@ -48,9 +48,31 @@ export default function WhatsappNumberRegistration() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar o número.");
-      setState({ loading: false, registration: data.registration, error: "" });
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
       setPin("");
       setMessage("Número registrado. Anote o PIN: ele protege o número (verificação em duas etapas).");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  async function activateReceiving() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-master/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "subscribe" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível ativar o recebimento.");
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, error: "" });
+      setMessage("Recebimento ativado. Mande uma mensagem de teste para o número e confira se chega no Chat.");
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -84,6 +106,19 @@ export default function WhatsappNumberRegistration() {
           <div><dt className="font-black uppercase tracking-wide text-muted">Situação</dt><dd className={`font-extrabold ${connected ? "text-emerald-700" : "text-amber-700"}`}>{STATUS_LABELS[registration.status] || registration.status || "—"}</dd></div>
           <div><dt className="font-black uppercase tracking-wide text-muted">Nome / qualidade</dt><dd className="font-extrabold text-navy">{registration.verifiedName || "—"} · {registration.qualityRating || "sem dados"}</dd></div>
         </dl>
+      ) : null}
+
+      {registration ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4 text-sm">
+          <span className="font-black uppercase tracking-wide text-muted">Recebimento de mensagens</span>
+          <span className={`font-extrabold ${state.subscription?.subscribed ? "text-emerald-700" : "text-amber-700"}`}>
+            {state.subscription?.subscribed === true ? "Ativo (app inscrito na conta)" : state.subscription?.subscribed === false ? "Inativo — a Meta não está entregando mensagens ao CRM" : "Não foi possível verificar"}
+          </span>
+          <span className="font-semibold text-muted">Última mensagem recebida: {state.lastWebhookAt ? new Date(state.lastWebhookAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "nunca"}</span>
+          {state.subscription?.subscribed !== true ? (
+            <button type="button" onClick={activateReceiving} disabled={busy} className="premium-button-primary min-h-10 px-5 disabled:opacity-50">{busy ? "Ativando…" : "Ativar recebimento"}</button>
+          ) : null}
+        </div>
       ) : null}
 
       {registration && !connected ? (

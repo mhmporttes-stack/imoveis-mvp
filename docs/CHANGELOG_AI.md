@@ -66,6 +66,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Chat HÍBRIDO (oficial envia, WhatsApp pessoal só responde pelo celular) + diagnóstico do recebimento do número oficial
+- **Pedido (dono):** o número oficial só RECEBE (vai nos anúncios de clique para o WhatsApp); quer o Chat com dois canais: o do corretor e o oficial.
+- **Chat híbrido:** `crm_settings.whatsapp_chat_control` agora aceita `individualSendDisabled` (além de `disabled`, que desliga o Chat inteiro). Com `{disabled:false, individualSendDisabled:true}`: o Chat abre para todos, o número oficial (cloud_api) envia normalmente (conversa do oficial nunca migra para a sessão pessoal) e envio/reação/edição/exclusão pela sessão pessoal ficam recusados (`CHAT_INDIVIDUAL_DISABLED`); no composer o corretor vê o aviso e o botão verde que abre o WhatsApp do celular. Card do cliente continua abrindo o WhatsApp externo. Para liberar a sessão pessoal: `individualSendDisabled:false`.
+- **Recebimento do oficial:** o cartão "Registro do número oficial" (Automações > WhatsApp Master) agora mostra se o app da Meta está inscrito na conta (`GET/POST /{waba}/subscribed_apps`) e a última mensagem recebida; botão "Ativar recebimento". Último webhook recebido pelo CRM: 29/09.
+
 ### 2026-10-08 — Registro do número oficial na API da Meta (tela em Automações > WhatsApp Master)
 - **Pedido (dono):** cadastrar o número na API oficial. No Gerenciador do WhatsApp o +55 14 99105-6706 está "Pendente: registre este número usando a API de registro".
 - **Mudança:** `lib/whatsapp-register.js` (consulta o estado e faz `POST /{phone-number-id}/register` com PIN de 6 dígitos), rota `/api/admin/whatsapp-master/registration` (GET/POST, só administrador geral) e cartão `components/WhatsappNumberRegistration.jsx` na aba WhatsApp Master (`app/admin/automacoes/page.jsx`). O PIN digitado só vai para a Meta (não é gravado nem logado); token fica no servidor.
