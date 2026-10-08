@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  Archive,
   ArchiveRestore,
   ArrowLeft,
   BookOpen,
@@ -812,6 +813,18 @@ function Thread({ canManage, canEditRules, currentUserId, detail, error, guideOp
             {showAssume ? (
               <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
+              </button>
+            ) : null}
+            {!conversation.archivedReadOnly ? (
+              <button
+                type="button"
+                onClick={() => changeStatus(conversation.status === "finished" ? "open" : "finished")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist"
+                aria-label={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa"}
+                title={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa (vai para Finalizadas)"}
+              >
+                {conversation.status === "finished" ? <ArchiveRestore className="h-4 w-4 text-brand" /> : <Archive className="h-4 w-4" />}
+                <span className="hidden sm:inline">{conversation.status === "finished" ? "Reabrir" : "Arquivar"}</span>
               </button>
             ) : null}
             <button
