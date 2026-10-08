@@ -10,6 +10,7 @@ import WhatsappDisparoManager from "@/components/WhatsappDisparoManager";
 import WhatsappMasterForm from "@/components/WhatsappMasterForm";
 import WhatsappMasterInbox from "@/components/WhatsappMasterInbox";
 import WhatsappProfileEditor from "@/components/WhatsappProfileEditor";
+import WhatsappNumberRegistration from "@/components/WhatsappNumberRegistration";
 import WhatsappTemplateManager from "@/components/WhatsappTemplateManager";
 import FlowsManager from "@/components/flows/FlowsManager";
 import { listWhatsappFlows } from "@/lib/whatsapp-flows";
@@ -73,6 +74,7 @@ export default async function AutomationsPage({ searchParams }) {
       ) : tab === "whatsapp-master" ? (
         <>
           <WhatsappMasterForm initialSettings={whatsappData.settings} environment={whatsappData.environment} />
+          {isGeneralAdminAuth(auth) ? <WhatsappNumberRegistration /> : null}
           {isGeneralAdminAuth(auth) ? <WhatsappProfileEditor /> : null}
           <WhatsappTemplateManager />
           <WhatsappAutomationRepliesManager initialRules={whatsappData.automationReplies} />

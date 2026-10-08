@@ -66,6 +66,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Registro do número oficial na API da Meta (tela em Automações > WhatsApp Master)
+- **Pedido (dono):** cadastrar o número na API oficial. No Gerenciador do WhatsApp o +55 14 99105-6706 está "Pendente: registre este número usando a API de registro".
+- **Mudança:** `lib/whatsapp-register.js` (consulta o estado e faz `POST /{phone-number-id}/register` com PIN de 6 dígitos), rota `/api/admin/whatsapp-master/registration` (GET/POST, só administrador geral) e cartão `components/WhatsappNumberRegistration.jsx` na aba WhatsApp Master (`app/admin/automacoes/page.jsx`). O PIN digitado só vai para a Meta (não é gravado nem logado); token fica no servidor.
+
 ### 2026-10-07 — Transferência manual desliga a roleta para o cliente
 - **Data:** 2026-10-07
 - **Área:** Roleta / Automações
