@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   emptySimulationModel,
+  cleanTermMonths,
   enabledModelsFromModels,
   getRenderableSimulationModels,
   mergeSimulationModelsIntoNote,
@@ -20,7 +21,7 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 // Os campos de sempre do modelo são o PRICE; o SAC é o bloco extra `sac`.
 const price = { financingValue: "180.000,00", subsidyValue: "42.000,00", firstInstallment: "1.010,10", lastInstallment: "1.010,10" };
 const sac = { financingValue: "190.000,00", subsidyValue: "42.000,00", firstInstallment: "1.085,40", lastInstallment: "812,15" };
-const empty = { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "" };
+const empty = { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "", termMonths: "" };
 const sim = (simulationModels, extra = {}) => ({ clientName: "Mariana Souza Lima", simulationDate: "2026-10-08", simulationModels, ...extra });
 const ids = (scenes) => scenes.map((scene) => scene.id);
 
@@ -64,7 +65,7 @@ test("entradas por tipo × sistema (Price primeiro); sem SAC nada muda (sem rót
 test("apresentação: com os dois sistemas as cenas de poder e parcelas mostram SAC e Price; cenas normais = Price", () => {
   const both = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac } }) });
   assert.deepEqual(ids(both), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"], "sem cena \"comparativo\" separada");
-  assert.deepEqual(both.find((item) => item.id === "parcelas").comparison, { sac: { first: 1085.4, last: 812.15 }, price: { first: 1010.1, last: 1010.1 } });
+  assert.deepEqual(both.find((item) => item.id === "parcelas").comparison, { sac: { first: 1085.4, last: 812.15, term: 0 }, price: { first: 1010.1, last: 1010.1, term: 0 } });
   // o valor principal das cenas continua o do Price (modelo principal, o que sempre existiu)
   assert.equal(both.find((item) => item.id === "poder").value, 222000);
   assert.equal(both.find((item) => item.id === "parcelas").first, 1010.1);
@@ -106,7 +107,7 @@ test("DTO público: as cenas com dois sistemas só levam os campos permitidos e 
   const dto = buildPublicPresentation({ simulation: sim({ novo: { ...price, sac } }) });
   for (const scene of dto.scenes) for (const key of Object.keys(scene)) assert.ok(PUBLIC_SCENE_FIELDS[scene.id].includes(key), `${scene.id}.${key}`);
   const parcelas = dto.scenes.find((item) => item.id === "parcelas");
-  for (const system of [parcelas.comparison.sac, parcelas.comparison.price]) assert.deepEqual(Object.keys(system).sort(), ["first", "last"]);
+  for (const system of [parcelas.comparison.sac, parcelas.comparison.price]) assert.deepEqual(Object.keys(system).sort(), ["first", "last", "term"]);
   assert.equal(PUBLIC_SCENE_FIELDS.comparativo, undefined, "a cena comparativo separada não existe mais");
   const text = JSON.stringify(dto).toLowerCase();
   assert.ok(!text.includes("novo") && !text.includes("usado"), "a apresentação não diz novo/usado");
@@ -171,4 +172,38 @@ test("formação do valor: só com subsídio; SAC x Price diferentes com subsíd
   assert.ok(PUBLIC_SCENE_FIELDS.formacao.includes("comparison"));
   assert.deepEqual(Object.keys(dto.scenes.find((item) => item.id === "formacao").comparison.sac).sort(), ["financing", "subsidy", "total"]);
   assert.ok(read("components/presentation/PresentationPlayer.jsx").includes("if (scene.comparison) return <SceneFormacaoDuo"));
+});
+
+test("prazo em meses: cada sistema tem o seu; só dígitos; aparece nas parcelas (normal e dupla) e não conta como valor", () => {
+  assert.equal(cleanTermMonths("4a2 0"), "420");
+  assert.equal(cleanTermMonths("0035"), "35");
+  assert.equal(cleanTermMonths("12345"), "123");
+  const models = normalizeSimulationModels({ novo: { ...price, termMonths: "420", sac: { ...sac, termMonths: "350" } } });
+  assert.equal(models.novo.termMonths, "420");
+  assert.equal(models.novo.sac.termMonths, "350");
+  assert.equal(simulationModelHasValues({ ...emptySimulationModel(), termMonths: "420" }), false, "prazo sozinho não é simulação");
+  const back = extractSimulationModelsFromNote(mergeSimulationModelsIntoNote("obs", { novo: { ...price, termMonths: "420", sac: { ...sac, termMonths: "350" } } }));
+  assert.equal(back.novo.termMonths, "420");
+  assert.equal(back.novo.sac.termMonths, "350");
+  const normal = buildPresentationScenes({ simulation: sim({ novo: { ...price, termMonths: "420" } }), }).find((item) => item.id === "parcelas");
+  assert.equal(normal.term, 420);
+  assert.equal(normal.comparison, undefined);
+  const duo = buildPresentationScenes({ simulation: sim({ novo: { ...price, termMonths: "420", sac: { ...sac, termMonths: "350" } } }, { interestRateAnnual: 10 }) }).find((item) => item.id === "parcelas");
+  assert.equal(duo.comparison.price.term, 420);
+  assert.equal(duo.comparison.sac.term, 350);
+  assert.equal(duo.interestRate, 10);
+  // mesmas parcelas mas prazos diferentes: ainda é cena dupla (o prazo é diferente)
+  const termOnly = buildPresentationScenes({ simulation: sim({ novo: { ...price, termMonths: "420", sac: { ...price, termMonths: "350" } } }) }).find((item) => item.id === "parcelas");
+  assert.ok(termOnly.comparison);
+  const player = read("components/presentation/PresentationPlayer.jsx");
+  assert.ok(player.includes("{scene.comparison[key].term} meses") && player.includes("{scene.term} meses"));
+  assert.ok(player.includes('<span className={styles.cmpLabel}>Taxa de juros</span>'), "a taxa de juros aparece em cada cartão");
+  const generator = read("components/SimulationGenerator.jsx");
+  assert.ok(generator.includes('label="Prazo (meses)"') && generator.includes('label="Prazo em meses (SAC)"'));
+});
+
+test("compartilhar a apresentação no computador: copia o link e abre a conversa sem texto (prévia só aparece ao colar)", () => {
+  const generator = read("components/SimulationGenerator.jsx");
+  assert.ok(generator.includes("const onDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent"));
+  assert.ok(generator.includes("copied ? `https://wa.me/${phone}` : `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`"));
 });

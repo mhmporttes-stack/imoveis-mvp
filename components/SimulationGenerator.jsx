@@ -22,6 +22,7 @@ import {
   getPrimarySimulationModel,
   getRenderableSimulationModels,
   mergeSimulationModelsIntoNote,
+  cleanTermMonths,
   normalizeSimulationModels,
   removeSimulationModelsFromNote,
   simulationModelLabel,
@@ -774,7 +775,24 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.message) throw new Error(data.error || "Não foi possível preparar a apresentação.");
 
-      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`;
+      // No COMPUTADOR (WhatsApp Web/Desktop) o texto pré-preenchido pelo wa.me não gera a prévia do link (cartão com foto e
+      // título); só COLAR o link na conversa gera. Por isso, no computador, o link é copiado e a conversa abre sem texto.
+      // No celular a prévia já funciona com o texto pré-preenchido. Se a cópia falhar, volta ao texto pré-preenchido.
+      const onDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+      let copied = false;
+      if (onDesktop) {
+        // A aba nova (about:blank) já tem o foco, e o navegador só copia pela aba que está em foco: tenta nela e depois nesta.
+        for (const clipboard of [() => whatsappWindow?.navigator?.clipboard, () => navigator.clipboard]) {
+          try {
+            await clipboard()?.writeText(data.message);
+            copied = true;
+            break;
+          } catch {
+            copied = false;
+          }
+        }
+      }
+      const whatsappUrl = copied ? `https://wa.me/${phone}` : `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`;
       if (whatsappWindow) {
         whatsappWindow.opener = null;
         whatsappWindow.location.href = whatsappUrl;
@@ -783,7 +801,11 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       }
 
       const logged = await post("enviar-registrar").catch(() => null);
-      if (logged?.ok) setMessage("O WhatsApp do cliente foi aberto com o link da apresentação. Envie por lá.");
+      if (logged?.ok) {
+        setMessage(copied
+          ? "O WhatsApp do cliente foi aberto e o link foi copiado: cole na conversa (Ctrl+V) para aparecer a prévia e envie."
+          : "O WhatsApp do cliente foi aberto com o link da apresentação. Envie por lá.");
+      }
       else setError("O WhatsApp foi aberto, mas o registro na jornada do cliente falhou.");
     } catch (sendError) {
       if (whatsappWindow) whatsappWindow.close();
@@ -968,6 +990,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     value={normalizedModels[key]?.lastInstallment || ""}
                     onChange={(value) => updateSimulationModel(key, "lastInstallment", value)}
                   />
+                  <Field
+                    label="Prazo (meses)"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Ex.: 420"
+                    autoComplete="off"
+                    value={normalizedModels[key]?.termMonths || ""}
+                    onChange={(value) => updateSimulationModel(key, "termMonths", cleanTermMonths(value))}
+                  />
                 </div>
 
                 <div className="mt-6 border-t border-blue-100 pt-4">
@@ -993,6 +1025,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                       label="Última parcela (SAC)"
                       value={normalizedModels[key]?.sac?.lastInstallment || ""}
                       onChange={(value) => updateSacModel(key, "lastInstallment", value)}
+                    />
+                    <Field
+                      label="Prazo em meses (SAC)"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Ex.: 420"
+                      autoComplete="off"
+                      value={normalizedModels[key]?.sac?.termMonths || ""}
+                      onChange={(value) => updateSacModel(key, "termMonths", cleanTermMonths(value))}
                     />
                   </div>
                 </div>
@@ -1880,11 +1922,13 @@ function formatSimulationModelsForForm(models) {
         subsidyValue: formatStoredCurrencyInput(normalized[key]?.subsidyValue),
         firstInstallment: formatStoredCurrencyInput(normalized[key]?.firstInstallment),
         lastInstallment: formatStoredCurrencyInput(normalized[key]?.lastInstallment),
+        termMonths: cleanTermMonths(normalized[key]?.termMonths),
         sac: {
           financingValue: formatStoredCurrencyInput(normalized[key]?.sac?.financingValue),
           subsidyValue: formatStoredCurrencyInput(normalized[key]?.sac?.subsidyValue),
           firstInstallment: formatStoredCurrencyInput(normalized[key]?.sac?.firstInstallment),
-          lastInstallment: formatStoredCurrencyInput(normalized[key]?.sac?.lastInstallment)
+          lastInstallment: formatStoredCurrencyInput(normalized[key]?.sac?.lastInstallment),
+          termMonths: cleanTermMonths(normalized[key]?.sac?.termMonths)
         }
       }
     ])

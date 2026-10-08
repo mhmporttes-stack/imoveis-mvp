@@ -64,9 +64,10 @@ function announcement(scene, index, total) {
       const rate = formatInterestRateLabel(scene.interestRate);
       if (scene.comparison) {
         const { sac, price } = scene.comparison;
-        return `${head}Condição de pagamento. SAC: primeira parcela ${formatBRL(sac.first)}, última parcela ${formatBRL(sac.last)}. Price: primeira parcela ${formatBRL(price.first)}, última parcela ${formatBRL(price.last)}${rate ? `. Taxa de juros ${rate}` : ""}.`;
+        const termText = (system) => (system.term > 0 ? `, prazo de ${system.term} meses` : "");
+        return `${head}Condição de pagamento. SAC: primeira parcela ${formatBRL(sac.first)}, última parcela ${formatBRL(sac.last)}${termText(sac)}. Price: primeira parcela ${formatBRL(price.first)}, última parcela ${formatBRL(price.last)}${termText(price)}${rate ? `. Taxa de juros ${rate}` : ""}.`;
       }
-      return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
+      return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${scene.term > 0 ? `, prazo de ${scene.term} meses` : ""}${rate ? `, taxa de juros ${rate}` : ""}.`;
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
@@ -283,10 +284,21 @@ function SceneParcelasDuo({ scene }) {
                 <strong className={styles.cmpVal}>{formatBRL(scene.comparison[key].last)}</strong>
               </div>
             ) : null}
+            {scene.comparison[key].term > 0 ? (
+              <div className={`${styles.cmpLine} ${styles.cmpMeta}`}>
+                <span className={styles.cmpLabel}>Prazo</span>
+                <strong className={styles.cmpVal}>{scene.comparison[key].term} meses</strong>
+              </div>
+            ) : null}
+            {rate ? (
+              <div className={`${styles.cmpLine} ${styles.cmpMeta}`}>
+                <span className={styles.cmpLabel}>Taxa de juros</span>
+                <strong className={styles.cmpVal}>{rate}</strong>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
-      {rate ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "4000ms" }}>Taxa de juros: {rate}</p> : null}
     </div>
   );
 }
@@ -312,8 +324,14 @@ function SceneParcelas({ scene }) {
             <strong className={styles.statValue}>{formatBRL(scene.last)}</strong>
           </div>
         ) : null}
-        {rate ? (
+        {scene.term > 0 ? (
           <div className={`${styles.stat} ${styles.statRate} ${styles.rise}`} style={{ "--d": both ? "2200ms" : "1000ms" }}>
+            <span className={styles.statLabel}>Prazo</span>
+            <strong className={styles.statValueSmall}>{scene.term} meses</strong>
+          </div>
+        ) : null}
+        {rate ? (
+          <div className={`${styles.stat} ${styles.statRate} ${styles.rise}`} style={{ "--d": both ? (scene.term > 0 ? "2800ms" : "2200ms") : (scene.term > 0 ? "1600ms" : "1000ms") }}>
             <span className={styles.statLabel}>Taxa de juros</span>
             <strong className={styles.statValueSmall}>{rate}</strong>
           </div>

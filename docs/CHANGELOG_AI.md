@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Prazo em meses e taxa de juros na cena de parcelas; envio da apresentação pelo computador
+- **Data:** 2026-10-08
+- **Área:** Apresentação / Simulação
+- **Alteração:** (1) novo campo **Prazo (meses)** por sistema (Price e SAC) no cadastro da simulação; a cena de condição de pagamento passa a mostrar prazo e taxa de juros (em cada cartão quando há SAC e Price). (2) "Enviar apresentação" pelo COMPUTADOR copia o link e abre o WhatsApp do cliente sem texto (o texto pré-preenchido do wa.me não gera a prévia do link no WhatsApp Web/Desktop; colar gera). No celular nada muda; se a cópia falhar, volta ao texto pré-preenchido.
+- **Motivo:** pedido do dono (prazos diferentes entre os sistemas; prévia do link não aparecia ao enviar pelo computador).
+- **Arquivos afetados:** `lib/simulation-models.js`, `lib/simulation-presentation-core.mjs`, `components/SimulationGenerator.jsx`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-systems-comparison.test.mjs`
+- **Risco/observação:** sem migration (prazo vai no JSON da observação interna). PDF/imagem não mostram o prazo. A causa da prévia no computador é um comportamento conhecido do WhatsApp (não confirmado com o aplicativo real nesta sessão); o servidor entrega as tags e a imagem (88 KB, em cache). A CONFIRMAR: enviar uma apresentação pelo computador e conferir a prévia ao colar.
+- **Autor:** Claude Code
 ### 2026-10-08 — Apresentação: parcelas de SAC e Price na mesma cena (sai a cena comparativo)
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação

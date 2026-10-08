@@ -249,6 +249,8 @@
 .cmpLine { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: calc(var(--u) * 10) 0; }
 .cmpLine + .cmpLine { border-top: 1px solid var(--line); }
 .cmpLabel { font-size: max(14px, calc(var(--u) * 17)); font-weight: 700; color: var(--muted); }
+.cmpMeta .cmpLabel { font-size: max(13px, calc(var(--u) * 15)); }
+.cmpMeta .cmpVal { font-size: max(16px, calc(var(--u) * 21)); }
 .cmpSum { border-top: 1px solid var(--line); margin-top: calc(var(--u) * 4); }
 .cmpSum .cmpLabel { color: var(--fg); }
 .cmpVal { font-size: max(20px, calc(var(--u) * 30)); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
