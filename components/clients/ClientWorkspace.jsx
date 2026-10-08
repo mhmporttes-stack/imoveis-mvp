@@ -403,6 +403,7 @@ function PipelineStrip({ list }) {
           />
         ))}
         <StageTab label="Arquivados" count={counters.byGroup?.archived || 0} active={filters.statusGroup === "archived"} onClick={() => select("archived")} muted />
+        <StageTab label="Patrocinado" count={counters.byGroup?.sponsored || 0} active={filters.statusGroup === "sponsored"} onClick={() => select("sponsored")} />
       </div>
 
       {activeGroup && activeGroup.key !== "all" && activeGroup.statuses.length > 1 ? (

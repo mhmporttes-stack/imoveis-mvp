@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Clientes: aba "Patrocinado"
+- **Data:** 2026-10-08
+- **Área:** Clientes
+- **Alteração:** nova aba "Patrocinado" na faixa de etapas da lista de Clientes: todos os clientes que entraram por mídia paga (qualquer campanha/anúncio), em qualquer status, menos "Não contactar". Critério no banco sobre `client_origins` (kind paid_link/whatsapp_ad, paid_media, ad_id, utm_medium pago), igual a `hasPaidMediaEvidence`. Regra CLI-14.
+- **Motivo:** pedido do dono (acompanhar de perto os clientes de anúncio).
+- **Arquivos afetados:** `lib/simulation-list-query.js`, `components/clients/ClientWorkspace.jsx`, `tests/sponsored-clients-tab.test.mjs`
+- **Risco/observação:** sem migration. Conferido contra o banco de produção (somente leitura): 71 clientes com origem paga, 50 fora "Não contactar" (21 estão nesse status e não aparecem na aba). Mais uma contagem (head) por carregamento da lista. Fase seguinte (acompanhar à risca: tempo sem contato, campanha/anúncio no card, etc.) depende de o dono dizer o que quer ver.
+- **Autor:** Claude Code
 ### 2026-10-08 — Verificação em duas etapas (TOTP) na conta do dono
 - **Data:** 2026-10-08
 - **Área:** Autenticação / Permissões / Banco
