@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { getSupabaseAdminClient } from "@/lib/supabase";
-import { WhatsappRegisterError, getAppWebhookConfig, getNumberRegistrationStatus, getWebhookSubscription, registerNumber, subscribeWebhook } from "@/lib/whatsapp-register";
+import { getSiteBaseUrl } from "@/lib/admin-profiles";
+import { WhatsappRegisterError, configureAppWebhook, getAppWebhookConfig, getNumberRegistrationStatus, getWebhookSubscription, registerNumber, subscribeWebhook } from "@/lib/whatsapp-register";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
     if (body?.action === "subscribe") await subscribeWebhook();
+    else if (body?.action === "configure-webhook") await configureAppWebhook(`${getSiteBaseUrl()}/api/webhooks/whatsapp-master`);
     else await registerNumber(body?.pin);
     return NextResponse.json(await fullState(), { headers: NO_STORE });
   } catch (error) {

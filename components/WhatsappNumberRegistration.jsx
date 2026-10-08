@@ -80,6 +80,28 @@ export default function WhatsappNumberRegistration() {
     }
   }
 
+
+  async function configureWebhook() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp-master/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "configure-webhook" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível configurar o webhook.");
+      setState({ loading: false, registration: data.registration, subscription: data.subscription || null, lastWebhookAt: data.lastWebhookAt || null, appWebhook: data.appWebhook || null, error: "" });
+      setMessage("Webhook configurado. Mande uma mensagem de teste para o número e confira se chega no Chat.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const registration = state.registration;
   const connected = registration?.status === "CONNECTED";
 
@@ -125,6 +147,9 @@ export default function WhatsappNumberRegistration() {
         <p className="mt-2 text-xs font-semibold text-muted">
           Webhook do app da Meta: {state.appWebhook.callbackUrl ? state.appWebhook.callbackUrl : "SEM URL configurada"} · campos: {state.appWebhook.fields?.length ? state.appWebhook.fields.join(", ") : "nenhum"}{state.appWebhook.fields?.includes("messages") ? "" : " — falta assinar \"messages\""}
         </p>
+      ) : null}
+      {registration && state.appWebhook?.known && !state.appWebhook.fields?.includes("messages") ? (
+        <button type="button" onClick={configureWebhook} disabled={busy} className="premium-button-primary mt-3 min-h-10 px-5 disabled:opacity-50">{busy ? "Configurando…" : "Configurar webhook (receber mensagens)"}</button>
       ) : null}
 
       {registration && !connected ? (
