@@ -162,9 +162,9 @@ test("cadastro CONJUNTO (dono 2026-10-05): documentação completa de cada propo
     hasChildrenUnder18: true
   }));
   assert.deepEqual(ids(joint), [
-    "grupo-p1", "identidade-p1", "residencia-p1", "estado-civil-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1",
-    "grupo-p2", "identidade-p2", "residencia-p2", "estado-civil-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2",
-    "grupo-familia", "dependentes", "contato"
+    "grupo-p1", "identidade-p1", "residencia-p1", "estado-civil-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1", "contato-p1",
+    "grupo-p2", "identidade-p2", "residencia-p2", "estado-civil-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2", "contato-p2",
+    "grupo-familia", "dependentes"
   ]);
   assert.deepEqual(joint.filter((item) => item.heading).map((item) => item.title), ["PROPONENTE 1", "PROPONENTE 2", "PARA OS DOIS"]);
   assert.equal(new Set(ids(joint)).size, joint.length, "ids únicos (chave do React)");
@@ -452,9 +452,9 @@ test("casal (os dois casados): certidão de casamento e comprovante de residênc
     hasChildrenUnder18: false
   }));
   assert.deepEqual(ids(couple), [
-    "grupo-p1", "identidade-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1",
-    "grupo-p2", "identidade-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2",
-    "grupo-familia", "estado-civil-casal", "residencia-casal", "contato"
+    "grupo-p1", "identidade-p1", "renda-p1", "carteira-p1", "pis-p1", "fgts-p1", "contato-p1",
+    "grupo-p2", "identidade-p2", "renda-p2", "carteira-p2", "pis-p2", "fgts-p2", "contato-p2",
+    "grupo-familia", "estado-civil-casal", "residencia-casal"
   ]);
   assert.equal(couple.filter((item) => item.title === "COMPROVANTE DE ESTADO CIVIL").length, 1);
   assert.equal(couple.filter((item) => /RESIDÊNCIA/.test(item.title)).length, 1);
@@ -474,7 +474,7 @@ test("casal: o comprovante de residência segue a renda do 1º proponente (o pri
   }));
   assert.equal(byId(informal, "residencia-casal").obs, "Obrigatoriamente no seu nome");
   const familia = ids(informal).slice(ids(informal).indexOf("grupo-familia"));
-  assert.deepEqual(familia, ["grupo-familia", "estado-civil-casal", "residencia-casal", "dependentes", "contato"]);
+  assert.deepEqual(familia, ["grupo-familia", "estado-civil-casal", "residencia-casal", "dependentes"]);
 });
 
 test("não é casal (casado + solteiro, viúvos, união estável): cada proponente continua com o PRÓPRIO estado civil e residência", () => {
@@ -491,4 +491,31 @@ test("não é casal (casado + solteiro, viúvos, união estável): cada proponen
 test("cadastro individual casado não muda (não existe 'casal' sem 2º proponente)", () => {
   const single = buildDocumentItemsFor(reg({ primaryMaritalStatus: "married" }));
   assert.ok(byId(single, "estado-civil") && byId(single, "residencia"));
+});
+
+// ---------- e-mail por proponente (dono 2026-10-08) ----------
+test("cadastro conjunto: um E-MAIL para CADA proponente (nunca um só 'para os dois')", () => {
+  for (const status of [["married", "married"], ["single", "single"], ["married", "single"]]) {
+    const joint = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: status[0], secondaryMaritalStatus: status[1], hasChildrenUnder18: false }));
+    const emails = joint.filter((item) => item.title === "E-MAIL");
+    assert.deepEqual(emails.map((item) => item.id), ["contato-p1", "contato-p2"], status.join("/"));
+    assert.equal(byId(joint, "contato"), undefined);
+    // cada e-mail fica no bloco do próprio proponente (logo depois do FGTS dele)
+    const order = ids(joint);
+    assert.equal(order[order.indexOf("fgts-p1") + 1], "contato-p1");
+    assert.equal(order[order.indexOf("fgts-p2") + 1], "contato-p2");
+  }
+});
+
+test("'PARA OS DOIS' só aparece quando há algo compartilhado (casal e/ou dependentes)", () => {
+  const nada = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: "single", secondaryMaritalStatus: "single", hasChildrenUnder18: false }));
+  assert.equal(byId(nada, "grupo-familia"), undefined);
+  const comFilhos = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: "single", secondaryMaritalStatus: "single", hasChildrenUnder18: true }));
+  assert.deepEqual(ids(comFilhos).slice(ids(comFilhos).indexOf("grupo-familia")), ["grupo-familia", "dependentes"]);
+  const casal = buildDocumentItemsFor(reg({ simulationType: "joint", primaryMaritalStatus: "married", secondaryMaritalStatus: "married", hasChildrenUnder18: false }));
+  assert.deepEqual(ids(casal).slice(ids(casal).indexOf("grupo-familia")), ["grupo-familia", "estado-civil-casal", "residencia-casal"]);
+});
+
+test("cadastro individual: continua com um E-MAIL só", () => {
+  assert.equal(buildDocumentItemsFor(reg()).filter((item) => item.title === "E-MAIL").length, 1);
 });
