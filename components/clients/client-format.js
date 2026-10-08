@@ -63,7 +63,7 @@ export function isPendingClient(client, extraActivities) {
 // sem contato > aguardando ação) — mesmos sinais de antes, sem score novo.
 export function getUrgencySignal(client, extraActivities) {
   if (isOverdueActivityClient(client)) return { key: "overdue", label: "Atividade atrasada", tone: "danger" };
-  if (isStaleContactClient(client)) return { key: "stale", label: "Sem contato há +3 dias", tone: "warning" };
+  if (isStaleContactClient(mergeActivitySignal(client, extraActivities))) return { key: "stale", label: "Sem contato há +3 dias", tone: "warning" };
   if (isPendingClient(client, extraActivities)) return { key: "pending", label: "Aguardando ação", tone: "warning" };
   return null;
 }
