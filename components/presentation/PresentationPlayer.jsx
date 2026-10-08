@@ -57,7 +57,9 @@ function announcement(scene, index, total) {
     case "poder": return scene.comparison
       ? `${head}Seu poder de compra. No SAC: ${formatBRL(scene.comparison.sac)}. No Price: ${formatBRL(scene.comparison.price)}.`
       : `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
-    case "formacao": return `${head}Como esse valor é formado. Poder total de compra: ${formatBRL(scene.total)}.`;
+    case "formacao": return scene.comparison
+      ? `${head}Como esse valor é formado. No SAC: financiamento ${formatBRL(scene.comparison.sac.financing)} mais subsídio ${formatBRL(scene.comparison.sac.subsidy)}, total ${formatBRL(scene.comparison.sac.total)}. No Price: financiamento ${formatBRL(scene.comparison.price.financing)} mais subsídio ${formatBRL(scene.comparison.price.subsidy)}, total ${formatBRL(scene.comparison.price.total)}.`
+      : `${head}Como esse valor é formado. Poder total de compra: ${formatBRL(scene.total)}.`;
     case "parcelas": {
       const rate = formatInterestRateLabel(scene.interestRate);
       return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
@@ -178,7 +180,45 @@ function ScenePoder({ scene, reduced }) {
   );
 }
 
+// Formação com SAC x Price diferentes: um cartão por sistema (financiamento + subsídio = total), um depois do outro.
+const FORMACAO_DUO = [["sac", "No SAC", 400], ["price", "No Price", 3000]];
+
+function SceneFormacaoDuo({ scene, reduced }) {
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Como esse valor é formado</p>
+      <div className={styles.cmpCards}>
+        {FORMACAO_DUO.map(([key, label, delay]) => {
+          const part = scene.comparison[key];
+          return (
+            <div key={key} className={`${styles.cmpCard} ${styles.rise}`} style={{ "--d": `${delay}ms` }} role="group" aria-label={label}>
+              <span className={styles.cmpName}>{label}</span>
+              {part.financing > 0 ? (
+                <div className={styles.cmpLine}>
+                  <span className={styles.cmpLabel}>Financiamento</span>
+                  <strong className={styles.cmpVal}>{formatBRL(part.financing)}</strong>
+                </div>
+              ) : null}
+              {part.subsidy > 0 ? (
+                <div className={styles.cmpLine}>
+                  <span className={styles.cmpLabel}>+ Subsídio</span>
+                  <strong className={styles.cmpVal}>{formatBRL(part.subsidy)}</strong>
+                </div>
+              ) : null}
+              <div className={`${styles.cmpLine} ${styles.cmpSum}`}>
+                <span className={styles.cmpLabel}>= Poder de compra</span>
+                <strong className={styles.cmpVal}><Count value={part.total} reduced={reduced} duration={1100} delay={delay + 900} /></strong>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SceneFormacao({ scene, reduced }) {
+  if (scene.comparison) return <SceneFormacaoDuo scene={scene} reduced={reduced} />;
   const single = scene.mode !== "soma";
   return (
     <div className={styles.sceneInner}>

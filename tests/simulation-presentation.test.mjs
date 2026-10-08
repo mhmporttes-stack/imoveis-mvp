@@ -197,15 +197,16 @@ test("cenas: roteiro principal (os imóveis sugeridos NÃO entram: vivem no ramo
   assert.equal(scenes.find((scene) => scene.id === "proximo").dateLabel, "03/10/2026");
 });
 
-test("cenas: subsídio R$ 0 → financiamento como valor total, sem destacar zero", () => {
+test("cenas: sem subsídio (só financiamento) ou só subsídio → NÃO há cena de formação (repetiria o poder de compra)", () => {
+  // dono, 2026-10-08: "Como esse valor é formado" só existe quando há subsídio (financiamento + subsídio)
   const sim = sensitiveSimulation({ simulationModels: { novo: { ...same, subsidyValue: 0 }, usado: { ...same, subsidyValue: 0 } } });
-  const formacao = buildPresentationScenes({ simulation: sim, defaultReason: DEFAULT_REASON }).find((scene) => scene.id === "formacao");
-  assert.equal(formacao.mode, "financiamento");
-  assert.equal(formacao.total, 190000);
-  assert.equal(formacao.subsidy, 0);
-  // o componente usa só `mode` e `total` neste caso; o texto do player nunca cita o valor zero (ver teste do player)
+  const scenes = buildPresentationScenes({ simulation: sim, defaultReason: DEFAULT_REASON });
+  assert.ok(!scenes.some((scene) => scene.id === "formacao"));
+  assert.equal(scenes.find((scene) => scene.id === "poder").value, 190000, "o poder de compra continua na cena anterior");
   const onlySubsidy = sensitiveSimulation({ simulationModels: { novo: { ...same, financingValue: 0 }, usado: { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "" } } });
-  assert.equal(buildPresentationScenes({ simulation: onlySubsidy }).find((scene) => scene.id === "formacao").mode, "subsidio");
+  assert.ok(!buildPresentationScenes({ simulation: onlySubsidy }).some((scene) => scene.id === "formacao"));
+  // com financiamento E subsídio a cena existe (é a explicação: 400 mil de financiamento + 12 mil de subsídio)
+  assert.equal(buildPresentationScenes({ simulation: sensitiveSimulation() }).find((scene) => scene.id === "formacao").mode, "soma");
 });
 
 test("cenas: só o SUBSÍDIO diferente entre novo e usado gera a cena de diferença; financiamento/parcela diferentes não", () => {
@@ -307,9 +308,13 @@ test("números da apresentação = números que o PDF usa (mesma função getRen
     const formacao = scenes.find((scene) => scene.id === "formacao");
     const parcelas = scenes.find((scene) => scene.id === "parcelas");
     assert.equal(poder.value, pdfModels[0].totals.total);
-    assert.equal(formacao.financing, pdfModels[0].totals.financing);
-    assert.equal(formacao.subsidy, pdfModels[0].totals.subsidy);
-    assert.equal(formacao.total, pdfModels[0].totals.financing + pdfModels[0].totals.subsidy);
+    if (formacao) {
+      assert.equal(formacao.financing, pdfModels[0].totals.financing);
+      assert.equal(formacao.subsidy, pdfModels[0].totals.subsidy);
+      assert.equal(formacao.total, pdfModels[0].totals.financing + pdfModels[0].totals.subsidy);
+    } else {
+      assert.ok(!(pdfModels[0].totals.financing > 0 && pdfModels[0].totals.subsidy > 0), "sem subsídio não há cena de formação");
+    }
     const pdfMoney = (value) => (typeof value === "number" ? value : Number(String(value ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0);
     assert.equal(parcelas.first, pdfMoney(pdfModels[0].values.firstInstallment));
     assert.equal(parcelas.last, pdfMoney(pdfModels[0].values.lastInstallment));

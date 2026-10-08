@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Apresentação: poder de compra com SAC e Price + formação do valor só com subsídio
+- **Data:** 2026-10-08
+- **Área:** Apresentação / Simulação
+- **Alteração:** a cena "Seu poder de compra" mostra SAC e Price em sequência quando os valores diferem; a cena "Como esse valor é formado" só aparece quando há subsídio (antes aparecia sempre e repetia o valor) e, com SAC e Price diferentes, mostra os dois. Comparativo SAC x Price virou dois cartões. PRES-23 atualizada.
+- **Motivo:** pedido do dono (visual mais claro; a formação só repetia o poder de compra quando não há subsídio).
+- **Arquivos afetados:** `lib/simulation-presentation-core.mjs`, `components/presentation/PresentationPlayer.jsx`, `components/presentation/presentation.module.css`, `tests/simulation-systems-comparison.test.mjs`, `tests/simulation-presentation.test.mjs`
+- **Risco/observação:** apresentações sem subsídio passam a ter uma cena a menos (a imagem-resumo também não mostra a linha de formação). Testes do próprio recurso passam; `round2`/`round3`/`approval`/`share` não carregam neste ambiente (falta `react`) mas os dados deles têm subsídio, então mantêm a cena. A CONFIRMAR em produção: ver as duas cenas animadas.
+- **Autor:** Claude Code
 ### 2026-10-08 — Simulação em SAC e Price + cena de comparativo na apresentação
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação

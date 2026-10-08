@@ -143,3 +143,25 @@ test("poder com dois valores: DTO público leva só os dois números; player tem
   assert.ok(player.includes("ScenePoderDuo") && player.includes("if (scene.comparison) return <ScenePoderDuo"));
   assert.ok(player.includes("No SAC") && player.includes("No Price"));
 });
+
+test("formação do valor: só com subsídio; SAC x Price diferentes com subsídio → os dois, um depois do outro", () => {
+  const noSubsidy = { ...price, subsidyValue: "" };
+  assert.ok(!ids(buildPresentationScenes({ simulation: sim({ novo: noSubsidy }) })).includes("formacao"));
+  assert.ok(!ids(buildPresentationScenes({ simulation: sim({ novo: { ...noSubsidy, sac: { ...sac, subsidyValue: "" } } }) })).includes("formacao"), "sem subsídio em nenhum dos dois: sem cena");
+  const normal = buildPresentationScenes({ simulation: sim({ novo: price }) }).find((item) => item.id === "formacao");
+  assert.equal(normal.mode, "soma");
+  assert.equal(normal.comparison, undefined);
+  const duo = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac } }) }).find((item) => item.id === "formacao");
+  assert.deepEqual(duo.comparison, { sac: { financing: 190000, subsidy: 42000, total: 232000 }, price: { financing: 180000, subsidy: 42000, total: 222000 } });
+  assert.ok(duo.durationMs > 7000);
+  // subsídio só no SAC: o Price aparece sem a linha de subsídio, mas a cena existe
+  const onlySacSubsidy = buildPresentationScenes({ simulation: sim({ novo: { ...noSubsidy, sac } }) }).find((item) => item.id === "formacao");
+  assert.equal(onlySacSubsidy.comparison.price.subsidy, 0);
+  // partes iguais nos dois sistemas: cena normal (nada para comparar)
+  const same = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac: { ...price } } }) }).find((item) => item.id === "formacao");
+  assert.equal(same.comparison, undefined);
+  const dto = buildPublicPresentation({ simulation: sim({ novo: { ...price, sac } }) });
+  assert.ok(PUBLIC_SCENE_FIELDS.formacao.includes("comparison"));
+  assert.deepEqual(Object.keys(dto.scenes.find((item) => item.id === "formacao").comparison.sac).sort(), ["financing", "subsidy", "total"]);
+  assert.ok(read("components/presentation/PresentationPlayer.jsx").includes("if (scene.comparison) return <SceneFormacaoDuo"));
+});
