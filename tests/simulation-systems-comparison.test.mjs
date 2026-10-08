@@ -1,6 +1,6 @@
 // Price x SAC (dono, 2026-10-08): cada tipo de imóvel pode ter a simulação em Price (o que sempre existiu, ~90% dos casos)
 // e/ou em SAC (raro, bloco extra `model.sac`, mesmos 4 campos); a apresentação ganha a cena "comparativo" SÓ quando os
-// dois sistemas foram preenchidos. Dados 100% sintéticos.
+// dois sistemas foram preenchidos (poder de compra, formação e parcelas mostram SAC e Price). Dados 100% sintéticos.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,7 +14,7 @@ import {
   simulationModelHasValues,
   toggleSimulationModel
 } from "../lib/simulation-models.js";
-import { PUBLIC_COMPARATIVO_FIELDS, PUBLIC_SCENE_FIELDS, buildPublicPresentation, buildPresentationScenes, systemComparison } from "../lib/simulation-presentation-core.mjs";
+import { PUBLIC_SCENE_FIELDS, buildPublicPresentation, buildPresentationScenes, systemComparison } from "../lib/simulation-presentation-core.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 // Os campos de sempre do modelo são o PRICE; o SAC é o bloco extra `sac`.
@@ -61,29 +61,36 @@ test("entradas por tipo × sistema (Price primeiro); sem SAC nada muda (sem rót
   assert.deepEqual(noSac.map((item) => `${item.type}:${item.system}:${item.systemLabel}`), ["novo:price:", "usado:price:"]);
 });
 
-test("apresentação: comparativo SAC x Price SÓ com os dois sistemas; entra depois das parcelas; cenas normais = Price", () => {
+test("apresentação: com os dois sistemas as cenas de poder e parcelas mostram SAC e Price; cenas normais = Price", () => {
   const both = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac } }) });
-  assert.deepEqual(ids(both), ["abertura", "poder", "formacao", "parcelas", "comparativo", "proximo", "validar", "documentos"]);
-  const scene = both.find((item) => item.id === "comparativo");
-  assert.deepEqual(scene.sac, { financing: 190000, subsidy: 42000, total: 232000, first: 1085.4, last: 812.15 });
-  assert.deepEqual(scene.price, { financing: 180000, subsidy: 42000, total: 222000, first: 1010.1, last: 1010.1 });
-  // as cenas de poder/formação/parcelas continuam sendo as do Price (modelo principal, o que sempre existiu)
+  assert.deepEqual(ids(both), ["abertura", "poder", "formacao", "parcelas", "proximo", "validar", "documentos"], "sem cena \"comparativo\" separada");
+  assert.deepEqual(both.find((item) => item.id === "parcelas").comparison, { sac: { first: 1085.4, last: 812.15 }, price: { first: 1010.1, last: 1010.1 } });
+  // o valor principal das cenas continua o do Price (modelo principal, o que sempre existiu)
   assert.equal(both.find((item) => item.id === "poder").value, 222000);
   assert.equal(both.find((item) => item.id === "parcelas").first, 1010.1);
+  assert.ok(both.find((item) => item.id === "parcelas").durationMs > 7000);
 });
 
-test("apresentação: só Price, ou só SAC → sem comparativo (só a apresentação); só SAC usa os números do SAC", () => {
-  assert.ok(!ids(buildPresentationScenes({ simulation: sim({ novo: price }) })).includes("comparativo"));
+test("apresentação: só Price, ou só SAC → nada de comparação (só a apresentação); só SAC usa os números do SAC", () => {
+  const withNone = (scenes) => scenes.every((item) => item.comparison === undefined);
+  assert.ok(withNone(buildPresentationScenes({ simulation: sim({ novo: price }) })));
   const onlySac = buildPresentationScenes({ simulation: sim({ novo: { ...emptySimulationModel(), sac } }) });
-  assert.ok(!ids(onlySac).includes("comparativo"));
+  assert.ok(withNone(onlySac));
   assert.equal(onlySac.find((item) => item.id === "poder").value, 232000);
   assert.equal(onlySac.find((item) => item.id === "parcelas").last, 812.15);
 });
 
-test("apresentação: Price num tipo e SAC em OUTRO tipo não é comparativo; vale o primeiro tipo com os dois", () => {
-  assert.ok(!ids(buildPresentationScenes({ simulation: sim({ novo: price, usado: { ...emptySimulationModel(), sac } }) })).includes("comparativo"));
+test("apresentação: parcelas iguais nos dois sistemas → cena de parcelas normal", () => {
+  const equal = buildPresentationScenes({ simulation: sim({ novo: { ...price, sac: { ...sac, firstInstallment: price.firstInstallment, lastInstallment: price.lastInstallment } } }) });
+  assert.equal(equal.find((item) => item.id === "parcelas").comparison, undefined);
+  assert.ok(equal.find((item) => item.id === "poder").comparison, "o poder de compra continua diferente");
+});
+
+test("apresentação: Price num tipo e SAC em OUTRO tipo não é comparação; vale o primeiro tipo com os dois", () => {
+  const cross = buildPresentationScenes({ simulation: sim({ novo: price, usado: { ...emptySimulationModel(), sac } }) });
+  assert.ok(cross.every((item) => item.comparison === undefined));
   const second = buildPresentationScenes({ simulation: sim({ novo: price, usado: { ...price, sac } }) });
-  assert.ok(ids(second).includes("comparativo"));
+  assert.ok(second.find((item) => item.id === "parcelas").comparison);
   assert.equal(systemComparison(getRenderableSimulationModels(sim({ novo: price, usado: { ...price, sac } }))).sac.first, 1085.4);
 });
 
@@ -93,14 +100,14 @@ test("a cena de diferença de subsídio novo x usado continua usando o Price e c
   const difference = scenes.find((item) => item.id === "diferenca");
   assert.equal(difference.novo, 42000);
   assert.equal(difference.usado, 30000);
-  assert.ok(ids(scenes).indexOf("comparativo") < ids(scenes).indexOf("diferenca"));
 });
 
-test("DTO público: a cena comparativo só leva os campos permitidos e os números dos dois sistemas", () => {
+test("DTO público: as cenas com dois sistemas só levam os campos permitidos e só números", () => {
   const dto = buildPublicPresentation({ simulation: sim({ novo: { ...price, sac } }) });
-  const scene = dto.scenes.find((item) => item.id === "comparativo");
-  assert.deepEqual(Object.keys(scene).sort(), [...PUBLIC_SCENE_FIELDS.comparativo].sort());
-  for (const system of [scene.sac, scene.price]) assert.deepEqual(Object.keys(system).sort(), [...PUBLIC_COMPARATIVO_FIELDS].sort());
+  for (const scene of dto.scenes) for (const key of Object.keys(scene)) assert.ok(PUBLIC_SCENE_FIELDS[scene.id].includes(key), `${scene.id}.${key}`);
+  const parcelas = dto.scenes.find((item) => item.id === "parcelas");
+  for (const system of [parcelas.comparison.sac, parcelas.comparison.price]) assert.deepEqual(Object.keys(system).sort(), ["first", "last"]);
+  assert.equal(PUBLIC_SCENE_FIELDS.comparativo, undefined, "a cena comparativo separada não existe mais");
   const text = JSON.stringify(dto).toLowerCase();
   assert.ok(!text.includes("novo") && !text.includes("usado"), "a apresentação não diz novo/usado");
 });
@@ -110,16 +117,16 @@ test("lista de clientes: simulação só com SAC já conta como realizada (soma 
   assert.ok(utils.includes("flatMap(({ key }) => [models[key] || {}, models[key]?.sac || {}])"));
 });
 
-test("gerador e player: blocos Price/SAC, PDF/imagem só Price e a cena comparativo", () => {
+test("gerador e player: blocos Price/SAC e PDF/imagem só Price; player com as cenas duplas", () => {
   const generator = read("components/SimulationGenerator.jsx");
   assert.ok(generator.includes('data-system="price"') && generator.includes('data-system="sac"'));
   assert.ok(generator.includes("updateSacModel(key, \"firstInstallment\""));
   assert.ok(!generator.includes("SISTEMA ${escapeXml"), "PDF/imagem não levam rótulo de sistema");
   assert.ok(generator.includes('model.system !== "sac"'), "PDF/imagem só com o Price");
   const player = read("components/presentation/PresentationPlayer.jsx");
-  assert.ok(player.includes('case "comparativo": return <SceneComparativo scene={scene} />;'));
-  assert.ok(player.includes("Comparativo entre SAC e Price"));
-  assert.ok(player.includes("COMPARATIVO_SYSTEMS") && !player.includes("COMPARATIVO_ROWS"), "visual limpo: dois cartões, sem a tabela de 5 linhas");
+  assert.ok(player.includes("if (scene.comparison) return <SceneParcelasDuo") && player.includes("SceneParcelasDuo"));
+  assert.ok(!player.includes("SceneComparativo"), "a cena comparativo separada saiu");
+  assert.ok(player.includes('["sac", "SAC"') && player.includes('["price", "Price"'), "cada cartão leva o nome do sistema");
 });
 
 test("poder de compra com dois valores: só quando SAC e Price liberam valores DIFERENTES (em centavos)", () => {
@@ -141,7 +148,7 @@ test("poder com dois valores: DTO público leva só os dois números; player tem
   assert.ok(PUBLIC_SCENE_FIELDS.poder.includes("comparison"));
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.ok(player.includes("ScenePoderDuo") && player.includes("if (scene.comparison) return <ScenePoderDuo"));
-  assert.ok(player.includes("No SAC") && player.includes("No Price"));
+  assert.ok(player.includes('const PODER_DUO = [["sac", "SAC"') && player.includes('["price", "Price"'));
 });
 
 test("formação do valor: só com subsídio; SAC x Price diferentes com subsídio → os dois, um depois do outro", () => {

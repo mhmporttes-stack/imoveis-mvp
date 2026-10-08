@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-08 — Apresentação: parcelas de SAC e Price na mesma cena (sai a cena comparativo)
+- **Data:** 2026-10-08
+- **Área:** Apresentação / Simulação
+- **Alteração:** a cena "Condição de pagamento" mostra primeira e última parcela de cada sistema (cartões SAC e Price, um depois do outro) quando as parcelas diferem; os rótulos dos cartões viraram só o nome do sistema. A cena "comparativo" separada foi removida (poder de compra, formação e parcelas já mostram os dois). PRES-23 atualizada.
+- **Motivo:** pedido do dono (mais claro e menos repetido).
+- **Arquivos afetados:** `lib/simulation-presentation-core.mjs`, `components/presentation/PresentationPlayer.jsx`, `tests/simulation-systems-comparison.test.mjs`
+- **Risco/observação:** DTO público: cena `comparativo` removida; `parcelas`, `poder` e `formacao` ganham o campo opcional `comparison` (só números). Testes do recurso passam. A CONFIRMAR em produção: ver as cenas animadas.
+- **Autor:** Claude Code
 ### 2026-10-08 — Apresentação: poder de compra com SAC e Price + formação do valor só com subsídio
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Simulação

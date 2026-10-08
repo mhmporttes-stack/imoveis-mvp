@@ -55,17 +55,20 @@ function announcement(scene, index, total) {
   switch (scene.id) {
     case "abertura": return `${head}${scene.firstName ? `${scene.firstName}, sua` : "Sua"} simulação de financiamento está pronta. Você já está um passo mais próximo da compra do seu imóvel.`;
     case "poder": return scene.comparison
-      ? `${head}Seu poder de compra. No SAC: ${formatBRL(scene.comparison.sac)}. No Price: ${formatBRL(scene.comparison.price)}.`
+      ? `${head}Seu poder de compra. SAC: ${formatBRL(scene.comparison.sac)}. Price: ${formatBRL(scene.comparison.price)}.`
       : `${head}Seu poder de compra: ${formatBRL(scene.value)}.`;
     case "formacao": return scene.comparison
-      ? `${head}Como esse valor é formado. No SAC: financiamento ${formatBRL(scene.comparison.sac.financing)} mais subsídio ${formatBRL(scene.comparison.sac.subsidy)}, total ${formatBRL(scene.comparison.sac.total)}. No Price: financiamento ${formatBRL(scene.comparison.price.financing)} mais subsídio ${formatBRL(scene.comparison.price.subsidy)}, total ${formatBRL(scene.comparison.price.total)}.`
+      ? `${head}Como esse valor é formado. SAC: financiamento ${formatBRL(scene.comparison.sac.financing)} mais subsídio ${formatBRL(scene.comparison.sac.subsidy)}, total ${formatBRL(scene.comparison.sac.total)}. Price: financiamento ${formatBRL(scene.comparison.price.financing)} mais subsídio ${formatBRL(scene.comparison.price.subsidy)}, total ${formatBRL(scene.comparison.price.total)}.`
       : `${head}Como esse valor é formado. Poder total de compra: ${formatBRL(scene.total)}.`;
     case "parcelas": {
       const rate = formatInterestRateLabel(scene.interestRate);
+      if (scene.comparison) {
+        const { sac, price } = scene.comparison;
+        return `${head}Condição de pagamento. SAC: primeira parcela ${formatBRL(sac.first)}, última parcela ${formatBRL(sac.last)}. Price: primeira parcela ${formatBRL(price.first)}, última parcela ${formatBRL(price.last)}${rate ? `. Taxa de juros ${rate}` : ""}.`;
+      }
       return `${head}Condição de pagamento. Primeira parcela ${formatBRL(scene.first)}, última parcela ${formatBRL(scene.last)}${rate ? `, taxa de juros ${rate}` : ""}.`;
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
-    case "comparativo": return `${head}Comparativo entre SAC e Price. Poder de compra: SAC ${formatBRL(scene.sac.total)}, Price ${formatBRL(scene.price.total)}. Primeira parcela: SAC ${formatBRL(scene.sac.first)}, Price ${formatBRL(scene.price.first)}. Última parcela: SAC ${formatBRL(scene.sac.last)}, Price ${formatBRL(scene.price.last)}.`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
     case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT}`;
     default: return `${head}Próximo passo.`;
@@ -144,7 +147,7 @@ function SceneAbertura({ scene, reduced }) {
 
 // Dois valores (SAC x Price diferentes): cada sistema entra com o seu número contando, um depois do outro; no fim os dois
 // ficam na tela (nada de tabela). O servidor só manda `comparison` quando os poderes de compra são diferentes.
-const PODER_DUO = [["sac", "No SAC", 450], ["price", "No Price", 2500]];
+const PODER_DUO = [["sac", "SAC", 450], ["price", "Price", 2500]];
 
 function ScenePoderDuo({ scene, reduced }) {
   return (
@@ -181,7 +184,7 @@ function ScenePoder({ scene, reduced }) {
 }
 
 // Formação com SAC x Price diferentes: um cartão por sistema (financiamento + subsídio = total), um depois do outro.
-const FORMACAO_DUO = [["sac", "No SAC", 400], ["price", "No Price", 3000]];
+const FORMACAO_DUO = [["sac", "SAC", 400], ["price", "Price", 3000]];
 
 function SceneFormacaoDuo({ scene, reduced }) {
   return (
@@ -256,7 +259,40 @@ function SceneFormacao({ scene, reduced }) {
   );
 }
 
+// Parcelas com SAC x Price diferentes: um cartão por sistema (primeira e última parcela), um depois do outro.
+const PARCELAS_DUO = [["sac", "SAC", 400], ["price", "Price", 2300]];
+
+function SceneParcelasDuo({ scene }) {
+  const rate = formatInterestRateLabel(scene.interestRate);
+  return (
+    <div className={styles.sceneInner}>
+      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Condição de pagamento</p>
+      <div className={styles.cmpCards}>
+        {PARCELAS_DUO.map(([key, label, delay]) => (
+          <div key={key} className={`${styles.cmpCard} ${styles.rise}`} style={{ "--d": `${delay}ms` }} role="group" aria-label={label}>
+            <span className={styles.cmpName}>{label}</span>
+            {scene.comparison[key].first > 0 ? (
+              <div className={styles.cmpLine}>
+                <span className={styles.cmpLabel}>Primeira parcela</span>
+                <strong className={styles.cmpVal}>{formatBRL(scene.comparison[key].first)}</strong>
+              </div>
+            ) : null}
+            {scene.comparison[key].last > 0 ? (
+              <div className={styles.cmpLine}>
+                <span className={styles.cmpLabel}>Última parcela</span>
+                <strong className={styles.cmpVal}>{formatBRL(scene.comparison[key].last)}</strong>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {rate ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "4000ms" }}>Taxa de juros: {rate}</p> : null}
+    </div>
+  );
+}
+
 function SceneParcelas({ scene }) {
+  if (scene.comparison) return <SceneParcelasDuo scene={scene} />;
   const both = scene.first > 0 && scene.last > 0;
   const rate = formatInterestRateLabel(scene.interestRate);
   return (
@@ -284,44 +320,6 @@ function SceneParcelas({ scene }) {
         ) : null}
       </div>
       <p className={`${styles.note} ${styles.rise}`} style={{ "--d": rate ? (both ? "2800ms" : "1500ms") : both ? "2100ms" : "900ms" }}>Valores da simulação realizada.</p>
-    </div>
-  );
-}
-
-// Comparativo SAC x Price (dono, 2026-10-08): só existe quando a simulação foi feita nos DOIS sistemas (decisão do servidor).
-// Visual limpo (o dono achou a tabela confusa): dois cartões empilhados, um por sistema, com poder de compra e primeira/última parcela.
-const COMPARATIVO_SYSTEMS = [["sac", "SAC"], ["price", "Price"]];
-
-function SceneComparativo({ scene }) {
-  return (
-    <div className={styles.sceneInner}>
-      <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Comparativo</p>
-      <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": "150ms" }}>SAC x Price</h2>
-      <div className={styles.cmpCards}>
-        {COMPARATIVO_SYSTEMS.map(([key, label], index) => (
-          <div key={key} className={`${styles.cmpCard} ${styles.rise}`} style={{ "--d": `${450 + index * 700}ms` }} role="group" aria-label={label}>
-            <span className={styles.cmpName}>{label}</span>
-            {scene[key]?.total > 0 ? (
-              <div className={styles.cmpLine}>
-                <span className={styles.cmpLabel}>Poder de compra</span>
-                <strong className={styles.cmpVal}>{formatBRL(scene[key].total)}</strong>
-              </div>
-            ) : null}
-            {scene[key]?.first > 0 ? (
-              <div className={styles.cmpLine}>
-                <span className={styles.cmpLabel}>Primeira parcela</span>
-                <strong className={styles.cmpVal}>{formatBRL(scene[key].first)}</strong>
-              </div>
-            ) : null}
-            {scene[key]?.last > 0 ? (
-              <div className={styles.cmpLine}>
-                <span className={styles.cmpLabel}>Última parcela</span>
-                <strong className={styles.cmpVal}>{formatBRL(scene[key].last)}</strong>
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -676,7 +674,6 @@ function renderScene(scene, ctx) {
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
     case "diferenca": return <SceneDiferenca scene={scene} />;
-    case "comparativo": return <SceneComparativo scene={scene} />;
     // imóvel/valores vivem no RAMO da simulação; na apresentação de APROVAÇÃO (PRES-21) fazem parte do roteiro principal
     case "imovel": return ctx.inBranch
       ? <SceneImovel scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} nextIsValues={ctx.nextIsValues} fast={ctx.fast} />
