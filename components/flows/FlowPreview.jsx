@@ -8,6 +8,7 @@ import { isWithinBusinessHours, runFlow } from "@/lib/whatsapp-flow-core.mjs";
 // envio/ações simulados — nada é enviado para ninguém nem grava no CRM.
 const SAMPLE_VARS = {
   nome: "Cliente Teste",
+  saudacao: "Bom dia",
   primeiro_nome: "Cliente",
   telefone: "+55 14 90000-0000",
   link_simulacao: "https://www.matheusmachadoimoveis.com.br/s/exemplo?jornada=simulacao",
