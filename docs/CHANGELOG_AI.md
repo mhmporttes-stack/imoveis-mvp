@@ -51,6 +51,8 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `lib/simulation-presentation-documents.mjs`, `tests/simulation-presentation-round3.test.mjs`
 - **Risco/observação:** só montagem do texto da lista. Dois testes visuais antigos (`ramo`, `logo da Caixa`) já falhavam antes.
 - **Autor:** Claude Code
+### 2026-10-08 — WhatsApp 2 números: migrations aplicadas em produção
+- Parte 1 (`20261008160000`) aplicada antes do deploy; parte 2 (`20261008160100`, PK `(user_id, slot)` e saída do UNIQUE antigo da conversa) aplicada pelo dono no SQL Editor do Supabase depois do deploy — o MCP do Supabase expirava em qualquer DDL com DROP. Conferido: PK `(user_id, slot)`, índice antigo removido, 9 sessões preservadas.
 ### 2026-10-08 — Lista de documentos: casal sem repetição e comprovante de residência "atualizado"
 - **Data:** 2026-10-08
 - **Área:** Apresentação / Documentos
