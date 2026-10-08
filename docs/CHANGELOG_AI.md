@@ -20,6 +20,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 ## Como registrar
 
 1. Acrescente a entrada logo **abaixo do título “## Registro”
+### 2026-10-08 — Meta: evento "CadastroCRM" só do servidor (contagem real de cadastros)
+- **O quê:** `sendMetaLeadEvent` (`lib/meta-conversions-api.js`) envia, junto do `Lead`, o evento personalizado `CadastroCRM` (event_id `<id>-crm`), só depois do cadastro novo gravado. Nada muda no pixel do navegador.
+- **Por quê:** pedido do dono — o número de cadastros da Meta não batia. Prova: em 06/10 a Meta contou 22 leads e o site inteiro recebeu 12 cadastros (de todas as origens); nosso código só dispara `Lead` após o insert, então os extras vêm de fora (suspeita: Signals Gateway/Birch). Com a conversão personalizada sobre `CadastroCRM`, o Gerenciador passa a contar só cadastro real.
+- **Pendente do dono:** criar a conversão personalizada "Cadastro CRM" no Gerenciador de Eventos e usá-la como coluna (e, em campanha nova, como evento de otimização). A CONFIRMAR: `META_CONVERSIONS_API_ACCESS_TOKEN` configurado na Vercel (sem ele nada é enviado).
+- **Arquivos:** `lib/meta-conversions-api.js`, `tests/meta-crm-registration-event.test.mjs`, `docs/TRAFEGO_META.md`.
+
 ### 2026-10-08 — Roleta: sem atendimento em 5 min e ninguém on-line → fila de espera (ROL-4a)
 - **O quê:** na REDISTRIBUIÇÃO DE LEADS, quando não há outro corretor on-line, o cliente deixa de ficar com quem não atendeu: vai para o dono com `pending_distribution_at` (`moveClientToRouletteWaitingQueue`) e a fila o entrega ao próximo corretor on-line, excluindo quem o perdeu. Cliente na fila é ignorado pela redistribuição. A entrega pela fila agora grava `responsible_changed_at` (o prazo de 5 min conta da entrega).
 - **Por quê:** regra do dono. Bug encontrado junto: clientes entregues pela fila tinham o prazo contado da criação — nunca eram redistribuídos (3 clientes de hoje, 06:26) ou eram tirados em menos de 5 min (07:00 → 07:04).
