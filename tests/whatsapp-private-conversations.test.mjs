@@ -51,3 +51,14 @@ test("responder no interno cita a mensagem só para a equipe (2026-10-09)", () =
   const menu = read("components/WhatsappMessageActions.jsx");
   assert.ok((menu.match(/Responder no interno/g) || []).length >= 2);
 });
+
+test("conversa particular não gera notificação de nenhum tipo (dono, 2026-10-09)", () => {
+  const chat = read("lib/whatsapp-chat.js");
+  assert.match(chat, /\.or\("deleted_at\.not\.is\.null,private_at\.not\.is\.null"\)/, "push do número oficial");
+  assert.match(chat, /async function notifyInternalMessage\(conversation, auth\) \{\n[^\n]*\n\s+if \(conversation\?\.private_at\) return;/, "nota interna");
+  assert.match(read("lib/whatsapp-individual-inbound.js"), /\|\| privateContact;/, "push do WhatsApp pessoal");
+  assert.match(read("lib/alexa-reply-alert.js"), /row\.private_at/, "alerta de cliente sem resposta");
+  assert.match(read("lib/prospecting-reply.js"), /return \{ outcome: "conversa_particular" \}/, "resposta da prospecção");
+  assert.match(read("lib/whatsapp-form-reminder.js"), /if \(!conversation \|\| conversation\.private_at\) return null;/, "lembrete do formulário");
+  assert.match(read("lib/whatsapp-flows.js"), /if \(loadedConversation\.private_at\) return true;/, "fluxos e respostas automáticas");
+});
