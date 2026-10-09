@@ -92,7 +92,7 @@ function canForward(message) {
   return Boolean(message.body) && !message.revoked;
 }
 
-function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote }) {
+function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote, onReplyInternal }) {
   const { message, x, y } = target;
   const panelRef = useRef(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -141,9 +141,10 @@ function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDele
       ) : null}
       <div className="pt-1">
         {message.canReply ? <button type="button" className={itemClass} onClick={() => { onReply(message); onClose(); }}><Reply className="h-4 w-4 text-brand" />Responder</button> : null}
-        {onForward && canForward(message) ? <button type="button" className={itemClass} onClick={() => { onForward(message); onClose(); }}><Forward className="h-4 w-4 text-brand" />Encaminhar</button> : null}
+        {onReplyInternal ? <button type="button" className={itemClass} onClick={() => { onReplyInternal(message); onClose(); }}><Lock className="h-4 w-4 text-brand" />Responder no interno</button> : null}
+        {onForward && canForward(message) && !message.internal ? <button type="button" className={itemClass} onClick={() => { onForward(message); onClose(); }}><Forward className="h-4 w-4 text-brand" />Encaminhar</button> : null}
         {message.body ? <button type="button" className={itemClass} onClick={copy}><Copy className="h-4 w-4 text-brand" />Copiar texto</button> : null}
-        {onAddNote && canForward(message) ? <button type="button" disabled={busy} className={itemClass} onClick={() => run(async () => { await onAddNote(message); onClose(); })}><Lock className="h-4 w-4 text-brand" />Adicionar às notas internas</button> : null}
+        {onAddNote && canForward(message) && !message.internal ? <button type="button" disabled={busy} className={itemClass} onClick={() => run(async () => { await onAddNote(message); onClose(); })}><Lock className="h-4 w-4 text-brand" />Adicionar às notas internas</button> : null}
         {teamReaction ? <button type="button" disabled={busy} className={itemClass} onClick={() => run(async () => { await onReact(message, ""); onClose(); })}><Smile className="h-4 w-4 text-brand" />Remover minha reação</button> : null}
         {message.canEdit ? <button type="button" className={itemClass} onClick={() => { onEdit(message); onClose(); }}><Pencil className="h-4 w-4 text-brand" />Editar</button> : null}
         {message.canDelete ? (confirmingDelete ? (
@@ -155,7 +156,7 @@ function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDele
             </div>
           </div>
         ) : <button type="button" className={`${itemClass} text-red-700`} onClick={() => setConfirmingDelete(true)}><Trash2 className="h-4 w-4" />Apagar para todos</button>) : null}
-        {!message.canReply && !message.canReact && !message.body && !message.canEdit && !message.canDelete ? <p className="px-3 py-3 text-xs font-bold text-muted">Nenhuma ação disponível para esta mensagem.</p> : null}
+        {!message.canReply && !message.canReact && !message.body && !message.canEdit && !message.canDelete && !onReplyInternal ? <p className="px-3 py-3 text-xs font-bold text-muted">Nenhuma ação disponível para esta mensagem.</p> : null}
       </div>
     </>
   );
@@ -185,7 +186,7 @@ function safeAreaTop() {
   return value;
 }
 
-function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote }) {
+function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote, onReplyInternal }) {
   const { message, node } = target;
   const outbound = message.direction === "outbound";
   const stackRef = useRef(null);
@@ -248,9 +249,10 @@ function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDele
   const row = "flex w-full items-center justify-between gap-6 px-4 py-3 text-left text-[15px] font-semibold text-navy active:bg-black/5 disabled:opacity-50";
   const actions = [
     message.canReply ? <button key="reply" type="button" role="menuitem" className={row} onClick={() => { onReply(message); onClose(); }}>Responder<Reply className="h-5 w-5" /></button> : null,
-    onForward && canForward(message) ? <button key="forward" type="button" role="menuitem" className={row} onClick={() => { onForward(message); onClose(); }}>Encaminhar<Forward className="h-5 w-5" /></button> : null,
+    onReplyInternal ? <button key="reply-internal" type="button" role="menuitem" className={row} onClick={() => { onReplyInternal(message); onClose(); }}>Responder no interno<Lock className="h-5 w-5" /></button> : null,
+    onForward && canForward(message) && !message.internal ? <button key="forward" type="button" role="menuitem" className={row} onClick={() => { onForward(message); onClose(); }}>Encaminhar<Forward className="h-5 w-5" /></button> : null,
     message.body ? <button key="copy" type="button" role="menuitem" className={row} onClick={copy}>Copiar<Copy className="h-5 w-5" /></button> : null,
-    onAddNote && canForward(message) ? <button key="note" type="button" role="menuitem" disabled={busy} className={row} onClick={() => run(async () => { await onAddNote(message); onClose(); })}>Adicionar às notas<Lock className="h-5 w-5" /></button> : null,
+    onAddNote && canForward(message) && !message.internal ? <button key="note" type="button" role="menuitem" disabled={busy} className={row} onClick={() => run(async () => { await onAddNote(message); onClose(); })}>Adicionar às notas<Lock className="h-5 w-5" /></button> : null,
     message.canEdit ? <button key="edit" type="button" role="menuitem" className={row} onClick={() => { onEdit(message); onClose(); }}>Editar<Pencil className="h-5 w-5" /></button> : null,
     message.canDelete ? <button key="delete" type="button" role="menuitem" className={`${row} text-red-600`} onClick={() => setConfirmingDelete(true)}>Apagar<Trash2 className="h-5 w-5" /></button> : null
   ].filter(Boolean);

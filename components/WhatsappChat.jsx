@@ -791,6 +791,8 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [hasDocumentReports, setHasDocumentReports] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  // "Responder no interno" (pedido do dono, 2026-10-09): cita a mensagem numa nota que só a equipe vê.
+  const [internalRequest, setInternalRequest] = useState(0);
   const [editTarget, setEditTarget] = useState(null);
   const [actionTarget, setActionTarget] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
@@ -802,6 +804,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const messages = detail?.messages || [];
   // Foto/nome do contato para o player de áudio (estilo WhatsApp).
   const audioContact = conversation ? { name: displayName(conversation), photoUrl: conversation.photoUrl || "" } : null;
+  const byId = new Map(messages.map((message) => [message.id, message]));
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
   const showAssume = Boolean(conversation) && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
   // Dois números (2026-10-08): conversa de cliente no MEU WhatsApp pessoal pode ser aberta no meu outro número conectado.
@@ -1149,7 +1152,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} />
+          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} />
         )))}
         {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
@@ -1158,11 +1161,12 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         // Cliente arquivado (WA-13): só o dono abre, pelo card, para LER. Fica fora da caixa do Chat.
         <p role="status" className="border-t border-line bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">Cliente arquivado — conversa fora do Chat, somente leitura. Desarquive o cliente para voltar a conversar.</p>
       ) : (
-        <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
+        <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} internalRequest={internalRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
       )}
 
       {actionTarget ? <MessageActionsMenu target={actionTarget} onClose={() => setActionTarget(null)} onReply={startReply} onReact={reactTo} onEdit={startEdit} onDelete={deleteForEveryone}
-        onForward={conversation.archivedReadOnly ? null : setForwardMessage} onAddNote={conversation.canInternal ? addToNotes : null} /> : null}
+        onForward={conversation.archivedReadOnly ? null : setForwardMessage} onAddNote={conversation.canInternal ? addToNotes : null}
+        onReplyInternal={conversation.canInternal ? (message) => { setEditTarget(null); setReplyTo(message); setInternalRequest((value) => value + 1); } : null} /> : null}
       {forwardMessage ? <ForwardDialog message={forwardMessage} currentConversationId={conversation.id} onClose={() => setForwardMessage(null)} onSent={onChanged} /> : null}
 
       {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
@@ -1395,16 +1399,22 @@ function LinkPreviewCard({ preview, outbound }) {
   );
 }
 
-function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null }) {
-  const hasActions = !message.internal && (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body));
+function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false }) {
+  const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
   if (message.internal) {
     // Nota interna: centralizada, azul tracejada e com cadeado — nunca parece mensagem enviada ao cliente.
     return (
       <div className={`flex justify-center ${first ? "mt-2.5" : "mt-1"}`}>
-        <div data-internal-message className="max-w-[88%] rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[70%]">
+        <div data-internal-message {...trigger} data-message-id={message.id} className="max-w-[88%] select-text rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] [@media(pointer:coarse)]:select-none sm:max-w-[70%]">
           <p className="mb-0.5 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-brand"><Lock className="h-3 w-3" aria-hidden="true" />Interno • {message.sentByName || "Equipe"} <span className="font-semibold normal-case tracking-normal text-[#54656F]">· o cliente não vê</span></p>
+          {quoted || message.internalReplyTo ? (
+            <div className="mb-1 rounded-md border-l-4 border-brand bg-white/70 px-2 py-1 text-xs">
+              <span className="block font-bold text-brand">{quoted ? (quoted.internal ? `Interno • ${quoted.sentByName || "Equipe"}` : quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
+              <span className="block truncate text-[#54656F]">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+            </div>
+          ) : null}
           <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
           <div className="mt-0.5 flex items-center justify-end text-[11px] font-medium text-[#54656F]">
             <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
@@ -1756,7 +1766,7 @@ function attachmentKind(file) {
   return "document";
 }
 
-function Composer({ canManage, conversation, insertRequest = null, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
+function Composer({ canManage, conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
   const [sending, setSending] = useState(false);
@@ -1767,6 +1777,9 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   const recorder = useAudioRecorder();
   const canRecord = useMemo(() => audioRecordingSupported(), []);
   const [internalMode, setInternalMode] = useState(false);
+  useEffect(() => {
+    if (internalRequest) setInternalMode(true);
+  }, [internalRequest]);
   useAutoGrowTextarea(textareaRef, text);
 
   useEffect(() => {
@@ -1830,7 +1843,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
 
   // MODO INTERNO: mensagem só para a equipe (nunca vai ao WhatsApp). Funciona também com a janela de 24h fechada.
   if (internalMode && canInternal) {
-    return <InternalComposer conversationId={conversation.id} onExit={() => setInternalMode(false)} onSent={onSent} />;
+    return <InternalComposer conversationId={conversation.id} replyTo={replyTo} onClearReply={onClearReply} onExit={() => setInternalMode(false)} onSent={onSent} />;
   }
 
   async function postMedia(file, caption = "", { asGif = false } = {}) {
@@ -2132,7 +2145,7 @@ function InternalToggle({ active, disabled = false, onClick }) {
   );
 }
 
-function InternalComposer({ conversationId, onExit, onSent }) {
+function InternalComposer({ conversationId, replyTo = null, onClearReply = () => {}, onExit, onSent }) {
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
   useAutoGrowTextarea(textareaRef, text);
@@ -2148,11 +2161,12 @@ function InternalComposer({ conversationId, onExit, onSent }) {
       const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/internal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value })
+        body: JSON.stringify({ text: value, replyToMessageId: replyTo?.id || "" })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível salvar a mensagem interna.");
       setText("");
+      onClearReply();
     } catch (sendError) {
       setError(sendError.message);
     } finally {
@@ -2170,6 +2184,7 @@ function InternalComposer({ conversationId, onExit, onSent }) {
         <span className="text-[11px] font-bold text-brand">Só a equipe vê estas mensagens.</span>
       </div>
       {error ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
+      {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-white px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo no interno: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       <div className="flex items-end gap-1">
         <InternalToggle active onClick={onExit} />
         <textarea

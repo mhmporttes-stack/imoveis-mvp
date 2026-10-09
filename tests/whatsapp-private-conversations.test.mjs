@@ -42,3 +42,12 @@ test("excluir usuário não conta, não transfere e não resgata contato particu
   const regs = read("lib/simulation-registrations.js");
   assert.match(regs, /\.is\("responsible_user_id", null\)\n\s+\.is\("private_contact_at", null\)/);
 });
+
+test("responder no interno cita a mensagem só para a equipe (2026-10-09)", () => {
+  const chat = read("lib/whatsapp-chat.js");
+  assert.match(chat, /export async function sendChatInternalMessage\(id, text, auth, replyToMessageId = ""\)/);
+  assert.match(chat, /\.eq\("id", replyToMessageId\)\.eq\("conversation_id", id\)/);
+  assert.match(chat, /internal_reply_to: internalReplyTo/);
+  const menu = read("components/WhatsappMessageActions.jsx");
+  assert.ok((menu.match(/Responder no interno/g) || []).length >= 2);
+});

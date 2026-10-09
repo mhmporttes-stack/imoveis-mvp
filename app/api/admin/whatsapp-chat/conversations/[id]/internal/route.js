@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const message = await sendChatInternalMessage((await params).id, body?.text, auth);
+    const message = await sendChatInternalMessage((await params).id, body?.text, auth, body?.replyToMessageId || "");
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     return chatErrorResponse(error);
