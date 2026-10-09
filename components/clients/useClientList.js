@@ -326,6 +326,20 @@ export function useClientList({
     });
   }
 
+  async function returnClientToRoulette(client) {
+    if (!canManageResponsibleUsers) return;
+    await withBusy(client, async () => {
+      const response = await fetch(`/api/simulation-registrations/${client.registration.id}/roleta`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        notify(data.error || "Não foi possível devolver o cliente para a roleta.", "danger");
+        return;
+      }
+      patchClientRegistration(client.id, { responsibleUserId: data.toUserId }, { refreshAfter: true });
+      notify(data.waiting ? "Devolvido à roleta: nenhum corretor on-line, aguardando o próximo." : `Devolvido à roleta: foi para ${data.toName || "o próximo corretor"}.`);
+    });
+  }
+
   async function handleProspectingAction(client, action, extraPayload = {}) {
     if (action === "do_not_contact") {
       setDncTarget(client);
@@ -778,7 +792,7 @@ export function useClientList({
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
-    activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser,
+    activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser, returnClientToRoulette,
     handleProspectingAction, confirmDoNotContact, cancelDoNotContact: () => setDncTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,

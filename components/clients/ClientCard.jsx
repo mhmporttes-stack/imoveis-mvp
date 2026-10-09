@@ -229,10 +229,21 @@ function StatusControl({ client, name, busy, list, confirmAction }) {
 // Troca de responsável no card: só aparece para quem já podia trocar
 // (canManageResponsibleUsers = admin geral ou gestor; lista de corretores já
 // limitada à equipe do gestor pela página). O servidor continua validando.
+const ROULETTE_OPTION = "__roulette__";
+
 function ResponsibleControl({ client, name, responsibleName, busy, list, confirmAction }) {
   const value = client.registration?.responsibleUserId || "";
   async function change(next) {
     if (next === value) return;
+    if (next === ROULETTE_OPTION) {
+      const ok = await confirmAction({
+        title: "Devolver para a roleta?",
+        description: `${name} sai de ${responsibleName} e vai para o próximo corretor on-line. Se ninguém estiver on-line, fica aguardando o próximo que entrar.`,
+        confirmLabel: "Devolver para a roleta"
+      });
+      if (ok) list.returnClientToRoulette(client);
+      return;
+    }
     const nextName = next ? (list.responsibleProfileMap.get(next)?.name || "corretor selecionado") : "Sem corretor";
     const ok = await confirmAction({
       title: "Trocar o responsável?",
@@ -253,6 +264,7 @@ function ResponsibleControl({ client, name, responsibleName, busy, list, confirm
         disabled={busy}
         onChange={(event) => change(event.target.value)}
       >
+        <option value={ROULETTE_OPTION}>↻ Devolver para a roleta</option>
         <option value="">Sem corretor</option>
         {list.responsibleProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
       </select>

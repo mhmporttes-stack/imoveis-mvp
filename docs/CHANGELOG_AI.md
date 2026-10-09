@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — "Devolver para a roleta" no seletor de corretor (ROL-4c)
+- **O quê:** opção nova no seletor de responsável do card (admin/gestor). Rota `POST /api/simulation-registrations/[id]/roleta` (`requireBrokerManagementApi`) → `returnClientToRoulette`: próximo corretor on-line excluindo o atual; ninguém on-line → dono + `pending_distribution_at` (histórico com `toWaitingQueue`, então a fila também não devolve a quem perdeu). Linha do tempo `responsible_transferred` com `transferType: "roulette"`; notificação ao novo corretor. `listClientIdsWithManualTransfer` passa a olhar só a ÚLTIMA troca (manual ou roleta).
+- **Por quê:** pedido do dono.
+- **Arquivos:** `lib/lead-distribution.js`, `lib/crm-automations.js`, `app/api/simulation-registrations/[id]/roleta/route.js`, `components/clients/ClientCard.jsx`, `components/clients/useClientList.js`, `tests/manual-transfer-disables-roulette.test.mjs`, `docs/BUSINESS_RULES.md` ROL-4c.
 ### 2026-10-08 — Custo do patrocinado no card para toda a equipe (valor inflado em 50%)
 - **O quê:** o selo "Patrocinado · R$" do card passa a aparecer para corretor, gestor e associado com o custo estimado × 1,5 e só o valor (sem gasto do anúncio nem divisão); o administrador geral continua vendo o real com o detalhe. O resumo da aba Patrocinado (total, média, com custo identificado) continua só do administrador.
 - **Por quê:** decisão do dono.
