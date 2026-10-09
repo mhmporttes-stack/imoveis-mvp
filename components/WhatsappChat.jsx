@@ -334,6 +334,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       }
       setDetail(data);
       setDetailError("");
+      // Abrir a conversa lê as mensagens internas (o servidor marca): a bolinha azul da lista some na hora.
+      setConversations((current) => (current.some((item) => item.id === id && item.internalUnread > 0) ? current.map((item) => (item.id === id ? { ...item, internalUnread: 0 } : item)) : current));
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
       // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
       const unread = data.conversation.unreadCount;
@@ -767,8 +769,15 @@ function ConversationRow({ conversation, selected, onSelect }) {
         </span>
         <span className="flex items-center justify-between gap-2">
           <ConversationPreview conversation={conversation} unread={unread} />
-          {unread ? (
-            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+          {unread || conversation.internalUnread > 0 ? (
+            <span className="flex shrink-0 items-center gap-1">
+              {conversation.internalUnread > 0 ? (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#1D6FE8] px-1.5 text-[11px] font-black text-white" title="Mensagem interna da equipe" aria-label={`${conversation.internalUnread} mensagens internas não lidas`}>{conversation.internalUnread}</span>
+              ) : null}
+              {unread ? (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+              ) : null}
+            </span>
           ) : null}
         </span>
         {/* Selos numa linha só (o que não couber continua no cabeçalho da conversa aberta) */}
