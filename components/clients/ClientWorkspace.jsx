@@ -373,6 +373,16 @@ function PipelineStrip({ list }) {
   const activeGroup = groups.find((group) => group.key === filters.statusGroup);
 
   const select = (key) => list.updateFilters({ statusGroup: key, status: "all", pendingOnly: false, needsFirstContact: false });
+  const renderFunnelTab = (group) => (
+    <StageTab
+      key={group.key}
+      label={group.label}
+      count={counters.byGroup?.[group.key] || 0}
+      ratio={(counters.byGroup?.[group.key] || 0) / max}
+      active={filters.statusGroup === group.key}
+      onClick={() => select(group.key)}
+    />
+  );
 
   // Celular: ao selecionar uma etapa, rola a faixa só o necessário para ela
   // ficar inteira à vista (se já está visível, não mexe).
@@ -393,18 +403,11 @@ function PipelineStrip({ list }) {
     <div className="mt-2.5 overflow-hidden rounded-card border border-line bg-white sm:mt-4">
       <div ref={tabsRef} className="flex snap-x snap-mandatory items-stretch overflow-x-auto [scrollbar-width:none] sm:snap-none [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Etapas do funil">
         <StageTab label="Todos" count={counters.byGroup?.all ?? counters.all ?? 0} active={filters.statusGroup === "all"} onClick={() => select("all")} />
-        {funnel.map((group) => (
-          <StageTab
-            key={group.key}
-            label={group.label}
-            count={counters.byGroup?.[group.key] || 0}
-            ratio={(counters.byGroup?.[group.key] || 0) / max}
-            active={filters.statusGroup === group.key}
-            onClick={() => select(group.key)}
-          />
-        ))}
-        <StageTab label="Arquivados" count={counters.byGroup?.archived || 0} active={filters.statusGroup === "archived"} onClick={() => select("archived")} muted />
+        {/* Ordem pedida pelo dono (2026-10-09): Patrocinado logo depois de Todos (onde ficava Prospecção); Prospecção vai para o fim da fila. */}
         <StageTab label="Patrocinado" count={counters.byGroup?.sponsored || 0} active={filters.statusGroup === "sponsored"} onClick={() => select("sponsored")} />
+        {funnel.filter((group) => group.key !== "prospecting").map(renderFunnelTab)}
+        <StageTab label="Arquivados" count={counters.byGroup?.archived || 0} active={filters.statusGroup === "archived"} onClick={() => select("archived")} muted />
+        {funnel.filter((group) => group.key === "prospecting").map(renderFunnelTab)}
       </div>
 
       {filters.statusGroup === "sponsored" && counters.sponsoredCost ? (
