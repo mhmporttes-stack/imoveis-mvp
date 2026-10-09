@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Chat: aparência de WhatsApp (conversa e lista)
+- **Data:** 2026-10-09
+- **Área:** Chat (WhatsApp) — só apresentação
+- **Alteração:** conversa com fundo bege e desenhos sutis, balões branco (cliente) / verde-claro (nossos) com rabinho, hora e ✓/✓✓ dentro do balão, links clicáveis, documento com ícone por tipo + "PDF · 169 KB", botões e link do atalho no rodapé do balão, reações sobre a borda, etiqueta pequena "Automação", nome de quem enviou no topo da sequência, nota interna centralizada com cadeado; barra de digitação estilo WhatsApp (+ anexo, atalhos, campo branco com emoji e modo interno, botão redondo). Lista: avatar 52px, nome em negrito, prévia com ícone por tipo ("[Imagem]" → câmera "Foto" etc.), "Ontem" na hora, hora e contador verdes, separador depois do avatar, selos numa linha (corretor em selo amarelo). Nenhuma regra, API ou `lib/` alterada; todos os controles mantidos.
+- **Motivo:** pedido do dono ("o mais parecido possível com WhatsApp", lista também).
+- **Arquivos afetados:** `components/WhatsappChat.jsx`, `app/dev/vitrine/_fixtures/chat.js` (PDF, link e prévias de mídia fictícios), `.claude/skills/design-crm/references/sistema-visual.md`.
+- **Risco/observação:** o telefone saiu da linha da lista (fica no painel de informações, na busca e no tooltip). Sem dado no servidor para: prévia em cartão de link, nº de páginas do PDF, duração do áudio e ✓✓/lido da última mensagem na lista — exibidos só quando existirem (hoje: link azul, "PDF · tamanho", ícone de voz, ✓ simples). Selos que não cabem na linha da lista continuam no cabeçalho da conversa.
+- **Autor:** Claude Code
 ### 2026-10-09 — WhatsApp: lembrete do formulário não preenchido (WA-17)
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Fluxos / Chat

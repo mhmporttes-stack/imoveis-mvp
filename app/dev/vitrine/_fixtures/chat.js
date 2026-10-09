@@ -153,7 +153,7 @@ const CONVERSATIONS = [
     unread: 1,
     lastMin: 22,
     lastDir: "inbound",
-    preview: "Boa tarde, vocês trabalham com casa usada também?",
+    preview: "[Imagem]",
     lastInboundMin: 22,
     assigned: null,
     account: "official",
@@ -183,7 +183,7 @@ const CONVERSATIONS = [
     unread: 0,
     lastMin: 26 * 60,
     lastDir: "inbound",
-    preview: "Muito obrigada, Diego! Até a assinatura 🙏",
+    preview: "[Áudio]",
     lastInboundMin: 26 * 60,
     assigned: USERS.diego,
     account: "diego",
@@ -198,7 +198,7 @@ const CONVERSATIONS = [
     unread: 0,
     lastMin: 40,
     lastDir: "outbound",
-    preview: "Combinado, quinta às 10h no plantão do residencial.",
+    preview: "[Documento]",
     lastInboundMin: 55,
     assigned: USERS.gestor,
     account: "official",
@@ -495,6 +495,8 @@ const SHORT_THREADS = {
     msg("m04-02", 22, "inbound", "Boa tarde, vocês trabalham com casa usada também?")
   ],
   "demo-conv-05": () => [
+    msg("m05-00", 7 * 60 + 20, "outbound", "", { sentByName: USERS.camila.name, type: "document", media: { url: "/vitrine-demo-simulacao.pdf", mime: "application/pdf", name: "Simulacao-Rodrigo-Demo.pdf", size: 173056, state: "stored", inbound: false } }),
+    msg("m05-00b", 7 * 60 + 19, "outbound", "Segue a simulação. Se preferir, dá pra ver também em https://www.exemplo.com.br/simulacao-demo", { sentByName: USERS.camila.name }),
     msg("m05-01", 7 * 60, "inbound", "Oi Camila, recebi o PDF, vou mostrar pra minha esposa"),
     msg("m05-02", 6 * 60 + 50, "outbound", "Ótimo! Qualquer dúvida sobre os valores eu explico por aqui ou numa ligação rápida.", { sentByName: USERS.camila.name }),
     msg("m05-03", 5 * 60, "outbound", "Rodrigo, conseguiu olhar a simulação que te mandei?", { sentByName: USERS.camila.name, status: "delivered" })

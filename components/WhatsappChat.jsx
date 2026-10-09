@@ -7,28 +7,37 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  Ban,
   BookOpen,
+  Camera,
   Check,
   CheckCheck,
   Download,
   EllipsisVertical,
   ExternalLink,
   FileText,
+  Film,
   Info,
   LayoutList,
   Loader2,
+  Lock,
+  MapPin,
   MessageCircle,
   Megaphone,
   MessageSquareText,
   Mic,
   Paperclip,
   Pencil,
+  Plus,
   Search,
   Send,
   Reply,
+  Sticker,
   Trash2,
   UserPlus,
+  UserRound,
   Users,
+  Video,
   X
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -85,6 +94,45 @@ const MEDIA_LABELS = {
   unsupported: "Mensagem não suportada"
 };
 
+// Aparência "como no WhatsApp" (pedido do dono, 2026-10-09) — só apresentação.
+// Fundo bege com desenhos de traço bem sutis (SVG próprio, inline, sem asset de terceiros).
+const CHAT_WALLPAPER_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='#8C7E66' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='.16'>"
+  + "<path d='M22 56 40 40l18 16v20H22Z M34 76V64h12v12'/>"
+  + "<circle cx='160' cy='32' r='8'/><path d='M168 32h24m-8 0v8m6-8v6'/>"
+  + "<path d='M98 104h36a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8h-22l-10 8v-8h-4a8 8 0 0 1-8-8v-16a8 8 0 0 1 8-8Z'/>"
+  + "<path d='M214 116c-6-8-18-2-12 8l12 12 12-12c6-10-6-16-12-8Z'/>"
+  + "<path d='m44 156 4 9 10 1-7 7 2 10-9-5-9 5 2-10-7-7 10-1Z'/>"
+  + "<rect x='160' y='180' width='22' height='38' rx='4'/><path d='M168 212h6'/>"
+  + "<path d='M84 222a10 10 0 0 1 18-6 8 8 0 0 1 14 6 7 7 0 0 1-2 14H86a7 7 0 0 1-2-14Z'/>"
+  + "<circle cx='116' cy='44' r='2'/><circle cx='226' cy='70' r='2'/><circle cx='22' cy='116' r='2'/><circle cx='134' cy='170' r='2'/><circle cx='234' cy='236' r='2'/>"
+  + "</g></svg>";
+const CHAT_WALLPAPER_STYLE = { backgroundColor: "#EFEAE2", backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(CHAT_WALLPAPER_SVG)}")`, backgroundSize: "260px 260px" };
+
+// Prévia da lista: o servidor grava "[Imagem]", "[Áudio]"… quando a última mensagem é mídia sem legenda.
+// Aqui só troca o rótulo técnico por ícone + texto, como no WhatsApp.
+const PREVIEW_KINDS = {
+  "[Imagem]": { Icon: Camera, label: "Foto" },
+  "[Áudio]": { Icon: Mic, label: "Mensagem de voz" },
+  "[Vídeo]": { Icon: Video, label: "Vídeo" },
+  "[GIF]": { Icon: Film, label: "GIF" },
+  "[Figurinha]": { Icon: Sticker, label: "Figurinha" },
+  "[Documento]": { Icon: FileText, label: "Documento" },
+  "[Localização]": { Icon: MapPin, label: "Localização" },
+  "[Contato]": { Icon: UserRound, label: "Contato" },
+  "[Mensagem não suportada]": { Icon: AlertCircle, label: "Mensagem não suportada" },
+  "[Mensagem]": { Icon: null, label: "Mensagem" }
+};
+
+const LINK_PATTERN = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/gi;
+
+// Texto da mensagem com links clicáveis (azul sublinhado, como no WhatsApp).
+function MessageText({ text }) {
+  const parts = String(text || "").split(LINK_PATTERN);
+  return parts.map((part, index) => (index % 2 === 1 ? (
+    <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="break-all text-[#0B6BAF] underline underline-offset-2 hover:text-[#08508A]" onClick={(event) => event.stopPropagation()}>{part}</a>
+  ) : part));
+}
+
 function dayKey(value) {
   return DAY_FORMATTER.format(new Date(value));
 }
@@ -92,7 +140,9 @@ function dayKey(value) {
 function formatListTime(value) {
   if (!value) return "";
   const date = new Date(value);
-  return dayKey(date) === dayKey(new Date()) ? TIME_FORMATTER.format(date) : SHORT_DATE_FORMATTER.format(date);
+  if (dayKey(date) === dayKey(new Date())) return TIME_FORMATTER.format(date);
+  if (dayKey(date) === dayKey(new Date(Date.now() - 24 * 60 * 60 * 1000))) return "Ontem";
+  return SHORT_DATE_FORMATTER.format(date);
 }
 
 function formatDayLabel(value) {
@@ -526,18 +576,18 @@ function ConversationList({ className, conversations, error, filter, filterLabel
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
     <div className={`${className} min-h-0 min-w-0 flex-col`}>
-      <div className="space-y-3 border-b border-line p-4">
+      <div className="space-y-3 border-b border-[#E9EDEF] bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-black text-navy">Conversas</h2>
+          <h2 className="text-xl font-black text-[#111B21]">Conversas</h2>
           {totalUnread > 0 ? (
-            <span className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-black text-white">{totalUnread} não lidas</span>
+            <span className="rounded-full bg-[#25D366] px-2.5 py-0.5 text-xs font-black text-[#0B2A17]">{totalUnread} não lidas</span>
           ) : null}
         </div>
         <label className="relative block">
           <span className="sr-only">Buscar conversa</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand" aria-hidden="true" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#54656F]" aria-hidden="true" />
           <input
-            className="h-11 w-full rounded-2xl border border-line bg-white pl-10 pr-3 text-sm font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+            className="h-11 w-full rounded-full border border-transparent bg-[#F0F2F5] pl-10 pr-4 text-sm font-semibold text-[#111B21] outline-none placeholder:text-[#54656F] focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
             onChange={(event) => onSearch(event.target.value)}
             placeholder="Buscar por nome ou telefone"
             type="search"
@@ -550,8 +600,9 @@ function ConversationList({ className, conversations, error, filter, filterLabel
               key={item.key}
               type="button"
               onClick={() => onFilter(item.key)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${
-                filter === item.key ? "border-brand bg-blue-50 text-brand" : "border-line bg-white text-navy hover:border-brand/40"
+              aria-pressed={filter === item.key}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold transition ${
+                filter === item.key ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
               }`}
             >
               {filterLabels[item.key] || item.label}
@@ -575,7 +626,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {clientStatus === "archived" ? <p className="text-xs font-semibold text-muted">Conversas de clientes arquivados: só você vê, e só para leitura.</p> : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-white">
         {error ? <p className="m-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
         {loading && !conversations.length ? (
           <p className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p>
@@ -616,42 +667,65 @@ function ConversationAccountBadge({ account }) {
   );
 }
 
+// Selo pequeno abaixo do nome (como o selo "CORRETOR" do WhatsApp Business).
+function ListTag({ tone = "slate", children, title }) {
+  const tones = {
+    slate: "bg-slate-100 text-slate-700",
+    green: "bg-[#E7F8EC] text-[#0B6B3A]",
+    amber: "bg-amber-50 text-amber-800",
+    broker: "bg-[#FFF1BF] text-[#6B4A00]"
+  };
+  return <span title={title} className={`inline-flex max-w-[150px] shrink-0 items-center gap-1 truncate whitespace-nowrap rounded-[5px] px-1.5 py-px text-[10px] font-extrabold ${tone === "broker" ? "" : "uppercase tracking-wide"} ${tones[tone] || tones.slate}`}>{children}</span>;
+}
+
+function ConversationPreview({ conversation, unread }) {
+  const preview = conversation.lastMessagePreview || "";
+  const kind = PREVIEW_KINDS[preview.trim()] || null;
+  const outbound = conversation.lastMessageDirection === "outbound";
+  return (
+    <span className={`flex min-w-0 items-center gap-1 text-[13px] leading-5 ${unread ? "font-bold text-[#111B21]" : "font-medium text-[#54656F]"}`}>
+      {outbound ? <Check className="h-4 w-4 shrink-0 text-[#667781]" aria-label="Enviada por nós" /> : null}
+      {kind?.Icon ? <kind.Icon className="h-4 w-4 shrink-0 text-[#667781]" aria-hidden="true" /> : null}
+      <span className="truncate">{kind ? kind.label : preview || "—"}</span>
+    </span>
+  );
+}
+
 function ConversationRow({ conversation, selected, onSelect }) {
   const unread = conversation.unreadCount > 0;
+  const name = displayName(conversation);
+  const phone = formatPhone(conversation.phone);
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`flex w-full items-start gap-3 border-b border-line/70 px-4 py-3 text-left transition hover:bg-mist/60 ${selected ? "bg-blue-50/70" : ""}`}
+      title={phone}
+      className={`flex w-full items-stretch gap-3 pl-3 text-left transition hover:bg-[#F5F6F6] ${selected ? "bg-[#F0F2F5]" : "bg-white"}`}
     >
-      <span className="relative shrink-0">
-        <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={44} />
+      <span className="relative shrink-0 self-center py-2.5">
+        <Avatar name={name} photoUrl={conversation.photoUrl} size={52} />
         <ConversationAccountBadge account={conversation.account} />
       </span>
-      <span className="min-w-0 flex-1">
+      {/* Separador fino só a partir do texto (depois do avatar), como no WhatsApp */}
+      <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
         <span className="flex items-baseline justify-between gap-2">
-          <span className={`truncate text-sm text-navy ${unread ? "font-black" : "font-extrabold"}`}>{displayName(conversation)}</span>
-          <span className={`shrink-0 text-[11px] font-bold ${unread ? "text-emerald-600" : "text-muted"}`}>{formatListTime(conversation.lastMessageAt)}</span>
+          <span className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{name}</span>
+          <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
-        <span className="flex items-center gap-1.5 truncate text-[11px] font-bold text-muted">
-          {formatPhone(conversation.phone)}
-          <span className={`max-w-[150px] shrink-0 truncate rounded-full px-1.5 py-px text-[10px] font-black uppercase tracking-wide ${conversation.sessionUserId ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</span>
-        </span>
-        <span className="mt-0.5 flex items-center justify-between gap-2">
-          <span className={`flex min-w-0 items-center gap-1 text-xs ${unread ? "font-extrabold text-navy" : "font-semibold text-slate-500"}`}>
-            {conversation.lastMessageDirection === "outbound" ? <Check className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Enviada" /> : null}
-            <span className="truncate">{conversation.lastMessagePreview || "—"}</span>
-          </span>
+        <span className="flex items-center justify-between gap-2">
+          <ConversationPreview conversation={conversation} unread={unread} />
           {unread ? (
-            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black text-white">{conversation.unreadCount}</span>
+            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
           ) : null}
         </span>
-        <span className="mt-1 flex flex-wrap gap-1">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">{STATUS_LABELS[conversation.status] || conversation.status}</span>
-          {!conversation.client ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span> : null}
-          <ClientStatusBadge client={conversation.client} className="max-w-[170px]" />
-          {conversation.broker ? <BrokerChip broker={conversation.broker} className="max-w-[140px]" /> : null}
-          <WaitingBadge waiting={conversation.waiting} />
+        {/* Selos numa linha só (o que não couber continua no cabeçalho da conversa aberta) */}
+        <span className="mt-1 flex items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,#000_88%,transparent)]">
+          <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
+          {conversation.broker ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{conversation.broker.name || "Corretor"}</span></ListTag> : null}
+          <ClientStatusBadge client={conversation.client} className="max-w-[170px] shrink-0 whitespace-nowrap" />
+          {!conversation.client ? <ListTag tone="amber">Não cadastrado</ListTag> : null}
+          <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</ListTag>
+          <ListTag>{STATUS_LABELS[conversation.status] || conversation.status}</ListTag>
         </span>
       </span>
     </button>
@@ -812,13 +886,18 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
   const rows = [];
   let previousDay = "";
+  let previousSender = "";
   for (const message of messages) {
     const key = dayKey(message.at);
     if (key !== previousDay) {
       rows.push({ kind: "day", key: `day-${key}`, label: formatDayLabel(message.at) });
       previousDay = key;
+      previousSender = "";
     }
-    rows.push({ kind: "message", key: message.id, message });
+    // Primeira mensagem de uma sequência do mesmo remetente ganha o "rabinho" (como no WhatsApp).
+    const sender = `${message.direction}|${message.senderType || ""}|${message.sentByName || ""}`;
+    rows.push({ kind: "message", key: message.id, message, first: sender !== previousSender });
+    previousSender = sender;
   }
 
   return (
@@ -933,17 +1012,17 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         </button>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto bg-[#F1F5FA] px-3 py-4 sm:px-5">
-        {reactionError ? <p role="alert" className="rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
-        {detail.hasMore ? <p className="pb-2 text-center text-xs font-bold text-muted">Mostrando as últimas mensagens da conversa.</p> : null}
+      <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
+        {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
+        {detail.hasMore ? <p className="mx-auto mt-2 w-fit rounded-lg bg-[#FFF5C4] px-3 py-1 text-center text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">Mostrando as últimas mensagens da conversa.</p> : null}
         {rows.map((row) => (row.kind === "day" ? (
-          <div key={row.key} className="flex justify-center py-2">
-            <span className="rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-slate-500 shadow-sm">{row.label}</span>
+          <div key={row.key} className="flex justify-center pb-1 pt-3">
+            <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} quoted={byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} />
+          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} />
         )))}
-        {!rows.length ? <p className="py-8 text-center text-sm font-bold text-muted">Nenhuma mensagem nesta conversa.</p> : null}
+        {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
 
       {conversation.archivedReadOnly ? (
@@ -1122,16 +1201,37 @@ const ChatDocumentThumbnail = memo(function ChatDocumentThumbnail({ message, onP
   </button>;
 });
 
-function MessageBubble({ message, quoted, onOpenActions }) {
+// "Rabinho" do balão (só na primeira mensagem de uma sequência).
+function BubbleTail({ outbound }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 8 13" className={`absolute top-0 h-[13px] w-2 ${outbound ? "-right-2" : "-left-2 -scale-x-100"}`}>
+      <path d="M0 0h6.2c1.4 0 2.2 1.5 1.4 2.6L0 13z" fill={outbound ? "#D9FDD3" : "#FFFFFF"} />
+    </svg>
+  );
+}
+
+// Hora + ✓/✓✓ dentro do balão, canto inferior direito.
+function BubbleMeta({ message, outbound }) {
+  return (
+    <>
+      {message.editedAt ? <span title={message.originalBody ? `Original: ${message.originalBody}` : undefined}>editada</span> : null}
+      <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
+      {outbound ? <StatusTicks status={message.status} /> : null}
+    </>
+  );
+}
+
+function MessageBubble({ message, first = true, quoted, onOpenActions }) {
   const hasActions = !message.internal && (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body));
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   if (message.internal) {
+    // Nota interna: centralizada, azul tracejada e com cadeado — nunca parece mensagem enviada ao cliente.
     return (
-      <div className="flex justify-end">
-        <div data-internal-message className="max-w-[85%] rounded-2xl rounded-br-md border border-dashed border-brand/35 bg-[#F3F7FE] px-3.5 py-2 text-navy shadow-sm sm:max-w-[70%]">
-          <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">Interno • {message.sentByName || "Equipe"}</p>
-          <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p>
-          <div className="mt-1 flex items-center justify-end text-[10px] font-bold text-slate-400">
+      <div className={`flex justify-center ${first ? "mt-2.5" : "mt-1"}`}>
+        <div data-internal-message className="max-w-[88%] rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[70%]">
+          <p className="mb-0.5 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-brand"><Lock className="h-3 w-3" aria-hidden="true" />Interno • {message.sentByName || "Equipe"} <span className="font-semibold normal-case tracking-normal text-[#54656F]">· o cliente não vê</span></p>
+          <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
+          <div className="mt-0.5 flex items-center justify-end text-[11px] font-medium text-[#54656F]">
             <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
           </div>
         </div>
@@ -1142,53 +1242,70 @@ function MessageBubble({ message, quoted, onOpenActions }) {
   const failed = message.status === "failed";
   const isMedia = message.type !== "text" && message.type !== "button" && message.type !== "interactive";
   const label = MEDIA_LABELS[message.type] || "Mensagem";
+  const automation = outbound && message.senderType === "automation";
+  const showSender = outbound && message.senderType === "user" && message.sentByName && first;
+  // Hora "flutuando" no fim do texto (como no WhatsApp) quando o texto é o último conteúdo do balão.
+  const metaInline = Boolean(message.body) && !message.revoked && !message.linkLabel && !message.buttons?.length;
 
   return (
-    <div className={`group flex items-center gap-1 ${outbound ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex items-center gap-1 ${outbound ? "justify-end" : "justify-start"} ${first ? "mt-2.5" : "mt-0.5"} ${message.reactions?.length ? "mb-4" : ""}`}>
       {hasActions && outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
-      <div {...trigger} data-message-id={message.id} className={`max-w-[85%] select-text rounded-2xl px-3.5 py-2 shadow-sm [-webkit-touch-callout:none] sm:max-w-[70%] ${
-        outbound ? "rounded-br-md bg-[#DCEBFF] text-navy" : "rounded-bl-md bg-white text-navy"
-      } ${failed ? "ring-1 ring-red-300" : ""}`}>
-        {outbound && message.senderType === "automation" ? (
-          <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">{message.automationKind === "flow" ? "Automação · Fluxo" : "Automação"}</p>
+      <div {...trigger} data-message-id={message.id} className={`relative min-w-[84px] max-w-[80%] select-text rounded-lg px-2 pb-1.5 pt-1.5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] sm:max-w-[65%] ${
+        outbound ? "bg-[#D9FDD3]" : "bg-white"
+      } ${first ? (outbound ? "rounded-tr-none" : "rounded-tl-none") : ""} ${failed ? "ring-1 ring-red-300" : ""}`}>
+        {first ? <BubbleTail outbound={outbound} /> : null}
+        {automation ? (
+          <p className="mb-0.5 inline-flex items-center rounded bg-black/[0.06] px-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[#3B4A54]" title={message.automationKind === "flow" ? "Mensagem automática de um Fluxo" : "Mensagem automática"}>Automação</p>
+        ) : null}
+        {showSender || (outbound && message.actorNote) ? (
+          <p className="mb-0.5 truncate text-xs font-bold text-brand">
+            {showSender ? message.sentByName : null}
+            {outbound && message.actorNote ? <span className="font-semibold text-[#54656F]" title={message.actorNote}>{showSender ? " · " : ""}{message.actorNote}</span> : null}
+          </p>
         ) : null}
         {message.replyToMessageId ? (
-          <div className="mb-1.5 border-l-2 border-brand bg-white/60 px-2 py-1 text-xs font-semibold text-slate-600">
-            <span className="block font-extrabold text-brand">Em resposta a</span>
-            <span className="block truncate">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+          <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>
+            <span className="block font-bold text-brand">{quoted ? (quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
+            <span className="block truncate text-[#54656F]">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
           </div>
         ) : null}
         {message.revoked ? (
-          <p className="text-sm font-bold italic text-slate-500">🚫 {message.revokedBy === "customer" ? "O cliente apagou esta mensagem" : "Mensagem apagada"}{message.originalBody ? <span className="mt-1 block text-[11px] font-semibold not-italic text-slate-400">Original (só administrador vê): {message.originalBody}</span> : null}</p>
+          <p className="flex items-start gap-1.5 text-sm italic text-[#54656F]"><Ban className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{message.revokedBy === "customer" ? "O cliente apagou esta mensagem" : "Mensagem apagada"}{message.originalBody ? <span className="mt-1 block text-[11px] font-semibold not-italic">Original (só administrador vê): {message.originalBody}</span> : null}</span></p>
         ) : message.media ? <MediaPreview media={message.media} type={message.type} /> : isMedia ? (
-          <p className="text-sm font-bold italic text-slate-500">{message.type === "unsupported"
+          <p className="text-sm italic text-[#54656F]">{message.type === "unsupported"
             ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
             : `[${label}] — abra no WhatsApp para visualizar`}</p>
         ) : null}
-        {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Atalho · {message.shortcut}</p> : null}
-        {message.body ? <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.body}</p> : null}
-        {message.linkLabel ? <p className="mt-1.5 border-t border-navy/10 pt-1.5 text-center text-xs font-extrabold text-brand">🔗 {message.linkLabel}</p> : null}
+        {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#54656F]">Atalho · {message.shortcut}</p> : null}
+        {message.body ? (
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.35] sm:text-sm sm:leading-5">
+            <MessageText text={message.body} />
+            {/* Reserva o espaço da hora no fim da última linha */}
+            {metaInline ? <span aria-hidden="true" className="invisible ml-2 inline-flex items-center gap-1 text-[11px]"><BubbleMeta message={message} outbound={outbound} /></span> : null}
+          </p>
+        ) : null}
+        {message.linkLabel ? (
+          <p className="-mx-2 mt-1.5 flex items-center justify-center gap-1.5 border-t border-black/10 px-2 pt-1.5 text-sm font-semibold text-[#0B6BAF]"><ExternalLink className="h-4 w-4" aria-hidden="true" />{message.linkLabel}</p>
+        ) : null}
         {message.buttons?.length ? (
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <div className="-mx-2 mt-1.5 divide-y divide-black/10 border-t border-black/10">
             {message.buttons.map((label, index) => (
-              <span key={index} className="rounded-full border border-brand/30 bg-white/70 px-2.5 py-0.5 text-[11px] font-extrabold text-brand">{label}</span>
+              <span key={index} className="block px-2 py-1.5 text-center text-sm font-semibold text-[#0B6BAF]">{label}</span>
             ))}
           </div>
         ) : null}
+        {metaInline ? (
+          <span className="absolute bottom-1 right-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#54656F]"><BubbleMeta message={message} outbound={outbound} /></span>
+        ) : (
+          <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] font-medium text-[#54656F]"><BubbleMeta message={message} outbound={outbound} /></div>
+        )}
         {message.reactions?.length ? (
-          <div className="mt-1 flex gap-1" aria-label="Reações">
-            {message.reactions.map((entry) => <span key={entry.sender} title={entry.sender === "customer" ? "Cliente" : "Equipe"} className="rounded-full border border-line bg-white px-1.5 text-sm">{entry.emoji}</span>)}
+          <div className={`absolute -bottom-3.5 flex gap-0.5 ${outbound ? "right-2" : "left-2"}`} aria-label="Reações">
+            {message.reactions.map((entry) => <span key={entry.sender} title={entry.sender === "customer" ? "Cliente" : "Equipe"} className="rounded-full border border-[#E9EDEF] bg-white px-1.5 text-sm leading-6 shadow-sm">{entry.emoji}</span>)}
           </div>
         ) : null}
-        <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
-          {outbound && message.senderType === "user" && message.sentByName ? <span className="truncate">Enviada por {message.sentByName}</span> : null}
-          {outbound && message.actorNote ? <span className="truncate font-semibold text-slate-400" title={message.actorNote}>· {message.actorNote}</span> : null}
-          {message.editedAt ? <span title={message.originalBody ? `Original: ${message.originalBody}` : undefined}>editada</span> : null}
-          <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
-          {outbound ? <StatusTicks status={message.status} /> : null}
-        </div>
         {failed ? (
-          <p className="mt-1 flex items-start gap-1 text-[11px] font-bold text-red-600">
+          <p className="mt-1 flex items-start gap-1 text-[11px] font-bold text-red-700">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>Não enviada{message.errorMessage ? ` — ${message.errorMessage}` : ""}{message.errorCode ? ` (código ${message.errorCode})` : ""}</span>
           </p>
@@ -1211,9 +1328,9 @@ function MessageMoreButton({ onOpen }) {
 }
 
 function StatusTicks({ status }) {
-  if (status === "read") return <CheckCheck className="h-3.5 w-3.5 text-sky-500" aria-label="Lida" />;
-  if (status === "delivered") return <CheckCheck className="h-3.5 w-3.5" aria-label="Entregue" />;
-  if (status === "sent") return <Check className="h-3.5 w-3.5" aria-label="Enviada" />;
+  if (status === "read") return <CheckCheck className="h-4 w-4 text-[#53BDEB]" aria-label="Lida" />;
+  if (status === "delivered") return <CheckCheck className="h-4 w-4 text-[#667781]" aria-label="Entregue" />;
+  if (status === "sent") return <Check className="h-4 w-4 text-[#667781]" aria-label="Enviada" />;
   if (status === "failed") return <AlertCircle className="h-3.5 w-3.5 text-red-500" aria-label="Falhou" />;
   return <Loader2 className="h-3 w-3 animate-spin" aria-label="Enviando" />;
 }
@@ -1252,7 +1369,7 @@ function InboundImage({ media, type }) {
   return (
     <div className="mb-1">
       <a href={media.url} target="_blank" rel="noreferrer" className="block">
-        <img src={src} alt={media.name || "Imagem"} onError={() => setFailed(true)} className={type === "sticker" ? "max-h-40 w-auto" : "max-h-72 w-full rounded-xl object-cover"} loading="lazy" />
+        <img src={src} alt={media.name || "Imagem"} onError={() => setFailed(true)} className={type === "sticker" ? "max-h-40 w-auto" : "max-h-72 w-full rounded-md object-cover"} loading="lazy" />
       </a>
       {media.inbound && type !== "sticker" ? <div className="mt-1"><DownloadLink media={media} /></div> : null}
     </div>
@@ -1269,7 +1386,7 @@ function MediaPreview({ media, type }) {
   if (type === "video" && media.gif) {
     return (
       <div className="mb-1">
-        <video autoPlay loop muted playsInline preload="metadata" src={media.url} className="max-h-72 w-full rounded-xl bg-black" aria-label="GIF" />
+        <video autoPlay loop muted playsInline preload="metadata" src={media.url} className="max-h-72 w-full rounded-md bg-black" aria-label="GIF" />
         <span className="mt-0.5 inline-block rounded bg-navy/70 px-1.5 text-[10px] font-extrabold text-white">GIF</span>
       </div>
     );
@@ -1277,27 +1394,53 @@ function MediaPreview({ media, type }) {
   if (type === "video") {
     return (
       <div className="mb-1">
-        <video controls playsInline preload="metadata" src={media.url} className="max-h-72 w-full rounded-xl bg-black" />
+        <video controls playsInline preload="metadata" src={media.url} className="max-h-72 w-full rounded-md bg-black" />
         {media.inbound ? <div className="mt-1"><DownloadLink media={media} /></div> : null}
       </div>
     );
   }
-  // Documento (PDF, Word, Excel…): nome, tamanho, abrir e baixar.
+  // Documento (PDF, Word, Excel…) como no WhatsApp: ícone colorido pelo tipo, nome e "PDF · 169 KB"; tocar abre, a seta baixa.
   const size = formatFileSize(media.size);
+  const kind = documentKind(media);
   return (
-    <div className="mb-1 rounded-xl bg-white/70 px-3 py-2">
-      <div className="flex items-center gap-2 text-sm font-extrabold text-navy">
-        <FileText className="h-5 w-5 shrink-0 text-brand" />
-        <span className="min-w-0 flex-1 truncate">{media.name || "Documento"}</span>
-        {size ? <span className="shrink-0 text-[11px] font-bold text-slate-400">{size}</span> : null}
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        <a href={media.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 px-3 py-1 text-xs font-extrabold text-brand hover:bg-white">
-          <ExternalLink className="h-3.5 w-3.5" /> Abrir
-        </a>
-        <DownloadLink media={media} />
-      </div>
+    <div className="mb-1 flex items-center gap-1 rounded-md bg-black/[0.05]">
+      <a href={media.url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-2 pl-2 pr-1 hover:bg-black/[0.03]" title="Abrir">
+        <DocumentIcon kind={kind} />
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 break-all text-sm font-semibold leading-5 text-[#111B21]">{media.name || "Documento"}</span>
+          <span className="block text-[11px] font-medium text-[#54656F]">{[kind.label, size].filter(Boolean).join(" · ")}<span className="sr-only"> — abrir</span></span>
+        </span>
+      </a>
+      <a href={downloadUrl(media)} className="mr-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#54656F] hover:bg-black/5 hover:text-[#111B21]" aria-label={`Baixar ${media.name || "documento"}`} title="Baixar">
+        <Download className="h-5 w-5" />
+      </a>
     </div>
+  );
+}
+
+const DOCUMENT_KINDS = [
+  { test: /pdf/i, label: "PDF", tag: "PDF", color: "#E5252A" },
+  { test: /word|msword|\.docx?$/i, label: "Word", tag: "DOC", color: "#2B5797" },
+  { test: /sheet|excel|\.xlsx?$|\.csv$/i, label: "Planilha", tag: "XLS", color: "#1D7044" },
+  { test: /presentation|powerpoint|\.pptx?$/i, label: "Apresentação", tag: "PPT", color: "#C8471F" },
+  { test: /text\/plain|\.txt$/i, label: "Texto", tag: "TXT", color: "#54656F" }
+];
+
+function documentKind(media) {
+  const hint = `${media.mime || ""} ${media.name || ""}`;
+  const found = DOCUMENT_KINDS.find((item) => item.test.test(hint));
+  if (found) return found;
+  const extension = /\.([a-z0-9]{1,5})$/i.exec(media.name || "")?.[1]?.toUpperCase() || "";
+  return { label: extension || "Arquivo", tag: extension.slice(0, 4) || "DOC", color: "#54656F" };
+}
+
+function DocumentIcon({ kind }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 30 36" className="h-9 w-[30px] shrink-0">
+      <path d="M3 0h17l10 10v23a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3Z" fill={kind.color} />
+      <path d="M20 0v7a3 3 0 0 0 3 3h7Z" fill="#FFFFFF" opacity=".35" />
+      <text x="15" y="27" textAnchor="middle" fontSize="8" fontWeight="800" fill="#FFFFFF" fontFamily="system-ui, sans-serif">{kind.tag}</text>
+    </svg>
   );
 }
 
@@ -1570,7 +1713,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
   }
 
   return (
-    <div className="border-t border-line bg-white p-3">
+    <div className="border-t border-[#E9EDEF] bg-[#F6F5F3] px-2 pb-2 pt-2 sm:px-3">
       {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{shownError}</p> : null}
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
@@ -1625,8 +1768,8 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       ) : null}
 
       {!awaiting && !recording && !processing ? (
-        <p className="mb-1.5 px-1 text-[11px] font-bold text-muted">
-          Enviando por: <span className="font-black text-navy">{conversation.sessionUserId ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>
+        <p className="mb-1.5 px-2 text-[11px] font-semibold text-[#54656F]">
+          Enviando por: <span className="font-extrabold text-[#111B21]">{conversation.sessionUserId ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>
         </p>
       ) : null}
 
@@ -1635,7 +1778,7 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
           <button type="button" onClick={recorder.cancel} disabled={processing} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-red-500 hover:bg-red-50 disabled:opacity-40" aria-label="Cancelar gravação">
             <Trash2 className="h-5 w-5" />
           </button>
-          <div className="flex h-11 flex-1 items-center gap-3 rounded-2xl bg-red-50 px-4">
+          <div className="flex h-11 flex-1 items-center gap-3 rounded-full bg-white px-4 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
             <span className="text-sm font-black tabular-nums text-red-700">{formatDuration(recorder.seconds)}</span>
             <span className="text-xs font-bold text-red-600">{processing ? "Preparando…" : "Gravando…"}</span>
@@ -1647,22 +1790,26 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
       ) : (
         <div className="flex items-end gap-1">
           <input ref={fileInput} type="file" accept="image/*,video/mp4,video/3gpp,video/quicktime,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-mist hover:text-navy disabled:opacity-40">
-            <Paperclip className="h-5 w-5" />
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-10 shrink-0 place-items-center rounded-full text-[#3B4A54] transition hover:bg-black/5 hover:text-[#111B21] disabled:opacity-40">
+            <Plus className="h-6 w-6" strokeWidth={2.25} />
           </button>
           <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} />
-          {canInternal && !editTarget ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
-          <EmojiPicker disabled={sending} onPick={insertEmoji} />
-          <textarea
-            ref={textareaRef}
-            className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-            disabled={sending}
-            onChange={(event) => setText(event.target.value)}
-            // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
-            placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Digite uma mensagem…"}
-            rows={1}
-            value={text}
-          />
+          {/* Campo arredondado branco, com emoji à esquerda e o modo interno à direita (como a câmera no WhatsApp) */}
+          <div className="flex min-h-11 min-w-0 flex-1 items-end rounded-[22px] border border-transparent bg-white shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
+            <EmojiPicker disabled={sending} onPick={insertEmoji} />
+            <textarea
+              ref={textareaRef}
+              className="max-h-[40dvh] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#111B21] outline-none placeholder:text-[#54656F] sm:text-sm sm:leading-6"
+              disabled={sending}
+              onChange={(event) => setText(event.target.value)}
+              // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
+              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
+              aria-label="Mensagem"
+              rows={1}
+              value={text}
+            />
+            {canInternal && !editTarget ? <InternalToggle active={false} disabled={sending} onClick={() => setInternalMode(true)} /> : null}
+          </div>
           {awaiting ? (
             <a
               href={phoneSendHref || undefined}
