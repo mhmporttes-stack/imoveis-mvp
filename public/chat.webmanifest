@@ -11,9 +11,9 @@
   "theme_color": "#031D3A",
   "lang": "pt-BR",
   "icons": [
-    { "src": "/icons/icon-chat-192-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-chat-512-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-chat-maskable-192-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icons/icon-chat-maskable-512-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icons/icon-chat-192-v2-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-chat-512-v2-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-chat-maskable-192-v2-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-chat-maskable-512-v2-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
