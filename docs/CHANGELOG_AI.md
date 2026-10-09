@@ -19,7 +19,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — ROL-4d: ação manual cancela automação (cliente voltou à roleta depois de atribuído à Bruna)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Chat: editar o nome do contato
+- **Data:** 2026-10-09
+- **Área:** WhatsApp / Chat
+- **O quê (pedido do dono):** lápis ao lado do nome no painel do contato do Chat (`ContactNameEditor`, `components/WhatsappChat.jsx`); `PATCH /api/admin/whatsapp-chat/conversations/[id]` com `{ contactName }` (`requireAdminApi`) → `renameChatContact` (`lib/whatsapp-chat.js`): mesmo escopo do Chat (`loadConversation`), 2–80 caracteres, normalizado como o nome do cliente (`normalizePersonName`); com cliente vinculado muda também `simulation_registrations.full_name` pelo caminho normal (`updateSimulationRegistration`, com a checagem de acesso dele). Mensagem nova não sobrescreve (o `whatsapp_chat_apply_inbound` só preenche nome vazio). Teste: `tests/whatsapp-contact-rename.test.mjs`.
+
+### 2026-10-09 — ROL-4d: ação manual cancela automação (cliente voltou à roleta depois de atribuído à Bruna)
 - **Data:** 2026-10-09
 - **Área:** Roleta / Automações / Formulário
 - **Causa raiz (Elaine dos Santos / "Cristina"):** 14:02 o dono usou "Devolver para a roleta" e ela foi para a Bruna; a Bruna atendeu (mensagens, "Em atendimento", "Documentação pendente" 14:37). 14:41 a cliente preencheu o formulário: o reenvio forçava a etapa para "Aguardando simulação" e, com renda informada e mais de 5 min desde 14:02, a REDISTRIBUIÇÃO (ROL-4b) a mandou para a fila de espera com o dono às 14:42 (o dono transferiu de volta à mão 14:44). "Devolver para a roleta" não contava como transferência manual (ROL-4c religava a redistribuição).

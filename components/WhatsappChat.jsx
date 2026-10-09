@@ -2279,6 +2279,77 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
   );
 }
 
+// Editar o nome do contato (pedido do dono, 2026-10-09): o nome do WhatsApp às vezes vem grudado ou com emoji — quem
+// atende a conversa corrige. Vale para a conversa e, com cliente vinculado, também para o nome do cliente.
+function ContactNameEditor({ conversation, onChanged }) {
+  const current = displayName(conversation);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(current);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setEditing(false);
+    setError("");
+  }, [conversation.id]);
+
+  function start() {
+    setValue(current);
+    setError("");
+    setEditing(true);
+  }
+
+  async function save(event) {
+    event?.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactName: value })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar o nome.");
+      setEditing(false);
+      onChanged();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p className="mt-3 flex items-center justify-center gap-1.5 font-black text-navy">
+        <span className="min-w-0 truncate">{current}</span>
+        <button type="button" onClick={start} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Editar nome do contato" title="Editar nome">
+          <Pencil className="h-4 w-4" />
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form onSubmit={save} className="mx-auto mt-3 max-w-xs space-y-2 text-left">
+      <input
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        maxLength={80}
+        autoFocus
+        className="h-11 w-full rounded-2xl border border-line bg-white px-3 text-base font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+        aria-label="Nome do contato"
+      />
+      {conversation.client ? <p className="text-xs font-semibold text-muted">Também atualiza o nome no cadastro do cliente.</p> : null}
+      {error ? <p className="text-xs font-bold text-red-700">{error}</p> : null}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setEditing(false)} className="h-10 flex-1 rounded-full border border-line text-sm font-extrabold text-navy">Cancelar</button>
+        <button type="submit" disabled={saving} className="h-10 flex-1 rounded-full bg-navy text-sm font-extrabold text-white disabled:opacity-60">{saving ? "Salvando…" : "Salvar"}</button>
+      </div>
+    </form>
+  );
+}
+
 function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
   const { conversation } = detail;
   const [assigning, setAssigning] = useState(false);
@@ -2348,7 +2419,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
     <div className="space-y-4 p-5">
       <div className="text-center">
         <div className="mx-auto w-fit"><Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={72} /></div>
-        <p className="mt-3 font-black text-navy">{displayName(conversation)}</p>
+        <ContactNameEditor conversation={conversation} onChanged={onChanged} />
         <p className="text-sm font-bold text-muted">{formatPhone(conversation.phone)}</p>
       </div>
 
