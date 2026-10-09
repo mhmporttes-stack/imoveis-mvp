@@ -262,8 +262,14 @@
    (a área do texto rola; o botão fica FIXO acima da logo da Caixa). Só opacity/transform/clip-path nas animações. */
 .photoScene { padding: 0; justify-content: flex-end; align-items: stretch; text-align: left; }
 .photoWrap { position: absolute; left: 0; right: 0; top: 0; height: 56%; overflow: hidden; background: var(--navy-2); }
-.photo { position: absolute; inset: -3%; width: 106%; height: 106%; max-width: none; object-fit: cover; transform-origin: 50% 40%; animation: kenBurns 12s ease-out both; will-change: transform; }
-@keyframes kenBurns { from { transform: scale(1.02) translate3d(0, 0, 0); } to { transform: scale(1.12) translate3d(-1.2%, -1.6%, 0); } }
+/* Qualidade da foto: a imagem ocupa exatamente a moldura (antes tinha sobra de 6% + zoom até 1,12x + will-change, que ampliavam uma foto
+   de ~1200 px além do necessário e a rasterizavam borrada). Foto única: zoom bem leve; várias fotos: dissolução, sem zoom. */
+.photo { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.photoKen { transform-origin: 50% 40%; animation: kenBurns 12s ease-out both; }
+@keyframes kenBurns { from { transform: scale(1); } to { transform: scale(1.05); } }
+.slide { opacity: 0; transition: opacity 0.7s ease; }
+.slideOn { opacity: 1; }
+.slideCut { transition: none; }
 /* revelação da foto: abre de cima para baixo com um leve zoom (clip-path + transform: sem layout) */
 .photoReveal { animation: photoReveal 1.25s cubic-bezier(0.2, 0, 0, 1) both; }
 @keyframes photoReveal { from { opacity: 0.2; clip-path: inset(0 0 100% 0); transform: scale(1.1); } to { opacity: 1; clip-path: inset(0 0 0 0); transform: none; } }
@@ -415,7 +421,7 @@
   .enter, .rise, .fade, .sheet, .sheetBackdrop { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
   .leave { display: none; }
   .word, .underline, .statLink, .artSun, .sheetsArt, .ringDraw { animation: none; transform: none; opacity: 1; stroke-dashoffset: 0; }
-  .photo { animation: none; }
+  .photo, .photoKen { animation: none; }
   .photoReveal, .slideIn, .stampIn, .fallbackRings { animation: fadeOnly 0.2s ease both; animation-delay: 0s; }
   .stampIn::after { display: none; }
   .cta, .ghostBtn { transition: none; }
