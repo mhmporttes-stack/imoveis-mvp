@@ -596,6 +596,14 @@ html.ui-sheet-open {
   .ui-sheet-full .ui-sheet-handle {
     display: none;
   }
+
+  /* Sem desfoque do iOS sob o relógio (pedido do dono, 2026-10-09): gaveta de tela inteira começa
+     abaixo da barra de status. Borda sólida (não rola) em vez de deixar o cabeçalho passar por trás. */
+  .ui-sheet-full.ui-sheet-auto,
+  .ui-sheet-right {
+    box-sizing: border-box;
+    border-top: env(safe-area-inset-top) solid #ffffff;
+  }
 }
 
 /* Barra de "atualizando" (recarga de lista sem tirar o conteúdo da tela). */
