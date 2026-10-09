@@ -1946,6 +1946,12 @@ function Composer({ canManage, conversation, insertRequest = null, replyTo, onCl
         </div>
       ) : null}
 
+      {conversation.simulationFirst ? (
+        // Regra do dono (2026-10-09): cliente com dados preenchidos recebe primeiro a simulação (link da apresentação).
+        <p role="status" className="mb-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+          Primeiro a simulação: este cliente já preencheu os dados. Faça a simulação pelo card do cliente e envie o link da apresentação — as outras mensagens ficam liberadas depois.
+        </p>
+      ) : null}
       {!awaiting && !recording && !processing ? (
         <p className="mb-1.5 px-2 text-[11px] font-semibold text-[#54656F]">
           Enviando por: <span className="font-extrabold text-[#111B21]">{conversation.sessionUserId ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>

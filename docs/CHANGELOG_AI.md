@@ -43,6 +43,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-09 — Chat: primeira mensagem ao cliente com dados tem de ser o link da simulação (ROL-4c)
+- **O quê:** cliente da roleta com renda informada e ainda sem simulação: o Chat recusa qualquer envio que não seja o link da apresentação (/s/<token>) até ele sair; aviso âmbar acima do campo de mensagem. Admin geral livre; não retroativo.
+- **Por quê:** regra do dono — corretor se apresentava sem simular, cliente voltava à roleta e outro se apresentava de novo (caso Alexandre, 08/10). — `lib/simulation-first-core.mjs`, `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`.
 ### 2026-10-09 — Simulação: envio ao cliente só pelo link
 - **O quê:** no gerador de simulação, o "Formato para envio" passa a ter só "Link (apresentação)" (padrão). PDF e imagem saíram do envio; "Baixar PDF"/"Baixar imagens" continuam.
 - **Por quê:** pedido do dono. — `components/SimulationGenerator.jsx`.
