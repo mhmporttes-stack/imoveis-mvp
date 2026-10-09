@@ -12,7 +12,7 @@ const SITUATIONS = [
   { key: "contact_silent", label: "Cliente sem responder" },
   { key: "no_broker", label: "Sem corretor" },
   { key: "in_service", label: "Em atendimento" },
-  { key: "finished", label: "Finalizadas" }
+  { key: "finished", label: "Arquivadas" }
 ];
 
 const STATUS_LABELS = { open: "Nova", in_service: "Em atendimento", finished: "Finalizada" };

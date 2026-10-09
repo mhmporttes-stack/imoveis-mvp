@@ -75,7 +75,7 @@ const FILTERS = [
   { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
   { key: "silent", label: "Sem retorno" },
-  { key: "finished", label: "Finalizadas" }
+  { key: "finished", label: "Arquivadas" }
 ];
 
 const STATUS_LABELS = { open: "Nova", in_service: "Em atendimento", finished: "Finalizada" };
@@ -1010,7 +1010,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
                 disabled={archiving}
                 className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist disabled:opacity-50"
                 aria-label={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar cliente" : "Arquivar conversa"}
-                title={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar: o cliente vai para Arquivado e a conversa sai do Chat" : "Arquivar conversa (vai para Finalizadas)"}
+                title={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar: o cliente vai para Arquivado e a conversa sai do Chat" : "Arquivar conversa (vai para Arquivadas)"}
               >
                 {conversation.status === "finished" ? <ArchiveRestore className="h-4 w-4 text-brand" /> : <Archive className="h-4 w-4" />}
                 <span className="hidden sm:inline">{conversation.status === "finished" ? "Reabrir" : "Arquivar"}</span>
