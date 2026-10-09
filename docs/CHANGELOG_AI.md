@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Custo do patrocinado no card: administrador vê o mesmo valor da equipe
+- **O quê:** o card mostra para todos os perfis o valor da equipe (real × 1,5, ou R$ 10–16,99 sem custo identificado). O valor real continua só no resumo da aba Patrocinado (administrador).
+- **Por quê:** decisão do dono.
 ### 2026-10-09 — Patrocinado sem custo identificado: valor de R$ 10–16,99 para a equipe
 - **O quê:** cliente de anúncio sem custo calculável (anúncio não sincronizado/sem gasto) mostra no card, para corretor/gestor/associado, um valor fixo por cliente entre R$ 10,00 e R$ 16,99 (`teamFallbackSponsoredCost`, derivado do id). O administrador geral continua vendo só custos reais.
 - **Por quê:** decisão do dono.

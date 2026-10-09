@@ -54,7 +54,7 @@ test("resumo da visão (ex.: filtro por corretora): total, média e quantos fica
 
 test("card: admin recebe o custo real, equipe o valor inflado (2026-10-08); resumo da aba só admin; a tela mostra o selo e o painel", () => {
   const query = read("lib/simulation-list-query.js");
-  assert.ok(query.includes("const realCost = isGeneralAdminAuth(auth);"));
+  assert.ok(query.includes("const realCost = false;"), "card igual para todos (2026-10-09)");
   assert.ok(query.includes("filters.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth(auth)"));
   assert.equal(query.split("applySponsoredCostSignal(auth, await applyChatContactSignal(supabase, items))").length - 1, 2, "as duas saídas da página");
   assert.ok(query.includes("...(sponsoredCost ? { sponsoredCost } : {})"));
