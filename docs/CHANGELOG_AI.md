@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Chat: atalho "Lista de documentos" envia a lista personalizada
+- **Data:** 2026-10-09
+- **Área:** WhatsApp / Chat / Documentos
+- **Alteração:** o atalho "Lista de documentos" do Chat (menu "+") agora envia a imagem PERSONALIZADA do cliente da conversa (mesma da apresentação e do botão da ficha, `prepareClientDocumentsList`) quando ele tem simulação com valores; antes sempre ia a imagem genérica do atalho. Sem cliente/simulação (ou em qualquer falha) segue a genérica. Registra "Lista de documentos enviada" na jornada.
+- **Motivo:** pedido do dono (cliente que já preencheu o cadastro deve receber a lista dele, não a genérica).
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `tests/chat-documents-shortcut.test.mjs`
+- **Risco/observação:** o atalho é reconhecido pelo nome "Lista de documentos" (se renomearem, volta a genérica). Cria/reaproveita o link da apresentação (get-or-create) para gerar a imagem. A CONFIRMAR em produção: enviar o atalho numa conversa de cliente com cadastro.
+- **Autor:** Claude Code
 ### 2026-10-09 — Chat: sai o aviso "envio pelo WhatsApp pessoal desativado"
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Chat
