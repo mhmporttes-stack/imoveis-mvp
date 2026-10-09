@@ -59,7 +59,7 @@ import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/comp
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
-import { CHAT_LINK_PATTERN } from "@/lib/chat-link-preview-core.mjs";
+import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 
@@ -130,11 +130,33 @@ const PREVIEW_KINDS = {
 };
 
 // Texto da mensagem com links clicáveis (azul sublinhado, como no WhatsApp).
+// Texto da mensagem com a formatação do WhatsApp (*negrito*, _itálico_, ~tachado~, ```mono```, `código`, citação e
+// listas) e links clicáveis. Regras em lib/whatsapp-format.mjs (pedido do dono, 2026-10-09).
+function FormattedNodes({ nodes }) {
+  return nodes.map((node, index) => {
+    if (node.type === "link") {
+      return <a key={index} href={node.href} target="_blank" rel="noopener noreferrer" className="break-all text-[#0B6BAF] underline underline-offset-2 hover:text-[#08508A]" onClick={(event) => event.stopPropagation()}>{node.text}</a>;
+    }
+    if (node.type === "bold") return <strong key={index} className="font-bold"><FormattedNodes nodes={node.children} /></strong>;
+    if (node.type === "italic") return <em key={index} className="italic"><FormattedNodes nodes={node.children} /></em>;
+    if (node.type === "strike") return <s key={index}><FormattedNodes nodes={node.children} /></s>;
+    if (node.type === "mono") return <span key={index} className="font-mono text-[0.92em]">{node.text}</span>;
+    if (node.type === "code") return <code key={index} className="rounded bg-black/[0.06] px-1 py-px font-mono text-[0.88em]">{node.text}</code>;
+    return <span key={index}>{node.text}</span>;
+  });
+}
+
 function MessageText({ text }) {
-  const parts = String(text || "").split(CHAT_LINK_PATTERN);
-  return parts.map((part, index) => (index % 2 === 1 ? (
-    <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="break-all text-[#0B6BAF] underline underline-offset-2 hover:text-[#08508A]" onClick={(event) => event.stopPropagation()}>{part}</a>
-  ) : part));
+  const blocks = parseWhatsappText(text);
+  return blocks.map((block, index) => {
+    const content = <FormattedNodes nodes={block.children} />;
+    if (block.type === "quote") return <span key={index} className="my-0.5 block border-l-4 border-black/15 pl-2 text-[#54656F]">{content}</span>;
+    if (block.type === "bullet") return <span key={index} className="flex gap-1.5 pl-1"><span aria-hidden="true">•</span><span className="min-w-0 flex-1">{content}</span></span>;
+    if (block.type === "numbered") return <span key={index} className="flex gap-1.5 pl-1"><span className="tabular-nums">{block.number}.</span><span className="min-w-0 flex-1">{content}</span></span>;
+    // Linha comum: quebra de linha só entre duas linhas comuns (as de bloco já quebram sozinhas).
+    const next = blocks[index + 1];
+    return <span key={index}>{content}{next && next.type === "line" ? "\n" : ""}</span>;
+  });
 }
 
 function dayKey(value) {
@@ -706,7 +728,7 @@ function ListTag({ tone = "slate", children, title }) {
 }
 
 function ConversationPreview({ conversation, unread }) {
-  const preview = conversation.lastMessagePreview || "";
+  const preview = stripWhatsappFormatting(conversation.lastMessagePreview || "").replace(/\n+/g, " ");
   const kind = PREVIEW_KINDS[preview.trim()] || null;
   const outbound = conversation.lastMessageDirection === "outbound";
   return (
