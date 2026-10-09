@@ -755,18 +755,20 @@ function ConversationPreview({ conversation, unread }) {
   );
 }
 
-// Aviso de espera em texto (mesmas regras do WaitingBadge): aguardando (âmbar), sem resposta (vermelho), cliente em silêncio (cinza).
+// Aviso de espera em pílula curta (mesmas regras do WaitingBadge): sem resposta (vermelho), aguardando (âmbar), cliente em
+// silêncio (cinza). O texto completo fica no tooltip e no leitor de tela.
 function WaitingText({ waiting }) {
   if (!waiting) return null;
   if (waiting.kind === "awaiting_us" && waiting.level === "ok") return null;
   const late = waiting.kind === "awaiting_us" && waiting.level === "late";
-  const tone = waiting.kind === "awaiting_us" ? (late ? "font-bold text-red-600" : "font-semibold text-amber-700") : "";
-  const label = waiting.kind === "awaiting_us" ? (late ? "sem resposta há" : "aguardando há") : "cliente em silêncio há";
+  const awaiting = waiting.kind === "awaiting_us";
+  const tone = late ? "bg-red-50 text-red-700" : awaiting ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-600";
+  const label = awaiting ? (late ? "sem resposta há" : "aguardando há") : "cliente em silêncio há";
+  const full = `${label} ${formatWaitShort(waiting.minutes)}`;
   return (
-    <>
-      <span aria-hidden="true">·</span>
-      <span className={`inline-flex shrink-0 items-center gap-0.5 ${tone}`}><Clock className="h-3 w-3" aria-hidden="true" />{label} {formatWaitShort(waiting.minutes)}</span>
-    </>
+    <span title={full} aria-label={full} className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 text-[11px] font-bold leading-4 ${tone}`}>
+      <Clock className="h-3 w-3" aria-hidden="true" />{formatWaitShort(waiting.minutes)}
+    </span>
   );
 }
 
@@ -800,9 +802,8 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
       <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
         <span className="flex items-baseline justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
-            {/* Primeiro nome e, logo depois, a situação do cliente */}
+            {/* Só o nome (a situação do cliente vai para a linha de baixo: nome nunca mais é cortado por ela) */}
             <span title={name} className={`min-w-0 truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
-            <ClientStatusDot client={conversation.client} className="max-w-[150px] shrink-0 whitespace-nowrap" />
           </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
@@ -819,16 +820,17 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
             </span>
           ) : null}
         </span>
-        {/* Lista limpa (pedido do dono, 2026-10-09, opção 3): sem selos coloridos na linha de baixo — só texto discreto com o
-            corretor responsável, o canal e o aviso de espera (as mesmas regras de antes, só que em texto). */}
-        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-4 text-[#667781]">
-          {conversation.broker && conversation.broker.id !== currentUserId ? (
-            <span className="inline-flex min-w-0 items-center gap-0.5" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
-          ) : null}
-          {conversation.broker && conversation.broker.id !== currentUserId ? <span aria-hidden="true">·</span> : null}
-          <span className="shrink-0">{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</span>
-          {!conversation.client ? <><span aria-hidden="true">·</span><span className="shrink-0 text-amber-700">não cadastrado</span></> : null}
+        {/* Lista limpa (pedido do dono, 2026-10-09, aprovada): uma linha de contexto — situação do cliente, aviso de espera
+            (pílula) e corretor pelo PRIMEIRO NOME. O canal aparece no selo do avatar; em texto só quando o selo não existe. */}
+        <span className="mt-0.5 flex min-w-0 items-center gap-2 text-[12px] leading-5 text-[#667781]">
+          <span className="flex min-w-0 flex-1 items-center gap-1">
+            {conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
+            {!conversation.account ? <><span aria-hidden="true">·</span><span className="shrink-0">{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</span></> : null}
+          </span>
           <WaitingText waiting={conversation.waiting} />
+          {conversation.broker && conversation.broker.id !== currentUserId ? (
+            <span className="inline-flex max-w-[90px] shrink-0 items-center gap-0.5" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
+          ) : null}
         </span>
       </span>
     </button>
