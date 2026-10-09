@@ -22,9 +22,11 @@ test("arquivado e nao contactar nao recebem; sem cadastro e demais status recebe
   assert.equal(canSendPresentationTo({ status: "do_not_contact" }), false);
 });
 
-test("gerador: terceira opcao Apresentacao no seletor; PDF e imagem seguem pelo mesmo fluxo", () => {
+test("gerador: envio só pelo link da apresentação (dono, 2026-10-09); PDF/imagem ficam só para baixar", () => {
   const src = read("components/SimulationGenerator.jsx");
-  assert.match(src, /value: "presentation", label: "Apresentação"/);
+  assert.match(src, /value: "presentation", label: "Link \(apresentação\)"/);
+  assert.doesNotMatch(src, /\{ value: "pdf", label: "PDF" \}/);
+  assert.match(src, /useState\("presentation"\)/);
   assert.match(src, /sendFormat === "presentation"/);
   assert.match(src, /enviar-preparar/);
   assert.match(src, /enviar-registrar/);
