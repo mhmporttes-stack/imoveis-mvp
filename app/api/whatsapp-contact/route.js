@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { normalizeBrokerRef, resolveAdminProfileByRef } from "@/lib/admin-profiles";
 import { getReceiveSimulationContact } from "@/lib/simulation-registrations";
-import { toWhatsAppDigits } from "@/lib/phone-utils";
+import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
 import { RECEIVE_CONTACT_STATE } from "@/lib/receive-simulation-contact.mjs";
 
 export const runtime = "nodejs";
@@ -34,16 +33,12 @@ export async function GET(request) {
     if (registrationId) {
       const contact = await getReceiveSimulationContact(registrationId, token);
       if (!contact) return NextResponse.json({ error: "Cadastro não encontrado." }, { status: 404, headers: NO_STORE });
-      return NextResponse.json(contact, { headers: NO_STORE });
+      // Dono, 2026-10-09: o cliente sempre chama o número OFICIAL (o corretor responsável atende pelo Chat). Não há mais fila
+      // de espera nem "corretor sem WhatsApp": o botão fica pronto assim que o cadastro existe.
+      return NextResponse.json({ state: RECEIVE_CONTACT_STATE.READY, phone: OFFICIAL_WHATSAPP_DIGITS }, { headers: NO_STORE });
     }
-
-    const ref = normalizeBrokerRef(params.get("ref") || "");
-    if (ref && ref !== "equipe") {
-      const profile = await resolveAdminProfileByRef(ref, "simulation");
-      const brokerDigits = profile?.status === "active" ? toWhatsAppDigits(profile.phone) : "";
-      if (brokerDigits) return NextResponse.json({ state: RECEIVE_CONTACT_STATE.READY, phone: brokerDigits }, { headers: NO_STORE });
-    }
-    return NextResponse.json({ state: RECEIVE_CONTACT_STATE.UNAVAILABLE }, { headers: NO_STORE });
+    // Sem cadastro identificado (formulário sem token de acesso): também o número oficial.
+    return NextResponse.json({ state: RECEIVE_CONTACT_STATE.READY, phone: OFFICIAL_WHATSAPP_DIGITS }, { headers: NO_STORE });
   } catch (error) {
     console.error("Falha ao resolver o WhatsApp do botão Receber minha simulação:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível localizar o WhatsApp do seu corretor." }, { status: 500, headers: NO_STORE });

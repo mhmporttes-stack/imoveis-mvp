@@ -61,6 +61,7 @@ import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
+import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 
@@ -2046,9 +2047,10 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   // Número oficial com a janela de 24 h fechada: texto livre bloqueado, o corretor segue pelo celular.
   const windowClosed = !conversation.sessionUserId && conversation.window?.open === false;
   const awaiting = (conversation.awaitingCustomer === true || individualOff || windowClosed) && !editTarget;
-  const customerDigits = String(conversation.phone || "").replace(/D/g, "");
+  const customerDigits = String(conversation.phone || "").replace(/\D/g, "");
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
-  const callLink = conversation.brokerWhatsapp ? `https://wa.me/${conversation.brokerWhatsapp}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}` : "";
+  // Link para o cliente te chamar: SEMPRE o número oficial (dono, 2026-10-09) — o atendimento segue pelo Chat.
+  const callLink = `https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}`;
   async function copyCallLink() {
     try {
       await navigator.clipboard.writeText(callLink);
