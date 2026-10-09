@@ -776,6 +776,8 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
   const messages = detail?.messages || [];
+  // Foto/nome do contato para o player de áudio (estilo WhatsApp).
+  const audioContact = conversation ? { name: displayName(conversation), photoUrl: conversation.photoUrl || "" } : null;
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
   const showAssume = Boolean(conversation) && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
   // Dois números (2026-10-08): conversa de cliente no MEU WhatsApp pessoal pode ser aberta no meu outro número conectado.
@@ -1062,7 +1064,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} />
+          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} />
         )))}
         {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">Nenhuma mensagem nesta conversa.</p> : null}
       </div>
@@ -1308,7 +1310,7 @@ function LinkPreviewCard({ preview, outbound }) {
   );
 }
 
-function MessageBubble({ message, first = true, quoted, onOpenActions }) {
+function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null }) {
   const hasActions = !message.internal && (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body));
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
@@ -1360,7 +1362,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
         ) : null}
         {message.revoked ? (
           <p className="flex items-start gap-1.5 text-sm italic text-[#54656F]"><Ban className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{message.revokedBy === "customer" ? "O cliente apagou esta mensagem" : "Mensagem apagada"}{message.originalBody ? <span className="mt-1 block text-[11px] font-semibold not-italic">Original (só administrador vê): {message.originalBody}</span> : null}</span></p>
-        ) : message.media ? <MediaPreview media={message.media} type={message.type} /> : isMedia ? (
+        ) : message.media ? <MediaPreview media={message.media} type={message.type} outbound={outbound}
+          avatarName={outbound ? message.sentByName || "Equipe" : contact?.name || ""} avatarUrl={outbound ? "" : contact?.photoUrl || ""} /> : isMedia ? (
           <p className="text-sm italic text-[#54656F]">{message.type === "unsupported"
             ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
             : `[${label}] — abra no WhatsApp para visualizar`}</p>
@@ -1552,8 +1555,8 @@ function InboundImage({ media, type }) {
   );
 }
 
-function MediaPreview({ media, type }) {
-  if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} />;
+function MediaPreview({ media, type, outbound = false, avatarName = "", avatarUrl = "" }) {
+  if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} outbound={outbound} avatarName={avatarName} avatarUrl={avatarUrl} />;
   if (type === "image" || type === "sticker") return <InboundImage media={media} type={type} />;
   if (media.state === "failed" && type !== "audio") {
     return <p className="mb-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Não foi possível baixar {MEDIA_LABELS[type]?.toLowerCase() || "o arquivo"} do WhatsApp. Abra no WhatsApp do celular.</p>;
