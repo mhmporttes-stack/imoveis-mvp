@@ -182,6 +182,13 @@ function displayName(conversation) {
   return conversation.client?.name || conversation.name || conversation.phone;
 }
 
+// Lista do Chat: só o primeiro nome (o nome completo fica no cabeçalho da conversa, no cadastro e no card).
+// Telefone ou nome que começa por número/símbolo aparece inteiro.
+function listFirstName(conversation) {
+  const full = String(displayName(conversation) || "").trim();
+  return /^\p{L}/u.test(full) ? full.split(/\s+/)[0] : full;
+}
+
 function formatPhone(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
   const national = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
@@ -764,7 +771,11 @@ function ConversationRow({ conversation, selected, onSelect }) {
       {/* Separador fino só a partir do texto (depois do avatar), como no WhatsApp */}
       <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
         <span className="flex items-baseline justify-between gap-2">
-          <span className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            {/* Situação do cliente na frente do nome */}
+            <ClientStatusBadge client={conversation.client} className="max-w-[130px] shrink-0 whitespace-nowrap" />
+            <span title={name} className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
+          </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
         <span className="flex items-center justify-between gap-2">
@@ -784,7 +795,6 @@ function ConversationRow({ conversation, selected, onSelect }) {
         <span className="mt-1 flex items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,#000_88%,transparent)]">
           <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
           {conversation.broker ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{conversation.broker.name || "Corretor"}</span></ListTag> : null}
-          <ClientStatusBadge client={conversation.client} className="max-w-[170px] shrink-0 whitespace-nowrap" />
           {!conversation.client ? <ListTag tone="amber">Não cadastrado</ListTag> : null}
           <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</ListTag>
           <ListTag>{STATUS_LABELS[conversation.status] || conversation.status}</ListTag>
@@ -2019,17 +2029,13 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {progress ? <p className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-brand"><Loader2 className="h-3.5 w-3.5 animate-spin" />{progress}</p> : null}
-      {awaiting ? (
+      {/* Aviso "envio pelo WhatsApp pessoal desativado" removido (pedido do dono, 2026-10-09: poluía a tela); o botão verde segue abrindo o WhatsApp do celular. */}
+      {awaiting && !individualOff ? (
         <div className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold leading-5 text-navy">
           {windowClosed && !individualOff && conversation.awaitingCustomer !== true ? (
             <>
               <p className="font-black">A janela de 24 horas deste cliente fechou.</p>
               <p className="mt-0.5">Pelo número oficial só dá para responder até 24 h depois da última mensagem do cliente. Escreva o texto abaixo e toque no botão verde para enviar pelo WhatsApp do celular.</p>
-            </>
-          ) : individualOff ? (
-            <>
-              <p className="font-black">O envio pelo seu WhatsApp pessoal está desativado por enquanto.</p>
-              <p className="mt-0.5">Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Conversas do número oficial seguem funcionando aqui no Chat.</p>
             </>
           ) : (
             <>
@@ -2037,7 +2043,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
             </>
           )}
-          {callLink && !individualOff ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
+          {callLink ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
         </div>
       ) : null}
 
