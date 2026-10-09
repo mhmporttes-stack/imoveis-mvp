@@ -37,7 +37,12 @@ export default function AdminTwoFactorChallenge({ email = "", nextPath = "" }) {
       const mobileApp = window.navigator.standalone === true
         || window.matchMedia("(display-mode: standalone)").matches
         || window.matchMedia("(max-width: 767px)").matches;
-      router.replace(nextPath || getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
+      // App da tela inicial (/chat-app, /financeiro): recarrega a página inteira para o modo "só esta área" valer.
+      if (nextPath) {
+        window.location.replace(nextPath);
+        return;
+      }
+      router.replace(getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
       router.refresh();
     } finally {
       setLoading(false);
