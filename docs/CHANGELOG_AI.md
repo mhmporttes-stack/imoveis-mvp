@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Cliente de anúncio de WhatsApp cadastrado por mensagem volta a ser "Patrocinado"
+- **O quê:** `routeOrganicLead` (`lib/whatsapp-sponsored-lead.js`) usa a origem `whatsapp_ad` (com anúncio/referral) quando a conversa veio de anúncio.
+- **Por quê:** desde que a roleta deixou de rodar no clique do anúncio (2026-10-08), quem escrevia de novo virava "WhatsApp — Contato direto" e sumia da aba Patrocinado (4 clientes de 08–09/10, anúncio 52550704071153). A origem desses 4 NÃO foi corrigida: `client_origins` é imutável no banco (`guard_original_source`) — decisão do dono pendente.
 ### 2026-10-09 — Chat: aparência de WhatsApp (conversa e lista)
 - **Data:** 2026-10-09
 - **Área:** Chat (WhatsApp) — só apresentação
