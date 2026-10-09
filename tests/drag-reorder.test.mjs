@@ -21,3 +21,12 @@ test("telas sem setas de subir/descer: usam arrastar", () => {
   assert.doesNotMatch(sim, />↑<|Subir|Descer/);
   assert.match(sim, /useDragReorder/);
 });
+
+test("Enviar simulação abre o Chat com o link no campo, sem WhatsApp Web/celular (2026-10-09)", () => {
+  const sim = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
+  const fn = sim.slice(sim.indexOf("async function sendPresentationToWhatsApp()"), sim.indexOf("async function sendPresentationToWhatsApp()") + 2000);
+  assert.match(fn, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}&text=\$\{encodeURIComponent\(data\.message\)\}`\)/);
+  assert.doesNotMatch(fn, /wa\.me/);
+  const chat = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
+  assert.match(chat, /if \(initialText\) setInsertRequest\(\{ conversationId: data\.conversationId, text: initialText/);
+});

@@ -210,7 +210,7 @@ function useChatAppMode(enabled, ref) {
   }, [enabled, ref]);
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", canSeeArchived = false, appMode = false }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", canSeeArchived = false, appMode = false }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
@@ -412,7 +412,11 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         setTab("conversations");
         await loadList({ silent: true });
         // Cliente arquivado (WA-13) para quem não é o dono: Chat em branco, nenhuma conversa aberta.
-        if (data.conversationId) openConversation(data.conversationId);
+        if (data.conversationId) {
+          openConversation(data.conversationId);
+          // "Enviar simulação" (2026-10-09): o link da apresentação já entra no campo de mensagem; o corretor só envia.
+          if (initialText) setInsertRequest({ conversationId: data.conversationId, text: initialText, nonce: Date.now() });
+        }
       })
       .catch((error) => { if (!cancelled) setOpenError(error.message); });
     return () => { cancelled = true; };

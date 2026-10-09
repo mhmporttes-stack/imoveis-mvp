@@ -704,7 +704,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     }
 
     if (sendFormat === "presentation") {
-      await sendPresentationToWhatsApp(phone);
+      await sendPresentationToWhatsApp();
       return;
     }
 
@@ -741,9 +741,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     }
   }
 
-  // Terceira opção do envio: link da apresentação interativa (/s/<token>). O servidor faz o get-or-create do link e monta a
-  // mensagem; o WhatsApp do cliente abre com ela pronta e quem envia é o corretor (nunca automático). Vale o que está SALVO.
-  async function sendPresentationToWhatsApp(phone) {
+  // Envio pelo CHAT do CRM (pedido do dono, 2026-10-09): "Enviar simulação" abre a conversa do cliente no Chat com o link da
+  // apresentação já no campo de mensagem — o corretor confere e envia por lá (nunca mais WhatsApp Web/celular). Cliente sem
+  // cadastro vinculado ainda não tem conversa no Chat: pede para salvar o cadastro antes.
+  async function sendPresentationToWhatsApp() {
     if (!form.id) {
       setError("Salve a simulação antes de enviar a apresentação.");
       setMessage("");
@@ -752,7 +753,6 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     setSendingSimulation(true);
     setError("");
     setMessage("");
-    const whatsappWindow = window.open("about:blank", "_blank");
     const endpoint = `/api/admin/simulacoes/${encodeURIComponent(form.id)}/apresentacao`;
     const post = (action) => fetch(endpoint, {
       method: "POST",
@@ -763,46 +763,15 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     try {
       const saved = await persistSimulation();
       if (!saved) throw new Error("Salve a simulação antes de enviar a apresentação.");
+      const registrationId = saved?.registrationId || form.registrationId;
+      if (!registrationId) throw new Error("Crie o cadastro do cliente antes de enviar: a simulação é enviada pela conversa dele no Chat.");
       const response = await post("enviar-preparar");
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.message) throw new Error(data.error || "Não foi possível preparar a apresentação.");
-
-      // No COMPUTADOR (WhatsApp Web/Desktop) o texto pré-preenchido pelo wa.me não gera a prévia do link (cartão com foto e
-      // título); só COLAR o link na conversa gera. Por isso, no computador, o link é copiado e a conversa abre sem texto.
-      // No celular a prévia já funciona com o texto pré-preenchido. Se a cópia falhar, volta ao texto pré-preenchido.
-      const onDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
-      let copied = false;
-      if (onDesktop) {
-        // A aba nova (about:blank) já tem o foco, e o navegador só copia pela aba que está em foco: tenta nela e depois nesta.
-        for (const clipboard of [() => whatsappWindow?.navigator?.clipboard, () => navigator.clipboard]) {
-          try {
-            await clipboard()?.writeText(data.message);
-            copied = true;
-            break;
-          } catch {
-            copied = false;
-          }
-        }
-      }
-      const whatsappUrl = copied ? `https://wa.me/${phone}` : `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`;
-      if (whatsappWindow) {
-        whatsappWindow.opener = null;
-        whatsappWindow.location.href = whatsappUrl;
-      } else {
-        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      }
-
-      const logged = await post("enviar-registrar").catch(() => null);
-      if (logged?.ok) {
-        setMessage(copied
-          ? "O WhatsApp do cliente foi aberto e o link foi copiado: cole na conversa (Ctrl+V) para aparecer a prévia e envie."
-          : "O WhatsApp do cliente foi aberto com o link da apresentação. Envie por lá.");
-      }
-      else setError("O WhatsApp foi aberto, mas o registro na jornada do cliente falhou.");
+      await post("enviar-registrar").catch(() => null);
+      router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
     } catch (sendError) {
-      if (whatsappWindow) whatsappWindow.close();
       setError(sendError.message || "Não foi possível preparar o envio da apresentação.");
-    } finally {
       setSendingSimulation(false);
     }
   }
