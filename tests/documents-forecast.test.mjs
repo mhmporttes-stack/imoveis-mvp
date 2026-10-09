@@ -139,7 +139,7 @@ test("link do WhatsApp do cliente: SEMPRE o número oficial (dono, 2026-10-09), 
   const url = buildBrokerWhatsappUrl("5514991112222", "Olá! Pode ser às 9h?");
   assert.equal(url, `https://wa.me/5514991056706?text=${encodeURIComponent("Olá! Pode ser às 9h?")}`);
   assert.equal(new URL(url).searchParams.get("text"), "Olá! Pode ser às 9h?");
-  for (const phone of ["", null, undefined, "abc"]) assert.match(buildBrokerWhatsappUrl(phone, "x"), /^https://wa.me/5514991056706?text=x$/);
+  for (const phone of ["", null, undefined, "abc"]) assert.equal(buildBrokerWhatsappUrl(phone, "x"), "https://wa.me/5514991056706?text=x");
 });
 
 // ---------- status ----------
