@@ -56,3 +56,11 @@ test("abrir cliente no Chat segue o número em que ele está sendo atendido (202
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
   assert.match(chat, /if \(current\?\.\[0\]\?\.session_key\) sessionKey = current\[0\]\.session_key;/);
 });
+
+test("link interno do CRM (/admin/) não pode ir para o cliente (2026-10-09)", async () => {
+  const { hasInternalCrmLink } = await import("../lib/simulation-first-core.mjs");
+  assert.equal(hasInternalCrmLink("https://www.matheusmachadoimoveis.com.br/admin/simulacoes/4d33/apresentacao"), true);
+  assert.equal(hasInternalCrmLink("https://www.matheusmachadoimoveis.com.br/s/AbCdEf123456"), false);
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /if \(hasInternalCrmLink\(body\)\) throw new WhatsappChatError\(INTERNAL_LINK_MESSAGE/);
+});
