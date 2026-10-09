@@ -378,8 +378,20 @@ html[data-mm-app="financeiro"] {
   --admin-bottom-nav-space: 0px !important;
 }
 
+/* Sem o desfoque do iOS sob o relógio: a página não rola atrás da barra de status. O body vira a
+   área de rolagem e a faixa da barra de status é uma borda sólida (borda não rola, padding rolaria). */
+html[data-mm-app="financeiro"] body {
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: env(safe-area-inset-top) solid #F5F7FA;
+  background: #F5F7FA;
+}
+
 html[data-mm-app="financeiro"] main {
-  padding-top: calc(env(safe-area-inset-top) + 1rem);
+  padding-top: 1rem;
 }
 
 @media (min-width: 768px) {
