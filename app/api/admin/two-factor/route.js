@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccessTokenFromRequest, isOwnerAdminEmail, requireRealGeneralAdminApi, setAdminSessionCookies } from "@/lib/admin-auth";
+import { getAccessTokenFromRequest, requireRealTwoFactorApi, setAdminSessionCookies } from "@/lib/admin-auth";
 import {
   clearTwoFactorCookies,
   confirmTwoFactorEnrollment,
@@ -13,15 +13,10 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Configuração da verificação em duas etapas (regra do dono, 2026-10-08): só a conta REAL do dono. Quando já está
-// ativada, requireRealGeneralAdminApi já exige o 2º fator desta sessão (lib/admin-auth.js).
+// Configuração da verificação em duas etapas (regra do dono, 2026-10-08; gestores em 2026-10-09): só a conta REAL do dono ou
+// de um gestor. Quando já está ativada, requireRealTwoFactorApi já exige o 2º fator desta sessão (lib/admin-auth.js).
 async function requireOwner(request) {
-  const auth = await requireRealGeneralAdminApi(request);
-  if (!auth.ok) return auth;
-  if (!isOwnerAdminEmail(auth.user?.email)) {
-    return { ok: false, status: 403, error: "Verificação em duas etapas disponível só para a conta do dono." };
-  }
-  return auth;
+  return requireRealTwoFactorApi(request);
 }
 
 export async function GET(request) {
