@@ -32,7 +32,7 @@ export default function FinanceiroLauncher({ app = "financeiro" }) {
           <p className="mt-3 text-muted">Abrindo o {copy.title}…</p>
         ) : (
           <>
-            <p className="mt-3 leading-7 text-muted">Para ter o {copy.title} na tela inicial do iPhone: toque em <strong>Compartilhar</strong> no Safari e depois em <strong>Adicionar à Tela de Início</strong>.</p>
+            <p className="mt-3 leading-7 text-muted">Para ter o {copy.title} na tela inicial do iPhone, abra esta página no <strong>Safari</strong> (pelo Chrome o atalho abre o navegador com o sistema inteiro), toque em <strong>Compartilhar</strong>, depois em <strong>Adicionar à Tela de Início</strong> e deixe <strong>Abrir como App Web</strong> ligado.</p>
             <a href={home} className="mt-6 inline-flex rounded-full bg-navy px-6 py-3 font-bold text-white">{copy.open}</a>
           </>
         )}
