@@ -19,7 +19,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Atalho "Financeiro" na tela inicial do iPhone
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Saúde: "Novo gasto" (avulso, já pago) e "Nova conta recorrente"
+- **Data:** 2026-10-09
+- **Área:** Financeiro / Saúde
+- **O quê (pedido do dono):** botão principal do painel passou a ser **Novo gasto** — gaveta curta (com o que foi, valor, data ≤ hoje, categoria, observação) que grava despesa operacional única, natureza variável, e confirma o pagamento na data do gasto pelo mesmo caminho do "Já foi paga?" (o cadastro pelo dono é a confirmação manual; regra de pagamento manual preservada). **Nova conta** desceu para baixo dos totais, renomeada "Nova conta recorrente", e abre já como recorrente/fixa (ainda permite Única). Painel renomeado "Gastos e contas". Só interface: `components/FinancialHealthAccounts.jsx`; API, banco e cálculos inalterados.
+
+### 2026-10-09 — Atalho "Financeiro" na tela inicial do iPhone
 - **Data:** 2026-10-09
 - **Área:** PWA / Financeiro
 - **O quê:** segundo ícone de app (pedido do dono): `/financeiro` (página pública só de instalação, sem dado) usa manifesto próprio `public/financeiro.webmanifest` (`id` /financeiro) e ícones `public/icons/*financeiro*-mm.png` (mesmo fundo #031D3A e cores do "M", com cifrão). No app instalado redireciona para `/admin/financeiro?aba=saude` (abre direto em Saúde/contas quando o perfil vê a aba; login e permissões inalterados). Após login, `components/pwaHome.js` (sessionStorage) devolve o usuário ao Financeiro. Manifesto/ícone do Painel (`app/manifest.js`, `app/layout.jsx`) não foram alterados.

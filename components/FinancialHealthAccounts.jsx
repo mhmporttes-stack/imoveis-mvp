@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, MoreHorizontal, Pencil, Plus, RefreshCw, StopCircle, Trash2, Undo2, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, MoreHorizontal, Pencil, Plus, Receipt, RefreshCw, StopCircle, Trash2, Undo2, Wallet } from "lucide-react";
 import {
   OPERATING_EXPENSE_CATEGORIES,
   OPERATING_EXPENSE_TYPES,
@@ -176,13 +176,13 @@ export function useHealthAccounts({ expenses, occurrences, today, range, onExpen
       // Mesmo caminho de "Marcar como paga": a primeira ocorrência (o vencimento) é paga em seguida.
       const error = await confirmPay(
         { expenseId: saved.id, occurrenceDate: saved.expenseDate, description: saved.description },
-        { paidDate: current.paidDate || today, paidAmount: current.paidAmount || current.amount },
+        current.mode === "spend" ? { paidDate: current.expenseDate, paidAmount: current.amount } : { paidDate: current.paidDate || today, paidAmount: current.paidAmount || current.amount },
         { silent: true }
       );
       if (error) {
-        notify(`Conta cadastrada, mas o pagamento não foi registrado: ${error} Use "Marcar como paga" na lista.`, "danger");
+        notify(`${current.mode === "spend" ? "Gasto cadastrado" : "Conta cadastrada"}, mas o pagamento não foi registrado: ${error} Use "Marcar como paga" na lista.`, "danger");
       } else {
-        notify(`Conta cadastrada e já marcada como paga: ${saved.description}.`, "success", { label: "Desfazer", onClick: () => undoPaid({ expenseId: saved.id, occurrenceDate: saved.expenseDate, description: saved.description }) });
+        notify(current.mode === "spend" ? `Gasto registrado no custo do mês: ${saved.description}.` : `Conta cadastrada e já marcada como paga: ${saved.description}.`, "success", { label: "Desfazer", onClick: () => undoPaid({ expenseId: saved.id, occurrenceDate: saved.expenseDate, description: saved.description }) });
       }
       return "";
     }
@@ -234,8 +234,15 @@ export function useHealthAccounts({ expenses, occurrences, today, range, onExpen
     }
   }
 
+  // "Nova conta" (pedido do dono, 2026-10-09) = conta que vem todo mês: começa como recorrente/fixa (ainda dá para trocar para Única).
   function openNew() {
-    setForm({ ...EMPTY_FORM });
+    setForm({ ...EMPTY_FORM, isRecurring: true, expenseType: "fixed" });
+  }
+
+  // "Novo gasto" = algo que já foi gasto, esporádico: despesa única, variável, registrada JÁ PAGA na data do gasto
+  // (o próprio cadastro é a confirmação manual do pagamento — mesmo caminho do "Já foi paga?" da Nova conta).
+  function openSpend() {
+    setForm({ ...EMPTY_FORM, mode: "spend", isRecurring: false, expenseType: "variable", expenseDate: today, showPaid: true, natureTouched: true });
   }
 
   function openEdit(expense) {
@@ -265,7 +272,7 @@ export function useHealthAccounts({ expenses, occurrences, today, range, onExpen
 
   return {
     expenses, today, range, panel, paidList, filter, changeFilter, showAll, setShowAll,
-    openNew, openEdit, openPay: setPayItem, openReschedule: setRescheduleItem, undoPaid, removeExpense, endRecurrence, sheets
+    openNew, openSpend, openEdit, openPay: setPayItem, openReschedule: setRescheduleItem, undoPaid, removeExpense, endRecurrence, sheets
   };
 }
 
@@ -310,10 +317,11 @@ export function AccountsPanel({ acc, periodLabel }) {
     <section className="rounded-card border border-line bg-white" aria-labelledby="health-accounts-title">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3 pt-4 sm:px-5">
         <div className="min-w-0">
-          <h3 id="health-accounts-title" className="text-lg font-semibold tracking-[-0.01em] text-navy">Contas a pagar</h3>
-          <p className="text-sm text-ink-2">Vencimentos e pagamentos da empresa · {periodLabel}</p>
+          <h3 id="health-accounts-title" className="text-lg font-semibold tracking-[-0.01em] text-navy">Gastos e contas</h3>
+          <p className="text-sm text-ink-2">O que a empresa gastou e o que vence · {periodLabel}</p>
         </div>
-        <Button onClick={acc.openNew} className="max-sm:w-full"><Plus size={18} aria-hidden="true" /> Nova conta</Button>
+        {/* Ação principal: registrar um gasto avulso (já pago). Conta recorrente fica abaixo dos totais. */}
+        <Button onClick={acc.openSpend} className="max-sm:w-full"><Receipt size={18} aria-hidden="true" /> Novo gasto</Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 px-4 sm:px-5 lg:grid-cols-4" role="group" aria-label="Filtrar contas pelo total">
@@ -347,6 +355,11 @@ export function AccountsPanel({ acc, periodLabel }) {
         })}
       </div>
 
+      <div className="mt-3 flex flex-col gap-1.5 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <p className="text-xs leading-4 text-muted">Conta que vem todo mês (aluguel, internet, sistemas)? Cadastre uma vez e os meses seguintes são previstos.</p>
+        <Button variant="secondary" onClick={acc.openNew} className="shrink-0 max-sm:w-full"><Plus size={18} aria-hidden="true" /> Nova conta recorrente</Button>
+      </div>
+
       {panel.undated.length > 0 && (
         <p className="mx-4 mt-3 flex items-start gap-2 rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning sm:mx-5" role="status">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -363,9 +376,9 @@ export function AccountsPanel({ acc, periodLabel }) {
         {!acc.expenses.length ? (
           <EmptyState
             icon={CalendarDays}
-            title="Nenhuma conta cadastrada"
-            description="Cadastre aluguel, sistemas, anúncios e outras contas para acompanhar vencimentos, lucro e caixa."
-            action={<Button onClick={acc.openNew}><Plus size={18} aria-hidden="true" /> Nova conta</Button>}
+            title="Nenhum gasto ou conta cadastrado"
+            description="Registre gastos avulsos (Novo gasto) e contas mensais como aluguel e sistemas (Nova conta recorrente) para acompanhar custo do mês, lucro e caixa."
+            action={<Button onClick={acc.openSpend}><Receipt size={18} aria-hidden="true" /> Novo gasto</Button>}
             className="py-8"
           />
         ) : !list.length ? (
@@ -606,6 +619,7 @@ function ExpenseSheet({ form, setForm, today, onSave }) {
   }, [open, formId]);
 
   if (!form) return <Sheet open={false} onClose={() => setForm(null)} title="Nova conta" className="ui-sheet-full" />;
+  if (form.mode === "spend") return <SpendSheet form={form} setForm={setForm} today={today} onSave={onSave} />;
 
   const editing = Boolean(form.id);
   function patch(field, value) {
@@ -773,6 +787,63 @@ function ExpenseSheet({ form, setForm, today, onSave }) {
           )
         )}
 
+        {formError && <p className="rounded-control border border-danger-line bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">{formError}</p>}
+      </form>
+    </Sheet>
+  );
+}
+
+/* ---------- Novo gasto (avulso, já pago) ---------- */
+
+function SpendSheet({ form, setForm, today, onSave }) {
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function patch(field, value) {
+    setForm((current) => (current ? { ...current, [field]: value } : current));
+    if (errors[field]) setErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  async function submit(event) {
+    event?.preventDefault();
+    setFormError("");
+    const found = {};
+    if (!form.description.trim()) found.description = "Informe com o que foi o gasto.";
+    const amount = parseMoney(form.amount);
+    if (!(Number.isFinite(amount) && amount > 0)) found.amount = "Informe um valor maior que zero.";
+    if (!form.expenseDate) found.expenseDate = "Informe a data do gasto.";
+    else if (form.expenseDate > today) found.expenseDate = "A data do gasto não pode ser futura. Para algo que ainda vai vencer, use Nova conta.";
+    setErrors(found);
+    if (Object.keys(found).length) return;
+    setBusy(true);
+    const message = await onSave(form);
+    if (message) { setFormError(message); setBusy(false); }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={() => setForm(null)}
+      title="Novo gasto"
+      description="Algo que a empresa já gastou, esporádico. Entra no custo do mês como pago."
+      className="ui-sheet-full"
+      footer={(
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="secondary" onClick={() => setForm(null)}>Cancelar</Button>
+          <Button type="submit" form="health-spend-form" loading={busy}>Salvar gasto</Button>
+        </div>
+      )}
+    >
+      <form id="health-spend-form" onSubmit={submit} className="space-y-4" noValidate>
+        <TextInput label="Com o que foi o gasto" value={form.description} onChange={(v) => patch("description", v)} placeholder="Ex.: Galão de água, café, manutenção" error={errors.description} required autoComplete="off" />
+        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
+          <TextInput label="Valor (R$)" value={form.amount} onChange={(v) => patch("amount", v)} inputMode="decimal" placeholder="0,00" error={errors.amount} required autoComplete="off" />
+          <TextInput label="Data do gasto" type="date" value={form.expenseDate} onChange={(v) => patch("expenseDate", v)} max={today} error={errors.expenseDate} required />
+        </div>
+        <SelectInput label="Categoria" value={form.category} onChange={(v) => patch("category", v)} options={OPERATING_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+        <TextInput label="Observação (opcional)" value={form.note} onChange={(v) => patch("note", v)} autoComplete="off" />
+        <p className="text-xs text-ink-2">Gasto único: não se repete nos próximos meses. Para uma conta que vem todo mês, use <strong>Nova conta recorrente</strong>.</p>
         {formError && <p className="rounded-control border border-danger-line bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">{formError}</p>}
       </form>
     </Sheet>
