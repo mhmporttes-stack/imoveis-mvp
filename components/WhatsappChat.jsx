@@ -1103,6 +1103,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
                 <span className={`h-2 w-2 rounded-full ${conversation.window?.open ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
                 {conversation.window?.open ? "Janela aberta" : "Janela fechada"}
               </span>
+              <ContactPresence conversation={conversation} />
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -2282,6 +2283,56 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
       </div>
     </div>
   );
+}
+
+// "Online / visto por último" do contato (pedido do dono, 2026-10-09): só aparece quando existe — conversa do WhatsApp
+// pessoal com o número conectado e contato que não esconde o "visto por último". Atualiza a cada 1 min com a conversa aberta.
+function presenceLabel(presence) {
+  if (!presence?.available) return "";
+  if (presence.state === "composing") return "digitando…";
+  if (presence.state === "recording") return "gravando áudio…";
+  if (presence.state === "available") return "online";
+  if (!presence.lastSeen) return "";
+  const seen = new Date(presence.lastSeen);
+  const tz = "America/Sao_Paulo";
+  const day = (date) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(date);
+  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(seen);
+  const today = day(new Date());
+  const yesterday = day(new Date(Date.now() - 86_400_000));
+  if (day(seen) === today) return `visto por último hoje às ${time}`;
+  if (day(seen) === yesterday) return `visto por último ontem às ${time}`;
+  return `visto por último em ${new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit" }).format(seen)} às ${time}`;
+}
+
+function ContactPresence({ conversation }) {
+  const [presence, setPresence] = useState(null);
+  const id = conversation.id;
+  const personal = Boolean(conversation.sessionUserId) && !conversation.private;
+
+  useEffect(() => {
+    setPresence(null);
+    if (!personal) return undefined;
+    let cancelled = false;
+    async function load() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const response = await fetch(`/api/admin/whatsapp-chat/conversations/${id}/presence`, { cache: "no-store" });
+        const data = await response.json().catch(() => null);
+        if (!cancelled && response.ok) setPresence(data);
+      } catch { /* sem rede: tenta na próxima */ }
+    }
+    load();
+    const timer = window.setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [id, personal]);
+
+  const label = presenceLabel(presence);
+  if (!label) return null;
+  const live = presence.state && presence.state !== "unavailable" && presence.state !== "paused";
+  return <span className={`min-w-0 truncate text-[11px] font-bold ${live ? "text-emerald-600" : "text-[#667781]"}`}>· {label}</span>;
 }
 
 // Editar o nome do contato (pedido do dono, 2026-10-09): o nome do WhatsApp às vezes vem grudado ou com emoji — quem

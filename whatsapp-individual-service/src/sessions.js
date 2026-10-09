@@ -62,6 +62,37 @@ const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "silent" });
 const lidMaps = new Map(); // userId -> Map(lid -> phone)
 const LID_MAP_LIMIT = 5000;
 
+// "Online / visto por último" do contato (pedido do dono, 2026-10-09). Só LEITURA, igual ao WhatsApp Web ao abrir
+// uma conversa (presenceSubscribe). Guardado em memória por corretor + telefone; nada vai para o banco.
+const presences = new Map(); // `${userId}|${telefone}` -> { state, lastSeen, at }
+const PRESENCE_LIMIT = 2000;
+const presenceAsked = new Map(); // `${userId}|${telefone}` -> último pedido (ms) — no máximo 1 por minuto por contato
+
+function presencePhone(userId, jid) {
+  const raw = String(jid || "");
+  if (raw.endsWith("@lid")) {
+    const map = lidMapFor(userId);
+    const phone = map.get(raw) || map.get(raw.split("@")[0]) || "";
+    return String(phone).split("@")[0].split(":")[0].replace(/\D/g, "");
+  }
+  return raw.split("@")[0].split(":")[0].replace(/\D/g, "");
+}
+
+function onPresenceUpdate(userId, { id, presences: list } = {}) {
+  for (const [participant, data] of Object.entries(list || {})) {
+    const phone = presencePhone(userId, participant || id);
+    if (!phone || !data) continue;
+    const key = `${userId}|${phone}`;
+    if (presences.size >= PRESENCE_LIMIT && !presences.has(key)) presences.delete(presences.keys().next().value);
+    const previous = presences.get(key) || {};
+    presences.set(key, {
+      state: data.lastKnownPresence || previous.state || null,
+      lastSeen: Number(data.lastSeen) > 0 ? Number(data.lastSeen) * 1000 : previous.lastSeen || null,
+      at: Date.now()
+    });
+  }
+}
+
 function lidMapFor(userId) {
   let map = lidMaps.get(userId);
   if (!map) {
@@ -300,6 +331,7 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   });
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
   sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
+  sock.ev.on("presence.update", (update) => { try { onPresenceUpdate(userId, update); } catch { /* ignora */ } });
   sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
@@ -701,6 +733,27 @@ export async function deleteMessageForEveryone(userId, { to, targetId }) {
 // Foto de perfil do contato (2026-10-09, pedido do dono): só a URL que o próprio WhatsApp devolve (a mesma que o
 // celular mostra; respeita a privacidade do contato — escondida = null). Nunca envia nada ao contato. O CRM baixa a
 // imagem e guarda; a URL do WhatsApp expira em poucos dias.
+// Online / visto por último (só leitura). Pede ao WhatsApp no máximo 1 vez por minuto por contato e devolve o que
+// estiver guardado. lastSeen só vem quando o contato não esconde o "visto por último".
+export async function getContactPresence(userId, { to }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  const phone = presencePhone(userId, jid);
+  const key = `${userId}|${phone}`;
+  const now = Date.now();
+  if (now - (presenceAsked.get(key) || 0) > 60_000) {
+    presenceAsked.set(key, now);
+    if (presenceAsked.size > PRESENCE_LIMIT) presenceAsked.delete(presenceAsked.keys().next().value);
+    try {
+      await Promise.race([sock.presenceSubscribe(jid), new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000))]);
+    } catch { /* sem resposta: devolve o que houver */ }
+    // A resposta chega por evento (presence.update): espera um pouco por ela.
+    for (let i = 0; i < 10 && !presences.has(key); i += 1) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const cached = presences.get(key) || null;
+  return { state: cached?.state || null, lastSeen: cached?.lastSeen || null, at: cached?.at || null };
+}
+
 export async function getProfilePictureUrl(userId, { to }) {
   const sock = connectedSocket(userId);
   const jid = jidFor(to);

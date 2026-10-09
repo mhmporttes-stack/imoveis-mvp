@@ -19,7 +19,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — PWA: versão nova não recarrega a tela na frente de quem está usando
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Chat: "online / visto por último" do contato (WhatsApp pessoal)
+- **Data:** 2026-10-09
+- **Área:** WhatsApp / Chat / microsserviço
+- **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
+- **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
+
+### 2026-10-09 — PWA: versão nova não recarrega a tela na frente de quem está usando
 - **Data:** 2026-10-09
 - **Área:** PWA / Frontend
 - **Causa raiz (reclamação da Carol):** `components/PwaLifecycle.jsx` procura versão nova ao voltar ao app e a cada 10 min; o `public/sw.js` muda a cada build (`skipWaiting`) e o `controllerchange` recarregava a página na hora (só esperava parar de digitar). Num dia com dezenas de publicações a tela recarregava toda hora.
