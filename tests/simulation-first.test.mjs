@@ -35,3 +35,8 @@ test("todas as portas de envio do Chat passam pela trava", () => {
     assert.match(body, /await assertSimulationFirst\(conversation, auth/, fn);
   }
 });
+
+test("finalizar a conversa zera o não lido (2026-10-09)", () => {
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /if \(status === "finished"\) \{\n\s+patch\.unread_count = 0;/);
+});
