@@ -17,6 +17,7 @@ test("não trava: simulação enviada, sem dados, link pessoal, depois da simula
   assert.equal(requiresSimulationFirst({ ...base, primary_monthly_income: 0 }), false);
   assert.equal(requiresSimulationFirst({ ...base, distribution_type: "" }), false);
   assert.equal(requiresSimulationFirst({ ...base, status: "simulation_sent" }), false);
+  assert.equal(requiresSimulationFirst({ ...base, status: "completed" }), true, "simulação feita mas não enviada continua travando");
   assert.equal(requiresSimulationFirst({ ...base, created_at: "2026-10-09T08:00:00Z" }), false);
   assert.equal(requiresSimulationFirst(null), false);
 });
@@ -49,4 +50,9 @@ test("resposta humana zera o 'não lida'; automação não (2026-10-09)", () => 
 test("conversa arquivada sai da lista principal e fica em Arquivadas (2026-10-09)", () => {
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
   assert.match(chat, /if \(safeFilter !== "finished" && safeFilter !== "private" && !term\) request = request\.neq\("status", "finished"\);/);
+});
+
+test("abrir cliente no Chat segue o número em que ele está sendo atendido (2026-10-09)", () => {
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /if \(current\?\.\[0\]\?\.session_key\) sessionKey = current\[0\]\.session_key;/);
 });
