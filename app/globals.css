@@ -378,10 +378,27 @@ html[data-mm-app] {
   --admin-bottom-nav-space: 0px !important;
 }
 
-/* App "Chat" (mesma proposta, 2026-10-09): só o Chat; sem a barra inferior o Chat vai até o fim da
-   tela respeitando o traço do iPhone (com o teclado aberto, a regra .admin-typing continua valendo). */
-html[data-mm-app="chat"].chat-app-mode:not(.admin-typing) body {
+/* App "Chat" (mesma proposta, 2026-10-09): só o Chat. A lista de conversas vai até o fim da tela (sem a
+   faixa da barra inferior); só a caixa de digitação respeita o traço do iPhone (.chat-composer-safe).
+   Topo: faixa sólida na altura do relógio (borda, não rola) + respiro — sem o desfoque do iOS. */
+html[data-mm-app="chat"].chat-app-mode body {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: env(safe-area-inset-top) solid #F5F7FA;
+  background: #F5F7FA;
+}
+
+html[data-mm-app="chat"].chat-app-mode main {
+  padding-top: 0.75rem;
+}
+
+html[data-mm-app="chat"] .chat-composer-safe {
   padding-bottom: env(safe-area-inset-bottom);
+  background: #F6F5F3;
+}
+
+html[data-mm-app="chat"].admin-typing .chat-composer-safe {
+  padding-bottom: 0;
 }
 
 /* Sem o desfoque do iOS sob o relógio: a página não rola atrás da barra de status. O body vira a
