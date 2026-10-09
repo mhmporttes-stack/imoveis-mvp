@@ -221,6 +221,15 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 - As respostas por palavra-chave e as ações `roulette` de Fluxos também passam `conversationId`: o cliente criado por WhatsApp agora **vincula a conversa** e grava o histórico da roleta (`via: keyword_reply`/`flow`).
 - Testes: `tests/whatsapp-chat-media-referral.test.mjs`.
 
+### 9-C. Lembrete do formulário não preenchido (2026-10-09 — BUSINESS_RULES WA-17, `lib/whatsapp-form-reminder*.{js,mjs}`)
+
+- **Onde roda:** cron `/api/cron/whatsapp-flows` (a cada 2 min), depois dos Fluxos e isolado deles (erro de um não impede o outro; a resposta traz `formReminders` com contagem de enviados/pulados por motivo).
+- **"Recebeu o link":** mensagem de saída em `whatsapp_messages` (status diferente de `failed`) com link do formulário do site (`/s`, `/s/<ref>`, `/simulacao`, `/c/<código>`) no texto ou em `metadata.link.url`, enviada pela automação (`sender_type = automation`, ex.: Fluxo do anúncio) ou por uma pessoa PELO CHAT (`metadata.actor_ctx`). Só o link mais recente de cada conversa vale; janela de busca: links das últimas 24 h com mais de 1 h.
+- **"Preencheu":** `last_form_submitted_at` no cliente da conversa (qualquer data) ou em qualquer cadastro com o mesmo telefone depois do link, ou cadastro criado depois do link com o mesmo telefone.
+- **Idempotência sem tabela nova:** a linha do lembrete é inserida ANTES do envio com `meta_message_id = 'form-reminder:<id da mensagem do link>'` (índice único `whatsapp_messages_meta_message_id_uidx`) e `metadata.kind = 'form_reminder'`, `metadata.form_reminder_of`. Falha ou resultado desconhecido → linha `failed`, **nunca reenvia**. O id real fica em `metadata.cloud_message_id` (oficial) ou `metadata.wa_message_id` (pessoal). Consequência: no oficial o lembrete não recebe os tiques de entregue/lido (o status fica "enviado").
+- **Eco no WhatsApp pessoal:** `recordBrokerAppMessage` ignora o eco do lembrete (`isFormReminderEcho`) — não vira mensagem do corretor nem contato humano.
+- **Consulta:** `select m.message_at, m.status, m.metadata->>'form_reminder_of' as link_id from whatsapp_messages m where m.metadata->>'kind' = 'form_reminder' order by m.message_at desc limit 50;`
+
 ## 10. Disparo (`lib/whatsapp-broadcasts.js`)
 
 - **Fluxo**: escolher modelo `APPROVED` → destinatários (Base da Imobiliária `prospecting_contacts` sem dono, ou CSV) → revisão (`previewBroadcast`: totais, inválidos, duplicados, bloqueados) → `createBroadcast` (cria campanha do Gerador de Links com destino roleta, `whatsapp_broadcasts` e uma `whatsapp_broadcast_messages` por destinatário) → “Disparar agora” (`dispatchBroadcastNow`, transição condicional `draft→processing`, anti clique duplo) + cron a cada minuto (`processAllActiveBroadcastQueues`, 45 s de orçamento dividido entre disparos).

@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — WhatsApp: lembrete do formulário não preenchido (WA-17)
+- **Data:** 2026-10-09
+- **Área:** WhatsApp / Fluxos / Chat
+- **Alteração:** 1 h depois de o cliente receber pelo WhatsApp o link do formulário (Fluxo do anúncio, atalho ou link escrito no Chat) sem preencher, sem responder e sem ninguém ter atendido, o CRM manda UMA mensagem ("Oi, {primeiro nome}, tudo bem? Notei que você ainda não preencheu o formulário…") pelo mesmo número do link; 21:00–08:00 segura até 08:00; oficial só com janela de 24 h aberta; pessoal só conectado + "Usar para disparo" + envio pessoal liberado (no Chat híbrido não sai). Roda no cron `whatsapp-flows`. Etiqueta "Automação" no Chat; não conta como contato humano.
+- **Motivo:** regra do dono (2026-10-09).
+- **Arquivos afetados:** `lib/whatsapp-form-reminder-core.mjs` (novo, puro), `lib/whatsapp-form-reminder.js` (novo), `app/api/cron/whatsapp-flows/route.js`, `lib/whatsapp-individual-inbound.js` (ignora o eco do lembrete), `tests/whatsapp-form-reminder.test.mjs`, `docs/BUSINESS_RULES.md` (WA-17), `docs/WHATSAPP.md` §9-C, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** sem migration — a idempotência usa o índice único de `whatsapp_messages.meta_message_id` (chave `form-reminder:<id do link>`); por isso o lembrete do oficial não recebe tiques de entregue/lido. Decisões conservadoras A CONFIRMAR com o dono: link digitado no celular do corretor não gera lembrete; cliente que já preencheu alguma vez não recebe; 3 h de atraso máximo; Fluxo em andamento adia; links anteriores a 09/10 07:00 ignorados. O envio pelo oficial depende do número oficial estar ativo (último webhook recebido em 29/09 — A CONFIRMAR). Fora do escopo, não corrigido: `tests/chat-disabled.test.mjs` (erro de sintaxe no próprio teste) e `tests/chat-reply-only.test.mjs` já falham na `main` antes desta mudança. A CONFIRMAR em produção: resposta do cron (`formReminders`) e a primeira linha `metadata.kind = 'form_reminder'`.
+- **Autor:** Claude Code
 ### 2026-10-09 — Custo do patrocinado no card: administrador vê o mesmo valor da equipe
 - **O quê:** o card mostra para todos os perfis o valor da equipe (real × 1,5, ou R$ 10–16,99 sem custo identificado). O valor real continua só no resumo da aba Patrocinado (administrador).
 - **Por quê:** decisão do dono.
