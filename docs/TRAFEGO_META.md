@@ -10,6 +10,7 @@
 |---|---|---|---|
 | **Meta Pixel** (navegador) | `PageView` nas páginas públicas + evento `Lead` no cadastro | `NEXT_PUBLIC_META_PIXEL_ID` | ativo se o ID existir |
 | **Conversions API** (servidor) | mesmo evento `Lead` enviado do servidor, deduplicado com o navegador | `NEXT_PUBLIC_META_PIXEL_ID` + `META_CONVERSIONS_API_ACCESS_TOKEN` | ativo se ambos existirem |
+| **autoConfig desligado** (navegador, desde 2026-10-09) | `fbq('set','autoConfig',false,ID)` antes do `init`: o pixel não detecta mais cliques/envios de formulário sozinho nem aplica regras "sem código" do Gerenciador de Eventos — fonte provável dos leads inflados. PageView e o `Lead` disparado pelo código continuam | — | sempre |
 | **CadastroCRM** (só servidor, desde 2026-10-08) | evento personalizado enviado junto do `Lead` pela Conversions API **só depois do cadastro novo gravado**; nunca sai do navegador. Base da conversão personalizada "Cadastro CRM" para contar cadastro real no Gerenciador (o `Lead` vinha inflado: 06/10 = 22 leads na Meta × 12 cadastros no site inteiro) | mesmas da Conversions API | ativo se a Conversions API estiver ativa |
 | **Marketing API — leitura (Gestão de Tráfego, Fase 1)** | sincroniza campanhas/conjuntos/anúncios e métricas diárias para o banco | `META_ADS_ACCESS_TOKEN` (`ads_read`), `META_ADS_AD_ACCOUNT_ID`, `META_ADS_GRAPH_API_VERSION`, `META_ADS_BACKFILL_START_DATE`, `META_ADS_SYNC_WINDOW_DAYS` | **só leitura**; **sem tela** ainda |
 

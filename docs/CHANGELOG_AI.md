@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Meta Pixel: detecção automática de eventos desligada (autoConfig=false)
+- **O quê:** `components/MetaPixel.jsx` chama `fbq('set','autoConfig',false,ID)` antes do `init`.
+- **Por quê:** a Meta conta muito mais leads do que cadastros reais (vídeo PATROCINADO: 18 na Meta × 6 no CRM; o site inteiro teve ~9 cadastros no período). Nosso código só dispara `Lead` depois do insert; a detecção automática do pixel (cliques/envios de formulário entre as etapas, regras sem código) é uma fonte provável dos extras. Junto: `CadastroCRM` (2026-10-08). Pendente do dono: remover a integração Signals Gateway (Birch) e regras do Event Setup Tool, e usar a conversão "Cadastro CRM".
 ### 2026-10-09 — ROL-4b: correções (simulação vazia do site e "Em atendimento" sem simular)
 - **Bug 1:** o cadastro do site já cria uma linha em `simulations` ("Cadastro do site", sem valores); a ROL-4b contava qualquer linha como "simulação feita" e nunca tirava cliente de formulário de ninguém. Agora só conta simulação com valor (`getSimulationListSummary().completed`, mesma regra do card).
 - **Bug 2:** mudar para "Em atendimento" sem simular segurava o cliente (a condição da regra é status = Aguardando simulação). Para cliente com dados, a condição vira "status antes da simulação" (Aguardando simulação, Atendimento automático, Em atendimento) — `rouletteRuleConditions` (`lib/simulation-deadline-core.mjs`). Não retroativo: só clientes recebidos a partir de `PRE_SIMULATION_RULE_SINCE`.

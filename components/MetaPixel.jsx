@@ -8,6 +8,9 @@ import { META_PIXEL_ID } from "@/lib/meta-pixel-shared";
 // enviar a navegação da própria equipe pro pixel). O evento de conversão em
 // si (Lead) é disparado à parte, no momento real do cadastro — ver
 // lib/meta-pixel-client.js, chamado por SimulationForm/QuickAttendanceForm.
+// autoConfig=false (pedido do dono, 2026-10-09): desliga a detecção AUTOMÁTICA de eventos do pixel (cliques em botões,
+// envios de formulário entre as etapas do cadastro, regras "sem código" do Gerenciador de Eventos), que inflava os
+// "leads" da Meta sem cadastro real. Só os eventos disparados por este código continuam saindo do navegador.
 export default function MetaPixel() {
   if (!META_PIXEL_ID) return null;
 
@@ -22,6 +25,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
+fbq('set', 'autoConfig', false, '${META_PIXEL_ID}');
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');`}
       </Script>
