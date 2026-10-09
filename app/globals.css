@@ -369,13 +369,19 @@ html.admin-has-bottom-nav {
 /* App "Financeiro" da tela inicial (pedido do dono, 2026-10-09): só o Financeiro, sem ranking,
    menus nem barra inferior. data-mm-app é marcado antes da pintura (app/layout.jsx) apenas
    no app instalado aberto pelo ícone Financeiro (components/pwaHome.js). */
-html[data-mm-app="financeiro"] .mm-app-hide,
-html[data-mm-app="financeiro"] .admin-bottom-nav {
+html[data-mm-app] .mm-app-hide,
+html[data-mm-app] .admin-bottom-nav {
   display: none !important;
 }
 
-html[data-mm-app="financeiro"] {
+html[data-mm-app] {
   --admin-bottom-nav-space: 0px !important;
+}
+
+/* App "Chat" (mesma proposta, 2026-10-09): só o Chat; sem a barra inferior o Chat vai até o fim da
+   tela respeitando o traço do iPhone (com o teclado aberto, a regra .admin-typing continua valendo). */
+html[data-mm-app="chat"].chat-app-mode:not(.admin-typing) body {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Sem o desfoque do iOS sob o relógio: a página não rola atrás da barra de status. O body vira a

@@ -19,7 +19,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Saúde: "Novo gasto" (avulso, já pago) e "Nova conta recorrente"
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Atalho "Chat" na tela inicial do iPhone
+- **Data:** 2026-10-09
+- **Área:** PWA / Chat
+- **O quê (pedido do dono):** terceiro app, mesma proposta do Financeiro: `/chat-app` (página só de instalação) com manifesto `public/chat.webmanifest` (`id` /chat-app) e ícones `public/icons/*chat*-mm.png` (fundo #031D3A, símbolo do WhatsApp em #EFEFEF). No app instalado abre `/admin/chat` e mostra só o Chat (`html[data-mm-app=chat]`): sem ranking, menus, barra inferior, popups do painel nem "Abrir cliente"; `FinanceiroAppGuard` (agora genérico, `MM_APPS` em `components/pwaHome.js`) devolve qualquer outra rota `/admin` ao Chat. O número de não lidas no ícone usa o mesmo Badging API já existente (`useWhatsappChatSummary` com o app aberto; push em `public/sw.js` com o app fechado, depois de ativar as notificações no app). Painel e Financeiro inalterados.
+
+### 2026-10-09 — Saúde: "Novo gasto" (avulso, já pago) e "Nova conta recorrente"
 - **Data:** 2026-10-09
 - **Área:** Financeiro / Saúde
 - **O quê (pedido do dono):** botão principal do painel passou a ser **Novo gasto** — gaveta curta (com o que foi, valor, data ≤ hoje, categoria, observação) que grava despesa operacional única, natureza variável, e confirma o pagamento na data do gasto pelo mesmo caminho do "Já foi paga?" (o cadastro pelo dono é a confirmação manual; regra de pagamento manual preservada). **Nova conta** desceu para baixo dos totais, renomeada "Nova conta recorrente", e abre já como recorrente/fixa (ainda permite Única). Painel renomeado "Gastos e contas". Só interface: `components/FinancialHealthAccounts.jsx`; API, banco e cálculos inalterados.

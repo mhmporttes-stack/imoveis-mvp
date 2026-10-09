@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isFinanceiroApp } from "@/components/pwaHome";
+import { getMmApp } from "@/components/pwaHome";
 
-// Não monta o conteúdo (popups, mensagens, celebrações) dentro do app "Financeiro" da tela inicial.
+// Não monta o conteúdo (popups, mensagens, celebrações) dentro dos apps "Financeiro" e "Chat" da tela inicial.
 export default function HideInFinanceiroApp({ children }) {
   const [hidden, setHidden] = useState(true);
-  useEffect(() => { setHidden(isFinanceiroApp()); }, []);
+  useEffect(() => { setHidden(Boolean(getMmApp())); }, []);
   return hidden ? null : children;
 }

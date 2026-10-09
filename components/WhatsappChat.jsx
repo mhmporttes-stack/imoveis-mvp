@@ -2356,7 +2356,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
           <InfoRow label="Situação" value={client.statusLabel} />
           <InfoRow label="Simulação" value={client.simulationFilled ? "Dados preenchidos" : "Ainda não preencheu"} />
           <InfoRow label="Origem" value={client.origin || (conversation.origin?.kind === "meta_ad" ? "Anúncio Meta" : "—")} />
-          <Link href={openClientHref} className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-navy/15 bg-white text-sm font-extrabold text-navy transition hover:border-brand">
+          <Link href={openClientHref} className="mm-app-hide mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-navy/15 bg-white text-sm font-extrabold text-navy transition hover:border-brand">
             <ExternalLink className="h-4 w-4" /> Abrir cliente
           </Link>
         </div>
