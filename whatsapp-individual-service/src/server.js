@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getLiveSessionStatus, getProfilePictureUrl, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -174,6 +174,17 @@ app.post("/sessions/:userId/delete", async (req, res) => {
     const { to, targetId } = req.body || {};
     if (!to || !targetId) return res.status(400).json({ error: "Informe 'to' e 'targetId'." });
     res.json(await deleteMessageForEveryone(req.params.userId, { to, targetId }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Foto de perfil do contato (só leitura, 2026-10-09).
+app.post("/sessions/:userId/profile-picture", async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) return res.status(400).json({ error: "Informe 'to'." });
+    res.json(await getProfilePictureUrl(req.params.userId, { to }));
   } catch (error) {
     sendError(res, error);
   }

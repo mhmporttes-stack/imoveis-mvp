@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { listChatConversations } from "@/lib/whatsapp-chat";
+import { refreshContactPhotos } from "@/lib/whatsapp-contact-photo";
 import { chatErrorResponse } from "../chat-errors";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ export async function GET(request) {
       brokerId: params.get("brokerId") || "",
       clientStatus: params.get("clientStatus") || ""
     }, auth);
+    // Foto do cliente (2026-10-09): busca em segundo plano as que faltam/estão velhas (poucas por vez).
+    after(() => refreshContactPhotos(conversations.map((item) => item.id)).catch(() => {}));
     return NextResponse.json({ conversations });
   } catch (error) {
     return chatErrorResponse(error);

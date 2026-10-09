@@ -693,3 +693,23 @@ export async function deleteMessageForEveryone(userId, { to, targetId }) {
   const result = await sock.sendMessage(jid, { delete: keyFor(jid, targetId, true) });
   return { waMessageId: result?.key?.id || "" };
 }
+
+// Foto de perfil do contato (2026-10-09, pedido do dono): só a URL que o próprio WhatsApp devolve (a mesma que o
+// celular mostra; respeita a privacidade do contato — escondida = null). Nunca envia nada ao contato. O CRM baixa a
+// imagem e guarda; a URL do WhatsApp expira em poucos dias.
+export async function getProfilePictureUrl(userId, { to }) {
+  const sock = connectedSocket(userId);
+  const jid = jidFor(to);
+  try {
+    const url = await Promise.race([
+      sock.profilePictureUrl(jid, "image"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000))
+    ]);
+    return { url: url || null };
+  } catch (error) {
+    // 401/404 = foto escondida ou inexistente: não é erro.
+    const status = error?.output?.statusCode || error?.data || 0;
+    if (status === 401 || status === 404 || /not-authorized|item-not-found/i.test(String(error?.message || ""))) return { url: null };
+    throw error;
+  }
+}
