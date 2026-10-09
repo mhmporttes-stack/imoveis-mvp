@@ -53,3 +53,9 @@ test("núcleo não toca em status/elegibilidade e a rota é só leitura", () => 
   assert.match(route, /requireAdminApi/);
   assert.doesNotMatch(route, /endRestrictionIfConnected|\.update\(|\.insert\(|export async function (POST|PUT|PATCH|DELETE)/);
 });
+
+test("Chat híbrido (envio pessoal desligado) não tira o card do Chat; só o Chat todo desligado (2026-10-09)", () => {
+  const route = readFileSync(new URL("../app/api/admin/whatsapp-individual/card-state/route.js", import.meta.url), "utf8");
+  assert.match(route, /isChatDisabled\(\)\]\);/);
+  assert.doesNotMatch(route, /isIndividualChatSendDisabled/);
+});
