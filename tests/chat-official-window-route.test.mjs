@@ -14,7 +14,7 @@ test("resolveSendRoute: conversa do oficial -> cloud_api, sem adoção pela sess
 });
 
 test("conversa já no WhatsApp pessoal cujo cliente escreveu pelo oficial (janela aberta) responde pelo oficial e a tela mostra isso", () => {
-  assert.match(route, /lastInboundWasOfficial\(conversation\.id\)/);
+  assert.match(route, /officialWindowOpen\(conversation\.id\)/);
   assert.match(chat, /replyViaOfficial,/);
   assert.match(readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8"), /conversation\.sessionUserId && !conversation\.replyViaOfficial/);
 });
