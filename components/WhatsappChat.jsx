@@ -2119,7 +2119,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
       ) : null}
       {!awaiting && !recording && !processing ? (
         <p className="mb-1.5 px-2 text-[11px] font-semibold text-[#54656F]">
-          Enviando por: <span className="font-extrabold text-[#111B21]">{conversation.sessionUserId ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>
+          Enviando por: <span className="font-extrabold text-[#111B21]">{conversation.sessionUserId && !conversation.replyViaOfficial ? `WhatsApp pessoal — ${conversation.sessionLabel || "Número 1"}` : "número oficial"}</span>
         </p>
       ) : null}
 
