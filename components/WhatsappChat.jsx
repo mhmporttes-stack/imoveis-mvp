@@ -418,7 +418,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Não foi possível abrir a conversa deste cliente.");
         if (cancelled) return;
-        window.history.replaceState(null, "", "/admin/chat");
+        window.history.replaceState(null, "", window.location.pathname); // /admin/chat ou /chat-app (app da tela inicial)
         setTab("conversations");
         await loadList({ silent: true });
         // Cliente arquivado (WA-13) para quem não é o dono: Chat em branco, nenhuma conversa aberta.

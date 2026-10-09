@@ -7,11 +7,13 @@ import { TWO_FACTOR_REQUIRED_CODE } from "@/lib/admin-two-factor-core.mjs";
 export const dynamic = "force-dynamic";
 
 export default async function AdminLoginPage({ searchParams }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  // Volta para o app de origem depois do login (ex.: atalho "Chat" da tela inicial em /chat-app). Só caminho interno.
+  const nextPath = typeof next === "string" && /^\/(chat-app|financeiro|admin)(\/|\?|$)/.test(next) ? next : "";
   const session = await getAdminFromCookies();
 
   if (session.ok) {
-    redirect("/admin");
+    redirect(nextPath || "/admin");
   }
   // Dono com verificação em duas etapas: senha aceita, falta o código (lib/admin-auth.js barra o painel até lá).
   const needsSecondFactor = session.code === TWO_FACTOR_REQUIRED_CODE;
@@ -26,7 +28,7 @@ export default async function AdminLoginPage({ searchParams }) {
             Acesse com o e-mail e senha do administrador para gerenciar os empreendimentos.
           </p>
           <div className="mt-8">
-            {needsSecondFactor ? <AdminTwoFactorChallenge email={session.user?.email || ""} /> : <AdminLoginForm initialError={error || ""} />}
+            {needsSecondFactor ? <AdminTwoFactorChallenge email={session.user?.email || ""} nextPath={nextPath} /> : <AdminLoginForm initialError={error || ""} nextPath={nextPath} />}
           </div>
         </div>
       </section>

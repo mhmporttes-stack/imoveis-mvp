@@ -24,7 +24,7 @@ function getPasswordResetRedirectTo() {
   return redirectTo;
 }
 
-export default function AdminLoginForm({ initialError = "" }) {
+export default function AdminLoginForm({ initialError = "", nextPath = "" }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,7 +94,7 @@ export default function AdminLoginForm({ initialError = "" }) {
       const mobileApp = window.navigator.standalone === true
         || window.matchMedia("(display-mode: standalone)").matches
         || window.matchMedia("(max-width: 767px)").matches;
-      router.replace(getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
+      router.replace(nextPath || getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
       router.refresh();
     } finally {
       setLoading(false);

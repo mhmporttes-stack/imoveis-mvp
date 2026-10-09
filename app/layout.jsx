@@ -53,7 +53,7 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <body>
         {/* Apps "Financeiro"/"Chat" (components/pwaHome.js): marca antes da pintura para esconder menus/ranking sem piscar. */}
-        <script dangerouslySetInnerHTML={{ __html: `try{var h=sessionStorage.getItem("mm_pwa_home")||"";var s=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;var a=h.indexOf("/admin/financeiro")===0?"financeiro":h.indexOf("/admin/chat")===0?"chat":"";if(s&&a)document.documentElement.setAttribute("data-mm-app",a)}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var h=sessionStorage.getItem("mm_pwa_home")||"";var s=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;var a=h.indexOf("/admin/financeiro")===0?"financeiro":(h.indexOf("/admin/chat")===0||h.indexOf("/chat-app")===0)?"chat":"";if(s&&a)document.documentElement.setAttribute("data-mm-app",a)}catch(e){}` }} />
         <AppChrome>{children}</AppChrome>
         {/* Instrumentação pura (zero HTML/CSS visível) — baseline de Core
             Web Vitals real (LCP/INP/CLS/TTFB/FCP) para a auditoria de

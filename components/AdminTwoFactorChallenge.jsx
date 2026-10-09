@@ -10,7 +10,7 @@ import { getPwaHome } from "@/components/pwaHome";
 
 // Etapa do código no login do dono (verificação em duas etapas, regra do dono 2026-10-08). A senha já foi aceita;
 // o painel só libera depois que /api/admin/two-factor/verify confere o código no servidor.
-export default function AdminTwoFactorChallenge({ email = "" }) {
+export default function AdminTwoFactorChallenge({ email = "", nextPath = "" }) {
   const router = useRouter();
   const [mode, setMode] = useState("totp");
   const [code, setCode] = useState("");
@@ -37,7 +37,7 @@ export default function AdminTwoFactorChallenge({ email = "" }) {
       const mobileApp = window.navigator.standalone === true
         || window.matchMedia("(display-mode: standalone)").matches
         || window.matchMedia("(max-width: 767px)").matches;
-      router.replace(getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
+      router.replace(nextPath || getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
       router.refresh();
     } finally {
       setLoading(false);

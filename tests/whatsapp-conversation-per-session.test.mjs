@@ -34,7 +34,16 @@ function setupStubs() {
     "whatsapp-form-reminder": { isFormReminderEcho: async () => false },
     "push-subscriptions": { sendPushToUser: async () => {} },
     // Acesso WhatsApp por corretor (2026-10-04): ninguém bloqueado nestes cenários (o push só sai para quem não está bloqueado).
-    "whatsapp-access": { isWhatsappAccessBlocked: async () => false },
+    "whatsapp-access": { isWhatsappAccessBlocked: async () => false, isChatPushSuppressed: async () => false },
+    // Chat ligado e envio pessoal liberado nestes cenários (lib/chat-control.js; o modo híbrido tem testes próprios).
+    "chat-control": {
+      CHAT_DISABLED_CODE: "CHAT_DISABLED",
+      CHAT_DISABLED_MESSAGE: "Chat desativado.",
+      CHAT_INDIVIDUAL_DISABLED_CODE: "CHAT_INDIVIDUAL_DISABLED",
+      CHAT_INDIVIDUAL_DISABLED_MESSAGE: "Envio pelo WhatsApp pessoal desativado.",
+      isChatDisabled: async () => false,
+      isIndividualChatSendDisabled: async () => false
+    },
     "whatsapp-flows": { endLiveFlowSession: async () => {} },
     "whatsapp-chat": { broadcastChatChanged: async () => {}, getUnreadMessageCountForBroker: async () => 0 },
     "admin-profiles": {

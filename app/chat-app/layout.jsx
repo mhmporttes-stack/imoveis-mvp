@@ -1,3 +1,5 @@
+import { Manrope } from "next/font/google";
+
 // Terceiro ícone da tela inicial (pedido do dono, 2026-10-09): "Chat", independente do
 // "Painel". Só esta rota usa o manifesto/ícone do Chat; o resto do site continua com o
 // manifesto do Painel (app/manifest.js + app/layout.jsx), que não foi alterado.
@@ -22,6 +24,16 @@ export const metadata = {
   robots: { index: false, follow: false }
 };
 
-export default function ChatLayout({ children }) {
-  return children;
+// Mesma tipografia do painel (app/admin/layout.jsx) e o modo "só Chat" marcado antes da pintura.
+const manrope = Manrope({ subsets: ["latin"], display: "swap" });
+const FONT_CSS = `:root{--font-ui:${manrope.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;}`;
+
+export default function ChatAppLayout({ children }) {
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />
+      <script dangerouslySetInnerHTML={{ __html: 'document.documentElement.setAttribute("data-mm-app","chat")' }} />
+      {children}
+    </>
+  );
 }

@@ -33,6 +33,19 @@ export default function AppChrome({ children }) {
   }, [isAdminRoute]);
 
   if (pathname?.startsWith("/minha-jornada/")) return children;
+  // App "Chat" da tela inicial (/chat-app, 2026-10-09): só o Chat, sem cabeçalho/rodapé do site nem o
+  // painel em volta — funciona igual aberto como app ou numa aba do Safari. Mantém sessão e notificações.
+  if (pathname === "/chat-app") {
+    return (
+      <>
+        <PwaLifecycle />
+        <ViewportZoomLock />
+        <AdminSessionKeeper />
+        <AdminPushSubscription />
+        {children}
+      </>
+    );
+  }
   // Apresentação interativa da simulação (/s/<token> reescrito para /apresentacao/<token> pelo proxy.js): tela cheia,
   // sem cabeçalho/rodapé/botões do site, sem Pixel nem captura de campanha. O ref curto /s/{ref} é só redirecionamento.
   if (pathname?.startsWith("/apresentacao/") || /^\/s\/[A-Za-z0-9]{24}\/?$/.test(pathname || "")) return children;

@@ -3,12 +3,12 @@
 // (sessionStorage: vale só para a janela do atalho, nunca afeta o app "Painel").
 const KEY = "mm_pwa_home";
 export const FINANCEIRO_HOME = "/admin/financeiro?aba=saude";
-export const CHAT_HOME = "/admin/chat";
+export const CHAT_HOME = "/chat-app";
 
 // app → casa e rotas permitidas (o app nunca leva a outra área do painel).
 export const MM_APPS = {
   financeiro: { home: FINANCEIRO_HOME, allowed: ["/admin/financeiro"] },
-  chat: { home: CHAT_HOME, allowed: ["/admin/chat"] }
+  chat: { home: CHAT_HOME, allowed: ["/admin/chat", "/chat-app"] }
 };
 
 export function isStandaloneApp() {
