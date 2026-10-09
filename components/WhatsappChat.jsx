@@ -1420,8 +1420,10 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
             </div>
           ) : null}
           <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
-          <div className="mt-0.5 flex items-center justify-end text-[11px] font-medium text-[#54656F]">
+          <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] font-medium text-[#54656F]">
             <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
+            {/* ✓ enviada · ✓✓ entregue (apareceu na lista do corretor) · ✓✓ azul lida (ele abriu a conversa) */}
+            <StatusTicks status={message.status} />
           </div>
         </div>
       </div>
