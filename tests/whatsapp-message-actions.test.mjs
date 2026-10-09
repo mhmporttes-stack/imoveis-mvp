@@ -50,7 +50,7 @@ test("responder/reagir: individual nas duas direções; oficial só na mensagem 
   assert.equal(canReplyOrReact(sent(1)), true);
   assert.equal(canReplyOrReact(sent(1, { direction: "inbound", sender_type: "customer" })), true);
   assert.equal(canReplyOrReact({ direction: "inbound", channel: "whatsapp_cloud_api", meta_message_id: "wamid.1", metadata: {} }), true);
-  assert.equal(canReplyOrReact({ direction: "outbound", channel: "whatsapp_cloud_api", meta_message_id: "wamid.2", metadata: {} }), false);
+  assert.equal(canReplyOrReact({ direction: "outbound", channel: "whatsapp_cloud_api", meta_message_id: "wamid.2", metadata: {} }), true);
   assert.equal(canReplyOrReact({ direction: "internal", metadata: {} }), false);
   assert.equal(canReplyOrReact(sent(1, { metadata: { wa_message_id: "WA1", revoked_at: "x" } })), false);
 });

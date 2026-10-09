@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import {
   AlertCircle,
   Archive,
@@ -768,6 +769,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const [replyTo, setReplyTo] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [actionTarget, setActionTarget] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const scrollRef = useRef(null);
@@ -835,6 +837,22 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
       const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages/${message.id}`, { method: "DELETE" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível apagar a mensagem.");
+      onChanged();
+    } catch (failure) {
+      setReactionError(failure.message);
+    }
+  }
+
+  // "Adicionar às notas" (2026-10-09): o texto vira nota interna desta conversa (o cliente não vê).
+  async function addToNotes(message) {
+    setReactionError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/internal`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message.body })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar a nota.");
       onChanged();
     } catch (failure) {
       setReactionError(failure.message);
@@ -1056,7 +1074,9 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
       )}
 
-      {actionTarget ? <MessageActionsMenu target={actionTarget} onClose={() => setActionTarget(null)} onReply={startReply} onReact={reactTo} onEdit={startEdit} onDelete={deleteForEveryone} /> : null}
+      {actionTarget ? <MessageActionsMenu target={actionTarget} onClose={() => setActionTarget(null)} onReply={startReply} onReact={reactTo} onEdit={startEdit} onDelete={deleteForEveryone}
+        onForward={conversation.archivedReadOnly ? null : setForwardMessage} onAddNote={conversation.canInternal ? addToNotes : null} /> : null}
+      {forwardMessage ? <ForwardDialog message={forwardMessage} currentConversationId={conversation.id} onClose={() => setForwardMessage(null)} onSent={onChanged} /> : null}
 
       {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
       {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca canManage={canManage} canEditRules={canEditRules} reportsOnly onNewAnalysis={() => { setDocumentsOpen(false); setDocumentSelectionOpen(true); }} onClose={() => setDocumentsOpen(false)} /> : null}
@@ -1392,6 +1412,83 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
       </div>
       {hasActions && !outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
     </div>
+  );
+}
+
+// Encaminhar (2026-10-09, "igual ao WhatsApp"): escolhe outra conversa e envia o TEXTO da mensagem por ela,
+// pela mesma API do compositor (o servidor decide o número e confere a permissão).
+function ForwardDialog({ message, currentConversationId, onClose, onSent }) {
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sendingId, setSendingId] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      setLoading(true);
+      const params = new URLSearchParams({ filter: "all" });
+      if (query.trim()) params.set("q", query.trim());
+      fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" })
+        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+          if (cancelled) return;
+          if (!ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
+          setItems((data.conversations || []).filter((item) => item.id !== currentConversationId).slice(0, 40));
+        })
+        .catch((failure) => { if (!cancelled) setError(failure.message); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, query ? 300 : 0);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [query, currentConversationId]);
+
+  async function forwardTo(item) {
+    setSendingId(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${item.id}/messages`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message.body })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível encaminhar.");
+      onSent?.();
+      onClose();
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setSendingId("");
+    }
+  }
+
+  // Portal no <body>: acima da barra inferior do celular.
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div role="dialog" aria-label="Encaminhar mensagem" className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <p className="text-base font-bold text-navy">Encaminhar para…</p>
+          <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-bold text-slate-600">Cancelar</button>
+        </div>
+        <p className="mx-4 mt-3 line-clamp-2 rounded-lg bg-[#D9FDD3] px-3 py-2 text-sm text-[#111B21]">{message.body}</p>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome ou telefone" aria-label="Buscar conversa"
+          className="mx-4 mt-3 rounded-full bg-[#F0F2F5] px-4 py-2.5 text-base outline-none" />
+        {error ? <p role="alert" className="mx-4 mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{error}</p> : null}
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+          {loading && !items.length ? <p className="px-4 py-6 text-center text-sm text-muted">Carregando…</p> : null}
+          {!loading && !items.length ? <p className="px-4 py-6 text-center text-sm text-muted">Nenhuma conversa encontrada.</p> : null}
+          {items.map((item) => (
+            <button key={item.id} type="button" disabled={Boolean(sendingId)} onClick={() => forwardTo(item)}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-black/5 disabled:opacity-50">
+              <Avatar name={displayName(item)} photoUrl={item.photoUrl} size={40} />
+              <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#111B21]">{displayName(item)}</span>
+              {sendingId === item.id ? <Loader2 className="h-4 w-4 animate-spin text-brand" aria-label="Enviando" /> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

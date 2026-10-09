@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Copy, Pencil, Plus, Reply, Smile, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Copy, Forward, Lock, Pencil, Plus, Reply, Smile, Trash2 } from "lucide-react";
 import { REACTION_EMOJIS } from "@/lib/whatsapp-message-actions.mjs";
 
 // Ações por mensagem do Chat — UM componente para os 3 ambientes (app no
@@ -81,10 +82,17 @@ function useIsSheet(touch) {
 export function MessageActionsMenu(props) {
   const sheet = useIsSheet(props.target.touch);
   // Celular/toque: foco estilo WhatsApp do iPhone. Computador: menu flutuante de sempre.
-  return sheet ? <MessageFocusOverlay {...props} /> : <MessageFloatingMenu {...props} />;
+  // Portal no <body>: fica acima da barra inferior do celular (senão a barra cobria o fim do menu).
+  const menu = sheet ? <MessageFocusOverlay {...props} /> : <MessageFloatingMenu {...props} />;
+  return typeof document === "undefined" ? menu : createPortal(menu, document.body);
 }
 
-function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDelete }) {
+// Encaminhar e "Adicionar às notas" (2026-10-09): texto da mensagem, como no WhatsApp.
+function canForward(message) {
+  return Boolean(message.body) && !message.revoked;
+}
+
+function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote }) {
   const { message, x, y } = target;
   const panelRef = useRef(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -133,7 +141,9 @@ function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDele
       ) : null}
       <div className="pt-1">
         {message.canReply ? <button type="button" className={itemClass} onClick={() => { onReply(message); onClose(); }}><Reply className="h-4 w-4 text-brand" />Responder</button> : null}
+        {onForward && canForward(message) ? <button type="button" className={itemClass} onClick={() => { onForward(message); onClose(); }}><Forward className="h-4 w-4 text-brand" />Encaminhar</button> : null}
         {message.body ? <button type="button" className={itemClass} onClick={copy}><Copy className="h-4 w-4 text-brand" />Copiar texto</button> : null}
+        {onAddNote && canForward(message) ? <button type="button" disabled={busy} className={itemClass} onClick={() => run(async () => { await onAddNote(message); onClose(); })}><Lock className="h-4 w-4 text-brand" />Adicionar às notas internas</button> : null}
         {teamReaction ? <button type="button" disabled={busy} className={itemClass} onClick={() => run(async () => { await onReact(message, ""); onClose(); })}><Smile className="h-4 w-4 text-brand" />Remover minha reação</button> : null}
         {message.canEdit ? <button type="button" className={itemClass} onClick={() => { onEdit(message); onClose(); }}><Pencil className="h-4 w-4 text-brand" />Editar</button> : null}
         {message.canDelete ? (confirmingDelete ? (
@@ -163,9 +173,19 @@ function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDele
 // Foco da mensagem no celular (pedido do dono, 2026-10-09 — "igual ao WhatsApp do iPhone"): fundo inteiro
 // desfocado e levemente escurecido, a própria mensagem (cópia visual do balão) nítida no lugar, a barra de
 // reações acima e o cartão de ações abaixo. Só aparecem as ações que o servidor liberou para a mensagem.
+// Margem das bordas; no topo soma a barra de status do iPhone (safeAreaTop).
 const SAFE_GAP = 12;
 
-function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDelete }) {
+function safeAreaTop() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;top:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px)";
+  document.body.appendChild(probe);
+  const value = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+  probe.remove();
+  return value;
+}
+
+function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDelete, onForward, onAddNote }) {
   const { message, node } = target;
   const outbound = message.direction === "outbound";
   const stackRef = useRef(null);
@@ -201,9 +221,11 @@ function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDele
     if (!stack) return;
     const height = stack.offsetHeight;
     const bubbleTop = bubbleRef.current?.offsetTop || 0;
-    const viewport = window.innerHeight;
+    const viewport = Math.min(window.innerHeight, window.visualViewport?.height || window.innerHeight);
     const wanted = rect ? rect.top - bubbleTop : (viewport - height) / 2;
-    setTop(Math.max(SAFE_GAP, Math.min(wanted, viewport - height - SAFE_GAP)));
+    // Se a mensagem está embaixo, o conjunto sobe até caber inteiro (menu nunca fica cortado).
+    const minTop = SAFE_GAP + safeAreaTop();
+    setTop(Math.max(minTop, Math.min(wanted, viewport - height - SAFE_GAP)));
   }, [rect, moreEmojis, confirmingDelete]);
 
   async function run(action) {
@@ -226,7 +248,9 @@ function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDele
   const row = "flex w-full items-center justify-between gap-6 px-4 py-3 text-left text-[15px] font-semibold text-navy active:bg-black/5 disabled:opacity-50";
   const actions = [
     message.canReply ? <button key="reply" type="button" role="menuitem" className={row} onClick={() => { onReply(message); onClose(); }}>Responder<Reply className="h-5 w-5" /></button> : null,
+    onForward && canForward(message) ? <button key="forward" type="button" role="menuitem" className={row} onClick={() => { onForward(message); onClose(); }}>Encaminhar<Forward className="h-5 w-5" /></button> : null,
     message.body ? <button key="copy" type="button" role="menuitem" className={row} onClick={copy}>Copiar<Copy className="h-5 w-5" /></button> : null,
+    onAddNote && canForward(message) ? <button key="note" type="button" role="menuitem" disabled={busy} className={row} onClick={() => run(async () => { await onAddNote(message); onClose(); })}>Adicionar às notas<Lock className="h-5 w-5" /></button> : null,
     message.canEdit ? <button key="edit" type="button" role="menuitem" className={row} onClick={() => { onEdit(message); onClose(); }}>Editar<Pencil className="h-5 w-5" /></button> : null,
     message.canDelete ? <button key="delete" type="button" role="menuitem" className={`${row} text-red-600`} onClick={() => setConfirmingDelete(true)}>Apagar<Trash2 className="h-5 w-5" /></button> : null
   ].filter(Boolean);
@@ -254,7 +278,7 @@ function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDele
             ) : null}
           </div>
         ) : null}
-        {rect ? <div ref={bubbleRef} className="max-h-[40dvh] overflow-hidden rounded-lg" /> : message.body ? (
+        {rect ? <div ref={bubbleRef} className="max-h-[30dvh] overflow-hidden rounded-lg" /> : message.body ? (
           <p ref={bubbleRef} className="line-clamp-4 max-w-[80vw] rounded-lg bg-white px-3 py-2 text-sm text-[#111B21] shadow">{message.body}</p>
         ) : null}
         <div className="w-60 overflow-hidden rounded-2xl bg-white/85 shadow-xl backdrop-blur-xl">
