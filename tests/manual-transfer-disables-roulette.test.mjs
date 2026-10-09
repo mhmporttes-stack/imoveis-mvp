@@ -8,7 +8,20 @@ test("redistribuição automática pula cliente com transferência manual", () =
   const lib = fs.readFileSync(path.resolve(import.meta.dirname, "../lib/crm-automations.js"), "utf8");
   assert.match(lib, /if \(manuallyTransferred\.has\(client\.id\)\) continue;/);
   assert.match(lib, /\.eq\("event_type", "responsible_transferred"\)\s*\n\s*\.in\("details->>transferType", \["manual", "roulette"\]\)/);
-  assert.match(lib, /if \(row\.details\?\.transferType === "manual"\) result\.add\(row\.client_id\);/, "vale a ÚLTIMA troca (devolver para a roleta religa)");
+  // ROL-4d (dono, 2026-10-09): qualquer transferência feita por uma pessoa — inclusive "Devolver para a roleta" — cancela a
+  // redistribuição automática daquele cliente (antes a devolução religava).
+  assert.doesNotMatch(lib, /if \(row\.details\?\.transferType === "manual"\) result\.add\(row\.client_id\);/);
+  assert.match(lib, /seen\.add\(row\.client_id\);\s*\n\s*result\.add\(row\.client_id\);/);
+});
+
+test("ROL-4d: ação manual cancela automação — atribuir à mão encerra o Atendimento automático do anúncio e o formulário não regride a etapa", () => {
+  const lib = fs.readFileSync(path.resolve(import.meta.dirname, "../lib/simulation-registrations.js"), "utf8");
+  assert.match(lib, /if \(auth && nextResponsibleUserId && currentRegistration\?\.distribution_type === "whatsapp_ad_waiting"\) record\.distribution_type = "";/);
+  assert.match(lib, /contact_preference, distribution_type"\)/);
+  assert.match(lib, /const keepStatus = !FORM_RESETS_STATUS_FROM\.has\(existing\.status\);/);
+  assert.match(lib, /\.\.\.\(keepStatus \? \{\} : \{ status: CLIENT_STATUS\.PENDING \}\)/);
+  const set = lib.slice(lib.indexOf("const FORM_RESETS_STATUS_FROM"), lib.indexOf("]);", lib.indexOf("const FORM_RESETS_STATUS_FROM")));
+  assert.doesNotMatch(set, /DOCUMENTATION|APPROVAL|SALE|MEETING|COMPLETED|SIMULATION_SENT/, "etapas avançadas mantêm a etapa");
 });
 
 test("Devolver para a roleta: só admin/gestor, próximo on-line sem quem perdeu, fila de espera se ninguém on-line (2026-10-09)", () => {

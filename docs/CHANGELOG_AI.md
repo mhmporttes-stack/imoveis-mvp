@@ -19,7 +19,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Atalho "Chat" na tela inicial do iPhone
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — ROL-4d: ação manual cancela automação (cliente voltou à roleta depois de atribuído à Bruna)
+- **Data:** 2026-10-09
+- **Área:** Roleta / Automações / Formulário
+- **Causa raiz (Elaine dos Santos / "Cristina"):** 14:02 o dono usou "Devolver para a roleta" e ela foi para a Bruna; a Bruna atendeu (mensagens, "Em atendimento", "Documentação pendente" 14:37). 14:41 a cliente preencheu o formulário: o reenvio forçava a etapa para "Aguardando simulação" e, com renda informada e mais de 5 min desde 14:02, a REDISTRIBUIÇÃO (ROL-4b) a mandou para a fila de espera com o dono às 14:42 (o dono transferiu de volta à mão 14:44). "Devolver para a roleta" não contava como transferência manual (ROL-4c religava a redistribuição).
+- **Correção (regra nova do dono ROL-4d):** toda transferência feita por pessoa (manual ou roleta pelo botão) desliga a redistribuição daquele cliente; atribuição manual de cliente em `whatsapp_ad_waiting` zera o `distribution_type`; formulário reenviado não regride etapa já avançada (`FORM_RESETS_STATUS_FROM`). Dado atual: nenhum cliente em `whatsapp_ad_waiting` com outro responsável além do dono. Teste: `tests/manual-transfer-disables-roulette.test.mjs`.
+
+### 2026-10-09 — Atalho "Chat" na tela inicial do iPhone
 - **Data:** 2026-10-09
 - **Área:** PWA / Chat
 - **O quê (pedido do dono):** terceiro app, mesma proposta do Financeiro: `/chat-app` (página só de instalação) com manifesto `public/chat.webmanifest` (`id` /chat-app) e ícones `public/icons/*chat*-v3-mm.png` (fundo #031D3A, balão do WhatsApp dividido na diagonal como o "M" (esquerda #EFEFEF, direita #3673C2) e telefone #EFEFEF — opção 1 escolhida pelo dono). No app instalado abre `/admin/chat` e mostra só o Chat (`html[data-mm-app=chat]`): sem ranking, menus, barra inferior, popups do painel nem "Abrir cliente"; `FinanceiroAppGuard` (agora genérico, `MM_APPS` em `components/pwaHome.js`) devolve qualquer outra rota `/admin` ao Chat. O número de não lidas no ícone usa o mesmo Badging API já existente (`useWhatsappChatSummary` com o app aberto; push em `public/sw.js` com o app fechado, depois de ativar as notificações no app). Painel e Financeiro inalterados.
