@@ -894,6 +894,39 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     onChanged();
   }
 
+  // Atalho "Arquivar" (pedido do dono, 2026-10-09): para conversa particular que virou cliente, muda o STATUS DO
+  // CLIENTE para Arquivado (sai do funil e a conversa sai do Chat, WA-13) e finaliza a conversa. Sem cliente: só finaliza.
+  const [archiving, setArchiving] = useState(false);
+  async function archiveClient() {
+    const clientId = conversation.client?.id;
+    if (!clientId) {
+      await changeStatus("finished");
+      return;
+    }
+    if (!window.confirm(`Arquivar ${conversation.client?.name || displayName(conversation)}? O cliente vai para "Arquivado" e esta conversa sai do Chat.`)) return;
+    setArchiving(true);
+    setReactionError("");
+    try {
+      const response = await fetch(`/api/simulation-registrations/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível arquivar o cliente.");
+      await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "finished" })
+      }).catch(() => {});
+      onChanged();
+    } catch (failure) {
+      setReactionError(failure.message);
+    } finally {
+      setArchiving(false);
+    }
+  }
+
   async function deleteConversation() {
     setDeleting(true);
     setDeleteError("");
@@ -973,10 +1006,11 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             {!conversation.archivedReadOnly ? (
               <button
                 type="button"
-                onClick={() => changeStatus(conversation.status === "finished" ? "open" : "finished")}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist"
-                aria-label={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa"}
-                title={conversation.status === "finished" ? "Reabrir conversa" : "Arquivar conversa (vai para Finalizadas)"}
+                onClick={() => (conversation.status === "finished" ? changeStatus("open") : archiveClient())}
+                disabled={archiving}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist disabled:opacity-50"
+                aria-label={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar cliente" : "Arquivar conversa"}
+                title={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar: o cliente vai para Arquivado e a conversa sai do Chat" : "Arquivar conversa (vai para Finalizadas)"}
               >
                 {conversation.status === "finished" ? <ArchiveRestore className="h-4 w-4 text-brand" /> : <Archive className="h-4 w-4" />}
                 <span className="hidden sm:inline">{conversation.status === "finished" ? "Reabrir" : "Arquivar"}</span>
