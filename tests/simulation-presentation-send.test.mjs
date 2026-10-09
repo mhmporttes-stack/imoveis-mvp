@@ -57,3 +57,11 @@ test("prévia grande no WhatsApp: imagem /og cacheável no CDN e aquecida ao pre
   assert.match(read("lib/simulation-presentation-share.mjs"), /"Cache-Control": "public, max-age=300, s-maxage=86400/);
   assert.match(read("app/api/admin/simulacoes/[id]/apresentacao/route.js"), /fetch\(`\$\{link\}\/og`/);
 });
+
+test("gerador: a apresentação é enviada DIRETO pelo Chat (sem confirmar no campo); se recusar, abre o Chat com o texto pronto", () => {
+  const src = read("components/SimulationGenerator.jsx");
+  assert.match(src, /\/api\/admin\/whatsapp-chat\/open-client/);
+  assert.match(src, /whatsapp-chat\/conversations\/\$\{encodeURIComponent\(open\.conversationId\)\}\/messages/);
+  assert.match(src, /sentDirectly/);
+  assert.match(src, /&text=\$\{encodeURIComponent\(data\.message\)\}/, "plano B com o texto no campo");
+});

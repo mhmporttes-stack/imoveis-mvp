@@ -768,7 +768,22 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       const response = await post("enviar-preparar");
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.message) throw new Error(data.error || "Não foi possível preparar a apresentação.");
-      await post("enviar-registrar").catch(() => null);
+      // Envio DIRETO pelo Chat (dono, 2026-10-09): sem deixar a mensagem no campo para confirmar. Pelo número oficial vai com a
+      // imagem e o botão "Visualizar simulação" (lib/whatsapp-chat.js). Se o envio for recusado (janela de 24 h fechada,
+      // WhatsApp desconectado…), abre o Chat com a mensagem pronta no campo para o corretor decidir, como antes.
+      const jsonHeaders = { "Content-Type": "application/json" };
+      const open = await fetch("/api/admin/whatsapp-chat/open-client", { method: "POST", headers: jsonHeaders, body: JSON.stringify({ clientId: registrationId }) })
+        .then((res) => res.json().catch(() => ({}))).catch(() => ({}));
+      let sentDirectly = false;
+      if (open?.conversationId) {
+        const sendResponse = await fetch(`/api/admin/whatsapp-chat/conversations/${encodeURIComponent(open.conversationId)}/messages`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ text: data.message }) }).catch(() => null);
+        sentDirectly = Boolean(sendResponse?.ok);
+      }
+      if (sentDirectly) {
+        await post("enviar-registrar").catch(() => null);
+        router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
+        return;
+      }
       router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
     } catch (sendError) {
       setError(sendError.message || "Não foi possível preparar o envio da apresentação.");
