@@ -106,12 +106,12 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
       <nav
         aria-label="Navegação principal"
         className={cx(
-          "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-float backdrop-blur md:hidden",
+          "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 shadow-float backdrop-blur md:hidden",
           "transition-transform duration-200 ease-out-ui motion-reduce:transition-none",
           typing && "translate-y-full"
         )}
       >
-        <ul className="mx-auto grid h-16 max-w-lg" style={{ gridTemplateColumns: `repeat(${destinations.length + 1}, minmax(0, 1fr))` }}>
+        <ul className="mx-auto grid h-14 max-w-lg" style={{ gridTemplateColumns: `repeat(${destinations.length + 1}, minmax(0, 1fr))` }}>
           {destinations.map((item) => {
             const active = item.key === activeKey;
             const badge = badgeFor(item.key, counts);
@@ -123,7 +123,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                   {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "relative flex flex-1 flex-col items-center justify-center gap-1 text-2xs font-medium tracking-normal",
+                    "relative flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
                     active ? "text-navy" : "text-muted"
                   )}
@@ -144,7 +144,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
               aria-haspopup="dialog"
               aria-expanded={moreOpen}
               className={cx(
-                "flex flex-1 flex-col items-center justify-center gap-1 text-2xs font-medium tracking-normal",
+                "flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
                 !activeKey ? "text-navy" : "text-muted"
               )}

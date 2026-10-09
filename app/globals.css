@@ -348,8 +348,19 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
 
 /* Barra inferior do painel no celular (components/AdminBottomNav.jsx):
    reserva o espaço dela no fim da página para nada ficar escondido atrás. */
+/* Barra compacta (pedido do dono, 2026-10-09): 3,5rem de ícones + respiro do
+   indicador de início do iPhone. O respiro usa a safe-area UMA vez, com 0,75rem
+   a menos (o traço do iPhone ocupa só os ~13px de baixo) e no mínimo 0,25rem. */
+:root {
+  --admin-bottom-nav-pad: max(0.25rem, calc(env(safe-area-inset-bottom) - 0.75rem));
+}
+
+.admin-bottom-nav {
+  padding-bottom: var(--admin-bottom-nav-pad);
+}
+
 html.admin-has-bottom-nav {
-  --admin-bottom-nav-space: calc(4rem + env(safe-area-inset-bottom));
+  --admin-bottom-nav-space: calc(3.5rem + var(--admin-bottom-nav-pad));
 }
 
 @media (min-width: 768px) {
@@ -604,10 +615,19 @@ html.chat-app-mode body {
   overscroll-behavior: none;
 }
 
+/* O body vira uma moldura fixa no mesmo retângulo da barra inferior (inset: 0):
+   o Chat termina exatamente onde a barra começa, sem depender de 100dvh (no
+   iPhone o dvh e o retângulo do position: fixed podem divergir e sobrava faixa
+   branca). O topo respeita a barra de status (o cabeçalho do ranking, que
+   carregava esse respiro, fica oculto aqui) — nada do Chat passa sob o relógio. */
 html.chat-app-mode body {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: auto;
+  min-height: 0;
+  padding-top: env(safe-area-inset-top);
   padding-bottom: max(var(--admin-bottom-nav-space), env(safe-area-inset-bottom));
 }
 

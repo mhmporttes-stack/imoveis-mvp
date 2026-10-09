@@ -1319,7 +1319,7 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
   return (
     <div className={`group flex items-center gap-1 ${outbound ? "justify-end" : "justify-start"} ${first ? "mt-2.5" : "mt-0.5"} ${message.reactions?.length ? "mb-4" : ""}`}>
       {hasActions && outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
-      <div {...trigger} data-message-id={message.id} className={`relative min-w-[84px] max-w-[80%] select-text rounded-lg px-2 pb-1.5 pt-1.5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] sm:max-w-[65%] ${linkPreview ? "w-[300px] sm:w-[340px]" : ""} ${
+      <div {...trigger} data-message-id={message.id} className={`relative min-w-[84px] max-w-[80%] select-text rounded-lg px-2 [@media(pointer:coarse)]:select-none pb-1.5 pt-1.5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] sm:max-w-[65%] ${linkPreview ? "w-[300px] sm:w-[340px]" : ""} ${
         outbound ? "bg-[#D9FDD3]" : "bg-white"
       } ${first ? (outbound ? "rounded-tr-none" : "rounded-tl-none") : ""} ${failed ? "ring-1 ring-red-300" : ""}`}>
         {first ? <BubbleTail outbound={outbound} /> : null}

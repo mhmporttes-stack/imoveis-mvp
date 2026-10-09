@@ -1,24 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Copy, Pencil, Reply, Smile, Trash2, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Copy, Pencil, Plus, Reply, Smile, Trash2 } from "lucide-react";
 import { REACTION_EMOJIS } from "@/lib/whatsapp-message-actions.mjs";
 
 // Ações por mensagem do Chat — UM componente para os 3 ambientes (app no
 // celular, app no computador e navegador). Só a forma de abrir muda:
-//  - toque: pressionar e segurar a mensagem (~0,45 s) abre uma folha inferior;
+//  - toque: pressionar e segurar a mensagem (~0,4 s) abre o foco "estilo WhatsApp
+//    do iPhone" (pedido do dono, 2026-10-09): fundo desfocado, a mensagem nítida
+//    no lugar, reações em cima e cartão de ações embaixo (MessageFocusOverlay);
 //  - mouse: clique com o botão direito ou no "⋯" (aparece ao passar o mouse)
 //    abre um menu flutuante no ponto do clique.
 // O que cada mensagem permite (responder, reagir, editar, apagar) vem pronto
 // do servidor (canReply/canReact/canEdit/canDelete) — a tela nunca decide.
 
-const LONG_PRESS_MS = 450;
+const LONG_PRESS_MS = 400;
 const MOVE_TOLERANCE_PX = 10;
 
 // Liga o toque longo e o clique direito a um elemento. `open({ x, y, touch })`.
 export function useMessageActionTrigger(open, enabled = true) {
   const timer = useRef(null);
   const start = useRef(null);
+  const node = useRef(null);
   const firedAt = useRef(0);
 
   function clear() {
@@ -34,11 +37,13 @@ export function useMessageActionTrigger(open, enabled = true) {
     onPointerDown(event) {
       if (event.pointerType === "mouse") return;
       start.current = { x: event.clientX, y: event.clientY };
+      node.current = event.currentTarget;
       timer.current = setTimeout(() => {
         firedAt.current = Date.now();
         suppressNextClick();
+        window.getSelection?.()?.removeAllRanges();
         navigator.vibrate?.(15);
-        open({ x: start.current?.x || 0, y: start.current?.y || 0, touch: true });
+        open({ x: start.current?.x || 0, y: start.current?.y || 0, touch: true, node: node.current });
         clear();
       }, LONG_PRESS_MS);
     },
@@ -53,7 +58,7 @@ export function useMessageActionTrigger(open, enabled = true) {
       // No Android o toque longo também dispara "contextmenu": não abre duas vezes.
       if (Date.now() - firedAt.current < 800) return;
       clear();
-      open({ x: event.clientX, y: event.clientY, touch: false });
+      open({ x: event.clientX, y: event.clientY, touch: false, node: event.currentTarget });
     }
   };
 }
@@ -68,16 +73,19 @@ function suppressNextClick() {
 }
 
 function useIsSheet(touch) {
-  const [sheet, setSheet] = useState(true);
-  useEffect(() => {
-    setSheet(touch || window.matchMedia("(max-width: 767px)").matches);
-  }, [touch]);
+  // Só é montado depois de um gesto (no navegador), então já dá para decidir na primeira renderização.
+  const [sheet] = useState(() => touch || (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches));
   return sheet;
 }
 
-export function MessageActionsMenu({ target, onClose, onReply, onReact, onEdit, onDelete }) {
-  const { message, x, y, touch } = target;
-  const sheet = useIsSheet(touch);
+export function MessageActionsMenu(props) {
+  const sheet = useIsSheet(props.target.touch);
+  // Celular/toque: foco estilo WhatsApp do iPhone. Computador: menu flutuante de sempre.
+  return sheet ? <MessageFocusOverlay {...props} /> : <MessageFloatingMenu {...props} />;
+}
+
+function MessageFloatingMenu({ target, onClose, onReply, onReact, onEdit, onDelete }) {
+  const { message, x, y } = target;
   const panelRef = useRef(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -91,13 +99,13 @@ export function MessageActionsMenu({ target, onClose, onReply, onReact, onEdit, 
 
   // Menu flutuante: mantém dentro da tela.
   useEffect(() => {
-    if (sheet || !panelRef.current) return;
+    if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     setPosition({
       left: Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)),
       top: Math.max(8, Math.min(y, window.innerHeight - rect.height - 8))
     });
-  }, [sheet, x, y]);
+  }, [x, y]);
 
   const teamReaction = message.reactions?.find((entry) => entry.sender === "team")?.emoji || "";
 
@@ -142,23 +150,134 @@ export function MessageActionsMenu({ target, onClose, onReply, onReact, onEdit, 
     </>
   );
 
-  if (sheet) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-end bg-black/30" onClick={onClose} data-message-actions="sheet">
-        <div role="menu" aria-label="Ações da mensagem" className="w-full rounded-t-3xl bg-white p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl" onClick={(event) => event.stopPropagation()}>
-          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300" />
-          {message.body ? <p className="mb-2 line-clamp-2 px-2 text-xs font-semibold text-slate-500">{message.body}</p> : null}
-          {content}
-          <button type="button" onClick={onClose} className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-extrabold text-slate-500 hover:bg-mist"><X className="h-4 w-4" />Fechar</button>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(event) => { event.preventDefault(); onClose(); }} data-message-actions="menu">
       <div ref={panelRef} role="menu" aria-label="Ações da mensagem" style={{ left: position.left, top: position.top }}
         className="fixed w-72 rounded-2xl border border-line bg-white p-2 shadow-xl" onClick={(event) => event.stopPropagation()}>
         {content}
+      </div>
+    </div>
+  );
+}
+
+// Foco da mensagem no celular (pedido do dono, 2026-10-09 — "igual ao WhatsApp do iPhone"): fundo inteiro
+// desfocado e levemente escurecido, a própria mensagem (cópia visual do balão) nítida no lugar, a barra de
+// reações acima e o cartão de ações abaixo. Só aparecem as ações que o servidor liberou para a mensagem.
+const SAFE_GAP = 12;
+
+function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDelete }) {
+  const { message, node } = target;
+  const outbound = message.direction === "outbound";
+  const stackRef = useRef(null);
+  const bubbleRef = useRef(null);
+  const [rect] = useState(() => (node?.isConnected ? node.getBoundingClientRect() : null));
+  const [top, setTop] = useState(null);
+  const [moreEmojis, setMoreEmojis] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const teamReaction = message.reactions?.find((entry) => entry.sender === "team")?.emoji || "";
+
+  useEffect(() => {
+    function onKey(event) { if (event.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Cópia visual do balão segurado (sem interação), com a mesma largura de antes.
+  useLayoutEffect(() => {
+    const holder = bubbleRef.current;
+    if (!holder || !node || !rect) return undefined;
+    const clone = node.cloneNode(true);
+    clone.removeAttribute("data-message-id");
+    clone.setAttribute("aria-hidden", "true");
+    Object.assign(clone.style, { width: `${rect.width}px`, maxWidth: "none", margin: "0", pointerEvents: "none" });
+    holder.appendChild(clone);
+    return () => clone.remove();
+  }, [node, rect]);
+
+  // Posição: a mensagem fica onde estava; se o conjunto não couber, desliza para caber na tela.
+  useLayoutEffect(() => {
+    const stack = stackRef.current;
+    if (!stack) return;
+    const height = stack.offsetHeight;
+    const bubbleTop = bubbleRef.current?.offsetTop || 0;
+    const viewport = window.innerHeight;
+    const wanted = rect ? rect.top - bubbleTop : (viewport - height) / 2;
+    setTop(Math.max(SAFE_GAP, Math.min(wanted, viewport - height - SAFE_GAP)));
+  }, [rect, moreEmojis, confirmingDelete]);
+
+  async function run(action) {
+    setBusy(true);
+    try { await action(); } finally { setBusy(false); }
+  }
+
+  async function copy() {
+    try { await navigator.clipboard.writeText(message.body || ""); } catch { /* sem permissão: ignora */ }
+    onClose();
+  }
+
+  function react(emoji) {
+    return run(async () => { await onReact(message, teamReaction === emoji ? "" : emoji); onClose(); });
+  }
+
+  const side = outbound
+    ? { right: rect ? Math.max(8, window.innerWidth - rect.right) : 12, alignItems: "flex-end" }
+    : { left: rect ? Math.max(8, rect.left) : 12, alignItems: "flex-start" };
+  const row = "flex w-full items-center justify-between gap-6 px-4 py-3 text-left text-[15px] font-semibold text-navy active:bg-black/5 disabled:opacity-50";
+  const actions = [
+    message.canReply ? <button key="reply" type="button" role="menuitem" className={row} onClick={() => { onReply(message); onClose(); }}>Responder<Reply className="h-5 w-5" /></button> : null,
+    message.body ? <button key="copy" type="button" role="menuitem" className={row} onClick={copy}>Copiar<Copy className="h-5 w-5" /></button> : null,
+    message.canEdit ? <button key="edit" type="button" role="menuitem" className={row} onClick={() => { onEdit(message); onClose(); }}>Editar<Pencil className="h-5 w-5" /></button> : null,
+    message.canDelete ? <button key="delete" type="button" role="menuitem" className={`${row} text-red-600`} onClick={() => setConfirmingDelete(true)}>Apagar<Trash2 className="h-5 w-5" /></button> : null
+  ].filter(Boolean);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]" onClick={onClose} onContextMenu={(event) => event.preventDefault()} data-message-actions="focus">
+      <div ref={stackRef} role="menu" aria-label="Ações da mensagem" className="absolute flex max-w-[calc(100%-16px)] select-none flex-col gap-2 [-webkit-touch-callout:none]"
+        style={{ top: top ?? -9999, ...side }} onClick={(event) => event.stopPropagation()}>
+        {message.canReact ? (
+          <div className="flex max-w-full flex-col rounded-[28px] bg-white/95 p-1 shadow-xl">
+            <div className="flex items-center gap-0.5" role="group" aria-label="Reagir">
+              {REACTION_EMOJIS.map((emoji) => (
+                <button key={emoji} type="button" disabled={busy} onClick={() => react(emoji)} aria-label={`Reagir com ${emoji}`} aria-pressed={teamReaction === emoji}
+                  className={`grid h-11 w-11 place-items-center rounded-full text-[26px] transition active:scale-110 disabled:opacity-50 ${teamReaction === emoji ? "bg-slate-200" : ""}`}>{emoji}</button>
+              ))}
+              <button type="button" onClick={() => setMoreEmojis((value) => !value)} aria-label="Mais emojis" aria-expanded={moreEmojis}
+                className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-600"><Plus className="h-5 w-5" /></button>
+            </div>
+            {moreEmojis ? (
+              <div className="grid max-h-40 grid-cols-8 gap-0.5 overflow-y-auto border-t border-line p-1" role="group" aria-label="Escolher emoji">
+                {EMOJIS.map((emoji) => (
+                  <button key={emoji} type="button" disabled={busy} onClick={() => react(emoji)} aria-label={`Reagir com ${emoji}`} className="grid h-9 place-items-center rounded-lg text-xl active:bg-mist disabled:opacity-50">{emoji}</button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {rect ? <div ref={bubbleRef} className="max-h-[40dvh] overflow-hidden rounded-lg" /> : message.body ? (
+          <p ref={bubbleRef} className="line-clamp-4 max-w-[80vw] rounded-lg bg-white px-3 py-2 text-sm text-[#111B21] shadow">{message.body}</p>
+        ) : null}
+        <div className="w-60 overflow-hidden rounded-2xl bg-white/85 shadow-xl backdrop-blur-xl">
+          {confirmingDelete ? (
+            <div className="p-4">
+              <p className="text-sm font-semibold text-navy">Apagar esta mensagem para todos? O cliente verá “Mensagem apagada”.</p>
+              <div className="mt-3 flex gap-2">
+                <button type="button" disabled={busy} onClick={() => run(async () => { await onDelete(message); onClose(); })} className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? "Apagando…" : "Apagar para todos"}</button>
+                <button type="button" disabled={busy} onClick={() => setConfirmingDelete(false)} className="rounded-full px-3 py-2 text-sm font-bold text-slate-600">Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-black/10">
+              {actions}
+              {teamReaction ? (
+                <div className="border-t-[6px] border-black/5">
+                  <button type="button" role="menuitem" disabled={busy} className={row} onClick={() => run(async () => { await onReact(message, ""); onClose(); })}>Remover minha reação<Smile className="h-5 w-5" /></button>
+                </div>
+              ) : null}
+              {!actions.length && !teamReaction ? <p className="px-4 py-3 text-sm font-semibold text-muted">Nenhuma ação disponível para esta mensagem.</p> : null}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

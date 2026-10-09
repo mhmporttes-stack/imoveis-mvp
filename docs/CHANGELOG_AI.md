@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-09 — Chat no iPhone: sem faixa branca embaixo, abas nítidas no topo e toque longo igual ao WhatsApp
+
+Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma regra, `lib/` ou API alterada.
+- **Faixa branca sob a barra inferior:** a barra tinha 4rem + a safe-area inteira do iPhone (~34 px) e o Chat media a altura por `100dvh`, que no iPhone pode divergir do retângulo usado pela barra fixa. Agora a barra é compacta em todo o painel (3,5rem + `--admin-bottom-nav-pad` = safe-area − 0,75rem, mínimo 0,25rem; `--admin-bottom-nav-space` acompanha) e, no Chat, o `body` vira moldura `position: fixed; inset: 0` — termina exatamente onde a barra começa.
+- **Abas desfocadas sob o relógio:** o respiro `env(safe-area-inset-top)` ficava no cabeçalho do ranking, que o modo aplicativo oculta; as abas nasciam sob a barra de status. O `body` do Chat agora tem `padding-top: env(safe-area-inset-top)` e não rola (scrollHeight == innerHeight).
+- **Segurar mensagem (celular):** balões sem seleção de texto/menu nativo em tela de toque (`select-none` em `pointer: coarse`; callout já desligado). Toque longo (~0,4 s, vibração curta) abre foco estilo WhatsApp do iPhone: fundo desfocado e escurecido, cópia nítida do balão no lugar, barra de reações (6 + "+" com a lista de emojis do seletor) acima e cartão Responder/Copiar/Editar/Apagar abaixo (só o que `canReply`/`canReact`/`canEdit`/`canDelete` liberam; "Remover minha reação" após separador). Encaminhar/Informações não existem no CRM e não foram criados. Toque fora/Esc fecha. Computador mantém o menu flutuante.
+- Arquivos: `app/globals.css`, `components/AdminBottomNav.jsx`, `components/WhatsappChat.jsx`, `components/WhatsappMessageActions.jsx`; docs `docs/WHATSAPP.md`, `sistema-visual.md`. Verificado na vitrine (390 com safe-area simulada e 1440) com Playwright.
 ### 2026-10-09 — Chat em modo aplicativo (tela fixa, só lista/mensagens rolam)
 - **Área:** Chat (WhatsApp) — só apresentação
 - **Alteração:** no Chat a página não rola mais: a tela ocupa a altura da janela (`100dvh` menos a barra inferior no celular; sem ela com o teclado aberto) e só a lista de conversas, as mensagens e as abas Visão geral/Campanhas/Corretores rolam por dentro (`overscroll-behavior: contain`); barra de digitação presa embaixo. Abas em linha compacta (no celular somem com a conversa aberta, como no WhatsApp; voltar mostra de novo); topo da lista mais compacto. No Chat o banner do ranking ("Campeão da semana") e o rodapé "Sair / Segurança da conta" ficam ocultos (continuam nas outras páginas e no "Mais"). Desktop: lista e conversa lado a lado, cada uma rolando por dentro.
