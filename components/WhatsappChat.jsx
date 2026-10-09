@@ -1605,6 +1605,15 @@ function MessageMoreButton({ onOpen }) {
   );
 }
 
+// Computador: Enter envia e Shift+Enter quebra a linha. Em tela de toque (celular/tablet) o Enter continua quebrando
+// a linha, como no WhatsApp do celular. Não dispara enquanto o teclado está compondo acento (isComposing).
+function sendOnEnter(event, send, canSend) {
+  if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
+  if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) return;
+  event.preventDefault();
+  if (canSend) send();
+}
+
 function StatusTicks({ status }) {
   if (status === "read") return <CheckCheck className="h-4 w-4 text-[#53BDEB]" aria-label="Lida" />;
   if (status === "delivered") return <CheckCheck className="h-4 w-4 text-[#667781]" aria-label="Entregue" />;
@@ -2089,7 +2098,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               className="max-h-[40dvh] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#111B21] outline-none placeholder:text-[#54656F] sm:text-sm sm:leading-6"
               disabled={sending}
               onChange={(event) => setText(event.target.value)}
-              // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
+              onKeyDown={(event) => sendOnEnter(event, send, !sending && !awaiting && hasContent)}
               placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
               aria-label="Mensagem"
               rows={1}
@@ -2197,7 +2206,7 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
           className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
           disabled={sending}
           onChange={(event) => setText(event.target.value)}
-          // Enter só quebra linha — enviar é sempre pelo botão.
+          onKeyDown={(event) => sendOnEnter(event, send, !sending && Boolean(text.trim()))}
           placeholder="Mensagem interna — o cliente não verá esta mensagem"
           rows={1}
           value={text}
