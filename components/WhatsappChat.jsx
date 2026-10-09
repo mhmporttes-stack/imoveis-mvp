@@ -716,7 +716,10 @@ function ConversationList({ className, conversations, error, filter, filterLabel
 // Só visual — sem nome/texto ao lado (pedido explícito, pra não poluir a
 // lista); tooltip discreto no hover (desktop).
 function ConversationAccountBadge({ account, personal = false }) {
-  const official = account ? account.channel === "whatsapp_cloud_api" : !personal;
+  // A sessão manda (2026-10-09): conversa do WhatsApp pessoal de alguém é PESSOAL mesmo quando o canal gravado na
+  // conversa ainda é o do número oficial (conversa que veio do oficial e passou para o corretor — caso Agnaldo/Jennyfer).
+  // É o mesmo critério do "Enviando por" da caixa de mensagem.
+  const official = personal ? false : account ? account.channel === "whatsapp_cloud_api" : true;
   const tooltip = official ? "WhatsApp oficial" : account?.name ? `WhatsApp pessoal: ${account.name}` : "WhatsApp pessoal";
   return (
     <span
