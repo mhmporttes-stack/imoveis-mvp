@@ -52,6 +52,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <body>
+        {/* App "Financeiro" (components/pwaHome.js): marca antes da pintura para esconder menus/ranking sem piscar. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var h=sessionStorage.getItem("mm_pwa_home")||"";var s=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;if(s&&h.indexOf("/admin/financeiro")===0)document.documentElement.setAttribute("data-mm-app","financeiro")}catch(e){}` }} />
         <AppChrome>{children}</AppChrome>
         {/* Instrumentação pura (zero HTML/CSS visível) — baseline de Core
             Web Vitals real (LCP/INP/CLS/TTFB/FCP) para a auditoria de

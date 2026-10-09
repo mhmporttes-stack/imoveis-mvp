@@ -750,7 +750,7 @@ function SaleEditor({
             {sale.clientId ? (
               <Link
                 href={`/admin/simulacoes?clientId=${sale.clientId}`}
-                className="-ml-2 mt-0.5 inline-flex min-h-touch items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="mm-app-hide -ml-2 mt-0.5 inline-flex min-h-touch items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden="true" /> Ver cliente
               </Link>

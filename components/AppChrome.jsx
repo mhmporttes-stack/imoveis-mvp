@@ -7,6 +7,7 @@ import AdminPwaInstallHint from "@/components/AdminPwaInstallHint";
 import AdminSessionKeeper from "@/components/AdminSessionKeeper";
 import CampaignLinkCapture from "@/components/CampaignLinkCapture";
 import MobileAdminEntryRedirect from "@/components/MobileAdminEntryRedirect";
+import FinanceiroAppGuard from "@/components/FinanceiroAppGuard";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import InstagramFloatingButton from "@/components/InstagramFloatingButton";
@@ -60,6 +61,7 @@ export default function AppChrome({ children }) {
       {isAdminRoute ? (
         <>
           <MobileAdminEntryRedirect />
+          <FinanceiroAppGuard />
           <AdminSessionKeeper />
           <AdminPwaInstallHint />
           <AdminPushSubscription />

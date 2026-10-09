@@ -23,6 +23,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Data:** 2026-10-09
 - **Área:** PWA / Financeiro
 - **O quê:** segundo ícone de app (pedido do dono): `/financeiro` (página pública só de instalação, sem dado) usa manifesto próprio `public/financeiro.webmanifest` (`id` /financeiro) e ícones `public/icons/*financeiro*-mm.png` (mesmo fundo #031D3A e cores do "M", com cifrão). No app instalado redireciona para `/admin/financeiro?aba=saude` (abre direto em Saúde/contas quando o perfil vê a aba; login e permissões inalterados). Após login, `components/pwaHome.js` (sessionStorage) devolve o usuário ao Financeiro. Manifesto/ícone do Painel (`app/manifest.js`, `app/layout.jsx`) não foram alterados.
+- **Modo app (mesmo dia):** no app Financeiro instalado, `app/layout.jsx` marca `html[data-mm-app=financeiro]` antes da pintura (standalone + sessionStorage `mm_pwa_home`); CSS esconde ranking/Campeão, menu do topo (`AdminSectionNav`), barra inferior, "Segurança" e "Ver cliente" (classe `mm-app-hide`); `HideInFinanceiroApp` não monta mensagens/celebrações/alertas; `FinanceiroAppGuard` devolve qualquer outra rota `/admin` ao Financeiro. Painel no navegador/app Painel inalterado.
 
 * (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
 2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.

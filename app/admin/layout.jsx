@@ -9,6 +9,7 @@ import NewClientSoundListener from "@/components/NewClientSoundListener";
 import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
+import HideInFinanceiroApp from "@/components/HideInFinanceiroApp";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
 import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
@@ -43,15 +44,18 @@ export default async function AdminLayout({ children }) {
       {/* Presença é do usuário REAL: em "Alterar conta" não usa o id do corretor emulado. */}
       {auth.ok ? <AdminPresenceHeartbeat userId={resolvePresenceProfileId(auth)} /> : null}
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
+      {/* App "Financeiro" da tela inicial: sem mensagens/celebrações/alertas do painel por cima (só o Financeiro). */}
+      <HideInFinanceiroApp>
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
       {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
       {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}
       {/* Central de Alertas (Informativo/Importante) — fora de "Alterar conta", como a Supervisão. */}
       {auth.ok && !auth.accountSwitchMode ? <AlertCenterGate userId={auth.profile?.id} /> : null}
+      </HideInFinanceiroApp>
       {auth.ok ? (
         // Ranking no início da página, no fluxo normal: rola junto com o
         // conteúdo e nunca fica sobre os cards de clientes.
-        <div>
+        <div className="mm-app-hide">
           {auth.accountSwitchMode ? (
             <AdminViewAsBanner name={auth.profile.name} category={roleLabel(auth.profile.role)} />
           ) : null}
@@ -92,7 +96,7 @@ export default async function AdminLayout({ children }) {
           <AdminLogoutButton />
           {/* Verificação em duas etapas: só a conta REAL do dono ou de um gestor (regra do dono, 2026-10-08/09). */}
           {isOwnerAdminEmail((auth.realUser || auth.user)?.email) || isManagerProfile(auth.realProfile || auth.profile) ? (
-            <Link className="text-sm font-extrabold text-brand transition hover:text-navy" href="/admin/seguranca">
+            <Link className="mm-app-hide text-sm font-extrabold text-brand transition hover:text-navy" href="/admin/seguranca">
               Segurança da conta (verificação em duas etapas)
             </Link>
           ) : null}

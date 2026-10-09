@@ -21,3 +21,9 @@ export function getPwaHome() {
     return "";
   }
 }
+
+// true só no app instalado aberto pelo ícone Financeiro (marcado em app/layout.jsx antes da pintura).
+export function isFinanceiroApp() {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.getAttribute("data-mm-app") === "financeiro";
+}

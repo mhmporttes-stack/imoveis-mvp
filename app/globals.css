@@ -366,6 +366,22 @@ html.admin-has-bottom-nav {
   --admin-bottom-nav-space: calc(3.5rem + var(--admin-bottom-nav-pad));
 }
 
+/* App "Financeiro" da tela inicial (pedido do dono, 2026-10-09): só o Financeiro, sem ranking,
+   menus nem barra inferior. data-mm-app é marcado antes da pintura (app/layout.jsx) apenas
+   no app instalado aberto pelo ícone Financeiro (components/pwaHome.js). */
+html[data-mm-app="financeiro"] .mm-app-hide,
+html[data-mm-app="financeiro"] .admin-bottom-nav {
+  display: none !important;
+}
+
+html[data-mm-app="financeiro"] {
+  --admin-bottom-nav-space: 0px !important;
+}
+
+html[data-mm-app="financeiro"] main {
+  padding-top: calc(env(safe-area-inset-top) + 1rem);
+}
+
 @media (min-width: 768px) {
   html.admin-has-bottom-nav {
     --admin-bottom-nav-space: 0px;

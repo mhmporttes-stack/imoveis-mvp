@@ -38,7 +38,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
   }
 
   return (
-    <div className={`container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
+    <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={isEffectivelyBlocked(profile)} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
