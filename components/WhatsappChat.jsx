@@ -2123,9 +2123,11 @@ function InternalToggle({ active, disabled = false, onClick }) {
       aria-pressed={active}
       aria-label={active ? "Desativar modo interno" : "Ativar modo interno (mensagem só para a equipe)"}
       title={active ? "Modo interno ativo — clique para voltar ao WhatsApp" : "Mensagem interna (o cliente não verá)"}
-      className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors duration-200 disabled:opacity-40 ${active ? "bg-blue-100 text-brand" : "text-slate-400 hover:bg-mist hover:text-slate-600"}`}
+      className={`inline-flex h-11 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-extrabold transition-colors duration-200 disabled:opacity-40 ${active ? "bg-blue-100 text-brand" : "text-brand hover:bg-blue-50"}`}
     >
-      <MessageSquareText className="h-5 w-5" />
+      {/* Mais visível (dono, 2026-10-09: "cadê o botão de chat interno?"): cadeado + "Interno". */}
+      <Lock className="h-4 w-4" />
+      <span>Interno</span>
     </button>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { GripVertical, Sparkles } from "lucide-react";
+import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import PropertyFeatureIcon, { getPropertyFeatureIcon } from "@/components/PropertyFeatureIcon";
 import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
@@ -242,15 +243,9 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
     }));
   }
 
-  function movePhoto(index, direction) {
-    setForm((current) => {
-      const photos = Array.isArray(current.photos) ? current.photos : [];
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= photos.length) return current;
-      const nextPhotos = [...photos];
-      [nextPhotos[index], nextPhotos[nextIndex]] = [nextPhotos[nextIndex], nextPhotos[index]];
-      return { ...current, photos: nextPhotos };
-    });
+  // Arrastar para reordenar (2026-10-09): move a foto da posição `from` para `to`.
+  function movePhoto(from, to) {
+    setForm((current) => ({ ...current, photos: moveItem(Array.isArray(current.photos) ? current.photos : [], from, to) }));
   }
 
   function removePhoto(index) {
@@ -273,16 +268,10 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
     });
   }
 
-  function moveFeature(index, direction) {
-    setForm((current) => {
-      const features = normalizeFeatures(current.features);
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= features.length) return current;
-      const nextFeatures = [...features];
-      [nextFeatures[index], nextFeatures[nextIndex]] = [nextFeatures[nextIndex], nextFeatures[index]];
-      return { ...current, features: nextFeatures };
-    });
+  function moveFeature(from, to) {
+    setForm((current) => ({ ...current, features: moveItem(normalizeFeatures(current.features), from, to) }));
   }
+  const featureDrag = useDragReorder(moveFeature);
 
   async function submit(event) {
     event.preventDefault();
@@ -423,8 +412,9 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
         {selectedFeatures.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {selectedFeatures.map((feature, index) => (
-              <div key={`${feature.text}-${index}`} className="grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+              <div key={`${feature.text}-${index}`} {...featureDrag.itemProps(index)} className={`grid gap-3 rounded-2xl border border-brand/20 bg-white p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center ${featureDrag.itemClass(index)}`}>
                 <span className="inline-flex items-center gap-2 text-sm font-extrabold text-navy">
+                  <GripVertical className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                   <FeaturePreviewIcon icon={feature.icon} />
                   {feature.text}
                 </span>
@@ -435,8 +425,6 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
                   ariaLabel={`Ícone de ${feature.text}`}
                 />
                 <span className="inline-flex items-center gap-2">
-                  <button type="button" onClick={() => moveFeature(index, -1)} disabled={index === 0} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para cima`}>↑</button>
-                  <button type="button" onClick={() => moveFeature(index, 1)} disabled={index === selectedFeatures.length - 1} className="rounded-full border border-line px-3 py-2 text-brand disabled:opacity-30" aria-label={`Mover ${feature.text} para baixo`}>↓</button>
                   <button type="button" onClick={() => removeFeature(index)} className="rounded-full border border-line px-3 py-2 text-slate-500 hover:text-navy" aria-label={`Remover ${feature.text}`}>×</button>
                 </span>
               </div>
@@ -534,6 +522,7 @@ function FilePicker({ accept, children, label, multiple = false, onChange, selec
 
 function PhotoOrderEditor({ photos = [], onMove, onRemove }) {
   const orderedPhotos = Array.isArray(photos) ? photos.filter((photo) => photo?.data) : [];
+  const drag = useDragReorder(onMove);
   if (!orderedPhotos.length) return null;
 
   return (
@@ -541,17 +530,18 @@ function PhotoOrderEditor({ photos = [], onMove, onRemove }) {
       <div className="min-w-0">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Ordem das fotos</p>
         <h3 className="mt-2 text-[clamp(1.45rem,7vw,1.75rem)] font-extrabold leading-tight text-navy">Escolha a capa e a sequência da galeria</h3>
-        <p className="mt-2 text-muted">Use as setas para ordenar. A primeira foto será a capa do imóvel no site.</p>
+        <p className="mt-2 text-muted">Arraste as fotos para ordenar (no celular: segure e mova). A primeira foto será a capa do imóvel no site.</p>
       </div>
 
       <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {orderedPhotos.map((photo, index) => (
-          <article key={`${photo.storagePath || photo.data}-${index}`} className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
+          <article key={`${photo.storagePath || photo.data}-${index}`} {...drag.itemProps(index)} className={`min-w-0 overflow-hidden rounded-2xl border border-line bg-white shadow-soft ${drag.itemClass(index)}`}>
             <div className="relative aspect-[4/3] overflow-hidden bg-mist">
               <img
                 src={photo.data}
                 alt={photo.name || `Foto ${index + 1}`}
-                className="h-full w-full object-contain"
+                draggable={false}
+                className="pointer-events-none h-full w-full object-contain"
               />
               <span className="absolute left-3 top-3 rounded-full bg-navy px-3 py-1 text-xs font-black text-white shadow-soft">
                 {index === 0 ? "Capa" : `Foto ${index + 1}`}
@@ -561,25 +551,8 @@ function PhotoOrderEditor({ photos = [], onMove, onRemove }) {
               <p className="truncate text-sm font-bold text-muted" title={photo.name || `Foto ${index + 1}`}>
                 {photo.name || `Foto ${index + 1}`}
               </p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onMove(index, -1)}
-                  disabled={index === 0}
-                  className="rounded-full border border-line px-3 py-2 text-sm font-black text-brand transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label={`Mover foto ${index + 1} para cima`}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(index, 1)}
-                  disabled={index === orderedPhotos.length - 1}
-                  className="rounded-full border border-line px-3 py-2 text-sm font-black text-brand transition hover:border-brand disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label={`Mover foto ${index + 1} para baixo`}
-                >
-                  ↓
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-400"><GripVertical className="h-4 w-4" aria-hidden="true" />Arraste</span>
                 <button
                   type="button"
                   onClick={() => onRemove(index)}
