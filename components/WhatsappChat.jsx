@@ -772,9 +772,9 @@ function ConversationRow({ conversation, selected, onSelect }) {
       <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
         <span className="flex items-baseline justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
-            {/* Situação do cliente na frente do nome */}
+            {/* Primeiro nome e, logo depois, a situação do cliente */}
+            <span title={name} className={`min-w-0 truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
             <ClientStatusBadge client={conversation.client} className="max-w-[130px] shrink-0 whitespace-nowrap" />
-            <span title={name} className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
           </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
