@@ -28,5 +28,19 @@ test("motor de automações usa a regra do prazo da simulação", () => {
   const lib = readFileSync(new URL("../lib/crm-automations.js", import.meta.url), "utf8");
   assert.match(lib, /!canReturnToRoulette\(client, \{ hasSimulation: simulated\.has\(client\.id\), humanAttended: humanAttended\.has\(client\.id\) \}\)/);
   assert.match(lib, /primary_monthly_income/);
-  assert.match(lib, /\.from\("simulations"\)\s*\.select\("registration_id"\)/);
+  assert.match(lib, /\.from\("simulations"\)\s*\.select\("\*"\)/);
+});
+
+test("cliente com dados: 'Em atendimento' sem simular não escapa; simulação vazia do cadastro do site não conta (2026-10-09)", async () => {
+  const { rouletteRuleConditions, PRE_SIMULATION_RULE_SINCE } = await import("../lib/simulation-deadline-core.mjs");
+  const rule = [{ type: "status_equals", value: "pending" }];
+  const after = new Date(Date.parse(PRE_SIMULATION_RULE_SINCE) + 60000).toISOString();
+  assert.deepEqual(rouletteRuleConditions(rule, { status: "in_service", primary_monthly_income: 4000, responsible_changed_at: "2026-10-09T02:42:08Z" }), rule, "não retroativo");
+  assert.deepEqual(rouletteRuleConditions(rule, { status: "in_service", primary_monthly_income: 4000, responsible_changed_at: after }), []);
+  assert.deepEqual(rouletteRuleConditions(rule, { status: "automated_service", primary_monthly_income: 4000, responsible_changed_at: after }), []);
+  assert.deepEqual(rouletteRuleConditions(rule, { status: "completed", primary_monthly_income: 4000, responsible_changed_at: after }), rule, "simulação realizada: fica");
+  assert.deepEqual(rouletteRuleConditions(rule, { status: "in_service", primary_monthly_income: 0 }), rule, "sem dados: regra como está");
+  const lib = readFileSync(new URL("../lib/crm-automations.js", import.meta.url), "utf8");
+  assert.match(lib, /if \(getSimulationListSummary\(rowToSimulation\(row\)\)\.completed\) result\.add\(row\.registration_id\);/);
+  assert.match(lib, /rouletteRuleConditions\(rule\.conditions, client\)/);
 });

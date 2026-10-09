@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — ROL-4b: correções (simulação vazia do site e "Em atendimento" sem simular)
+- **Bug 1:** o cadastro do site já cria uma linha em `simulations` ("Cadastro do site", sem valores); a ROL-4b contava qualquer linha como "simulação feita" e nunca tirava cliente de formulário de ninguém. Agora só conta simulação com valor (`getSimulationListSummary().completed`, mesma regra do card).
+- **Bug 2:** mudar para "Em atendimento" sem simular segurava o cliente (a condição da regra é status = Aguardando simulação). Para cliente com dados, a condição vira "status antes da simulação" (Aguardando simulação, Atendimento automático, Em atendimento) — `rouletteRuleConditions` (`lib/simulation-deadline-core.mjs`). Não retroativo: só clientes recebidos a partir de `PRE_SIMULATION_RULE_SINCE`.
+- **Bug 3 (meu, do mesmo dia):** `listClientIdsWithManualTransfer` ordenava `client_journey_events` por `created_at`, coluna inexistente (é `occurred_at`) — a regra REDISTRIBUIÇÃO DE LEADS falhava inteira desde o deploy do "Devolver para a roleta"; corrigido.
+- **Caso real:** cliente recebido 23:42 por Bencke, "Em atendimento" 37 s depois, sem simulação, não voltou à roleta.
 ### 2026-10-09 — "Devolver para a roleta" no seletor de corretor (ROL-4c)
 - **O quê:** opção nova no seletor de responsável do card (admin/gestor). Rota `POST /api/simulation-registrations/[id]/roleta` (`requireBrokerManagementApi`) → `returnClientToRoulette`: próximo corretor on-line excluindo o atual; ninguém on-line → dono + `pending_distribution_at` (histórico com `toWaitingQueue`, então a fila também não devolve a quem perdeu). Linha do tempo `responsible_transferred` com `transferType: "roulette"`; notificação ao novo corretor. `listClientIdsWithManualTransfer` passa a olhar só a ÚLTIMA troca (manual ou roleta).
 - **Por quê:** pedido do dono.
