@@ -282,7 +282,11 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     // terminar em "Connection Closed"); sessões por QR seguem como antes.
     // (sessão pareada por código guarda creds.pairingCode — mantém o mesmo
     // navegador nas reconexões dela).
-    browser: (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"]
+    // QR NOVO (2026-10-09): o WhatsApp só manda o histórico longo para aparelho vinculado do tipo DESKTOP, e esse tipo é
+    // decidido no pareamento (não nas reconexões). Com "Chrome" vinha quase nada — por isso o histórico não carregava.
+    browser: !state.creds.registered && !phoneNumber
+      ? Browsers.macOS("Desktop")
+      : (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"]
   });
   entry.sock = sock;
 
