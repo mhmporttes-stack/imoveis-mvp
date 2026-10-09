@@ -9,7 +9,7 @@ import {
 import { listDueCalendarActivityNotifications, markCalendarActivityNotified } from "@/lib/calendar-activities";
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
-import { reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
+import { reconcileAdWaitingClients, reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
 import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
@@ -109,6 +109,13 @@ export async function GET(request) {
       await reconcileOrganicLeads();
     } catch (organicError) {
       console.error("Falha ao reconciliar contatos diretos do WhatsApp.", organicError);
+    }
+
+    // Cliente do anúncio segurado com o dono (WA-18) que respondeu/preencheu mas a liberação falhou: vai para a roleta.
+    try {
+      await reconcileAdWaitingClients();
+    } catch (adWaitingError) {
+      console.error("Falha ao reconciliar clientes do anúncio aguardando.", adWaitingError);
     }
 
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro

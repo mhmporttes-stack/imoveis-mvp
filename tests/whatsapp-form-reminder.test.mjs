@@ -4,8 +4,8 @@ import {
   FORM_REMINDER_KIND,
   buildFormReminderText,
   decideFormReminder,
+  currentReminderStep,
   formReminderClaimKey,
-  formReminderDueAt,
   isCrmSentLinkMessage,
   isFormLinkUrl,
   latestLinkPerConversation,
@@ -73,26 +73,20 @@ test("só o link mais recente de cada conversa", () => {
   assert.deepEqual(latestLinkPerConversation(rows).map((row) => row.id).sort(), ["b", "c"]);
 });
 
-test("horário: 1 h depois; entre 21:00 e 08:00 (São Paulo) segura até 08:00", () => {
-  assert.equal(formReminderDueAt(LINK_AT).toISOString(), "2026-10-10T18:00:00.000Z");
-  // link 20:30 SP → 21:30 cai no silêncio → 08:00 do dia seguinte (11:00 UTC)
-  assert.equal(formReminderDueAt("2026-10-10T23:30:00.000Z").toISOString(), "2026-10-11T11:00:00.000Z");
-  // link 02:00 SP → 03:00 → 08:00 do mesmo dia
-  assert.equal(formReminderDueAt("2026-10-10T05:00:00.000Z").toISOString(), "2026-10-10T11:00:00.000Z");
-  // link 19:59 SP → 20:59 ainda dentro do horário
-  assert.equal(formReminderDueAt("2026-10-10T22:59:00.000Z").toISOString(), "2026-10-10T23:59:00.000Z");
-  // link 07:00 SP → 08:00 exato vale
-  assert.equal(formReminderDueAt("2026-10-10T10:00:00.000Z").toISOString(), "2026-10-10T11:00:00.000Z");
+test("horário: 1 h depois do link, 24 horas por dia (sem segurar à noite)", () => {
+  assert.equal(currentReminderStep({ link: { message_at: LINK_AT } }, AFTER_1H).dueAt.toISOString(), "2026-10-10T18:00:00.000Z");
+  // link 20:30 SP → sai 21:30 SP (00:30 UTC), não espera as 08:00
+  assert.equal(currentReminderStep({ link: { message_at: "2026-10-10T23:30:00.000Z" } }, new Date("2026-10-11T00:30:30Z")).dueAt.toISOString(), "2026-10-11T00:30:00.000Z");
+  assert.equal(currentReminderStep({ link: { message_at: LINK_AT } }, new Date("2026-10-10T17:59:00Z")), null);
 });
 
 test("envia: 1 h depois, sem resposta, sem formulário, janela do oficial aberta", () => {
-  assert.deepEqual(decideFormReminder(baseInput(), AFTER_1H), { action: "send", reason: "ok", channel: "official" });
+  assert.deepEqual(decideFormReminder(baseInput(), AFTER_1H), { action: "send", reason: "ok", channel: "official", step: "", claimKey: "form-reminder:m1" });
 });
 
-test("antes de 1 h espera; muito atrasado ou link antigo não envia", () => {
+test("antes de 1 h espera; muito atrasado não envia", () => {
   assert.equal(decideFormReminder(baseInput(), new Date("2026-10-10T17:59:00Z")).action, "wait");
   assert.equal(decideFormReminder(baseInput(), new Date("2026-10-10T21:30:00Z")).reason, "atrasado_demais");
-  assert.equal(decideFormReminder(baseInput({ link: { id: "m1", message_at: "2026-10-01T10:00:00Z" } }), new Date("2026-10-01T11:00:30Z")).reason, "antes_da_regra");
 });
 
 test("idempotência: um lembrete por envio de link", () => {
@@ -130,7 +124,7 @@ test("canal: oficial só com a janela de 24 h aberta; pessoal só se permitido; 
   assert.equal(decideFormReminder(baseInput({ conversation: old }), AFTER_1H).reason, "janela_fechada");
   assert.equal(decideFormReminder(baseInput({ channel: { kind: "official", officialConfigured: false } }), AFTER_1H).action, "wait");
   assert.equal(decideFormReminder(baseInput({ channel: { kind: "individual", individualAllowed: false } }), AFTER_1H).reason, "whatsapp_pessoal_nao_permitido");
-  assert.deepEqual(decideFormReminder(baseInput({ channel: { kind: "individual", individualAllowed: true } }), AFTER_1H), { action: "send", reason: "ok", channel: "individual" });
+  assert.deepEqual(decideFormReminder(baseInput({ channel: { kind: "individual", individualAllowed: true } }), AFTER_1H), { action: "send", reason: "ok", channel: "individual", step: "", claimKey: "form-reminder:m1" });
   // pessoal não depende da janela da Meta
   assert.equal(decideFormReminder(baseInput({ conversation: old, channel: { kind: "individual", individualAllowed: true } }), AFTER_1H).action, "send");
   assert.equal(decideFormReminder(baseInput({ channel: { kind: "numero_mudou" } }), AFTER_1H).reason, "numero_mudou");
@@ -138,10 +132,9 @@ test("canal: oficial só com a janela de 24 h aberta; pessoal só se permitido; 
   assert.equal(decideFormReminder(baseInput({ hasLiveFlowSession: true }), AFTER_1H).reason, "fluxo_em_andamento");
 });
 
-test("silêncio noturno: segura até 08:00 e só envia se a janela do oficial ainda estiver aberta", () => {
-  const link = { id: "m1", message_at: "2026-10-10T23:30:00.000Z" }; // 20:30 SP
-  const at0800 = new Date("2026-10-11T11:00:30Z");
-  assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-10T23:29:00Z" } }), new Date("2026-10-11T01:00:00Z")).action, "wait");
-  assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-10T23:29:00Z" } }), at0800).action, "send");
-  assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-10T11:00:00Z" } }), at0800).reason, "janela_fechada");
+test("madrugada: envia normalmente se a janela do oficial estiver aberta; janela fechada não envia", () => {
+  const link = { id: "m1", message_at: "2026-10-11T04:00:00.000Z" }; // 01:00 SP
+  const at0200 = new Date("2026-10-11T05:00:30Z");
+  assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-11T03:59:00Z" } }), at0200).action, "send");
+  assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-10T05:00:00Z" } }), at0200).reason, "janela_fechada");
 });
