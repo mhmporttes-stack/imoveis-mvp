@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { deleteChatConversation, getChatConversation, updateChatConversationStatus } from "@/lib/whatsapp-chat";
+import { deleteChatConversation, getChatConversation, setChatConversationPrivate, updateChatConversationStatus } from "@/lib/whatsapp-chat";
 import { chatErrorResponse } from "../../chat-errors";
 
 export const runtime = "nodejs";
@@ -24,6 +24,11 @@ export async function PATCH(request, { params }) {
 
   try {
     const body = await request.json().catch(() => ({}));
+    // Particular (2026-10-09): { private: true|false } marca/desmarca a conversa como contato pessoal.
+    if (typeof body?.private === "boolean") {
+      await setChatConversationPrivate((await params).id, body.private, auth);
+      return NextResponse.json({ ok: true });
+    }
     await updateChatConversationStatus((await params).id, body?.status, auth);
     return NextResponse.json({ ok: true });
   } catch (error) {

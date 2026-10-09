@@ -44,6 +44,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-09 — Chat: aba Particular para contatos pessoais (WA-19)
+- **O quê:** botão "Particular" (antes Arquivar; "Arquivar cliente" foi para o menu ⋮); aba Particular com histórico completo; mensagem nova não reabre, não cria/vincula cliente, sem push. Cadastro do contato fica fora de Clientes (`private_contact_at`), do resgate de órfãos e da transferência ao excluir usuário. Migração: 94 contatos pessoais arquivados como clientes (WhatsApp individual, sem renda, sem simulação) + 2 conversas arquivadas sem cliente + os 9 da Giovanna Saia. Auditoria do Chat passou a aceitar status_changed/message_edited/message_deleted_for_everyone (antes eram recusados em silêncio).
+- **Por quê:** pedido do dono — separar clientes arquivados de conversas pessoais. — `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, migrations `20261009160000/160100/160200`.
+
 ### 2026-10-09 — Chat: primeira mensagem ao cliente com dados tem de ser o link da simulação (ROL-4c)
 - **O quê:** cliente da roleta com renda informada e ainda sem simulação: o Chat recusa qualquer envio que não seja o link da apresentação (/s/<token>) até ele sair; aviso âmbar acima do campo de mensagem. Admin geral livre; não retroativo.
 - **Por quê:** regra do dono — corretor se apresentava sem simular, cliente voltava à roleta e outro se apresentava de novo (caso Alexandre, 08/10). — `lib/simulation-first-core.mjs`, `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`.

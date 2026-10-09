@@ -75,7 +75,9 @@ const FILTERS = [
   { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
   { key: "silent", label: "Sem retorno" },
-  { key: "finished", label: "Arquivadas" }
+  { key: "finished", label: "Arquivadas" },
+  // Particular (regra do dono, 2026-10-09): contatos pessoais, separados de clientes arquivados.
+  { key: "private", label: "Particular" }
 ];
 
 const STATUS_LABELS = { open: "Nova", in_service: "Em atendimento", finished: "Finalizada" };
@@ -927,6 +929,26 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     }
   }
 
+  async function setPrivate(makePrivate) {
+    if (makePrivate && conversation.client?.id && !window.confirm(`Mover ${conversation.client?.name || displayName(conversation)} para Particular? Deixa de ser cliente (sai das listas de Clientes) e a conversa fica só na aba Particular.`)) return;
+    setArchiving(true);
+    setReactionError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ private: makePrivate })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível atualizar a conversa.");
+      onChanged();
+    } catch (failure) {
+      setReactionError(failure.message);
+    } finally {
+      setArchiving(false);
+    }
+  }
+
   async function deleteConversation() {
     setDeleting(true);
     setDeleteError("");
@@ -1004,16 +1026,18 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
               </button>
             ) : null}
             {!conversation.archivedReadOnly ? (
+              // "Particular" (pedido do dono, 2026-10-09): contato pessoal vai para a aba Particular com o histórico inteiro,
+              // deixa de ser cliente e mensagem nova não o traz de volta. Arquivar cliente fica no menu ⋮.
               <button
                 type="button"
-                onClick={() => (conversation.status === "finished" ? changeStatus("open") : archiveClient())}
+                onClick={() => setPrivate(!conversation.private)}
                 disabled={archiving}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-navy hover:bg-mist disabled:opacity-50"
-                aria-label={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar cliente" : "Arquivar conversa"}
-                title={conversation.status === "finished" ? "Reabrir conversa" : conversation.client?.id ? "Arquivar: o cliente vai para Arquivado e a conversa sai do Chat" : "Arquivar conversa (vai para Arquivadas)"}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold hover:bg-mist disabled:opacity-50 ${conversation.private ? "text-brand" : "text-navy"}`}
+                aria-label={conversation.private ? "Tirar de Particular" : "Mover para Particular"}
+                title={conversation.private ? "Tirar de Particular (volta para a lista)" : "Particular: contato pessoal, sai da lista e não vira cliente"}
               >
-                {conversation.status === "finished" ? <ArchiveRestore className="h-4 w-4 text-brand" /> : <Archive className="h-4 w-4" />}
-                <span className="hidden sm:inline">{conversation.status === "finished" ? "Reabrir" : "Arquivar"}</span>
+                <Lock className="h-4 w-4" />
+                <span className="hidden sm:inline">{conversation.private ? "Tirar de Particular" : "Particular"}</span>
               </button>
             ) : null}
             <button
@@ -1039,6 +1063,11 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
               </button>
               {menuOpen ? (
                 <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-soft">
+                  {conversation.client?.id && !conversation.archivedReadOnly ? (
+                    <button type="button" role="menuitem" disabled={archiving} onClick={() => { setMenuOpen(false); archiveClient(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist disabled:opacity-50">
+                      <Archive className="h-4 w-4" /> Arquivar cliente
+                    </button>
+                  ) : null}
                   {conversation.status !== "finished" ? (
                     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); changeStatus("finished"); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
                       <CheckCheck className="h-4 w-4 text-emerald-600" /> Finalizar conversa
