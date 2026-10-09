@@ -78,6 +78,31 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     return () => document.documentElement.classList.remove("admin-has-bottom-nav");
   }, []);
 
+  // iPhone com o app instalado (iOS 26): a janela do site às vezes fica mais
+  // curta que a tela e a barra "bottom: 0" para acima do fim real, deixando uma
+  // faixa branca embaixo (pedido do dono, 2026-10-09: barra o mais baixo
+  // possível). Mede a sobra e desce a barra até o fim da tela (--ios-bottom-gap).
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      const standalone = window.navigator.standalone === true;
+      const portrait = window.innerHeight > window.innerWidth;
+      const gap = standalone && portrait ? Math.round(window.screen.height - window.innerHeight) : 0;
+      if (gap > 0 && gap <= 100) root.style.setProperty("--ios-bottom-gap", `${gap}px`);
+      else root.style.removeProperty("--ios-bottom-gap");
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    window.addEventListener("pageshow", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("pageshow", measure);
+      root.style.removeProperty("--ios-bottom-gap");
+    };
+  }, []);
+
   // Com o teclado virtual aberto a barra sai do caminho (senão ela sobe junto
   // e cobre o campo/compositor do Chat).
   useEffect(() => {
@@ -106,7 +131,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
       <nav
         aria-label="Navegação principal"
         className={cx(
-          "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 shadow-float backdrop-blur md:hidden",
+          "admin-bottom-nav fixed inset-x-0 z-30 border-t border-line bg-white/95 shadow-float backdrop-blur md:hidden",
           "transition-transform duration-200 ease-out-ui motion-reduce:transition-none",
           typing && "translate-y-full"
         )}

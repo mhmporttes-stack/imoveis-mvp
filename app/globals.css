@@ -350,17 +350,21 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
    reserva o espaço dela no fim da página para nada ficar escondido atrás. */
 /* Barra compacta (pedido do dono, 2026-10-09): 3,5rem de ícones + respiro do
    indicador de início do iPhone. O respiro usa a safe-area UMA vez, com 0,75rem
-   a menos (o traço do iPhone ocupa só os ~13px de baixo) e no mínimo 0,25rem. */
+   a menos (o traço do iPhone ocupa só os ~13px de baixo) e no mínimo 0,25rem.
+   "O mais baixo possível" (2026-10-09): respiro reduzido para safe-area - 1rem
+   e --ios-bottom-gap (medido em AdminBottomNav) desce a barra até o fim real da
+   tela quando o iPhone instalado deixa a janela mais curta que a tela. */
 :root {
-  --admin-bottom-nav-pad: max(0.25rem, calc(env(safe-area-inset-bottom) - 0.75rem));
+  --admin-bottom-nav-pad: max(0.25rem, calc(env(safe-area-inset-bottom) - 1rem));
 }
 
 .admin-bottom-nav {
+  bottom: calc(-1 * var(--ios-bottom-gap, 0px));
   padding-bottom: var(--admin-bottom-nav-pad);
 }
 
 html.admin-has-bottom-nav {
-  --admin-bottom-nav-space: calc(3.5rem + var(--admin-bottom-nav-pad));
+  --admin-bottom-nav-space: max(0px, calc(3.5rem + var(--admin-bottom-nav-pad) - var(--ios-bottom-gap, 0px)));
 }
 
 @media (min-width: 768px) {
@@ -629,6 +633,14 @@ html.chat-app-mode body {
   min-height: 0;
   padding-top: env(safe-area-inset-top);
   padding-bottom: max(var(--admin-bottom-nav-space), env(safe-area-inset-bottom));
+}
+
+/* Celular com a barra: o Chat termina exatamente no topo dela (o respiro do
+   iPhone já está dentro da barra; somar a safe-area de novo deixaria faixa). */
+@media (max-width: 767px) {
+  html.chat-app-mode.admin-has-bottom-nav body {
+    padding-bottom: var(--admin-bottom-nav-space);
+  }
 }
 
 /* Teclado aberto: a barra inferior sai do caminho, o espaço dela também. */

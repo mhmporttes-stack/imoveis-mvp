@@ -90,7 +90,7 @@ test("interface: itens do bloqueado NÃO são renderizados (Chat e Meta Diária 
 
 test("backend: barreira central na autenticação das APIs + toda rota protegida passa por ela", () => {
   const auth = source("lib/admin-auth.js");
-  assert.match(between(auth, "export async function requireAdminApi(", "// BARREIRA CENTRAL"), /return applyWhatsappAccessGuard\(request, effectiveResult\);/);
+  assert.match(between(auth, "export async function requireAdminApi(", "// BARREIRA CENTRAL"), /const guarded = applyWhatsappAccessGuard\(request, effectiveResult\);/);
   assert.match(between(auth, "function applyWhatsappAccessGuard(", "// Páginas do WhatsApp"), /status: 403/);
   const files = [];
   const walk = (dir) => {
