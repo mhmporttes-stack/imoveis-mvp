@@ -49,6 +49,22 @@ export function ClientStatusBadge({ client, className = "" }) {
   );
 }
 
+// Versão discreta para a lista de conversas (pedido do dono, 2026-10-09 — "tudo muito colorido"): texto cinza com uma
+// bolinha na cor da etapa (mesma cor do selo, via currentColor).
+export function ClientStatusDot({ client, className = "" }) {
+  if (!client?.status) return null;
+  const meta = CLIENT_STATUS_META[client.status];
+  const label = meta?.label || client.statusLabel;
+  if (!label) return null;
+  const textClass = String(meta?.badgeClass || "").split(/\s+/).find((item) => item.startsWith("text-")) || "text-slate-500";
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1 text-[12px] font-semibold text-[#667781] ${className}`} title={`Situação do cliente: ${label}`}>
+      <span className={`shrink-0 ${textClass}`}><span className="block h-2 w-2 rounded-full bg-current" aria-hidden="true" /></span>
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
 export function BrokerChip({ broker, className = "" }) {
   if (!broker) {
     return <span className={`inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 ${className}`}>Sem corretor</span>;

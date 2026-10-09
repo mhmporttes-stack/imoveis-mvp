@@ -13,6 +13,7 @@ import {
   Camera,
   Check,
   CheckCheck,
+  Clock,
   Download,
   EllipsisVertical,
   ExternalLink,
@@ -53,7 +54,7 @@ import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
 import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarning } from "@/lib/whatsapp-contact-warning.mjs";
-import { BrokerChip, ClientStatusBadge, WaitingBadge } from "@/components/WhatsappChatBadges";
+import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
@@ -754,6 +755,28 @@ function ConversationPreview({ conversation, unread }) {
   );
 }
 
+// Aviso de espera em texto (mesmas regras do WaitingBadge): aguardando (âmbar), sem resposta (vermelho), cliente em silêncio (cinza).
+function WaitingText({ waiting }) {
+  if (!waiting) return null;
+  if (waiting.kind === "awaiting_us" && waiting.level === "ok") return null;
+  const late = waiting.kind === "awaiting_us" && waiting.level === "late";
+  const tone = waiting.kind === "awaiting_us" ? (late ? "font-bold text-red-600" : "font-semibold text-amber-700") : "";
+  const label = waiting.kind === "awaiting_us" ? (late ? "sem resposta há" : "aguardando há") : "cliente em silêncio há";
+  return (
+    <>
+      <span aria-hidden="true">·</span>
+      <span className={`inline-flex shrink-0 items-center gap-0.5 ${tone}`}><Clock className="h-3 w-3" aria-hidden="true" />{label} {formatWaitShort(waiting.minutes)}</span>
+    </>
+  );
+}
+
+function formatWaitShort(minutes) {
+  const value = Number(minutes) || 0;
+  if (value < 60) return `${value} min`;
+  if (value < 48 * 60) return `${Math.floor(value / 60)} h`;
+  return `${Math.floor(value / 1440)} dias`;
+}
+
 function firstNameOf(name) {
   return String(name || "").trim().split(/\s+/)[0] || "";
 }
@@ -779,7 +802,7 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
           <span className="flex min-w-0 items-center gap-1.5">
             {/* Primeiro nome e, logo depois, a situação do cliente */}
             <span title={name} className={`min-w-0 truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
-            <ClientStatusBadge client={conversation.client} className="max-w-[130px] shrink-0 whitespace-nowrap" />
+            <ClientStatusDot client={conversation.client} className="max-w-[150px] shrink-0 whitespace-nowrap" />
           </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
@@ -796,14 +819,16 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
             </span>
           ) : null}
         </span>
-        {/* Selos numa linha só (o que não couber continua no cabeçalho da conversa aberta) */}
-        <span className="mt-1 flex items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,#000_88%,transparent)]">
-          <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
-          {/* Lista mais limpa (pedido do dono, 2026-10-09): canal só "Pessoal"/"Oficial" (Pessoal 2 no segundo número), sem o
-              status da conversa (já tem a etapa do cliente ao lado do nome) e sem o nome do corretor quando é o próprio usuário. */}
-          <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</ListTag>
-          {conversation.broker && conversation.broker.id !== currentUserId ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></ListTag> : null}
-          {!conversation.client ? <ListTag tone="amber">Não cadastrado</ListTag> : null}
+        {/* Lista limpa (pedido do dono, 2026-10-09, opção 3): sem selos coloridos na linha de baixo — só texto discreto com o
+            corretor responsável, o canal e o aviso de espera (as mesmas regras de antes, só que em texto). */}
+        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-4 text-[#667781]">
+          {conversation.broker && conversation.broker.id !== currentUserId ? (
+            <span className="inline-flex min-w-0 items-center gap-0.5" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
+          ) : null}
+          {conversation.broker && conversation.broker.id !== currentUserId ? <span aria-hidden="true">·</span> : null}
+          <span className="shrink-0">{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</span>
+          {!conversation.client ? <><span aria-hidden="true">·</span><span className="shrink-0 text-amber-700">não cadastrado</span></> : null}
+          <WaitingText waiting={conversation.waiting} />
         </span>
       </span>
     </button>
