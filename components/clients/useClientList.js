@@ -647,7 +647,7 @@ export function useClientList({
     const registrationId = client.registration.id;
     // REGRA OFICIAL (dono, 2026-10-02): destino pelo estado REAL do WhatsApp do corretor
     // (lib/client-card-whatsapp-core.mjs) — conectado: Chat; desconectado/restrição:
-    // WhatsApp Web (desktop) ou app (celular/PWA). Nunca decidido "por ser mobile".
+    // só sai do CRM com o Chat inteiro desligado (2026-10-09: WhatsApp pessoal desconectado NÃO tira do Chat).
     const decision = decideCardWhatsapp({
       stateKnown: Boolean(waState),
       sessionStatus: waState?.sessionStatus ?? null,
