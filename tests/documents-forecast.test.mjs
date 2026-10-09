@@ -639,8 +639,8 @@ test("ficha: decisão do Chat × externo (decideCardWhatsapp) devolve o link cer
   const message = buildDocumentsListMessage({ fullName: "Maria da Silva" });
   const base = { stateKnown: true, clientStatus: "in_service", isOwnClient: true, phone: "(14) 99888-7766" };
   assert.equal(decideCardWhatsapp({ ...base, sessionStatus: "connected" }).action, "chat");
-  const mobile = decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "mobile" });
-  const desktop = decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "desktop" });
+  const mobile = decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "mobile", chatDisabled: true });
+  const desktop = decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "desktop", chatDisabled: true });
   assert.equal(mobile.action, "external");
   assert.equal(withWhatsappText(mobile.url, message), `https://wa.me/5514998887766?text=${encodeURIComponent(message)}`);
   assert.equal(withWhatsappText(desktop.url, message), `https://web.whatsapp.com/send?phone=5514998887766&text=${encodeURIComponent(message)}`);

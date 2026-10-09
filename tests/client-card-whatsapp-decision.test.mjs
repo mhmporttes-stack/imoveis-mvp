@@ -8,23 +8,24 @@ const base = { stateKnown: true, isOwnClient: true, clientStatus: "in_service", 
 const WEB = "https://web.whatsapp.com/send?phone=5514997654321";
 const APP = "https://wa.me/5514997654321";
 
-test("tabela estado x dispositivo", () => {
+test("tabela estado x dispositivo: o card abre SEMPRE o Chat (dono, 2026-10-09), mesmo com o WhatsApp pessoal fora do ar", () => {
   const rows = [
-    // sessionStatus, restricted, device, action, url
-    ["connected", false, "desktop", "chat"], ["connected", false, "mobile", "chat"],
-    ["connected", true, "mobile", "chat"], // restrição só vale sem sessão conectada
-    ["disconnected", false, "desktop", "external", WEB], ["disconnected", false, "mobile", "external", APP],
-    [null, false, "desktop", "external", WEB], ["failed", false, "mobile", "external", APP],
-    ["qr_required", false, "desktop", "external", WEB], ["error", false, "desktop", "external", WEB],
-    ["reconnecting", false, "desktop", "chat"], ["stored", false, "mobile", "chat"], ["connecting", false, "mobile", "chat"],
-    ["reconnecting", true, "desktop", "external", WEB], // restrição informada/validada abre fora
-    ["disconnected", true, "mobile", "external", APP]
+    // sessionStatus, restricted, device
+    ["connected", false, "desktop"], ["connected", false, "mobile"], ["connected", true, "mobile"],
+    ["disconnected", false, "desktop"], ["disconnected", false, "mobile"],
+    [null, false, "desktop"], ["failed", false, "mobile"], ["qr_required", false, "desktop"], ["error", false, "desktop"],
+    ["reconnecting", false, "desktop"], ["stored", false, "mobile"], ["connecting", false, "mobile"],
+    ["reconnecting", true, "desktop"], ["disconnected", true, "mobile"]
   ];
-  for (const [sessionStatus, restricted, device, action, url] of rows) {
+  for (const [sessionStatus, restricted, device] of rows) {
     const r = decideCardWhatsapp({ ...base, sessionStatus, restricted, device });
-    assert.equal(r.action, action, `${sessionStatus}/${restricted}/${device}`);
-    if (url) assert.equal(r.url, url);
+    assert.equal(r.action, "chat", `${sessionStatus}/${restricted}/${device}`);
   }
+});
+
+test("só o Chat inteiro desligado pelo dono manda o card para o WhatsApp Web/app", () => {
+  assert.equal(decideCardWhatsapp({ ...base, sessionStatus: "connected", device: "desktop", chatDisabled: true }).url, WEB);
+  assert.equal(decideCardWhatsapp({ ...base, sessionStatus: "disconnected", device: "mobile", chatDisabled: true }).url, APP);
 });
 
 test("estado desconhecido/carregando, cliente arquivado/Não contactar, cliente de outro e telefone inválido: sempre Chat", () => {
