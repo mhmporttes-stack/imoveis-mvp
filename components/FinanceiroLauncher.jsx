@@ -5,7 +5,7 @@ import { MM_APPS, isStandaloneApp, setPwaHome } from "@/components/pwaHome";
 
 const COPY = {
   financeiro: { title: "Financeiro", icon: "/icons/icon-financeiro-192-mm.png", open: "Abrir o Financeiro" },
-  chat: { title: "Chat", icon: "/icons/icon-chat-192-v2-mm.png", open: "Abrir o Chat" }
+  chat: { title: "Chat", icon: "/icons/icon-chat-192-v3-mm.png", open: "Abrir o Chat" }
 };
 
 // Página de instalação dos atalhos da tela inicial (/financeiro, /chat-app).

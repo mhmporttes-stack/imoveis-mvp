@@ -8,10 +8,10 @@ export const metadata = {
   appleWebApp: { capable: true, title: "Chat", statusBarStyle: "black-translucent" },
   icons: {
     icon: [
-      { url: "/icons/icon-chat-192-v2-mm.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-chat-512-v2-mm.png", sizes: "512x512", type: "image/png" }
+      { url: "/icons/icon-chat-192-v3-mm.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-chat-512-v3-mm.png", sizes: "512x512", type: "image/png" }
     ],
-    apple: [{ url: "/icons/apple-touch-icon-chat-v2-mm.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: "/icons/apple-touch-icon-chat-v3-mm.png", sizes: "180x180", type: "image/png" }]
   },
   other: {
     "mobile-web-app-capable": "yes",
