@@ -65,3 +65,13 @@ test("gerador: a apresentação é enviada DIRETO pelo Chat (sem confirmar no ca
   assert.match(src, /sentDirectly/);
   assert.match(src, /&text=\$\{encodeURIComponent\(data\.message\)\}/, "plano B com o texto no campo");
 });
+
+test("gerador: envio recusado -> WhatsApp pessoal conectado no Chat (?slot=), senão app/WhatsApp Web com a mensagem", () => {
+  const src = read("components/SimulationGenerator.jsx");
+  assert.match(src, /whatsapp-individual\/status/);
+  assert.match(src, /item\.status === "connected"/);
+  assert.match(src, /&slot=\$\{encodeURIComponent\(connectedSlot\.slot \|\| 1\)\}/);
+  assert.match(src, /withWhatsappText\(buildExternalWhatsappUrl\(phone, device\), data\.message\)/);
+  assert.match(read("app/admin/chat/page.jsx"), /initialSlot=/);
+  assert.match(read("components/WhatsappChat.jsx"), /initialSlot \? \{ clientId: initialClientId, slot: initialSlot \}/);
+});

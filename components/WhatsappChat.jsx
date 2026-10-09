@@ -218,7 +218,7 @@ function useChatAppMode(enabled, ref) {
   }, [enabled, ref]);
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", canSeeArchived = false, appMode = false }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
@@ -412,7 +412,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     fetch("/api/admin/whatsapp-chat/open-client", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: initialClientId })
+      // initialSlot (?slot=): abre a conversa no WhatsApp PESSOAL do corretor (Número 1/2), ex.: "Enviar simulação" com a janela do oficial fechada.
+      body: JSON.stringify(initialSlot ? { clientId: initialClientId, slot: initialSlot } : { clientId: initialClientId })
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));

@@ -8,6 +8,8 @@ import { Check, FileText, GripVertical, ImageDown, Save, Search, Sparkles, Trash
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
+import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsapp-core.mjs";
+import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import {
@@ -782,6 +784,25 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       if (sentDirectly) {
         await post("enviar-registrar").catch(() => null);
         router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
+        return;
+      }
+      // Envio direto recusado (janela de 24 h fechada, número oficial indisponível…). Regra do dono (2026-10-09):
+      //  1) o WhatsApp PESSOAL do corretor está conectado -> abre a conversa dele no Chat, com a mensagem pronta no campo;
+      //  2) senão -> abre o app do WhatsApp (celular/PWA) ou o WhatsApp Web (computador) com a mensagem.
+      await post("enviar-registrar").catch(() => null);
+      const connectedSlot = await fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload) => (Array.isArray(payload?.slots) ? payload.slots.find((item) => item.status === "connected") : null))
+        .catch(() => null);
+      if (connectedSlot) {
+        router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&slot=${encodeURIComponent(connectedSlot.slot || 1)}&text=${encodeURIComponent(data.message)}`);
+        return;
+      }
+      const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
+      const device = detectDevice({ userAgent: navigator.userAgent, standalone: window.matchMedia?.("(display-mode: standalone)").matches === true, maxTouchPoints: navigator.maxTouchPoints || 0 });
+      const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), data.message);
+      if (externalUrl) {
+        window.location.assign(externalUrl);
         return;
       }
       router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
