@@ -64,3 +64,9 @@ test("link interno do CRM (/admin/) não pode ir para o cliente (2026-10-09)", a
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
   assert.match(chat, /if \(hasInternalCrmLink\(body\)\) throw new WhatsappChatError\(INTERNAL_LINK_MESSAGE/);
 });
+
+test("número oficial pede a prévia do link (preview_url) em texto com link (2026-10-09)", () => {
+  const master = readFileSync(new URL("../lib/whatsapp-master.js", import.meta.url), "utf8");
+  assert.match(master, /preview_url: true/);
+  assert.match(master, /\.\.\.withLinkPreview\(message\)/);
+});
