@@ -27,7 +27,7 @@ Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrim
 - **associate** (associado) — clientes/financeiro do corretor ao qual está vinculado (`linked_broker_id`), com visão financeira **projetada** (ver `.claude/rules/financeiro.md`), não a real.
 - **Academia:** conteúdo criado/editado por **admin e manager**; corretor e associado só estudam (regra oficial de 2026-10-04, ainda não implementada) — `.claude/rules/academia.md` (ACA-1).
 
-**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Verificação em duas etapas (TOTP) só na conta do dono, opt-in.** Exigida no servidor por `applyTwoFactorGuard` (`lib/admin-auth.js`, sobre a conta real, antes do view-as) em `requireAdminApi`/`requireRealGeneralAdminApi`/`getAdminFromCookies` — rota/guard novo que valide sessão sem passar por essas três funções precisa repetir a checagem. Nunca afetar outros perfis. Detalhes: `docs/PERMISSIONS.md` §1, `docs/BUSINESS_RULES.md` AUT-2FA.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Verificação em duas etapas (TOTP) na conta do dono e dos gestores (estendida em 2026-10-09 — `isTwoFactorEligibleResult`), opt-in individual.** Exigida no servidor por `applyTwoFactorGuard` (`lib/admin-auth.js`, sobre a conta real, antes do view-as) em `requireAdminApi`/`requireRealGeneralAdminApi`/`getAdminFromCookies` — rota/guard novo que valide sessão sem passar por essas três funções precisa repetir a checagem. Nunca afetar outros perfis. Detalhes: `docs/PERMISSIONS.md` §1, `docs/BUSINESS_RULES.md` AUT-2FA.
 
 ## Escopo por responsável
 

@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Verificação em duas etapas também para os gestores (Carol)
+- **Data:** 2026-10-09
+- **Área:** Permissões / Login
+- **Alteração:** a verificação em duas etapas (TOTP, opt-in) deixou de ser só do dono: perfis **gestor** também podem ativar em `/admin/seguranca` (link no rodapé do painel). Elegibilidade única em `isTwoFactorEligibleResult` (dono OU gestor), usada no guard, no login (`/api/admin/session`), na etapa do código e na configuração (`requireRealTwoFactorApi`). Regra AUT-2FA atualizada.
+- **Motivo:** pedido do dono (gestora Caroline Mayumi, conta compartilhada no computador do escritório).
+- **Arquivos afetados:** `lib/admin-auth.js`, `app/api/admin/two-factor/route.js`, `app/api/admin/session/route.js`, `app/admin/seguranca/page.jsx`, `app/admin/layout.jsx`, `tests/admin-two-factor.test.mjs`
+- **Risco/observação:** sem migration (a tabela `admin_two_factor` é por usuário). Opt-in: a gestora precisa ativar ela mesma (QR Code no app autenticador do celular dela) — até lá nada muda. Depois de ativada, quem usar a conta dela no escritório precisará do código ou de aparelho lembrado (30 dias); "Lembrar este aparelho" no computador compartilhado reabre a brecha, então orientar a não marcar. A CONFIRMAR em produção: ativação e login da gestora.
+- **Autor:** Claude Code
 
 ### 2026-10-09 — Chat: aba Particular para contatos pessoais (WA-19)
 - **O quê:** botão "Particular" (antes Arquivar; "Arquivar cliente" foi para o menu ⋮); aba Particular com histórico completo; mensagem nova não reabre, não cria/vincula cliente, sem push. Cadastro do contato fica fora de Clientes (`private_contact_at`), do resgate de órfãos e da transferência ao excluir usuário. Migração: 94 contatos pessoais arquivados como clientes (WhatsApp individual, sem renda, sem simulação) + 2 conversas arquivadas sem cliente + os 9 da Giovanna Saia. Auditoria do Chat passou a aceitar status_changed/message_edited/message_deleted_for_everyone (antes eram recusados em silêncio).

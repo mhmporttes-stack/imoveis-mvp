@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  isOwnerAdminEmail,
+  isTwoFactorEligibleResult,
   clearAdminSessionCookies,
   clearAdminViewAsCookie,
   requireAdminApi,
@@ -40,7 +40,7 @@ export async function POST(request) {
     // Dono com verificação em duas etapas ativada: a senha abre só a etapa do código (os guards de lib/admin-auth.js
     // barram o painel até lá). Aparelho lembrado por 30 dias entra direto.
     let twoFactorRequired = false;
-    if (isOwnerAdminEmail(result.user.email)) {
+    if (isTwoFactorEligibleResult(result)) {
       const check = await checkOwnerSecondFactor({
         userId: result.user.id,
         accessToken,

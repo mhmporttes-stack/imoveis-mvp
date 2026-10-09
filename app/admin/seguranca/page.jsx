@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 import AdminTwoFactorSettings from "@/components/AdminTwoFactorSettings";
 import { isOwnerAdminEmail, requireAdminPage } from "@/lib/admin-auth";
+import { isManagerProfile } from "@/lib/admin-profiles";
 import { getTwoFactorStatus } from "@/lib/admin-two-factor";
 
 export const dynamic = "force-dynamic";
 
-// Segurança da conta do dono: verificação em duas etapas (regra do dono, 2026-10-08). Só a conta REAL do dono vê.
+// Segurança da conta: verificação em duas etapas (regra do dono, 2026-10-08; gestores em 2026-10-09). Só a conta REAL do dono ou de um gestor vê.
 export default async function AdminSecurityPage() {
   const auth = await requireAdminPage();
   const realUser = auth.realUser || auth.user;
-  if (!isOwnerAdminEmail(realUser?.email)) redirect("/admin");
+  // Dono ou gestor (conta REAL, mesmo em "Alterar conta").
+  if (!isOwnerAdminEmail(realUser?.email) && !isManagerProfile(auth.realProfile || auth.profile)) redirect("/admin");
 
   let status = null;
   let error = "";

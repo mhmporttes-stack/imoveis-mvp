@@ -146,32 +146,45 @@ test("limite de tentativas: 5 erradas em 10 min bloqueiam por 10 min", () => {
   assert.equal(old.failed_attempts, 1, "janela de 10 min vencida recomeça a contagem");
 });
 
-test("guard no servidor: as três portas de entrada do painel passam pelo 2º fator do dono, antes de 'Alterar conta'", () => {
+test("guard no servidor: as quatro portas de entrada passam pelo 2º fator (dono e gestores), antes de 'Alterar conta'", () => {
   const auth = read("lib/admin-auth.js");
   const guardCalls = auth.match(/await applyTwoFactorGuard\(\n\s+await verifyAdminSessionTokens\(/g) || [];
-  assert.equal(guardCalls.length, 3, "requireAdminApi, requireRealGeneralAdminApi e getAdminFromCookies");
-  for (const name of ["export async function requireAdminApi", "export async function requireRealGeneralAdminApi", "getAdminFromCookies = cache("]) {
+  assert.equal(guardCalls.length, 4, "requireAdminApi, requireRealGeneralAdminApi, requireRealTwoFactorApi e getAdminFromCookies");
+  for (const name of ["export async function requireAdminApi", "export async function requireRealGeneralAdminApi", "export async function requireRealTwoFactorApi", "getAdminFromCookies = cache("]) {
     const body = auth.slice(auth.indexOf(name), auth.indexOf(name) + 600);
     assert.ok(body.includes("applyTwoFactorGuard("), name);
   }
   const requireAdminApi = auth.slice(auth.indexOf("export async function requireAdminApi"), auth.indexOf("export async function requireAdminApi") + 600);
   assert.ok(requireAdminApi.indexOf("applyTwoFactorGuard(") < requireAdminApi.indexOf("applyViewAsProfile("), "2º fator antes do view-as");
   const guard = auth.slice(auth.indexOf("async function applyTwoFactorGuard"), auth.indexOf("export async function requireOwnerPendingSecondFactorApi"));
-  assert.ok(guard.includes("!isOwnerAdminEmail(result.user?.email)) return result;"), "só a conta do dono é consultada");
+  assert.ok(guard.includes("if (!isTwoFactorEligibleResult(result)) return result;"), "só o dono e os gestores são consultados");
+  assert.ok(auth.includes("isOwnerAdminEmail(result.user?.email) || isManagerProfile(result.profile)"), "elegível = dono ou gestor");
   assert.ok(guard.includes("TWO_FACTOR_REQUIRED_CODE"));
   // verifyAdminSessionTokens sozinho só pode aparecer nas portas acima e na etapa do código.
-  assert.equal((auth.match(/await verifyAdminSessionTokens\(/g) || []).length, 4);
+  assert.equal((auth.match(/await verifyAdminSessionTokens\(/g) || []).length, 5);
 });
 
 test("etapa do código e configuração: rotas com guard, sem log de segredo", () => {
   const verify = read("app/api/admin/two-factor/verify/route.js");
   assert.ok(verify.indexOf("requireOwnerPendingSecondFactorApi(request)") < verify.indexOf("verifySecondFactor("));
   const settings = read("app/api/admin/two-factor/route.js");
-  assert.ok(settings.includes("requireRealGeneralAdminApi(request)") && settings.includes("isOwnerAdminEmail(auth.user?.email)"));
+  assert.ok(settings.includes("requireRealTwoFactorApi(request)"), "configuração: conta REAL do dono ou de gestor");
+  assert.ok(!settings.includes("requireRealGeneralAdminApi"));
   const lib = read("lib/admin-two-factor.js");
   assert.ok(!/console\.(log|info|warn|error)/.test(lib), "a lib não loga nada (nem segredo nem código)");
   const session = read("app/api/admin/session/route.js");
   assert.ok(session.includes("twoFactorRequired"));
   const migration = read("supabase/migrations/20261008200000_admin_two_factor.sql");
   assert.ok(migration.includes("enable row level security") && !/create policy/i.test(migration));
+});
+
+test("gestores (Carol) também podem ativar: elegibilidade única, página/menu e login conferem o perfil gestor da conta REAL", () => {
+  const auth = read("lib/admin-auth.js");
+  assert.ok(auth.includes("export function isTwoFactorEligibleResult(result)"));
+  assert.ok(read("app/api/admin/session/route.js").includes("if (isTwoFactorEligibleResult(result)) {"));
+  const page = read("app/admin/seguranca/page.jsx");
+  assert.ok(page.includes("!isOwnerAdminEmail(realUser?.email) && !isManagerProfile(auth.realProfile || auth.profile)"));
+  assert.ok(read("app/admin/layout.jsx").includes("isOwnerAdminEmail((auth.realUser || auth.user)?.email) || isManagerProfile(auth.realProfile || auth.profile)"));
+  const verify = auth.slice(auth.indexOf("export async function requireOwnerPendingSecondFactorApi"), auth.indexOf("async function buildAuthorizedAdminResult"));
+  assert.ok(verify.includes("!isTwoFactorEligibleResult(result)"));
 });

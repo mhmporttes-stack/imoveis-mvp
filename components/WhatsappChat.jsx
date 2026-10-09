@@ -334,6 +334,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       }
       setDetail(data);
       setDetailError("");
+      // Abrir a conversa lê as mensagens internas (o servidor marca): a bolinha azul da lista some na hora.
+      setConversations((current) => (current.some((item) => item.id === id && item.internalUnread > 0) ? current.map((item) => (item.id === id ? { ...item, internalUnread: 0 } : item)) : current));
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
       // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
       const unread = data.conversation.unreadCount;
@@ -767,8 +769,15 @@ function ConversationRow({ conversation, selected, onSelect }) {
         </span>
         <span className="flex items-center justify-between gap-2">
           <ConversationPreview conversation={conversation} unread={unread} />
-          {unread ? (
-            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+          {unread || conversation.internalUnread > 0 ? (
+            <span className="flex shrink-0 items-center gap-1">
+              {conversation.internalUnread > 0 ? (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#1D6FE8] px-1.5 text-[11px] font-black text-white" title="Mensagem interna da equipe" aria-label={`${conversation.internalUnread} mensagens internas não lidas`}>{conversation.internalUnread}</span>
+              ) : null}
+              {unread ? (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+              ) : null}
+            </span>
           ) : null}
         </span>
         {/* Selos numa linha só (o que não couber continua no cabeçalho da conversa aberta) */}
@@ -1420,8 +1429,10 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
             </div>
           ) : null}
           <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
-          <div className="mt-0.5 flex items-center justify-end text-[11px] font-medium text-[#54656F]">
+          <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] font-medium text-[#54656F]">
             <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
+            {/* ✓ enviada · ✓✓ entregue (apareceu na lista do corretor) · ✓✓ azul lida (ele abriu a conversa) */}
+            <StatusTicks status={message.status} />
           </div>
         </div>
       </div>
@@ -1603,6 +1614,15 @@ function MessageMoreButton({ onOpen }) {
       <EllipsisVertical className="h-4 w-4" />
     </button>
   );
+}
+
+// Computador: Enter envia e Shift+Enter quebra a linha. Em tela de toque (celular/tablet) o Enter continua quebrando
+// a linha, como no WhatsApp do celular. Não dispara enquanto o teclado está compondo acento (isComposing).
+function sendOnEnter(event, send, canSend) {
+  if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
+  if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) return;
+  event.preventDefault();
+  if (canSend) send();
 }
 
 function StatusTicks({ status }) {
@@ -2089,7 +2109,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               className="max-h-[40dvh] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#111B21] outline-none placeholder:text-[#54656F] sm:text-sm sm:leading-6"
               disabled={sending}
               onChange={(event) => setText(event.target.value)}
-              // Enter só quebra linha (como no WhatsApp do celular) — enviar é sempre pelo botão.
+              onKeyDown={(event) => sendOnEnter(event, send, !sending && !awaiting && hasContent)}
               placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
               aria-label="Mensagem"
               rows={1}
@@ -2197,7 +2217,7 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
           className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
           disabled={sending}
           onChange={(event) => setText(event.target.value)}
-          // Enter só quebra linha — enviar é sempre pelo botão.
+          onKeyDown={(event) => sendOnEnter(event, send, !sending && Boolean(text.trim()))}
           placeholder="Mensagem interna — o cliente não verá esta mensagem"
           rows={1}
           value={text}
