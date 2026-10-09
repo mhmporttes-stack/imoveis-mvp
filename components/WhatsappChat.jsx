@@ -42,7 +42,8 @@ import {
   Users,
   Video,
   X,
-  Zap
+  Zap,
+  BadgeCheck
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
@@ -825,11 +826,17 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
         <span className="mt-0.5 flex min-w-0 items-center gap-2 text-[12px] leading-5 text-[#667781]">
           <span className="flex min-w-0 flex-1 items-center gap-1">
             {conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
-            {!conversation.account ? <><span aria-hidden="true">·</span><span className="shrink-0">{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</span></> : null}
+            {!conversation.account ? (
+              conversation.sessionUserId ? (
+                <span className="inline-flex shrink-0 items-center gap-px text-[#667781]" title={conversation.sessionSlot === 2 ? "WhatsApp pessoal 2" : "WhatsApp pessoal"} aria-label={conversation.sessionSlot === 2 ? "WhatsApp pessoal 2" : "WhatsApp pessoal"}><UserRound className="h-4 w-4" aria-hidden="true" />{conversation.sessionSlot === 2 ? <span className="text-[10px] font-bold leading-none">2</span> : null}</span>
+              ) : (
+                <span className="inline-flex shrink-0 text-[#1D6FE8]" title="WhatsApp oficial" aria-label="WhatsApp oficial"><BadgeCheck className="h-4 w-4" aria-hidden="true" /></span>
+              )
+            ) : null}
           </span>
           <WaitingText waiting={conversation.waiting} />
           {conversation.broker && conversation.broker.id !== currentUserId ? (
-            <span className="inline-flex max-w-[90px] shrink-0 items-center gap-0.5" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
+            <span className="inline-flex max-w-[96px] shrink-0 items-center rounded-full bg-[#EAF2FE] px-2 py-0.5 text-[12px] font-semibold leading-4 text-brand" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
           ) : null}
         </span>
       </span>

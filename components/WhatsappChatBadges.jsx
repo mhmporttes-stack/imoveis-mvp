@@ -53,6 +53,8 @@ export function ClientStatusBadge({ client, className = "" }) {
 // fechamento verde; o resto (prospecção, arquivado, Não contactar) cinza. Grupos da fonte única (lib/client-status.js).
 const PHASE_OF_GROUP = { service: "start", simulation: "start", documentation: "docs", approval: "docs", approved: "docs", meeting: "close", sale: "close" };
 const PHASE_DOT = { start: "text-[#1D6FE8]", docs: "text-amber-500", close: "text-emerald-600" };
+// Fundo do selo da situação na lista de conversas (sem fundo ficava apagado): mesma cor da fase, bem suave.
+const PHASE_CHIP = { start: "bg-[#E8F0FE]", docs: "bg-[#FFF3D6]", close: "bg-[#E3F6EA]" };
 function phaseOfStatus(status) {
   const group = CLIENT_STATUS_FILTER_GROUPS.find((item) => item.key !== "all" && item.statuses.includes(status));
   return PHASE_OF_GROUP[group?.key] || "";
@@ -67,7 +69,7 @@ export function ClientStatusDot({ client, className = "" }) {
   if (!label) return null;
   const textClass = PHASE_DOT[phaseOfStatus(client.status)] || "text-slate-400";
   return (
-    <span className={`inline-flex min-w-0 items-center gap-1 text-[12px] font-semibold text-[#667781] ${className}`} title={`Situação do cliente: ${label}`}>
+    <span className={`inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold leading-4 text-[#3B4A54] ${PHASE_CHIP[phaseOfStatus(client.status)] || "bg-slate-100"} ${className}`} title={`Situação do cliente: ${label}`}>
       <span className={`shrink-0 ${textClass}`}><span className="block h-2 w-2 rounded-full bg-current" aria-hidden="true" /></span>
       <span className="truncate">{label}</span>
     </span>
