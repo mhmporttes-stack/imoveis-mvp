@@ -28,3 +28,9 @@ test("saudação automática não vai para quem já foi atendido por uma pessoa 
   assert.match(flows, /\.neq\("id", conversation\.id\)\.limit\(10\)/);
   assert.match(flows, /eq\("direction", "outbound"\)\.eq\("sender_type", "user"\)/);
 });
+
+test("janela do oficial aberta por QUALQUER mensagem do cliente nas últimas 24 h pelo oficial (mesmo que a última tenha sido no pessoal)", () => {
+  const helper = chat.slice(chat.indexOf("async function officialWindowOpen("), chat.indexOf("async function resolveSendRoute("));
+  assert.match(helper, /eq\("channel", "whatsapp_cloud_api"\)\.gt\("message_at", since\)/);
+  assert.doesNotMatch(helper, /order\("message_at"/, "não depende de qual foi a ÚLTIMA mensagem");
+});
