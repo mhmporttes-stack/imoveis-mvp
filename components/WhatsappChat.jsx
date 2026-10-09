@@ -673,7 +673,8 @@ function ConversationList({ className, conversations, error, filter, filterLabel
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-xs font-extrabold text-navy">
+        {/* Particular: conversa pessoal, não cliente — filtro por situação do cliente não se aplica. */}
+        <label className={`flex items-center gap-2 text-xs font-extrabold text-navy ${filter === "private" ? "hidden" : ""}`}>
           <span className="shrink-0">Status do cliente</span>
           <select
             className={`h-10 min-w-0 flex-1 rounded-2xl border bg-white px-3 text-sm font-bold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 ${clientStatus ? "border-brand text-brand" : "border-line text-navy"}`}
@@ -824,9 +825,11 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
             (pílula) e corretor pelo PRIMEIRO NOME. O canal fica só no selo do avatar (WhatsApp = oficial, pessoa = pessoal). */}
         <span className="mt-0.5 flex min-w-0 items-center gap-2 text-[12px] leading-5 text-[#667781]">
           <span className="flex min-w-0 flex-1 items-center gap-1">
-            {conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
+            {/* Particular (WA-19, dono 2026-10-09): conversa pessoal, não cliente — sem situação do cliente nem aviso de espera. */}
+            {conversation.private ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-[#54656F]"><Lock className="h-3 w-3" aria-hidden="true" />Conversa particular</span>
+              : conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
           </span>
-          <WaitingText waiting={conversation.waiting} />
+          {conversation.private ? null : <WaitingText waiting={conversation.waiting} />}
           {conversation.broker && conversation.broker.id !== currentUserId ? (
             <span className="inline-flex max-w-[96px] shrink-0 items-center rounded-full bg-[#EAF2FE] px-2 py-0.5 text-[12px] font-semibold leading-4 text-brand" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></span>
           ) : null}
@@ -1098,8 +1101,8 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {conversation.client?.id ? <button type="button" onClick={() => setDocumentSelectionOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Analisar documentação" title="Analisar documentação"><FileText className="h-4 w-4" /><Search className="-ml-2 -mt-2 h-3 w-3" /></button> : null}
-            {conversation.client?.id && hasDocumentReports ? <button type="button" onClick={() => setDocumentsOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Abrir relatórios de documentação" title="Relatórios"><LayoutList className="h-5 w-5" /></button> : null}
+            {conversation.client?.id && !conversation.private ? <button type="button" onClick={() => setDocumentSelectionOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Analisar documentação" title="Analisar documentação"><FileText className="h-4 w-4" /><Search className="-ml-2 -mt-2 h-3 w-3" /></button> : null}
+            {conversation.client?.id && hasDocumentReports && !conversation.private ? <button type="button" onClick={() => setDocumentsOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Abrir relatórios de documentação" title="Relatórios"><LayoutList className="h-5 w-5" /></button> : null}
             {showAssume ? (
               <button type="button" onClick={assume} disabled={assuming} className="hidden rounded-full bg-navy px-3.5 py-2 text-xs font-extrabold text-white hover:bg-[#082f55] disabled:opacity-60 sm:inline-flex">
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
@@ -1175,10 +1178,11 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
         {/* Linha 2: corretor e sinais de atenção, cada selo numa linha só (rola de lado se não couber) */}
         <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {conversation.client ? <ClientStatusBadge client={conversation.client} className="shrink-0 whitespace-nowrap" /> : <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span>}
+          {conversation.private ? <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600"><Lock className="h-3 w-3" aria-hidden="true" />Conversa particular</span>
+            : conversation.client ? <ClientStatusBadge client={conversation.client} className="shrink-0 whitespace-nowrap" /> : <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">Não cadastrado</span>}
           <BrokerChip broker={conversation.broker} className="shrink-0 whitespace-nowrap" />
           <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">{STATUS_LABELS[conversation.status] || conversation.status}</span>
-          <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
+          {conversation.private ? null : <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />}
         </div>
 
         {/* Linha 3 (celular): faixa larga para assumir o atendimento */}
