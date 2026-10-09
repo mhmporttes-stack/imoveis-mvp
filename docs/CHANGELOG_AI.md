@@ -43,6 +43,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Chat: sai o aviso "envio pelo WhatsApp pessoal desativado"
+- **Data:** 2026-10-09
+- **Área:** WhatsApp / Chat
+- **Alteração:** removido o quadro amarelo "O envio pelo seu WhatsApp pessoal está desativado por enquanto" acima do campo de mensagem. O comportamento não muda (o botão verde segue abrindo o WhatsApp do celular com a mensagem pronta; o servidor continua recusando o envio pelo CRM nesse modo).
+- **Motivo:** pedido do dono (poluía a tela).
+- **Arquivos afetados:** `components/WhatsappChat.jsx`
+- **Risco/observação:** só visual. Os avisos de janela de 24 h e "cliente ainda não escreveu" continuam.
+- **Autor:** Claude Code
 ### 2026-10-09 — Verificação em duas etapas também para os gestores (Carol)
 - **Data:** 2026-10-09
 - **Área:** Permissões / Login
