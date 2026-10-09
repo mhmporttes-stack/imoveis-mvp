@@ -18,3 +18,14 @@ test("nunca sai do navegador e só dispara depois do cadastro NOVO gravado", () 
   const reg = read("lib/simulation-registrations.js");
   assert.match(reg, /\.insert\(registrationToRecord\(registrationData\)\)[\s\S]{0,400}fireMetaLeadEvent\(/);
 });
+
+test("qualidade da correspondência: fbp/fbc, nome e id externo vão no evento (2026-10-09)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../lib/meta-conversions-api.js", import.meta.url), "utf8");
+  for (const piece of ["userData.fbp = fbp", "userData.fbc = fbc", "userData.fn = [sha256Hex(fn)]", "userData.ln = [sha256Hex(ln)]", "userData.external_id"]) {
+    assert.ok(src.includes(piece), piece);
+  }
+  const reg = readFileSync(new URL("../lib/simulation-registrations.js", import.meta.url), "utf8");
+  assert.ok(reg.includes("fbp: requestMetadata.fbp") && reg.includes("fbc: requestMetadata.fbc"));
+  assert.equal((reg.match(/externalId: registration\.id/g) || []).length, 2);
+});
