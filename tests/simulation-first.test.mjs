@@ -40,3 +40,8 @@ test("finalizar a conversa zera o não lido (2026-10-09)", () => {
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
   assert.match(chat, /if \(status === "finished"\) \{\n\s+patch\.unread_count = 0;/);
 });
+
+test("resposta humana zera o 'não lida'; automação não (2026-10-09)", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/20261009150000_whatsapp_outbound_clears_unread.sql", import.meta.url), "utf8");
+  assert.match(sql, /unread_count = case when p_mark_in_service and \(c\.last_message_at is null or p_at >= c\.last_message_at\) then 0 else c\.unread_count end/);
+});
