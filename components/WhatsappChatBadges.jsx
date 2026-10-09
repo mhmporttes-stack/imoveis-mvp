@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, UserRound } from "lucide-react";
-import { CLIENT_STATUS_META } from "@/lib/client-status";
+import { CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 
 export function formatWait(minutes) {
   const value = Math.max(0, Math.round(minutes || 0));
@@ -49,6 +49,15 @@ export function ClientStatusBadge({ client, className = "" }) {
   );
 }
 
+// Só 3 cores por FASE (pedido do dono, 2026-10-09): começo do atendimento azul, documentação/aprovação laranja,
+// fechamento verde; o resto (prospecção, arquivado, Não contactar) cinza. Grupos da fonte única (lib/client-status.js).
+const PHASE_OF_GROUP = { service: "start", simulation: "start", documentation: "docs", approval: "docs", approved: "docs", meeting: "close", sale: "close" };
+const PHASE_DOT = { start: "text-[#1D6FE8]", docs: "text-amber-500", close: "text-emerald-600" };
+function phaseOfStatus(status) {
+  const group = CLIENT_STATUS_FILTER_GROUPS.find((item) => item.key !== "all" && item.statuses.includes(status));
+  return PHASE_OF_GROUP[group?.key] || "";
+}
+
 // Versão discreta para a lista de conversas (pedido do dono, 2026-10-09 — "tudo muito colorido"): texto cinza com uma
 // bolinha na cor da etapa (mesma cor do selo, via currentColor).
 export function ClientStatusDot({ client, className = "" }) {
@@ -56,7 +65,7 @@ export function ClientStatusDot({ client, className = "" }) {
   const meta = CLIENT_STATUS_META[client.status];
   const label = meta?.label || client.statusLabel;
   if (!label) return null;
-  const textClass = String(meta?.badgeClass || "").split(/\s+/).find((item) => item.startsWith("text-")) || "text-slate-500";
+  const textClass = PHASE_DOT[phaseOfStatus(client.status)] || "text-slate-400";
   return (
     <span className={`inline-flex min-w-0 items-center gap-1 text-[12px] font-semibold text-[#667781] ${className}`} title={`Situação do cliente: ${label}`}>
       <span className={`shrink-0 ${textClass}`}><span className="block h-2 w-2 rounded-full bg-current" aria-hidden="true" /></span>
