@@ -19,7 +19,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Chat: editar o nome do contato
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — PWA: versão nova não recarrega a tela na frente de quem está usando
+- **Data:** 2026-10-09
+- **Área:** PWA / Frontend
+- **Causa raiz (reclamação da Carol):** `components/PwaLifecycle.jsx` procura versão nova ao voltar ao app e a cada 10 min; o `public/sw.js` muda a cada build (`skipWaiting`) e o `controllerchange` recarregava a página na hora (só esperava parar de digitar). Num dia com dezenas de publicações a tela recarregava toda hora.
+- **Correção:** a versão nova fica pendente e só é aplicada quando o app/aba fica oculto (pessoa saiu) ou logo ao voltar a ele, nunca com campo sendo digitado. A procura de versão (10 min + ao voltar) continua igual. Teste: `tests/client-card-whatsapp-chat.test.mjs`.
+
+### 2026-10-09 — Chat: editar o nome do contato
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Chat
 - **O quê (pedido do dono):** lápis ao lado do nome no painel do contato do Chat (`ContactNameEditor`, `components/WhatsappChat.jsx`); `PATCH /api/admin/whatsapp-chat/conversations/[id]` com `{ contactName }` (`requireAdminApi`) → `renameChatContact` (`lib/whatsapp-chat.js`): mesmo escopo do Chat (`loadConversation`), 2–80 caracteres, normalizado como o nome do cliente (`normalizePersonName`); com cliente vinculado muda também `simulation_registrations.full_name` pelo caminho normal (`updateSimulationRegistration`, com a checagem de acesso dele). Mensagem nova não sobrescreve (o `whatsapp_chat_apply_inbound` só preenche nome vazio). Teste: `tests/whatsapp-contact-rename.test.mjs`.

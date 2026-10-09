@@ -101,5 +101,7 @@ test("app instalado procura versão nova ao voltar e a cada 10 min, sem recarreg
   assert.match(pwa, /document\.addEventListener\("visibilitychange", checkForNewVersion\)/);
   assert.match(pwa, /UPDATE_CHECK_INTERVAL_MS = 10 \* 60 \* 1000/);
   assert.match(pwa, /updateRegistration\?\.update\(\)/);
-  assert.match(pwa, /if \(!userIsTyping\(\)\) \{\s*window\.location\.reload\(\);/);
+  // 2026-10-09: nunca recarrega na frente de quem usa — só com o app/aba oculto (ou logo ao voltar), e nunca digitando.
+  assert.match(pwa, /if \(document\.visibilityState !== "hidden" \|\| userIsTyping\(\)\) return;\s*\n\s*refreshing = true;\s*\n\s*window\.location\.reload\(\);/);
+  assert.match(pwa, /function handleControllerChange\(\) \{\s*\n\s*if \(refreshing\) return;\s*\n\s*reloadPending = true;\s*\n\s*reloadIfAway\(\);/);
 });

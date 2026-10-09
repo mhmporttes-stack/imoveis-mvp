@@ -37,8 +37,10 @@ export default function PwaLifecycle() {
 
     let refreshing = false;
 
-    // Com a procura de versão a cada 10 min (abaixo) o app recarrega sozinho depois de cada
-    // deploy — nunca no meio de uma mensagem/campo sendo digitado: espera parar de digitar.
+    // Versão nova publicada: o app NÃO recarrega na frente de quem está usando (reclamação real, 2026-10-09: num
+    // dia com dezenas de publicações a tela da Carol recarregava toda hora). A troca acontece quando a pessoa SAI do
+    // app/aba (fica oculto) — e, se o celular não executar nada em segundo plano, ao voltar ela já abre na versão nova.
+    // Nunca no meio de um campo sendo digitado.
     function userIsTyping() {
       const element = document.activeElement;
       if (!element) return false;
@@ -48,19 +50,31 @@ export default function PwaLifecycle() {
       return Boolean(isField && String(element.value ?? element.textContent ?? "").length > 0);
     }
 
+    let reloadPending = false;
+    function reloadIfAway() {
+      if (!reloadPending || refreshing) return;
+      if (document.visibilityState !== "hidden" || userIsTyping()) return;
+      refreshing = true;
+      window.location.reload();
+    }
+
     function handleControllerChange() {
       if (refreshing) return;
-      refreshing = true;
-      if (!userIsTyping()) {
-        window.location.reload();
-        return;
-      }
-      const waiter = window.setInterval(() => {
-        if (userIsTyping()) return;
-        window.clearInterval(waiter);
-        window.location.reload();
-      }, 3000);
+      reloadPending = true;
+      reloadIfAway();
     }
+    // Ao voltar para o app com uma versão nova pendente que não pôde ser aplicada em segundo plano: recarrega antes de
+    // a pessoa começar a usar (é o momento em que a tela acabou de aparecer).
+    function reloadOnReturn() {
+      if (!reloadPending || refreshing || document.visibilityState !== "visible" || userIsTyping()) return;
+      refreshing = true;
+      window.location.reload();
+    }
+    function handleVisibilityForReload() {
+      if (document.visibilityState === "hidden") reloadIfAway();
+      else reloadOnReturn();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityForReload);
 
     // App instalado (PWA) fica ABERTO por dias sem nenhuma navegação de página, e o
     // navegador só procura service worker novo em navegação (ou no máx. a cada 24 h por
@@ -111,6 +125,7 @@ export default function PwaLifecycle() {
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      document.removeEventListener("visibilitychange", handleVisibilityForReload);
       window.removeEventListener("load", registerServiceWorker);
       document.removeEventListener("visibilitychange", checkForNewVersion);
       window.clearInterval(updateTimer);
