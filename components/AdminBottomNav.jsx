@@ -91,6 +91,12 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     };
   }, []);
 
+  // Marca no <html> que o teclado está aberto: telas em modo aplicativo (Chat) tiram o espaço reservado da barra.
+  useEffect(() => {
+    document.documentElement.classList.toggle("admin-typing", typing);
+    return () => document.documentElement.classList.remove("admin-typing");
+  }, [typing]);
+
   useEffect(() => {
     setMoreOpen(false);
   }, [pathname]);

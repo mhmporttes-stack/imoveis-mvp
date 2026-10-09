@@ -165,7 +165,27 @@ function formatPhone(phone) {
   return phone || "";
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", canSeeArchived = false }) {
+// Modo aplicativo (pedido do dono, 2026-10-09): marca <html> e os ancestrais do Chat para o CSS (app/globals.css,
+// "Chat em modo aplicativo") fixar a tela na altura da janela — só a lista e as mensagens rolam por dentro.
+function useChatAppMode(enabled, ref) {
+  useEffect(() => {
+    if (!enabled || !ref.current) return undefined;
+    const root = document.documentElement;
+    const ancestors = [];
+    for (let node = ref.current.parentElement; node && node !== document.body; node = node.parentElement) {
+      node.classList.add("chat-app-ancestor");
+      ancestors.push(node);
+    }
+    root.classList.add("chat-app-mode");
+    window.scrollTo(0, 0);
+    return () => {
+      root.classList.remove("chat-app-mode");
+      ancestors.forEach((node) => node.classList.remove("chat-app-ancestor"));
+    };
+  }, [enabled, ref]);
+}
+
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", canSeeArchived = false, appMode = false }) {
   const [tab, setTab] = useState("conversations");
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
@@ -208,6 +228,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const [scopedBroker, setScopedBroker] = useState(null); // { id, name } | null
 
   const sectionRef = useRef(null);
+  useChatAppMode(appMode, sectionRef);
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);
@@ -397,15 +418,17 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const totalUnread = summary.unreadMessages || 0;
 
   return (
-    <section className="container-page scroll-mt-[72px]" ref={sectionRef}>
-      {openError ? <p className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
+    <section className={`container-page scroll-mt-[72px] ${appMode ? "chat-app-root" : ""}`} ref={sectionRef}>
+      {openError ? <p className="mb-3 max-md:mx-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
       {contactWarning ? (
-        <p role="status" className="mb-3 flex items-start justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800">
+        <p role="status" className="mb-3 max-md:mx-3 flex items-start justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800">
           <span>{contactWarning}</span>
           <button type="button" className="shrink-0 underline" onClick={() => setContactWarning("")}>Fechar</button>
         </p>
       ) : null}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className={appMode
+        ? `mb-2 flex items-center gap-1.5 overflow-x-auto px-3 pb-0.5 md:px-0 [&>button]:shrink-0 [&>button]:!py-1.5 ${selectedId && tab === "conversations" ? "hidden lg:flex" : ""}`
+        : "mb-3 flex flex-wrap items-center gap-2"}>
         <button type="button" onClick={() => setTab("conversations")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "conversations" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
           <MessageCircle className="h-4 w-4" />Conversas
           {totalUnread > 0 ? <span className="rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{totalUnread}</span> : null}
@@ -428,7 +451,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       </div>
 
       {tab === "brokers" && canManage ? (
-        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
           <WhatsappChatBrokers
             onOpen={(id, name) => {
               setScopedBroker({ id, name });
@@ -442,7 +465,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       ) : null}
 
       {tab === "campaigns" && canManage ? (
-        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
           <WhatsappChatCampaigns
             onOpenConversation={(id) => {
               setTab("conversations");
@@ -453,7 +476,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       ) : null}
 
       {tab === "overview" ? (
-        <div className="admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
           <WhatsappChatOverview
             canManage={canManage}
             onOpen={(id) => {
@@ -465,7 +488,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       ) : null}
 
       {tab === "conversations" && scopedBroker ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-4 py-2.5">
+        <div className="mb-3 max-md:mx-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-4 py-2.5">
           <p className="text-sm font-bold text-navy">WhatsApp de <span className="font-black">{scopedBroker.name}</span></p>
           <button type="button" onClick={() => { setScopedBroker(null); setTab("brokers"); }} className="text-xs font-black text-brand hover:underline">
             ← Corretores
@@ -473,8 +496,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         </div>
       ) : null}
 
-      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : "admin-motion-enter"}`}>
-        <div className={`grid h-[calc(100dvh-150px)] min-h-[520px] grid-cols-1 ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
+      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : "admin-motion-enter"} ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
+        <div className={`grid grid-cols-1 ${appMode ? "min-h-0 flex-1" : "h-[calc(100dvh-150px)] min-h-[520px]"} ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : "admin-motion-back flex"}
             conversations={conversations}
@@ -577,9 +600,9 @@ function ConversationList({ className, conversations, error, filter, filterLabel
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
     <div className={`${className} min-h-0 min-w-0 flex-col`}>
-      <div className="space-y-3 border-b border-[#E9EDEF] bg-white p-4">
+      <div className="space-y-2 border-b border-[#E9EDEF] bg-white px-3 pb-2.5 pt-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-black text-[#111B21]">Conversas</h2>
+          <h2 className="text-lg font-black text-[#111B21]">Conversas</h2>
           {totalUnread > 0 ? (
             <span className="rounded-full bg-[#25D366] px-2.5 py-0.5 text-xs font-black text-[#0B2A17]">{totalUnread} não lidas</span>
           ) : null}
@@ -627,7 +650,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {clientStatus === "archived" ? <p className="text-xs font-semibold text-muted">Conversas de clientes arquivados: só você vê, e só para leitura.</p> : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
         {error ? <p className="m-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
         {loading && !conversations.length ? (
           <p className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p>
@@ -1013,7 +1036,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         </button>
       </div>
 
-      <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
+      <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
         {detail.hasMore ? <p className="mx-auto mt-2 w-fit rounded-lg bg-[#FFF5C4] px-3 py-1 text-center text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">Mostrando as últimas mensagens da conversa.</p> : null}
         {rows.map((row) => (row.kind === "day" ? (

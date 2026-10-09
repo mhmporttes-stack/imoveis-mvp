@@ -88,7 +88,7 @@ export default async function AdminLayout({ children }) {
         />
       ) : null}
       {auth.ok ? (
-        <div className="container-page flex flex-col items-center gap-3 py-10">
+        <div className="admin-page-footer container-page flex flex-col items-center gap-3 py-10">
           <AdminLogoutButton />
           {/* Verificação em duas etapas: só a conta REAL do dono (regra do dono, 2026-10-08). */}
           {isOwnerAdminEmail((auth.realUser || auth.user)?.email) ? (

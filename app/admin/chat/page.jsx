@@ -29,9 +29,11 @@ export default async function ChatPage({ searchParams }) {
   const canManage = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
 
   return (
-    <main className="min-h-screen bg-mist py-14">
+    // Modo aplicativo (pedido do dono, 2026-10-09): a tela fica fixa na altura da janela e só a lista/mensagens rolam
+    // (WhatsappChat appMode + .chat-app-* em app/globals.css).
+    <main className="bg-mist pt-3 md:pt-6">
       <AdminSectionNav active="chat" />
-      <WhatsappChat canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} />
+      <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} />
     </main>
   );
 }

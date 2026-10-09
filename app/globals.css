@@ -591,3 +591,58 @@ html.ui-sheet-open {
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
 }
+
+/* ===== Chat em modo aplicativo (pedido do dono, 2026-10-09) =====
+   WhatsappChat com `appMode` marca <html class="chat-app-mode"> e os ancestrais
+   (.chat-app-ancestor): a página não rola; a tela ocupa a altura da janela
+   (menos a barra inferior no celular) e só a lista / as mensagens rolam por
+   dentro. Banner do ranking e rodapé "Sair" ficam nas outras páginas e no "Mais". */
+html.chat-app-mode,
+html.chat-app-mode body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.chat-app-mode body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-bottom: max(var(--admin-bottom-nav-space), env(safe-area-inset-bottom));
+}
+
+/* Teclado aberto: a barra inferior sai do caminho, o espaço dela também. */
+html.chat-app-mode.admin-typing body {
+  padding-bottom: 0;
+}
+
+html.chat-app-mode .chat-app-ancestor {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+html.chat-app-mode body > :not(.chat-app-ancestor),
+html.chat-app-mode .chat-app-ancestor > :not(.chat-app-ancestor):not(.chat-app-root) {
+  flex-shrink: 0;
+}
+
+html.chat-app-mode .admin-ranking-header,
+html.chat-app-mode .admin-page-footer {
+  display: none;
+}
+
+html.chat-app-mode .chat-app-root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Celular: Chat de ponta a ponta, como um aplicativo. */
+@media (max-width: 767px) {
+  html.chat-app-mode .chat-app-root {
+    width: 100%;
+  }
+}

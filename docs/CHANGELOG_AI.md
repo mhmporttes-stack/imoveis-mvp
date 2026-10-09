@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Chat em modo aplicativo (tela fixa, só lista/mensagens rolam)
+- **Área:** Chat (WhatsApp) — só apresentação
+- **Alteração:** no Chat a página não rola mais: a tela ocupa a altura da janela (`100dvh` menos a barra inferior no celular; sem ela com o teclado aberto) e só a lista de conversas, as mensagens e as abas Visão geral/Campanhas/Corretores rolam por dentro (`overscroll-behavior: contain`); barra de digitação presa embaixo. Abas em linha compacta (no celular somem com a conversa aberta, como no WhatsApp; voltar mostra de novo); topo da lista mais compacto. No Chat o banner do ranking ("Campeão da semana") e o rodapé "Sair / Segurança da conta" ficam ocultos (continuam nas outras páginas e no "Mais"). Desktop: lista e conversa lado a lado, cada uma rolando por dentro.
+- **Motivo:** pedido do dono ("experiência de aplicativo" no Chat).
+- **Arquivos afetados:** `components/WhatsappChat.jsx` (prop `appMode`, `useChatAppMode` marca `html.chat-app-mode` e os ancestrais `.chat-app-ancestor`), `app/globals.css` (bloco "Chat em modo aplicativo"), `app/admin/chat/page.jsx`, `app/admin/layout.jsx` (classe `admin-page-footer`), `components/AdminBottomNav.jsx` (classe `admin-typing` no `<html>` com o teclado aberto), `app/dev/vitrine/_components/VitrineClient.jsx`.
+- **Risco/observação:** revisado na vitrine em 390 e 1440 px. Teclado do iPhone/PWA não testado em aparelho real (A CONFIRMAR com o dono): o iOS não encolhe `100dvh` com o teclado e rola a janela visual até o campo. O indicador do WhatsApp do topo some junto com o banner, mas o Chat já mostra o próprio na linha das abas.
+- **Autor:** Claude Code
 ### 2026-10-09 — Anúncio de WhatsApp: cliente fica com o dono até responder/preencher + sequência 1 h/3 h/10 h/23 h; lembretes 24 h; backlog
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Roleta / Automações

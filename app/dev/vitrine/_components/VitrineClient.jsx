@@ -58,8 +58,8 @@ const TELAS = {
     active: "chat",
     rotas: chat.routes,
     render: (perfil) => (
-      <main className="min-h-screen bg-mist py-14">
-        <WhatsappChat {...chat.propsFor(perfil)} />
+      <main className="bg-mist pt-3 md:pt-6">
+        <WhatsappChat appMode {...chat.propsFor(perfil)} />
       </main>
     )
   },
