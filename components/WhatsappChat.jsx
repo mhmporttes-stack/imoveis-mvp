@@ -552,6 +552,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             search={searchInput}
             selectedId={selectedId}
             totalUnread={totalUnread}
+            currentUserId={currentUserId}
           />
 
           <div className={`${selectedId ? "admin-motion-detail flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
@@ -633,7 +634,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   );
 }
 
-function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false }) {
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "" }) {
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
@@ -699,7 +700,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           </p>
         ) : null}
         {conversations.map((conversation) => (
-          <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} />
+          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} />
         ))}
       </div>
     </div>
@@ -753,7 +754,11 @@ function ConversationPreview({ conversation, unread }) {
   );
 }
 
-function ConversationRow({ conversation, selected, onSelect }) {
+function firstNameOf(name) {
+  return String(name || "").trim().split(/\s+/)[0] || "";
+}
+
+function ConversationRow({ conversation, currentUserId = "", selected, onSelect }) {
   const unread = conversation.unreadCount > 0;
   const name = displayName(conversation);
   const phone = formatPhone(conversation.phone);
@@ -794,10 +799,11 @@ function ConversationRow({ conversation, selected, onSelect }) {
         {/* Selos numa linha só (o que não couber continua no cabeçalho da conversa aberta) */}
         <span className="mt-1 flex items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,#000_88%,transparent)]">
           <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
-          {conversation.broker ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{conversation.broker.name || "Corretor"}</span></ListTag> : null}
+          {/* Lista mais limpa (pedido do dono, 2026-10-09): canal só "Pessoal"/"Oficial" (Pessoal 2 no segundo número), sem o
+              status da conversa (já tem a etapa do cliente ao lado do nome) e sem o nome do corretor quando é o próprio usuário. */}
+          <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? (conversation.sessionSlot === 2 ? "Pessoal 2" : "Pessoal") : "Oficial"}</ListTag>
+          {conversation.broker && conversation.broker.id !== currentUserId ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{firstNameOf(conversation.broker.name) || "Corretor"}</span></ListTag> : null}
           {!conversation.client ? <ListTag tone="amber">Não cadastrado</ListTag> : null}
-          <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</ListTag>
-          <ListTag>{STATUS_LABELS[conversation.status] || conversation.status}</ListTag>
         </span>
       </span>
     </button>
