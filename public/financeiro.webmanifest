@@ -1,0 +1,19 @@
+{
+  "id": "/financeiro",
+  "name": "Financeiro Matheus",
+  "short_name": "Financeiro",
+  "description": "Atalho do Financeiro do painel Matheus Machado: despesas, contas a pagar e recebimentos.",
+  "start_url": "/financeiro",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#031D3A",
+  "theme_color": "#031D3A",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icons/icon-financeiro-192-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-financeiro-512-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-financeiro-maskable-192-mm.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-financeiro-maskable-512-mm.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

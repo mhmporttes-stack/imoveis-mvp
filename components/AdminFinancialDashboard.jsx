@@ -88,10 +88,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric"
 });
 
-export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false, canManageForecast = false, health = null }) {
+export default function AdminFinancialDashboard({ initialSales = [], financialUsers = [], currentUser = null, canEdit = false, canManageForecast = false, health = null, initialTab = "" }) {
   const isAssociate = currentUser?.role === "associate";
   const [sales, setSales] = useState(() => ensureArray(initialSales));
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // initialTab: atalho "Financeiro" da tela inicial abre direto em Saúde (contas/despesas) quando o perfil vê essa aba
+  const [activeTab, setActiveTab] = useState(initialTab === "saude" && health ? "saude" : "dashboard");
   const [period, setPeriod] = useState("month");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

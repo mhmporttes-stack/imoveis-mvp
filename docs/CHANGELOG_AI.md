@@ -19,7 +19,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Atalho "Financeiro" na tela inicial do iPhone
+- **Data:** 2026-10-09
+- **Área:** PWA / Financeiro
+- **O quê:** segundo ícone de app (pedido do dono): `/financeiro` (página pública só de instalação, sem dado) usa manifesto próprio `public/financeiro.webmanifest` (`id` /financeiro) e ícones `public/icons/*financeiro*-mm.png` (mesmo fundo #031D3A e cores do "M", com cifrão). No app instalado redireciona para `/admin/financeiro?aba=saude` (abre direto em Saúde/contas quando o perfil vê a aba; login e permissões inalterados). Após login, `components/pwaHome.js` (sessionStorage) devolve o usuário ao Financeiro. Manifesto/ícone do Painel (`app/manifest.js`, `app/layout.jsx`) não foram alterados.
+
+* (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
 2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
 3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
 4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).

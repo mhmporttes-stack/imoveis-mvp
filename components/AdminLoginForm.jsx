@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { getPwaHome } from "@/components/pwaHome";
 
 const errorMessages = {
   unauthorized: "Acesso nao autorizado. Entre com o e-mail administrador cadastrado.",
@@ -93,7 +94,7 @@ export default function AdminLoginForm({ initialError = "" }) {
       const mobileApp = window.navigator.standalone === true
         || window.matchMedia("(display-mode: standalone)").matches
         || window.matchMedia("(max-width: 767px)").matches;
-      router.replace(mobileApp ? "/admin/simulacoes" : "/admin");
+      router.replace(getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
       router.refresh();
     } finally {
       setLoading(false);

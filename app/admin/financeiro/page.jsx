@@ -10,7 +10,8 @@ import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/a
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminFinancialPage() {
+export default async function AdminFinancialPage({ searchParams }) {
+  const { aba } = (await searchParams) || {};
   const auth = await requireFinancialAccessPage();
 
   if (!canManageFinancial()) {
@@ -45,7 +46,7 @@ export default async function AdminFinancialPage() {
   return (
     <main className="bg-mist py-14">
       <AdminSectionNav active="financial" />
-      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} health={health} canManageForecast={isExpectedReceiptOwner(auth)} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} />
+      <AdminFinancialDashboard initialSales={sales} financialUsers={financialUsers} currentUser={auth.profile} health={health} canManageForecast={isExpectedReceiptOwner(auth)} canEdit={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)} initialTab={aba === "saude" ? "saude" : ""} />
     </main>
   );
 }
