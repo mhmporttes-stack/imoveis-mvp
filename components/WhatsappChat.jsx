@@ -1507,11 +1507,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         {automation ? (
           <p className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-[#54656F]" title={message.automationKind === "flow" ? "Mensagem automática de um Fluxo" : "Mensagem automática"}><Zap className="h-3 w-3" aria-hidden="true" />Automação</p>
         ) : null}
-        {showSender || (outbound && message.actorNote) ? (
-          <p className="mb-0.5 truncate text-xs font-bold text-brand">
-            {showSender ? message.sentByName : null}
-            {outbound && message.actorNote ? <span className="font-semibold text-[#54656F]" title={message.actorNote}>{showSender ? " · " : ""}{message.actorNote}</span> : null}
-          </p>
+        {showSender ? (
+          <p className="mb-0.5 truncate text-xs font-bold text-brand">{message.sentByName}</p>
         ) : null}
         {message.replyToMessageId ? (
           <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>

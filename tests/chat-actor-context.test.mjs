@@ -28,10 +28,11 @@ test("Chat: cada envio (texto, modelo, mídia/atalho) grava o rastro; só o admi
   assert.ok(chat.includes("metadata: { ...(replyTo ? { replyToMessageId: replyTo } : {}), ...actorMetadata(auth) }"), "texto");
   assert.ok(chat.includes("metadata: { template: template.name, ...actorMetadata(auth) }"), "modelo");
   assert.ok(chat.includes("metadata: { ...metadata, ...actorMetadata(auth) }"), "mídia/atalho");
-  assert.ok(chat.includes("actorNote: isAdmin ? describeChatActor(row.metadata?.actor_ctx) : \"\""), "só administrador");
+  // 2026-10-09: o dono pediu para tirar da tela (dispositivo, IP, sessão). O rastro continua gravado em metadata.actor_ctx.
+  assert.ok(!chat.includes("actorNote"), "o rastro não vai mais para a tela");
   assert.ok(!chat.includes("actor_ctx: row.metadata"), "o rastro bruto nunca sai da API");
   const screen = read("components/WhatsappChat.jsx");
-  assert.ok(screen.includes("message.actorNote"));
+  assert.ok(!screen.includes("message.actorNote"));
 });
 
 test("modelo aprovado: recusado em conversa do WhatsApp pessoal (sairia pelo número errado)", () => {
