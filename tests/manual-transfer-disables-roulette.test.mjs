@@ -8,10 +8,9 @@ test("redistribuição automática pula cliente com transferência manual", () =
   const lib = fs.readFileSync(path.resolve(import.meta.dirname, "../lib/crm-automations.js"), "utf8");
   assert.match(lib, /if \(manuallyTransferred\.has\(client\.id\)\) continue;/);
   assert.match(lib, /\.eq\("event_type", "responsible_transferred"\)\s*\n\s*\.in\("details->>transferType", \["manual", "roulette"\]\)/);
-  // ROL-4d (dono, 2026-10-09): qualquer transferência feita por uma pessoa — inclusive "Devolver para a roleta" — cancela a
-  // redistribuição automática daquele cliente (antes a devolução religava).
-  assert.doesNotMatch(lib, /if \(row\.details\?\.transferType === "manual"\) result\.add\(row\.client_id\);/);
-  assert.match(lib, /seen\.add\(row\.client_id\);\s*\n\s*result\.add\(row\.client_id\);/);
+  assert.match(lib, /if \(row\.details\?\.transferType === "manual"\) result\.add\(row\.client_id\);/, "vale a ÚLTIMA troca (devolver para a roleta religa — dono confirmou de novo em 2026-10-09)");
+  // ROL-4d: o prazo de 5 min conta do último entre recebimento e formulário preenchido.
+  assert.match(lib, /const formAt = validDate\(client\.last_form_submitted_at\);\s*\n\s*return formAt && \(!received \|\| formAt > received\) \? formAt : received;/);
 });
 
 test("ROL-4d: ação manual cancela automação — atribuir à mão encerra o Atendimento automático do anúncio e o formulário não regride a etapa", () => {
