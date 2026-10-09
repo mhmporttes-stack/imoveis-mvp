@@ -1435,10 +1435,10 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
           {quoted || message.internalReplyTo ? (
             <div className="mb-1 rounded-md border-l-4 border-brand bg-white/70 px-2 py-1 text-xs">
               <span className="block font-bold text-brand">{quoted ? (quoted.internal ? `Interno • ${quoted.sentByName || "Equipe"}` : quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
-              <span className="block truncate text-[#54656F]">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+              <span className="block truncate text-[#54656F]">{(quoted?.body ? stripWhatsappFormatting(quoted.body) : "") || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
             </div>
           ) : null}
-          <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
+          <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]"><MessageText text={message.body} /></p>
           <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] font-medium text-[#54656F]">
             <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
             {/* ✓ enviada · ✓✓ entregue (apareceu na lista do corretor) · ✓✓ azul lida (ele abriu a conversa) */}
@@ -1477,7 +1477,7 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         {message.replyToMessageId ? (
           <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>
             <span className="block font-bold text-brand">{quoted ? (quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
-            <span className="block truncate text-[#54656F]">{quoted?.body || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+            <span className="block truncate text-[#54656F]">{(quoted?.body ? stripWhatsappFormatting(quoted.body) : "") || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
           </div>
         ) : null}
         {message.revoked ? (
