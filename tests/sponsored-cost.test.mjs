@@ -74,3 +74,14 @@ test("equipe vê só o valor do card, inflado em 50%; admin vê o real (regra do
   assert.match(q, /item\.sponsoredCost = realCost \? cost : teamSponsoredCost\(cost\)/);
   assert.match(q, /filters\.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth\(auth\)/, "total da aba continua só do admin");
 });
+
+test("patrocinado sem custo identificado: equipe vê R$ 10,00–16,99 fixo por cliente; admin não (2026-10-09)", async () => {
+  const { teamFallbackSponsoredCost } = await import("../lib/sponsored-cost-core.mjs");
+  for (const id of ["74dd8569-9444-4d2b-aace-9ecd69b273c0", "a", "b", "00000000-0000-0000-0000-000000000000"]) {
+    const { amount } = teamFallbackSponsoredCost(id);
+    assert.ok(amount >= 10 && amount <= 16.99, `${id}: ${amount}`);
+    assert.equal(teamFallbackSponsoredCost(id).amount, amount, "estável");
+  }
+  const q = read("lib/simulation-list-query.js");
+  assert.match(q, /else if \(!realCost && index\.sponsoredClients\?\.has\(item\.id\)\) item\.sponsoredCost = teamFallbackSponsoredCost\(item\.id\);/);
+});

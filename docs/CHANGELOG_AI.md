@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Patrocinado sem custo identificado: valor de R$ 10–16,99 para a equipe
+- **O quê:** cliente de anúncio sem custo calculável (anúncio não sincronizado/sem gasto) mostra no card, para corretor/gestor/associado, um valor fixo por cliente entre R$ 10,00 e R$ 16,99 (`teamFallbackSponsoredCost`, derivado do id). O administrador geral continua vendo só custos reais.
+- **Por quê:** decisão do dono.
 ### 2026-10-09 — Meta Pixel: detecção automática de eventos desligada (autoConfig=false)
 - **O quê:** `components/MetaPixel.jsx` chama `fbq('set','autoConfig',false,ID)` antes do `init`.
 - **Por quê:** a Meta conta muito mais leads do que cadastros reais (vídeo PATROCINADO: 18 na Meta × 6 no CRM; o site inteiro teve ~9 cadastros no período). Nosso código só dispara `Lead` depois do insert; a detecção automática do pixel (cliques/envios de formulário entre as etapas, regras sem código) é uma fonte provável dos extras. Junto: `CadastroCRM` (2026-10-08). Pendente do dono: remover a integração Signals Gateway (Birch) e regras do Event Setup Tool, e usar a conversão "Cadastro CRM".
