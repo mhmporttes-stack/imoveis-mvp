@@ -211,3 +211,30 @@ export function extractChatEvent(msg, lidMap = new Map()) {
   const quotedId = contextInfoOf(content)?.stanzaId || "";
   return { ...base, kind: "message", messageType: media ? media.kind : "text", text, media, quotedId };
 }
+
+// ---------------------------------------------------------------------------
+// Destino de um "messages.upsert" do Baileys (2026-10-09). Antes só o tipo
+// "notify" era tratado e o "append" era descartado — mas é como "append" que
+// chegam as mensagens recebidas/enviadas pelo celular enquanto a sessão estava
+// caída (reconexões "Stream Errored"/"Connection Terminated" acontecem várias
+// vezes por dia), então elas sumiam do Chat. Agora:
+//  - notify → tempo real (como sempre);
+//  - append recente (até 6 h) → tempo real (o CRM deduplica por wa_message_id);
+//    do próprio corretor só depois de 60 s — o envio feito PELO CRM também volta
+//    como "append" na hora e é gravado pelo próprio CRM;
+//  - append mais antigo (até 7 dias) → histórico (só popula a conversa, sem criar
+//    cliente nem disparar automação);
+//  - resto → ignora.
+export const APPEND_LIVE_WINDOW_MS = 6 * 60 * 60 * 1000;
+export const APPEND_OWN_SEND_GRACE_MS = 60 * 1000;
+export const APPEND_HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function upsertRoute({ type, fromMe = false, timestampMs = 0, now = Date.now() } = {}) {
+  if (type === "notify") return "live";
+  if (type !== "append") return "skip";
+  const age = timestampMs > 0 ? now - timestampMs : 0;
+  if (fromMe && age < APPEND_OWN_SEND_GRACE_MS) return "skip";
+  if (age <= APPEND_LIVE_WINDOW_MS) return "live";
+  if (age <= APPEND_HISTORY_WINDOW_MS) return "history";
+  return "skip";
+}

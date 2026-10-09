@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
 import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus } from "./webhook.js";
-import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMappingFromMessage } from "./message-extract.js";
+import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMappingFromMessage, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
@@ -416,8 +416,12 @@ async function onMessagesUpsert(userId, messages, type) {
   for (const msg of messages || []) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
   }
-  if (type !== "notify") return;
+  const now = Date.now();
+  const historyItems = [];
   for (const msg of messages || []) {
+    const route = upsertRoute({ type, fromMe: Boolean(msg?.key?.fromMe), timestampMs: messageTimestampMs(msg), now });
+    if (route === "skip") continue;
+    if (route === "history") { historyItems.push(msg); continue; }
     try {
       // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
       // — do cliente e do que o corretor faz pelo app do celular (fromMe).
@@ -433,6 +437,7 @@ async function onMessagesUpsert(userId, messages, type) {
       console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
     }
   }
+  if (historyItems.length) await onHistorySync(userId, historyItems);
 }
 
 // Mídia: baixa do WhatsApp (o arquivo vem cifrado; o Baileys decifra) e
