@@ -369,9 +369,59 @@ function SceneDiferenca({ scene }) {
   );
 }
 
+// Fotos do imóvel passando no fundo: troca a cada 2 s com dissolução suave. Só a foto atual e a próxima ficam no DOM (as já
+// vistas permanecem em cache do navegador), então o celular nunca baixa tudo de uma vez. Foto que falha sai da fila; sem
+// nenhuma foto utilizável, cai no fundo de ícone. Sem movimento (preferência do sistema): troca seca, sem animação.
+const SLIDE_INTERVAL_MS = 2000;
+function PhotoSlideshow({ scene, onAllFailed, fast }) {
+  const sources = useMemo(() => {
+    const list = Array.isArray(scene.images) && scene.images.length ? scene.images : scene.imageUrl ? [scene.imageUrl] : [];
+    return Array.from(new Set(list));
+  }, [scene.images, scene.imageUrl]);
+  const [failed, setFailed] = useState(() => new Set());
+  const [index, setIndex] = useState(0);
+  const reduced = usePrefersReducedMotion();
+  const alive = useMemo(() => sources.filter((source) => !failed.has(source)), [sources, failed]);
+  useEffect(() => {
+    if (!sources.length || alive.length === 0) onAllFailed?.();
+  }, [sources.length, alive.length, onAllFailed]);
+  useEffect(() => {
+    if (alive.length < 2 || fast) return undefined;
+    const timer = setInterval(() => setIndex((current) => (current + 1) % alive.length), SLIDE_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [alive.length, fast]);
+  const current = alive.length ? index % alive.length : 0;
+  const next = alive.length > 1 ? (current + 1) % alive.length : -1;
+  const single = alive.length === 1;
+  return (
+    <>
+      {alive.map((source, i) => {
+        if (i !== current && i !== next) return null;
+        const active = i === current;
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={source}
+            className={`${styles.photo} ${single ? styles.photoKen : ""} ${alive.length > 1 ? styles.slide : ""} ${active ? styles.slideOn : ""} ${reduced ? styles.slideCut : ""}`}
+            src={source}
+            alt={active ? `Foto de ${scene.name}${alive.length > 1 ? ` (${current + 1} de ${alive.length})` : ""}` : ""}
+            aria-hidden={active ? undefined : "true"}
+            width={1080}
+            height={1350}
+            decoding="async"
+            onError={() => setFailed((previous) => new Set(previous).add(source))}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 /** Cena do RAMO de imóveis (uma por imóvel sugerido): foto em revelação, características em sequência e a mensagem. */
 function SceneImovel({ scene, onNext, last, nextIsValues, final = false, fast }) {
   const [failed, setFailed] = useState(false);
+  const onAllFailed = useCallback(() => setFailed(true), []);
+  const hasPhoto = Boolean(scene.imageUrl || scene.images?.length);
   const multi = scene.count > 1;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   // Destaques entram como CARIMBO, um a um (pedido do dono 2026-10-06: mesmo efeito do total de descontos, visual intacto).
@@ -379,9 +429,8 @@ function SceneImovel({ scene, onNext, last, nextIsValues, final = false, fast })
   return (
     <>
       <div className={`${styles.photoWrap} ${styles.photoReveal}`}>
-        {scene.imageUrl && !failed ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.photo} src={scene.imageUrl} alt={`Foto de ${scene.name}`} width={1080} height={1350} decoding="async" onError={() => setFailed(true)} />
+        {hasPhoto && !failed ? (
+          <PhotoSlideshow scene={scene} onAllFailed={onAllFailed} fast={fast} />
         ) : (
           <div className={styles.photoFallback} aria-hidden="true">
             <svg className={styles.fallbackRings} viewBox="0 0 400 400" fill="none" stroke="currentColor" strokeWidth="1.2">
