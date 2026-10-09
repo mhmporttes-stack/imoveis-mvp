@@ -182,6 +182,13 @@ function displayName(conversation) {
   return conversation.client?.name || conversation.name || conversation.phone;
 }
 
+// Lista do Chat: só o primeiro nome (o nome completo fica no cabeçalho da conversa, no cadastro e no card).
+// Telefone ou nome que começa por número/símbolo aparece inteiro.
+function listFirstName(conversation) {
+  const full = String(displayName(conversation) || "").trim();
+  return /^\p{L}/u.test(full) ? full.split(/\s+/)[0] : full;
+}
+
 function formatPhone(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
   const national = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
@@ -764,7 +771,11 @@ function ConversationRow({ conversation, selected, onSelect }) {
       {/* Separador fino só a partir do texto (depois do avatar), como no WhatsApp */}
       <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
         <span className="flex items-baseline justify-between gap-2">
-          <span className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            {/* Situação do cliente na frente do nome */}
+            <ClientStatusBadge client={conversation.client} className="max-w-[130px] shrink-0 whitespace-nowrap" />
+            <span title={name} className={`truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
+          </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
         <span className="flex items-center justify-between gap-2">
@@ -784,7 +795,6 @@ function ConversationRow({ conversation, selected, onSelect }) {
         <span className="mt-1 flex items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,#000_88%,transparent)]">
           <WaitingBadge waiting={conversation.waiting} className="shrink-0 whitespace-nowrap" />
           {conversation.broker ? <ListTag tone="broker" title={`Corretor: ${conversation.broker.name || "Corretor"}`}><UserRound className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{conversation.broker.name || "Corretor"}</span></ListTag> : null}
-          <ClientStatusBadge client={conversation.client} className="max-w-[170px] shrink-0 whitespace-nowrap" />
           {!conversation.client ? <ListTag tone="amber">Não cadastrado</ListTag> : null}
           <ListTag tone={conversation.sessionUserId ? "slate" : "green"}>{conversation.sessionUserId ? conversation.sessionLabel || "Pessoal" : "Oficial"}</ListTag>
           <ListTag>{STATUS_LABELS[conversation.status] || conversation.status}</ListTag>
