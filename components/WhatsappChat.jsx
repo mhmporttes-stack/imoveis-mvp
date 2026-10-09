@@ -61,11 +61,11 @@ const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !==
 
 // Filtros da lista — para acrescentar outro no futuro basta uma linha aqui
 // (e o filtro correspondente em lib/whatsapp-chat.js).
-// Dois números do WhatsApp pessoal (2026-10-08): "Número 1"/"Número 2" (com o apelido do usuário, quando houver).
+// Pedido do dono (2026-10-09): sem os filtros "Número 1"/"Número 2"; "Corretores" = conversas dos WhatsApp pessoais
+// (filtro "personal" do servidor, mesmo escopo de sempre). Os filtros slot1/slot2 continuam aceitos pelo servidor.
 const FILTERS = [
   { key: "all", label: "Todas" },
-  { key: "slot1", label: "Número 1" },
-  { key: "slot2", label: "Número 2" },
+  { key: "personal", label: "Corretores" },
   { key: "official", label: "Oficial" },
   { key: "unread", label: "Não lidas" },
   { key: "awaiting", label: "Sem resposta" },
