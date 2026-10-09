@@ -43,6 +43,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Simulação: envio ao cliente só pelo link
+- **O quê:** no gerador de simulação, o "Formato para envio" passa a ter só "Link (apresentação)" (padrão). PDF e imagem saíram do envio; "Baixar PDF"/"Baixar imagens" continuam.
+- **Por quê:** pedido do dono. — `components/SimulationGenerator.jsx`.
 
 ### 2026-10-09 — Chat no iPhone: sem faixa branca embaixo, abas nítidas no topo e toque longo igual ao WhatsApp
 

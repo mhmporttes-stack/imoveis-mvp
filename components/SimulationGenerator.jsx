@@ -31,10 +31,10 @@ import {
 
 const CLIENT_WHATSAPP_NOTE_PREFIX = "WhatsApp do cadastro:";
 
+// Pedido do dono (2026-10-09): a simulação é enviada ao cliente só pelo LINK (apresentação interativa). PDF e imagem
+// saíram do envio; os botões "Baixar PDF"/"Baixar imagens" continuam para uso interno.
 const SEND_FORMAT_OPTIONS = [
-  { value: "pdf", label: "PDF" },
-  { value: "image", label: "Imagem" },
-  { value: "presentation", label: "Apresentação" }
+  { value: "presentation", label: "Link (apresentação)" }
 ];
 
 const BENEFIT_OPTIONS = [
@@ -120,7 +120,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [propertyImageDataUris, setPropertyImageDataUris] = useState({});
   const [propertyQuery, setPropertyQuery] = useState("");
   const [activePage, setActivePage] = useState(0);
-  const [sendFormat, setSendFormat] = useState("pdf");
+  const [sendFormat, setSendFormat] = useState("presentation");
   const [saving, setSaving] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
@@ -1213,9 +1213,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
-              <p className="mt-1 text-sm font-semibold text-muted">Escolha se deseja enviar PDF, imagem (para anexar no WhatsApp) ou a apresentação interativa (por link).</p>
+              <p className="mt-1 text-sm font-semibold text-muted">A simulação é enviada ao cliente pelo link da apresentação interativa.</p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {SEND_FORMAT_OPTIONS.map((option) => (
                 <button
                   key={option.value}
