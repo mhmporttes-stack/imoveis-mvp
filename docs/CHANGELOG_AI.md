@@ -43,6 +43,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-09 — Chat: prévia de link e botão de link como no WhatsApp
+- **Área:** Chat (WhatsApp) — apresentação + rota nova de leitura
+- **Alteração:** balão com link mostra o cartão de prévia (imagem, título, descrição, "🔗 domínio"); mensagem com botão de link (Fluxo "Formulário de atendimento", atalho "Link de simulação") mostra prévia + texto + linha + botão azul clicável; hora/✓✓ no canto do texto; selo "Automação" discreto. Links do próprio site: prévia montada no servidor sem rede, com os mesmos textos/imagens de Open Graph do site (`lib/chat-link-preview-core.mjs`, em `messageRow`: `linkUrl`, `linkPreview`, `linkPreviewUrl`). Links externos: `GET /api/admin/whatsapp-chat/link-preview` (`requireAdminApi`) → `lib/chat-link-preview.js` (≤ 3 s, ≤ 512 KB, SSRF barrado na URL e na conexão, cache em memória); sem prévia → só o link azul.
+- **Motivo:** pedido do dono ("Quero visualizar igual o WhatsApp, detalhe melhor").
+- **Arquivos afetados:** `lib/chat-link-preview-core.mjs` (novo, puro), `lib/chat-link-preview.js` (novo), `app/api/admin/whatsapp-chat/link-preview/route.js` (novo), `lib/whatsapp-chat.js` (`messageRow`), `components/WhatsappChat.jsx`, `app/dev/vitrine/_fixtures/chat.js`, `tests/chat-link-preview.test.mjs`, `docs/WHATSAPP.md` §6, `docs/PERMISSIONS.md`, `.claude/skills/design-crm/references/sistema-visual.md`.
+- **Risco/observação:** apresentação `/s/<token>` usa o título genérico ("Sua simulação…") em vez do primeiro nome, para não consultar a apresentação (contaria visualização); a imagem é a mesma por token. Imagem de prévia externa é carregada direto do site de origem pelo navegador (sem referer). Os textos fixos do site são conferidos contra `app/layout.jsx` e páginas pelo teste. `/c/<código>` usa a prévia padrão da simulação (é o que o site serve hoje — não existe imagem OG por campanha).
+- **Autor:** Claude Code
 ### 2026-10-09 — Cliente de anúncio de WhatsApp cadastrado por mensagem volta a ser "Patrocinado"
 - **O quê:** `routeOrganicLead` (`lib/whatsapp-sponsored-lead.js`) usa a origem `whatsapp_ad` (com anúncio/referral) quando a conversa veio de anúncio.
 - **Por quê:** desde que a roleta deixou de rodar no clique do anúncio (2026-10-08), quem escrevia de novo virava "WhatsApp — Contato direto" e sumia da aba Patrocinado (4 clientes de 08–09/10, anúncio 52550704071153). A origem desses 4 NÃO foi corrigida: `client_origins` é imutável no banco (`guard_original_source`) — decisão do dono pendente.

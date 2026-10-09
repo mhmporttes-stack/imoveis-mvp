@@ -19,6 +19,7 @@ import {
   Film,
   Info,
   LayoutList,
+  Link2,
   Loader2,
   Lock,
   MapPin,
@@ -38,7 +39,8 @@ import {
   UserRound,
   Users,
   Video,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
@@ -56,6 +58,7 @@ import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/comp
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
+import { CHAT_LINK_PATTERN } from "@/lib/chat-link-preview-core.mjs";
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 
@@ -123,11 +126,9 @@ const PREVIEW_KINDS = {
   "[Mensagem]": { Icon: null, label: "Mensagem" }
 };
 
-const LINK_PATTERN = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/gi;
-
 // Texto da mensagem com links clicáveis (azul sublinhado, como no WhatsApp).
 function MessageText({ text }) {
-  const parts = String(text || "").split(LINK_PATTERN);
+  const parts = String(text || "").split(CHAT_LINK_PATTERN);
   return parts.map((part, index) => (index % 2 === 1 ? (
     <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="break-all text-[#0B6BAF] underline underline-offset-2 hover:text-[#08508A]" onClick={(event) => event.stopPropagation()}>{part}</a>
   ) : part));
@@ -1221,9 +1222,53 @@ function BubbleMeta({ message, outbound }) {
   );
 }
 
+// Prévia de link externo: buscada uma vez por link (cache da página) na rota autenticada do Chat; o servidor baixa o
+// Open Graph com proteção contra SSRF. Sem prévia/erro → null e o balão mostra só o link azul (como no WhatsApp).
+const externalPreviewRequests = new Map();
+function useLinkPreview(message) {
+  const url = message.linkPreview ? "" : message.linkPreviewUrl || "";
+  const [external, setExternal] = useState(null);
+  useEffect(() => {
+    if (!url) return undefined;
+    let alive = true;
+    let request = externalPreviewRequests.get(url);
+    if (!request) {
+      request = fetch(`/api/admin/whatsapp-chat/link-preview?url=${encodeURIComponent(url)}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => data?.preview || null)
+        .catch(() => null);
+      externalPreviewRequests.set(url, request);
+    }
+    request.then((preview) => { if (alive) setExternal(preview); });
+    return () => { alive = false; };
+  }, [url]);
+  return message.linkPreview || (url && external?.url ? external : null);
+}
+
+// Cartão de prévia do link dentro do balão (imagem grande, título, descrição e domínio), como no WhatsApp.
+function LinkPreviewCard({ preview, outbound }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(preview.image) && !imageFailed;
+  return (
+    <a href={preview.url} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}
+      className={`-mx-1 -mt-0.5 mb-1 block overflow-hidden rounded-md ${outbound ? "bg-[#C9EFC1]" : "bg-[#F0F2F5]"} hover:brightness-[0.98]`}>
+      {showImage ? (
+        <img src={preview.image} alt={preview.imageAlt || ""} loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)}
+          className="block aspect-[1200/630] w-full bg-black/5 object-cover" />
+      ) : null}
+      <span className="block px-2.5 py-2">
+        {preview.title ? <span className="line-clamp-2 text-sm font-semibold leading-5 text-[#111B21]">{preview.title}</span> : null}
+        {preview.description ? <span className="mt-0.5 line-clamp-2 text-[13px] leading-[1.3] text-[#54656F]">{preview.description}</span> : null}
+        {preview.domain ? <span className="mt-1 flex items-center gap-1 text-[13px] text-[#54656F]"><Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{preview.domain}</span></span> : null}
+      </span>
+    </a>
+  );
+}
+
 function MessageBubble({ message, first = true, quoted, onOpenActions }) {
   const hasActions = !message.internal && (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body));
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
+  const linkPreview = useLinkPreview(message);
   if (message.internal) {
     // Nota interna: centralizada, azul tracejada e com cadeado — nunca parece mensagem enviada ao cliente.
     return (
@@ -1244,18 +1289,19 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
   const label = MEDIA_LABELS[message.type] || "Mensagem";
   const automation = outbound && message.senderType === "automation";
   const showSender = outbound && message.senderType === "user" && message.sentByName && first;
-  // Hora "flutuando" no fim do texto (como no WhatsApp) quando o texto é o último conteúdo do balão.
-  const metaInline = Boolean(message.body) && !message.revoked && !message.linkLabel && !message.buttons?.length;
+  // Hora "flutuando" no fim do texto (como no WhatsApp) — também quando há botão embaixo: a hora fica no canto
+  // do texto, acima da linha separadora do botão.
+  const metaInline = Boolean(message.body) && !message.revoked;
 
   return (
     <div className={`group flex items-center gap-1 ${outbound ? "justify-end" : "justify-start"} ${first ? "mt-2.5" : "mt-0.5"} ${message.reactions?.length ? "mb-4" : ""}`}>
       {hasActions && outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
-      <div {...trigger} data-message-id={message.id} className={`relative min-w-[84px] max-w-[80%] select-text rounded-lg px-2 pb-1.5 pt-1.5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] sm:max-w-[65%] ${
+      <div {...trigger} data-message-id={message.id} className={`relative min-w-[84px] max-w-[80%] select-text rounded-lg px-2 pb-1.5 pt-1.5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] [-webkit-touch-callout:none] sm:max-w-[65%] ${linkPreview ? "w-[300px] sm:w-[340px]" : ""} ${
         outbound ? "bg-[#D9FDD3]" : "bg-white"
       } ${first ? (outbound ? "rounded-tr-none" : "rounded-tl-none") : ""} ${failed ? "ring-1 ring-red-300" : ""}`}>
         {first ? <BubbleTail outbound={outbound} /> : null}
         {automation ? (
-          <p className="mb-0.5 inline-flex items-center rounded bg-black/[0.06] px-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[#3B4A54]" title={message.automationKind === "flow" ? "Mensagem automática de um Fluxo" : "Mensagem automática"}>Automação</p>
+          <p className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-[#54656F]" title={message.automationKind === "flow" ? "Mensagem automática de um Fluxo" : "Mensagem automática"}><Zap className="h-3 w-3" aria-hidden="true" />Automação</p>
         ) : null}
         {showSender || (outbound && message.actorNote) ? (
           <p className="mb-0.5 truncate text-xs font-bold text-brand">
@@ -1277,15 +1323,27 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
             : `[${label}] — abra no WhatsApp para visualizar`}</p>
         ) : null}
         {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#54656F]">Atalho · {message.shortcut}</p> : null}
+        {linkPreview ? <LinkPreviewCard preview={linkPreview} outbound={outbound} /> : null}
         {message.body ? (
-          <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.35] sm:text-sm sm:leading-5">
-            <MessageText text={message.body} />
-            {/* Reserva o espaço da hora no fim da última linha */}
-            {metaInline ? <span aria-hidden="true" className="invisible ml-2 inline-flex items-center gap-1 text-[11px]"><BubbleMeta message={message} outbound={outbound} /></span> : null}
-          </p>
+          <div className="relative">
+            <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.35] sm:text-sm sm:leading-5">
+              <MessageText text={message.body} />
+              {/* Reserva o espaço da hora no fim da última linha */}
+              {metaInline ? <span aria-hidden="true" className="invisible ml-2 inline-flex items-center gap-1 text-[11px]"><BubbleMeta message={message} outbound={outbound} /></span> : null}
+            </p>
+            {metaInline ? (
+              <span className="absolute -bottom-0.5 right-0 inline-flex items-center gap-1 text-[11px] font-medium text-[#54656F]"><BubbleMeta message={message} outbound={outbound} /></span>
+            ) : null}
+          </div>
         ) : null}
         {message.linkLabel ? (
-          <p className="-mx-2 mt-1.5 flex items-center justify-center gap-1.5 border-t border-black/10 px-2 pt-1.5 text-sm font-semibold text-[#0B6BAF]"><ExternalLink className="h-4 w-4" aria-hidden="true" />{message.linkLabel}</p>
+          // Botão de link (Fluxo/atalho), como no WhatsApp: linha separadora + texto azul centralizado com ícone.
+          message.linkUrl ? (
+            <a href={message.linkUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} title={message.linkUrl}
+              className="-mx-2 mt-1.5 flex min-h-[40px] items-center justify-center gap-1.5 border-t border-black/10 px-2 pt-1.5 text-sm font-semibold text-[#0B6BAF] hover:bg-black/[0.03]"><ExternalLink className="h-4 w-4" aria-hidden="true" />{message.linkLabel}</a>
+          ) : (
+            <p className="-mx-2 mt-1.5 flex items-center justify-center gap-1.5 border-t border-black/10 px-2 pt-1.5 text-sm font-semibold text-[#0B6BAF]"><ExternalLink className="h-4 w-4" aria-hidden="true" />{message.linkLabel}</p>
+          )
         ) : null}
         {message.buttons?.length ? (
           <div className="-mx-2 mt-1.5 divide-y divide-black/10 border-t border-black/10">
@@ -1294,9 +1352,7 @@ function MessageBubble({ message, first = true, quoted, onOpenActions }) {
             ))}
           </div>
         ) : null}
-        {metaInline ? (
-          <span className="absolute bottom-1 right-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#54656F]"><BubbleMeta message={message} outbound={outbound} /></span>
-        ) : (
+        {metaInline ? null : (
           <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] font-medium text-[#54656F]"><BubbleMeta message={message} outbound={outbound} /></div>
         )}
         {message.reactions?.length ? (

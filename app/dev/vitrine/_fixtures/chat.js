@@ -12,6 +12,8 @@
 // aqui lendo ?perfil= da URL da vitrine, imitando o filtro do servidor.
 // Envios (texto/interno) e "marcar como lida" ficam em memória até recarregar a página.
 
+import { ownSitePreview } from "@/lib/chat-link-preview-core.mjs";
+
 const T0 = Date.now();
 const MIN = 60 * 1000;
 const ago = (minutes) => new Date(T0 - minutes * MIN).toISOString();
@@ -406,6 +408,12 @@ function demoAudioDataUri() {
   return cachedAudio;
 }
 
+// Prévia de link do próprio site como o servidor monta (ownSitePreview), com a imagem servida localmente.
+function sitePreview(url) {
+  const preview = ownSitePreview(url);
+  return preview ? { ...preview, image: preview.image.replace("https://www.matheusmachadoimoveis.com.br", "") } : null;
+}
+
 function msg(id, minutesAgo, direction, body, extra = {}) {
   const at = ago(minutesAgo);
   const outbound = direction === "outbound";
@@ -428,6 +436,9 @@ function msg(id, minutesAgo, direction, body, extra = {}) {
     shortcut: extra.shortcut || "",
     buttons: extra.buttons || [],
     linkLabel: extra.linkLabel || "",
+    linkUrl: extra.linkUrl || "",
+    linkPreview: extra.linkUrl ? sitePreview(extra.linkUrl) : null,
+    linkPreviewUrl: extra.linkPreviewUrl || "",
     automationKind: senderType === "automation" ? extra.automationKind || "" : "",
     at,
     sentAt: outbound ? at : null,
@@ -459,7 +470,7 @@ function juliannaMessages(perfil) {
     msg("m01-02", 26 * 60 + 39, "outbound", "Olá! 😊 Recebemos sua mensagem. Em instantes um corretor da nossa equipe vai te atender.", { senderType: "automation", automationKind: "flow" }),
     msg("m01-03", 26 * 60 + 20, "outbound", "Oi Juliana, tudo bem? Aqui é o Diego, corretor da equipe. Tem sim! São casas de 2 dormitórios dentro do Minha Casa Minha Vida. Posso fazer uma simulação pra você?", { sentByName: diego }),
     msg("m01-04", 26 * 60 + 5, "inbound", "Pode sim! Eu trabalho registrada, ganho uns R$ 2.800, e meu marido faz uns bicos de pedreiro."),
-    msg("m01-05", 26 * 60, "outbound", "Preenche esse formulário rapidinho que eu já calculo o subsídio e a parcela pra vocês 👇", { sentByName: diego, shortcut: "Link de simulação", linkLabel: "Fazer minha simulação" }),
+    msg("m01-05", 26 * 60, "outbound", "Preenche esse formulário rapidinho que eu já calculo o subsídio e a parcela pra vocês 👇", { sentByName: diego, shortcut: "Link de simulação", linkLabel: "Fazer minha simulação", linkUrl: "https://www.matheusmachadoimoveis.com.br/s/diego" }),
     msg("m01-06", 24 * 60 + 50, "inbound", "Pronto, preenchi!"),
     msg("m01-07", 24 * 60 + 30, "outbound", "Perfeito! Pela simulação, a estimativa é de subsídio na faixa de R$ 40 mil e parcela perto de R$ 690 — o valor final depende da análise da Caixa. Quer seguir com a documentação?", { sentByName: diego, buttons: ["Quero seguir", "Tenho dúvidas"] }),
     msg("m01-08", 24 * 60 + 25, "internal", "Renda do cônjuge é informal — pedir extrato bancário dos últimos 3 meses junto com os holerites dela.", { sentByName: diego }),
@@ -482,6 +493,7 @@ const SHORT_THREADS = {
   "demo-conv-02": () => [
     msg("m02-01", 70, "inbound", "Oi, quero saber como funciona o financiamento pela Caixa"),
     msg("m02-02", 69, "outbound", "Olá! 😊 Recebemos sua mensagem. Em instantes um corretor da nossa equipe vai te atender.", { senderType: "automation", automationKind: "flow" }),
+    msg("m02-02b", 68, "outbound", "Para eu fazer a sua simulação, preencha o formulário abaixo. Leva menos de 2 minutos 👇", { senderType: "automation", automationKind: "flow", linkLabel: "Preencher formulário", linkUrl: "https://www.matheusmachadoimoveis.com.br/c/demo01" }),
     msg("m02-03", 55, "inbound", "Precisa ter entrada?"),
     msg("m02-04", 47, "inbound", "Alguém pode me responder? Queria saber da entrada")
   ],
@@ -496,7 +508,7 @@ const SHORT_THREADS = {
   ],
   "demo-conv-05": () => [
     msg("m05-00", 7 * 60 + 20, "outbound", "", { sentByName: USERS.camila.name, type: "document", media: { url: "/vitrine-demo-simulacao.pdf", mime: "application/pdf", name: "Simulacao-Rodrigo-Demo.pdf", size: 173056, state: "stored", inbound: false } }),
-    msg("m05-00b", 7 * 60 + 19, "outbound", "Segue a simulação. Se preferir, dá pra ver também em https://www.exemplo.com.br/simulacao-demo", { sentByName: USERS.camila.name }),
+    msg("m05-00b", 7 * 60 + 19, "outbound", "Segue a simulação. Se preferir, dá pra ver também em https://www.exemplo.com.br/simulacao-demo", { sentByName: USERS.camila.name, linkPreviewUrl: "https://www.exemplo.com.br/simulacao-demo" }),
     msg("m05-01", 7 * 60, "inbound", "Oi Camila, recebi o PDF, vou mostrar pra minha esposa"),
     msg("m05-02", 6 * 60 + 50, "outbound", "Ótimo! Qualquer dúvida sobre os valores eu explico por aqui ou numa ligação rápida.", { sentByName: USERS.camila.name }),
     msg("m05-03", 5 * 60, "outbound", "Rodrigo, conseguiu olhar a simulação que te mandei?", { sentByName: USERS.camila.name, status: "delivered" })
@@ -854,6 +866,8 @@ export const routes = [
   { method: "DELETE", match: new RegExp(`${CONV}(\\?|$)`), response: { ok: true } },
   { match: new RegExp(`${CONV}(\\?|$)`), response: withNotFound(conversationDetail) },
   { method: "POST", match: /^\/api\/admin\/whatsapp-chat\/open-client/, response: { conversationId: "demo-conv-01" } },
+  // Prévia de link externo: a vitrine não acessa a internet — sem prévia (o balão mostra só o link azul).
+  { match: /^\/api\/admin\/whatsapp-chat\/link-preview/, response: { preview: null } },
 
   // Subvisões
   { match: /^\/api\/admin\/whatsapp-chat\/overview/, response: overview },
