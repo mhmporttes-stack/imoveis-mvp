@@ -61,7 +61,7 @@ export default function WhatsappSessionHealthPanel() {
           <h2 id="wa-health-title" className="flex items-center gap-2 text-base font-semibold text-navy">
             <Activity className="h-4 w-4 text-brand" aria-hidden="true" />Saúde dos números do WhatsApp
           </h2>
-          <p className="mt-0.5 text-sm text-ink-2">
+          <p className="mt-0.5 text-sm text-ink-2" aria-live="polite">
             {data ? (attention ? `${attention} de ${rows.length} números precisam de atenção.` : `${rows.length} números, nenhum com problema agora.`) : "Quedas dos últimos 7 dias, por número."}
           </p>
         </div>
@@ -82,7 +82,7 @@ export default function WhatsappSessionHealthPanel() {
             return (
               <li key={row.key} className="grid gap-3 py-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto] lg:items-center">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-navy">{row.brokerName} <span className="font-normal text-ink-2">· {row.slotName}</span></p>
+                  <p className="break-words text-sm font-semibold text-navy">{row.brokerName} <span className="font-normal text-ink-2">· {row.slotName}</span></p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <Badge tone={info.tone} dot>{info.label}</Badge>
                     {row.drops24h >= 3 ? <Badge tone="warning">{row.drops24h} quedas em 24 h</Badge> : null}
@@ -90,7 +90,7 @@ export default function WhatsappSessionHealthPanel() {
                   <p className="mt-1 text-xs text-ink-2">Conectou pela última vez: {formatWhen(row.lastConnectedAt)}</p>
                 </div>
                 <div className="min-w-0 text-xs text-ink-2">
-                  <p className="truncate">
+                  <p className="break-words">
                     Último erro: {row.lastErrorLabel || row.lastErrorReason ? [row.lastErrorLabel, row.lastErrorReason].filter(Boolean).join(" · ") : "nenhum"}
                     {row.lastErrorAt && (row.lastErrorLabel || row.lastErrorReason) ? ` (${formatWhen(row.lastErrorAt)})` : ""}
                   </p>

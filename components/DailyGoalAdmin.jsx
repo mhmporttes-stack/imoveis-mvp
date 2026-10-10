@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ban, Save } from "lucide-react";
+import { Ban, Save, ShieldAlert } from "lucide-react";
 import Avatar from "./Avatar";
 import WhatsappSessionHealthPanel from "./WhatsappSessionHealthPanel";
 import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
@@ -393,14 +393,6 @@ function AutomationTab() {
                       <p className="mt-0.5 text-xs font-bold text-red-700">{broker.autoErrorTotal} cliente{broker.autoErrorTotal === 1 ? "" : "s"} em "Erro" (3 falhas técnicas seguidas — veja o Histórico)</p>
                     ) : null}
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
-                    {(broker.slotPauses || []).map((item) => (
-                      <p key={item.slot} className="mt-1 text-xs font-bold text-red-700">
-                        Número {item.slot} pausado por segurança. {item.reason}{" "}
-                        <button type="button" className="text-brand hover:underline" disabled={busyId === broker.brokerId} onClick={() => resumeSlot(broker.brokerId, item.slot)}>
-                          Retomar Número {item.slot}
-                        </button>
-                      </p>
-                    ))}
                     {/* "Último problema" removido daqui (pedido do dono, 2026-10-01) —
                         informação de "o que aconteceu" agora vive só no Histórico,
                         pra não duplicar entre a configuração e o detalhamento. */}
@@ -445,6 +437,29 @@ function AutomationTab() {
                   )}
                 </div>
               </div>
+              {(broker.slotPauses || []).map((item) => (
+                <div key={item.slot} role="alert" className="mt-3 flex flex-col gap-3 rounded-2xl border border-warning-line bg-warning-soft p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-black text-warning">
+                      <ShieldAlert aria-hidden="true" className="h-4 w-4 shrink-0" />Número {item.slot} pausado por segurança
+                    </p>
+                    {item.reason ? <p className="mt-1 text-xs font-bold text-ink-2">{item.reason}</p> : null}
+                    <p className="mt-1 text-xs text-ink-2">Os envios deste número estão parados e a fila continua guardada. Só retome depois de conferir se o WhatsApp está conectado e normal.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-touch w-full shrink-0 items-center justify-center rounded-control border border-warning bg-white px-4 text-sm font-semibold text-warning transition hover:bg-warning-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    disabled={busyId === broker.brokerId}
+                    onClick={() => {
+                      // Retomar depois de bloqueio é sensível (risco de nova restrição): confirma, como "Ligar política nova".
+                      if (typeof window !== "undefined" && !window.confirm(`Retomar o Número ${item.slot} de ${broker.brokerName}? Os envios deste número voltam a sair, com aquecimento gradual quando houver.`)) return;
+                      resumeSlot(broker.brokerId, item.slot);
+                    }}
+                  >
+                    {busyId === broker.brokerId ? "Retomando…" : `Retomar Número ${item.slot}`}
+                  </button>
+                </div>
+              ))}
               {broker.enabled ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs font-bold text-muted">
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
