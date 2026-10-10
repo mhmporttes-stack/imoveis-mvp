@@ -30,6 +30,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-10 — Chat: tiques de enviada/entregue/lida na prévia da lista
+
+- **Pedido do dono (com print):** a prévia mostrava sempre 1 tique cinza nas conversas cuja última mensagem é nossa.
+- **Mudou:** `listChatConversations` acrescenta `lastOutboundStatus` (status da última mensagem enviada, sem reação, via `loadLastOutboundStatus`, também usada pelo filtro "Sem resposta"); `ConversationPreview` (`components/WhatsappChat.jsx`) reaproveita `StatusTicks` (1 tique, 2 cinza, 2 azuis, falha). Sem status disponível: 1 tique como antes. Teste: `tests/chat-seen-without-reply.test.mjs`.
+
 ### 2026-10-10 — Chat: filtro "Sem resposta" passa a ser "visualizou e não respondeu" (WA-23)
 
 - **Pedido do dono (com print):** "Sem resposta" deve listar clientes que visualizaram e não responderam; antes listava conversas cuja última mensagem era do cliente (Mari "Bom dia já resolvi", "SAIR"...).

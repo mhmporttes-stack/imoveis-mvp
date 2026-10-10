@@ -758,7 +758,7 @@ function ConversationPreview({ conversation, unread }) {
   const outbound = conversation.lastMessageDirection === "outbound";
   return (
     <span className={`flex min-w-0 items-center gap-1 text-[13px] leading-5 ${unread ? "font-bold text-[#111B21]" : "font-medium text-[#54656F]"}`}>
-      {outbound ? <Check className="h-4 w-4 shrink-0 text-[#667781]" aria-label="Enviada por nós" /> : null}
+      {outbound ? <span className="shrink-0">{conversation.lastOutboundStatus ? <StatusTicks status={conversation.lastOutboundStatus} /> : <Check className="h-4 w-4 text-[#667781]" aria-label="Enviada por nós" />}</span> : null}
       {kind?.Icon ? <kind.Icon className="h-4 w-4 shrink-0 text-[#667781]" aria-hidden="true" /> : null}
       <span className="truncate">{kind ? kind.label : preview || "—"}</span>
     </span>
