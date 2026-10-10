@@ -13,6 +13,7 @@ import {
   Camera,
   Check,
   CheckCheck,
+  CircleCheck,
   Clock,
   Download,
   EllipsisVertical,
@@ -35,6 +36,8 @@ import {
   Search,
   Send,
   Reply,
+  RotateCcw,
+  Sparkles,
   Sticker,
   Trash2,
   UserPlus,
@@ -74,6 +77,8 @@ const FILTERS = [
   { key: "personal", label: "Corretores" },
   { key: "official", label: "Oficial" },
   { key: "unread", label: "Não lidas" },
+  // "Aguardando nós" (2026-10-10): última mensagem do cliente — esperando a nossa resposta.
+  { key: "waiting_us", label: "Aguardando nós" },
   { key: "awaiting", label: "Sem resposta" },
   { key: "in_service", label: "Em atendimento" },
   { key: "silent", label: "Sem retorno" },
@@ -748,6 +753,89 @@ function ListTag({ tone = "slate", children, title }) {
   return <span title={title} className={`inline-flex max-w-[150px] shrink-0 items-center gap-1 truncate whitespace-nowrap rounded-[5px] px-1.5 py-px text-[10px] font-extrabold ${tone === "broker" ? "" : "uppercase tracking-wide"} ${tones[tone] || tones.slate}`}>{children}</span>;
 }
 
+// "Vincular a cliente existente" (2026-10-10): busca na lista de Clientes (mesmo escopo do usuário, no servidor) por
+// nome, código ou telefone e liga a conversa ao cadastro escolhido.
+function LinkExistingClient({ conversationId, initialQuery = "", onLinked }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [linking, setLinking] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const term = query.trim();
+    if (term.length < 2) { setResults([]); return undefined; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/simulation-registrations/list?query=${encodeURIComponent(term)}&pageSize=8`);
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) setResults(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [open, query]);
+
+  async function link(clientId) {
+    setLinking(clientId);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/link-client`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível vincular.");
+      onLinked?.();
+    } catch (linkError) {
+      setError(linkError.message);
+    } finally {
+      setLinking("");
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => { setOpen(true); setQuery(initialQuery); }} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-navy/15 bg-white text-sm font-extrabold text-navy transition hover:border-brand">
+        <Link2 className="h-4 w-4" /> Vincular a cliente existente
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-2 rounded-xl border border-line bg-white p-3">
+      <label className="block text-xs font-black text-navy">
+        Buscar cliente (nome, código ou telefone)
+        <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand" placeholder="Ex.: Maria ou 99999-0000" />
+      </label>
+      {loading ? <p className="flex items-center gap-1 text-xs font-bold text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando…</p> : null}
+      {!loading && query.trim().length >= 2 && !results.length ? <p className="text-xs font-bold text-muted">Nenhum cliente encontrado.</p> : null}
+      <ul className="max-h-56 space-y-1 overflow-y-auto">
+        {results.map((item) => (
+          <li key={item.id}>
+            <button type="button" disabled={Boolean(linking)} onClick={() => link(item.id)} className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-mist disabled:opacity-50">
+              <span className="min-w-0">
+                <span className="block truncate font-extrabold text-navy">{item.name}</span>
+                <span className="block truncate text-xs font-bold text-muted">{[item.registration?.clientCode, item.registration?.phone].filter(Boolean).join(" · ")}</span>
+              </span>
+              {linking === item.id ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Link2 className="h-4 w-4 shrink-0 text-brand" />}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error ? <p className="text-xs font-bold text-red-700">{error}</p> : null}
+      <button type="button" onClick={() => setOpen(false)} className="text-xs font-extrabold text-muted hover:text-navy">Cancelar</button>
+    </div>
+  );
+}
+
 function ConversationPreview({ conversation, unread }) {
   // Particular (2026-10-10): quem não é o dono recebe a linha sem prévia — só o rótulo.
   if (conversation.private && !conversation.lastMessagePreview) {
@@ -988,6 +1076,16 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     onChanged();
   }
 
+  // "Marcar como resolvida" (2026-10-10): sai de "Aguardando nós", "Sem resposta" e "Sem retorno" sem arquivar.
+  async function setResolved(resolved) {
+    await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resolved })
+    }).catch(() => {});
+    onChanged();
+  }
+
   // Atalho "Arquivar" (pedido do dono, 2026-10-09): para conversa particular que virou cliente, muda o STATUS DO
   // CLIENTE para Arquivado (sai do funil e a conversa sai do Chat, WA-13) e finaliza a conversa. Sem cliente: só finaliza.
   const [archiving, setArchiving] = useState(false);
@@ -1161,6 +1259,13 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
                       <Archive className="h-4 w-4" /> Arquivar cliente
                     </button>
                   ) : null}
+                  {!conversation.archivedReadOnly && conversation.status !== "finished" ? (
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setResolved(!conversation.resolved); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
+                      {conversation.resolved
+                        ? <><RotateCcw className="h-4 w-4 text-brand" /> Desmarcar resolvida</>
+                        : <><CircleCheck className="h-4 w-4 text-emerald-600" /> Marcar como resolvida</>}
+                    </button>
+                  ) : null}
                   {conversation.status !== "finished" ? (
                     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); changeStatus("finished"); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-extrabold text-navy hover:bg-mist">
                       <CheckCheck className="h-4 w-4 text-emerald-600" /> Finalizar conversa
@@ -1213,6 +1318,8 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         </button>
       </div>
 
+      {conversation.summaryAvailable && !conversation.privateLocked ? <ConversationSummaryBar key={conversation.id} conversation={conversation} /> : null}
+
       <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
         {detail.hasMore ? <p className="mx-auto mt-2 w-fit rounded-lg bg-[#FFF5C4] px-3 py-1 text-center text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">Mostrando as últimas mensagens da conversa.</p> : null}
@@ -1221,7 +1328,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} />
+          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} transcription={Boolean(conversation.transcriptionAvailable)} />
         )))}
         {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">{conversation.privateLocked ? "Conversa particular. Para usar este contato no CRM, tire-o de Particular." : "Nenhuma mensagem nesta conversa."}</p> : null}
       </div>
@@ -1471,7 +1578,7 @@ function LinkPreviewCard({ preview, outbound }) {
   );
 }
 
-function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false }) {
+function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false, transcription = false }) {
   const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
@@ -1528,8 +1635,9 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         ) : null}
         {message.revoked ? (
           <p className="flex items-start gap-1.5 text-sm italic text-[#54656F]"><Ban className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{message.revokedBy === "customer" ? "O cliente apagou esta mensagem" : "Mensagem apagada"}{message.originalBody ? <span className="mt-1 block text-[11px] font-semibold not-italic">Original (só administrador vê): {message.originalBody}</span> : null}</span></p>
-        ) : message.media ? <MediaPreview media={message.media} type={message.type} outbound={outbound}
-          avatarName={outbound ? message.sentByName || "Equipe" : contact?.name || ""} avatarUrl={outbound ? "" : contact?.photoUrl || ""} /> : isMedia ? (
+        ) : message.media ? <><MediaPreview media={message.media} type={message.type} outbound={outbound}
+          avatarName={outbound ? message.sentByName || "Equipe" : contact?.name || ""} avatarUrl={outbound ? "" : contact?.photoUrl || ""} />
+          {message.type === "audio" ? <AudioTranscript message={message} enabled={transcription} /> : null}</> : isMedia ? (
           <p className="text-sm italic text-[#54656F]">{message.type === "unsupported"
             ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
             : `[${label}] — abra no WhatsApp para visualizar`}</p>
@@ -1730,6 +1838,83 @@ function InboundImage({ media, type }) {
   );
 }
 
+// Transcrição do áudio (2026-10-10): texto embaixo do áudio. Já transcrito = mostra; senão botão "Transcrever"
+// (só quando o servidor tem o serviço configurado). O texto fica salvo — ninguém paga duas vezes pelo mesmo áudio.
+function AudioTranscript({ message, enabled }) {
+  const [text, setText] = useState(message.transcript || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { setText(message.transcript || ""); }, [message.id, message.transcript]);
+  if (text) return <p className="mt-1 whitespace-pre-line border-l-2 border-[#25D366]/50 pl-2 text-[13px] italic leading-5 text-[#3B4A54]">{text}</p>;
+  if (!enabled || message.media?.state === "failed") return null;
+  async function run() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/media/${message.id}/transcript`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível transcrever.");
+      setText(data.transcript || "");
+    } catch (runError) {
+      setError(runError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="mt-1">
+      <button type="button" onClick={run} disabled={loading} className="inline-flex items-center gap-1 text-[12px] font-extrabold text-brand hover:underline disabled:opacity-60">
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />} {loading ? "Transcrevendo…" : "Transcrever"}
+      </button>
+      {error ? <p className="text-[11px] font-bold text-red-700">{error}</p> : null}
+    </div>
+  );
+}
+
+// Resumo da conversa por IA (2026-10-10): 3 linhas (o que quer, perfil, próximo passo). Sob demanda; fica salvo e
+// avisa quando há mensagem nova depois do resumo ("Atualizar").
+function ConversationSummaryBar({ conversation }) {
+  const [summary, setSummary] = useState(conversation.aiSummary || null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  async function generate(force = false) {
+    setLoading(true);
+    setError("");
+    setOpen(true);
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível gerar o resumo.");
+      setSummary({ text: data.text, generatedAt: data.generatedAt, stale: false });
+    } catch (runError) {
+      setError(runError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const stale = summary?.stale || (conversation.aiSummary?.stale && summary === conversation.aiSummary);
+  return (
+    <div className="border-b border-line bg-[#F7F9FC] px-4 py-1.5">
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => (summary && !open ? setOpen(true) : summary ? setOpen(false) : generate())} disabled={loading} className="inline-flex items-center gap-1.5 text-xs font-extrabold text-navy hover:text-brand disabled:opacity-60">
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-brand" />}
+          {loading ? "Resumindo…" : summary ? (open ? "Ocultar resumo" : "Ver resumo da conversa") : "Resumir conversa"}
+        </button>
+        {summary && (stale || open) && !loading ? (
+          <button type="button" onClick={() => generate(true)} className="ml-auto text-[11px] font-extrabold text-brand hover:underline">{stale ? "Há mensagens novas · Atualizar" : "Atualizar"}</button>
+        ) : null}
+      </div>
+      {open && summary?.text ? <p className="mt-1 whitespace-pre-line text-[13px] font-semibold leading-5 text-[#3B4A54]">{summary.text}</p> : null}
+      {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
+    </div>
+  );
+}
+
 function MediaPreview({ media, type, outbound = false, avatarName = "", avatarUrl = "" }) {
   if (type === "audio") return <ChatAudioPlayer src={media.url} mime={media.mime} state={media.state} outbound={outbound} avatarName={avatarName} avatarUrl={avatarUrl} />;
   if (type === "image" || type === "sticker") return <InboundImage media={media} type={type} />;
@@ -1848,6 +2033,9 @@ function attachmentKind(file) {
 
 function Composer({ canManage, conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
   const [text, setText] = useState("");
+  // "/atalho" (2026-10-10): só quando o campo inteiro é "/" + palavra (sem anexo, resposta ou edição).
+  const slashMatch = /^\/(\S{0,30})$/.exec(text);
+  const slashQuery = slashMatch ? slashMatch[1] : null;
   const textareaRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -2153,7 +2341,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
           <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-10 shrink-0 place-items-center rounded-full text-[#3B4A54] transition hover:bg-black/5 hover:text-[#111B21] disabled:opacity-40">
             <Plus className="h-6 w-6" strokeWidth={2.25} />
           </button>
-          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} />
+          <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} slashQuery={slashQuery} onSlashClose={() => setText("")} />
           {/* Campo arredondado branco, com emoji à esquerda e o modo interno à direita (como a câmera no WhatsApp) */}
           <div className="flex min-h-11 min-w-0 flex-1 items-end rounded-[22px] border border-transparent bg-white shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
             <EmojiPicker disabled={sending} onPick={insertEmoji} />
@@ -2162,8 +2350,13 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               className="max-h-[40dvh] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#111B21] outline-none placeholder:text-[#54656F] sm:text-sm sm:leading-6"
               disabled={sending}
               onChange={(event) => setText(event.target.value)}
-              onKeyDown={(event) => sendOnEnter(event, send, !sending && !awaiting && hasContent)}
-              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
+              onKeyDown={(event) => {
+                // Atalho com "/": Esc limpa; Enter não envia "/texto" como mensagem (escolha o atalho na lista).
+                if (slashQuery !== null && event.key === "Escape") { event.preventDefault(); setText(""); return; }
+                if (slashQuery !== null && event.key === "Enter" && !event.shiftKey) { event.preventDefault(); return; }
+                sendOnEnter(event, send, !sending && !awaiting && hasContent);
+              }}
+              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem (digite / para atalhos)"}
               aria-label="Mensagem"
               rows={1}
               value={text}
@@ -2510,6 +2703,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
             />
           </label>
           {error ? <p className="text-xs font-bold text-red-700">{error}</p> : null}
+          <LinkExistingClient conversationId={conversation.id} initialQuery={digits.slice(-8)} onLinked={onChanged} />
           <button
             type="button"
             onClick={addToCrm}

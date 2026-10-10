@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { deleteChatConversation, getChatConversation, renameChatContact, setChatConversationPrivate, updateChatConversationStatus } from "@/lib/whatsapp-chat";
+import { deleteChatConversation, getChatConversation, renameChatContact, setChatConversationPrivate, setChatConversationResolved, updateChatConversationStatus } from "@/lib/whatsapp-chat";
 import { chatErrorResponse } from "../../chat-errors";
 
 export const runtime = "nodejs";
@@ -28,6 +28,11 @@ export async function PATCH(request, { params }) {
     // Nome do contato (2026-10-09): { contactName } corrige o nome (e o do cliente vinculado).
     if (typeof body?.contactName === "string") {
       return NextResponse.json(await renameChatContact((await params).id, body.contactName, auth));
+    }
+    // Resolvida (2026-10-10): { resolved: true|false } tira/devolve a conversa dos filtros de espera.
+    if (typeof body?.resolved === "boolean") {
+      await setChatConversationResolved((await params).id, body.resolved, auth);
+      return NextResponse.json({ ok: true });
     }
     if (typeof body?.private === "boolean") {
       await setChatConversationPrivate((await params).id, body.private, auth);

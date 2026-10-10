@@ -331,6 +331,7 @@ function listConversations({ url }) {
   if (brokerId) rows = rows.filter((row) => row.assignedUserId === brokerId || row.client?.responsibleId === brokerId);
   if (filter === "unread") rows = rows.filter((row) => row.unreadCount > 0);
   else if (filter === "awaiting") rows = rows.filter((row) => row.lastMessageDirection === "outbound" && row.status !== "finished");
+  else if (filter === "waiting_us") rows = rows.filter((row) => row.lastMessageDirection === "inbound" && row.status !== "finished");
   else if (filter === "silent") rows = rows.filter((row) => row.waiting?.kind === "contact_silent");
   else if (filter !== "all") rows = rows.filter((row) => row.status === filter);
   if (term) {

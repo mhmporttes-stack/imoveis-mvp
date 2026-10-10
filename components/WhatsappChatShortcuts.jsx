@@ -8,7 +8,9 @@ const KIND_LABEL = { text: "Texto", image: "Imagem", document: "Documento", simu
 
 // Atalhos do Chat: só um ícone (raio) ao lado do campo de mensagem; ao tocar
 // abre a lista. Escolher um atalho mostra uma prévia e só envia ao confirmar.
-export default function WhatsappChatShortcuts({ conversationId, canManage, disabled, onSent }) {
+// Digitar "/" no campo de mensagem (2026-10-10) abre a mesma lista, filtrada pelo que vem depois da barra
+// (slashQuery = texto depois de "/", null fora desse modo); escolher mostra a prévia; onSlashClose limpa o campo.
+export default function WhatsappChatShortcuts({ conversationId, canManage, disabled, onSent, slashQuery = null, onSlashClose }) {
   const [open, setOpen] = useState(false);
   const [shortcuts, setShortcuts] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -27,14 +29,23 @@ export default function WhatsappChatShortcuts({ conversationId, canManage, disab
     }
   }, []);
 
+  const slashMode = slashQuery !== null && !disabled;
   useEffect(() => {
-    if (open && shortcuts === null) load();
-  }, [open, shortcuts, load]);
+    if ((open || slashMode) && shortcuts === null) load();
+  }, [open, slashMode, shortcuts, load]);
+  useEffect(() => {
+    if (slashMode) setOpen(true);
+    else if (slashQuery === null) { setOpen(false); setSelected(null); }
+  }, [slashMode, slashQuery]);
+  const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const visibleShortcuts = slashMode && shortcuts
+    ? shortcuts.filter((shortcut) => normalize(shortcut.label).includes(normalize(slashQuery)))
+    : shortcuts;
 
   useEffect(() => {
     if (!open) return undefined;
     function onPointerDown(event) {
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
+      if (rootRef.current && !rootRef.current.contains(event.target) && !event.target.closest?.("textarea")) {
         setOpen(false);
         setSelected(null);
       }
@@ -63,6 +74,7 @@ export default function WhatsappChatShortcuts({ conversationId, canManage, disab
       if (!response.ok) throw new Error(data.error || "Não foi possível enviar o atalho.");
       setOpen(false);
       setSelected(null);
+      if (slashQuery !== null) onSlashClose?.();
       onSent();
     } catch (sendError) {
       setError(sendError.message);
@@ -91,7 +103,8 @@ export default function WhatsappChatShortcuts({ conversationId, canManage, disab
               <div className="max-h-72 overflow-y-auto p-1.5">
                 {shortcuts === null ? <p className="flex items-center justify-center gap-2 p-5 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /></p> : null}
                 {shortcuts && !shortcuts.length ? <p className="p-4 text-center text-sm font-bold text-muted">Nenhum atalho cadastrado.</p> : null}
-                {(shortcuts || []).map((shortcut) => {
+                {shortcuts && shortcuts.length && visibleShortcuts && !visibleShortcuts.length ? <p className="p-4 text-center text-sm font-bold text-muted">Nenhum atalho com “{slashQuery}”.</p> : null}
+                {(visibleShortcuts || []).map((shortcut) => {
                   const Icon = KIND_ICON[shortcut.kind] || MessageSquareText;
                   return (
                     <button key={shortcut.id} type="button" onClick={() => { setSelected(shortcut); setError(""); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-mist">
