@@ -282,3 +282,19 @@ test("ligação: cron aplica a proteção antes de gerar/enviar; retomada manual
   assert.match(migration, /on conflict \(key\) do nothing/);
   assert.doesNotMatch(migration, /\b(drop|delete|truncate|update)\b\s/i);
 });
+
+test("número que nunca pareou (phone null) não infla o teto do aquecimento do corretor", () => {
+  const today = "2026-10-10";
+  assert.equal(brokerWarmupCap({ 1: { phone: null, dispatch: true, warmupStart: null }, 2: { phone: "5514998822934", dispatch: true, warmupStart: today } }, today), 10);
+  assert.equal(brokerWarmupCap({ 1: { phone: null, dispatch: true, warmupStart: null } }, today), 30);
+});
+
+test("aquecimento começa no dia em que o número foi criado, não no da última reconexão", () => {
+  const out = syncSlotControls({
+    slotControls: {},
+    sessionRows: [{ slot: 2, phone_number: "5514998822934", created_at: "2026-10-08T15:00:00Z", last_connected_at: "2026-10-10T12:09:00Z" }],
+    hasPriorSendsBySlot: {},
+    todayDate: "2026-10-10"
+  });
+  assert.equal(out.controls[2].warmupStart, "2026-10-08");
+});

@@ -94,7 +94,7 @@ export default function WhatsappSessionHealthPanel() {
                     Último erro: {row.lastErrorLabel || row.lastErrorReason ? [row.lastErrorLabel, row.lastErrorReason].filter(Boolean).join(" · ") : "nenhum"}
                     {row.lastErrorAt && (row.lastErrorLabel || row.lastErrorReason) ? ` (${formatWhen(row.lastErrorAt)})` : ""}
                   </p>
-                  <p className="mt-1">Fila da Meta Diária pendente: <span className="font-semibold tabular-nums text-navy">{row.queuePending ?? "—"}</span></p>
+                  <p className="mt-1">Fila da Meta Diária do corretor (todos os números): <span className="font-semibold tabular-nums text-navy">{row.queuePending ?? "—"}</span></p>
                 </div>
                 <div className="flex items-end gap-1" role="img" aria-label={`Quedas por dia nos últimos 7 dias: ${row.drops.map((item) => `${dayLabel(item.day)}: ${item.count}`).join(", ")}. Total ${row.dropsTotal}.`}>
                   {row.drops.map((item) => (
