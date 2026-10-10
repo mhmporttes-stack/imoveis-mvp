@@ -2356,7 +2356,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
                 if (slashQuery !== null && event.key === "Enter" && !event.shiftKey) { event.preventDefault(); return; }
                 sendOnEnter(event, send, !sending && !awaiting && hasContent);
               }}
-              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem (digite / para atalhos)"}
+              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
               aria-label="Mensagem"
               rows={1}
               value={text}
