@@ -18,7 +18,9 @@ async function post(body) {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       console.error(`Webhook do CRM respondeu ${response.status} para ${body.type}:`, text.slice(0, 300));
+      return null;
     }
+    return await response.json().catch(() => null);
   } catch (error) {
     // Best-effort: nunca derruba a sessão do WhatsApp por causa de uma falha
     // de rede ao notificar o CRM — a mensagem já está confirmada no WhatsApp.
@@ -31,6 +33,14 @@ async function post(body) {
 // e os campos de mídia, citação, reação e edição (ver message-extract.js).
 export function notifyChatEvent(userId, event) {
   return post({ userId, type: "message", ...event });
+}
+
+// Mensagem que o corretor mandou PELO CELULAR para um contato novo chega endereçada por LID, sem telefone (2026-10-10,
+// caso Anderson/Bencke). Pergunta ao CRM quais telefones são candidatos (clientes recentes desse corretor); o serviço
+// confere cada um no WhatsApp (onWhatsApp devolve o LID) e aprende o par LID -> telefone.
+export async function requestLidCandidates(userId, lid) {
+  const result = await post({ userId, type: "lid_candidates", lid });
+  return Array.isArray(result?.phones) ? result.phones.map((phone) => String(phone || "").replace(/\D/g, "")).filter(Boolean).slice(0, 40) : [];
 }
 
 // Lote do histórico sincronizado ao conectar (ver sessions.js: onHistorySync).

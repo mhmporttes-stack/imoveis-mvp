@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, getIndividualSessionRow, isSlotDispatchEnabled, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
 import { parseSessionId } from "@/lib/whatsapp-session-slots.mjs";
-import { projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
+import { listLidCandidatePhones, projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
@@ -125,6 +125,12 @@ export async function POST(request) {
     if (payload.type === "history") {
       const result = await projectIndividualHistoryBatch(userId, Array.isArray(payload.items) ? payload.items : [], { sessionSlot });
       return NextResponse.json({ ok: true, ...result });
+    }
+
+    // Mensagem enviada pelo celular do corretor para contato novo (só LID, sem telefone): o serviço pede os telefones
+    // candidatos (clientes recentes desse corretor) para descobrir no WhatsApp qual deles é esse LID (2026-10-10).
+    if (payload.type === "lid_candidates") {
+      return NextResponse.json({ ok: true, phones: await listLidCandidatePhones(userId, sessionSlot) });
     }
 
     if (payload.type === "message_status") {

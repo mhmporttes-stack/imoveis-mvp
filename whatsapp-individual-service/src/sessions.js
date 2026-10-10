@@ -3,8 +3,8 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
-import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus } from "./webhook.js";
-import { extractChatEvent, extractTextMessage, lidMappingFromContact, lidMappingFromMessage, upsertRoute } from "./message-extract.js";
+import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
+import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
@@ -107,6 +107,66 @@ function rememberLid(userId, mapping) {
   const map = lidMapFor(userId);
   if (map.size >= LID_MAP_LIMIT && !map.has(mapping[0])) map.delete(map.keys().next().value);
   map.set(mapping[0], mapping[1]);
+  // Aprendeu o telefone de um LID que tinha mensagem do corretor esperando: entrega agora.
+  if (pendingLidMessages.has(`${userId}|${mapping[0]}`)) flushPendingLid(userId, mapping[0]).catch(() => {});
+}
+
+// Mensagens do PRÓPRIO corretor (enviadas pelo celular) para um LID ainda sem telefone conhecido: guardadas aqui até o
+// LID ser resolvido (requestLidCandidates + onWhatsApp) e então entregues ao CRM como se tivessem acabado de chegar.
+const pendingLidMessages = new Map(); // `${userId}|${lid}` -> { msgs: [], askedAt }
+const PENDING_LID_LIMIT = 300;
+const PENDING_LID_MSGS = 30;
+const LID_RESOLVE_COOLDOWN_MS = 5 * 60 * 1000;
+
+function unresolvedOwnLid(userId, msg) {
+  const key = msg?.key || {};
+  if (!key.fromMe || !isLidJid(key.remoteJid)) return "";
+  const lid = normalizeLid(key.remoteJid);
+  return lid && !lidMapFor(userId).get(lid) ? lid : "";
+}
+
+function holdPendingLid(userId, lid, msg) {
+  const id = `${userId}|${lid}`;
+  let item = pendingLidMessages.get(id);
+  if (!item) {
+    if (pendingLidMessages.size >= PENDING_LID_LIMIT) pendingLidMessages.delete(pendingLidMessages.keys().next().value);
+    item = { msgs: [], askedAt: 0 };
+    pendingLidMessages.set(id, item);
+  }
+  if (item.msgs.length < PENDING_LID_MSGS && !item.msgs.some((held) => held?.key?.id === msg?.key?.id)) item.msgs.push(msg);
+  return item;
+}
+
+async function resolveLidByCandidates(userId, lid) {
+  const sock = sockets.get(userId)?.sock;
+  if (!sock?.onWhatsApp) return false;
+  const phones = await requestLidCandidates(userId, lid);
+  if (!phones.length) return false;
+  const results = await sock.onWhatsApp(...phones.map((phone) => `${phone}@s.whatsapp.net`)).catch(() => []);
+  for (const result of results || []) {
+    const resultLid = normalizeLid(result?.lid);
+    const phone = phoneFromJid(result?.jid);
+    if (resultLid && phone) rememberLid(userId, [resultLid, phone]);
+  }
+  return Boolean(lidMapFor(userId).get(lid));
+}
+
+// Tenta resolver e, se der, processa as mensagens guardadas daquele LID. No máximo 1 consulta a cada 5 min por LID.
+async function flushPendingLid(userId, lid) {
+  const id = `${userId}|${lid}`;
+  const item = pendingLidMessages.get(id);
+  if (!item) return;
+  if (!lidMapFor(userId).get(lid)) {
+    if (Date.now() - item.askedAt < LID_RESOLVE_COOLDOWN_MS) return;
+    item.askedAt = Date.now();
+    const resolved = await resolveLidByCandidates(userId, lid).catch((error) => {
+      console.error(`[${userId}] Falha ao resolver LID de mensagem enviada pelo celular:`, error.message);
+      return false;
+    });
+    if (!resolved) return;
+  }
+  pendingLidMessages.delete(id);
+  for (const msg of item.msgs) await deliverLiveMessage(userId, msg);
 }
 
 function rememberLidsFromContacts(userId, contacts) {
@@ -458,22 +518,32 @@ async function onMessagesUpsert(userId, messages, type) {
     const route = upsertRoute({ type, fromMe: Boolean(msg?.key?.fromMe), timestampMs: messageTimestampMs(msg), now });
     if (route === "skip") continue;
     if (route === "history") { historyItems.push(msg); continue; }
-    try {
-      // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
-      // — do cliente e do que o corretor faz pelo app do celular (fromMe).
-      const event = extractChatEvent(msg, lidMapFor(userId));
-      if (!event) continue;
-      if (event.kind === "message" && event.media) {
-        event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
-      }
-      await notifyChatEvent(userId, event);
-    } catch (error) {
-      // Nunca perde a próxima mensagem por causa de uma falha em notificar
-      // esta — o log fica pra investigação manual.
-      console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
+    const pendingLid = unresolvedOwnLid(userId, msg);
+    if (pendingLid) {
+      holdPendingLid(userId, pendingLid, msg);
+      await flushPendingLid(userId, pendingLid);
+      continue;
     }
+    await deliverLiveMessage(userId, msg);
   }
   if (historyItems.length) await onHistorySync(userId, historyItems);
+}
+
+async function deliverLiveMessage(userId, msg) {
+  try {
+    // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
+    // — do cliente e do que o corretor faz pelo app do celular (fromMe).
+    const event = extractChatEvent(msg, lidMapFor(userId));
+    if (!event) return;
+    if (event.kind === "message" && event.media) {
+      event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
+    }
+    await notifyChatEvent(userId, event);
+  } catch (error) {
+    // Nunca perde a próxima mensagem por causa de uma falha em notificar
+    // esta — o log fica pra investigação manual.
+    console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
+  }
 }
 
 // Mídia: baixa do WhatsApp (o arquivo vem cifrado; o Baileys decifra) e
