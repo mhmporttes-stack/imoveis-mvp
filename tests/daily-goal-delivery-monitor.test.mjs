@@ -12,6 +12,8 @@ const HOUR = 60 * MIN;
 // das 09:00 às 11:00 têm entre 21 e 23 h); NOW14 = 14:00.
 const NOW = Date.parse("2026-10-06T08:00:00-03:00");
 const NOW14 = Date.parse("2026-10-06T14:00:00-03:00");
+// Só as três chaves do alerta de limite fixo (as de tendência têm teste próprio mais abaixo).
+const fixed = ({ thresholdPercent, minSample, maxAlertsPerRun }) => ({ thresholdPercent, minSample, maxAlertsPerRun });
 const connected = { status: "connected", lastDisconnectAtMs: null };
 
 // n mensagens enviadas em `date` entre 09:00 e 12:00 (SP), `delivered` delas com confirmação.
@@ -29,9 +31,9 @@ test("padrões: limiar 60%, amostra mínima 20, no máximo 5 e-mails por execuç
   assert.equal(DELIVERY_MIN_SAMPLE, 20);
   assert.equal(DELIVERY_MAX_ALERTS_PER_RUN, 5);
   assert.equal(DELIVERY_EVAL_INTERVAL_MS, HOUR);
-  assert.deepEqual(resolveMonitorConfig(null), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 });
-  assert.deepEqual(resolveMonitorConfig({ thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 }), { thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 }, "configurável por crm_settings");
-  assert.deepEqual(resolveMonitorConfig({ thresholdPercent: -5, minSample: 0, maxAlertsPerRun: "x" }), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 }, "valor inválido volta ao padrão");
+  assert.deepEqual(fixed(resolveMonitorConfig(null)), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 });
+  assert.deepEqual(fixed(resolveMonitorConfig({ thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 })), { thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 }, "configurável por crm_settings");
+  assert.deepEqual(fixed(resolveMonitorConfig({ thresholdPercent: -5, minSample: 0, maxAlertsPerRun: "x" })), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 }, "valor inválido volta ao padrão");
 });
 
 test("taxa de entrega por corretor e por dia: enviadas x com confirmação (1 tique ou mais)", () => {
