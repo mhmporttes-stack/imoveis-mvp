@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Save } from "lucide-react";
 import Avatar from "./Avatar";
+import WhatsappSessionHealthPanel from "./WhatsappSessionHealthPanel";
 import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
 
 const SESSION_STATUS_LABELS = {
@@ -320,6 +321,8 @@ function AutomationTab() {
         <StatCard label="Enviadas no total" value={totals.sentTotal} tone="navy" />
       </div>
       <p className="text-sm font-bold text-muted">{runningCount} de {brokers.length} corretores com a automação ligada.</p>
+
+      <WhatsappSessionHealthPanel />
 
       <GlobalConfigPanel onSaved={load} />
 

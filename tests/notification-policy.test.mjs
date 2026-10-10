@@ -7,8 +7,9 @@ import { ALLOWED_NOTIFICATION_KINDS, NOTIFICATION_KIND, isNotificationAllowed, n
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
 test("só cliente novo, atividade agendada, transferência de clientes e teste são permitidos; o resto é negado", () => {
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "new_client", "scheduled_activity", "test"]);
-  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test"]) assert.equal(isNotificationAllowed(kind), true, kind);
+  // whatsapp_connection: exceção do dono (2026-10-10, WA-20) — push da queda do PRÓPRIO WhatsApp, só ao corretor dono.
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "new_client", "scheduled_activity", "test", "whatsapp_connection"]);
+  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
 
@@ -34,9 +35,14 @@ test("push: chamadores permitidos declaram o tipo; os demais NÃO declaram (fica
   };
   for (const [file, marker] of Object.entries(allowed)) assert.ok(read(file).includes(marker), `${file} deveria declarar ${marker}`);
   assert.ok(read("lib/crm-automations.js").includes("kind: notificationKindForAutomationTrigger(triggerType)"));
-  for (const file of ["lib/whatsapp-chat.js", "lib/whatsapp-individual-inbound.js", "lib/prospecting-reply.js", "lib/crm-alerts.js", "lib/supervision-messages.js", "lib/whatsapp-broadcast-schedules.js"]) {
+  for (const file of ["lib/whatsapp-chat.js", "lib/whatsapp-individual-inbound.js", "lib/prospecting-reply.js", "lib/supervision-messages.js", "lib/whatsapp-broadcast-schedules.js"]) {
     assert.ok(!/sendPushToUser\([^)]*kind:/.test(read(file)), `${file} não pode declarar tipo permitido`);
   }
+  // Central de Alertas: o push só sai com tipo permitido quando o alerta declara `push_kind` = whatsapp_connection
+  // (queda do próprio WhatsApp, dono 2026-10-10); qualquer outro valor vira "sem tipo" e continua bloqueado.
+  const alerts = read("lib/crm-alerts.js");
+  assert.ok(alerts.includes("row.context?.push_kind === NOTIFICATION_KIND.WHATSAPP_CONNECTION ? NOTIFICATION_KIND.WHATSAPP_CONNECTION : undefined"));
+  assert.ok(!/kind: "(new_client|scheduled_activity|clients_transferred|test)"/.test(alerts));
 });
 
 test("sino: avisos de cliente novo usam o tipo permitido; Roleta parou/Documentação/Chat interno/automação genérica não", () => {

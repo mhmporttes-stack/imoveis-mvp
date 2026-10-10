@@ -54,13 +54,20 @@ export const DEFAULT_CONFIG = Object.freeze({
   restartLoopWindowMs: 60_000,
   // 500/"Stream Errored": reconecta com backoff, mas repetição em janela curta = para e pede atenção.
   streamErrorMax: 3,
-  streamErrorWindowMs: 600_000
+  streamErrorWindowMs: 600_000,
+  // Limite por NÚMERO em janela longa (dono, 2026-10-10): caso real = 12 quedas 500 e 17 conexões numa noite, cada uma
+  // espaçada demais para cair no limite de 3 em 10 min. Mais que `dropLimitMax` quedas recuperáveis em
+  // `dropLimitWindowMs` = para e pede atenção (needs_attention:repeated_drops). A janela NÃO zera quando a conexão
+  // estabiliza (é justamente o padrão "cai, estabiliza, cai"); só zera em conexão manual (humano agiu) ou reinício do serviço.
+  dropLimitMax: 6,
+  dropLimitWindowMs: 3 * 3_600_000
 });
 
 const INTERVENTION_REASONS = Object.freeze({
   forbidden: "O WhatsApp recusou a conexão (403). A reconexão automática foi interrompida para não insistir; verifique o número antes de reconectar manualmente.",
   connection_replaced: "Outra conexão assumiu esta sessão (440). A reconexão automática foi interrompida para as duas não ficarem se derrubando.",
   multidevice_mismatch: "O WhatsApp informou incompatibilidade de multi-aparelho (411). A reconexão automática foi interrompida.",
+  repeated_drops: "A conexão caiu muitas vezes em poucas horas. A reconexão automática foi interrompida para não insistir; reconecte manualmente quando o celular estiver com internet estável.",
   repeated_stream_errors: "O WhatsApp derrubou a conexão com erro de comunicação (500) várias vezes em pouco tempo. A reconexão automática foi interrompida; reconecte manualmente quando for seguro.",
   restart_loop: "O WhatsApp pediu reinício (515) repetidamente sem a conexão estabilizar. A reconexão automática foi interrompida.",
   no_active_attempt: "A sessão estava marcada como reconectando, mas nenhuma tentativa estava em andamento. Reconecte manualmente.",
@@ -123,7 +130,8 @@ export function configFromEnv(env = {}) {
   return {
     ...DEFAULT_CONFIG,
     maxRetries: boundedInt(env.WHATSAPP_RECONNECT_MAX_RETRIES, DEFAULT_CONFIG.maxRetries, 1, 10),
-    stableMs: boundedInt(env.WHATSAPP_RECONNECT_STABLE_MS, DEFAULT_CONFIG.stableMs, 30_000, 3_600_000)
+    stableMs: boundedInt(env.WHATSAPP_RECONNECT_STABLE_MS, DEFAULT_CONFIG.stableMs, 30_000, 3_600_000),
+    dropLimitMax: boundedInt(env.WHATSAPP_RECONNECT_DROP_LIMIT, DEFAULT_CONFIG.dropLimitMax, 3, 20)
   };
 }
 
@@ -144,7 +152,7 @@ export function createReconnectController({
   newId = () => `${now().toString(36)}-${Math.floor(random() * 1e9).toString(36)}`,
   record = () => {}
 } = {}) {
-  const state = { cycleId: null, active: false, attempt: 0, openedAt: null, stableTimer: null, restarts: [], streamErrors: [] };
+  const state = { cycleId: null, active: false, attempt: 0, openedAt: null, stableTimer: null, restarts: [], streamErrors: [], drops: [] };
 
   const emit = (type, fields = {}) => {
     try { record(type, { cycleId: state.cycleId, attempt: state.attempt, ...fields }); } catch { /* telemetria nunca derruba a sessão */ }
@@ -171,6 +179,8 @@ export function createReconnectController({
       state.attempt = 1;
       state.openedAt = null;
       state.restarts = [];
+      // Conexão pedida por uma pessoa (botão Conectar) recomeça a contagem de quedas; retomada no boot não.
+      if (trigger === "manual") { state.drops = []; state.streamErrors = []; }
       emit("cycle_start", { trigger });
       emit("connect_attempt", { trigger });
       return { cycleId: state.cycleId, attempt: state.attempt };
@@ -272,6 +282,10 @@ export function createReconnectController({
         return { action: ACTION.GIVE_UP_PAIRING, kind: verdict.kind, code: verdict.code, reason: qr ? "qr_expired" : "pairing_interrupted" };
       }
 
+      const dropNow = now();
+      state.drops = state.drops.filter((at) => dropNow - at < config.dropLimitWindowMs);
+      state.drops.push(dropNow);
+
       // 500 / "Stream Errored": reconecta com backoff, mas repetição em janela curta para e pede atenção.
       if (verdict.code === 500) {
         const t = now();
@@ -288,6 +302,7 @@ export function createReconnectController({
         endCycle("limit");
         return { action: ACTION.GIVE_UP, kind: verdict.kind, code: verdict.code, reason: verdict.reason, maxRetries: limit };
       }
+      if (state.drops.length > config.dropLimitMax) return intervene("repeated_drops");
       const delayMs = computeBackoffDelay(retriesUsed + 1, config, random);
       emit("retry_scheduled", { nextAttempt: state.attempt + 1, delayMs, statusCode: verdict.code, reason: verdict.reason });
       return { action: ACTION.RETRY, kind: verdict.kind, code: verdict.code, reason: verdict.reason, delayMs, nextAttempt: state.attempt + 1 };

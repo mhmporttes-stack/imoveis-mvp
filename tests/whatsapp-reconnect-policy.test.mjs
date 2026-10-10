@@ -311,3 +311,52 @@ test("nenhum caminho da política/lifecycle envia mensagem nem fala com o WhatsA
     assert.ok(!/sendMessage|\.sendMessage\(|requestPairingCode|makeWASocket|\.logout\(/.test(source), `${file} não pode enviar/parear`);
   }
 });
+
+test("limite por número em janela longa: mais de 6 quedas em 3 h para e pede atenção (repeated_drops)", async () => {
+  const h = harness();
+  h.controller.beginCycle("resume");
+  let last;
+  // Quedas 500 espaçadas (12 min) escapam do limite de 3 em 10 min; a conexão volta entre elas.
+  for (let i = 0; i < DEFAULT_CONFIG.dropLimitMax; i += 1) {
+    last = await h.drop(500);
+    assert.equal(last.action, ACTION.RETRY, `queda ${i + 1} ainda reconecta`);
+    h.controller.beginRetry();
+    h.controller.onOpen();
+    h.timers.at(-1).fn(); // estabiliza: fecha o ciclo
+    h.advance(12 * 60_000);
+  }
+  last = await h.drop(500);
+  assert.equal(last.action, ACTION.INTERVENE);
+  assert.equal(last.reason, "repeated_drops");
+  assert.equal(h.entry.status, "error");
+  assert.match(h.calls.notify.at(-1).error, /^needs_attention:repeated_drops:/);
+  assert.equal(h.calls.retries.length, DEFAULT_CONFIG.dropLimitMax, "nenhuma reconexão agendada depois do limite");
+});
+
+test("limite por número: quedas fora da janela de 3 h não contam; conexão manual zera; retomada do boot não", async () => {
+  const h = harness();
+  h.controller.beginCycle("resume");
+  for (let i = 0; i < DEFAULT_CONFIG.dropLimitMax; i += 1) {
+    await h.drop(408);
+    h.controller.beginRetry();
+    h.controller.onOpen();
+    h.timers.at(-1).fn(); // estabiliza: fecha o ciclo
+  }
+  h.advance(DEFAULT_CONFIG.dropLimitWindowMs + 1000);
+  assert.equal((await h.drop(408)).action, ACTION.RETRY, "queda antiga saiu da janela");
+
+  const g = harness();
+  g.controller.beginCycle("resume");
+  for (let i = 0; i < DEFAULT_CONFIG.dropLimitMax; i += 1) { await g.drop(408); g.controller.beginRetry(); g.controller.onOpen(); g.timers.at(-1).fn(); }
+  g.controller.beginCycle("resume");
+  assert.equal(g.controller.state.drops.length, DEFAULT_CONFIG.dropLimitMax, "retomada automática não zera");
+  g.controller.beginCycle("manual");
+  assert.equal(g.controller.state.drops.length, 0, "conexão manual zera");
+});
+
+test("configFromEnv: limite de quedas por número respeita limites seguros", () => {
+  assert.equal(configFromEnv({}).dropLimitMax, 6);
+  assert.equal(configFromEnv({ WHATSAPP_RECONNECT_DROP_LIMIT: "10" }).dropLimitMax, 10);
+  assert.equal(configFromEnv({ WHATSAPP_RECONNECT_DROP_LIMIT: "1" }).dropLimitMax, 6);
+  assert.equal(configFromEnv({ WHATSAPP_RECONNECT_DROP_LIMIT: "99" }).dropLimitMax, 6);
+});
