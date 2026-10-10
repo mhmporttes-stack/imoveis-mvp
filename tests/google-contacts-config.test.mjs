@@ -64,3 +64,13 @@ test("GOOGLE_CONTACTS_SCOPES pede só o necessário (contatos + identificar a co
     "https://www.googleapis.com/auth/userinfo.email"
   ].sort());
 });
+
+test("hasContactsScope/isGoogleAuthorizationError: detecta consentimento sem Contatos e erro de permissão", async () => {
+  const { hasContactsScope, isGoogleAuthorizationError } = await import(`../lib/google-contacts-config-core.mjs?t=${Date.now()}-scope`);
+  assert.equal(hasContactsScope("openid https://www.googleapis.com/auth/userinfo.email"), false);
+  assert.equal(hasContactsScope("https://www.googleapis.com/auth/contacts https://www.googleapis.com/auth/userinfo.email"), true);
+  assert.equal(isGoogleAuthorizationError(403, "Request had insufficient authentication scopes."), true);
+  assert.equal(isGoogleAuthorizationError(401, ""), true);
+  assert.equal(isGoogleAuthorizationError(500, "boom"), false);
+  assert.equal(isGoogleAuthorizationError(403, "quota exceeded"), false);
+});

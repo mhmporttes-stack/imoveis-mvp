@@ -25,6 +25,14 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-10 — Google Contacts: conexão sem permissão de Contatos travava o envio da Meta Diária (Bruna)
+
+- **Sintoma:** 23 itens da fila da Meta Diária da Bruna Santos em `error` ("Google Contacts: Request had insufficient authentication scopes"), reagendados de 30 em 30 min sem nunca enviar.
+- **Causa raiz:** a conexão Google dela foi salva com só `openid`/`userinfo.email` (permissão de Contatos desmarcada no consentimento) e ficou `connected`; o pré-envio chamava o Google, recebia 403 e reagendava em loop.
+- **Mudou:** (1) `completeGoogleOAuthConnection` recusa conexão sem a permissão de Contatos; (2) 403 de permissão/401 ao criar contato marca a conexão como `error` ("Requer reconexão"), e o envio automático segue sem esperar o Google (mesmo tratamento do token revogado).
+- **Arquivos:** `lib/google-contacts.js`, `lib/google-contacts-config-core.mjs`, `tests/google-contacts-config.test.mjs`.
+- **Pendente (dono/Bruna):** reconectar o Google dela liberando Contatos. Nenhum dado de produção foi alterado.
+
 ### 2026-10-09 — PWA: versão nova não recarrega a tela na frente de quem está usando
 - **Data:** 2026-10-09
 - **Área:** PWA / Frontend
