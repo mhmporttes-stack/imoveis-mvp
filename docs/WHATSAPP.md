@@ -103,7 +103,7 @@ Celular do corretor ⇄ WhatsApp ⇄ whatsapp-individual-service (Railway, Baile
 - **Alerta ao corretor:** `notifyBrokerOwnConnection` (`lib/whatsapp-connection-alert.js`, regras em `-core.mjs`), chamado logo depois do alerta da gestora em `applyIndividualSessionStatus`. Central (Importante, `crm_alert_definitions.key = whatsapp_connection_self`) + push: `createAlertDeliveries` só envia push quando o contexto da entrega declara `push_kind = whatsapp_connection` (`lib/notification-policy-core.mjs`); demais alertas seguem sem push.
 - **Painel de saúde:** `GET /api/admin/whatsapp-individual/health` → `WhatsappSessionHealthPanel` na aba Automação. Lê `whatsapp_individual_sessions`, `whatsapp_session_telemetry` (`event_type = 'disconnected'`, 7 dias) e conta `daily_goal_auto_queue` pendente; nada é gravado.
 - **Serviço parado:** `checkWhatsappServiceStalled` (`lib/whatsapp-service-stall.js`) no cron `whatsapp-flows` (resposta do cron traz `serviceStall`). Limite 5 min sem heartbeat do lease; destinatários = admins gerais ativos.
-- **Migration a aplicar (opcional, aditiva):** `20261010130000_whatsapp_self_and_service_alert_definitions.sql` (duas linhas em `crm_alert_definitions`). Sem ela os dois alertas funcionam com o texto padrão, ligados, mas o dono não os edita/desliga na Central.
+- **Migration a aplicar (opcional, aditiva):** `20261010130100_whatsapp_self_and_service_alert_definitions.sql` (duas linhas em `crm_alert_definitions`). Sem ela os dois alertas funcionam com o texto padrão, ligados, mas o dono não os edita/desliga na Central.
 
 ## 1-B. Alerta "WhatsApp precisa de atenção" (2026-10-04) — **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]**
 
