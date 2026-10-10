@@ -23,3 +23,15 @@ test("conversa sem número entra e é juntada quando o telefone aparece", () => 
   const route = readFileSync(new URL("../app/api/webhooks/whatsapp-individual/route.js", import.meta.url), "utf8");
   assert.match(route, /payload\.type === "lid_resolved"/);
 });
+
+// 2026-10-10: serviço reiniciou, esqueceu o par LID -> telefone e criou "Número" duplicado de contato conhecido.
+test("LID já visto na sessão usa a conversa existente; duplicatas são juntadas no cron", () => {
+  const inbound = readFileSync(new URL("../lib/whatsapp-individual-inbound.js", import.meta.url), "utf8");
+  assert.match(inbound, /export async function findKnownPhoneForLid/);
+  assert.match(inbound, /\.eq\("metadata->>remote_jid", jid\)/);
+  assert.match(inbound, /const placeholder = isLidPlaceholder\(from\) && !knownPhone \? String\(from\) : "";/);
+  const cron = readFileSync(new URL("../app/api/cron/scheduled-activities/route.js", import.meta.url), "utf8");
+  assert.match(cron, /reconcileLidPlaceholders\(\)/);
+  const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
+  assert.match(ui, /if \(full === UNKNOWN_NUMBER_LABEL\) return full;/);
+});

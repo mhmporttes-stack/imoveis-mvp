@@ -199,6 +199,7 @@ function displayName(conversation) {
 // Telefone ou nome que começa por número/símbolo aparece inteiro.
 function listFirstName(conversation) {
   const full = String(displayName(conversation) || "").trim();
+  if (full === UNKNOWN_NUMBER_LABEL) return full;
   return /^\p{L}/u.test(full) ? full.split(/\s+/)[0] : full;
 }
 

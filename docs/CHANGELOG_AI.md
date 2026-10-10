@@ -30,6 +30,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-10 — Chat: "Número" duplicado de contato conhecido (LID esquecido após reinício do serviço)
+
+- **Sintoma (dono, print):** na aba Particular apareciam "Número" com a mesma foto de contatos já existentes (ex.: Müller/Bencke) — conversa duplicada e sem nome.
+- **Causa raiz:** o par LID -> telefone do microsserviço fica só em memória; depois do reinício do deploy, mensagens do corretor para contatos JÁ conhecidos (endereçados por LID) viraram conversas "Número não identificado". A lista ainda cortava o rótulo para "Número".
+- **Mudou:** `findKnownPhoneForLid` (`lib/whatsapp-individual-inbound.js`) procura o LID no histórico da própria sessão (`metadata.remote_jid`) e usa a conversa existente; `lid_candidates` devolve esse telefone primeiro; `reconcileLidPlaceholders` (cron `scheduled-activities`) junta as duplicatas já criadas (2 hoje: Bencke e Bruna); a lista mostra "Número não identificado" inteiro. Teste: `tests/whatsapp-lid-placeholder.test.mjs`.
+
 ### 2026-10-10 — WA-26: WhatsApp pessoal sem card de cliente vai sozinho para Particular
 
 - **Regra do dono:** "Tudo que não tiver card de cliente, você pode jogar já em conversa particular."

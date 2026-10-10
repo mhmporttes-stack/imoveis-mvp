@@ -121,6 +121,8 @@ export async function GET(request) {
 
     // WhatsApp pessoal: sem card de cliente -> Particular; ganhou card -> volta (WA-26, dono 2026-10-10).
     try {
+      const { reconcileLidPlaceholders } = await import("@/lib/whatsapp-individual-inbound");
+      await reconcileLidPlaceholders();
       await reconcileAutoPrivateConversations();
     } catch (autoPrivateError) {
       console.error("Falha ao reconciliar o Particular automático.", autoPrivateError);
