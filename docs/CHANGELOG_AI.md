@@ -30,6 +30,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-10 — WA-26: WhatsApp pessoal sem card de cliente vai sozinho para Particular
+
+- **Regra do dono:** "Tudo que não tiver card de cliente, você pode jogar já em conversa particular."
+- **Mudou:** `lib/whatsapp-auto-private.js` (novo): na chegada de cada mensagem do WhatsApp pessoal e no cron `scheduled-activities`, conversa sem cliente → Particular (`origin.auto_private`); se o telefone ganhar card (formulário, cadastro, "Adicionar ao CRM", "Vincular") → sai sozinha e é ligada ao cliente. Particular manual intocada. Merge de conversa "Número não identificado" não carrega mais a Particular automática. 121 conversas pessoais sem cliente hoje (2 com mensagem nos últimos 7 dias) passam pela regra no 1º ciclo do cron (antes, tenta ligar pelo telefone).
+- **Arquivos:** `lib/whatsapp-auto-private.js`, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-chat.js` (vincular/adicionar liberam), `app/api/cron/scheduled-activities/route.js`, `docs/BUSINESS_RULES.md` WA-26, testes.
+
 ### 2026-10-10 — WA-25: tudo do WhatsApp do corretor entra no Chat, inclusive contato novo sem número ("Número não identificado")
 
 - **Regra do dono:** carregar todas as conversas do WhatsApp do corretor, sem filtro; pessoal vai para Particular.

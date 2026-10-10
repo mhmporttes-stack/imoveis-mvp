@@ -10,6 +10,7 @@ import { listDueCalendarActivityNotifications, markCalendarActivityNotified } fr
 import { sendScheduledActivityNotification } from "@/lib/scheduled-activity-notifications";
 import { runCrmAutomations } from "@/lib/crm-automations";
 import { reconcileAdWaitingClients, reconcileOrganicLeads, reconcileSponsoredLeads } from "@/lib/whatsapp-sponsored-lead";
+import { reconcileAutoPrivateConversations } from "@/lib/whatsapp-auto-private";
 import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
@@ -116,6 +117,13 @@ export async function GET(request) {
       await reconcileAdWaitingClients();
     } catch (adWaitingError) {
       console.error("Falha ao reconciliar clientes do anúncio aguardando.", adWaitingError);
+    }
+
+    // WhatsApp pessoal: sem card de cliente -> Particular; ganhou card -> volta (WA-26, dono 2026-10-10).
+    try {
+      await reconcileAutoPrivateConversations();
+    } catch (autoPrivateError) {
+      console.error("Falha ao reconciliar o Particular automático.", autoPrivateError);
     }
 
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro

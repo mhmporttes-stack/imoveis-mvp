@@ -27,7 +27,7 @@ test("mensagem nova em conversa particular não reabre, não vincula e não cria
   assert.match(sql, /client_id = case when c\.private_at is not null then c\.client_id/);
   const inbound = read("lib/whatsapp-individual-inbound.js");
   assert.match(inbound, /const internalContact = privateContact \|\| await findInternalTeamPhone\(phone\);/);
-  assert.match(inbound, /const hiddenConversation = Boolean\(afterApply\?\.deleted_at\) \|\| privateContact;/);
+  assert.match(inbound, /const hiddenConversation = Boolean\(afterApply\?\.deleted_at\) \|\| privateContact \|\| Boolean\(afterApply\?\.private_at\);/);
   assert.match(inbound, /if \(!conversation\.client_id && !conversation\.private_at\) \{/);
   const lead = read("lib/whatsapp-sponsored-lead.js");
   assert.equal((lead.match(/if \(conversation\.private_at\) return \{ skipped: "conversa_particular" \};/g) || []).length, 2);
@@ -56,7 +56,7 @@ test("conversa particular não gera notificação de nenhum tipo (dono, 2026-10-
   const chat = read("lib/whatsapp-chat.js");
   assert.match(chat, /\.or\("deleted_at\.not\.is\.null,private_at\.not\.is\.null"\)/, "push do número oficial");
   assert.match(chat, /async function notifyInternalMessage\(conversation, auth\) \{\n[^\n]*\n\s+if \(conversation\?\.private_at\) return;/, "nota interna");
-  assert.match(read("lib/whatsapp-individual-inbound.js"), /\|\| privateContact;/, "push do WhatsApp pessoal");
+  assert.match(read("lib/whatsapp-individual-inbound.js"), /\|\| privateContact \|\| Boolean\(afterApply\?\.private_at\);/, "push do WhatsApp pessoal");
   assert.match(read("lib/alexa-reply-alert.js"), /row\.private_at/, "alerta de cliente sem resposta");
   assert.match(read("lib/prospecting-reply.js"), /return \{ outcome: "conversa_particular" \}/, "resposta da prospecção");
   assert.match(read("lib/whatsapp-form-reminder.js"), /if \(!conversation \|\| conversation\.private_at\) return null;/, "lembrete do formulário");
