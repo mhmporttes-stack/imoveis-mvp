@@ -19,7 +19,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-09 — Chat: "online / visto por último" do contato (WhatsApp pessoal)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-10 — Apresentação: cena "Próximo passo" encaixada no celular
+- **Data:** 2026-10-10
+- **Área:** Apresentação da simulação (PRES)
+- **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
+
+### 2026-10-09 — Chat: "online / visto por último" do contato (WhatsApp pessoal)
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Chat / microsserviço
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.

@@ -371,6 +371,25 @@
 .ctaCaps { letter-spacing: 0.08em; }
 .cta svg, .ghostBtn svg { width: 22px; height: 22px; flex: none; }
 .ghostBtn:disabled { opacity: 0.6; cursor: not-allowed; border-style: dashed; }
+/* "Próximo passo" no celular (pedido do dono, 2026-10-10): com o título longo e até 4 botões a cena passava da tela — o
+   "Próximo passo" encostava na marca do topo, os botões ficavam por cima da logo da Caixa e "AGENDAR ATENDIMENTO" quebrava
+   em duas linhas. Título e botões menores, espaçamentos mais curtos; `safe center` nunca deixa o conteúdo subir para trás
+   da marca quando ainda assim não couber (fica alinhado ao topo útil). Só esta cena; o computador não muda. */
+.scene[data-scene="proximo"] { justify-content: safe center; }
+.scene[data-scene="proximo"] .titleMid { margin-top: calc(var(--u) * 10); font-size: max(21px, calc(var(--u) * 25)); line-height: 1.22; }
+.scene[data-scene="proximo"] .note { margin-top: calc(var(--u) * 12); font-size: max(13px, calc(var(--u) * 14)); }
+.scene[data-scene="proximo"] .actions { margin-top: calc(var(--u) * 20); gap: calc(var(--u) * 10); max-width: calc(var(--u) * 340); }
+.scene[data-scene="proximo"] .cta, .scene[data-scene="proximo"] .ghostBtn {
+  min-height: max(46px, calc(var(--u) * 50)); padding: 0 calc(var(--u) * 18); gap: 8px;
+  font-size: max(14px, calc(var(--u) * 15)); white-space: nowrap;
+}
+.scene[data-scene="proximo"] .ctaCaps { letter-spacing: 0.06em; }
+.scene[data-scene="proximo"] .cta svg, .scene[data-scene="proximo"] .ghostBtn svg { width: 19px; height: 19px; }
+@media (max-height: 720px) {
+  .scene[data-scene="proximo"] .titleMid { font-size: max(19px, calc(var(--u) * 22)); }
+  .scene[data-scene="proximo"] .actions { margin-top: calc(var(--u) * 14); gap: calc(var(--u) * 8); }
+  .scene[data-scene="proximo"] .cta, .scene[data-scene="proximo"] .ghostBtn { min-height: 44px; }
+}
 .textBtn { min-height: 56px; padding: 0 calc(var(--u) * 16); border: 0; background: transparent; color: var(--fg); opacity: 0.92; font-size: max(15px, calc(var(--u) * 16)); font-weight: 680; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .cta:hover { box-shadow: 0 calc(var(--u) * 14) calc(var(--u) * 32) rgba(2, 12, 24, 0.36); transform: translateY(-1px); }
