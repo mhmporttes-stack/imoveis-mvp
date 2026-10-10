@@ -43,6 +43,11 @@ export async function requestLidCandidates(userId, lid) {
   return Array.isArray(result?.phones) ? result.phones.map((phone) => String(phone || "").replace(/\D/g, "")).filter(Boolean).slice(0, 40) : [];
 }
 
+// Telefone de um LID que já tinha conversa "Número não identificado" no CRM: o CRM junta as duas conversas.
+export function notifyLidResolved(userId, lid, phone) {
+  return post({ userId, type: "lid_resolved", lid, phone });
+}
+
 // Lote do histórico sincronizado ao conectar (ver sessions.js: onHistorySync).
 export function notifyHistoryBatch(userId, items) {
   return post({ userId, type: "history", items });

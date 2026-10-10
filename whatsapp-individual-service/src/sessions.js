@@ -3,7 +3,7 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
-import { notifyChatEvent, notifyHistoryBatch, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
+import { notifyChatEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
 import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
@@ -107,15 +107,21 @@ function rememberLid(userId, mapping) {
   const map = lidMapFor(userId);
   if (map.size >= LID_MAP_LIMIT && !map.has(mapping[0])) map.delete(map.keys().next().value);
   map.set(mapping[0], mapping[1]);
-  // Aprendeu o telefone de um LID que tinha mensagem do corretor esperando: entrega agora.
-  if (pendingLidMessages.has(`${userId}|${mapping[0]}`)) flushPendingLid(userId, mapping[0]).catch(() => {});
+  // Aprendeu o telefone de um LID que já tinha conversa "Número não identificado": o CRM junta as duas.
+  const placeholderId = `${userId}|${mapping[0]}`;
+  if (placeholderLids.has(placeholderId)) {
+    placeholderLids.delete(placeholderId);
+    notifyLidResolved(userId, mapping[0], mapping[1]).catch(() => {});
+  }
 }
 
-// Mensagens do PRÓPRIO corretor (enviadas pelo celular) para um LID ainda sem telefone conhecido: guardadas aqui até o
-// LID ser resolvido (requestLidCandidates + onWhatsApp) e então entregues ao CRM como se tivessem acabado de chegar.
-const pendingLidMessages = new Map(); // `${userId}|${lid}` -> { msgs: [], askedAt }
-const PENDING_LID_LIMIT = 300;
-const PENDING_LID_MSGS = 30;
+// Mensagens do PRÓPRIO corretor (enviadas pelo celular) para um LID sem telefone conhecido (contato novo). Regra do
+// dono (2026-10-10): TUDO do WhatsApp do corretor entra no Chat. 1) tenta descobrir o telefone pelos clientes recentes
+// do corretor (CRM -> onWhatsApp, nada é enviado); 2) não achou: entrega mesmo assim como "lid:<id>" ("Número não
+// identificado" no Chat) e, quando o telefone aparecer (resposta do contato, agenda), avisa o CRM para juntar.
+const placeholderLids = new Map(); // `${userId}|${lid}` -> true (entregue como "lid:<id>", aguardando o telefone)
+const PLACEHOLDER_LID_LIMIT = 2000;
+const lidAskedAt = new Map(); // `${userId}|${lid}` -> último pedido de candidatos (ms)
 const LID_RESOLVE_COOLDOWN_MS = 5 * 60 * 1000;
 
 function unresolvedOwnLid(userId, msg) {
@@ -125,19 +131,11 @@ function unresolvedOwnLid(userId, msg) {
   return lid && !lidMapFor(userId).get(lid) ? lid : "";
 }
 
-function holdPendingLid(userId, lid, msg) {
-  const id = `${userId}|${lid}`;
-  let item = pendingLidMessages.get(id);
-  if (!item) {
-    if (pendingLidMessages.size >= PENDING_LID_LIMIT) pendingLidMessages.delete(pendingLidMessages.keys().next().value);
-    item = { msgs: [], askedAt: 0 };
-    pendingLidMessages.set(id, item);
-  }
-  if (item.msgs.length < PENDING_LID_MSGS && !item.msgs.some((held) => held?.key?.id === msg?.key?.id)) item.msgs.push(msg);
-  return item;
-}
-
 async function resolveLidByCandidates(userId, lid) {
+  const id = `${userId}|${lid}`;
+  if (Date.now() - (lidAskedAt.get(id) || 0) < LID_RESOLVE_COOLDOWN_MS) return false;
+  if (lidAskedAt.size >= PLACEHOLDER_LID_LIMIT) lidAskedAt.delete(lidAskedAt.keys().next().value);
+  lidAskedAt.set(id, Date.now());
   const sock = sockets.get(userId)?.sock;
   if (!sock?.onWhatsApp) return false;
   const phones = await requestLidCandidates(userId, lid);
@@ -151,22 +149,17 @@ async function resolveLidByCandidates(userId, lid) {
   return Boolean(lidMapFor(userId).get(lid));
 }
 
-// Tenta resolver e, se der, processa as mensagens guardadas daquele LID. No máximo 1 consulta a cada 5 min por LID.
-async function flushPendingLid(userId, lid) {
+async function deliverOwnLidMessage(userId, lid, msg) {
+  const resolved = await resolveLidByCandidates(userId, lid).catch((error) => {
+    console.error(`[${userId}] Falha ao resolver LID de mensagem enviada pelo celular:`, error.message);
+    return false;
+  });
+  if (resolved) return deliverLiveMessage(userId, msg);
+  const placeholder = `lid:${lid.split("@")[0]}`;
   const id = `${userId}|${lid}`;
-  const item = pendingLidMessages.get(id);
-  if (!item) return;
-  if (!lidMapFor(userId).get(lid)) {
-    if (Date.now() - item.askedAt < LID_RESOLVE_COOLDOWN_MS) return;
-    item.askedAt = Date.now();
-    const resolved = await resolveLidByCandidates(userId, lid).catch((error) => {
-      console.error(`[${userId}] Falha ao resolver LID de mensagem enviada pelo celular:`, error.message);
-      return false;
-    });
-    if (!resolved) return;
-  }
-  pendingLidMessages.delete(id);
-  for (const msg of item.msgs) await deliverLiveMessage(userId, msg);
+  if (placeholderLids.size >= PLACEHOLDER_LID_LIMIT && !placeholderLids.has(id)) placeholderLids.delete(placeholderLids.keys().next().value);
+  placeholderLids.set(id, true);
+  return deliverLiveMessage(userId, msg, new Map([...lidMapFor(userId), [lid, placeholder]]));
 }
 
 function rememberLidsFromContacts(userId, contacts) {
@@ -518,10 +511,9 @@ async function onMessagesUpsert(userId, messages, type) {
     const route = upsertRoute({ type, fromMe: Boolean(msg?.key?.fromMe), timestampMs: messageTimestampMs(msg), now });
     if (route === "skip") continue;
     if (route === "history") { historyItems.push(msg); continue; }
-    const pendingLid = unresolvedOwnLid(userId, msg);
-    if (pendingLid) {
-      holdPendingLid(userId, pendingLid, msg);
-      await flushPendingLid(userId, pendingLid);
+    const ownLid = unresolvedOwnLid(userId, msg);
+    if (ownLid) {
+      await deliverOwnLidMessage(userId, ownLid, msg);
       continue;
     }
     await deliverLiveMessage(userId, msg);
@@ -529,11 +521,11 @@ async function onMessagesUpsert(userId, messages, type) {
   if (historyItems.length) await onHistorySync(userId, historyItems);
 }
 
-async function deliverLiveMessage(userId, msg) {
+async function deliverLiveMessage(userId, msg, lidMap = lidMapFor(userId)) {
   try {
     // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
     // — do cliente e do que o corretor faz pelo app do celular (fromMe).
-    const event = extractChatEvent(msg, lidMapFor(userId));
+    const event = extractChatEvent(msg, lidMap);
     if (!event) return;
     if (event.kind === "message" && event.media) {
       event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
@@ -746,6 +738,9 @@ function connectedSocket(userId) {
 }
 
 function jidFor(to) {
+  // Conversa "Número não identificado" do CRM (2026-10-10): "lid:<id>" responde direto no LID do contato.
+  const lid = /^lid:(\d{5,30})$/.exec(String(to || ""));
+  if (lid) return `${lid[1]}@lid`;
   const digits = String(to || "").replace(/\D/g, "");
   if (!digits) throw new Error("Destinatário inválido.");
   return `${digits}@s.whatsapp.net`;

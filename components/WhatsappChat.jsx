@@ -185,8 +185,14 @@ function formatDayLabel(value) {
   return DATE_FORMATTER.format(new Date(value));
 }
 
+// Conversa do WhatsApp do corretor cujo número o WhatsApp ainda não informou (contato novo, "lid:<id>", 2026-10-10).
+const UNKNOWN_NUMBER_LABEL = "Número não identificado";
+function isUnknownNumber(phone) {
+  return /^lid:\d+$/.test(String(phone || ""));
+}
+
 function displayName(conversation) {
-  return conversation.client?.name || conversation.name || conversation.phone;
+  return conversation.client?.name || conversation.name || formatPhone(conversation.phone);
 }
 
 // Lista do Chat: só o primeiro nome (o nome completo fica no cabeçalho da conversa, no cadastro e no card).
@@ -197,6 +203,7 @@ function listFirstName(conversation) {
 }
 
 function formatPhone(phone) {
+  if (isUnknownNumber(phone)) return UNKNOWN_NUMBER_LABEL;
   const digits = String(phone || "").replace(/\D/g, "");
   const national = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
   if (national.length === 11) return `(${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7)}`;
@@ -2243,7 +2250,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   // Número oficial com a janela de 24 h fechada: texto livre bloqueado, o corretor segue pelo celular.
   const windowClosed = !conversation.sessionUserId && conversation.window?.open === false;
   const awaiting = (conversation.awaitingCustomer === true || individualOff || windowClosed) && !editTarget;
-  const customerDigits = String(conversation.phone || "").replace(/\D/g, "");
+  const customerDigits = isUnknownNumber(conversation.phone) ? "" : String(conversation.phone || "").replace(/\D/g, "");
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
   // Link para o cliente te chamar: SEMPRE o número oficial (dono, 2026-10-09) — o atendimento segue pelo Chat.
   const callLink = `https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}`;
@@ -2640,7 +2647,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
   const [name, setName] = useState(conversation.name || "");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-  const digits = useMemo(() => String(conversation.phone || "").replace(/\D/g, ""), [conversation.phone]);
+  const digits = useMemo(() => (isUnknownNumber(conversation.phone) ? "" : String(conversation.phone || "").replace(/\D/g, "")), [conversation.phone]);
 
   useEffect(() => {
     setName(conversation.name || "");
