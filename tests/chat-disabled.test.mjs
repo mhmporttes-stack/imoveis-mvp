@@ -23,7 +23,7 @@ test("backend: envio/reação/edição/exclusão/modelo exigem o Chat ligado; AP
   assert.equal((chat.match(/await assertChatEnabled\(\);/g) || []).length >= 5, true);
   assert.match(chat, /reason: "chat_disabled"/);
   assert.match(source("lib/admin-auth.js"), /applyChatDisabledGuard\(request, guarded\)/);
-  assert.match(source("lib/admin-auth.js"), /\/\^\\/api\\/admin\\/whatsapp-chat/);
+  assert.match(source("lib/admin-auth.js"), /\/\^\\\/api\\\/admin\\\/whatsapp-chat/);
   assert.match(source("app/admin/chat/page.jsx"), /isChatRestrictedProfile\(auth\.profile\) && \(await isChatDisabled\(\)\)/);
   assert.match(source("lib/chat-control.js"), /whatsapp_chat_control/);
 });
@@ -32,7 +32,7 @@ test("Chat híbrido: oficial envia, sessão pessoal não (individualSendDisabled
   const control = source("lib/chat-control.js");
   assert.match(control, /individualSendDisabled: data\?\.setting_value\?\.individualSendDisabled === true/);
   const chat = source("lib/whatsapp-chat.js");
-  assert.match(chat, /if \(await isIndividualChatSendDisabled\(\)\) return \{ sendChannel: "cloud_api", sessionUserId: null \};/);
+  assert.match(chat, /if \(await isIndividualChatSendDisabled\(\)\) return \{ sendChannel: "cloud_api", sessionUserId: null, sessionSlot: null \};/);
   assert.match(chat, /code: CHAT_INDIVIDUAL_DISABLED_CODE/);
   const individual = source("lib/whatsapp-individual.js");
   assert.equal((individual.match(/await assertChatActionsOnPersonalSession\(\);/g) || []).length, 3);
@@ -40,13 +40,13 @@ test("Chat híbrido: oficial envia, sessão pessoal não (individualSendDisabled
 
 test("Chat híbrido: filtros Oficial/Pessoal, etiqueta na lista, 'Enviando por' e bloqueio da janela de 24 h do oficial", () => {
   const chat = source("lib/whatsapp-chat.js");
-  assert.match(chat, /"silent", "official", "personal"\]/);
+  assert.match(chat, /"silent", "official", "personal", "slot1", "slot2", "private"\]/);
   assert.match(chat, /safeFilter === "official"\) request = request\.eq\("session_key", OFFICIAL_SESSION_KEY\)/);
   assert.match(chat, /code: "WINDOW_CLOSED"/);
   assert.equal((chat.match(/assertOfficialWindowOpen\(conversation, sendChannel\);/g) || []).length, 2);
   const ui = source("components/WhatsappChat.jsx");
   assert.match(ui, /key: "official", label: "Oficial"/);
-  assert.match(ui, /key: "personal", label: "Pessoal"/);
+  assert.match(ui, /key: "personal", label: "Corretores"/);
   assert.match(ui, /Enviando por:/);
   assert.match(ui, /A janela de 24 horas deste cliente fechou\./);
 });

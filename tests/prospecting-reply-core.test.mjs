@@ -45,7 +45,9 @@ test("mensagem do próprio corretor nunca dispara a automação", () => {
 
 test("cliente fora da prospecção (sem tentativa, outro status) -> só o Chat", () => {
   assert.equal(decide("oi", { clientStatus: "in_service" }), REPLY_ACTION.IGNORE);
-  assert.equal(decide("parar", { clientStatus: "in_service" }), REPLY_ACTION.IGNORE);
+  // WA-20 (2026-10-05): pedido claro de sair de quem já virou "Em atendimento" mas teve tentativa de prospecção recente é opt-out.
+  assert.equal(decide("parar", { clientStatus: "in_service" }), REPLY_ACTION.OPT_OUT);
+  assert.equal(decide("parar", { clientStatus: "in_service", contacts: [] }), REPLY_ACTION.IGNORE);
   assert.equal(decide("oi", { contacts: [{ ...prospectingContact, last_attempt_at: null }] }), REPLY_ACTION.IGNORE);
   assert.equal(decide("oi", { contacts: [] }), REPLY_ACTION.IGNORE);
   assert.equal(decide("oi", { clientId: "" }), REPLY_ACTION.IGNORE);

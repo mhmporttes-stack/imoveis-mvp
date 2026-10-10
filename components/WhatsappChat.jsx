@@ -749,6 +749,10 @@ function ListTag({ tone = "slate", children, title }) {
 }
 
 function ConversationPreview({ conversation, unread }) {
+  // Particular (2026-10-10): quem não é o dono recebe a linha sem prévia — só o rótulo.
+  if (conversation.private && !conversation.lastMessagePreview) {
+    return <span className="flex min-w-0 items-center gap-1 text-[13px] font-medium leading-5 text-[#54656F]"><Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate">Conversa particular</span></span>;
+  }
   const preview = stripWhatsappFormatting(conversation.lastMessagePreview || "").replace(/\n+/g, " ");
   const kind = PREVIEW_KINDS[preview.trim()] || null;
   const outbound = conversation.lastMessageDirection === "outbound";
@@ -869,7 +873,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const audioContact = conversation ? { name: displayName(conversation), photoUrl: conversation.photoUrl || "" } : null;
   const byId = new Map(messages.map((message) => [message.id, message]));
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
-  const showAssume = Boolean(conversation) && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
+  const showAssume = Boolean(conversation) && !conversation.privateLocked && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
   // Dois números (2026-10-08): conversa de cliente no MEU WhatsApp pessoal pode ser aberta no meu outro número conectado.
   const otherSlot = conversation?.client?.id && conversation.sessionUserId && conversation.sessionUserId === currentUserId && !conversation.archivedReadOnly
     ? mySlots.find((item) => item.slot !== (conversation.sessionSlot || 1) && item.status === "connected") || null
@@ -1219,10 +1223,10 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         ) : (
           <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} />
         )))}
-        {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">Nenhuma mensagem nesta conversa.</p> : null}
+        {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">{conversation.privateLocked ? "Conversa particular. Para usar este contato no CRM, tire-o de Particular." : "Nenhuma mensagem nesta conversa."}</p> : null}
       </div>
 
-      {conversation.archivedReadOnly ? (
+      {conversation.privateLocked ? null : conversation.archivedReadOnly ? (
         // Cliente arquivado (WA-13): só o dono abre, pelo card, para LER. Fica fora da caixa do Chat.
         <p role="status" className="border-t border-line bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">Cliente arquivado — conversa fora do Chat, somente leitura. Desarquive o cliente para voltar a conversar.</p>
       ) : (

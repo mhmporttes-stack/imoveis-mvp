@@ -202,8 +202,8 @@ test("prazo em meses: cada sistema tem o seu; só dígitos; aparece nas parcelas
   assert.ok(generator.includes('label="Prazo (meses)"') && generator.includes('label="Prazo em meses (SAC)"'));
 });
 
-test("compartilhar a apresentação no computador: copia o link e abre a conversa sem texto (prévia só aparece ao colar)", () => {
+test("compartilhar a apresentação: 'Enviar' abre o Chat do CRM com o link pronto (2026-10-09; substituiu o copiar+wa.me)", () => {
   const generator = read("components/SimulationGenerator.jsx");
-  assert.ok(generator.includes("const onDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent"));
-  assert.ok(generator.includes("copied ? `https://wa.me/${phone}` : `https://wa.me/${phone}?text=${encodeURIComponent(data.message)}`"));
+  assert.ok(generator.includes("router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`)"));
+  assert.ok(!generator.includes("const onDesktop ="), "a lógica antiga de copiar o link no computador saiu");
 });
