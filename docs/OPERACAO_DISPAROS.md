@@ -1,6 +1,6 @@
 # Operação dos disparos do WhatsApp (guia para quem não é técnico)
 
-Atualizado em 2026-10-04. Vale para os disparos **automáticos** pelo WhatsApp do corretor (Meta Diária automática e a fila do botão "Disparar" da Prospecção). Não vale para o botão manual (o clique do corretor no link do WhatsApp), nem para o Disparo em massa oficial.
+Atualizado em 2026-10-10 (proteções anti-banimento: §8). Vale para os disparos **automáticos** pelo WhatsApp do corretor (Meta Diária automática e a fila do botão "Disparar" da Prospecção). Não vale para o botão manual (o clique do corretor no link do WhatsApp), nem para o Disparo em massa oficial.
 
 ## 1. A política nova ("v2") — VIGENTE para todo corretor com a automação ligada (desde 2026-10-04)
 
@@ -14,7 +14,7 @@ Atualizado em 2026-10-04. Vale para os disparos **automáticos** pelo WhatsApp d
 | Intervalo | mínimo **5 minutos**, máximo **8 minutos** entre uma mensagem e outra (sorteado dentro dessa faixa). Nunca menos de 5 min. Se o sistema atrasar além de 8 min (atraso técnico), tudo bem; 8 min é o limite do agendamento |
 | Pausa | **15 a 30 minutos** de pausa a cada ~10 envios (8 a 12, sorteado) |
 | Cada número | envia sozinho, sem combinar com os outros corretores |
-| Mensagens | modelos novos, **curtos e longos alternados**, nunca repete o modelo anterior nem o penúltimo; a 1ª, 2ª e 3ª **sem promessa** (sem "sem entrada", aprovação, valor, prazo) e **sem link**; todas terminam com **"responda SAIR"** em destaque. Quem responde SAIR vira "Não contactar" na hora (já funcionava) |
+| Mensagens | modelos novos, **curtos e longos alternados**, nunca repete o modelo anterior nem o penúltimo; a 1ª, 2ª e 3ª **sem promessa** (sem "sem entrada", aprovação, valor, prazo) e **sem link**; todas terminam com **"responda SAIR"** em destaque. Quem responde SAIR vira "Não contactar" na hora (já funcionava; confirmado no código em 2026-10-10 — §8.5) |
 | Reconexão | quando o WhatsApp volta, **não sai tudo atrasado de uma vez**: os atrasados são **reagendados** para os próximos horários livres, e o 1º envio só acontece **5 minutos depois** de conectar |
 | O que não saiu no dia | **não é cancelado**: passa para o dia seguinte (sem duplicar), respeitando o teto de 30 e os 10/10/10 |
 
@@ -39,7 +39,7 @@ Não mudam: a cota de 10 novos por dia, a carteira de 30, a pontuação, o ranki
 - **Um corretor:** Gestão › Meta Diária › aba **Automação** › cartão do corretor › botão **"Pausar"** (vira **"Retomar"** para voltar). Pausar para os envios automáticos desse corretor na hora (Meta Diária e fila "Disparar"); a fila fica guardada. Quem pode: administrador e gestora (cada gestora só os da própria equipe).
 - **Desligar de vez a automação de um corretor:** mesmo cartão, botão **"Desativar"** (e **"Ativar"** para voltar).
 - **Todos de uma vez:** não existe um botão único. É preciso **Pausar** corretor por corretor (a lista fica na mesma aba). Isso é intencional por enquanto.
-- O sistema também pausa sozinho um corretor após **3 erros seguidos de envio** (já era assim). O alerta de entrega descrito abaixo **não pausa nada**.
+- O sistema também pausa sozinho um corretor após **3 erros seguidos de envio** (já era assim) e, desde 2026-10-10, **o número** que recebe bloqueio (403) ou logout do WhatsApp (§8). O alerta de entrega descrito abaixo **não pausa nada**.
 
 ## 4. Alerta de taxa de entrega (monitor)
 
@@ -52,11 +52,12 @@ Não mudam: a cota de 10 novos por dia, a carteira de 30, a pontuação, o ranki
 - **O que ele NÃO significa:** não prova bloqueio. Celular desligado/sem internet e recibo atrasado (podem levar horas) parecem bloqueio. **Nada é pausado automaticamente.** A decisão de pausar é da gestora.
 - Limites: só conhece a **última** queda de cada WhatsApp (não o histórico completo); o 1 tique já conta como confirmado; o limite de 60% e a amostra de 20 podem ser ajustados sem mudar código (registro `daily_goal_delivery_monitor` em `crm_settings`: `thresholdPercent`, `minSample`, `maxAlertsPerRun`). O estado da última avaliação fica em `crm_settings` (`daily_goal_delivery_monitor_state`) e a marca "já avisado hoje" em `delivery_alert:<dia>:<corretor>`. Sem migration.
 - Se o envio de e-mail não estiver configurado (Resend), o alerta **não é perdido**: é tentado de novo na próxima hora.
+- **Tendência (2026-10-10):** além dos 60%, o mesmo e-mail (só aviso, nada é pausado) sai quando a taxa do dia cai **mais de 20 pontos** abaixo da média dos 7 dias anteriores do próprio corretor (precisa de 3 dias anteriores com 10+ mensagens) ou quando as **últimas 10 mensagens seguidas** não tiveram **nenhum tique**. Também 1 por corretor por dia (cada tipo), dentro do limite de 5 por execução.
 - Recomenda-se acompanhar **2 a 4 semanas** de dados antes de qualquer decisão sobre pausa automática.
 
 ## 5. O que NÃO foi feito (de propósito)
 
-- Pausa automática por taxa de entrega.
+- Pausa automática por taxa de entrega (a pausa automática existente é só por erros de envio seguidos e por bloqueio/logout do número, §8).
 - Verificação de denúncia.
 - Bloqueio da API do WhatsApp.
 - Botão único "pausar todos".
@@ -74,3 +75,16 @@ O código já funciona **sem** a migration (política vigente por padrão; limpe
 3. Clique **Run**. Pode rodar mais de uma vez com segurança.
 4. Deve aparecer, no final, uma tabela "DEPOIS" com cada corretor, `policy_v2_enabled = true` para quem tem a automação ligada, janela `390`–`930` e intervalo `5`–`8`. A linha de quem está desligado (ex.: o dono) mostra `enabled = false` e continua assim.
 5. Se der erro: não faz mal, a query roda em transação e nada é gravado pela metade. Copie a mensagem e envie ao suporte.
+
+## 8. Proteções anti-banimento (regra do dono, 2026-10-10)
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-10]** Detalhe técnico: `docs/BUSINESS_RULES.md` MD-15.
+
+1. **Número bloqueado ou desconectado pelo WhatsApp (403 / logout) = pausa só daquele número.** A automação desse número para na hora (o outro número do mesmo corretor continua), a fila fica guardada, e o **corretor e a gestora** recebem um aviso importante na Central de Alertas ("Disparos pausados por segurança"). **Para voltar é preciso retomar à mão:** Gestão › Meta Diária › aba **Automação** › cartão do corretor › **"Retomar Número N"** (ou **"Retomar"**, quando o corretor inteiro foi pausado por não sobrar número). Quem pode: administrador e gestora da equipe. Se o corretor tem um só número (ou os dois foram pausados), o corretor inteiro fica "Pausado" com o motivo. A taxa de entrega nunca pausa.
+2. **Aquecimento de número novo ou que voltou depois de um bloqueio (403):** limite por dia de **10** nos dias 1 e 2, **15** nos dias 3 e 4, **20** nos dias 5 e 6 e **30** do 7º dia em diante. Conta a partir da 1ª conexão do número (ou de quando o número foi trocado) ou do dia em que a gestora **retomou** depois de um 403 (o tempo parado não conta). O cartão mostra "aquecimento de número novo/reconectado (N por dia)". Os 30 por dia e o 10/10/10 continuam sendo o máximo. Número que já enviava antes desta regra **não** entra em aquecimento.
+3. **Tendência de entrega:** ver §4.
+4. **Fila parada / erros repetidos:** aviso na Central (informativo) ao corretor e à gestora quando uma mensagem pendente fica **mais de 2 horas parada dentro do horário de envio** ou quando há **mais de 5 erros seguidos do mesmo tipo**. Um aviso por problema por dia. Não conta como parada: teto do dia atingido, fora do horário/domingo, intervalo ou pausa programada, número pausado, WhatsApp desconectado.
+5. **Resposta SAIR do cliente:** já vira "Não contactar" sozinha (cliente, linhas da fila do mesmo telefone/cadastro e mensagens pendentes), com registro no log de "não contactar". Se o cliente estiver em outra etapa (ex.: documentação) ou sem tentativa nas últimas 48 h, o sistema só bloqueia a fila daquele telefone e confirma ao cliente — o status do cliente não muda (lacuna conhecida, sem alteração).
+6. **Google Contacts:** se o Google falhar de forma passageira (ex.: erro 502), o sistema tenta sincronizar no máximo **3 vezes** por contato. Na 4ª vez a mensagem **sai sem sincronizar**, e o item registra o motivo ("google_contacts_ignorado_apos_3_falhas"). Erro de permissão continua marcando a conexão como "Requer reconexão".
+
+**Migration (aplicar na Central do Supabase, nunca automática):** `supabase/migrations/20261010140000_daily_goal_protecoes_anti_banimento.sql` — cria a coluna `slot_controls` (estado por número) e as duas definições de alerta. Só acrescenta; pode rodar mais de uma vez. **Sem ela o sistema funciona**, mas 403/logout pausa o corretor inteiro (não só o número), não há aquecimento e os avisos da Central não são entregues (o log do servidor registra o motivo). Ao publicar com a migration aplicada, quem estiver com sessão em 403/logout nas últimas 72 h (ainda caída) será pausado e avisado; quem reconectou há mais de 6 h não.

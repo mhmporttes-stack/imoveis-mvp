@@ -220,6 +220,26 @@ function AutomationTab() {
     }
   }
 
+  // Retoma UM número pausado por 403/logout (2026-10-10; admin ou gestora da equipe — o servidor confere).
+  async function resumeSlot(brokerId, slot) {
+    setBusyId(brokerId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, resumeSlot: slot })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBrokers(data.brokers || []);
+    } catch (resumeError) {
+      setError(resumeError.message || "Não foi possível retomar este número.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   // Política nova de disparos (2026-10-04): chave por corretor, só o administrador geral consegue (o servidor recusa
   // os demais). Troca as regras da fila pendente de agora (refeita uma vez).
   async function togglePolicyV2(brokerId, brokerName, policyV2Enabled) {
@@ -373,6 +393,14 @@ function AutomationTab() {
                       <p className="mt-0.5 text-xs font-bold text-red-700">{broker.autoErrorTotal} cliente{broker.autoErrorTotal === 1 ? "" : "s"} em "Erro" (3 falhas técnicas seguidas — veja o Histórico)</p>
                     ) : null}
                     {broker.paused ? <p className="mt-1 text-xs font-bold text-red-700">Pausado: {broker.pausedReason}</p> : null}
+                    {(broker.slotPauses || []).map((item) => (
+                      <p key={item.slot} className="mt-1 text-xs font-bold text-red-700">
+                        Número {item.slot} pausado por segurança. {item.reason}{" "}
+                        <button type="button" className="text-brand hover:underline" disabled={busyId === broker.brokerId} onClick={() => resumeSlot(broker.brokerId, item.slot)}>
+                          Retomar Número {item.slot}
+                        </button>
+                      </p>
+                    ))}
                     {/* "Último problema" removido daqui (pedido do dono, 2026-10-01) —
                         informação de "o que aconteceu" agora vive só no Histórico,
                         pra não duplicar entre a configuração e o detalhamento. */}
