@@ -30,6 +30,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-10 — Lembrete do formulário: tiques de entregue/lido passam a aparecer no Chat (caso Keite)
+
+- **Sintoma (dono, com print):** lembrete "Notei que você ainda não preencheu o formulário" com 1 tique só, parecendo não entregue.
+- **Causa raiz:** a Meta entregou (14:28) e a cliente leu (14:40), mas o lembrete guarda a chave `form-reminder:...` em `meta_message_id` e o id da Meta em `metadata.cloud_message_id`; `applyOutboundStatusEvents` (`lib/whatsapp-chat.js`) só procurava por `meta_message_id`, então o status nunca saía de "enviada".
+- **Mudou:** busca também por `metadata->>cloud_message_id`. Os 6 lembretes antigos presos em "enviada" (todos lidos na Meta) foram acertados no banco. Teste: `tests/form-reminder-status.test.mjs`.
+
 ### 2026-10-10 — Fluxo do anúncio: 1ª mensagem sem referral da Meta agora cai no fluxo do anúncio (caso Luana)
 
 - **Sintoma (dono, com print):** cliente do anúncio recebeu só "Em instantes, um dos meus associados…" (saudação de contato espontâneo), sem as mensagens pedindo o formulário.
