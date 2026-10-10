@@ -8,7 +8,7 @@ Login via Supabase Auth. Cookies do painel (`lib/admin-auth.js`): `mm_admin_acce
 |---|---|
 | `requireAdminApi` | Qualquer perfil ativo (admin/gestor/corretor/associado) |
 | `requireBrokerManagementApi` | admin ou gestor (gestão de corretores/equipe) |
-| `requireFinancialManagerApi` | admin ou gestor, para dados financeiros/edição de empreendimentos |
+| `requireFinancialManagerApi` | admin ou gestor, para editar empreendimentos, imóveis, depoimentos e uploads de documentos (NÃO é o Financeiro: este usa `requireGeneralAdminApi`/`requireFinancialAccessApi`) |
 | `requireFinancialAccessApi` | Acesso financeiro (inclui visão adaptada de associado) |
 | `requirePerformanceApi` | Acesso a telas de desempenho/ranking |
 | `requirePrimaryAdminApi` | **Apelido de `requireGeneralAdminApi`** (admin geral efetivo) — apesar do nome, **não** restringe ao dono (`lib/admin-auth.js`). Checagem só-do-dono é `assertOwnerAdmin` (`lib/admin-access.js`) |

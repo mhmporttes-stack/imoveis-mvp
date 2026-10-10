@@ -8,7 +8,7 @@ Atualizado em 2026-10-10 (proteções anti-banimento: §8). Vale para os disparo
 
 | Item | Regra |
 |---|---|
-| Quantas por dia | no máximo **30 mensagens por número**: 10 de 1ª tentativa, 10 de 2ª e 10 de 3ª, **sem emprestar** de uma etapa para outra (10+6+10 = 26, nunca 30). A fila "Disparar" conta no total de 30 (não aumenta o teto). O botão manual não muda |
+| Quantas por dia | no máximo **30 mensagens por corretor/dia** (WA-15: a soma dos números dele, não 30 por número): 10 de 1ª tentativa, 10 de 2ª e 10 de 3ª, **sem emprestar** de uma etapa para outra (10+6+10 = 26, nunca 30). A fila "Disparar" conta no total de 30 (não aumenta o teto). O botão manual não muda |
 | Tamanho da fila | cada tentativa guarda **no máximo 10 itens pendentes** na fila automática. O que passa disso é **retirado só da fila** (ver 1.1) |
 | Dias e horário | **segunda a sábado, das 6h30 às 15h30** (horário de Brasília). Domingo e fora do horário: não tenta |
 | Intervalo | mínimo **5 minutos**, máximo **8 minutos** entre uma mensagem e outra (sorteado dentro dessa faixa). Nunca menos de 5 min. Se o sistema atrasar além de 8 min (atraso técnico), tudo bem; 8 min é o limite do agendamento |

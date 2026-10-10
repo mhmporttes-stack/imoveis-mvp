@@ -80,7 +80,7 @@ const INITIAL_FORM = {
   registration: null,
   clientName: "",
   clientWhatsApp: "",
-  simulationDate: new Date().toISOString().slice(0, 10),
+  simulationDate: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
   simulationType: "usado",
   simulationModels: normalizeSimulationModels(),
   financingValue: "",

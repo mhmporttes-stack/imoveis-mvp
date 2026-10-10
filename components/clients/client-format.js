@@ -167,7 +167,7 @@ export function buildDraftSimulationPayload(registration = {}) {
     registrationId: registration.id,
     clientName: registration.fullName || "Cliente sem nome",
     clientWhatsApp: formatBrazilianPhone(registration.phoneNormalized || registration.phone),
-    simulationDate: new Date().toISOString().slice(0, 10),
+    simulationDate: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
     simulationType: "usado",
     financingValue: "",
     subsidyValue: "",

@@ -11,10 +11,13 @@ test("public journey is available without authentication and contains only safe 
   assert.ok(!html.includes("João Jornada QA"));
   assert.match(html, /no-referrer/);
 });
-test("predictable identifiers and invalid random tokens do not expose clients", async () => {
+// Testes de HTTP exigem um servidor rodando em JOURNEY_TEST_BASE (padrão http://localhost:3107); sem ele são ignorados.
+const serverUp = await fetch(base, { signal: AbortSignal.timeout(1500) }).then(() => true, () => false);
+
+test("predictable identifiers and invalid random tokens do not expose clients", { skip: !serverUp }, async () => {
   for (const invalid of ["C1001", "1", "a".repeat(64)]) assert.equal((await fetch(`${base}/minha-jornada/${invalid}`)).status, 404);
 });
-test("administrative journey endpoints require a real authenticated session", async () => {
+test("administrative journey endpoints require a real authenticated session", { skip: !serverUp }, async () => {
   const id = "00000000-0000-0000-0000-000000000000";
   for (const [path, method, body] of [[`/api/client-journey/${id}`, "GET"], [`/api/client-journey/${id}`, "POST", { action: "regenerate" }], ["/api/client-journey/settings", "PUT", {}]]) {
     const response = await fetch(`${base}${path}`, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });

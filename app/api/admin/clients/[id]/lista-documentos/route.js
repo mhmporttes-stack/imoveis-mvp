@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { getSiteBaseUrl } from "@/lib/admin-profiles";
 import { prepareClientDocumentsList, recordClientDocumentsListSent } from "@/lib/documents-forecast";
 import { getChatReplyReadiness } from "@/lib/whatsapp-chat";
 
@@ -14,10 +15,10 @@ export const dynamic = "force-dynamic";
 //   POST { action: "registrar" }         → grava "Lista de documentos enviada" na jornada (não muda status)
 // Cliente arquivado / "Não contactar": 409. Sem simulação com valores: 422 ("Lance a simulação primeiro").
 
-function origin(request) {
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-  const proto = request.headers.get("x-forwarded-proto") || "https";
-  return host ? `${proto}://${host}` : "";
+// Sempre o domínio da marca (lib/site-url.mjs): o cabeçalho Host não é confiável para montar o link enviado ao cliente
+// nem para a busca de aquecimento feita pelo servidor.
+function origin() {
+  return getSiteBaseUrl().replace(/[/]$/, "");
 }
 
 export async function POST(request, { params }) {

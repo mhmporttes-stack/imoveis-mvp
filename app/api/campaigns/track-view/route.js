@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { canManageCampaigns, getCampaign, recordCampaignLinkView, recordOfficialLinkViewByRef } from "@/lib/campaigns";
+import { createRateLimiter } from "@/lib/simulation-presentation-core.mjs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,8 +15,13 @@ export const runtime = "nodejs";
 // (ex.: criada pelo Disparo) já define diretamente Atendimento Rápido ou
 // Simulação. Link pessoal (?ref=) nunca tem essa configuração — sempre
 // "choice", preservando o comportamento atual.
+// Limite por IP (em memória, por instância): quem exceder não conta a abertura e recebe a jornada padrão — não infla as métricas.
+const allowView = createRateLimiter({ limit: 30, windowMs: 60_000 });
+
 export async function POST(request) {
   if (!canManageCampaigns()) return NextResponse.json({ linkJourney: "choice" });
+  const visitor = (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "anon";
+  if (!allowView(visitor)) return NextResponse.json({ linkJourney: "choice" });
 
   let linkJourney = "choice";
   try {

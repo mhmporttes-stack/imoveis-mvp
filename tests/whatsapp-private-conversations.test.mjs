@@ -62,3 +62,37 @@ test("conversa particular não gera notificação de nenhum tipo (dono, 2026-10-
   assert.match(read("lib/whatsapp-form-reminder.js"), /if \(!conversation \|\| conversation\.private_at\) return null;/, "lembrete do formulário");
   assert.match(read("lib/whatsapp-flows.js"), /if \(loadedConversation\.private_at\) return true;/, "fluxos e respostas automáticas");
 });
+
+test("Particular trancado: só o dono vê o conteúdo; corretor e gestão veem a linha (nome, telefone, rótulo)", () => {
+  const chat = read("lib/whatsapp-chat.js");
+  assert.match(chat, /function privateContentHidden\(conversation, auth\) \{\s*return Boolean\(conversation\?\.private_at\) && !\(Boolean\(auth\) && isGeneralAdminAuth\(auth\)\);/);
+  assert.match(chat, /if \(!allowPrivateShell && privateContentHidden\(data, auth\)\) throw new WhatsappChatError\(PRIVATE_CONVERSATION_MESSAGE/);
+  // só abrir a casca, marcar lida e destrancar passam pelo atalho
+  assert.equal((chat.match(/allowPrivateShell: true/g) || []).length, 3);
+  assert.match(chat, /if \(privateContentHidden\(conversation, auth\)\) return \{ conversation: \{ \.\.\.conversationView, privateLocked: true[^}]*\}, messages: \[\], hasMore: false \};/);
+  assert.match(chat, /last_message_preview: "", last_message_direction: null, unread_count: 0/);
+  const ui = read("components/WhatsappChat.jsx");
+  assert.match(ui, /Conversa particular<\/span>/);
+  assert.match(ui, /\{conversation\.privateLocked \? null : conversation\.archivedReadOnly \?/);
+});
+
+test("Destrancar: cópia interna, apaga o histórico, contato volta limpo e o passado reimportado não aparece", () => {
+  const chat = read("lib/whatsapp-chat.js");
+  const unlock = chat.slice(chat.indexOf("DESTRANCAR = recomeço limpo"), chat.indexOf("async function wipeConversationMessages"));
+  assert.match(unlock, /await wipeConversationMessages\(conversation, auth\)/);
+  assert.match(unlock, /client_id: null, status: "open", unread_count: 0, history_cutoff_at: now/);
+  assert.match(unlock, /deleted_at: now/);
+  const wipe = chat.slice(chat.indexOf("async function wipeConversationMessages"));
+  assert.ok(wipe.indexOf('from("whatsapp_private_wipe_backup")') < wipe.indexOf('.from("whatsapp_messages").delete()'), "copia antes de apagar");
+  assert.match(wipe, /if \(backupError\) throw backupError;/);
+  assert.match(chat, /if \(conversation\.history_cutoff_at\) request = request\.gte\("message_at", conversation\.history_cutoff_at\);/);
+  const inbound = read("lib/whatsapp-individual-inbound.js");
+  assert.match(inbound, /allItems\.filter\(\(item\) => new Date\(item\.messageAt\)\.getTime\(\) >= cutoff\)/);
+  const lookup = read("lib/client-phone-lookup.js");
+  assert.match(lookup, /\.is\("private_contact_at", null\)/);
+  const sql = read("supabase/migrations/20261010120000_private_conversation_wipe.sql");
+  assert.match(sql, /history_cutoff_at timestamptz/);
+  assert.match(sql, /whatsapp_private_wipe_backup enable row level security/);
+  // sem aviso na tela ao destrancar: a confirmação continua só ao mover para Particular
+  assert.match(read("components/WhatsappChat.jsx"), /if \(makePrivate && conversation\.client\?\.id && !window\.confirm/);
+});

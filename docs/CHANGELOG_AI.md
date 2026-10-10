@@ -97,6 +97,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-10 — Análise geral: Particular (sem leitura + destranca limpo), testes, falhas silenciosas, funções do banco, código morto
+- **Particular (WA-23, dono):** conversa trancada = o corretor e a gestão veem só a linha (nome, telefone, "Conversa particular"); só o administrador geral lê (`privateContentHidden`, `allowPrivateShell`, `lib/whatsapp-chat.js`). **Destrancar** apaga as mensagens do Chat (cópia em `whatsapp_private_wipe_backup`), zera o vínculo e define `history_cutoff_at` (nada anterior é importado nem exibido); o cadastro antigo fica oculto e `findLatestRegistrationIdsByPhones` o ignora (`private_contact_at`) — corrige o "cliente invisível" ao destrancar. Sem aviso na tela. Migration `20261010120000_private_conversation_wipe.sql`.
+- **Testes:** `chat-disabled` (regex inválido: o arquivo inteiro não rodava), `chat-reply-only`, `prospecting-reply-core` (WA-20), `simulation-systems-comparison`, `whatsapp-chat-redundant`, stubs de `whatsapp-conversation-per-session`; `journey-http` ignora quando não há servidor. Novos testes do Particular.
+- **Falhas silenciosas:** `lib/prospecting.js` (devolver, não contactar, prospectar, vínculo do contato) agora lança o erro do banco; `returnClientToRoulette` só vale se o responsável não mudou (sem redistribuição dupla); `adminSetBrokerDailyCapOverride` avisa quando o corretor não tem configuração; erros de `attachAuthUserId` e `finishExecution` vão para o log; datas de simulação em America/Sao_Paulo (5 pontos); links de apresentação/lista de documentos usam o domínio da marca (não o cabeçalho Host); `track-view` com limite por IP; mensagem de `requireFinancialManagerApi` corrigida.
+- **Banco:** migration `20261010130000_fix_function_search_path.sql` (33 funções, advisor `function_search_path_mutable` zerado).
+- **Tela de configuração do disparo:** aviso de que a política v2 sobrescreve janela, intervalo e teto.
+- **Docs:** FUN-11 refletido em PRO-4/PRO-6/MD-3/P-05 e nas rules; MD-14b (política v2) separado do MD-14 (carteira 30); cota 10 e teto 20 no RAN-3b; "30 por corretor" (WA-15) em vez de "por número"; modo básico no acesso WhatsApp; WA-23.
+- **NÃO alterado (decisão do dono pendente):** "Meta Diária 100%" tem duas medidas (bônus × card/penalidade) — ver nota no RAN-3. Dois detectores de "PARAR" (`isOptOutMessage` × `isStopRequest`) aguardam a outra sessão (WA-20).
+- **Autor:** Claude Code
+
 ### 2026-10-10 — WhatsApp individual: estabilidade, alertas e painel de saúde por número (Frente B)
 - **Data:** 2026-10-10
 - **Área:** WhatsApp individual / microsserviço / Central de Alertas / política de notificações / Meta Diária (gestão)

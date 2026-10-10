@@ -41,10 +41,6 @@ export function subscribeSceneReady(listener) {
 export function getActiveSnapshot() {
   return active;
 }
-export function subscribeActive(listener) {
-  activeListeners.add(listener);
-  return () => activeListeners.delete(listener);
-}
 
 // Chamado ao iniciar qualquer animação de cena (saída OU entrada) — guarda
 // como "pular" essa animação específica (usado pelo toque na tela).
@@ -97,14 +93,6 @@ export function stopLoadingIndicator() {
   if (!loading) return;
   loading = false;
   emitLoading();
-}
-
-// Toque em qualquer lugar da tela durante uma cena ativa (SceneSkipCatcher).
-export function requestSkip() {
-  if (!onSkip) return;
-  const skip = onSkip;
-  onSkip = null;
-  skip();
 }
 
 // Direção pendente entre "terminei a saída, vou navegar" e "a próxima

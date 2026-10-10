@@ -749,6 +749,9 @@ function GlobalConfigPanel({ onSaved }) {
           <p className="mt-4 text-sm font-bold text-muted">Carregando…</p>
         ) : (
           <div className="mt-4 space-y-4">
+            <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+              Corretores com a política de disparos v2 ligada (o padrão) ignoram estes valores: o envio fica em 30 por dia (10 por tentativa), das 06:30 às 15:30, com 5 a 8 minutos entre mensagens. O que você muda aqui só vale para quem estiver com a v2 desligada.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-black text-navy">Janela de envio</p>

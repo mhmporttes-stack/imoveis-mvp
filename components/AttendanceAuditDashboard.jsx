@@ -41,7 +41,7 @@ const STATUS_STYLE = {
 const STATUS_LABEL = { melhorou: "melhorou", piorou: "piorou", manteve: "manteve", sem_dado_anterior: "—" };
 
 function todayPlainDate() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
 export default function AttendanceAuditDashboard({ brokers }) {

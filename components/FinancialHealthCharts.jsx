@@ -19,16 +19,6 @@ export function formatMoney(value) {
   return BRL.format(Number(value || 0));
 }
 
-export function formatCompactMoney(value) {
-  const v = Number(value || 0);
-  const abs = Math.abs(v);
-  const sign = v < 0 ? "-" : "";
-  const num = (n, d = 1) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: d }).format(n);
-  if (abs >= 1_000_000) return `${sign}R$ ${num(abs / 1_000_000)} mi`;
-  if (abs >= 1_000) return `${sign}R$ ${num(abs / 1_000, abs >= 10_000 ? 0 : 1)} mil`;
-  return `${sign}R$ ${num(abs, 0)}`;
-}
-
 // Rótulo de eixo sem "R$" (o tooltip traz o valor completo): economiza largura no celular.
 function formatAxis(value) {
   const v = Number(value || 0);
