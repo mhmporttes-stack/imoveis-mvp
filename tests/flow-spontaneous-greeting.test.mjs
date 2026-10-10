@@ -26,3 +26,11 @@ test("primeira mensagem dispara; equipe é filtrada no motor", () => {
   const flows = readFileSync(new URL("../lib/whatsapp-flows.js", import.meta.url), "utf8");
   assert.match(flows, /findInternalTeamPhone\(canonicalWhatsappPhone\(phone\)\)/);
 });
+
+// Sequência do anúncio (dono, 2026-10-10): mensagem que começa pelo nome, sem nome utilizável.
+test("linha que começa pela variável vazia não fica com vírgula sobrando", () => {
+  const text = "{{primeiro_nome}}, estou te enviando um link.";
+  assert.equal(interpolate(text, { primeiro_nome: "Keite" }), "Keite, estou te enviando um link.");
+  assert.equal(interpolate(text, { primeiro_nome: "" }), "Estou te enviando um link.");
+  assert.equal(interpolate("{{saudacao}} {{primeiro_nome}}, tudo bem?", { saudacao: "Boa tarde", primeiro_nome: "" }), "Boa tarde, tudo bem?");
+});
