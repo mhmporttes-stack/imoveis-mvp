@@ -150,7 +150,11 @@ function fundoDa(l) {
   const img = asDataUrl(l.imagem);
   if (!img) return `background:${cor};`;
   const pos = l.imagemPosicao || "center";
-  return `background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.82) 62%, rgba(0,0,0,.95) 100%), url('${img}') ${pos}/cover no-repeat, ${cor};`;
+  // "textoTopo": ilustração com o espaço livre em cima (estilo das ilustrações 3D) — escurece o topo, não a base.
+  const grad = l.textoTopo
+    ? "linear-gradient(180deg, rgba(0,0,0,.92) 0%, rgba(0,0,0,.70) 30%, rgba(0,0,0,.10) 55%, rgba(0,0,0,0) 70%, rgba(0,0,0,.55) 100%)"
+    : "linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.82) 62%, rgba(0,0,0,.95) 100%)";
+  return `background:${grad}, url('${img}') ${pos}/cover no-repeat, ${cor};`;
 }
 const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <style>${FONT_CSS}
@@ -186,6 +190,9 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .nota em { color:var(--brand); }
   .frame.foto { justify-content:flex-end; padding-bottom:250px; }
   .frame.foto h1.cover { font-size:112px; }
+  .frame.foto.topo { justify-content:flex-start; padding-top:120px; padding-bottom:170px; }
+  .frame.foto.topo .ed-titulo { font-size:84px; }
+  .frame.foto.topo .ed-texto { color:#D7DEE8; }
   .frame.foto h2 { font-size:84px; }
   .frame.foto .body, .frame.foto li { color:#F1F4F8; }
   .recorte { position:absolute; right:-40px; bottom:0; height:78%; z-index:0; filter:drop-shadow(0 0 60px rgba(59,139,255,.25)); }
@@ -240,7 +247,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:8px; font-size:30px; font-weight:700; }
   .badge { width:26px; height:26px; }
   .sub { font-size:22px; color:var(--muted); }
-</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
+</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.textoTopo ? " topo" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
   ${l.comFoto && recorte ? `<img class="recorte${l.comFoto === "apontando" ? " apontando" : ""}" src="${recorteDa(l)}" alt="">` : ""}
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
