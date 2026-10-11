@@ -257,6 +257,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState([]);
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -320,6 +322,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     }
   }, [isDesktop]);
 
+  const [listHasMore, setListHasMore] = useState(false);
+  const [listLoadingMore, setListLoadingMore] = useState(false);
   const loadList = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setListLoading(true);
     try {
@@ -330,12 +334,46 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
-      setConversations(data.conversations || []);
+      const fresh = data.conversations || [];
+      // Atualização silenciosa (tempo real) não descarta as páginas antigas já carregadas por "Carregar mais".
+      setConversations((current) => {
+        if (!silent) return fresh;
+        const ids = new Set(fresh.map((item) => item.id));
+        const oldest = fresh.at(-1)?.lastMessageAt || "";
+        return [...fresh, ...current.filter((item) => !ids.has(item.id) && oldest && item.lastMessageAt && item.lastMessageAt < oldest)];
+      });
+      if (!silent) setListHasMore(listPageIsFull(fresh.length, filterRef.current));
       setListError("");
     } catch (error) {
       setListError(error.message);
     } finally {
       setListLoading(false);
+    }
+  }, []);
+
+  // "Carregar mais" (pedido do dono, 2026-10-11): próxima página, a partir da conversa mais antiga já na lista.
+  const loadMoreList = useCallback(async () => {
+    const oldest = conversationsRef.current.at(-1)?.lastMessageAt;
+    if (!oldest) return;
+    setListLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ filter: filterRef.current, before: oldest });
+      if (searchRef.current) params.set("q", searchRef.current);
+      if (clientStatusRef.current) params.set("clientStatus", clientStatusRef.current);
+      if (scopedBrokerRef.current) params.set("brokerId", scopedBrokerRef.current.id);
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar mais conversas.");
+      const more = data.conversations || [];
+      setConversations((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...current, ...more.filter((item) => !ids.has(item.id))];
+      });
+      setListHasMore(listPageIsFull(more.length, filterRef.current));
+    } catch (error) {
+      setListError(error.message);
+    } finally {
+      setListLoadingMore(false);
     }
   }, []);
 
@@ -569,6 +607,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             selectedId={selectedId}
             totalUnread={totalUnread}
             currentUserId={currentUserId}
+            hasMore={listHasMore}
+            loadingMore={listLoadingMore}
+            onLoadMore={loadMoreList}
           />
 
           <div className={`${selectedId ? "admin-motion-detail flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
@@ -650,7 +691,12 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   );
 }
 
-function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "" }) {
+// Página cheia = pode haver mais. Filtros de espera são filtrados depois no servidor (página pode vir menor).
+function listPageIsFull(count, filter) {
+  return count >= 100 || (["awaiting", "waiting_us", "silent"].includes(filter) && count > 0);
+}
+
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
@@ -719,6 +765,13 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {conversations.map((conversation) => (
           <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} />
         ))}
+        {!loading && conversations.length && hasMore ? (
+          <div className="flex justify-center p-4">
+            <button type="button" onClick={onLoadMore} disabled={loadingMore} className="inline-flex h-10 items-center gap-2 rounded-full border border-navy/15 bg-white px-5 text-sm font-extrabold text-navy transition hover:border-brand disabled:opacity-60">
+              {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {loadingMore ? "Carregando…" : "Carregar mais"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -931,6 +984,7 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
         <span className="mt-0.5 flex min-w-0 items-center gap-2 text-[12px] leading-5 text-[#667781]">
           <span className="flex min-w-0 flex-1 items-center gap-1">
             {/* Particular (WA-19, dono 2026-10-09): conversa pessoal, não cliente — sem situação do cliente nem aviso de espera. */}
+            {conversation.deletedByUser ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-red-600" title="Excluída da visão do corretor; só o administrador vê"><Trash2 className="h-3 w-3" aria-hidden="true" />Excluída</span> : null}
             {conversation.private ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-[#54656F]"><Lock className="h-3 w-3" aria-hidden="true" />Conversa particular</span>
               : conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
           </span>

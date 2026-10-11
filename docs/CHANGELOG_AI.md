@@ -30,6 +30,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-11 — Chat: "Carregar mais" e conversa excluída continua visível para o administrador geral (WA-27)
+
+- **Pedido do dono:** "Excluir conversa deve excluir apenas na visualização do corretor, na minha deve aparecer ainda" + "Adicione o carregar mais".
+- **Mudou:** `deleteChatConversation` marca `origin.deleted_by_user`; admin geral lista (inclusive filtrando um corretor) e abre essas conversas (selo "Excluída"); lista do Chat ganhou "Carregar mais" (`before` = conversa mais antiga; atualização em tempo real não descarta páginas já carregadas). 27 conversas excluídas antes foram marcadas (auditoria `deleted` com autor). Arquivos: `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, `docs/BUSINESS_RULES.md` WA-27, teste novo.
+
 ### 2026-10-11 — Particular: 36 conversas pessoais escondidas (card arquivado) voltaram a aparecer
 
 - **Pergunta do dono:** "não aparece quase nada pra mim" no Particular.
