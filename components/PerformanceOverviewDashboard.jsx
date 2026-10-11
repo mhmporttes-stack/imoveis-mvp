@@ -391,7 +391,11 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
                 onChange={setFunnelBrokerIds}
               />
             )}
-            <CalendarDays className="text-brand" size={22} />
+            {/* Período aplicado ao funil (pedido do dono, 2026-10-11), ao lado do calendário. */}
+            <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-navy">
+              <CalendarDays className="shrink-0 text-brand" size={22} aria-hidden="true" />
+              {formatRangeLabel(overview?.range)}
+            </span>
           </div>
         </div>
 
@@ -806,6 +810,17 @@ function buildFunnelStageHref(key) {
   if (key === "meeting") return "/admin/simulacoes?statusGroup=meeting";
   if (key === "sale") return "/admin/simulacoes?statusGroup=sale";
   return "/admin/simulacoes";
+}
+
+// "04/10 a 10/10" (mesmo ano) ou "10/10/2026" (um dia só); ano aparece quando o período cruza anos.
+function formatRangeLabel(range) {
+  const start = String(range?.startDate || "");
+  const end = String(range?.endDate || start);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return "";
+  const fmt = (value, withYear) => `${value.slice(8, 10)}/${value.slice(5, 7)}${withYear ? `/${value.slice(0, 4)}` : ""}`;
+  if (start === end) return fmt(start, true);
+  const crossYear = start.slice(0, 4) !== end.slice(0, 4);
+  return `${fmt(start, crossYear)} a ${fmt(end, crossYear)}`;
 }
 
 function buildPeriodQuery(period, startDate, endDate) {

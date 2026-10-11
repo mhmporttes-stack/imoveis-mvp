@@ -24,3 +24,11 @@ test("ligado na chegada de mensagem, no cron e nos botões de card", () => {
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
   assert.ok((chat.match(/applyAutoPrivacy\(id\)/g) || []).length >= 2);
 });
+
+// Regra do dono (2026-10-11): cliente arquivado que fala no WhatsApp pessoal -> card continua arquivado, conversa vai
+// para Particular; só sai se o card deixar de estar arquivado (cadastro, link, anúncio).
+test("cliente arquivado no WhatsApp pessoal vai para Particular e card arquivado não tira de lá", () => {
+  assert.match(src, /async function rescueArchivedConversations/);
+  assert.match(src, /deleted_at: null, deleted_by: null, client_id: null, private_at: now/);
+  assert.match(src, /const matches = new Map\(\[\.\.\.rawMatches\]\.filter\(\(\[, id\]\) => id && !archived\.has\(id\)\)\);/);
+});
