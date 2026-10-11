@@ -1,0 +1,59 @@
+{
+ "laminas": [
+  {
+   "tipo": "capa",
+   "fotoCentral": true,
+   "centro": true,
+   "tituloCondensado": true,
+   "titulo": "Acabando com **mitos** do Minha Casa Minha Vida"
+  },
+  {
+   "tipo": "texto",
+   "centro": true,
+   "frase": "“Ah, mas eu ganho mais de R$ 10 mil. O Minha Casa Minha Vida **não é pra mim**.”",
+   "selo": "Será mesmo?",
+   "seloBranco": true,
+   "texto": "Muita gente acha que o programa só atende **renda baixa**, mas existe uma faixa que amplia bastante esse cenário.",
+   "fecho": "Vamos acabar com alguns mitos?"
+  },
+  {
+   "tipo": "texto",
+   "centro": true,
+   "frase": "“Ganho mais de R$ 10 mil. Não posso participar.”",
+   "selo": "Mito",
+   "texto": "A **Faixa 4** (classe média) atende famílias com renda bruta de **até R$ 13 mil por mês**.",
+   "texto2": "Ou seja: você não precisa ganhar pouco para avaliar as condições do programa.",
+   "fonte": "Fonte: Portaria MCID nº 333/2026"
+  },
+  {
+   "tipo": "texto",
+   "centro": true,
+   "frase": "“O imóvel precisa custar menos de R$ 300 mil.”",
+   "selo": "Mito",
+   "texto": "Na Faixa 4, o imóvel pode custar **até R$ 600 mil**, desde que você cumpra os critérios e seja aprovado na análise de crédito.",
+   "texto2": "Isso amplia bastante as opções para quem quer um imóvel maior.",
+   "fonte": "Fonte: Portaria MCID nº 333/2026"
+  },
+  {
+   "tipo": "texto",
+   "centro": true,
+   "frase": "“É só para quem vai comprar o primeiro imóvel da vida.”",
+   "selo": "Mito",
+   "texto": "Você **não precisa** estar comprando o primeiro imóvel da sua vida.",
+   "texto2": "Mas atenção: ter imóvel residencial ou **financiamento habitacional ativo** pode impedir a participação. Vale entender sua situação antes de desistir."
+  },
+  {
+   "tipo": "cta",
+   "centro": true,
+   "frase": "Qual desses mitos **você já acreditou**?",
+   "subtitulo": "Ou outro que você conheça",
+   "selo": "Comenta aqui."
+  },
+  {
+   "tipo": "texto",
+   "comFoto": true,
+   "texto": "Ganha entre **R$ 10 mil e R$ 13 mil** e quer descobrir suas possibilidades?",
+   "fecho": "Me chama na DM"
+  }
+ ]
+}

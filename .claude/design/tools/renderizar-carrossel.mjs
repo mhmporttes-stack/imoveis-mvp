@@ -78,7 +78,7 @@ const icon = (name) => iconCache.get(name) || "";
 // Fonte Inter embutida (latin) — mesma fonte em qualquer máquina.
 async function fontCss() {
   try {
-    const css = await (await fetch("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;800;900&display=swap", { headers: { "user-agent": "Mozilla/5.0 Chrome/120" } })).text();
+    const css = await (await fetch("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;800;900&family=Anton&family=Playfair+Display:ital,wght@1,500;1,700&display=swap", { headers: { "user-agent": "Mozilla/5.0 Chrome/120" } })).text();
     // Sem subconjuntos (um arquivo por peso) — evita baixar dezenas de faixas de caracteres.
     const blocks = css.split("@font-face").slice(1);
     const out = [];
@@ -100,16 +100,22 @@ const itemHtml = (i) => {
 };
 const tituloHtml = (l, tag = "h2", cls = "") => l.titulo ? `<${tag} class="${cls}${l.tituloLeve ? " leve" : ""}">${rich(l.titulo)}</${tag}>${l.sublinhado ? '<span class="bar"></span>' : ""}` : "";
 const notaHtml = (l) => l.nota ? `<p class="nota">${rich(l.nota)}</p>` : "";
+// Blocos tipográficos do modelo "mitos" (2026-10-11): frase em letra condensada (Anton, caixa alta), selo em serifa itálica
+// (Playfair) — ex.: "Mito", "Será mesmo?" —, fecho condensado na cor da marca e linha de fonte pequena.
+const fraseHtml = (l) => l.frase ? `<p class="frase">${rich(l.frase)}</p>` : "";
+const seloHtml = (l) => l.selo ? `<p class="selo${l.seloBranco ? " branco" : ""}">${rich(l.selo)}</p>` : "";
+const fechoHtml = (l) => l.fecho ? `<p class="fecho">${rich(l.fecho)}</p>` : "";
+const fonteHtml = (l) => l.fonte ? `<p class="fonte">${esc(l.fonte)}</p>` : "";
 const iconeTopo = (l) => l.icone ? `<span class="top-ico">${icon(l.icone)}</span>` : "";
 
 function slideBody(l) {
   switch (l.tipo) {
-    case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${tituloHtml(l, "h1", "cover")}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
+    case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${l.tituloCondensado ? `<h1 class="cover condensada">${rich(l.titulo)}</h1>` : tituloHtml(l, "h1", "cover")}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
     case "lista": return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${tituloHtml(l)}${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}<ul>${(l.itens || []).map(itemHtml).join("")}</ul>${notaHtml(l)}`;
     // Aspas grandes na cor da marca (modelo do dono): "texto" é a frase; "titulo" opcional abaixo dela.
     case "citacao": return `<span class="aspas">“</span><p class="quote${l.tituloLeve ? " leve" : ""}">${rich(l.texto)}</p>${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}${l.autor ? `<p class="author">— ${esc(l.autor)}</p>` : ""}${notaHtml(l)}`;
-    case "cta": return `${iconeTopo(l)}${tituloHtml(l, "h2", "cta")}${l.texto ? `<p class="body">${rich(l.texto)}</p>` : ""}${l.botao ? `<span class="button">${esc(l.botao)}</span>` : ""}${notaHtml(l)}`;
-    default: return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${tituloHtml(l)}${l.texto ? `<p class="body">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
+    case "cta": return `${iconeTopo(l)}${fraseHtml(l)}${l.titulo ? tituloHtml(l, "h2", "cta") : ""}${l.subtitulo ? `<p class="sub-linha">${rich(l.subtitulo)}</p>` : ""}${seloHtml(l)}${fechoHtml(l)}${l.texto ? `<p class="body">${rich(l.texto)}</p>` : ""}${l.botao ? `<span class="button">${esc(l.botao)}</span>` : ""}${notaHtml(l)}`;
+    default: return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${fraseHtml(l)}${seloHtml(l)}${tituloHtml(l)}${l.texto ? `<p class="body">${rich(l.texto)}</p>` : ""}${l.texto2 ? `<p class="body">${rich(l.texto2)}</p>` : ""}${fechoHtml(l)}${notaHtml(l)}${fonteHtml(l)}`;
   }
 }
 
@@ -169,6 +175,24 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .frame.com-recorte.citacao .recorte { height:58%; right:-30px; }
   .frame.com-recorte .footer { justify-content:flex-start; }
   .frame.com-recorte .footer .who { text-shadow:0 2px 12px rgba(0,0,0,.9); }
+  .frase { font-family:Anton, Inter, sans-serif; text-transform:uppercase; font-size:78px; line-height:1.08; letter-spacing:.005em; color:#fff; }
+  .frase em { color:var(--brand); }
+  .selo { font-family:"Playfair Display", Georgia, serif; font-style:italic; font-weight:500; font-size:190px; line-height:1; color:var(--brand); margin:20px 0 28px; letter-spacing:-.02em; }
+  .selo.branco { color:#fff; font-size:150px; }
+  .fecho { font-family:Anton, Inter, sans-serif; text-transform:uppercase; font-size:96px; line-height:1.04; color:var(--brand); margin-top:44px; }
+  .fecho em { color:#fff; }
+  .fonte { margin-top:36px; font-size:22px; color:var(--muted); }
+  .sub-linha { font-size:44px; color:var(--brand); border-bottom:3px solid var(--brand); padding-bottom:6px; align-self:flex-start; margin:8px 0 20px; }
+  h1.condensada { font-family:Anton, Inter, sans-serif; font-weight:400; text-transform:uppercase; font-size:132px; line-height:1.0; letter-spacing:.005em; }
+  .frame.centro { text-align:center; align-items:center; }
+  .frame.centro .body { font-size:44px; line-height:1.32; }
+  .body + .body { margin-top:22px; }
+  .frame.com-recorte .fecho { font-size:110px; }
+  .frame.centro .sub-linha { align-self:center; }
+  .frame.centro .nota { text-align:left; }
+  .recorte-central { position:absolute; left:50%; transform:translateX(-50%); bottom:0; height:92%; z-index:0; }
+  .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.75) 62%, rgba(0,0,0,.96) 82%); z-index:0; }
+  .frame.foto-central > *:not(.recorte-central):not(.degrade):not(.footer) { position:relative; z-index:1; }
   .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
   .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
@@ -177,8 +201,9 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:8px; font-size:30px; font-weight:700; }
   .badge { width:26px; height:26px; }
   .sub { font-size:22px; color:var(--muted); }
-</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo || "texto")}${l.imagem ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}">
+</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo || "texto")}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
   ${l.comFoto && recorte ? `<img class="recorte" src="${recorte}" alt="">` : ""}
+  ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
 </div></body></html>`;
