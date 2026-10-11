@@ -71,6 +71,7 @@ No início de **toda** tarefa leia `docs/posicionamento/PERFIL.md` (dados canôn
 | Site, SEO local, schema, sitemap, páginas novas | `/seo-site` |
 | ChatGPT / Gemini / Google IA, "as IAs me recomendam?" | `/visibilidade-ia` |
 | "Como melhorar meu Instagram/Facebook", conteúdo, autoridade | `/conteudo-social` |
+| "Cria um carrossel", "recria esse post" (referências enviadas) | `/carrossel` |
 | "O que melhorar esta semana?", "implemente as melhorias", "o que mudou?" | `/plano-semanal` |
 
 Metodologia comum (índice, etiquetas, falsificabilidade, formato): `.claude/skills/auditar-posicionamento/references/metodologia.md`.
