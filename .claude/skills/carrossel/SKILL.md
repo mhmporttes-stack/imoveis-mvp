@@ -10,7 +10,7 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 ## Padrão visual (pedido do dono, 2026-10-11)
 - **Fundo segue a referência** (regra do dono, 2026-10-11): referência de **cor única** → fundo **preto** (padrão). Referência com **foto/imagem de fundo** → recriar também com imagem (`"imagem"` na lâmina; o gerador escurece a parte de baixo para o texto). Imagem: fotos enviadas pelo dono, fotos de empreendimentos do projeto ou imagem gerada (Canva `generate-image`, sem pessoas reais nem marcas de terceiros) — nunca a foto da referência.
 - Minimalista, muito respiro; texto branco; destaque em **azul da marca** (`**palavra**` no roteiro).
-- Rodapé em toda lâmina no estilo do topo do perfil do Instagram: **foto em círculo com anel colorido** + **mhm.machado** com selo de verificado + "Matheus Machado / Corretor de Imóveis" (o @ real; `@matheusmachadoimoveis` não existe).
+- Rodapé em toda lâmina no estilo do topo do perfil do Instagram: **foto em círculo com anel colorido** + **mhm.machado** com selo de verificado + "Corretor de Imóveis" — rodapé pequeno e discreto (pedido do dono, 2026-10-11) (o @ real; `@matheusmachadoimoveis` não existe).
 - Sem logo e sem numeração ("1/4") no topo (pedido do dono, 2026-10-11): a identidade é o rodapé. Se algum dia usar marca, só o símbolo oficial `public/assets/matheus-machado-symbol.png` (regra 10 do CLAUDE.md).
 - Formato 1080×1350 (4:5). Capa com gancho forte; 1 ideia por lâmina; última lâmina = chamada para ação.
 

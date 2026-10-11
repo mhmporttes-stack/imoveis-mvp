@@ -33,7 +33,7 @@ const roteiro = JSON.parse(readFileSync(roteiroPath, "utf8"));
 // Rodapé igual ao topo do perfil do Instagram (pedido do dono, 2026-10-11): foto no anel colorido, usuário + selo
 // de verificado e a linha "Matheus Machado / Corretor de Imóveis".
 const handle = String(roteiro.handle || "mhm.machado").replace(/^@/, "");
-const subtitulo = roteiro.subtitulo || "Matheus Machado / Corretor de Imóveis";
+const subtitulo = roteiro.subtitulo ?? "Corretor de Imóveis";
 // Recorte do rosto dentro da foto (a foto oficial é o corpo inteiro): zoom e posição do fundo, em CSS.
 const fotoZoom = roteiro.fotoZoom || "340%";
 const fotoPosicao = roteiro.fotoPosicao || "38% 13%";
@@ -129,7 +129,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   :root { --bg:#000; --fg:#fff; --muted:#9AA4B2; --brand:#3B8BFF; --line:#1F2937; }
   * { box-sizing:border-box; margin:0; }
   body { width:1080px; height:1350px; background:var(--bg); color:var(--fg); font-family:Inter, system-ui, sans-serif; }
-  .frame { position:relative; width:100%; height:100%; padding:110px 88px 210px; display:flex; flex-direction:column; justify-content:center; }
+  .frame { position:relative; width:100%; height:100%; padding:110px 88px 170px; display:flex; flex-direction:column; justify-content:center; }
   .count { position:absolute; top:64px; right:88px; font-size:30px; font-weight:500; color:var(--muted); letter-spacing:.04em; }
   .mark { position:absolute; top:56px; left:96px; height:52px; opacity:.9; }
   .kicker { font-size:36px; font-weight:700; letter-spacing:.22em; color:var(--brand); text-transform:uppercase; margin-bottom:40px; }
@@ -169,18 +169,18 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .frame.com-recorte.citacao .recorte { height:58%; right:-30px; }
   .frame.com-recorte .footer { justify-content:flex-start; }
   .frame.com-recorte .footer .who { text-shadow:0 2px 12px rgba(0,0,0,.9); }
-  .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:64px; display:flex; align-items:center; justify-content:center; gap:22px; }
-  .ring { width:120px; height:120px; border-radius:50%; padding:5px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
-  .avatar { width:100%; height:100%; border-radius:50%; border:4px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
+  .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
+  .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
+  .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
   .avatar img { width:60%; }
-  .who { display:flex; flex-direction:column; gap:6px; }
-  .user { display:flex; align-items:center; gap:10px; font-size:40px; font-weight:700; }
-  .badge { width:36px; height:36px; }
-  .sub { font-size:30px; color:var(--muted); }
+  .who { display:flex; flex-direction:column; gap:2px; }
+  .user { display:flex; align-items:center; gap:8px; font-size:30px; font-weight:700; }
+  .badge { width:26px; height:26px; }
+  .sub { font-size:22px; color:var(--muted); }
 </style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo || "texto")}${l.imagem ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}">
   ${l.comFoto && recorte ? `<img class="recorte" src="${recorte}" alt="">` : ""}
   ${slideBody(l)}
-  <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span><span class="sub">${esc(subtitulo)}</span></div></div>
+  <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
 </div></body></html>`;
 
 const FONT_CSS = await fontCss();
