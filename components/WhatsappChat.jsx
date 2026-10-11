@@ -2055,7 +2055,17 @@ function ConversationPreviewModal({ conversationId, onClose, onOpen }) {
           {messages.map((message) => (
             <div key={message.id} className={`my-1 flex ${message.direction === "inbound" ? "justify-start" : "justify-end"}`}>
               <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[14px] leading-5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${message.direction === "inbound" ? "bg-white" : "bg-[#D9FDD3]"}`}>
-                <span className="whitespace-pre-wrap break-words">{message.revoked ? "Mensagem apagada" : message.body || (message.media ? `[${MEDIA_LABELS[message.type] || "Mídia"}]` : `[${message.type || "mensagem"}]`)}</span>
+                {/* Imagem/figurinha aparece de verdade na pré-visualização (pedido do dono, 2026-10-11); áudio toca ali mesmo. */}
+                {!message.revoked && message.media?.url && (message.type === "image" || message.type === "sticker") ? (
+                  <img src={message.media.url} alt={message.body || "Imagem"} loading="lazy" className={message.type === "sticker" ? "mb-1 max-h-32 w-auto" : "mb-1 max-h-60 w-full rounded-md object-cover"} />
+                ) : null}
+                {!message.revoked && message.media?.url && message.type === "audio" ? <audio controls preload="none" src={message.media.url} className="mb-1 w-56 max-w-full" /> : null}
+                {!message.revoked && message.media?.url && (message.type === "video" || message.type === "document") ? (
+                  <a href={message.media.url} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-1.5 text-[13px] font-bold text-brand">
+                    {message.type === "video" ? <Film className="h-4 w-4" /> : <FileText className="h-4 w-4" />}{message.media.name || MEDIA_LABELS[message.type] || "Arquivo"}
+                  </a>
+                ) : null}
+                <span className="whitespace-pre-wrap break-words">{message.revoked ? "Mensagem apagada" : message.body || (message.media ? "" : `[${MEDIA_LABELS[message.type] || message.type || "mensagem"}]`)}</span>
                 <span className="ml-2 align-bottom text-[10px] text-[#667781]">{formatListTime(message.at)}</span>
               </div>
             </div>
