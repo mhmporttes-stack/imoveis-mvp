@@ -16,7 +16,10 @@ import { telemetry } from "./telemetry.js";
 // (504) e piorando a corrupção de sessão (Bad MAC) quando várias sessões
 // sincronizavam ao mesmo tempo. 2026-10-08: religado a pedido do dono, agora LIMITADO à última semana (texto, foto e
 // áudio, lotes de 25). Para pausar de novo: WHATSAPP_HISTORY_SYNC_ENABLED=false na Railway (sem novo deploy).
-const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED !== "false";
+// 2026-10-11 (incidente): ligado pela 1ª vez de verdade às 13h44, NENHUMA sessão conseguiu ficar conectada (43 quedas 428
+// "Connection Closed", 0 conexões; antes, com ele desligado, 12 conexões normais). Volta a ser DESLIGADO por padrão:
+// só liga com WHATSAPP_HISTORY_SYNC_ENABLED=true na Railway, depois de investigar a causa.
+const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED === "true";
 export const historySyncEnabled = () => HISTORY_SYNC_ENABLED;
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
