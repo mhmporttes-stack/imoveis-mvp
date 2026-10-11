@@ -139,8 +139,11 @@ test("3-4. A não vê a sessão de B e B não vê a de A (lista, detalhe, previe
   // Não lidas por corretor = só as conversas da própria linha.
   assert.equal(await chat.getUnreadMessageCountForBroker(A), 1);
   assert.equal(await chat.getUnreadMessageCountForBroker(B), 1);
+  // A já ABRIU a conversa (getChatConversation acima): não lida por pessoa (2026-10-11) não conta mais para ele.
   const summaryA = await chat.getChatSummary(auths.A);
-  assert.equal(summaryA.unreadMessages, 1);
+  assert.equal(summaryA.unreadMessages, 0);
+  const summaryB = await chat.getChatSummary(auths.B);
+  assert.equal(summaryB.unreadMessages, 1);
 });
 
 test("a mesma pessoa NÃO vê a conversa do outro número mesmo sendo responsável pelo cliente", async () => {

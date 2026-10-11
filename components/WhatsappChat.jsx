@@ -407,6 +407,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       setConversations((current) => (current.some((item) => item.id === id && item.internalUnread > 0) ? current.map((item) => (item.id === id ? { ...item, internalUnread: 0 } : item)) : current));
       // Particular: abrir marca como vista por mim (o servidor grava) — tira o destaque da linha na hora.
       setConversations((current) => (current.some((item) => item.id === id && item.seenByMe === false) ? current.map((item) => (item.id === id ? { ...item, seenByMe: true } : item)) : current));
+      // Abrir = vista por mim (o servidor grava por pessoa): o número de não lidas some da MINHA lista na hora.
+      setConversations((current) => (current.some((item) => item.id === id && item.unreadCount > 0) ? current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)) : current));
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
       // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
       const unread = data.conversation.unreadCount;
