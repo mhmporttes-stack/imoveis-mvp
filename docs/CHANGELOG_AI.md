@@ -26,7 +26,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ### 2026-10-11 — "Enviar simulação": Chat só com janela do oficial; senão WhatsApp do corretor (PRES-22)
 
-- Pedido do dono: pelo número pessoal via Chat o link chegava sem prévia (o serviço não monta o cartão). Agora o Chat só é usado quando o cliente iniciou conversa no oficial (janela de 24 h aberta, vai com imagem + botão); nos demais casos abre o WhatsApp do próprio corretor com a mensagem, e o app dele gera a prévia. Removido o caminho "?slot= no Chat pessoal".
+- Pedido do dono: pelo número pessoal via Chat o link chegava sem prévia (o serviço não monta o cartão). Agora o Chat só é usado quando o cliente iniciou conversa no oficial (janela de 24 h aberta, vai com imagem + botão); nos demais casos abre o WhatsApp do próprio corretor com SÓ o link (sem texto, senão a prévia não carrega), e o app dele gera a prévia. Removido o caminho "?slot= no Chat pessoal".
 
 ### 2026-10-11 — Botão "Receber minha simulação" de volta na tela final (WA-10)
 

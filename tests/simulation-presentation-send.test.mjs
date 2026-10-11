@@ -64,7 +64,8 @@ test("gerador: Chat só com a janela do oficial aberta; senão o WhatsApp do pr�
   const src = read("components/SimulationGenerator.jsx");
   assert.match(src, /if \(data\.officialConversationId\) \{/);
   assert.match(src, /whatsapp-chat\/conversations\/\$\{encodeURIComponent\(data\.officialConversationId\)\}\/messages/);
-  assert.match(src, /withWhatsappText\(buildExternalWhatsappUrl\(phone, device\), data\.message\)/);
+  assert.match(src, /const onlyLink = data\.link \|\| data\.message;/);
+  assert.match(src, /withWhatsappText\(buildExternalWhatsappUrl\(phone, device\), onlyLink\)/, "só o link, sem texto (prévia)");
   assert.doesNotMatch(src, /&slot=\$\{encodeURIComponent\(connectedSlot/, "nunca mais pelo número pessoal via Chat");
   const route = read("app/api/admin/simulacoes/[id]/apresentacao/route.js");
   assert.match(route, /findOpenOfficialConversationId\(simulation\.registrationId\)/);

@@ -27,7 +27,7 @@ test("telas sem setas de subir/descer: usam arrastar", () => {
 test("Enviar simulação: sem telefone válido abre o Chat com o link no campo", () => {
   const sim = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
   const fn = sim.slice(sim.indexOf("async function sendPresentationToWhatsApp()"), sim.indexOf("async function sendPresentationToWhatsApp()") + 4000);
-  assert.match(fn, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}&text=\$\{encodeURIComponent\(data\.message\)\}`\)/);
+  assert.match(fn, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}&text=\$\{encodeURIComponent\(onlyLink\)\}`\)/);
   assert.doesNotMatch(fn, /wa\.me/);
   const chat = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
   assert.match(chat, /if \(initialText\) setInsertRequest\(\{ conversationId: data\.conversationId, text: initialText/);

@@ -746,8 +746,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   // "Enviar simulação" (regra do dono, 2026-10-11 — substitui a de 2026-10-09):
   //  1) o cliente INICIOU conversa no número OFICIAL e a janela de 24 h está aberta -> envia direto pelo Chat (imagem + botão
   //     "Visualizar simulação") e abre a conversa;
-  //  2) senão -> abre o WhatsApp do PRÓPRIO corretor (app no celular/PWA, WhatsApp Web no computador) com a mensagem pronta:
-  //     o app dele monta a prévia do link, o que o envio pelo Chat no número pessoal não faz.
+  //  2) senão -> abre o WhatsApp do PRÓPRIO corretor (app no celular/PWA, WhatsApp Web no computador) com SÓ o link (sem
+  //     texto: com texto junto a prévia não carrega) — o app dele monta a prévia, o que o envio pelo Chat no pessoal não faz.
   async function sendPresentationToWhatsApp() {
     if (!form.id) {
       setError("Salve a simulação antes de enviar a apresentação.");
@@ -784,14 +784,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       await post("enviar-registrar").catch(() => null);
       const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
       const device = detectDevice({ userAgent: navigator.userAgent, standalone: window.matchMedia?.("(display-mode: standalone)").matches === true, maxTouchPoints: navigator.maxTouchPoints || 0 });
-      const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), data.message);
+      // SÓ o link, sem texto junto (dono, 2026-10-11): com mensagem acompanhando o WhatsApp não carrega a prévia.
+      const onlyLink = data.link || data.message;
+      const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), onlyLink);
       if (externalUrl) {
         window.location.assign(externalUrl);
         setSendingSimulation(false);
         return;
       }
-      // Sem telefone válido no cadastro: abre a conversa no Chat com a mensagem no campo.
-      router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
+      // Sem telefone válido no cadastro: abre a conversa no Chat com o link no campo.
+      router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(onlyLink)}`);
     } catch (sendError) {
       setError(sendError.message || "Não foi possível preparar o envio da apresentação.");
       setSendingSimulation(false);
