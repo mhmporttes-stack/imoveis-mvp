@@ -19,7 +19,12 @@ import { telemetry } from "./telemetry.js";
 // 2026-10-11 (incidente): ligado pela 1ª vez de verdade às 13h44, NENHUMA sessão conseguiu ficar conectada (43 quedas 428
 // "Connection Closed", 0 conexões; antes, com ele desligado, 12 conexões normais). Volta a ser DESLIGADO por padrão:
 // só liga com WHATSAPP_HISTORY_SYNC_ENABLED=true na Railway, depois de investigar a causa.
-const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED === "true";
+// Causa achada no Baileys (Utils/validate-connection.js): com syncFullHistory ligado e navegador "Mac OS", o LOGIN passa a
+// se apresentar como DARWIN em vez de WEB_BROWSER — diferente de como as sessões foram pareadas — e o WhatsApp fecha na hora.
+// Correção: o histórico só é pedido no PAREAMENTO NOVO por QR (único momento em que o WhatsApp o envia), com um navegador
+// que mantém WEB_BROWSER; reconexões e pareamento por código nunca pedem histórico (login idêntico ao de sempre).
+const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED !== "false";
+const HISTORY_AFTER_PAIRING_MS = 30 * 60 * 1000;
 export const historySyncEnabled = () => HISTORY_SYNC_ENABLED;
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
@@ -360,6 +365,12 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     throw notReadyError(blockedNow);
   }
 
+  // Histórico só no pareamento NOVO por QR (sem credenciais de conta, sem número para código).
+  const fullHistory = HISTORY_SYNC_ENABLED && !phoneNumber && !state.creds?.me?.id;
+  // O histórico chega DEPOIS do pareamento (no socket do reinício 515 e nos minutos seguintes): esses sockets processam o
+  // histórico (shouldSyncHistoryMessage), mas fazem login com syncFullHistory desligado — igual ao pareamento.
+  if (fullHistory) entry.historyUntil = Date.now() + HISTORY_AFTER_PAIRING_MS;
+  const wantsHistory = HISTORY_SYNC_ENABLED && (fullHistory || Date.now() < (entry.historyUntil || 0));
   const sock = makeWASocket({
     version,
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
@@ -372,7 +383,8 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     // Web (pedido explícito do dono, ciente de que isso inclui conversas
     // pessoais do corretor — ver onHistorySync). PAUSADO por ora — ver
     // HISTORY_SYNC_ENABLED acima.
-    syncFullHistory: HISTORY_SYNC_ENABLED,
+    syncFullHistory: fullHistory,
+    shouldSyncHistoryMessage: () => wantsHistory,
     // Pareamento por código exige uma identificação de navegador que o
     // WhatsApp reconheça (o nome personalizado fazia o pedido de código
     // terminar em "Connection Closed"); sessões por QR seguem como antes.
@@ -380,7 +392,11 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     // navegador nas reconexões dela).
     // QR NOVO (2026-10-09): o WhatsApp só manda o histórico longo para aparelho vinculado do tipo DESKTOP, e esse tipo é
     // decidido no pareamento (não nas reconexões). Com "Chrome" vinha quase nada — por isso o histórico não carregava.
-    browser: !state.creds.registered && !phoneNumber
+    // Pareamento novo por QR com histórico: tipo DESKTOP (histórico longo) com nome próprio — "Mac OS"/"Windows" fariam o
+    // Baileys mudar o login para DARWIN/WIN32 (ver HISTORY_SYNC_ENABLED).
+    browser: fullHistory
+      ? ["CRM Imoveis", "Desktop", "1.0"]
+      : !state.creds.registered && !phoneNumber
       ? Browsers.macOS("Desktop")
       : (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"]
   });
@@ -400,7 +416,7 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
-  if (HISTORY_SYNC_ENABLED) {
+  if (wantsHistory) {
     sock.ev.on("messaging-history.set", ({ messages, contacts, chats }) => {
       // Aprende LID -> telefone dos contatos e conversas do próprio histórico ANTES das mensagens (2026-10-11).
       rememberLidsFromContacts(userId, contacts);

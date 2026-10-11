@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Incidente: histórico ligado derrubou todos os WhatsApps (13h44–14h19)
+
+- Ver `docs/INCIDENTES.md`. Histórico agora só no pareamento novo por QR (login das sessões existentes inalterado). A tela "QR NOVO pareia como Desktop para receber o histórico" (2026-10-09) partiu de diagnóstico errado: na época o histórico estava desligado pela variável da Railway.
+
 ### 2026-10-11 — Pareamento por código (caso Jennyfer)
 
 - Ver `docs/INCIDENTES.md` (2026-10-11): sessão com código pendente tratada como pareada (408 → reconexão → 401), número BR com/sem 9 resolvido por sessão conectada (`resolvePairingNumber`, só consulta), tela com número/cópia/prazo/aviso de expirado. Arquivos: `whatsapp-individual-service/src/{reconnect-policy,sessions}.js`, `components/WhatsappIndividualStatus.jsx`.

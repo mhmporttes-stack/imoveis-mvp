@@ -371,3 +371,13 @@ test("pareamento por código: número exato da conta (com/sem o 9) e aviso de n�
   assert.match(ui, /Copiar código/);
   assert.match(ui, /O código vale cerca de 2 minutos/);
 });
+
+// Incidente 2026-10-11 13h44: histórico ligado derrubou TODAS as sessões (428 em < 1 s). No Baileys 6.7.24, syncFullHistory +
+// navegador "Mac OS" muda o LOGIN para DARWIN — diferente do pareamento. Histórico só no pareamento novo por QR.
+test("histórico: login das sessões já pareadas nunca usa syncFullHistory; pareamento novo por QR usa navegador sem 'Mac OS'", () => {
+  const sessions = readFileSync(new URL("../whatsapp-individual-service/src/sessions.js", import.meta.url), "utf8");
+  assert.match(sessions, /const fullHistory = HISTORY_SYNC_ENABLED && !phoneNumber && !state\.creds\?\.me\?\.id;/);
+  assert.match(sessions, /syncFullHistory: fullHistory,\n\s*shouldSyncHistoryMessage: \(\) => wantsHistory,/);
+  assert.match(sessions, /browser: fullHistory\n\s*\? \["CRM Imoveis", "Desktop", "1\.0"\]/);
+  assert.doesNotMatch(sessions, /syncFullHistory: HISTORY_SYNC_ENABLED/);
+});
