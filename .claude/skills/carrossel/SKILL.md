@@ -25,3 +25,4 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 
 ## Foto do Matheus
 Arquivo padrão: `docs/posicionamento/assets/matheus-perfil.png` (foto oficial enviada pelo dono em 2026-10-11; recorte do rosto por `fotoZoom`/`fotoPosicao`). Sem o arquivo, o rodapé usa o símbolo "M" — peça a foto ao dono.
+Foto **sem fundo** (recorte, enviada e autorizada pelo dono em 2026-10-11): `docs/posicionamento/assets/matheus-recorte.png`. Use quando a referência tiver a pessoa na lâmina (capa com o autor, CTA "fale comigo"): `"comFoto": true` na lâmina — ele entra à direita, por trás do texto, e o texto ocupa ~60% da largura. Só quando fizer sentido, não em todas as lâminas.

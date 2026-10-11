@@ -56,6 +56,8 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\n/g, "<br>");
 
 const symbol = asDataUrl("public/assets/matheus-machado-symbol.png");
+// Foto do Matheus SEM fundo (recorte, 2026-10-11) para lâminas em que ele aparece: "comFoto": true na lâmina.
+const recorte = asDataUrl(roteiro.recorte || "docs/posicionamento/assets/matheus-recorte.png");
 const foto = asDataUrl(roteiro.foto || "docs/posicionamento/assets/matheus-perfil.png");
 const avatar = `<span class="ring"><span class="avatar" style="${foto ? `background-image:url('${foto}');background-size:${fotoZoom};background-position:${fotoPosicao}` : ""}">${foto ? "" : `<img src="${symbol}" alt="">`}</span></span>`;
 const verified = `<svg class="badge" viewBox="0 0 40 40" aria-hidden="true"><path fill="#3897F0" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Zm7.415 11.225 2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 4.587 4.581 9.18-9.18Z"/></svg>`;
@@ -108,7 +110,13 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .frame.foto h1.cover { font-size:112px; }
   .frame.foto h2 { font-size:84px; }
   .frame.foto .body, .frame.foto li { color:#F1F4F8; }
-  .footer { position:absolute; left:88px; right:88px; bottom:64px; display:flex; align-items:center; justify-content:center; gap:22px; }
+  .recorte { position:absolute; right:-40px; bottom:0; height:78%; z-index:0; filter:drop-shadow(0 0 60px rgba(59,139,255,.25)); }
+  .frame.com-recorte > *:not(.recorte):not(.footer) { position:relative; z-index:1; max-width:62%; }
+  .frame.com-recorte h1.cover { font-size:104px; }
+  .frame.com-recorte h2 { font-size:80px; }
+  .frame.com-recorte .footer { justify-content:flex-start; }
+  .frame.com-recorte .footer .who { text-shadow:0 2px 12px rgba(0,0,0,.9); }
+  .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:64px; display:flex; align-items:center; justify-content:center; gap:22px; }
   .ring { width:120px; height:120px; border-radius:50%; padding:5px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:4px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
   .avatar img { width:60%; }
@@ -116,7 +124,8 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:10px; font-size:40px; font-weight:700; }
   .badge { width:36px; height:36px; }
   .sub { font-size:30px; color:var(--muted); }
-</style></head><body style="${fundoDa(l)}"><div class="frame${l.imagem ? " foto" : ""}">
+</style></head><body style="${fundoDa(l)}"><div class="frame${l.imagem ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}">
+  ${l.comFoto && recorte ? `<img class="recorte" src="${recorte}" alt="">` : ""}
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span><span class="sub">${esc(subtitulo)}</span></div></div>
 </div></body></html>`;
