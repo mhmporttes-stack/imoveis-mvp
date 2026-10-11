@@ -35,3 +35,12 @@ test("LID já visto na sessão usa a conversa existente; duplicatas são juntada
   const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
   assert.match(ui, /if \(full === UNKNOWN_NUMBER_LABEL\) return full;/);
 });
+
+// 2026-10-11: mensagem RECEBIDA por LID sem senderPn também não é descartada.
+test("mensagem recebida sem número também entra", () => {
+  const sessions = readFileSync(new URL("../whatsapp-individual-service/src/sessions.js", import.meta.url), "utf8");
+  assert.match(sessions, /if \(!key\.fromMe && phoneFromJid\(key\.senderPn\)\) return "";/);
+  const inbound = readFileSync(new URL("../lib/whatsapp-individual-inbound.js", import.meta.url), "utf8");
+  assert.doesNotMatch(inbound, /lid_sem_telefone/);
+  assert.match(inbound, /privateContact \|\| Boolean\(placeholder\) \|\| await findInternalTeamPhone\(phone\)/);
+});

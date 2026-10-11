@@ -26,7 +26,7 @@ test("mensagem nova em conversa particular não reabre, não vincula e não cria
   assert.match(sql, /status = case when c\.status = 'finished' and c\.private_at is null then 'open' else c\.status end/);
   assert.match(sql, /client_id = case when c\.private_at is not null then c\.client_id/);
   const inbound = read("lib/whatsapp-individual-inbound.js");
-  assert.match(inbound, /const internalContact = privateContact \|\| await findInternalTeamPhone\(phone\);/);
+  assert.match(inbound, /const internalContact = privateContact \|\| Boolean\(placeholder\) \|\| await findInternalTeamPhone\(phone\);/);
   assert.match(inbound, /const hiddenConversation = Boolean\(afterApply\?\.deleted_at\) \|\| privateContact \|\| Boolean\(afterApply\?\.private_at\);/);
   assert.match(inbound, /if \(!conversation\.client_id && !conversation\.private_at\) \{/);
   const lead = read("lib/whatsapp-sponsored-lead.js");

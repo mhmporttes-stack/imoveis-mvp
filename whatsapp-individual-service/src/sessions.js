@@ -124,9 +124,12 @@ const PLACEHOLDER_LID_LIMIT = 2000;
 const lidAskedAt = new Map(); // `${userId}|${lid}` -> último pedido de candidatos (ms)
 const LID_RESOLVE_COOLDOWN_MS = 5 * 60 * 1000;
 
+// LID sem telefone conhecido — do corretor (fromMe) OU recebida sem `senderPn` (2026-10-11: nada pode ser descartado
+// por falta de número; vira "Número não identificado" até o telefone aparecer).
 function unresolvedOwnLid(userId, msg) {
   const key = msg?.key || {};
-  if (!key.fromMe || !isLidJid(key.remoteJid)) return "";
+  if (!isLidJid(key.remoteJid)) return "";
+  if (!key.fromMe && phoneFromJid(key.senderPn)) return "";
   const lid = normalizeLid(key.remoteJid);
   return lid && !lidMapFor(userId).get(lid) ? lid : "";
 }
