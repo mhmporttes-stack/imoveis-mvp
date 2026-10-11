@@ -30,3 +30,10 @@ Leia `docs/posicionamento/ESTILO-CARROSSEL.md` (modelos que ele já postou, tipo
 Arquivo padrão: `docs/posicionamento/assets/matheus-perfil.png` (foto oficial enviada pelo dono em 2026-10-11; recorte do rosto por `fotoZoom`/`fotoPosicao`). Sem o arquivo, o rodapé usa o símbolo "M" — peça a foto ao dono.
 Foto **sem fundo** (recorte, enviada e autorizada pelo dono em 2026-10-11): `docs/posicionamento/assets/matheus-recorte.png`. Use quando a referência tiver a pessoa na lâmina (capa com o autor, CTA "fale comigo"): `"comFoto": true` na lâmina — ele entra à direita, por trás do texto, e o texto ocupa ~60% da largura. Só quando fizer sentido, não em todas as lâminas.
 Foto **apontando** (sem fundo, 2026-10-11): `docs/posicionamento/assets/matheus-apontando.png` — `"comFoto": "apontando"`; ele fica à direita apontando para o texto (bom para capa de guia, "o mais importante", CTA).
+
+## Imagens geradas no Canva sem trabalho manual (2026-10-11)
+O `generate-image` só devolve miniatura. Para baixar em tamanho cheio, automaticamente:
+1. `generate-image` (PORTRAIT_4_5, "top 40-45% vazio") → `media_id` de cada imagem.
+2. Um design auxiliar 1080×1350: `generate-design` (instagram_post, `asset_ids` = 1ª imagem) → `create-design-from-candidate`; `read-design` com `open_transaction`; `edit-design`: apagar todos os elementos do modelo, `insert_fill` da imagem em top 0/left 0/1089×1350, `add_page` (fundo #000) para as demais e `insert_fill` em cada; `commit`.
+3. `export-design` PNG 1080×1350 → URLs públicas temporárias → `curl` para `carrosseis/<pasta>/img/`.
+Pedir textos da imagem em português e conferir cada PNG (IA às vezes escreve em inglês).
