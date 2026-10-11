@@ -31,6 +31,9 @@ Arquivo padrão: `docs/posicionamento/assets/matheus-perfil.png` (foto oficial e
 Foto **sem fundo** (recorte, enviada e autorizada pelo dono em 2026-10-11): `docs/posicionamento/assets/matheus-recorte.png`. Use quando a referência tiver a pessoa na lâmina (capa com o autor, CTA "fale comigo"): `"comFoto": true` na lâmina — ele entra à direita, por trás do texto, e o texto ocupa ~60% da largura. Só quando fizer sentido, não em todas as lâminas.
 Foto **apontando** (sem fundo, 2026-10-11): `docs/posicionamento/assets/matheus-apontando.png` — `"comFoto": "apontando"`; ele fica à direita apontando para o texto (bom para capa de guia, "o mais importante", CTA).
 
+## Boneco 3D do Matheus (2026-10-11)
+Personagem 3D estilo animação, feito no Canva a partir das fotos dele (só as fotos em que ele aparece sozinho), fundo transparente, em `docs/posicionamento/assets/boneco-3d/<pose>.png` (catálogo: `prancha.png`). Poses: `apontando`, `pensando`, `joinha`, `bracos-cruzados`, `surpreso`, `explicando`, `chave`, `celular`, `pensativo`, `comemorando`. Na lâmina: `"boneco": "<pose>"` (entra à direita, igual ao `comFoto`). Uma pose por lâmina, combinando com o texto (ex.: `pensando` na capa "eu faria isso", `surpreso` em mito/erro, `celular` no "me chama na DM", `chave` em conquista). Pose nova: gerar com `generate-image` usando como referência uma das poses atuais + o mesmo texto de descrição (blazer azul-marinho, camisa preta, relógio prateado), `remove-background` e exportar com fundo transparente pelo design auxiliar.
+
 ## Imagens geradas no Canva sem trabalho manual (2026-10-11)
 O `generate-image` só devolve miniatura. Para baixar em tamanho cheio, automaticamente:
 1. `generate-image` (PORTRAIT_4_5, "top 40-45% vazio") → `media_id` de cada imagem.
