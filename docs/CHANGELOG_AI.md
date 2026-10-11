@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Barra inferior "flutuando" no meio da tela (iPhone)
+
+- Dono: 3 vezes na tarde a barra inferior (Chat etc.) ficou no meio da tela. Defeito do iOS em app instalado: depois que o teclado fecha, a janela às vezes não volta ao tamanho/posição normais e o `position: fixed` fica deslocado até a próxima rolagem. `components/AdminBottomNav.jsx` agora, ao fechar o teclado, mudar o `visualViewport`, voltar ao app (`visibilitychange`/`pageshow`) ou girar a tela, reposiciona a rolagem da janela (no Chat, cujo body é fixo, volta a 0) e força a repintura da barra. Não reproduzível no container; se voltar a ocorrer, anotar a tela e o que foi feito antes.
+
 ### 2026-10-11 — Botão "Atualizar" (nova versão do painel) recarrega na hora
 
 - Dono: clicava em "Atualizar", o botão mudava de cor e nada acontecia; só fechando e abrindo o app. Causa: `public/sw.js` já faz `skipWaiting` na instalação e `components/PwaLifecycle.jsx` adia a recarga até o app ir para segundo plano (regra de não recarregar na frente de quem usa); o botão só mandava `SKIP_WAITING` para um worker já ativo. Agora o clique recarrega na hora (se o worker ainda estiver esperando, ativa e recarrega; limite de 3 s). A recarga automática em segundo plano continua igual.

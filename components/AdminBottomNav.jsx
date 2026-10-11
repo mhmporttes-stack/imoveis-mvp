@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3, BookOpen, GraduationCap, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
   MessageCircle, MessageSquarePlus, MessageSquareQuote, MessageSquareReply, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
@@ -65,6 +65,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const counts = useCrmBadgeCounts();
   const [moreOpen, setMoreOpen] = useState(false);
   const [typing, setTyping] = useState(false);
+  const navRef = useRef(null);
   const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked };
   // Acesso WhatsApp bloqueado (2026-10-04): Chat e Meta Diária do corretor NÃO são renderizados (nada de botão cinza).
   const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
@@ -91,6 +92,50 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     };
   }, []);
 
+  // iPhone (app instalado): depois que o teclado fecha, o iOS às vezes não devolve a janela ao tamanho/posição normais
+  // e o que é position: fixed (esta barra) fica "flutuando" no meio da tela até a próxima rolagem (dono, 2026-10-11:
+  // "a barra inferior ficou ali pro meio", 3 vezes na tarde). Ao fechar o teclado, a janela mudar de tamanho ou o app
+  // voltar ao primeiro plano, força o navegador a recalcular: a rolagem da janela volta para onde deve estar (no Chat o
+  // body é fixo, então a janela fica em 0) e a barra é repintada.
+  useEffect(() => {
+    let timer = 0;
+    const resync = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (isEditableTarget(document.activeElement)) return; // teclado aberto: a barra está escondida mesmo
+        const root = document.documentElement;
+        if (root.classList.contains("chat-app-mode")) {
+          if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+        } else {
+          window.scrollTo(window.scrollX, window.scrollY);
+        }
+        const nav = navRef.current;
+        if (nav) {
+          nav.style.transform = "translateZ(0)";
+          void nav.offsetHeight;
+          nav.style.transform = "";
+        }
+      }, 300);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") resync();
+    };
+    const viewport = window.visualViewport;
+    document.addEventListener("focusout", resync);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", resync);
+    window.addEventListener("orientationchange", resync);
+    viewport?.addEventListener("resize", resync);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("focusout", resync);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", resync);
+      window.removeEventListener("orientationchange", resync);
+      viewport?.removeEventListener("resize", resync);
+    };
+  }, []);
+
   // Marca no <html> que o teclado está aberto: telas em modo aplicativo (Chat) tiram o espaço reservado da barra.
   useEffect(() => {
     document.documentElement.classList.toggle("admin-typing", typing);
@@ -104,6 +149,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   return (
     <>
       <nav
+        ref={navRef}
         aria-label="Navegação principal"
         className={cx(
           "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 shadow-float backdrop-blur md:hidden",
