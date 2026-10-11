@@ -138,3 +138,18 @@ test("madrugada: envia normalmente se a janela do oficial estiver aberta; janela
   assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-11T03:59:00Z" } }), at0200).action, "send");
   assert.equal(decideFormReminder(baseInput({ link, conversation: { ...baseInput().conversation, last_inbound_at: "2026-10-10T05:00:00Z" } }), at0200).reason, "janela_fechada");
 });
+
+test("link da APRESENTAÇÃO da simulação (/s/<token>) não é link do formulário (caso real 2026-10-11)", () => {
+  assert.ok(!isFormLinkUrl("https://www.matheusmachadoimoveis.com.br/s/pmmq4Xh3Oi1pdHDGzi9kxwmm?p=mceoa4"));
+  assert.ok(!isFormLinkUrl("https://www.matheusmachadoimoveis.com.br/s/pmmq4Xh3Oi1pdHDGzi9kxwmm/"));
+  // ref curto de corretor continua contando
+  assert.ok(isFormLinkUrl("https://www.matheusmachadoimoveis.com.br/s/bruna"));
+  assert.ok(isFormLinkUrl("https://www.matheusmachadoimoveis.com.br/s/mceoa4"));
+});
+
+test("cadastro criado pelo formulário (jornada gravada, sem last_form_submitted_at) não recebe lembrete", () => {
+  const viaClient = decideFormReminder(baseInput({ client: { status: "simulation_sent", last_form_submitted_at: null, journey_type: "simulation" } }), AFTER_1H);
+  assert.equal(viaClient.reason, "formulario_preenchido");
+  const viaPhone = decideFormReminder(baseInput({ phoneRegistrations: [{ id: "x", status: "simulation_sent", created_at: "2026-01-01T00:00:00Z", last_form_submitted_at: null, journey_type: "quick_service" }] }), AFTER_1H);
+  assert.equal(viaPhone.reason, "formulario_preenchido");
+});

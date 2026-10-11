@@ -315,3 +315,8 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Correção:** `syncFullHistory` só no pareamento NOVO por QR, com navegador `["CRM Imoveis","Desktop","1.0"]` (mantém WEB_BROWSER, tipo DESKTOP); retomadas/código fazem login como sempre; o histórico que chega depois do pareamento é processado por `shouldSyncHistoryMessage` por 30 min (`HISTORY_AFTER_PAIRING_MS`).
 - **Lição:** mudar opção do Baileys que entra no login exige testar com uma sessão real antes de ligar para todos.
 
+## 2026-10-11 noite — Lembrete "você ainda não preencheu o formulário" para quem já preencheu e recebeu a simulação
+
+- **Sintoma:** 1 h depois de receber a apresentação da simulação, a cliente recebeu o lembrete WA-17 do formulário.
+- **Causa raiz:** `isFormLinkUrl` aceitava qualquer `/s/<x>`; o link da apresentação (`/s/<token>`) usa o mesmo prefixo do link curto do formulário (`/s/<ref>`). E cadastro criado pelo formulário fica com `last_form_submitted_at` nulo (só reenvio preenche), então o "já preencheu" não o via.
+- **Correção:** `lib/whatsapp-form-reminder-core.mjs` exclui token de apresentação (`isPresentationToken`) e trata `journey_type` preenchido como formulário enviado (`lib/whatsapp-form-reminder.js` passa a ler a coluna). Testes em `tests/whatsapp-form-reminder.test.mjs`.
