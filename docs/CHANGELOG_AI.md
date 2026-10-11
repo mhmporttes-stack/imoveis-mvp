@@ -24,6 +24,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Botão "Receber minha simulação" de volta na tela final (WA-10)
+
+- Achado: o botão foi tirado em 04/10 (redesenho da tela final, pedido do dono); desde 28/09 nenhuma mensagem "preenchi meu cadastro" chegou em número nenhum, com ~40 cadastros/dia — o cliente não tinha como iniciar a conversa.
+- Mudança (pedido do dono): `SimulationSuccess.jsx` volta a mostrar `ReceiveSimulationWhatsappButton` abaixo do texto; o destino continua o número oficial (desde 09/10). Fluxo "Formulário concluído" segue pausado.
+- Verificado junto: "Enviar simulação" pelo oficial sai com imagem + botão "Visualizar simulação" (4 envios, todos lidos); pelo WhatsApp do corretor sai só o link em texto, sem cartão de prévia (o serviço não gera prévia — `link-preview-js` não instalado).
+
 ### 2026-10-11 — Chat: aba "Grupos" só para o dono (WA-29)
 
 - Antes: mensagem de grupo era descartada no serviço (desde a "conversa fantasma" de grupo virando cliente).
