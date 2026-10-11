@@ -313,11 +313,29 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
                 <>
                   <div className="w-full rounded-2xl border border-line bg-mist/40 py-5 text-center">
                     <p className="font-mono text-3xl font-black tracking-[0.15em] text-navy">{status.pairingCode}</p>
+                    {phoneInput ? <p className="mt-1 text-[11px] font-bold text-navy/60">Para o número {formatPhoneInput(phoneInput)}</p> : null}
                   </div>
-                  <p className="text-xs text-navy/60">No celular: WhatsApp → Aparelhos conectados → Conectar com número de telefone → digite esse código.</p>
+                  {/* Só com o celular (caso Jennyfer, 2026-10-11): copiar, ir ao WhatsApp e digitar em até ~2 minutos. Pedir outro
+                      código invalida este. */}
+                  <button
+                    type="button"
+                    onClick={() => { try { navigator.clipboard?.writeText(String(status.pairingCode).replace(/[^0-9A-Za-z]/g, "")); setError(""); } catch { /* sem área de transferência */ } }}
+                    className="w-full rounded-full border border-navy/15 px-3 py-2 text-xs font-extrabold text-navy hover:border-brand"
+                  >
+                    Copiar código
+                  </button>
+                  <ol className="w-full list-decimal space-y-0.5 pl-5 text-left text-xs text-navy/70">
+                    <li>Abra o WhatsApp <strong>do número acima</strong> (se for o 2º número, no app/celular dele).</li>
+                    <li>Configurações → Aparelhos conectados → Conectar um aparelho.</li>
+                    <li>Toque em <strong>Conectar com número de telefone</strong> e digite o código. Se aparecer uma notificação do WhatsApp pedindo o código, pode tocar nela.</li>
+                  </ol>
+                  <p className="text-[11px] font-bold text-amber-700">O código vale cerca de 2 minutos. Não peça outro enquanto digita: o anterior deixa de valer.</p>
                 </>
               ) : phoneMode ? (
                 <div className="flex w-full flex-col gap-2">
+                  {["qr_expired", "pairing_expired", "pairing_interrupted"].includes(status?.lastError) ? (
+                    <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">O código anterior expirou sem ser digitado. Peça um novo e digite no WhatsApp em até 2 minutos.</p>
+                  ) : null}
                   <label className="text-xs font-bold text-navy/70" htmlFor="whatsapp-individual-phone">Seu número (com DDD)</label>
                   <input
                     id="whatsapp-individual-phone"

@@ -84,8 +84,12 @@ function toCode(statusCode) {
 // (messages-recv.js); no pareamento por QR ele continua false para sempre — por isso a prova
 // de pareamento é `creds.me` (preenchido no pair-success). Antes: `registered === false` tratava
 // TODA sessão pareada por QR como "não pareada" (backoff de 2 s em vez do exponencial).
+// Pareamento por CÓDIGO ainda não concluído (2026-10-11, caso Jennyfer): o pedido do código já grava `creds.me` (o número
+// digitado) e `creds.pairingCode` ANTES de o celular aceitar — com só `me.id` a sessão parecia pareada, o código vencido
+// (408) virava "reconectar" e o WhatsApp respondia 401 (logged_out). Pareada por código = `registered === true`.
 export function isPairedCreds(creds) {
-  return Boolean(creds?.me?.id) || creds?.registered === true;
+  if (creds?.registered === true) return true;
+  return Boolean(creds?.me?.id) && !creds?.pairingCode;
 }
 
 // -> { kind, code, reason }. `message` (opcional) distingue QR sem escanear de timeout de rede (ambos 408).

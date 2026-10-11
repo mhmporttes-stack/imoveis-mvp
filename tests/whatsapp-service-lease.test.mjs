@@ -380,6 +380,9 @@ test("sessão pareada por QR NÃO é tratada como 'não pareada' (creds.register
   assert.equal(isPairedCreds({ registered: false, me: { id: "5514@s.whatsapp.net" } }), true);
   assert.equal(isPairedCreds({ registered: true }), true);
   assert.equal(isPairedCreds({ registered: false }), false);
+  // código pedido e ainda não digitado no celular (me + pairingCode gravados pelo Baileys): NÃO pareada
+  assert.equal(isPairedCreds({ registered: false, me: { id: "5514@s.whatsapp.net", name: "~" }, pairingCode: "ABCD1234" }), false);
+  assert.equal(isPairedCreds({ registered: true, me: { id: "5514@s.whatsapp.net" }, pairingCode: "ABCD1234" }), true);
   assert.equal(isPairedCreds(undefined), false);
   const h = harness(); // pareada por QR (registered:false + me)
   h.controller.beginCycle("resume");

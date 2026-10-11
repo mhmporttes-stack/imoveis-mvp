@@ -360,3 +360,14 @@ test("configFromEnv: limite de quedas por número respeita limites seguros", () 
   assert.equal(configFromEnv({ WHATSAPP_RECONNECT_DROP_LIMIT: "1" }).dropLimitMax, 6);
   assert.equal(configFromEnv({ WHATSAPP_RECONNECT_DROP_LIMIT: "99" }).dropLimitMax, 6);
 });
+
+// Caso Jennyfer (2026-10-11): código pedido 6x, nunca aceito; ao vencer, a sessão "parecia pareada", reconectava e levava 401.
+test("pareamento por código: número exato da conta (com/sem o 9) e aviso de número sem WhatsApp", () => {
+  const sessions = readFileSync(new URL("../whatsapp-individual-service/src/sessions.js", import.meta.url), "utf8");
+  assert.match(sessions, /const pairingDigits = await resolvePairingNumber\(userId, digits\);/);
+  assert.match(sessions, /const code = await sock\.requestPairingCode\(pairingDigits\);/);
+  assert.match(sessions, /if \(results\.length\) throw new Error\("Esse número não tem WhatsApp/);
+  const ui = readFileSync(new URL("../components/WhatsappIndividualStatus.jsx", import.meta.url), "utf8");
+  assert.match(ui, /Copiar código/);
+  assert.match(ui, /O código vale cerca de 2 minutos/);
+});

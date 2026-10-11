@@ -406,7 +406,39 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     });
   }
 
-  // Pareamento por número de telefone (pedido do dono, 2026-09-30) — só pede
+  // Variantes BR com e sem o 9 extra do celular: "5514999990000" <-> "551499990000".
+function brazilPhoneVariants(digits) {
+  const variants = [digits];
+  if (/^55\d{2}9\d{8}$/.test(digits)) variants.push(`${digits.slice(0, 4)}${digits.slice(5)}`);
+  else if (/^55\d{2}\d{8}$/.test(digits)) variants.push(`${digits.slice(0, 4)}9${digits.slice(4)}`);
+  return variants;
+}
+
+async function resolvePairingNumber(userId, digits) {
+  const baseUser = String(userId).split(":")[0];
+  const connected = [...sockets.entries()]
+    .filter(([id, item]) => id !== userId && item?.status === "connected" && item.sock?.onWhatsApp)
+    .sort(([a], [b]) => Number(String(b).split(":")[0] === baseUser) - Number(String(a).split(":")[0] === baseUser));
+  const sock = connected[0]?.[1]?.sock;
+  if (!sock) return digits;
+  let results = null;
+  try {
+    results = await Promise.race([
+      sock.onWhatsApp(...brazilPhoneVariants(digits).map((value) => `${value}@s.whatsapp.net`)),
+      new Promise((resolve) => setTimeout(() => resolve(null), 5000))
+    ]);
+  } catch {
+    return digits;
+  }
+  if (!Array.isArray(results)) return digits; // consulta sem resposta: segue com o número digitado
+  const found = results.find((item) => item?.exists && phoneFromJid(item.jid));
+  if (found) return phoneFromJid(found.jid);
+  // O WhatsApp respondeu que o número não tem conta: avisa em vez de gerar um código que nunca vai funcionar.
+  if (results.length) throw new Error("Esse número não tem WhatsApp. Confira o número (com DDD) do celular que vai conectar.");
+  return digits;
+}
+
+// Pareamento por número de telefone (pedido do dono, 2026-09-30) — só pede
   // o código se a sessão ainda não estiver registrada (credenciais novas);
   // uma sessão que já foi pareada antes (reconexão) nunca precisa disso.
   // requestPairingCode() precisa vir ANTES do QR normal ser consumido —
@@ -421,6 +453,10 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     const digits = normalizePairingNumber(phoneNumber);
     try {
       if (!digits) throw new Error("Número inválido — informe o celular com DDD (ex.: 14 99999-0000).");
+      // Número EXATO da conta no WhatsApp (2026-10-11, caso Jennyfer): conta brasileira antiga pode estar registrada SEM o
+      // 9 extra — com o número "errado" o código nunca é aceito no celular. Consulta por uma sessão já conectada (só
+      // pergunta "esse número tem WhatsApp?", nada é enviado); sem sessão conectada, segue com o número digitado.
+      const pairingDigits = await resolvePairingNumber(userId, digits);
       await new Promise((resolve) => {
         const timer = setTimeout(resolve, 10000);
         const onReady = (update) => {
@@ -434,7 +470,7 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
         };
         sock.ev.on("connection.update", onReady);
       });
-      const code = await sock.requestPairingCode(digits);
+      const code = await sock.requestPairingCode(pairingDigits);
       entry.pairingCode = code;
       entry.status = "pairing_code_required";
       await notifyStatus(userId, { status: "pairing_code_required", pairingCode: code });

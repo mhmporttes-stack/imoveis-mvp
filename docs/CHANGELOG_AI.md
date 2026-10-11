@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Pareamento por código (caso Jennyfer)
+
+- Ver `docs/INCIDENTES.md` (2026-10-11): sessão com código pendente tratada como pareada (408 → reconexão → 401), número BR com/sem 9 resolvido por sessão conectada (`resolvePairingNumber`, só consulta), tela com número/cópia/prazo/aviso de expirado. Arquivos: `whatsapp-individual-service/src/{reconnect-policy,sessions}.js`, `components/WhatsappIndividualStatus.jsx`.
+
 ### 2026-10-11 — Ícone do app sem número de não lidas (push do WhatsApp pessoal)
 
 - Causa raiz: o push de mensagem nova do WhatsApp pessoal (que leva o `unreadCount` que pinta o ícone do app no celular, `public/sw.js`) só saía quando a conversa estava ATRIBUÍDA ao dono do número; 52 de 155 conversas de cliente não tinham atribuição, então mensagem nova nelas não avisava nem mexia no ícone com o app fechado.

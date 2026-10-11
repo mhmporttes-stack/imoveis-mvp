@@ -295,3 +295,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `components/ClientDocumentsModal.jsx` — commit `5536c5a`
 - **Prevenção/teste:** nenhum teste automatizado (é comportamento de navegador, não lógica pura). Risco residual: qualquer modal novo criado como `<div>` fixa comum (em vez de `<dialog>`) terá o mesmo problema se puder abrir sobre a ficha do cliente ou outro `<dialog>` já existente (`Sheet`/`ConfirmDialog`). Ao criar um modal novo neste projeto, siga o padrão `<dialog>` + `showModal()` de `components/ui/Sheet.jsx`/`ConfirmDialog.jsx`.
 - **Status:** Resolvido
+
+## 2026-10-11 — Código de pareamento (conectar só pelo celular) nunca funcionava — caso Jennyfer (Número 2)
+- **Sintoma:** a corretora pediu o código várias vezes, digitou no WhatsApp e não conectava; depois de ~2 min aparecia "desconectado (logged_out)".
+- **Telemetria:** 6 pedidos em 8 min (cada novo pedido invalida o anterior — "superseded"); nenhum código aceito; cada código vencia (408) e virava reconexão automática seguida de 401.
+- **Causas:** (1) `isPairedCreds` tratava como PAREADA a sessão com código pedido e ainda não digitado (o pedido do código já grava `creds.me`) → código vencido virava "reconectar" → 401 `logged_out` (mensagem enganosa e código velho na tela); (2) o código era pedido para o número digitado, mas conta brasileira antiga pode estar registrada SEM o 9 extra → código nunca aceito; (3) a tela não dizia o prazo (~2 min), nem que pedir outro invalida o anterior, nem para qual número era.
+- **Correção:** `isPairedCreds` = `registered === true` ou (`me` sem `pairingCode`); `resolvePairingNumber` (sessions.js) consulta por uma sessão conectada qual é o número exato da conta (com/sem 9) e avisa "Esse número não tem WhatsApp"; tela com número, "Copiar código", passo a passo, prazo e aviso de código expirado.
+
