@@ -24,7 +24,6 @@ import { telemetry } from "./telemetry.js";
 // Correção: o histórico só é pedido no PAREAMENTO NOVO por QR (único momento em que o WhatsApp o envia), com um navegador
 // que mantém WEB_BROWSER; reconexões e pareamento por código nunca pedem histórico (login idêntico ao de sempre).
 const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED !== "false";
-const HISTORY_AFTER_PAIRING_MS = 30 * 60 * 1000;
 export const historySyncEnabled = () => HISTORY_SYNC_ENABLED;
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
@@ -367,10 +366,12 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
 
   // Histórico só no pareamento NOVO por QR (sem credenciais de conta, sem número para código).
   const fullHistory = HISTORY_SYNC_ENABLED && !phoneNumber && !state.creds?.me?.id;
-  // O histórico chega DEPOIS do pareamento (no socket do reinício 515 e nos minutos seguintes): esses sockets processam o
-  // histórico (shouldSyncHistoryMessage), mas fazem login com syncFullHistory desligado — igual ao pareamento.
-  if (fullHistory) entry.historyUntil = Date.now() + HISTORY_AFTER_PAIRING_MS;
-  const wantsHistory = HISTORY_SYNC_ENABLED && (fullHistory || Date.now() < (entry.historyUntil || 0));
+  // O histórico chega DEPOIS do pareamento, em partes, por vários minutos — e o Baileys confirma cada parte ao WhatsApp
+  // ANTES de processar (recibo hist_sync): parte recusada é perdida. TODO socket processa o histórico (shouldSyncHistoryMessage);
+  // só o login do pareamento por QR pede o histórico longo (syncFullHistory). 2026-10-11: antes só aceitava 30 min após o
+  // pareamento, guardado em memória — o reinício do serviço no meio da importação descartou o resto do histórico.
+  // Duplicata não é problema: o CRM ignora mensagem já gravada (wa_message_id) e o filtro da última semana continua.
+  const wantsHistory = HISTORY_SYNC_ENABLED;
   const sock = makeWASocket({
     version,
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },

@@ -378,6 +378,7 @@ test("histórico: login das sessões já pareadas nunca usa syncFullHistory; par
   const sessions = readFileSync(new URL("../whatsapp-individual-service/src/sessions.js", import.meta.url), "utf8");
   assert.match(sessions, /const fullHistory = HISTORY_SYNC_ENABLED && !phoneNumber && !state\.creds\?\.me\?\.id;/);
   assert.match(sessions, /syncFullHistory: fullHistory,\n\s*shouldSyncHistoryMessage: \(\) => wantsHistory,/);
+  assert.match(sessions, /const wantsHistory = HISTORY_SYNC_ENABLED;/);
   assert.match(sessions, /browser: fullHistory\n\s*\? \["CRM Imoveis", "Desktop", "1\.0"\]/);
   assert.doesNotMatch(sessions, /syncFullHistory: HISTORY_SYNC_ENABLED/);
 });
