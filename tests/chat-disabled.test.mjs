@@ -40,7 +40,7 @@ test("Chat híbrido: oficial envia, sessão pessoal não (individualSendDisabled
 
 test("Chat híbrido: filtros Oficial/Pessoal, etiqueta na lista, 'Enviando por' e bloqueio da janela de 24 h do oficial", () => {
   const chat = source("lib/whatsapp-chat.js");
-  assert.match(chat, /"silent", "official", "personal", "slot1", "slot2", "private", "private_unseen"\]/);
+  assert.match(chat, /"silent", "official", "personal", "slot1", "slot2", "private", "private_unseen", "private_groups"\]/);
   assert.match(chat, /safeFilter === "official"\) request = request\.eq\("session_key", OFFICIAL_SESSION_KEY\)/);
   assert.match(chat, /code: "WINDOW_CLOSED"/);
   assert.equal((chat.match(/assertOfficialWindowOpen\(conversation, sendChannel\);/g) || []).length, 2);

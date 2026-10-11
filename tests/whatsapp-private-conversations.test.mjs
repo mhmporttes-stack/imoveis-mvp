@@ -8,7 +8,7 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 test("lista: Particular só na aba própria (e na busca); demais filtros e contadores excluem", () => {
   const chat = read("lib/whatsapp-chat.js");
   assert.match(chat, /safeFilter === "private" || safeFilter === "private_unseen"\) request = request\.not\("private_at", "is", null\)/);
-  assert.match(chat, /if \(safeFilter !== "private" && safeFilter !== "private_unseen" && !term\) request = request\.is\("private_at", null\);/);
+  assert.match(chat, /if \(safeFilter !== "private" && safeFilter !== "private_unseen" && !groupsTab && !term\) request = request\.is\("private_at", null\);/);
   assert.match(chat, /base\.is\("private_at", null\)\.or\("unread_count\.gt\.0/);
   assert.ok((chat.match(/\.is\("private_at", null\)/g) || []).length >= 8);
 });
@@ -68,12 +68,13 @@ test("Particular trancado: só o dono vê o conteúdo; corretor e gestão veem a
   assert.match(chat, /function privateContentHidden\(conversation, auth\) \{\s*return Boolean\(conversation\?\.private_at\) && !\(Boolean\(auth\) && isGeneralAdminAuth\(auth\)\);/);
   assert.match(chat, /if \(!allowPrivateShell && privateContentHidden\(data, auth\)\) throw new WhatsappChatError\(PRIVATE_CONVERSATION_MESSAGE/);
   // só abrir a casca, marcar lida e destrancar passam pelo atalho
-  assert.equal((chat.match(/allowPrivateShell: true/g) || []).length, 3);
+  // + "Remover do chat" de um grupo (2026-10-11, só o dono)
+  assert.equal((chat.match(/allowPrivateShell: true/g) || []).length, 4);
   assert.match(chat, /if \(privateContentHidden\(conversation, auth\)\) return \{ conversation: \{ \.\.\.conversationView, privateLocked: true[^}]*\}, messages: \[\], hasMore: false \};/);
   assert.match(chat, /last_message_preview: "", last_message_direction: null, unread_count: 0/);
   const ui = read("components/WhatsappChat.jsx");
   assert.match(ui, /Conversa particular<\/span>/);
-  assert.match(ui, /\{conversation\.privateLocked \? null : conversation\.archivedReadOnly \?/);
+  assert.match(ui, /\{conversation\.privateLocked \? null : (conversation\.isGroup \? \([\s\S]*?\) : )?conversation\.archivedReadOnly \?/);
 });
 
 test("Destrancar: cópia interna, apaga o histórico, contato volta limpo e o passado reimportado não aparece", () => {

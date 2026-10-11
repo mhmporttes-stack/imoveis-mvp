@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyIndividualSessionStatus, getIndividualSessionRow, isSlotDispatchEnabled, verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
 import { parseSessionId } from "@/lib/whatsapp-session-slots.mjs";
-import { listLidCandidatePhones, mergeLidConversation, projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
+import { listLidCandidatePhones, mergeLidConversation, projectGroupMessage, projectIndividualChatAction, projectIndividualHistoryBatch, projectIndividualInboundMessage, projectIndividualMessageStatus } from "@/lib/whatsapp-individual-inbound";
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
@@ -120,6 +120,11 @@ export async function POST(request) {
         prospecting: results.prospecting.ok ? results.prospecting.value : { error: true },
         chat: results.chat.ok ? results.chat.value : { error: true }
       }, { status: failed ? 500 : 200 });
+    }
+
+    // Grupo (2026-10-11): só para a aba "Grupos" do dono — nunca passa pela Prospecção nem pelo Chat de clientes.
+    if (payload.type === "group_message") {
+      return NextResponse.json({ ok: true, ...(await projectGroupMessage({ ...payload, userId, sessionSlot })) });
     }
 
     if (payload.type === "history") {

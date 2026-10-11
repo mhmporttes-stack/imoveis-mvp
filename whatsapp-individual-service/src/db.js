@@ -58,8 +58,8 @@ export async function listResumableUserIds() {
 // tem acesso ao Storage — pede ao CRM uma URL de upload assinada (curta, para
 // UM arquivo, no bucket privado) e envia o arquivo direto para lá. O arquivo
 // nunca passa pela Vercel (limite de ~4,5 MB por requisição).
-export async function requestMediaUploadTarget(userId, { waMessageId, mime, kind }) {
-  return call("POST", "/api/webhooks/whatsapp-individual/media-upload", { userId, waMessageId, mime, kind });
+export async function requestMediaUploadTarget(userId, { waMessageId, mime, kind, group = "" }) {
+  return call("POST", "/api/webhooks/whatsapp-individual/media-upload", { userId, waMessageId, mime, kind, group });
 }
 
 // Sessões gravadas como 'reconnecting'/'connecting' (reconcile.js): [{ user_id, status, updated_at }].

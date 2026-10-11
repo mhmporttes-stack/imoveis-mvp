@@ -3,7 +3,7 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
-import { notifyChatEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
+import { notifyChatEvent, notifyGroupEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
 import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
@@ -541,6 +541,7 @@ async function deliverLiveMessage(userId, msg, lidMap = lidMapFor(userId)) {
     // — do cliente e do que o corretor faz pelo app do celular (fromMe).
     const event = extractChatEvent(msg, lidMap);
     if (!event) return;
+    if (event.group) return await deliverGroupMessage(userId, msg, event);
     if (event.kind === "message" && event.media) {
       event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
     }
@@ -549,6 +550,41 @@ async function deliverLiveMessage(userId, msg, lidMap = lidMapFor(userId)) {
     // Nunca perde a próxima mensagem por causa de uma falha em notificar
     // esta — o log fica pra investigação manual.
     console.error(`[${userId}] Falha ao processar mensagem recebida:`, error.message);
+  }
+}
+
+// Grupos (2026-10-11): só mensagens (texto e todas as mídias) vão ao CRM, num evento próprio. Grupo que o dono
+// removeu do Chat fica em memória (o CRM responde { ignored: true }) para não baixar mais nada dele.
+const removedGroups = new Set(); // `${userId}|${groupKey}`
+const groupNames = new Map(); // `${userId}|${jid}` -> { name, at }
+const GROUP_NAME_TTL_MS = 6 * 60 * 60 * 1000;
+const GROUP_CACHE_LIMIT = 2000;
+
+async function groupNameFor(userId, jid) {
+  const id = `${userId}|${jid}`;
+  const cached = groupNames.get(id);
+  if (cached && Date.now() - cached.at < GROUP_NAME_TTL_MS) return cached.name;
+  let name = cached?.name || "";
+  try {
+    const sock = sockets.get(userId)?.sock;
+    const metadata = sock?.groupMetadata ? await sock.groupMetadata(jid) : null;
+    if (metadata?.subject) name = String(metadata.subject).slice(0, 120);
+  } catch { /* sem nome: o CRM mostra "Grupo" */ }
+  if (groupNames.size >= GROUP_CACHE_LIMIT && !groupNames.has(id)) groupNames.delete(groupNames.keys().next().value);
+  groupNames.set(id, { name, at: Date.now() });
+  return name;
+}
+
+async function deliverGroupMessage(userId, msg, event) {
+  if (event.kind !== "message") return;
+  const removedId = `${userId}|${event.from}`;
+  if (removedGroups.has(removedId)) return;
+  event.groupName = await groupNameFor(userId, event.remoteJid);
+  if (event.media) event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
+  const result = await notifyGroupEvent(userId, event);
+  if (result?.ignored) {
+    if (removedGroups.size >= GROUP_CACHE_LIMIT) removedGroups.delete(removedGroups.keys().next().value);
+    removedGroups.add(removedId);
   }
 }
 
@@ -563,7 +599,7 @@ async function storeIncomingMedia(userId, msg, event) {
     const buffer = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock ? sock.updateMediaMessage : undefined });
     if (!buffer?.length) throw new Error("O WhatsApp devolveu um arquivo vazio.");
     if (buffer.length > MAX_MEDIA_BYTES) throw new Error("Arquivo acima de 16 MB.");
-    const target = await requestMediaUploadTarget(userId, { waMessageId: event.waMessageId, mime: event.media.mime, kind: event.media.kind });
+    const target = await requestMediaUploadTarget(userId, { waMessageId: event.waMessageId, mime: event.media.mime, kind: event.media.kind, group: event.group ? event.from : "" });
     const response = await fetch(target.signedUrl, {
       method: "PUT",
       headers: { "Content-Type": event.media.mime || "application/octet-stream", "x-upsert": "true" },
@@ -645,7 +681,7 @@ async function onHistorySync(userId, messages) {
       // "lid:<id>" ("Número não identificado") e o CRM junta à conversa do telefone quando ele aparecer.
       const ownLid = unresolvedOwnLid(userId, msg);
       const event = extractChatEvent(msg, ownLid ? withPlaceholder(userId, ownLid) : lidMapFor(userId));
-      if (!event || event.kind !== "message") continue;
+      if (!event || event.kind !== "message" || event.group) continue;
       if (event.media) {
         // Só foto e áudio. Outros tipos entram apenas se tiverem legenda (como texto).
         if (!HISTORY_MEDIA_KINDS.has(event.media.kind) || mediaCount >= HISTORY_MAX_MEDIA) {

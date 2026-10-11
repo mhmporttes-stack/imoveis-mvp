@@ -13,6 +13,7 @@
 // LID -> telefone aprendido dos eventos (lidMap), nunca `senderPn`.
 
 const PHONE_SUFFIX = "@s.whatsapp.net";
+const GROUP_SUFFIX = "@g.us";
 const LID_SUFFIX = "@lid";
 
 // "5514999990000:12@s.whatsapp.net" -> "5514999990000"
@@ -20,6 +21,15 @@ export function phoneFromJid(jid) {
   const value = String(jid || "");
   if (!value.endsWith(PHONE_SUFFIX)) return "";
   return value.slice(0, -PHONE_SUFFIX.length).split(":")[0].replace(/\D/g, "");
+}
+
+// Grupo (2026-10-11, pedido do dono: aba "Grupos" só para ele): "120363012345678901@g.us" -> "group:120363012345678901".
+// Vai num evento SEPARADO (type "group_message") — nunca no type "message", que cria/atualiza cliente e Prospecção.
+export function groupKeyFromJid(jid) {
+  const value = String(jid || "");
+  if (!value.endsWith(GROUP_SUFFIX)) return "";
+  const id = value.slice(0, -GROUP_SUFFIX.length).replace(/[^\d-]/g, "");
+  return id.length >= 5 ? `group:${id}` : "";
 }
 
 export function isLidJid(jid) {
@@ -176,7 +186,8 @@ export function mediaInfoOf(content) {
 // msg do Baileys -> evento para o CRM, ou null (grupo, status, sem conteúdo).
 // kind: 'message' | 'reaction' | 'edit' | 'revoke'.
 export function extractChatEvent(msg, lidMap = new Map()) {
-  const from = resolveChatPhone(msg, lidMap);
+  const groupKey = groupKeyFromJid(msg?.key?.remoteJid);
+  const from = groupKey || resolveChatPhone(msg, lidMap);
   if (!from) return null;
   const fromMe = Boolean(msg?.key?.fromMe);
   const base = {
@@ -185,8 +196,14 @@ export function extractChatEvent(msg, lidMap = new Map()) {
     waMessageId: msg?.key?.id || "",
     remoteJid: String(msg?.key?.remoteJid || ""),
     at: new Date(numberOrZero(msg?.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
-    contactName: fromMe ? "" : (msg?.pushName || "")
+    contactName: fromMe || groupKey ? "" : (msg?.pushName || "")
   };
+  if (groupKey) {
+    // Quem escreveu no grupo: nome do WhatsApp e, quando o WhatsApp informar, o telefone.
+    base.group = true;
+    base.senderName = fromMe ? "" : String(msg?.pushName || "").slice(0, 80);
+    base.senderPhone = fromMe ? "" : (phoneFromJid(msg?.key?.participantPn) || phoneFromJid(msg?.key?.participant));
+  }
   const content = unwrapContent(msg?.message);
   if (!content) return null;
 

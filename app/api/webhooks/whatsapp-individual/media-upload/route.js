@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyIndividualServiceSecret } from "@/lib/whatsapp-individual";
 import { createIndividualInboundUploadTarget } from "@/lib/whatsapp-media";
+import { isGroupRemoved } from "@/lib/whatsapp-individual-inbound";
+import { parseSessionId } from "@/lib/whatsapp-session-slots.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +16,11 @@ export async function POST(request) {
   }
   try {
     const body = await request.json();
+    // Grupo removido do Chat pelo dono (2026-10-11): não guarda mais nenhuma mídia dele.
+    const session = body?.group ? parseSessionId(String(body?.userId || "")) : null;
+    if (session && await isGroupRemoved({ userId: session.userId, sessionSlot: session.slot, groupKey: body.group })) {
+      return NextResponse.json({ error: "Grupo removido do Chat." }, { status: 409 });
+    }
     const target = await createIndividualInboundUploadTarget({
       userId: body?.userId,
       waMessageId: body?.waMessageId,

@@ -33,7 +33,7 @@ test("LID já visto na sessão usa a conversa existente; duplicatas são juntada
   const cron = readFileSync(new URL("../app/api/cron/scheduled-activities/route.js", import.meta.url), "utf8");
   assert.match(cron, /reconcileLidPlaceholders\(\)/);
   const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
-  assert.match(ui, /if \(full === UNKNOWN_NUMBER_LABEL\) return full;/);
+  assert.match(ui, /if \(full === UNKNOWN_NUMBER_LABEL \|\| conversation\.isGroup\) return full;/);
 });
 
 // 2026-10-11: mensagem RECEBIDA por LID sem senderPn também não é descartada.

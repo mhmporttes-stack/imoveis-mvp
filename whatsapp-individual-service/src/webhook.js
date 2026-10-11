@@ -35,6 +35,12 @@ export function notifyChatEvent(userId, event) {
   return post({ userId, type: "message", ...event });
 }
 
+// Mensagem de GRUPO (2026-10-11): evento próprio — o CRM guarda só para a aba "Grupos" do dono, nunca como cliente.
+// Resposta { ignored: true } = grupo removido do Chat pelo dono (o serviço para de baixar mídia dele).
+export function notifyGroupEvent(userId, event) {
+  return post({ userId, type: "group_message", ...event });
+}
+
 // Mensagem que o corretor mandou PELO CELULAR para um contato novo chega endereçada por LID, sem telefone (2026-10-10,
 // caso Anderson/Bencke). Pergunta ao CRM quais telefones são candidatos (clientes recentes desse corretor); o serviço
 // confere cada um no WhatsApp (onWhatsApp devolve o LID) e aprende o par LID -> telefone.

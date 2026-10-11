@@ -24,6 +24,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Chat: aba "Grupos" só para o dono (WA-29)
+
+- Antes: mensagem de grupo era descartada no serviço (desde a "conversa fantasma" de grupo virando cliente).
+- Agora: evento separado `group_message` → conversa `group:<id>` em Particular > Grupos, só o dono vê, só leitura, com mídia e nome de quem escreveu; fora de listas/contadores/auditoria/fotos de contato; sem aviso em tempo real (grupo grande recarregaria a tela de todos). "Remover do chat" apaga mensagens + arquivos do Storage e ignora o grupo dali em diante (a URL de upload recusa mídia de grupo removido).
+
 ### 2026-10-11 — WhatsApp individual: histórico da semana ao conectar voltava vazio (WA-25a)
 
 - Achado: nenhuma mensagem com `metadata.history` desde 29/09 (Bruna nº 2 pareou em 09/10 já como Desktop e não trouxe nada).

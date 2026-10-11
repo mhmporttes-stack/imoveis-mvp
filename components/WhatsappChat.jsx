@@ -199,12 +199,13 @@ function displayName(conversation) {
 // Telefone ou nome que começa por número/símbolo aparece inteiro.
 function listFirstName(conversation) {
   const full = String(displayName(conversation) || "").trim();
-  if (full === UNKNOWN_NUMBER_LABEL) return full;
+  if (full === UNKNOWN_NUMBER_LABEL || conversation.isGroup) return full;
   return /^\p{L}/u.test(full) ? full.split(/\s+/)[0] : full;
 }
 
 function formatPhone(phone) {
   if (isUnknownNumber(phone)) return UNKNOWN_NUMBER_LABEL;
+  if (String(phone || "").startsWith("group:")) return "Grupo do WhatsApp";
   const digits = String(phone || "").replace(/\D/g, "");
   const national = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
   if (national.length === 11) return `(${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7)}`;
@@ -340,7 +341,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       if (requestId !== listRequestRef.current) return;
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
       // Particular só aparece na própria aba (ou na busca) — nunca misturada com os clientes.
-      const privateTab = filterRef.current === "private" || filterRef.current === "private_unseen" || Boolean(searchRef.current);
+      const privateTab = isPrivateFilter(filterRef.current) || Boolean(searchRef.current);
       const fresh = (data.conversations || []).filter((item) => privateTab || !item.private);
       // Atualização silenciosa (tempo real) não descarta as páginas antigas já carregadas por "Carregar mais".
       setConversations((current) => {
@@ -739,9 +740,9 @@ function ConversationList({ className, conversations, error, filter, filterLabel
               key={item.key}
               type="button"
               onClick={() => onFilter(item.key)}
-              aria-pressed={filter === item.key || (item.key === "private" && filter === "private_unseen")}
+              aria-pressed={filter === item.key || (item.key === "private" && isPrivateFilter(filter))}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold transition ${
-                filter === item.key || (item.key === "private" && filter === "private_unseen") ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
+                filter === item.key || (item.key === "private" && isPrivateFilter(filter)) ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
               }`}
             >
               {filterLabels[item.key] || item.label}
@@ -749,9 +750,10 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           ))}
         </div>
         {/* Particular → "Não lidas" (pedido do dono, 2026-10-11): o que EU ainda não abri (leitura por pessoa). */}
-        {filter === "private" || filter === "private_unseen" ? (
+        {/* Grupos (pedido do dono, 2026-10-11): grupos do WhatsApp dos corretores — só para o dono. */}
+        {isPrivateFilter(filter) ? (
           <div className="flex gap-1.5">
-            {[{ key: "private", label: "Todas" }, { key: "private_unseen", label: "Não lidas" }].map((item) => (
+            {[{ key: "private", label: "Todas" }, { key: "private_unseen", label: "Não lidas" }, ...(canSeeArchived ? [{ key: "private_groups", label: "Grupos" }] : [])].map((item) => (
               <button key={item.key} type="button" onClick={() => onFilter(item.key)} aria-pressed={filter === item.key}
                 className={`rounded-full border px-3 py-1 text-xs font-extrabold transition ${filter === item.key ? "border-[#0A7D41] bg-white text-[#0A5C30]" : "border-transparent bg-[#F0F2F5] text-[#54656F] hover:text-[#111B21]"}`}>
                 {item.label}
@@ -760,7 +762,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           </div>
         ) : null}
         {/* Particular: conversa pessoal, não cliente — filtro por situação do cliente não se aplica. */}
-        <label className={`flex items-center gap-2 text-xs font-extrabold text-navy ${filter === "private" || filter === "private_unseen" ? "hidden" : ""}`}>
+        <label className={`flex items-center gap-2 text-xs font-extrabold text-navy ${isPrivateFilter(filter) ? "hidden" : ""}`}>
           <span className="shrink-0">Status do cliente</span>
           <select
             className={`h-10 min-w-0 flex-1 rounded-2xl border bg-white px-3 text-sm font-bold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 ${clientStatus ? "border-brand text-brand" : "border-line text-navy"}`}
@@ -964,6 +966,10 @@ function formatWaitShort(minutes) {
   return `${Math.floor(value / 1440)} dias`;
 }
 
+function isPrivateFilter(filter) {
+  return filter === "private" || filter === "private_unseen" || filter === "private_groups";
+}
+
 function firstNameOf(name) {
   return String(name || "").trim().split(/\s+/)[0] || "";
 }
@@ -1031,7 +1037,8 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
           <span className="flex min-w-0 flex-1 items-center gap-1">
             {/* Particular (WA-19, dono 2026-10-09): conversa pessoal, não cliente — sem situação do cliente nem aviso de espera. */}
             {conversation.deletedByUser ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-red-600" title="Excluída da visão do corretor; só o administrador vê"><Trash2 className="h-3 w-3" aria-hidden="true" />Excluída</span> : null}
-            {conversation.private ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-[#54656F]"><Lock className="h-3 w-3" aria-hidden="true" />Conversa particular</span>
+            {conversation.isGroup ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-[#54656F]"><Users className="h-3 w-3" aria-hidden="true" />Grupo</span>
+              : conversation.private ? <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-[#54656F]"><Lock className="h-3 w-3" aria-hidden="true" />Conversa particular</span>
               : conversation.client ? <ClientStatusDot client={conversation.client} className="min-w-0" /> : <span className="shrink-0 font-semibold text-amber-700">não cadastrado</span>}
           </span>
           {conversation.private ? null : <WaitingText waiting={conversation.waiting} />}
@@ -1247,6 +1254,22 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     }
   }
 
+  async function removeGroup() {
+    if (!window.confirm(`Remover o grupo "${displayName(conversation)}" do chat? As mensagens e arquivos guardados serão apagados e o CRM deixa de receber este grupo. No WhatsApp do corretor nada muda.`)) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/group`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível remover o grupo.");
+      onDeleted();
+    } catch (removeFailure) {
+      window.alert(removeFailure.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function deleteConversation() {
     setDeleting(true);
     setDeleteError("");
@@ -1292,7 +1315,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
       previousSender = "";
     }
     // Primeira mensagem de uma sequência do mesmo remetente ganha o "rabinho" (como no WhatsApp).
-    const sender = `${message.direction}|${message.senderType || ""}|${message.sentByName || ""}`;
+    const sender = `${message.direction}|${message.senderType || ""}|${message.sentByName || ""}|${message.groupSenderName || message.groupSenderPhone || ""}`;
     rows.push({ kind: "message", key: message.id, message, first: sender !== previousSender });
     previousSender = sender;
   }
@@ -1309,6 +1332,12 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
           <button type="button" onClick={onToggleInfo} className="shrink-0 rounded-full" aria-label="Informações do contato"><Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} /></button>
           <div className="min-w-0 flex-1">
             <button type="button" onClick={onToggleInfo} className="block max-w-full truncate text-left font-black leading-tight text-navy">{displayName(conversation)}</button>
+            {conversation.isGroup ? (
+              <div className="mt-0.5 flex min-w-0 items-center gap-1 overflow-hidden text-[11px] font-extrabold text-[#54656F]">
+                <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="truncate">Grupo · {conversation.broker?.name || "Corretor"} · só leitura</span>
+              </div>
+            ) : (
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-extrabold ${conversation.window?.open ? "text-emerald-600" : "text-amber-700"}`}>
                 <span className={`h-2 w-2 rounded-full ${conversation.window?.open ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
@@ -1316,6 +1345,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
               </span>
               <ContactPresence conversation={conversation} />
             </div>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {conversation.client?.id && !conversation.private ? <button type="button" onClick={() => setDocumentSelectionOpen(true)} className="grid h-9 w-9 place-items-center rounded-full text-brand hover:bg-blue-50" aria-label="Analisar documentação" title="Analisar documentação"><FileText className="h-4 w-4" /><Search className="-ml-2 -mt-2 h-3 w-3" /></button> : null}
@@ -1325,7 +1355,15 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
                 {assuming ? "Assumindo…" : conversation.assignedUserId ? "Assumir" : "Assumir atendimento"}
               </button>
             ) : null}
-            {!conversation.archivedReadOnly ? (
+            {conversation.isGroup ? (
+              // Grupo (pedido do dono, 2026-10-11): "Remover do chat" apaga o que foi guardado e para de receber o grupo.
+              <button type="button" onClick={removeGroup} disabled={deleting}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                aria-label="Remover grupo do chat" title="Remover do chat: apaga as mensagens e arquivos guardados e não recebe mais este grupo">
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">{deleting ? "Removendo…" : "Remover do chat"}</span>
+              </button>
+            ) : !conversation.archivedReadOnly ? (
               // "Particular" (pedido do dono, 2026-10-09): contato pessoal vai para a aba Particular com o histórico inteiro,
               // deixa de ser cliente e mensagem nova não o traz de volta. Arquivar cliente fica no menu ⋮.
               <button
@@ -1349,7 +1387,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             >
               <Info className="h-5 w-5" />
             </button>
-            <div className="relative" ref={menuRef}>
+            <div className={`relative ${conversation.isGroup ? "hidden" : ""}`} ref={menuRef}>
               <button
                 type="button"
                 onClick={() => setMenuOpen((value) => !value)}
@@ -1442,7 +1480,9 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">{conversation.privateLocked ? "Conversa particular. Para usar este contato no CRM, tire-o de Particular." : "Nenhuma mensagem nesta conversa."}</p> : null}
       </div>
 
-      {conversation.privateLocked ? null : conversation.archivedReadOnly ? (
+      {conversation.privateLocked ? null : conversation.isGroup ? (
+        <p role="status" className="border-t border-line bg-[#F0F2F5] px-4 py-3 text-center text-xs font-bold text-[#54656F]">Grupo do WhatsApp do corretor — somente leitura no CRM.</p>
+      ) : conversation.archivedReadOnly ? (
         // Cliente arquivado (WA-13): só o dono abre, pelo card, para LER. Fica fora da caixa do Chat.
         <p role="status" className="border-t border-line bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800">Cliente arquivado — conversa fora do Chat, somente leitura. Desarquive o cliente para voltar a conversar.</p>
       ) : (
@@ -1719,6 +1759,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
   const label = MEDIA_LABELS[message.type] || "Mensagem";
   const automation = outbound && message.senderType === "automation";
   const showSender = outbound && message.senderType === "user" && message.sentByName && first;
+  // Grupo (2026-10-11): quem escreveu (nome do WhatsApp ou o telefone).
+  const groupSender = !outbound && first ? message.groupSenderName || (message.groupSenderPhone ? formatPhone(message.groupSenderPhone) : "") : "";
   // Hora "flutuando" no fim do texto (como no WhatsApp) — também quando há botão embaixo: a hora fica no canto
   // do texto, acima da linha separadora do botão.
   const metaInline = Boolean(message.body) && !message.revoked;
@@ -1736,6 +1778,7 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         {showSender ? (
           <p className="mb-0.5 truncate text-xs font-bold text-brand">{message.sentByName}</p>
         ) : null}
+        {groupSender ? <p className="mb-0.5 truncate text-xs font-bold text-[#0A7D41]">{groupSender}</p> : null}
         {message.replyToMessageId ? (
           <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>
             <span className="block font-bold text-brand">{quoted ? (quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>

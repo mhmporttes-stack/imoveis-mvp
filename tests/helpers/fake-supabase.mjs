@@ -16,6 +16,12 @@ function getPath(row, path) {
   return row?.[path];
 }
 
+// LIKE do Postgres com "%" (o único curinga usado pelo Chat).
+function likeMatch(cell, pattern) {
+  const regex = new RegExp(`^${String(pattern).split("%").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`);
+  return regex.test(String(cell ?? ""));
+}
+
 function parseList(text) {
   return String(text).replace(/^\(|\)$/g, "").split(",").map((v) => v.trim()).filter(Boolean);
 }
@@ -89,10 +95,12 @@ export function createFakeSupabase({ uniqueMode = "session" } = {}) {
     gt(col, val) { this.filters.push((r) => getPath(r, col) > val); return this; }
     gte(col, val) { this.filters.push((r) => getPath(r, col) >= val); return this; }
     lt(col, val) { this.filters.push((r) => getPath(r, col) < val); return this; }
+    like(col, val) { this.filters.push((r) => likeMatch(getPath(r, col), val)); return this; }
     not(col, op, val) {
       this.filters.push((r) => {
         const cell = getPath(r, col);
         if (op === "is") return val === null ? cell != null : cell !== val;
+        if (op === "like") return !likeMatch(cell, val);
         if (op === "in") return !parseList(val).includes(String(cell));
         return true;
       });
