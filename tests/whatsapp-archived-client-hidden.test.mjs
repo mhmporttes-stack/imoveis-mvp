@@ -30,7 +30,7 @@ test("arquivar esconde; desarquivar APAGA o histórico do Chat (conversa nova do
 
 test("sem push nem atribuição para conversa escondida; card não reabre conversa de arquivado", () => {
   const inbound = source("lib/whatsapp-individual-inbound.js");
-  assert.match(inbound, /!hiddenConversation && conversation\.assigned_user_id/);
+  assert.match(inbound, /!hiddenConversation && \(!conversation\.assigned_user_id \|\| conversation\.assigned_user_id === userId\)/);
   assert.match(inbound, /!conversation\.assigned_user_id && !conversation\.deleted_at/);
   const chat = source("lib/whatsapp-chat.js");
   // Card de cliente arquivado: só o dono abre a conversa (somente leitura);
