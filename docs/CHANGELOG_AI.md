@@ -29,6 +29,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - Achado: nenhuma mensagem com `metadata.history` desde 29/09 (Bruna nº 2 pareou em 09/10 já como Desktop e não trouxe nada).
 - Causa provável: o histórico chega endereçado por LID sem telefone e `extractChatEvent` descartava; o CRM também só aceitava telefone.
 - Correção: serviço aprende LID dos `contacts`/`chats` do histórico e entrega o resto como `lid:<id>`; CRM aceita o marcador (usa telefone já conhecido do LID), grava o nome do contato e aplica o Particular automático. `service_boot` passa a dizer `hist_on`/`hist_off` para confirmar a variável da Railway.
+- **Causa raiz confirmada** pelo primeiro boot (a274b36): `baileys_6.7.24_hist_off` — a variável `WHATSAPP_HISTORY_SYNC_ENABLED=false` continua na Railway desde a pausa de 29/09; o religamento de 08/10 mudou só o código. Precisa apagar a variável (ou pôr `true`) na Railway — ação do dono.
 
 ### 2026-10-11 — Chat: não lida por pessoa em todas as conversas (WA-28a)
 
