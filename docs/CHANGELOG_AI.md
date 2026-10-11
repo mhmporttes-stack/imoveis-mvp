@@ -24,6 +24,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Chat: Particular voltava para o card arquivado (caso Fani/Bruna)
+
+- Causa raiz: ao corretor responder pelo celular, `registerHumanContact` procurava o cliente pelo telefone (`phoneFallback`) mesmo em conversa Particular e a ligava ao card arquivado; `linkMissingClients` (lista do Chat) fazia o mesmo. Com isso a conversa saía da aba Particular e ficava escondida em "Todas" (WA-13/WA-26a).
+- Correção: Particular (ou placeholder `lid:`) nunca é ligada a cliente pelo telefone; `applyAutoPrivacy`/cron `reconcileAutoPrivateConversations` devolvem à Particular conversa pessoal ligada a card arquivado (marca `auto_private` + `archived_client_id`; Particular manual nunca é desfeita).
+- Dado: 25 conversas pessoais visíveis ligadas a cards arquivados voltaram para Particular (pedido do dono, "pente fino").
+- Testes: `whatsapp-auto-private`, `human-contact-core`, `whatsapp-conversation-per-session`, `simulation-first`.
+
 ### 2026-10-09 — Chat: "online / visto por último" do contato (WhatsApp pessoal)
 - **Data:** 2026-10-09
 - **Área:** WhatsApp / Chat / microsserviço

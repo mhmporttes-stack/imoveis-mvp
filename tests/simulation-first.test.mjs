@@ -49,7 +49,7 @@ test("resposta humana zera o 'não lida'; automação não (2026-10-09)", () => 
 
 test("conversa arquivada sai da lista principal e fica em Arquivadas (2026-10-09)", () => {
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
-  assert.match(chat, /if \(safeFilter !== "finished" && safeFilter !== "private" && !term\) request = request\.neq\("status", "finished"\);/);
+  assert.match(chat, /if \(safeFilter !== "finished" && safeFilter !== "private" && safeFilter !== "private_unseen" && !term\) request = request\.neq\("status", "finished"\);/);
 });
 
 test("abrir cliente no Chat segue o número em que ele está sendo atendido (2026-10-09)", () => {

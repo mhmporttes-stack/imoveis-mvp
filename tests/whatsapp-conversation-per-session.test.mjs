@@ -32,6 +32,8 @@ function setupStubs() {
     "whatsapp-attendance": { markConversationHumanReply: async () => {} },
     "whatsapp-human-contact": { registerHumanContact: async () => ({ counted: true }), isAutomationEchoForBroker: async () => false },
     "whatsapp-form-reminder": { isFormReminderEcho: async () => false },
+    // Particular automático (WA-26): fora do escopo destes cenários.
+    "whatsapp-auto-private": { applyAutoPrivacy: async () => ({}), isAutoPrivate: (row) => Boolean(row?.private_at && row?.origin?.auto_private === true) },
     "push-subscriptions": { sendPushToUser: async () => {} },
     // Acesso WhatsApp por corretor (2026-10-04): ninguém bloqueado nestes cenários (o push só sai para quem não está bloqueado).
     "whatsapp-access": { isWhatsappAccessBlocked: async () => false, isChatPushSuppressed: async () => false },

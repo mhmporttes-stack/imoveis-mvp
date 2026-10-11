@@ -40,7 +40,7 @@ test("2: mensagem do corretor pelo aplicativo do celular é contato humano (mesm
 test("2: o caminho do celular usa a MESMA função única, com vínculo por telefone", () => {
   const inbound = read("lib/whatsapp-individual-inbound.js");
   assert.match(inbound, /registerHumanContact\(\{/);
-  assert.match(inbound, /phoneFallback: true/);
+  assert.match(inbound, /phoneFallback: !isLidPlaceholder\(phone\)/);
   assert.doesNotMatch(inbound, /markConversationHumanReply\(/);
   assert.match(read("lib/whatsapp-human-contact.js"), /markClientOnHumanMessage\(/);
 });

@@ -32,3 +32,16 @@ test("cliente arquivado no WhatsApp pessoal vai para Particular e card arquivado
   assert.match(src, /deleted_at: null, deleted_by: null, client_id: null, private_at: now/);
   assert.match(src, /const matches = new Map\(\[\.\.\.rawMatches\]\.filter\(\(\[, id\]\) => id && !archived\.has\(id\)\)\);/);
 });
+
+// Caso Fani (2026-10-11): resposta do corretor religava a conversa Particular ao card arquivado e ela saía do Particular.
+test("Particular nunca é religada a card arquivado", () => {
+  const human = readFileSync(new URL("../lib/whatsapp-human-contact.js", import.meta.url), "utf8");
+  assert.match(human, /if \(!clientId && phoneFallback && !conversation\.private_at\)/);
+  assert.match(src, /const linkedArchived = await archivedClientIds\(personal\.map\(\(row\) => row\.client_id\)\);/);
+  assert.match(src, /\.eq\("cs\.status", "archived"\)/);
+});
+
+test("lista do Chat não religa Particular a cliente pelo telefone", () => {
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /const unlinked = rows\.filter\(\(row\) => !row\.client_id && !row\.private_at && !String\(row\.contact_phone \|\| ""\)\.startsWith\("lid:"\)\);/);
+});
