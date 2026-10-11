@@ -7,8 +7,8 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 
 test("lista: Particular só na aba própria (e na busca); demais filtros e contadores excluem", () => {
   const chat = read("lib/whatsapp-chat.js");
-  assert.match(chat, /safeFilter === "private"\) request = request\.not\("private_at", "is", null\)/);
-  assert.match(chat, /if \(safeFilter !== "private" && !term\) request = request\.is\("private_at", null\);/);
+  assert.match(chat, /safeFilter === "private" || safeFilter === "private_unseen"\) request = request\.not\("private_at", "is", null\)/);
+  assert.match(chat, /if \(safeFilter !== "private" && safeFilter !== "private_unseen" && !term\) request = request\.is\("private_at", null\);/);
   assert.match(chat, /base\.is\("private_at", null\)\.or\("unread_count\.gt\.0/);
   assert.ok((chat.match(/\.is\("private_at", null\)/g) || []).length >= 8);
 });

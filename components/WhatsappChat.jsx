@@ -396,6 +396,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       setDetailError("");
       // Abrir a conversa lê as mensagens internas (o servidor marca): a bolinha azul da lista some na hora.
       setConversations((current) => (current.some((item) => item.id === id && item.internalUnread > 0) ? current.map((item) => (item.id === id ? { ...item, internalUnread: 0 } : item)) : current));
+      // Particular: abrir marca como vista por mim (o servidor grava) — tira o destaque da linha na hora.
+      setConversations((current) => (current.some((item) => item.id === id && item.seenByMe === false) ? current.map((item) => (item.id === id ? { ...item, seenByMe: true } : item)) : current));
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
       // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
       const unread = data.conversation.unreadCount;
@@ -693,7 +695,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
 // Página cheia = pode haver mais. Filtros de espera são filtrados depois no servidor (página pode vir menor).
 function listPageIsFull(count, filter) {
-  return count >= 100 || (["awaiting", "waiting_us", "silent"].includes(filter) && count > 0);
+  return count >= 100 || (["awaiting", "waiting_us", "silent", "private_unseen"].includes(filter) && count > 0);
 }
 
 function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
@@ -725,17 +727,28 @@ function ConversationList({ className, conversations, error, filter, filterLabel
               key={item.key}
               type="button"
               onClick={() => onFilter(item.key)}
-              aria-pressed={filter === item.key}
+              aria-pressed={filter === item.key || (item.key === "private" && filter === "private_unseen")}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold transition ${
-                filter === item.key ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
+                filter === item.key || (item.key === "private" && filter === "private_unseen") ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
               }`}
             >
               {filterLabels[item.key] || item.label}
             </button>
           ))}
         </div>
+        {/* Particular → "Não lidas" (pedido do dono, 2026-10-11): o que EU ainda não abri (leitura por pessoa). */}
+        {filter === "private" || filter === "private_unseen" ? (
+          <div className="flex gap-1.5">
+            {[{ key: "private", label: "Todas" }, { key: "private_unseen", label: "Não lidas" }].map((item) => (
+              <button key={item.key} type="button" onClick={() => onFilter(item.key)} aria-pressed={filter === item.key}
+                className={`rounded-full border px-3 py-1 text-xs font-extrabold transition ${filter === item.key ? "border-[#0A7D41] bg-white text-[#0A5C30]" : "border-transparent bg-[#F0F2F5] text-[#54656F] hover:text-[#111B21]"}`}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {/* Particular: conversa pessoal, não cliente — filtro por situação do cliente não se aplica. */}
-        <label className={`flex items-center gap-2 text-xs font-extrabold text-navy ${filter === "private" ? "hidden" : ""}`}>
+        <label className={`flex items-center gap-2 text-xs font-extrabold text-navy ${filter === "private" || filter === "private_unseen" ? "hidden" : ""}`}>
           <span className="shrink-0">Status do cliente</span>
           <select
             className={`h-10 min-w-0 flex-1 rounded-2xl border bg-white px-3 text-sm font-bold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 ${clientStatus ? "border-brand text-brand" : "border-line text-navy"}`}
@@ -943,7 +956,9 @@ function firstNameOf(name) {
 }
 
 function ConversationRow({ conversation, currentUserId = "", selected, onSelect }) {
-  const unread = conversation.unreadCount > 0;
+  // Particular: "não vista por mim" (seenByMe === false) também aparece em destaque, com bolinha verde.
+  const unseenByMe = conversation.seenByMe === false;
+  const unread = conversation.unreadCount > 0 || unseenByMe;
   const name = displayName(conversation);
   const phone = formatPhone(conversation.phone);
   return (
@@ -974,7 +989,9 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect 
                 <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#1D6FE8] px-1.5 text-[11px] font-black text-white" title="Mensagem interna da equipe" aria-label={`${conversation.internalUnread} mensagens internas não lidas`}>{conversation.internalUnread}</span>
               ) : null}
               {unread ? (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+                conversation.unreadCount > 0
+                  ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${conversation.unreadCount} não lidas`}>{conversation.unreadCount}</span>
+                  : <span className="h-3 w-3 rounded-full bg-[#25D366]" aria-label="Não vista por você" title="Você ainda não abriu" />
               ) : null}
             </span>
           ) : null}

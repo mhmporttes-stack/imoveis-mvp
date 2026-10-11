@@ -30,6 +30,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-11 — Particular: "Não lidas" por pessoa (WA-28)
+
+- **Pedido do dono:** botão de não lidas dentro de Particular para ver o que ele ainda não visualizou; abrir marca como visualizado.
+- **Mudou:** tabela nova `whatsapp_conversation_reads` (migration `20261011010000_whatsapp_conversation_reads.sql`, aplicada); filtro `private_unseen`; ao abrir conversa particular (com conteúdo visível) grava a leitura de quem abriu; a lista do Particular traz `seenByMe` e a linha não vista fica em destaque. Começa com todas as 280 como não vistas.
+
 ### 2026-10-11 — Chat: "Carregar mais" e conversa excluída continua visível para o administrador geral (WA-27)
 
 - **Pedido do dono:** "Excluir conversa deve excluir apenas na visualização do corretor, na minha deve aparecer ainda" + "Adicione o carregar mais".
