@@ -321,3 +321,11 @@ test("estrutura: nenhuma busca/criação de conversa só por telefone sobrou no 
   assert.match(migration, /\(session_user_id, \(\(metadata ->> 'wa_message_id'\)\)\)/);
   assert.match(migration, /whatsapp_conversation_split_log/);
 });
+
+// Pedido do dono (2026-10-11): número de não lidas no ícone do Chat no celular. Conversa do WhatsApp pessoal sem
+// atribuição também avisa o dono do número (o push leva o unreadCount que pinta o ícone do app).
+test("push de mensagem nova no WhatsApp pessoal vai ao dono do número mesmo sem atribuição", () => {
+  const src = readFileSync(new URL("../lib/whatsapp-individual-inbound.js", import.meta.url), "utf8");
+  assert.match(src, /\(!conversation\.assigned_user_id \|\| conversation\.assigned_user_id === userId\)/);
+  assert.match(src, /const unreadCount = await getUnreadMessageCountForBroker\(userId\);\n      await sendPushToUser\(userId, \{/);
+});
