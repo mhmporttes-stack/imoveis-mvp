@@ -30,6 +30,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-11 — Particular: 36 conversas pessoais escondidas (card arquivado) voltaram a aparecer
+
+- **Pergunta do dono:** "não aparece quase nada pra mim" no Particular.
+- **Causa:** contatos pessoais dos corretores que tinham virado card e foram ARQUIVADOS ficavam escondidos pela WA-13 mesmo recebendo mensagens (ex.: "Fani" com 273 mensagens em 24 h no Nº 2 da Bruna). A WA-26a (2026-10-11) só valia para mensagens novas.
+- **Feito (dado de produção, a pedido do dono):** 36 conversas do WhatsApp pessoal com card arquivado (3.031 mensagens) foram para Particular (`private_at`, `origin.auto_private`, `origin.archived_client_id`); os cards continuam arquivados. Particular agora tem 280 conversas. Ficaram escondidas só 10 conversas pessoais apagadas por outros motivos (exclusão manual/destrancar).
+- **Limite conhecido:** a lista do Chat carrega as 100 conversas mais recentes por aba (sem "carregar mais").
+
 ### 2026-10-11 — Auditoria "todas as conversas do corretor chegam ao CRM?" + recebidas sem número
 
 - **Pergunta do dono:** corretores conversam o dia inteiro e pouca coisa aparece (inclusive no Particular).
