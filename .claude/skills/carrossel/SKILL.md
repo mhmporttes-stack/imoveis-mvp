@@ -10,7 +10,7 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 ## Padrão visual (pedido do dono, 2026-10-11)
 - Fundo **preto**, minimalista, muito respiro; texto branco; destaque em **azul da marca** (`**palavra**` no roteiro).
 - Rodapé em toda lâmina no estilo do topo do perfil do Instagram: **foto em círculo com anel colorido** + **mhm.machado** com selo de verificado + "Matheus Machado / Corretor de Imóveis" (o @ real; `@matheusmachadoimoveis` não existe).
-- Marca: só o símbolo oficial `public/assets/matheus-machado-symbol.png` (regra 10 do CLAUDE.md — nunca logo antiga nem logo nova inventada).
+- Sem logo no topo (pedido do dono, 2026-10-11): a identidade é o rodapé. Se algum dia usar marca, só o símbolo oficial `public/assets/matheus-machado-symbol.png` (regra 10 do CLAUDE.md).
 - Formato 1080×1350 (4:5). Capa com gancho forte; 1 ideia por lâmina; última lâmina = chamada para ação.
 
 ## Fluxo

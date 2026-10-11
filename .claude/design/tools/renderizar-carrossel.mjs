@@ -102,7 +102,6 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .badge { width:30px; height:30px; }
   .sub { font-size:26px; color:var(--muted); }
 </style></head><body><div class="frame">
-  ${symbol ? `<img class="mark" src="${symbol}" alt="">` : ""}
   ${total > 1 ? `<span class="count">${i + 1}/${total}</span>` : ""}
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span><span class="sub">${esc(subtitulo)}</span></div></div>
