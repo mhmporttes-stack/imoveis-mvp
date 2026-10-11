@@ -1,0 +1,60 @@
+{
+ "laminas": [
+  {
+   "tipo": "capa",
+   "fotoCentral": true,
+   "centro": true,
+   "chamada": "Minha Casa Minha Vida",
+   "titulo": "Acabando com 3 *mitos* sobre o programa"
+  },
+  {
+   "tipo": "editorial",
+   "rotulo": "Você já ouviu isso?",
+   "objecao": "“Ganho mais de R$ 10 mil. O programa não é pra mim.”",
+   "titulo": "Será *mesmo*?",
+   "texto": "Existe uma faixa pensada para a **classe média** — e ela muda bastante esse cenário."
+  },
+  {
+   "tipo": "mito",
+   "rotulo": "Mito 01",
+   "objecao": "“Ganho mais de R$ 10 mil, então não posso participar.”",
+   "verdade": "A verdade",
+   "numeroGrande": "R$ 13 mil",
+   "numeroLegenda": "é o limite de renda bruta mensal da Faixa 4.",
+   "texto": "Ou seja: **você não precisa ganhar pouco** para avaliar as condições.",
+   "fonte": "Fonte: Portaria MCID nº 333/2026"
+  },
+  {
+   "tipo": "mito",
+   "rotulo": "Mito 02",
+   "objecao": "“O imóvel precisa custar menos de R$ 300 mil.”",
+   "verdade": "A verdade",
+   "numeroGrande": "R$ 600 mil",
+   "numeroLegenda": "é o valor máximo do imóvel na Faixa 4.",
+   "texto": "Desde que você cumpra os critérios e seja **aprovado na análise de crédito**.",
+   "fonte": "Fonte: Portaria MCID nº 333/2026"
+  },
+  {
+   "tipo": "mito",
+   "rotulo": "Mito 03",
+   "objecao": "“É só para quem vai comprar o primeiro imóvel da vida.”",
+   "verdade": "A verdade",
+   "titulo": "Não *necessariamente*.",
+   "texto": "O que pode impedir é ter **imóvel residencial** ou **financiamento habitacional ativo**. Vale entender o seu caso antes de desistir."
+  },
+  {
+   "tipo": "editorial",
+   "rotulo": "Sua vez",
+   "titulo": "Qual desses mitos *você já acreditou*?",
+   "texto": "Comenta aqui embaixo ↓"
+  },
+  {
+   "tipo": "editorial",
+   "comFoto": "apontando",
+   "rotulo": "Faixa 4",
+   "titulo": "Ganha entre R$ 10 e R$ 13 mil?",
+   "texto": "Eu faço a sua simulação e mostro **as suas possibilidades**.",
+   "botao": "Me chama na DM"
+  }
+ ]
+}

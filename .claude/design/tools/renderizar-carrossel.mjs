@@ -53,7 +53,8 @@ const asDataUrl = (file) => {
   return `data:image/${ext};base64,${readFileSync(file).toString("base64")}`;
 };
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\n/g, "<br>");
+// **palavra** = destaque na cor da marca; *palavra* = serifa itálica (Playfair) — contraste elegante sem gritar.
+const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\*(.+?)\*/g, '<i class="serif">$1</i>').replace(/\n/g, "<br>");
 
 const symbol = asDataUrl("public/assets/matheus-machado-symbol.png");
 // Foto do Matheus SEM fundo (recorte, 2026-10-11) para lâminas em que ele aparece: "comFoto": true na lâmina.
@@ -111,7 +112,25 @@ const fechoHtml = (l) => l.fecho ? `<p class="fecho">${rich(l.fecho)}</p>` : "";
 const fonteHtml = (l) => l.fonte ? `<p class="fonte">${esc(l.fonte)}</p>` : "";
 const iconeTopo = (l) => l.icone ? `<span class="top-ico">${icon(l.icone)}</span>` : "";
 
+// Layout "editorial" (2026-10-11, pedido do dono: mais leve, elegante e moderno): alinhado à esquerda, um destaque
+// por lâmina. "mito": rótulo pequeno, objeção em serifa itálica, divisor fino, a verdade como NÚMERO grande + legenda.
+function editorialBody(l) {
+  return [
+    l.rotulo ? `<p class="rotulo">${esc(l.rotulo)}</p>` : "",
+    l.objecao ? `<p class="objecao">${rich(l.objecao)}</p>` : "",
+    l.objecao && (l.numeroGrande || l.titulo || l.texto) ? '<span class="divisor"></span>' : "",
+    l.verdade ? `<p class="verdade">${esc(l.verdade)}</p>` : "",
+    l.titulo ? `<h2 class="ed-titulo">${rich(l.titulo)}</h2>` : "",
+    l.numeroGrande ? `<p class="numero-grande">${rich(l.numeroGrande)}</p>` : "",
+    l.numeroLegenda ? `<p class="numero-legenda">${rich(l.numeroLegenda)}</p>` : "",
+    l.texto ? `<p class="ed-texto">${rich(l.texto)}</p>` : "",
+    l.botao ? `<span class="pill">${rich(l.botao)}</span>` : "",
+    l.fonte ? `<p class="fonte">${esc(l.fonte)}</p>` : ""
+  ].join("");
+}
+
 function slideBody(l) {
+  if (l.tipo === "mito" || l.tipo === "editorial") return editorialBody(l);
   switch (l.tipo) {
     case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${l.tituloCondensado ? `<h1 class="cover condensada">${rich(l.titulo)}</h1>` : tituloHtml(l, "h1", "cover")}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
     case "lista": return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${tituloHtml(l)}${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}<ul>${(l.itens || []).map(itemHtml).join("")}</ul>${notaHtml(l)}`;
@@ -197,6 +216,22 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .recorte-central { position:absolute; left:50%; transform:translateX(-50%); bottom:0; height:92%; z-index:0; }
   .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.75) 62%, rgba(0,0,0,.96) 82%); z-index:0; }
   .frame.foto-central > *:not(.recorte-central):not(.degrade):not(.footer) { position:relative; z-index:1; }
+  i.serif { font-family:"Playfair Display", Georgia, serif; font-style:italic; font-weight:500; letter-spacing:-.01em; }
+  em i.serif, i.serif em { color:var(--brand); }
+  h1.cover i.serif, .ed-titulo i.serif { color:var(--brand); font-weight:500; }
+  .frame.editorial { justify-content:center; }
+  .rotulo { font-size:26px; font-weight:700; letter-spacing:.26em; text-transform:uppercase; color:var(--brand); margin-bottom:40px; }
+  .objecao { font-family:"Playfair Display", Georgia, serif; font-style:italic; font-weight:500; font-size:68px; line-height:1.15; color:#fff; letter-spacing:-.01em; }
+  .divisor { display:block; width:72px; height:3px; background:var(--brand); margin:56px 0 48px; }
+  .verdade { font-size:24px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .ed-titulo { font-size:92px; line-height:1.04; font-weight:800; letter-spacing:-.03em; margin:0 0 28px; }
+  .numero-grande { font-size:176px; line-height:.95; font-weight:800; letter-spacing:-.045em; color:var(--brand); }
+  .numero-legenda { font-size:36px; color:#E6EAF0; margin-top:18px; font-weight:500; }
+  .ed-texto { font-size:38px; line-height:1.42; color:#AEB8C5; margin-top:40px; max-width:860px; }
+  .ed-texto em { color:#fff; font-weight:600; }
+  .pill { display:inline-block; align-self:flex-start; margin-top:48px; background:var(--brand); color:#fff; border-radius:999px; padding:22px 48px; font-size:36px; font-weight:700; }
+  .frame.editorial .fonte { margin-top:48px; }
+  .frame.com-recorte.editorial > *:not(.recorte):not(.footer) { max-width:58%; }
   .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
   .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
@@ -205,7 +240,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:8px; font-size:30px; font-weight:700; }
   .badge { width:26px; height:26px; }
   .sub { font-size:22px; color:var(--muted); }
-</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo || "texto")}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
+</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
   ${l.comFoto && recorte ? `<img class="recorte${l.comFoto === "apontando" ? " apontando" : ""}" src="${recorteDa(l)}" alt="">` : ""}
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}

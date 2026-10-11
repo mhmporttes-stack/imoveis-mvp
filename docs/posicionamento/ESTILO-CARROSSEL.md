@@ -2,6 +2,14 @@
 
 Aprendido dos posts já publicados (enviados pelo dono em 2026-10-11). Usado pelo `/carrossel`.
 
+## Direção de design (pedido do dono, 2026-10-11: "mais leve, menos carregado, elegante e moderno")
+Preferir o layout **editorial** (`tipo: "mito"` / `"editorial"`) a copiar a referência ao pé da letra:
+- alinhado à esquerda, muito respiro, **um destaque por lâmina** (o número grande, ou a frase);
+- frase/objeção em **serifa itálica** (Playfair), títulos em Inter 800, rótulo pequeno espaçado no topo ("MITO 01");
+- `*palavra*` = serifa itálica azul (contraste elegante); `**palavra**` = destaque; nada de caixa alta gritando em bloco;
+- texto de apoio cinza, curto (1–2 frases); CTA final como botão (`botao`).
+Versão aprovada como referência: `carrosseis/2026-10-11-mitos-mcmv-v2/`.
+
 ## Cor
 - **Destaque hoje = azul da marca** (`#3B8BFF` no fundo preto). Os posts antigos usavam **amarelo** — ao recriar um deles, trocar amarelo por azul. Nunca voltar ao amarelo.
 - Fundo preto (referência de cor única) ou foto escurecida (referência com foto).
