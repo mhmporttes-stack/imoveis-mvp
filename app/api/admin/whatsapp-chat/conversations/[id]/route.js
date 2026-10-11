@@ -11,8 +11,11 @@ export async function GET(request, { params }) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const before = new URL(request.url).searchParams.get("before") || "";
-    return NextResponse.json(await getChatConversation((await params).id, { before }, auth));
+    const searchParams = new URL(request.url).searchParams;
+    const before = searchParams.get("before") || "";
+    // preview=1: pré-visualização (segurar na lista) — não marca nada como lido/visto.
+    const preview = searchParams.get("preview") === "1";
+    return NextResponse.json(await getChatConversation((await params).id, { before, preview }, auth));
   } catch (error) {
     return chatErrorResponse(error);
   }

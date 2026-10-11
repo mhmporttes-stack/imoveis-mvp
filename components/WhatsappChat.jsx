@@ -699,6 +699,7 @@ function listPageIsFull(count, filter) {
 }
 
 function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
+  const [previewId, setPreviewId] = useState("");
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
@@ -776,8 +777,9 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           </p>
         ) : null}
         {conversations.map((conversation) => (
-          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} />
+          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} onPreview={() => setPreviewId(conversation.id)} />
         ))}
+        {previewId ? <ConversationPreviewModal conversationId={previewId} onClose={() => setPreviewId("")} onOpen={() => { const id = previewId; setPreviewId(""); onSelect(id); }} /> : null}
         {!loading && conversations.length && hasMore ? (
           <div className="flex justify-center p-4">
             <button type="button" onClick={onLoadMore} disabled={loadingMore} className="inline-flex h-10 items-center gap-2 rounded-full border border-navy/15 bg-white px-5 text-sm font-extrabold text-navy transition hover:border-brand disabled:opacity-60">
@@ -955,16 +957,32 @@ function firstNameOf(name) {
   return String(name || "").trim().split(/\s+/)[0] || "";
 }
 
-function ConversationRow({ conversation, currentUserId = "", selected, onSelect }) {
+function ConversationRow({ conversation, currentUserId = "", selected, onSelect, onPreview = null }) {
   // Particular: "não vista por mim" (seenByMe === false) também aparece em destaque, com bolinha verde.
   const unseenByMe = conversation.seenByMe === false;
   const unread = conversation.unreadCount > 0 || unseenByMe;
   const name = displayName(conversation);
   const phone = formatPhone(conversation.phone);
+  // Segurar (celular) ou botão direito (computador) = pré-visualização sem marcar como lida (pedido do dono, 2026-10-11).
+  const pressTimer = useRef(null);
+  const pressed = useRef(false);
+  const startPress = () => {
+    if (!onPreview) return;
+    pressed.current = false;
+    clearTimeout(pressTimer.current);
+    pressTimer.current = setTimeout(() => { pressed.current = true; onPreview(); }, 500);
+  };
+  const cancelPress = () => clearTimeout(pressTimer.current);
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={(event) => { if (pressed.current) { event.preventDefault(); pressed.current = false; return; } onSelect(); }}
+      onPointerDown={startPress}
+      onPointerUp={cancelPress}
+      onPointerLeave={cancelPress}
+      onPointerMove={(event) => { if (Math.abs(event.movementY) > 4 || Math.abs(event.movementX) > 4) cancelPress(); }}
+      onContextMenu={(event) => { if (!onPreview) return; event.preventDefault(); cancelPress(); pressed.current = false; onPreview(); }}
+      style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
       title={phone}
       className={`flex w-full items-stretch gap-3 pl-3 text-left transition hover:bg-[#F5F6F6] ${selected ? "bg-[#F0F2F5]" : "bg-white"}`}
     >
@@ -1276,9 +1294,10 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
           <button type="button" onClick={onBack} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-mist lg:hidden" aria-label="Voltar para as conversas">
             <ArrowLeft className="h-5 w-5 text-navy" />
           </button>
-          <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} />
+          {/* Tocar na foto/nome abre as informações do contato (com "Mídia, links e docs"), como no WhatsApp. */}
+          <button type="button" onClick={onToggleInfo} className="shrink-0 rounded-full" aria-label="Informações do contato"><Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} /></button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-black leading-tight text-navy">{displayName(conversation)}</p>
+            <button type="button" onClick={onToggleInfo} className="block max-w-full truncate text-left font-black leading-tight text-navy">{displayName(conversation)}</button>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-extrabold ${conversation.window?.open ? "text-emerald-600" : "text-amber-700"}`}>
                 <span className={`h-2 w-2 rounded-full ${conversation.window?.open ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
@@ -1991,6 +2010,144 @@ function ConversationSummaryBar({ conversation }) {
       {open && summary?.text ? <p className="mt-1 whitespace-pre-line text-[13px] font-semibold leading-5 text-[#3B4A54]">{summary.text}</p> : null}
       {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
     </div>
+  );
+}
+
+// Pré-visualização da conversa (segurar na lista / botão direito): mostra as últimas mensagens SEM marcar nada como lido
+// ou visto (rota com ?preview=1) — como o "espiar" do WhatsApp.
+function ConversationPreviewModal({ conversationId, onClose, onOpen }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}?preview=1`, { cache: "no-store" })
+      .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
+      .then(({ ok, body }) => { if (!cancelled) { if (ok) setData(body); else setError(body.error || "Não foi possível abrir."); } })
+      .catch(() => { if (!cancelled) setError("Não foi possível abrir."); });
+    return () => { cancelled = true; };
+  }, [conversationId]);
+  const conversation = data?.conversation;
+  const messages = (data?.messages || []).filter((message) => !message.internal).slice(-30);
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Pré-visualização da conversa" onClick={onClose}>
+      <div className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-[24px] bg-white shadow-soft" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          {conversation ? <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} /> : null}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-black text-navy">{conversation ? displayName(conversation) : "Carregando…"}</p>
+            <p className="text-[11px] font-bold text-muted">Pré-visualização — não marca como lida</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-mist" aria-label="Fechar"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2" style={CHAT_WALLPAPER_STYLE}>
+          {error ? <p className="p-4 text-center text-sm font-bold text-red-700">{error}</p> : null}
+          {!data && !error ? <p className="flex items-center justify-center gap-2 p-6 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /></p> : null}
+          {data && !messages.length ? <p className="p-6 text-center text-sm font-bold text-muted">{conversation?.privateLocked ? "Conversa particular." : "Nenhuma mensagem."}</p> : null}
+          {messages.map((message) => (
+            <div key={message.id} className={`my-1 flex ${message.direction === "inbound" ? "justify-start" : "justify-end"}`}>
+              <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[14px] leading-5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${message.direction === "inbound" ? "bg-white" : "bg-[#D9FDD3]"}`}>
+                <span className="whitespace-pre-wrap break-words">{message.revoked ? "Mensagem apagada" : message.body || (message.media ? `[${MEDIA_LABELS[message.type] || "Mídia"}]` : `[${message.type || "mensagem"}]`)}</span>
+                <span className="ml-2 align-bottom text-[10px] text-[#667781]">{formatListTime(message.at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-line p-3">
+          <button type="button" onClick={onOpen} className="h-10 w-full rounded-full bg-navy text-sm font-extrabold text-white hover:bg-[#082f55]">Abrir conversa</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// "Mídia, links e docs" (pedido do dono, 2026-10-11), como ao tocar no nome do contato no WhatsApp.
+const MEDIA_TABS = [{ key: "media", label: "Mídia" }, { key: "doc", label: "Docs" }, { key: "audio", label: "Áudios" }, { key: "link", label: "Links" }];
+function ConversationMediaButton({ conversationId }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="mx-auto mt-3 inline-flex h-9 items-center gap-2 rounded-full border border-navy/15 bg-white px-4 text-xs font-extrabold text-navy transition hover:border-brand">
+        <Paperclip className="h-4 w-4" /> Mídia, links e docs
+      </button>
+      {open ? <ConversationMediaGallery conversationId={conversationId} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+function ConversationMediaGallery({ conversationId, onClose }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState("media");
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/media-list`, { cache: "no-store" })
+      .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
+      .then(({ ok, body }) => { if (!cancelled) { if (ok) setItems(body.items || []); else setError(body.error || "Não foi possível carregar."); } })
+      .catch(() => { if (!cancelled) setError("Não foi possível carregar."); });
+    return () => { cancelled = true; };
+  }, [conversationId]);
+  const visible = (items || []).filter((item) => item.kind === tab);
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-3" role="dialog" aria-modal="true" aria-label="Mídia, links e docs" onClick={onClose}>
+      <div className="flex h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-soft sm:rounded-[24px]" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <p className="text-base font-black text-navy">Mídia, links e docs</p>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-mist" aria-label="Fechar"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="flex gap-1.5 border-b border-line px-3 py-2">
+          {MEDIA_TABS.map((item) => {
+            const count = (items || []).filter((entry) => entry.kind === item.key).length;
+            return (
+              <button key={item.key} type="button" onClick={() => setTab(item.key)} aria-pressed={tab === item.key}
+                className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${tab === item.key ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F]"}`}>
+                {item.label}{items ? ` (${count})` : ""}
+              </button>
+            );
+          })}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {error ? <p className="p-4 text-center text-sm font-bold text-red-700">{error}</p> : null}
+          {!items && !error ? <p className="flex items-center justify-center gap-2 p-6 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /></p> : null}
+          {items && !visible.length ? <p className="p-6 text-center text-sm font-bold text-muted">Nada aqui ainda.</p> : null}
+          {tab === "media" ? (
+            <div className="grid grid-cols-3 gap-1">
+              {visible.map((item) => (
+                <a key={item.id} href={item.media.url} target="_blank" rel="noreferrer" className="relative block aspect-square overflow-hidden rounded-md bg-[#F0F2F5]" title={formatListTime(item.at)}>
+                  {item.type === "video"
+                    ? <span className="grid h-full w-full place-items-center text-[#54656F]"><Film className="h-8 w-8" /></span>
+                    : <img src={item.media.url} alt={item.caption || "Imagem"} loading="lazy" className="h-full w-full object-cover" />}
+                </a>
+              ))}
+            </div>
+          ) : tab === "audio" ? (
+            <div className="space-y-2">
+              {visible.map((item) => (
+                <div key={item.id} className="rounded-xl border border-line p-2">
+                  <p className="mb-1 text-[11px] font-bold text-muted">{item.direction === "inbound" ? "Contato" : item.sentByName || "Equipe"} · {formatListTime(item.at)}</p>
+                  <audio controls preload="none" src={item.media.url} className="w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {visible.map((item) => (
+                <li key={item.id}>
+                  <a href={tab === "link" ? item.url : `${item.media.url}${item.media.url.includes("?") ? "&" : "?"}download=1`} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-1 py-2.5 hover:bg-mist">
+                    {tab === "link" ? <Link2 className="h-5 w-5 shrink-0 text-brand" /> : <FileText className="h-5 w-5 shrink-0 text-brand" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-navy">{tab === "link" ? item.url : item.media.name || "Documento"}</span>
+                      <span className="block text-[11px] font-bold text-muted">{item.direction === "inbound" ? "Contato" : item.sentByName || "Equipe"} · {formatListTime(item.at)}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -2753,6 +2910,7 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
         <div className="mx-auto w-fit"><Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={72} /></div>
         <ContactNameEditor conversation={conversation} onChanged={onChanged} />
         <p className="text-sm font-bold text-muted">{formatPhone(conversation.phone)}</p>
+        <ConversationMediaButton conversationId={conversation.id} />
       </div>
 
       {client ? (
