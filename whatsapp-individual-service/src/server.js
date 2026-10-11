@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getProfilePictureUrl, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -206,7 +206,7 @@ app.listen(port, () => {
   console.log(`whatsapp-individual-service ouvindo na porta ${port}`);
   // Marcador de boot: id do processo + versão do Baileys + origem do deploy
   // (variáveis da Railway, se houver) — vai junto de todo evento seguinte.
-  telemetry.record(null, "service_boot", { detail: `baileys_${telemetry.context.baileysVersion}` });
+  telemetry.record(null, "service_boot", { detail: `baileys_${telemetry.context.baileysVersion}_hist_${historySyncEnabled() ? "on" : "off"}` });
   // Dono único: só retoma/conecta sessões depois de obter o lease (lease.js). O /health responde 200 já
   // agora (a Railway só considera o deploy pronto com healthcheck), mesmo esperando o lease.
   runtime.boot().catch((error) => console.error("Falha na inicialização do serviço:", error?.message || error));

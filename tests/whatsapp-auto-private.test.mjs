@@ -18,7 +18,7 @@ test("Particular marcada à mão nunca é desfeita; a automática sai quando gan
 
 test("ligado na chegada de mensagem, no cron e nos botões de card", () => {
   const inbound = readFileSync(new URL("../lib/whatsapp-individual-inbound.js", import.meta.url), "utf8");
-  assert.equal((inbound.match(/await applyAutoPrivacy\(conversation\.id\)/g) || []).length, 2);
+  assert.equal((inbound.match(/await applyAutoPrivacy\(conversation\.id\)/g) || []).length, 3); // ao vivo (texto e reação) + histórico (2026-10-11)
   const cron = readFileSync(new URL("../app/api/cron/scheduled-activities/route.js", import.meta.url), "utf8");
   assert.match(cron, /reconcileAutoPrivateConversations\(\)/);
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");

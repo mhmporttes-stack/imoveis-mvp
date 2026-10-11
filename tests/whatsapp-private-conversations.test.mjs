@@ -28,7 +28,7 @@ test("mensagem nova em conversa particular não reabre, não vincula e não cria
   const inbound = read("lib/whatsapp-individual-inbound.js");
   assert.match(inbound, /const internalContact = privateContact \|\| Boolean\(placeholder\) \|\| await findInternalTeamPhone\(phone\);/);
   assert.match(inbound, /const hiddenConversation = Boolean\(afterApply\?\.deleted_at\) \|\| privateContact \|\| Boolean\(afterApply\?\.private_at\);/);
-  assert.match(inbound, /if \(!conversation\.client_id && !conversation\.private_at\) \{/);
+  assert.match(inbound, /if \(!conversation\.client_id && !conversation\.private_at( && !isLidPlaceholder\(phone\))?\) \{/);
   const lead = read("lib/whatsapp-sponsored-lead.js");
   assert.equal((lead.match(/if \(conversation\.private_at\) return \{ skipped: "conversa_particular" \};/g) || []).length, 2);
 });

@@ -17,6 +17,7 @@ import { telemetry } from "./telemetry.js";
 // sincronizavam ao mesmo tempo. 2026-10-08: religado a pedido do dono, agora LIMITADO à última semana (texto, foto e
 // áudio, lotes de 25). Para pausar de novo: WHATSAPP_HISTORY_SYNC_ENABLED=false na Railway (sem novo deploy).
 const HISTORY_SYNC_ENABLED = process.env.WHATSAPP_HISTORY_SYNC_ENABLED !== "false";
+export const historySyncEnabled = () => HISTORY_SYNC_ENABLED;
 
 // Um processo = no máximo UM socket Baileys por userId — nunca dois
 // listeners pro mesmo corretor. `sockets` é a fonte da verdade EM MEMÓRIA
@@ -152,17 +153,22 @@ async function resolveLidByCandidates(userId, lid) {
   return Boolean(lidMapFor(userId).get(lid));
 }
 
+// Mapa LID -> "lid:<id>" para entregar a mensagem como "Número não identificado" (e lembrar de avisar o CRM depois).
+function withPlaceholder(userId, lid) {
+  const placeholder = `lid:${lid.split("@")[0]}`;
+  const id = `${userId}|${lid}`;
+  if (placeholderLids.size >= PLACEHOLDER_LID_LIMIT && !placeholderLids.has(id)) placeholderLids.delete(placeholderLids.keys().next().value);
+  placeholderLids.set(id, true);
+  return new Map([...lidMapFor(userId), [lid, placeholder]]);
+}
+
 async function deliverOwnLidMessage(userId, lid, msg) {
   const resolved = await resolveLidByCandidates(userId, lid).catch((error) => {
     console.error(`[${userId}] Falha ao resolver LID de mensagem enviada pelo celular:`, error.message);
     return false;
   });
   if (resolved) return deliverLiveMessage(userId, msg);
-  const placeholder = `lid:${lid.split("@")[0]}`;
-  const id = `${userId}|${lid}`;
-  if (placeholderLids.size >= PLACEHOLDER_LID_LIMIT && !placeholderLids.has(id)) placeholderLids.delete(placeholderLids.keys().next().value);
-  placeholderLids.set(id, true);
-  return deliverLiveMessage(userId, msg, new Map([...lidMapFor(userId), [lid, placeholder]]));
+  return deliverLiveMessage(userId, msg, withPlaceholder(userId, lid));
 }
 
 function rememberLidsFromContacts(userId, contacts) {
@@ -392,7 +398,12 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
   if (HISTORY_SYNC_ENABLED) {
-    sock.ev.on("messaging-history.set", ({ messages }) => onHistorySync(userId, messages));
+    sock.ev.on("messaging-history.set", ({ messages, contacts, chats }) => {
+      // Aprende LID -> telefone dos contatos e conversas do próprio histórico ANTES das mensagens (2026-10-11).
+      rememberLidsFromContacts(userId, contacts);
+      rememberLidsFromContacts(userId, (chats || []).map((chat) => ({ id: chat?.id, lid: chat?.lidJid, jid: chat?.pnJid })));
+      return onHistorySync(userId, messages);
+    });
   }
 
   // Pareamento por número de telefone (pedido do dono, 2026-09-30) — só pede
@@ -630,7 +641,10 @@ async function onHistorySync(userId, messages) {
   for (const msg of messages || []) {
     try {
       if (messageTimestampMs(msg) < cutoff) continue;
-      const event = extractChatEvent(msg, lidMapFor(userId));
+      // Contato sem telefone conhecido (LID) não é mais descartado (2026-10-11, histórico vinha quase vazio): entra como
+      // "lid:<id>" ("Número não identificado") e o CRM junta à conversa do telefone quando ele aparecer.
+      const ownLid = unresolvedOwnLid(userId, msg);
+      const event = extractChatEvent(msg, ownLid ? withPlaceholder(userId, ownLid) : lidMapFor(userId));
       if (!event || event.kind !== "message") continue;
       if (event.media) {
         // Só foto e áudio. Outros tipos entram apenas se tiverem legenda (como texto).
