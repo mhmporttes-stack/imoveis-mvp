@@ -14,6 +14,7 @@
 //     { "tipo": "texto", "numero": "01", "titulo": "Nome sujo", "texto": "Parágrafo curto..." },
 //     { "tipo": "lista", "titulo": "Documentos", "itens": ["RG e CPF", "Comprovante de renda"] },
 //     { "tipo": "citacao", "texto": "Frase de impacto", "autor": "opcional" },
+//     { "tipo": "texto", "imagem": "pasta/foto.jpg", "imagemPosicao": "center 30%", "titulo": "..." },  // lâmina com foto de fundo
 //     { "tipo": "cta",   "titulo": "Quer saber quanto você consegue?", "texto": "Faça sua simulação gratuita", "botao": "Link na bio" }
 //   ]
 // }
@@ -69,7 +70,17 @@ function slideBody(l) {
   }
 }
 
-const total = roteiro.laminas.length;
+// Fundo (pedido do dono, 2026-10-11): referência de cor única → preto (padrão). Referência com FOTO de fundo → a lâmina
+// também leva foto ("imagem": caminho do arquivo), com escurecimento por baixo para o texto continuar legível.
+// "fundo" (cor) pode ser definido no roteiro inteiro ou por lâmina.
+const fundoPadrao = roteiro.fundo || "#000";
+function fundoDa(l) {
+  const cor = l.fundo || fundoPadrao;
+  const img = asDataUrl(l.imagem);
+  if (!img) return `background:${cor};`;
+  const pos = l.imagemPosicao || "center";
+  return `background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.82) 62%, rgba(0,0,0,.95) 100%), url('${img}') ${pos}/cover no-repeat, ${cor};`;
+}
 const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -93,6 +104,10 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .quote { font-size:88px; line-height:1.18; font-weight:700; }
   .author { margin-top:40px; font-size:40px; color:var(--muted); }
   .button { margin-top:64px; align-self:flex-start; border:2px solid var(--brand); color:var(--fg); border-radius:999px; padding:26px 52px; font-size:42px; font-weight:700; }
+  .frame.foto { justify-content:flex-end; padding-bottom:250px; }
+  .frame.foto h1.cover { font-size:112px; }
+  .frame.foto h2 { font-size:84px; }
+  .frame.foto .body, .frame.foto li { color:#F1F4F8; }
   .footer { position:absolute; left:88px; right:88px; bottom:64px; display:flex; align-items:center; justify-content:center; gap:22px; }
   .ring { width:120px; height:120px; border-radius:50%; padding:5px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:4px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
@@ -101,7 +116,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:10px; font-size:40px; font-weight:700; }
   .badge { width:36px; height:36px; }
   .sub { font-size:30px; color:var(--muted); }
-</style></head><body><div class="frame">
+</style></head><body style="${fundoDa(l)}"><div class="frame${l.imagem ? " foto" : ""}">
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span><span class="sub">${esc(subtitulo)}</span></div></div>
 </div></body></html>`;
