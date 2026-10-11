@@ -58,20 +58,16 @@ test("prévia grande no WhatsApp: imagem /og cacheável no CDN e aquecida ao pre
   assert.match(read("app/api/admin/simulacoes/[id]/apresentacao/route.js"), /fetch\(`\$\{link\}\/og`/);
 });
 
-test("gerador: a apresentação é enviada DIRETO pelo Chat (sem confirmar no campo); se recusar, abre o Chat com o texto pronto", () => {
+// Regra do dono (2026-10-11, substitui a de 2026-10-09): pelo Chat só quando o cliente iniciou conversa no número OFICIAL
+// (janela de 24 h aberta, sai com imagem + botão); senão abre o WhatsApp do PRÓPRIO corretor, que monta a prévia do link.
+test("gerador: Chat só com a janela do oficial aberta; senão o WhatsApp do próprio corretor (com prévia)", () => {
   const src = read("components/SimulationGenerator.jsx");
-  assert.match(src, /\/api\/admin\/whatsapp-chat\/open-client/);
-  assert.match(src, /whatsapp-chat\/conversations\/\$\{encodeURIComponent\(open\.conversationId\)\}\/messages/);
-  assert.match(src, /sentDirectly/);
-  assert.match(src, /&text=\$\{encodeURIComponent\(data\.message\)\}/, "plano B com o texto no campo");
-});
-
-test("gerador: envio recusado -> WhatsApp pessoal conectado no Chat (?slot=), senão app/WhatsApp Web com a mensagem", () => {
-  const src = read("components/SimulationGenerator.jsx");
-  assert.match(src, /whatsapp-individual\/status/);
-  assert.match(src, /item\.status === "connected"/);
-  assert.match(src, /&slot=\$\{encodeURIComponent\(connectedSlot\.slot \|\| 1\)\}/);
+  assert.match(src, /if \(data\.officialConversationId\) \{/);
+  assert.match(src, /whatsapp-chat\/conversations\/\$\{encodeURIComponent\(data\.officialConversationId\)\}\/messages/);
   assert.match(src, /withWhatsappText\(buildExternalWhatsappUrl\(phone, device\), data\.message\)/);
-  assert.match(read("app/admin/chat/page.jsx"), /initialSlot=/);
-  assert.match(read("components/WhatsappChat.jsx"), /initialSlot \? \{ clientId: initialClientId, slot: initialSlot \}/);
+  assert.doesNotMatch(src, /&slot=\$\{encodeURIComponent\(connectedSlot/, "nunca mais pelo número pessoal via Chat");
+  const route = read("app/api/admin/simulacoes/[id]/apresentacao/route.js");
+  assert.match(route, /findOpenOfficialConversationId\(simulation\.registrationId\)/);
+  const chat = read("lib/whatsapp-chat.js");
+  assert.match(chat, /export async function findOpenOfficialConversationId\(clientId\) \{[\s\S]*?\.eq\("session_key", OFFICIAL_SESSION_KEY\)[\s\S]*?windowInfo\(row\.last_inbound_at\)\.open/);
 });

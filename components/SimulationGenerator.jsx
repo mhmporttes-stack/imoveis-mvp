@@ -743,9 +743,11 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     }
   }
 
-  // Envio pelo CHAT do CRM (pedido do dono, 2026-10-09): "Enviar simulação" abre a conversa do cliente no Chat com o link da
-  // apresentação já no campo de mensagem — o corretor confere e envia por lá (nunca mais WhatsApp Web/celular). Cliente sem
-  // cadastro vinculado ainda não tem conversa no Chat: pede para salvar o cadastro antes.
+  // "Enviar simulação" (regra do dono, 2026-10-11 — substitui a de 2026-10-09):
+  //  1) o cliente INICIOU conversa no número OFICIAL e a janela de 24 h está aberta -> envia direto pelo Chat (imagem + botão
+  //     "Visualizar simulação") e abre a conversa;
+  //  2) senão -> abre o WhatsApp do PRÓPRIO corretor (app no celular/PWA, WhatsApp Web no computador) com a mensagem pronta:
+  //     o app dele monta a prévia do link, o que o envio pelo Chat no número pessoal não faz.
   async function sendPresentationToWhatsApp() {
     if (!form.id) {
       setError("Salve a simulação antes de enviar a apresentação.");
@@ -770,41 +772,25 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       const response = await post("enviar-preparar");
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.message) throw new Error(data.error || "Não foi possível preparar a apresentação.");
-      // Envio DIRETO pelo Chat (dono, 2026-10-09): sem deixar a mensagem no campo para confirmar. Pelo número oficial vai com a
-      // imagem e o botão "Visualizar simulação" (lib/whatsapp-chat.js). Se o envio for recusado (janela de 24 h fechada,
-      // WhatsApp desconectado…), abre o Chat com a mensagem pronta no campo para o corretor decidir, como antes.
       const jsonHeaders = { "Content-Type": "application/json" };
-      const open = await fetch("/api/admin/whatsapp-chat/open-client", { method: "POST", headers: jsonHeaders, body: JSON.stringify({ clientId: registrationId }) })
-        .then((res) => res.json().catch(() => ({}))).catch(() => ({}));
-      let sentDirectly = false;
-      if (open?.conversationId) {
-        const sendResponse = await fetch(`/api/admin/whatsapp-chat/conversations/${encodeURIComponent(open.conversationId)}/messages`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ text: data.message }) }).catch(() => null);
-        sentDirectly = Boolean(sendResponse?.ok);
+      if (data.officialConversationId) {
+        const sendResponse = await fetch(`/api/admin/whatsapp-chat/conversations/${encodeURIComponent(data.officialConversationId)}/messages`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ text: data.message }) }).catch(() => null);
+        if (sendResponse?.ok) {
+          await post("enviar-registrar").catch(() => null);
+          router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
+          return;
+        }
       }
-      if (sentDirectly) {
-        await post("enviar-registrar").catch(() => null);
-        router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
-        return;
-      }
-      // Envio direto recusado (janela de 24 h fechada, número oficial indisponível…). Regra do dono (2026-10-09):
-      //  1) o WhatsApp PESSOAL do corretor está conectado -> abre a conversa dele no Chat, com a mensagem pronta no campo;
-      //  2) senão -> abre o app do WhatsApp (celular/PWA) ou o WhatsApp Web (computador) com a mensagem.
       await post("enviar-registrar").catch(() => null);
-      const connectedSlot = await fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((payload) => (Array.isArray(payload?.slots) ? payload.slots.find((item) => item.status === "connected") : null))
-        .catch(() => null);
-      if (connectedSlot) {
-        router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&slot=${encodeURIComponent(connectedSlot.slot || 1)}&text=${encodeURIComponent(data.message)}`);
-        return;
-      }
       const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
       const device = detectDevice({ userAgent: navigator.userAgent, standalone: window.matchMedia?.("(display-mode: standalone)").matches === true, maxTouchPoints: navigator.maxTouchPoints || 0 });
       const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), data.message);
       if (externalUrl) {
         window.location.assign(externalUrl);
+        setSendingSimulation(false);
         return;
       }
+      // Sem telefone válido no cadastro: abre a conversa no Chat com a mensagem no campo.
       router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
     } catch (sendError) {
       setError(sendError.message || "Não foi possível preparar o envio da apresentação.");

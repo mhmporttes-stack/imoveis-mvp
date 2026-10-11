@@ -12,6 +12,7 @@ import {
   setPresentationApproval
 } from "@/lib/simulation-presentation";
 import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journey";
+import { findOpenOfficialConversationId } from "@/lib/whatsapp-chat";
 import {
   PRESENTATION_SENT_EVENT,
   PRESENTATION_SENT_JOURNEY_TEXT,
@@ -139,6 +140,8 @@ export async function POST(request, { params }) {
         return NextResponse.json({ error: PRESENTATION_SCHEMA_MESSAGE }, { status: 503 });
       }
       const link = presentationUrl(result.presentation.token, origin(request));
+      // Dono, 2026-10-11: pelo Chat só quando o cliente iniciou conversa no número oficial (janela de 24 h aberta).
+      const officialConversationId = await findOpenOfficialConversationId(simulation.registrationId).catch(() => "");
       // Aquece a imagem da prévia (e a página) ANTES de o corretor enviar: gerar a imagem leva alguns segundos e, se o
       // crawler do WhatsApp chega antes, ele mostra só uma miniatura. Com o CDN já aquecido o cartão grande abre.
       // Nunca bloqueia nem quebra o envio (espera no máximo 8 s).
@@ -151,7 +154,7 @@ export async function POST(request, { params }) {
         // (miniatura pequena) continuaria saindo assim. URL nova = raspagem nova, já com a imagem aquecida (cartão grande).
         (() => {
           const sendLink = `${link}?p=${Math.random().toString(36).slice(2, 8)}`;
-          return { link: sendLink, message: buildPresentationSendMessage({ fullName: simulation.clientName, link: sendLink }) };
+          return { link: sendLink, message: buildPresentationSendMessage({ fullName: simulation.clientName, link: sendLink }), officialConversationId };
         })(),
         { headers: { "Cache-Control": "no-store" } }
       );

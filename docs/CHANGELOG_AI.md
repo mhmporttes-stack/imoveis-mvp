@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — "Enviar simulação": Chat só com janela do oficial; senão WhatsApp do corretor (PRES-22)
+
+- Pedido do dono: pelo número pessoal via Chat o link chegava sem prévia (o serviço não monta o cartão). Agora o Chat só é usado quando o cliente iniciou conversa no oficial (janela de 24 h aberta, vai com imagem + botão); nos demais casos abre o WhatsApp do próprio corretor com a mensagem, e o app dele gera a prévia. Removido o caminho "?slot= no Chat pessoal".
+
 ### 2026-10-11 — Botão "Receber minha simulação" de volta na tela final (WA-10)
 
 - Achado: o botão foi tirado em 04/10 (redesenho da tela final, pedido do dono); desde 28/09 nenhuma mensagem "preenchi meu cadastro" chegou em número nenhum, com ~40 cadastros/dia — o cliente não tinha como iniciar a conversa.

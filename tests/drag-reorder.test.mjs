@@ -22,9 +22,11 @@ test("telas sem setas de subir/descer: usam arrastar", () => {
   assert.match(sim, /useDragReorder/);
 });
 
-test("Enviar simulação abre o Chat com o link no campo, sem WhatsApp Web/celular (2026-10-09)", () => {
+// 2026-10-11: a regra mudou (Chat só com a janela do oficial aberta; senão WhatsApp do corretor — ver
+// tests/simulation-presentation-send.test.mjs). Sem telefone válido continua abrindo o Chat com o texto no campo.
+test("Enviar simulação: sem telefone válido abre o Chat com o link no campo", () => {
   const sim = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
-  const fn = sim.slice(sim.indexOf("async function sendPresentationToWhatsApp()"), sim.indexOf("async function sendPresentationToWhatsApp()") + 2000);
+  const fn = sim.slice(sim.indexOf("async function sendPresentationToWhatsApp()"), sim.indexOf("async function sendPresentationToWhatsApp()") + 4000);
   assert.match(fn, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}&text=\$\{encodeURIComponent\(data\.message\)\}`\)/);
   assert.doesNotMatch(fn, /wa\.me/);
   const chat = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
