@@ -132,8 +132,23 @@ export default function PwaLifecycle() {
     };
   }, []);
 
+  // Clique em "Atualizar" = a pessoa PEDIU: recarrega agora. O sw.js já faz skipWaiting na instalação, então em geral
+  // a versão nova já assumiu e só falta recarregar (antes o botão só mandava SKIP_WAITING e a recarga ficava esperando
+  // o app ir para segundo plano — o dono tinha de fechar e abrir o app, 2026-10-11).
   function applyUpdate() {
-    updateWorker?.postMessage({ type: "SKIP_WAITING" });
+    let reloaded = false;
+    const reload = () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    if (updateWorker && updateWorker.state === "installed") {
+      navigator.serviceWorker.addEventListener("controllerchange", reload, { once: true });
+      updateWorker.postMessage({ type: "SKIP_WAITING" });
+      window.setTimeout(reload, 3000);
+      return;
+    }
+    reload();
   }
 
   if (dismissed || (!updateWorker && !offline)) return null;

@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Botão "Atualizar" (nova versão do painel) recarrega na hora
+
+- Dono: clicava em "Atualizar", o botão mudava de cor e nada acontecia; só fechando e abrindo o app. Causa: `public/sw.js` já faz `skipWaiting` na instalação e `components/PwaLifecycle.jsx` adia a recarga até o app ir para segundo plano (regra de não recarregar na frente de quem usa); o botão só mandava `SKIP_WAITING` para um worker já ativo. Agora o clique recarrega na hora (se o worker ainda estiver esperando, ativa e recarrega; limite de 3 s). A recarga automática em segundo plano continua igual.
+
 ### 2026-10-11 — Lembrete "não preencheu o formulário" saía depois da apresentação da simulação
 
 - Caso real: cliente preencheu o formulário, recebeu a apresentação (`/s/<token>`) e, 1 h depois, a automação mandou "Notei que você ainda não preencheu o formulário". Causa: `isFormLinkUrl` (`lib/whatsapp-form-reminder-core.mjs`) tratava qualquer `/s/<x>` como formulário, inclusive o token da apresentação; e o "já preencheu" olhava só `last_form_submitted_at`, que fica nulo no 1º envio do formulário. Correção: `/s/<token>` no formato `isPresentationToken` não conta como link do formulário; cadastro com `journey_type` (criado pelo formulário) conta como preenchido. Varredura dos últimos 3 dias: só esse caso. Testes em `tests/whatsapp-form-reminder.test.mjs`.
