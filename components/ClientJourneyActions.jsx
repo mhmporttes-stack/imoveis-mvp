@@ -27,7 +27,9 @@ import {
 import { journeyNoticeLabel } from "@/lib/journey-presentation";
 import { CLIENT_STATUS_META, clientStatusLabel } from "@/lib/client-status";
 
-const date = (value) => (value ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "");
+// Sem segundos (no celular a data com segundos era cortada na borda da tela — pedido do dono, 2026-10-11).
+const date = (value) => (value ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
+const ACTOR_ROLE_DISPLAY = { automacao: "Automação" };
 const dateOnly = (value) => (value ? new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "");
 
 const JOURNEY_MODALITY_LABEL = { simulation: "Simulação Completa", quick_service: "Atendimento Rápido" };
@@ -48,7 +50,7 @@ const CATEGORY_BY_TYPE = {
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
   sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
-  "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao",
+  "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao", responsible_assigned: "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
   "prospecting:returned": "atividades", "prospecting:do_not_contact": "status", "prospecting:bulk_assigned": "atribuicao",
@@ -120,11 +122,15 @@ function eventTitleAndDescription(event, context = {}) {
     case "responsible_transferred":
       return { title: "TRANSFERÊNCIA DE RESPONSÁVEL", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, "Tipo: Transferência manual"] };
     case "distribution:assigned":
+      // Cliente que esperava um corretor on-line e a roleta entregou depois (não é a 1ª atribuição).
+      if (d.fromWaitingQueue) return { title: "DISTRIBUÍDO PELA ROLETA", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: primeiro corretor on-line depois da espera"] };
       if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor on-line — fica com o dono até a roleta entregar ao primeiro corretor on-line"] };
       if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor on-line)", "Motivo: aguardando a roleta entregar ao primeiro corretor on-line"] };
       return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName}`, "Motivo: Distribuição automática"] };
     case "distribution:auto_transferred":
       return { title: "TRANSFERÊNCIA AUTOMÁTICA", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, d.reason ? `Motivo: ${d.reason}` : "Motivo: Prazo de atendimento excedido"] };
+    case "responsible_assigned":
+      return { title: "RESPONSÁVEL DEFINIDO", description: [d.waitingQueue ? "Aguardando um corretor on-line" : "Definido pela roleta"] };
     case "tag_added":
       return { title: "TAG ADICIONADA", description: [d.tagName ? `"${d.tagName}"` : ""] };
     case "tag_removed":
@@ -233,7 +239,7 @@ function EventRow({ event, context }) {
           <p key={index} className="mt-0.5 text-sm text-navy/80">{line}</p>
         ))}
         <p className="mt-1 text-[11px] font-bold text-muted">
-          {event.actor?.name || "Sistema"}{event.actor?.role ? ` · ${event.actor.role}` : ""}
+          {event.actor?.name || "Sistema"}{event.actor?.role ? ` · ${ACTOR_ROLE_DISPLAY[event.actor.role] || event.actor.role}` : ""}
         </p>
       </div>
     </li>
@@ -314,7 +320,10 @@ export default function ClientJourneyActions({ registration, canManage, responsi
   }
 
   const filteredEvents = useMemo(() => {
-    const events = detail?.events || [];
+    // "responsible_assigned" repete a distribuição da roleta registrada no mesmo instante — mostra só uma vez.
+    const distributionTimes = (detail?.events || []).filter((event) => event.type === "distribution:assigned").map((event) => new Date(event.occurredAt).getTime());
+    const events = (detail?.events || []).filter((event) => event.type !== "responsible_assigned"
+      || !distributionTimes.some((time) => Math.abs(time - new Date(event.occurredAt).getTime()) < 120000));
     if (filter === "all") return events;
     return events.filter((event) => (CATEGORY_BY_TYPE[event.type] || "sistema") === filter);
   }, [detail, filter]);
@@ -331,7 +340,7 @@ export default function ClientJourneyActions({ registration, canManage, responsi
       {error ? <span role="alert" className="text-red-700">{error}</span> : null}
 
       {open ? createPortal(
-        <dialog ref={openAsModal} className="fixed inset-0 z-[100] m-0 flex max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4" aria-label="Jornada e histórico" onClose={() => setOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+        <dialog ref={openAsModal} className="fixed inset-0 z-[100] m-0 flex h-full w-full max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4" aria-label="Jornada e histórico" onClose={() => setOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]" onMouseDown={(event) => event.stopPropagation()}>
             {/* Cabeçalho fixo: resumo do cliente */}
             <div className="shrink-0 border-b border-line bg-white p-5 sm:p-6">
