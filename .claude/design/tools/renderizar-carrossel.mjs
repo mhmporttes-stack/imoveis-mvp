@@ -93,7 +93,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .quote { font-size:68px; line-height:1.18; font-weight:700; }
   .author { margin-top:32px; font-size:32px; color:var(--muted); }
   .button { margin-top:56px; align-self:flex-start; border:2px solid var(--brand); color:var(--fg); border-radius:999px; padding:22px 44px; font-size:34px; font-weight:700; }
-  .footer { position:absolute; left:96px; right:96px; bottom:72px; display:flex; align-items:center; gap:22px; padding-top:32px; border-top:1px solid var(--line); }
+  .footer { position:absolute; left:96px; right:96px; bottom:72px; display:flex; align-items:center; justify-content:center; gap:22px; }
   .ring { width:104px; height:104px; border-radius:50%; padding:5px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:4px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
   .avatar img { width:60%; }
