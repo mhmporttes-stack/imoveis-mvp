@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -174,6 +174,17 @@ app.post("/sessions/:userId/delete", async (req, res) => {
     const { to, targetId } = req.body || {};
     if (!to || !targetId) return res.status(400).json({ error: "Informe 'to' e 'targetId'." });
     res.json(await deleteMessageForEveryone(req.params.userId, { to, targetId }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Mensagens anteriores de uma conversa, pedidas ao celular (2026-10-11). Resposta chega pelo histórico.
+app.post("/sessions/:userId/history", async (req, res) => {
+  try {
+    const { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count } = req.body || {};
+    if (!to || !oldestId || !oldestTimestampMs) return res.status(400).json({ error: "Informe 'to', 'oldestId' e 'oldestTimestampMs'." });
+    res.json(await requestOlderHistory(req.params.userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count }));
   } catch (error) {
     sendError(res, error);
   }

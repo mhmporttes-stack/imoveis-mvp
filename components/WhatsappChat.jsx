@@ -1470,6 +1470,9 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
       <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
         {detail.hasMore ? <p className="mx-auto mt-2 w-fit rounded-lg bg-[#FFF5C4] px-3 py-1 text-center text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">Mostrando as últimas mensagens da conversa.</p> : null}
+        {!detail.hasMore && conversation.sessionUserId && !conversation.isGroup && !conversation.privateLocked && !conversation.archivedReadOnly && messages.length ? (
+          <PhoneHistoryButton key={conversation.id} conversationId={conversation.id} onChanged={onChanged} />
+        ) : null}
         {rows.map((row) => (row.kind === "day" ? (
           <div key={row.key} className="flex justify-center pb-1 pt-3">
             <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
@@ -2063,6 +2066,41 @@ function ConversationSummaryBar({ conversation }) {
       </div>
       {open && summary?.text ? <p className="mt-1 whitespace-pre-line text-[13px] font-semibold leading-5 text-[#3B4A54]">{summary.text}</p> : null}
       {error ? <p className="mt-1 text-[11px] font-bold text-red-700">{error}</p> : null}
+    </div>
+  );
+}
+
+// "Carregar mensagens anteriores do celular" (pedido do dono, 2026-10-11): o histórico ao conectar vinha "picado". Pede ao
+// celular do dono do número as mensagens anteriores à mais antiga do CRM; elas chegam em alguns segundos (celular com
+// internet). Não envia nada ao contato.
+function PhoneHistoryButton({ conversationId, onChanged }) {
+  const [state, setState] = useState("idle");
+  const [message, setMessage] = useState("");
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
+  async function request() {
+    if (state === "loading") return;
+    setState("loading"); setMessage("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/older`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível pedir as mensagens.");
+      setState("sent");
+      setMessage("Pedido enviado ao celular. As mensagens anteriores aparecem em alguns segundos.");
+      // Recarrega a conversa algumas vezes enquanto o celular responde.
+      timers.current = [5000, 15000, 30000].map((delay) => window.setTimeout(() => onChanged?.(), delay));
+    } catch (error) {
+      setState("idle");
+      setMessage(error.message);
+    }
+  }
+  return (
+    <div className="flex flex-col items-center gap-1 pt-2">
+      <button type="button" onClick={request} disabled={state === "loading"} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-bold text-brand shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] disabled:opacity-60">
+        {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}
+        {state === "sent" ? "Buscar mais anteriores no celular" : "Carregar mensagens anteriores do celular"}
+      </button>
+      {message ? <p className={`max-w-xs rounded-lg px-3 py-1 text-center text-[11px] font-semibold shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${state === "sent" ? "bg-[#FFF5C4] text-[#54656F]" : "bg-red-50 text-red-700"}`} role="status">{message}</p> : null}
     </div>
   );
 }

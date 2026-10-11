@@ -716,6 +716,8 @@ const HISTORY_BATCH_SIZE = 25;
 const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const HISTORY_MEDIA_KINDS = new Set(["image", "audio"]);
 const HISTORY_MAX_MEDIA = 200;
+const HISTORY_SYNC_ON_DEMAND = 6; // proto.HistorySync.HistorySyncType.ON_DEMAND
+const ON_DEMAND_MAX_COUNT = 50;
 
 function messageTimestampMs(msg) {
   return messageTimestampSeconds(msg) * 1000;
@@ -726,7 +728,10 @@ async function onHistorySync(userId, messages, meta = {}) {
   for (const msg of messages || []) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
   }
-  const cutoff = Date.now() - HISTORY_WINDOW_MS;
+  // Pedido manual de mensagens anteriores de UMA conversa (ON_DEMAND = 6, botão do Chat): o corretor/dono pediu
+  // justamente o que é mais antigo — sem a janela da última semana.
+  const onDemand = meta.syncType === HISTORY_SYNC_ON_DEMAND;
+  const cutoff = onDemand ? 0 : Date.now() - HISTORY_WINDOW_MS;
   const counts = { old: 0, noTs: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0 };
   let pending = [];
   let mediaCount = 0;
@@ -898,6 +903,20 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
   const waMessageId = result?.key?.id || "";
   if (!waMessageId) throw new Error("O WhatsApp não retornou o ID da mensagem enviada.");
   return { waMessageId, remoteJid: result?.key?.remoteJid || jid };
+}
+
+// "Carregar mensagens anteriores" (pedido do dono, 2026-10-11): pede ao CELULAR do corretor as mensagens desta conversa
+// mais antigas que `oldest` (a mais antiga que o CRM tem). Não envia nada ao contato — é um pedido do aparelho vinculado
+// ao próprio celular. A resposta chega depois, como histórico ON_DEMAND (onHistorySync), e o CRM grava sem duplicar.
+export async function requestOlderHistory(userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count }) {
+  const sock = connectedSocket(userId);
+  const jid = /^\d{5,30}@(s\.whatsapp\.net|lid)$/.test(String(remoteJid || "")) ? String(remoteJid) : jidFor(to);
+  const id = String(oldestId || "").trim();
+  const timestampMs = Number(oldestTimestampMs);
+  if (!id || !Number.isFinite(timestampMs) || timestampMs <= 0) throw new Error("Mensagem de referência inválida.");
+  const total = Math.min(Math.max(Number(count) || ON_DEMAND_MAX_COUNT, 1), ON_DEMAND_MAX_COUNT);
+  await sock.fetchMessageHistory(total, { remoteJid: jid, id, fromMe: Boolean(oldestFromMe) }, timestampMs);
+  return { requested: true, count: total };
 }
 
 // Reação (emoji vazio remove a reação).
