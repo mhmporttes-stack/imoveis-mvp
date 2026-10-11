@@ -110,11 +110,21 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
           window.scrollTo(window.scrollX, window.scrollY);
         }
         const nav = navRef.current;
-        if (nav) {
-          nav.style.transform = "translateZ(0)";
-          void nav.offsetHeight;
-          nav.style.transform = "";
-        }
+        if (!nav) return;
+        nav.style.transform = "translateZ(0)";
+        void nav.offsetHeight;
+        nav.style.transform = "";
+        // Se mesmo assim o "fixo" do iOS terminar antes do fim real da tela (faixa vazia embaixo da barra — print do
+        // dono, 2026-10-11, depois de "Atualizar"), mede a diferença e desce a barra (e, no Chat, a moldura do body)
+        // até o fim visível. Autoajustável: quando o iOS se corrige, a diferença volta a 0.
+        const rect = nav.getBoundingClientRect();
+        if (!rect.height) return; // computador: barra oculta
+        const current = parseFloat(root.style.getPropertyValue("--mm-fixed-drop")) || 0;
+        const vv = window.visualViewport;
+        const visibleBottom = Math.max(window.innerHeight, vv ? vv.offsetTop + vv.height : 0);
+        const next = Math.max(0, Math.round(current + visibleBottom - rect.bottom));
+        if (next > 2) root.style.setProperty("--mm-fixed-drop", `${next}px`);
+        else root.style.removeProperty("--mm-fixed-drop");
       }, 300);
     };
     const onVisibility = () => {
@@ -126,7 +136,11 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     window.addEventListener("pageshow", resync);
     window.addEventListener("orientationchange", resync);
     viewport?.addEventListener("resize", resync);
+    window.addEventListener("scroll", resync, { passive: true });
+    resync();
     return () => {
+      window.removeEventListener("scroll", resync);
+      document.documentElement.style.removeProperty("--mm-fixed-drop");
       window.clearTimeout(timer);
       document.removeEventListener("focusout", resync);
       document.removeEventListener("visibilitychange", onVisibility);

@@ -693,6 +693,16 @@ html.chat-app-mode body {
   padding-bottom: max(var(--admin-bottom-nav-space), env(safe-area-inset-bottom));
 }
 
+/* iPhone instalado: quando o "fixo" do iOS fica mais curto que a tela (faixa vazia sob a barra), AdminBottomNav mede
+   a diferença em --mm-fixed-drop e desce a barra e a moldura do Chat até o fim visível (0 no caso normal). */
+.admin-bottom-nav {
+  translate: 0 var(--mm-fixed-drop, 0px);
+}
+
+html.chat-app-mode body {
+  bottom: calc(0px - var(--mm-fixed-drop, 0px));
+}
+
 /* Celular com a barra: o Chat termina exatamente no topo dela (o respiro do
    iPhone já está dentro da barra; somar a safe-area de novo deixaria faixa). */
 @media (max-width: 767px) {
