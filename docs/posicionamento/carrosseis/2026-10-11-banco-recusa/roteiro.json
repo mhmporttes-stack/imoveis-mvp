@@ -1,9 +1,60 @@
-{ "laminas": [
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/1-recusa.jpg", "textoTopo": true, "rotulo": "Humor de corretor", "titulo": "Como *não* dar a notícia quando o banco **recusa** o financiamento", "texto": "Arrasta pro lado →" },
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/2-espera.jpg", "textoTopo": true, "rotulo": "Jeito nº 1", "titulo": "“O banco pediu um tempo pra *pensar*…”", "texto": "…e não respondeu mais." },
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/3-entrada.jpg", "textoTopo": true, "rotulo": "Jeito nº 2", "titulo": "“Aprovado! Só falta dar **100% de entrada**.”", "texto": "Ou seja: o valor do imóvel inteiro." },
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/4-vizinho.jpg", "textoTopo": true, "rotulo": "Jeito nº 3", "titulo": "“Aprovaram, sim…”", "texto": "…o crédito do **seu vizinho**." },
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/5-sistema.jpg", "textoTopo": true, "rotulo": "Jeito nº 4", "titulo": "“O sistema do banco *caiu*.”", "texto": "Faz seis meses." },
- { "tipo": "editorial", "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/6-caminho.jpg", "textoTopo": true, "rotulo": "Brincadeiras à parte", "titulo": "Um *não* do banco tem motivo — e quase sempre tem **caminho**.", "texto": "Renda, score, restrição ou documentação: a gente entende o motivo e monta o próximo passo." },
- { "tipo": "editorial", "comFoto": "apontando", "rotulo": "Sua vez", "titulo": "Teve o crédito *recusado*?", "texto": "Eu analiso o motivo e mostro **o próximo passo**.", "botao": "Me chama na DM" }
-]}
+{
+ "laminas": [
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/1-recusa.jpg",
+   "textoTopo": true,
+   "rotulo": "Humor de corretor",
+   "titulo": "Como *não* magoar o cliente quando o banco **recusa** o financiamento",
+   "texto": "Arrasta pro lado →"
+  },
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/2-espera.jpg",
+   "textoTopo": true,
+   "rotulo": "Jeito nº 1",
+   "titulo": "“O banco vai ver com a *esposa* e retorna.”",
+   "texto": ""
+  },
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/3-entrada.jpg",
+   "textoTopo": true,
+   "rotulo": "Jeito nº 2",
+   "titulo": "“Parabéns, seu financiamento aprovou com **100% de entrada**.”",
+   "texto": ""
+  },
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/4-vizinho.jpg",
+   "textoTopo": true,
+   "rotulo": "Jeito nº 3",
+   "titulo": "“Vamos tentar no seu *apelido*, porque no nome não passa nada.”",
+   "texto": ""
+  },
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/5-sistema.jpg",
+   "textoTopo": true,
+   "rotulo": "Jeito nº 4",
+   "titulo": "“Aprovou em uma **única parcela**.”",
+   "texto": "(à vista)"
+  },
+  {
+   "tipo": "editorial",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-11-banco-recusa/img/6-caminho.jpg",
+   "textoTopo": true,
+   "rotulo": "Brincadeiras à parte",
+   "titulo": "Se o banco disser *não*, a gente entende o motivo e vê o que dá pra fazer.",
+   "texto": "Nem todo “não” é **definitivo**."
+  },
+  {
+   "tipo": "editorial",
+   "comFoto": "apontando",
+   "rotulo": "Sua vez",
+   "titulo": "Teve o crédito *recusado*?",
+   "texto": "Eu analiso o motivo e mostro **o próximo passo**.",
+   "botao": "Me chama na DM"
+  }
+ ]
+}
