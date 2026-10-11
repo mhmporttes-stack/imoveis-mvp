@@ -324,7 +324,11 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   const [listHasMore, setListHasMore] = useState(false);
   const [listLoadingMore, setListLoadingMore] = useState(false);
+  // Só a resposta do pedido MAIS RECENTE vale: uma atualização em segundo plano da aba anterior (ex.: Particular) que
+  // termina depois de trocar de aba não pode jogar aquelas conversas em "Todas" (caso do dono, 2026-10-11).
+  const listRequestRef = useRef(0);
   const loadList = useCallback(async ({ silent = false } = {}) => {
+    const requestId = ++listRequestRef.current;
     if (!silent) setListLoading(true);
     try {
       const params = new URLSearchParams({ filter: filterRef.current });
@@ -333,8 +337,11 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       if (scopedBrokerRef.current) params.set("brokerId", scopedBrokerRef.current.id);
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
+      if (requestId !== listRequestRef.current) return;
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
-      const fresh = data.conversations || [];
+      // Particular só aparece na própria aba (ou na busca) — nunca misturada com os clientes.
+      const privateTab = filterRef.current === "private" || filterRef.current === "private_unseen" || Boolean(searchRef.current);
+      const fresh = (data.conversations || []).filter((item) => privateTab || !item.private);
       // Atualização silenciosa (tempo real) não descarta as páginas antigas já carregadas por "Carregar mais".
       setConversations((current) => {
         if (!silent) return fresh;
@@ -345,9 +352,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       if (!silent) setListHasMore(listPageIsFull(fresh.length, filterRef.current));
       setListError("");
     } catch (error) {
-      setListError(error.message);
+      if (requestId === listRequestRef.current) setListError(error.message);
     } finally {
-      setListLoading(false);
+      if (requestId === listRequestRef.current) setListLoading(false);
     }
   }, []);
 
@@ -355,6 +362,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const loadMoreList = useCallback(async () => {
     const oldest = conversationsRef.current.at(-1)?.lastMessageAt;
     if (!oldest) return;
+    const requestId = listRequestRef.current;
     setListLoadingMore(true);
     try {
       const params = new URLSearchParams({ filter: filterRef.current, before: oldest });
@@ -363,6 +371,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       if (scopedBrokerRef.current) params.set("brokerId", scopedBrokerRef.current.id);
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
+      if (requestId !== listRequestRef.current) return; // a lista mudou (aba/busca) enquanto carregava
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar mais conversas.");
       const more = data.conversations || [];
       setConversations((current) => {

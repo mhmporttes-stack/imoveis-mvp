@@ -30,6 +30,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê (pedido do dono):** no cabeçalho da conversa, ao lado de "Janela aberta", aparece "online", "digitando…", "gravando áudio…" ou "visto por último hoje às HH:MM" — só quando existe: conversa do WhatsApp PESSOAL com o número conectado e contato que não esconde o "visto por último" (o número oficial/API da Meta não informa presença). Microsserviço: `getContactPresence` (`presenceSubscribe`, o mesmo que o WhatsApp Web faz ao abrir a conversa; no máximo 1 pedido/min por contato; resposta pelo evento `presence.update`, guardada só em memória) + `POST /sessions/:userId/presence`. CRM: `fetchIndividualPresence` (`lib/whatsapp-individual.js`), `getChatContactPresence` (`lib/whatsapp-chat.js`, escopo do Chat, nunca lança), `GET /api/admin/whatsapp-chat/conversations/[id]/presence` (`requireAdminApi`), `ContactPresence` (`components/WhatsappChat.jsx`, atualiza a cada 1 min com a aba visível). Teste: `tests/whatsapp-contact-presence.test.mjs`.
 - **Caso Waldeirsiqueira (17:15):** a mensagem "O Sr. está com alguma dúvida…" saiu do celular da Izabela (não do CRM) e ficou com 1 tique (enviada, não entregue) até a sessão da Izabela no CRM cair (`logged_out`, 17:49) — depois disso o CRM não recebe mais confirmações de entrega.
 
+### 2026-10-11 — Chat: conversas particulares apareciam em "Todas"
+
+- **Sintoma (dono, print):** com "Todas" selecionado, a lista mostrava as conversas particulares (bolinha verde de "não vista").
+- **Causa raiz:** corrida na tela — uma atualização em segundo plano da aba Particular terminava depois da troca para "Todas" e substituía a lista (o servidor já filtrava certo).
+- **Mudou:** `components/WhatsappChat.jsx` — só a resposta do pedido mais recente é aplicada (`listRequestRef`, também no "Carregar mais") e, fora da aba Particular/busca, a lista descarta qualquer conversa particular. Teste em `tests/chat-load-more-and-admin-deleted.test.mjs`.
+
 ### 2026-10-11 — Chat: "Mídia, links e docs" e pré-visualização ao segurar a conversa
 
 - **Pedido do dono:** ver todas as mídias/arquivos da conversa como no WhatsApp (tocando no nome do contato) e, segurando a conversa na lista, uma pré-visualização que NÃO marca como lida.

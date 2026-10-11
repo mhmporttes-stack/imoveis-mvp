@@ -16,3 +16,10 @@ test("conversa excluída continua para o administrador geral", () => {
   assert.match(chat, /const adminSeesDeleted = Boolean\(data\?\.deleted_at && data\.origin\?\.deleted_by_user === true && auth && isGeneralAdminAuth\(auth\)\);/);
   assert.match(chat, /scopedMerge\(columns, build, \[filterId\], \{ allowDeleted: scope\.all \}\)/);
 });
+
+// 2026-10-11: conversas particulares apareciam em "Todas" (resposta atrasada da aba Particular).
+test("só a resposta mais recente da lista vale e Particular não se mistura com clientes", () => {
+  const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
+  assert.match(ui, /if \(requestId !== listRequestRef\.current\) return;/);
+  assert.match(ui, /\.filter\(\(item\) => privateTab \|\| !item\.private\)/);
+});
