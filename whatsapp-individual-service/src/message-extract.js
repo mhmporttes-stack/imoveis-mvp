@@ -93,7 +93,7 @@ export function extractTextMessage(msg, lidMap = new Map()) {
     from,
     text,
     waMessageId: msg.key?.id || "",
-    at: new Date(Number(msg.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    at: new Date((messageTimestampSeconds(msg) || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
     contactName: fromMe ? "" : (msg.pushName || ""),
     fromMe
   };
@@ -159,8 +159,19 @@ function contextInfoOf(content) {
 function numberOrZero(value) {
   if (value === null || value === undefined) return 0;
   if (typeof value === "object" && typeof value.toNumber === "function") return value.toNumber();
+  // Inteiro 64 bits do protobuf SEM a biblioteca "long" (Baileys em ESM): objeto { low, high, unsigned }.
+  // Number(objeto) = NaN — o histórico inteiro era tratado como "antigo" e descartado (2026-10-11).
+  if (typeof value === "object" && Number.isFinite(Number(value.low))) {
+    return Number(value.high || 0) * 4294967296 + (Number(value.low) >>> 0);
+  }
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
+}
+
+// Segundos (Unix) do messageTimestamp em qualquer formato que o Baileys entrega; 0 se não der para ler.
+export function messageTimestampSeconds(msg) {
+  const seconds = numberOrZero(msg?.messageTimestamp);
+  return seconds > 0 ? seconds : 0;
 }
 
 // Dados da mídia (sem baixar): tipo para o CRM, MIME, nome, tamanho, GIF/voz.
@@ -195,7 +206,7 @@ export function extractChatEvent(msg, lidMap = new Map()) {
     fromMe,
     waMessageId: msg?.key?.id || "",
     remoteJid: String(msg?.key?.remoteJid || ""),
-    at: new Date(numberOrZero(msg?.messageTimestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    at: new Date((messageTimestampSeconds(msg) || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
     contactName: fromMe || groupKey ? "" : (msg?.pushName || "")
   };
   if (groupKey) {

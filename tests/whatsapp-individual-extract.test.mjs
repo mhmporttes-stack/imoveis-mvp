@@ -101,3 +101,18 @@ test("grupo e mensagem vazia continuam ignorados", () => {
   assert.equal(extractChatEvent(chat({ conversation: "oi" }, { remoteJid: "123@g.us" })), null);
   assert.equal(extractChatEvent(chat({})), null);
 });
+
+// 2026-10-11: no histórico o messageTimestamp vinha como { low, high, unsigned } (protobuf sem a biblioteca "long") —
+// Number(objeto) = NaN e TODO o histórico era descartado como "antigo".
+test("messageTimestampSeconds lê número, texto, Long e { low, high }", async () => {
+  const { messageTimestampSeconds, extractChatEvent } = await import("../whatsapp-individual-service/src/message-extract.js");
+  const t = 1791700000;
+  assert.equal(messageTimestampSeconds({ messageTimestamp: t }), t);
+  assert.equal(messageTimestampSeconds({ messageTimestamp: String(t) }), t);
+  assert.equal(messageTimestampSeconds({ messageTimestamp: { toNumber: () => t } }), t);
+  assert.equal(messageTimestampSeconds({ messageTimestamp: { low: t, high: 0, unsigned: true } }), t);
+  assert.equal(messageTimestampSeconds({ messageTimestamp: { low: -1, high: 0, unsigned: true } }), 4294967295);
+  assert.equal(messageTimestampSeconds({}), 0);
+  const event = extractChatEvent({ key: { remoteJid: "5514999990000@s.whatsapp.net", id: "X" }, message: { conversation: "oi" }, messageTimestamp: { low: t, high: 0, unsigned: true } });
+  assert.equal(event.at, new Date(t * 1000).toISOString());
+});

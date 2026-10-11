@@ -24,6 +24,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
 
+### 2026-10-11 — Histórico do WhatsApp inteiro descartado como "antigo"
+
+- Pareamento da Bruna (15h48): o WhatsApp mandou ~4.900 mensagens recentes (104/159 conversas) e 100% foram contadas como "mais de 7 dias" (telemetria `history_sync`). Causa provável: no histórico o `messageTimestamp` chega como inteiro 64 bits do protobuf sem a biblioteca "long" (`{ low, high }`) — `Number(objeto)` = NaN → 0. Leitura única agora em `messageTimestampSeconds` (`message-extract.js`: número, texto, Long e `{ low, high }`), usada no filtro da semana e na data gravada; telemetria ganhou `nots` (mensagens sem data legível). Teste: `tests/whatsapp-individual-extract.test.mjs`.
+
 ### 2026-10-11 — Histórico do WhatsApp cortado pelo reinício do serviço
 
 - Pareamento da Bencke (14h37) importou só 14 conversas: o deploy das 14h49 reiniciou o serviço no meio da importação e, depois do reinício, as partes restantes eram recusadas (a janela de 30 min após o pareamento ficava só em memória). O Baileys confirma cada parte ao WhatsApp antes de processar (`hist_sync`), então parte recusada é perdida. Agora todo socket processa o histórico que chegar (`shouldSyncHistoryMessage` sempre ligado com `WHATSAPP_HISTORY_SYNC_ENABLED`); o login continua igual (`syncFullHistory` só no pareamento novo por QR). Duplicatas barradas pelo `wa_message_id`. Arquivo: `whatsapp-individual-service/src/sessions.js`. Lição: não publicar o serviço com pareamento recente em andamento.

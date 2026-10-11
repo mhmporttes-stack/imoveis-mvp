@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
 import { notifyChatEvent, notifyGroupEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
-import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
+import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
@@ -718,9 +718,7 @@ const HISTORY_MEDIA_KINDS = new Set(["image", "audio"]);
 const HISTORY_MAX_MEDIA = 200;
 
 function messageTimestampMs(msg) {
-  const raw = msg?.messageTimestamp;
-  const seconds = raw && typeof raw === "object" ? Number(raw.toString()) : Number(raw);
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+  return messageTimestampSeconds(msg) * 1000;
 }
 
 async function onHistorySync(userId, messages, meta = {}) {
@@ -729,7 +727,7 @@ async function onHistorySync(userId, messages, meta = {}) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
   }
   const cutoff = Date.now() - HISTORY_WINDOW_MS;
-  const counts = { old: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0 };
+  const counts = { old: 0, noTs: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0 };
   let pending = [];
   let mediaCount = 0;
   // Envia ao CRM AOS POUCOS (2026-10-11): antes só mandava depois de baixar TODAS as fotos/áudios do lote — um lote grande
@@ -749,7 +747,9 @@ async function onHistorySync(userId, messages, meta = {}) {
   };
   for (const msg of messages || []) {
     try {
-      if (messageTimestampMs(msg) < cutoff) { counts.old += 1; continue; }
+      const sentAt = messageTimestampMs(msg);
+      if (!sentAt) counts.noTs += 1;
+      if (sentAt < cutoff) { counts.old += 1; continue; }
       // Contato sem telefone conhecido (LID) não é mais descartado (2026-10-11, histórico vinha quase vazio): entra como
       // "lid:<id>" ("Número não identificado") e o CRM junta à conversa do telefone quando ele aparecer.
       const ownLid = unresolvedOwnLid(userId, msg);
@@ -782,7 +782,7 @@ async function onHistorySync(userId, messages, meta = {}) {
     maxRetries: counts.sent,
     statusCode: counts.failed,
     delayMs: Date.now() - startedAt,
-    detail: `old${counts.old}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`
+    detail: `old${counts.old}_nots${counts.noTs}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`
   });
 }
 
