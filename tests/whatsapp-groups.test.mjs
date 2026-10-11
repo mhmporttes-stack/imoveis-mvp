@@ -18,7 +18,7 @@ test("serviço: grupo vira evento próprio com quem escreveu (nunca o type 'mess
   assert.equal(event.contactName, "");
   const sessions = read("../whatsapp-individual-service/src/sessions.js");
   assert.match(sessions, /if \(event\.group\) return await deliverGroupMessage\(userId, msg, event\);/);
-  assert.match(sessions, /if \(!event \|\| event\.kind !== "message" \|\| event\.group\) continue;/);
+  assert.match(sessions, /if \(event\?\.group\) \{ counts\.groups \+= 1; continue; \}/);
   assert.match(read("../whatsapp-individual-service/src/webhook.js"), /type: "group_message"/);
 });
 

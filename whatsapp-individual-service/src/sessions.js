@@ -417,11 +417,11 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
   if (wantsHistory) {
-    sock.ev.on("messaging-history.set", ({ messages, contacts, chats }) => {
+    sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType }) => {
       // Aprende LID -> telefone dos contatos e conversas do próprio histórico ANTES das mensagens (2026-10-11).
       rememberLidsFromContacts(userId, contacts);
       rememberLidsFromContacts(userId, (chats || []).map((chat) => ({ id: chat?.id, lid: chat?.lidJid, jid: chat?.pnJid })));
-      return onHistorySync(userId, messages);
+      return onHistorySync(userId, messages, { syncType, chats });
     });
   }
 
@@ -722,44 +722,67 @@ function messageTimestampMs(msg) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
-async function onHistorySync(userId, messages) {
+async function onHistorySync(userId, messages, meta = {}) {
+  const startedAt = Date.now();
   for (const msg of messages || []) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
   }
   const cutoff = Date.now() - HISTORY_WINDOW_MS;
-  const items = [];
+  const counts = { old: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0 };
+  let pending = [];
   let mediaCount = 0;
+  // Envia ao CRM AOS POUCOS (2026-10-11): antes só mandava depois de baixar TODAS as fotos/áudios do lote — um lote grande
+  // ficava minutos sem aparecer nada no Chat.
+  const flush = async () => {
+    if (!pending.length) return;
+    const batch = pending;
+    pending = [];
+    try {
+      const result = await notifyHistoryBatch(userId, batch);
+      if (result) counts.sent += 1;
+      else counts.failed += 1;
+    } catch (error) {
+      counts.failed += 1;
+      console.error(`[${userId}] Falha ao enviar lote de histórico:`, error.message);
+    }
+  };
   for (const msg of messages || []) {
     try {
-      if (messageTimestampMs(msg) < cutoff) continue;
+      if (messageTimestampMs(msg) < cutoff) { counts.old += 1; continue; }
       // Contato sem telefone conhecido (LID) não é mais descartado (2026-10-11, histórico vinha quase vazio): entra como
       // "lid:<id>" ("Número não identificado") e o CRM junta à conversa do telefone quando ele aparecer.
       const ownLid = unresolvedOwnLid(userId, msg);
       const event = extractChatEvent(msg, ownLid ? withPlaceholder(userId, ownLid) : lidMapFor(userId));
-      if (!event || event.kind !== "message" || event.group) continue;
+      if (event?.group) { counts.groups += 1; continue; }
+      if (!event || event.kind !== "message") { counts.skipped += 1; continue; }
       if (event.media) {
         // Só foto e áudio. Outros tipos entram apenas se tiverem legenda (como texto).
         if (!HISTORY_MEDIA_KINDS.has(event.media.kind) || mediaCount >= HISTORY_MAX_MEDIA) {
-          if (!event.text) continue;
+          if (!event.text) { counts.skipped += 1; continue; }
           event.media = null;
         } else {
           mediaCount += 1;
           event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
         }
       }
-      items.push(event);
+      pending.push(event);
+      counts.items += 1;
+      if (pending.length >= HISTORY_BATCH_SIZE) await flush();
     } catch (error) {
       console.error(`[${userId}] Falha ao preparar mensagem do histórico:`, error.message);
     }
   }
-  if (!items.length) return;
-  for (let i = 0; i < items.length; i += HISTORY_BATCH_SIZE) {
-    try {
-      await notifyHistoryBatch(userId, items.slice(i, i + HISTORY_BATCH_SIZE));
-    } catch (error) {
-      console.error(`[${userId}] Falha ao enviar lote de histórico:`, error.message);
-    }
-  }
+  await flush();
+  // Diagnóstico (sem conteúdo nem telefone): quanto o WhatsApp mandou e quanto chegou ao CRM.
+  telemetry.record(userId, "history_sync", {
+    reason: `sync_${meta.syncType ?? "upsert"}`,
+    attempt: (messages || []).length,
+    nextAttempt: counts.items,
+    maxRetries: counts.sent,
+    statusCode: counts.failed,
+    delayMs: Date.now() - startedAt,
+    detail: `old${counts.old}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`
+  });
 }
 
 export function getLiveSessionStatus(userId) {
