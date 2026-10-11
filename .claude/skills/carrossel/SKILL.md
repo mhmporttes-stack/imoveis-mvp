@@ -9,7 +9,7 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 
 ## Padrão visual (pedido do dono, 2026-10-11)
 - Fundo **preto**, minimalista, muito respiro; texto branco; destaque em **azul da marca** (`**palavra**` no roteiro).
-- Rodapé em toda lâmina: **foto do Matheus em círculo** + "Matheus Machado" + **@mhm.machado** (o @ real; `@matheusmachadoimoveis` não existe).
+- Rodapé em toda lâmina no estilo do topo do perfil do Instagram: **foto em círculo com anel colorido** + **mhm.machado** com selo de verificado + "Matheus Machado / Corretor de Imóveis" (o @ real; `@matheusmachadoimoveis` não existe).
 - Marca: só o símbolo oficial `public/assets/matheus-machado-symbol.png` (regra 10 do CLAUDE.md — nunca logo antiga nem logo nova inventada).
 - Formato 1080×1350 (4:5). Capa com gancho forte; 1 ideia por lâmina; última lâmina = chamada para ação.
 
@@ -23,4 +23,4 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 7. **Entregar**: as lâminas (SendUserFile) + legenda pronta (gancho, 3–5 linhas de valor, CTA para a simulação/link na bio, 3–5 hashtags locais) + sugestão de horário.
 
 ## Foto do Matheus
-Arquivo: `docs/posicionamento/assets/matheus-perfil.jpg` (campo `"foto"` do roteiro). Sem a foto, o rodapé usa o símbolo "M" — peça a foto ao dono uma vez e salve nesse caminho.
+Arquivo padrão: `docs/posicionamento/assets/matheus-perfil.png` (foto oficial enviada pelo dono em 2026-10-11; recorte do rosto por `fotoZoom`/`fotoPosicao`). Sem o arquivo, o rodapé usa o símbolo "M" — peça a foto ao dono.

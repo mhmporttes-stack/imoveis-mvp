@@ -7,8 +7,8 @@
 //
 // Roteiro (JSON):
 // {
-//   "handle": "@mhm.machado",                  // opcional (padrão)
-//   "foto": "docs/posicionamento/assets/matheus-perfil.jpg",  // opcional; sem foto usa o símbolo "M" oficial
+//   "handle": "mhm.machado",                   // opcional (padrão); "subtitulo" também
+//   "foto": "docs/posicionamento/assets/matheus-perfil.png",  // opcional (é o padrão); fotoZoom/fotoPosicao ajustam o recorte do rosto
 //   "laminas": [
 //     { "tipo": "capa",  "chamada": "MINHA CASA MINHA VIDA", "titulo": "3 erros que **travam** sua aprovação", "texto": "Arrasta pro lado →" },
 //     { "tipo": "texto", "numero": "01", "titulo": "Nome sujo", "texto": "Parágrafo curto..." },
@@ -29,7 +29,13 @@ if (!roteiroPath) { console.error("Uso: node renderizar-carrossel.mjs <roteiro.j
 const saidaIdx = args.indexOf("--saida");
 const saida = saidaIdx >= 0 ? args[saidaIdx + 1] : path.join("scratch", "carrossel");
 const roteiro = JSON.parse(readFileSync(roteiroPath, "utf8"));
-const handle = roteiro.handle || "@mhm.machado";
+// Rodapé igual ao topo do perfil do Instagram (pedido do dono, 2026-10-11): foto no anel colorido, usuário + selo
+// de verificado e a linha "Matheus Machado / Corretor de Imóveis".
+const handle = String(roteiro.handle || "mhm.machado").replace(/^@/, "");
+const subtitulo = roteiro.subtitulo || "Matheus Machado / Corretor de Imóveis";
+// Recorte do rosto dentro da foto (a foto oficial é o corpo inteiro): zoom e posição do fundo, em CSS.
+const fotoZoom = roteiro.fotoZoom || "340%";
+const fotoPosicao = roteiro.fotoPosicao || "38% 13%";
 
 function loadPlaywright() {
   const require = createRequire(path.join(process.cwd(), "noop.js"));
@@ -49,8 +55,9 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\n/g, "<br>");
 
 const symbol = asDataUrl("public/assets/matheus-machado-symbol.png");
-const foto = asDataUrl(roteiro.foto);
-const avatar = foto ? `<img class="avatar" src="${foto}" alt="">` : `<span class="avatar avatar-symbol"><img src="${symbol}" alt=""></span>`;
+const foto = asDataUrl(roteiro.foto || "docs/posicionamento/assets/matheus-perfil.png");
+const avatar = `<span class="ring"><span class="avatar" style="${foto ? `background-image:url('${foto}');background-size:${fotoZoom};background-position:${fotoPosicao}` : ""}">${foto ? "" : `<img src="${symbol}" alt="">`}</span></span>`;
+const verified = `<svg class="badge" viewBox="0 0 40 40" aria-hidden="true"><path fill="#3897F0" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Zm7.415 11.225 2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 4.587 4.581 9.18-9.18Z"/></svg>`;
 
 function slideBody(l) {
   switch (l.tipo) {
@@ -87,16 +94,18 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .author { margin-top:32px; font-size:32px; color:var(--muted); }
   .button { margin-top:56px; align-self:flex-start; border:2px solid var(--brand); color:var(--fg); border-radius:999px; padding:22px 44px; font-size:34px; font-weight:700; }
   .footer { position:absolute; left:96px; right:96px; bottom:72px; display:flex; align-items:center; gap:22px; padding-top:32px; border-top:1px solid var(--line); }
-  .avatar { width:84px; height:84px; border-radius:50%; object-fit:cover; border:2px solid var(--brand); display:grid; place-items:center; background:#0D3B66; overflow:hidden; }
-  .avatar-symbol img { width:60%; }
-  .who { display:flex; flex-direction:column; gap:4px; }
-  .name { font-size:30px; font-weight:700; }
-  .handle { font-size:28px; color:var(--muted); }
+  .ring { width:104px; height:104px; border-radius:50%; padding:5px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
+  .avatar { width:100%; height:100%; border-radius:50%; border:4px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
+  .avatar img { width:60%; }
+  .who { display:flex; flex-direction:column; gap:6px; }
+  .user { display:flex; align-items:center; gap:10px; font-size:34px; font-weight:700; }
+  .badge { width:30px; height:30px; }
+  .sub { font-size:26px; color:var(--muted); }
 </style></head><body><div class="frame">
   ${symbol ? `<img class="mark" src="${symbol}" alt="">` : ""}
   ${total > 1 ? `<span class="count">${i + 1}/${total}</span>` : ""}
   ${slideBody(l)}
-  <div class="footer">${avatar}<div class="who"><span class="name">Matheus Machado</span><span class="handle">${esc(handle)}</span></div></div>
+  <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span><span class="sub">${esc(subtitulo)}</span></div></div>
 </div></body></html>`;
 
 const { chromium } = loadPlaywright();
