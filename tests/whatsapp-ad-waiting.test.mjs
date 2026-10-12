@@ -1,10 +1,11 @@
 // Cliente do anúncio de WhatsApp (WA-18, regra do dono 2026-10-09): segurado com o dono até responder/preencher,
-// sequência de lembretes 1 h / 3 h / 10 h / 23 h (24 horas por dia), backlog dos links anteriores à publicação.
+// sequência de lembretes 1 h / 3 h / 10 h (23 h cortada e 21h–8h → 8 h desde 2026-10-12), backlog dos links anteriores à publicação.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { AD_WAITING_DISTRIBUTION, canReleaseAdWaitingClient, hasRepliedAfterAutomation } from "../lib/whatsapp-ad-waiting-core.mjs";
 import {
+  AD_REMINDER_STEPS,
   FORM_REMINDER_BACKLOG_CUTOFF,
   FORM_REMINDER_KIND,
   buildFormReminderText,
@@ -89,25 +90,80 @@ function adInput(overrides = {}) {
   };
 }
 
-test("textos da sequência: sem emoji, primeiro nome, 'associado'", () => {
-  assert.equal(buildFormReminderText("ana souza", "1h"), "Oi, Ana, tudo bem? Notei que você ainda não preencheu o formulário. Ficou com alguma dúvida ou teve alguma dificuldade?");
-  assert.equal(buildFormReminderText("ana", "3h"), "Ana, leva menos de 2 minutos e já te mostro quanto você consegue financiar e os imóveis que cabem no seu bolso. Quer que eu te ajude por aqui?");
-  assert.equal(buildFormReminderText("ana", "10h"), "Ana, ainda está aí? Se preferir, me responde aqui mesmo e um associado te atende agora.");
-  assert.equal(buildFormReminderText("ana", "23h"), "Ana, vou deixar seu atendimento reservado até amanhã. É só me responder quando puder.");
-  assert.match(buildFormReminderText("Cliente WhatsApp", "3h"), /^Leva menos/);
-  for (const step of ["1h", "3h", "10h", "23h"]) assert.doesNotMatch(buildFormReminderText("Ana", step), /\p{Extended_Pictographic}/u);
+test("textos da sequência (dossiê 2026-10-12): voz da equipe, com e sem nome, até 1024 caracteres, no máximo 1 emoji", () => {
+  assert.equal(buildFormReminderText("ana souza", "1h"), "Ana, conseguiu abrir o link da simulação? Se ficou alguma dúvida, é só mandar aqui, escrita ou em áudio.");
+  assert.equal(buildFormReminderText("Cliente WhatsApp", "1h"), "Conseguiu abrir o link da simulação? Se ficou alguma dúvida, é só mandar aqui, escrita ou em áudio.");
+  assert.equal(buildFormReminderText("ana", "3h"), "Só lembrando: com a simulação você já fica sabendo quanto pode financiar e a parcela pro seu caso. Não pede CPF e é sem compromisso. É só tocar em Fazer simulação, na primeira mensagem que te mandamos.");
+  assert.equal(buildFormReminderText("ana", "10h"), "Ana, esse é nosso último lembrete sobre o link da simulação 🙂 Se você trabalha sem carteira ou não tem nada guardado, pode fazer do mesmo jeito. Se preferir conversar, é só responder aqui que a nossa equipe te responde.");
+  assert.match(buildFormReminderText("", "10h"), /^Esse é nosso último lembrete/);
+  assert.equal(buildFormReminderText("ana", "10h", { morning: true }), "Bom dia, Ana! Passando pra lembrar da simulação que te mandamos: ela mostra quanto você pode financiar e a parcela, sem CPF e sem compromisso. Se ficou alguma dúvida, é só responder aqui, escrita ou em áudio.");
+  assert.match(buildFormReminderText("", "3h", { morning: true }), /^Bom dia! Passando/);
+  const longName = "Maximiliano Alexandre de Souza";
+  for (const step of ["", "1h", "3h", "10h"]) {
+    for (const morning of [false, true]) {
+      const text = buildFormReminderText(longName, step, { morning });
+      assert.ok(text.length <= 1024, `${step} ${morning}`);
+      assert.ok((text.match(/\p{Extended_Pictographic}/gu) || []).length <= 1);
+      assert.doesNotMatch(text, /assistente virtual|associado/i);
+    }
+  }
 });
 
-test("cada etapa no seu horário (1 h, 3 h, 10 h, 23 h do link), inclusive de madrugada", () => {
-  const plan = (hours) => decideFormReminder(adInput(), at(LINK_AT, hours));
+test("cada etapa no seu horário (1 h, 3 h, 10 h do link); a de 23 h não existe mais", () => {
+  const plan = (hours) => decideFormReminder(adInput(), at(LINK_AT, hours)); // link 14:00 SP
   assert.equal(plan(0.9).action, "wait");
   assert.deepEqual([plan(1).step, plan(1).claimKey, plan(1).action], ["1h", "form-reminder:m1:1h", "send"]);
   assert.equal(plan(3).step, "3h");
-  assert.equal(plan(10).step, "10h"); // 03:00 SP — sem silêncio noturno
-  assert.equal(plan(23).step, "23h");
   assert.equal(plan(2.5).step, "1h");
   assert.equal(plan(7).action, "skip"); // 3 h atrasada demais e a de 10 h ainda não chegou
   assert.equal(plan(7).reason, "atrasado_demais");
+  // 10 h venceria 00:00 SP → 08:00 SP do dia seguinte, com o texto fixo
+  assert.equal(plan(10).reason, "atrasado_demais"); // 00:00: só a de 3 h já venceu (e está atrasada)
+  const morning = plan(18);
+  assert.deepEqual([morning.action, morning.step, morning.claimKey, morning.morning], ["send", "10h", "form-reminder:m1:10h", true]);
+  for (let hours = 0; hours <= 30; hours += 0.25) assert.notEqual(plan(hours).step, "23h");
+});
+
+test("madrugada: lead às 20h → UMA mensagem às 8 h, texto fixo, chave :10h (nunca o texto de 10 h)", () => {
+  const link = { id: "m1", message_at: "2026-10-12T23:00:00.000Z" }; // segunda 20:00 SP
+  const conversation = { ...adInput().conversation, last_inbound_at: "2026-10-12T22:59:00.000Z" };
+  const input = (extra = {}) => adInput({ link, conversation, ...extra });
+  for (let hours = 0; hours < 12; hours += 0.25) assert.equal(decideFormReminder(input(), at(link.message_at, hours)).action, "wait", String(hours));
+  const at8 = decideFormReminder(input(), new Date("2026-10-13T11:00:30Z"));
+  assert.deepEqual(at8, { action: "send", reason: "ok", channel: "official", step: "10h", claimKey: "form-reminder:m1:10h", morning: true });
+  // depois de enviada, nada mais
+  const sentAt = "2026-10-13T11:00:40Z";
+  const after = input({ claimedKeys: ["form-reminder:m1:10h"], lastSent: { index: 2, sentAt } });
+  for (let hours = 0; hours < 6; hours += 0.5) assert.notEqual(decideFormReminder(after, at(sentAt, hours)).action, "send");
+});
+
+test("lead às 6h30 → 8 h (texto fixo) e a de 3 h às 10 h (2 h mínimas entre lembretes)", () => {
+  const link = { id: "m1", message_at: "2026-10-13T09:30:00.000Z" }; // terça 06:30 SP
+  const conversation = { ...adInput().conversation, last_inbound_at: "2026-10-13T09:29:00.000Z" };
+  const first = decideFormReminder(adInput({ link, conversation }), new Date("2026-10-13T11:00:30Z"));
+  assert.deepEqual([first.step, first.morning], ["1h", true]);
+  assert.equal(decideFormReminder(adInput({ link, conversation }), new Date("2026-10-13T10:59:00Z")).action, "wait");
+  const sent = { claimedKeys: ["form-reminder:m1:1h"], lastSent: { index: 0, sentAt: "2026-10-13T11:00:30Z" } };
+  // 09:30 (link + 3 h): ainda não — falta 2 h desde o das 8 h
+  assert.notEqual(decideFormReminder(adInput({ link, conversation, ...sent }), new Date("2026-10-13T12:30:30Z")).action, "send");
+  const third = decideFormReminder(adInput({ link, conversation, ...sent }), new Date("2026-10-13T13:00:40Z"));
+  assert.deepEqual([third.action, third.step, third.morning], ["send", "3h", undefined]);
+});
+
+test("sábado 22h → domingo 8 h (domingo igual aos outros dias)", () => {
+  const link = { id: "m1", message_at: "2026-10-11T01:00:00.000Z" }; // sábado 10/10 22:00 SP
+  const conversation = { ...adInput().conversation, last_inbound_at: "2026-10-11T00:59:00.000Z" };
+  assert.equal(decideFormReminder(adInput({ link, conversation }), new Date("2026-10-11T10:59:00Z")).action, "wait");
+  const sunday = decideFormReminder(adInput({ link, conversation }), new Date("2026-10-11T11:00:30Z"));
+  assert.deepEqual([sunday.action, sunday.step, sunday.morning], ["send", "10h", true]);
+});
+
+test("link às 11h01: a de 10 h (21h01) vira 8 h do dia seguinte, ainda dentro da janela de 24 h do oficial", () => {
+  const link = { id: "m1", message_at: "2026-10-13T14:01:00.000Z" }; // 11:01 SP
+  const conversation = { ...adInput().conversation, last_inbound_at: "2026-10-13T14:00:30.000Z" };
+  const sent = { claimedKeys: ["form-reminder:m1:1h", "form-reminder:m1:3h"], lastSent: { index: 1, sentAt: "2026-10-13T17:01:30Z" } };
+  const next = decideFormReminder(adInput({ link, conversation, ...sent }), new Date("2026-10-14T11:00:30Z"));
+  assert.deepEqual([next.action, next.step, next.morning], ["send", "10h", true]);
 });
 
 test("idempotência por etapa; lembretes anteriores não bloqueiam a próxima", () => {
@@ -116,7 +172,7 @@ test("idempotência por etapa; lembretes anteriores não bloqueiam a próxima", 
   assert.equal(decideFormReminder(adInput({ claimedKeys: ["form-reminder:m1"] }), at(LINK_AT, 1.1)).reason, "ja_enviado"); // lembrete único antigo
   assert.equal(decideFormReminder(adInput({ claimedKeys: ["form-reminder:m1:1h"], messagesAfter: [sent1] }), at(LINK_AT, 3.1)).action, "send");
   assert.deepEqual(claimKeysForStep("m1", "3h"), ["form-reminder:m1:3h"]);
-  assert.equal(formReminderClaimKey("m1", "23h"), "form-reminder:m1:23h");
+  assert.deepEqual(AD_REMINDER_STEPS.map((item) => item.step), ["1h", "3h", "10h"]);
 });
 
 test("para quando o cliente responde (reação não), preenche, ou um humano atende; nunca Não contactar/arquivado", () => {
@@ -131,10 +187,10 @@ test("para quando o cliente responde (reação não), preenche, ou um humano ate
   assert.equal(decideFormReminder(adInput({ isTeamPhone: true }), now).reason, "numero_da_equipe");
 });
 
-test("número oficial: só dentro das 24 h da última mensagem do cliente; a de 23 h sai se a janela ainda estiver aberta", () => {
-  assert.equal(decideFormReminder(adInput(), at(LINK_AT, 23)).action, "send"); // cliente escreveu 16:59, janela até 16:54 do dia seguinte
-  const late = adInput({ conversation: { ...adInput().conversation, last_inbound_at: "2026-10-10T15:00:00Z" } });
-  assert.equal(decideFormReminder(late, at(LINK_AT, 23)).reason, "janela_fechada");
+test("número oficial: só dentro das 24 h da última mensagem do cliente", () => {
+  assert.equal(decideFormReminder(adInput(), at(LINK_AT, 18)).action, "send"); // cliente escreveu 16:59 UTC, janela até 16:54 do dia seguinte
+  const late = adInput({ conversation: { ...adInput().conversation, last_inbound_at: "2026-10-10T00:00:00Z" } });
+  assert.equal(decideFormReminder(late, at(LINK_AT, 18)).reason, "janela_fechada");
 });
 
 // ---- backlog ---------------------------------------------------------------------------------------------------
@@ -146,11 +202,11 @@ test("backlog: 1ª sai logo depois da publicação; as seguintes contam do envio
   const firstSentAt = at(FORM_REMINDER_BACKLOG_CUTOFF, 0.5).toISOString();
   // sem a 1ª enviada não há as seguintes
   assert.equal(currentReminderStep({ link: oldLink, ad: true }, at(FORM_REMINDER_BACKLOG_CUTOFF, 3)).step, "1h");
-  // 3 h = 2 h depois da 1ª; 10 h = 9 h depois; 23 h = 22 h depois
+  // 3 h = 2 h depois da 1ª; 10 h = 9 h depois (backlog já encerrado: sem a regra das 8 h)
   assert.equal(currentReminderStep({ link: oldLink, ad: true, firstSentAt }, at(firstSentAt, 1.9)).step, "1h");
   assert.equal(currentReminderStep({ link: oldLink, ad: true, firstSentAt }, at(firstSentAt, 2)).step, "3h");
   assert.equal(currentReminderStep({ link: oldLink, ad: true, firstSentAt }, at(firstSentAt, 9)).step, "10h");
-  assert.equal(currentReminderStep({ link: oldLink, ad: true, firstSentAt }, at(firstSentAt, 22)).step, "23h");
+  assert.equal(currentReminderStep({ link: oldLink, ad: true, firstSentAt }, at(firstSentAt, 22)).step, "10h");
 });
 
 test("backlog: só quem escreveu nas últimas 24 h; não respondeu/não foi atendido/não preencheu; lembrete único também", () => {
