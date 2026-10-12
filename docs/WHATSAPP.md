@@ -3,6 +3,7 @@
 > Fonte: `lib/whatsapp-*.js`/`.mjs`, `lib/phone-utils.js`, `lib/client-phone-lookup.js`, `app/api/webhooks/whatsapp-master`, `app/api/admin/whatsapp-*`, `app/api/cron/whatsapp-*`, migrations `20260901…`, `20260915_whatsapp_manual_log`, `20260920…`, `20260922180000`, `20260923210000`, `20260924*` (inclui `20260924210000`: Chat interno, exclusão e lead patrocinado) (verificado em 2026-09-24, commit `3c82f72`).
 > **Nunca** registrar tokens, segredos ou valores de variáveis aqui — só nomes. Estado real da conta Meta (WABA, número ativo, modelos aprovados) **não foi verificado** → **A CONFIRMAR**.
 > **Atualização 2026-10-01:** o número oficial foi **banido pela Meta em 28/09/2026**. Desde então o canal principal de conversa é o **WhatsApp individual** de cada corretor (§1-A). As seções 1 a 15 descrevem o caminho da Cloud API, que continua no código (conversas sem responsável, Disparo, Fluxos, webhook oficial), mas cujo funcionamento real depende do número oficial → **A CONFIRMAR**.
+> **Atualização 2026-10-12 (dono):** o número banido foi substituído por um **número oficial novo** (comprado pelo dono), ativo hoje na Cloud API — Fluxos, lembretes WA-17/18 e o Chat do número Oficial rodam por ele.
 > Regras gerais: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) §11 · Banco: [`DATABASE.md`](DATABASE.md) · Permissões: [`PERMISSIONS.md`](PERMISSIONS.md) · Manual: [`../AGENTS.md`](../AGENTS.md). Meta Ads/Pixel: [`TRAFEGO_META.md`](TRAFEGO_META.md).
 
 ## 1. Visão geral

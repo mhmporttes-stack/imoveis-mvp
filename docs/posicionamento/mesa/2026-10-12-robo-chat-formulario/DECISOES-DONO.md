@@ -5,4 +5,6 @@
 3. **"Pare"/"não me mande mais":** o robô **marca "Não contactar" sozinho**.
 4. **"Assistente virtual":** NÃO. O robô não se apresenta como assistente virtual. (Sem se dizer robô — e também sem afirmar ser pessoa; falar como "equipe do Matheus Machado Imóveis". Mensagens que diziam "como sou assistente virtual, não consigo ouvir" precisam de outro texto.)
 
-Em aberto: horário real de atendimento (seg–sáb 8h–19h?); cortar o lembrete de 23 h (muda WA-18)?; o número oficial ativo hoje é um número novo (a rule diz que o antigo foi banido em 28/09, mas os dados mostram envios pelo Oficial até 12/10)?
+5. **Horário:** padrão é segunda a sábado, 8h–19h, **mas** se o cliente não consegue nesse horário a equipe atende em outro horário combinado (o link já deixa isso claro). Mensagens fora do horário devem dizer isso (ex.: "se esse horário não der pra você, a gente combina outro").
+6. **Lembrete de 23 h do anúncio:** cortar (altera WA-18 → sequência 1 h / 3 h / 10 h). Registrar como regra nova na implementação (`/registrar-regra`).
+7. **Número oficial:** o antigo foi banido em 28/09; o dono **comprou um número novo**, que é o Oficial ativo hoje (é por ele que o robô roda).
