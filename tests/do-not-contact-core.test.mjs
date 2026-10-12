@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { clientDoNotContactPatch, contactDoNotContactPatch } from "../lib/do-not-contact-core.mjs";
+import { clientDoNotContactPatch, contactDoNotContactPatch, doNotContactInboundBlockReason } from "../lib/do-not-contact-core.mjs";
 
 // "Não contactar" bloqueia prospecção/automação mas mantém a atribuição
 // (regra do dono, 2026-10-02).
@@ -32,4 +32,47 @@ test("fluxos de Não contactar usam a fonte única (sem zerar responsável)", ()
     assert.doesNotMatch(source, /status:\s*"do_not_contact",\s*assigned_user_id:\s*null/, file);
     assert.match(source, /contactDoNotContactPatch\(/, file);
   }
+});
+
+// Resposta automática a mensagem recebida (Fluxos e palavra-chave): cliente
+// "Não contactar" que volta a escrever nunca recebe robô (regra 9 do CLAUDE.md;
+// PRO-8: reativar é humano).
+test("bloqueia resposta automática quando o cliente da conversa é Não contactar", () => {
+  assert.equal(doNotContactInboundBlockReason({ clientStatus: "do_not_contact" }), "cliente_nao_contactar");
+});
+
+test("bloqueia quando qualquer cadastro ou linha da fila com o telefone é Não contactar", () => {
+  assert.equal(doNotContactInboundBlockReason({ clientStatus: "in_service", phoneRegistrationStatuses: ["in_service", "do_not_contact"] }), "telefone_nao_contactar");
+  assert.equal(doNotContactInboundBlockReason({ clientStatus: null, phoneContactBlocked: true }), "contato_fila_nao_contactar");
+});
+
+test("não bloqueia cliente comum, arquivado (outra regra) nem contato desconhecido", () => {
+  assert.equal(doNotContactInboundBlockReason({ clientStatus: "in_service", phoneRegistrationStatuses: ["pending"] }), null);
+  assert.equal(doNotContactInboundBlockReason({ clientStatus: "archived" }), null);
+  assert.equal(doNotContactInboundBlockReason(), null);
+});
+
+// Trava contra regressão: as três portas de resposta automática a mensagem
+// recebida consultam o bloqueio ANTES de enviar.
+test("Fluxos (início, continuação e cron) e palavra-chave checam Não contactar antes de enviar", () => {
+  const flows = readFileSync(new URL("../lib/whatsapp-flows.js", import.meta.url), "utf8");
+  const inbound = flows.slice(flows.indexOf("export async function processFlowInbound"), flows.indexOf("export async function processDueFlowSessions"));
+  const guard = inbound.indexOf("findDoNotContactInboundBlock(");
+  assert.ok(guard > 0, "processFlowInbound consulta o bloqueio");
+  assert.ok(guard < inbound.indexOf("executeSession("), "antes de continuar a sessão viva");
+  assert.ok(guard < inbound.indexOf("startSession("), "antes de iniciar fluxo novo");
+  assert.match(inbound, /if \(doNotContactReason\) \{\s*await endLiveFlowSession\(/, "encerra a sessão viva");
+  assert.match(inbound, /if \(doNotContactReason\) \{\s*await logDoNotContactSkip\(candidates/, "registra skipped e não inicia");
+  assert.match(inbound, /return Boolean\(doNotContactReason\)/, "sem fluxo ativo, ainda impede a palavra-chave");
+
+  const due = flows.slice(flows.indexOf("export async function processDueFlowSessions"));
+  assert.ok(due.indexOf("findDoNotContactInboundBlock(") > 0 && due.indexOf("findDoNotContactInboundBlock(") < due.indexOf("executeSession("), "cron checa antes de retomar");
+  assert.match(flows, /kind: "skipped"[\s\S]{0,80}DO_NOT_CONTACT_LOG_REASON/, "motivo na Atividade");
+
+  const master = readFileSync(new URL("../lib/whatsapp-master.js", import.meta.url), "utf8");
+  const reply = master.slice(master.indexOf("async function processAutomationReply"), master.indexOf("function notSentError"));
+  const replyGuard = reply.indexOf("findDoNotContactInboundBlock(");
+  assert.ok(replyGuard > 0, "palavra-chave consulta o bloqueio");
+  assert.ok(replyGuard < reply.indexOf("materializeClientFromAutomationReply("), "antes da roleta");
+  assert.ok(replyGuard < reply.indexOf("sendWhatsappTextMessage("), "antes de enviar");
 });

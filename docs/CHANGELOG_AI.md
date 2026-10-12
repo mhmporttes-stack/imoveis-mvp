@@ -23,6 +23,12 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - Na Mesa de Criação do robô do Chat, os dados mostraram envios pelo número Oficial até 12/10, mas `.claude/rules/integracoes-externas.md` e `docs/WHATSAPP.md` diziam só que o número oficial foi banido em 28/09. Dono confirmou: comprou um **número oficial novo**, que é o ativo hoje. Rule e `docs/WHATSAPP.md` atualizadas (só fato técnico, sem mudança de código). Decisões do dono da mesa (outra cidade, "pare" → Não contactar, sem "assistente virtual", corte do lembrete de 23 h) estão em `docs/posicionamento/mesa/2026-10-12-robo-chat-formulario/DECISOES-DONO.md` e viram regra só na implementação (`/registrar-regra`).
 
+### 2026-10-12 — Fluxos e palavra-chave do WhatsApp respeitam "Não contactar"
+
+- **Causa:** `processFlowInbound`/`processDueFlowSessions` (`lib/whatsapp-flows.js`) e `processAutomationReply` (`lib/whatsapp-master.js`) não checavam `do_not_contact` (só o lembrete do formulário checava) — cliente "Não contactar" que escrevesse para o número oficial recebia saudação/menu/resposta por palavra-chave e podia ir à roleta, violando a regra 9 do CLAUDE.md, CLI-9 e PRO-8 (quem volta a escrever vira pendência de reativação, nunca robô).
+- **Mudou:** regra pura `doNotContactInboundBlockReason` (`lib/do-not-contact-core.mjs`) + leitura `findDoNotContactInboundBlock` (`lib/client-phone-lookup.js`: cliente da conversa, cadastros e linhas da Prospecção com o telefone). Fluxos: não inicia, encerra sessão viva (`handoff`/`nao_contactar`), cron não retoma; log `skipped` na Atividade. Palavra-chave: não responde nem encaminha à roleta (log do servidor `skipped_do_not_contact`). Erro na checagem = não envia. Chat inalterado. Teste: `tests/do-not-contact-core.test.mjs`. Doc: `docs/WHATSAPP.md` §8/§9.
+- **Observação:** `tests/whatsapp-private-conversations.test.mjs` tem 2 falhas pré-existentes no checkout Windows (regex com `\n` contra arquivo CRLF), iguais sem esta mudança.
+
 ### 2026-10-12 — Skill /mesa-criativa (Mesa de Criação)
 
 - Pedido do dono: um chat onde a ideia é melhorada por um agente na visão dele, rebatida por outro, e assim por ≥ 3 rodadas, com no máximo 5 agentes (carrossel/design, tráfego, WhatsApp/automação, atendimento humanizado e — sugestão — dados do CRM). `.claude/skills/mesa-criativa/SKILL.md`; roteamento em `.claude/despachante/MAPA-AGENTES.md`; dossiês em `docs/posicionamento/mesa/`. Nada é publicado sem "sim" do dono.

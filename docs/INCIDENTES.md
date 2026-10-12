@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — Cliente "Não contactar" recebia robô do WhatsApp (Fluxo/palavra-chave)
+- **Data:** 2026-10-12
+- **Sintoma:** cliente marcado "Não contactar" que escreve para o número oficial recebe saudação/menu do Fluxo ou resposta automática por palavra-chave (achado da Mesa de Criação, por leitura de código).
+- **Área:** WhatsApp
+- **Impacto:** risco de contato automático com quem pediu para parar (regra inviolável 9; risco de denúncia/banimento do número). Nenhum caso real medido.
+- **Causa raiz:** `processFlowInbound`/`processDueFlowSessions` (`lib/whatsapp-flows.js`) e `processAutomationReply` (`lib/whatsapp-master.js`) só pulavam conversa Particular, equipe, humano atendendo e pós-formulário — nunca consultavam `do_not_contact` (o lembrete do formulário já consultava).
+- **Correção:** checagem `findDoNotContactInboundBlock` antes de iniciar/continuar/retomar fluxo e antes da palavra-chave; log `skipped` na Atividade. Ver CHANGELOG_AI.md (2026-10-12).
+- **Prevenção/teste:** `tests/do-not-contact-core.test.mjs` (regra pura + trava de ordem nas três portas).
+- **Status:** Resolvido (aguarda publicação)
+
 ### 2026-10-12 — Horas no CRM: "Esta semana" zerada na segunda e domingo fora de qualquer semana
 - **Data:** 2026-10-12
 - **Sintoma:** "A 'Esta semana' está com erro" — segunda de manhã todos com 0 min; trabalho de domingo não aparecia na semana.
