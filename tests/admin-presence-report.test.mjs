@@ -4,6 +4,7 @@ import {
   PRESENCE_REPORT_PERIODS,
   buildPresenceReportMembers,
   compareReportMembers,
+  splitPrivateAttempts,
   tallyAttemptContacts,
   computeDailyPresence,
   resolvePresencePeriodDates
@@ -132,4 +133,34 @@ test("falha ao buscar contatos nunca vira 0: contatos ficam null (a tela mostra 
   assert.equal(members.find((member) => member.id === "bruna").activeMinutes, 5);
   // sem nenhuma tentativa (busca OK) é 0 de verdade
   assert.equal(buildPresenceReportMembers(PROFILES, [], [], NOW)[0].contacts, 0);
+});
+
+test("contatos particulares não contam (regra do dono, 2026-10-12): sem card, private_contact_at, conversa Particular do próprio corretor", () => {
+  const rows = [
+    { id: 1, broker_id: "bruna", client_id: "c1", client_phone: "5511988887777", contact_phone: "5511988887777", origin: "manual" }, // conta
+    { id: 2, broker_id: "bruna", client_id: null, client_phone: "", contact_phone: "5511911112222", origin: "auto" }, // sem card
+    { id: 3, broker_id: "bruna", client_id: "c3", client_phone: "5511933334444", contact_phone: "", origin: "manual" }, // private_contact_at
+    { id: 4, broker_id: "bruna", client_id: "c4", client_phone: "11955556666", contact_phone: "", origin: "auto" }, // conversa Particular da Bruna (formato diferente)
+    { id: 5, broker_id: "ketlin", client_id: "c5", client_phone: "5511955556666", contact_phone: "", origin: "auto" }, // mesmo número, mas a Particular é da Bruna → conta
+    { id: 6, broker_id: "bruna", client_id: "c6", client_phone: "5511900000000", contact_phone: "5511977778888", origin: "manual" } // telefone do contato da rodada na Particular
+  ];
+  const { countable, excluded } = splitPrivateAttempts(rows, {
+    privateClientIds: new Set(["c3"]),
+    privateConversations: [
+      { owner_ids: ["bruna", null], contact_phone: "+55 11 95555-6666" },
+      { owner_ids: ["official", "bruna"], contact_phone: "5511977778888" }
+    ]
+  });
+  assert.deepEqual(countable.map((row) => row.id), [1, 5]);
+  assert.deepEqual(excluded.map((row) => row.id), [2, 3, 4, 6]);
+  // a separação manual × automático é feita só sobre o que conta
+  const members = buildPresenceReportMembers([{ id: "bruna", name: "Bruna" }], [], countable, NOW);
+  assert.equal(members[0].contacts, 1);
+  assert.equal(members[0].manualContacts, 1);
+  assert.equal(members[0].autoContacts, 0);
+});
+
+test("sem nada particular, nada é excluído", () => {
+  const rows = [{ broker_id: "bruna", client_id: "c1", client_phone: "5511988887777", contact_phone: "" }];
+  assert.equal(splitPrivateAttempts(rows).countable.length, 1);
 });

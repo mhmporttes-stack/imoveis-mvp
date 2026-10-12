@@ -443,6 +443,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — Horas no CRM: contatos particulares fora da contagem
+- **Data:** 2026-10-12
+- **Área:** Desempenho › Online (`lib/admin-presence.js` `loadCountableAttempts`, `lib/admin-presence-core.mjs` `splitPrivateAttempts`).
+- **Regra do dono (RAN-6a):** "Contatos particulares (sem card de cliente, ou que estejam na aba Particular) não devem ser contabilizados." Excluídas da tela (total, manuais, automáticos, por pessoa e por dia) as tentativas da Meta Diária: sem cliente (`client_id` nulo na tentativa e na rodada); de cliente com `private_contact_at`; ou cujo telefone (cliente ou contato da rodada) é de conversa com `private_at` do próprio corretor (`session_key`/`assigned_user_id`). Falha em qualquer dessas buscas → `contactsAvailable = false` (aviso, nunca 0).
+- **Medição (coordenador, banco somente leitura, últimos 30 dias, todos os corretores): 0 tentativas** sem card, 0 com `private_contact_at`, 0 com conversa Particular. Hoje o filtro não muda nenhum número; fica como proteção. Os números do print (ex.: Bruna 138 = 83 manuais + 55 automáticos) são todos de clientes com card.
+- **Não mudou:** pontuação/ranking (`lib/performance-overview.js` também conta `daily_goal_attempts` como Prospecção) e Meta Diária — a regra é só desta tela; aplicar lá depende de decisão do dono. Nada foi apagado.
+- **Testes:** `tests/admin-presence-report.test.mjs`.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-12 — Horas no CRM: contatos manuais × automáticos e erro de contatos visível
 - **Data:** 2026-10-12
 - **Área:** Desempenho › Online (`lib/admin-presence.js`, `lib/admin-presence-core.mjs`, `components/OnlinePresenceBoard.jsx`). Resposta de `/api/admin/presence/report` ganhou `contactsAvailable` e, por membro/dia, `manualContacts`/`autoContacts` (o `contacts` total continua).
