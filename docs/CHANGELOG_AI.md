@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-10 — Apresentação: cena "Próximo passo" encaixada no celular
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Deploys da Vercel falhando depois de 10 commits só de documentação
+
+- `eb25e16`, `74afd94` (apresentação cabe numa tela) e `4f278fb` falharam ("Deployment has failed"). Causa: o `ignoreCommand` comparava com `VERCEL_GIT_PREVIOUS_SHA` (último deploy, `ac56e7d`), mas a Vercel clona só os últimos 10 commits; com 10 commits seguidos ignorados, esse SHA ficou fora da cópia e o `git diff` saía com erro. Agora `scripts/vercel-ignore-build.sh` (chamado pelo `vercel.json`) publica sempre que não consegue comparar.
+
+### 2026-10-10 — Apresentação: cena "Próximo passo" encaixada no celular
 - **Data:** 2026-10-10
 - **Área:** Apresentação da simulação (PRES)
 - **O quê (pedido do dono):** no celular a cena "Próximo passo" passava da tela ("Próximo passo" encostado na marca do topo, botões por cima da logo da Caixa, "AGENDAR ATENDIMENTO" em duas linhas). Só CSS, só esta cena (`components/presentation/presentation.module.css`, `.scene[data-scene="proximo"]`): título e botões menores, espaçamentos mais curtos, `justify-content: safe center`. Conferido na vitrine em 430×932, 390×844 e 375×667; demais cenas sem sobreposição. Computador e conteúdo inalterados.
