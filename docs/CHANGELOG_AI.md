@@ -51,7 +51,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 ### 2026-10-12 — Agenda: gestora vê as atividades da equipe
 
 - **Problema:** a Carol (gestora) não via as atividades agendadas dos corretores: a Agenda (`/api/calendar-activities`) filtrava sempre pelo próprio usuário (`calendar_activities` e campo legado). Havia 3 atividades futuras da Bruna e 1 vencida da Jennyfer invisíveis para ela.
-- **Alteração:** gestor(a) ganha o seletor "Equipe | Minhas" na Agenda (padrão "Equipe" no calendário, "Minhas" na lista de pendentes, que bate com o contador do menu). `scope=team` só é aceito para `manager` e usa `applyResponsibleUserScope` (mesma equipe da lista de clientes). Corretor, associado e admin: sem mudança. Aniversários continuam só dos próprios clientes. Concluir/reagendar já respeitavam o escopo da equipe. `lib/calendar-activities.js`, `app/api/calendar-activities/route.js`, `components/ActivityCalendar.jsx`.
+- **Alteração:** gestor(a) ganha o seletor "Equipe | Minhas" na Agenda (padrão "Equipe" no calendário, "Minhas" na lista de pendentes, que bate com o contador do menu). `scope=team` só é aceito para `manager` e usa `applyResponsibleUserScope` (mesma equipe da lista de clientes). Admin geral também ganhou o seletor (Equipe = todos os corretores; pedido do dono no mesmo dia). Corretor e associado: sem mudança. Aniversários continuam só dos próprios clientes. Concluir/reagendar já respeitavam o escopo da equipe. `lib/calendar-activities.js`, `app/api/calendar-activities/route.js`, `components/ActivityCalendar.jsx`.
 
 ### 2026-10-12 — Skill /mesa-criativa (Mesa de Criação)
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 import { createCalendarActivity, listCalendarActivities, listCalendarClientOptions } from "@/lib/calendar-activities";
 import { isExpectedReceiptOwner, listExpectedReceiptSummaries } from "@/lib/financial";
 import {
@@ -23,9 +23,10 @@ export async function GET(request) {
     const pendingOnly = url.searchParams.get("pending") === "1";
     const from = pendingOnly ? "" : url.searchParams.get("from") || "";
     const to = pendingOnly ? new Date().toISOString() : url.searchParams.get("to") || "";
-    // Gestor(a) pode ver a agenda da equipe (pedido do dono, 2026-10-12: a Carol não via as atividades dos corretores).
-    // Só atividades: aniversários continuam só dos próprios clientes. Corretor/associado/admin: sempre as próprias.
-    const canViewTeam = isManagerProfile(auth.profile);
+    // Gestor(a) vê a agenda da equipe e o admin geral a de todos (pedido do dono, 2026-10-12: a Carol não via as
+    // atividades dos corretores). Só atividades: aniversários continuam só dos próprios clientes. Corretor/associado:
+    // sempre as próprias.
+    const canViewTeam = isManagerProfile(auth.profile) || isGeneralAdminAuth(auth);
     const teamScope = canViewTeam && url.searchParams.get("scope") === "team";
     const [registrations, birthdayRegistrations, savedActivities, clients] = await Promise.all([
       listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: teamScope ? "" : auth.profile?.id, pendingOnly }),
