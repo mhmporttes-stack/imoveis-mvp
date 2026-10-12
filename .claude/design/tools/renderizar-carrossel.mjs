@@ -160,6 +160,7 @@ function fundoDa(l) {
   const pos = l.imagemPosicao || "center";
   // "textoTopo": ilustração com o espaço livre em cima (estilo das ilustrações 3D) — escurece o topo, não a base.
   // "foto": a imagem já é o post inteiro (texto dentro da foto); só leva o rodapé.
+  if (l.tipo === "foto" && l.semRodape) return `background:url('${img}') ${pos}/cover no-repeat, ${cor};`;
   const grad = (l.tipo === "cartao" || l.tipo === "foto")
     ? "linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.12) 70%, rgba(0,0,0,.80) 100%)"
     : l.textoTopo
@@ -287,7 +288,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
   ${(l.seta ?? (roteiro.seta && i < roteiro.laminas.length - 1)) ? `<div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>` : ""}
-  <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
+  ${l.semRodape ? "" : `<div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>`}
 </div></body></html>`;
 
 const FONT_CSS = await fontCss();
