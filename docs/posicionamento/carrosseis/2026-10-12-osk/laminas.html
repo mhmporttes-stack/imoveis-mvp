@@ -19,12 +19,12 @@
   .seta.escuro { color:var(--tinta); } .seta.escuro svg { stroke:var(--azul); }
 
   /* 1 - capa */
-  .capa .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 68%, rgba(0,0,0,.9) 100%); }
+  .capa .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,.45) 78%, rgba(0,0,0,.7) 100%); }
   .capa .pessoa { position:absolute; left:-130px; top:-40px; height:1000px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
-  .capa .txt { position:absolute; left:0; right:0; bottom:120px; text-align:center; color:#fff; }
-  .capa .l1 { font-size:66px; }
-  .capa .l2 { font-size:196px; color:var(--azul-claro); }
-  .capa .l3 { font-size:42px; font-weight:700; margin-top:18px; }
+  .capa .txt { position:absolute; left:0; right:0; bottom:118px; text-align:center; color:#fff; text-shadow:0 4px 24px rgba(0,0,0,.45); }
+  .capa .l1 { font-size:68px; letter-spacing:-.01em; }
+  .capa .l2 { font-size:150px; color:var(--azul-claro); white-space:nowrap; margin-top:4px; }
+  .capa .l3 { font-size:40px; font-weight:700; margin-top:14px; }
 
   /* 2 - janela */
   .janela { position:absolute; left:58px; right:58px; top:160px; bottom:160px; background:#FBFAF7; border-radius:28px; box-shadow:0 30px 70px rgba(0,0,0,.25); overflow:hidden; }
@@ -100,9 +100,8 @@
 
 <!-- 1 capa -->
 <section class="lamina capa">
-  <img class="cobre" src="img/fachada.png" alt="">
+  <img class="cobre" src="img/capa.jpg" alt="">
   <span class="degrade"></span>
-  <img class="pessoa" src="../../assets/boneco-3d/realista/lupa.png" alt="">
   <div class="txt">
     <div class="cond l1">Se eu fosse você, ficaria de olho</div>
     <div class="cond l2">nesse projeto</div>
