@@ -124,6 +124,13 @@ function formatRangeLabel(range) {
   return label ? `${label} · ${dates}` : dates;
 }
 
+// "12 contatos · 8 manuais · 4 automáticos" (regra do dono, 2026-10-12).
+function formatContacts(total, manual, auto) {
+  const head = `${total} ${total === 1 ? "contato" : "contatos"}`;
+  if (!total) return head;
+  return `${head} · ${manual} ${manual === 1 ? "manual" : "manuais"} · ${auto} ${auto === 1 ? "automático" : "automáticos"}`;
+}
+
 function formatDayLabel(plainDate) {
   const [year, month, day] = plainDate.split("-").map(Number);
   const weekday = WEEKDAY_FORMATTER.format(new Date(Date.UTC(year, month - 1, day))).replace(".", "");
@@ -182,6 +189,8 @@ function HoursReport() {
   const teamActive = members.reduce((sum, member) => sum + member.activeMinutes, 0);
   const teamAway = members.reduce((sum, member) => sum + member.awayMinutes, 0);
   const multiDay = report?.range && report.range.startDate !== report.range.endDate;
+  // Falha ao buscar os contatos nunca aparece como "0 contatos".
+  const contactsAvailable = report?.contactsAvailable !== false;
 
   return (
     <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
@@ -234,6 +243,9 @@ function HoursReport() {
       {report?.ready ? (
         <>
           <p className="mt-5 text-sm font-extrabold text-navy">{formatRangeLabel(report.range)}</p>
+          {!contactsAvailable ? (
+            <p className="mt-2 text-xs font-bold text-amber-700">Não foi possível carregar os contatos agora.</p>
+          ) : null}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-emerald-700">
               <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamActive)}</p>
@@ -267,7 +279,9 @@ function HoursReport() {
                   <span className="flex flex-wrap items-center gap-2 text-sm font-black">
                     <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-700">Online {formatMinutes(member.activeMinutes)}</span>
                     <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-700">Ausente {formatMinutes(member.awayMinutes)}</span>
-                    <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-brand">{member.contacts} {member.contacts === 1 ? "contato" : "contatos"}</span>
+                    {contactsAvailable ? (
+                      <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-brand">{formatContacts(member.contacts, member.manualContacts, member.autoContacts)}</span>
+                    ) : null}
                   </span>
                 </button>
 
@@ -275,7 +289,7 @@ function HoursReport() {
                   <div className="border-t border-navy/10 bg-blue-50/30 p-4">
                     {member.days.length ? (
                       <div className="overflow-x-auto">
-                        <table className="w-full min-w-[520px] text-left text-sm">
+                        <table className="w-full min-w-[640px] text-left text-sm">
                           <thead className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
                             <tr>
                               <th className="pb-2">Dia</th>
@@ -284,6 +298,8 @@ function HoursReport() {
                               <th className="pb-2">Online</th>
                               <th className="pb-2">Ausente</th>
                               <th className="pb-2">Contatos</th>
+                              <th className="pb-2">Manuais</th>
+                              <th className="pb-2">Automáticos</th>
                             </tr>
                           </thead>
                           <tbody className="font-bold text-navy">
@@ -294,7 +310,9 @@ function HoursReport() {
                                 <td className="py-2">{day.lastAt ? TIME_FORMATTER.format(new Date(day.lastAt)) : "—"}</td>
                                 <td className="py-2 text-emerald-700">{formatMinutes(day.activeMinutes)}</td>
                                 <td className="py-2 text-amber-700">{formatMinutes(day.awayMinutes)}</td>
-                                <td className="py-2">{day.contacts}</td>
+                                <td className="py-2">{contactsAvailable ? day.contacts : "—"}</td>
+                                <td className="py-2">{contactsAvailable ? day.manualContacts : "—"}</td>
+                                <td className="py-2">{contactsAvailable ? day.autoContacts : "—"}</td>
                               </tr>
                             ))}
                           </tbody>

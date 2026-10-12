@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PRESENCE_REPORT_PERIODS,
+  buildPresenceReportMembers,
   compareReportMembers,
+  tallyAttemptContacts,
   computeDailyPresence,
   resolvePresencePeriodDates
 } from "../lib/admin-presence-core.mjs";
@@ -89,4 +91,45 @@ test("ordenação: mais online primeiro; empate por contatos e depois por nome",
     { name: "ketlin", activeMinutes: 73, contacts: 0 }
   ];
   assert.deepEqual(members.sort(compareReportMembers).map((member) => member.name), ["ketlin", "Caroline", "Bruna", "Izabela"]);
+});
+
+const PROFILES = [{ id: "bruna", name: "Bruna" }, { id: "ketlin", name: "ketlin" }];
+const NOW = Date.parse("2026-10-12T10:00:00.000Z");
+
+test("contatos separados: manuais (corretor) × automáticos (automação), total conservado (regra do dono, 2026-10-12)", () => {
+  const attempts = [
+    { broker_id: "bruna", goal_date: "2026-10-09", origin: "manual" },
+    { broker_id: "bruna", goal_date: "2026-10-09", origin: "auto" },
+    { broker_id: "bruna", goal_date: "2026-10-10", origin: "auto" },
+    { broker_id: "bruna", goal_date: "2026-10-10", origin: null }, // sem origem = manual (padrão da coluna)
+    { broker_id: "ketlin", goal_date: "2026-10-10", origin: "manual" }
+  ];
+  assert.deepEqual(tallyAttemptContacts(attempts).get("bruna|2026-10-09"), { total: 2, manual: 1, auto: 1 });
+  const members = buildPresenceReportMembers(PROFILES, [], attempts, NOW);
+  const bruna = members.find((member) => member.id === "bruna");
+  assert.equal(bruna.contacts, 4);
+  assert.equal(bruna.manualContacts, 2);
+  assert.equal(bruna.autoContacts, 2);
+  assert.equal(bruna.contacts, bruna.manualContacts + bruna.autoContacts);
+  assert.deepEqual(bruna.days.map((day) => [day.date, day.contacts, day.manualContacts, day.autoContacts]), [
+    ["2026-10-09", 2, 1, 1],
+    ["2026-10-10", 2, 1, 1]
+  ]);
+  // dia só com contatos (sem presença) aparece, mas não conta como dia com atividade
+  assert.equal(bruna.daysWithPresence, 0);
+});
+
+test("falha ao buscar contatos nunca vira 0: contatos ficam null (a tela mostra o aviso)", () => {
+  const activity = [{ user_id: "bruna", minute_at: "2026-10-09T12:00:00.000Z", kind: "interaction" }];
+  const members = buildPresenceReportMembers(PROFILES, activity, null, NOW);
+  for (const member of members) {
+    assert.equal(member.contacts, null);
+    assert.equal(member.manualContacts, null);
+    assert.equal(member.autoContacts, null);
+    for (const day of member.days) assert.equal(day.contacts, null);
+  }
+  // o tempo online continua calculado normalmente
+  assert.equal(members.find((member) => member.id === "bruna").activeMinutes, 5);
+  // sem nenhuma tentativa (busca OK) é 0 de verdade
+  assert.equal(buildPresenceReportMembers(PROFILES, [], [], NOW)[0].contacts, 0);
 });

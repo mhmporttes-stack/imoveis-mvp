@@ -443,6 +443,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — Horas no CRM: contatos manuais × automáticos e erro de contatos visível
+- **Data:** 2026-10-12
+- **Área:** Desempenho › Online (`lib/admin-presence.js`, `lib/admin-presence-core.mjs`, `components/OnlinePresenceBoard.jsx`). Resposta de `/api/admin/presence/report` ganhou `contactsAvailable` e, por membro/dia, `manualContacts`/`autoContacts` (o `contacts` total continua).
+- **Regra do dono (RAN-6a):** contatos separados em manuais (corretor) × automáticos (automação da Meta Diária, `daily_goal_attempts.origin = 'auto'`), total mantido: "12 contatos · 8 manuais · 4 automáticos"; tabela por dia com colunas Manuais/Automáticos.
+- **Correção (risco registrado na entrada anterior):** a busca de contatos tinha `catch` vazio — falha virava "0 contatos". Agora loga o erro, devolve `contactsAvailable: false`, contatos `null` e a tela mostra "Não foi possível carregar os contatos agora" (tempo online continua aparecendo).
+- **Testes:** `tests/admin-presence-report.test.mjs` (separação e falha).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-12 — Horas no CRM: "Esta semana" vira "Semana passada" (seg–dom fechada) + pente-fino dos filtros
 - **Data:** 2026-10-12
 - **Área:** Desempenho › Online — relatório "Horas no CRM" (`lib/admin-presence.js`, `lib/admin-presence-core.mjs`, `components/OnlinePresenceBoard.jsx`). API `/api/admin/presence/report`: o valor de período `week` deixou de existir; o novo é `last_week` (valor desconhecido continua caindo em "Hoje"). Único consumidor é esta tela.

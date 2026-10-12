@@ -86,6 +86,8 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Horas no CRM: "Semana passada".** Em Desempenho › Online, o filtro de semana é a última semana FECHADA, de segunda a domingo (São Paulo) — não existe mais "Esta semana". A tela mostra o intervalo somado. Regra pura `resolvePresencePeriodDates` (`lib/admin-presence-core.mjs`); detalhes `docs/BUSINESS_RULES.md` RAN-6a. Não mexer em outros seletores de "Esta semana" (Meta/Desempenho) por causa desta regra.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Horas no CRM: contatos manuais × automáticos.** Os contatos do relatório são separados em manuais (corretor) e automáticos (automação da Meta Diária, `daily_goal_attempts.origin = 'auto'`), mantendo o total. Falha ao buscar contatos nunca vira "0": aviso na tela. `tallyAttemptContacts`/`buildPresenceReportMembers` (`lib/admin-presence-core.mjs`); RAN-6a.
+
 ## Percentual da meta exibido (card do corretor, resumo diário WhatsApp)
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-22]** Bater a meta é 100%; cada contato adicional além da meta soma exatamente **+1 ponto percentual** (não é uma razão contínua) — 122 contatos numa meta de 31 é **191%**, nunca 394% (122/31×100) nem qualquer outro valor proporcional acima de 100%. `dailyGoalPercent(done, target)` (`lib/daily-goal-progress.mjs`, com testes em `tests/daily-goal-progress.test.mjs`) centraliza essa fórmula — nunca recalcule `Math.round((done/target)*100)` sem teto em nenhum lugar novo, reaproveite essa função.
