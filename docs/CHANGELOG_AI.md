@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Meta Diária: spinner de transição parado removido
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Prazo da simulação antes de voltar para a roleta: 5 → 10 min
+
+- Pedido do dono. Alterado no banco: `crm_automation_rules` "REDISTRIBUIÇÃO DE LEADS" (`9465e7cd…`) `delay_value` 5 → 10 (minutos). Nenhum código muda (o prazo é dado da regra; comentários do código que citam "5 min" referem-se ao valor antigo). Regra registrada: `.claude/rules/roleta-prospeccao-campanhas.md` e `docs/BUSINESS_RULES.md` ROL-4e. Janela de "on-line" (5 min) inalterada.
+
+### 2026-10-12 — Meta Diária: spinner de transição parado removido
 
 - Dono (print): o ícone de "carregando" girava parado no meio da Meta Diária. Era o `SceneSkipCatcher` (indicador da transição de cena do link da Meta, `SceneTransitionLink`), que não recebia o sinal de "página pronta" quando a Meta vinha do pré-carregamento. Removido do `app/admin/layout.jsx` (único consumidor do estado de loading da cena); a navegação e as cenas continuam iguais. Componente mantido no repositório.
 
