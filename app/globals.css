@@ -55,30 +55,42 @@ body.admin-scroll-fix {
   overflow-x: clip;
 }
 
-/* Cenas curtas do painel (pedido do dono, 2026-10-12: "nada que deixe o sistema pesado").
-   Regras: só transform/opacity, 120–220 ms, ease-out-ui (cubic-bezier(0.2, 0, 0, 1)), nada de blur,
+/* Cenas de transição do painel e do Chat (pedido do dono, 2026-10-12; 2ª versão: a 1ª, 140–200 ms, era
+   "imperceptível"). Afinar = mudar só as variáveis abaixo. Regras: só transform/opacity, nada de blur,
    sombra ou layout animado; o conteúdo já está lá e clicável desde o 1º quadro.
    Preenchimento "backwards" (não "both"): ao terminar, o elemento volta a transform: none. Com "both" o
    translate(0) final ficava para sempre e transformava o bloco no "containing block" dos position: fixed
    de dentro (menus, confirmações e folhas do Chat) — no iPhone isso prende o "fixo" à caixa do Chat.
    Sem o prefixo body.admin-scroll-fix: o app "Chat" (/chat-app) fica fora de /admin e não tem essa classe. */
+:root {
+  --mm-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mm-motion-screen: 340ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
+  --mm-motion-back: 300ms;     /* fechar conversa / voltar à lista */
+  --mm-motion-tab: 260ms;      /* troca de abas */
+  --mm-motion-message: 260ms;  /* mensagem nova */
+  --mm-motion-menu: 220ms;     /* menu de ações da mensagem */
+  --mm-motion-sheet: 300ms;    /* Sheets (folha de baixo / lateral) */
+  --mm-motion-backdrop: 240ms; /* fundo escuro dos Sheets */
+  --mm-motion-nav: 260ms;      /* indicador ativo da navegação */
+}
+
 @keyframes admin-content-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes admin-detail-in {
-  from { opacity: 0; transform: translateX(24px); }
+  from { opacity: 0; transform: translateX(40px); }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes admin-detail-back {
-  from { opacity: 0; transform: translateX(-24px); }
+  from { opacity: 0; transform: translateX(-40px); }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes admin-nav-active {
-  from { opacity: 0.6; transform: scale(0.92); }
+  from { opacity: 0.5; transform: scale(0.8); }
   to { opacity: 1; transform: none; }
 }
 
@@ -87,63 +99,68 @@ body.admin-scroll-fix {
   to { opacity: 1; }
 }
 
-/* Somente o conteúdo que entra; a troca de rota é animada no AdminMenu. */
+/* Troca de abas (e entrada de conteúdo); a troca de rota é animada no AdminMenu. */
 .admin-motion-enter {
-  animation: admin-content-in 200ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: admin-content-in var(--mm-motion-tab) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: abrir conversa (painel entra da direita) — no celular é a "troca de tela" da lista para a conversa. */
 .admin-motion-detail {
-  animation: admin-detail-in 200ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: admin-detail-in var(--mm-motion-screen) var(--mm-motion-ease) backwards;
 }
 
 .admin-nav-current {
-  animation: admin-nav-active 180ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: admin-nav-active var(--mm-motion-nav) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: fechar conversa no celular (a lista volta da esquerda). */
 @media (max-width: 1023px) {
   .admin-motion-back {
-    animation: admin-detail-back 180ms cubic-bezier(0.2, 0, 0, 1) backwards;
+    animation: admin-detail-back var(--mm-motion-back) var(--mm-motion-ease) backwards;
   }
 }
 
-/* Chat: as mensagens de uma conversa recém-aberta aparecem num fade curto (só opacidade, sem mexer na rolagem). */
+/* Chat: as mensagens de uma conversa recém-aberta aparecem num fade (só opacidade, sem mexer na rolagem). */
 [data-chat-wallpaper] {
-  animation: admin-fade-in 160ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: admin-fade-in var(--mm-motion-tab) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: mensagem nova (recebida ou enviada) — só a última bolha monta com a animação; as antigas não
-   re-animam ao atualizar a lista (a chave é o id da mensagem). Recebida sobe da esquerda, enviada "sai"
-   do canto da caixa de digitação. Anima a bolha, nunca a linha (sem empurrar o layout). */
+   re-animam ao atualizar a lista (a chave é o id da mensagem). Recebida cresce do canto esquerdo, enviada
+   do canto direito (lado da caixa de digitação). Anima a bolha, nunca a linha (sem empurrar o layout). */
 @keyframes chat-bubble-in {
-  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(14px) scale(0.94); }
   to { opacity: 1; transform: none; }
 }
 
 [data-chat-wallpaper] > :last-child > :is([data-message-id], [data-internal-message]) {
   transform-origin: bottom left;
-  animation: chat-bubble-in 180ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: chat-bubble-in var(--mm-motion-message) var(--mm-motion-ease) backwards;
 }
 
 [data-chat-wallpaper] > .justify-end:last-child > [data-message-id] {
   transform-origin: bottom right;
 }
 
-/* Chat: menu de ações da mensagem. No computador o painel desliza 4 px (translate não altera a largura e
-   a altura que o menu mede para caber na tela); no celular a pilha de ações cresce do toque (lá a medida
+/* Chat: menu de ações da mensagem. No computador o painel desliza (translate não altera a largura e a
+   altura que o menu mede para caber na tela); no celular a pilha de ações cresce do toque (lá a medida
    usa offsetHeight, que ignora transform). O fundo com desfoque NÃO anima. */
 @keyframes chat-menu-in {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chat-focus-in {
+  from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: none; }
 }
 
 [data-message-actions="menu"] > [role="menu"] {
-  animation: chat-menu-in 140ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: chat-menu-in var(--mm-motion-menu) var(--mm-motion-ease) backwards;
 }
 
 [data-message-actions="focus"] > [role="menu"] {
-  animation: ui-pop 160ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  animation: chat-focus-in var(--mm-motion-menu) var(--mm-motion-ease) backwards;
 }
 
 body.admin-scroll-fix main :is(button, a[href]):not(:disabled) {
@@ -500,7 +517,7 @@ html.ui-sheet-open {
 
 .ui-sheet::backdrop {
   background: rgba(3, 29, 58, 0.45);
-  animation: admin-fade-in 180ms cubic-bezier(0.2, 0, 0, 1);
+  animation: admin-fade-in var(--mm-motion-backdrop, 240ms) var(--mm-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .ui-sheet-bottom,
@@ -511,7 +528,7 @@ html.ui-sheet-open {
   max-height: min(88dvh, calc(100dvh - 24px));
   border-radius: 20px 20px 0 0;
   padding-top: 8px;
-  animation: ui-sheet-up 220ms cubic-bezier(0.2, 0, 0, 1);
+  animation: ui-sheet-up var(--mm-motion-sheet) var(--mm-motion-ease);
 }
 
 .ui-sheet-bottom > div,
@@ -537,7 +554,7 @@ html.ui-sheet-open {
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 20px 0 0 20px;
-  animation: ui-sheet-left 220ms cubic-bezier(0.2, 0, 0, 1);
+  animation: ui-sheet-left var(--mm-motion-sheet) var(--mm-motion-ease);
 }
 
 .ui-sheet-right > div {

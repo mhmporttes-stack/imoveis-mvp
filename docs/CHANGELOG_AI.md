@@ -23,6 +23,10 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - `eb25e16`, `74afd94` (apresentação cabe numa tela) e `4f278fb` falharam ("Deployment has failed"). Causa: o `ignoreCommand` comparava com `VERCEL_GIT_PREVIOUS_SHA` (último deploy, `ac56e7d`), mas a Vercel clona só os últimos 10 commits; com 10 commits seguidos ignorados, esse SHA ficou fora da cópia e o `git diff` saía com erro. Agora `scripts/vercel-ignore-build.sh` (chamado pelo `vercel.json`) publica sempre que não consegue comparar.
 
+### 2026-10-12 — Transições perceptíveis (retorno do dono: "imperceptível")
+
+- Durações e curva centralizadas em `--mm-motion-*` (`app/globals.css`, `:root`; `AdminMenu` lê `--mm-motion-screen`): abrir conversa/troca de tela 340 ms (painel entra 40 px), fechar conversa 300 ms, abas 260 ms (18 px), mensagem nova 260 ms (14 px + escala 0,94 do canto), menu de ações 220 ms, Sheets 300 ms, fundo do Sheet 240 ms, indicador da barra 260 ms. Curva `cubic-bezier(0.22, 1, 0.36, 1)`. Mesmas regras: só transform/opacity, `backwards`, reduced-motion desliga, nada em ancestral do Chat em modo aplicativo.
+
 ### 2026-10-12 — Cenas curtas de transição no Chat e no painel (pedido do dono)
 
 - **Chat:** abrir conversa (painel entra da direita, 200 ms), fechar no celular (lista volta da esquerda, 180 ms), mensagens da conversa recém-aberta (fade 160 ms), mensagem nova recebida/enviada (só a última bolha, 180 ms), menu de ações (computador 140 ms; celular 160 ms, o fundo desfocado não anima), troca de abas (200 ms). **Painel:** troca de tela pela barra inferior/menu do topo 800 → 200 ms (`AdminMenu`, sem tocar no Chat em modo aplicativo); indicador da aba ativa da barra inferior (180 ms); fundo dos Sheets com fade (180 ms).

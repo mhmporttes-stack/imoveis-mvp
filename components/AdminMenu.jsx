@@ -285,14 +285,17 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
     const frame = requestAnimationFrame(() => {
       const sectionNav = menuRef.current?.parentElement;
       if (sectionNav?.parentElement?.tagName !== "MAIN") return;
-      // Cena curta (2026-10-12): 200 ms, só opacity/transform, sem preencher depois (volta a transform: none).
+      // Cena de troca de tela (2026-10-12): duração/curva das variáveis --mm-motion-* (app/globals.css), só opacity/transform, sem preencher depois (volta a transform: none).
       // O Chat em modo aplicativo tem as próprias cenas e uma moldura fixa (iPhone): não é animado aqui
       // — transform num ancestral do Chat prenderia os elementos "fixos" dele à caixa durante a cena.
+      const rootStyle = getComputedStyle(document.documentElement);
+      const duration = parseFloat(rootStyle.getPropertyValue("--mm-motion-screen")) || 340;
+      const easing = rootStyle.getPropertyValue("--mm-motion-ease").trim() || "cubic-bezier(0.22, 1, 0.36, 1)";
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         if (node.matches?.(".chat-app-root, .chat-app-ancestor") || node.querySelector?.(".chat-app-root")) continue;
         node.animate?.(
-          [{ opacity: 0.35, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
-          { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" }
+          [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }],
+          { duration, easing }
         );
       }
     });
