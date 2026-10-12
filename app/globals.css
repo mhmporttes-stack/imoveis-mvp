@@ -710,6 +710,13 @@ html.chat-app-mode.mm-fixed-drop {
   overflow: auto;
 }
 
+/* WebKit pode recortar até a barra fixa pelo overflow: hidden do body fixo do Chat (barra continuou cortada no
+   iPhone com o ajuste acima, 2026-10-12). Com o defeito ativo o body não recorta: o Chat cabe na moldura e quem rola
+   são a lista e as mensagens por dentro. */
+html.chat-app-mode.mm-fixed-drop body {
+  overflow: visible;
+}
+
 /* Celular com a barra: o Chat termina exatamente no topo dela (o respiro do
    iPhone já está dentro da barra; somar a safe-area de novo deixaria faixa). */
 @media (max-width: 767px) {

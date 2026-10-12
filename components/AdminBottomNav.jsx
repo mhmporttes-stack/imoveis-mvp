@@ -67,6 +67,9 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const [typing, setTyping] = useState(false);
   const navRef = useRef(null);
   const resyncRef = useRef(() => {});
+  // TEMPORÁRIO (2026-10-12, diagnóstico da barra no Chat do iPhone): linha com as medidas reais da tela, só para
+  // administrador e só no Chat. Remover quando a barra estiver resolvida.
+  const [vpDiag, setVpDiag] = useState("");
   const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked };
   // Acesso WhatsApp bloqueado (2026-10-04): Chat e Meta Diária do corretor NÃO são renderizados (nada de botão cinza).
   const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
@@ -134,6 +137,31 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
         if (next > 2) root.style.setProperty("--mm-fixed-drop", `${next}px`);
         else root.style.removeProperty("--mm-fixed-drop");
         root.classList.toggle("mm-fixed-drop", next > 2);
+        if (isAdmin && root.classList.contains("chat-app-mode")) {
+          window.requestAnimationFrame(() => {
+            const after = nav.getBoundingClientRect();
+            const probe = document.createElement("div");
+            probe.style.cssText = "position:fixed;top:0;height:env(safe-area-inset-top);width:0;visibility:hidden";
+            document.body.appendChild(probe);
+            const safeTop = Math.round(probe.getBoundingClientRect().height);
+            probe.remove();
+            const body = document.body.getBoundingClientRect();
+            setVpDiag([
+              `sa:${window.navigator.standalone === true ? 1 : 0}`,
+              `scr:${window.screen?.width}x${window.screen?.height}`,
+              `in:${window.innerHeight}`,
+              `vv:${vv ? `${Math.round(vv.height)}+${Math.round(vv.offsetTop)}` : "-"}`,
+              `ch:${root.clientHeight}`,
+              `top:${safeTop}`,
+              `nav:${Math.round(after.top)}-${Math.round(after.bottom)}`,
+              `body:${Math.round(body.bottom)}`,
+              `drop:${next}`,
+              `ov:${getComputedStyle(root).overflowY}/${getComputedStyle(document.body).overflowY}`
+            ].join(" "));
+          });
+        } else {
+          setVpDiag("");
+        }
       }, 300);
     };
     const onVisibility = () => {
@@ -177,6 +205,11 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
 
   return (
     <>
+      {vpDiag ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[200] bg-black/80 px-2 py-0.5 font-mono text-[10px] leading-tight text-white md:hidden" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+          {vpDiag}
+        </div>
+      ) : null}
       <nav
         ref={navRef}
         aria-label="Navegação principal"
