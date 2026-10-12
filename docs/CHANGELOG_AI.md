@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes mais alto e filtros do funil com metade da altura (celular)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes: contagem ao lado do título
+
+- Dono: número de clientes na mesma linha do "Clientes" azul, para economizar espaço (`components/clients/ClientWorkspace.jsx`, cabeçalho).
+
+### 2026-10-12 — Clientes mais alto e filtros do funil com metade da altura (celular)
 
 - Dono: "remova esse espaço acima de Clientes" e "os filtros devem diminuir 50% a altura". `components/AdminSectionNav.jsx`: no celular, para quem não é gestor (o bloco não mostra nada ali), sem a margem de 24 px. `StageTab` (`components/clients/ClientWorkspace.jsx`): no celular rótulo e número na mesma linha, sem a barrinha (~64 → ~30 px); desktop inalterado.
 

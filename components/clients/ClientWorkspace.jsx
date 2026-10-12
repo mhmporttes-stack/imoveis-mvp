@@ -73,10 +73,11 @@ export default function ClientWorkspace(props) {
   return (
     <section ref={topRef} className="container-page scroll-mt-4 pb-6" aria-labelledby="clientes-titulo">
       {/* 1. Cabeçalho */}
-      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        {/* Contagem na mesma linha do título (dono, 2026-10-12: economizar espaço). */}
+        <div className="flex min-w-0 items-baseline gap-2">
           <h1 id="clientes-titulo" className="text-[28px] font-semibold leading-[34px] tracking-[-0.015em] text-navy">Clientes</h1>
-          <p className="mt-0.5 text-sm text-ink-2 tabular-nums">
+          <p className="truncate text-sm text-ink-2 tabular-nums">
             {list.total} {list.total === 1 ? "cliente" : "clientes"}{anyFilter ? " neste filtro" : ""}
           </p>
         </div>
