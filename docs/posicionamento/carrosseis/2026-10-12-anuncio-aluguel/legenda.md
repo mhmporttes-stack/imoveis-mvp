@@ -36,7 +36,7 @@ Formato: carrossel Meta, objetivo **Engajamento → Mensagens (WhatsApp)**, bot�
 | 2 | R$ 72 mil de aluguel em 5 anos | Exemplo com R$ 1.200/mês |
 | 3 | E se fosse parcela da sua casa? | Conforme renda e análise |
 | 4 | Autônomo? FGTS? Renda somada? | Tire suas dúvidas |
-| 5 | Simulação completa em PDF | Valor, parcela e taxa de juros |
+| 5 | Formulário rápido, simulação em PDF | Menos de 2 minutos |
 | 6 | Faça sua simulação agora | Toque em Enviar mensagem |
 
 ## Configuração recomendada (decisão do dono no Gerenciador)
@@ -52,6 +52,6 @@ Formato: carrossel Meta, objetivo **Engajamento → Mensagens (WhatsApp)**, bot�
 
 Revisado por crítica de design independente. O dono preferiu a capa, a lâmina 2 e o CTA da 1ª versão; voltaram com os ajustes: acentos sem encostar, "Exemplo:" na conta e chat legível. O grid vermelho e o pino vermelho são escolha do dono.
 
-**Teste A/B da capa (opcional):** `capa-teste-b.png` (gancho "R$ 72 mil") é o mesmo anúncio só com a 1ª lâmina trocada. Rode as duas e mantenha a de menor custo por cliente que chega a Simulação.
+**Teste A/B da capa (opcional):** `capa-teste-b.png` (gancho "R$ 72 mil", com "Exemplo") NÃO entra como 7ª lâmina — é o mesmo anúncio só com a 1ª lâmina trocada. Rode as duas e mantenha a de menor custo por cliente que chega a Simulação.
 
 Arquivos: `lamina-01.png` … `lamina-06.png` (2160×2700, alta resolução) e o fonte `laminas.html`.
