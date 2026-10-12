@@ -12,6 +12,7 @@ import {
 } from "@/lib/simulation-list-query";
 import { canManageSimulations } from "@/lib/simulations";
 import { newRenderId } from "@/lib/render-id.mjs";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 
 export const dynamic = "force-dynamic";
 // Voltar para Clientes na hora (pedido do dono, 2026-10-12): o navegador reaproveita esta tela por até 5 min em vez de
@@ -55,7 +56,20 @@ export default async function AdminSimulationsPage({ searchParams }) {
   const filters = filtersFromSearchParams(resolvedSearchParams);
   const pinClientId = resolvedSearchParams?.clientId || "";
 
-  try {
+  // Visão padrão (sem filtros nem cliente fixado na URL): a lista vem pela própria tela, da MESMA API
+  // (/api/simulation-registrations/list), e abre na hora com a lista já guardada desta conta (pré-carregada pelo AdminWarmup
+  // ou da visita anterior, components/chat-view-cache.js) — desempenho, 2026-10-12. Links com filtro seguem montando no servidor.
+  const isDefaultView = !pinClientId && JSON.stringify(filters) === JSON.stringify(filtersFromSearchParams({}));
+  if (isDefaultView) {
+    try {
+      const [tagsResult, adminProfilesResult] = await Promise.all([listTags(), needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])]);
+      tags = tagsResult;
+      adminProfiles = scopeAdminProfiles(adminProfilesResult, auth, isManager, needsAdminProfiles);
+      initialData = { deferred: true, page: 1, pageSize: 20 };
+    } catch (error) {
+      loadError = error?.message || "Não foi possível carregar a lista de clientes.";
+    }
+  } else try {
     // Atividades da agenda dos clientes da página: encadeadas na própria busca da página, em paralelo com o resto
     // (antes esperavam tudo terminar — uma ida ao banco a mais em fila). Falha nelas = sem atividades, como antes.
     const pagePromise = listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20, pinClientId });
@@ -73,11 +87,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
     ]);
 
     tags = tagsResult;
-    adminProfiles = needsAdminProfiles
-      ? (isManager
-        ? adminProfilesResult.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
-        : adminProfilesResult)
-      : [];
+    adminProfiles = scopeAdminProfiles(adminProfilesResult, auth, isManager, needsAdminProfiles);
 
     // renderId: identifica esta renderização — se o navegador reaproveitar a tela, a lista sabe que precisa se atualizar.
     initialData = { ...pageResult, counters, pendingClientsCount, clientActivities, renderId: newRenderId() };
@@ -94,6 +104,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
         <ClientWorkspace
           key={JSON.stringify(filters)}
           initialData={initialData}
+          viewerKey={chatViewerKey(auth)}
           initialFilters={filters}
           adminProfiles={adminProfiles}
           canManageResponsibleUsers={isGeneralAdmin || isManager}
@@ -105,6 +116,14 @@ export default async function AdminSimulationsPage({ searchParams }) {
       )}
     </main>
   );
+}
+
+// Gestor só escolhe responsáveis da própria equipe; admin vê todos; demais perfis não escolhem.
+function scopeAdminProfiles(adminProfilesResult, auth, isManager, needsAdminProfiles) {
+  if (!needsAdminProfiles) return [];
+  return isManager
+    ? adminProfilesResult.filter((profile) => (auth.profile.managedUserIds || [auth.profile.id]).includes(profile.id))
+    : adminProfilesResult;
 }
 
 function SimulationDisabled() {

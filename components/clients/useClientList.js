@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
+import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { CLIENTS_CACHE_NAME } from "@/components/panel-cache-names";
 import { displayLink } from "@/lib/short-links.mjs";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
@@ -30,14 +32,20 @@ export function useClientList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
   brokerSimulationLink = "",
-  initialData,
+  initialData: serverData,
   initialFilters,
+  viewerKey = "",
   tags = [],
   notify,
   confirmAction,
   pinClientId = ""
 }) {
   const router = useRouter();
+  // Visão padrão (serverData.deferred, app/admin/simulacoes/page.jsx): a lista vem da API pela tela; abre na hora com a
+  // lista já guardada desta conta (cache por conta, some ao sair/trocar de conta) e atualiza em seguida.
+  const deferred = Boolean(serverData?.deferred);
+  const [cachedList] = useState(() => (deferred ? readViewerData(viewerKey, CLIENTS_CACHE_NAME) : null));
+  const initialData = deferred ? { ...serverData, ...(cachedList || {}) } : serverData;
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...initialFilters }));
   const [searchInput, setSearchInput] = useState(() => initialFilters?.query || "");
   const [pageSize, setPageSize] = useState(() => (PAGE_SIZE_OPTIONS.includes(initialData?.pageSize) ? initialData.pageSize : 20));
@@ -48,7 +56,7 @@ export function useClientList({
   const [counters, setCounters] = useState(() => initialData?.counters || { all: 0, byStatus: {}, byGroup: {} });
   const [pendingClientsCount, setPendingClientsCount] = useState(() => initialData?.pendingClientsCount || 0);
   const [activitiesByClient, setActivitiesByClient] = useState(() => initialData?.clientActivities || {});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => deferred && !cachedList);
   const [loadError, setLoadError] = useState("");
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [busyClientId, setBusyClientId] = useState("");
@@ -90,6 +98,18 @@ export function useClientList({
   // Tela reaproveitada pelo navegador (unstable_dynamicStaleTime em app/admin/simulacoes/page.jsx): os dados iniciais
   // são de uma visita anterior — mostra na hora e atualiza em segundo plano, sem escurecer a lista.
   useRevalidateOnReuse(initialData?.renderId, () => fetchClients({ silent: true }));
+  // Visão padrão: busca ao abrir (sem escurecer quando já há lista guardada na tela).
+  useEffect(() => {
+    if (deferred) fetchClients({ silent: Boolean(cachedList) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Guarda a visão padrão (sem filtro, 1ª página de 20) depois de cada busca concluída, para a próxima entrada.
+  useEffect(() => {
+    if (loading || loadError || page !== 1 || pageSize !== 20 || pinClientId) return;
+    if (JSON.stringify({ ...DEFAULT_FILTERS, ...filters }) !== JSON.stringify(DEFAULT_FILTERS)) return;
+    saveViewerData(viewerKey, CLIENTS_CACHE_NAME, { items, total, totalPages, counters, pendingClientsCount, clientActivities: activitiesByClient, page: 1, pageSize: 20 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerKey, loading, items, total, counters, pendingClientsCount, activitiesByClient]);
 
   // Guarda contra refetch duplicado na primeira montagem (dados iniciais vêm do servidor).
   const isFirstRender = useRef(true);

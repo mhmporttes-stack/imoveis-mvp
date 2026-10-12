@@ -3,13 +3,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { readChatView, readViewerData, saveChatView, saveViewerData } from "@/components/chat-view-cache";
-import { PERFORMANCE_CACHE_NAME } from "@/components/performance-cache-name";
+import { CLIENTS_CACHE_NAME, CLIENTS_DEFAULT_LIST_QUERY, PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
 
 // Pré-carrega as telas da barra inferior depois que o painel abre (pedido do dono, 2026-10-12: "o primeiro toque no Chat
 // demora mais"). Só no celular, uma vez por sessão, com o app visível, fora de "economia de dados"/2G, e só as telas que
 // a barra mostra para esta conta (decidido no servidor, app/admin/layout.jsx).
-// - fullRoutes: tela inteira já montada (Chat e Clientes; Desempenho para quem tem). Só leitura no servidor.
-// - lightRoutes: só o código da tela (Meta Diária: abrir a Meta gera a cota do dia, então os dados esperam o toque).
+// - fullRoutes: tela inteira já montada (Clientes, Chat, Meta Diária; Desempenho para quem tem). Clientes/Chat/Desempenho
+//   só leem; a Meta Diária roda o mesmo caminho da abertura (fecha o dia anterior, gera a cota, congela pendentes) — REGRA
+//   OFICIAL do dono, 2026-10-12: a Meta do dia pode ser montada quando o app abre. Virada do dia: components/MetaDayGuard.jsx.
+// - lightRoutes: só o código da tela (Agenda).
 // - chat: lista de conversas no cache do Chat (components/chat-view-cache.js), sem recibo "entregue" nem marcar lida
 //   (?warm=1 em /api/admin/whatsapp-chat/conversations). A tela mostra isso na hora e atualiza ao abrir.
 const START_DELAY_MS = 3000;
@@ -56,7 +58,18 @@ function warmPerformance(viewerKey) {
     .catch(() => {});
 }
 
-export default function AdminWarmup({ viewerKey = "", chat = false, performance = false, fullRoutes = [], lightRoutes = [] }) {
+// Lista de Clientes na visão padrão (só leitura; mesma API e mesmos parâmetros da tela) — a lista abre já preenchida.
+function warmClients(viewerKey) {
+  if (readViewerData(viewerKey, CLIENTS_CACHE_NAME)) return;
+  fetch(`/api/simulation-registrations/list?${CLIENTS_DEFAULT_LIST_QUERY}`, { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((data) => {
+      if (Array.isArray(data?.items) && !readViewerData(viewerKey, CLIENTS_CACHE_NAME)) saveViewerData(viewerKey, CLIENTS_CACHE_NAME, data);
+    })
+    .catch(() => {});
+}
+
+export default function AdminWarmup({ viewerKey = "", chat = false, clients = false, performance = false, fullRoutes = [], lightRoutes = [] }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -84,6 +97,7 @@ export default function AdminWarmup({ viewerKey = "", chat = false, performance 
       for (const href of lightRoutes) router.prefetch(href);
       if (chat) warmChatList(viewerKey);
       if (performance) warmPerformance(viewerKey);
+      if (clients) warmClients(viewerKey);
     }
     function schedule() {
       window.clearTimeout(timer);

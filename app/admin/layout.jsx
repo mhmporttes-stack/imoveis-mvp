@@ -111,7 +111,7 @@ export default async function AdminLayout({ children }) {
 
 // Pré-carregamento (components/AdminWarmup.jsx): as MESMAS telas que a barra inferior mostra para esta conta
 // (AdminBottomNav: Meta, Clientes, Chat + Desempenho no admin geral ou Agenda nos demais; hiddenNavKeys tira Chat/Meta
-// de quem tem WhatsApp bloqueado). Meta Diária só o código (abrir a Meta gera a cota do dia do corretor).
+// de quem tem WhatsApp bloqueado).
 function warmupTargets(auth, whatsappBlocked) {
   const isAdmin = isGeneralAdminProfile(auth.profile);
   const hidden = hiddenNavKeys({
@@ -123,8 +123,16 @@ function warmupTargets(auth, whatsappBlocked) {
     viewerKey: chatViewerKey(auth),
     chat,
     performance: isAdmin,
-    fullRoutes: ["/admin/simulacoes", ...(chat ? ["/admin/chat"] : []), ...(isAdmin ? ["/admin/desempenho"] : [])],
-    lightRoutes: [...(hidden.has("daily-goal") ? [] : ["/admin/meta-diaria"]), ...(isAdmin ? [] : ["/admin/calendario"])]
+    clients: true,
+    // Meta Diária completa (REGRA OFICIAL — dono, 2026-10-12): a Meta do dia pode ser montada quando o app abre. O pedido
+    // pré-carregado é o mesmo da abertura (mesma página/função no servidor, com o perfil EFETIVO da sessão).
+    fullRoutes: [
+      "/admin/simulacoes",
+      ...(chat ? ["/admin/chat"] : []),
+      ...(hidden.has("daily-goal") ? [] : ["/admin/meta-diaria"]),
+      ...(isAdmin ? ["/admin/desempenho"] : [])
+    ],
+    lightRoutes: isAdmin ? [] : ["/admin/calendario"]
   };
 }
 

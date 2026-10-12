@@ -72,6 +72,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Correção junto:** as animações de entrada usavam preenchimento `both`, que deixava `transform` aplicado para sempre e prendia os `position: fixed` de dentro (menus/confirmações do Chat) à caixa — agora `backwards`. As cenas do Chat não dependem mais de `body.admin-scroll-fix` (o app `/chat-app` não tem essa classe, então nenhuma animação do Chat rodava lá).
 - Arquivos: `app/globals.css`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`.
 
+### 2026-10-12 — Meta Diária pré-carregada por inteiro (decisão do dono: opção C) + Clientes abre já com a lista
+
+- **Regra do dono (MD-16):** a Meta do dia pode ser montada quando o app abre. `AdminWarmup` passou `/admin/meta-diaria` para pré-carregamento completo (antes só o código). Mesmo caminho da abertura (página → `getBrokerDailyGoal`/`getOwnerTeamDailyOverview`, perfil EFETIVO da sessão; em "Alterar conta" monta para o corretor emulado, nunca para o admin real). Nenhuma função nova de geração.
+- **Virada do dia:** `components/MetaDayGuard.jsx` (nas duas visões da Meta) compara o dia de São Paulo em que a tela foi montada com o de agora — ao abrir e ao voltar para o app — e faz `router.refresh()` se mudou (o servidor fecha o dia anterior e gera o novo). Usa `saoPauloDateStr` (`lib/daily-goal-policy-core.mjs`, já no pacote da Meta). JS da Meta 150,1 → 150,6 KB gzip.
+- **Clientes:** na visão padrão (sem filtro/cliente fixado na URL) a página só carrega etiquetas e responsáveis; a lista vem da mesma API (`/api/simulation-registrations/list?page=1&pageSize=20`) pela tela, que abre na hora com a lista guardada desta conta (cache por conta real+efetiva, 30 min, limpo ao sair/trocar de conta) e atualiza em seguida. `AdminWarmup` pré-carrega essa lista (só leitura). Links com filtro continuam montando no servidor. Vitrine (`next dev`, API simulada): entrada sem lista guardada ~635 ms; com lista guardada ~125 ms.
+- Nomes de cache consolidados em `components/panel-cache-names.js` (substitui `components/performance-cache-name.js`).
+
 ### 2026-10-12 — Desempenho abre já com os números (pedido do dono, print 00:10)
 
 - **Causa:** o spinner do meio é o `SceneSkipCatcher` (página de destino ainda chegando do servidor) — `app/admin/desempenho/page.jsx` montava TODOS os números no servidor (`getPerformanceOverview`) antes de mostrar. O pré-carregamento da tela inteira vale 5 min; tocar depois disso (ou depois de um deploy novo, como aconteceu às 00:08–00:12 com `638ae40`) volta a esperar o servidor. Não há como confirmar no aparelho do dono se o pré-carregamento rodou (sem acesso aos logs da Vercel nesta sessão).

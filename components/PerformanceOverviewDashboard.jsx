@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
-import { PERFORMANCE_CACHE_NAME } from "@/components/performance-cache-name";
+import { PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },

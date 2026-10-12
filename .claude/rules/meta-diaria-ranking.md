@@ -8,6 +8,8 @@ paths:
   - "lib/celebrations.js"
   - "lib/google-contacts*"
   - "components/DailyGoal*.jsx"
+  - "components/MetaDayGuard.jsx"
+  - "components/AdminWarmup.jsx"
   - "components/TeamDailyPerformance.jsx"
   - "components/PerformanceOverviewDashboard.jsx"
   - "components/BrokerPerformanceDetail.jsx"
@@ -55,6 +57,8 @@ Quanto ao retorno à fila (2º ponto) e à exclusão de arquivado/não-contactar
 **[IMPLEMENTAÇÃO, não regra de negócio — a menos que o dono determine o contrário]** Novas rodadas do dia (cota de "1ª tentativa") só são criadas quando o PRÓPRIO corretor abre sua tela de Meta Diária (`ensureDailyGoalGenerated`, chamado dentro de `getBrokerDailyGoal`). Não existe cron que gere isso de madrugada. Isso é uma característica técnica da implementação atual, não uma regra de negócio confirmada — qualquer horário, cron ou estratégia técnica de geração fica classificado como implementação até o dono decidir o contrário. Consequência observada: cedo no dia, antes de os corretores abrirem o app, a visão do gestor (`TeamDailyPerformance.jsx`) mostra "1ª: 0" para quem ainda não começou. Se o pedido futuro for mudar essa estratégia (ex.: gerar via cron), trate como mudança de implementação a avaliar tecnicamente (impacto no pool compartilhado de contatos de um corretor ausente), não como correção de bug nem como regra de negócio pré-definida. **Exceção (2026-09-29):** para corretor com a automação da Meta Diária ligada, o dispatcher (`runDailyGoalAutoDispatch`, `lib/daily-goal-auto.js`) chama `ensureDailyGoalGeneratedForBroker` antes de enviar.
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-24] Cota de 1º contato = exatamente 20 aguardando 1º contato.** **[Valor substituído: a cota vigente é 10 (2026-10-02); a lógica "exatamente a cota" é a mesma.]** O corretor começa o dia com 20 contatos sem 1º contato — nem mais, nem menos. Se sobraram N sem 1º contato dos dias anteriores, entram só `quota - N` novos (fez 10, no dia seguinte entram mais 10, mantendo os 20). Implementação: `ensureDailyGoalGenerated` (`lib/daily-goal.js`) conta as rodadas `active` com `attempt_count = 0` do corretor e pede à RPC `claim_daily_goal_contacts` só `quota - pendentes`. A trava da carteira ativa (limite 30 desde 2026-10-04, era 50 e antes 100; `daily_goal_wallet_config`) continua valendo: corretor com a carteira cheia recebe menos que o necessário. Antes desta regra entravam sempre 20 novos por cima do que sobrou e a pilha crescia (ex.: 34 sem 1º contato). A regra NÃO devolve o excesso já acumulado (ex.: quem já tem mais de 20 sem 1º contato só passa a receber 0 novos até baixar de 20). Continua valendo que a geração acontece quando o corretor abre a Meta Diária, uma vez por dia.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Meta do dia montada ao abrir o app.** A Meta do dia pode ser montada quando o app abre (pré-carregamento), não só ao tocar em Meta: fechar o dia anterior, conferir contatos, gerar a cota do corretor/gestora e congelar pendentes/carteira na visão do dono. Sempre pelo MESMO caminho da abertura (`app/admin/meta-diaria/page.jsx` → `getBrokerDailyGoal`/`getOwnerTeamDailyOverview`, perfil efetivo da sessão) — nunca um caminho paralelo de geração; regras, idempotência e horário iguais. Tela montada num dia e vista em outro (São Paulo) é pedida de novo (`components/MetaDayGuard.jsx`). Pré-carregamento: `components/AdminWarmup.jsx`. Detalhes: `docs/BUSINESS_RULES.md` MD-16.
 
 ## Regra "fica realizado até amanhã" (pedido explícito do dono, 2026-09-21/22)
 

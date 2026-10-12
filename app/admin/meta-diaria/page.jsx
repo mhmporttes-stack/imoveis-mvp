@@ -9,6 +9,8 @@ import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 import { isManagerProfile } from "@/lib/admin-profiles";
 import { canLoadDailyGoal, formatDailyGoalError, getBrokerDailyGoal, getOwnerTeamDailyOverview } from "@/lib/daily-goal";
 import { newRenderId } from "@/lib/render-id.mjs";
+import MetaDayGuard from "@/components/MetaDayGuard";
+import { getTodayInSaoPaulo } from "@/lib/daily-report";
 
 export const dynamic = "force-dynamic";
 // Voltar para esta tela na hora (desempenho, 2026-10-12): o navegador reaproveita a tela por até 5 min em vez de esperar o
@@ -60,6 +62,8 @@ export default async function MetaDiariaPage() {
         </SceneTransitionLink>
       </section>
       <AdminSectionNav active="daily-goal" />
+      {/* Dia (São Paulo) em que esta tela foi montada: virou o dia, a tela é pedida de novo (pré-carregamento). */}
+      <MetaDayGuard day={getTodayInSaoPaulo()} />
       {error ? (
         <section className="container-page rounded-[24px] border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar</p>
@@ -108,6 +112,8 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
         </SceneTransitionLink>
       </section>
       <AdminSectionNav active="daily-goal" />
+      {/* Dia (São Paulo) em que esta tela foi montada: virou o dia, a tela é pedida de novo (pré-carregamento). */}
+      <MetaDayGuard day={getTodayInSaoPaulo()} />
       {error ? (
         <section className="container-page rounded-[24px] border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar</p>
