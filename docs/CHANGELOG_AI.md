@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Chat no celular de ponta a ponta
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Skill /mesa-criativa (Mesa de Criação)
+
+- Pedido do dono: um chat onde a ideia é melhorada por um agente na visão dele, rebatida por outro, e assim por ≥ 3 rodadas, com no máximo 5 agentes (carrossel/design, tráfego, WhatsApp/automação, atendimento humanizado e — sugestão — dados do CRM). `.claude/skills/mesa-criativa/SKILL.md`; roteamento em `.claude/despachante/MAPA-AGENTES.md`; dossiês em `docs/posicionamento/mesa/`. Nada é publicado sem "sim" do dono.
+
+### 2026-10-12 — Chat no celular de ponta a ponta
 
 - Dono: "remova essas bordas laterais". A regra `.container-page` do celular (`max-width: calc(100vw - 24px)`) segurava 12 px de cada lado mesmo com `width: 100%` do modo aplicativo; `html.chat-app-mode .chat-app-root.container-page` ganhou `max-width: none` (`app/globals.css`). Só no Chat em modo aplicativo, celular.
 
