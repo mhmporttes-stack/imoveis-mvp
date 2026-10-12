@@ -17,6 +17,9 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 ## Estilo do dono
 Leia `docs/posicionamento/ESTILO-CARROSSEL.md` (modelos que ele já postou, tipos de lâmina, ícones, linguagem). Posts antigos eram amarelos → hoje sempre azul.
 
+## Publicação (decisão do dono, 2026-10-12)
+O próprio dono publica pelo celular, para escolher a música (a API do Instagram via Windsor não põe música em post). Não agendar nem publicar pelo conector; só entregar lâminas + legenda + horário sugerido.
+
 ## Fluxo
 1. **Ler a referência** (imagens enviadas): número de lâminas, gancho da capa, ritmo (texto/lista/citação/número), hierarquia, tamanho de texto, CTA. Descrever em 3–5 linhas o que será reaproveitado.
 2. **Recriar, não copiar**: reaproveita a estrutura e o estilo da ideia; o texto é reescrito para o público do Matheus (primeiro imóvel, MCMV, Marília/SP). Nunca copiar frase, foto, marca ou @ de terceiros.
