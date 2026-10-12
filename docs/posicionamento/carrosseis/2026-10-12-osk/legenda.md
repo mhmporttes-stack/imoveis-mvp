@@ -6,6 +6,9 @@ Lançamento da Vitta Residencial na região central de Marília, na Rua Palmares
 🌿 Só 10 unidades com garden privativo
 🏊 Lazer completo, entregue equipado e decorado: piscinas, fitness, coworking, salão de festas, churrasqueira, happy hour, play kids, pet place e Mercado Vitta
 🚗 1 vaga por apartamento e 2 elevadores por torre
+🔇 Laje maciça, porta com vedação acústica e infra para ar-condicionado
+
+💳 E o fluxo de pagamento é montado de acordo com a sua realidade, para caber no seu orçamento.
 
 Gostou de alguma planta? Me chama na DM que eu te passo as condições e faço a sua simulação.
 
