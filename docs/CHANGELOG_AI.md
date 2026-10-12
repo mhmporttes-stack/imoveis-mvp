@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Deploys da Vercel falhando depois de 10 commits só de documentação
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Transições com o triplo da duração
+
+- Dono: "transições muito rápidas, triplique o tempo". Variáveis `--mm-motion-*` em `app/globals.css` multiplicadas por 3 (troca de tela/abrir conversa 1020 ms, voltar 900, abas/mensagem/nav 780, Sheet 900, fundo 720, menu 660); fallback em `components/AdminMenu.jsx`. Animações seguem só com transform/opacity e não bloqueiam toque nem navegação.
+
+### 2026-10-12 — Deploys da Vercel falhando depois de 10 commits só de documentação
 
 - `eb25e16`, `74afd94` (apresentação cabe numa tela) e `4f278fb` falharam ("Deployment has failed"). Causa: o `ignoreCommand` comparava com `VERCEL_GIT_PREVIOUS_SHA` (último deploy, `ac56e7d`), mas a Vercel clona só os últimos 10 commits; com 10 commits seguidos ignorados, esse SHA ficou fora da cópia e o `git diff` saía com erro. Agora `scripts/vercel-ignore-build.sh` (chamado pelo `vercel.json`) publica sempre que não consegue comparar.
 
