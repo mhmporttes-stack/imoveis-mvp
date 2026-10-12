@@ -203,7 +203,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                     active ? "text-navy" : "text-muted"
                   )}
                 >
-                  <span className={cx("relative flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150", active && "bg-info-soft")}>
+                  <span className={cx("relative flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150", active && "admin-nav-current bg-info-soft")}>
                     <item.Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
                     <CountBadge count={badge} className="absolute -right-0.5 -top-1.5 ring-2 ring-white" label={`${badge} pendentes em ${item.label}`} />
                   </span>

@@ -23,6 +23,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - `eb25e16`, `74afd94` (apresentação cabe numa tela) e `4f278fb` falharam ("Deployment has failed"). Causa: o `ignoreCommand` comparava com `VERCEL_GIT_PREVIOUS_SHA` (último deploy, `ac56e7d`), mas a Vercel clona só os últimos 10 commits; com 10 commits seguidos ignorados, esse SHA ficou fora da cópia e o `git diff` saía com erro. Agora `scripts/vercel-ignore-build.sh` (chamado pelo `vercel.json`) publica sempre que não consegue comparar.
 
+### 2026-10-12 — Cenas curtas de transição no Chat e no painel (pedido do dono)
+
+- **Chat:** abrir conversa (painel entra da direita, 200 ms), fechar no celular (lista volta da esquerda, 180 ms), mensagens da conversa recém-aberta (fade 160 ms), mensagem nova recebida/enviada (só a última bolha, 180 ms), menu de ações (computador 140 ms; celular 160 ms, o fundo desfocado não anima), troca de abas (200 ms). **Painel:** troca de tela pela barra inferior/menu do topo 800 → 200 ms (`AdminMenu`, sem tocar no Chat em modo aplicativo); indicador da aba ativa da barra inferior (180 ms); fundo dos Sheets com fade (180 ms).
+- Só `transform`/`opacity`, `ease-out-ui`, desligado em `prefers-reduced-motion`; nada segura clique nem conteúdo. Medido na vitrine (390/1280): nenhuma tarefa longa nova, nenhum layout shift novo.
+- **Correção junto:** as animações de entrada usavam preenchimento `both`, que deixava `transform` aplicado para sempre e prendia os `position: fixed` de dentro (menus/confirmações do Chat) à caixa — agora `backwards`. As cenas do Chat não dependem mais de `body.admin-scroll-fix` (o app `/chat-app` não tem essa classe, então nenhuma animação do Chat rodava lá).
+- Arquivos: `app/globals.css`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`.
+
 ### 2026-10-12 — Chat e painel mais rápidos (pedido do dono)
 
 - **Medição (build de produção, JS baixado na abertura, gzip):** `/admin/chat` 261,5 → 181,7 KB (−31%); `/admin` 189,6 → 130,8; `/admin/simulacoes` 310 → 252; `/chat-app` 180,7 → 101,5; página inicial do site 121 → 62 KB.
