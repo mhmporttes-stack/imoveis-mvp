@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Troca de tela em 1 s
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Cascata do Chat em 1 s
+
+- Dono: a cena do Chat deve durar 1 segundo, não 3. `--mm-motion-cascade-total: 1000ms` e `--mm-motion-row: 400ms` (`app/globals.css`; reservas em `components/WhatsappChat.jsx`); intervalo entre linhas recalculado (~67 ms com 10 linhas visíveis).
+
+### 2026-10-12 — Troca de tela em 1 s
 
 - Com a correção da leitura de "3.06s" (`addc3de`), a troca de tela passaria a durar 3060 ms de verdade; o dono escolheu 1 segundo. `--mm-motion-screen: 1000ms` (troca de tela pelo menu/barra e abrir conversa). Demais `--mm-motion-*` e a cascata do Chat (3 s) inalteradas.
 

@@ -150,8 +150,8 @@ body.admin-scroll-fix {
    entrada e ao voltar para a aba Conversas: atualizações da lista não repetem a cena. Variáveis próprias,
    independentes das --mm-motion-* gerais. */
 :root {
-  --mm-motion-cascade-total: 3000ms; /* da 1ª linha começar a pular até a última assentar */
-  --mm-motion-row: 800ms;            /* duração de cada pulinho */
+  --mm-motion-cascade-total: 1000ms; /* da 1ª linha começar a pular até a última assentar */
+  --mm-motion-row: 400ms;            /* duração de cada pulinho */
   --mm-motion-row-stagger: 240ms;    /* valor de reserva; o Chat recalcula pelo nº de linhas visíveis */
 }
 

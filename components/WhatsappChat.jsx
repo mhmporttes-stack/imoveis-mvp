@@ -324,8 +324,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (!box || !list || reduce) { setRowsEnter(false); return undefined; }
     const style = getComputedStyle(box);
-    const total = cssTimeMs(style.getPropertyValue("--mm-motion-cascade-total"), 3000);
-    const hop = cssTimeMs(style.getPropertyValue("--mm-motion-row"), 800);
+    const total = cssTimeMs(style.getPropertyValue("--mm-motion-cascade-total"), 1000);
+    const hop = cssTimeMs(style.getPropertyValue("--mm-motion-row"), 400);
     const bottom = list.getBoundingClientRect().bottom;
     const rows = Array.from(list.children).filter((node) => node.tagName === "BUTTON");
     const visible = [];
