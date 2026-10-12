@@ -10,3 +10,5 @@
 7. **Número oficial:** o antigo foi banido em 28/09; o dono **comprou um número novo**, que é o Oficial ativo hoje (é por ele que o robô roda).
 8. **Lembrete de madrugada:** SIM — lembrete que cairia de madrugada (21h–8h) fica para as 8 h (desfaz o "roda 24 h" de 09/10 só para isso; registrar com `/registrar-regra` na implementação).
 9. **Carrossel Eco Village (7 conversas na Meta, 0 no CRM):** o anúncio apontava para o **WhatsApp particular do dono**, não para o Oficial — por isso não há conversa com ID no CRM. Não é falha de rastreamento.
+10. **Grupo do silêncio (não responde nem preenche, fica com o dono pela WA-18):** **transferir para a roleta** (um corretor assume e faz o toque humano). Momento exato (ex.: depois do último lembrete sem resposta) a definir pela mesa; altera a WA-18 → `/registrar-regra` na implementação.
+11. **Guia de Atendimento:** aprovado incluir a entrada "Lead de anúncio: primeira resposta (texto ou áudio)" com o roteiro M1–M5 (`R2-2-humanizado.md`), na implementação.
