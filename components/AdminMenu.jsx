@@ -296,7 +296,9 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         if (node.matches?.(".chat-app-root, .chat-app-ancestor") || node.querySelector?.(".chat-app-root")) continue;
         node.animate?.(
-          [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }],
+          // A tela fica nítida logo no começo (opacidade completa em 20% da cena) e só o deslize continua: com 1 s de
+          // fade inteiro a tela de Clientes parecia demorar a abrir (dono, 2026-10-12).
+          [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, offset: 0.2 }, { opacity: 1, transform: "none" }],
           { duration, easing }
         );
       }

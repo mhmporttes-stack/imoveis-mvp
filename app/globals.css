@@ -156,10 +156,11 @@ body.admin-scroll-fix {
 }
 
 @keyframes chat-row-hop {
-  0% { opacity: 0; transform: translateY(16px); }
-  25% { opacity: 1; }
-  55% { transform: translateY(-4px); }
-  78% { transform: translateY(1px); }
+  /* Pulo maior (dono, 2026-10-12: "o pulo dos cards poderia ser um pouco maior"). */
+  0% { opacity: 0; transform: translateY(30px); }
+  22% { opacity: 1; }
+  52% { transform: translateY(-11px); }
+  76% { transform: translateY(3px); }
   100% { opacity: 1; transform: none; }
 }
 

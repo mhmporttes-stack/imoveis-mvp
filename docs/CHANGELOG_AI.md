@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Cascata do Chat em 1 s
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Pulo maior na cascata do Chat; troca de tela nítida desde o início
+
+- Dono: "pulo dos cards poderia ser um pouco maior" → `@keyframes chat-row-hop` sobe de 30 px e passa 11 px do lugar antes de assentar (antes 16/4). "Clientes está demorando mais para abrir": desde `addc3de` a troca de tela anima de verdade e o fade de opacidade durava o segundo inteiro, então a tela parecia carregar; agora a opacidade completa em 20% da cena (`components/AdminMenu.jsx`) e só o deslize continua até 1 s.
+
+### 2026-10-12 — Cascata do Chat em 1 s
 
 - Dono: a cena do Chat deve durar 1 segundo, não 3. `--mm-motion-cascade-total: 1000ms` e `--mm-motion-row: 400ms` (`app/globals.css`; reservas em `components/WhatsappChat.jsx`); intervalo entre linhas recalculado (~67 ms com 10 linhas visíveis).
 
