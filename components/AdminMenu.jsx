@@ -291,7 +291,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       const rootStyle = getComputedStyle(document.documentElement);
       // O CSS publicado vem minificado ("3060ms" vira "3.06s"): converte os dois formatos para milissegundos.
       const rawDuration = rootStyle.getPropertyValue("--mm-motion-screen").trim();
-      const duration = (rawDuration.endsWith("ms") ? parseFloat(rawDuration) : parseFloat(rawDuration) * 1000) || 3060;
+      const duration = (rawDuration.endsWith("ms") ? parseFloat(rawDuration) : parseFloat(rawDuration) * 1000) || 1000;
       const easing = rootStyle.getPropertyValue("--mm-motion-ease").trim() || "cubic-bezier(0.22, 1, 0.36, 1)";
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         if (node.matches?.(".chat-app-root, .chat-app-ancestor") || node.querySelector?.(".chat-app-root")) continue;

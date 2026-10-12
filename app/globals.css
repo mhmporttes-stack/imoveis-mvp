@@ -65,7 +65,7 @@ body.admin-scroll-fix {
 :root {
   /* Durações triplicadas duas vezes a pedido do dono (2026-10-12: "muito rápidas, triplique o tempo" e, depois, "ainda muito rápido, triplique novamente"). */
   --mm-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --mm-motion-screen: 3060ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
+  --mm-motion-screen: 1000ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
   --mm-motion-back: 2700ms;     /* fechar conversa / voltar à lista */
   --mm-motion-tab: 2340ms;      /* troca de abas */
   --mm-motion-message: 2340ms;  /* mensagem nova */

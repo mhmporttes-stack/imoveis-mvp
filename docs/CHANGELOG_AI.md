@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Entrada do Chat em cascata (pedido do dono)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Troca de tela em 1 s
+
+- Com a correção da leitura de "3.06s" (`addc3de`), a troca de tela passaria a durar 3060 ms de verdade; o dono escolheu 1 segundo. `--mm-motion-screen: 1000ms` (troca de tela pelo menu/barra e abrir conversa). Demais `--mm-motion-*` e a cascata do Chat (3 s) inalteradas.
+
+### 2026-10-12 — Entrada do Chat em cascata (pedido do dono)
 
 - **Antes:** ao entrar no Chat a lista inteira entrava "lavada" (fade/slide do cartão e da lista, ~2,3–2,7 s) e, por um quadro, o banner "Campeão da semana" aparecia sobre o Chat sem a moldura do modo aplicativo, e depois tudo pulava (o `html.chat-app-mode` era marcado num `useEffect`, depois da pintura).
 - **Agora:** a tela troca nítida; só as linhas de conversa que cabem na tela dão um "pulinho" em sequência (sobe 16 px com leve quique). A cascata inteira dura `--mm-motion-cascade-total` (3 s, pedido do dono), com o intervalo calculado pelo número de linhas visíveis (60–600 ms) e o pulinho em `--mm-motion-row` (800 ms). Variáveis próprias, separadas das `--mm-motion-*` gerais. Roda na entrada e ao voltar à aba Conversas; tempo real, cache e revalidação não repetem a cena. A lista só desliza (`admin-motion-back`) ao fechar uma conversa.
