@@ -143,6 +143,37 @@ body.admin-scroll-fix {
   transform-origin: bottom right;
 }
 
+/* Chat: entrada na tela (pedido do dono, 2026-10-12) — a tela troca nítida e só as linhas que cabem na tela dão um
+   "pulinho" em cascata, de cima para baixo, com um leve quique; a cena inteira dura --mm-motion-cascade-total
+   ("deve levar 3 segundos"). WhatsappChat marca as linhas visíveis (data-hop + --hop = posição) e calcula
+   --mm-motion-row-stagger = (total − pulinho) ÷ (linhas − 1), entre 60 e 600 ms. [data-chat-enter] só existe na
+   entrada e ao voltar para a aba Conversas: atualizações da lista não repetem a cena. Variáveis próprias,
+   independentes das --mm-motion-* gerais. */
+:root {
+  --mm-motion-cascade-total: 3000ms; /* da 1ª linha começar a pular até a última assentar */
+  --mm-motion-row: 800ms;            /* duração de cada pulinho */
+  --mm-motion-row-stagger: 240ms;    /* valor de reserva; o Chat recalcula pelo nº de linhas visíveis */
+}
+
+@keyframes chat-row-hop {
+  0% { opacity: 0; transform: translateY(16px); }
+  25% { opacity: 1; }
+  55% { transform: translateY(-4px); }
+  78% { transform: translateY(1px); }
+  100% { opacity: 1; transform: none; }
+}
+
+[data-chat-enter] [data-chat-rows] > [data-hop] {
+  animation: chat-row-hop var(--mm-motion-row) cubic-bezier(0.33, 1, 0.68, 1) backwards;
+  animation-delay: calc(var(--hop, 0) * var(--mm-motion-row-stagger));
+}
+
+/* O banner do ranking e o rodapé nunca aparecem com o Chat, nem no 1º quadro antes de html.chat-app-mode. */
+body:has(.chat-app-root) .admin-ranking-header,
+body:has(.chat-app-root) .admin-page-footer {
+  display: none;
+}
+
 /* Chat: menu de ações da mensagem. No computador o painel desliza (translate não altera a largura e a
    altura que o menu mede para caber na tela); no celular a pilha de ações cresce do toque (lá a medida
    usa offsetHeight, que ignora transform). O fundo com desfoque NÃO anima. */
@@ -179,7 +210,8 @@ body.admin-scroll-fix main :is(button, a[href]):not(:disabled):active {
   .admin-nav-current,
   [data-chat-wallpaper],
   [data-chat-wallpaper] > :last-child > :is([data-message-id], [data-internal-message]),
-  [data-message-actions] > [role="menu"] {
+  [data-message-actions] > [role="menu"],
+  [data-chat-enter] [data-chat-rows] > [data-hop] {
     animation: none;
   }
 

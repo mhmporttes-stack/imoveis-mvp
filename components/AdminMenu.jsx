@@ -289,7 +289,9 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
       // O Chat em modo aplicativo tem as próprias cenas e uma moldura fixa (iPhone): não é animado aqui
       // — transform num ancestral do Chat prenderia os elementos "fixos" dele à caixa durante a cena.
       const rootStyle = getComputedStyle(document.documentElement);
-      const duration = parseFloat(rootStyle.getPropertyValue("--mm-motion-screen")) || 3060;
+      // O CSS publicado vem minificado ("3060ms" vira "3.06s"): converte os dois formatos para milissegundos.
+      const rawDuration = rootStyle.getPropertyValue("--mm-motion-screen").trim();
+      const duration = (rawDuration.endsWith("ms") ? parseFloat(rawDuration) : parseFloat(rawDuration) * 1000) || 3060;
       const easing = rootStyle.getPropertyValue("--mm-motion-ease").trim() || "cubic-bezier(0.22, 1, 0.36, 1)";
       for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
         if (node.matches?.(".chat-app-root, .chat-app-ancestor") || node.querySelector?.(".chat-app-root")) continue;

@@ -19,7 +19,15 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Transições com o triplo da duração
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Entrada do Chat em cascata (pedido do dono)
+
+- **Antes:** ao entrar no Chat a lista inteira entrava "lavada" (fade/slide do cartão e da lista, ~2,3–2,7 s) e, por um quadro, o banner "Campeão da semana" aparecia sobre o Chat sem a moldura do modo aplicativo, e depois tudo pulava (o `html.chat-app-mode` era marcado num `useEffect`, depois da pintura).
+- **Agora:** a tela troca nítida; só as linhas de conversa que cabem na tela dão um "pulinho" em sequência (sobe 16 px com leve quique). A cascata inteira dura `--mm-motion-cascade-total` (3 s, pedido do dono), com o intervalo calculado pelo número de linhas visíveis (60–600 ms) e o pulinho em `--mm-motion-row` (800 ms). Variáveis próprias, separadas das `--mm-motion-*` gerais. Roda na entrada e ao voltar à aba Conversas; tempo real, cache e revalidação não repetem a cena. A lista só desliza (`admin-motion-back`) ao fechar uma conversa.
+- **Banner:** `useChatAppMode` virou `useLayoutEffect` + regra CSS `body:has(.chat-app-root)` esconde banner/rodapé desde o 1º quadro.
+- **Correção junto:** o CSS publicado é minificado (`3060ms` → `3.06s`) e o `AdminMenu` lia a variável com `parseFloat`, ou seja, 3 ms: a troca de tela não animava em produção. Agora converte s/ms.
+- Arquivos: `components/WhatsappChat.jsx`, `components/AdminMenu.jsx`, `app/globals.css`.
+
+### 2026-10-12 — Transições com o triplo da duração
 
 - Dono: "transições muito rápidas, triplique o tempo". Variáveis `--mm-motion-*` em `app/globals.css` multiplicadas por 3 (troca de tela/abrir conversa 1020 ms, voltar 900, abas/mensagem/nav 780, Sheet 900, fundo 720, menu 660); fallback em `components/AdminMenu.jsx`. Animações seguem só com transform/opacity e não bloqueiam toque nem navegação. Mesmo dia, "ainda muito rápido, triplique novamente": ×3 de novo (troca de tela 3060 ms, voltar 2700, abas/mensagem/nav 2340, Sheet 2700, fundo 2160, menu 1980).
 

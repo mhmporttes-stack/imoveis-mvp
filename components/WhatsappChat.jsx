@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
@@ -220,8 +220,18 @@ function formatPhone(phone) {
 
 // Modo aplicativo (pedido do dono, 2026-10-09): marca <html> e os ancestrais do Chat para o CSS (app/globals.css,
 // "Chat em modo aplicativo") fixar a tela na altura da janela — só a lista e as mensagens rolam por dentro.
+// "3000ms" no código vira "3s" no CSS publicado (minificador): converte os dois formatos para milissegundos.
+function cssTimeMs(value, fallback) {
+  const text = String(value || "").trim();
+  const number = parseFloat(text);
+  if (!Number.isFinite(number)) return fallback;
+  return text.endsWith("ms") ? number : text.endsWith("s") ? number * 1000 : number;
+}
+
+// useLayoutEffect (2026-10-12): marca antes da 1ª pintura — com useEffect aparecia um quadro com o banner do ranking
+// e a página fora da moldura, e depois tudo pulava para cima.
 function useChatAppMode(enabled, ref) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled || !ref.current) return undefined;
     const root = document.documentElement;
     const ancestors = [];
@@ -245,6 +255,18 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const view = cached?.view || null;
   const restoredId = !initialClientId && view?.selectedId && cached.details.has(view.selectedId) ? view.selectedId : "";
   const [tab, setTab] = useState(view?.tab || "conversations");
+  // Cena de entrada (pedido do dono, 2026-10-12): ao entrar no Chat e ao voltar para a aba Conversas, as linhas
+  // visíveis dão um "pulinho" em cascata (CSS [data-chat-enter], app/globals.css). Desliga sozinho depois da cascata,
+  // então atualizações da lista (tempo real, cache, revalidação) não repetem a cena. A lista só desliza de volta
+  // (admin-motion-back) quando o usuário fecha uma conversa — na entrada a tela troca nítida, sem fade geral.
+  const [rowsEnter, setRowsEnter] = useState(true);
+  const [listBack, setListBack] = useState(false);
+  const [sceneTab, setSceneTab] = useState(tab);
+  if (sceneTab !== tab) {
+    setSceneTab(tab);
+    setListBack(false);
+    if (tab === "conversations") setRowsEnter(true);
+  }
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
   const [contactWarning, setContactWarning] = useState("");
@@ -289,6 +311,37 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   const sectionRef = useRef(null);
   useChatAppMode(appMode, sectionRef);
+  // Cascata de entrada (dono: "deve levar 3 segundos"): marca só as linhas que cabem na tela (data-hop = posição),
+  // antes da pintura (depois de useChatAppMode montar a moldura), e calcula o intervalo para a cena inteira durar --mm-motion-cascade-total qualquer que seja o
+  // número de linhas visíveis. Linhas que chegarem depois (tempo real, revalidação) não são marcadas e não pulam.
+  // As que ainda não pularam ficam transparentes, mas tocar e rolar funcionam (só opacity/transform).
+  const sceneRef = useRef(null);
+  const hasRows = conversations.length > 0;
+  useLayoutEffect(() => {
+    if (!rowsEnter || !hasRows) return undefined;
+    const box = sceneRef.current;
+    const list = box?.querySelector("[data-chat-rows]");
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!box || !list || reduce) { setRowsEnter(false); return undefined; }
+    const style = getComputedStyle(box);
+    const total = cssTimeMs(style.getPropertyValue("--mm-motion-cascade-total"), 3000);
+    const hop = cssTimeMs(style.getPropertyValue("--mm-motion-row"), 800);
+    const bottom = list.getBoundingClientRect().bottom;
+    const rows = Array.from(list.children).filter((node) => node.tagName === "BUTTON");
+    const visible = [];
+    for (const row of rows) {
+      if (row.getBoundingClientRect().top >= bottom || visible.length >= 20) break;
+      visible.push(row);
+    }
+    const stagger = visible.length > 1 ? Math.min(600, Math.max(60, (total - hop) / (visible.length - 1))) : 0;
+    box.style.setProperty("--mm-motion-row-stagger", `${Math.round(stagger)}ms`);
+    visible.forEach((row, index) => { row.dataset.hop = ""; row.style.setProperty("--hop", String(index)); });
+    const timer = window.setTimeout(() => setRowsEnter(false), stagger * Math.max(0, visible.length - 1) + hop + 200);
+    return () => {
+      window.clearTimeout(timer);
+      visible.forEach((row) => { delete row.dataset.hop; row.style.removeProperty("--hop"); });
+    };
+  }, [rowsEnter, hasRows]);
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);
@@ -546,6 +599,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   }
 
   function closeConversation() {
+    setListBack(true);
     setInsertRequest(null);
     setSelectedId("");
     selectedRef.current = "";
@@ -633,10 +687,10 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         </div>
       ) : null}
 
-      <div className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : "admin-motion-enter"} ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
+      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : ""} ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
         <div className={`grid grid-cols-1 ${appMode ? "min-h-0 flex-1" : "h-[calc(100dvh-150px)] min-h-[520px]"} ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
-            className={selectedId ? "hidden lg:flex" : "admin-motion-back flex"}
+            className={selectedId ? "hidden lg:flex" : listBack ? "admin-motion-back flex" : "flex"}
             conversations={conversations}
             error={listError}
             filter={filter}
@@ -810,7 +864,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {clientStatus === "archived" ? <p className="text-xs font-semibold text-muted">Conversas de clientes arquivados: só você vê, e só para leitura.</p> : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+      <div data-chat-rows className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
         {error ? <p className="m-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
         {loading && !conversations.length ? (
           <p className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p>
