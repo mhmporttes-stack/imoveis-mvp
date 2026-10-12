@@ -31,10 +31,10 @@
   .janela .barra { height:82px; border-bottom:2px solid #E3E0DA; display:flex; align-items:center; padding:0 26px; gap:14px; position:relative; }
   .janela .barra i { width:30px; height:30px; border-radius:50%; display:block; }
   .janela .barra b { position:absolute; left:0; right:0; text-align:center; font-size:32px; font-weight:700; }
-  .janela .corpo { padding:100px 60px 0; text-align:center; }
+  .janela .corpo { padding:150px 60px 0; text-align:center; }
   .janela h2 { font-size:74px; white-space:nowrap; }
   .janela p { font-size:40px; line-height:1.18; margin-top:22px; font-weight:500; }
-  .janela .grande { font-size:170px; margin-top:70px; white-space:nowrap; }
+  .janela .grande { font-size:170px; margin-top:110px; white-space:nowrap; }
   .janela p.forte { font-weight:800; margin-top:28px; }
 
   /* 3 - localização */
@@ -48,11 +48,11 @@
   /* 4 - lazer */
   .lazer .foto { position:absolute; left:0; right:0; top:0; height:560px; }
   .lazer .foto img { width:100%; height:100%; object-fit:cover; }
-  .lazer .txt { position:absolute; left:70px; right:70px; top:620px; }
-  .lazer h2 { font-size:92px; }
+  .lazer .txt { position:absolute; left:70px; right:70px; top:600px; }
+  .lazer h2 { font-size:84px; } .lazer h2 span { color:var(--azul); }
   .lazer h2 span { color:var(--azul); }
-  .lazer ul { list-style:none; padding:0; margin-top:36px; display:grid; grid-template-columns:1fr 1fr; gap:18px 40px; }
-  .lazer li { font-size:36px; font-weight:700; padding-left:34px; position:relative; }
+  .lazer ul { list-style:none; padding:0; margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:18px 40px; }
+  .lazer li { font-size:32px; font-weight:700; padding-left:34px; position:relative; }
   .lazer li::before { content:""; position:absolute; left:0; top:15px; width:16px; height:16px; border-radius:50%; background:var(--azul); }
 
   /* 5 e 6 - plantas (fundo azul) */
@@ -77,10 +77,28 @@
   .cta .l1 { font-size:46px; font-weight:500; }
   .cta .l2 { font-size:220px; color:var(--azul-claro); margin:6px 0 10px; }
   .cta .l3 { font-size:42px; font-weight:500; line-height:1.2; }
+
+  /* números */
+  .num .topo { padding:140px 70px 0; text-align:center; }
+  .num h2 { font-size:110px; }
+  .num h2 span { color:var(--azul); }
+  .num .grade { position:absolute; left:70px; right:70px; top:380px; display:grid; grid-template-columns:1fr 1fr; gap:34px; }
+  .num .card { background:#fff; border-radius:22px; padding:34px 30px; box-shadow:0 10px 30px rgba(14,26,51,.08); }
+  .num .card b { display:block; font-family:Anton, sans-serif; font-size:120px; line-height:1; color:var(--azul); }
+  .num .card span { font-size:34px; font-weight:700; }
+  .num .rod { position:absolute; left:70px; right:70px; bottom:170px; text-align:center; font-size:32px; color:#4A5568; }
+  .loc ul { list-style:none; padding:0; margin:22px auto 0; display:flex; flex-wrap:wrap; justify-content:center; gap:12px; max-width:900px; }
+  .loc li { background:var(--azul); color:#fff; font-weight:700; font-size:26px; padding:8px 20px; border-radius:999px; }
+  .planta .difs { position:absolute; left:90px; right:90px; bottom:120px; display:grid; grid-template-columns:1fr 1fr; gap:14px 34px; font-size:30px; font-weight:700; }
+  .planta .difs div { padding-left:30px; position:relative; }
+  .planta .difs div::before { content:"✓"; position:absolute; left:0; }
+  .tres figure { position:absolute; width:300px; background:#fff; padding:10px; border-radius:14px; }
+  .tres figure img { width:100%; display:block; border-radius:6px; }
+  .tres figcaption { text-align:center; color:var(--tinta); font-weight:800; font-size:26px; padding-top:8px; }
 </style></head>
 <body>
 
-<!-- 1 -->
+<!-- 1 capa -->
 <section class="lamina capa">
   <img class="cobre" src="img/fachada.png" alt="">
   <span class="degrade"></span>
@@ -93,73 +111,93 @@
   <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 2 -->
+<!-- 2 janela -->
 <section class="lamina azul">
   <div class="janela">
     <div class="barra"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><b>Nova Janela</b></div>
     <div class="corpo">
       <h2 class="cond">Por que eu ficaria de olho?</h2>
-      <p><b>Porque estamos falando do OSK Residence</b>, na região central de Marília, com vista para o vale e fácil acesso aos principais eixos da cidade.</p>
+      <p><b>Porque estamos falando do OSK Residence</b>, da Vitta Residencial, na região central de Marília e com vista para o vale.</p>
       <div class="cond grande">E o melhor:</div>
-      <p class="forte">apartamentos de 2 dormitórios, lazer completo e unidades com garden privativo.</p>
+      <p class="forte">2 dormitórios, lazer completo e unidades com garden privativo.</p>
     </div>
   </div>
   <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 3 -->
+<!-- 3 localização -->
 <section class="lamina papel loc">
   <div class="topo">
     <h2 class="cond">Centro de Marília<br>e perto de tudo</h2>
-    <p>O OSK fica na Rua Palmares, 266,<br>Bairro Barbosa, em Marília/SP.</p>
-    <p class="forte">Perto da Av. Sampaio Vidal, Av. Rio Branco,<br>Av. Santo Antônio e da Rod. João Ribeiro de Barros.</p>
-    <p>E você ainda está perto de tudo isso:</p>
+    <p>Rua Palmares, 266, Bairro Barbosa.</p>
+    <p class="forte">Fácil acesso às avenidas Sampaio Vidal,<br>Rio Branco e Santo Antônio e à Rod. João Ribeiro de Barros.</p>
+    <ul><li>Famema</li><li>HC Famema</li><li>Colégio Interação</li><li>Escola Orbe</li><li>Colégio Compacto</li></ul>
   </div>
   <div class="foto"><img src="img/aerea.jpg" alt=""></div>
   <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 4 -->
+<!-- 4 números -->
+<section class="lamina papel num">
+  <div class="topo"><h2 class="cond">O OSK em <span>números</span></h2></div>
+  <div class="grade">
+    <div class="card"><b>2</b><span>torres (térreo + 13<br>e térreo + 14)</span></div>
+    <div class="card"><b>230</b><span>apartamentos<br>de 2 dormitórios</span></div>
+    <div class="card"><b>2</b><span>elevadores<br>por torre</span></div>
+    <div class="card"><b>1</b><span>vaga de carro<br>por apartamento</span></div>
+  </div>
+  <div class="rod">Incorporação Vitta Residencial:<br>mais de 100 empreendimentos e 28 mil unidades entregues.</div>
+  <div class="seta escuro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 5 lazer -->
 <section class="lamina papel lazer">
   <div class="foto"><img src="img/piscina.jpg" alt=""></div>
   <div class="txt">
-    <h2 class="cond">E o melhor de tudo: <span>lazer completo</span> sem sair de casa</h2>
+    <h2 class="cond"><span>Lazer completo</span>, entregue equipado e decorado</h2>
     <ul>
       <li>Piscina adulto e infantil</li>
-      <li>Espaço fitness</li>
-      <li>Coworking</li>
+      <li>Fitness climatizado</li>
+      <li>Coworking climatizado</li>
       <li>Salão de festas</li>
       <li>Churrasqueira</li>
       <li>Espaço happy hour</li>
       <li>Play kids</li>
+      <li>Mercado Vitta</li>
       <li>Pet place e redário</li>
+      <li>Pomar e solarium</li>
     </ul>
   </div>
   <div class="seta escuro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 5 -->
+<!-- 6 planta -->
 <section class="lamina azul planta">
   <div class="sup">Se liga na planta do projeto:</div>
   <h2 class="cond">2 dormitórios<br>com sala integrada</h2>
-  <div class="etq">Planta de 55,32 m²</div>
-  <div class="img3d"><img src="img/planta-3d.jpg" alt=""></div>
-  <div class="rod">Sala, jantar e cozinha em conceito aberto,<br>com previsão para ar-condicionado no quarto de casal.</div>
-  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
-</section>
-
-<!-- 6 -->
-<section class="lamina azul planta">
-  <h2 class="cond" style="padding-top:120px">As plantas mais<br>disputadas:</h2>
-  <div class="duas">
-    <figure style="left:0; top:40px"><figcaption>55,32 m² + 22,34 m²</figcaption><img src="img/planta-garden-a.jpg" alt=""></figure>
-    <figure style="right:0; top:180px"><figcaption style="right:0">53,89 m² + 33,90 m²</figcaption><img src="img/planta-garden-b.jpg" alt=""></figure>
+  <div class="etq">Tipo 1: 55,32 m² · Tipo 2: 53,89 m²</div>
+  <div class="img3d" style="height:430px"><img src="img/planta-3d.jpg" alt=""></div>
+  <div class="difs">
+    <div>Sala, jantar e cozinha integrados</div>
+    <div>Infra para ar-condicionado no casal</div>
+    <div>Piso laminado na sala e quartos*</div>
+    <div>Porta de entrada com vedação acústica</div>
   </div>
-  <div class="rod">São 2 dormitórios com garden privativo,<br>poucas unidades para quem quer mais espaço.</div>
+  <div style="position:absolute;left:90px;bottom:80px;font-size:22px;opacity:.85">*Exceto nas unidades térreas. Imagens ilustrativas.</div>
   <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 7 -->
+<!-- 7 garden -->
+<section class="lamina azul planta tres">
+  <h2 class="cond" style="padding-top:110px">Só 10 unidades com<br>garden privativo</h2>
+  <figure style="left:60px; top:470px"><img src="img/planta-garden-a.jpg" alt=""><figcaption>55,32 + 22,34 m²</figcaption></figure>
+  <figure style="left:390px; top:540px"><img src="img/planta-garden-b.jpg" alt=""><figcaption>53,89 + 33,90 m²</figcaption></figure>
+  <figure style="left:720px; top:470px"><img src="img/planta-garden-c.jpg" alt=""><figcaption>55,32 + 27,56 m²</figcaption></figure>
+  <div class="rod">Garden entregue gramado, para quem quer<br>um quintal sem abrir mão do apartamento.</div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 8 CTA -->
 <section class="lamina cta">
   <img class="cobre fundo" src="img/fachada.png" alt="">
   <img class="pessoa" src="../../assets/boneco-3d/realista/celular.png" alt="">
