@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 // Tempo real das mensagens de supervisão — mesmo padrão do Chat
 // (components/useWhatsappChatSummary.js): assina um tópico de Broadcast do
@@ -21,9 +20,16 @@ export function useSupervisionRealtime(topic, onChange, { fallbackMs = 60000 } =
     };
 
     let channel = null;
-    const client = topic ? getSupabaseBrowserClient() : null;
-    if (client) {
-      channel = client.channel(topic).on("broadcast", { event: "changed" }, notify).subscribe();
+    let client = null;
+    let cancelled = false;
+    // Desempenho (2026-10-12): a biblioteca do Supabase só é baixada para abrir o canal — este hook roda em toda tela
+    // do painel e não deve pesar no carregamento inicial. Sem rede para baixar: fica o polling de segurança abaixo.
+    if (topic) {
+      import("@/lib/supabase-browser").then(({ getSupabaseBrowserClient }) => {
+        if (cancelled) return;
+        client = getSupabaseBrowserClient();
+        if (client) channel = client.channel(topic).on("broadcast", { event: "changed" }, notify).subscribe();
+      }).catch((error) => console.warn("Supervisão: canal em tempo real indisponível.", error?.message || error));
     }
 
     const onVisible = () => {
@@ -36,6 +42,7 @@ export function useSupervisionRealtime(topic, onChange, { fallbackMs = 60000 } =
     }, fallbackMs);
 
     return () => {
+      cancelled = true;
       if (debounceId) clearTimeout(debounceId);
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", onVisible);

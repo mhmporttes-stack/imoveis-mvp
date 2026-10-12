@@ -23,6 +23,16 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - `eb25e16`, `74afd94` (apresentação cabe numa tela) e `4f278fb` falharam ("Deployment has failed"). Causa: o `ignoreCommand` comparava com `VERCEL_GIT_PREVIOUS_SHA` (último deploy, `ac56e7d`), mas a Vercel clona só os últimos 10 commits; com 10 commits seguidos ignorados, esse SHA ficou fora da cópia e o `git diff` saía com erro. Agora `scripts/vercel-ignore-build.sh` (chamado pelo `vercel.json`) publica sempre que não consegue comparar.
 
+### 2026-10-12 — Chat e painel mais rápidos (pedido do dono)
+
+- **Medição (build de produção, JS baixado na abertura, gzip):** `/admin/chat` 261,5 → 181,7 KB (−31%); `/admin` 189,6 → 130,8; `/admin/simulacoes` 310 → 252; `/chat-app` 180,7 → 101,5; página inicial do site 121 → 62 KB.
+- **Causa 1 — biblioteca do Supabase (~52 KB gzip) em toda tela:** `AdminSessionKeeper` (em `AppChrome`, inclusive no site público), `AdminLogoutButton`, `useWhatsappChatSummary`, `useSupervisionRealtime` e `ClientDocumentsModal` a importavam no topo, mas só a usam para sair, upload ou abrir o canal em tempo real. Agora `import("@/lib/supabase-browser")` na hora do uso. O canal do Chat continua abrindo logo após a 1ª contagem (como antes); sem rede para baixar, fica o polling de 30 s.
+- **Causa 2 — código de abas/painéis que só abrem com um toque** (Visão geral, Campanhas, Corretores, Guia de Atendimento, Documentos do cliente) vinha junto com o Chat: agora `next/dynamic` em `components/WhatsappChat.jsx`.
+- **Causa 3 — abrir/atualizar uma conversa fazia ~15–18 consultas em fila** (`getChatConversation`, `lib/whatsapp-chat.js`): marcar vista, recibo interno, montagem da conversa, mensagens, estado de envio do WhatsApp pessoal e "simulação primeiro" agora rodam em paralelo (caminho crítico ~9 idas ao banco). Ordem que importa mantida: recibo "lida" antes de buscar as mensagens; o que lê `client_id` depois de `linkMissingClients`. Lista (`listChatConversations`): tiques e recibo "entregue" em paralelo com a montagem (−2 idas). Resultado e escopo por perfil idênticos.
+- **Ajuste:** o tempo real não refaz mais as buscas quando o app vai para segundo plano (só ao voltar).
+- **Recomendações não feitas (risco/decisão):** ver relatório da tarefa — atualização incremental da conversa aberta (hoje cada aviso em tempo real relê 100 mensagens), validação local do login sem ida ao Supabase Auth em cada chamada, virtualização da lista, índices (sem acesso de leitura ao banco nesta sessão para medir).
+- **Observação fora do escopo:** `tests/official-whatsapp-links.test.mjs` já falhava antes ("telefone do cliente: só dígitos"); a linha 22 deste arquivo tem o título "## Registro" fundido com a entrada de 2026-10-12 (texto corrompido antes desta tarefa).
+
 ### 2026-10-10 — Apresentação: cena "Próximo passo" encaixada no celular
 - **Data:** 2026-10-10
 - **Área:** Apresentação da simulação (PRES)

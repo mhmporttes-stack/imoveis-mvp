@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import {
   AlertCircle,
@@ -49,13 +50,8 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
-import AttendanceGuidePanel from "@/components/guide/AttendanceGuidePanel";
-import WhatsappChatBrokers from "@/components/WhatsappChatBrokers";
-import WhatsappChatCampaigns from "@/components/WhatsappChatCampaigns";
-import WhatsappChatOverview from "@/components/WhatsappChatOverview";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
-import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarning } from "@/lib/whatsapp-contact-warning.mjs";
 import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
@@ -65,6 +61,14 @@ import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
+
+// Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
+// Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
+const AttendanceGuidePanel = dynamic(() => import("@/components/guide/AttendanceGuidePanel"), { loading: () => null });
+const WhatsappChatBrokers = dynamic(() => import("@/components/WhatsappChatBrokers"), { loading: () => null });
+const WhatsappChatCampaigns = dynamic(() => import("@/components/WhatsappChatCampaigns"), { loading: () => null });
+const WhatsappChatOverview = dynamic(() => import("@/components/WhatsappChatOverview"), { loading: () => null });
+const ClientDocumentsModal = dynamic(() => import("@/components/ClientDocumentsModal"), { loading: () => null });
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
 

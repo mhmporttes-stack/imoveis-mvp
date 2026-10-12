@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const SESSION_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -38,6 +37,8 @@ export default function AdminSessionKeeper() {
           return;
         }
 
+        // Biblioteca do Supabase baixada só quando a sessão caiu (desempenho, 2026-10-12): este componente roda em todo o site.
+        const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser");
         await getSupabaseBrowserClient()?.auth.signOut();
 
         if (response.status === 403) {

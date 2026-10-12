@@ -17,7 +17,6 @@ import {
   Upload,
   X
 } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { DOCUMENT_TYPE_OPTIONS, CHECKLIST_STATUS_OPTIONS } from "@/lib/document-type-options";
 import { DOCUMENT_STATUS_LABELS, PERSON_ROLE_LABELS } from "@/lib/document-status-labels";
 import { pendingClientMessage, visibleDocumentDivergences } from "@/lib/document-policy.mjs";
@@ -156,6 +155,8 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       const createData = await createResponse.json().catch(() => ({}));
       if (!createResponse.ok) throw new Error(createData.error);
 
+      // Biblioteca do Supabase baixada só na hora do envio (desempenho, 2026-10-12).
+      const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser");
       const supabase = getSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase não configurado no navegador.");
 

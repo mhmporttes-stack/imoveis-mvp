@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 // Resumo do CHAT (não lidas) + canal de tempo real, COMPARTILHADO entre todos
 // os componentes da página (menu, badge, tela do Chat): uma única busca/canal,
@@ -65,6 +64,7 @@ function startStore() {
   store.started = true;
   let cancelled = false;
   let channel = null;
+  let realtimeClient = null;
   let debounce = null;
 
   function notify() {
@@ -76,24 +76,35 @@ function startStore() {
     }, 250);
   }
 
-  fetchSummary().then((data) => {
+  // Desempenho (2026-10-12): a biblioteca do Supabase (~50 KB compactados, só usada pelo canal em tempo real) é baixada
+  // DEPOIS da primeira contagem, sem atrasar o carregamento da tela — o canal já só abria depois dessa busca.
+  fetchSummary().then(async (data) => {
     if (cancelled || !data?.topic) return;
+    const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser");
     const client = getSupabaseBrowserClient();
-    if (!client) return;
+    if (cancelled || !client) return;
+    realtimeClient = client;
     channel = client.channel(data.topic).on("broadcast", { event: "changed" }, notify).subscribe();
+  }).catch((error) => {
+    // Sem rede para baixar a biblioteca: fica sem o canal em tempo real; o polling de 30 s abaixo segue atualizando.
+    console.warn("Chat: canal em tempo real indisponível.", error?.message || error);
   });
 
   const intervalId = setInterval(() => {
     if (document.visibilityState === "visible") notify();
   }, 30000);
-  document.addEventListener("visibilitychange", notify);
+  // Ao VOLTAR para o app atualiza na hora; ao sair (aba/app em segundo plano) não há o que buscar.
+  const onVisibility = () => {
+    if (document.visibilityState === "visible") notify();
+  };
+  document.addEventListener("visibilitychange", onVisibility);
 
   store.stop = () => {
     cancelled = true;
     clearTimeout(debounce);
     clearInterval(intervalId);
-    document.removeEventListener("visibilitychange", notify);
-    if (channel) getSupabaseBrowserClient()?.removeChannel(channel);
+    document.removeEventListener("visibilitychange", onVisibility);
+    if (channel) realtimeClient?.removeChannel(channel);
     store.started = false;
     store.stop = null;
   };
