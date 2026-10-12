@@ -28,6 +28,7 @@ Toda pessoa que aparecer numa lâmina da referência vira o **boneco 3D do Mathe
 | Calendário mês → mês | `lista` com itens `**Janeiro** → Início de março` |
 | "Comenta SCR que te envio o link" | `cta` + `icone: "message-circle"`; palavra-chave em `**…**` |
 | Mitos (referência de outro perfil, 2026-10-11): objeção entre aspas + "Mito" grande | `texto` + `centro` + `frase` (condensada) + `selo` ("Mito", serifa itálica) + `texto`/`texto2` + `fonte`; intro com `selo: "Será mesmo?"` + `seloBranco`; fecho condensado em `fecho` |
+| Capa com título grande no topo + etiqueta ("eu faria isso") + pessoa grande embaixo, centralizado | `capa` + `bonecoCentral: "<pose>"` + `chamada` + `tituloCondensado` + `etiqueta` (aprovado pelo dono em 2026-10-12: manter o layout da referência na capa) |
 | Capa com a pessoa grande ao centro e título embaixo | `capa` + `fotoCentral` + `centro` + `tituloCondensado` |
 | Lâmina com o Matheus em pose/expressão (pensando, surpreso, joinha, celular…) | `"boneco": "<pose>"` — boneco 3D dele em `assets/boneco-3d/` (2026-10-11) |
 | Gráfico comparativo (SAC x PRICE) | ainda não automatizado — fazer como imagem (`imagem`) ou descrever em lista |

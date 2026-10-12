@@ -1,11 +1,12 @@
 {
  "laminas": [
   {
-   "tipo": "editorial",
-   "boneco": "pensando",
-   "rotulo": "Se meu financiamento",
-   "titulo": "fosse *reprovado*, eu faria isso",
-   "texto": "Arrasta pro lado →"
+   "tipo": "capa",
+   "bonecoCentral": "pensando",
+   "chamada": "Se meu financiamento",
+   "tituloCondensado": true,
+   "titulo": "fosse **reprovado**",
+   "etiqueta": "eu faria isso"
   },
   {
    "tipo": "editorial",

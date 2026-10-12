@@ -137,7 +137,7 @@ function editorialBody(l) {
 function slideBody(l) {
   if (l.tipo === "mito" || l.tipo === "editorial") return editorialBody(l);
   switch (l.tipo) {
-    case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${l.tituloCondensado ? `<h1 class="cover condensada">${rich(l.titulo)}</h1>` : tituloHtml(l, "h1", "cover")}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
+    case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${l.tituloCondensado ? `<h1 class="cover condensada">${rich(l.titulo)}</h1>` : tituloHtml(l, "h1", "cover")}${l.etiqueta ? `<span class="etiqueta">${rich(l.etiqueta)}</span>` : ""}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
     case "lista": return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${tituloHtml(l)}${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}<ul>${(l.itens || []).map(itemHtml).join("")}</ul>${notaHtml(l)}`;
     // Aspas grandes na cor da marca (modelo do dono): "texto" é a frase; "titulo" opcional abaixo dela.
     case "citacao": return `<span class="aspas">“</span><p class="quote${l.tituloLeve ? " leve" : ""}">${rich(l.texto)}</p>${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}${l.autor ? `<p class="author">— ${esc(l.autor)}</p>` : ""}${notaHtml(l)}`;
@@ -246,6 +246,14 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .pill { display:inline-block; align-self:flex-start; margin-top:48px; background:var(--brand); color:#fff; border-radius:999px; padding:22px 48px; font-size:36px; font-weight:700; }
   .frame.editorial .fonte { margin-top:48px; }
   .frame.com-recorte.editorial > *:not(.recorte):not(.footer) { max-width:58%; }
+  /* Capa no estilo "título no topo + pessoa grande embaixo" com o boneco: "bonecoCentral": "<pose>" (2026-10-12). */
+  .frame.boneco-central { justify-content:flex-start; align-items:center; text-align:center; padding-top:120px; }
+  .frame.boneco-central > *:not(.boneco-central-img):not(.degrade-base):not(.footer) { position:relative; z-index:1; }
+  .boneco-central-img { position:absolute; left:50%; transform:translateX(-50%); bottom:0; height:71%; z-index:0; filter:drop-shadow(0 0 60px rgba(59,139,255,.22)); }
+  .degrade-base { position:absolute; left:0; right:0; bottom:0; height:260px; background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.85)); z-index:1; }
+  .frame.boneco-central .kicker { font-family:Anton, Inter, sans-serif; font-weight:400; font-size:76px; line-height:1; letter-spacing:.01em; color:#fff; margin:0 0 6px; }
+  .frame.boneco-central h1.condensada { font-size:132px; line-height:.95; white-space:nowrap; }
+  .etiqueta { display:inline-block; margin-top:14px; background:var(--brand); color:#fff; font-weight:700; font-size:58px; line-height:1.1; padding:10px 38px 14px; transform:rotate(-2deg); box-shadow:0 10px 30px rgba(0,0,0,.4); }
   .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
   .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
@@ -254,8 +262,9 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .user { display:flex; align-items:center; gap:8px; font-size:30px; font-weight:700; }
   .badge { width:26px; height:26px; }
   .sub { font-size:22px; color:var(--muted); }
-</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.textoTopo ? " topo" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
+</style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.textoTopo ? " topo" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.bonecoCentral ? " boneco-central" : ""}${l.centro ? " centro" : ""}">
   ${l.comFoto && recorte ? `<img class="recorte${l.boneco ? ` boneco${String(l.boneco).startsWith("corpo-inteiro/") ? " inteiro" : ""}` : l.comFoto === "apontando" ? " apontando" : ""}" src="${recorteDa(l)}" alt="">` : ""}
+  ${l.bonecoCentral ? `<img class="boneco-central-img" src="${asDataUrl(`docs/posicionamento/assets/boneco-3d/${l.bonecoCentral}.png`)}" alt=""><span class="degrade-base"></span>` : ""}
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
