@@ -47,7 +47,7 @@ const TELAS = {
     active: "simulations",
     rotas: clientes.routes,
     render: (perfil) => (
-      <main className="bg-mist py-14">
+      <main className="bg-mist pb-14 pt-3 md:pt-14">
         <ClientWorkspace {...clientes.propsFor(perfil)} />
       </main>
     )

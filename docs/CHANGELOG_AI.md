@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Pulo maior na cascata do Chat; troca de tela nítida desde o início
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes sem os 4 cards "Para agir agora"
+
+- Dono: "remova esses 4 cards (não os utilizo), deixe Clientes mais pra cima". Removidos para TODOS os perfis (decisão do dono) os cards Pendentes / Novos atendimentos / Aguardando simulação / Respostas da prospecção (`FocusStrip`, `components/clients/ClientWorkspace.jsx`). O painel "Respostas da prospecção" continua abrindo por `?prospectingReplies=1` (menu de pendências e push) e os filtros continuam existindo na lista/URL. Topo da página no celular: `py-14` → `pt-3` (`app/admin/simulacoes/page.jsx`; desktop mantém 56 px).
+
+### 2026-10-12 — Pulo maior na cascata do Chat; troca de tela nítida desde o início
 
 - Dono: "pulo dos cards poderia ser um pouco maior" → `@keyframes chat-row-hop` sobe de 30 px e passa 11 px do lugar antes de assentar (antes 16/4). "Clientes está demorando mais para abrir": desde `addc3de` a troca de tela anima de verdade e o fade de opacidade durava o segundo inteiro, então a tela parecia carregar; agora a opacidade completa em 20% da cena (`components/AdminMenu.jsx`) e só o deslize continua até 1 s.
 

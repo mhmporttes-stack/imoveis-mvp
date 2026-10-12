@@ -122,8 +122,9 @@ export default function ClientWorkspace(props) {
         </div>
       </header>
 
-      {/* 2. Para agir agora */}
-      <FocusStrip list={list} badgeCounts={badgeCounts} onOpenReplies={() => setRepliesOpen(true)} />
+      {/* Os 4 cards "Para agir agora" (Pendentes, Novos atendimentos, Aguardando simulação, Respostas da prospecção)
+          foram removidos para todos os perfis a pedido do dono (2026-10-12: "não os utilizo"). O painel de respostas
+          da prospecção continua abrindo pelo link ?prospectingReplies=1 (menu de pendências e push). */}
       <ProspectingRepliesPanel
         open={repliesOpen}
         onClose={() => setRepliesOpen(false)}
@@ -271,97 +272,6 @@ export default function ClientWorkspace(props) {
 }
 
 const SHORTCUT = "relative inline-flex h-touch w-touch items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-navy/[0.06] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
-
-// "Para agir agora": atalhos para os recortes que pedem ação. Cada um aplica
-// o mesmo filtro de servidor que já existia (pendentes, novos atendimentos,
-// aguardando simulação).
-function FocusStrip({ list, badgeCounts, onOpenReplies }) {
-  const { filters } = list;
-  const items = [
-    {
-      key: "pending",
-      label: "Pendentes",
-      hint: "sem contato há +3 dias e sem atividade",
-      count: list.pendingClientsCount,
-      tone: "danger",
-      active: filters.pendingOnly,
-      onClick: () => list.updateFilters({ pendingOnly: !filters.pendingOnly, statusGroup: "all", status: "all", needsFirstContact: false })
-    },
-    {
-      key: "first-contact",
-      label: "Novos atendimentos",
-      hint: "esperando o primeiro contato",
-      count: badgeCounts.newAttendances || 0,
-      tone: "warning",
-      active: filters.needsFirstContact,
-      onClick: () => list.updateFilters({ needsFirstContact: !filters.needsFirstContact, pendingOnly: false, statusGroup: "all", status: "all" })
-    },
-    {
-      key: "awaiting-simulation",
-      label: "Aguardando simulação",
-      hint: "preencheram o formulário",
-      count: badgeCounts.awaitingSimulation || 0,
-      tone: "info",
-      active: filters.status === CLIENT_STATUS.PENDING,
-      onClick: () => list.updateFilters(filters.status === CLIENT_STATUS.PENDING
-        ? { statusGroup: "all", status: "all" }
-        : { statusGroup: "simulation", status: CLIENT_STATUS.PENDING, pendingOnly: false, needsFirstContact: false })
-    },
-    // Só aparece quando há resposta aguardando classificação (pedido do dono,
-    // 2026-10-02) — abre o painel em vez de filtrar a lista.
-    ...(badgeCounts.prospectingReplies ? [{
-      key: "prospecting-replies",
-      label: "Respostas da prospecção",
-      hint: "responderam e aguardam status",
-      count: badgeCounts.prospectingReplies,
-      tone: "warning",
-      active: false,
-      onClick: onOpenReplies
-    }] : [])
-  ];
-  const dot = { danger: "bg-danger-strong", warning: "bg-warning-strong", info: "bg-info-strong" };
-  // Celular: contador > 0 ganha um tom suave de borda/fundo (desktop inalterado).
-  const tint = {
-    danger: "max-sm:border-danger-line max-sm:bg-danger-soft/60",
-    warning: "max-sm:border-warning-line max-sm:bg-warning-soft/60",
-    info: "max-sm:border-info-line max-sm:bg-info-soft/60"
-  };
-
-  return (
-    <div className="mt-4 sm:mt-5">
-      <h2 className="sr-only">Para agir agora</h2>
-      {/* Celular: os cards lado a lado, sem rolagem horizontal (2×2 quando
-          aparece o 4º card, "Respostas da prospecção"). */}
-      <ul className={cx("grid gap-1.5 sm:gap-3", items.length > 3 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}>
-        {items.map((item) => (
-          <li key={item.key} className="min-w-0">
-            <button
-              type="button"
-              onClick={item.onClick}
-              aria-pressed={item.active}
-              className={cx(
-                "flex h-full w-full flex-col items-center gap-0.5 rounded-card border px-1.5 py-2 text-center transition-colors duration-150 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3 sm:text-left",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
-                item.active ? "border-navy bg-navy text-white" : cx("border-line bg-white hover:border-navy/25", item.count ? tint[item.tone] : "")
-              )}
-            >
-              <span className={cx("text-[22px] font-bold leading-none tracking-[-0.02em] tabular-nums sm:text-[28px]", item.active ? "text-white" : item.count ? "text-navy" : "text-faint")}>
-                {item.count}
-              </span>
-              <span className="min-w-0">
-                <span className="flex items-center justify-center gap-1.5 text-[11px] font-semibold leading-[1.15] sm:justify-start sm:whitespace-nowrap sm:text-sm sm:leading-normal">
-                  {item.count && !item.active ? <span className={cx("hidden h-2 w-2 shrink-0 rounded-full sm:block", dot[item.tone])} aria-hidden="true" /> : null}
-                  {item.label}
-                </span>
-                <span className={cx("hidden truncate text-xs sm:block", item.active ? "text-white/75" : "text-muted")}>{item.hint}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 // Funil da carteira: cada etapa mostra quantos clientes estão nela e uma
 // barra proporcional — a lista inteira vira um mapa do funil.

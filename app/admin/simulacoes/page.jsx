@@ -86,7 +86,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
   }
 
   return (
-    <main className="bg-mist py-14">
+    <main className="bg-mist pb-14 pt-3 md:pt-14">
       <AdminSectionNav active="simulations" />
       {!initialData ? (
         <SimulationError error={loadError} />
