@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, downloadMediaMessage, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, fetchLatestBaileysVersion, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -8,6 +8,7 @@ import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, 
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
+import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
 
@@ -385,7 +386,9 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     // pessoais do corretor — ver onHistorySync). PAUSADO por ora — ver
     // HISTORY_SYNC_ENABLED acima.
     syncFullHistory: fullHistory,
-    shouldSyncHistoryMessage: () => wantsHistory,
+    // ON_DEMAND ("Carregar mensagens anteriores do celular", 2026-10-12) é sempre processado: só chega quando o Chat
+    // pede, e com a variável desligada o Baileys descartava a resposta antes de qualquer evento.
+    shouldSyncHistoryMessage: (notification) => wantsHistory || Number(notification?.syncType) === HISTORY_SYNC_ON_DEMAND,
     // Pareamento por código exige uma identificação de navegador que o
     // WhatsApp reconheça (o nome personalizado fazia o pedido de código
     // terminar em "Connection Closed"); sessões por QR seguem como antes.
@@ -417,14 +420,14 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
-  if (wantsHistory) {
-    sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType }) => {
-      // Aprende LID -> telefone dos contatos e conversas do próprio histórico ANTES das mensagens (2026-10-11).
-      rememberLidsFromContacts(userId, contacts);
-      rememberLidsFromContacts(userId, (chats || []).map((chat) => ({ id: chat?.id, lid: chat?.lidJid, jid: chat?.pnJid })));
-      return onHistorySync(userId, messages, { syncType, chats });
-    });
-  }
+  sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType, peerDataRequestSessionId }) => {
+    // Histórico do pareamento só com a variável ligada; ON_DEMAND (botão do Chat) sempre.
+    if (!wantsHistory && Number(syncType) !== HISTORY_SYNC_ON_DEMAND) return;
+    // Aprende LID -> telefone dos contatos e conversas do próprio histórico ANTES das mensagens (2026-10-11).
+    rememberLidsFromContacts(userId, contacts);
+    rememberLidsFromContacts(userId, (chats || []).map((chat) => ({ id: chat?.id, lid: chat?.lidJid, jid: chat?.pnJid })));
+    return onHistorySync(userId, messages, { syncType, chats, peerDataRequestSessionId });
+  });
 
   // Variantes BR com e sem o 9 extra do celular: "5514999990000" <-> "551499990000".
 function brazilPhoneVariants(digits) {
@@ -574,6 +577,7 @@ async function onConnectionUpdate(userId, entry, sock, update) {
 async function onMessagesUpsert(userId, messages, type) {
   for (const msg of messages || []) {
     try { rememberLid(userId, lidMappingFromMessage(msg)); } catch { /* ignora */ }
+    try { recordHistoryProtocol(userId, msg); } catch { /* diagnóstico nunca atrapalha */ }
   }
   const now = Date.now();
   const historyItems = [];
@@ -693,6 +697,8 @@ async function onMessagesUpdate(userId, updates) {
   for (const { key, update } of updates || []) {
     try {
       if (!key?.fromMe || !key?.id) continue;
+      // Recibo do PRÓPRIO pedido de mensagens anteriores (o celular recebeu o pedido): só diagnóstico, nunca vai ao Chat.
+      if (onDemandRequests.isPending(userId, key.id)) { recordOnDemandAck(userId, key.id, update?.status); continue; }
       const label = statusLabelFor(update?.status);
       if (!label) continue;
       await notifyMessageStatus(userId, { waMessageId: key.id, status: label });
@@ -716,8 +722,6 @@ const HISTORY_BATCH_SIZE = 25;
 const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const HISTORY_MEDIA_KINDS = new Set(["image", "audio"]);
 const HISTORY_MAX_MEDIA = 200;
-const HISTORY_SYNC_ON_DEMAND = 6; // proto.HistorySync.HistorySyncType.ON_DEMAND
-const ON_DEMAND_MAX_COUNT = 50;
 
 function messageTimestampMs(msg) {
   return messageTimestampSeconds(msg) * 1000;
@@ -730,11 +734,16 @@ async function onHistorySync(userId, messages, meta = {}) {
   }
   // Pedido manual de mensagens anteriores de UMA conversa (ON_DEMAND = 6, botão do Chat): o corretor/dono pediu
   // justamente o que é mais antigo — sem a janela da última semana.
-  const onDemand = meta.syncType === HISTORY_SYNC_ON_DEMAND;
+  const onDemand = Number(meta.syncType) === HISTORY_SYNC_ON_DEMAND;
   const cutoff = onDemand ? 0 : Date.now() - HISTORY_WINDOW_MS;
-  const counts = { old: 0, noTs: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0 };
+  const request = onDemand ? onDemandRequests.match(userId, String(meta.peerDataRequestSessionId || "")) : null;
+  // ON_DEMAND traz também vídeo (pedido do dono, 2026-10-12; até 16 MB cada, até 10 por resposta). O histórico do
+  // pareamento continua só com foto e áudio.
+  const mediaKinds = onDemand ? ON_DEMAND_MEDIA_KINDS_SET : HISTORY_MEDIA_KINDS;
+  const counts = { old: 0, noTs: 0, skipped: 0, groups: 0, items: 0, sent: 0, failed: 0, videos: 0 };
   let pending = [];
   let mediaCount = 0;
+  if (request) onDemandRequests.beginChunk(request);
   // Envia ao CRM AOS POUCOS (2026-10-11): antes só mandava depois de baixar TODAS as fotos/áudios do lote — um lote grande
   // ficava minutos sem aparecer nada no Chat.
   const flush = async () => {
@@ -743,8 +752,10 @@ async function onHistorySync(userId, messages, meta = {}) {
     pending = [];
     try {
       const result = await notifyHistoryBatch(userId, batch);
-      if (result) counts.sent += 1;
-      else counts.failed += 1;
+      if (result) {
+        counts.sent += 1;
+        if (request) onDemandRequests.addDelivered(request, batch.length);
+      } else counts.failed += 1;
     } catch (error) {
       counts.failed += 1;
       console.error(`[${userId}] Falha ao enviar lote de histórico:`, error.message);
@@ -762,12 +773,17 @@ async function onHistorySync(userId, messages, meta = {}) {
       if (event?.group) { counts.groups += 1; continue; }
       if (!event || event.kind !== "message") { counts.skipped += 1; continue; }
       if (event.media) {
-        // Só foto e áudio. Outros tipos entram apenas se tiverem legenda (como texto).
-        if (!HISTORY_MEDIA_KINDS.has(event.media.kind) || mediaCount >= HISTORY_MAX_MEDIA) {
+        // Pareamento: só foto e áudio; ON_DEMAND: também vídeo, com limite. Outros tipos entram apenas se tiverem
+        // legenda (como texto).
+        const isVideo = event.media.kind === "video" || event.media.kind === "gif";
+        const overVideoLimit = isVideo && counts.videos >= ON_DEMAND_MAX_VIDEOS;
+        if (!mediaKinds.has(event.media.kind) || mediaCount >= HISTORY_MAX_MEDIA || overVideoLimit) {
           if (!event.text) { counts.skipped += 1; continue; }
           event.media = null;
         } else {
           mediaCount += 1;
+          if (isVideo) counts.videos += 1;
+          // storeIncomingMedia recusa acima de 16 MB (a mensagem chega com o motivo, sem o arquivo).
           event.media = { ...event.media, ...(await storeIncomingMedia(userId, msg, event)) };
         }
       }
@@ -787,8 +803,66 @@ async function onHistorySync(userId, messages, meta = {}) {
     maxRetries: counts.sent,
     statusCode: counts.failed,
     delayMs: Date.now() - startedAt,
-    detail: `old${counts.old}_nots${counts.noTs}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`
+    detail: `old${counts.old}_nots${counts.noTs}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`,
+    ...(onDemand ? { cycleId: request?.requestId || "", kind: request ? "matched" : "unmatched", trigger: `vid${counts.videos}` } : {})
   });
+  if (request) {
+    onDemandRequests.recordChunk(request, {
+      messages: messages || [],
+      videos: counts.videos,
+      timestampSecondsOf: messageTimestampSeconds,
+      chatJidOf: (msg) => String(msg?.key?.remoteJid || "")
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Diagnóstico do ON_DEMAND (2026-10-12): telemetria `history_sync` sem conteúdo nem telefone, com o id do pedido em
+// cycleId para ligar pedido -> recibo do celular -> notificação -> lote gravado.
+//   reason req_sent / req_failed / req_ack_<status> / pdo_resp / notif_<syncType>
+// ---------------------------------------------------------------------------
+const onDemandRequests = createOnDemandRegistry();
+const ON_DEMAND_MEDIA_KINDS_SET = new Set(ON_DEMAND_MEDIA_KINDS);
+
+function recordHistoryProtocol(userId, msg) {
+  const info = classifyHistoryProtocol(msg);
+  if (!info) return;
+  if (info.kind === "notification") {
+    const request = info.syncType === HISTORY_SYNC_ON_DEMAND ? onDemandRequests.match(userId, info.sessionId) : null;
+    if (request) request.notifications += 1;
+    telemetry.record(userId, "history_sync", {
+      reason: `notif_${info.syncType}`,
+      cycleId: request?.requestId || "",
+      kind: info.syncType === HISTORY_SYNC_ON_DEMAND ? (request ? "matched" : "unmatched") : "",
+      attempt: info.chunkOrder,
+      detail: `proc${wantsOnDemandOrHistory(info.syncType) ? 1 : 0}`
+    });
+    return;
+  }
+  const request = onDemandRequests.match(userId, info.sessionId);
+  if (request) {
+    request.pdoResponses += 1;
+    if (info.responseCode !== null) request.pdoCode = info.responseCode;
+  }
+  telemetry.record(userId, "history_sync", {
+    reason: "pdo_resp",
+    cycleId: request?.requestId || "",
+    kind: request ? "matched" : "unmatched",
+    statusCode: info.requestType,
+    attempt: info.results,
+    detail: info.responseCode === null ? "nocode" : `code${info.responseCode}`
+  });
+}
+
+function wantsOnDemandOrHistory(syncType) {
+  return HISTORY_SYNC_ENABLED || Number(syncType) === HISTORY_SYNC_ON_DEMAND;
+}
+
+function recordOnDemandAck(userId, requestId, status) {
+  const request = onDemandRequests.get(userId, requestId);
+  if (!request || request.ackStatus === status) return;
+  request.ackStatus = Number(status) || null;
+  telemetry.record(userId, "history_sync", { reason: `req_ack_${Number(status) || 0}`, cycleId: requestId, delayMs: Date.now() - request.sentAt });
 }
 
 export function getLiveSessionStatus(userId) {
@@ -906,17 +980,55 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
 }
 
 // "Carregar mensagens anteriores" (pedido do dono, 2026-10-11): pede ao CELULAR do corretor as mensagens desta conversa
-// mais antigas que `oldest` (a mais antiga que o CRM tem). Não envia nada ao contato — é um pedido do aparelho vinculado
-// ao próprio celular. A resposta chega depois, como histórico ON_DEMAND (onHistorySync), e o CRM grava sem duplicar.
-export async function requestOlderHistory(userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count }) {
-  const sock = connectedSocket(userId);
-  const jid = /^\d{5,30}@(s\.whatsapp\.net|lid)$/.test(String(remoteJid || "")) ? String(remoteJid) : jidFor(to);
-  const id = String(oldestId || "").trim();
-  const timestampMs = Number(oldestTimestampMs);
-  if (!id || !Number.isFinite(timestampMs) || timestampMs <= 0) throw new Error("Mensagem de referência inválida.");
-  const total = Math.min(Math.max(Number(count) || ON_DEMAND_MAX_COUNT, 1), ON_DEMAND_MAX_COUNT);
-  await sock.fetchMessageHistory(total, { remoteJid: jid, id, fromMe: Boolean(oldestFromMe) }, timestampMs);
-  return { requested: true, count: total };
+// mais antigas que a referência. Não envia nada ao contato — é um pedido do aparelho vinculado ao próprio celular. A
+// resposta chega depois, como histórico ON_DEMAND (onHistorySync), e o CRM grava sem duplicar.
+// 2026-10-12: pedido montado em history-on-demand.js (horário em SEGUNDOS + atributos do WhatsApp) — o
+// fetchMessageHistory do Baileys 6.7.24 mandava em ms e o celular nunca respondia. `continueFrom` = id do pedido
+// anterior: usa como referência a mensagem mais antiga que o celular devolveu nele (rodadas até cobrir 15 dias).
+export async function requestOlderHistory(userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count, continueFrom }) {
+  let failure = "send_error";
+  try {
+    const sock = connectedSocket(userId);
+    let jid = /^\d{5,30}@(s\.whatsapp\.net|lid)$/.test(String(remoteJid || "")) ? String(remoteJid) : jidFor(to);
+    let reference = { id: oldestId, fromMe: oldestFromMe, timestamp: oldestTimestampMs };
+    if (continueFrom) {
+      const previous = onDemandRequests.get(userId, String(continueFrom));
+      // Só continua um pedido DESTA conversa (mesmo contato) que já trouxe uma mensagem de referência.
+      if (!previous || previous.to !== String(to || "") || !previous.oldest) {
+        failure = "no_anchor";
+        throw Object.assign(new Error("Não há uma mensagem anterior para continuar a busca."), { code: "NO_ANCHOR" });
+      }
+      jid = previous.oldest.chatJid || previous.chatJid;
+      reference = { id: previous.oldest.id, fromMe: previous.oldest.fromMe, timestamp: previous.oldest.seconds };
+    }
+    failure = "bad_ref";
+    const built = buildOnDemandRequest({ chatJid: jid, oldestId: reference.id, oldestFromMe: reference.fromMe, oldestTimestamp: reference.timestamp, count: count || ON_DEMAND_MAX_COUNT });
+    failure = "send_error";
+    const meJid = jidNormalizedUser(sock.authState?.creds?.me?.id || sock.user?.id || "");
+    if (!meJid) throw new Error("Sessão sem identificação do próprio número.");
+    const requestId = await sock.relayMessage(meJid, built.message, built.relayOptions);
+    onDemandRequests.start(userId, requestId, { to, chatJid: jid, count: built.count });
+    telemetry.record(userId, "history_sync", {
+      reason: "req_sent",
+      cycleId: requestId,
+      kind: jid.endsWith("@lid") ? "lid" : "pn",
+      trigger: continueFrom ? "continue" : "first",
+      attempt: built.count
+    });
+    return { requested: true, requestId, count: built.count };
+  } catch (error) {
+    telemetry.record(userId, "history_sync", {
+      reason: "req_failed",
+      detail: error?.code === "NOT_CONNECTED" ? "not_connected" : failure,
+      trigger: continueFrom ? "continue" : "first"
+    });
+    throw error;
+  }
+}
+
+// Andamento de um pedido (para a tela): contagens e o horário da mais antiga recebida — sem conteúdo nem telefone.
+export function getOlderHistoryStatus(userId, requestId) {
+  return onDemandRequests.status(userId, String(requestId || ""));
 }
 
 // Reação (emoji vazio remove a reação).

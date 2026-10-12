@@ -377,7 +377,9 @@ test("pareamento por código: número exato da conta (com/sem o 9) e aviso de n�
 test("histórico: login das sessões já pareadas nunca usa syncFullHistory; pareamento novo por QR usa navegador sem 'Mac OS'", () => {
   const sessions = readFileSync(new URL("../whatsapp-individual-service/src/sessions.js", import.meta.url), "utf8");
   assert.match(sessions, /const fullHistory = HISTORY_SYNC_ENABLED && !phoneNumber && !state\.creds\?\.me\?\.id;/);
-  assert.match(sessions, /syncFullHistory: fullHistory,\n\s*shouldSyncHistoryMessage: \(\) => wantsHistory,/);
+  // 2026-10-12: ON_DEMAND (botão do Chat) também é aceito; os demais tipos (inclusive o RECENT que o Baileys consulta
+  // ao conectar) continuam dependendo só de wantsHistory — o login não muda.
+  assert.match(sessions, /syncFullHistory: fullHistory,\n(\s*\/\/.*\n)*\s*shouldSyncHistoryMessage: \(notification\) => wantsHistory \|\| Number\(notification\?\.syncType\) === HISTORY_SYNC_ON_DEMAND,/);
   assert.match(sessions, /const wantsHistory = HISTORY_SYNC_ENABLED;/);
   assert.match(sessions, /browser: fullHistory\n\s*\? \["CRM Imoveis", "Desktop", "1\.0"\]/);
   assert.doesNotMatch(sessions, /syncFullHistory: HISTORY_SYNC_ENABLED/);

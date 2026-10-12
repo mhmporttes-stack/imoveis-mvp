@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -182,12 +182,18 @@ app.post("/sessions/:userId/delete", async (req, res) => {
 // Mensagens anteriores de uma conversa, pedidas ao celular (2026-10-11). Resposta chega pelo histórico.
 app.post("/sessions/:userId/history", async (req, res) => {
   try {
-    const { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count } = req.body || {};
-    if (!to || !oldestId || !oldestTimestampMs) return res.status(400).json({ error: "Informe 'to', 'oldestId' e 'oldestTimestampMs'." });
-    res.json(await requestOlderHistory(req.params.userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count }));
+    const { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count, continueFrom } = req.body || {};
+    if (!to || (!continueFrom && (!oldestId || !oldestTimestampMs))) return res.status(400).json({ error: "Informe 'to' e a mensagem de referência ('oldestId'/'oldestTimestampMs') ou 'continueFrom'." });
+    res.json(await requestOlderHistory(req.params.userId, { to, remoteJid, oldestId, oldestFromMe, oldestTimestampMs, count, continueFrom }));
   } catch (error) {
+    if (error?.code === "NO_ANCHOR") return res.status(400).json({ error: error.message });
     sendError(res, error);
   }
+});
+
+// Andamento de um pedido de mensagens anteriores (2026-10-12): só contagens e horários, nunca conteúdo.
+app.get("/sessions/:userId/history/:requestId", (req, res) => {
+  res.json(getOlderHistoryStatus(req.params.userId, req.params.requestId));
 });
 
 // Online / visto por último do contato (só leitura, 2026-10-09).

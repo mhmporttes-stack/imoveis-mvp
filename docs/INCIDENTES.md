@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — "Carregar mensagens anteriores do celular" nunca funciona
+- **Data:** 2026-10-12
+- **Sintoma:** toca no botão do Chat e nenhuma mensagem antiga chega; telemetria sem nenhum `sync_6`.
+- **Área:** WhatsApp
+- **Impacto:** todos os corretores com WhatsApp pessoal; só a importação de mensagens antigas (nada enviado a contatos).
+- **Causa raiz (provável, A CONFIRMAR no 1º teste):** pedido ON_DEMAND do Baileys 6.7.24 (`fetchMessageHistory`) recebia o horário da referência em ms; o celular espera segundos. Faltavam também `privacy_sensitive`/`meta appdata` que o WhatsApp usa nesse pedido.
+- **Correção:** pedido próprio via `relayMessage` (segundos + atributos), ON_DEMAND sempre processado, telemetria por etapa (`req_sent` → `req_ack_*` → `notif_6`/`pdo_resp` → `sync_6`, ligadas por `cycle_id`), rodadas até 15 dias com estado real na tela, vídeo no ON_DEMAND.
+- **Arquivos/commit:** `whatsapp-individual-service/src/history-on-demand.js`, `src/sessions.js`, `lib/whatsapp-older-history-core.mjs`, `components/WhatsappChat.jsx` — ver CHANGELOG_AI.md (2026-10-12)
+- **Prevenção/teste:** `tests/whatsapp-older-history.test.mjs` trava segundos/atributos.
+- **Status:** Monitorando
 ### 2026-10-06 — CRM lento / Meta Diária demora para carregar (administrador)
 - **Data:** 2026-10-06
 - **Sintoma:** "CRM está lento e demorando muito para carregar a Meta Diária no meu acesso".

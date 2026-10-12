@@ -61,6 +61,7 @@ import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
+import { OLDER_HISTORY_MAX_ROUNDS, OLDER_HISTORY_POLL_MS, OLDER_HISTORY_ROUND_GAP_MS, OLDER_HISTORY_WAIT_MS, olderHistoryMessage, planNextRound, roundPhase } from "@/lib/whatsapp-older-history-core.mjs";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
 // Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
@@ -2091,34 +2092,79 @@ function ConversationSummaryBar({ conversation }) {
 // "Carregar mensagens anteriores do celular" (pedido do dono, 2026-10-11): o histórico ao conectar vinha "picado". Pede ao
 // celular do dono do número as mensagens anteriores à mais antiga do CRM; elas chegam em alguns segundos (celular com
 // internet). Não envia nada ao contato.
+// "Carregar mensagens anteriores do celular" (2026-10-12): rodadas de até 50 mensagens até cobrir 15 dias ou acabar o
+// histórico do celular, mostrando o estado REAL (pedido enviado / recebendo / quantas chegaram / sem resposta em X s).
+// Regras das rodadas: lib/whatsapp-older-history-core.mjs.
 function PhoneHistoryButton({ conversationId, onChanged }) {
-  const [state, setState] = useState("idle");
+  const [state, setState] = useState("idle"); // idle | running | done | error
   const [message, setMessage] = useState("");
-  const timers = useRef([]);
-  useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
   async function request() {
-    if (state === "loading") return;
-    setState("loading"); setMessage("");
+    if (state === "running") return;
+    setState("running");
+    setMessage("Enviando pedido ao celular…");
+    const url = `/api/admin/whatsapp-chat/conversations/${conversationId}/older`;
+    let total = 0;
+    let oldestAt = null;
+    let previousId = "";
     try {
-      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversationId}/older`, { method: "POST" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível pedir as mensagens.");
-      setState("sent");
-      setMessage("Pedido enviado ao celular. As mensagens anteriores aparecem em alguns segundos.");
-      // Recarrega a conversa algumas vezes enquanto o celular responde.
-      timers.current = [5000, 15000, 30000].map((delay) => window.setTimeout(() => onChanged?.(), delay));
+      for (let round = 1; round <= OLDER_HISTORY_MAX_ROUNDS; round += 1) {
+        const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(previousId ? { continueFrom: previousId } : {}) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Não foi possível pedir as mensagens.");
+        if (!alive.current) return;
+        const requestId = data.requestId;
+        const requested = Number(data.count) || 50;
+        setMessage(olderHistoryMessage({ phase: "sent", total, oldestAt, round }));
+        let status = null;
+        let phase = "waiting";
+        let shown = 0;
+        while (phase === "waiting" || phase === "receiving") {
+          await wait(OLDER_HISTORY_POLL_MS);
+          if (!alive.current) return;
+          const poll = await fetch(`${url}?requestId=${encodeURIComponent(requestId)}`, { cache: "no-store" });
+          status = await poll.json().catch(() => ({}));
+          if (!poll.ok) throw new Error(status.error || "Não foi possível acompanhar o pedido.");
+          phase = roundPhase(status);
+          const delivered = Number(status.delivered) || 0;
+          if (delivered !== shown) { shown = delivered; onChanged?.(); }
+          if (phase === "receiving") setMessage(olderHistoryMessage({ phase, total: total + delivered, oldestAt: status.oldestAt || oldestAt }));
+        }
+        if (!alive.current) return;
+        total += Number(status?.delivered) || 0;
+        if (status?.oldestAt) oldestAt = status.oldestAt;
+        if (phase === "timeout") {
+          setState("error");
+          setMessage(olderHistoryMessage({ phase, total, oldestAt, waitedSeconds: Math.round((Number(status?.elapsedMs) || OLDER_HISTORY_WAIT_MS) / 1000) }));
+          return;
+        }
+        onChanged?.();
+        const plan = planNextRound({ round, received: Number(status?.received) || 0, requested, oldestAt: status?.oldestAt });
+        if (!plan.next) {
+          setState("done");
+          setMessage(olderHistoryMessage({ phase: "done", total, oldestAt, reason: plan.reason }));
+          return;
+        }
+        previousId = requestId;
+        setMessage(olderHistoryMessage({ phase: "sent", total, oldestAt, round: round + 1 }));
+        await wait(OLDER_HISTORY_ROUND_GAP_MS);
+        if (!alive.current) return;
+      }
     } catch (error) {
-      setState("idle");
+      if (!alive.current) return;
+      setState("error");
       setMessage(error.message);
     }
   }
   return (
     <div className="flex flex-col items-center gap-1 pt-2">
-      <button type="button" onClick={request} disabled={state === "loading"} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-bold text-brand shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] disabled:opacity-60">
-        {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}
-        {state === "sent" ? "Buscar mais anteriores no celular" : "Carregar mensagens anteriores do celular"}
+      <button type="button" onClick={request} disabled={state === "running"} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-bold text-brand shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] disabled:opacity-60">
+        {state === "running" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}
+        {state === "idle" ? "Carregar mensagens anteriores do celular" : state === "running" ? "Buscando no celular…" : "Buscar mais anteriores no celular"}
       </button>
-      {message ? <p className={`max-w-xs rounded-lg px-3 py-1 text-center text-[11px] font-semibold shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${state === "sent" ? "bg-[#FFF5C4] text-[#54656F]" : "bg-red-50 text-red-700"}`} role="status">{message}</p> : null}
+      {message ? <p className={`max-w-xs rounded-lg px-3 py-1 text-center text-[11px] font-semibold shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${state === "error" ? "bg-red-50 text-red-700" : "bg-[#FFF5C4] text-[#54656F]"}`} role="status">{message}</p> : null}
     </div>
   );
 }

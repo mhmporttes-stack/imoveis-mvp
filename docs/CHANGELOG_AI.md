@@ -23,6 +23,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - Dono (print): o ícone de "carregando" girava parado no meio da Meta Diária. Era o `SceneSkipCatcher` (indicador da transição de cena do link da Meta, `SceneTransitionLink`), que não recebia o sinal de "página pronta" quando a Meta vinha do pré-carregamento. Removido do `app/admin/layout.jsx` (único consumidor do estado de loading da cena); a navegação e as cenas continuam iguais. Componente mantido no repositório.
 
+### 2026-10-12 — Chat: "Carregar mensagens anteriores do celular" consertado (até 15 dias, com vídeo)
+
+- **Sintoma (dono):** o botão nunca funcionou; nenhum `sync_6` em `whatsapp_session_telemetry`, para nenhum corretor.
+- **Causa provável (fonte do Baileys 6.7.24 x whatsmeow):** o pedido ON_DEMAND saía com `oldestMsgTimestampMs` em **milissegundos** — o celular espera **segundos** apesar do nome (whatsmeow `BuildHistorySyncRequest`; relato público de sucesso no Baileys passa segundos) — e sem `privacy_sensitive="1"`/nó `meta appdata=default` (whatsmeow; Baileys mais novo; PR #2853). Com a referência errada o celular não responde. Também: com `WHATSAPP_HISTORY_SYNC_ENABLED=false` o Baileys descartaria a resposta (`shouldSyncHistoryMessage`) e não havia ouvinte. LID x telefone: usa o `remote_jid` gravado da mensagem (mesmo que o whatsmeow faz com o chat da mensagem). **A CONFIRMAR** com o primeiro toque do dono (telemetria abaixo).
+- **Alteração:** pedido montado em `whatsapp-individual-service/src/history-on-demand.js` e enviado por `sock.relayMessage` (sem atualizar o Baileys); ON_DEMAND sempre processado; vídeo/GIF no ON_DEMAND (≤ 16 MB, ≤ 10 por resposta; pareamento segue só foto/áudio); registro em memória do pedido + `GET /sessions/:id/history/:requestId`; CRM `getChatOlderHistoryStatus` + `GET .../older?requestId=`; `POST .../older` aceita `{ continueFrom }`; erro real do serviço deixa de virar "não está conectado"; `PhoneHistoryButton` faz rodadas até 15 dias e mostra o estado real (regras puras em `lib/whatsapp-older-history-core.mjs`). Telemetria nova (sem conteúdo/telefone, tipo `history_sync` já existente — sem migration): `req_sent`, `req_failed`, `req_ack_<n>`, `pdo_resp`, `notif_<syncType>`. Detalhe: `docs/WHATSAPP.md` §histórico.
+- **Testes:** `tests/whatsapp-older-history.test.mjs` (ampliado), `tests/whatsapp-reconnect-policy.test.mjs` (trava do login ajustada: RECENT continua só com `wantsHistory`).
+
 ### 2026-10-12 — Clientes: contagem ao lado do título
 
 - Dono: número de clientes na mesma linha do "Clientes" azul, para economizar espaço (`components/clients/ClientWorkspace.jsx`, cabeçalho). Depois: só o número, sem a palavra "clientes" (texto completo em `aria-label`).
