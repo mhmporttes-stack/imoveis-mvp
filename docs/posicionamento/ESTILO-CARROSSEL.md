@@ -10,6 +10,9 @@ Preferir o layout **editorial** (`tipo: "mito"` / `"editorial"`) a copiar a refe
 - texto de apoio cinza, curto (1–2 frases); CTA final como botão (`botao`).
 Versão aprovada como referência: `carrosseis/2026-10-11-mitos-mcmv-v2/`.
 
+## Pessoa na referência → boneco (regra do dono, 2026-10-12)
+Toda pessoa que aparecer numa lâmina da referência vira o **boneco 3D do Matheus** (`assets/boneco-3d/`), na pose/expressão mais parecida. Pose que ainda não existe → criar, salvar no acervo e usar, sem precisar pedir.
+
 ## Cor
 - **Destaque hoje = azul da marca** (`#3B8BFF` no fundo preto). Os posts antigos usavam **amarelo** — ao recriar um deles, trocar amarelo por azul. Nunca voltar ao amarelo.
 - Fundo preto (referência de cor única) ou foto escurecida (referência com foto).
