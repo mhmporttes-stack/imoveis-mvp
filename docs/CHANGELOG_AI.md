@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-12 — Painel Online: histórico do dia (entrou/saiu e aparelho) ao clicar no ícone
+
+- **Pedido do dono:** clicar no ícone e ver "entrou 10:00 · saiu 10:30 · computador; entrou 13:00 · celular…".
+- **Alteração:** `admin_presence_activity.device` (migration `20261012160000_admin_presence_activity_device.sql`, **A APLICAR** — o conector do Supabase estava desconectado; o código funciona sem a coluna e mostra "Aparelho não identificado" até lá). `buildPresenceSessions` (`lib/admin-presence-core.mjs`) agrupa as marcas por minuto com a mesma tolerância das horas (5 min; 10 após "grace") e abre sessão nova na troca de aparelho. `GET /api/admin/presence/history?userId=` (`requireBrokerManagementApi` + escopo da equipe em `getMemberPresenceHistory`). Na tela, o ícone virou botão que abre a lista do dia. Teste em `tests/admin-presence-core.test.mjs`.
+
 ### 2026-10-12 — Painel Online: ícone de celular ou computador
 
 - **Pedido do dono:** saber se o corretor está on-line pelo app (celular) ou pelo computador.

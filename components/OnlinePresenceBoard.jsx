@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Laptop, Smartphone } from "lucide-react";
+import { History, Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
 
@@ -348,41 +348,102 @@ function StatPill({ emoji, label, value, tone }) {
 
 function MemberRow({ member }) {
   const meta = STATUS_META[member.status] || STATUS_META.offline;
+  const [historyOpen, setHistoryOpen] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-navy/10 p-4 transition hover:border-brand">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="relative shrink-0">
-          <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
-          <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="truncate font-extrabold text-navy">{member.name}</p>
-          <p className="text-xs font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
+    <div className="rounded-2xl border border-navy/10 p-4 transition hover:border-brand">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="relative shrink-0">
+            <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
+            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-extrabold text-navy">{member.name}</p>
+            <p className="text-xs font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <span className="inline-flex items-center gap-1.5">
+            <DeviceButton device={member.device} open={historyOpen} onClick={() => setHistoryOpen((value) => !value)} />
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.chip}`}>
+              {meta.emoji} {meta.label}
+            </span>
+          </span>
+          <p className="mt-1 text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</p>
         </div>
       </div>
-      <div className="shrink-0 text-right">
-        <span className="inline-flex items-center gap-1.5">
-          {member.device ? <DeviceIcon device={member.device} /> : null}
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.chip}`}>
-            {meta.emoji} {meta.label}
-          </span>
-        </span>
-        <p className="mt-1 text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</p>
-      </div>
+      {historyOpen ? <PresenceHistory userId={member.id} /> : null}
     </div>
   );
 }
 
-// Aparelho do último acesso (celular = app/navegador do celular; notebook = computador).
-function DeviceIcon({ device }) {
-  const mobile = device === "mobile";
-  const label = mobile ? "Pelo celular" : "Pelo computador";
-  const Icon = mobile ? Smartphone : Laptop;
+// Aparelho do último acesso (celular = app/navegador do celular; notebook = computador). Clique abre o histórico do
+// dia (entrou/saiu e aparelho). Sem aparelho conhecido ainda: ícone de histórico.
+function DeviceButton({ device, open, onClick }) {
+  const label = device === "mobile" ? "Pelo celular" : device === "desktop" ? "Pelo computador" : "Histórico de hoje";
+  const Icon = device === "mobile" ? Smartphone : device === "desktop" ? Laptop : History;
   return (
-    <span className="grid h-6 w-6 place-items-center rounded-full border border-navy/10 bg-mist text-navy" title={label} aria-label={label}>
-      <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
-    </span>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      title={`${label} — ver entradas e saídas de hoje`}
+      aria-label={`${label}. Ver entradas e saídas de hoje`}
+      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : "border-navy/10 bg-mist text-navy hover:border-brand hover:text-brand"}`}
+    >
+      <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
+    </button>
   );
+}
+
+function PresenceHistory({ userId }) {
+  const [state, setState] = useState({ loading: true, error: "", sessions: [] });
+  useEffect(() => {
+    let ignore = false;
+    fetch(`/api/admin/presence/history?userId=${encodeURIComponent(userId)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o histórico.");
+        if (!ignore) setState({ loading: false, error: "", sessions: payload.sessions || [] });
+      })
+      .catch((error) => {
+        if (!ignore) setState({ loading: false, error: error.message || "Não foi possível carregar o histórico.", sessions: [] });
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [userId]);
+
+  return (
+    <div className="mt-3 border-t border-navy/10 pt-3">
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Hoje</p>
+      {state.loading ? <p className="mt-2 text-sm font-bold text-slate-500">Carregando…</p> : null}
+      {state.error ? <p className="mt-2 text-sm font-bold text-red-700">{state.error}</p> : null}
+      {!state.loading && !state.error && !state.sessions.length ? <p className="mt-2 text-sm font-bold text-slate-500">Sem acesso hoje.</p> : null}
+      {state.sessions.length ? (
+        <ul className="mt-2 space-y-1.5">
+          {[...state.sessions].reverse().map((session) => {
+            const Icon = session.device === "mobile" ? Smartphone : session.device === "desktop" ? Laptop : History;
+            const deviceLabel = session.device === "mobile" ? "Celular" : session.device === "desktop" ? "Computador" : "Aparelho não identificado";
+            return (
+              <li key={session.start} className="flex items-center gap-2 text-sm font-bold text-navy">
+                <Icon size={15} strokeWidth={2.4} className="shrink-0 text-brand" aria-hidden="true" />
+                <span className="tabular-nums">{TIME_FORMATTER.format(new Date(session.start))} – {TIME_FORMATTER.format(new Date(session.end))}</span>
+                <span className="text-slate-500">· {deviceLabel} · {formatSessionMinutes(session.minutes)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function formatSessionMinutes(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h${String(rest).padStart(2, "0")}` : `${hours}h`;
 }
 
 const DAY_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });

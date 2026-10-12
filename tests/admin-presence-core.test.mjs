@@ -39,3 +39,18 @@ test("presenceDeviceFromUserAgent: celular x computador pelo User-Agent", async 
   assert.equal(presenceDeviceFromUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"), "desktop");
   assert.equal(presenceDeviceFromUserAgent(""), null);
 });
+
+test("buildPresenceSessions: separa por lacuna de inatividade e por troca de aparelho", async () => {
+  const { buildPresenceSessions } = await import("../lib/admin-presence-core.mjs");
+  const at = (hhmm) => `2026-10-12T${hhmm}:00.000-03:00`;
+  const sessions = buildPresenceSessions([
+    { minute_at: at("10:00"), kind: "interaction", device: "desktop" },
+    { minute_at: at("10:04"), kind: "interaction", device: null },
+    { minute_at: at("10:29"), kind: "interaction", device: "desktop" },
+    { minute_at: at("13:00"), kind: "interaction", device: "mobile" },
+    { minute_at: at("13:02"), kind: "interaction", device: "desktop" }
+  ]);
+  assert.equal(sessions.length, 4);
+  assert.deepEqual(sessions.map((s) => [s.device, s.minutes]), [["desktop", 5], ["desktop", 1], ["mobile", 1], ["desktop", 1]]);
+  assert.equal(buildPresenceSessions([]).length, 0);
+});
