@@ -8,6 +8,7 @@ Preferir o layout **editorial** (`tipo: "mito"` / `"editorial"`) a copiar a refe
 - frase/objeção em **serifa itálica** (Playfair), títulos em Inter 800, rótulo pequeno espaçado no topo ("MITO 01");
 - `*palavra*` = serifa itálica azul (contraste elegante); `**palavra**` = destaque; nada de caixa alta gritando em bloco;
 - texto de apoio cinza, curto (1–2 frases); CTA final como botão (`botao`).
+- **Setinha "Arrasta ⟩"** no canto inferior direito de todas as lâminas menos a última (pedido do dono, 2026-10-12): `"seta": true` no topo do roteiro — usar sempre.
 Versão aprovada como referência: `carrosseis/2026-10-11-mitos-mcmv-v2/`.
 
 ## Pessoa na referência → boneco (regra do dono, 2026-10-12)
