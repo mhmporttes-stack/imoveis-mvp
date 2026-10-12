@@ -780,6 +780,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}`);
           return;
         }
+        // Janela do oficial aberta mas o envio automático falhou: NÃO joga para o WhatsApp pessoal (o cliente está
+        // falando pelo oficial). Abre a conversa do oficial no Chat com o link no campo e mostra o motivo.
+        const failure = sendResponse ? await sendResponse.json().catch(() => ({})) : {};
+        setError(failure?.error ? `Não deu para enviar sozinho: ${failure.error} Abri a conversa com o link pronto.` : "Não deu para enviar sozinho. Abri a conversa com o link pronto para você enviar.");
+        router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
+        setSendingSimulation(false);
+        return;
       }
       await post("enviar-registrar").catch(() => null);
       const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
