@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { History, Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
@@ -396,11 +396,18 @@ function DeviceButton({ device, open, onClick }) {
   );
 }
 
+// Hoje + os 3 dias anteriores (pedido do dono, 2026-10-12). Dias antes da coluna de aparelho existir mostram os
+// horários com "Aparelho não identificado".
+const HISTORY_DAYS = 4;
+
 function PresenceHistory({ userId }) {
+  const days = useMemo(() => buildHistoryDays(HISTORY_DAYS), []);
+  const [day, setDay] = useState(days[0].key);
   const [state, setState] = useState({ loading: true, error: "", sessions: [] });
   useEffect(() => {
     let ignore = false;
-    fetch(`/api/admin/presence/history?userId=${encodeURIComponent(userId)}`, { cache: "no-store" })
+    setState({ loading: true, error: "", sessions: [] });
+    fetch(`/api/admin/presence/history?userId=${encodeURIComponent(userId)}&date=${day}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o histórico.");
@@ -412,31 +419,60 @@ function PresenceHistory({ userId }) {
     return () => {
       ignore = true;
     };
-  }, [userId]);
+  }, [userId, day]);
+
+  const totalMinutes = state.sessions.reduce((sum, session) => sum + (session.minutes || 0), 0);
 
   return (
     <div className="mt-3 border-t border-navy/10 pt-3">
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Hoje</p>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Dia do histórico">
+        {days.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={day === option.key}
+            onClick={() => setDay(option.key)}
+            className={`rounded-full px-3 py-1 text-xs font-black transition ${day === option.key ? "bg-navy text-white" : "border border-navy/10 bg-mist text-navy hover:text-brand"}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
       {state.loading ? <p className="mt-2 text-sm font-bold text-slate-500">Carregando…</p> : null}
       {state.error ? <p className="mt-2 text-sm font-bold text-red-700">{state.error}</p> : null}
-      {!state.loading && !state.error && !state.sessions.length ? <p className="mt-2 text-sm font-bold text-slate-500">Sem acesso hoje.</p> : null}
-      {state.sessions.length ? (
-        <ul className="mt-2 space-y-1.5">
-          {[...state.sessions].reverse().map((session) => {
-            const Icon = session.device === "mobile" ? Smartphone : session.device === "desktop" ? Laptop : History;
-            const deviceLabel = session.device === "mobile" ? "Celular" : session.device === "desktop" ? "Computador" : "Aparelho não identificado";
-            return (
-              <li key={session.start} className="flex items-center gap-2 text-sm font-bold text-navy">
-                <Icon size={15} strokeWidth={2.4} className="shrink-0 text-brand" aria-hidden="true" />
-                <span className="tabular-nums">{TIME_FORMATTER.format(new Date(session.start))} – {TIME_FORMATTER.format(new Date(session.end))}</span>
-                <span className="text-slate-500">· {deviceLabel} · {formatSessionMinutes(session.minutes)}</span>
-              </li>
-            );
-          })}
-        </ul>
+      {!state.loading && !state.error && !state.sessions.length ? <p className="mt-2 text-sm font-bold text-slate-500">Sem acesso neste dia.</p> : null}
+      {!state.loading && state.sessions.length ? (
+        <>
+          <p className="mt-2 text-xs font-bold text-slate-500">{state.sessions.length} acesso{state.sessions.length === 1 ? "" : "s"} · {formatSessionMinutes(totalMinutes)} no total</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {[...state.sessions].reverse().map((session) => {
+              const Icon = session.device === "mobile" ? Smartphone : session.device === "desktop" ? Laptop : History;
+              const deviceLabel = session.device === "mobile" ? "Celular" : session.device === "desktop" ? "Computador" : "Aparelho não identificado";
+              return (
+                <li key={session.start} className="flex items-center gap-2 text-sm font-bold text-navy">
+                  <Icon size={15} strokeWidth={2.4} className="shrink-0 text-brand" aria-hidden="true" />
+                  <span className="tabular-nums">{TIME_FORMATTER.format(new Date(session.start))} – {TIME_FORMATTER.format(new Date(session.end))}</span>
+                  <span className="text-slate-500">· {deviceLabel} · {formatSessionMinutes(session.minutes)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       ) : null}
     </div>
   );
+}
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" });
+
+function buildHistoryDays(count) {
+  const now = Date.now();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(now - index * 24 * 60 * 60 * 1000);
+    const key = DAY_KEY_FORMATTER.format(date);
+    const label = index === 0 ? "Hoje" : index === 1 ? "Ontem" : WEEKDAY_FORMATTER.format(date).replace(".", "");
+    return { key, label };
+  });
 }
 
 function formatSessionMinutes(minutes) {
