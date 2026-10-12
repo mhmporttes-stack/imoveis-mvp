@@ -66,6 +66,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const [moreOpen, setMoreOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const navRef = useRef(null);
+  const resyncRef = useRef(() => {});
   const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked };
   // Acesso WhatsApp bloqueado (2026-10-04): Chat e Meta Diária do corretor NÃO são renderizados (nada de botão cinza).
   const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
@@ -121,7 +122,14 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
         if (!rect.height) return; // computador: barra oculta
         const current = parseFloat(root.style.getPropertyValue("--mm-fixed-drop")) || 0;
         const vv = window.visualViewport;
-        const visibleBottom = Math.max(window.innerHeight, vv ? vv.offsetTop + vv.height : 0);
+        // App instalado no iPhone (navigator.standalone, só iOS; status bar black-translucent + viewport-fit=cover em
+        // app/layout.jsx): a janela é a tela inteira, então o fim real é a altura do aparelho. Necessário no Chat, onde
+        // o body é fixo e o iOS reporta innerHeight/visualViewport já encurtados (a barra continuava alta só lá).
+        const portrait = window.matchMedia?.("(orientation: portrait)").matches;
+        const screenBottom = window.navigator.standalone === true && window.screen
+          ? (portrait ? Math.max(window.screen.width, window.screen.height) : Math.min(window.screen.width, window.screen.height))
+          : 0;
+        const visibleBottom = Math.max(window.innerHeight, vv ? vv.offsetTop + vv.height : 0, screenBottom);
         const next = Math.max(0, Math.round(current + visibleBottom - rect.bottom));
         if (next > 2) root.style.setProperty("--mm-fixed-drop", `${next}px`);
         else root.style.removeProperty("--mm-fixed-drop");
@@ -137,6 +145,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     window.addEventListener("orientationchange", resync);
     viewport?.addEventListener("resize", resync);
     window.addEventListener("scroll", resync, { passive: true });
+    resyncRef.current = resync;
     resync();
     return () => {
       window.removeEventListener("scroll", resync);
@@ -158,6 +167,10 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
 
   useEffect(() => {
     setMoreOpen(false);
+    // Troca de tela (ex.: Clientes → Chat, que fixa o body): mede de novo para a barra ficar igual em todas.
+    resyncRef.current();
+    const later = window.setTimeout(() => resyncRef.current(), 800);
+    return () => window.clearTimeout(later);
   }, [pathname]);
 
   return (
