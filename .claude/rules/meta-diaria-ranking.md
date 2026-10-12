@@ -11,6 +11,9 @@ paths:
   - "components/MetaDayGuard.jsx"
   - "components/AdminWarmup.jsx"
   - "components/TeamDailyPerformance.jsx"
+  - "components/OnlinePresenceBoard.jsx"
+  - "lib/admin-presence*"
+  - "app/api/admin/presence/**"
   - "components/PerformanceOverviewDashboard.jsx"
   - "components/BrokerPerformanceDetail.jsx"
   - "components/ScoringRulesManager.jsx"
@@ -80,6 +83,8 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-01] Mudança de status feita por quem não disputa o ranking.** Ponto de mudança de status vai para quem mudou (`changed_by`); se quem mudou não participa do ranking (o dono — Matheus — ou outro e-mail não reconhecido entre os perfis do ranking), o ponto vai para o **corretor responsável** pelo cliente. Já é o comportamento do código (`emailToBrokerId.get(changed_by) || clientBrokerMap.get(client_id)` em `lib/performance-overview.js`, igual no Ranking e no Extrato) — não "corrija" para zerar esses pontos. Automação explícita (`sistema`/`automacao`/`cron`) continua 0. Pontos históricos não são recalculados por causa desta regra. Detalhes: `docs/BUSINESS_RULES.md` RAN-2.
 
 `getPerformanceOverview` carrega os eventos brutos (`teamRegistrations`, `history`, `prospectingEvents`) **sempre da mesma forma, nunca filtrados pelo escopo de quem está perguntando** — a permissão de visualização (quem aparece na lista) é aplicada só depois, em `listVisibleTeamProfiles`. Isso é proposital: o mesmo corretor no mesmo período tem que somar os mesmos pontos não importa quem está olhando o dashboard.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Horas no CRM: "Semana passada".** Em Desempenho › Online, o filtro de semana é a última semana FECHADA, de segunda a domingo (São Paulo) — não existe mais "Esta semana". A tela mostra o intervalo somado. Regra pura `resolvePresencePeriodDates` (`lib/admin-presence-core.mjs`); detalhes `docs/BUSINESS_RULES.md` RAN-6a. Não mexer em outros seletores de "Esta semana" (Meta/Desempenho) por causa desta regra.
 
 ## Percentual da meta exibido (card do corretor, resumo diário WhatsApp)
 

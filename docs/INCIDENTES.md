@@ -39,6 +39,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — Horas no CRM: "Esta semana" zerada na segunda e domingo fora de qualquer semana
+- **Data:** 2026-10-12
+- **Sintoma:** "A 'Esta semana' está com erro" — segunda de manhã todos com 0 min; trabalho de domingo não aparecia na semana.
+- **Área:** Desempenho › Online (Horas no CRM)
+- **Impacto:** só a leitura do relatório (admin/gestora); nenhum dado gravado errado.
+- **Causa raiz:** o período "week" ia de segunda a SÁBADO da semana corrente (`resolvePresenceRange`); sem regra do dono por trás. Agravantes: tela sem o intervalo exibido; "Personalizado" incompleto mantinha o resultado anterior.
+- **Correção:** regra do dono RAN-6a — "Semana passada" (última semana fechada, seg–dom); intervalo exibido; Personalizado limpa. Ver CHANGELOG_AI.md (2026-10-12).
+- **Prevenção/teste:** `tests/admin-presence-report.test.mjs` (limites, domingo 23:59 × segunda 00:00, online/ausente, ordenação).
+
 ### 2026-10-12 — "Carregar mensagens anteriores do celular" nunca funciona
 - **Data:** 2026-10-12
 - **Sintoma:** toca no botão do Chat e nenhuma mensagem antiga chega; telemetria sem nenhum `sync_6`.

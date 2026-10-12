@@ -443,6 +443,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-12 — Horas no CRM: "Esta semana" vira "Semana passada" (seg–dom fechada) + pente-fino dos filtros
+- **Data:** 2026-10-12
+- **Área:** Desempenho › Online — relatório "Horas no CRM" (`lib/admin-presence.js`, `lib/admin-presence-core.mjs`, `components/OnlinePresenceBoard.jsx`). API `/api/admin/presence/report`: o valor de período `week` deixou de existir; o novo é `last_week` (valor desconhecido continua caindo em "Hoje"). Único consumidor é esta tela.
+- **Regra do dono (RAN-6a):** "Semana passada" = última semana FECHADA, segunda a domingo, São Paulo (seg 12/10 → 05/10 a 11/10). Antes: segunda a sábado da semana corrente — na segunda cedo tudo zerado e o domingo nunca entrava em semana nenhuma.
+- **Pente-fino (corrigido):** (1) a tela agora mostra o intervalo somado, vindo do servidor ("Semana passada · 05/10 a 11/10"); (2) em "Personalizado" sem as duas datas a tela continuava mostrando o resultado do filtro anterior (e podia ficar presa em "carregando") — agora limpa e pede as datas; (3) empate de tempo (ex.: "Hoje" cedo, todos 0) ficava na ordem acidental do cadastro — agora contatos e depois nome.
+- **Conferido sem mudança:** limites UTC (00:00 BRT = 03:00Z; domingo 23:59 entra, segunda 00:00 não), Hoje/Ontem/Este mês/Personalizado, online × ausente (5/10/30 min), "dias com atividade", contatos (`daily_goal_attempts` por `goal_date`, inclui envios da automação), quem aparece (`listVisibleTeamProfiles`: sem inativos e sem o dono), totais da equipe (soma da lista). Cache: a tela não está no `AdminWarmup`, não tem `unstable_dynamicStaleTime` nem cache por conta; `/api/*` é `networkOnly` no `sw.js` — sem risco de período trocado.
+- **Refatoração mínima:** `computeDailyPresence` e o cálculo de período foram para o núcleo puro (`admin-presence-core.mjs`, reexportados por `admin-presence.js`; `lib/performance-overview.js` continua importando de lá, cálculo idêntico). Testes: `tests/admin-presence-report.test.mjs`.
+- **Risco/observação (não corrigido):** a busca de contatos em `getPresenceReport` engole qualquer erro (`catch { attemptRows = [] }`) — falha no banco aparece como "0 contatos".
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-12 — Apresentação: todas as cenas cabem numa tela do celular (sem rolar, nada atrás do botão)
 - **Data:** 2026-10-12
 - **Área:** Apresentação da simulação (PRES) — só apresentação (`components/presentation/presentation.module.css`, `PresentationPlayer.jsx`) e vitrine DEV.

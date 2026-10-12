@@ -92,7 +92,7 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
 const REPORT_PERIODS = [
   { value: "today", label: "Hoje" },
   { value: "yesterday", label: "Ontem" },
-  { value: "week", label: "Esta semana" },
+  { value: "last_week", label: "Semana passada" },
   { value: "month", label: "Este mês" },
   { value: "custom", label: "Personalizado" }
 ];
@@ -106,6 +106,22 @@ function formatMinutes(total) {
   const rest = minutes % 60;
   if (!hours) return `${rest}min`;
   return rest ? `${hours}h ${String(rest).padStart(2, "0")}min` : `${hours}h`;
+}
+
+function formatShortDate(plainDate) {
+  const [, month, day] = String(plainDate || "").split("-");
+  return day && month ? `${day}/${month}` : "";
+}
+
+// "Semana passada · 05/10 a 11/10" — o intervalo vem da resposta do servidor
+// (o que de fato foi somado), nunca recalculado na tela.
+function formatRangeLabel(range) {
+  if (!range?.startDate) return "";
+  const label = REPORT_PERIODS.find((option) => option.value === range.period)?.label || "";
+  const dates = range.startDate === range.endDate
+    ? formatShortDate(range.startDate)
+    : `${formatShortDate(range.startDate)} a ${formatShortDate(range.endDate)}`;
+  return label ? `${label} · ${dates}` : dates;
 }
 
 function formatDayLabel(plainDate) {
@@ -128,7 +144,14 @@ function HoursReport() {
   const [expandedId, setExpandedId] = useState("");
 
   useEffect(() => {
-    if (period === "custom" && (!startDate || !endDate)) return undefined;
+    if (period === "custom" && (!startDate || !endDate)) {
+      // Sem as duas datas não há período: não deixa o resultado do filtro
+      // anterior na tela como se fosse do "Personalizado".
+      setReport(null);
+      setError("");
+      setLoading(false);
+      return undefined;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError("");
@@ -204,9 +227,14 @@ function HoursReport() {
         </p>
       ) : null}
 
+      {period === "custom" && (!startDate || !endDate) ? (
+        <p className="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Escolha a data de início e a final para ver as horas.</p>
+      ) : null}
+
       {report?.ready ? (
         <>
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <p className="mt-5 text-sm font-extrabold text-navy">{formatRangeLabel(report.range)}</p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-emerald-700">
               <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamActive)}</p>
               <p className="text-[11px] font-bold uppercase tracking-wide">Online (equipe)</p>
