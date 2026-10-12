@@ -15,6 +15,7 @@ Toda pessoa que aparecer numa lâmina da referência vira o **boneco 3D do Mathe
 
 ## Cor
 - **Destaque hoje = azul da marca** (`#3B8BFF` no fundo preto). Os posts antigos usavam **amarelo** — ao recriar um deles, trocar amarelo por azul. Nunca voltar ao amarelo.
+- **Vermelho só para palavra negativa** (regra do dono, 2026-10-12): ex. "reprovado", "recusou", "restrição" — `!!palavra!!` no roteiro. Destaque positivo/neutro continua azul.
 - Fundo preto (referência de cor única) ou foto escurecida (referência com foto).
 
 ## Tipos de lâmina que ele usa (e como pedir ao gerador)

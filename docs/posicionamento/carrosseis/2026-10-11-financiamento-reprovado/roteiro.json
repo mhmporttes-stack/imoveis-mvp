@@ -5,14 +5,14 @@
    "bonecoCentral": "pensando",
    "chamada": "Se meu financiamento",
    "tituloCondensado": true,
-   "titulo": "fosse **reprovado**",
+   "titulo": "fosse !!reprovado!!",
    "etiqueta": "eu faria isso"
   },
   {
    "tipo": "editorial",
    "rotulo": "Primeiro passo",
    "objecao": "Primeiro, eu não tentaria fazer outra proposta de qualquer jeito.",
-   "titulo": "Eu descobriria por que o banco *recusou*.",
+   "titulo": "Eu descobriria por que o banco !!*recusou*!!.",
    "texto": "Porque, dependendo do motivo, o caminho para resolver é **completamente diferente**."
   },
   {

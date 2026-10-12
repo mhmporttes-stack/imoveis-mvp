@@ -54,7 +54,8 @@ const asDataUrl = (file) => {
 };
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 // **palavra** = destaque na cor da marca; *palavra* = serifa itálica (Playfair) — contraste elegante sem gritar.
-const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\*(.+?)\*/g, '<i class="serif">$1</i>').replace(/\n/g, "<br>");
+// !!palavra!! = vermelho, só para palavra NEGATIVA ("reprovado", "recusou"...) — pedido do dono em 2026-10-12.
+const rich = (s) => esc(s).replace(/!!(.+?)!!/g, '<span class="neg">$1</span>').replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\*(.+?)\*/g, '<i class="serif">$1</i>').replace(/\n/g, "<br>");
 
 const symbol = asDataUrl("public/assets/matheus-machado-symbol.png");
 // Foto do Matheus SEM fundo (recorte, 2026-10-11) para lâminas em que ele aparece: "comFoto": true na lâmina.
@@ -174,6 +175,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   h2 { font-size:96px; line-height:1.06; font-weight:800; letter-spacing:-.015em; margin-bottom:36px; }
   h2.cta { font-size:110px; }
   em { font-style:normal; color:var(--brand); }
+  .neg, .neg i.serif { color:#FF3B30 !important; }
   .number { font-size:40px; font-weight:800; color:var(--brand); margin-bottom:24px; letter-spacing:.1em; }
   .body { font-size:52px; line-height:1.35; color:#D7DCE3; font-weight:400; }
   .hint { margin-top:64px; font-size:40px; color:var(--muted); }
