@@ -33,7 +33,7 @@ Formato: carrossel Meta, objetivo **Engajamento → Mensagens (WhatsApp)**, bot�
 | # | Título | Descrição |
 |---|---|---|
 | 1 | Simulação gratuita no WhatsApp | Sem compromisso |
-| 2 | 60 meses de aluguel = R$ 72 mil | Exemplo com R$ 1.200/mês |
+| 2 | R$ 72 mil de aluguel em 5 anos | Exemplo com R$ 1.200/mês |
 | 3 | E se fosse parcela da sua casa? | Conforme renda e análise |
 | 4 | Autônomo? FGTS? Renda somada? | Tire suas dúvidas |
 | 5 | Simulação completa em PDF | Valor, parcela e taxa de juros |
@@ -50,6 +50,8 @@ Formato: carrossel Meta, objetivo **Engajamento → Mensagens (WhatsApp)**, bot�
 4. **Público e localização:** Marília/SP. Categoria especial de anúncio (moradia) é decisão sua ao criar a campanha.
 5. **Teste:** rode este carrossel ao lado do anúncio campeão atual ("Simule seu financiamento no WhatsApp"), com o mesmo orçamento, por 5 a 7 dias. Compare **clientes que chegam a Simulação**, e não só conversas.
 
-Revisado por crítica de design independente (capa com o número, vermelho só em palavra negativa, sem botão falso, textos maiores, 6 lâminas).
+Revisado por crítica de design independente. O dono preferiu a capa, a lâmina 2 e o CTA da 1ª versão; voltaram com os ajustes: acentos sem encostar, "Exemplo:" na conta e chat legível. O grid vermelho e o pino vermelho são escolha do dono.
+
+**Teste A/B da capa (opcional):** `capa-teste-b.png` (gancho "R$ 72 mil") é o mesmo anúncio só com a 1ª lâmina trocada. Rode as duas e mantenha a de menor custo por cliente que chega a Simulação.
 
 Arquivos: `lamina-01.png` … `lamina-06.png` (2160×2700, alta resolução) e o fonte `laminas.html`.

@@ -29,7 +29,7 @@
   .capa .pessoa { position:absolute; right:-170px; bottom:0; height:1000px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.5));
     -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 14%); mask-image:linear-gradient(90deg, transparent 0, #000 14%); }
   .capa .degrade { position:absolute; inset:0; background:linear-gradient(90deg, var(--navy) 0%, rgba(10,20,48,.82) 42%, rgba(10,20,48,0) 72%); }
-  .capa h1 { font-size:150px; line-height:1.1; }
+  .capa h1 { font-size:150px; line-height:1.17; }
   .capa .local { display:inline-flex; align-items:center; gap:12px; font-size:34px; font-weight:800; }
   .capa .local svg { width:40px; height:40px; stroke:var(--verm); stroke-width:2.2; }
   .capa .oferta { position:absolute; left:80px; bottom:150px; width:560px; background:var(--azul); border-radius:26px; padding:30px 34px; box-shadow:0 20px 50px rgba(0,0,0,.35); }
@@ -93,7 +93,7 @@
   .cta .pessoa { position:absolute; right:-210px; bottom:0; height:1060px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
   .cta .topo { position:absolute; left:80px; right:80px; top:100px; }
   .cta h2 { font-size:128px; }
-  .fone { position:absolute; left:80px; top:510px; width:450px; height:500px; border-radius:58px; background:#0B0F14; padding:16px; box-shadow:0 40px 80px rgba(0,0,0,.55), 0 0 0 2px #2A3242; }
+  .fone { position:absolute; left:90px; top:470px; width:450px; height:650px; border-radius:58px; background:#0B0F14; padding:16px; box-shadow:0 40px 80px rgba(0,0,0,.55), 0 0 0 2px #2A3242; transform:rotate(-4deg); }
   .tela { width:100%; height:100%; border-radius:44px; overflow:hidden; background:#ECE5DD; display:flex; flex-direction:column; }
   .tela .bar { background:#075E54; color:#fff; padding:44px 22px 18px; display:flex; align-items:center; gap:14px; }
   .tela .av { width:52px; height:52px; border-radius:50%; overflow:hidden; background:#cfd8dc; flex-shrink:0; }
@@ -101,7 +101,7 @@
   .tela .bar b { font-size:22px; display:block; }
   .tela .bar small { font-size:16px; opacity:.85; }
   .tela .msgs { flex:1; padding:22px 18px; display:flex; flex-direction:column; gap:14px; justify-content:flex-end; }
-  .bal { max-width:84%; padding:14px 18px 22px; border-radius:16px; font-size:27px; line-height:1.3; color:#111B21; position:relative; box-shadow:0 1px 1px rgba(0,0,0,.12); }
+  .bal { max-width:84%; padding:14px 18px 22px; border-radius:16px; font-size:24px; line-height:1.3; color:#111B21; position:relative; box-shadow:0 1px 1px rgba(0,0,0,.12); }
   .bal small { position:absolute; right:12px; bottom:5px; font-size:13px; color:#667781; }
   .bal.eu { align-self:flex-end; background:#D9FDD3; border-top-right-radius:4px; }
   .bal.ele { align-self:flex-start; background:#fff; border-top-left-radius:4px; }
@@ -111,19 +111,14 @@
   .tela .input svg { width:24px; height:24px; stroke:#fff; stroke-width:2.2; }
   .cta .botao { position:absolute; left:80px; bottom:120px; display:inline-flex; align-items:center; gap:16px; background:var(--zap); color:#062B16; font-weight:800; font-size:36px; padding:24px 36px; border-radius:999px; box-shadow:0 18px 40px rgba(0,0,0,.35); z-index:3; }
   .cta .botao svg { width:38px; height:38px; stroke:#062B16; stroke-width:2.4; }
-  .cta .rodape { position:absolute; left:80px; bottom:60px; font-size:26px; line-height:1.4; color:#AEB9CF; z-index:3; background:rgba(10,20,48,.75); padding:6px 12px 6px 0; border-radius:8px; }
+  .cta .rodape { position:absolute; left:80px; bottom:48px; font-size:23px; line-height:1.4; color:#AEB9CF; z-index:3; background:rgba(10,20,48,.75); padding:6px 12px 6px 0; border-radius:8px; }
 
   /* revisão design-critic (2026-10-12) */
-  .capa h1 { line-height:1.0; }
-  .capa .local svg { stroke:var(--azul); }
-  .capa .pessoa { right:-130px; -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 7%); mask-image:linear-gradient(90deg, transparent 0, #000 7%); }
   .capa .grana { font-family:Anton, sans-serif; font-size:250px; line-height:1; margin-top:18px; }
   .capa .grana small { font-size:110px; vertical-align:top; line-height:1.45; margin-right:14px; }
   .capa .faixa { position:absolute; left:80px; bottom:150px; width:520px; border-left:6px solid var(--azul); padding:4px 0 4px 26px; }
   .capa .faixa b { display:block; font-size:40px; font-weight:800; line-height:1.2; }
   .capa .faixa span { display:block; font-size:32px; color:#C9D3E6; margin-top:6px; font-weight:600; }
-  .grade i { background:rgba(159,176,206,.08); border-color:rgba(159,176,206,.35); }
-  .grade i::after { background:rgba(159,176,206,.55); }
   .nota { font-size:30px !important; color:#B8C3D9 !important; }
   .cond2 { line-height:1.2 !important; }
   .vs .alu p:first-of-type svg { stroke:#9FB0CE; }
@@ -137,33 +132,34 @@
 </style></head>
 <body>
 
-<!-- 1 · CAPA — gancho numérico (sugestão do design-critic): muita gente só vê a 1ª lâmina -->
+<!-- 1 · CAPA (gancho + oferta: muita gente só vê a 1ª lâmina) -->
 <section class="lamina capa">
   <img class="pessoa" src="../../assets/boneco-3d/realista/chave.png" alt="">
   <span class="degrade"></span>
   <div class="corpo" style="top:150px">
-    <div class="local"><svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /> <circle cx="12" cy="10" r="3" /></svg> Aluguel em Marília</div>
-    <div class="grana"><small>R$</small>72 mil</div>
-    <p class="texto" style="margin-top:6px;width:500px;font-size:42px;color:#fff;font-weight:800;line-height:1.25">em 5 anos de aluguel.<br><span style="color:#C9D3E6;font-weight:600">E nada fica no nome de quem pagou.</span></p>
+    <div class="local"><svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /> <circle cx="12" cy="10" r="3" /></svg> Marília/SP</div>
+    <h1 class="cond" style="margin-top:26px">Do aluguel<br>à <em>casa<br>própria</em></h1>
+    <p class="texto" style="margin-top:30px;width:440px;font-size:35px">Pelo <b>Minha Casa Minha Vida</b>, pode estar mais perto do que você imagina.</p>
   </div>
-  <div class="faixa"><b>Do aluguel à <em>casa própria</em></b><span>Simulação gratuita pelo WhatsApp</span></div>
+  <div class="oferta"><b>Simulação gratuita pelo WhatsApp</b><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <polyline points="12 6 12 12 16 14" /></svg> Sem compromisso</span></div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 2 · A CONTA (aluguel típico de quem chega pelos anúncios: R$ 1.001–1.500/mês, CRM out/2026) -->
+<!-- 2 · O PROBLEMA (aluguel típico de quem chega pelos anúncios: R$ 1.001–1.500/mês, CRM out/2026) -->
 <section class="lamina">
   <div class="corpo" style="top:150px">
     <div class="eyebrow">Faz a conta</div>
-    <h2 class="cond titulo cond2" style="font-size:104px">60 meses<br>de <em>aluguel</em></h2>
+    <p class="texto" style="margin-top:40px;font-size:40px">Exemplo: aluguel de <b>R$ 1.200</b> por 5 anos</p>
+    <div class="numero" style="margin-top:20px;font-size:250px"><span style="font-size:120px;vertical-align:top;line-height:1.5;margin-right:16px">R$</span>72 mil</div>
     <div class="grade">
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-      <span class="ano">Exemplo: R$ 1.200 × 60 meses = R$ 72 mil</span>
+      <span class="ano">60 meses de aluguel</span>
     </div>
-    <p class="texto" style="margin-top:70px;font-size:44px">Todo mês o dinheiro <b class="neg">vai embora</b>.<br>E no fim, <b>nada fica no nome de quem pagou.</b></p>
+    <p class="texto" style="margin-top:70px;font-size:44px">Todo mês o dinheiro <b class="neg">vai embora</b>.<br>E no fim, <b>nada fica no seu nome.</b></p>
   </div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
@@ -217,24 +213,25 @@
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 6 · CTA — sem botão falso: a instrução aponta para o botão real "Enviar mensagem" -->
+<!-- 6 · CTA (o botão real do anúncio é "Enviar mensagem") -->
 <section class="lamina cta">
   <span class="fundo"></span>
   <img class="pessoa" src="../../assets/boneco-3d/realista/apontando.png" alt="">
-  <div class="topo" style="top:150px">
+  <div class="topo">
     <div class="eyebrow">Seu próximo passo</div>
-    <h2 class="cond cond2" style="margin-top:20px;font-size:118px">Faça sua<br><em>simulação</em></h2>
+    <h2 class="cond" style="margin-top:20px;font-size:118px">Faça sua<br><em>simulação</em></h2>
   </div>
   <div class="fone"><div class="tela">
     <div class="bar"><span class="av"><img src="../../assets/boneco-3d/realista/joinha.png" alt=""></span><p><b>Matheus Machado</b><small>Corretor de imóveis</small></p></div>
     <div class="msgs">
       <div class="bal eu">Olá! Quero fazer minha simulação 🏠<small>19:02 ✓✓</small></div>
       <div class="bal ele">Oi! Vamos ver o que cabe no seu bolso 😊<small>19:03</small></div>
+      <div class="bal ele">Me conta sua renda e se tem FGTS 📋<small>19:03</small></div>
     </div>
     <div class="input"><span></span><i><svg viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /> <path d="m21.854 2.147-10.94 10.939" /></svg></i></div>
   </div></div>
-  <div class="instrucao"><b>Toque em <em>Enviar mensagem</em></b><span><svg viewBox="0 0 24 24"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg> aqui embaixo</span></div>
-  <div class="rodape">CRECI 323106-F<br>Simulação sujeita à análise de crédito.</div>
+  <div class="botao"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg> Toque em Enviar mensagem</div>
+  <div class="rodape">Matheus Machado · Corretor de imóveis · CRECI 323106-F<br>Simulação sujeita à análise de crédito.</div>
 </section>
 
 </body></html>
