@@ -14,7 +14,6 @@ import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import HideInFinanceiroApp from "@/components/HideInFinanceiroApp";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
-import SceneSkipCatcher from "@/components/motion/SceneSkipCatcher";
 import { Manrope } from "next/font/google";
 import Link from "next/link";
 import { getAdminFromCookies, isOwnerAdminEmail } from "@/lib/admin-auth";
@@ -81,7 +80,8 @@ export default async function AdminLayout({ children }) {
         </div>
       ) : null}
       <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
-      <SceneSkipCatcher />
+      {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
+          girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
       {/* Navegação principal no celular (< md); do tablet para cima continua
           o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
       {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked)} /> : null}

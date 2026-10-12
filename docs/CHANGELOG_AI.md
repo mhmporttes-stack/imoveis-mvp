@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes: contagem ao lado do título
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Meta Diária: spinner de transição parado removido
+
+- Dono (print): o ícone de "carregando" girava parado no meio da Meta Diária. Era o `SceneSkipCatcher` (indicador da transição de cena do link da Meta, `SceneTransitionLink`), que não recebia o sinal de "página pronta" quando a Meta vinha do pré-carregamento. Removido do `app/admin/layout.jsx` (único consumidor do estado de loading da cena); a navegação e as cenas continuam iguais. Componente mantido no repositório.
+
+### 2026-10-12 — Clientes: contagem ao lado do título
 
 - Dono: número de clientes na mesma linha do "Clientes" azul, para economizar espaço (`components/clients/ClientWorkspace.jsx`, cabeçalho).
 
