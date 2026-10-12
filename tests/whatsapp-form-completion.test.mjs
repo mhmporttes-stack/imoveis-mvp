@@ -48,3 +48,12 @@ test("resposta antiga por palavra-chave é suprimida no pós-formulário e para 
   assert.equal(shouldSuppressKeywordReply({ recentForm: true }), true);
   assert.equal(shouldSuppressKeywordReply({}), false);
 });
+
+// Fase 2 do robô do Chat (dono, 2026-10-12): formulário enviado encerra a sessão viva do Fluxo com o telefone — nas duas
+// jornadas (simulação e Atendimento Rápido), tanto no cadastro novo quanto no atualizado.
+test("formulário enviado encerra a sessão viva do Fluxo (endLiveFlowSession)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const reg = readFileSync(new URL("../lib/simulation-registrations.js", import.meta.url), "utf8");
+  assert.match(reg, /async function endWhatsappFlowAfterForm\(phone\)[\s\S]*endLiveFlowSession\(canonical, "formulario_enviado"\)/);
+  assert.equal((reg.match(/await endWhatsappFlowAfterForm\(/g) || []).length, 4);
+});
