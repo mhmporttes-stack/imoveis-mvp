@@ -41,7 +41,10 @@ Personagem 3D **estilo desenho animado/caricatura** (cabeça e olhos grandes, tr
 
 ## Fotos realistas do Matheus (2026-10-12)
 **Não usar expressão de surpresa/espanto (boca aberta)** em nenhuma versão — o dono reprovou (2026-10-12); referência com pessoa surpresa → usar `pensativo` ou `pensando`.
-A pedido do dono, as 10 poses de meio corpo também existem como **fotos realistas profissionais** (geradas no Canva a partir das fotos dele, fundo transparente) em `boneco-3d/realista/` (catálogo `prancha.png`), mesmos nomes de pose. Uso: `"boneco": "realista/<pose>"`. Perguntar ao dono se prefere boneco ou realista quando não estiver claro.
+A pedido do dono, as 10 poses de meio corpo também existem como **fotos realistas profissionais** (geradas no Canva a partir das fotos dele, fundo transparente) em `boneco-3d/realista/` (catálogo `prancha.png`), mesmos nomes de pose. Uso: `"boneco": "realista/<pose>"`. Pose extra: `lupa` (2026-10-12). Perguntar ao dono se prefere boneco ou realista quando não estiver claro.
+
+## Layout livre (2026-10-12)
+Referência com layout que o gerador não cobre (ex.: carrossel de lançamento): escrever `laminas.html` na pasta do carrossel (uma `<section class="lamina">` por lâmina) e renderizar com `.claude/design/tools/renderizar-laminas-html.mjs`. Exemplo: `carrosseis/2026-10-12-osk/`. Material de lançamento: usar só dados do book oficial; condições de pagamento/MCMV só com tabela do dono.
 
 ## Imagens geradas no Canva sem trabalho manual (2026-10-11)
 O `generate-image` só devolve miniatura. Para baixar em tamanho cheio, automaticamente:

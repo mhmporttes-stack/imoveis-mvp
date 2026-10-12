@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Plus+Jakarta+Sans:wght@400;500;700;800">
+<!-- Carrossel OSK Residence (Vitta), recriado da referência de outro corretor (2026-10-12).
+     Amarelo da referência → azul. Fatos só do book oficial do OSK (PDF enviado pelo dono). -->
+<style>
+  :root { --azul:#1F5FD9; --azul-claro:#3B8BFF; --tinta:#0E1A33; --papel:#F3F1EC; }
+  * { box-sizing:border-box; margin:0; }
+  body { margin:0; background:#000; }
+  .lamina { position:relative; width:1080px; height:1350px; overflow:hidden; font-family:"Plus Jakarta Sans", sans-serif; color:var(--tinta); }
+  .cond { font-family:Anton, sans-serif; text-transform:uppercase; line-height:.95; letter-spacing:.005em; }
+  .papel { background:var(--papel); }
+  .azul { background:var(--azul); }
+  .centro { text-align:center; }
+  img.cobre { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .seta { position:absolute; right:70px; bottom:60px; display:flex; align-items:center; gap:12px; font-weight:700; font-size:24px; letter-spacing:.04em; z-index:5; }
+  .seta svg { width:52px; height:52px; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .seta.claro { color:#fff; } .seta.claro svg { stroke:#fff; }
+  .seta.escuro { color:var(--tinta); } .seta.escuro svg { stroke:var(--azul); }
+
+  /* 1 - capa */
+  .capa .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 68%, rgba(0,0,0,.9) 100%); }
+  .capa .pessoa { position:absolute; left:-130px; top:-40px; height:1000px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
+  .capa .txt { position:absolute; left:0; right:0; bottom:120px; text-align:center; color:#fff; }
+  .capa .l1 { font-size:66px; }
+  .capa .l2 { font-size:196px; color:var(--azul-claro); }
+  .capa .l3 { font-size:42px; font-weight:700; margin-top:18px; }
+
+  /* 2 - janela */
+  .janela { position:absolute; left:58px; right:58px; top:160px; bottom:160px; background:#FBFAF7; border-radius:28px; box-shadow:0 30px 70px rgba(0,0,0,.25); overflow:hidden; }
+  .janela .barra { height:82px; border-bottom:2px solid #E3E0DA; display:flex; align-items:center; padding:0 26px; gap:14px; position:relative; }
+  .janela .barra i { width:30px; height:30px; border-radius:50%; display:block; }
+  .janela .barra b { position:absolute; left:0; right:0; text-align:center; font-size:32px; font-weight:700; }
+  .janela .corpo { padding:100px 60px 0; text-align:center; }
+  .janela h2 { font-size:74px; white-space:nowrap; }
+  .janela p { font-size:40px; line-height:1.18; margin-top:22px; font-weight:500; }
+  .janela .grande { font-size:170px; margin-top:70px; white-space:nowrap; }
+  .janela p.forte { font-weight:800; margin-top:28px; }
+
+  /* 3 - localização */
+  .loc .topo { padding:100px 60px 0; text-align:center; }
+  .loc h2 { font-size:118px; }
+  .loc p { font-size:34px; line-height:1.25; margin-top:22px; }
+  .loc p.forte { font-weight:800; }
+  .loc .foto { position:absolute; left:0; right:0; bottom:0; height:560px; }
+  .loc .foto img { width:100%; height:100%; object-fit:cover; object-position:center 70%; }
+
+  /* 4 - lazer */
+  .lazer .foto { position:absolute; left:0; right:0; top:0; height:560px; }
+  .lazer .foto img { width:100%; height:100%; object-fit:cover; }
+  .lazer .txt { position:absolute; left:70px; right:70px; top:620px; }
+  .lazer h2 { font-size:92px; }
+  .lazer h2 span { color:var(--azul); }
+  .lazer ul { list-style:none; padding:0; margin-top:36px; display:grid; grid-template-columns:1fr 1fr; gap:18px 40px; }
+  .lazer li { font-size:36px; font-weight:700; padding-left:34px; position:relative; }
+  .lazer li::before { content:""; position:absolute; left:0; top:15px; width:16px; height:16px; border-radius:50%; background:var(--azul); }
+
+  /* 5 e 6 - plantas (fundo azul) */
+  .planta { color:#fff; }
+  .planta .moldura { position:absolute; inset:0; border-radius:40px; }
+  .planta .sup { padding-top:120px; text-align:center; font-size:40px; font-weight:800; }
+  .planta h2 { font-size:120px; text-align:center; margin-top:14px; }
+  .planta .img3d { position:absolute; left:110px; right:110px; top:540px; height:540px; background:#ECEBE8; border-radius:24px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .planta .img3d img { max-width:100%; max-height:100%; }
+  .planta .etq { position:absolute; left:110px; top:480px; font-size:36px; font-weight:800; }
+  .planta .rod { position:absolute; left:90px; right:90px; bottom:130px; text-align:center; font-size:36px; font-weight:700; line-height:1.2; }
+  .planta .duas { position:absolute; left:60px; right:60px; top:470px; height:600px; }
+  .planta .duas figure { position:absolute; width:470px; background:#fff; padding:12px; border-radius:16px; }
+  .planta .duas figure img { width:100%; display:block; border-radius:8px; }
+  .planta .duas figcaption { position:absolute; top:-58px; font-size:38px; font-weight:800; color:#fff; white-space:nowrap; }
+
+  /* 7 - CTA */
+  .cta .fundo { filter:blur(3px) brightness(.55); transform:scale(1.05); }
+  .cta .pessoa { position:absolute; left:50%; transform:translateX(-50%); bottom:0; height:1180px; }
+  .cta .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,.75) 70%, rgba(0,0,0,.92) 100%); }
+  .cta .txt { position:absolute; left:0; right:0; bottom:110px; text-align:center; color:#fff; }
+  .cta .l1 { font-size:46px; font-weight:500; }
+  .cta .l2 { font-size:220px; color:var(--azul-claro); margin:6px 0 10px; }
+  .cta .l3 { font-size:42px; font-weight:500; line-height:1.2; }
+</style></head>
+<body>
+
+<!-- 1 -->
+<section class="lamina capa">
+  <img class="cobre" src="img/fachada.png" alt="">
+  <span class="degrade"></span>
+  <img class="pessoa" src="../../assets/boneco-3d/realista/lupa.png" alt="">
+  <div class="txt">
+    <div class="cond l1">Se eu fosse você, ficaria de olho</div>
+    <div class="cond l2">nesse projeto</div>
+    <div class="l3">E ele fica no Centro de Marília</div>
+  </div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 2 -->
+<section class="lamina azul">
+  <div class="janela">
+    <div class="barra"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><b>Nova Janela</b></div>
+    <div class="corpo">
+      <h2 class="cond">Por que eu ficaria de olho?</h2>
+      <p><b>Porque estamos falando do OSK Residence</b>, na região central de Marília, com vista para o vale e fácil acesso aos principais eixos da cidade.</p>
+      <div class="cond grande">E o melhor:</div>
+      <p class="forte">apartamentos de 2 dormitórios, lazer completo e unidades com garden privativo.</p>
+    </div>
+  </div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 3 -->
+<section class="lamina papel loc">
+  <div class="topo">
+    <h2 class="cond">Centro de Marília<br>e perto de tudo</h2>
+    <p>O OSK fica na Rua Palmares, 266,<br>Bairro Barbosa, em Marília/SP.</p>
+    <p class="forte">Perto da Av. Sampaio Vidal, Av. Rio Branco,<br>Av. Santo Antônio e da Rod. João Ribeiro de Barros.</p>
+    <p>E você ainda está perto de tudo isso:</p>
+  </div>
+  <div class="foto"><img src="img/aerea.jpg" alt=""></div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 4 -->
+<section class="lamina papel lazer">
+  <div class="foto"><img src="img/piscina.jpg" alt=""></div>
+  <div class="txt">
+    <h2 class="cond">E o melhor de tudo: <span>lazer completo</span> sem sair de casa</h2>
+    <ul>
+      <li>Piscina adulto e infantil</li>
+      <li>Espaço fitness</li>
+      <li>Coworking</li>
+      <li>Salão de festas</li>
+      <li>Churrasqueira</li>
+      <li>Espaço happy hour</li>
+      <li>Play kids</li>
+      <li>Pet place e redário</li>
+    </ul>
+  </div>
+  <div class="seta escuro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 5 -->
+<section class="lamina azul planta">
+  <div class="sup">Se liga na planta do projeto:</div>
+  <h2 class="cond">2 dormitórios<br>com sala integrada</h2>
+  <div class="etq">Planta de 55,32 m²</div>
+  <div class="img3d"><img src="img/planta-3d.jpg" alt=""></div>
+  <div class="rod">Sala, jantar e cozinha em conceito aberto,<br>com previsão para ar-condicionado no quarto de casal.</div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 6 -->
+<section class="lamina azul planta">
+  <h2 class="cond" style="padding-top:120px">As plantas mais<br>disputadas:</h2>
+  <div class="duas">
+    <figure style="left:0; top:40px"><figcaption>55,32 m² + 22,34 m²</figcaption><img src="img/planta-garden-a.jpg" alt=""></figure>
+    <figure style="right:0; top:180px"><figcaption style="right:0">53,89 m² + 33,90 m²</figcaption><img src="img/planta-garden-b.jpg" alt=""></figure>
+  </div>
+  <div class="rod">São 2 dormitórios com garden privativo,<br>poucas unidades para quem quer mais espaço.</div>
+  <div class="seta claro"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 7 -->
+<section class="lamina cta">
+  <img class="cobre fundo" src="img/fachada.png" alt="">
+  <img class="pessoa" src="../../assets/boneco-3d/realista/celular.png" alt="">
+  <span class="degrade"></span>
+  <div class="txt">
+    <div class="l1">Gostou de alguma dessas plantas?</div>
+    <div class="cond l2">Me chama</div>
+    <div class="l3">e conheça as condições do OSK<br>antes de todo mundo!</div>
+  </div>
+</section>
+
+</body></html>
