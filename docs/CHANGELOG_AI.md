@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Regra do dono: trava "Simulação enviada" (FUN-13)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes (celular): sem cabeçalho; "Novo cliente" no menu Mais
+
+- Dono: remover a linha "CLIENTES 2342" e os dois botões, levar os botões para o "Mais" no padrão do menu e subir a tela. `components/clients/ClientWorkspace.jsx`: no celular o título vira só leitor de tela e os botões somem (desktop inalterado); "Meu link" do corretor foi para o lado da busca; funil sem margem em cima. `components/AdminBottomNav.jsx` (MoreMenu): item "Novo cliente" (ícone `UserRoundPlus`) no grupo que tem "Clientes"; "Prospecção" já estava no Mais.
+
+### 2026-10-12 — Regra do dono: trava "Simulação enviada" (FUN-13)
 
 - Dono: "O corretor alterar manualmente para Simulação enviada sem ter realmente enviado não deve ser permitido." Corretor/associado (perfil efetivo, inclusive "Alterar conta") só gravam `simulation_sent` com evidência: evento `presentation_sent`, link `/s/<token>` em mensagem de saída não falha de qualquer conversa do cliente, ou PDF `simulacao-*.pdf` enviado pelo Chat. Admin geral e gestor no próprio perfil passam. Mensagem: "Envie a simulação ao cliente pelo Chat (link da apresentação) antes de marcar 'Simulação enviada'."
 - Mapeamento: a única porta manual é `updateSimulationRegistration` com `auth` (seletor do card/ficha → `PATCH /api/simulation-registrations/[id]`; edição do cadastro → `/manual`) + o INSERT de cadastro novo em `ensureManualSimulationRegistration`. Não existe mudança de status em massa nem marcação automática de `simulation_sent` no código; `change_status` das automações (sem usuário) segue livre.

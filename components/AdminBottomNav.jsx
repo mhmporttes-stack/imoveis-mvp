@@ -246,6 +246,7 @@ const ITEM_ICONS = {
   "daily-goal": Target,
   "daily-goal-admin": Target,
   simulations: Users,
+  "new-client": UserRoundPlus,
   chat: MessageCircle,
   calendar: CalendarDays,
   prospecting: Search,
@@ -328,7 +329,11 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
       ) : null}
 
       {groups.map((group) => {
-        const items = group.items.filter((item) => !barKeys.includes(item.key));
+        // "Novo cliente" no grupo de Clientes (dono, 2026-10-12): no celular o botão saiu do topo da Lista de clientes.
+        const withNewClient = group.items.some((item) => item.key === "simulations")
+          ? [...group.items, { href: "/admin/simulacoes/nova", label: "Novo cliente", key: "new-client" }]
+          : group.items;
+        const items = withNewClient.filter((item) => !barKeys.includes(item.key));
         if (!items.length) return null;
         const headingId = `mais-${group.key}`;
         return (

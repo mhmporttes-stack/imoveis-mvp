@@ -73,16 +73,18 @@ export default function ClientWorkspace(props) {
   return (
     <section ref={topRef} className="container-page scroll-mt-4 pb-6" aria-labelledby="clientes-titulo">
       {/* 1. Cabeçalho */}
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+      {/* Celular (dono, 2026-10-12): sem o cabeçalho — título só para leitor de tela; "Novo cliente" e "Prospecção" ficam no
+          menu "Mais" e "Meu link" ao lado da busca. A contagem total já aparece em "Todos" no funil. Desktop inalterado. */}
+      <header className="max-sm:block sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-3">
         {/* Contagem na mesma linha do título (dono, 2026-10-12: economizar espaço). */}
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div className="flex min-w-0 items-baseline gap-2 max-sm:sr-only">
           <h1 id="clientes-titulo" className="text-[28px] font-semibold uppercase leading-[34px] tracking-[0.01em] text-navy">Clientes</h1>
           {/* Só o número (dono, 2026-10-12); o texto completo fica para leitor de tela. */}
           <p className="truncate text-sm text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
             {list.total}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-sm:hidden">
           {/* Atalhos para Meta Diária, Chat e Agenda: no desktop o menu do topo
               não mostra os subitens do grupo CRM/Clientes; no celular eles
               estão na barra inferior. */}
@@ -157,6 +159,11 @@ export default function ClientWorkspace(props) {
               </button>
             ) : null}
           </label>
+          {brokerSimulationLink ? (
+            <Button variant="secondary" size="icon" onClick={list.copyBrokerSimulationLink} className="sm:hidden" aria-label="Copiar meu link de simulação">
+              <Link2 className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          ) : null}
           <Button variant={extraFilterCount ? "primary" : "secondary"} onClick={() => setFiltersOpen(true)} aria-haspopup="dialog" aria-label={extraFilterCount ? `Filtros (${extraFilterCount} ativos)` : "Filtros"}>
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Filtros</span>
@@ -312,7 +319,7 @@ function PipelineStrip({ list }) {
   }, [filters.statusGroup]);
 
   return (
-    <div className="mt-2.5 overflow-hidden rounded-card border border-line bg-white sm:mt-4">
+    <div className="mt-0 overflow-hidden rounded-card border border-line bg-white sm:mt-4">
       <div ref={tabsRef} className="flex snap-x snap-mandatory items-stretch overflow-x-auto [scrollbar-width:none] sm:snap-none [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Etapas do funil">
         <StageTab label="Todos" count={counters.byGroup?.all ?? counters.all ?? 0} active={filters.statusGroup === "all"} onClick={() => select("all")} />
         {/* Ordem pedida pelo dono (2026-10-09): Patrocinado logo depois de Todos (onde ficava Prospecção); Prospecção vai para o fim da fila. */}
