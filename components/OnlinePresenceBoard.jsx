@@ -336,9 +336,9 @@ function HoursReport() {
 
 function StatPill({ emoji, label, value, tone }) {
   return (
-    <div className={`flex items-center gap-2 rounded-2xl border px-4 py-3 sm:px-5 sm:py-4 ${tone}`}>
+    <div className={`flex items-center justify-center gap-2.5 rounded-2xl border px-4 py-3 text-center sm:px-5 sm:py-4 ${tone}`}>
       <span className="text-xl leading-none sm:text-2xl">{emoji}</span>
-      <div>
+      <div className="text-center">
         <p className="text-xl font-black leading-none sm:text-2xl">{value}</p>
         <p className="text-[11px] font-bold uppercase tracking-wide sm:text-xs">{label}</p>
       </div>
