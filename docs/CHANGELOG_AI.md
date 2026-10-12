@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-12 — Linha do tempo: dados do formulário aparecem como "Cliente", não "Sistema"
+
+- **Caso:** cliente #C5589 (anúncio de WhatsApp, entrou 12/10 09:43) preencheu o formulário às 09:48 com renda própria CLT de R$ 1.000, sem 2º proponente. A linha do tempo mostrou "DADOS ATUALIZADOS — Sistema · Automação" e o dono achou que o sistema tinha alterado o cadastro. Não houve erro de dado: só esse cadastro existe para o telefone/nome, e nenhum cadastro desde 10/10 tem 2º proponente com renda ~R$ 2 mil.
+- **Alteração:** o formulário público passa `journeyActor` "Cliente" para `updateSimulationRegistration` (sem login); o evento `data_updated` sai com o autor "Cliente". Chamadas com usuário logado não mudam. `lib/simulation-registrations.js`.
+
 ### 2026-10-12 — Número oficial novo do WhatsApp (fato confirmado pelo dono)
 
 - Na Mesa de Criação do robô do Chat, os dados mostraram envios pelo número Oficial até 12/10, mas `.claude/rules/integracoes-externas.md` e `docs/WHATSAPP.md` diziam só que o número oficial foi banido em 28/09. Dono confirmou: comprou um **número oficial novo**, que é o ativo hoje. Rule e `docs/WHATSAPP.md` atualizadas (só fato técnico, sem mudança de código). Decisões do dono da mesa (outra cidade, "pare" → Não contactar, sem "assistente virtual", corte do lembrete de 23 h) estão em `docs/posicionamento/mesa/2026-10-12-robo-chat-formulario/DECISOES-DONO.md` e viram regra só na implementação (`/registrar-regra`).
