@@ -56,7 +56,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ### 2026-10-12 — Clientes: contagem ao lado do título
 
-- Dono: número de clientes na mesma linha do "Clientes" azul, para economizar espaço (`components/clients/ClientWorkspace.jsx`, cabeçalho). Depois: só o número, sem a palavra "clientes" (texto completo em `aria-label`).
+- Dono: número de clientes na mesma linha do "Clientes" azul, para economizar espaço (`components/clients/ClientWorkspace.jsx`, cabeçalho). Depois: só o número, sem a palavra "clientes" (texto completo em `aria-label`). Título em maiúsculas ("CLIENTES", via `uppercase`).
 
 ### 2026-10-12 — Clientes mais alto e filtros do funil com metade da altura (celular)
 
