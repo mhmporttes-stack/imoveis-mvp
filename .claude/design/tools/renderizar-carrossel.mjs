@@ -256,6 +256,9 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .frame.boneco-central .kicker { font-family:Anton, Inter, sans-serif; font-weight:400; font-size:76px; line-height:1; letter-spacing:.01em; color:#fff; margin:0 0 6px; }
   .frame.boneco-central h1.condensada { font-size:132px; line-height:.95; white-space:nowrap; }
   .etiqueta { display:inline-block; margin-top:14px; background:var(--brand); color:#fff; font-weight:700; font-size:58px; line-height:1.1; padding:10px 38px 14px; transform:rotate(-2deg); box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  /* Indicador "arrasta pro lado" (pedido do dono, 2026-10-12): "seta": true no roteiro = todas as lâminas menos a última. */
+  .seta { position:absolute !important; max-width:none !important; right:88px; bottom:74px; z-index:3; display:flex; align-items:center; gap:14px; color:#fff; font-size:26px; font-weight:600; letter-spacing:.04em; }
+  .seta svg { width:60px; height:60px; fill:none; stroke:var(--brand); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
   .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
   .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
@@ -269,6 +272,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   ${l.bonecoCentral ? `<img class="boneco-central-img" src="${asDataUrl(`docs/posicionamento/assets/boneco-3d/${l.bonecoCentral}.png`)}" alt=""><span class="degrade-base"></span>` : ""}
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
+  ${(l.seta ?? (roteiro.seta && i < roteiro.laminas.length - 1)) ? `<div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>` : ""}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
 </div></body></html>`;
 
