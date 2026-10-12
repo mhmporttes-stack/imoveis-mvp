@@ -11,6 +11,7 @@ import {
   listSimulationClientsPage
 } from "@/lib/simulation-list-query";
 import { canManageSimulations } from "@/lib/simulations";
+import { newRenderId } from "@/lib/render-id.mjs";
 
 export const dynamic = "force-dynamic";
 // Voltar para Clientes na hora (pedido do dono, 2026-10-12): o navegador reaproveita esta tela por até 5 min em vez de
@@ -79,7 +80,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
       : [];
 
     // renderId: identifica esta renderização — se o navegador reaproveitar a tela, a lista sabe que precisa se atualizar.
-    initialData = { ...pageResult, counters, pendingClientsCount, clientActivities, renderId: crypto.randomUUID() };
+    initialData = { ...pageResult, counters, pendingClientsCount, clientActivities, renderId: newRenderId() };
   } catch (error) {
     loadError = error?.message || "Não foi possível carregar a lista de clientes.";
   }

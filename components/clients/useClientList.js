@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { displayLink } from "@/lib/short-links.mjs";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
@@ -24,9 +25,6 @@ function readCardDevice() {
     maxTouchPoints: navigator.maxTouchPoints || 0
   });
 }
-
-// Renderizações do servidor já mostradas nesta aba (ver o efeito de revalidação abaixo). Só ids aleatórios, sem dado.
-const seenRenderIds = new Set();
 
 export function useClientList({
   adminProfiles = [],
@@ -91,13 +89,7 @@ export function useClientList({
 
   // Tela reaproveitada pelo navegador (unstable_dynamicStaleTime em app/admin/simulacoes/page.jsx): os dados iniciais
   // são de uma visita anterior — mostra na hora e atualiza em segundo plano, sem escurecer a lista.
-  useEffect(() => {
-    const renderId = initialData?.renderId;
-    if (!renderId) return;
-    if (seenRenderIds.has(renderId)) fetchClients({ silent: true });
-    else seenRenderIds.add(renderId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useRevalidateOnReuse(initialData?.renderId, () => fetchClients({ silent: true }));
 
   // Guarda contra refetch duplicado na primeira montagem (dados iniciais vêm do servidor).
   const isFirstRender = useRef(true);

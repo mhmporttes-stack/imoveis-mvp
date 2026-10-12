@@ -16,6 +16,7 @@ import {
   Users
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -58,8 +59,10 @@ const TREND_GRANULARITIES = [
 ];
 const TREND_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2", "#dc2626", "#65a30d"];
 
-export default function PerformanceOverviewDashboard({ initialOverview, initialError = "" }) {
+export default function PerformanceOverviewDashboard({ initialOverview, initialError = "", renderId = "" }) {
   const [period, setPeriod] = useState(initialOverview?.range?.period || "month");
+  const periodRef = useRef(period);
+  periodRef.current = period;
   const [startDate, setStartDate] = useState(initialOverview?.range?.startDate || "");
   const [endDate, setEndDate] = useState(initialOverview?.range?.endDate || "");
   const [overview, setOverview] = useState(initialOverview);
@@ -89,6 +92,15 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   // o trabalho no banco e o tempo até a tela ficar "pronta" a cada acesso.
   // Refetch continua acontecendo normalmente quando o usuário troca período/data.
   const isFirstOverviewRender = useRef(true);
+  // Tela reaproveitada (volta em até 5 min): relê o período padrão em segundo plano, sem "carregando". Se a pessoa já
+  // trocou de período, a troca faz a própria busca e esta resposta é descartada.
+  useRevalidateOnReuse(renderId, () => {
+    const requested = initialOverview?.range?.period || "month";
+    fetch(`/api/performance-overview?${new URLSearchParams({ period: requested }).toString()}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => { if (payload?.overview && periodRef.current === requested) setOverview(payload.overview); })
+      .catch(() => {});
+  });
   useEffect(() => {
     const controller = new AbortController();
     if (isFirstOverviewRender.current) {

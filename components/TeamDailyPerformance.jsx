@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { X, History, ListRestart } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
 import { formatAutoQueueCardLine } from "@/lib/daily-goal-policy-core.mjs";
@@ -9,7 +11,8 @@ import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } 
 import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
-import { BrokerHistoryPanel } from "@/components/DailyGoalAdmin";
+// Histórico do corretor só abre com um toque: o código da tela de Gestão (DailyGoalAdmin) é baixado sob demanda.
+const BrokerHistoryPanel = dynamic(() => import("@/components/DailyGoalAdmin").then((module) => module.BrokerHistoryPanel), { loading: () => null });
 // Mensagens internas de supervisão (pedido do dono, 2026-10-01): ícone no
 // card + mini-chat flutuante. Independente do Chat de clientes/WhatsApp.
 import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from "@/components/supervision/SupervisionChatDock";
@@ -37,7 +40,7 @@ function progressColor(percent) {
 // corretor continua vendo o componente DailyGoalDashboard, intocado.
 // viewer="manager": gestora — mesma visão, SÓ da equipe dela (recorte no backend) e somente leitura aqui:
 // sem mensagem de supervisão e sem reorganizar fila. Validar/encerrar restrição segue a regra da T-29.
-export default function TeamDailyPerformance({ initialOverview, initialError = "", viewer = "owner" }) {
+export default function TeamDailyPerformance({ initialOverview, initialError = "", viewer = "owner", renderId = "" }) {
   const readOnly = viewer === "manager";
   const [period, setPeriod] = useState(initialOverview?.range?.period || "today");
   const [overview, setOverview] = useState(initialOverview);
@@ -45,6 +48,16 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
   const [loading, setLoading] = useState(false);
   const [selectedBrokerId, setSelectedBrokerId] = useState("");
   const isFirstRender = useRef(true);
+  const periodRef = useRef(period);
+  periodRef.current = period;
+  // Tela reaproveitada: relê o painel do período atual em segundo plano, sem "carregando".
+  useRevalidateOnReuse(renderId, () => {
+    const requested = periodRef.current;
+    fetch(`/api/daily-goal/team-overview?period=${requested}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => { if (payload && periodRef.current === requested) setOverview(payload); })
+      .catch(() => {});
+  });
 
   useEffect(() => {
     if (isFirstRender.current) {

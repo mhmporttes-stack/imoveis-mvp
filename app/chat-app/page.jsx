@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import WhatsappChat from "@/components/WhatsappChat";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import ChatAppHome from "@/components/ChatAppHome";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
 import { getAdminFromCookies } from "@/lib/admin-auth";
@@ -29,7 +30,7 @@ export default async function ChatAppPage({ searchParams }) {
     <WhatsappAccessProvider blocked={false} basic={isBasicMode(auth.profile)}>
       <ChatAppHome />
       <main className="bg-mist">
-        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} viewerKey={auth.profile?.id ? `${auth.realProfile?.id || auth.profile.id}:${auth.profile.id}` : ""} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
+        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
       </main>
     </WhatsappAccessProvider>
   );

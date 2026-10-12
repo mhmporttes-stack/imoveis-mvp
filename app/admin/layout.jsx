@@ -1,4 +1,6 @@
 import AdminBottomNav from "@/components/AdminBottomNav";
+import AdminWarmup from "@/components/AdminWarmup";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
@@ -21,7 +23,7 @@ import { isAcademyEnabled } from "@/lib/academy-flags";
 import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
-import { isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
+import { hiddenNavKeys, isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +84,7 @@ export default async function AdminLayout({ children }) {
       <SceneSkipCatcher />
       {/* Navegação principal no celular (< md); do tablet para cima continua
           o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
+      {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked)} /> : null}
       {auth.ok ? (
         <AdminBottomNav
           isAdmin={isGeneralAdminProfile(auth.profile)}
@@ -104,6 +107,24 @@ export default async function AdminLayout({ children }) {
       ) : null}
     </AcademyMenuProvider>
   );
+}
+
+// Pré-carregamento (components/AdminWarmup.jsx): as MESMAS telas que a barra inferior mostra para esta conta
+// (AdminBottomNav: Meta, Clientes, Chat + Desempenho no admin geral ou Agenda nos demais; hiddenNavKeys tira Chat/Meta
+// de quem tem WhatsApp bloqueado). Meta Diária só o código (abrir a Meta gera a cota do dia do corretor).
+function warmupTargets(auth, whatsappBlocked) {
+  const isAdmin = isGeneralAdminProfile(auth.profile);
+  const hidden = hiddenNavKeys({
+    blocked: whatsappBlocked,
+    isBrokerOrAssociate: (isBrokerProfile(auth.profile) || isAssociateProfile(auth.profile)) && !isManagerProfile(auth.profile) && !isAdmin
+  });
+  const chat = !hidden.has("chat");
+  return {
+    viewerKey: chatViewerKey(auth),
+    chat,
+    fullRoutes: ["/admin/simulacoes", ...(chat ? ["/admin/chat"] : []), ...(isAdmin ? ["/admin/desempenho"] : [])],
+    lightRoutes: [...(hidden.has("daily-goal") ? [] : ["/admin/meta-diaria"]), ...(isAdmin ? [] : ["/admin/calendario"])]
+  };
 }
 
 function roleLabel(role) {

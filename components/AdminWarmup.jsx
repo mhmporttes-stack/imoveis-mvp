@@ -1,0 +1,96 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { readChatView, saveChatView } from "@/components/chat-view-cache";
+
+// Pré-carrega as telas da barra inferior depois que o painel abre (pedido do dono, 2026-10-12: "o primeiro toque no Chat
+// demora mais"). Só no celular, uma vez por sessão, com o app visível, fora de "economia de dados"/2G, e só as telas que
+// a barra mostra para esta conta (decidido no servidor, app/admin/layout.jsx).
+// - fullRoutes: tela inteira já montada (Chat e Clientes; Desempenho para quem tem). Só leitura no servidor.
+// - lightRoutes: só o código da tela (Meta Diária: abrir a Meta gera a cota do dia, então os dados esperam o toque).
+// - chat: lista de conversas no cache do Chat (components/chat-view-cache.js), sem recibo "entregue" nem marcar lida
+//   (?warm=1 em /api/admin/whatsapp-chat/conversations). A tela mostra isso na hora e atualiza ao abrir.
+const START_DELAY_MS = 3000;
+let done = false;
+
+function connectionTooSlow() {
+  const connection = typeof navigator !== "undefined" ? navigator.connection : null;
+  return Boolean(connection?.saveData) || /(^|-)2g$/.test(connection?.effectiveType || "");
+}
+
+function warmChatList(viewerKey) {
+  if (readChatView(viewerKey)) return;
+  fetch("/api/admin/whatsapp-chat/conversations?filter=all&warm=1", { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((data) => {
+      // Já abriu o Chat enquanto isso (ou trocou de conta): não sobrescreve.
+      if (!Array.isArray(data?.conversations) || readChatView(viewerKey)) return;
+      saveChatView(viewerKey, {
+        tab: "conversations",
+        filter: "all",
+        clientStatus: "",
+        search: "",
+        searchInput: "",
+        scopedBroker: null,
+        // Mesma regra da tela: Particular só na própria aba.
+        conversations: data.conversations.filter((item) => !item.private),
+        listHasMore: data.conversations.length >= 100,
+        selectedId: "",
+        brokers: [],
+        mySlots: []
+      });
+    })
+    .catch(() => {});
+}
+
+export default function AdminWarmup({ viewerKey = "", chat = false, fullRoutes = [], lightRoutes = [] }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (done || !viewerKey) return undefined;
+    if (!window.matchMedia("(max-width: 767px)").matches || connectionTooSlow()) return undefined;
+    const sessionFlag = `mm-warmup:${viewerKey}`;
+    try {
+      if (window.sessionStorage.getItem(sessionFlag)) return undefined;
+    } catch {
+      // sem armazenamento da sessão: vale o controle em memória (done)
+    }
+
+    let cancelled = false;
+    let timer = null;
+    let idleId = null;
+    const requestIdle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 1));
+    const cancelIdle = window.cancelIdleCallback || window.clearTimeout;
+
+    function run() {
+      if (cancelled || done) return;
+      if (document.visibilityState !== "visible") return; // volta a tentar quando o app ficar visível
+      done = true;
+      try { window.sessionStorage.setItem(sessionFlag, "1"); } catch { /* opcional */ }
+      for (const href of fullRoutes) router.prefetch(href, { kind: "full" });
+      for (const href of lightRoutes) router.prefetch(href);
+      if (chat) warmChatList(viewerKey);
+    }
+    function schedule() {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { idleId = requestIdle(run, { timeout: 5000 }); }, START_DELAY_MS);
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible" && !done) schedule();
+    }
+
+    schedule();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (idleId !== null) cancelIdle(idleId);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // Uma vez por sessão: as listas vêm do servidor e não mudam durante a vida do layout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}

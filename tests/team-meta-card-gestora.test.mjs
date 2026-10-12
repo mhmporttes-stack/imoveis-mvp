@@ -39,7 +39,8 @@ test("T-49: equipe continua isolada; a gestora não aparece na lista e não lê 
 
 test("T-49: corretor e admin sem regressão (variant padrão = tela completa; admin usa visão de equipe sem card)", () => {
   const page = src("app/admin/meta-diaria/page.jsx");
-  assert.match(page, /<DailyGoalDashboard initialGoal=\{goal\} \/>/);
+  // Tela do corretor: sem variant (= tela completa); renderId (2026-10-12) só serve para atualizar a tela reaproveitada.
+  assert.match(page, /<DailyGoalDashboard initialGoal=\{goal\}(?![^>]*variant)[^>]*\/>/);
   assert.match(page, /viewer === "manager" && !ownGoalHidden \? \(/);
 });
 

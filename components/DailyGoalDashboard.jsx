@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { Check, MessageCircle, Pencil } from "lucide-react";
 import RevealCard from "@/components/motion/RevealCard";
 import AnimatedRing from "@/components/motion/AnimatedRing";
@@ -27,10 +28,17 @@ const GROUPS = [
 // variant="card": só o cartão-resumo da PRÓPRIA meta (progresso, quantidades, pendências, carteira, grupos,
 // compensação e aviso do WhatsApp) — usado pela gestora no topo da Meta Diária da equipe (T-49). Mesmo cálculo e
 // mesmas regras do corretor (getBrokerDailyGoal); sem lista de contatos e sem painel de automação.
-export default function DailyGoalDashboard({ initialGoal, variant = "full" }) {
+export default function DailyGoalDashboard({ initialGoal, variant = "full", renderId = "" }) {
   const isCard = variant === "card";
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState("");
+  // Tela reaproveitada: relê a meta em segundo plano (mesma consulta da página; falha = fica o que já está na tela).
+  useRevalidateOnReuse(renderId, () => {
+    fetch("/api/daily-goal")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((fresh) => { if (fresh) setGoal(fresh); })
+      .catch(() => {});
+  });
 
   if (!goal) {
     return (

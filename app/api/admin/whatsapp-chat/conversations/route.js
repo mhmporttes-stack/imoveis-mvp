@@ -18,10 +18,12 @@ export async function GET(request) {
       query: params.get("q") || "",
       before: params.get("before") || "",
       brokerId: params.get("brokerId") || "",
-      clientStatus: params.get("clientStatus") || ""
+      clientStatus: params.get("clientStatus") || "",
+      // Pré-carregamento em segundo plano (AdminWarmup): sem recibo "entregue" e sem buscar fotos agora.
+      warm: params.get("warm") === "1"
     }, auth);
     // Foto do cliente (2026-10-09): busca em segundo plano as que faltam/estão velhas (poucas por vez).
-    after(() => refreshContactPhotos(conversations.map((item) => item.id)).catch(() => {}));
+    if (params.get("warm") !== "1") after(() => refreshContactPhotos(conversations.map((item) => item.id)).catch(() => {}));
     return NextResponse.json({ conversations });
   } catch (error) {
     return chatErrorResponse(error);

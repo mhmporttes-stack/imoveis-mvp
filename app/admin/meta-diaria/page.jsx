@@ -8,8 +8,13 @@ import { isOwnerAdminEmail, requireAdminPage } from "@/lib/admin-auth";
 import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 import { isManagerProfile } from "@/lib/admin-profiles";
 import { canLoadDailyGoal, formatDailyGoalError, getBrokerDailyGoal, getOwnerTeamDailyOverview } from "@/lib/daily-goal";
+import { newRenderId } from "@/lib/render-id.mjs";
 
 export const dynamic = "force-dynamic";
+// Voltar para esta tela na hora (desempenho, 2026-10-12): o navegador reaproveita a tela por até 5 min em vez de esperar o
+// servidor refazer tudo; ao reaproveitar, os números se atualizam em segundo plano (renderId + useRevalidateOnReuse).
+// Sair da conta / "Alterar conta" chamam router.refresh(), que descarta o reaproveitamento.
+export const unstable_dynamicStaleTime = 300;
 
 export default async function MetaDiariaPage() {
   const auth = await requireAdminPage();
@@ -62,7 +67,7 @@ export default async function MetaDiariaPage() {
         </section>
       ) : (
         <SceneGate>
-          <DailyGoalDashboard initialGoal={goal} />
+          <DailyGoalDashboard initialGoal={goal} renderId={newRenderId()} />
         </SceneGate>
       )}
     </main>
@@ -114,7 +119,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
             <section className="container-page mb-6">
               <div className="mx-auto max-w-3xl">
                 {ownGoal ? (
-                  <DailyGoalDashboard initialGoal={ownGoal} variant="card" />
+                  <DailyGoalDashboard initialGoal={ownGoal} variant="card" renderId={newRenderId()} />
                 ) : (
                   <p className="rounded-[20px] border border-line bg-white p-5 text-center text-sm font-bold text-muted">
                     {ownGoalError || "Não foi possível carregar sua Meta Diária agora."}
@@ -123,7 +128,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
               </div>
             </section>
           ) : null}
-          <TeamDailyPerformance initialOverview={overview} viewer={viewer} />
+          <TeamDailyPerformance initialOverview={overview} viewer={viewer} renderId={newRenderId()} />
         </>
       )}
     </main>
