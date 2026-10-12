@@ -159,7 +159,8 @@ function fundoDa(l) {
   if (!img) return `background:${cor};`;
   const pos = l.imagemPosicao || "center";
   // "textoTopo": ilustração com o espaço livre em cima (estilo das ilustrações 3D) — escurece o topo, não a base.
-  const grad = l.tipo === "cartao"
+  // "foto": a imagem já é o post inteiro (texto dentro da foto); só leva o rodapé.
+  const grad = (l.tipo === "cartao" || l.tipo === "foto")
     ? "linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.12) 70%, rgba(0,0,0,.80) 100%)"
     : l.textoTopo
     ? "linear-gradient(180deg, rgba(0,0,0,.92) 0%, rgba(0,0,0,.70) 30%, rgba(0,0,0,.10) 55%, rgba(0,0,0,0) 70%, rgba(0,0,0,.55) 100%)"

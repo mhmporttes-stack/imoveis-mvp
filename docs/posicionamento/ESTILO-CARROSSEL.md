@@ -14,6 +14,9 @@ Versão aprovada como referência: `carrosseis/2026-10-11-mitos-mcmv-v2/`.
 ## Pessoa na referência → boneco (regra do dono, 2026-10-12)
 Toda pessoa que aparecer numa lâmina da referência vira o **boneco 3D do Matheus** (`assets/boneco-3d/`), na pose/expressão mais parecida. Pose que ainda não existe → criar, salvar no acervo e usar, sem precisar pedir.
 
+## Referência que é uma foto única com texto dentro (2026-10-12)
+Quando o dono pedir "igual à original": editar a própria referência no Canva (`generate-image` com ela como referência), trocando só cor (laranja/amarelo → azul) e o que ele pedir (ex.: mão feminina → masculina), conferindo o texto palavra por palavra; no roteiro, `tipo: "foto"` (só põe o rodapé). Recriar em layout próprio com boneco foi reprovado ("ficou horrível").
+
 ## Cor
 - **Destaque hoje = azul da marca** (`#3B8BFF` no fundo preto). Os posts antigos usavam **amarelo** — ao recriar um deles, trocar amarelo por azul. Nunca voltar ao amarelo.
 - **Vermelho só para palavra negativa** (regra do dono, 2026-10-12): ex. "reprovado", "recusou", "restrição" — `!!palavra!!` no roteiro. Destaque positivo/neutro continua azul.
