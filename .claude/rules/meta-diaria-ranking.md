@@ -90,6 +90,8 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Horas no CRM: contatos particulares não contam.** Tentativa sem card de cliente, cliente com `private_contact_at` ou telefone de conversa Particular do próprio corretor fica fora da contagem (manuais e automáticos). Só a tela — pontuação/ranking/Meta Diária usam as mesmas tentativas e NÃO mudam sem decisão do dono. `splitPrivateAttempts` (`lib/admin-presence-core.mjs`); RAN-6a.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Contato automático pontua (RAN-6b).** Tentativa da Meta Diária enviada pelo disparo automático (`daily_goal_attempts.origin = 'auto'`) pontua igual à manual, mesmo com o corretor offline no CRM: o WhatsApp é dele e ele atende as respostas. Não condicionar pontuação/ranking à presença sem nova decisão do dono.
+
 ## Percentual da meta exibido (card do corretor, resumo diário WhatsApp)
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-09-22]** Bater a meta é 100%; cada contato adicional além da meta soma exatamente **+1 ponto percentual** (não é uma razão contínua) — 122 contatos numa meta de 31 é **191%**, nunca 394% (122/31×100) nem qualquer outro valor proporcional acima de 100%. `dailyGoalPercent(done, target)` (`lib/daily-goal-progress.mjs`, com testes em `tests/daily-goal-progress.test.mjs`) centraliza essa fórmula — nunca recalcule `Math.round((done/target)*100)` sem teto em nenhum lugar novo, reaproveite essa função.

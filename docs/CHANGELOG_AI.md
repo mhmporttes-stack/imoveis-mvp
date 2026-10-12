@@ -44,6 +44,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-12 — Regra RAN-6b: contato automático pontua mesmo offline
+
+- Dono escolheu a opção A: tentativa do disparo automático da Meta Diária pontua igual à manual, mesmo com o corretor offline no CRM. Comportamento atual confirmado como regra oficial (`.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md` RAN-6b); sem mudança de código.
+
 ### 2026-10-12 — Painel Online: histórico do dia (entrou/saiu e aparelho) ao clicar no ícone
 
 - **Pedido do dono:** clicar no ícone e ver "entrou 10:00 · saiu 10:30 · computador; entrou 13:00 · celular…".
