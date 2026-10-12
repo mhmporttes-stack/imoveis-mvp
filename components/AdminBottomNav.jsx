@@ -133,6 +133,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
         const next = Math.max(0, Math.round(current + visibleBottom - rect.bottom));
         if (next > 2) root.style.setProperty("--mm-fixed-drop", `${next}px`);
         else root.style.removeProperty("--mm-fixed-drop");
+        root.classList.toggle("mm-fixed-drop", next > 2);
       }, 300);
     };
     const onVisibility = () => {
@@ -150,6 +151,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
     return () => {
       window.removeEventListener("scroll", resync);
       document.documentElement.style.removeProperty("--mm-fixed-drop");
+      document.documentElement.classList.remove("mm-fixed-drop");
       window.clearTimeout(timer);
       document.removeEventListener("focusout", resync);
       document.removeEventListener("visibilitychange", onVisibility);

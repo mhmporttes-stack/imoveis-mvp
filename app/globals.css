@@ -703,6 +703,13 @@ html.chat-app-mode body {
   bottom: calc(0px - var(--mm-fixed-drop, 0px));
 }
 
+/* Com o defeito ativo, o overflow: hidden do <html> no Chat vira o recorte da JANELA na altura encurtada pelo iOS e
+   cortava a barra pela metade (print do dono, 2026-10-12). Nesse caso o <html> usa auto (não rola: o body é fixo e
+   não ocupa espaço no fluxo) e o body segue com hidden, sem propagar para a janela. */
+html.chat-app-mode.mm-fixed-drop {
+  overflow: auto;
+}
+
 /* Celular com a barra: o Chat termina exatamente no topo dela (o respiro do
    iPhone já está dentro da barra; somar a safe-area de novo deixaria faixa). */
 @media (max-width: 767px) {
