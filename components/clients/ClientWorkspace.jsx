@@ -77,8 +77,9 @@ export default function ClientWorkspace(props) {
         {/* Contagem na mesma linha do título (dono, 2026-10-12: economizar espaço). */}
         <div className="flex min-w-0 items-baseline gap-2">
           <h1 id="clientes-titulo" className="text-[28px] font-semibold leading-[34px] tracking-[-0.015em] text-navy">Clientes</h1>
-          <p className="truncate text-sm text-ink-2 tabular-nums">
-            {list.total} {list.total === 1 ? "cliente" : "clientes"}{anyFilter ? " neste filtro" : ""}
+          {/* Só o número (dono, 2026-10-12); o texto completo fica para leitor de tela. */}
+          <p className="truncate text-sm text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
+            {list.total}
           </p>
         </div>
         <div className="flex items-center gap-2">
