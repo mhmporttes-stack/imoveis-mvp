@@ -320,3 +320,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Sintoma:** 1 h depois de receber a apresentação da simulação, a cliente recebeu o lembrete WA-17 do formulário.
 - **Causa raiz:** `isFormLinkUrl` aceitava qualquer `/s/<x>`; o link da apresentação (`/s/<token>`) usa o mesmo prefixo do link curto do formulário (`/s/<ref>`). E cadastro criado pelo formulário fica com `last_form_submitted_at` nulo (só reenvio preenche), então o "já preencheu" não o via.
 - **Correção:** `lib/whatsapp-form-reminder-core.mjs` exclui token de apresentação (`isPresentationToken`) e trata `journey_type` preenchido como formulário enviado (`lib/whatsapp-form-reminder.js` passa a ler a coluna). Testes em `tests/whatsapp-form-reminder.test.mjs`.
+
+## 2026-10-12 — Barra inferior alta/cortada só no Chat (iPhone, app instalado)
+
+- **Sintoma:** no Chat a barra inferior ficava alta com faixa branca embaixo (ou cortada pela metade); nas outras telas, normal.
+- **Causa raiz (medida no aparelho: tela 956, `innerHeight` 894, safe-area do topo 62):** com a página do Chat SEM rolagem (`html` 100% + `overflow: hidden`), o iOS encolhe a janela do app pela altura da barra de status; os 62 pt de baixo ficam fora do app. Telas que rolam não têm o defeito.
+- **Correção:** `html.chat-app-mode` com `min-height: calc(100% + env(safe-area-inset-top))` e `overflow-y: auto` (`app/globals.css`). Rede de segurança em `components/AdminBottomNav.jsx` (`--mm-fixed-drop`) mede o fim visível e desce a barra se o iOS voltar a encurtar o fixo.
