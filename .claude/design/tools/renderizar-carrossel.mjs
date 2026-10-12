@@ -30,6 +30,7 @@ if (!roteiroPath) { console.error("Uso: node renderizar-carrossel.mjs <roteiro.j
 const saidaIdx = args.indexOf("--saida");
 const saida = saidaIdx >= 0 ? args[saidaIdx + 1] : path.join("scratch", "carrossel");
 const roteiro = JSON.parse(readFileSync(roteiroPath, "utf8"));
+// Rodapé SÓ quando pedido (dono, 2026-10-12): "rodape": true no roteiro ou na lâmina. Padrão = sem rodapé.
 // Rodapé igual ao topo do perfil do Instagram (pedido do dono, 2026-10-11): foto no anel colorido, usuário + selo
 // de verificado e a linha "Matheus Machado / Corretor de Imóveis".
 const handle = String(roteiro.handle || "mhm.machado").replace(/^@/, "");
@@ -160,7 +161,7 @@ function fundoDa(l) {
   const pos = l.imagemPosicao || "center";
   // "textoTopo": ilustração com o espaço livre em cima (estilo das ilustrações 3D) — escurece o topo, não a base.
   // "foto": a imagem já é o post inteiro (texto dentro da foto); só leva o rodapé.
-  if (l.tipo === "foto" && l.semRodape) return `background:url('${img}') ${pos}/cover no-repeat, ${cor};`;
+  if (l.tipo === "foto" && (l.semRodape || !(l.rodape ?? roteiro.rodape))) return `background:url('${img}') ${pos}/cover no-repeat, ${cor};`;
   const grad = (l.tipo === "cartao" || l.tipo === "foto")
     ? "linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.12) 70%, rgba(0,0,0,.80) 100%)"
     : l.textoTopo
@@ -288,7 +289,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
   ${(l.seta ?? (roteiro.seta && i < roteiro.laminas.length - 1)) ? `<div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>` : ""}
-  ${l.semRodape ? "" : `<div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>`}
+  ${!(l.rodape ?? roteiro.rodape) || l.semRodape ? "" : `<div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>`}
 </div></body></html>`;
 
 const FONT_CSS = await fontCss();
