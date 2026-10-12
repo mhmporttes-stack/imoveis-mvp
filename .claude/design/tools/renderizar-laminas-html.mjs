@@ -13,6 +13,9 @@ const args = process.argv.slice(2);
 const htmlPath = path.resolve(args.find((a) => !a.startsWith("--")));
 const saidaIdx = args.indexOf("--saida");
 const saida = saidaIdx >= 0 ? args[saidaIdx + 1] : path.dirname(htmlPath);
+// --escala 2 = PNG em 2160x2700 (texto e fotos mais nítidos).
+const escIdx = args.indexOf("--escala");
+const escala = escIdx >= 0 ? Number(args[escIdx + 1]) : 1;
 let html = readFileSync(htmlPath, "utf8");
 
 async function fontCss(query) {
@@ -42,7 +45,7 @@ function loadPlaywright() {
 
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1080, height: 1350 } });
+const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: escala });
 // Imagens relativas embutidas como data URL (setContent não lê file://).
 html = html.replace(/src="([^"]+)"/g, (m, src) => {
   if (/^(data:|https?:)/.test(src)) return m;

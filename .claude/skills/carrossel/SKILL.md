@@ -44,7 +44,7 @@ Personagem 3D **estilo desenho animado/caricatura** (cabeça e olhos grandes, tr
 A pedido do dono, as 10 poses de meio corpo também existem como **fotos realistas profissionais** (geradas no Canva a partir das fotos dele, fundo transparente) em `boneco-3d/realista/` (catálogo `prancha.png`), mesmos nomes de pose. Uso: `"boneco": "realista/<pose>"`. Pose extra: `lupa` (2026-10-12). Perguntar ao dono se prefere boneco ou realista quando não estiver claro.
 
 ## Layout livre (2026-10-12)
-Referência com layout que o gerador não cobre (ex.: carrossel de lançamento): escrever `laminas.html` na pasta do carrossel (uma `<section class="lamina">` por lâmina) e renderizar com `.claude/design/tools/renderizar-laminas-html.mjs`. Exemplo: `carrosseis/2026-10-12-osk/`. Material de lançamento: usar só dados do book oficial; condições de pagamento/MCMV só com tabela do dono.
+Referência com layout que o gerador não cobre (ex.: carrossel de lançamento): escrever `laminas.html` na pasta do carrossel (uma `<section class="lamina">` por lâmina) e renderizar com `.claude/design/tools/renderizar-laminas-html.mjs` (usar `--escala 2` = PNG 2160×2700, mais nítido — pedido do dono 2026-10-12). Exemplo: `carrosseis/2026-10-12-osk/`. Material de lançamento: usar só dados do book oficial; condições de pagamento/MCMV só com tabela do dono.
 
 ## Imagens geradas no Canva sem trabalho manual (2026-10-11)
 O `generate-image` só devolve miniatura. Para baixar em tamanho cheio, automaticamente:
