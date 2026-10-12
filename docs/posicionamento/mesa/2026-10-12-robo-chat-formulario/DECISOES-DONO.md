@@ -33,3 +33,4 @@ update attendance_guides g set
 where g.id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
 update attendance_guides set published_graph = graph, published_version = version, published_at = now() where id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
 ```
+15. **Aprovação da implementação (dono, 2026-10-12): "sim pode implementar tudo"** → Fase 1 (configurar Fluxos) e Fase 2 (5 itens de código) do `DOSSIE.md`; transferência do silêncio **só daqui para frente** (data de corte = publicação). Fase 3 continua dependendo de decisões. Anúncio (H1–H5) é executado pelo dono no Gerenciador (os agentes não alteram a Meta).
