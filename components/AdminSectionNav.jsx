@@ -38,7 +38,9 @@ export default async function AdminSectionNav({ active = "properties" }) {
   }
 
   return (
-    <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
+    // Celular: para quem não é gestor o bloco não mostra nada (o menu do topo é só ≥ md), então sem margem — o espaço
+    // vazio acima de "Clientes" (dono, 2026-10-12). Gestor mantém (links e sub-barra aparecem no celular).
+    <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"} ${!isManager || isAdmin ? "max-md:mb-0" : ""}`}>
       <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={isEffectivelyBlocked(profile)} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}

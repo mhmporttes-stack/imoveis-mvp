@@ -362,18 +362,19 @@ function StageTab({ label, count, ratio = null, active, onClick, muted = false }
       aria-selected={active}
       onClick={onClick}
       className={cx(
-        "relative flex w-1/3 shrink-0 grow-0 snap-start flex-col items-center justify-between gap-1.5 px-2.5 pb-2 pt-2 text-center sm:items-stretch sm:text-left sm:pb-3 sm:pt-2.5 sm:w-auto sm:min-w-[6.75rem] sm:flex-1 sm:snap-align-none sm:gap-2 sm:px-3.5 transition-colors duration-150",
+        // Celular: metade da altura (dono, 2026-10-12) — rótulo e número na mesma linha, sem a barrinha. Desktop inalterado.
+        "relative flex w-1/3 shrink-0 grow-0 snap-start flex-row flex-wrap items-baseline justify-center gap-x-1.5 px-2 py-1.5 text-center sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-between sm:text-left sm:pb-3 sm:pt-2.5 sm:w-auto sm:min-w-[6.75rem] sm:flex-1 sm:snap-align-none sm:gap-2 sm:px-3.5 transition-colors duration-150",
         "border-r border-line/70 last:border-r-0 sm:border-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
         active ? "bg-info-soft/70 sm:bg-info-soft" : "hover:bg-navy/[0.025]"
       )}
     >
       <span className={cx("text-[11px] font-medium leading-none sm:text-xs", active ? "text-navy" : muted ? "text-muted" : "text-muted sm:text-ink-2")}>{label}</span>
-      <span className={cx("text-[22px] font-bold leading-none tracking-[-0.01em] tabular-nums sm:text-xl sm:leading-none", active ? "text-navy" : count ? "text-ink" : "text-faint")}>{count}</span>
+      <span className={cx("text-[15px] font-bold leading-none tracking-[-0.01em] tabular-nums sm:text-xl sm:leading-none", active ? "text-navy" : count ? "text-ink" : "text-faint")}>{count}</span>
       {ratio !== null ? (
-        <span className="block h-[3px] w-full overflow-hidden rounded-full bg-navy/[0.06] sm:h-1" aria-hidden="true">
+        <span className="hidden h-1 w-full overflow-hidden rounded-full bg-navy/[0.06] sm:block" aria-hidden="true">
           <span className={cx("block h-full rounded-full", active ? "bg-brand" : "bg-navy/30")} style={{ width: `${Math.max(count ? 6 : 0, Math.round(ratio * 100))}%` }} />
         </span>
-      ) : <span className="block h-[3px] sm:h-1" aria-hidden="true" />}
+      ) : <span className="hidden h-1 sm:block" aria-hidden="true" />}
       {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand" aria-hidden="true" /> : null}
     </button>
   );

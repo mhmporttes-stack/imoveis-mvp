@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Ranking do topo lado a lado no celular e Chat mais alto (pedido do dono)
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes mais alto e filtros do funil com metade da altura (celular)
+
+- Dono: "remova esse espaço acima de Clientes" e "os filtros devem diminuir 50% a altura". `components/AdminSectionNav.jsx`: no celular, para quem não é gestor (o bloco não mostra nada ali), sem a margem de 24 px. `StageTab` (`components/clients/ClientWorkspace.jsx`): no celular rótulo e número na mesma linha, sem a barrinha (~64 → ~30 px); desktop inalterado.
+
+### 2026-10-12 — Ranking do topo lado a lado no celular e Chat mais alto (pedido do dono)
 
 - **Cabeçalho do ranking** (`components/TopRankingBadge.jsx`): no celular, "Campeão da Semana" e "Melhor do Dia" lado a lado (metade da largura cada): rótulo pequeno em cima, foto 42 px, nome em 1 linha com reticências, pontos; "Semana anterior" como linha pequena. Indicadores (WhatsApp, Google Contacts) no canto de cada card, 28 px. Cabeçalho ~220 → ~100 px de altura. Sem dado o card mostra o estado vazio ("Ainda sem pontos hoje" / "Ainda sem campeão") no mesmo tamanho — acabou o ícone solto. Desktop igual ao anterior (só ganhou o card vazio no lugar do ícone solto).
 - **Chat (modo aplicativo, celular):** some o respiro do `<main>` (12 → 6 px) e a margem vazia do bloco do menu do topo (`AdminSectionNav`, 12–24 px): a lista começa mais alto. Body fixo, safe-area e barra inferior inalterados.
