@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { listAdminProfiles } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile, listAdminProfiles } from "@/lib/admin-profiles";
 import { createCalendarActivity, listCalendarActivities, listCalendarClientOptions } from "@/lib/calendar-activities";
 import { isExpectedReceiptOwner, listExpectedReceiptSummaries } from "@/lib/financial";
 import {
@@ -23,10 +23,15 @@ export async function GET(request) {
     const pendingOnly = url.searchParams.get("pending") === "1";
     const from = pendingOnly ? "" : url.searchParams.get("from") || "";
     const to = pendingOnly ? new Date().toISOString() : url.searchParams.get("to") || "";
+    // Gestor(a) vê a agenda da equipe e o admin geral a de todos (pedido do dono, 2026-10-12: a Carol não via as
+    // atividades dos corretores). Só atividades: aniversários continuam só dos próprios clientes. Corretor/associado:
+    // sempre as próprias.
+    const canViewTeam = isManagerProfile(auth.profile) || isGeneralAdminAuth(auth);
+    const teamScope = canViewTeam && url.searchParams.get("scope") === "team";
     const [registrations, birthdayRegistrations, savedActivities, clients] = await Promise.all([
-      listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: auth.profile?.id, pendingOnly }),
+      listScheduledActivityRegistrations({ from, to, auth, responsibleUserId: teamScope ? "" : auth.profile?.id, pendingOnly }),
       pendingOnly ? Promise.resolve([]) : listBirthdayRegistrations({ auth, responsibleUserId: auth.profile?.id }),
-      listCalendarActivities({ from, to, auth, pendingOnly }),
+      listCalendarActivities({ from, to, auth, pendingOnly, teamScope }),
       listCalendarClientOptions(auth)
     ]);
     let profiles = [];
@@ -103,7 +108,7 @@ export async function GET(request) {
       !activity.isBirthday && activity.activityStatus !== "rescheduled" && activity.activityStatus !== "completed" &&
       !activity.scheduledActivityCompletedAt && new Date(activity.scheduledActivityAt).getTime() < Date.now() &&
       (activity.source !== "legacy" || !["archived", "do_not_contact"].includes(activity.status))
-    ) : activities, clients, users });
+    ) : activities, clients, users, canViewTeam, scope: teamScope ? "team" : "own" });
   } catch (error) {
     console.error("Erro ao carregar calendario de atividades:", error);
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });

@@ -31,6 +31,9 @@ export default function ActivityCalendar({ pendingOnly = false }) {
   // Atividades "Confirmar recebimento" (previsão de comissão do Financeiro): modal aberto + recarga da lista.
   const [receiptAction, setReceiptAction] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Gestor(a): "Equipe" (padrão no calendário) ou "Minhas". A API só aceita "team" para gestor.
+  const [scope, setScope] = useState(pendingOnly ? "own" : "team");
+  const [canViewTeam, setCanViewTeam] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -40,7 +43,8 @@ export default function ActivityCalendar({ pendingOnly = false }) {
       try {
         const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1, 0, 0, 0);
         const end = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0, 23, 59, 59);
-        const response = await fetch(pendingOnly ? "/api/calendar-activities?pending=1" : `/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}`, {
+        const scopeParam = scope === "team" ? "&scope=team" : "";
+        const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}${scopeParam}`, {
           cache: "no-store"
         });
         const payload = await response.json();
@@ -49,6 +53,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
           setActivities(payload.activities || []);
           setClients(payload.clients || []);
           setUsers(payload.users || []);
+          setCanViewTeam(Boolean(payload.canViewTeam));
         }
       } catch (loadError) {
         if (!ignore) setError(loadError.message || "Não foi possível carregar o calendário.");
@@ -61,7 +66,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
     return () => {
       ignore = true;
     };
-  }, [visibleMonth, pendingOnly, reloadKey]);
+  }, [visibleMonth, pendingOnly, reloadKey, scope]);
 
   const activitiesByDate = useMemo(() => {
     const grouped = new Map();
@@ -181,6 +186,21 @@ export default function ActivityCalendar({ pendingOnly = false }) {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Agenda dos corretores</p>
             <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">{pendingOnly ? "Atividades pendentes" : formatMonthTitle(visibleMonth)}</h2>
+            {canViewTeam ? (
+              <div className="mt-3 inline-flex rounded-full border border-line bg-mist p-1" role="group" aria-label="Quais atividades mostrar">
+                {[{ key: "team", label: "Equipe" }, { key: "own", label: "Minhas" }].map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    aria-pressed={scope === option.key}
+                    className={`rounded-full px-4 py-1.5 text-sm font-black transition ${scope === option.key ? "bg-navy text-white" : "text-navy hover:text-brand"}`}
+                    onClick={() => setScope(option.key)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           {pendingOnly ? <Link href="/admin/calendario" className="text-sm font-bold text-brand">Ver calendário</Link> : <div className="flex gap-2">
             <button type="button" className="rounded-full border border-brand/20 bg-white p-3 text-brand transition hover:-translate-y-0.5 hover:shadow-soft" aria-label="Mês anterior" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))}>

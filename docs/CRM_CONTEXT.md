@@ -72,7 +72,7 @@ Marcos automáticos: entrar em qualquer status de venda cria a **venda financeir
 | Módulo | Onde | Resumo |
 |---|---|---|
 | Clientes | `/admin/simulacoes` | lista server-side paginada (5/10/20), filtros, tags, status, responsável, jornada, documentação, WhatsApp |
-| Agenda | `/admin/calendario` | atividades (`calendar_activities` + campo legado no cliente), lembretes por push/WhatsApp/e-mail (cron) |
+| Agenda | `/admin/calendario` | atividades (`calendar_activities` + campo legado no cliente), lembretes por push/WhatsApp/e-mail (cron). Cada um vê as próprias; gestor(a) e admin geral alternam "Equipe" (padrão no calendário; admin = todos) / "Minhas" (`scope=team`, só manager/admin; aniversários continuam só os próprios) — 2026-10-12 |
 | Roleta | Automações > `roulette` | fila de distribuição, presença online, histórico |
 | Prospecção / Base | `/admin/prospeccao` | fila `prospecting_contacts` (Base da Imobiliária e bases individuais), importação, atribuição |
 | Meta Diária | `/admin/meta-diaria` (+ `/gestao`) | cota diária de 1ª/2ª/3ª tentativa por corretor (o dia começa com exatamente a cota de contatos aguardando 1º contato; **uma tentativa por contato por dia**), carteira ativa, fechamento diário |
