@@ -463,14 +463,14 @@ function PresenceHistory({ userId }) {
   );
 }
 
-const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" });
+const HISTORY_DAY_FORMATTER = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" });
 
 function buildHistoryDays(count) {
   const now = Date.now();
   return Array.from({ length: count }, (_, index) => {
     const date = new Date(now - index * 24 * 60 * 60 * 1000);
     const key = DAY_KEY_FORMATTER.format(date);
-    const label = index === 0 ? "Hoje" : index === 1 ? "Ontem" : WEEKDAY_FORMATTER.format(date).replace(".", "");
+    const label = index === 0 ? "Hoje" : index === 1 ? "Ontem" : HISTORY_DAY_FORMATTER.format(date).replace(".", "");
     return { key, label };
   });
 }
