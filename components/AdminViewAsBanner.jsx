@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearChatCache } from "@/components/chat-view-cache";
 
 export default function AdminViewAsBanner({ name, category }) {
   const [leaving, setLeaving] = useState(false);
@@ -11,6 +12,7 @@ export default function AdminViewAsBanner({ name, category }) {
     setLeaving(true);
     const response = await fetch("/api/admin/view-as", { method: "DELETE" });
     if (response.ok) {
+      clearChatCache(); // Chat guardado na memória é da conta emulada
       router.replace("/admin/corretores?tab=account");
       router.refresh();
       return;

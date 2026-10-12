@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onChatCacheClear } from "@/components/chat-view-cache";
 
 // Resumo do CHAT (não lidas) + canal de tempo real, COMPARTILHADO entre todos
 // os componentes da página (menu, badge, tela do Chat): uma única busca/canal,
@@ -16,6 +17,12 @@ const store = {
   stop: null
 };
 let summaryInFlight = null;
+// Saiu ou trocou de conta: o número de não lidas da conta anterior não fica na tela nem no ícone do app.
+onChatCacheClear(() => {
+  setSummary({ unreadConversations: 0, unreadMessages: 0 });
+  // Troca de conta: já busca a contagem da conta nova (depois de sair, a busca é recusada e fica zerado).
+  if (store.started) fetchSummary();
+});
 
 function setSummary(next) {
   store.summary = next;

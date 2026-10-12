@@ -30,6 +30,14 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **Correção junto:** as animações de entrada usavam preenchimento `both`, que deixava `transform` aplicado para sempre e prendia os `position: fixed` de dentro (menus/confirmações do Chat) à caixa — agora `backwards`. As cenas do Chat não dependem mais de `body.admin-scroll-fix` (o app `/chat-app` não tem essa classe, então nenhuma animação do Chat rodava lá).
 - Arquivos: `app/globals.css`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`.
 
+### 2026-10-12 — Chat abre "já carregado" ao voltar + caixa de digitação não pula ao enviar
+
+- **Pedido do dono:** sair do Chat (ex.: ir em Clientes) e voltar mostrava "Carregando..." de novo. Causa: a tela começava sempre vazia (`useState([])`) e buscava tudo do zero a cada entrada.
+- **Agora:** `components/chat-view-cache.js` guarda, só na memória da aba (nada em disco), lista, aba, filtros, conversa aberta e as últimas 8 conversas abertas. Ao voltar, `WhatsappChat` mostra isso na hora e atualiza em segundo plano (1ª busca silenciosa; a conversa aberta é relida e marca vista/lida como antes). Spinner só na 1ª vez. Na vitrine (iPhone 390 px, navegação interna): conversa aberta de volta em ~0,2 s, sem "Carregando...".
+- **Segurança:** chave = conta real + conta efetiva (`viewerKey` montado em `app/admin/chat/page.jsx` e `app/chat-app/page.jsx`); outra chave descarta tudo. `clearChatCache()` ao sair (`AdminLogoutButton`), quando a sessão cai (`AdminSessionKeeper`) e ao entrar/sair de "Alterar conta" (`AdminViewAsSelector`/`AdminViewAsBanner`); zera também o número de não lidas e busca o da conta nova. Expira em 30 min sem uso; nunca lido/gravado no servidor. Escopo e tempo real inalterados (os dados vêm das mesmas APIs).
+- **Pulo de ~60 px da caixa ao enviar (celular):** o campo ficava `disabled` durante o envio → perdia o foco → teclado fechava e a barra inferior voltava (`AdminBottomNav` reage a `focusout`). Agora `readOnly` durante o envio e o botão Enviar não rouba o foco (`onMouseDown` preventDefault), no campo normal e no interno. Conferido na vitrine: o foco fica no campo durante e depois do envio. Teste no iPhone real ainda pendente.
+- **Não feito (recomendação):** buscar só mensagens novas da conversa aberta — tiques, reações, edições e "apagar" mudam mensagens antigas; exige contrato novo na API.
+
 ### 2026-10-12 — Chat e painel mais rápidos (pedido do dono)
 
 - **Medição (build de produção, JS baixado na abertura, gzip):** `/admin/chat` 261,5 → 181,7 KB (−31%); `/admin` 189,6 → 130,8; `/admin/simulacoes` 310 → 252; `/chat-app` 180,7 → 101,5; página inicial do site 121 → 62 KB.

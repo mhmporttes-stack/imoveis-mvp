@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearChatCache } from "@/components/chat-view-cache";
 
 export default function AdminViewAsSelector({ users }) {
   const [profileId, setProfileId] = useState("");
@@ -29,6 +30,7 @@ export default function AdminViewAsSelector({ users }) {
       return;
     }
 
+    clearChatCache(); // Chat guardado na memória é da conta anterior
     router.replace(payload.redirectTo || "/admin/simulacoes");
     router.refresh();
   }

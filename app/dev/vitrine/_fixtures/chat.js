@@ -56,6 +56,7 @@ export function propsFor(perfil) {
     canManage: canManagePerfil(perfil),
     canEditRules: perfil === "admin",
     currentUserId: user.id,
+    viewerKey: `vitrine:${user.id}`,
     initialClientId: ""
   };
 }

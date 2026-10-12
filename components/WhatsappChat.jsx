@@ -57,6 +57,7 @@ import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
+import { forgetChatDetail, readChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
 import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
@@ -237,8 +238,13 @@ function useChatAppMode(enabled, ref) {
   }, [enabled, ref]);
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false }) {
-  const [tab, setTab] = useState("conversations");
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
+  // Volta ao Chat sem "Carregando…" (2026-10-12, components/chat-view-cache.js): começa com o que esta mesma conta já
+  // tinha na tela e atualiza em seguida, em segundo plano. Sem cache (1ª vez, outra conta, >30 min) = como sempre.
+  const [cached] = useState(() => readChatView(viewerKey));
+  const view = cached?.view || null;
+  const restoredId = !initialClientId && view?.selectedId && cached.details.has(view.selectedId) ? view.selectedId : "";
+  const [tab, setTab] = useState(view?.tab || "conversations");
   const [openError, setOpenError] = useState("");
   // Aviso discreto: o botão WhatsApp do card abriu o Chat, mas o registro do contato falhou.
   const [contactWarning, setContactWarning] = useState("");
@@ -251,23 +257,23 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     window.addEventListener(CONTACT_WARNING_EVENT, check);
     return () => window.removeEventListener(CONTACT_WARNING_EVENT, check);
   }, []);
-  const [brokers, setBrokers] = useState([]);
+  const [brokers, setBrokers] = useState(view?.brokers || []);
   // Números do PRÓPRIO usuário (apelido e status) — rótulo dos filtros e "Abrir no outro número".
-  const [mySlots, setMySlots] = useState([]);
-  const [filter, setFilter] = useState("all");
+  const [mySlots, setMySlots] = useState(view?.mySlots || []);
+  const [filter, setFilter] = useState(view?.filter || "all");
   // Filtro pela ETAPA do cliente (pedido do dono 2026-10-06), aplicado no servidor; "" = todas.
-  const [clientStatus, setClientStatus] = useState("");
+  const [clientStatus, setClientStatus] = useState(view?.clientStatus || "");
   const clientStatusRef = useRef(clientStatus);
   clientStatusRef.current = clientStatus;
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [conversations, setConversations] = useState([]);
+  const [searchInput, setSearchInput] = useState(view?.searchInput || "");
+  const [search, setSearch] = useState(view?.search || "");
+  const [conversations, setConversations] = useState(view?.conversations || []);
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
-  const [listLoading, setListLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(!view);
   const [listError, setListError] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [detail, setDetail] = useState(null);
+  const [selectedId, setSelectedId] = useState(restoredId);
+  const [detail, setDetail] = useState(() => (restoredId ? cached.details.get(restoredId) : null));
   const [detailError, setDetailError] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
   // Guia de Atendimento ao lado do Chat: no computador abre junto (e lembra se o corretor fechou); no celular o Chat
@@ -279,7 +285,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   // Aba "Corretores": ver o Chat filtrado por um corretor específico — o
   // MESMO componente/estado, só um escopo extra na consulta (nunca um Chat
   // paralelo). null = visão normal (tudo dentro da permissão de quem está logado).
-  const [scopedBroker, setScopedBroker] = useState(null); // { id, name } | null
+  const [scopedBroker, setScopedBroker] = useState(view?.scopedBroker || null); // { id, name } | null
 
   const sectionRef = useRef(null);
   useChatAppMode(appMode, sectionRef);
@@ -327,7 +333,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     }
   }, [isDesktop]);
 
-  const [listHasMore, setListHasMore] = useState(false);
+  const [listHasMore, setListHasMore] = useState(Boolean(view?.listHasMore));
   const [listLoadingMore, setListLoadingMore] = useState(false);
   // Só a resposta do pedido MAIS RECENTE vale: uma atualização em segundo plano da aba anterior (ex.: Particular) que
   // termina depois de trocar de aba não pode jogar aquelas conversas em "Todas" (caso do dono, 2026-10-11).
@@ -403,6 +409,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         setSelectedId("");
         selectedRef.current = "";
         setDetail(null);
+        forgetChatDetail(viewerKey, id);
         setDetailError("");
         return;
       }
@@ -441,9 +448,28 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     }, [loadList, loadDetail])
   );
 
+  // Com cache, a 1ª busca é silenciosa: a lista guardada continua na tela e só é trocada pela resposta nova.
+  const revalidateRef = useRef(Boolean(view));
   useEffect(() => {
-    loadList();
+    const silent = revalidateRef.current;
+    revalidateRef.current = false;
+    loadList({ silent });
   }, [filter, search, scopedBroker, clientStatus, loadList]);
+
+  // Conversa que estava aberta: aparece já com as mensagens guardadas e é relida agora (marca vista/lida como sempre).
+  useEffect(() => {
+    if (restoredId) loadDetail(restoredId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guarda o que está na tela (só no navegador, por conta). Durante a troca de aba/filtro a lista ainda é a anterior: não guarda.
+  useEffect(() => {
+    if (listLoading) return;
+    saveChatView(viewerKey, { tab, filter, clientStatus, search, searchInput, scopedBroker, conversations, listHasMore, selectedId, brokers, mySlots });
+  }, [viewerKey, listLoading, tab, filter, clientStatus, search, searchInput, scopedBroker, conversations, listHasMore, selectedId, brokers, mySlots]);
+  useEffect(() => {
+    if (detail?.conversation?.id && !detail.empty) saveChatDetail(viewerKey, detail.conversation.id, detail);
+  }, [viewerKey, detail]);
 
   useEffect(() => {
     fetch("/api/admin/whatsapp-individual/status", { cache: "no-store" })
@@ -510,7 +536,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     sectionRef.current?.scrollIntoView({ block: "start" });
     setSelectedId(id);
     selectedRef.current = id;
-    setDetail(null);
+    // Já aberta antes (nesta conta): mostra as mensagens guardadas na hora; loadDetail troca pela versão nova.
+    setDetail(readChatView(viewerKey)?.details.get(id) || null);
     setDetailError("");
     setInfoOpen(false);
     setGuideMobile(false);
@@ -2690,7 +2717,9 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
             <textarea
               ref={textareaRef}
               className="max-h-[40dvh] min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#111B21] outline-none placeholder:text-[#54656F] sm:text-sm sm:leading-6"
-              disabled={sending}
+              // Enviando: só leitura, NÃO desabilitado — campo desabilitado perde o foco, o teclado fecha e a barra inferior volta
+              // (a caixa pulava ~60 px no celular a cada envio). Assim o teclado fica aberto, como no WhatsApp.
+              readOnly={sending}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={(event) => {
                 // Atalho com "/": Esc limpa; Enter não envia "/texto" como mensagem (escolha o atalho na lista).
@@ -2720,6 +2749,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
             <button
               type="button"
               onClick={send}
+              onMouseDown={(event) => event.preventDefault()} // tocar em Enviar não tira o foco do campo (teclado continua aberto)
               disabled={sending || !hasContent}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-navy text-white transition hover:bg-[#082f55] disabled:opacity-40"
               aria-label={editTarget ? "Salvar edição" : "Enviar mensagem"}
@@ -2803,7 +2833,9 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
           ref={textareaRef}
           autoFocus
           className="max-h-[40dvh] min-h-11 flex-1 resize-none overflow-y-auto rounded-2xl border border-brand/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-          disabled={sending}
+          // Enviando: só leitura, NÃO desabilitado — campo desabilitado perde o foco, o teclado fecha e a barra inferior volta
+          // (a caixa pulava ~60 px no celular a cada envio). Assim o teclado fica aberto, como no WhatsApp.
+          readOnly={sending}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => sendOnEnter(event, send, !sending && Boolean(text.trim()))}
           placeholder="Mensagem interna — o cliente não verá esta mensagem"
@@ -2813,6 +2845,7 @@ function InternalComposer({ conversationId, replyTo = null, onClearReply = () =>
         <button
           type="button"
           onClick={send}
+          onMouseDown={(event) => event.preventDefault()} // tocar em Enviar não tira o foco do campo (teclado continua aberto)
           disabled={sending || !text.trim()}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-white transition hover:bg-[#082f55] disabled:opacity-40"
           aria-label="Salvar mensagem interna"
