@@ -19,7 +19,14 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Prazo da simulação antes de voltar para a roleta: 5 → 10 min
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Regra do dono: trava "Simulação enviada" (FUN-13)
+
+- Dono: "O corretor alterar manualmente para Simulação enviada sem ter realmente enviado não deve ser permitido." Corretor/associado (perfil efetivo, inclusive "Alterar conta") só gravam `simulation_sent` com evidência: evento `presentation_sent`, link `/s/<token>` em mensagem de saída não falha de qualquer conversa do cliente, ou PDF `simulacao-*.pdf` enviado pelo Chat. Admin geral e gestor no próprio perfil passam. Mensagem: "Envie a simulação ao cliente pelo Chat (link da apresentação) antes de marcar 'Simulação enviada'."
+- Mapeamento: a única porta manual é `updateSimulationRegistration` com `auth` (seletor do card/ficha → `PATCH /api/simulation-registrations/[id]`; edição do cadastro → `/manual`) + o INSERT de cadastro novo em `ensureManualSimulationRegistration`. Não existe mudança de status em massa nem marcação automática de `simulation_sent` no código; `change_status` das automações (sem usuário) segue livre.
+- Código: `lib/simulation-sent-lock-core.mjs` (regra pura), `lib/simulation-sent-evidence.js` (`loadSimulationSentEvidence`, `assertManualSimulationSentAllowed`, erro 409 → a rota devolve 400 com a mensagem, a tela já mostra). A trava ROL-4c do Chat (`simulationFirstState`, `lib/whatsapp-chat.js`) passou a usar a mesma evidência: agora olha todas as conversas do cliente (antes só a atual), ignora mensagem `failed` e exige o link real `/s/<token>` (antes qualquer `/s/` no texto); o PDF não libera a ROL-4c. Testes: `tests/simulation-sent-lock.test.mjs`. Sem migration. Não retroativo.
+- Risco/observação: a evidência de PDF depende do nome gerado pelo CRM (`simulacao-<cliente>.pdf`); PDF renomeado não conta. Falhas pré-existentes (sem relação, iguais antes da mudança): `context-budget`, `documents-forecast`, `official-whatsapp-links`, `prospecting-opt-out-natural`, `simulation-systems-comparison`, `whatsapp-service-lease`, `lib/financial-calculations.test.js`; `academy-management` é instável (passa/falha alternado).
+
+### 2026-10-12 — Prazo da simulação antes de voltar para a roleta: 5 → 10 min
 
 - Pedido do dono. Alterado no banco: `crm_automation_rules` "REDISTRIBUIÇÃO DE LEADS" (`9465e7cd…`) `delay_value` 5 → 10 (minutos). Nenhum código muda (o prazo é dado da regra; comentários do código que citam "5 min" referem-se ao valor antigo). Regra registrada: `.claude/rules/roleta-prospeccao-campanhas.md` e `docs/BUSINESS_RULES.md` ROL-4e. Janela de "on-line" (5 min) inalterada.
 

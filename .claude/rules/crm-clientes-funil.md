@@ -3,6 +3,7 @@ paths:
   - "lib/client-*.js"
   - "lib/simulation-*.js"
   - "lib/simulations.js"
+  - "lib/simulation-sent-*"
   - "lib/crm.js"
   - "lib/crm-clients.js"
   - "lib/performance-overview.js"
@@ -25,6 +26,8 @@ paths:
 `lib/client-status.js` é a **única** fonte de verdade do enum `CLIENT_STATUS` e de qualquer agrupamento derivado dele (`ACTIVE_CLIENT_STATUS_VALUES`, `CLIENT_FUNNEL_STAGES`, `CLIENT_STATUS_META`, `CLIENT_FUNNEL_SALE_STATUS_VALUES`). **Nunca crie uma cópia local de um conjunto de status em outro arquivo** — já houve um bug real de produção assim: `lib/crm.js` mantinha sua própria cópia de "status ativos" para o contador de "aguardando ação" do dashboard, ficou desatualizada (faltavam `meeting_pending`/`meeting_done`) e subcontava clientes por meses até ser corrigida importando de `client-status.js`.
 
 Cliente principal: `simulation_registrations` (persistência em `lib/simulation-registrations.js`). Um cliente pode ter uma `simulation` associada (`lib/simulations.js`) — a lista principal (`components/clients/`, lógica em `useClientList.js`) agrupa os dois.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Trava "Simulação enviada".** Corretor e associado (perfil efetivo, inclusive admin/gestor em "Alterar conta" como eles) não mudam o cliente para "Simulação enviada" sem ter realmente enviado: evento `presentation_sent`, link `/s/<token>` em mensagem de saída não falha de qualquer conversa do cliente, ou PDF `simulacao-*.pdf` do CRM enviado pelo Chat. Admin geral e gestor no próprio perfil passam. Barreira no servidor antes de gravar (`assertManualSimulationSentAllowed` em `updateSimulationRegistration` e no cadastro novo); automação sem usuário não é travada; não retroativo. Fonte única da evidência: `lib/simulation-sent-evidence.js` (+ `-lock-core.mjs`) — também usada pela ROL-4c; não crie outra definição de "simulação enviada". Detalhes: `docs/BUSINESS_RULES.md` FUN-13.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 
