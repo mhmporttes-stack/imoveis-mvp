@@ -21,7 +21,7 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Transições com o triplo da duração
 
-- Dono: "transições muito rápidas, triplique o tempo". Variáveis `--mm-motion-*` em `app/globals.css` multiplicadas por 3 (troca de tela/abrir conversa 1020 ms, voltar 900, abas/mensagem/nav 780, Sheet 900, fundo 720, menu 660); fallback em `components/AdminMenu.jsx`. Animações seguem só com transform/opacity e não bloqueiam toque nem navegação.
+- Dono: "transições muito rápidas, triplique o tempo". Variáveis `--mm-motion-*` em `app/globals.css` multiplicadas por 3 (troca de tela/abrir conversa 1020 ms, voltar 900, abas/mensagem/nav 780, Sheet 900, fundo 720, menu 660); fallback em `components/AdminMenu.jsx`. Animações seguem só com transform/opacity e não bloqueiam toque nem navegação. Mesmo dia, "ainda muito rápido, triplique novamente": ×3 de novo (troca de tela 3060 ms, voltar 2700, abas/mensagem/nav 2340, Sheet 2700, fundo 2160, menu 1980).
 
 ### 2026-10-12 — Deploys da Vercel falhando depois de 10 commits só de documentação
 
@@ -37,6 +37,15 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - Só `transform`/`opacity`, `ease-out-ui`, desligado em `prefers-reduced-motion`; nada segura clique nem conteúdo. Medido na vitrine (390/1280): nenhuma tarefa longa nova, nenhum layout shift novo.
 - **Correção junto:** as animações de entrada usavam preenchimento `both`, que deixava `transform` aplicado para sempre e prendia os `position: fixed` de dentro (menus/confirmações do Chat) à caixa — agora `backwards`. As cenas do Chat não dependem mais de `body.admin-scroll-fix` (o app `/chat-app` não tem essa classe, então nenhuma animação do Chat rodava lá).
 - Arquivos: `app/globals.css`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`.
+
+### 2026-10-12 — Troca Chat ⇄ Clientes mais rápida (pedido do dono)
+
+- **Causa:** `/admin/simulacoes` e `/admin/chat` são `force-dynamic` e sem `loading.jsx`; o App Router (staleTime dinâmico 0) refazia a tela no servidor a cada toque (login + 5 consultas + agenda em fila em Clientes) e só então trocava. O layout `app/admin/layout.jsx` não é refeito na navegação interna (só a página).
+- **Correção:** `export const unstable_dynamicStaleTime = 300` nas duas páginas — o navegador reaproveita a tela por até 5 min. Clientes: `initialData.renderId` (aleatório) — se `useClientList` já viu esse id, a tela foi reaproveitada e a lista se atualiza em segundo plano (`fetchClients({ silent: true })`, sem escurecer; só a resposta mais recente vale). Chat: a página não tem dado, as conversas vêm do cache do Chat. `router.refresh()` (sair, "Alterar conta") descarta o reaproveitamento — conferido na medição.
+- **Medição na vitrine** (iPhone 390 px, servidor simulado com 700 ms em Clientes/300 ms no Chat, `next dev`): Chat→Clientes 960 → ~240 ms; Clientes→Chat ~420 → ~110 ms; depois de `router.refresh()` volta a ~1 s (busca no servidor, como esperado). 1ª visita continua igual.
+- **Clientes mais leve:** zod (~60 KB gzip) ia para o navegador só por causa dos rótulos de preferência de imóvel da Ficha. Rótulos/resumo foram para `lib/property-preference-display.js` (sem zod; `lib/property-preferences.js` reexporta, fonte única). Documentos do cliente na Ficha via `next/dynamic`. JS de `/admin/simulacoes`: 252 → 177 KB gzip.
+- **Servidor de Clientes:** agenda dos clientes encadeada na busca da página, em paralelo com contadores (−1 ida ao banco em fila).
+- **Recomendação:** `loading.jsx` com esqueleto para a 1ª visita (decisão visual do `designer-crm`); `unstable_dynamicStaleTime` é API "unstable" do Next 16 — rever ao atualizar o Next.
 
 ### 2026-10-12 — Chat abre "já carregado" ao voltar + caixa de digitação não pula ao enviar
 

@@ -63,16 +63,16 @@ body.admin-scroll-fix {
    de dentro (menus, confirmações e folhas do Chat) — no iPhone isso prende o "fixo" à caixa do Chat.
    Sem o prefixo body.admin-scroll-fix: o app "Chat" (/chat-app) fica fora de /admin e não tem essa classe. */
 :root {
-  /* Durações triplicadas a pedido do dono (2026-10-12: "muito rápidas, triplique o tempo"). */
+  /* Durações triplicadas duas vezes a pedido do dono (2026-10-12: "muito rápidas, triplique o tempo" e, depois, "ainda muito rápido, triplique novamente"). */
   --mm-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --mm-motion-screen: 1020ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
-  --mm-motion-back: 900ms;     /* fechar conversa / voltar à lista */
-  --mm-motion-tab: 780ms;      /* troca de abas */
-  --mm-motion-message: 780ms;  /* mensagem nova */
-  --mm-motion-menu: 660ms;     /* menu de ações da mensagem */
-  --mm-motion-sheet: 900ms;    /* Sheets (folha de baixo / lateral) */
-  --mm-motion-backdrop: 720ms; /* fundo escuro dos Sheets */
-  --mm-motion-nav: 780ms;      /* indicador ativo da navegação */
+  --mm-motion-screen: 3060ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
+  --mm-motion-back: 2700ms;     /* fechar conversa / voltar à lista */
+  --mm-motion-tab: 2340ms;      /* troca de abas */
+  --mm-motion-message: 2340ms;  /* mensagem nova */
+  --mm-motion-menu: 1980ms;     /* menu de ações da mensagem */
+  --mm-motion-sheet: 2700ms;    /* Sheets (folha de baixo / lateral) */
+  --mm-motion-backdrop: 2160ms; /* fundo escuro dos Sheets */
+  --mm-motion-nav: 2340ms;      /* indicador ativo da navegação */
 }
 
 @keyframes admin-content-in {
@@ -518,7 +518,7 @@ html.ui-sheet-open {
 
 .ui-sheet::backdrop {
   background: rgba(3, 29, 58, 0.45);
-  animation: admin-fade-in var(--mm-motion-backdrop, 720ms) var(--mm-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation: admin-fade-in var(--mm-motion-backdrop, 2160ms) var(--mm-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .ui-sheet-bottom,
