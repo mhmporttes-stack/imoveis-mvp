@@ -28,7 +28,6 @@ import {
   Lock,
   MapPin,
   MessageCircle,
-  Megaphone,
   MessageSquareText,
   Mic,
   Paperclip,
@@ -66,9 +65,6 @@ import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
 // Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
 const AttendanceGuidePanel = dynamic(() => import("@/components/guide/AttendanceGuidePanel"), { loading: () => null });
-const WhatsappChatBrokers = dynamic(() => import("@/components/WhatsappChatBrokers"), { loading: () => null });
-const WhatsappChatCampaigns = dynamic(() => import("@/components/WhatsappChatCampaigns"), { loading: () => null });
-const WhatsappChatOverview = dynamic(() => import("@/components/WhatsappChatOverview"), { loading: () => null });
 const ClientDocumentsModal = dynamic(() => import("@/components/ClientDocumentsModal"), { loading: () => null });
 
 const STATUS_OPTIONS = CLIENT_STATUS_OPTIONS.filter((option) => option.value !== "all");
@@ -254,7 +250,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const [cached] = useState(() => readChatView(viewerKey));
   const view = cached?.view || null;
   const restoredId = !initialClientId && view?.selectedId && cached.details.has(view.selectedId) ? view.selectedId : "";
-  const [tab, setTab] = useState(view?.tab || "conversations");
+  // Só existe a aba de conversas (as abas Visão geral/Campanhas/Corretores saíram em 2026-10-12): ignora aba guardada antiga.
+  const [tab, setTab] = useState("conversations");
   // Cena de entrada (pedido do dono, 2026-10-12): ao entrar no Chat e ao voltar para a aba Conversas, as linhas
   // visíveis dão um "pulinho" em cascata (CSS [data-chat-enter], app/globals.css). Desliga sozinho depois da cascata,
   // então atualizações da lista (tempo real, cache, revalidação) não repetem a cena. A lista só desliza de volta
@@ -307,7 +304,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   // Aba "Corretores": ver o Chat filtrado por um corretor específico — o
   // MESMO componente/estado, só um escopo extra na consulta (nunca um Chat
   // paralelo). null = visão normal (tudo dentro da permissão de quem está logado).
-  const [scopedBroker, setScopedBroker] = useState(view?.scopedBroker || null); // { id, name } | null
+  const [scopedBroker, setScopedBroker] = useState(null); // { id, name } | null — vinha da aba Corretores (removida em 2026-10-12)
 
   const sectionRef = useRef(null);
   useChatAppMode(appMode, sectionRef);
@@ -617,77 +614,10 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
           <button type="button" className="shrink-0 underline" onClick={() => setContactWarning("")}>Fechar</button>
         </p>
       ) : null}
-      <div className={appMode
-        ? `mb-2 flex items-center gap-1.5 overflow-x-auto px-3 pb-0.5 md:px-0 [&>button]:shrink-0 [&>button]:!py-1.5 ${selectedId && tab === "conversations" ? "hidden lg:flex" : ""}`
-        : "mb-3 flex flex-wrap items-center gap-2"}>
-        <button type="button" onClick={() => setTab("conversations")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "conversations" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
-          <MessageCircle className="h-4 w-4" />Conversas
-          {totalUnread > 0 ? <span className="rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{totalUnread}</span> : null}
-        </button>
-        <button type="button" onClick={() => setTab("overview")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "overview" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
-          <LayoutList className="h-4 w-4" />Visão geral
-          {summary.awaitingLate > 0 ? <span className="rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-5 text-white" title="Conversas sem resposta há mais de 30 min">{summary.awaitingLate}</span> : null}
-        </button>
-        {canManage ? (
-          <button type="button" onClick={() => setTab("campaigns")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "campaigns" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
-            <Megaphone className="h-4 w-4" />Campanhas
-          </button>
-        ) : null}
-        {canManage ? (
-          <button type="button" onClick={() => setTab("brokers")} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold transition ${tab === "brokers" ? "bg-navy text-white shadow-soft" : "border border-navy/15 bg-white text-navy hover:border-brand"}`}>
-            <Users className="h-4 w-4" />Corretores
-          </button>
-        ) : null}
-        <span className="ml-auto"><WhatsappIndividualStatus align="end" /></span>
-      </div>
-
-      {tab === "brokers" && canManage ? (
-        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
-          <WhatsappChatBrokers
-            onOpen={(id, name) => {
-              setScopedBroker({ id, name });
-              setSelectedId("");
-              selectedRef.current = "";
-              setDetail(null);
-              setTab("conversations");
-            }}
-          />
-        </div>
-      ) : null}
-
-      {tab === "campaigns" && canManage ? (
-        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
-          <WhatsappChatCampaigns
-            onOpenConversation={(id) => {
-              setTab("conversations");
-              setTimeout(() => openConversation(id), 0);
-            }}
-          />
-        </div>
-      ) : null}
-
-      {tab === "overview" ? (
-        <div className={`admin-motion-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:rounded-none max-md:border-x-0" : ""}`}>
-          <WhatsappChatOverview
-            canManage={canManage}
-            onOpen={(id) => {
-              setTab("conversations");
-              setTimeout(() => openConversation(id), 0);
-            }}
-          />
-        </div>
-      ) : null}
-
-      {tab === "conversations" && scopedBroker ? (
-        <div className="mb-3 max-md:mx-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-4 py-2.5">
-          <p className="text-sm font-bold text-navy">WhatsApp de <span className="font-black">{scopedBroker.name}</span></p>
-          <button type="button" onClick={() => { setScopedBroker(null); setTab("brokers"); }} className="text-xs font-black text-brand hover:underline">
-            ← Corretores
-          </button>
-        </div>
-      ) : null}
-
-      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${tab === "overview" || tab === "campaigns" || tab === "brokers" ? "hidden" : ""} ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
+      {/* Menu de abas (Conversas / Visão geral / Campanhas / Corretores) e as 3 telas Visão geral, Campanhas e Corretores
+          removidos do Chat a pedido do dono (2026-10-12: "apagar as 3 telas"). O Chat é só a lista de conversas; o status
+          do WhatsApp foi para o cabeçalho da lista (ConversationList). As APIs dessas telas continuam no servidor. */}
+      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
         <div className={`grid grid-cols-1 ${appMode ? "min-h-0 flex-1" : "h-[calc(100dvh-150px)] min-h-[520px]"} ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : listBack ? "admin-motion-back flex" : "flex"}
@@ -804,9 +734,12 @@ function ConversationList({ className, conversations, error, filter, filterLabel
       <div className="space-y-2 border-b border-[#E9EDEF] bg-white px-3 pb-2.5 pt-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-black text-[#111B21]">Conversas</h2>
-          {totalUnread > 0 ? (
-            <span className="rounded-full bg-[#25D366] px-2.5 py-0.5 text-xs font-black text-[#0B2A17]">{totalUnread} não lidas</span>
-          ) : null}
+          <span className="flex items-center gap-2">
+            {totalUnread > 0 ? (
+              <span className="rounded-full bg-[#25D366] px-2.5 py-0.5 text-xs font-black text-[#0B2A17]">{totalUnread} não lidas</span>
+            ) : null}
+            <WhatsappIndividualStatus align="end" />
+          </span>
         </div>
         <label className="relative block">
           <span className="sr-only">Buscar conversa</span>

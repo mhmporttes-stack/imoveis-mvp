@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes sem os 4 cards "Para agir agora"
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Chat sem o menu de abas; telas Visão geral, Campanhas e Corretores removidas
+
+- Dono pediu para remover o menu do Chat e escolheu "apagar as 3 telas" (Visão geral, Campanhas, Corretores) para todos. `components/WhatsappChat.jsx`: sem a linha de abas, sem os painéis e seus `dynamic()`, aba sempre "conversations" (aba/corretor guardados no cache antigo são ignorados). O status do WhatsApp pessoal (`WhatsappIndividualStatus`) foi para o cabeçalho da lista "Conversas". Componentes `WhatsappChatOverview/Campaigns/Brokers` e as APIs continuam no repositório (sem uso na tela). `docs/WHATSAPP.md` anotado.
+
+### 2026-10-12 — Clientes sem os 4 cards "Para agir agora"
 
 - Dono: "remova esses 4 cards (não os utilizo), deixe Clientes mais pra cima". Removidos para TODOS os perfis (decisão do dono) os cards Pendentes / Novos atendimentos / Aguardando simulação / Respostas da prospecção (`FocusStrip`, `components/clients/ClientWorkspace.jsx`). O painel "Respostas da prospecção" continua abrindo por `?prospectingReplies=1` (menu de pendências e push) e os filtros continuam existindo na lista/URL. Topo da página no celular: `py-14` → `pt-3` (`app/admin/simulacoes/page.jsx`; desktop mantém 56 px).
 
