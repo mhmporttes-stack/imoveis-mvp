@@ -677,6 +677,18 @@ html.chat-app-mode body {
   overscroll-behavior: none;
 }
 
+/* iPhone instalado (medido no aparelho do dono, 2026-10-12: tela 956, janela 894, safe-area do topo 62): com a página
+   SEM rolagem (html 100% + overflow hidden) o iOS encolhe a janela do app pela altura da barra de status e os 62 pt de
+   baixo ficam fora do app — a barra inferior aparecia alta/cortada só no Chat (Clientes, que rola, não tinha o defeito).
+   O <html> do Chat ganha essa folga (só existe onde há safe-area no topo; no computador/Android é 0) e overflow auto
+   (não propaga o hidden do body para a janela). Nada se mexe ao rolar: o body e a barra são fixos. */
+html.chat-app-mode {
+  height: auto;
+  min-height: calc(100% + env(safe-area-inset-top));
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 /* O body vira uma moldura fixa no mesmo retângulo da barra inferior (inset: 0):
    o Chat termina exatamente onde a barra começa, sem depender de 100dvh (no
    iPhone o dvh e o retângulo do position: fixed podem divergir e sobrava faixa
