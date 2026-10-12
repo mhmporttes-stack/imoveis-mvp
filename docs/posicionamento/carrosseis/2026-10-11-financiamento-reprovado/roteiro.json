@@ -1,11 +1,11 @@
 {
  "laminas": [
   {
-   "tipo": "capa",
-   "fotoCentral": true,
-   "centro": true,
-   "chamada": "Se meu financiamento",
-   "titulo": "fosse *reprovado*, eu faria isso"
+   "tipo": "editorial",
+   "boneco": "pensando",
+   "rotulo": "Se meu financiamento",
+   "titulo": "fosse *reprovado*, eu faria isso",
+   "texto": "Arrasta pro lado →"
   },
   {
    "tipo": "editorial",
@@ -46,8 +46,7 @@
   },
   {
    "tipo": "editorial",
-   "imagem": "docs/posicionamento/carrosseis/2026-10-11-financiamento-reprovado/img/cta.png",
-   "textoTopo": true,
+   "boneco": "selfie",
    "rotulo": "Sua vez",
    "titulo": "Me chama *na DM*.",
    "texto": "Seu financiamento foi reprovado e você não sabe o motivo? Eu posso te ajudar a entender **o que travou** e qual pode ser **o próximo passo**."
