@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
 
@@ -360,12 +361,27 @@ function MemberRow({ member }) {
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.chip}`}>
-          {meta.emoji} {meta.label}
+        <span className="inline-flex items-center gap-1.5">
+          {member.device ? <DeviceIcon device={member.device} /> : null}
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.chip}`}>
+            {meta.emoji} {meta.label}
+          </span>
         </span>
         <p className="mt-1 text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</p>
       </div>
     </div>
+  );
+}
+
+// Aparelho do último acesso (celular = app/navegador do celular; notebook = computador).
+function DeviceIcon({ device }) {
+  const mobile = device === "mobile";
+  const label = mobile ? "Pelo celular" : "Pelo computador";
+  const Icon = mobile ? Smartphone : Laptop;
+  return (
+    <span className="grid h-6 w-6 place-items-center rounded-full border border-navy/10 bg-mist text-navy" title={label} aria-label={label}>
+      <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
+    </span>
   );
 }
 

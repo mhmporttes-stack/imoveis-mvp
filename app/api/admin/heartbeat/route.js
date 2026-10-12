@@ -14,7 +14,7 @@ export async function POST(request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    await recordAdminHeartbeat(auth);
+    await recordAdminHeartbeat(auth, { userAgent: request.headers.get("user-agent") || "" });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Falha ao registrar presença." }, { status: 400 });

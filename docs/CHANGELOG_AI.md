@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-12 — Painel Online: ícone de celular ou computador
+
+- **Pedido do dono:** saber se o corretor está on-line pelo app (celular) ou pelo computador.
+- **Alteração:** `admin_presence.last_device` (`mobile`/`desktop`, migration `20261012150000_admin_presence_last_device.sql`, aplicada) gravado pelo heartbeat a partir do User-Agent (`presenceDeviceFromUserAgent`, `lib/admin-presence-core.mjs`); sinais de tolerância (envio pelo Chat) não mudam o aparelho. `getTeamPresence` devolve `device` e `components/OnlinePresenceBoard.jsx` mostra o ícone (Smartphone/Laptop) ao lado do status. Roleta, horas e pontuação não mudam. Teste em `tests/admin-presence-core.test.mjs`.
+
 ### 2026-10-12 — Linha do tempo: dados do formulário aparecem como "Cliente", não "Sistema"
 
 - **Caso:** cliente #C5589 (anúncio de WhatsApp, entrou 12/10 09:43) preencheu o formulário às 09:48 com renda própria CLT de R$ 1.000, sem 2º proponente. A linha do tempo mostrou "DADOS ATUALIZADOS — Sistema · Automação" e o dono achou que o sistema tinha alterado o cadastro. Não houve erro de dado: só esse cadastro existe para o telefone/nome, e nenhum cadastro desde 10/10 tem 2º proponente com renda ~R$ 2 mil.

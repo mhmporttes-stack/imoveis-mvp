@@ -30,3 +30,12 @@ test("referência visual nunca fica antes da atividade real", () => {
   assert.equal(visualActivityReference(ago(1), ago(30)), ago(1));
   assert.equal(visualActivityReference(null, null), null);
 });
+
+test("presenceDeviceFromUserAgent: celular x computador pelo User-Agent", async () => {
+  const { presenceDeviceFromUserAgent } = await import("../lib/admin-presence-core.mjs");
+  assert.equal(presenceDeviceFromUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"), "mobile");
+  assert.equal(presenceDeviceFromUserAgent("Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 Chrome/129 Mobile Safari/537.36"), "mobile");
+  assert.equal(presenceDeviceFromUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129 Safari/537.36"), "desktop");
+  assert.equal(presenceDeviceFromUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"), "desktop");
+  assert.equal(presenceDeviceFromUserAgent(""), null);
+});
