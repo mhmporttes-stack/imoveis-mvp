@@ -1,0 +1,15 @@
+{
+ "laminas": [
+  {
+   "tipo": "cartao",
+   "imagem": "docs/posicionamento/carrosseis/2026-10-12-lar-antes-do-carro/img/apartamento.jpg",
+   "boneco": "apontando",
+   "itens": [
+    {"icone": "house", "texto": "Primeiro você financia o seu **lar**"},
+    {"icone": "car", "texto": "Depois o seu **carro**"},
+    {"icone": "repeat", "neg": true, "texto": "!!Não inverta!! as ordens!"},
+    {"icone": "smartphone", "texto": "Uber **é mais barato que aluguel**"}
+   ]
+  }
+ ]
+}

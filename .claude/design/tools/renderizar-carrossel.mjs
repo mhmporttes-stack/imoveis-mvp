@@ -137,6 +137,8 @@ function editorialBody(l) {
 
 function slideBody(l) {
   if (l.tipo === "mito" || l.tipo === "editorial") return editorialBody(l);
+  // "cartao" (2026-10-12): cartão branco inclinado sobre foto, com itens {icone, texto}; item com "neg": true fica vermelho.
+  if (l.tipo === "cartao") return `<div class="cartao-box">${l.titulo ? `<p class="cartao-titulo">${rich(l.titulo)}</p>` : ""}<ul>${(l.itens || []).map((it) => `<li class="${it.neg ? "neg-item" : ""}"><span class="c-ico">${icon(it.icone)}</span><span>${rich(it.texto)}</span></li>`).join("")}</ul></div>`;
   switch (l.tipo) {
     case "capa": return `${iconeTopo(l)}${l.chamada ? `<p class="kicker">${esc(l.chamada)}</p>` : ""}${l.tituloCondensado ? `<h1 class="cover condensada">${rich(l.titulo)}</h1>` : tituloHtml(l, "h1", "cover")}${l.etiqueta ? `<span class="etiqueta">${rich(l.etiqueta)}</span>` : ""}${l.texto ? `<p class="hint">${rich(l.texto)}</p>` : ""}${notaHtml(l)}`;
     case "lista": return `${iconeTopo(l)}${l.numero ? `<p class="number">${esc(l.numero)}</p>` : ""}${tituloHtml(l)}${l.subtitulo ? `<p class="subtitle">${rich(l.subtitulo)}</p>` : ""}<ul>${(l.itens || []).map(itemHtml).join("")}</ul>${notaHtml(l)}`;
@@ -157,7 +159,9 @@ function fundoDa(l) {
   if (!img) return `background:${cor};`;
   const pos = l.imagemPosicao || "center";
   // "textoTopo": ilustração com o espaço livre em cima (estilo das ilustrações 3D) — escurece o topo, não a base.
-  const grad = l.textoTopo
+  const grad = l.tipo === "cartao"
+    ? "linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.12) 70%, rgba(0,0,0,.80) 100%)"
+    : l.textoTopo
     ? "linear-gradient(180deg, rgba(0,0,0,.92) 0%, rgba(0,0,0,.70) 30%, rgba(0,0,0,.10) 55%, rgba(0,0,0,0) 70%, rgba(0,0,0,.55) 100%)"
     : "linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.82) 62%, rgba(0,0,0,.95) 100%)";
   return `background:${grad}, url('${img}') ${pos}/cover no-repeat, ${cor};`;
@@ -259,6 +263,15 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   /* Indicador "arrasta pro lado" (pedido do dono, 2026-10-12): "seta": true no roteiro = todas as lâminas menos a última. */
   .seta { position:absolute !important; max-width:none !important; right:88px; bottom:74px; z-index:3; display:flex; align-items:center; gap:14px; color:#fff; font-size:26px; font-weight:600; letter-spacing:.04em; }
   .seta svg { width:60px; height:60px; fill:none; stroke:var(--brand); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .cartao-box { background:#F7F6F2; color:#0F1B3D; border-radius:16px; padding:60px 56px; transform:rotate(-4deg); box-shadow:0 40px 90px rgba(0,0,0,.5); width:700px; }
+  .frame.com-recorte .cartao-box { max-width:none !important; width:620px; padding:52px 46px; }
+  .cartao-box ul { gap:44px; }
+  .cartao-box li { display:flex; align-items:center; gap:30px; padding:0; font-size:46px; line-height:1.14; font-weight:600; color:#0F1B3D !important; letter-spacing:-.01em; }
+  .cartao-box li::before { display:none; }
+  .cartao-box em { color:var(--brand); font-weight:800; }
+  .cartao-box .c-ico svg { width:96px; height:96px; color:var(--brand); stroke-width:1.5; display:block; flex-shrink:0; }
+  .cartao-box li.neg-item .c-ico svg { color:#FF3B30; }
+  .cartao-titulo { font-size:30px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--brand); margin-bottom:36px; }
   .footer { z-index:2; position:absolute; left:88px; right:88px; bottom:56px; display:flex; align-items:center; justify-content:center; gap:16px; }
   .ring { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(from 200deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #FEDA75); flex-shrink:0; }
   .avatar { width:100%; height:100%; border-radius:50%; border:3px solid var(--bg); background-color:#0D3B66; background-repeat:no-repeat; display:grid; place-items:center; overflow:hidden; }
