@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-12 — Trava "primeira mensagem = simulação" (ROL-4c): liberação manual por cliente
+
+- **Pedido do dono:** cliente #C5576 (idoso, com dificuldade para abrir links) precisa receber mensagem sem o link da simulação.
+- **Alteração:** colunas `simulation_registrations.simulation_first_waived_at`/`_by` (migration `20261012170000_simulation_first_waiver.sql`, aplicada); `requiresSimulationFirst` (`lib/simulation-first-core.mjs`) devolve falso para cliente liberado; `simulationFirstState` (`lib/whatsapp-chat.js`) lê a coluna (tolerante à ausência). #C5576 liberado pelo dono em 12/10. Sem tela por enquanto: liberação só a pedido do dono. Não mexe na trava "Simulação enviada" (FUN-13) nem no prazo de 10 min da roleta. Teste em `tests/simulation-first.test.mjs`.
+
 ### 2026-10-12 — Regra RAN-6b: contato automático pontua mesmo offline
 
 - Dono escolheu a opção A: tentativa do disparo automático da Meta Diária pontua igual à manual, mesmo com o corretor offline no CRM. Comportamento atual confirmado como regra oficial (`.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md` RAN-6b); sem mudança de código.

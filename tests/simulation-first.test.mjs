@@ -70,3 +70,10 @@ test("número oficial pede a prévia do link (preview_url) em texto com link (20
   assert.match(master, /preview_url: true/);
   assert.match(master, /\.\.\.withLinkPreview\(message\)/);
 });
+
+test("liberação manual do dono tira a trava da primeira mensagem", async () => {
+  const { requiresSimulationFirst } = await import("../lib/simulation-first-core.mjs");
+  const client = { distribution_type: "round_robin", primary_monthly_income: 3000, status: "in_service", created_at: "2026-10-12T12:49:00Z" };
+  assert.equal(requiresSimulationFirst(client), true);
+  assert.equal(requiresSimulationFirst({ ...client, simulation_first_waived_at: "2026-10-12T15:30:00Z" }), false);
+});
