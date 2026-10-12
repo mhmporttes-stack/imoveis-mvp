@@ -62,7 +62,8 @@ const recorte = asDataUrl(roteiro.recorte || "docs/posicionamento/assets/matheus
 // Variante apontando para o texto (à esquerda): "comFoto": "apontando".
 const recorteApontando = asDataUrl("docs/posicionamento/assets/matheus-apontando.png");
 // Boneco 3D do Matheus (personagem estilo animação, criado a partir das fotos dele em 2026-10-11, fundo transparente):
-// "boneco": "<pose>" na lâmina, com <pose> = nome do arquivo em docs/posicionamento/assets/boneco-3d/ (ex.: "pensando").
+// "boneco": "<pose>" na lâmina, com <pose> = nome do arquivo em docs/posicionamento/assets/boneco-3d/ (ex.: "pensando");
+// corpo inteiro: "corpo-inteiro/<pose>" (ex.: "corpo-inteiro/andando").
 const bonecoDe = (l) => l.boneco ? asDataUrl(`docs/posicionamento/assets/boneco-3d/${l.boneco}.png`) : "";
 for (const l of roteiro.laminas) if (l.boneco && !l.comFoto) l.comFoto = true;
 const recorteDa = (l) => bonecoDe(l) || (l.comFoto === "apontando" && recorteApontando) || recorte;
@@ -203,6 +204,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .frame.com-recorte > *:not(.recorte):not(.footer) { position:relative; z-index:1; max-width:62%; }
   .recorte.apontando { right:-20px; height:72%; }
   .recorte.boneco { right:-200px; height:74%; filter:drop-shadow(0 0 50px rgba(59,139,255,.22)); }
+  .recorte.boneco.inteiro { right:-150px; height:94%; bottom:20px; }
   .frame.com-recorte h1.cover { font-size:104px; }
   .frame.com-recorte h2 { font-size:80px; }
   .frame.com-recorte .quote { font-size:64px; }
@@ -253,7 +255,7 @@ const page = (l, i) => `<!doctype html><html lang="pt-BR"><head><meta charset="u
   .badge { width:26px; height:26px; }
   .sub { font-size:22px; color:var(--muted); }
 </style></head><body style="${fundoDa(l)}"><div class="frame ${esc(l.tipo === "mito" ? "editorial" : (l.tipo || "texto"))}${l.imagem || (l.fotoCentral && recorte) ? " foto" : ""}${l.textoTopo ? " topo" : ""}${l.comFoto && recorte ? " com-recorte" : ""}${l.fotoCentral && recorte ? " foto-central" : ""}${l.centro ? " centro" : ""}">
-  ${l.comFoto && recorte ? `<img class="recorte${l.boneco ? " boneco" : l.comFoto === "apontando" ? " apontando" : ""}" src="${recorteDa(l)}" alt="">` : ""}
+  ${l.comFoto && recorte ? `<img class="recorte${l.boneco ? ` boneco${String(l.boneco).startsWith("corpo-inteiro/") ? " inteiro" : ""}` : l.comFoto === "apontando" ? " apontando" : ""}" src="${recorteDa(l)}" alt="">` : ""}
   ${l.fotoCentral && recorte ? `<img class="recorte-central" src="${recorte}" alt=""><span class="degrade"></span>` : ""}
   ${slideBody(l)}
   <div class="footer">${avatar}<div class="who"><span class="user">${esc(handle)}${verified}</span>${subtitulo ? `<span class="sub">${esc(subtitulo)}</span>` : ""}</div></div>
