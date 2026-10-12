@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
@@ -442,7 +442,10 @@ function SceneImovel({ scene, onNext, last, nextIsValues, final = false, fast })
         <div className={styles.photoShade} />
       </div>
       <div className={styles.photoText}>
-        <div className={styles.photoScroll}>
+        <div className={styles.photoScroll} data-fit-box="">
+          {/* photoCopy: o bloco de texto inteiro (encaixe na tela, 2026-10-11): sobe sobre a foto só o quanto precisar, com um
+              véu azul-marinho próprio por trás para o texto continuar legível; se ainda não couber, o player o reduz (fitScene) */}
+          <div className={styles.photoCopy} data-fit="">
           <p className={`${styles.eyebrow} ${styles.counter} ${styles.rise}`} style={{ "--d": d(250) }}>
             {multi ? (
               <>
@@ -466,6 +469,7 @@ function SceneImovel({ scene, onNext, last, nextIsValues, final = false, fast })
           <div className={`${styles.propReason} ${styles.rise}`} style={{ "--d": d(afterBenefits + 100) }}>
             <span className={styles.propReasonHead}><BadgeCheck aria-hidden="true" />Por que este imóvel</span>
             <p>{scene.reason}</p>
+          </div>
           </div>
         </div>
         {/* Sem botão "Ver valores" (pedido do dono 2026-10-06): quando a próxima cena é a de valores DESTE imóvel, toque/arraste
@@ -520,7 +524,9 @@ function SceneValores({ scene, onNext, last, final = false, reduced, fast }) {
   const end = afterAto + installments.length * 260 + 300;
   return (
     <div className={`${styles.sceneInner} ${styles.valInner}`}>
-      <div className={`${styles.valBody} ${stampMotion ? styles.valShake : ""}`} style={stampMotion ? { "--shake": `${stampImpact}ms` } : undefined}>
+      <div className={`${styles.valBody} ${stampMotion ? styles.valShake : ""}`} style={stampMotion ? { "--shake": `${stampImpact}ms` } : undefined} data-fit-box="">
+      {/* valContent: tudo o que vem antes do botão; cabe inteiro acima dele (se não couber, o player o reduz: fitScene) */}
+      <div className={styles.valContent} data-fit="">
       <div className={`${styles.valHero} ${styles.rise}`} style={{ "--d": d(150) }}>
         <span className={styles.rowLabel}>Valor do imóvel</span>
         <span className={styles.rowValue}><Count value={scene.valorImovel} reduced={reduced || fast} duration={1300} delay={fast ? 0 : 250} /></span>
@@ -573,6 +579,7 @@ function SceneValores({ scene, onNext, last, final = false, reduced, fast }) {
           ))}
         </div>
       ) : null}
+      </div>
       </div>
       {final ? null : (
         <div className={`${styles.propActions} ${styles.valActions} ${styles.rise}`} style={{ "--d": d(end) }}>
@@ -734,6 +741,26 @@ function SceneDocumentos({ onRestart, canReceiveList, onOpenForecast }) {
   );
 }
 
+/** Encaixe na tela (pedido do dono 2026-10-11, print de iPhone): a cena NUNCA rola nem esconde nada atrás do botão. O CSS já
+ *  dimensiona tudo pela altura útil (dvh); isto é só a última rede para telas mais baixas que o previsto (Safari com as barras,
+ *  celular pequeno, fonte maior): se o bloco marcado com `data-fit` (ou, sem marca, o conteúdo da cena) for mais alto que o espaço
+ *  da sua caixa (`data-fit-box`, ou a própria cena), ele é reduzido por inteiro (`zoom`) até caber. Mede sempre sem zoom e pela
+ *  ALTURA DE LAYOUT (offsetHeight, que ignora as animações de transform). Não muda texto, número nem ordem. */
+const FIT_MIN = 0.72;
+function fitScene(sceneEl) {
+  if (!sceneEl) return;
+  const target = sceneEl.querySelector("[data-fit]") || sceneEl.firstElementChild;
+  if (!target) return;
+  const box = target.closest("[data-fit-box]") || sceneEl;
+  target.style.zoom = "";
+  const boxStyle = getComputedStyle(box);
+  const available = box.clientHeight - parseFloat(boxStyle.paddingTop || 0) - parseFloat(boxStyle.paddingBottom || 0);
+  const needed = target.offsetHeight;
+  if (available > 0 && needed > available + 1) {
+    target.style.zoom = String(Math.max(FIT_MIN, Math.floor((available / needed) * 1000) / 1000));
+  }
+}
+
 function renderScene(scene, ctx) {
   switch (scene.id) {
     case "abertura": return <SceneAbertura scene={scene} reduced={ctx.reduced} />;
@@ -795,6 +822,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const prevIndex = useRef(null);
   const elapsed = useRef(0);
   const fillRef = useRef(null);
+  const sceneRef = useRef(null);
   const pointer = useRef(null);
   const maxReached = useRef(0);
   const openerRef = useRef(null);
@@ -802,6 +830,23 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const scene = scenes[state.index];
   const effective = { ...state, reducedMotion: reduced };
   const hrefs = useMemo(() => buildAssetHrefs({ token, preview, assetsBase, assetsQuery }), [token, preview, assetsBase, assetsQuery]);
+
+  // encaixe na tela (ver fitScene): a cada cena nova, ao girar/redimensionar e quando as fontes terminam de carregar
+  const sceneKey = branchIndex !== null ? `branch-${branchIndex}` : `scene-${state.index}`;
+  useLayoutEffect(() => {
+    const run = () => fitScene(sceneRef.current);
+    run();
+    let raf = 0;
+    const later = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); };
+    window.addEventListener("resize", later);
+    window.visualViewport?.addEventListener("resize", later);
+    document.fonts?.ready?.then(later).catch(() => {});
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", later);
+      window.visualViewport?.removeEventListener("resize", later);
+    };
+  }, [sceneKey]);
 
   // troca de cena: relógio e barra zerados, saída suave da cena anterior (sem saída em movimento reduzido)
   useEffect(() => {
@@ -1019,7 +1064,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
               {renderScene(leavingScene, { ...ctx, reduced: true })}
             </div>
           ) : null}
-          <div key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
+          <div ref={sceneRef} key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
             {renderScene(current, ctx)}
           </div>
           {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}

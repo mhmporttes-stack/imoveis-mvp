@@ -109,6 +109,31 @@ export function presentationSimulation(variant = "completo") {
     };
     base.entryResults = mapResults((snap) => ({ ...snap, subsidioMcmv: 0, clienteSnapshot: { ...snap.clienteSnapshot, subsidioMcmv: 0 } }));
   }
+  // valores-longos: números de 7 dígitos em TODAS as linhas (pior caso de largura no celular): imóvel 1 = sem ato + documentação
+  // gratuita; imóvel 2 = ato + dois blocos de parcelas + Casa Paulista. Fictício, só para revisar quebra/encaixe.
+  if (variant === "valores-longos") {
+    base.simulationModels = {
+      novo: { financingValue: "1.098.765,43", subsidyValue: "55.000,00", firstInstallment: "11.085,40", lastInstallment: "8.812,15" },
+      usado: { financingValue: "1.098.765,43", subsidyValue: "0", firstInstallment: "11.085,40", lastInstallment: "8.812,15" }
+    };
+    base.entryResults = {
+      "dev-imovel-1": entryResult({ valorImovel: 1234567.89, descontos: 108000, documentacao: true, entradaTotal: 127619.83, ato: 0, blocos: [{ label: "Parcelas da entrada", parcelas: 60, valorParcela: 12127.33, periodicidadeMeses: 1 }] }),
+      "dev-imovel-2": entryResult({ valorImovel: 1234567.89, descontos: 105000, casaPaulista: 10000, entradaTotal: 131500.55, ato: 16500.5, blocos: [{ label: "Parcelas durante a obra", parcelas: 36, valorParcela: 1900.99, periodicidadeMeses: 1 }, { label: "Parcelas pós-obra", parcelas: 12, valorParcela: 5775.75, valorParcelaComJuros: 5812.55, periodicidadeMeses: 1 }] })
+    };
+    base.entryResults = Object.fromEntries(Object.entries(base.entryResults).map(([id, entry]) => [id, { ...entry, result: { ...entry.result, subsidioMcmv: 55000, financiamentoAprovado: 1098765.43 } }]));
+  }
+  // sac-price: o modelo "novo" também em SAC, com valores diferentes → cenas DUO (poder, formação e parcelas dos dois sistemas).
+  // sac-price-longo: o mesmo com números de 7 dígitos (pior caso de largura e altura das cenas duo). Fictício.
+  if (variant === "sac-price" || variant === "sac-price-longo") {
+    const longo = variant === "sac-price-longo";
+    base.simulationModels = {
+      novo: {
+        financingValue: longo ? "1.098.765,43" : "190.000,00", subsidyValue: longo ? "55.000,00" : "42.000,00", firstInstallment: longo ? "11.085,40" : "1.085,40", lastInstallment: longo ? "8.812,15" : "812,15", termMonths: "420",
+        sac: { financingValue: longo ? "1.187.654,32" : "205.000,00", subsidyValue: longo ? "55.000,00" : "42.000,00", firstInstallment: longo ? "13.410,20" : "1.410,20", lastInstallment: longo ? "4.640,10" : "640,10", termMonths: "360" }
+      },
+      usado: { financingValue: longo ? "1.098.765,43" : "190.000,00", subsidyValue: "0", firstInstallment: longo ? "11.085,40" : "1.085,40", lastInstallment: longo ? "8.812,15" : "812,15" }
+    };
+  }
   // entrada-unica: um imóvel só, entrada parcelada com ato
   if (variant === "entrada-unica") base.properties = base.properties.slice(1);
   if (variant === "sem-justificativa") base.properties[0].recommendationReason = DEFAULT_REASON;

@@ -195,8 +195,10 @@
 .powerWrap { position: relative; }
 .rings { position: absolute; left: 50%; top: 56%; width: calc(var(--u) * 380); height: calc(var(--u) * 380); transform: translate(-50%, -50%); color: var(--accent); opacity: 0.2; pointer-events: none; }
 .powerWrap > :not(.rings) { position: relative; }
-.bigNumber { display: block; margin-top: calc(var(--u) * 22); font-size: min(calc(var(--u) * 112), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); line-height: 1; font-weight: 800; letter-spacing: -0.03em; }
-.bigNumber .count { --len: 7; }
+.bigNumber { display: flex; justify-content: center; margin-top: calc(var(--u) * 22); font-size: min(calc(var(--u) * 112), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); line-height: 1; font-weight: 800; letter-spacing: -0.03em; }
+/* 2026-10-11: o tamanho é calculado no próprio contador, onde o --len (dígitos do número) está definido. Antes a conta ficava no
+   pai, que não enxerga o --len do filho e usava sempre 7 dígitos: R$ 1.153.765,43 passava da tela no celular. */
+.bigNumber .count { --len: 7; font-size: min(calc(var(--u) * 112), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); line-height: 1; }
 .bigNumber .count > span { display: flex; flex-direction: column; align-items: center; }
 .bigNumber .count small { font-size: 0.24em; margin: 0 0 0.3em; letter-spacing: 0.22em; font-weight: 800; vertical-align: baseline; color: var(--accent); opacity: 1; }
 .bigNumber .num { display: block; }
@@ -206,6 +208,7 @@
 .duoItem { text-align: center; }
 .duoTag { display: inline-block; padding: calc(var(--u) * 6) calc(var(--u) * 18); border-radius: 999px; border: 1px solid var(--panel-line); background: var(--panel); font-size: max(14px, calc(var(--u) * 17)); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
 .duo .bigNumber { margin-top: calc(var(--u) * 12); font-size: min(calc(var(--u) * 74), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
+.duo .bigNumber .count { font-size: min(calc(var(--u) * 74), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
 .underline { display: block; height: 3px; width: calc(var(--u) * 96); margin: calc(var(--u) * 34) auto 0; background: var(--accent); transform-origin: center; animation: grow 0.9s var(--d, 1.2s) cubic-bezier(0.2, 0, 0, 1) both; }
 @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
@@ -492,11 +495,13 @@
   .actions { margin-top: calc(var(--u) * 26); }
   .stat { padding-top: calc(var(--u) * 16); padding-bottom: calc(var(--u) * 18); }
   .statLink { height: calc(var(--u) * 42); }
-  .rows, .stats, .diffRows, .reasonBox, .actions { margin-left: 0; }
+  .rows, .stats, .diffRows, .reasonBox, .actions, .cmpCards { margin-left: 0; }
   .underline { margin-left: 0; transform-origin: left center; }
   .stat { text-align: left; }
   .statLink { margin-left: calc(var(--u) * 20); }
-  .bigNumber { font-size: min(calc(var(--u) * 190), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
+  .bigNumber { justify-content: flex-start; font-size: min(calc(var(--u) * 190), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
+  .bigNumber .count { font-size: min(calc(var(--u) * 190), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
+  .duo .bigNumber .count { font-size: min(calc(var(--u) * 74), calc(var(--cw) / (var(--len, 7) * 0.56 + 0.85))); }
   .bigNumber .count > span { align-items: flex-start; }
   .bigNumber .count { justify-items: start; }
   .rowTotal { text-align: left; }
@@ -763,3 +768,91 @@ a.fcSubmit { text-decoration: none; }
   .valInner, .valHero { text-align: left; }
   .valActions { max-width: calc(var(--u) * 400); }
 }
+
+/* ======================================================================================================
+   ENCAIXE NO CELULAR (pedido do dono 2026-10-11, print de iPhone): cada cena cabe INTEIRA numa tela, sem rolar, sem nada atrás
+   do botão "Continuar" e sem valor em R$ quebrando linha. Alvos: 375x667, 390x844 e 430x932 — e a altura útil real do Safari
+   com as barras (~390x664, o caso do print). Tamanhos em clamp()/min() presos ao --u, que já acompanha a altura útil (dvh): os
+   pisos fixos em px antigos é que estouravam a altura nas telas baixas. O computador (duas colunas) não entra aqui. Última rede:
+   se ainda assim não couber, o player reduz o bloco inteiro (fitScene, PresentationPlayer.jsx).
+   ====================================================================================================== */
+.valContent { flex: none; }
+.photoCopy { flex: none; position: relative; isolation: isolate; display: flex; flex-direction: column; }
+@media not all and (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  /* ---------- valores do imóvel (PRES-20) e valores aprovados (PRES-21) ---------- */
+  .scene[data-scene="valores"] { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--u) * 14); }
+  .valInner .valHero { padding: calc(var(--u) * 9) calc(var(--u) * 14) calc(var(--u) * 10); border-radius: calc(var(--u) * 22); }
+  .valInner .valHero .rowLabel { font-size: clamp(11px, calc(var(--u) * 13.5), 15px); }
+  .valInner .valHero .rowValue { margin-top: calc(var(--u) * 2); font-size: min(calc(var(--u) * 46), calc(var(--cw) * 0.12)); line-height: 1.05; }
+  .valList { margin-top: calc(var(--u) * 4); }
+  .valInner .valRow { padding: calc(var(--u) * 5) calc(var(--u) * 2); gap: calc(var(--u) * 10); }
+  /* rótulo longo ("Subsídio Minha Casa Minha Vida"): letra e espaçamento menores; se ainda não couber ao lado do valor, quebra em
+     duas linhas equilibradas e o valor fica centrado na altura dele (o valor nunca quebra) */
+  .valInner .valRow > span { font-size: clamp(10.5px, calc(var(--u) * 12), 13px); line-height: 1.15; letter-spacing: 0.01em; text-wrap: balance; }
+  .valInner .valRow > strong { font-size: clamp(15px, min(calc(var(--u) * 21), calc(var(--cw) * 0.06)), 23px); }
+  .valInner .valEntry .valRow > strong { font-size: clamp(14px, min(calc(var(--u) * 19), calc(var(--cw) * 0.052)), 21px); }
+  .valStampWrap { margin: calc(var(--u) * 8) auto calc(var(--u) * 1); }
+  .valStamp { --stamp-scale: 1.12; padding: calc(var(--u) * 6) calc(var(--u) * 18) calc(var(--u) * 7); }
+  .valStamp > span { font-size: clamp(10.5px, calc(var(--u) * 13), 15px); letter-spacing: 0.18em; }
+  .valStamp > strong { margin-top: 0; font-size: min(calc(var(--u) * 36), calc(var(--cw) * 0.095)); }
+  .valInner .valEntry { margin-top: calc(var(--u) * 8); padding: calc(var(--u) * 7) calc(var(--u) * 12) calc(var(--u) * 1); border-radius: calc(var(--u) * 20); }
+  .valEntryHead { padding-bottom: calc(var(--u) * 4); }
+  .valEntryHead .rowLabel { font-size: clamp(11px, calc(var(--u) * 13.5), 15px); }
+  .valInner .valEntryValue { font-size: min(calc(var(--u) * 36), calc(var(--cw) * 0.095)); line-height: 1.1; }
+  /* "Sem ato": mesmo selo claro, mais baixo (ícone e textos menores, a frase em até duas linhas curtas) */
+  .valInner .valFree { gap: calc(var(--u) * 10); margin: 0 0 calc(var(--u) * 4); padding: calc(var(--u) * 7) calc(var(--u) * 10); border-radius: calc(var(--u) * 14); }
+  .valFreeIcon { width: clamp(24px, calc(var(--u) * 30), 34px); height: clamp(24px, calc(var(--u) * 30), 34px); }
+  .valInner .valFree strong { font-size: clamp(16px, calc(var(--u) * 20), 22px); }
+  .valFree small { margin-top: 1px; font-size: clamp(12px, calc(var(--u) * 13.5), 15px); line-height: 1.25; text-wrap: balance; }
+  .valActions { margin-top: calc(var(--u) * 8); }
+  .valActions .cta { min-height: clamp(46px, calc(var(--u) * 54), 58px); }
+
+  /* ---------- imóvel sugerido (foto) ---------- */
+  /* o texto pode subir sobre a foto até logo abaixo da marca (antes parava em 34% da tela e o resto rolava); ele continua preso
+     à base, então quando cabe fica exatamente onde estava. O véu do photoCopy garante a leitura quando ele sobe. */
+  .photoText { top: calc(env(safe-area-inset-top, 0px) + var(--u) * 22 + 48px); }
+  .photoCopy::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    left: calc(var(--u) * -34); right: calc(var(--u) * -24); top: calc(var(--u) * -48); bottom: 0;
+    background: linear-gradient(to bottom, rgba(7, 27, 49, 0) 0, rgba(7, 27, 49, 0.5) calc(var(--u) * 48), rgba(7, 27, 49, 0.62) 100%);
+  }
+  .photoText h2 { font-size: clamp(22px, calc(var(--u) * 34), 40px); }
+  .benefits li { font-size: clamp(13.5px, calc(var(--u) * 17), 19px); line-height: 1.3; }
+  .propReason { margin-top: calc(var(--u) * 12); padding: calc(var(--u) * 11) calc(var(--u) * 14) calc(var(--u) * 12); }
+  .propReason p { margin-top: calc(var(--u) * 6); font-size: clamp(14px, calc(var(--u) * 17), 19px); line-height: 1.4; }
+  .propActions .cta { min-height: clamp(48px, calc(var(--u) * 58), 60px); }
+
+  /* ---------- formação do valor ---------- */
+  /* total com contador: o tamanho considera os dígitos (--len), para R$ 1.153.765,43 caber na largura */
+  .rowTotal .rowValue { display: flex; justify-content: center; }
+  .rowTotal .rowValue .count { font-size: min(calc(var(--u) * 60), calc(var(--cw) * 0.14), calc((var(--cw) - var(--u) * 40) / (var(--len, 7) * 0.6 + 1.9))); }
+  .rowsSoma .rowPart .rowValue { font-size: min(calc(var(--u) * 46), calc(var(--cw) * 0.105)); }
+  /* SAC x Price: valor ao lado do rótulo; se não couber, desce inteiro para a linha de baixo, alinhado à direita */
+  .scene[data-scene="formacao"] .cmpCards { gap: calc(var(--u) * 12); }
+  .scene[data-scene="formacao"] .cmpCard { padding: calc(var(--u) * 14) calc(var(--u) * 16); }
+  .scene[data-scene="formacao"] .cmpLine { flex-wrap: wrap; column-gap: 8px; padding: calc(var(--u) * 8) 0; }
+  .scene[data-scene="formacao"] .cmpLabel { font-size: clamp(12.5px, calc(var(--u) * 15), 17px); }
+  .scene[data-scene="formacao"] .cmpVal { margin-left: auto; font-size: clamp(16px, min(calc(var(--u) * 27), calc(var(--cw) * 0.057)), 30px); }
+
+  /* ---------- diferença novo x usado ---------- */
+  /* rótulo e valor dimensionados também pela largura: em 390 px o "R$ 42.000,00" saía pela borda direita */
+  .diffRow { padding: calc(var(--u) * 16) calc(var(--u) * 4); }
+  .diffLabel { font-size: clamp(16px, min(calc(var(--u) * 22), calc(var(--cw) * 0.056)), 24px); }
+  .diffText { font-size: clamp(13px, calc(var(--u) * 16), 17px); }
+  .diffValue { font-size: clamp(18px, min(calc(var(--u) * 29), calc(var(--cw) * 0.072)), 32px); }
+
+  /* ---------- condição de pagamento ---------- */
+  .stat { padding: calc(var(--u) * 20) calc(var(--u) * 14) calc(var(--u) * 22); }
+  .statRate { padding: calc(var(--u) * 12) calc(var(--u) * 20); margin-top: calc(var(--u) * 12); }
+  .statLink { height: calc(var(--u) * 50); }
+}
+
+/* SAC x Price LADO A LADO, no celular e no computador (antes: dois cartões empilhados que passavam da tela e encostavam na marca). Comparar parcela com
+   parcela fica mais fácil; cada linha = rótulo em cima, valor embaixo. */
+.scene[data-scene="parcelas"] .cmpCards { grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 10); max-width: calc(var(--u) * 440); }
+.scene[data-scene="parcelas"] .cmpCard { padding: calc(var(--u) * 14) calc(var(--u) * 12) calc(var(--u) * 8); border-radius: calc(var(--u) * 20); min-width: 0; }
+.scene[data-scene="parcelas"] .cmpName { margin-bottom: calc(var(--u) * 4); }
+.scene[data-scene="parcelas"] .cmpLine { flex-direction: column; align-items: flex-start; gap: 2px; padding: calc(var(--u) * 9) 0; }
+.scene[data-scene="parcelas"] .cmpLabel, .scene[data-scene="parcelas"] .cmpMeta .cmpLabel { font-size: clamp(11.5px, calc(var(--u) * 13.5), 15px); white-space: nowrap; }
+.scene[data-scene="parcelas"] .cmpVal { font-size: clamp(14px, min(calc(var(--u) * 24), calc(var(--cw) * 0.055)), 26px); }
+.scene[data-scene="parcelas"] .cmpMeta .cmpVal { font-size: clamp(13px, min(calc(var(--u) * 18), calc(var(--cw) * 0.05)), 21px); }
