@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { AD_WAITING_DISTRIBUTION, canReleaseAdWaitingClient, hasRepliedAfterAutomation } from "../lib/whatsapp-ad-waiting-core.mjs";
+import { AD_WAITING_DISTRIBUTION, SILENCE_TRANSFER_SINCE, adReleaseVia, canReleaseAdWaitingClient, decideSilenceTransfer, hasRepliedAfterAutomation } from "../lib/whatsapp-ad-waiting-core.mjs";
 import {
   AD_REMINDER_STEPS,
   FORM_REMINDER_BACKLOG_CUTOFF,
@@ -223,4 +223,93 @@ test("backlog: só quem escreveu nas últimas 24 h; não respondeu/não foi aten
   // link de 20 min antes da publicação: 1ª só depois de completar 1 h
   const nearLink = { id: "n", message_at: at(FORM_REMINDER_BACKLOG_CUTOFF, -1 / 3).toISOString() };
   assert.equal(decideFormReminder(adInput({ link: nearLink, conversation: fresh }), now).action, "wait");
+});
+
+// ---- silêncio → roleta (decisões 10 e 12 do dono, 2026-10-12) ---------------------------------------------------
+// A1 numa terça às 14:00 SP (17:00 UTC), depois da data de corte.
+const A1_AT = "2026-10-13T17:00:00.000Z";
+function silenceInput(overrides = {}, a1At = A1_AT) {
+  const opening = { direction: "inbound", sender_type: "customer", message_type: "text", status: "received", message_at: at(a1At, -0.001).toISOString() };
+  const a1 = { direction: "outbound", sender_type: "automation", message_type: "interactive", status: "sent", message_at: a1At };
+  return {
+    client: { distribution_type: AD_WAITING_DISTRIBUTION, status: "automated_service", last_form_submitted_at: null, journey_type: null, private_contact_at: null },
+    conversation: { private_at: null, deleted_at: null, status: "open", last_human_reply_at: null },
+    messages: [opening, a1],
+    audits: [],
+    ...overrides
+  };
+}
+
+test("silêncio: vai para a roleta 3 h depois da A1 (junto com o lembrete de 3 h)", () => {
+  assert.equal(decideSilenceTransfer(silenceInput(), at(A1_AT, 2.9)).action, "wait");
+  const due = decideSilenceTransfer(silenceInput(), at(A1_AT, 3));
+  assert.deepEqual([due.action, due.reason, due.dueAt.toISOString()], ["transfer", "silencio", "2026-10-13T20:00:00.000Z"]);
+  // lembretes automáticos (inclusive o de 1 h) não contam como resposta nem como equipe
+  const reminder = { direction: "outbound", sender_type: "automation", status: "sent", message_at: at(A1_AT, 1).toISOString(), metadata: { kind: "form_reminder" } };
+  assert.equal(decideSilenceTransfer(silenceInput({ messages: [...silenceInput().messages, reminder] }), at(A1_AT, 3)).action, "transfer");
+});
+
+test("silêncio de madrugada → 8 h; domingo igual (sem corretor on-line, a fila entrega)", () => {
+  const night = "2026-10-13T22:00:00.000Z"; // terça 19:00 SP → 22:00 SP cairia de noite
+  assert.equal(decideSilenceTransfer(silenceInput({}, night), at(night, 3)).action, "wait");
+  const morning = decideSilenceTransfer(silenceInput({}, night), new Date("2026-10-14T11:00:00Z"));
+  assert.deepEqual([morning.action, morning.dueAt.toISOString()], ["transfer", "2026-10-14T11:00:00.000Z"]);
+  const saturday = "2026-10-17T23:30:00.000Z"; // sábado 20:30 SP → domingo 8 h
+  assert.equal(decideSilenceTransfer(silenceInput({}, saturday), new Date("2026-10-18T10:59:00Z")).action, "wait");
+  assert.equal(decideSilenceTransfer(silenceInput({}, saturday), new Date("2026-10-18T11:00:00Z")).action, "transfer");
+});
+
+test("silêncio: não transfere se respondeu, preencheu, a equipe escreveu/mexeu, Particular, excluída, finalizada ou status mudou", () => {
+  const now = at(A1_AT, 3.5);
+  const reply = { direction: "inbound", sender_type: "customer", message_type: "audio", message_at: at(A1_AT, 0.5).toISOString() };
+  assert.equal(decideSilenceTransfer(silenceInput({ messages: [...silenceInput().messages, reply] }), now).reason, "cliente_respondeu");
+  // reação não é resposta
+  assert.equal(decideSilenceTransfer(silenceInput({ messages: [...silenceInput().messages, { ...reply, message_type: "reaction" }] }), now).action, "transfer");
+  assert.equal(decideSilenceTransfer(silenceInput({ client: { ...silenceInput().client, last_form_submitted_at: at(A1_AT, 1).toISOString() } }), now).reason, "formulario_preenchido");
+  assert.equal(decideSilenceTransfer(silenceInput({ client: { ...silenceInput().client, journey_type: "simulation" } }), now).reason, "formulario_preenchido");
+  const human = { direction: "outbound", sender_type: "user", message_type: "text", status: "sent", message_at: at(A1_AT, 1).toISOString() };
+  assert.equal(decideSilenceTransfer(silenceInput({ messages: [...silenceInput().messages, human] }), now).reason, "equipe_escreveu");
+  assert.equal(decideSilenceTransfer(silenceInput({ conversation: { ...silenceInput().conversation, last_human_reply_at: at(A1_AT, 1).toISOString() } }), now).reason, "equipe_escreveu");
+  assert.equal(decideSilenceTransfer(silenceInput({ audits: [{ action: "assumed" }] }), now).reason, "equipe_mexeu");
+  assert.equal(decideSilenceTransfer(silenceInput({ conversation: { ...silenceInput().conversation, private_at: at(A1_AT, 1).toISOString() } }), now).reason, "conversa_particular");
+  assert.equal(decideSilenceTransfer(silenceInput({ client: { ...silenceInput().client, private_contact_at: at(A1_AT, 1).toISOString() } }), now).reason, "contato_particular");
+  assert.equal(decideSilenceTransfer(silenceInput({ conversation: null }), now).reason, "sem_conversa");
+  assert.equal(decideSilenceTransfer(silenceInput({ conversation: { ...silenceInput().conversation, deleted_at: at(A1_AT, 1).toISOString() } }), now).reason, "conversa_excluida");
+  assert.equal(decideSilenceTransfer(silenceInput({ conversation: { ...silenceInput().conversation, status: "finished" } }), now).reason, "conversa_finalizada");
+  for (const status of ["in_service", "do_not_contact", "archived", "pending"]) {
+    assert.equal(decideSilenceTransfer(silenceInput({ client: { ...silenceInput().client, status } }), now).reason, "nao_aguardando", status);
+  }
+});
+
+test("silêncio: corrida — quem já saiu do segurado (roleta, formulário, atribuição manual) não é transferido de novo", () => {
+  const now = at(A1_AT, 3.5);
+  for (const distribution_type of ["round_robin", "", "direct_channel"]) {
+    assert.equal(decideSilenceTransfer(silenceInput({ client: { ...silenceInput().client, distribution_type } }), now).reason, "nao_aguardando");
+  }
+  assert.equal(canReleaseAdWaitingClient({ distribution_type: AD_WAITING_DISTRIBUTION, status: "automated_service" }, { via: "silence" }), true);
+  assert.equal(canReleaseAdWaitingClient({ distribution_type: AD_WAITING_DISTRIBUTION, status: "in_service" }, { via: "silence" }), false);
+  const lib = readFileSync(new URL("../lib/whatsapp-sponsored-lead.js", import.meta.url), "utf8");
+  // caminho único de liberação, com a reserva condicionada à marca de segurado
+  assert.match(lib, /releaseAdWaitingClient\(\{ clientId: client\.id, via: "silence", transferDueAt: decision\.dueAt \}\)/);
+  assert.match(lib, /\.eq\("distribution_type", AD_WAITING_DISTRIBUTION\)\s*\.select\("id"\)/);
+});
+
+test("silêncio: só daqui para frente (A1 antes da data de corte não é transferida)", () => {
+  const before = at(SILENCE_TRANSFER_SINCE, -1).toISOString();
+  assert.equal(decideSilenceTransfer(silenceInput({}, before), at(before, 5)).reason, "antes_da_publicacao");
+  assert.equal(decideSilenceTransfer(silenceInput({ messages: [silenceInput().messages[0]] }), at(A1_AT, 5)).reason, "sem_mensagem_automatica");
+});
+
+test("rótulo da liberação: silêncio nunca vira 'respondeu'; via desconhecida não passa", () => {
+  assert.deepEqual(adReleaseVia("silence"), { history: "anuncio_silencio", label: "não respondeu às mensagens automáticas" });
+  assert.equal(adReleaseVia("reply").history, "anuncio_resposta");
+  assert.equal(adReleaseVia("form").history, "anuncio_formulario");
+  assert.doesNotMatch(adReleaseVia("silence").label, /respondeu no/);
+  assert.throws(() => adReleaseVia("outra"));
+  const lib = readFileSync(new URL("../lib/whatsapp-sponsored-lead.js", import.meta.url), "utf8");
+  assert.doesNotMatch(lib, /via === "form" \? "anuncio_formulario" : "anuncio_resposta"/);
+  // sem aviso à gestão no silêncio; on-line × fila e horário previsto no histórico; histórico também quando a fila entrega
+  assert.match(lib, /if \(via !== "silence"\) await notifyStaff\("Cliente do anúncio aguardando corretor"/);
+  assert.match(lib, /deliveryMode: brokerId \? "online" : "fila", transferDueAt/);
+  assert.match(lib, /recordReleaseHistory\(\{ client, brokerId: null, ownerId, via, roulette, transferDueAt, deliveredByQueue: true \}\)/);
 });
