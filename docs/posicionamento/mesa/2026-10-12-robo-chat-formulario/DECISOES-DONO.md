@@ -8,3 +8,4 @@
 5. **Horário:** padrão é segunda a sábado, 8h–19h, **mas** se o cliente não consegue nesse horário a equipe atende em outro horário combinado (o link já deixa isso claro). Mensagens fora do horário devem dizer isso (ex.: "se esse horário não der pra você, a gente combina outro").
 6. **Lembrete de 23 h do anúncio:** cortar (altera WA-18 → sequência 1 h / 3 h / 10 h). Registrar como regra nova na implementação (`/registrar-regra`).
 7. **Número oficial:** o antigo foi banido em 28/09; o dono **comprou um número novo**, que é o Oficial ativo hoje (é por ele que o robô roda).
+8. **Lembrete de madrugada:** SIM — lembrete que cairia de madrugada (21h–8h) fica para as 8 h (desfaz o "roda 24 h" de 09/10 só para isso; registrar com `/registrar-regra` na implementação).
