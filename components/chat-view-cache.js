@@ -9,7 +9,9 @@
 const MAX_DETAILS = 8;
 const TTL_MS = 30 * 60 * 1000;
 
-let entry = null; // { key, at, view, details: Map }
+// Mesma memória (mesma chave, validade e limpeza) guarda também dados de outras telas do painel (readViewerData), ex.: os
+// números do Desempenho pré-carregados pelo AdminWarmup.
+let entry = null; // { key, at, view, details: Map, data: Map }
 const clearHandlers = new Set();
 
 export function readChatView(key) {
@@ -24,7 +26,7 @@ export function readChatView(key) {
 
 function ensure(key) {
   if (typeof window === "undefined" || !key) return null;
-  if (!entry || entry.key !== key) entry = { key, at: Date.now(), view: null, details: new Map() };
+  if (!entry || entry.key !== key) entry = { key, at: Date.now(), view: null, details: new Map(), data: new Map() };
   entry.at = Date.now();
   return entry;
 }
@@ -40,6 +42,16 @@ export function saveChatDetail(key, id, detail) {
   current.details.delete(id);
   current.details.set(id, detail);
   while (current.details.size > MAX_DETAILS) current.details.delete(current.details.keys().next().value);
+}
+
+// Dados de outras telas, por nome (ex.: "performance:month"). Mesma chave por conta real + efetiva.
+export function readViewerData(key, name) {
+  return readChatView(key)?.data.get(name) ?? null;
+}
+
+export function saveViewerData(key, name, value) {
+  const current = ensure(key);
+  if (current && value) current.data.set(name, value);
 }
 
 export function forgetChatDetail(key, id) {

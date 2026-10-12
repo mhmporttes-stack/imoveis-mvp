@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { readChatView, saveChatView } from "@/components/chat-view-cache";
+import { readChatView, readViewerData, saveChatView, saveViewerData } from "@/components/chat-view-cache";
+import { PERFORMANCE_CACHE_NAME } from "@/components/performance-cache-name";
 
 // Pré-carrega as telas da barra inferior depois que o painel abre (pedido do dono, 2026-10-12: "o primeiro toque no Chat
 // demora mais"). Só no celular, uma vez por sessão, com o app visível, fora de "economia de dados"/2G, e só as telas que
@@ -20,12 +21,12 @@ function connectionTooSlow() {
 }
 
 function warmChatList(viewerKey) {
-  if (readChatView(viewerKey)) return;
+  if (readChatView(viewerKey)?.view) return;
   fetch("/api/admin/whatsapp-chat/conversations?filter=all&warm=1", { cache: "no-store" })
     .then((response) => (response.ok ? response.json() : null))
     .then((data) => {
       // Já abriu o Chat enquanto isso (ou trocou de conta): não sobrescreve.
-      if (!Array.isArray(data?.conversations) || readChatView(viewerKey)) return;
+      if (!Array.isArray(data?.conversations) || readChatView(viewerKey)?.view) return;
       saveChatView(viewerKey, {
         tab: "conversations",
         filter: "all",
@@ -44,7 +45,18 @@ function warmChatList(viewerKey) {
     .catch(() => {});
 }
 
-export default function AdminWarmup({ viewerKey = "", chat = false, fullRoutes = [], lightRoutes = [] }) {
+// Números do Desempenho (só leitura; mesma API e mesmo período padrão da tela) — a tela abre já com eles e atualiza.
+function warmPerformance(viewerKey) {
+  if (readViewerData(viewerKey, PERFORMANCE_CACHE_NAME)) return;
+  fetch("/api/performance-overview?period=month", { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((payload) => {
+      if (payload?.overview && !readViewerData(viewerKey, PERFORMANCE_CACHE_NAME)) saveViewerData(viewerKey, PERFORMANCE_CACHE_NAME, payload.overview);
+    })
+    .catch(() => {});
+}
+
+export default function AdminWarmup({ viewerKey = "", chat = false, performance = false, fullRoutes = [], lightRoutes = [] }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -71,6 +83,7 @@ export default function AdminWarmup({ viewerKey = "", chat = false, fullRoutes =
       for (const href of fullRoutes) router.prefetch(href, { kind: "full" });
       for (const href of lightRoutes) router.prefetch(href);
       if (chat) warmChatList(viewerKey);
+      if (performance) warmPerformance(viewerKey);
     }
     function schedule() {
       window.clearTimeout(timer);

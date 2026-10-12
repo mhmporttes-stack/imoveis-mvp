@@ -16,7 +16,8 @@ import {
   Users
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
+import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { PERFORMANCE_CACHE_NAME } from "@/components/performance-cache-name";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -59,13 +60,14 @@ const TREND_GRANULARITIES = [
 ];
 const TREND_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2", "#dc2626", "#65a30d"];
 
-export default function PerformanceOverviewDashboard({ initialOverview, initialError = "", renderId = "" }) {
-  const [period, setPeriod] = useState(initialOverview?.range?.period || "month");
-  const periodRef = useRef(period);
-  periodRef.current = period;
-  const [startDate, setStartDate] = useState(initialOverview?.range?.startDate || "");
-  const [endDate, setEndDate] = useState(initialOverview?.range?.endDate || "");
-  const [overview, setOverview] = useState(initialOverview);
+export default function PerformanceOverviewDashboard({ initialOverview, initialError = "", viewerKey = "" }) {
+  // Números já guardados nesta conta (pré-carregados ou da visita anterior): a tela abre com eles e atualiza em seguida.
+  const [cachedOverview] = useState(() => (initialOverview ? null : readViewerData(viewerKey, PERFORMANCE_CACHE_NAME)));
+  const startOverview = initialOverview || cachedOverview;
+  const [period, setPeriod] = useState(startOverview?.range?.period || "month");
+  const [startDate, setStartDate] = useState(startOverview?.range?.startDate || "");
+  const [endDate, setEndDate] = useState(startOverview?.range?.endDate || "");
+  const [overview, setOverview] = useState(startOverview);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
   const [expandedBrokerId, setExpandedBrokerId] = useState("");
@@ -92,20 +94,16 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   // o trabalho no banco e o tempo até a tela ficar "pronta" a cada acesso.
   // Refetch continua acontecendo normalmente quando o usuário troca período/data.
   const isFirstOverviewRender = useRef(true);
-  // Tela reaproveitada (volta em até 5 min): relê o período padrão em segundo plano, sem "carregando". Se a pessoa já
-  // trocou de período, a troca faz a própria busca e esta resposta é descartada.
-  useRevalidateOnReuse(renderId, () => {
-    const requested = initialOverview?.range?.period || "month";
-    fetch(`/api/performance-overview?${new URLSearchParams({ period: requested }).toString()}`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => { if (payload?.overview && periodRef.current === requested) setOverview(payload.overview); })
-      .catch(() => {});
-  });
+  // Guarda os números do período padrão para a próxima vez (mesma memória por conta do Chat; some ao sair/trocar de conta).
+  useEffect(() => {
+    if (overview && overview.range?.period === "month") saveViewerData(viewerKey, PERFORMANCE_CACHE_NAME, overview);
+  }, [viewerKey, overview]);
   useEffect(() => {
     const controller = new AbortController();
     if (isFirstOverviewRender.current) {
       isFirstOverviewRender.current = false;
-      if (!initialOverview) loadOverview(controller.signal);
+      // Com números guardados: atualiza em segundo plano, sem "carregando" (a tela já está preenchida).
+      if (!initialOverview) loadOverview(controller.signal, { silent: Boolean(cachedOverview) });
     } else {
       loadOverview(controller.signal);
     }
@@ -141,8 +139,8 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   ), [team]);
   const periodQuery = useMemo(() => buildPeriodQuery(period, startDate, endDate), [period, startDate, endDate]);
 
-  async function loadOverview(signal) {
-    setLoading(true);
+  async function loadOverview(signal, { silent = false } = {}) {
+    if (!silent) setLoading(true);
     setError("");
 
     const params = new URLSearchParams({ period });
@@ -157,11 +155,11 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o painel.");
       setOverview(payload.overview);
     } catch (requestError) {
-      if (requestError.name !== "AbortError") {
+      if (requestError.name !== "AbortError" && !silent) {
         setError(requestError.message || "Não foi possível carregar o painel.");
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && !silent) setLoading(false);
     }
   }
 
@@ -282,7 +280,8 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Quem mais produziu no período</h3>
 
           <div className="mt-6 space-y-3">
-            {!ranking.length && (
+            {/* 1ª abertura sem números guardados: "carregando" (botão Atualizar girando), não "nenhum". */}
+            {!ranking.length && overview && (
               <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">
                 Nenhum corretor com atividade neste período.
               </p>
@@ -422,7 +421,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           {team.map((row) => (
             <BrokerCard key={row.profile.id} row={row} periodQuery={periodQuery} />
           ))}
-          {!team.length && (
+          {!team.length && overview && (
             <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600 sm:col-span-2 xl:col-span-3">
               Nenhum corretor ativo encontrado.
             </p>

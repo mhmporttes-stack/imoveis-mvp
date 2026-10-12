@@ -122,6 +122,7 @@ function warmupTargets(auth, whatsappBlocked) {
   return {
     viewerKey: chatViewerKey(auth),
     chat,
+    performance: isAdmin,
     fullRoutes: ["/admin/simulacoes", ...(chat ? ["/admin/chat"] : []), ...(isAdmin ? ["/admin/desempenho"] : [])],
     lightRoutes: [...(hidden.has("daily-goal") ? [] : ["/admin/meta-diaria"]), ...(isAdmin ? [] : ["/admin/calendario"])]
   };
