@@ -29,11 +29,35 @@ import AutoClick from "./AutoClick";
 import ManualBrowser from "@/components/manual/ManualBrowser";
 import ManualAdmin from "@/components/manual/ManualAdmin";
 import * as manual from "../_fixtures/manual";
+import * as rankingTopo from "../_fixtures/ranking-topo";
+import TopRankingBadge from "@/components/TopRankingBadge";
+import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
+import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  "ranking-topo": {
+    // Cabeçalho do ranking como em app/admin/layout.jsx (?variante=completo|sem-dia|vazio|posicao).
+    path: "/admin/simulacoes",
+    titulo: "Cabeçalho do ranking (Campeão da semana / Melhor do dia)",
+    active: "simulations",
+    rotas: rankingTopo.routes,
+    semMenu: true,
+    render: () => (
+      <>
+        <div className="mm-app-hide">
+          <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
+            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
+          </header>
+        </div>
+        <main className="bg-mist pb-14 pt-3 md:pt-14">
+          <div className="container-page"><p className="text-sm font-bold text-muted">Conteúdo da tela abaixo do cabeçalho.</p></div>
+        </main>
+      </>
+    )
+  },
   fundacao: {
     titulo: "Fundação (sistema visual)",
     active: "",

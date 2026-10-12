@@ -19,7 +19,13 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Chat sem o menu de abas; telas Visão geral, Campanhas e Corretores removidas
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Ranking do topo lado a lado no celular e Chat mais alto (pedido do dono)
+
+- **Cabeçalho do ranking** (`components/TopRankingBadge.jsx`): no celular, "Campeão da Semana" e "Melhor do Dia" lado a lado (metade da largura cada): rótulo pequeno em cima, foto 42 px, nome em 1 linha com reticências, pontos; "Semana anterior" como linha pequena. Indicadores (WhatsApp, Google Contacts) no canto de cada card, 28 px. Cabeçalho ~220 → ~100 px de altura. Sem dado o card mostra o estado vazio ("Ainda sem pontos hoje" / "Ainda sem campeão") no mesmo tamanho — acabou o ícone solto. Desktop igual ao anterior (só ganhou o card vazio no lugar do ícone solto).
+- **Chat (modo aplicativo, celular):** some o respiro do `<main>` (12 → 6 px) e a margem vazia do bloco do menu do topo (`AdminSectionNav`, 12–24 px): a lista começa mais alto. Body fixo, safe-area e barra inferior inalterados.
+- Vitrine: tela `ranking-topo` (`?variante=completo|sem-dia|vazio|posicao`), dados fictícios.
+
+### 2026-10-12 — Chat sem o menu de abas; telas Visão geral, Campanhas e Corretores removidas
 
 - Dono pediu para remover o menu do Chat e escolheu "apagar as 3 telas" (Visão geral, Campanhas, Corretores) para todos. `components/WhatsappChat.jsx`: sem a linha de abas, sem os painéis e seus `dynamic()`, aba sempre "conversations" (aba/corretor guardados no cache antigo são ignorados). O status do WhatsApp pessoal (`WhatsappIndividualStatus`) foi para o cabeçalho da lista "Conversas". Componentes `WhatsappChatOverview/Campaigns/Brokers` e as APIs continuam no repositório (sem uso na tela). `docs/WHATSAPP.md` anotado.
 

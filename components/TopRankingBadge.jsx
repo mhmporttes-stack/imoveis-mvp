@@ -15,22 +15,30 @@ const REFRESH_MS = 5 * 60 * 1000;
 // periodicamente, nunca a cada troca de página.
 // weeklyIndicator / dailyIndicator: indicadores de integração (WhatsApp /
 // Google Contacts, vindos do layout) exibidos DENTRO dos cards Campeão da
-// Semana / Melhor do Dia, a ~75% da largura do próprio card (referência = o
-// card, nunca a viewport). Se o card correspondente não existir, o indicador
-// cai numa linha própria — nunca some (o corretor precisa ver a conexão).
-// Sem transform (-ml-4 = metade dos 32px do ícone): um transform viraria o
-// bloco de referência dos modais `fixed` dos indicadores.
-// Desktop (lg): cards lado a lado e mais largos — o indicador vai para a
-// direita do card, sem estreitar o nome.
-const INDICATOR_POSITION = "absolute left-3/4 z-20 -ml-4 lg:left-auto lg:right-3 lg:ml-0";
-// Campeão da Semana: o título ("Campeão(ã) da Semana", ~181px) chega perto
-// dos 75% em celulares estreitos, então o indicador fica logo abaixo dele;
-// no Melhor do Dia o título é curto e o indicador vai ao topo.
-const WEEKLY_TOP = "top-[1.625rem]";
-const DAILY_TOP = "top-2";
-// O nome termina antes do indicador: 75% do próprio card ≈ 75% da
-// coluna de texto − 2rem (a coluna começa depois da foto).
-const CLEAR_OF_INDICATOR = "max-w-[calc(75%-2rem)] lg:max-w-[calc(100%-2.75rem)]";
+// Semana / Melhor do Dia, no canto superior direito do próprio card. O card
+// existe sempre (sem dado = estado vazio honesto), então o indicador nunca
+// fica solto na tela (o corretor precisa ver a conexão).
+// Sem transform: um transform viraria o bloco de referência dos modais
+// `fixed` dos indicadores.
+// Celular (pedido do dono, 2026-10-12): os dois cards lado a lado, metade da
+// largura cada, compactos (rótulo em cima, foto de 42px, nome em 1 linha,
+// pontos). Desktop (lg): como antes — foto grande à esquerda e texto ao lado.
+const INDICATOR_POSITION = "absolute right-1.5 top-1 z-20 max-lg:[&>span>button]:h-7 max-lg:[&>span>button]:w-7 lg:right-3";
+// Desktop: no Campeão da Semana o indicador fica logo abaixo do título; no Melhor do Dia, no topo.
+const WEEKLY_TOP = "lg:top-[1.625rem]";
+const DAILY_TOP = "lg:top-2";
+// Grade do card: no celular o rótulo ocupa a linha de cima (ao lado só o indicador);
+// no desktop a foto ocupa as duas linhas e o rótulo fica sobre o nome.
+const CARD_GRID = "grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] content-start items-center lg:content-center gap-x-2 gap-y-1.5 [grid-template-areas:'label_label'_'photo_text'] lg:gap-x-3 lg:gap-y-0.5 lg:[grid-template-areas:'photo_label'_'photo_text']";
+const LABEL = "block truncate pr-6 text-[9.5px] min-[390px]:text-[10px] font-black uppercase leading-4 tracking-normal min-[390px]:tracking-wide [grid-area:label] lg:self-end lg:pr-12 lg:text-[11px]";
+const PHOTO = "relative z-10 shrink-0 [grid-area:photo]";
+const TEXT = "relative z-10 min-w-0 leading-tight [grid-area:text] lg:self-start";
+const NAME = "block truncate text-sm font-extrabold text-navy lg:max-w-[calc(100%-2.75rem)] lg:text-lg";
+// Foto: 42px no celular, tamanho original no desktop (o Avatar usa estilo inline; !important ganha dele).
+const PHOTO_WEEKLY = "border-2 !border-[#DBA735] shadow-sm max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
+const PHOTO_DAILY = "border-2 !border-[#A9C8EC] max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
+const WEEKLY_CARD = "relative overflow-hidden rounded-2xl border border-[#E9CB73] bg-[#FFF9E9] px-2.5 py-2 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8] lg:rounded-3xl lg:px-3.5 lg:py-3";
+const DAILY_CARD = "relative overflow-hidden rounded-2xl border border-[#C9DDF6] bg-[#F8FBFF] px-2.5 py-2 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF] lg:rounded-3xl lg:px-3.5 lg:py-3";
 
 export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator = null }) {
   const [data, setData] = useState(null);
@@ -70,55 +78,53 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
   // Antes da primeira resposta nada é desenhado (evita o indicador pular de
   // lugar e remontar quando os cards aparecem).
   if (!loaded) return null;
-  if (!data?.top1 && !data?.weeklyTop1) {
-    return <div className="flex items-center gap-2 py-2">{weeklyIndicator}{dailyIndicator}</div>;
-  }
-  const showMyRank = Boolean(data.top1 && !data.isMeTop1 && data.myRank);
-
-  const orphanIndicators = [!data.weeklyTop1 ? weeklyIndicator : null, !data.top1 ? dailyIndicator : null].filter(Boolean);
+  const weekly = data?.weeklyTop1 || null;
+  const daily = data?.top1 || null;
+  const showMyRank = Boolean(daily && !data.isMeTop1 && data.myRank);
 
   return (
-    <>
-    <div className={`grid w-full gap-2 py-2.5 lg:items-stretch ${showMyRank
+    <div className={`grid w-full grid-cols-2 gap-2 py-2 lg:items-stretch lg:py-2.5 ${showMyRank
       ? "max-w-5xl lg:grid-cols-[1.3fr_1fr_0.9fr]"
-      : data.top1 ? "max-w-3xl lg:grid-cols-[1.3fr_1fr]" : "max-w-lg lg:grid-cols-1"}`}>
-      {data.weeklyTop1 ? (
-        <div className="relative flex min-w-0">
-        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
-          className="relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-[#E9CB73] bg-[#FFF9E9] px-3.5 py-3 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8]">
-          <Laurel className="-left-2 bottom-0" />
-          <Laurel className="-right-2 bottom-0 -scale-x-100" />
-          <span className="relative z-10 shrink-0">
-            <Avatar name={data.weeklyTop1.name} photoUrl={data.weeklyTop1.photoUrl} size={64} className="border-2 !border-[#DBA735] shadow-sm" />
-          </span>
-          <span className="relative z-10 min-w-0 flex-1 leading-tight">
-            <span className={`block text-[11px] font-black uppercase tracking-wide text-[#9B6419]`}>👑 {weeklyChampionTitle(data.weeklyTop1.gender)}</span>
-            <span className={`mt-0.5 block truncate ${CLEAR_OF_INDICATOR} text-lg font-extrabold text-navy`}>{data.weeklyTop1.name}</span>
-            <span className="block text-base font-extrabold text-[#B77C17]">{formatPoints(data.weeklyTop1.points)} pontos</span>
-            <span className="block text-xs font-medium text-slate-600">Semana anterior</span>
-          </span>
+      : "max-w-3xl lg:grid-cols-[1.3fr_1fr]"}`}>
+      <div className="relative flex min-w-0">
+        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${WEEKLY_CARD} ${CARD_GRID}`}>
+          <Laurel className="-left-2 bottom-0 max-lg:hidden" />
+          <Laurel className="-right-2 bottom-0 -scale-x-100 max-lg:hidden" />
+          <span className={`${LABEL} text-[#9B6419]`}>👑 {weekly ? weeklyChampionTitle(weekly.gender) : "Campeão da Semana"}</span>
+          {weekly ? (
+            <>
+              <span className={PHOTO}><Avatar name={weekly.name} photoUrl={weekly.photoUrl} size={64} className={PHOTO_WEEKLY} /></span>
+              <span className={TEXT}>
+                <span className={NAME}>{weekly.name}</span>
+                <span className="block truncate text-xs font-extrabold text-[#B77C17] lg:text-base">{formatPoints(weekly.points)} pontos</span>
+                <span className="block truncate text-[10px] font-medium text-slate-600 lg:text-xs">Semana anterior</span>
+              </span>
+            </>
+          ) : (
+            <EmptyState tone="weekly" text="Ainda sem campeão" />
+          )}
         </SceneTransitionLink>
         {weeklyIndicator ? <span className={`${INDICATOR_POSITION} ${WEEKLY_TOP}`}>{weeklyIndicator}</span> : null}
-        </div>
-      ) : null}
-      {data.top1 ? (
-        <div className="relative flex min-w-0">
-        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho"
-          className="flex w-full min-w-0 items-center gap-3 rounded-3xl border border-[#C9DDF6] bg-[#F8FBFF] px-3.5 py-3 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF]">
-          <span className="relative shrink-0">
-            <Avatar name={data.top1.name} photoUrl={data.top1.photoUrl} size={58} className="border-2 !border-[#A9C8EC]" />
-          </span>
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className={`block text-[11px] font-black uppercase tracking-wide text-[#2370BC]`}>🥇 Melhor do Dia</span>
-            <span className={`mt-0.5 block truncate ${CLEAR_OF_INDICATOR} text-lg font-extrabold text-navy`}>{data.top1.name}</span>
-            <span className="block text-base font-extrabold text-[#2370BC]">{formatPoints(data.top1.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
-          </span>
+      </div>
+      <div className="relative flex min-w-0">
+        <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${DAILY_CARD} ${CARD_GRID}`}>
+          <span className={`${LABEL} text-[#2370BC]`}>🥇 Melhor do Dia</span>
+          {daily ? (
+            <>
+              <span className={PHOTO}><Avatar name={daily.name} photoUrl={daily.photoUrl} size={58} className={PHOTO_DAILY} /></span>
+              <span className={TEXT}>
+                <span className={NAME}>{daily.name}</span>
+                <span className="block truncate text-xs font-extrabold text-[#2370BC] lg:text-base">{formatPoints(daily.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
+              </span>
+            </>
+          ) : (
+            <EmptyState tone="daily" text="Ainda sem pontos hoje" />
+          )}
         </SceneTransitionLink>
         {dailyIndicator ? <span className={`${INDICATOR_POSITION} ${DAILY_TOP}`}>{dailyIndicator}</span> : null}
-        </div>
-      ) : null}
+      </div>
       {showMyRank ? (
-        <div className="flex min-w-0 items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 text-navy shadow-[0_2px_10px_rgba(13,59,102,0.06)]">
+        <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-navy shadow-[0_2px_10px_rgba(13,59,102,0.06)] lg:col-span-1 lg:rounded-3xl lg:px-3.5 lg:py-2.5">
           <RankingIcon />
           <span className="shrink-0 text-xs font-bold text-slate-600">Sua posição hoje:</span>
           <span className="rounded-full bg-[#E2F0FF] px-2.5 py-1 text-sm font-black text-[#176BC4]">{data.myRank}º</span>
@@ -126,7 +132,21 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
         </div>
       ) : null}
     </div>
-    {orphanIndicators.length ? <div className="flex items-center gap-2 pb-2">{orphanIndicators}</div> : null}
+  );
+}
+
+// Card sem dado (ex.: dia ainda sem pontos): mesmo tamanho do card preenchido,
+// com um círculo tracejado no lugar da foto — nunca um ícone solto na tela.
+function EmptyState({ tone, text }) {
+  const ring = tone === "weekly" ? "border-[#DBA735]/60" : "border-[#A9C8EC]";
+  return (
+    <>
+      <span className={PHOTO}>
+        <span aria-hidden="true" className={`block h-[42px] w-[42px] rounded-full border-2 border-dashed ${ring} lg:h-[58px] lg:w-[58px]`} />
+      </span>
+      <span className={TEXT}>
+        <span className="block text-xs font-bold leading-snug text-slate-500 lg:text-sm">{text}</span>
+      </span>
     </>
   );
 }
