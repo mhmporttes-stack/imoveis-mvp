@@ -75,7 +75,7 @@
   /* 6 como funciona */
   .passos { margin-top:64px; position:relative; }
   .passos::before { content:""; position:absolute; left:59px; top:60px; bottom:60px; width:3px; background:linear-gradient(var(--azul), rgba(59,139,255,.2)); }
-  .passo { display:flex; gap:40px; align-items:center; position:relative; margin-bottom:58px; }
+  .passo { display:flex; gap:40px; align-items:flex-start; position:relative; margin-bottom:72px; }
   .passo .n { width:120px; height:120px; border-radius:50%; background:var(--navy); border:3px solid var(--azul); display:grid; place-items:center; font-family:Anton, sans-serif; font-size:64px; color:var(--azul); flex-shrink:0; }
   .passo:last-child .n { background:var(--azul); color:#fff; }
   .passo b { display:block; font-size:46px; font-weight:800; line-height:1.15; }
@@ -87,13 +87,13 @@
   .conf { display:flex; gap:24px; align-items:center; margin-top:44px; padding:30px 34px; border-radius:24px; background:rgba(59,139,255,.10); border:1.5px solid rgba(59,139,255,.35); }
   .conf svg { width:56px; height:56px; stroke:var(--azul2); stroke-width:1.8; flex-shrink:0; }
   .conf b { display:block; font-size:34px; font-weight:800; }
-  .conf span { display:block; font-size:25px; color:#9FB0CE; margin-top:6px; }
+  .conf span { display:block; font-size:28px; line-height:1.3; color:#9FB0CE; margin-top:6px; }
   /* 7 cta */
   .cta .fundo { position:absolute; inset:0; background:radial-gradient(900px 800px at 70% 45%, #1E4AA8 0%, rgba(30,74,168,0) 70%); }
   .cta .pessoa { position:absolute; right:-210px; bottom:0; height:1060px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
   .cta .topo { position:absolute; left:80px; right:80px; top:100px; }
   .cta h2 { font-size:128px; }
-  .fone { position:absolute; left:90px; top:470px; width:440px; height:640px; border-radius:58px; background:#0B0F14; padding:16px; box-shadow:0 40px 80px rgba(0,0,0,.55), 0 0 0 2px #2A3242; transform:rotate(-4deg); }
+  .fone { position:absolute; left:80px; top:510px; width:450px; height:500px; border-radius:58px; background:#0B0F14; padding:16px; box-shadow:0 40px 80px rgba(0,0,0,.55), 0 0 0 2px #2A3242; }
   .tela { width:100%; height:100%; border-radius:44px; overflow:hidden; background:#ECE5DD; display:flex; flex-direction:column; }
   .tela .bar { background:#075E54; color:#fff; padding:44px 22px 18px; display:flex; align-items:center; gap:14px; }
   .tela .av { width:52px; height:52px; border-radius:50%; overflow:hidden; background:#cfd8dc; flex-shrink:0; }
@@ -101,7 +101,7 @@
   .tela .bar b { font-size:22px; display:block; }
   .tela .bar small { font-size:16px; opacity:.85; }
   .tela .msgs { flex:1; padding:22px 18px; display:flex; flex-direction:column; gap:14px; justify-content:flex-end; }
-  .bal { max-width:84%; padding:14px 18px 22px; border-radius:16px; font-size:21px; line-height:1.32; color:#111B21; position:relative; box-shadow:0 1px 1px rgba(0,0,0,.12); }
+  .bal { max-width:84%; padding:14px 18px 22px; border-radius:16px; font-size:27px; line-height:1.3; color:#111B21; position:relative; box-shadow:0 1px 1px rgba(0,0,0,.12); }
   .bal small { position:absolute; right:12px; bottom:5px; font-size:13px; color:#667781; }
   .bal.eu { align-self:flex-end; background:#D9FDD3; border-top-right-radius:4px; }
   .bal.ele { align-self:flex-start; background:#fff; border-top-left-radius:4px; }
@@ -111,38 +111,59 @@
   .tela .input svg { width:24px; height:24px; stroke:#fff; stroke-width:2.2; }
   .cta .botao { position:absolute; left:80px; bottom:120px; display:inline-flex; align-items:center; gap:16px; background:var(--zap); color:#062B16; font-weight:800; font-size:36px; padding:24px 36px; border-radius:999px; box-shadow:0 18px 40px rgba(0,0,0,.35); z-index:3; }
   .cta .botao svg { width:38px; height:38px; stroke:#062B16; stroke-width:2.4; }
-  .cta .rodape { position:absolute; left:80px; bottom:52px; font-size:21px; line-height:1.4; color:#AEB9CF; z-index:3; background:rgba(10,20,48,.75); padding:6px 12px 6px 0; border-radius:8px; }
+  .cta .rodape { position:absolute; left:80px; bottom:60px; font-size:26px; line-height:1.4; color:#AEB9CF; z-index:3; background:rgba(10,20,48,.75); padding:6px 12px 6px 0; border-radius:8px; }
+
+  /* revisão design-critic (2026-10-12) */
+  .capa h1 { line-height:1.0; }
+  .capa .local svg { stroke:var(--azul); }
+  .capa .pessoa { right:-130px; -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 7%); mask-image:linear-gradient(90deg, transparent 0, #000 7%); }
+  .capa .grana { font-family:Anton, sans-serif; font-size:250px; line-height:1; margin-top:18px; }
+  .capa .grana small { font-size:110px; vertical-align:top; line-height:1.45; margin-right:14px; }
+  .capa .faixa { position:absolute; left:80px; bottom:150px; width:520px; border-left:6px solid var(--azul); padding:4px 0 4px 26px; }
+  .capa .faixa b { display:block; font-size:40px; font-weight:800; line-height:1.2; }
+  .capa .faixa span { display:block; font-size:32px; color:#C9D3E6; margin-top:6px; font-weight:600; }
+  .grade i { background:rgba(159,176,206,.08); border-color:rgba(159,176,206,.35); }
+  .grade i::after { background:rgba(159,176,206,.55); }
+  .nota { font-size:30px !important; color:#B8C3D9 !important; }
+  .cond2 { line-height:1.2 !important; }
+  .vs .alu p:first-of-type svg { stroke:#9FB0CE; }
+  .recebe { margin-top:14px !important; display:flex !important; flex-wrap:wrap; }
+  .recebe em { white-space:nowrap; font-style:normal; color:#fff; font-size:24px; margin:0 10px 10px 0; font-weight:700; background:rgba(59,139,255,.18); border-radius:10px; padding:6px 14px; }
+  .cta .instrucao { position:absolute; left:80px; bottom:160px; width:520px; z-index:3; }
+  .cta .instrucao b { display:block; font-size:44px; font-weight:800; line-height:1.2; }
+  .cta .instrucao b em { color:var(--azul); }
+  .cta .instrucao span { display:flex; align-items:center; gap:12px; font-size:32px; color:#C9D3E6; margin-top:12px; font-weight:600; }
+  .cta .instrucao svg { width:40px; height:40px; stroke:var(--azul); stroke-width:2.6; }
 </style></head>
 <body>
 
-<!-- 1 · CAPA (gancho + oferta: muita gente só vê a 1ª lâmina) -->
+<!-- 1 · CAPA — gancho numérico (sugestão do design-critic): muita gente só vê a 1ª lâmina -->
 <section class="lamina capa">
   <img class="pessoa" src="../../assets/boneco-3d/realista/chave.png" alt="">
   <span class="degrade"></span>
   <div class="corpo" style="top:150px">
-    <div class="local"><svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /> <circle cx="12" cy="10" r="3" /></svg> Marília/SP</div>
-    <h1 class="cond" style="margin-top:26px">Do aluguel<br>à <em>casa<br>própria</em></h1>
-    <p class="texto" style="margin-top:30px;width:440px;font-size:35px">Pelo <b>Minha Casa Minha Vida</b>, pode estar mais perto do que você imagina.</p>
+    <div class="local"><svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /> <circle cx="12" cy="10" r="3" /></svg> Aluguel em Marília</div>
+    <div class="grana"><small>R$</small>72 mil</div>
+    <p class="texto" style="margin-top:6px;width:500px;font-size:42px;color:#fff;font-weight:800;line-height:1.25">em 5 anos de aluguel.<br><span style="color:#C9D3E6;font-weight:600">E nada fica no nome de quem pagou.</span></p>
   </div>
-  <div class="oferta"><b>Simulação gratuita pelo WhatsApp</b><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <polyline points="12 6 12 12 16 14" /></svg> Sem compromisso</span></div>
+  <div class="faixa"><b>Do aluguel à <em>casa própria</em></b><span>Simulação gratuita pelo WhatsApp</span></div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 2 · O PROBLEMA (aluguel típico de quem chega pelos anúncios: R$ 1.001–1.500/mês, CRM out/2026) -->
+<!-- 2 · A CONTA (aluguel típico de quem chega pelos anúncios: R$ 1.001–1.500/mês, CRM out/2026) -->
 <section class="lamina">
   <div class="corpo" style="top:150px">
     <div class="eyebrow">Faz a conta</div>
-    <p class="texto" style="margin-top:40px;font-size:40px">Aluguel de <b>R$ 1.200</b> por 5 anos:</p>
-    <div class="numero" style="margin-top:20px;font-size:250px"><span style="font-size:120px;vertical-align:top;line-height:1.5;margin-right:16px">R$</span>72 mil</div>
+    <h2 class="cond titulo cond2" style="font-size:104px">60 meses<br>de <em>aluguel</em></h2>
     <div class="grade">
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-      <span class="ano">60 meses de aluguel</span>
+      <span class="ano">Exemplo: R$ 1.200 × 60 meses = R$ 72 mil</span>
     </div>
-    <p class="texto" style="margin-top:70px;font-size:44px">Todo mês o dinheiro <b class="neg">vai embora</b>.<br>E no fim, <b>nada fica no seu nome.</b></p>
+    <p class="texto" style="margin-top:70px;font-size:44px">Todo mês o dinheiro <b class="neg">vai embora</b>.<br>E no fim, <b>nada fica no nome de quem pagou.</b></p>
   </div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
@@ -151,86 +172,69 @@
 <section class="lamina">
   <div class="corpo" style="top:150px">
     <div class="eyebrow">A virada</div>
-    <h2 class="cond titulo">E se fosse<br><em>parcela?</em></h2>
+    <h2 class="cond titulo cond2">E se fosse<br><em>parcela?</em></h2>
     <p class="texto" style="margin-top:26px">Em muitos casos, a parcela do financiamento fica <b>parecida com o valor de um aluguel.</b></p>
     <div class="vs">
       <div class="lado alu"><small>Aluguel</small><h3>Paga</h3>
-        <p><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>Todo mês</p><p><svg viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg><span>No fim, <span class="neg">nada é seu</span></span></p></div>
+        <p style="color:#C9D3E6"><svg viewBox="0 0 24 24"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /> <path d="M8 14h.01" /> <path d="M12 14h.01" /> <path d="M16 14h.01" /> <path d="M8 18h.01" /> <path d="M12 18h.01" /> <path d="M16 18h.01" /></svg>Todo mês</p><p><svg viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg><span>No fim, <span class="neg">nada é seu</span></span></p></div>
       <div class="lado par"><small>Financiamento</small><h3>Conquista</h3>
-        <p><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>Todo mês</p><p><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>No fim, a casa é sua</p></div>
+        <p><svg viewBox="0 0 24 24"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /> <path d="M8 14h.01" /> <path d="M12 14h.01" /> <path d="M16 14h.01" /> <path d="M8 18h.01" /> <path d="M12 18h.01" /> <path d="M16 18h.01" /></svg>Todo mês</p><p><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>No fim, a casa é sua</p></div>
     </div>
-    <p class="nota" style="margin-top:48px;font-size:26px">Valores dependem da renda, do imóvel e da análise de crédito do banco.</p>
+    <p class="nota" style="margin-top:48px">Valores dependem da renda, do imóvel e da análise de crédito do banco.</p>
   </div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 4 · O QUE VOCÊ RECEBE -->
-<section class="lamina">
-  <div class="corpo" style="top:140px">
-    <div class="eyebrow">Na sua simulação</div>
-    <h2 class="cond titulo">Você <em>recebe</em></h2>
-    <div class="lista">
-      <div><span class="ico"><svg viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2" /> <line x1="8" x2="16" y1="6" y2="6" /> <line x1="16" x2="16" y1="14" y2="18" /> <path d="M16 10h.01" /> <path d="M12 10h.01" /> <path d="M8 10h.01" /> <path d="M12 14h.01" /> <path d="M8 14h.01" /> <path d="M12 18h.01" /> <path d="M8 18h.01" /></svg></span><p><b>Quanto você consegue comprar</b><span>Valor do financiamento e da entrada</span></p></div>
-      <div><span class="ico"><svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19" /> <circle cx="6.5" cy="6.5" r="2.5" /> <circle cx="17.5" cy="17.5" r="2.5" /></svg></span><p><b>Parcela e taxa de juros</b><span>Primeira e última parcela e o prazo</span></p></div>
-      <div><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1" /> <path d="M12 8v13" /> <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /> <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></svg></span><p><b>Benefícios do programa</b><span>Subsídio, se você tiver direito, e FGTS</span></p></div>
-      <div><span class="ico"><svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><p><b>Opções de imóveis</b><span>Casas e apartamentos em Marília</span></p></div>
-    </div>
-    <p class="nota" style="margin-top:34px;font-size:27px;color:#AEB9CF"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /> <path d="M14 2v4a2 2 0 0 0 2 2h4" /> <path d="M10 9H8" /> <path d="M16 13H8" /> <path d="M16 17H8" /></svg> Tudo em PDF, para você ver com calma.</p>
-  </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
-</section>
-
-<!-- 5 · DÚVIDAS REAIS (as mais frequentes nas conversas vindas de anúncio, CRM out/2026) -->
+<!-- 4 · DÚVIDAS REAIS (as mais frequentes nas conversas vindas de anúncio, CRM out/2026) — 3ª pessoa: política de atributos pessoais da Meta -->
 <section class="lamina">
   <div class="corpo" style="top:150px">
     <div class="eyebrow">Dúvidas que mais recebo</div>
-    <h2 class="cond titulo" style="font-size:104px">Será que<br><em>consigo?</em></h2>
+    <h2 class="cond titulo cond2" style="font-size:104px">Será que<br><em>dá?</em></h2>
     <div class="faq">
-      <div><b>Quem é autônomo consegue?</b><span>Dá para comprovar renda informal. A gente te mostra como.</span></div>
-      <div><b>Dá para somar renda?</b><span>Sim, com cônjuge, familiar ou outra pessoa.</span></div>
-      <div><b>Posso usar o FGTS?</b><span>Com 3 anos de carteira assinada, somando empregos.</span></div>
-      <div class="n"><b>E com <span class="neg">restrição</span> no nome?</b><span>A gente analisa o seu caso e te orienta o caminho.</span></div>
+      <div><b>Autônomo consegue financiar?</b><span>Dá para comprovar renda informal. A gente mostra como.</span></div>
+      <div><b>Dá para somar renda?</b><span>Sim, com cônjuge ou familiar.</span></div>
+      <div><b>Dá para usar o FGTS?</b><span>Com 3 anos de trabalho com FGTS, somando períodos.</span></div>
+      <div><b>Nome com <span class="neg">restrição</span> impede?</b><span>Cada situação é analisada, e a gente orienta o caminho.</span></div>
     </div>
-    <p class="nota" style="margin-top:34px;font-size:24px">Cada caso passa pela análise de crédito do banco.</p>
+    <p class="nota" style="margin-top:30px">Tudo sujeito à análise de crédito do banco.</p>
   </div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 6 · COMO FUNCIONA + SEM COMPROMISSO -->
+<!-- 5 · COMO FUNCIONA + O QUE RECEBE (só o que o CRM entrega: PDF com valor, parcela, taxa e subsídio se houver — BUSINESS_RULES PRES-1..4) -->
 <section class="lamina">
   <div class="corpo" style="top:150px">
     <div class="eyebrow">Como funciona</div>
     <h2 class="cond titulo">Simples <em>assim</em></h2>
     <div class="passos">
       <div class="passo"><span class="n">1</span><p><b>Você chama no WhatsApp</b><span>Toque em “Enviar mensagem”</span></p></div>
-      <div class="passo"><span class="n">2</span><p><b>Nossa equipe analisa seu perfil</b><span>Renda, FGTS e o que você procura</span></p></div>
-      <div class="passo"><span class="n">3</span><p><b>Você recebe sua simulação</b><span>Em PDF, com tudo explicado</span></p></div>
+      <div class="passo"><span class="n">2</span><p><b>A equipe analisa o seu perfil</b><span>Renda, FGTS e o que você procura</span></p></div>
+      <div class="passo"><span class="n">3</span><p><b>Você recebe a simulação em PDF</b>
+        <span>Valor, parcela, taxa de juros e benefícios</span></p></div>
     </div>
-    <div class="selos"><span><svg viewBox="0 0 24 24"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" /> <path d="m9 12 2 2 4-4" /></svg> Gratuita</span><span><svg viewBox="0 0 24 24"><path d="m11 17 2 2a1 1 0 1 0 3-3" /> <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" /> <path d="m21 3 1 11h-2" /> <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" /> <path d="M3 4h8" /></svg> Sem compromisso</span></div>
-    <div class="conf"><svg viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 12 2 2 4-4" /></svg><p><b>Atendimento de quem é de Marília</b><span>Matheus Machado · Corretor de imóveis · CRECI 323106-F</span></p></div>
+    <div class="conf"><svg viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 12 2 2 4-4" /></svg><p><b>Gratuito e sem compromisso</b><span>Matheus Machado · Corretor · CRECI 323106-F</span></p></div>
   </div>
   <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
-<!-- 7 · CTA (o botão real do anúncio é "Enviar mensagem") -->
+<!-- 6 · CTA — sem botão falso: a instrução aponta para o botão real "Enviar mensagem" -->
 <section class="lamina cta">
   <span class="fundo"></span>
   <img class="pessoa" src="../../assets/boneco-3d/realista/apontando.png" alt="">
-  <div class="topo">
+  <div class="topo" style="top:150px">
     <div class="eyebrow">Seu próximo passo</div>
-    <h2 class="cond" style="margin-top:20px;font-size:118px">Faça sua<br><em>simulação</em></h2>
+    <h2 class="cond cond2" style="margin-top:20px;font-size:118px">Faça sua<br><em>simulação</em></h2>
   </div>
   <div class="fone"><div class="tela">
     <div class="bar"><span class="av"><img src="../../assets/boneco-3d/realista/joinha.png" alt=""></span><p><b>Matheus Machado</b><small>Corretor de imóveis</small></p></div>
     <div class="msgs">
       <div class="bal eu">Olá! Quero fazer minha simulação 🏠<small>19:02 ✓✓</small></div>
-      <div class="bal ele">Oi! Que bom ter você aqui 😊 Vou te ajudar a ver o que cabe no seu bolso.<small>19:03</small></div>
-      <div class="bal ele">Me conta: sua renda aproximada e se você tem FGTS 📋<small>19:03</small></div>
+      <div class="bal ele">Oi! Vamos ver o que cabe no seu bolso 😊<small>19:03</small></div>
     </div>
     <div class="input"><span></span><i><svg viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /> <path d="m21.854 2.147-10.94 10.939" /></svg></i></div>
   </div></div>
-  <div class="botao"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg> Toque em Enviar mensagem</div>
-  <div class="rodape">Matheus Machado · Corretor de imóveis · CRECI 323106-F<br>Simulação sujeita à análise de crédito.</div>
+  <div class="instrucao"><b>Toque em <em>Enviar mensagem</em></b><span><svg viewBox="0 0 24 24"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg> aqui embaixo</span></div>
+  <div class="rodape">CRECI 323106-F<br>Simulação sujeita à análise de crédito.</div>
 </section>
 
 </body></html>
