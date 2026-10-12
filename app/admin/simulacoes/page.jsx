@@ -13,6 +13,10 @@ import {
 import { canManageSimulations } from "@/lib/simulations";
 
 export const dynamic = "force-dynamic";
+// Voltar para Clientes na hora (pedido do dono, 2026-10-12): o navegador reaproveita esta tela por até 5 min em vez de
+// esperar o servidor refazer tudo; ao reaproveitar, a lista se atualiza sozinha em segundo plano (useClientList,
+// renderId). Sair da conta / "Alterar conta" chamam router.refresh(), que descarta o reaproveitamento.
+export const unstable_dynamicStaleTime = 300;
 
 // Filtros que a tela aceita vindo por link externo (ex.: painel de
 // Desempenho) — preservados aqui para a primeira renderização (SSR) já
@@ -51,12 +55,20 @@ export default async function AdminSimulationsPage({ searchParams }) {
   const pinClientId = resolvedSearchParams?.clientId || "";
 
   try {
-    const [pageResult, counters, pendingClientsCount, tagsResult, adminProfilesResult] = await Promise.all([
-      listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20, pinClientId }),
+    // Atividades da agenda dos clientes da página: encadeadas na própria busca da página, em paralelo com o resto
+    // (antes esperavam tudo terminar — uma ida ao banco a mais em fila). Falha nelas = sem atividades, como antes.
+    const pagePromise = listSimulationClientsPage({ auth, filters, page: 1, pageSize: 20, pinClientId });
+    const activitiesPromise = pagePromise
+      .then((pageResult) => listCalendarActivitiesForClients(pageResult.items.map((client) => client.id), auth))
+      .then((activitiesByClient) => Object.fromEntries(activitiesByClient))
+      .catch(() => ({}));
+    const [pageResult, counters, pendingClientsCount, tagsResult, adminProfilesResult, clientActivities] = await Promise.all([
+      pagePromise,
       getSimulationClientCounters({ auth, filters }),
       getPendingClientsCount({ auth }),
       listTags(),
-      needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])
+      needsAdminProfiles ? listAdminProfiles() : Promise.resolve([]),
+      activitiesPromise
     ]);
 
     tags = tagsResult;
@@ -66,15 +78,8 @@ export default async function AdminSimulationsPage({ searchParams }) {
         : adminProfilesResult)
       : [];
 
-    let clientActivities = {};
-    try {
-      const activitiesByClient = await listCalendarActivitiesForClients(pageResult.items.map((client) => client.id), auth);
-      clientActivities = Object.fromEntries(activitiesByClient);
-    } catch {
-      clientActivities = {};
-    }
-
-    initialData = { ...pageResult, counters, pendingClientsCount, clientActivities };
+    // renderId: identifica esta renderização — se o navegador reaproveitar a tela, a lista sabe que precisa se atualizar.
+    initialData = { ...pageResult, counters, pendingClientsCount, clientActivities, renderId: crypto.randomUUID() };
   } catch (error) {
     loadError = error?.message || "Não foi possível carregar a lista de clientes.";
   }

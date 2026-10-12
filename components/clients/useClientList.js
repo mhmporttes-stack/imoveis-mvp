@@ -25,6 +25,9 @@ function readCardDevice() {
   });
 }
 
+// Renderizações do servidor já mostradas nesta aba (ver o efeito de revalidação abaixo). Só ids aleatórios, sem dado.
+const seenRenderIds = new Set();
+
 export function useClientList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
@@ -86,6 +89,16 @@ export function useClientList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
+  // Tela reaproveitada pelo navegador (unstable_dynamicStaleTime em app/admin/simulacoes/page.jsx): os dados iniciais
+  // são de uma visita anterior — mostra na hora e atualiza em segundo plano, sem escurecer a lista.
+  useEffect(() => {
+    const renderId = initialData?.renderId;
+    if (!renderId) return;
+    if (seenRenderIds.has(renderId)) fetchClients({ silent: true });
+    else seenRenderIds.add(renderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Guarda contra refetch duplicado na primeira montagem (dados iniciais vêm do servidor).
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -108,8 +121,11 @@ export function useClientList({
     setPage(1);
   }
 
-  async function fetchClients() {
-    setLoading(true);
+  const fetchRequestRef = useRef(0);
+  async function fetchClients({ silent = false } = {}) {
+    // Só a resposta do pedido mais recente vale (a atualização de fundo não sobrescreve um filtro trocado depois).
+    const requestId = ++fetchRequestRef.current;
+    if (!silent) setLoading(true);
     const params = new URLSearchParams();
     if (filters.query) params.set("query", filters.query);
     if (filters.responsibleUserId !== "all") params.set("responsibleUserId", filters.responsibleUserId);
@@ -127,8 +143,9 @@ export function useClientList({
     try {
       const response = await fetch(`/api/simulation-registrations/list?${params.toString()}`);
       const data = await response.json().catch(() => ({}));
+      if (requestId !== fetchRequestRef.current) return;
       if (!response.ok) {
-        setLoadError(data.error || "Não foi possível carregar os clientes.");
+        if (!silent) setLoadError(data.error || "Não foi possível carregar os clientes.");
         return;
       }
       setLoadError("");
@@ -139,9 +156,9 @@ export function useClientList({
       setPendingClientsCount(data.pendingClientsCount || 0);
       setActivitiesByClient(data.clientActivities || {});
     } catch {
-      setLoadError("Não foi possível carregar os clientes. Verifique a conexão e tente de novo.");
+      if (!silent) setLoadError("Não foi possível carregar os clientes. Verifique a conexão e tente de novo.");
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestRef.current) setLoading(false);
     }
   }
 

@@ -6,6 +6,10 @@ import { isChatDisabled, isChatRestrictedProfile } from "@/lib/chat-control";
 import { isArchivedChatViewer } from "@/lib/whatsapp-chat-scope.mjs";
 
 export const dynamic = "force-dynamic";
+// Voltar ao Chat na hora (pedido do dono, 2026-10-12): esta tela não carrega dados no servidor (só a permissão), então o
+// navegador pode reaproveitá-la por até 5 min; as conversas vêm do cache em memória do Chat e se atualizam em seguida.
+// Sair da conta / "Alterar conta" chamam router.refresh(), que descarta o reaproveitamento.
+export const unstable_dynamicStaleTime = 300;
 
 // Chat do WhatsApp oficial (caixa de entrada). Administrador e gestor veem
 // tudo; corretor e associado veem só as conversas dos SEUS clientes (o

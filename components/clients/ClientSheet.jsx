@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Calculator,
   CalendarPlus,
@@ -19,7 +20,6 @@ import {
   X
 } from "lucide-react";
 import CcaStatusCard from "@/components/CcaStatusCard";
-import ClientDocumentsModal from "@/components/ClientDocumentsModal";
 import ClientJourneyActions from "@/components/ClientJourneyActions";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -29,7 +29,7 @@ import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS } from "@/lib/client-status";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
-import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
+import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
   booleanLabel,
   calculateFamilyIncome,
@@ -51,6 +51,9 @@ const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 
 // `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
 // agendamento aberto), "tags" (editor aberto) ou "documents" (modal).
+// Documentos do cliente só abrem com um toque: código baixado sob demanda (desempenho, 2026-10-12).
+const ClientDocumentsModal = dynamic(() => import("@/components/ClientDocumentsModal"), { loading: () => null });
+
 export default function ClientSheet({ client, list, open, onClose, canManage, canReturnAssignedProspecting, isOwner, responsibleName, focus = "" }) {
   // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado.
   const whatsappBlocked = useWhatsappBlocked();

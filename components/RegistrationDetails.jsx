@@ -10,7 +10,7 @@ import {
   realBirthDate,
   simulationTypeLabel
 } from "@/lib/simulation-registration-format";
-import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preferences";
+import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 
 export default function RegistrationDetails({ registration }) {
   const familyIncome = calculateFamilyIncome(registration);

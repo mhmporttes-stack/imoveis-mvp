@@ -12,7 +12,7 @@ import PropertyPreferencesInvite from "@/components/simulation-form/PropertyPref
 import SimulationProgress from "@/components/simulation-form/SimulationProgress";
 import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
-import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preferences";
+import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preference-display";
 import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
 import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
