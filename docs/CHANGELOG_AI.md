@@ -19,7 +19,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Clientes (celular): sem cabeçalho; "Novo cliente" no menu Mais
+1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Chat no celular de ponta a ponta
+
+- Dono: "remova essas bordas laterais". A regra `.container-page` do celular (`max-width: calc(100vw - 24px)`) segurava 12 px de cada lado mesmo com `width: 100%` do modo aplicativo; `html.chat-app-mode .chat-app-root.container-page` ganhou `max-width: none` (`app/globals.css`). Só no Chat em modo aplicativo, celular.
+
+### 2026-10-12 — Clientes (celular): sem cabeçalho; "Novo cliente" no menu Mais
 
 - Dono: remover a linha "CLIENTES 2342" e os dois botões, levar os botões para o "Mais" no padrão do menu e subir a tela. `components/clients/ClientWorkspace.jsx`: no celular o título vira só leitor de tela e os botões somem (desktop inalterado); "Meu link" do corretor foi para o lado da busca; funil sem margem em cima. `components/AdminBottomNav.jsx` (MoreMenu): item "Novo cliente" (ícone `UserRoundPlus`) no grupo que tem "Clientes"; "Prospecção" já estava no Mais.
 

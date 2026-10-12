@@ -862,6 +862,15 @@ html.chat-app-mode .chat-app-ancestor > :not(.chat-app-ancestor):not(.chat-app-r
   flex-shrink: 0;
 }
 
+/* Chat no celular ocupa a largura inteira (dono, 2026-10-12: "remova essas viradas laterais"): sem a margem lateral
+   do container-page; o card do Chat já perde borda e cantos no celular (max-md:rounded-none / border-x-0). */
+@media (max-width: 767px) {
+  html.chat-app-mode .chat-app-root.container-page {
+    width: 100%;
+    max-width: none; /* .container-page no celular limita a 100vw - 24px */
+  }
+}
+
 html.chat-app-mode .admin-ranking-header,
 html.chat-app-mode .admin-page-footer {
   display: none;
