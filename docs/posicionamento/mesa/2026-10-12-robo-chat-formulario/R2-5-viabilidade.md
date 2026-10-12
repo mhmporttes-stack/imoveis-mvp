@@ -71,3 +71,19 @@ Retroativo (recomendação: não); 8 h vale também para o lembrete único (mesa
 
 ## Para a rodada 3
 Dados: segurados > 3 h por janela; fila às 8 h e tempo de entrega; avisos `notifyStaff`/dia. Humanizado: abertura do silêncio e texto de 10 h. WhatsApp: ordem do webhook com mídia. Tráfego: meta com transferência.
+
+---
+## Adendo (mesma cadeira, já com a decisão 12)
+- **H. Outra cidade = status "Tentando contato" + tag "Outra cidade"**, marcado pela pessoa após o M5. Sem código.
+  - Sai da REDISTRIBUIÇÃO: só "Atendimento automático" de anúncio é exceção (`lib/simulation-deadline-core.mjs:33-45`); mensagem do corretor já segura (L13-16).
+  - Fora da roleta: não está na fila de espera.
+  - Não perde o contato: se voltar a escrever, passa sozinho para "Em atendimento" (`lib/whatsapp-client-status-core.mjs:25`); conversa continua no Chat (não é arquivado, WA-13); responsável mantido.
+  - Sem cobrança automática: "sem atividade futura" ignora esse status (`lib/crm-automations.js:269`).
+  - Ressalva: o nome não descreve o caso (a tag identifica); status próprio exigiria código em `lib/client-status.js` e `ROULETTE_INELIGIBLE_STATUSES` (`lib/client-distribution-core.mjs:58`).
+- A1 fora do horário (ajuste): igual à do horário até "...te manda o resultado por aqui." + "Nosso atendimento é de segunda a sábado, das 8h às 19h; fora dele, a equipe te responde assim que possível. Se esse horário não der pra você, é só avisar que a gente combina outro." + Botão
+- D fora (ajuste): "Recebemos seu cadastro, {{primeiro_nome}}! Obrigado pela confiança. Nosso atendimento é de segunda a sábado, das 8h às 19h; fora dele, um especialista prepara sua simulação assim que possível e te chama por aqui. Se esse horário não der pra você, conta pra gente qual fica melhor."
+- E → [Tenho uma dúvida]: "Pode mandar sua dúvida por aqui, escrita ou em áudio, que a nossa equipe te responde." → pessoa.
+- Guia: no guia "Lead — patrocinado", pela tela (admin ou gestor). Fase 1 inclui a entrada do Guia.
+- Ordem da Fase 2 revisada: 1 trava Não contactar → 2 B12 → 3 formulário encerra sessão (`endLiveFlowSession`, `lib/whatsapp-flows.js:337`) → 4 lembretes → 5 transferência do silêncio → 6 resposta fora do horário. Testes de lembrete: lead às 20h → uma mensagem às 8 h com texto de 10 h; lead 11h01 dentro da janela; 2 h mínimas; chave de 23 h nunca gerada; resposta fora do horário não reinicia. Riscos: avisos "aguardando corretor" às 8 h; 2 mensagens no mesmo webhook (chave única segura); link do dono vazando para segurado.
+- `interest_rate_annual` existe só desde 05/10 → separar antes/depois.
+- Em aberto: transferência só daqui para frente (rec.: sim); 8 h e 2 h também no lembrete único WA-17 (rec.: sim); outra cidade = "Tentando contato" + tag?; quem cria a entrada do Guia; aprovar Fases 1 e 2; tráfego H1–H4.
