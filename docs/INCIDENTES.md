@@ -49,6 +49,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `whatsapp-individual-service/src/history-on-demand.js`, `src/sessions.js`, `lib/whatsapp-older-history-core.mjs`, `components/WhatsappChat.jsx` — ver CHANGELOG_AI.md (2026-10-12)
 - **Prevenção/teste:** `tests/whatsapp-older-history.test.mjs` trava segundos/atributos.
 - **Status:** Monitorando
+- **Nota 2026-10-12 (1º teste):** só `req_sent`. O recibo do celular nunca seria registrado (o Baileys não emite evento para `peer_msg`) — instrumentado no nó bruto. Pedido passou a sair sem `deviceSentMessage` (como o whatsmeow) e, em conversa LID, também com o chat em telefone. Botão escondido em conversas com mais de 100 mensagens (`detail.hasMore`) — agora sempre visível, com "Ver mensagens anteriores".
 ### 2026-10-06 — CRM lento / Meta Diária demora para carregar (administrador)
 - **Data:** 2026-10-06
 - **Sintoma:** "CRM está lento e demorando muito para carregar a Meta Diária no meu acesso".

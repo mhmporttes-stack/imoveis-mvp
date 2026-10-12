@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, toUnixSeconds } from "../whatsapp-individual-service/src/history-on-demand.js";
+import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, toUnixSeconds } from "../whatsapp-individual-service/src/history-on-demand.js";
 import { isValidOlderHistoryRequestId, olderHistoryMessage, planNextRound, roundPhase } from "../lib/whatsapp-older-history-core.mjs";
 
 // "Carregar mensagens anteriores do celular" (pedido do dono, 2026-10-11): pedido ON_DEMAND por conversa.
@@ -10,7 +10,12 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 test("serviço: pede ao celular (pedido próprio, não o fetchMessageHistory em ms) e o ON_DEMAND ignora a janela da semana", () => {
   const sessions = read("whatsapp-individual-service/src/sessions.js");
   assert.match(sessions, /export async function requestOlderHistory\(/);
-  assert.match(sessions, /await sock\.relayMessage\(meJid, built\.message, built\.relayOptions\)/);
+  // Como o whatsmeow: protocolMessage direto (sem deviceSentMessage do relayMessage), cifrado para o próprio celular.
+  assert.match(sessions, /const sentId = await sendRawPeerRequest\(sock, item\.built\);/);
+  assert.match(sessions, /await sock\.sendNode\(\{ tag: "message", attrs: \{ id, to: meJid, \.\.\.built\.stanzaAttrs \}, content \}\);/);
+  assert.doesNotMatch(sessions, /sock\.relayMessage\(/);
+  // Recibo do celular e ack do servidor observados no nó bruto (o Baileys não emite evento para peer_msg).
+  assert.match(sessions, /sock\.ws\.on\("CB:receipt"/);
   assert.doesNotMatch(sessions, /sock\.fetchMessageHistory\(/);
   assert.match(sessions, /const cutoff = onDemand \? 0 : Date\.now\(\) - HISTORY_WINDOW_MS;/);
   // ON_DEMAND sempre processado, mesmo com o histórico do pareamento desligado na Railway.
@@ -27,8 +32,14 @@ test("pedido ON_DEMAND: horário em SEGUNDOS, atributos e nó meta do WhatsApp",
   assert.equal(built.message.protocolMessage.type, 16);
   assert.equal(request.peerDataOperationRequestType, 3);
   assert.deepEqual(request.historySyncOnDemandRequest, { chatJid: "123456789012@lid", oldestMsgId: "ABCDEF", oldestMsgFromMe: true, oldestMsgTimestampMs: 1760000000, onDemandMsgCount: 50 });
-  assert.deepEqual(built.relayOptions.additionalAttributes, { category: "peer", push_priority: "high_force", privacy_sensitive: "1" });
-  assert.deepEqual(built.relayOptions.additionalNodes, [{ tag: "meta", attrs: { appdata: "default" } }]);
+  assert.deepEqual(built.stanzaAttrs, { type: "text", category: "peer", push_priority: "high_force", privacy_sensitive: "1" });
+  assert.deepEqual(built.metaNode, { tag: "meta", attrs: { appdata: "default" } });
+  assert.equal(built.message.deviceSentMessage, undefined);
+  assert.deepEqual(onDemandVariants("123@lid", "5511988887777"), [{ variant: "raw_lid", chatJid: "123@lid" }, { variant: "raw_pn", chatJid: "5511988887777@s.whatsapp.net" }]);
+  assert.deepEqual(onDemandVariants("123@lid", "lid:123"), [{ variant: "raw_lid", chatJid: "123@lid" }]);
+  assert.deepEqual(onDemandVariants("5511988887777@s.whatsapp.net", ""), [{ variant: "raw_pn", chatJid: "5511988887777@s.whatsapp.net" }]);
+  assert.deepEqual(describePeerNode("receipt", { type: "peer_msg" }), { reason: "req_rcpt_peer_msg" });
+  assert.equal(describePeerNode("ack", { error: "479" }).reason, "req_srv_err");
   assert.equal(toUnixSeconds(1760000000), 1760000000);
   assert.throws(() => buildOnDemandRequest({ chatJid: "1@lid", oldestId: "", oldestTimestamp: 1 }));
 });
@@ -53,6 +64,11 @@ test("registro de pedidos: estado, entregues e referência da próxima rodada (m
   assert.equal(registry.status("u2", "REQ1").state, "unknown");
   const entry = registry.match("u1", "OUTRO");
   assert.equal(entry.requestId, "REQ1");
+  registry.setVariant("u1", "REQ1", "raw_lid");
+  registry.alias("u1", "REQ2", entry, "raw_pn");
+  assert.equal(registry.match("u1", "REQ2").requestId, "REQ1");
+  assert.equal(registry.variantOf("u1", "REQ2"), "raw_pn");
+  assert.equal(registry.isPending("u1", "REQ2"), true);
   registry.beginChunk(entry);
   assert.equal(registry.status("u1", "REQ1").state, "receiving");
   registry.addDelivered(entry, 25);

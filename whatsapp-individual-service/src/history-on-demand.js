@@ -10,8 +10,11 @@
 //      mensagem de referência e não responde nada.
 //   2. Faltavam `privacy_sensitive="1"` na mensagem e o nó `<meta appdata="default"/>` (whatsmeow
 //      preparePeerMessageNode; o nó `meta` também entrou no Baileys mais novo; PR #2853 do Baileys).
-// O pedido agora é montado aqui e enviado pelo `relayMessage` do próprio socket (mesma criptografia e mesmo destino do
-// `fetchMessageHistory`), sem atualizar o Baileys.
+// 2026-10-12 (1º teste real: `req_sent` e nada mais): o `relayMessage` do Baileys 6.7.24 embrulha a mensagem para o
+// próprio celular num `deviceSentMessage`; o whatsmeow manda o `protocolMessage` DIRETO. Agora o pedido sai como no
+// whatsmeow (sessions.js sendRawPeerRequest: `protocolMessage` direto, cifrado para o próprio número, aparelho 0, com
+// `meta` + `enc`), e numa conversa LID sai também uma 2ª variante com o chat em telefone (PN) — a telemetria mostra qual
+// das duas o celular respondeu.
 
 export const HISTORY_SYNC_ON_DEMAND = 6; // proto.HistorySync.HistorySyncType.ON_DEMAND
 export const PROTOCOL_HISTORY_SYNC_NOTIFICATION = 5; // proto.Message.ProtocolMessage.Type
@@ -56,15 +59,31 @@ export function buildOnDemandRequest({ chatJid, oldestId, oldestFromMe, oldestTi
         }
       }
     },
-    relayOptions: {
-      additionalAttributes: { category: "peer", push_priority: "high_force", privacy_sensitive: "1" },
-      additionalNodes: [{ tag: "meta", attrs: { appdata: "default" } }]
-    }
+    // Atributos da mensagem <message> (whatsmeow preparePeerMessageNode) e nós que vão junto do <enc>.
+    stanzaAttrs: { type: "text", category: "peer", push_priority: "high_force", privacy_sensitive: "1" },
+    metaNode: { tag: "meta", attrs: { appdata: "default" } }
   };
 }
 
 // Mensagem de protocolo que interessa ao diagnóstico do ON_DEMAND (sem conteúdo): notificação de histórico ou resposta
 // do celular a um pedido (PDO). null = não é nenhuma das duas.
+// Variantes do pedido para uma conversa: sempre o chat como está gravado; conversa LID com telefone conhecido ganha
+// também a variante em telefone (PN). -> [{ variant, chatJid }]
+export function onDemandVariants(chatJid, phoneDigits) {
+  const jid = String(chatJid || "");
+  const list = [{ variant: jid.endsWith("@lid") ? "raw_lid" : "raw_pn", chatJid: jid }];
+  const digits = String(phoneDigits || "").replace(/\D/g, "");
+  if (jid.endsWith("@lid") && /^\d{8,15}$/.test(digits)) list.push({ variant: "raw_pn", chatJid: `${digits}@s.whatsapp.net` });
+  return list;
+}
+
+// Nó recebido pelo socket (recibo ou ack do servidor) referente a um pedido nosso -> campos de telemetria, ou null.
+export function describePeerNode(tag, attrs = {}) {
+  if (tag === "receipt") return { reason: `req_rcpt_${String(attrs.type || "delivery").replace(/[^a-z_]/gi, "").slice(0, 20)}` };
+  if (tag === "ack") return { reason: attrs.error ? "req_srv_err" : "req_srv_ack", statusCode: attrs.error ? Number(attrs.error) || null : null };
+  return null;
+}
+
 export function classifyHistoryProtocol(msg) {
   const content = msg?.message || {};
   const protocol = content.protocolMessage
@@ -104,12 +123,14 @@ export function classifyHistoryProtocol(msg) {
 // só contagens e a mensagem MAIS ANTIGA recebida (id/fromMe/horário/jid), que vira a referência da próxima rodada.
 export function createOnDemandRegistry({ now = Date.now } = {}) {
   const requests = new Map(); // `${userId}|${requestId}` -> entry
+  const variants = new Map(); // `${userId}|${id enviado}` -> { primary, variant }
   const keyOf = (userId, requestId) => `${userId}|${requestId}`;
 
   function prune() {
     const limit = now() - REQUEST_TTL_MS;
     for (const [key, entry] of requests) if (entry.sentAt < limit) requests.delete(key);
     while (requests.size > REQUEST_LIMIT) requests.delete(requests.keys().next().value);
+    for (const [key, item] of variants) if (!requests.has(`${key.split("|")[0]}|${item.primary}`)) variants.delete(key);
   }
 
   return {
@@ -131,6 +152,8 @@ export function createOnDemandRegistry({ now = Date.now } = {}) {
       if (sessionId) {
         const direct = requests.get(keyOf(userId, sessionId));
         if (direct) return direct;
+        const aliased = variants.get(keyOf(userId, sessionId));
+        if (aliased && requests.get(keyOf(userId, aliased.primary))) return requests.get(keyOf(userId, aliased.primary));
       }
       let latest = null;
       for (const entry of requests.values()) {
@@ -140,7 +163,19 @@ export function createOnDemandRegistry({ now = Date.now } = {}) {
       return latest && now() - latest.sentAt < 5 * 60 * 1000 ? latest : null;
     },
     isPending(userId, requestId) {
-      return requests.has(keyOf(userId, requestId));
+      return requests.has(keyOf(userId, requestId)) || variants.has(keyOf(userId, requestId));
+    },
+    // Variante enviada junto (outro formato do mesmo pedido): resposta a ela conta para o pedido principal.
+    alias(userId, aliasId, entry, variant) {
+      if (!entry || !aliasId) return;
+      variants.set(keyOf(userId, aliasId), { primary: entry.requestId, variant });
+    },
+    setVariant(userId, requestId, variant) {
+      variants.set(keyOf(userId, requestId), { primary: requestId, variant });
+    },
+    // Qual variante (ex.: raw_lid / raw_pn) tem este id — "" se não for de um pedido.
+    variantOf(userId, id) {
+      return variants.get(keyOf(userId, id))?.variant || "";
     },
     // Uma parte da resposta começou a ser processada (fotos/vídeos podem levar um tempo para baixar).
     beginChunk(entry) {

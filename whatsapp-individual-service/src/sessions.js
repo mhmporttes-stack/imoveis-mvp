@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, downloadMediaMessage, fetchLatestBaileysVersion, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, fetchLatestBaileysVersion, generateMessageIDV2, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -8,7 +8,7 @@ import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, 
 import { normalizePairingNumber } from "./pairing-number.js";
 import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler } from "./session-lifecycle.js";
-import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
+import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
 
@@ -420,6 +420,10 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   sock.ev.on("contacts.upsert", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("contacts.update", (contacts) => rememberLidsFromContacts(userId, contacts));
   sock.ev.on("chats.phoneNumberShare", (share) => rememberLidsFromContacts(userId, [share]));
+  // Diagnóstico do ON_DEMAND (2026-10-12): o recibo do celular para mensagem "peer" (tipo peer_msg) e o ack do servidor
+  // NÃO viram evento no Baileys 6.7.24 — observa o nó bruto, só para pedidos nossos. Nunca altera nada.
+  sock.ws.on("CB:receipt", (node) => { try { observePeerNode(userId, "receipt", node); } catch { /* só diagnóstico */ } });
+  sock.ws.on("CB:ack,class:message", (node) => { try { observePeerNode(userId, "ack", node); } catch { /* só diagnóstico */ } });
   sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType, peerDataRequestSessionId }) => {
     // Histórico do pareamento só com a variável ligada; ON_DEMAND (botão do Chat) sempre.
     if (!wantsHistory && Number(syncType) !== HISTORY_SYNC_ON_DEMAND) return;
@@ -804,7 +808,7 @@ async function onHistorySync(userId, messages, meta = {}) {
     statusCode: counts.failed,
     delayMs: Date.now() - startedAt,
     detail: `old${counts.old}_nots${counts.noTs}_skip${counts.skipped}_grp${counts.groups}_chats${(meta.chats || []).length}`,
-    ...(onDemand ? { cycleId: request?.requestId || "", kind: request ? "matched" : "unmatched", trigger: `vid${counts.videos}` } : {})
+    ...(onDemand ? { cycleId: request?.requestId || "", kind: request ? onDemandRequests.variantOf(userId, String(meta.peerDataRequestSessionId || "")) || "matched" : "unmatched", trigger: `vid${counts.videos}` } : {})
   });
   if (request) {
     onDemandRequests.recordChunk(request, {
@@ -833,7 +837,7 @@ function recordHistoryProtocol(userId, msg) {
     telemetry.record(userId, "history_sync", {
       reason: `notif_${info.syncType}`,
       cycleId: request?.requestId || "",
-      kind: info.syncType === HISTORY_SYNC_ON_DEMAND ? (request ? "matched" : "unmatched") : "",
+      kind: info.syncType === HISTORY_SYNC_ON_DEMAND ? (request ? onDemandRequests.variantOf(userId, info.sessionId) || "matched" : "unmatched") : "",
       attempt: info.chunkOrder,
       detail: `proc${wantsOnDemandOrHistory(info.syncType) ? 1 : 0}`
     });
@@ -847,11 +851,41 @@ function recordHistoryProtocol(userId, msg) {
   telemetry.record(userId, "history_sync", {
     reason: "pdo_resp",
     cycleId: request?.requestId || "",
-    kind: request ? "matched" : "unmatched",
+    kind: request ? onDemandRequests.variantOf(userId, info.sessionId) || "matched" : "unmatched",
     statusCode: info.requestType,
     attempt: info.results,
     detail: info.responseCode === null ? "nocode" : `code${info.responseCode}`
   });
+}
+
+function observePeerNode(userId, tag, node) {
+  const id = String(node?.attrs?.id || "");
+  if (!id || !onDemandRequests.isPending(userId, id)) return;
+  const fields = describePeerNode(tag, node.attrs);
+  if (!fields) return;
+  const request = onDemandRequests.match(userId, id);
+  if (request && tag === "receipt") request.ackStatus = String(node.attrs.type || "delivery");
+  telemetry.record(userId, "history_sync", { ...fields, cycleId: id, kind: onDemandRequests.variantOf(userId, id), delayMs: request ? Date.now() - request.sentAt : null });
+}
+
+// Pedido "peer" ao próprio celular como o whatsmeow faz (SendPeerMessage): protocolMessage DIRETO (sem o
+// deviceSentMessage que o relayMessage do Baileys 6.7.24 põe), cifrado para o próprio número no aparelho 0 (o celular),
+// com <meta appdata="default"/> + <enc> e a identidade do aparelho quando a sessão é nova. Não toca em ninguém além do
+// próprio celular do corretor.
+async function sendRawPeerRequest(sock, built) {
+  const meJid = jidNormalizedUser(sock.authState?.creds?.me?.id || "");
+  if (!meJid) throw new Error("Sessão sem identificação do próprio número.");
+  const id = generateMessageIDV2(sock.user?.id);
+  const bytes = encodeWAMessage(built.message);
+  let encrypted;
+  await sock.authState.keys.transaction(async () => {
+    await sock.assertSessions([meJid], false);
+    encrypted = await sock.signalRepository.encryptMessage({ jid: meJid, data: bytes });
+  });
+  const content = [built.metaNode, { tag: "enc", attrs: { v: "2", type: encrypted.type }, content: encrypted.ciphertext }];
+  if (encrypted.type === "pkmsg") content.push({ tag: "device-identity", attrs: {}, content: encodeSignedDeviceIdentity(sock.authState.creds.account, true) });
+  await sock.sendNode({ tag: "message", attrs: { id, to: meJid, ...built.stanzaAttrs }, content });
+  return id;
 }
 
 function wantsOnDemandOrHistory(syncType) {
@@ -1002,20 +1036,33 @@ export async function requestOlderHistory(userId, { to, remoteJid, oldestId, old
       reference = { id: previous.oldest.id, fromMe: previous.oldest.fromMe, timestamp: previous.oldest.seconds };
     }
     failure = "bad_ref";
-    const built = buildOnDemandRequest({ chatJid: jid, oldestId: reference.id, oldestFromMe: reference.fromMe, oldestTimestamp: reference.timestamp, count: count || ON_DEMAND_MAX_COUNT });
+    // Conversa LID: também pede com o chat em telefone (PN), se conhecido — qual o celular responde fica na telemetria.
+    const phone = jid.endsWith("@lid") ? lidMapFor(userId).get(normalizeLid(jid)) || String(to || "").replace(/\D/g, "") : "";
+    const variants = onDemandVariants(jid, phone).map((item) => ({
+      ...item,
+      built: buildOnDemandRequest({ chatJid: item.chatJid, oldestId: reference.id, oldestFromMe: reference.fromMe, oldestTimestamp: reference.timestamp, count: count || ON_DEMAND_MAX_COUNT })
+    }));
     failure = "send_error";
-    const meJid = jidNormalizedUser(sock.authState?.creds?.me?.id || sock.user?.id || "");
-    if (!meJid) throw new Error("Sessão sem identificação do próprio número.");
-    const requestId = await sock.relayMessage(meJid, built.message, built.relayOptions);
-    onDemandRequests.start(userId, requestId, { to, chatJid: jid, count: built.count });
-    telemetry.record(userId, "history_sync", {
-      reason: "req_sent",
-      cycleId: requestId,
-      kind: jid.endsWith("@lid") ? "lid" : "pn",
-      trigger: continueFrom ? "continue" : "first",
-      attempt: built.count
-    });
-    return { requested: true, requestId, count: built.count };
+    let entry = null;
+    for (const [index, item] of variants.entries()) {
+      if (index) await new Promise((resolve) => setTimeout(resolve, 1000)); // sem rajada
+      const sentId = await sendRawPeerRequest(sock, item.built);
+      if (!entry) {
+        entry = onDemandRequests.start(userId, sentId, { to, chatJid: jid, count: item.built.count });
+        onDemandRequests.setVariant(userId, sentId, item.variant);
+      } else {
+        onDemandRequests.alias(userId, sentId, entry, item.variant);
+      }
+      telemetry.record(userId, "history_sync", {
+        reason: "req_sent",
+        cycleId: sentId,
+        kind: item.variant,
+        trigger: continueFrom ? "continue" : "first",
+        attempt: item.built.count,
+        detail: index ? "alias" : "primary"
+      });
+    }
+    return { requested: true, requestId: entry.requestId, count: variants[0].built.count };
   } catch (error) {
     telemetry.record(userId, "history_sync", {
       reason: "req_failed",

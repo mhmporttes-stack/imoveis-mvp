@@ -1090,7 +1090,40 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
   const conversation = detail?.conversation;
-  const messages = detail?.messages || [];
+  // Mensagens mais antigas que as 100 da página (2026-10-12): carregadas sob demanda e somadas às da página — a
+  // atualização em tempo real troca a página, mas não perde estas.
+  const [older, setOlder] = useState({ id: "", messages: [], hasMore: null, loading: false, error: "" });
+  const olderOwn = older.id && older.id === conversation?.id ? older : null;
+  const pageMessages = detail?.messages;
+  const messages = useMemo(() => {
+    const page = pageMessages || [];
+    if (!olderOwn?.messages.length) return page;
+    const ids = new Set(page.map((message) => message.id));
+    return [...olderOwn.messages.filter((message) => !ids.has(message.id)), ...page];
+  }, [pageMessages, olderOwn]);
+  const crmHasMore = olderOwn && olderOwn.hasMore !== null ? olderOwn.hasMore : Boolean(detail?.hasMore);
+  const loadOlderFromCrm = useCallback(async () => {
+    const id = conversation?.id;
+    const first = messages[0];
+    if (!id || !first?.at) return;
+    setOlder((current) => ({ ...(current.id === id ? current : { id, messages: [], hasMore: null }), id, loading: true, error: "" }));
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${id}?before=${encodeURIComponent(first.at)}`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar as mensagens anteriores.");
+      setOlder((current) => {
+        const base = current.id === id ? current.messages : [];
+        const ids = new Set(base.map((message) => message.id));
+        return { id, messages: [...(data.messages || []).filter((message) => !ids.has(message.id)), ...base], hasMore: Boolean(data.hasMore), loading: false, error: "" };
+      });
+    } catch (error) {
+      setOlder((current) => ({ ...current, id, loading: false, error: error.message }));
+    }
+  }, [conversation?.id, messages]);
+  // Chegaram mensagens do celular: atualiza a página e, se a tela já mostra o começo do que o CRM tinha, traz as novas
+  // (mais antigas) para cima. Ref = sempre a versão atual (o botão guarda a função do momento do toque).
+  const phoneArrivedRef = useRef(null);
+  phoneArrivedRef.current = () => { onChanged?.(); if (!crmHasMore) loadOlderFromCrm(); };
   // Foto/nome do contato para o player de áudio (estilo WhatsApp).
   const audioContact = conversation ? { name: displayName(conversation), photoUrl: conversation.photoUrl || "" } : null;
   const byId = new Map(messages.map((message) => [message.id, message]));
@@ -1190,15 +1223,16 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    // Desce ao abrir e a cada mensagem nova.
-    if (messages.length !== lastCountRef.current) {
+    // Desce ao abrir e a cada mensagem nova (no FIM). Mensagens antigas carregadas no topo não descem a tela.
+    const lastId = messages[messages.length - 1]?.id || "";
+    if (lastId !== lastCountRef.current) {
       element.scrollTop = element.scrollHeight;
-      lastCountRef.current = messages.length;
+      lastCountRef.current = lastId;
     }
-  }, [messages.length, conversation?.id]);
+  }, [messages, conversation?.id]);
 
   useEffect(() => {
-    lastCountRef.current = 0;
+    lastCountRef.current = "";
   }, [conversation?.id]);
 
   async function changeStatus(status) {
@@ -1488,9 +1522,20 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
       <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
-        {detail.hasMore ? <p className="mx-auto mt-2 w-fit rounded-lg bg-[#FFF5C4] px-3 py-1 text-center text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">Mostrando as últimas mensagens da conversa.</p> : null}
-        {!detail.hasMore && conversation.sessionUserId && !conversation.isGroup && !conversation.privateLocked && !conversation.archivedReadOnly && messages.length ? (
-          <PhoneHistoryButton key={conversation.id} conversationId={conversation.id} onChanged={onChanged} />
+        {/* 2026-10-12: antes, conversa com mais de 100 mensagens só mostrava "Mostrando as últimas mensagens" e escondia o
+            botão do celular. Agora: "Ver mensagens anteriores" (já gravadas no CRM) + botão do celular sempre que houver
+            mensagem do WhatsApp pessoal. */}
+        {crmHasMore ? (
+          <div className="flex flex-col items-center gap-1 pt-2">
+            <button type="button" onClick={loadOlderFromCrm} disabled={olderOwn?.loading} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-bold text-brand shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] disabled:opacity-60">
+              {olderOwn?.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}
+              Ver mensagens anteriores
+            </button>
+            {olderOwn?.error ? <p className="max-w-xs rounded-lg bg-red-50 px-3 py-1 text-center text-[11px] font-semibold text-red-700" role="status">{olderOwn.error}</p> : null}
+          </div>
+        ) : null}
+        {conversation.sessionUserId && !conversation.isGroup && !conversation.privateLocked && !conversation.archivedReadOnly && messages.length ? (
+          <PhoneHistoryButton key={conversation.id} conversationId={conversation.id} onChanged={() => phoneArrivedRef.current?.()} />
         ) : null}
         {rows.map((row) => (row.kind === "day" ? (
           <div key={row.key} className="flex justify-center pb-1 pt-3">

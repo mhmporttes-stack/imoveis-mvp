@@ -23,6 +23,14 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - Dono (print): o ícone de "carregando" girava parado no meio da Meta Diária. Era o `SceneSkipCatcher` (indicador da transição de cena do link da Meta, `SceneTransitionLink`), que não recebia o sinal de "página pronta" quando a Meta vinha do pré-carregamento. Removido do `app/admin/layout.jsx` (único consumidor do estado de loading da cena); a navegação e as cenas continuam iguais. Componente mantido no repositório.
 
+### 2026-10-12 — Chat: mensagens anteriores do celular, 2ª correção (após o 1º teste real)
+
+- **1º teste (Número 2 de uma corretora, conversa LID):** só `req_sent`; nenhum recibo, notificação ou lote. O botão também sumia em quase todas as conversas: com mais de 100 mensagens o Chat mostrava só "Mostrando as últimas mensagens da conversa." no lugar dele (condição `!detail.hasMore` já existente, não a regra nova de referência) e não havia como ver as mensagens anteriores a essas 100.
+- **Instrumentação:** o recibo do celular para mensagem "peer" (`peer_msg`) e o ack do servidor não viram evento no Baileys 6.7.24 — o `req_ack` nunca poderia aparecer. Agora o serviço observa os nós brutos (`CB:receipt`, `CB:ack,class:message`) só para os ids dos nossos pedidos: `req_rcpt_<tipo>`, `req_srv_ack`, `req_srv_err`.
+- **Hipóteses testadas no mesmo toque:** pedido como o whatsmeow (`protocolMessage` direto, sem o `deviceSentMessage` que o `relayMessage` acrescenta) e, em conversa LID com telefone conhecido, uma 2ª variante com o chat em telefone (PN); `kind` da telemetria diz qual variante respondeu.
+- **Tela:** "Ver mensagens anteriores" (páginas de 100 do CRM, somadas à página atual sem se perder na atualização em tempo real; a tela não desce ao carregar o topo) e o botão do celular sempre que há mensagem do WhatsApp pessoal; mensagens que chegam do celular são trazidas para cima automaticamente.
+- Arquivos: `whatsapp-individual-service/src/{sessions,history-on-demand}.js`, `components/WhatsappChat.jsx` (Thread), `tests/whatsapp-older-history.test.mjs`.
+
 ### 2026-10-12 — Chat: "Carregar mensagens anteriores do celular" consertado (até 15 dias, com vídeo)
 
 - **Sintoma (dono):** o botão nunca funcionou; nenhum `sync_6` em `whatsapp_session_telemetry`, para nenhum corretor.
