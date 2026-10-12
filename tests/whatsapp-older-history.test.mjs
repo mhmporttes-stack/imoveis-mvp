@@ -16,6 +16,11 @@ test("serviço: pede ao celular (pedido próprio, não o fetchMessageHistory em 
   assert.doesNotMatch(sessions, /sock\.relayMessage\(/);
   // Recibo do celular e ack do servidor observados no nó bruto (o Baileys não emite evento para peer_msg).
   assert.match(sessions, /sock\.ws\.on\("CB:receipt"/);
+  // Retry do celular (não conseguiu decifrar): reenvia o MESMO pedido com sessão nova, no máximo 2 vezes.
+  assert.match(sessions, /if \(tag === "receipt" && node\.attrs\.type === "retry"\)/);
+  assert.match(sessions, /const PEER_RETRY_LIMIT = 2;/);
+  assert.match(sessions, /await sendRawPeerRequest\(sock, item\.built, \{ id, encryptJid, forceSession: true, retryCount: item\.retries \}\);/);
+  assert.match(sessions, /reason: "req_retry_resent"/);
   assert.doesNotMatch(sessions, /sock\.fetchMessageHistory\(/);
   assert.match(sessions, /const cutoff = onDemand \? 0 : Date\.now\(\) - HISTORY_WINDOW_MS;/);
   // ON_DEMAND sempre processado, mesmo com o histórico do pareamento desligado na Railway.
@@ -105,6 +110,10 @@ test("rodadas: até 15 dias, fim do histórico, limite de rodadas e sem resposta
   assert.equal(roundPhase({ state: "received", quietMs: 6000 }), "settled");
   assert.equal(roundPhase({ state: "unknown" }), "timeout");
   assert.match(olderHistoryMessage({ phase: "timeout", total: 0, waitedSeconds: 45 }), /não respondeu em 45 s/);
+  assert.equal(
+    olderHistoryMessage({ phase: "timeout", total: 0, waitedSeconds: 47, phoneAck: "peer_msg", ownerName: "Bruna" }),
+    "O celular de Bruna recebeu o pedido, mas não respondeu em 47 s. Abra o WhatsApp no celular de Bruna, deixe aberto na tela e toque de novo."
+  );
   assert.match(olderHistoryMessage({ phase: "done", total: 120, oldestAt: new Date(now - 16 * day).toISOString(), reason: "target" }), /120 mensagens.*15 dias/);
   assert.equal(isValidOlderHistoryRequestId("3EB0A1B2C3D4E5F6A7B8"), true);
   assert.equal(isValidOlderHistoryRequestId("../x"), false);

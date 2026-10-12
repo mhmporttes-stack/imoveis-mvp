@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, fetchLatestBaileysVersion, generateMessageIDV2, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, fetchLatestBaileysVersion, generateMessageIDV2, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -865,24 +865,74 @@ function observePeerNode(userId, tag, node) {
   if (!fields) return;
   const request = onDemandRequests.match(userId, id);
   if (request && tag === "receipt") request.ackStatus = String(node.attrs.type || "delivery");
-  telemetry.record(userId, "history_sync", { ...fields, cycleId: id, kind: onDemandRequests.variantOf(userId, id), delayMs: request ? Date.now() - request.sentAt : null });
+  const from = String(node.attrs.participant || node.attrs.from || "");
+  telemetry.record(userId, "history_sync", {
+    ...fields,
+    cycleId: id,
+    kind: onDemandRequests.variantOf(userId, id),
+    delayMs: request ? Date.now() - request.sentAt : null,
+    trigger: from.endsWith("@lid") ? "from_lid" : from ? "from_pn" : ""
+  });
+  // O celular não conseguiu decifrar e pediu reenvio (2026-10-12, 2º teste): reenvia com sessão nova, como o Baileys faz
+  // com mensagem comum (sendMessagesAgain) — que não alcança este pedido (não está no getMessage).
+  if (tag === "receipt" && node.attrs.type === "retry") {
+    resendPeerRequest(userId, id, from).catch((error) => console.error(`[${userId}] Falha ao reenviar pedido de histórico:`, error.message));
+  }
+}
+
+// Pedidos enviados (por id): o conteúdo do pedido para reenviar quando o celular pede retry. Sem conteúdo de conversa.
+const sentPeerRequests = new Map(); // `${userId}|${id}` -> { built, retries, sentAt }
+const PEER_RETRY_LIMIT = 2;
+
+function rememberSentPeerRequest(userId, id, built) {
+  const now = Date.now();
+  for (const [key, item] of sentPeerRequests) if (now - item.sentAt > 30 * 60 * 1000) sentPeerRequests.delete(key);
+  if (sentPeerRequests.size > 300) sentPeerRequests.delete(sentPeerRequests.keys().next().value);
+  sentPeerRequests.set(`${userId}|${id}`, { built, retries: 0, sentAt: now });
+}
+
+async function resendPeerRequest(userId, id, from) {
+  const item = sentPeerRequests.get(`${userId}|${id}`);
+  if (!item) return;
+  if (item.retries >= PEER_RETRY_LIMIT) {
+    telemetry.record(userId, "history_sync", { reason: "req_retry_gaveup", cycleId: id, kind: onDemandRequests.variantOf(userId, id), attempt: item.retries });
+    return;
+  }
+  item.retries += 1;
+  // Deixa o próprio Baileys terminar o tratamento do retry (ele busca uma sessão nova para quem pediu).
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  const sock = sockets.get(userId)?.sock;
+  if (!sock || sockets.get(userId)?.status !== "connected") return;
+  // Cifra para a identidade de quem pediu (o celular pode usar o LID, como o whatsmeow faz), sempre no aparelho 0.
+  const decoded = jidDecode(from) || {};
+  const encryptJid = decoded.user && (decoded.server === "lid" || decoded.server === "s.whatsapp.net") ? `${decoded.user}@${decoded.server}` : "";
+  try {
+    await sendRawPeerRequest(sock, item.built, { id, encryptJid, forceSession: true, retryCount: item.retries });
+    telemetry.record(userId, "history_sync", { reason: "req_retry_resent", cycleId: id, kind: onDemandRequests.variantOf(userId, id), attempt: item.retries, trigger: decoded.server === "lid" ? "to_lid" : "to_pn" });
+  } catch (error) {
+    telemetry.record(userId, "history_sync", { reason: "req_retry_failed", cycleId: id, kind: onDemandRequests.variantOf(userId, id), attempt: item.retries });
+    throw error;
+  }
 }
 
 // Pedido "peer" ao próprio celular como o whatsmeow faz (SendPeerMessage): protocolMessage DIRETO (sem o
 // deviceSentMessage que o relayMessage do Baileys 6.7.24 põe), cifrado para o próprio número no aparelho 0 (o celular),
 // com <meta appdata="default"/> + <enc> e a identidade do aparelho quando a sessão é nova. Não toca em ninguém além do
 // próprio celular do corretor.
-async function sendRawPeerRequest(sock, built) {
+// Reenvio (retry): mesmo id, sessão nova (forceSession) e `count` no <enc>, como o whatsmeow.
+async function sendRawPeerRequest(sock, built, { id: fixedId = "", encryptJid = "", forceSession = false, retryCount = 0 } = {}) {
   const meJid = jidNormalizedUser(sock.authState?.creds?.me?.id || "");
   if (!meJid) throw new Error("Sessão sem identificação do próprio número.");
-  const id = generateMessageIDV2(sock.user?.id);
+  const id = fixedId || generateMessageIDV2(sock.user?.id);
+  const target = encryptJid || meJid;
   const bytes = encodeWAMessage(built.message);
   let encrypted;
   await sock.authState.keys.transaction(async () => {
-    await sock.assertSessions([meJid], false);
-    encrypted = await sock.signalRepository.encryptMessage({ jid: meJid, data: bytes });
+    await sock.assertSessions([target], forceSession);
+    encrypted = await sock.signalRepository.encryptMessage({ jid: target, data: bytes });
   });
-  const content = [built.metaNode, { tag: "enc", attrs: { v: "2", type: encrypted.type }, content: encrypted.ciphertext }];
+  const encAttrs = { v: "2", type: encrypted.type, ...(retryCount ? { count: String(retryCount) } : {}) };
+  const content = [built.metaNode, { tag: "enc", attrs: encAttrs, content: encrypted.ciphertext }];
   if (encrypted.type === "pkmsg") content.push({ tag: "device-identity", attrs: {}, content: encodeSignedDeviceIdentity(sock.authState.creds.account, true) });
   await sock.sendNode({ tag: "message", attrs: { id, to: meJid, ...built.stanzaAttrs }, content });
   return id;
@@ -894,8 +944,7 @@ function wantsOnDemandOrHistory(syncType) {
 
 function recordOnDemandAck(userId, requestId, status) {
   const request = onDemandRequests.get(userId, requestId);
-  if (!request || request.ackStatus === status) return;
-  request.ackStatus = Number(status) || null;
+  if (!request) return;
   telemetry.record(userId, "history_sync", { reason: `req_ack_${Number(status) || 0}`, cycleId: requestId, delayMs: Date.now() - request.sentAt });
 }
 
@@ -1047,6 +1096,7 @@ export async function requestOlderHistory(userId, { to, remoteJid, oldestId, old
     for (const [index, item] of variants.entries()) {
       if (index) await new Promise((resolve) => setTimeout(resolve, 1000)); // sem rajada
       const sentId = await sendRawPeerRequest(sock, item.built);
+      rememberSentPeerRequest(userId, sentId, item.built);
       if (!entry) {
         entry = onDemandRequests.start(userId, sentId, { to, chatJid: jid, count: item.built.count });
         onDemandRequests.setVariant(userId, sentId, item.variant);

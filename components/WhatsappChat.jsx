@@ -2182,7 +2182,7 @@ function PhoneHistoryButton({ conversationId, onChanged }) {
         if (status?.oldestAt) oldestAt = status.oldestAt;
         if (phase === "timeout") {
           setState("error");
-          setMessage(olderHistoryMessage({ phase, total, oldestAt, waitedSeconds: Math.round((Number(status?.elapsedMs) || OLDER_HISTORY_WAIT_MS) / 1000) }));
+          setMessage(olderHistoryMessage({ phase, total, oldestAt, waitedSeconds: Math.round((Number(status?.elapsedMs) || OLDER_HISTORY_WAIT_MS) / 1000), phoneAck: status?.phoneAck || null, ownerName: status?.ownerName || "" }));
           return;
         }
         onChanged?.();

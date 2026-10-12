@@ -23,6 +23,11 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 - Dono (print): o ícone de "carregando" girava parado no meio da Meta Diária. Era o `SceneSkipCatcher` (indicador da transição de cena do link da Meta, `SceneTransitionLink`), que não recebia o sinal de "página pronta" quando a Meta vinha do pré-carregamento. Removido do `app/admin/layout.jsx` (único consumidor do estado de loading da cena); a navegação e as cenas continuam iguais. Componente mantido no repositório.
 
+### 2026-10-12 — Chat: mensagens anteriores do celular, 3ª etapa (após o 2º teste real)
+
+- **2º teste (madrugada, celulares provavelmente bloqueados):** num número o servidor aceitou os 2 pedidos e o celular confirmou recebimento (`req_rcpt_peer_msg` em ~4 s) mas não respondeu; noutro, o celular pediu reenvio (`req_rcpt_retry`) dos 2 — não conseguiu decifrar — e o pedido não era reenviado (o `sendMessagesAgain` do Baileys só reenvia o que está no `getMessage`).
+- **Alteração:** reenvio do pedido no retry (mesmo id, sessão nova buscada no servidor, cifrado para a identidade de quem pediu — LID ou PN —, `count` no `<enc>`, até 2 vezes; telemetria `req_retry_resent/failed/gaveup`, `trigger` `from_lid`/`from_pn`). Quando o celular recebeu e não respondeu, a tela diz: "O celular de <nome> recebeu o pedido, mas não respondeu em N s. Abra o WhatsApp no celular de <nome>, deixe aberto na tela e toque de novo." (hipótese: com o WhatsApp fechado no iPhone o aviso só confirma o recebimento; **A CONFIRMAR** com teste de app aberto). Consulta de andamento devolve `ownerName` (1º nome do dono do número).
+
 ### 2026-10-12 — Chat: mensagens anteriores do celular, 2ª correção (após o 1º teste real)
 
 - **1º teste (Número 2 de uma corretora, conversa LID):** só `req_sent`; nenhum recibo, notificação ou lote. O botão também sumia em quase todas as conversas: com mais de 100 mensagens o Chat mostrava só "Mostrando as últimas mensagens da conversa." no lugar dele (condição `!detail.hasMore` já existente, não a regra nova de referência) e não havia como ver as mensagens anteriores a essas 100.
