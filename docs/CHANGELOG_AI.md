@@ -19,9 +19,39 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 
 ## Como registrar
 
-1. Acrescente a entrada logo **abaixo do título “## Registro”*### 2026-10-12 — Número oficial novo do WhatsApp (fato confirmado pelo dono)
+1. Acrescente a entrada logo **abaixo do título “## Registro”** (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
+2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
+3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
+4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
+5. Se algo não pôde ser provado no código, escreva **A CONFIRMAR** — não invente.
+6. Não apague entradas antigas. Para corrigir uma, acrescente uma nova referenciando a anterior.
+7. **Arquivamento mensal (quando necessário):** se este arquivo passar de ~500 linhas, mova as entradas de meses já encerrados, sem alterar o texto, para `docs/changelog/AAAA-MM.md` (um arquivo por mês, mais recente primeiro) e deixe ao fim da seção “Registro” a linha `Meses anteriores: docs/changelog/`. Agentes leem só as entradas recentes daqui; o arquivo mensal é consultado sob demanda.
+
+## Formato
+
+Copie o modelo abaixo (uma entrada por bloco):
+
+```markdown
+### AAAA-MM-DD — <título curto>
+- **Data:** AAAA-MM-DD
+- **Área:** <Clientes | Roleta | Funil | Agenda | Meta Diária | Ranking | WhatsApp | Meta/Tráfego | Documentação/CCA | Financeiro | Permissões | Banco | Infra | Docs | …>
+- **Alteração:** <o que mudou, em 1–3 linhas>
+- **Motivo:** <por que; pedido do dono, bug, incidente…>
+- **Arquivos afetados:** `caminho/arquivo1`, `caminho/arquivo2` (e migrations, se houver)
+- **Risco/observação:** <impacto possível em outros módulos, o que foi validado e como, o que ficou A CONFIRMAR, problemas encontrados e não corrigidos>
+- **Autor:** <agente/ferramenta ou pessoa>
+```
+
+## Registro
+
+### 2026-10-12 — Número oficial novo do WhatsApp (fato confirmado pelo dono)
 
 - Na Mesa de Criação do robô do Chat, os dados mostraram envios pelo número Oficial até 12/10, mas `.claude/rules/integracoes-externas.md` e `docs/WHATSAPP.md` diziam só que o número oficial foi banido em 28/09. Dono confirmou: comprou um **número oficial novo**, que é o ativo hoje. Rule e `docs/WHATSAPP.md` atualizadas (só fato técnico, sem mudança de código). Decisões do dono da mesa (outra cidade, "pare" → Não contactar, sem "assistente virtual", corte do lembrete de 23 h) estão em `docs/posicionamento/mesa/2026-10-12-robo-chat-formulario/DECISOES-DONO.md` e viram regra só na implementação (`/registrar-regra`).
+
+### 2026-10-12 — Agenda: gestora vê as atividades da equipe
+
+- **Problema:** a Carol (gestora) não via as atividades agendadas dos corretores: a Agenda (`/api/calendar-activities`) filtrava sempre pelo próprio usuário (`calendar_activities` e campo legado). Havia 3 atividades futuras da Bruna e 1 vencida da Jennyfer invisíveis para ela.
+- **Alteração:** gestor(a) ganha o seletor "Equipe | Minhas" na Agenda (padrão "Equipe" no calendário, "Minhas" na lista de pendentes, que bate com o contador do menu). `scope=team` só é aceito para `manager` e usa `applyResponsibleUserScope` (mesma equipe da lista de clientes). Corretor, associado e admin: sem mudança. Aniversários continuam só dos próprios clientes. Concluir/reagendar já respeitavam o escopo da equipe. `lib/calendar-activities.js`, `app/api/calendar-activities/route.js`, `components/ActivityCalendar.jsx`.
 
 ### 2026-10-12 — Skill /mesa-criativa (Mesa de Criação)
 
@@ -427,30 +457,6 @@ Não registre: ajuste de texto/estilo trivial, refatoração sem efeito visível
 - **O quê:** segundo ícone de app (pedido do dono): `/financeiro` (página pública só de instalação, sem dado) usa manifesto próprio `public/financeiro.webmanifest` (`id` /financeiro) e ícones `public/icons/*financeiro*-mm.png` (mesmo fundo #031D3A e cores do "M", com cifrão). No app instalado redireciona para `/admin/financeiro?aba=saude` (abre direto em Saúde/contas quando o perfil vê a aba; login e permissões inalterados). Após login, `components/pwaHome.js` (sessionStorage) devolve o usuário ao Financeiro. Manifesto/ícone do Painel (`app/manifest.js`, `app/layout.jsx`) não foram alterados.
 - **Modo app (mesmo dia):** no app Financeiro instalado, `app/layout.jsx` marca `html[data-mm-app=financeiro]` antes da pintura (standalone + sessionStorage `mm_pwa_home`); CSS esconde ranking/Campeão, menu do topo (`AdminSectionNav`), barra inferior, "Segurança" e "Ver cliente" (classe `mm-app-hide`); `HideInFinanceiroApp` não monta mensagens/celebrações/alertas; `FinanceiroAppGuard` devolve qualquer outra rota `/admin` ao Financeiro. Painel no navegador/app Painel inalterado.
 
-* (mais recente primeiro) — **nunca no topo do arquivo**, acima destas instruções.
-2. Uma entrada por mudança lógica (não uma por arquivo). Escreva em **português do Brasil**, objetivo e sem jargão desnecessário.
-3. **Nunca** inclua tokens, segredos, valores de variáveis de ambiente, dados pessoais de clientes ou telefones/e-mails reais.
-4. Se a alteração afetou regras/arquitetura, **atualize também** o documento correspondente em `docs/` (e diga qual na entrada).
-5. Se algo não pôde ser provado no código, escreva **A CONFIRMAR** — não invente.
-6. Não apague entradas antigas. Para corrigir uma, acrescente uma nova referenciando a anterior.
-7. **Arquivamento mensal (quando necessário):** se este arquivo passar de ~500 linhas, mova as entradas de meses já encerrados, sem alterar o texto, para `docs/changelog/AAAA-MM.md` (um arquivo por mês, mais recente primeiro) e deixe ao fim da seção “Registro” a linha `Meses anteriores: docs/changelog/`. Agentes leem só as entradas recentes daqui; o arquivo mensal é consultado sob demanda.
-
-## Formato
-
-Copie o modelo abaixo (uma entrada por bloco):
-
-```markdown
-### AAAA-MM-DD — <título curto>
-- **Data:** AAAA-MM-DD
-- **Área:** <Clientes | Roleta | Funil | Agenda | Meta Diária | Ranking | WhatsApp | Meta/Tráfego | Documentação/CCA | Financeiro | Permissões | Banco | Infra | Docs | …>
-- **Alteração:** <o que mudou, em 1–3 linhas>
-- **Motivo:** <por que; pedido do dono, bug, incidente…>
-- **Arquivos afetados:** `caminho/arquivo1`, `caminho/arquivo2` (e migrations, se houver)
-- **Risco/observação:** <impacto possível em outros módulos, o que foi validado e como, o que ficou A CONFIRMAR, problemas encontrados e não corrigidos>
-- **Autor:** <agente/ferramenta ou pessoa>
-```
-
-## Registro
 ### 2026-10-12 — Horas no CRM: contatos particulares fora da contagem
 - **Data:** 2026-10-12
 - **Área:** Desempenho › Online (`lib/admin-presence.js` `loadCountableAttempts`, `lib/admin-presence-core.mjs` `splitPrivateAttempts`).
