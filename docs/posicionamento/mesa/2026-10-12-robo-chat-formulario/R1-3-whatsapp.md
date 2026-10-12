@@ -51,3 +51,10 @@ Botões: Fazer simulação (15), Tenho uma dúvida (16), Falar com alguém (16),
 
 ## Para Tráfego
 Texto pré-preenchido do anúncio reconhecido por `isAdPrefillText`; promessa do anúncio = A1 ("sem CPF, sem compromisso, quanto pode financiar"); ID de anúncio sincronizado por campanha; pausar TESTE.
+
+## Confirmação na documentação oficial da Meta (consultada em 2026-10-12, Graph API v25.0)
+- Botão de resposta: máx. 20 caracteres, títulos distintos, máx. 3; corpo 1024, rodapé 60 — https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/interactive-reply-buttons-messages
+- `cta_url` `display_text`: máx. 20 — https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/interactive-cta-url-messages
+- `cta_url` + botões de resposta na mesma mensagem: estrutura só tem 1 `action` com 1 botão → mensagens separadas (proibição não escrita).
+- Janela de 24 h: abre/renova a cada mensagem ou ligação do cliente; fora dela só template aprovado com opt-in — https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/send-messages. Toque em botão provavelmente conta (gera webhook `messages`), não confirmado.
+- "Digitando": permitido, vai com `status: read`, some em 25 s; não estende a janela — https://developers.facebook.com/documentation/business-messaging/whatsapp/typing-indicators
