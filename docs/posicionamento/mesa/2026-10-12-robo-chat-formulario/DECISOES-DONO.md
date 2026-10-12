@@ -34,3 +34,6 @@ where g.id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
 update attendance_guides set published_graph = graph, published_version = version, published_at = now() where id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
 ```
 15. **Aprovação da implementação (dono, 2026-10-12): "sim pode implementar tudo"** → Fase 1 (configurar Fluxos) e Fase 2 (5 itens de código) do `DOSSIE.md`; transferência do silêncio **só daqui para frente** (data de corte = publicação). Fase 3 continua dependendo de decisões. Anúncio (H1–H5) é executado pelo dono no Gerenciador (os agentes não alteram a Meta).
+
+## Execução da Fase 1 (2026-10-12)
+Publicado no banco (validado com `validateGraph`, 0 erros; todas as mensagens ≤ 1024): "Anúncio WhatsApp — formulário direto" v9 → **v10** (A1 horário/fora numa mensagem só, botão "Fazer simulação", horário seg–sáb 8h–19h); "Contato espontâneo — saudação" v1 → **v2** (menu E com 3 botões, versões por horário, `base_roulette` antes de "Já sou cliente", sem resposta em 2 h → stop); "Formulário concluído" v1 → **v2** só textos D — **continua pausado**. Fluxo TESTE: gatilho exato "teste anuncio", sem conflito com o pré-preenchido novo. Textos anteriores: `backup-fluxos-antes-fase1.json`.
