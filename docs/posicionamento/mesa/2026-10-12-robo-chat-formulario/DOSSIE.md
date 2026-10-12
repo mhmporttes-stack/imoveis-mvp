@@ -76,7 +76,7 @@ Principal: **silêncio tocado por pessoa em ≤ 1 h** após a transferência (ba
 Tomadas: 1–14 (`DECISOES-DONO.md`). **Faltam:** "sim" para Fase 1 e Fase 2; H1–H5; mandar a frase do B12 antes de marcar Não contactar (rec.: sim); transferência só daqui para frente (rec.: sim); ex-cliente arquivado (Fase 3); outra cidade: status próprio ou alerta; metas do painel.
 
 ## 9) Próximos passos
-1. Gravar o Guia (decisão 13). 2. Consultas b1/b2 (`R3-5-viabilidade.md`). 3. Dono decide Fase 1/2 e H1–H5. 4. Até a Fase 2: silêncio → "Devolver para a roleta". 5. Fase 2 itens 1–5. 6. D+14 / D+28.
+1. ~~Gravar o Guia (decisão 13)~~ — **feito em 12/10** (v5 publicada; ver `DECISOES-DONO.md`). 2. Consultas b1/b2 (`R3-5-viabilidade.md`). 3. Dono decide Fase 1/2 e H1–H5. 4. Até a Fase 2: silêncio → "Devolver para a roleta". 5. Fase 2 itens 1–5. 6. D+14 / D+28.
 
 ## Arquivos
 `BRIEF.md`, `DECISOES-DONO.md`, `R1-1…R1-5`, `R2-1…R2-5`, `R3-1…R3-5`, `guia-entrada-lead-anuncio.json`, este `DOSSIE.md`.

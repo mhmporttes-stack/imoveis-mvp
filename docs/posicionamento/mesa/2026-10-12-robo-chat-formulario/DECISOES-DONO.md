@@ -19,3 +19,17 @@
     - Cliente de outra cidade que não quer Marília: a mesa escolhe. Critério: sair da roleta e da REDISTRIBUIÇÃO **sem perder o contato se ele voltar a escrever** (atenção: WA-13 — conversa de cliente arquivado não volta ao Chat; não usar "Não contactar", que é só para quem pediu). Definir na rodada 3.
 13. **Entrada do Guia de Atendimento:** o dono autorizou ("sim") gravar direto no banco de produção a entrada "Lead de anúncio: primeira resposta (texto ou áudio)" (roteiro M1–M5 + abertura do silêncio) no guia "Lead — patrocinado". Fazer **depois da rodada 3**, com o texto final: ler o `published_graph` atual, acrescentar os nós, validar com `validateGuideGraph`/`sanitizeGuideGraph` (`lib/attendance-guide-core.mjs`) antes de gravar, atualizar `graph` e `published_graph` com nova `version`/`published_version`, e guardar o JSON anterior para desfazer.
 14. **Categoria especial da campanha ativa (print do dono, 2026-10-12):** a campanha "WHATSAPP | Marilia | PATROCINADO | Video" (objetivo Engajamento, orçamento por conjunto) **não tem nenhuma categoria especial declarada** (campo "Declarar categoria se aplicável" vazio). Recomendação da mesa: o anúncio novo (H1) sai **numa campanha nova com "Moradia" declarada** (e "Produtos e serviços financeiros" se o dono entender que o anúncio é de financiamento); os requisitos por país variam — o dono decide e executa no Gerenciador.
+
+## Execução da decisão 13 (2026-10-12)
+Entrada do Guia **gravada e publicada** no banco de produção: guia "Lead — patrocinado / lead novo" (`5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03`), versão 4/publicada 1 → **5/5**; 30 → 47 cards, 62 → 96 ligações; card `l-recepcao` com 2 respostas novas no início (12 no total). Validação local antes de gravar: `sanitizeGuideGraph` +17/+34 exatos, `validateGuideGraph` com o Banco de objeções publicado = **0 erros** (só o aviso normal de `la-retorno`). O rascunho anterior só diferia do publicado na posição de 2 cards (edição do dono em 28/09) — foi preservado e publicado junto.
+- Backup do rascunho anterior: `backup-guia-lead-v4-graph.json`.
+- **Desfazer** (remove só o que foi acrescentado):
+```sql
+update attendance_guides g set
+  graph = jsonb_build_object(
+    'nodes', (select jsonb_agg(case when n->>'id'='l-recepcao' then jsonb_set(n,'{data,options}',(select jsonb_agg(o) from jsonb_array_elements(n->'data'->'options') o where o->>'id' not like 'l-recepcao~la%')) else n end) from jsonb_array_elements(g.graph->'nodes') n where n->>'id' not like 'la-%'),
+    'edges', (select jsonb_agg(e) from jsonb_array_elements(g.graph->'edges') e where e->>'id' not like 'e-la-%' and e->>'id' not like 'e-recepcao-la%')),
+  version = version + 1, updated_at = now()
+where g.id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
+update attendance_guides set published_graph = graph, published_version = version, published_at = now() where id = '5b7f1d2e-0c11-4a55-9a3c-1f0e6d3a7b03';
+```
