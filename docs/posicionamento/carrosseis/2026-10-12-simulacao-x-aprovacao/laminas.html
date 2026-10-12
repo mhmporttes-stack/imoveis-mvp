@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800">
+<!-- Carrossel "Simulação não é aprovação" (2026-10-12). Só a ideia do texto veio da referência de outro corretor;
+     layout, cores e imagens no padrão próprio (azul-marinho do carrossel OSK). Renderizar com --escala 2. -->
+<style>
+  :root { --navy:#0A1430; --azul:#3B8BFF; --azul2:#6FA8FF; --texto:#C9D3E6; --linha:rgba(255,255,255,.14); --verm:#FF3B30; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#000; }
+  .lamina { position:relative; width:1080px; height:1350px; overflow:hidden; font-family:"Plus Jakarta Sans", sans-serif; color:#fff;
+    background:radial-gradient(1200px 700px at 85% -10%, #1B3A86 0%, rgba(27,58,134,0) 60%), var(--navy); }
+  .cond { font-family:Anton, sans-serif; text-transform:uppercase; line-height:1.05; letter-spacing:.005em; }
+  .eyebrow { font-size:22px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:var(--azul2); display:flex; align-items:center; gap:16px; }
+  .eyebrow::before { content:""; width:44px; height:3px; background:var(--azul); border-radius:2px; }
+  h2.titulo { font-size:110px; margin-top:22px; line-height:1.14; }
+  h2.titulo em { font-style:normal; color:var(--azul); }
+  .corpo { position:absolute; left:80px; right:80px; }
+  .texto { font-size:34px; line-height:1.45; color:var(--texto); }
+  .texto b { color:#fff; }
+  .seta { position:absolute; right:70px; bottom:58px; display:flex; align-items:center; gap:12px; font-weight:700; font-size:24px; letter-spacing:.04em; z-index:5; }
+  .seta svg { width:52px; height:52px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .ico svg { fill:none; stroke:var(--azul2); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* capa */
+  .capa .pessoa { position:absolute; right:-150px; bottom:0; height:900px; filter:drop-shadow(0 30px 60px rgba(0,0,0,.5)); }
+  .capa .degrade { position:absolute; inset:0; background:linear-gradient(90deg, var(--navy) 0%, rgba(10,20,48,.85) 45%, rgba(10,20,48,0) 75%); }
+  .capa h1 { font-size:146px; line-height:1.14; }
+  .capa h1 em { font-style:normal; color:var(--azul); }
+  .capa .pill { display:inline-block; margin-top:40px; border:2px solid var(--azul); border-radius:999px; padding:16px 34px; font-size:38px; font-weight:800; }
+
+  /* simulação */
+  .card { background:rgba(255,255,255,.05); border:1.5px solid var(--linha); border-radius:28px; padding:36px 40px; }
+  .itens { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:44px; }
+  .itens div { display:flex; gap:18px; align-items:center; font-size:32px; min-height:190px; font-weight:700; background:rgba(59,139,255,.10); border:1.5px solid rgba(59,139,255,.35); border-radius:20px; padding:22px 24px; }
+  .itens svg { width:42px; height:42px; flex-shrink:0; fill:none; stroke:var(--azul2); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .alerta { margin-top:70px; border-left:6px solid var(--verm); padding:6px 0 6px 30px; font-size:38px; line-height:1.4; color:#E6ECF7; }
+  .alerta b { color:#fff; }
+
+  /* análise */
+  .lista { margin-top:50px; border-top:1.5px solid var(--linha); }
+  .lista div { display:flex; gap:30px; align-items:center; padding:38px 0; border-bottom:1.5px solid var(--linha); font-size:38px; font-weight:700; }
+  .lista .ico { width:76px; height:76px; border-radius:22px; background:rgba(59,139,255,.14); border:1.5px solid rgba(59,139,255,.45); display:grid; place-items:center; flex-shrink:0; }
+  .lista .ico svg { width:40px; height:40px; }
+  .lista .neg .ico { background:rgba(255,59,48,.12); border-color:rgba(255,59,48,.5); }
+  .lista .neg .ico svg { stroke:var(--verm); }
+
+  /* diferença */
+  .comp { display:grid; grid-template-columns:1fr; gap:26px; margin-top:56px; }
+  .comp .lado { border-radius:30px; padding:42px 48px; }
+  .comp .sim { background:rgba(255,255,255,.05); border:1.5px solid var(--linha); }
+  .comp .ana { background:var(--azul); }
+  .comp small { font-size:22px; font-weight:800; letter-spacing:.26em; text-transform:uppercase; opacity:.85; }
+  .comp h3 { font-family:Anton, sans-serif; text-transform:uppercase; font-size:84px; line-height:1; margin:10px 0 16px; }
+  .comp p { font-size:40px; line-height:1.35; font-weight:600; }
+  .comp .seta-meio { justify-self:center; width:64px; height:64px; margin:-8px 0; }
+  .comp .seta-meio svg { width:64px; height:64px; fill:none; stroke:var(--azul2); stroke-width:2; transform:rotate(90deg); }
+
+  /* cta */
+  .cta .fundo { position:absolute; inset:0; background:radial-gradient(900px 700px at 50% 30%, #1E4AA8 0%, rgba(30,74,168,0) 70%); }
+  .cta .pessoa { position:absolute; left:50%; transform:translateX(-50%); bottom:0; height:1120px; }
+  .cta .degrade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(10,20,48,0) 45%, rgba(10,20,48,.88) 68%, var(--navy) 100%); }
+  .cta .txt { position:absolute; left:70px; right:70px; bottom:110px; text-align:center; }
+  .cta .l1 { font-size:40px; font-weight:600; line-height:1.3; }
+  .cta .l2 { font-size:190px; color:var(--azul); margin:10px 0; }
+  .cta .l3 { font-size:36px; line-height:1.35; color:#E6ECF7; }
+</style></head>
+<body>
+
+<section class="lamina capa">
+  <img class="pessoa" src="../../assets/boneco-3d/realista/pensativo.png" alt="">
+  <span class="degrade"></span>
+  <div class="corpo" style="top:270px">
+    <div class="eyebrow">Financiamento</div>
+    <h1 class="cond" style="margin-top:28px">Simulação<br>não é<br><em>aprovação</em></h1>
+    <span class="pill">Você sabe a diferença?</span>
+  </div>
+  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<section class="lamina">
+  <div class="corpo" style="top:170px">
+    <div class="eyebrow">Passo 1</div>
+    <h2 class="cond titulo"><em>Simulação</em></h2>
+    <p class="texto" style="margin-top:20px">É uma <b>estimativa</b>: o primeiro passo para entender o que cabe no seu bolso, de acordo com o seu perfil.</p>
+    <div class="itens">
+      <div><svg viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2" /> <line x1="8" x2="16" y1="6" y2="6" /> <line x1="16" x2="16" y1="14" y2="18" /> <path d="M16 10h.01" /> <path d="M12 10h.01" /> <path d="M8 10h.01" /> <path d="M12 14h.01" /> <path d="M8 14h.01" /> <path d="M12 18h.01" /> <path d="M8 18h.01" /></svg>Quanto você pode financiar</div>
+      <div><svg viewBox="0 0 24 24"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" /> <path d="M2 9v1c0 1.1.9 2 2 2h1" /> <path d="M16 11h.01" /></svg>A possível entrada</div>
+      <div><svg viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /> <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /> <path d="M12 17.5v-11" /></svg>O valor aproximado da parcela</div>
+      <div><svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>As melhores opções para você</div>
+    </div>
+    <div class="alerta"><b>Mas atenção:</b> isso não significa crédito aprovado. A simulação mostra as <b>possibilidades</b>.</div>
+  </div>
+  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<section class="lamina">
+  <div class="corpo" style="top:150px">
+    <div class="eyebrow">Passo 2</div>
+    <h2 class="cond titulo">Análise de <em>crédito</em></h2>
+    <p class="texto" style="margin-top:20px">Aqui o banco <b>realmente analisa</b> o seu perfil:</p>
+    <div class="lista">
+      <div><span class="ico"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /> <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></svg></span>Renda comprovada</div>
+      <div><span class="ico"><svg viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /> <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /> <path d="M7 21h10" /> <path d="M12 3v18" /> <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></svg></span>Capacidade de pagamento</div>
+      <div><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /> <path d="M12 7v5l4 2" /></svg></span>Histórico de crédito</div>
+      <div class="neg"><span class="ico"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg></span>Possíveis restrições</div>
+      <div><span class="ico"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="m9 14 2 2 4-4" /></svg></span>Critérios da operação</div>
+    </div>
+  </div>
+  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<section class="lamina">
+  <div class="corpo" style="top:120px">
+    <div class="eyebrow">Resumindo</div>
+    <h2 class="cond titulo">A diferença<br><em>é essa</em></h2>
+    <div class="comp">
+      <div class="lado sim"><small>Simulação</small><h3>Possibilidade</h3><p>Mostra quanto você <b>poderia</b> financiar.</p></div>
+      <div class="seta-meio"><svg viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></svg></div>
+      <div class="lado ana"><small>Análise de crédito</small><h3>Resposta do banco</h3><p>Mostra quanto o banco <b>realmente</b> pode aprovar.</p></div>
+    </div>
+  </div>
+  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<section class="lamina cta">
+  <span class="fundo"></span>
+  <img class="pessoa" src="img/pessoa-celular-insta.png" alt="">
+  <span class="degrade"></span>
+  <div class="txt">
+    <div class="l1">Quer comprar sua casa pelo<br>Minha Casa Minha Vida?</div>
+    <div class="cond l2">Me chama</div>
+    <div class="l3">no Direct ou no WhatsApp e vamos conversar<br>sobre o seu próximo passo.</div>
+  </div>
+</section>
+
+</body></html>
