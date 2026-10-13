@@ -3,7 +3,7 @@
 import cv2, numpy as np, subprocess, sys, math
 S=sys.argv[1]; FPS=30; W,H=1080,1920
 fotos=[cv2.imread(f'{S}/../terras-fotos/foto{i}.jpg') for i in range(1,6)]
-ov=[cv2.imread(f'{S}/ov/lamina-0{i}.png', cv2.IMREAD_UNCHANGED) for i in range(1,9)]
+ov=[cv2.imread(f'{S}/ov/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1,14)]
 
 def grade(img):
     f=img.astype(np.float32)/255
@@ -90,14 +90,25 @@ for j,kind in enumerate(kinds):
     if kind=='cut': out+= B; continue
     tr={'whip':whip,'zoom':zoomthru,'flash':flash}[kind](A,B,n)
     out+= tr + B[n:-n] if j<len(kinds)-1 else tr+B[n:]
-# corrige: a última cena de oferta precisa terminar inteira antes do fecho
-fimbg=ov[7][...,:3].copy()
-nf=int(FIM*FPS)
-last=out[-1]
+# fecho: fundo da marca entra por cima da última cena; Matheus entra pela direita e os textos aparecem em sequência
+def shift(o,dx,dy):
+    M=np.float32([[1,0,dx],[0,1,dy]])
+    return cv2.warpAffine(o,M,(W,H),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_CONSTANT,borderValue=(0,0,0,0))
+def ease(x): x=min(1,max(0,x)); return 1-(1-x)**3
+bg=ov[7][...,:3].copy(); last=out[-1]; nf=int(FIM*FPS)
+camadas=[(8,0.15,0.75,260,0),(9,0.45,0.85,0,-40),(10,0.70,1.10,0,60),(11,0.95,1.35,0,50),(12,1.20,1.60,0,30)]
 for k in range(nf):
-    t=k/FPS; a=min(1,t/0.4)
-    z=1+0.03*(k/nf); img=cv2.resize(fimbg,None,fx=z,fy=z); y=(img.shape[0]-H)//2; x=(img.shape[1]-W)//2; img=img[y:y+H,x:x+W]
-    out.append(cv2.addWeighted(last,1-a,img,a,0) if a<1 else img)
+    t=k/FPS; a=ease(t/0.35)
+    fr=cv2.addWeighted(last,1-a,bg,a,0) if a<1 else bg.copy()
+    for idx,t0,t1,dx,dy in camadas:
+        p=ease((t-t0)/(t1-t0))
+        if p<=0: continue
+        o=ov[idx]
+        if dx or dy: o=shift(o,dx*(1-p),dy*(1-p))
+        if idx==8:                       # leve aproximação contínua na foto
+            z=1+0.025*(t/FIM); o=cv2.resize(o,None,fx=z,fy=z); o=o[o.shape[0]-H:,:W] if o.shape[1]>=W else o
+        fr=over(fr,o,p)
+    out.append(fr)
 p=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','rawvideo','-pix_fmt','bgr24','-s',f'{W}x{H}','-r',str(FPS),'-i','-',
    '-c:v','libx264','-preset','slow','-crf','17','-pix_fmt','yuv420p','-movflags','+faststart',sys.argv[2]],stdin=subprocess.PIPE)
 for f in out: p.stdin.write(f.tobytes())
