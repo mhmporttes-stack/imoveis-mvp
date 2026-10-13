@@ -132,54 +132,47 @@ export default function PwaLifecycle() {
     };
   }, []);
 
-  // Clique em "Atualizar" = a pessoa PEDIU: recarrega agora. O sw.js já faz skipWaiting na instalação, então em geral
-  // a versão nova já assumiu e só falta recarregar (antes o botão só mandava SKIP_WAITING e a recarga ficava esperando
-  // o app ir para segundo plano — o dono tinha de fechar e abrir o app, 2026-10-11).
-  function applyUpdate() {
-    let reloaded = false;
-    const reload = () => {
-      if (reloaded) return;
-      reloaded = true;
-      window.location.reload();
-    };
-    if (updateWorker && updateWorker.state === "installed") {
-      navigator.serviceWorker.addEventListener("controllerchange", reload, { once: true });
-      updateWorker.postMessage({ type: "SKIP_WAITING" });
-      window.setTimeout(reload, 3000);
-      return;
-    }
-    reload();
-  }
-
   if (dismissed || (!updateWorker && !offline)) return null;
+
+  // Versão nova (dono, 2026-10-14): sem botão "Atualizar" (recarregar na hora demorava e interrompia o trabalho) —
+  // só um aviso pequeno no canto. A pessoa termina o que está fazendo e atualiza quando quiser; a troca automática
+  // ao sair/voltar para o app (acima) continua valendo.
+  if (!offline) {
+    // App instalado (sem botão de recarregar do navegador): atualiza sozinho ao sair e voltar.
+    const installedApp = typeof window !== "undefined" && (window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches);
+    return (
+      <div
+        role="status"
+        className="fixed right-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[140] flex items-center gap-1.5 rounded-full border border-line bg-white/95 py-1 pl-2.5 pr-1 text-[11px] font-semibold text-navy shadow-float backdrop-blur"
+      >
+        <RefreshCw className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
+        <span>{installedApp ? "Nova versão: saia e volte ao app" : "Nova versão: atualize a página"}</span>
+        <button
+          aria-label="Fechar aviso de nova versão"
+          className="grid h-6 w-6 place-items-center rounded-full text-muted transition hover:bg-mist hover:text-navy"
+          onClick={() => setDismissed(true)}
+          type="button"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-[140] mx-auto flex max-w-[520px] items-center justify-between gap-3 rounded-2xl border border-white/50 bg-white/95 px-4 py-3 text-sm font-bold text-navy shadow-premium backdrop-blur md:left-auto md:right-6 md:mx-0">
       <div className="flex min-w-0 items-center gap-3">
-        {offline ? <WifiOff className="h-5 w-5 shrink-0 text-brand" /> : <RefreshCw className="h-5 w-5 shrink-0 text-brand" />}
-        <span className="min-w-0">
-          {offline ? "Você está sem conexão. Dados privados não ficam disponíveis offline." : "Nova versão do painel disponível."}
-        </span>
+        <WifiOff className="h-5 w-5 shrink-0 text-brand" />
+        <span className="min-w-0">Você está sem conexão. Dados privados não ficam disponíveis offline.</span>
       </div>
-
-      {updateWorker ? (
-        <button
-          className="shrink-0 rounded-full bg-navy px-3 py-2 text-xs font-black text-white transition hover:bg-brand"
-          onClick={applyUpdate}
-          type="button"
-        >
-          Atualizar
-        </button>
-      ) : (
-        <button
-          aria-label="Fechar aviso de conexão"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-muted transition hover:bg-mist hover:text-navy"
-          onClick={() => setDismissed(true)}
-          type="button"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
+      <button
+        aria-label="Fechar aviso de conexão"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-muted transition hover:bg-mist hover:text-navy"
+        onClick={() => setDismissed(true)}
+        type="button"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
