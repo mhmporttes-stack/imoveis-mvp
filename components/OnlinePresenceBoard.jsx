@@ -60,6 +60,30 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
 
   const members = presence?.members || [];
 
+  // Percentual da Meta Diária de hoje por corretor (mesmo painel da Meta Diária da equipe), para o anel em volta da foto.
+  const [goalByUser, setGoalByUser] = useState(() => new Map());
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGoals() {
+      if (cancelled || document.visibilityState !== "visible") return;
+      try {
+        const response = await fetch("/api/daily-goal/team-overview?period=today");
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null);
+        if (cancelled || !payload) return;
+        setGoalByUser(new Map((payload.brokers || []).map((broker) => [broker.brokerId, broker.meta?.percent ?? null])));
+      } catch {
+        // Sem a meta, o painel continua só com a presença.
+      }
+    }
+    loadGoals();
+    const goalTimer = setInterval(loadGoals, 120000);
+    return () => {
+      cancelled = true;
+      clearInterval(goalTimer);
+    };
+  }, []);
+
   return (
     <div className="container-page grid gap-5">
       {error ? (
@@ -80,7 +104,7 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
           {!members.length ? (
             <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Nenhum corretor na sua equipe.</p>
           ) : (
-            members.map((member) => <MemberRow key={member.id} member={member} />)
+            members.map((member) => <MemberRow key={member.id} member={member} goalPercent={goalByUser.has(member.id) ? goalByUser.get(member.id) : null} />)
           )}
         </div>
       </article>
@@ -346,7 +370,7 @@ function StatPill({ emoji, label, value, tone }) {
   );
 }
 
-function MemberRow({ member }) {
+function MemberRow({ member, goalPercent = null }) {
   const meta = STATUS_META[member.status] || STATUS_META.offline;
   // Qual histórico está aberto: "presence" (entrou/saiu) ou "whatsapp" (conectou/desconectou).
   const [historyOpen, setHistoryOpen] = useState("");
@@ -356,12 +380,14 @@ function MemberRow({ member }) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative shrink-0">
-            <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
-            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
+            <GoalRing percent={goalPercent}>
+              <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
+            </GoalRing>
+            <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="truncate font-extrabold text-navy">{member.name}</p>
-            <p className="text-xs font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
+            <p className="truncate font-extrabold text-navy">{firstName(member.name)}</p>
+            <p className="truncate whitespace-nowrap text-[11px] font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -380,6 +406,31 @@ function MemberRow({ member }) {
       {historyOpen === "presence" ? <PresenceHistory userId={member.id} /> : null}
       {historyOpen === "whatsapp" ? <WhatsappHistory userId={member.id} /> : null}
     </div>
+  );
+}
+
+function firstName(name) {
+  return String(name || "").trim().split(/\s+/)[0] || "Usuário";
+}
+
+// Círculo da Meta Diária de hoje em volta da foto (dono, 2026-10-13): enche conforme a meta é concluída; verde em 100%.
+// Sem meta (dono, gestor sem carteira): só a foto, sem anel.
+function GoalRing({ percent, children }) {
+  if (percent === null || percent === undefined || !Number.isFinite(Number(percent))) {
+    return <span className="grid h-12 w-12 place-items-center">{children}</span>;
+  }
+  const value = Math.max(0, Math.min(100, Number(percent)));
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const done = value >= 100;
+  return (
+    <span className="relative grid h-12 w-12 place-items-center" title={`Meta Diária: ${Math.round(Number(percent))}%`} aria-label={`Meta Diária ${Math.round(Number(percent))}%`}>
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" className="text-navy/10" />
+        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - value / 100)} className={done ? "text-emerald-500" : "text-brand"} style={{ transition: "stroke-dashoffset 600ms ease" }} />
+      </svg>
+      {children}
+    </span>
   );
 }
 

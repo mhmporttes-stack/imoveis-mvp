@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Painel Online: anel da Meta Diária na foto, só o primeiro nome; app do dono com "Online" na barra
+
+- **Pedido do dono:** anel da Meta Diária de hoje em volta da foto (enche conforme a meta; verde em 100%; percentual de `/api/daily-goal/team-overview?period=today`, mesma conta da Meta Diária da equipe), só o primeiro nome e "Última atividade" menor em uma linha (`components/OnlinePresenceBoard.jsx`).
+- **App (barra inferior):** para o administrador geral, "Online" (`/admin/desempenho/online`) ocupa o lugar da "Meta"; a Meta Diária passa para o "Mais" (`components/AdminBottomNav.jsx`). Gestor/corretor/associado sem mudança.
+
 ### 2026-10-13 — Número de WhatsApp ocioso fica laranja e sai da roleta (ROL-2e)
 
 - **Regra do dono:** 4 h sem mensagem (só 8h–21h, todos os dias) = número ocioso → laranja no painel Online e fora da roleta; volta com mensagem ou reconexão. SQL `business_minutes_between`/`whatsapp_number_activity`/`whatsapp_user_has_active_number` + roleta recriada (migration `20261013130000_whatsapp_numero_ocioso.sql`, aplicada); `lib/admin-presence*.js`, `lib/lead-distribution.js`, `components/OnlinePresenceBoard.jsx`. Teste em `tests/admin-presence-core.test.mjs`.

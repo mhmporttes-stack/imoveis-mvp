@@ -24,8 +24,8 @@ import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 // nos guards de cada página.
 //
 // Distribuição (decisão do Designer, autorizada pelo dono em 2026-10-01):
-// - Administrador geral supervisiona o time: Meta Diária (equipe), Clientes,
-//   Chat, Desempenho.
+// - Administrador geral supervisiona o time: Online (presença da equipe), Clientes,
+//   Chat, Desempenho (Meta Diária no "Mais" desde 2026-10-13).
 // - Gestor, corretor e associado operam a própria carteira: Meta Diária,
 //   Clientes, Chat, Agenda.
 const DESTINATIONS = {
@@ -33,12 +33,14 @@ const DESTINATIONS = {
   clients: { key: "simulations", href: "/admin/simulacoes", label: "Clientes", Icon: Users, match: (path) => path.startsWith("/admin/simulacoes") },
   chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
-  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", Icon: BarChart3, match: (path) => path.startsWith("/admin/desempenho") || path.startsWith("/admin/relatorio-diario") }
+  online: { key: "online", href: "/admin/desempenho/online", label: "Online", Icon: UserCheck, match: (path) => path.startsWith("/admin/desempenho/online") },
+  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
 };
 
+// Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
 function destinationsFor({ isAdmin }) {
   return isAdmin
-    ? [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance]
+    ? [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance]
     : [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
 }
 
