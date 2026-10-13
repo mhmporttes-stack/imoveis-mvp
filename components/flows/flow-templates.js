@@ -30,8 +30,8 @@ const BUSINESS_HOURS = { kind: "business_hours", start: "08:00", end: "19:00", d
 // Caminho 1 — simulação: link direto + convite para falar com corretor.
 function simulationPath(prefix, nodes, edges) {
   const sim = `${prefix}sim`;
-  nodes.push(link(sim, "Ótimo! 🏡 Aqui está o link para fazer a sua simulação de financiamento. Leva poucos minutos e é sem compromisso. Assim que você terminar, um corretor da nossa equipe entra em contato com você por aqui mesmo.", "Fazer simulação"));
-  nodes.push(text(`${prefix}simfim`, "Se preferir falar com um corretor agora, é só me avisar por aqui. 😉"));
+  nodes.push(link(sim, "Ótimo! Aqui está o link para fazer a sua simulação de financiamento. Leva poucos minutos e é sem compromisso. Assim que você terminar, um corretor da nossa equipe entra em contato com você por aqui mesmo.", "Fazer simulação"));
+  nodes.push(text(`${prefix}simfim`, "Se preferir falar com um corretor agora, é só me avisar por aqui."));
   edges.push(edge(sim, "next", `${prefix}simfim`));
   return sim;
 }
@@ -47,8 +47,8 @@ function brokerPath(prefix, nodes, edges) {
   nodes.push(ask(question, "Perfeito! Para eu te encaminhar ao corretor certo, qual é o seu nome?", "nome"));
   nodes.push(act(action, [{ type: "roulette" }, { type: "tag", tag: "Atendimento WhatsApp" }]));
   nodes.push(cond(hasBroker, { kind: "has_broker" }));
-  nodes.push(text(`${prefix}ok`, "Prazer, {{primeiro_nome}}! 🙌 Você vai ser atendido(a) por {{corretor}}, {{nosso_cargo}}. Já avisamos {{o_a}} {{corretor}}, que continua a conversa com você por aqui, neste mesmo número."));
-  nodes.push(text(`${prefix}nobroker`, "Prazer, {{primeiro_nome}}! 🙌 Um dos nossos corretores vai continuar o seu atendimento por aqui, neste mesmo número, em instantes."));
+  nodes.push(text(`${prefix}ok`, "Prazer, {{primeiro_nome}}! Você vai ser atendido(a) por {{corretor}}, {{nosso_cargo}}. Já avisamos {{o_a}} {{corretor}}, que continua a conversa com você por aqui, neste mesmo número."));
+  nodes.push(text(`${prefix}nobroker`, "Prazer, {{primeiro_nome}}! Um dos nossos corretores vai continuar o seu atendimento por aqui, neste mesmo número, em instantes."));
   nodes.push(act(`${prefix}h1`, [{ type: "handoff" }]));
   nodes.push(act(`${prefix}h2`, [{ type: "handoff" }]));
   edges.push(
@@ -64,7 +64,7 @@ function choiceMenu(prefix, body, nodes, edges, simEntry, brokerEntry) {
   const menu = `${prefix}menu`;
   const nudge = `${prefix}nudge`;
   nodes.push(buttons(menu, body, ["Fazer simulação", "Falar com corretor"], { followUp: { enabled: true, amount: 2, unit: "hours" }, footer: "Atendimento virtual" }));
-  nodes.push(buttons(nudge, "Ainda por aí, {{primeiro_nome}}? 🙂 Posso te ajudar de duas formas:", ["Fazer simulação", "Falar com corretor"]));
+  nodes.push(buttons(nudge, "Ainda por aí, {{primeiro_nome}}? Posso te ajudar de duas formas:", ["Fazer simulação", "Falar com corretor"]));
   edges.push(
     edge(menu, "b1", simEntry), edge(menu, "b2", brokerEntry), edge(menu, "no_reply", nudge),
     edge(nudge, "b1", simEntry), edge(nudge, "b2", brokerEntry)
@@ -120,8 +120,8 @@ const TEMPLATES = [
       const nodes = [
         cond("hours", BUSINESS_HOURS),
         act("act", [{ type: "roulette" }, { type: "tag", tag: "Simulação pelo WhatsApp" }]),
-        text("open", "Olá, {{primeiro_nome}}! 👋 Recebemos o seu cadastro. Em alguns minutos, um dos nossos associados já enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
-        text("closed", "Olá, {{primeiro_nome}}! 👋 Recebemos o seu cadastro. Nosso time atende de segunda a sábado, das 8h às 19h. Assim que o atendimento começar, um dos nossos associados enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
+        text("open", "Olá, {{primeiro_nome}}! Recebemos o seu cadastro. Em alguns minutos, um dos nossos associados já enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
+        text("closed", "Olá, {{primeiro_nome}}! Recebemos o seu cadastro. Nosso time atende de segunda a sábado, das 8h às 19h. Assim que o atendimento começar, um dos nossos associados enviará para você um PDF com todas as informações detalhadas e iniciará o seu atendimento."),
         act("h1", [{ type: "handoff" }]),
         act("h2", [{ type: "handoff" }])
       ];
@@ -152,9 +152,9 @@ const TEMPLATES = [
       const edges = [];
       const simEntry = simulationPath("s", nodes, edges);
       const brokerEntry = brokerPath("b", nodes, edges);
-      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! 👋 Bem-vindo(a) ao atendimento do Matheus Machado Imóveis. Como você prefere seguir?", nodes, edges, simEntry, brokerEntry);
+      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! Bem-vindo(a) ao atendimento do Matheus Machado Imóveis. Como você prefere seguir?", nodes, edges, simEntry, brokerEntry);
       nodes.push(cond("hours", BUSINESS_HOURS));
-      nodes.push(text("after", "Olá, {{primeiro_nome}}! 👋 Nosso time atende de segunda a sábado, das 8h às 19h, mas você não precisa esperar: já dá para adiantar tudo por aqui."));
+      nodes.push(text("after", "Olá, {{primeiro_nome}}! Nosso time atende de segunda a sábado, das 8h às 19h, mas você não precisa esperar: já dá para adiantar tudo por aqui."));
       edges.push(edge("start", "next", "hours"), edge("hours", "yes", menu), edge("hours", "no", "after"), edge("after", "next", menu));
       return {
         name: "Menu principal",
@@ -172,7 +172,7 @@ const TEMPLATES = [
       const edges = [];
       const simEntry = simulationPath("s", nodes, edges);
       const brokerEntry = brokerPath("b", nodes, edges);
-      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! 👋 Que bom que você se interessou pelo nosso anúncio. Como prefere seguir?", nodes, edges, simEntry, brokerEntry);
+      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! Que bom que você se interessou pelo nosso anúncio. Como prefere seguir?", nodes, edges, simEntry, brokerEntry);
       edges.push(edge("start", "next", menu));
       return {
         name: "Anúncio (Click to WhatsApp)",

@@ -450,7 +450,7 @@ test("modelo 'Menu principal': dois caminhos — simulação (link direto) e cor
 
   let { result, deps } = await run(null);
   assert.equal(result.status, "waiting");
-  assert.match(deps.calls.sent[0].outgoing.display.text, /^Olá! 👋 Bem-vindo/);
+  assert.match(deps.calls.sent[0].outgoing.display.text, /^Olá! Bem-vindo/);
   assert.deepEqual(deps.calls.sent[0].outgoing.display.buttons, ["Fazer simulação", "Falar com corretor"]);
   const menuNode = result.session.awaiting.nodeId;
 

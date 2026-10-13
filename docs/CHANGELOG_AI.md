@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Sem emojis nas mensagens automáticas e no Guia de Atendimento
+
+- **Pedido do dono:** pente-fino e remoção de todos os emojis das mensagens automáticas e do Guia de Atendimento.
+- **Banco (aplicado direto, sem deploy):** `whatsapp_flows` (6 fluxos, rascunho e publicado; no anúncio "Matheus Machado 😊 Pra montar" virou "Matheus Machado." + quebra de linha), `attendance_guides` ("Lead — patrocinado / lead novo"), `whatsapp_automation_replies` ("não", "Simulação", ambas inativas) e `whatsapp_chat_shortcuts` ("Lista de documentos", "Endereço da imobiliária"). Versões incrementadas.
+- **Código:** confirmação de opt-out (`lib/prospecting-reply.js`), texto padrão do link de simulação (`lib/whatsapp-chat.js`) e modelos de Fluxo (`components/flows/flow-templates.js`; teste ajustado).
+- **Não alterado:** modelos aprovados da Meta (`alameda`, `apresentacao`) — mudar texto exige nova aprovação; textos da página "Minha Jornada" (`crm_settings`); avisos internos aos corretores e telas do CRM.
+- **Observação:** `tests/prospecting-opt-out-natural.test.mjs` já falhava antes desta mudança ("Não quero receber mais mensagens" não é reconhecido como saída) — não mexido.
+
 ### 2026-10-13 — Painel Online: ícones do WhatsApp por número e histórico de conexão
 
 - **Pedido do dono:** antes do ícone de celular/computador, um ícone de WhatsApp por número **conectado** (verde); nenhum conectado = **um** ícone cinza (nunca dois cinzas). Clique abre o histórico "conectou/desconectou".
