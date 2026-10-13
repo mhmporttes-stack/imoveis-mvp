@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Painel Online: ícones do WhatsApp por número e histórico de conexão
+
+- **Pedido do dono:** antes do ícone de celular/computador, um ícone de WhatsApp por número **conectado** (verde); nenhum conectado = **um** ícone cinza (nunca dois cinzas). Clique abre o histórico "conectou/desconectou".
+- **Alteração:** `whatsappPresenceIcons` e `buildWhatsappConnectionPeriods` (`lib/admin-presence-core.mjs`; queda com reconexão em até 2 min não abre período novo); `getTeamPresence` devolve `whatsapp` (de `whatsapp_individual_sessions`); `GET /api/admin/presence/whatsapp-history?userId=&date=` (`requireBrokerManagementApi` + escopo da equipe), lendo os eventos `connected`/`disconnected` de `whatsapp_session_telemetry` (há histórico desde 09/10). Tela: `components/OnlinePresenceBoard.jsx` (mesmo seletor Hoje/Ontem/+2 dias). Sem migration. Testes em `tests/admin-presence-core.test.mjs`.
+
 ### 2026-10-12 — Trava "primeira mensagem = simulação" (ROL-4c): liberação manual por cliente
 
 - **Pedido do dono:** cliente #C5576 (idoso, com dificuldade para abrir links) precisa receber mensagem sem o link da simulação.

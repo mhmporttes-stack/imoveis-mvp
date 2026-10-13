@@ -54,3 +54,28 @@ test("buildPresenceSessions: separa por lacuna de inatividade e por troca de apa
   assert.deepEqual(sessions.map((s) => [s.device, s.minutes]), [["desktop", 5], ["desktop", 1], ["mobile", 1], ["desktop", 1]]);
   assert.equal(buildPresenceSessions([]).length, 0);
 });
+
+test("whatsappPresenceIcons: um verde por número conectado; nenhum conectado = um cinza", async () => {
+  const { whatsappPresenceIcons } = await import("../lib/admin-presence-core.mjs");
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "connected" }, { slot: 2, status: "connected" }]), [{ slot: 1, connected: true }, { slot: 2, connected: true }]);
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "connected" }]), [{ slot: 2, connected: true }]);
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "error" }]), [{ slot: null, connected: false }]);
+  assert.deepEqual(whatsappPresenceIcons([]), [{ slot: null, connected: false }]);
+});
+
+test("buildWhatsappConnectionPeriods: emenda reconexão rápida e separa queda longa", async () => {
+  const { buildWhatsappConnectionPeriods } = await import("../lib/admin-presence-core.mjs");
+  const at = (hhmm) => Date.parse(`2026-10-12T${hhmm}:00.000-03:00`);
+  const dayStartMs = at("00:00");
+  const periods = buildWhatsappConnectionPeriods([
+    { slot: 1, type: "disconnected", ms: at("09:00") },
+    { slot: 1, type: "connected", ms: at("09:01") },
+    { slot: 1, type: "disconnected", ms: at("12:00") },
+    { slot: 1, type: "connected", ms: at("14:00") }
+  ], { dayStartMs, dayEndMs: dayStartMs + 86400000, nowMs: at("15:00"), initialBySlot: { 1: true } });
+  assert.equal(periods.length, 2);
+  assert.equal(periods[0].start, new Date(dayStartMs).toISOString());
+  assert.equal(periods[0].end, new Date(at("12:00")).toISOString());
+  assert.equal(periods[1].end, null);
+  assert.equal(periods[1].minutes, 60);
+});
