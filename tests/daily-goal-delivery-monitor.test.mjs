@@ -26,14 +26,14 @@ function rowsFor(date, n, delivered, extra = {}) {
   }));
 }
 
-test("padrões: limiar 60%, amostra mínima 20, no máximo 5 e-mails por execução, 1 avaliação por hora", () => {
+test("padrões: limiar 60%, amostra mínima 10 (dono, 2026-10-13; era 20), no máximo 5 e-mails por execução, 1 avaliação por hora", () => {
   assert.equal(DELIVERY_ALERT_THRESHOLD_PERCENT, 60);
-  assert.equal(DELIVERY_MIN_SAMPLE, 20);
+  assert.equal(DELIVERY_MIN_SAMPLE, 10);
   assert.equal(DELIVERY_MAX_ALERTS_PER_RUN, 5);
   assert.equal(DELIVERY_EVAL_INTERVAL_MS, HOUR);
-  assert.deepEqual(fixed(resolveMonitorConfig(null)), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 });
+  assert.deepEqual(fixed(resolveMonitorConfig(null)), { thresholdPercent: 60, minSample: 10, maxAlertsPerRun: 5 });
   assert.deepEqual(fixed(resolveMonitorConfig({ thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 })), { thresholdPercent: 70, minSample: 30, maxAlertsPerRun: 2 }, "configurável por crm_settings");
-  assert.deepEqual(fixed(resolveMonitorConfig({ thresholdPercent: -5, minSample: 0, maxAlertsPerRun: "x" })), { thresholdPercent: 60, minSample: 20, maxAlertsPerRun: 5 }, "valor inválido volta ao padrão");
+  assert.deepEqual(fixed(resolveMonitorConfig({ thresholdPercent: -5, minSample: 0, maxAlertsPerRun: "x" })), { thresholdPercent: 60, minSample: 10, maxAlertsPerRun: 5 }, "valor inválido volta ao padrão");
 });
 
 test("taxa de entrega por corretor e por dia: enviadas x com confirmação (1 tique ou mais)", () => {
@@ -52,11 +52,15 @@ test("limiar: exatamente 60% não alerta; abaixo alerta; limiar configurável", 
   assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 30, 18), nowMs: NOW, session: connected, config: strict }).groups[0].belowThreshold, true);
 });
 
-test("amostra mínima: com menos de 20 mensagens nunca alerta", () => {
-  const group = evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 19, 0), nowMs: NOW, session: connected }).groups[0];
+test("amostra mínima: com menos de 10 mensagens nunca alerta; 10 já vale; o limite de 60% não mudou", () => {
+  const group = evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 9, 0), nowMs: NOW, session: connected }).groups[0];
   assert.equal(group.enoughSample, false);
   assert.equal(group.belowThreshold, false);
-  assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 20, 0), nowMs: NOW, session: connected }).groups[0].belowThreshold, true, "20 já vale");
+  assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 10, 0), nowMs: NOW, session: connected }).groups[0].belowThreshold, true, "10 já vale");
+  assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 10, 6), nowMs: NOW, session: connected }).groups[0].belowThreshold, false, "60% exatos continuam sem alerta");
+  assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 10, 5), nowMs: NOW, session: connected }).groups[0].belowThreshold, true, "50% alerta");
+  // a amostra de 20 continua configurável pelo registro em crm_settings
+  assert.equal(evaluateBrokerDelivery({ rows: rowsFor("2026-10-05", 15, 0), nowMs: NOW, session: connected, config: resolveMonitorConfig({ minSample: 20 }) }).groups[0].enoughSample, false);
 });
 
 test("janela de avaliação: só mensagens de 1 a 24 horas atrás", () => {
@@ -102,7 +106,7 @@ test("texto do e-mail: quem, qual dia, quantos %, quantas mensagens, aviso de fa
   assert.match(email.subject, /Bruna Santos/);
   assert.match(email.subject, /46,7%/);
   assert.match(email.subject, /05\/10\/2026/);
-  for (const part of ["Caroline", "Bruna Santos", "05/10/2026", "46,7%", "30 mensagens", "14 tiveram confirmação", "60%", "celular desligado", "recibos", "NADA foi pausado automaticamente", 'Gestão > Meta Diária > aba Automação', '"Pausar"', '"Retomar"']) {
+  for (const part of ["Caroline", "Bruna Santos", "05/10/2026", "46,7%", "30 mensagens", "14 tiveram confirmação", "60%", "celular desligado", "recibos", "este e-mail não pausou nada", 'Gestão > Meta Diária > aba Automação', '"Pausar"', '"Retomar"']) {
     assert.ok(email.text.includes(part), `texto sem: ${part}`);
   }
   assert.ok(email.html.includes("Bruna Santos") && !email.html.includes("<script"));

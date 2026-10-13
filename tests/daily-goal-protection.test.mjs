@@ -9,7 +9,9 @@ import {
   classifySessionIntervention, detectSlotInterventions, applyInterventionPauses, shouldPauseWholeBroker, activeDispatchSlots,
   listPausedSlots, clearSlotPauses, syncSlotControls, shouldSkipGoogleSync, googleSkipNote, GOOGLE_SYNC_MAX_RETRIES,
   pendingOverdueMs, findStuckPendingItems, STUCK_PENDING_MS, errorTypeKey, consecutiveErrorStreak, isExpectedHold,
-  resolveProtectionRecipients, pausedAlertDeliveries, queueProblemDeliveries, numberPausedDedupeKey, stuckDedupeKey, repeatedErrorDedupeKey
+  resolveProtectionRecipients, pausedAlertDeliveries, queueProblemDeliveries, numberPausedDedupeKey, stuckDedupeKey, repeatedErrorDedupeKey,
+  SLOT_PAUSE_KIND, LOW_DELIVERY_MIN_SENT, LOW_DELIVERY_MAX_DELIVERED, lowDeliveryEligibleSlots, detectLowDeliverySlots, applyLowDeliveryPauses,
+  pauseReasonText, pauseEpisodeOf, interventionDescription
 } from "../lib/daily-goal-protection-core.mjs";
 
 const MIN = 60 * 1000;
@@ -276,7 +278,12 @@ test("ligação: cron aplica a proteção antes de gerar/enviar; retomada manual
   assert.match(code, /countGoogleSyncFailures\(item\)/);
   assert.match(code, /runQueueHealthCheck\(/);
   const protection = readFileSync("lib/daily-goal-protection-core.mjs", "utf8");
-  assert.doesNotMatch(protection.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n"), /delivered_at|taxa de entrega/, "pausa NUNCA por taxa de entrega (decisão do dono, 2026-10-04)");
+  // Pausa por entrega: SÓ o caso extremo de 2026-10-13 (10+ mensagens, no máximo 2 entregues). A taxa de entrega comum
+  // (60%, tendência) continua nunca pausando (decisão do dono, 2026-10-04): nenhum percentual/limiar em %.
+  const protectionCode = protection.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+  assert.doesNotMatch(protectionCode, /taxa de entrega|thresholdPercent|DELIVERY_ALERT_THRESHOLD_PERCENT|percent/i);
+  assert.match(protectionCode, /LOW_DELIVERY_MIN_SENT = 10/);
+  assert.match(protectionCode, /LOW_DELIVERY_MAX_DELIVERED = 2/);
   const migration = readFileSync("supabase/migrations/20261010140000_daily_goal_protecoes_anti_banimento.sql", "utf8");
   assert.match(migration, /add column if not exists slot_controls/);
   assert.match(migration, /on conflict \(key\) do nothing/);
@@ -297,4 +304,143 @@ test("aquecimento começa no dia em que o número foi criado, não no da última
     todayDate: "2026-10-10"
   });
   assert.equal(out.controls[2].warmupStart, "2026-10-08");
+});
+
+/* ------------------- Pausa por entrega MUITO baixa (dono, 2026-10-13) ------------------- */
+
+// Terça 13/10/2026 10:00 (SP). Mensagens da Meta Diária enviadas hoje a partir das 06:40, a cada 10 min (1 a 3 h atrás
+// quando são poucas); domingo 11/10 testado à parte.
+const TUESDAY = Date.parse("2026-10-13T10:00:00-03:00");
+const connectedSlot = (slot, extra = {}) => ({ user_id: "b1", slot, dispatch_enabled: slot === 2 ? true : null, status: "connected", phone_number: `55119${slot}`, last_connected_at: "2026-10-12T06:00:00-03:00", last_disconnect_at: null, ...extra });
+// n envios no número `slot` (NULL = Número 1), a cada 10 min a partir de 06:40 de hoje, `delivered` deles com tique.
+const sends = (n, delivered, slot = null, extra = {}) => Array.from({ length: n }, (_, i) => ({
+  session_slot: slot, source: "meta", status: "sent",
+  sent_at: new Date(Date.parse("2026-10-13T06:40:00-03:00") + i * 10 * MIN).toISOString(),
+  delivered_at: i < delivered ? new Date(TUESDAY - 5 * MIN).toISOString() : null,
+  ...extra
+}));
+const detect = (rows, over = {}) => detectLowDeliverySlots({ rows, sessionRows: [connectedSlot(1)], slotControls: {}, nowMs: TUESDAY, ...over });
+
+test("entrega muito baixa: 10 ou mais mensagens com no máximo 2 entregues pausam; 3 entregues, 9 mensagens ou nenhuma amostra não", () => {
+  assert.equal(LOW_DELIVERY_MIN_SENT, 10);
+  assert.equal(LOW_DELIVERY_MAX_DELIVERED, 2);
+  assert.deepEqual(detect(sends(10, 0)), [{ slot: 1, evaluated: 10, delivered: 0 }]);
+  assert.deepEqual(detect(sends(12, 2)), [{ slot: 1, evaluated: 12, delivered: 2 }], "2 entregues ainda pausa");
+  assert.deepEqual(detect(sends(12, 3)), [], "3 entregues: não pausa");
+  assert.deepEqual(detect(sends(9, 0)), [], "9 mensagens: amostra pequena");
+  assert.deepEqual(detect([]), []);
+  assert.deepEqual(detect(sends(30, 25)), [], "taxa normal");
+});
+
+test("entrega baixa vale por NÚMERO (session_slot; NULL = Número 1): o outro número não é afetado", () => {
+  const sessionRows = [connectedSlot(1), connectedSlot(2)];
+  const rows = [...sends(12, 0, 2), ...sends(12, 11, null)];
+  assert.deepEqual(detect(rows, { sessionRows }), [{ slot: 2, evaluated: 12, delivered: 0 }]);
+  assert.deepEqual(detect([...sends(6, 0, 1), ...sends(6, 0, 2)], { sessionRows }), [], "6 + 6 não somam: é por número");
+  assert.deepEqual(detect(sends(10, 0, 1), { sessionRows }).map((x) => x.slot), [1], "session_slot 1 explícito = Número 1");
+});
+
+test("entrega baixa ignora domingo, fora de 06:30–15:30, mais de 24 h, menos de 1 h, número desconectado e o que saiu antes da queda", () => {
+  const sunday = Date.parse("2026-10-11T12:00:00-03:00");
+  assert.deepEqual(detect(sends(10, 0), { nowMs: sunday }), [], "domingo: nem avalia");
+  assert.deepEqual(lowDeliveryEligibleSlots({ sessionRows: [connectedSlot(1)], slotControls: {}, nowMs: sunday }), []);
+  const at = (iso, n = 10) => sends(n, 0).map((r, i) => ({ ...r, sent_at: new Date(Date.parse(iso) + i * MIN).toISOString() }));
+  assert.deepEqual(detect(at("2026-10-13T05:00:00-03:00")), [], "antes das 06:30");
+  assert.deepEqual(detect(at("2026-10-13T15:35:00-03:00"), { nowMs: Date.parse("2026-10-13T18:00:00-03:00") }), [], "depois das 15:30");
+  assert.deepEqual(detect(at("2026-10-12T09:00:00-03:00"), { nowMs: Date.parse("2026-10-13T10:30:00-03:00") }), [], "mais de 24 h");
+  assert.deepEqual(detect(at("2026-10-13T09:30:00-03:00")), [], "menos de 1 h (o recibo ainda pode chegar)");
+  assert.deepEqual(detect(sends(10, 0), { sessionRows: [connectedSlot(1, { status: "disconnected" })] }), [], "número desconectado: ignora");
+  assert.deepEqual(detect(sends(10, 0), { sessionRows: [connectedSlot(1, { status: "reconnecting" })] }), []);
+  assert.deepEqual(detect(sends(10, 0), { sessionRows: [connectedSlot(1, { last_disconnect_at: "2026-10-13T08:30:00-03:00" })] }), [], "enviadas antes da última queda saem da conta (recibos podem ter se perdido)");
+  assert.deepEqual(detect(sends(10, 0), { sessionRows: [connectedSlot(2, { dispatch_enabled: false })] }), [], "número sem 'Usar para disparo'");
+  assert.deepEqual(detect(sends(10, 0, null, { status: "error" })), [], "só 'sent' conta");
+  assert.deepEqual(detect(sends(10, 0, null, { source: "extra" })), [], "fila extra não é a Meta Diária (mesmo critério do monitor)");
+});
+
+test("pausa por entrega baixa: guarda o número, motivo claro, marca de episódio; retomar NÃO reinicia o aquecimento e as mesmas mensagens não pausam de novo", () => {
+  const nowIso = "2026-10-13T13:00:00.000Z";
+  const found = detect(sends(12, 1));
+  const paused = applyLowDeliveryPauses({ 1: { phone: "5511", dispatch: true, warmupStart: null, alertedAt: "2026-10-01T00:00:00.000Z" } }, found, nowIso);
+  assert.equal(paused[1].paused, true);
+  assert.equal(paused[1].pausedKind, SLOT_PAUSE_KIND.LOW_DELIVERY);
+  assert.equal(paused[1].pausedAt, nowIso);
+  assert.equal(paused[1].lowDeliveryAfter, nowIso);
+  assert.equal(paused[1].alertedAt, undefined, "pausa nova = aviso novo");
+  assert.match(paused[1].pausedReason, /Número 1: poucas mensagens estão chegando/);
+  assert.match(paused[1].pausedReason, /só 1 de 12 mensagens enviadas foram entregues/);
+  assert.match(paused[1].pausedReason, /Retomada só manual/);
+  assert.deepEqual(listPausedSlots(paused).map((x) => [x.slot, x.kind]), [[1, "low_delivery"]]);
+  assert.equal(shouldPauseWholeBroker({ sessionRows: [connectedSlot(1)], slotControls: paused }), true, "um só número: o corretor inteiro pausa");
+  assert.equal(shouldPauseWholeBroker({ sessionRows: [connectedSlot(1), connectedSlot(2)], slotControls: paused }), false, "com o outro número apto só este pausa");
+  assert.deepEqual(detect(sends(12, 1), { slotControls: paused }), [], "já pausado: não reavalia");
+  // retomada manual: sem reiniciar o aquecimento (só 403 reinicia)
+  const resumed = clearSlotPauses(paused, { todayDate: "2026-10-14" });
+  assert.deepEqual(resumed.resumed, [1]);
+  assert.equal(resumed.controls[1].paused, undefined);
+  assert.equal(resumed.controls[1].warmupStart, null, "retomar entrega baixa NÃO reinicia o aquecimento");
+  assert.equal(resumed.controls[1].lowDeliveryAfter, nowIso, "a marca de episódio sobrevive à retomada");
+  // as mesmas mensagens (enviadas antes da pausa) não pausam de novo; 10 novas, sim
+  assert.deepEqual(detect(sends(12, 1), { slotControls: resumed.controls, nowMs: TUESDAY + 30 * MIN }), [], "mesmas 12 mensagens: sem nova pausa");
+  const fresh = Array.from({ length: 10 }, (_, i) => ({ session_slot: null, source: "meta", status: "sent", sent_at: new Date(Date.parse("2026-10-14T06:40:00-03:00") + i * 10 * MIN).toISOString(), delivered_at: null }));
+  assert.deepEqual(detect(fresh, { slotControls: resumed.controls, nowMs: Date.parse("2026-10-14T10:00:00-03:00") }), [{ slot: 1, evaluated: 10, delivered: 0 }], "10 mensagens novas voltam a avaliar");
+  // retomar 403 continua reiniciando o aquecimento
+  const forbidden = applyInterventionPauses({ 1: { warmupStart: null } }, [{ slot: 1, kind: "forbidden", code: 403, episodeAt: "2026-10-13T12:00:00.000Z" }], nowIso);
+  assert.equal(clearSlotPauses(forbidden, { todayDate: "2026-10-14" }).controls[1].warmupStart, "2026-10-14");
+});
+
+test("entrega baixa: 403 em número já pausado vira novo aviso; alerta importante com texto simples, uma vez por episódio", () => {
+  const nowIso = "2026-10-13T13:00:00.000Z";
+  const lowPaused = applyLowDeliveryPauses({}, [{ slot: 2, evaluated: 11, delivered: 0 }], nowIso);
+  const withAlert = { ...lowPaused, 2: { ...lowPaused[2], alertedAt: "2026-10-13T13:02:00.000Z" } };
+  const after403 = applyInterventionPauses(withAlert, [{ slot: 2, kind: "forbidden", code: 403, episodeAt: "2026-10-13T14:00:00.000Z" }], "2026-10-13T14:01:00.000Z");
+  assert.equal(after403[2].pausedKind, "forbidden");
+  assert.equal(after403[2].alertedAt, undefined, "o 403 também é avisado");
+  assert.equal(after403[2].lowDeliveryAfter, nowIso, "a marca de entrega baixa não se perde");
+  assert.equal(pauseEpisodeOf(lowPaused[2]), nowIso, "episódio da entrega baixa = o instante da pausa");
+  assert.equal(pauseEpisodeOf(after403[2]), "2026-10-13T14:00:00.000Z", "403/logout = a queda da sessão");
+  assert.equal(interventionDescription("low_delivery", 2), "Número 2: poucas mensagens estão chegando");
+  assert.equal(pauseReasonText("forbidden", 1), "Pausado automaticamente — Número 1: o WhatsApp recusou a conexão (403). Retomada só manual.", "texto antigo intacto");
+  const definition = { id: "d1", enabled: true, kind: "important", title: "Disparos pausados por segurança", body_template: "{corretor}: {motivo} A fila foi guardada e nada será enviado por este número até alguém retomar manualmente em Gestão > Meta Diária > Automação." };
+  const list = pausedAlertDeliveries({ definition, recipientIds: ["b1", "g1"], brokerId: "b1", brokerName: "Bruna Santos", slot: 2, kind: "low_delivery", episodeAt: pauseEpisodeOf(lowPaused[2]) });
+  assert.equal(list.length, 2, "corretor + gestora");
+  assert.ok(list.every((d) => d.kind === "important" && /Bruna Santos: Número 2: poucas mensagens estão chegando\./.test(d.body) && d.context.pause_kind === "low_delivery"));
+  assert.equal(list[0].dedupe_key, numberPausedDedupeKey("b1", 2, nowIso));
+  assert.doesNotMatch(list[0].body, /\d{10,}/, "sem telefone");
+  assert.equal(isExpectedHold("numero_pausado_por_bloqueio"), true, "número pausado não conta como item parado");
+});
+
+test("ligação da entrega baixa: roda no ciclo do cron junto das outras proteções, só com slot_controls, sem derrubar o ciclo", () => {
+  const code = readFileSync("lib/daily-goal-auto.js", "utf8");
+  assert.match(code, /findLowDeliverySlots\(brokerId, sessionRows, controls\)/);
+  assert.match(code, /applyLowDeliveryPauses\(controls, lowDelivery, nowIso\)/);
+  assert.match(code, /episodeAt: pauseEpisodeOf\(entry\)/, "aviso por episódio da pausa");
+  const block = code.slice(code.indexOf("Entrega MUITO baixa (REGRA OFICIAL"), code.indexOf("let next = row;"));
+  assert.match(block, /if \(hasColumn\)/, "sem a coluna slot_controls não avalia");
+  assert.match(block, /catch \(lowDeliveryError\)/);
+  assert.match(block, /console\.error\(/, "falha visível no log, nunca engolida");
+  assert.match(code, /\.eq\("source", "meta"\)\.eq\("status", "sent"\)/);
+  assert.match(code, /session_slot, source, status, sent_at, delivered_at/);
+  // o monitor continua só avisando: não importa nada de pausa
+  const monitor = readFileSync("lib/daily-goal-delivery-monitor.js", "utf8");
+  assert.doesNotMatch(monitor, /slot_controls|applyLowDeliveryPauses|paused/);
+});
+
+test("item parado não conta o tempo da espera de 2 h depois de reconectar (retenção esperada)", () => {
+  const at = (hhmm) => Date.parse(`2026-10-13T${hhmm}:00-03:00`);
+  const ctx = { windowStartMs: at("06:30"), windowEndMs: at("15:30"), sendingDay: true };
+  const queued = at("07:00"); // item da fila extra, nunca reprogramado
+  // sem reconexão: às 09:30 já são 2 h 30 min "devendo"
+  assert.equal(pendingOverdueMs({ ...ctx, scheduledForMs: queued, nowMs: at("09:30") }), 150 * MIN);
+  // reconectou às 08:00 (pronto às 10:00): a janela útil só começa às 10:00
+  const readyAt = at("08:00") + 120 * MIN;
+  const held = { ...ctx, windowStartMs: Math.max(ctx.windowStartMs, readyAt) };
+  assert.equal(pendingOverdueMs({ ...held, scheduledForMs: queued, nowMs: at("09:30") }), 0, "durante a espera: nada parado");
+  assert.equal(pendingOverdueMs({ ...held, scheduledForMs: queued, nowMs: at("10:30") }), 30 * MIN, "conta a partir do fim da espera");
+  assert.equal(findStuckPendingItems([{ scheduled_for: new Date(queued).toISOString() }], { ...held, nowMs: at("11:30") }).count, 0, "1 h 30 min depois da espera: ainda não passa de 2 h");
+  assert.equal(findStuckPendingItems([{ scheduled_for: new Date(queued).toISOString() }], { ...held, nowMs: at("12:00") }).count, 0, "exatamente 2 h não é 'mais de 2 h'");
+  assert.equal(findStuckPendingItems([{ scheduled_for: new Date(queued).toISOString() }], { ...held, nowMs: at("12:01") }).count, 1);
+  // ligação no código: o alerta usa o fim da espera como início da janela
+  const code = readFileSync("lib/daily-goal-auto.js", "utf8");
+  assert.match(code, /readyAfterReconnectMs = policyV2 \? reconnectReadyAtMs\(await loadV2ConnectedAtMs\(brokerId, effectiveRow\)\) : null/);
+  assert.match(code, /windowStartMs: Math\.max\(saoPauloInstantMs\(today, policy\.window_start_minutes\), readyAfterReconnectMs \?\? 0\)/);
 });

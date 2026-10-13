@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { X, History, ListRestart } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
-import { formatAutoQueueCardLine } from "@/lib/daily-goal-policy-core.mjs";
+import { formatAutoQueueCardLine, formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
 import Avatar from "@/components/Avatar";
 import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
 import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
@@ -301,6 +301,9 @@ function minutesToTime(minutes) {
 function formatNextDispatchCompact(automation) {
   if (!automation?.enabled) return "desligada";
   if (automation.paused) return "pausada";
+  // Espera de 2 h depois de (re)conectar (regra do dono, 2026-10-13): diz o motivo e a hora, em vez de "sem pendências".
+  const holdUntil = automation.reconnectHoldUntil ? new Date(automation.reconnectHoldUntil).getTime() : NaN;
+  if (Number.isFinite(holdUntil) && holdUntil > Date.now()) return formatReconnectHoldLine(holdUntil);
   if (!automation.nextDispatchAt) return "sem pendências";
   const scheduled = new Date(automation.nextDispatchAt).getTime();
   if (scheduled <= Date.now()) return "aguardando processamento";

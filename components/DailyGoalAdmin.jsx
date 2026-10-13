@@ -5,6 +5,7 @@ import { Ban, Save, ShieldAlert } from "lucide-react";
 import Avatar from "./Avatar";
 import WhatsappSessionHealthPanel from "./WhatsappSessionHealthPanel";
 import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
+import { formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
 
 const SESSION_STATUS_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
@@ -385,7 +386,9 @@ function AutomationTab() {
                       {broker.avgGapMinutes !== null ? ` (~${formatGapMinutes(broker.avgGapMinutes)} entre elas)` : ""}
                       {broker.dailyCapReason ? ` · teto: ${broker.dailyCapReason}` : ""}
                     </p>
-                    {broker.nextDispatchAt ? (
+                    {broker.enabled && !broker.paused && broker.reconnectHoldUntil && new Date(broker.reconnectHoldUntil).getTime() > Date.now() ? (
+                      <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo: {formatReconnectHoldLine(new Date(broker.reconnectHoldUntil).getTime())}</p>
+                    ) : broker.nextDispatchAt ? (
                       <p className="mt-0.5 text-xs font-bold text-brand">Próximo disparo: {formatNextDispatch(broker.nextDispatchAt)}</p>
                     ) : null}
                     <p className="mt-0.5 text-xs font-bold text-muted">Total já enviado por este corretor: {broker.sentTotal}</p>

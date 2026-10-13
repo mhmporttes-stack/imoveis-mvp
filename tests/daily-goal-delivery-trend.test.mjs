@@ -43,8 +43,8 @@ test("sem alerta de tendência: queda de até 20 pontos, média insuficiente, am
   const drop = rowsFor("2026-10-05", 25, 17);
   assert.deepEqual(trends(drop, histRows(19, 20, histDays.slice(0, 2))), [], "só 2 dias: não existe média");
   assert.deepEqual(trends(drop, histRows(9, 9)), [], "dias anteriores com menos de 10 mensagens não contam");
-  const small = rowsFor("2026-10-05", 10, 1);
-  assert.deepEqual(trends(small, histRows()).filter((a) => a.type === "trend"), [], "amostra do dia menor que 20");
+  const small = rowsFor("2026-10-05", 9, 6); // 66,7% vs 95% = 28 pontos, mas só 9 mensagens (mínimo 10 desde 2026-10-13)
+  assert.deepEqual(trends(small, histRows()).filter((a) => a.type === "trend"), [], "amostra do dia menor que 10");
   const low = rowsFor("2026-10-05", 25, 10); // 40%: o limite fixo já alerta
   assert.equal(groupsOf(low)[0].belowThreshold, true);
   assert.deepEqual(trends(low, histRows()).filter((a) => a.type === "trend"), []);
@@ -65,11 +65,11 @@ test("as 10 últimas mensagens seguidas sem nenhum tique alertam; um tique entre
   assert.deepEqual(trends(rowsFor("2026-10-05", 9, 0), []), [], "menos de 10 mensagens: sem sequência");
 });
 
-test("e-mails: dizem quem, quanto caiu, que NADA foi pausado e como pausar; sem telefone; chaves distintas", () => {
+test("e-mails: dizem quem, quanto caiu, que o aviso não pausou nada e como pausar; sem telefone; chaves distintas", () => {
   const trend = buildTrendAlertEmail({ recipientName: "Caroline", brokerName: "Bruna Santos", date: "2026-10-05", percent: 68, baselinePercent: 95, baselineDays: 4, drop: 27, evaluated: 25, delivered: 17 });
-  for (const part of ["Caroline", "Bruna Santos", "05/10/2026", "68%", "95%", "27 pontos", "4 dias", "NADA foi pausado automaticamente", '"Pausar"']) assert.ok(trend.text.includes(part), `sem: ${part}`);
+  for (const part of ["Caroline", "Bruna Santos", "05/10/2026", "68%", "95%", "27 pontos", "4 dias", "este e-mail não pausou nada", '"Pausar"']) assert.ok(trend.text.includes(part), `sem: ${part}`);
   const none = buildNoTickAlertEmail({ brokerName: "Bruna Santos", date: "2026-10-05", count: 10 });
-  for (const part of ["10 mensagens", "SEM nenhum tique", "NADA foi pausado automaticamente", '"Retomar"']) assert.ok(none.text.includes(part), `sem: ${part}`);
+  for (const part of ["10 mensagens", "SEM nenhum tique", "este e-mail não pausou nada", '"Retomar"']) assert.ok(none.text.includes(part), `sem: ${part}`);
   assert.doesNotMatch(trend.text + none.text, /\d{10,}/);
   assert.notEqual(deliveryTrendKey("2026-10-05", "b1"), deliveryStreakKey("2026-10-05", "b1"));
   assert.notEqual(deliveryTrendKey("2026-10-05", "b1"), deliveryAlertKey("2026-10-05", "b1"));
@@ -98,8 +98,10 @@ test("orquestração: queda vira e-mail (1 por corretor/dia, idempotente) e não
   assert.deepEqual(first.alerts, [], "68% está acima do limite fixo");
   assert.deepEqual(first.trendAlerts, [{ brokerId: "b1", type: "trend", date: "2026-10-05" }]);
   assert.equal(calls.emails.length, 1);
-  assert.match(calls.emails[0].text, /NADA foi pausado automaticamente/);
-  await runDeliveryMonitor({ nowMs: NOW + 2 * HOUR, deps, force: true });
+  assert.match(calls.emails[0].text, /este e-mail não pausou nada/);
+  // 1 h depois a mesma amostra continua inteira (com 2 h as mais antigas já passariam de 24 h e a amostra restante, agora
+  // suficiente com o mínimo de 10, geraria um alerta de OUTRO tipo — o do limite fixo — o que é correto e não é repetição).
+  await runDeliveryMonitor({ nowMs: NOW + HOUR, deps, force: true });
   assert.equal(calls.emails.length, 1, "não repete no mesmo dia");
 });
 
