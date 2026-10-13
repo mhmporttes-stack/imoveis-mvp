@@ -53,6 +53,7 @@ const saida = arg("saida", "scratch/vitrine");
 const paginaInteira = Boolean(arg("pagina-inteira", false));
 const clicar = arg("clicar", "");
 const sufixo = arg("sufixo", "");
+const variante = arg("variante", "");
 
 const { chromium } = loadPlaywright();
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
@@ -75,7 +76,7 @@ for (const largura of larguras) {
   page.on("console", (msg) => { if (["warning", "error"].includes(msg.type())) avisos.push(msg.text()); });
   page.on("pageerror", (error) => avisos.push(`pageerror: ${error.message}`));
 
-  const url = `${base}/dev/vitrine?${new URLSearchParams({ tela, perfil, estado, fonte, limpo: "1" })}`;
+  const url = `${base}/dev/vitrine?${new URLSearchParams({ tela, perfil, estado, fonte, limpo: "1", ...(variante ? { variante } : {}) })}`;
   await page.goto(url, { waitUntil: "networkidle", timeout: 120000 });
   // Esconde o indicador de desenvolvimento do Next (não faz parte da tela).
   await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
