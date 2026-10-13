@@ -2,6 +2,8 @@
 
 Atualize a cada revisão aprovada. Mais recente em cima.
 
+- **2026-10-14** (teste Recanto Verde 3D — REPROVADO): o efeito 3D de profundidade nas fotos (móveis "descolando" do fundo) ficou com qualidade ruim — NÃO usar mais. O mapa estilizado também não agradou. O que o dono quer: abertura cinematográfica tipo Google Earth (satélite aproximando, virando 3D), depois imagem real na frente do condomínio, sobe, frente da casa, porta abrindo e entrando nos cômodos — exige VÍDEO REAL (drone + celular/gimbal), não dá para inventar com IA. Pedir o material antes de prometer esse formato.
+
 - **2026-10-14** (Recanto Verde, já postado — vale para os PRÓXIMOS):
   - **Adesivo de link / sombra:** no canto INFERIOR esquerdo, como no Terras (x 80–560, y 1470–1590 em 1080×1920). Em cima o dono achou que não ficou legal. Rótulos, textos e cartões sobem para não colidir.
   - **Marca d'água "M":** ~25% MENOR que no Recanto (≈48 px de altura, 30% de opacidade) e num lugar DIFERENTE em TODA cena — nunca repetir o mesmo canto/posição em duas cenas (repetir facilita o plágio). Sempre em espaço livre, nunca sobre texto nem no espaço do adesivo.
