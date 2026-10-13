@@ -6,3 +6,4 @@ Vertical 1080×1920, 23 s, sem áudio (o dono põe a música no Instagram).
 - Ofertas confirmadas pelo dono em 2026-10-13: documentação grátis e entrada parcelada em até 60x valem para todas as unidades. Sem "corre que ainda dá tempo" (não há prazo real).
 - Rodapé do fecho: CRECI, "fotos da casa decorada" e "condições da construtora, sujeitas a análise de crédito".
 - Runway: o plano gratuito não gera vídeo; versão "gimbal com IA" fica para quando houver plano pago (exceção à regra de imagem liberada pelo dono).
+- Revisão do dono (2026-10-13): último cômodo com rótulo "2 quartos"; vantagens numa cena só com 4 cartões (documentação grátis, entrada em até 60x, terreno inteiro para ampliar, corredor dos dois lados); fecho sem fundo azul — foto da sala que desfoca enquanto Matheus entra. 25 s.
