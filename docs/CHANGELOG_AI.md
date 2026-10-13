@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Roleta exige WhatsApp conectado (ROL-2d) e Guia com "equipe do corretor Matheus Machado"
+
+- **Regra nova do dono:** só recebe lead da roleta quem tem pelo menos 1 número do WhatsApp conectado. `pick_round_robin_broker` e `assign_round_robin_lead` recriadas com a condição (migration `20261013120000_roleta_exige_whatsapp_conectado.sql`, aplicada); `countOnlineRouletteBrokers` alinhada. Detalhe: `docs/BUSINESS_RULES.md` ROL-2d.
+- **Guia de Atendimento** ("Lead — patrocinado / lead novo"): "da equipe do Matheus Machado Imóveis" → "da equipe do corretor Matheus Machado" (3 trechos, igual ao anúncio), direto no banco.
+
+
 ### 2026-10-13 — Robô do Chat, Fase 2 (5 itens de código): "pare", formulário encerra o Fluxo, lembretes, silêncio → roleta, fora do horário
 
 - **Data:** 2026-10-12/13 (publicado em 2026-10-13)
