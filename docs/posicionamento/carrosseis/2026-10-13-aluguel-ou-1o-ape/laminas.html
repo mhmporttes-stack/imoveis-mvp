@@ -1,121 +1,114 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
-<meta name="fontes" content="family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,500;1,600">
-<!-- Carrossel "Aluguel ou 1º apê?" — v2 (2026-10-13): paleta mais sóbria (preto + azul-marinho, azul só de destaque),
-     textos resumidos, tipografia editorial (Inter + Playfair itálico). Fotos 1 e 8 geradas a partir das fotos REAIS do Matheus. -->
+<meta name="fontes" content="family=Anton&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,500;1,600">
+<!-- Carrossel "Aluguel ou 1º apê?" — v3 (2026-10-13): fontes e layout da publicação original (Anton + Montserrat + Playfair itálico);
+     só a cor muda: vermelho → azul (tom sóbrio), fundos claros/pretos → preto, fundos vermelhos → azul-marinho. Textos resumidos (v2). -->
 <style>
-  :root { --bg:#0E0F12; --navy:#0C1A33; --azul:#5B9BFF; --branco:#F2F1ED; --cinza:#A3A7B0; --verm:#FF6B5E; }
+  :root { --bg:#0E0F12; --azul:#4C8DF6; --navy:#2E5FB0; --branco:#F4F3EF; --verm:#FF5A4E; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:#000; }
-  .lamina { position:relative; width:1080px; height:1350px; overflow:hidden; font-family:Inter, sans-serif; color:var(--branco); background:var(--bg); }
-  .grao::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.10; mix-blend-mode:overlay;
+  .lamina { position:relative; width:1080px; height:1350px; overflow:hidden; font-family:Montserrat, sans-serif; color:var(--branco); background:var(--bg); }
+  .grao::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.14; mix-blend-mode:overlay;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"); }
-  .navy { background:radial-gradient(900px 700px at 80% 0%, #15284D 0%, rgba(21,40,77,0) 65%), var(--navy); }
+  .navy { background:var(--navy); }
+  .cond { font-family:Anton, sans-serif; text-transform:uppercase; line-height:1.16; letter-spacing:.005em; }
+  .serif { font-family:"Playfair Display", serif; font-style:italic; font-weight:500; letter-spacing:-.01em; }
   .corpo { position:absolute; left:110px; right:110px; }
-  .rot { font-size:22px; font-weight:600; letter-spacing:.32em; text-transform:uppercase; color:var(--cinza); display:flex; align-items:center; gap:16px; }
-  .rot::before { content:""; width:40px; height:2px; background:var(--azul); }
-  h1, h2 { font-weight:800; letter-spacing:-.035em; line-height:1.04; }
-  .it { font-family:"Playfair Display", serif; font-style:italic; font-weight:500; letter-spacing:-.01em; }
+  .txt { font-size:44px; line-height:1.28; font-weight:500; }
+  .txt b { font-weight:800; }
   em { font-style:normal; color:var(--azul); }
-  .txt { font-size:40px; line-height:1.35; color:#D9DADF; font-weight:400; }
-  .txt b { color:#fff; font-weight:700; }
   .neg { color:var(--verm); }
-  .nota { font-size:22px; color:#7C808A; }
-  .seta { position:absolute; right:70px; bottom:58px; display:flex; align-items:center; gap:12px; font-weight:600; font-size:23px; letter-spacing:.04em; z-index:5; color:#fff; }
-  .seta svg { width:50px; height:50px; fill:none; stroke:#fff; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .seta { position:absolute; left:50%; transform:translateX(-50%); bottom:70px; z-index:5; }
+  .seta svg { width:52px; height:52px; fill:none; stroke:var(--azul); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .navy .seta svg, .foto-s .seta svg { stroke:#fff; }
   .foto { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .marca { background:var(--azul); color:#fff; padding:0 14px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 </style></head>
 <body>
 
 <!-- 1 · CAPA -->
-<section class="lamina">
+<section class="lamina foto-s">
   <img class="foto" src="img/capa.jpg" alt="">
-  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 30%)"></div>
-  <div class="corpo" style="top:80px;left:60px;right:60px;text-align:center;color:#14161B">
-    <div style="font-size:34px;font-weight:600">Se eu tivesse que escolher entre</div>
-    <h1 style="font-size:92px;margin-top:8px">aluguel ou<br>meu <span class="it" style="color:#1F5FD1;font-weight:600;white-space:nowrap">1º apê…</span></h1>
+  <div class="corpo" style="top:60px;left:40px;right:40px;text-align:center;color:#1A1C22">
+    <div style="font-size:36px;font-weight:700">Se eu tivesse que</div>
+    <h1 class="cond" style="font-size:84px;color:#2459C9;margin-top:2px;line-height:1.1">Escolher entre<br>aluguel e meu 1º apê...</h1>
   </div>
-  <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:190px;background:#fff;color:#14161B;font-size:38px;font-weight:700;padding:18px 40px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.2)">eu faria isso ↓</div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:230px;background:var(--azul);color:#fff;font-size:46px;font-weight:700;padding:22px 44px">eu faria isso!</div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 2 · A CONTA -->
 <section class="lamina grao">
   <div class="corpo" style="top:400px">
-    <div class="rot">Antes de escolher</div>
-    <h2 style="font-size:124px;margin-top:34px">Eu faria<br>uma <span class="it" style="color:var(--azul)">conta.</span></h2>
-    <p class="txt" style="margin-top:44px">Porque o dinheiro do aluguel<br><b>sai do bolso todo mês.</b></p>
+    <p class="txt">Se você pode escolher, antes de decidir</p>
+    <h2 class="cond" style="font-size:108px;color:var(--azul);margin:30px 0 30px;white-space:nowrap">Eu faria uma conta</h2>
+    <p class="txt">Porque o dinheiro do aluguel <b>vai embora todo mês.</b></p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 3 · O OUTRO LADO -->
 <section class="lamina navy grao">
-  <div class="corpo" style="top:340px">
-    <div class="rot">O outro lado</div>
-    <h2 style="font-size:108px;margin-top:34px">Eu poderia continuar no aluguel.</h2>
-    <p class="txt" style="margin-top:36px">Mais flexibilidade e nenhum financiamento.</p>
-    <p class="it" style="font-size:66px;line-height:1.12;margin-top:56px;color:var(--azul)">Mas o imóvel continua sendo de outra pessoa.</p>
+  <div class="corpo" style="top:130px;left:100px;right:100px">
+    <h2 class="cond" style="font-size:200px;color:#0A1328;line-height:1.04">Eu poderia<br>continuar<br>no aluguel</h2>
+    <p class="txt" style="margin-top:34px"><b>Mais flexibilidade</b> e nenhum financiamento.</p>
+    <p class="serif" style="font-size:84px;line-height:1.05;margin-top:34px">Mas o imóvel continua sendo de outra pessoa.</p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 4 · AGORA IMAGINA -->
 <section class="lamina grao">
-  <div class="corpo" style="top:220px">
-    <div class="rot">Agora imagina</div>
-    <h2 style="font-size:96px;margin-top:30px">R$ 2.200<span style="font-weight:500;color:var(--cinza);font-size:56px;letter-spacing:-.02em"> /mês</span></h2>
-    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:11px 9px;margin-top:54px"><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,107,94,.12);border:1.5px solid rgba(255,107,94,.38)"></i></div>
-    <p class="nota" style="margin-top:16px;letter-spacing:.18em">60 MESES DE ALUGUEL</p>
-    <p class="txt" style="margin-top:50px">Em 5 anos: <b>R$ 132 mil</b>.<br>E <span class="neg">nenhum imóvel</span> no seu nome.</p>
+  <div class="corpo" style="top:230px">
+    <h2 class="cond" style="font-size:128px;color:var(--azul);white-space:nowrap">Agora imagina:</h2>
+    <p class="txt" style="margin-top:20px"><b>R$ 2.200 de aluguel por mês.</b></p>
+    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:11px 9px;margin-top:46px"><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i><i style="display:block;aspect-ratio:1;border-radius:8px;background:rgba(255,90,78,.15);border:1.5px solid rgba(255,90,78,.45)"></i></div>
+    <p class="txt" style="margin-top:46px">Em 5 anos, <b>R$ 132 mil.</b><br>E você continua <b class="neg">sem um imóvel.</b></p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 5 · PATRIMÔNIO -->
 <section class="lamina grao">
-  <div class="corpo" style="top:330px">
-    <div class="rot">Agora o 1º apê</div>
-    <p class="txt" style="margin-top:34px">Um imóvel de <b>R$ 250 mil</b> com<br>35% de valorização passaria a valer</p>
-    <h2 style="font-size:150px;margin-top:26px">R$ 337,5 mil</h2>
-    <p class="it" style="font-size:64px;line-height:1.12;margin-top:30px;color:var(--azul)">E ele é seu.</p>
-    <p class="nota" style="margin-top:60px">Exemplo ilustrativo. Valorização não é garantida.</p>
+  <div class="corpo" style="top:320px">
+    <p class="txt">Um imóvel de <b>R$ 250 mil</b> com 35% de valorização passaria a valer</p>
+    <h2 class="cond" style="font-size:168px;margin:30px 0 30px;white-space:nowrap">R$ 337,5 mil</h2>
+    <p class="serif" style="font-size:80px;line-height:1.08;color:var(--azul)">Além de ser seu, virou patrimônio.</p>
+    <p style="font-size:22px;color:#7C808A;margin-top:40px">Exemplo ilustrativo. Valorização não é garantida.</p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 6 · OS CUSTOS -->
 <section class="lamina grao">
-  <div class="corpo" style="top:330px">
-    <div class="rot">É claro</div>
-    <h2 style="font-size:100px;margin-top:34px">Comprar também tem custos.</h2>
-    <p class="txt" style="margin-top:34px;color:var(--cinza)">Financiamento · IPTU · documentação</p>
-    <div style="margin-top:70px;border-left:4px solid var(--azul);padding-left:34px">
-      <p class="txt" style="font-size:44px;color:#fff">Não escolha só pelo valor<br>da parcela ou do aluguel.</p>
-      <p class="it" style="font-size:52px;margin-top:20px;color:var(--azul)">Coloque os dois na ponta do lápis.</p>
-    </div>
+  <div class="corpo" style="top:240px">
+    <h2 class="cond" style="font-size:96px;color:var(--azul);white-space:nowrap">É claro que comprar<br>também tem custos:</h2>
+    <p class="txt" style="margin-top:20px">financiamento, IPTU, documentação...</p>
+    <p style="font-size:56px;line-height:1.42;font-weight:500;text-align:right;margin-top:80px"><span class="marca">Não escolha só pelo valor do aluguel ou da parcela.</span></p>
+    <p class="txt" style="margin-top:80px;font-weight:800">Coloque os dois cenários<br>na ponta do lápis.</p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 7 · A ESCOLHA -->
 <section class="lamina navy grao">
-  <div class="corpo" style="top:380px">
-    <div class="rot">Se eu pudesse escolher</div>
-    <h2 style="font-size:112px;margin-top:34px">Começaria a procurar o <span class="it" style="color:var(--azul);font-weight:600;white-space:nowrap">1º apê.</span></h2>
-    <p class="txt" style="margin-top:46px">E é essa conta que eu faço<br><b>com cada cliente.</b></p>
+  <div class="corpo" style="top:320px;text-align:center">
+    <p class="txt">Então, <b>se eu pudesse escolher</b> entre aluguel e o primeiro imóvel,</p>
+    <div style="width:4px;height:100px;background:#0B1630;margin:50px auto"></div>
+    <h2 class="cond" style="font-size:132px;line-height:1.24">Eu começaria a<br>procurar o apê</h2>
+    <p class="txt" style="font-size:38px;margin-top:26px;color:#fff"><b>É essa conta que faço com cada cliente.</b></p>
   </div>
-  <div class="seta"><span>Arrasta</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 8 · PERGUNTA FINAL -->
 <section class="lamina">
   <img class="foto" src="img/final.jpg" alt="">
-  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.5) 62%,rgba(0,0,0,.15) 88%)"></div>
-  <div class="corpo" style="top:800px;left:60px;right:60px;text-align:center">
-    <div style="font-size:36px;font-weight:600;color:#E6E7EA">E você? Se pudesse escolher hoje:</div>
-    <h2 style="font-size:96px;margin-top:10px">Aluguel ou <span class="it" style="color:var(--azul);font-weight:600">1º apê?</span></h2>
-    <div style="font-size:34px;font-weight:500;margin-top:14px;color:#E6E7EA">Comenta aqui 👇</div>
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.45) 60%,rgba(0,0,0,.15) 85%)"></div>
+  <div class="corpo" style="top:790px;left:60px;right:60px;text-align:center">
+    <div style="font-size:42px;font-weight:700">E você? Se pudesse escolher hoje:</div>
+    <h2 class="cond" style="font-size:104px;color:var(--azul);margin-top:4px;white-space:nowrap">Aluguel ou 1º apê?</h2>
+    <div style="font-size:46px;font-weight:500;margin-top:4px">Comenta aqui sua escolha.</div>
   </div>
 </section>
 
