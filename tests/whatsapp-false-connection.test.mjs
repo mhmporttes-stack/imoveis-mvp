@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  brokerDedupeKey, businessHoursBetween, buildFalseConnectionDeliveries, classifyFalseConnection, isSessionImpaired, sessionUiState, staffDedupeKey
+  AUTO_DISCONNECT_GRACE_MS, autoDisconnectKey, brokerDedupeKey, brokerKeyPrefix, buildAutoDisconnectDelivery, businessHoursBetween, buildFalseConnectionDeliveries, shouldAutoDisconnect, classifyFalseConnection, isSessionImpaired, sessionUiState, staffDedupeKey
 } from "../lib/whatsapp-false-connection-core.mjs";
 
 // Marília = UTC-3. 2026-10-12 é segunda-feira.
@@ -88,4 +88,25 @@ test("acabou de reconectar: não decide e pede para manter a marca existente (ho
   const verdict = classifyFalseConnection({ session: { status: "connected", last_connected_at: "2026-10-13T17:10:00Z" }, recentDrops: 2, inboundCount7d: 760, lastInboundAt: "2026-10-12T14:43:00Z", now: at("2026-10-13T17:15:00Z") });
   assert.equal(verdict.suspect, false);
   assert.equal(verdict.hold, true);
+});
+
+test("desconexão automática: só silêncio + queda repetida + 30 min marcado", () => {
+  const now = at("2026-10-13T18:00:00Z");
+  const since = new Date(now - AUTO_DISCONNECT_GRACE_MS).toISOString();
+  const silence = { suspect: true, reason: "silence" };
+  assert.equal(shouldAutoDisconnect({ verdict: silence, recentDrops: 3, silentSince: since, now }), true);
+  assert.equal(shouldAutoDisconnect({ verdict: silence, recentDrops: 2, silentSince: since, now }), false); // linha quieta, quase sem queda
+  assert.equal(shouldAutoDisconnect({ verdict: silence, recentDrops: 5, silentSince: new Date(now - 60 * 1000).toISOString(), now }), false); // acabou de marcar
+  assert.equal(shouldAutoDisconnect({ verdict: { suspect: true, reason: "flapping" }, recentDrops: 9, silentSince: since, now }), false); // flapping sozinho só avisa
+  assert.equal(shouldAutoDisconnect({ verdict: { suspect: false, reason: null }, recentDrops: 9, silentSince: since, now }), false);
+});
+
+test("aviso da desconexão automática: chave própria (não é encerrada pela limpeza da marca) e texto ao corretor", () => {
+  const key = autoDisconnectKey("U#2", "2026-10-13T14:32:04.935Z");
+  assert.ok(key.startsWith("wa_false_x:U#2:"));
+  assert.ok(!key.startsWith(brokerKeyPrefix("U#2")));
+  const row = buildAutoDisconnectDelivery({ brokerId: "U", slot: 2, dedupeKey: key });
+  assert.match(row.body, /^Seu WhatsApp \(Número 2\) aparecia como conectado/);
+  assert.equal(row.context.push_kind, "whatsapp_connection");
+  assert.equal(buildAutoDisconnectDelivery({ definition: { enabled: false }, brokerId: "U", dedupeKey: key }), null);
 });
