@@ -31,9 +31,9 @@ test("conexão falsa: silêncio de 6 h úteis em número que costuma receber", (
   assert.equal(classifyFalseConnection({ ...base, lastInboundAt: "2026-10-12T22:00:00Z" }).suspect, false); // recebeu há pouco
 });
 
-test("conexão falsa: reconexão recente (<2 h) e sessão não conectada nunca são suspeitas", () => {
+test("conexão falsa: reconexão recente (<1 h útil) e sessão não conectada nunca são suspeitas", () => {
   const now = at("2026-10-12T22:30:00Z");
-  assert.equal(classifyFalseConnection({ session: { status: "connected", last_connected_at: "2026-10-12T21:00:00Z" }, inboundCount7d: 40, lastInboundAt: "2026-10-12T11:00:00Z", now }).suspect, false);
+  assert.equal(classifyFalseConnection({ session: { status: "connected", last_connected_at: "2026-10-12T21:30:00Z" }, inboundCount7d: 40, lastInboundAt: "2026-10-12T11:00:00Z", now }).suspect, false);
   assert.equal(classifyFalseConnection({ session: { status: "disconnected", last_connected_at: "2026-10-01T00:00:00Z" }, flapDrops: 9, now }).suspect, false);
 });
 
