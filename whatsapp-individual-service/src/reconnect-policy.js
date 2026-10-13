@@ -60,7 +60,12 @@ export const DEFAULT_CONFIG = Object.freeze({
   // `dropLimitWindowMs` = para e pede atenção (needs_attention:repeated_drops). A janela NÃO zera quando a conexão
   // estabiliza (é justamente o padrão "cai, estabiliza, cai"); só zera em conexão manual (humano agiu) ou reinício do serviço.
   dropLimitMax: 6,
-  dropLimitWindowMs: 3 * 3_600_000
+  dropLimitWindowMs: 3 * 3_600_000,
+  // Depois de um 403 no número (dono, 2026-10-13): no máximo `forbiddenAttemptsMax` tentativas de conectar (manuais e
+  // automáticas) por `forbiddenWindowMs` NAQUELE número; a seguinte é recusada sem tocar no WhatsApp.
+  // Caso real (09/10): 8 tentativas em 8 minutos, todas 403. Ver evaluateForbiddenConnectLimit.
+  forbiddenAttemptsMax: 3,
+  forbiddenWindowMs: 3_600_000
 });
 
 const INTERVENTION_REASONS = Object.freeze({
@@ -137,6 +142,67 @@ export function configFromEnv(env = {}) {
     stableMs: boundedInt(env.WHATSAPP_RECONNECT_STABLE_MS, DEFAULT_CONFIG.stableMs, 30_000, 3_600_000),
     dropLimitMax: boundedInt(env.WHATSAPP_RECONNECT_DROP_LIMIT, DEFAULT_CONFIG.dropLimitMax, 3, 20)
   };
+}
+
+function toMillis(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const ms = typeof value === "number" ? value : new Date(value).getTime();
+  return Number.isFinite(ms) && ms > 0 ? ms : null;
+}
+
+export const FORBIDDEN_LIMIT_CODE = "CONNECT_COOLDOWN";
+
+export function forbiddenLimitMessage(waitMinutes) {
+  const minutes = Math.max(1, Math.ceil(Number(waitMinutes) || 1));
+  return `O WhatsApp recusou esta conexão (403). Para proteger o número, aguarde ${minutes} ${minutes === 1 ? "minuto" : "minutos"} antes de tentar de novo.`;
+}
+
+// LIMITE DE TENTATIVAS DEPOIS DE UM 403 (REGRA OFICIAL — dono, 2026-10-13). Puro: recebe a telemetria JÁ GRAVADA do
+// número (corretor + slot) — nunca a memória do serviço, que reinicia — e decide se mais uma tentativa de conectar passa.
+// events: [{ type, statusCode, trigger, occurredAt (ISO ou ms) }] — tipos 'connect_attempt' | 'connected' | 'disconnected'
+// | 'intervention_required' (os demais são ignorados).
+//
+// Episódio = começa no primeiro 403 da janela (`disconnected`/`intervention_required` com statusCode 403) e termina numa
+// conexão bem-sucedida (`connected`: o WhatsApp voltou a aceitar o número). Dentro do episódio contam TODAS as tentativas
+// (`connect_attempt` manual, de retomada e de reconexão automática), mais a tentativa que levou ao 1º 403 (a última antes
+// dele, sem `connected` no meio). O reinício 515 (`trigger = restart`) não é tentativa nova: continua a anterior.
+// Janela deslizante de `forbiddenWindowMs`: com `forbiddenAttemptsMax` tentativas dentro dela, a seguinte é recusada até
+// a mais antiga necessária sair da janela. Sem 403 na janela não há episódio e nada é limitado.
+// -> { blocked, attempts, limit } | { blocked: true, ..., waitMs, waitMinutes, message }
+export function evaluateForbiddenConnectLimit(events, { now = Date.now(), config = DEFAULT_CONFIG } = {}) {
+  const limit = config.forbiddenAttemptsMax;
+  const windowMs = config.forbiddenWindowMs;
+  const timeline = (Array.isArray(events) ? events : [])
+    .map((event) => ({ type: String(event?.type || ""), code: toCode(event?.statusCode), trigger: String(event?.trigger || ""), at: toMillis(event?.occurredAt) }))
+    .filter((event) => event.at !== null && event.at > now - windowMs)
+    .sort((a, b) => a.at - b.at);
+
+  let inEpisode = false;
+  let pending = null; // última tentativa ainda sem desfecho (candidata a ser a que levou ao 1º 403)
+  let attempts = [];
+  for (const event of timeline) {
+    if (event.type === "connect_attempt") {
+      if (event.trigger === "restart") continue;
+      if (inEpisode) attempts.push(event.at);
+      else pending = event.at;
+    } else if (event.type === "connected") {
+      inEpisode = false;
+      pending = null;
+      attempts = [];
+    } else if ((event.type === "disconnected" || event.type === "intervention_required") && event.code === 403) {
+      if (!inEpisode) {
+        inEpisode = true;
+        attempts = pending === null ? [] : [pending];
+      }
+      pending = null;
+    }
+  }
+
+  if (!inEpisode || attempts.length < limit) return { blocked: false, attempts: attempts.length, limit };
+  // Libera quando sobrar menos de `limit` tentativas na janela.
+  const waitMs = Math.max(1000, attempts[attempts.length - limit] + windowMs - now);
+  const waitMinutes = Math.max(1, Math.ceil(waitMs / 60_000));
+  return { blocked: true, attempts: attempts.length, limit, waitMs, waitMinutes, message: forbiddenLimitMessage(waitMinutes) };
 }
 
 // Controlador do CICLO de reconexão de UMA sessão. Tudo injetável (relógio,

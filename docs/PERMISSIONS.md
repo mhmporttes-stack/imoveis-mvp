@@ -114,7 +114,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 
 **Webhook:** `webhooks/whatsapp-master` — GET valida `hub.verify_token` (`WHATSAPP_WEBHOOK_VERIFY_TOKEN`); POST exige `x-hub-signature-256` válido (HMAC com `WHATSAPP_APP_SECRET`), senão 401.
 
-**Webhook do WhatsApp individual:** `webhooks/whatsapp-individual`, `webhooks/whatsapp-individual/state` (GET/POST) e `webhooks/whatsapp-individual/media-upload` — sem sessão; exigem o cabeçalho `x-service-secret` validado por `verifyIndividualServiceSecret` (`lib/whatsapp-individual`), compartilhado com o microsserviço do Railway; sem segredo válido, recusam.
+**Webhook do WhatsApp individual:** `webhooks/whatsapp-individual`, `webhooks/whatsapp-individual/state` (GET/POST) e `webhooks/whatsapp-individual/media-upload` — sem sessão; exigem o cabeçalho `x-service-secret` validado por `verifyIndividualServiceSecret` (`lib/whatsapp-individual`), compartilhado com o microsserviço do Railway; sem segredo válido, recusam. Desde 2026-10-13 o `webhooks/whatsapp-individual` também atende `type: "connect_events"` (só leitura da telemetria recente de UM número, para o limite de tentativas depois de um 403 — WA-32); mesmo segredo, nenhum dado de cliente. `POST admin/whatsapp-individual/connect` mantém `requireAdminApi` (sessão do próprio usuário) e passou a responder 429 quando o serviço recusa a tentativa por esse limite.
 
 **Rotas públicas SEM guard (por design, cada uma com sua proteção):**
 

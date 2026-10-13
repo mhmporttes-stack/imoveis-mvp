@@ -5,6 +5,7 @@ import { listLidCandidatePhones, mergeLidConversation, projectGroupMessage, proj
 import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect } from "@/lib/daily-goal-auto";
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
+import { listRecentConnectEvents } from "@/lib/whatsapp-session-telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,6 +147,12 @@ export async function POST(request) {
     if (payload.type === "message_status") {
       const result = await projectIndividualMessageStatus({ userId, sessionSlot, waMessageId: payload.waMessageId, status: payload.status });
       return NextResponse.json({ ok: true, ...result });
+    }
+
+    // Limite de tentativas depois de um 403 (dono, 2026-10-13): o serviço pede a telemetria recente do número para decidir se
+    // pode abrir uma conexão nova (reconnect-policy.js). Só leitura; sem credencial, mensagem nem telefone.
+    if (payload.type === "connect_events") {
+      return NextResponse.json({ ok: true, events: await listRecentConnectEvents(userId, sessionSlot, { windowMs: payload.windowMs }) });
     }
 
     return NextResponse.json({ ok: true, ignored: "unknown_type" });

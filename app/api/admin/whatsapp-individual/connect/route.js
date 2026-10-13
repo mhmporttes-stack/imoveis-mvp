@@ -36,6 +36,9 @@ export async function POST(request) {
     const result = await connectIndividualSession(userId, phoneNumber, { slot });
     return NextResponse.json(result);
   } catch (error) {
+    // 429 = limite de tentativas depois de um 403 (dono, 2026-10-13): o serviço recusou SEM tocar no WhatsApp e a mensagem
+    // ("aguarde N minutos") já vem pronta para a tela. Não é falha de conexão.
+    if (error?.status === 429) return NextResponse.json({ error: error.message }, { status: 429 });
     console.error("Falha ao conectar o WhatsApp individual:", error?.message || error);
     return NextResponse.json({ error: error?.message || "Não foi possível conectar." }, { status: 502 });
   }

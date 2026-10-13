@@ -306,7 +306,7 @@ test("retomada no boot: só reabre sessão que estava 'connected'; bloqueada/log
 });
 
 test("nenhum caminho da política/lifecycle envia mensagem nem fala com o WhatsApp", () => {
-  for (const file of ["reconnect-policy.js", "session-lifecycle.js", "telemetry.js"]) {
+  for (const file of ["reconnect-policy.js", "session-lifecycle.js", "telemetry.js", "connect-limit.js", "log-sanitizer.js"]) {
     const source = readFileSync(new URL(`../whatsapp-individual-service/src/${file}`, import.meta.url), "utf8");
     assert.ok(!/sendMessage|\.sendMessage\(|requestPairingCode|makeWASocket|\.logout\(/.test(source), `${file} não pode enviar/parear`);
   }

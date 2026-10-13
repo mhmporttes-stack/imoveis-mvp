@@ -1,9 +1,12 @@
+// Primeiro import, de propósito: instala o filtro do console (sem chaves de criptografia nos registros, dono 2026-10-13) ANTES
+// de o Baileys/libsignal e qualquer sessão existirem. Ver log-sanitizer.js.
+import "./console-guard.js";
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
 import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
-import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
+import { FORBIDDEN_LIMIT_CODE, resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
 import { createLeaseManager } from "./lease.js";
 import { createResumeRunner } from "./resume.js";
 import { createReconciler } from "./reconcile.js";
@@ -99,6 +102,8 @@ app.post("/sessions/:userId/connect", async (req, res) => {
     const result = await connectSession(req.params.userId, { phoneNumber });
     res.json(result);
   } catch (error) {
+    // Limite de tentativas depois de um 403 (dono, 2026-10-13): 429 com a mensagem pronta para a tela; não é falha da sessão.
+    if (error.code === FORBIDDEN_LIMIT_CODE) return res.status(429).json({ error: error.message, code: error.code, retryAfterMinutes: error.retryAfterMinutes });
     console.error(`[${req.params.userId}] Falha ao conectar:`, error.message);
     // Serviço aguardando o lease / reiniciando: 503 (tente de novo), não falha da sessão.
     res.status(error.code === "SERVICE_NOT_READY" ? 503 : 500).json({ error: error.message });

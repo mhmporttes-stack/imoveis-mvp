@@ -49,6 +49,14 @@ export async function requestLidCandidates(userId, lid) {
   return Array.isArray(result?.phones) ? result.phones.map((phone) => String(phone || "").replace(/\D/g, "")).filter(Boolean).slice(0, 40) : [];
 }
 
+// Telemetria JÁ GRAVADA deste número na última janela (tentativas, conexões, quedas): base do limite de tentativas depois
+// de um 403 (reconnect-policy.js, dono 2026-10-13) — o serviço reinicia, o banco não. null = CRM não respondeu com a lista
+// (fora do ar, ou versão antiga sem este tipo): quem chama decide (connect-limit.js segue e avisa no log).
+export async function requestConnectEvents(userId, windowMs) {
+  const result = await post({ userId, type: "connect_events", windowMs });
+  return Array.isArray(result?.events) ? result.events : null;
+}
+
 // Telefone de um LID que já tinha conversa "Número não identificado" no CRM: o CRM junta as duas conversas.
 export function notifyLidResolved(userId, lid, phone) {
   return post({ userId, type: "lid_resolved", lid, phone });
