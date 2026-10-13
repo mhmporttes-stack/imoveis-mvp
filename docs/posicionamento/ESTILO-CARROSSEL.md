@@ -62,5 +62,12 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 - **Texto atrás da pessoa** (como na referência): camadas foto → título → recorte da pessoa (`rembg`, modelo isnet-general-use).
 
 - **Método que dá rosto fiel (aprovado pelo dono, 2026-10-13):** usar como base de identidade as fotos do acervo `assets/boneco-3d/realista/` (que o dono aprovou como fiéis) — @matheus = joinha, @matheus2 = bracos-cruzados — e pedir "o mesmo homem, mesma sessão de fotos" só trocando pose/cena (@cena = referência). Gerar a partir das selfies/fotos casuais produziu rostos diferentes; não repetir. Runway nano-banana-pro 2K, 3:4 recortado para 4:5. Comparar o rosto lado a lado com o acervo antes de entregar.
-- **Fundo padrão das lâminas de texto (dono, 2026-10-13):** degradê azul com sombra, como o fundo do "ME CHAMA" — `radial-gradient(900px 760px at 50% 34%, #1F4CB3 0%, #173A8E 30%, #0E2257 62%, #08112E 100%)`; nada de fundo chapado (preto ou azul liso). Títulos em azul da marca ou branco.
+- **Fundo padrão das lâminas de texto (dono, 2026-10-13):** degradê azul com sombra, como o fundo do "ME CHAMA" — `radial-gradient(900px 760px at 50% 34%, #1F4CB3 0%, #173A8E 30%, #0E2257 62%, #08112E 100%)`; nada de fundo chapado (preto ou azul liso). Títulos em azul da marca ou branco. **Manter sempre exatamente esse degradê** (claro no meio, escurecendo para as bordas): não mudar onde fica mais claro ou mais escuro nem trocar por outro degradê (dono, 2026-10-13, comparando com a capa publicada de "Coisas que ninguém te conta").
 - **Acabamento antes de entregar (dono, 2026-10-13, carrossel "aluguel ou 1º apê"):** (1) objetos que a pessoa segura (chaves, dinheiro, celular) ficam na camada da FRENTE, junto com o recorte, nunca atrás do texto nem transparentes; (2) conferir de perto os detalhes pequenos (mãos, objetos, tela do celular) em zoom; (3) objeto de baixa qualidade é substituído por outro melhor, não entregue assim. Celular nunca com tela apagada: usar `pessoa-celular-insta.png` (Instagram do dono na tela).
+- **Espaço entre linhas dos títulos (dono, 2026-10-13):** acento (Ó, É, Ã) nunca pode encostar na linha de cima — títulos em Anton com `line-height` de pelo menos 1.22; conferir em zoom.
+- **Logo do Minha Casa Minha Vida (dono, 2026-10-13):** sempre que a lâmina citar o programa, colocar a logo atual (sem fundo, letras brancas) pequena num canto, sem chamar atenção. Arquivo: `assets/mcmv-logo-branco.png`.
+
+## Legenda (dono, 2026-10-13)
+- **No máximo 5 hashtags** — o Instagram só permite 5; nunca entregar 6 ou mais.
+- Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
+- **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
