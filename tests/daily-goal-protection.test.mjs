@@ -185,7 +185,7 @@ test("Google Contacts: 3 falhas por item/contato; na 4ª o envio sai sem sincron
 
 /* ---------------------- Item parado e erros seguidos (item 6) ---------------------- */
 
-const win = { windowStartMs: Date.parse("2026-10-10T06:30:00-03:00"), windowEndMs: Date.parse("2026-10-10T15:30:00-03:00"), sendingDay: true };
+const win = { windowStartMs: Date.parse("2026-10-10T06:30:00-03:00"), windowEndMs: Date.parse("2026-10-10T18:00:00-03:00"), sendingDay: true };
 
 test("item parado: conta só o tempo DENTRO da janela de hoje, só com a janela aberta e em dia de envio", () => {
   const at = (hhmm) => Date.parse(`2026-10-10T${hhmm}:00-03:00`);
@@ -193,7 +193,8 @@ test("item parado: conta só o tempo DENTRO da janela de hoje, só com a janela 
   assert.equal(pendingOverdueMs({ ...win, scheduledForMs: Date.parse("2026-10-09T14:00:00-03:00"), nowMs: at("09:00") }), 150 * MIN);
   // agendado hoje 07:00, agora 09:30
   assert.equal(pendingOverdueMs({ ...win, scheduledForMs: at("07:00"), nowMs: at("09:30") }), 150 * MIN);
-  assert.equal(pendingOverdueMs({ ...win, scheduledForMs: at("07:00"), nowMs: at("16:00") }), 0, "janela fechada");
+  assert.equal(pendingOverdueMs({ ...win, scheduledForMs: at("07:00"), nowMs: at("18:30") }), 0, "janela fechada (18:00)");
+  assert.equal(pendingOverdueMs({ ...win, scheduledForMs: at("17:00"), nowMs: at("17:30") }), 30 * MIN, "17:30 ainda está dentro da janela");
   assert.equal(pendingOverdueMs({ ...win, scheduledForMs: at("07:00"), nowMs: at("06:00") }), 0, "janela ainda não abriu");
   assert.equal(pendingOverdueMs({ ...win, sendingDay: false, scheduledForMs: at("07:00"), nowMs: at("09:30") }), 0, "domingo");
   assert.equal(pendingOverdueMs({ ...win, scheduledForMs: NaN, nowMs: at("09:30") }), 0);
@@ -340,13 +341,14 @@ test("entrega baixa vale por NÚMERO (session_slot; NULL = Número 1): o outro n
   assert.deepEqual(detect(sends(10, 0, 1), { sessionRows }).map((x) => x.slot), [1], "session_slot 1 explícito = Número 1");
 });
 
-test("entrega baixa ignora domingo, fora de 06:30–15:30, mais de 24 h, menos de 1 h, número desconectado e o que saiu antes da queda", () => {
+test("entrega baixa ignora domingo, fora de 06:30–18:00, mais de 24 h, menos de 1 h, número desconectado e o que saiu antes da queda", () => {
   const sunday = Date.parse("2026-10-11T12:00:00-03:00");
   assert.deepEqual(detect(sends(10, 0), { nowMs: sunday }), [], "domingo: nem avalia");
   assert.deepEqual(lowDeliveryEligibleSlots({ sessionRows: [connectedSlot(1)], slotControls: {}, nowMs: sunday }), []);
   const at = (iso, n = 10) => sends(n, 0).map((r, i) => ({ ...r, sent_at: new Date(Date.parse(iso) + i * MIN).toISOString() }));
   assert.deepEqual(detect(at("2026-10-13T05:00:00-03:00")), [], "antes das 06:30");
-  assert.deepEqual(detect(at("2026-10-13T15:35:00-03:00"), { nowMs: Date.parse("2026-10-13T18:00:00-03:00") }), [], "depois das 15:30");
+  assert.deepEqual(detect(at("2026-10-13T18:05:00-03:00"), { nowMs: Date.parse("2026-10-13T20:30:00-03:00") }), [], "depois das 18:00");
+  assert.deepEqual(detect(at("2026-10-13T15:35:00-03:00"), { nowMs: Date.parse("2026-10-13T18:00:00-03:00") }), [{ slot: 1, evaluated: 10, delivered: 0 }], "entre 15:30 e 18:00 agora conta (janela até 18:00)");
   assert.deepEqual(detect(at("2026-10-12T09:00:00-03:00"), { nowMs: Date.parse("2026-10-13T10:30:00-03:00") }), [], "mais de 24 h");
   assert.deepEqual(detect(at("2026-10-13T09:30:00-03:00")), [], "menos de 1 h (o recibo ainda pode chegar)");
   assert.deepEqual(detect(sends(10, 0), { sessionRows: [connectedSlot(1, { status: "disconnected" })] }), [], "número desconectado: ignora");
@@ -427,7 +429,7 @@ test("ligação da entrega baixa: roda no ciclo do cron junto das outras proteç
 
 test("item parado não conta o tempo da espera de 2 h depois de reconectar (retenção esperada)", () => {
   const at = (hhmm) => Date.parse(`2026-10-13T${hhmm}:00-03:00`);
-  const ctx = { windowStartMs: at("06:30"), windowEndMs: at("15:30"), sendingDay: true };
+  const ctx = { windowStartMs: at("06:30"), windowEndMs: at("18:00"), sendingDay: true };
   const queued = at("07:00"); // item da fila extra, nunca reprogramado
   // sem reconexão: às 09:30 já são 2 h 30 min "devendo"
   assert.equal(pendingOverdueMs({ ...ctx, scheduledForMs: queued, nowMs: at("09:30") }), 150 * MIN);

@@ -80,7 +80,7 @@ test("ignora domingo, fora do horário de disparo e quem não é Meta Diária/en
   assert.deepEqual(evaluateBrokerDelivery({ rows: sunday, nowMs: Date.parse("2026-10-05T10:00:00-03:00"), session: connected }).groups, [], "domingo ignorado");
   const mk = (iso, extra = {}) => ({ source: "meta", status: "sent", sent_at: new Date(Date.parse(iso)).toISOString(), delivered_at: null, ...extra });
   const rows = [
-    mk("2026-10-05T06:00:00-03:00"), mk("2026-10-05T16:00:00-03:00"), mk("2026-10-05T06:29:00-03:00"), mk("2026-10-05T15:31:00-03:00"), // fora de 06:30–15:30
+    mk("2026-10-05T06:00:00-03:00"), mk("2026-10-05T18:30:00-03:00"), mk("2026-10-05T06:29:00-03:00"), mk("2026-10-05T18:01:00-03:00"), // fora de 06:30–18:00 (janela até 18:00 desde 2026-10-13)
     mk("2026-10-05T10:00:00-03:00", { source: "extra" }), // fila extra não é automação da Meta Diária
     mk("2026-10-05T10:05:00-03:00", { status: "error" }),
     mk("2026-10-05T10:10:00-03:00", { status: "canceled" })

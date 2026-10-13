@@ -245,7 +245,7 @@ function AutomationTab() {
   // os demais). Troca as regras da fila pendente de agora (refeita uma vez).
   async function togglePolicyV2(brokerId, brokerName, policyV2Enabled) {
     const question = policyV2Enabled
-      ? `Ligar a política nova de disparos para ${brokerName}? Máximo de 30 mensagens por dia, das 6h30 às 15h30, de segunda a sábado, com intervalos e pausas. A fila de hoje será refeita.`
+      ? `Ligar a política nova de disparos para ${brokerName}? Máximo de 30 mensagens por dia, das 6h30 às 18h, de segunda a sábado, espalhadas devagar ao longo do dia (nunca menos de 5 minutos entre uma e outra). A fila de hoje será refeita.`
       : `Voltar ${brokerName} para a política antiga de disparos? A fila de hoje será refeita.`;
     if (typeof window !== "undefined" && !window.confirm(question)) return;
     setBusyId(brokerId);
@@ -468,7 +468,7 @@ function AutomationTab() {
                   <span>Janela: {minutesToTime(broker.windowStartMinutes)}–{minutesToTime(broker.windowEndMinutes)}</span>
                   <span>· Intervalo: {broker.oscillateEnabled ? `média automática ± ${broker.oscillatePercent}%${broker.maxAvgGapMinutes ? ` (média máx. ${broker.maxAvgGapMinutes} min)` : ""}` : `${broker.minGapMinutes}–${broker.maxGapMinutes} min`}</span>
                   <span>· {broker.businessDaysOnly ? "Segunda a sábado" : "Todos os dias"}</span>
-                  <span>· Política: {broker.policyV2Enabled ? "nova (30 por dia, 6h30–15h30)" : "antiga"}</span>
+                  <span>· Política: {broker.policyV2Enabled ? "nova (30 por dia, 6h30–18h)" : "antiga"}</span>
                   <button
                     type="button"
                     className="text-xs font-bold text-brand hover:underline"
@@ -753,7 +753,7 @@ function GlobalConfigPanel({ onSaved }) {
         ) : (
           <div className="mt-4 space-y-4">
             <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
-              Corretores com a política de disparos v2 ligada (o padrão) ignoram estes valores: o envio fica em 30 por dia (10 por tentativa), das 06:30 às 15:30, com 5 a 8 minutos entre mensagens. O que você muda aqui só vale para quem estiver com a v2 desligada.
+              Corretores com a política de disparos v2 ligada (o padrão) ignoram estes valores: o envio fica em até 30 por dia (10 por tentativa), das 06:30 às 18:00, espalhado devagar ao longo do dia (intervalo médio = tempo que sobra ÷ mensagens que faltam, com oscilação), nunca menos de 5 minutos entre mensagens. O que você muda aqui só vale para quem estiver com a v2 desligada.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

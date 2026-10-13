@@ -12,8 +12,8 @@ test("override vale só na data e só para os 3 corretores", () => {
   assert.equal(temporaryPolicyOverrideFor(OTHER, noon), null);
   assert.equal(temporaryPolicyOverrideFor(JENNYFER, Date.parse("2026-10-06T10:00:00-03:00")), null, "volta ao normal no dia seguinte");
   const normal = applyPolicyV2({ broker_id: OTHER });
-  assert.equal(normal.window_end_minutes, 15 * 60 + 30);
-  assert.equal(normal.policy_no_pauses, false);
+  assert.equal(normal.window_end_minutes, 18 * 60, "janela até 18:00 para todos desde 2026-10-13");
+  assert.equal(normal.policy_no_pauses, true, "intervalo médio do dia (11 h 30 ÷ 30) = 23 min, a partir de 15 min as pausas ficam desligadas");
 });
 
 test("com o override: janela até 18:00, intervalo 17–21 min, teto 15, sem pausas", () => {

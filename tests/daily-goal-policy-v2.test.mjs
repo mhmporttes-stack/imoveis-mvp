@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import * as policyCore from "../lib/daily-goal-policy-core.mjs";
 import {
-  DAILY_CAP, CAP_BY_ATTEMPT, WINDOW_START_MINUTES, WINDOW_END_MINUTES, MIN_GAP_SECONDS, MAX_GAP_SECONDS,
-  PAUSE_EVERY_MIN, PAUSE_EVERY_MAX, PAUSE_MIN_MINUTES, PAUSE_MAX_MINUTES, RECONNECT_SETTLE_MINUTES,
+  DAILY_CAP, CAP_BY_ATTEMPT, WINDOW_START_MINUTES, WINDOW_END_MINUTES, MIN_GAP_SECONDS, DEFAULT_OSCILLATE_PERCENT, PAUSES_OFF_FROM_AVERAGE_GAP_MINUTES,
+  PAUSE_EVERY_MIN, PAUSE_EVERY_MAX, PAUSE_MIN_MINUTES, PAUSE_MAX_MINUTES, RECONNECT_SETTLE_MINUTES, v2OscillatePercent, dayAverageGapMinutes,
   reconnectReadyAtMs, slotsPastReconnectWait, brokerReconnectReferenceMs, reconnectHoldUntilMs, formatReconnectHoldLine,
   isPolicyV2Enabled, applyPolicyV2, planV2Trim, TRIM_SKIP_REASON, effectiveGapSeconds, dailyCapFor, planV2Schedule, sendsSinceLastPause,
   summarizeV2Usage, v2SendBlockReason, findStaleV2Items, rescheduleV2Items, v2EnqueueAllowance,
@@ -31,16 +32,21 @@ const at = (iso) => Date.parse(iso);
 const MONDAY = "2026-10-05";
 const settingsBase = { enabled: true, paused: false, window_start_minutes: 390, window_end_minutes: 1140, min_gap_minutes: 5, max_gap_minutes: 10, oscillate_enabled: true, business_days_only: true };
 const v2 = (extra = {}) => applyPolicyV2({ ...settingsBase, policy_v2_enabled: true, ...extra });
+// A janela e o intervalo gravados no banco (aqui 06:30–15:30, 0–0) não prevalecem: a v2 usa sempre as constantes (06:30–18:00).
 const wide = (extra = {}) => applyPolicyV2({ ...settingsBase, window_start_minutes: 390, window_end_minutes: 930, min_gap_minutes: 0, max_gap_minutes: 0, ...extra });
+// Com as pausas programadas LIGADAS (só acontecem quando o intervalo médio do dia é menor que 15 min): força o interruptor.
+const paused = (extra = {}) => ({ ...wide(extra), policy_no_pauses: false });
 const emptyUsage = () => summarizeV2Usage([]);
 
-test("constantes da política v2 (REGRA OFICIAL 2026-10-04)", () => {
+test("constantes da política v2 (REGRA OFICIAL 2026-10-04; janela e intervalo: dono, 2026-10-13)", () => {
   assert.equal(DAILY_CAP, 30);
   assert.deepEqual({ ...CAP_BY_ATTEMPT }, { 1: 10, 2: 10, 3: 10 });
   assert.equal(WINDOW_START_MINUTES, 6 * 60 + 30);
-  assert.equal(WINDOW_END_MINUTES, 15 * 60 + 30);
-  assert.equal(MIN_GAP_SECONDS, 300, "mínimo 5 min");
-  assert.equal(MAX_GAP_SECONDS, 480);
+  assert.equal(WINDOW_END_MINUTES, 18 * 60, "janela até 18:00 (era 15:30)");
+  assert.equal(MIN_GAP_SECONDS, 300, "mínimo 5 min (inegociável)");
+  assert.equal("MAX_GAP_SECONDS" in policyCore, false, "o 'máximo de 8 min' deixou de ser regra");
+  assert.equal(DEFAULT_OSCILLATE_PERCENT, 40);
+  assert.equal(PAUSES_OFF_FROM_AVERAGE_GAP_MINUTES, 15);
   assert.equal(PAUSE_EVERY_MIN, 8);
   assert.equal(PAUSE_EVERY_MAX, 12);
   assert.equal(PAUSE_MIN_MINUTES, 15);
@@ -73,23 +79,38 @@ test("v2: o código usa a política nova por padrão e mantém o opt-out; a ativ
   assert.doesNotMatch(activation, /(simulation_registrations|client_status_history|whatsapp_messages|daily_goal_auto_queue)/, "migration não toca clientes, histórico, mensagens nem a fila");
 });
 
-test("janela: v2 usa SEMPRE 06:30–15:30; os valores antigos do banco (07–14) não prevalecem", () => {
-  for (const extra of [{}, { window_start_minutes: 420, window_end_minutes: 840 }, { window_start_minutes: 300, window_end_minutes: 1260 }]) {
+test("janela: v2 usa SEMPRE 06:30–18:00; os valores antigos do banco (07–14, 06:30–15:30) não prevalecem", () => {
+  for (const extra of [{}, { window_start_minutes: 420, window_end_minutes: 840 }, { window_start_minutes: 300, window_end_minutes: 1260 }, { window_end_minutes: 930 }]) {
     const r = v2(extra);
-    assert.deepEqual([r.window_start_minutes, r.window_end_minutes], [390, 930]);
-    assert.deepEqual([r.min_gap_minutes, r.max_gap_minutes], [5, 8]);
+    assert.deepEqual([r.window_start_minutes, r.window_end_minutes], [390, 1080]);
+    assert.deepEqual([r.min_gap_minutes, r.max_gap_minutes], [5, null], "só o mínimo de 5 min é regra; não há máximo");
   }
-  assert.equal(v2().oscillate_enabled, false, "oscilação antiga é ignorada na v2");
+  assert.equal(v2().oscillate_enabled, true, "intervalo = média automática ± oscilação (espalhado ao longo da janela)");
+  assert.equal(v2({ oscillate_enabled: false }).oscillate_enabled, true, "o banco desligado não prevalece na v2");
+  assert.equal(v2({ max_avg_gap_minutes: 10 }).max_avg_gap_minutes, null, "sem o teto 'média máx. 10 min' na v2");
   assert.equal(v2({ business_days_only: false }).business_days_only, true, "domingo sempre bloqueado na v2");
 });
 
-test("janela 06:30–15:30 seg–sáb: domingo e fora de horário não tentam (fuso São Paulo)", () => {
+test("oscilação na v2: percentual do corretor (padrão 40 quando ausente)", () => {
+  assert.equal(v2OscillatePercent({}), 40);
+  assert.equal(v2OscillatePercent(null), 40);
+  assert.equal(v2OscillatePercent({ oscillate_percent: null }), 40);
+  assert.equal(v2OscillatePercent({ oscillate_percent: "" }), 40);
+  assert.equal(v2OscillatePercent({ oscillate_percent: 40 }), 40);
+  assert.equal(v2OscillatePercent({ oscillate_percent: 25 }), 25, "usa o valor do banco do corretor");
+  assert.equal(v2OscillatePercent({ oscillate_percent: 250 }), 100);
+  assert.equal(v2({ oscillate_percent: 25 }).oscillate_percent, 25);
+  assert.equal(v2().oscillate_percent, 40);
+});
+
+test("janela 06:30–18:00 seg–sáb: domingo e fora de horário não tentam (fuso São Paulo)", () => {
   const s = wide();
   const reason = (iso) => sendBlockReason({ scheduledFor: iso, now: new Date(iso), settings: s });
   assert.equal(reason(`${MONDAY}T06:29:00-03:00`), "fora_da_janela");
   assert.equal(reason(`${MONDAY}T06:30:00-03:00`), null);
-  assert.equal(reason(`${MONDAY}T15:30:00-03:00`), null);
-  assert.equal(reason(`${MONDAY}T15:31:00-03:00`), "fora_da_janela");
+  assert.equal(reason(`${MONDAY}T15:31:00-03:00`), null, "15:31 agora está dentro (a janela vai até 18:00)");
+  assert.equal(reason(`${MONDAY}T18:00:00-03:00`), null);
+  assert.equal(reason(`${MONDAY}T18:01:00-03:00`), "fora_da_janela");
   assert.equal(reason("2026-10-03T10:00:00-03:00"), null, "sábado envia");
   assert.equal(reason("2026-10-04T10:00:00-03:00"), "fim_de_semana", "domingo bloqueado");
   // Fuso: 09:35 UTC de segunda = 06:35 em São Paulo (dentro); 09:25 UTC = 06:25 (fora).
@@ -97,41 +118,104 @@ test("janela 06:30–15:30 seg–sáb: domingo e fora de horário não tentam (f
   assert.equal(reason(`${MONDAY}T09:25:00Z`), "fora_da_janela");
 });
 
-test("intervalo: SEMPRE 5 a 8 min na v2, independente do banco (antigo 5–10, zerado, frouxo ou restrito)", () => {
+test("intervalo: na v2 só o MÍNIMO de 5 min é fixo, independente do banco (antigo 5–10, zerado, frouxo ou restrito)", () => {
   for (const row of [{ min_gap_minutes: 0, max_gap_minutes: 0 }, {}, { min_gap_minutes: 1, max_gap_minutes: 1 }, { min_gap_minutes: 5, max_gap_minutes: 10 }, { min_gap_minutes: 20, max_gap_minutes: 40 }]) {
-    assert.deepEqual(effectiveGapSeconds(row), { minSeconds: 300, maxSeconds: 480 });
-    assert.deepEqual(applyPolicyV2(row).policy_gap_seconds, { minSeconds: 300, maxSeconds: 480 });
+    assert.deepEqual(effectiveGapSeconds(row), { minSeconds: 300 });
+    assert.deepEqual(applyPolicyV2(row).policy_gap_seconds, { minSeconds: 300 });
   }
   const plan = planV2Schedule({ count: 25, nowMs: 0, dateStr: MONDAY, settings: wide({ oscillate_enabled: true, oscillate_percent: 90 }), random: seeded(5) });
   for (let i = 1; i < plan.length; i += 1) assert.ok(plan[i] - plan[i - 1] >= 300 * 1000, `intervalo ${i} >= 5 min`);
 });
 
-test("planejamento: dentro da janela, espaçado (<=8 min fora das pausas), pausa de 15–30 min a cada 8–12 envios, nunca 2 no mesmo minuto", () => {
+const gapsMin = (plan) => plan.slice(1).map((ms, i) => (ms - plan[i]) / MIN);
+const mean = (list) => list.reduce((sum, value) => sum + value, 0) / list.length;
+const WINDOW_OPEN = saoPauloInstantMs(MONDAY, 390);
+const WINDOW_CLOSE = saoPauloInstantMs(MONDAY, 1080);
+
+test("espalhamento (dono, 2026-10-13): 15 mensagens ≈ 46 min de média (28–64 com 40%), 30 ≈ 23 min (14–32), tudo entre 06:30 e 18:00", () => {
+  for (const [count, nominal] of [[15, 46], [30, 23]]) {
+    const settings = v2({ daily_cap_override: count, oscillate_percent: 40 });
+    assert.equal(settings.policy_day_gap_minutes, nominal, "intervalo médio do dia = janela (690 min) ÷ teto");
+    const all = [];
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const plan = planV2Schedule({ count, nowMs: 0, dateStr: MONDAY, settings, random: seeded(seed) });
+      assert.equal(plan.length, count, `${count} mensagens cabem na janela`);
+      assert.ok(plan[0] >= WINDOW_OPEN && plan.at(-1) <= WINDOW_CLOSE, "tudo dentro de 06:30–18:00");
+      all.push(...gapsMin(plan));
+    }
+    assert.ok(Math.abs(mean(all) - nominal) <= nominal * 0.08, `média ${mean(all).toFixed(1)} min perto de ${nominal}`);
+    assert.ok(Math.min(...all) >= nominal * 0.6 * 0.85, `menor intervalo ${Math.min(...all).toFixed(1)} min (~${(nominal * 0.6).toFixed(1)} com 40%)`);
+    assert.ok(Math.max(...all) <= nominal * 1.4 + 0.1, `maior intervalo ${Math.max(...all).toFixed(1)} min (~${(nominal * 1.4).toFixed(1)} com 40%)`);
+  }
+});
+
+test("a oscilação segue o percentual do corretor: 0% = intervalos iguais; 20% = faixa mais estreita que 40%", () => {
+  const spread = (percent) => {
+    const all = [];
+    for (let seed = 1; seed <= 60; seed += 1) all.push(...gapsMin(planV2Schedule({ count: 15, nowMs: 0, dateStr: MONDAY, settings: v2({ daily_cap_override: 15, oscillate_percent: percent }), random: seeded(seed) })));
+    return Math.max(...all) - Math.min(...all);
+  };
+  const flat = gapsMin(planV2Schedule({ count: 15, nowMs: 0, dateStr: MONDAY, settings: v2({ daily_cap_override: 15, oscillate_percent: 0 }), random: seeded(1) }));
+  assert.ok(Math.max(...flat) - Math.min(...flat) < 0.05, "0% de oscilação: todos os intervalos iguais");
+  assert.ok(spread(20) < spread(40), "20% oscila menos que 40%");
+});
+
+test("aleatoriedade: sorteios diferentes dão horários diferentes; nunca repetidos nem no início exato da janela", () => {
+  const settings = v2({ daily_cap_override: 15 });
+  const plans = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => planV2Schedule({ count: 15, nowMs: 0, dateStr: MONDAY, settings, random: seeded(seed) }));
+  assert.equal(new Set(plans.map((plan) => plan.join(","))).size, plans.length, "cada sorteio gera um dia diferente");
+  assert.ok(new Set(plans.map((plan) => plan[0])).size >= 7, "o 1º horário do dia muda de um sorteio para o outro");
+  for (const plan of plans) {
+    assert.equal(new Set(plan).size, plan.length, "nenhum horário repetido");
+    assert.notEqual(plan[0], WINDOW_OPEN, "não bate o ponto às 06:30:00");
+    assert.ok(plan.every((ms) => ms % (5 * MIN) !== 0), "nenhum horário 'redondo' (múltiplo de 5 min exatos)");
+  }
+  // O mesmo sorteio (semente) reproduz o mesmo dia: o teste é determinístico, a produção usa Math.random.
+  assert.deepEqual(planV2Schedule({ count: 15, nowMs: 0, dateStr: MONDAY, settings, random: seeded(3) }), plans[2]);
+});
+
+test("mínimo de 5 min entre dois envios sempre respeitado; apertado no fim do dia, o que não cabe até 18:00 sai da lista", () => {
   for (const seed of [1, 2, 3, 7, 11, 42]) {
-    const settings = wide();
+    const now = at(`${MONDAY}T16:00:00-03:00`); // 120 min até as 18:00: cabem no máximo 25 envios a cada 5 min
+    const plan = planV2Schedule({ count: 30, nowMs: now, dateStr: MONDAY, settings: v2(), random: seeded(seed) });
+    assert.ok(plan.length > 0 && plan.length < 30, `fim do dia: só parte cabe (${plan.length})`);
+    assert.ok(plan[0] >= now && plan.at(-1) <= WINDOW_CLOSE);
+    for (const gap of gapsMin(plan)) assert.ok(gap >= 5 - 1e-9, `intervalo ${gap} >= 5 min`);
+  }
+  assert.deepEqual(planV2Schedule({ count: 3, nowMs: at(`${MONDAY}T18:01:00-03:00`), dateStr: MONDAY, settings: v2(), random: seeded(1) }), [], "depois das 18:00 nada para hoje");
+  const nearEnd = planV2Schedule({ count: 5, nowMs: at(`${MONDAY}T17:56:00-03:00`), dateStr: MONDAY, settings: v2(), random: seeded(1) });
+  assert.ok(nearEnd.length <= 1, "às 17:56 só cabe um");
+});
+
+test("pausas de 15–30 min: desligadas com intervalo médio do dia >= 15 min; só ligadas abaixo disso", () => {
+  assert.equal(dayAverageGapMinutes({ windowStartMinutes: 390, windowEndMinutes: 1080, dailyCap: 30 }), 23);
+  assert.equal(v2().policy_no_pauses, true, "teto 30: média de 23 min");
+  assert.equal(v2({ daily_cap_override: 15 }).policy_no_pauses, true, "teto 15 (o do banco hoje): média de 46 min");
+  assert.equal(v2({ slot_controls: { 1: { dispatch: true, warmupStart: "2026-10-05" } } }).policy_no_pauses, true, "aquecimento (teto 10): média de 69 min");
+  assert.equal(policyCore.pausesOffForAverageGap(15), true, "exatamente 15 min já desliga");
+  assert.equal(policyCore.pausesOffForAverageGap(14.9), false, "abaixo de 15 min as pausas valem");
+  // Sem pausas, o envio NÃO é segurado por "12 seguidos": só vale o mínimo de 5 min.
+  const now = at(`${MONDAY}T10:00:00-03:00`);
+  const twelve = summarizeV2Usage(Array.from({ length: 12 }, (_, i) => ({ id: `n${i}`, attempt_number: 1, source: "meta", status: "sent", send_started_at: new Date(now - (10 + (11 - i) * 3) * MIN).toISOString() })));
+  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve, settings: v2() }), null);
+  // Com pausas ligadas (intervalo curto): pausa de 15–30 min a cada 8–12 envios e nunca menos de 5 min entre dois.
+  for (const seed of [1, 2, 3, 7, 11, 42]) {
+    const settings = { ...paused(), window_end_minutes: 11 * 60 }; // 06:30–11:00: média de ~9 min para 30 mensagens
     const plan = planV2Schedule({ count: 30, nowMs: 0, dateStr: MONDAY, settings, random: seeded(seed) });
-    assert.equal(plan.length, 30, "30 mensagens cabem na janela de 9 h");
-    const start = saoPauloInstantMs(MONDAY, 390);
-    const end = saoPauloInstantMs(MONDAY, 930);
-    assert.ok(plan[0] >= start && plan.at(-1) <= end, "tudo dentro de 06:30–15:30");
-    const minutes = new Set(plan.map((ms) => Math.floor(ms / MIN)));
-    assert.equal(minutes.size, plan.length, "nunca dois no mesmo minuto");
+    assert.ok(plan.length >= 20, `a maior parte cabe (${plan.length})`);
+    assert.ok(plan.at(-1) <= saoPauloInstantMs(MONDAY, 11 * 60));
     let run = 1;
     const runs = [];
-    for (let i = 1; i < plan.length; i += 1) {
-      const gap = plan[i] - plan[i - 1];
-      assert.ok(gap >= 300 * 1000 - 1000, "mínimo 5 min");
-      if (gap >= PAUSE_MIN_MINUTES * MIN) {
-        assert.ok(gap <= PAUSE_MAX_MINUTES * MIN + 1000, "pausa de até 30 min");
+    for (const gap of gapsMin(plan)) {
+      assert.ok(gap >= 5 - 1e-9, "mínimo 5 min");
+      if (gap >= PAUSE_MIN_MINUTES) {
+        assert.ok(gap <= PAUSE_MAX_MINUTES + 0.1, "pausa de até 30 min");
         runs.push(run);
         run = 1;
-      } else {
-        assert.ok(gap <= 8 * 60 * 1000 + 1000, "fora da pausa, no máximo 8 min");
-        run += 1;
-      }
+      } else run += 1;
     }
     for (const r of runs) assert.ok(r >= PAUSE_EVERY_MIN && r <= PAUSE_EVERY_MAX, `pausa a cada ${PAUSE_EVERY_MIN}–${PAUSE_EVERY_MAX} envios (viu ${r})`);
-    assert.ok(runs.length >= 2, "30 envios têm pelo menos 2 pausas");
+    assert.ok(runs.length >= 1, "30 envios curtos têm pelo menos 1 pausa");
   }
 });
 
@@ -142,9 +226,9 @@ test("planejamento respeita o último envio e a reconexão; nunca antes de agora
   const afterConnect = planV2Schedule({ count: 3, nowMs: now, dateStr: MONDAY, settings: wide(), connectedAtMs: now - MIN, random: seeded(3) });
   assert.ok(afterConnect[0] >= now - MIN + 120 * MIN, "1º envio só 2 h depois de conectar");
   assert.equal(afterConnect.length, 3);
-  const late = planV2Schedule({ count: 40, nowMs: at(`${MONDAY}T15:00:00-03:00`), dateStr: MONDAY, settings: wide(), random: seeded(3) });
-  assert.ok(late.length > 0 && late.length < 40, "perto do fim da janela só cabe parte");
-  assert.ok(late.every((ms) => ms <= saoPauloInstantMs(MONDAY, 930)));
+  const late = planV2Schedule({ count: 60, nowMs: at(`${MONDAY}T15:00:00-03:00`), dateStr: MONDAY, settings: wide(), random: seeded(3) });
+  assert.ok(late.length > 0 && late.length < 60, "perto do fim da janela só cabe parte");
+  assert.ok(late.every((ms) => ms <= saoPauloInstantMs(MONDAY, 1080)), "nunca depois das 18:00");
   assert.deepEqual(planV2Schedule({ count: 0, nowMs: 0, dateStr: MONDAY, settings: wide() }), []);
 });
 
@@ -203,8 +287,9 @@ test("nunca 2 mensagens no mesmo momento: intervalo mínimo e pausa contados do 
   assert.equal(v2SendBlockReason({ nowMs: now, usage: failed, settings: v2() }), "intervalo_minimo_politica");
   // Pausa: 12 envios seguidos e o último há 10 min = pausa obrigatória; 16 min depois = liberado.
   const twelve = (lastAgoMin) => summarizeV2Usage(Array.from({ length: 12 }, (_, i) => ({ id: `p${i}`, attempt_number: 1, source: "meta", status: "sent", send_started_at: new Date(now - (lastAgoMin + (11 - i) * 3) * MIN).toISOString() })));
-  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve(10), settings: wide() }), "pausa_programada_politica");
-  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve(16), settings: wide() }), null);
+  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve(10), settings: paused() }), "pausa_programada_politica", "pausas ligadas (intervalo médio < 15 min)");
+  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve(16), settings: paused() }), null);
+  assert.equal(v2SendBlockReason({ nowMs: now, usage: twelve(10), settings: wide() }), null, "com o intervalo médio >= 15 min não há pausa programada");
   // Duas execuções do cron "ao mesmo tempo": a segunda enxerga o envio da primeira (exclui só o próprio item).
   const first = [{ id: "A", attempt_number: 1, source: "meta", status: "sent", send_started_at: new Date(now - 2000).toISOString() }, { id: "B", attempt_number: 2, source: "meta", status: "sending", send_started_at: null }];
   assert.equal(v2SendBlockReason({ nowMs: now, usage: summarizeV2Usage(first, { excludeItemId: "B" }), settings: wide() }), "intervalo_minimo_politica");
@@ -277,7 +362,8 @@ test("itens velhos, atrasados ou segurados pela reconexão são detectados; item
   const mk = (id, iso) => ({ id, scheduled_for: iso });
   const stale = findStaleV2Items([
     mk("ontem", "2026-10-03T10:00:00-03:00"),
-    mk("fora_da_janela", `${MONDAY}T16:30:00-03:00`),
+    mk("fora_da_janela", `${MONDAY}T18:30:00-03:00`),
+    mk("ainda_dentro_ate_18h", `${MONDAY}T17:30:00-03:00`),
     mk("atrasado", `${MONDAY}T09:40:00-03:00`),
     mk("no_horario", `${MONDAY}T09:58:00-03:00`),
     mk("futuro", `${MONDAY}T10:20:00-03:00`),
@@ -296,8 +382,8 @@ test("itens velhos, atrasados ou segurados pela reconexão são detectados; item
 
 test("reconexão tarde (a espera passa do fim da janela): nada é cancelado, tudo vai para o próximo dia de disparo", () => {
   const settings = wide();
-  const now = at(`${MONDAY}T14:00:00-03:00`);
-  const connectedAtMs = now - 5 * MIN; // pronto às 15:55, depois das 15:30
+  const now = at(`${MONDAY}T16:30:00-03:00`);
+  const connectedAtMs = now - 5 * MIN; // pronto às 18:25, depois das 18:00
   const items = Array.from({ length: 8 }, (_, i) => ({ id: `t${i}`, attempt_number: (i % 3) + 1, scheduled_for: `${MONDAY}T14:${String(10 + i * 5).padStart(2, "0")}:00-03:00` }));
   assert.equal(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, connectedAtMs }).length, 8);
   const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: emptyUsage(), connectedAtMs, random: seeded(5) });
@@ -305,7 +391,7 @@ test("reconexão tarde (a espera passa do fim da janela): nada é cancelado, tud
   assert.equal(new Set(updates.map((u) => u.id)).size, 8, "sem duplicar");
   assert.ok(updates.every((u) => u.scheduledMs >= saoPauloInstantMs("2026-10-06", settings.window_start_minutes)), "todos no dia seguinte (terça)");
   // Sábado tarde: o próximo dia de disparo pula o domingo.
-  const saturdayNow = at("2026-10-03T14:00:00-03:00");
+  const saturdayNow = at("2026-10-03T16:30:00-03:00");
   const sat = rescheduleV2Items(items, { nowMs: saturdayNow, dateStr: "2026-10-03", settings, usage: emptyUsage(), connectedAtMs: saturdayNow - 5 * MIN, random: seeded(5) });
   assert.ok(sat.every((u) => saoPauloDateMinutes(u.scheduledMs).weekday === 1), "sábado → segunda");
 });
@@ -321,7 +407,7 @@ test("fila passa ao dia seguinte sem duplicar, respeitando 30/dia e 10/10/10; do
   for (const u of updates) {
     const day = saoPauloDateMinutes(u.scheduledMs);
     assert.notEqual(day.weekday, 0, "nunca domingo");
-    assert.ok(day.minutes >= 390 && day.minutes <= 930, "sempre dentro da janela");
+    assert.ok(day.minutes >= 390 && day.minutes <= 1080, "sempre dentro da janela (até 18:00)");
     const bucket = byDay.get(day.date) || { total: 0, 1: 0, 2: 0, 3: 0 };
     bucket.total += 1;
     bucket[items.find((i) => i.id === u.id).attempt_number] += 1;
@@ -361,24 +447,36 @@ test("elegibilidade preservada (MD-13, Não contactar, tentativa de hoje) na fil
   assert.doesNotMatch(v2Enqueue, /status: "canceled"/, "a v2 não cancela item ao completar a fila");
 });
 
-test("fila extra na v2: mesma janela 06:30–15:30, nunca domingo; sem a v2 segue 07:00–21:00", () => {
+test("fila extra na v2: mesma janela 06:30–18:00, nunca domingo; sem a v2 segue 07:00–21:00", () => {
   const settings = { enabled: true, paused: false, business_days_only: true };
-  const window = { startMinutes: 390, endMinutes: 930 };
+  const window = { startMinutes: 390, endMinutes: 1080 };
   const r = (iso, policyWindow) => extraSendBlockReason({ now: new Date(iso), settings, policyWindow });
   assert.equal(r(`${MONDAY}T06:40:00-03:00`, window), null);
   assert.equal(r(`${MONDAY}T06:40:00-03:00`, null), "fora_do_horario_extra", "regra antiga intacta");
-  assert.equal(r(`${MONDAY}T15:40:00-03:00`, window), "fora_do_horario_extra");
-  assert.equal(r(`${MONDAY}T15:40:00-03:00`, null), null, "regra antiga intacta (até 21h)");
+  assert.equal(r(`${MONDAY}T15:40:00-03:00`, window), null, "15:40 agora está dentro da janela");
+  assert.equal(r(`${MONDAY}T18:10:00-03:00`, window), "fora_do_horario_extra");
+  assert.equal(r(`${MONDAY}T18:10:00-03:00`, null), null, "regra antiga intacta (até 21h)");
   assert.equal(r("2026-10-04T10:00:00-03:00", window), "fim_de_semana");
   assert.equal(extraSendBlockReason({ now: new Date("2026-10-04T10:00:00-03:00"), settings: { ...settings, business_days_only: false }, policyWindow: window }), "fim_de_semana", "v2 nunca envia no domingo");
   assert.equal(extraSendBlockReason({ now: new Date("2026-10-04T10:00:00-03:00"), settings: { ...settings, business_days_only: false } }), null, "regra antiga intacta");
-  const s = v2();
-  for (const seed of ["a", "b", "item-123", "zzz", "x".repeat(40)]) {
-    const gap = extraGapSecondsV2(seed, s);
-    assert.ok(gap >= s.policy_gap_seconds.minSeconds && gap <= s.policy_gap_seconds.maxSeconds);
-    assert.equal(gap, extraGapSecondsV2(seed, s), "estável entre ciclos do cron");
+  // Intervalo da fila extra (2026-10-13): o MESMO ritmo devagar do dia (janela ÷ teto) ± oscilação, estável por item, nunca < 5 min.
+  for (const [cap, nominal] of [[30, 23], [15, 46]]) {
+    const s = v2({ daily_cap_override: cap, oscillate_percent: 40 });
+    const seen = new Set();
+    for (const seed of ["a", "b", "item-123", "zzz", "x".repeat(40), "k1", "k2", "k3"]) {
+      const gap = extraGapSecondsV2(seed, s);
+      assert.ok(gap >= nominal * 0.6 * 60 - 1 && gap <= nominal * 1.4 * 60 + 1, `${cap}/dia: ${gap} s dentro de ±40% de ${nominal} min`);
+      assert.ok(gap >= s.policy_gap_seconds.minSeconds, "nunca abaixo de 5 min");
+      assert.equal(gap, extraGapSecondsV2(seed, s), "estável entre ciclos do cron");
+      seen.add(gap);
+    }
+    assert.ok(seen.size >= 5, "itens diferentes sorteiam intervalos diferentes");
   }
   assert.ok(extraGapSecondsV2("abc", applyPolicyV2({ min_gap_minutes: 0, max_gap_minutes: 0 })) >= 300);
+  assert.equal(extraGapSecondsV2("abc", { policy_gap_seconds: { minSeconds: 300 } }), 300, "sem média do dia cai no mínimo");
+  // Exceção por data (faixa fixa 17–21 min de 05/10): continua uniforme dentro da faixa.
+  const range = { policy_gap_seconds: { minSeconds: 17 * 60, maxSeconds: 21 * 60 } };
+  for (const seed of ["a", "b", "c"]) assert.ok(extraGapSecondsV2(seed, range) >= 17 * 60 && extraGapSecondsV2(seed, range) <= 21 * 60);
 });
 
 test("teto de 30 é por número somando Meta Diária + fila extra (a extra entra no total)", () => {
@@ -533,4 +631,81 @@ test("espera de 2 h: constante única, usada por número no envio e mostrada no 
   assert.doesNotMatch(code, /RECONNECT_DELAY_MINUTES/);
   // O envio manual do corretor (botão do WhatsApp/Chat) não passa pela política de automação.
   for (const manual of ["lib/whatsapp-chat.js", "lib/prospecting.js"]) assert.doesNotMatch(readFileSync(manual, "utf8"), /RECONNECT_SETTLE_MINUTES|aguardando_apos_reconexao/, `${manual} não pode herdar a espera`);
+});
+
+/* ------------- Publicação do espalhamento (dono, 2026-10-13): pendentes de hoje com horário antigo ------------- */
+
+test("publicação: pendentes de HOJE gravados antes do espalhamento são reprogramados uma única vez, sem cancelar nem duplicar, sem enviar nada 'para recuperar'", () => {
+  const settings = v2({ daily_cap_override: 15 });
+  const now = at(`${MONDAY}T10:00:00-03:00`);
+  const rolloutMs = now - MIN; // 09:59: 1ª rodada do cron com o código novo (marca gravada em crm_settings)
+  const oldWrite = new Date(at(`${MONDAY}T06:31:00-03:00`)).toISOString();
+  // Fila montada pelo esquema antigo: 8 pendentes de 5 a 8 min entre si, o 1º já vencendo (10:01) — sairiam em ~1 h.
+  const offsets = [1, 7, 13, 20, 26, 31, 38, 44];
+  const items = offsets.map((m, i) => ({ id: `old${i}`, attempt_number: (i % 3) + 1, scheduled_for: new Date(now + m * MIN).toISOString(), updated_at: oldWrite }));
+  assert.deepEqual(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings }), [], "sem a marca nada seria reprogramado: era o buraco");
+  assert.equal(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, legacyBeforeMs: rolloutMs }).length, 8, "com a marca todos são do esquema antigo");
+
+  const usage = summarizeV2Usage([{ id: "s1", attempt_number: 1, source: "meta", status: "sent", send_started_at: new Date(now - 20 * MIN).toISOString() }]);
+  const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage, random: seeded(21) });
+  assert.equal(updates.length, 8, "ninguém cancelado nem perdido");
+  assert.equal(new Set(updates.map((u) => u.id)).size, 8, "ninguém duplicado");
+  const times = updates.map((u) => u.scheduledMs).sort((a, b) => a - b);
+  assert.ok(times[0] >= now && times[0] >= usage.lastSendMs + 5 * MIN, "nada antes de agora nem a menos de 5 min do último envio");
+  assert.ok(times.at(-1) <= WINDOW_CLOSE, "tudo até 18:00");
+  for (const gap of gapsMin(times)) assert.ok(gap >= 5, "mínimo de 5 min entre dois");
+  assert.ok(times.at(-1) - now > 4 * 60 * MIN, "espalhado pelo resto do dia (8 pendentes em 8 h ≈ 1 h entre eles), não em ~1 h como antes");
+  assert.ok(mean(gapsMin(times)) > 30, "intervalo médio bem maior que os 5–8 min antigos");
+
+  // Idempotente: o item reprogramado (updated_at = agora) deixa de ser "antigo"; item sem updated_at nunca é tratado como antigo.
+  const redone = items.map((item) => ({ ...item, updated_at: new Date(now).toISOString() }));
+  assert.deepEqual(findStaleV2Items(redone, { nowMs: now, dateStr: MONDAY, settings, legacyBeforeMs: rolloutMs }), []);
+  assert.deepEqual(findStaleV2Items([{ id: "x", scheduled_for: items[0].scheduled_for }], { nowMs: now, dateStr: MONDAY, settings, legacyBeforeMs: rolloutMs }), []);
+  // Item de outro dia segue a regra de sempre (dia futuro não é tocado; dia anterior já era reprogramado).
+  assert.deepEqual(findStaleV2Items([{ id: "amanha", scheduled_for: "2026-10-06T08:00:00-03:00", updated_at: oldWrite }], { nowMs: now, dateStr: MONDAY, settings, legacyBeforeMs: rolloutMs }), []);
+});
+
+test("publicação: o que não cabe hoje (teto do dia e 10/10/10 já descontado o que saiu) passa ao dia seguinte pelos mesmos itens", () => {
+  const settings = v2({ daily_cap_override: 15 });
+  const now = at(`${MONDAY}T10:00:00-03:00`);
+  const oldWrite = new Date(at(`${MONDAY}T06:31:00-03:00`)).toISOString();
+  const items = Array.from({ length: 10 }, (_, i) => ({ id: `p${i}`, attempt_number: (i % 3) + 1, scheduled_for: new Date(now + (i + 1) * 6 * MIN).toISOString(), updated_at: oldWrite }));
+  const sent = summarizeV2Usage(Array.from({ length: 9 }, (_, i) => ({ id: `e${i}`, attempt_number: (i % 3) + 1, source: "meta", status: "sent", send_started_at: new Date(at(`${MONDAY}T06:40:00-03:00`) + i * 6 * MIN).toISOString() })));
+  const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: sent, random: seeded(8) });
+  assert.equal(updates.length, 10);
+  assert.equal(new Set(updates.map((u) => u.id)).size, 10, "sem duplicar");
+  const today = updates.filter((u) => saoPauloDateMinutes(u.scheduledMs).date === MONDAY);
+  assert.equal(today.length, 6, "teto 15 com 9 já enviados: só 6 cabem hoje");
+  assert.equal(updates.filter((u) => saoPauloDateMinutes(u.scheduledMs).date === "2026-10-06").length, 4, "os outros 4 vão para terça, não são cancelados");
+});
+
+test("código: marca da publicação em crm_settings (gravada uma vez), reprogramação usa o caminho existente e nunca força sem a marca", () => {
+  const code = readFileSync("lib/daily-goal-auto.js", "utf8");
+  assert.match(code, /const SPREAD_ROLLOUT_SETTING_ID = "daily_goal_spread_rollout"/);
+  assert.match(code, /insert\(\{ id: SPREAD_ROLLOUT_SETTING_ID, setting_value: \{ activatedAt \}/);
+  assert.match(code, /error\.code !== "23505"/, "se outra rodada gravou antes, vale a dela");
+  const resched = code.slice(code.indexOf("async function rescheduleV2Queue"), code.indexOf("// Fila de HOJE pela política v2"));
+  assert.match(resched, /\.select\("id, attempt_number, scheduled_for, updated_at"\)/);
+  assert.match(resched, /legacyBeforeMs = await loadSpreadRolloutMs\(\)/);
+  assert.match(resched, /findStaleV2Items\(pending, \{[^}]*legacyBeforeMs \}\)/);
+  assert.match(resched, /\.update\(\{ scheduled_for: new Date\(update\.scheduledMs\)\.toISOString\(\), updated_at: nowIso \}\)\s*\.eq\("id", update\.id\)\.eq\("status", "pending"\)/, "só UPDATE do horário, só de item ainda pendente");
+  assert.doesNotMatch(resched, /status: "canceled"|\.delete\(|\.insert\(/, "reprogramar nunca cancela, apaga nem cria item");
+  assert.match(resched, /catch \(rolloutError\)[\s\S]{0,400}console\.error/, "falha na marca é registrada, não engolida");
+  // A marca é lida ANTES de qualquer item novo ser criado por este código (enqueueTodayItemsV2 chama rescheduleV2Queue primeiro).
+  const enqueue = code.slice(code.indexOf("async function enqueueTodayItemsV2"), code.indexOf("async function v2GuardAfterClaim"));
+  assert.ok(enqueue.indexOf("await rescheduleV2Queue(brokerId, rawSettingsRow)") < enqueue.indexOf("insert_daily_goal_auto_queue_items"));
+});
+
+test("cartão e fila extra: v2 mostra 'média automática ± oscilação' sem 'média máx.' e sem máximo; extra só cede à Meta no mínimo de 5 min", () => {
+  const code = readFileSync("lib/daily-goal-auto.js", "utf8");
+  assert.doesNotMatch(code, /MAX_GAP_SECONDS/);
+  assert.match(code, /maxGapMinutes: policyV2 \? null : row\.max_gap_minutes/);
+  assert.match(code, /oscillateEnabled: policyV2 \? true : Boolean\(row\.oscillate_enabled\)/);
+  assert.match(code, /oscillatePercent: policyV2 \? v2OscillatePercent\(row\) : \(row\.oscillate_percent \?\? 50\)/);
+  assert.match(code, /maxAvgGapMinutes: policyV2 \? null : \(row\.max_avg_gap_minutes \?\? null\)/);
+  assert.match(code, /\(policyV2 \? MIN_GAP_SECONDS \/ 60 : gapMinutes\) \* 60000/, "prioridade da Meta só dentro do mínimo de 5 min na v2");
+  const admin = readFileSync("components/DailyGoalAdmin.jsx", "utf8");
+  assert.doesNotMatch(admin, /15h30|15:30/);
+  assert.match(admin, /6h30 às 18h/);
+  assert.match(admin, /das 06:30 às 18:00/);
 });
