@@ -9,7 +9,7 @@ import cv2, numpy as np, subprocess, sys, math
 FOT, OV, OUT = sys.argv[1:4]; ARGS = sys.argv[4:]
 FPS = 30; W, H = 1080, 1920; TR = 0.4
 foto = [None] + [cv2.imread(f'{FOT}/foto{i}.jpg') for i in range(1, 8)]   # 1 sala, 2 sala/jantar, 3 sala integrada, 4 cozinha, 5 quarto 1, 6 quarto 2, 7 quintal/lavanderia
-ov = [None] + [cv2.imread(f'{OV}/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1, 30)]
+ov = [None] + [cv2.imread(f'{OV}/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1, 34)]
 yy, xx = np.mgrid[0:H, 0:W]
 VIG = (1 - 0.22 * np.clip(((xx - W/2) / (W*0.75))**2 + ((yy - H/2) / (H*0.7))**2, 0, 1))[..., None].astype(np.float32)
 
@@ -124,6 +124,7 @@ def t_corte(A, B, u): return cv2.addWeighted(A, 1 - ease(u), B, ease(u), 0)
 
 CENAS = [(c_gancho, 2.8), (c_virar, 2.6), (c_cozinha, 3.0), (c_quartos, 3.0), (c_sala, 2.6), (c_quintal, 2.8), (c_check, 5.2), (c_fecho, 5.0)]
 TRANS = [t_feed, t_cortina, t_whip, t_zoom, t_cortina, t_zoom, t_corte]
+MARCA = [(700, 440), (690, 1520), (700, 440), (80, 420), (700, 1150), (700, 440), (690, 1500)]   # assinatura móvel por cena (x, y)
 INI = [0.0]
 for _, d in CENAS[:-1]: INI.append(INI[-1] + d - TR)
 TOTAL = INI[-1] + CENAS[-1][1]
@@ -136,6 +137,9 @@ def quadro(t, previa=False):
         fr = TRANS[i - 1](fa(t - INI[i - 1]), f(t - INI[i]), u)
     else:
         fr = f(t - INI[i])
+    if i < len(CENAS) - 1:                 # proteção contra recorte (o fecho já tem a marca): centro, trama, assinatura fixa e móvel
+        fr = over(over(over(fr, ov[30], 1.0), ov[31], 1.0), ov[32], 1.0)
+        mx, my = MARCA[i]; fr = over(fr, ov[33], 1.0, mx, my)
     fr = over(fr, ov[24], 1.0)             # espaço fixo do adesivo de link (topo esquerdo)
     return over(fr, ov[25], 1.0) if previa else fr
 
@@ -146,7 +150,7 @@ if '--quadros' in ARGS:
 else:
     PREVIA = '--previa' in ARGS
     p = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'bgr24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
-        '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT], stdin=subprocess.PIPE)
+        '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-metadata', 'artist=Matheus Machado — CRECI 323106-F', '-metadata', 'copyright=© Matheus Machado Imóveis (@mhm.machado). Proibida a reprodução sem autorização.', OUT], stdin=subprocess.PIPE)
     n = int(round(TOTAL*FPS))
     for k in range(n): p.stdin.write(quadro(k/FPS, PREVIA).tobytes())
     p.stdin.close(); p.wait(); print(f'{TOTAL:.1f} s')
