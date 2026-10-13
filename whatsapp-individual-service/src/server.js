@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { checkWhatsappNumber, connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -133,9 +133,20 @@ app.post("/sessions/:userId/disconnect", async (req, res) => {
 });
 
 function sendError(res, error) {
-  const status = error.code === "NOT_CONNECTED" ? 409 : 500;
-  res.status(status).json({ error: error.message });
+  const status = error.code === "NOT_CONNECTED" ? 409 : error.code === "NOT_ON_WHATSAPP" ? 422 : 500;
+  res.status(status).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
 }
+
+// O número tem WhatsApp? Só consulta (nada é enviado). { exists: true | false | null }.
+app.post("/sessions/:userId/check-number", async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) return res.status(400).json({ error: "Informe 'to'." });
+    res.json(await checkWhatsappNumber(req.params.userId, { to }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 
 app.post("/sessions/:userId/send", async (req, res) => {
   try {

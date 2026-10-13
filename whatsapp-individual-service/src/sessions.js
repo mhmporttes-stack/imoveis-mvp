@@ -1040,6 +1040,49 @@ function jidFor(to) {
   return `${digits}@s.whatsapp.net`;
 }
 
+// O número TEM WhatsApp? (2026-10-13, dono): mandar mensagem para número que não existe no WhatsApp é um dos sinais que
+// mais derrubam o número do corretor — por isso o envio consulta antes (onWhatsApp, nada é enviado) e só segue se existir.
+// Cache em memória: existe vale 24 h (e já guarda o JID certo, com ou sem o 9 do celular); não existe vale 30 min.
+// Consulta sem resposta/com erro NÃO bloqueia o envio (instabilidade nunca vira "número inválido").
+const numberChecks = new Map(); // dígitos -> { exists, jid, at }
+const NUMBER_EXISTS_TTL_MS = 24 * 60 * 60 * 1000;
+const NUMBER_MISSING_TTL_MS = 30 * 60 * 1000;
+const NUMBER_CHECK_LIMIT = 5000;
+
+async function checkRecipient(sock, to) {
+  const lid = /^lid:(\d{5,30})$/.exec(String(to || ""));
+  if (lid) return { exists: true, jid: `${lid[1]}@lid`, checked: false };
+  const digits = String(to || "").replace(/\D/g, "");
+  if (!digits) throw new Error("Destinatário inválido.");
+  const cached = numberChecks.get(digits);
+  if (cached && Date.now() - cached.at < (cached.exists ? NUMBER_EXISTS_TTL_MS : NUMBER_MISSING_TTL_MS)) {
+    return { exists: cached.exists, jid: cached.jid, checked: true };
+  }
+  if (!sock?.onWhatsApp) return { exists: null, jid: `${digits}@s.whatsapp.net`, checked: false };
+  let results = null;
+  try {
+    results = await Promise.race([
+      sock.onWhatsApp(...brazilPhoneVariants(digits).map((value) => `${value}@s.whatsapp.net`)),
+      new Promise((resolve) => setTimeout(() => resolve(null), 8000))
+    ]);
+  } catch {
+    results = null;
+  }
+  if (!Array.isArray(results)) return { exists: null, jid: `${digits}@s.whatsapp.net`, checked: false };
+  const found = results.find((item) => item?.exists && item?.jid);
+  const entry = found ? { exists: true, jid: found.jid, at: Date.now() } : { exists: false, jid: `${digits}@s.whatsapp.net`, at: Date.now() };
+  if (numberChecks.size >= NUMBER_CHECK_LIMIT) numberChecks.delete(numberChecks.keys().next().value);
+  numberChecks.set(digits, entry);
+  return { exists: entry.exists, jid: entry.jid, checked: true };
+}
+
+// Consulta pública (CRM): { exists: true | false | null (sem resposta) }. Não envia nada.
+export async function checkWhatsappNumber(userId, { to }) {
+  const sock = connectedSocket(userId);
+  const result = await checkRecipient(sock, to);
+  return { exists: result.exists };
+}
+
 // Chave de uma mensagem desta conversa (para citar, reagir, editar, apagar).
 // Sempre no JID do telefone — o mesmo para onde a mensagem é enviada.
 function keyFor(jid, id, fromMe) {
@@ -1051,7 +1094,13 @@ function keyFor(jid, id, fromMe) {
 // quoted (opcional): { id, fromMe, text } — resposta citada a uma mensagem.
 export async function sendMessage(userId, { to, text, media, quoted }) {
   const sock = connectedSocket(userId);
-  const jid = jidFor(to);
+  const recipient = await checkRecipient(sock, to);
+  if (recipient.exists === false) {
+    const error = new Error("O número não possui WhatsApp.");
+    error.code = "NOT_ON_WHATSAPP";
+    throw error;
+  }
+  const jid = recipient.exists ? recipient.jid : jidFor(to);
   const options = {};
   if (quoted?.id) {
     options.quoted = { key: keyFor(jid, quoted.id, quoted.fromMe), message: { conversation: String(quoted.text || "") } };

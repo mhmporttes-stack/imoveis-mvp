@@ -658,7 +658,7 @@ export function useClientList({
     notify("Tag excluída.");
   }
 
-  function openWhatsApp(client) {
+  async function openWhatsApp(client) {
     const value = client.registration?.phoneNormalized || client.registration?.phone;
     if (!toWhatsAppDigits(value)) {
       notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
@@ -687,6 +687,16 @@ export function useClientList({
       isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
       phone: value
     });
+    // Número SEM WhatsApp (2026-10-13): não abre o Chat — avisa. A consulta pergunta ao próprio WhatsApp (nada é enviado) pela
+    // sessão conectada do corretor; sem sessão ou sem resposta em 5 s, segue normalmente (nunca bloqueia por não saber).
+    if (decision.action !== CARD_WA_EXTERNAL) {
+      const check = await fetch(`/api/admin/whatsapp-chat/check-client?clientId=${encodeURIComponent(registrationId)}`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
+        .then((response) => (response.ok ? response.json() : null)).catch(() => null);
+      if (check?.exists === false) {
+        notify("O número não possui WhatsApp.", "danger");
+        return;
+      }
+    }
     // Falha no registro NUNCA bloqueia a navegação: só deixa um aviso discreto no Chat
     // ("aberto, mas o contato não pôde ser salvo/sincronizado" — lib/whatsapp-contact-warning.mjs).
     fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true })
