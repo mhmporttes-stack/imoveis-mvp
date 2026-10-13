@@ -11,8 +11,8 @@ import { anton } from "./ads-fonts";
 // (WhatsApp/Cadastro), custo por resultado e status; o resto fica no detalhe.
 // Somente leitura — nunca altera nada na Meta. Dados e regras de
 // recomendação vêm prontos do servidor (lib/meta-ads-board.js).
-// Duas aparências para o dono escolher: "escuro" (área inteira no estilo
-// dos carrosséis) e "claro" (painel claro, cards com o DNA do carrossel).
+// Aparência escolhida pelo dono (2026-10-13, versão B): painel claro, cards
+// com o DNA dos carrosséis (número em Anton, rótulos espaçados, azul da marca).
 
 const PERIODS = [
   { key: "today", label: "Hoje" },
@@ -28,29 +28,8 @@ const KIND_FILTERS = [
 ];
 
 const THEMES = {
-  escuro: {
-    page: "bg-black text-white",
-    glow: true,
-    eyebrow: "text-[#3B8BFF]",
-    title: "text-white",
-    sub: "text-[#9AA4B2]",
-    chip: "border-white/15 text-[#AEB8C5] hover:border-white/40",
-    chipOn: "border-[#3B8BFF] bg-[#3B8BFF] text-black",
-    summary: "border-[#1F2937] bg-[#0B0F14]",
-    card: "border-[#1F2937] bg-[#0B0F14] hover:border-white/25",
-    thumbRing: "ring-white/10",
-    thumbEmpty: "bg-[#0A1430]",
-    name: "text-white",
-    label: "text-[#9AA4B2]",
-    accent: "text-[#3B8BFF]",
-    hero: "text-white",
-    value: "text-white",
-    pill: "border-white/20 text-[#AEB8C5]",
-    tone: { good: "#30D158", warn: "#FF9F0A", bad: "#FF3B30", neutral: "#9AA4B2" }
-  },
   claro: {
     page: "bg-mist text-ink",
-    glow: false,
     eyebrow: "text-brand",
     title: "text-navy",
     sub: "text-muted",
@@ -196,7 +175,7 @@ function SummaryBar({ summary, theme }) {
     { label: "Ativos", value: num(summary?.activeCount) }
   ];
   return (
-    <div className={cx("grid grid-cols-4 divide-x rounded-2xl border", theme.summary, theme === THEMES.escuro ? "divide-[#1F2937]" : "divide-line")}>
+    <div className={cx("grid grid-cols-4 divide-x rounded-2xl border", theme.summary, "divide-line")}>
       {items.map((item) => (
         <div key={item.label} className="min-w-0 px-1.5 py-2 text-center sm:px-4">
           <p className={cx("truncate text-[10px] font-bold uppercase tracking-[0.12em]", theme.label)}>{item.label}</p>
@@ -297,14 +276,14 @@ function AdDetail({ ad, onClose }) {
   );
 }
 
-export default function AdsBoard({ initialData = null, initialPeriod = "7d", variant = "escuro" }) {
-  const theme = THEMES[variant] || THEMES.escuro;
+export default function AdsBoard({ initialData = null, initialError = "", initialPeriod = "7d" }) {
+  const theme = THEMES.claro;
   const [period, setPeriod] = useState(initialPeriod);
   const [kind, setKind] = useState("all");
   const [onlyActive, setOnlyActive] = useState(true);
   const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(!initialData);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(initialError);
   const [selected, setSelected] = useState(null);
   const isFirstRender = useRef(Boolean(initialData));
 
@@ -340,9 +319,6 @@ export default function AdsBoard({ initialData = null, initialPeriod = "7d", var
 
   return (
     <div className={cx("relative min-h-[calc(100dvh-4rem)] pb-16", theme.page)}>
-      {theme.glow ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-64" style={{ background: "radial-gradient(60% 100% at 50% 0%, rgba(27,58,134,0.55), transparent)" }} aria-hidden="true" />
-      ) : null}
       <div className="container-page relative space-y-3 pt-3 md:pt-6">
         <header className="flex items-end justify-between gap-3">
           <div className="min-w-0">
@@ -361,7 +337,7 @@ export default function AdsBoard({ initialData = null, initialPeriod = "7d", var
 
         <div className="-mx-4 flex items-center gap-3 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] md:mx-0 md:px-0">
           <Chips options={KIND_FILTERS} value={kind} onChange={setKind} theme={theme} label="Tipo de anúncio" />
-          <span className={cx("h-5 w-px shrink-0", variant === "claro" ? "bg-line" : "bg-white/15")} aria-hidden="true" />
+          <span className={cx("h-5 w-px shrink-0", "bg-line")} aria-hidden="true" />
           <Chips
             options={[{ key: "active", label: "Ativos" }, { key: "all", label: "Todos" }]}
             value={onlyActive ? "active" : "all"}
@@ -390,7 +366,7 @@ export default function AdsBoard({ initialData = null, initialPeriod = "7d", var
           </div>
         ) : (
           <p className={cx("rounded-2xl border px-4 py-8 text-center text-sm", theme.summary, theme.sub)}>
-            Nenhum anúncio {onlyActive ? "ativo " : ""}neste filtro.
+            {data?.configured === false ? "A integração com a Meta Ads não está configurada." : `Nenhum anúncio ${onlyActive ? "ativo " : ""}neste filtro.`}
           </p>
         )}
       </div>

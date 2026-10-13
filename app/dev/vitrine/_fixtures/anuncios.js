@@ -1,7 +1,7 @@
 // Área Anúncios (components/ads/AdsBoard.jsx) — dados de exemplo para a
 // vitrine (somente `next dev`). Números no formato e na ordem de grandeza
 // dos anúncios reais da conta (7 dias), sem nenhum dado de cliente.
-// ?variante=escuro (padrão) | claro.
+// Aparência: versão B (clara), escolhida pelo dono em 2026-10-13.
 
 const ads = [
   {

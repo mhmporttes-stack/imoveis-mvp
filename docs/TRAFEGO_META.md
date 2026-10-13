@@ -80,6 +80,10 @@ Conhecimento especializado de tráfego vive no repositório, carregado sob deman
 
 **Histórico (backfill): não será feito** (decisão do dono, 2026-10-01). Os anúncios antigos da conta (2023, impulsionamentos e publicações patrocinadas) não representam a estratégia atual; o relevante são os **últimos 30 dias**, já cobertos pela consolidação diária (janela móvel de `META_ADS_SYNC_WINDOW_DAYS`) e pela sincronização intradiária. Baseline e análises usam esse período.
 
+## 6-B. Área "Anúncios" no CRM (desde 2026-10-13)
+
+Tela `/admin/anuncios` (Supervisão › Anúncios, só administrador geral), **somente leitura**: um card por anúncio (ativo ou com gasto no período) com miniatura do criativo, tipo WhatsApp/Cadastro/Outro, custo por resultado, leads, clientes no CRM, frequência e situação (Bom/Atenção/Ruim/Aprendendo) com recomendações. Regras puras e limites em `lib/meta-ads-board-core.mjs` (medianas da própria conta, 30 dias); montagem em `lib/meta-ads-board.js`. Miniatura e `destination_type` vêm de `syncMetaAdCreatives` (`lib/meta-ads-sync.js`, GET, renovado ao abrir a tela após 20 h); alcance/frequência do período de `fetchMetaAdPeriodReach` (GET, com fallback). Nenhuma escrita na Meta.
+
 ## 7. Riscos e pontos a confirmar
 
 - **P-13** rótulo de janela de atribuição não enviado à API; com token/conta ausentes os crons respondem `502` com `missing_config` (aparece como falha do job no `pg_cron`, sem alerta ao usuário).

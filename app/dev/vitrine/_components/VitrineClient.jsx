@@ -41,14 +41,14 @@ import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 // espelhe o wrapper da página correspondente.
 const TELAS = {
   anuncios: {
-    // Área Anúncios (só admin geral). ?variante=escuro (padrão) | claro.
+    // Área Anúncios (só admin geral).
     path: "/admin/anuncios",
-    titulo: "Anúncios (?variante=escuro|claro)",
+    titulo: "Anúncios",
     active: "ads",
     rotas: anuncios.routes,
     render: (perfil, variante) => (
       <main className="pb-14 md:pt-8">
-        <AdsBoard initialData={anuncios.data} variant={variante === "claro" ? "claro" : "escuro"} />
+        <AdsBoard initialData={anuncios.data} />
       </main>
     )
   },
