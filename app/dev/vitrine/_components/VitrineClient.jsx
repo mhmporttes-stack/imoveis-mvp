@@ -22,6 +22,8 @@ import * as supervisao from "../_fixtures/supervisao";
 import * as alertas from "../_fixtures/alertas";
 import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import AdsBoard from "@/components/ads/AdsBoard";
+import OnlinePresenceBoard from "@/components/OnlinePresenceBoard";
+import * as online from "../_fixtures/online";
 import * as anuncios from "../_fixtures/anuncios";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
 import * as financeiroSaude from "../_fixtures/financeiro-saude";
@@ -40,6 +42,17 @@ import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  online: {
+    path: "/admin/desempenho/online",
+    titulo: "Supervisão › Online",
+    active: "online",
+    rotas: online.routes,
+    render: () => (
+      <main className="min-h-screen bg-mist py-14">
+        <OnlinePresenceBoard initialPresence={online.presence} />
+      </main>
+    )
+  },
   anuncios: {
     // Área Anúncios (só admin geral).
     path: "/admin/anuncios",

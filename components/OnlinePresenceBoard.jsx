@@ -392,32 +392,31 @@ function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
   const [historyOpen, setHistoryOpen] = useState("");
   const toggle = (kind) => setHistoryOpen((value) => (value === kind ? "" : kind));
   return (
-    <div className="rounded-2xl border border-navy/10 p-4 transition hover:border-brand">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="relative shrink-0">
-            <GoalRing percent={goalPercent}>
-              <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
-            </GoalRing>
-            <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-extrabold text-navy">{firstName(member.name)}</p>
-            <p className="truncate whitespace-nowrap text-[11px] font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
+    <div className="rounded-2xl border border-navy/10 p-3 transition hover:border-brand sm:p-4">
+      {/* Celular (dono, 2026-10-14): ícones numa linha própria embaixo do nome — numa linha só a fileira estourava a tela. */}
+      <div className="flex items-start gap-3">
+        <span className="relative shrink-0">
+          <GoalRing percent={goalPercent}>
+            <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
+          </GoalRing>
+          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate font-extrabold text-navy">{firstName(member.name)}</p>
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black ${meta.chip}`}>
+              {meta.emoji} {meta.label}
+            </span>
           </div>
-        </div>
-        <div className="shrink-0 text-right">
-          <span className="inline-flex items-center gap-1.5">
+          <p className="truncate text-[11px] font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
+          <div className="mt-2 flex items-center gap-1.5">
             {member.office ? <OfficeButton office={member.office} open={historyOpen === "office"} onClick={() => toggle("office")} /> : null}
             {(member.whatsapp || []).map((icon, index) => (
               <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
             ))}
             <DeviceButton device={member.device} open={historyOpen === "presence"} onClick={() => toggle("presence")} />
-            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.chip}`}>
-              {meta.emoji} {meta.label}
-            </span>
-          </span>
-          <p className="mt-1 text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</p>
+            <span className="ml-auto min-w-0 truncate text-right text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</span>
+          </div>
         </div>
       </div>
       {historyOpen === "presence" ? <PresenceHistory userId={member.id} /> : null}
