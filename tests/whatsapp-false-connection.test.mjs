@@ -83,3 +83,9 @@ test("número que recebe pouco tem silêncio natural maior (35/semana pede ~16 h
   assert.equal(classifyFalseConnection({ ...base, now: at("2026-10-13T17:12:00Z") }).suspect, false); // ter 14:12 = ~12,8 h úteis
   assert.equal(classifyFalseConnection({ ...base, now: at("2026-10-13T21:30:00Z") }).suspect, true); // ter 18:30 = ~17 h úteis
 });
+
+test("acabou de reconectar: não decide e pede para manter a marca existente (hold)", () => {
+  const verdict = classifyFalseConnection({ session: { status: "connected", last_connected_at: "2026-10-13T17:10:00Z" }, recentDrops: 2, inboundCount7d: 760, lastInboundAt: "2026-10-12T14:43:00Z", now: at("2026-10-13T17:15:00Z") });
+  assert.equal(verdict.suspect, false);
+  assert.equal(verdict.hold, true);
+});
