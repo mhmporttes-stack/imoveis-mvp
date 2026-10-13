@@ -26,15 +26,16 @@
 </style></head>
 <body>
 
-<!-- 1 · CAPA -->
+<!-- 1 · CAPA — título passa POR TRÁS da cabeça (camadas: foto → título → recorte da pessoa) -->
 <section class="lamina foto-s">
   <img class="foto" src="img/capa.jpg" alt="">
-  <div class="corpo" style="top:60px;left:40px;right:40px;text-align:center;color:#1A1C22">
-    <div style="font-size:36px;font-weight:700">Se eu tivesse que</div>
-    <h1 class="cond" style="font-size:84px;color:#2459C9;margin-top:2px;line-height:1.1">Escolher entre<br>aluguel e meu 1º apê...</h1>
+  <div class="corpo" style="top:105px;left:30px;right:30px;text-align:center;color:#1A1C22">
+    <div style="font-size:38px;font-weight:700">Se eu tivesse que</div>
+    <h1 class="cond" style="font-size:104px;color:#2459C9;margin-top:6px;line-height:1.06">Escolher entre<br>aluguel e meu 1º apê...</h1>
   </div>
-  <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:230px;background:var(--azul);color:#fff;font-size:46px;font-weight:700;padding:22px 44px">eu faria isso!</div>
-  <div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+  <img class="foto" src="img/capa-recorte.png" alt="" style="z-index:2">
+  <div style="position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:250px;background:#2459C9;color:#fff;font-size:46px;font-weight:700;padding:22px 44px">eu faria isso!</div>
+  <div class="seta" style="z-index:4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
 </section>
 
 <!-- 2 · A CONTA -->
