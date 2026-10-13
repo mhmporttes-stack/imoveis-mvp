@@ -10,7 +10,7 @@ import {
   listPausedSlots, clearSlotPauses, syncSlotControls, shouldSkipGoogleSync, googleSkipNote, GOOGLE_SYNC_MAX_RETRIES,
   pendingOverdueMs, findStuckPendingItems, STUCK_PENDING_MS, errorTypeKey, consecutiveErrorStreak, isExpectedHold,
   resolveProtectionRecipients, pausedAlertDeliveries, queueProblemDeliveries, numberPausedDedupeKey, stuckDedupeKey, repeatedErrorDedupeKey,
-  SLOT_PAUSE_KIND, LOW_DELIVERY_MIN_SENT, LOW_DELIVERY_MAX_DELIVERED, lowDeliveryEligibleSlots, detectLowDeliverySlots, applyLowDeliveryPauses,
+  SLOT_PAUSE_KIND, LOW_DELIVERY_MIN_SENT, LOW_DELIVERY_MAX_DELIVERED, lowDeliveryEligibleSlots, detectLowDeliverySlots, applyLowDeliveryPauses, LOW_DELIVERY_LONG_OUTAGE_MS,
   pauseReasonText, pauseEpisodeOf, interventionDescription
 } from "../lib/daily-goal-protection-core.mjs";
 
@@ -445,4 +445,15 @@ test("item parado não conta o tempo da espera de 2 h depois de reconectar (rete
   const code = readFileSync("lib/daily-goal-auto.js", "utf8");
   assert.match(code, /readyAfterReconnectMs = policyV2 \? reconnectReadyAtMs\(await loadV2ConnectedAtMs\(brokerId, effectiveRow\)\) : null/);
   assert.match(code, /windowStartMs: Math\.max\(saoPauloInstantMs\(today, policy\.window_start_minutes\), readyAfterReconnectMs \?\? 0\)/);
+});
+
+test("entrega baixa: reinício do serviço (queda curta) NÃO apaga a evidência; queda longa ainda descarta o que saiu antes dela", () => {
+  const rows = sends(12, 0); // 06:40 a 08:30, hoje (TUESDAY 10:00)
+  // Reinício curto às 09:55, reconexão 1 min depois: as 12 mensagens continuam valendo (caso Bruna, 2026-10-13).
+  const shortOutage = connectedSlot(1, { last_disconnect_at: "2026-10-13T09:55:00-03:00", last_connected_at: "2026-10-13T09:56:00-03:00" });
+  assert.deepEqual(detect(rows, { sessionRows: [shortOutage] }), [{ slot: 1, evaluated: 12, delivered: 0 }]);
+  // Queda longa (2 h fora, volta às 09:50): o que saiu antes de cair às 07:50 é descartado (restam os envios depois da queda).
+  const longOutage = connectedSlot(1, { last_disconnect_at: "2026-10-13T07:50:00-03:00", last_connected_at: "2026-10-13T09:50:00-03:00" });
+  assert.deepEqual(detect(rows, { sessionRows: [longOutage] }), [], "queda longa: só sobram 4 envios depois dela");
+  assert.equal(LOW_DELIVERY_LONG_OUTAGE_MS, 30 * 60 * 1000);
 });

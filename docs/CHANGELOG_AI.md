@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Pausa por entrega baixa: reinício do serviço não apaga mais a evidência (caso Bruna)
+
+- **Sintoma:** Bruna Santos com 15 mensagens enviadas e 0 entregues não foi pausada pela regra nova depois da publicação.
+- **Causa raiz:** `detectLowDeliverySlots` descartava mensagens anteriores à `last_disconnect_at` do número; o deploy/reinício das 13:55 contou como "queda" de todos e zerou a amostra.
+- **Mudou:** só uma queda LONGA (≥ 30 min entre a desconexão e a conexão seguinte) descarta o que saiu antes dela (`LOW_DELIVERY_LONG_OUTAGE_MS`, `lib/daily-goal-protection-core.mjs`); teste novo em `tests/daily-goal-protection.test.mjs`. Bruna foi pausada à mão (UPDATE de `daily_goal_auto_settings.paused` só dela, a pedido do dono).
+
 ### 2026-10-13 — Chat: administrador continua vendo foto/vídeo apagado pelo cliente
 
 - **Data:** 2026-10-13 · **Área:** WhatsApp (Chat)
