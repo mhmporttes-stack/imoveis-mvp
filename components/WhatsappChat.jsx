@@ -1856,8 +1856,10 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
             <span className="block truncate text-[#54656F]">{(quoted?.body ? stripWhatsappFormatting(quoted.body) : "") || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
           </div>
         ) : null}
-        {message.revoked ? (
+        {message.revoked ? (<>
           <p className="flex items-start gap-1.5 text-sm italic text-[#54656F]"><Ban className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{message.revokedBy === "customer" ? "O cliente apagou esta mensagem" : "Mensagem apagada"}{message.originalBody ? <span className="mt-1 block text-[11px] font-semibold not-italic">Original (só administrador vê): {message.originalBody}</span> : null}</span></p>
+          {message.media ? <MediaPreview media={message.media} type={message.type} outbound={outbound}
+            avatarName={outbound ? message.sentByName || "Equipe" : contact?.name || ""} avatarUrl={outbound ? "" : contact?.photoUrl || ""} /> : null}</>
         ) : message.media ? <><MediaPreview media={message.media} type={message.type} outbound={outbound}
           avatarName={outbound ? message.sentByName || "Equipe" : contact?.name || ""} avatarUrl={outbound ? "" : contact?.photoUrl || ""} />
           {message.type === "audio" ? <AudioTranscript message={message} enabled={transcription} /> : null}</> : isMedia ? (

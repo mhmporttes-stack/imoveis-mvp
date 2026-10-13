@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Chat: administrador continua vendo foto/vídeo apagado pelo cliente
+
+- **Data:** 2026-10-13 · **Área:** WhatsApp (Chat)
+- **Alteração:** mensagem apagada "para todos" pelo cliente mantém a mídia (já baixada no recebimento, até 16 MB) visível SÓ para o administrador geral, abaixo do aviso "O cliente apagou esta mensagem" (junto do texto original, que já era assim). Corretor/gestora continuam sem ver o conteúdo.
+- **Motivo:** pedido do dono (auditoria do que foi enviado).
+- **Arquivos afetados:** `lib/whatsapp-chat.js` (`buildMessageMedia`, `resolveChatMedia`), `components/WhatsappChat.jsx`.
+- **Risco/observação:** mídia maior que 16 MB ou cujo download falhou antes de o cliente apagar não existe para recuperar. Vale só para mensagens de sessão individual com mídia guardada.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-13 — WhatsApp "conectado, mas sem receber" (conexão falsa): detector, avisos e visual cinza/rosado
 
 - **Data:** 2026-10-13 · **Área:** WhatsApp / Banco / Infra
