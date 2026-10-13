@@ -76,3 +76,10 @@ test("caso Bruna Nº1: reconexão automática (queda recente) não zera o silên
   // Sem queda recente (pareamento novo): 1 h útil conectada -> 34 min ainda não conta.
   assert.equal(classifyFalseConnection({ ...base, recentDrops: 0 }).suspect, false);
 });
+
+test("número que recebe pouco tem silêncio natural maior (35/semana pede ~16 h úteis)", () => {
+  const session = { status: "connected", last_connected_at: "2026-10-13T11:00:00Z" };
+  const base = { session, recentDrops: 1, inboundCount7d: 35, lastInboundAt: "2026-10-12T15:24:00Z" }; // seg 12:24
+  assert.equal(classifyFalseConnection({ ...base, now: at("2026-10-13T17:12:00Z") }).suspect, false); // ter 14:12 = ~12,8 h úteis
+  assert.equal(classifyFalseConnection({ ...base, now: at("2026-10-13T21:30:00Z") }).suspect, true); // ter 18:30 = ~17 h úteis
+});
