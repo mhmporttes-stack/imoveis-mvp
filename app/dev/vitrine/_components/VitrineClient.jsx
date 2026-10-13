@@ -21,6 +21,8 @@ import * as desempenho from "../_fixtures/desempenho";
 import * as supervisao from "../_fixtures/supervisao";
 import * as alertas from "../_fixtures/alertas";
 import AlertCenterGate from "@/components/alerts/AlertCenterGate";
+import AdsBoard from "@/components/ads/AdsBoard";
+import * as anuncios from "../_fixtures/anuncios";
 import FinancialHealthTab from "@/components/FinancialHealthTab";
 import * as financeiroSaude from "../_fixtures/financeiro-saude";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
@@ -38,6 +40,18 @@ import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  anuncios: {
+    // Área Anúncios (só admin geral).
+    path: "/admin/anuncios",
+    titulo: "Anúncios",
+    active: "ads",
+    rotas: anuncios.routes,
+    render: (perfil, variante) => (
+      <main className="pb-14 md:pt-8">
+        <AdsBoard initialData={anuncios.data} />
+      </main>
+    )
+  },
   "ranking-topo": {
     // Cabeçalho do ranking como em app/admin/layout.jsx (?variante=completo|sem-dia|vazio|posicao).
     path: "/admin/simulacoes",

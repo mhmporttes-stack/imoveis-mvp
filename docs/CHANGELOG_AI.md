@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Nova área "Anúncios" (Supervisão), somente leitura da Meta
+
+- **Pedido do dono:** área com os anúncios em cards baixos (≥ 4 por tela no celular), com foto, título, WhatsApp × Cadastro, custo por lead, leads, clientes no CRM, frequência, situação e recomendações; detalhe ao clicar. Aparência: versão B (painel claro com o DNA dos carrosséis), escolhida entre duas na vitrine. Conteúdo especificado pelo `gestor-trafego` e visual pelo `marketing-posicionamento`.
+- **Onde:** `/admin/anuncios` (menu Supervisão › Anúncios, só administrador geral — `requireGeneralAdminPage`/`requireGeneralAdminApi`), `GET /api/admin/anuncios?period=today|7d|30d`, `components/ads/AdsBoard.jsx`, `lib/meta-ads-board.js` (servidor) e `lib/meta-ads-board-core.mjs` (regras puras; testes `tests/meta-ads-board.test.mjs`).
+- **Dados:** nível anúncio; tipo pelo objetivo da campanha (`OUTCOME_ENGAGEMENT`/`MESSAGES` = WhatsApp; `OUTCOME_LEADS`/`LEAD_GENERATION`/`CONVERSIONS` = Cadastro) ou `destination_type` do conjunto; resultado = conversas iniciadas (WhatsApp) ou `leads` (Cadastro); clientes no CRM = `client_origins` com `ad_id` (anúncio de WhatsApp) ou `utm_content` (site) igual ao ID do anúncio; alcance/frequência do período lidos na hora da Meta (fallback: maior frequência diária).
+- **Recomendações:** relativas à própria conta (medianas dos últimos 30 dias, recalculadas a cada abertura): custo > 1,5× mediana ou gasto ≥ 2× mediana sem resultado = Ruim; custo 1–1,5× = Atenção; frequência > 2 Ruim / > 1,5 Atenção; CTR no quartil inferior e CPM > 2× mediana = Atenção; pouco gasto ou < 2 dias = Aprendendo; custo ≤ mediana = Manter, e com ≥ 3 resultados e cliente no CRM = Vencedor. Sempre sugestão — nenhuma ação na Meta.
+- **Foto:** migration `20261013170000_meta_ad_creative_preview.sql` (aplicada): `meta_ad_entities.thumbnail_url/image_url/destination_type/creative_synced_at`, preenchidas por `syncMetaAdCreatives` (GET), renovadas ao abrir a tela se tiverem mais de 20 h (URL assinada da Meta expira).
+
 ### 2026-10-13 — Painel Online: anel da Meta Diária na foto, só o primeiro nome; app do dono com "Online" na barra
 
 - **Pedido do dono:** anel da Meta Diária de hoje em volta da foto (enche conforme a meta; verde em 100%; percentual de `/api/daily-goal/team-overview?period=today`, mesma conta da Meta Diária da equipe), só o primeiro nome e "Última atividade" menor em uma linha (`components/OnlinePresenceBoard.jsx`).
