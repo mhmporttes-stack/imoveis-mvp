@@ -744,7 +744,20 @@ export function useClientList({
         notify(data.error || "Não foi possível preparar a lista de documentos.", "danger");
         return;
       }
-      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision: decideClientWhatsapp(client, value, { chatReady: data.chatReady === true, chatReason: data.chatReason }) });
+      // Canal decidido pelo SERVIDOR (dono, 2026-10-14): oficial (janela aberta) → WhatsApp do corretor no Chat →
+      // WhatsApp do aparelho só com restrição validada → senão não envia.
+      let decision;
+      if ((data.channel === "official" || data.channel === "individual") && data.conversationId) {
+        decision = { action: "chat", channel: data.channel, conversationId: data.conversationId };
+      } else if (data.channel === "external") {
+        const url = buildExternalWhatsappUrl(value, readCardDevice());
+        decision = url ? { action: CARD_WA_EXTERNAL, url, reason: "restriction_validated" } : { action: "blocked", reason: "no_phone" };
+      } else if (data.channel === "blocked") {
+        decision = { action: "blocked", reason: data.channelReason || "no_conversation" };
+      } else {
+        decision = decideClientWhatsapp(client, value, { chatReady: data.chatReady === true, chatReason: data.chatReason });
+      }
+      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision });
     });
   }
 
@@ -754,6 +767,7 @@ export function useClientList({
     setDocsListTarget(null);
     const { client, message, imageUrl, decision } = target;
     const registrationId = client.registration.id;
+    if (decision.action === "blocked") return;
     await withBusy(client, async () => {
       if (decision.action === CARD_WA_EXTERNAL) {
         // sem nenhum await antes: o navegador só deixa abrir a janela dentro do clique do corretor
@@ -762,15 +776,19 @@ export function useClientList({
           .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
           .catch(() => flagContactNotSaved(client.name || client.registration?.fullName || ""));
       } else {
-        const opened = await fetch("/api/admin/whatsapp-chat/open-client", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId: registrationId })
-        });
-        const conversation = await opened.json().catch(() => ({}));
-        if (!opened.ok || !conversation.conversationId) {
-          notify(conversation.error || "Não foi possível abrir a conversa no Chat.", "danger");
-          return;
+        // Conversa já escolhida pelo servidor (oficial ou WhatsApp do corretor); tela antiga sem ela: abre pelo Chat como antes.
+        let conversation = { conversationId: decision.conversationId || "" };
+        if (!conversation.conversationId) {
+          const opened = await fetch("/api/admin/whatsapp-chat/open-client", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clientId: registrationId })
+          });
+          conversation = await opened.json().catch(() => ({}));
+          if (!opened.ok || !conversation.conversationId) {
+            notify(conversation.error || "Não foi possível abrir a conversa no Chat.", "danger");
+            return;
+          }
         }
         // A lista vai como IMAGEM (PNG personalizada, a mesma da apresentação) com a legenda curta. O navegador busca a imagem
         // pública (mesma origem) e a entrega ao envio de mídia do Chat, que a guarda no storage e manda pelo WhatsApp do corretor.
@@ -801,7 +819,7 @@ export function useClientList({
         body: JSON.stringify({ action: "registrar" })
       }).catch(() => null);
       if (!logged?.ok) notify("A mensagem foi encaminhada, mas o registro na jornada do cliente falhou.", "danger");
-      else notify(decision.action === CARD_WA_EXTERNAL ? "WhatsApp aberto. Baixe a imagem da lista, anexe e envie por lá." : "Imagem da lista de documentos enviada pelo Chat.");
+      else notify(decision.action === CARD_WA_EXTERNAL ? "WhatsApp aberto. Baixe a imagem da lista, anexe e envie por lá." : decision.channel === "official" ? "Imagem da lista de documentos enviada pelo número oficial." : "Imagem da lista de documentos enviada pelo Chat.");
     });
   }
 

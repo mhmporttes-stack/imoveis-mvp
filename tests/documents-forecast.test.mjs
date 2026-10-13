@@ -596,13 +596,18 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   const confirmFn = /async function confirmDocumentsList[\s\S]*?\n  }\n/.exec(hook)?.[0] || "";
   assert.ok(prepare && confirmFn);
   assert.match(hook, /function decideClientWhatsapp[\s\S]*?decideCardWhatsapp\(/);
-  assert.match(prepare, /decideClientWhatsapp\(client, value, \{ chatReady: data\.chatReady === true/);
-  // Chat só responde (2026-10-05): sem conversa do cliente no Chat (decisão do SERVIDOR) cai SEMPRE no WhatsApp externo
-  assert.match(hook, /function decideClientWhatsapp[\s\S]*?decision\.action !== CARD_WA_EXTERNAL && !chatReady[\s\S]*?buildExternalWhatsappUrl\(/);
+  // Canal decidido pelo SERVIDOR (dono, 2026-10-14): oficial com janela aberta → WhatsApp do corretor no Chat →
+  // WhatsApp do aparelho só com restrição VALIDADA (admin geral isento) → senão bloqueado (nada é enviado).
+  assert.match(prepare, /data\.channel === "official" \|\| data\.channel === "individual"/);
+  assert.match(prepare, /data\.channel === "external"/);
+  assert.match(prepare, /action: "blocked"/);
+  assert.match(confirmFn, /decision\.action === "blocked"\) return/);
   const routeCode = stripComments(read("app/api/admin/clients/[id]/lista-documentos/route.js"));
+  assert.match(routeCode, /findOpenOfficialConversationId\(id\)/);
   assert.match(routeCode, /getChatReplyReadiness\(id\)/);
-  assert.match(routeCode, /chatReady: chat\.ready/);
-  assert.match(routeCode, /let chat = \{ ready: false/); // falha ao checar = wa.me, nunca Chat
+  assert.match(routeCode, /validation_status === VALIDATION_VALIDATED/);
+  assert.match(routeCode, /let channel = \{ type: "blocked"/); // falha ao checar = bloqueado, nunca wa.me por engano
+  assert.ok(routeCode.indexOf("findOpenOfficialConversationId(id)") < routeCode.indexOf("getChatReplyReadiness(id)"));
   const chatLib = stripComments(read("lib/whatsapp-chat.js"));
   const readiness = chatLib.slice(chatLib.indexOf("export async function getChatReplyReadiness("), chatLib.indexOf("export async function sendChatMessage("));
   assert.match(readiness, /assertIndividualChatReplyOnly\(conversation, "individual", sessionKey(, conversationSlot)?\)/); // mesmo critério do envio real (limite 80/h incluído)

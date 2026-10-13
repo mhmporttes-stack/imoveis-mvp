@@ -774,6 +774,8 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
   }, [target]);
 
   const external = target?.decision?.action === "external";
+  const blocked = target?.decision?.action === "blocked";
+  const viaOfficial = target?.decision?.channel === "official";
   return (
     <dialog ref={ref} aria-labelledby={titleId} className="ui-confirm" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
       {target ? (
@@ -781,9 +783,18 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
           <h2 id={titleId} className="text-base font-semibold text-ink">Enviar lista de documentos</h2>
           <p className="mt-1 text-sm text-ink-2">Confira a mensagem para {target.client.name || "o cliente"}. A lista de documentos vai como imagem, personalizada pela simulação dele.</p>
           <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
-          {external ? (
+          {blocked ? (
+            <p role="alert" className="mt-2 text-xs font-semibold text-warning" data-documents-list-blocked="">
+              {target.decision?.reason === "session_down"
+                ? "Seu WhatsApp não está conectado ao CRM. Conecte o número para enviar pelo Chat."
+                : target.decision?.reason === "hourly_cap"
+                  ? "Você atingiu o limite de envios por hora do Chat. Tente de novo em alguns minutos."
+                  : "Este cliente ainda não conversou com o número oficial nem com o seu WhatsApp no Chat do CRM. Assim que ele mandar mensagem, a lista sai pelo Chat."}{" "}
+              O WhatsApp do aparelho só é liberado com restrição do WhatsApp validada no CRM.
+            </p>
+          ) : external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
-              <p>{target.decision?.reason === "no_conversation" || target.decision?.reason === "unknown" ? "Este cliente ainda não conversou com você pelo Chat do CRM; para proteger seu número, o envio é feito pelo WhatsApp do seu aparelho." : target.decision?.reason === "hourly_cap" ? "Você atingiu o limite de envios por hora do Chat; o envio é feito pelo WhatsApp do seu aparelho." : "Seu WhatsApp não está conectado ao CRM."} O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
+              <p>Sua restrição do WhatsApp está validada: o envio é feito pelo WhatsApp do seu aparelho. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
               {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
               <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="mt-2 inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
                 {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
@@ -791,11 +802,13 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
               {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
             </div>
           ) : (
-            <p className="mt-2 text-xs text-muted">A imagem da lista, com essa mensagem como legenda, será enviada pelo Chat do CRM.</p>
+            <p className="mt-2 text-xs text-muted">
+              {viaOfficial ? "A imagem da lista, com essa mensagem como legenda, será enviada pelo número oficial, no Chat do CRM." : "A imagem da lista, com essa mensagem como legenda, será enviada pelo seu WhatsApp, no Chat do CRM."}
+            </p>
           )}
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
-            <Button onClick={onConfirm}>{external ? "Abrir no WhatsApp" : "Enviar pelo Chat"}</Button>
+            {blocked ? null : <Button onClick={onConfirm}>{external ? "Abrir no WhatsApp" : "Enviar pelo Chat"}</Button>}
           </div>
         </div>
       ) : null}

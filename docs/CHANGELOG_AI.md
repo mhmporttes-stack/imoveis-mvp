@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — "Enviar lista de documentos": oficial → WhatsApp do corretor no Chat → aparelho só com restrição validada
+
+- **Pedido do dono:** a lista sai pelo número OFICIAL quando o cliente está conversando com ele (janela de 24 h aberta); senão pelo WhatsApp do corretor conectado ao CRM, no Chat, quando o cliente conversa com esse número; o WhatsApp do aparelho/Web (wa.me) só abre para quem tem **restrição do WhatsApp validada** no CRM (admin geral isento, como nas regras PRO-12/13/14). Sem nenhum desses: o modal explica e não envia.
+- **Onde:** decisão no servidor (`app/api/admin/clients/[id]/lista-documentos/route.js`: `findOpenOfficialConversationId` → `getChatReplyReadiness`, que agora devolve `conversationId` → `getOpenRestriction` validada); `components/clients/useClientList.js` envia a imagem direto na conversa escolhida; `components/clients/ClientSheet.jsx` mostra o canal e, bloqueado, esconde o botão. Antes, sem conversa no Chat, sempre abria o wa.me.
+
 ### 2026-10-14 — Simulação: preferências do cliente no topo da Etapa C
 
 - **Pedido do dono:** as preferências de imóvel que o cliente preenche no formulário (tipo, regiões, estágio, quartos, aluguel, previsão, prioridades, indispensáveis) aparecem no topo de "Imóveis sugeridos" (Etapa C) do gerador de simulação, para o corretor escolher os imóveis com base nelas. `components/SimulationGenerator.jsx` usa `getPropertyPreferenceDetails` (`lib/property-preference-display.js`, mesma fonte da Ficha do cliente) sobre `initialSimulation.registration.propertyPreferences`; só aparece com as preferências concluídas.
