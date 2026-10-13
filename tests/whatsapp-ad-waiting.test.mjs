@@ -94,7 +94,7 @@ test("textos da sequência (dossiê 2026-10-12): voz da equipe, com e sem nome, 
   assert.equal(buildFormReminderText("ana souza", "1h"), "Ana, conseguiu abrir o link da simulação? Se ficou alguma dúvida, é só mandar aqui, escrita ou em áudio.");
   assert.equal(buildFormReminderText("Cliente WhatsApp", "1h"), "Conseguiu abrir o link da simulação? Se ficou alguma dúvida, é só mandar aqui, escrita ou em áudio.");
   assert.equal(buildFormReminderText("ana", "3h"), "Só lembrando: com a simulação você já fica sabendo quanto pode financiar e a parcela pro seu caso. Não pede CPF e é sem compromisso. É só tocar em Fazer simulação, na primeira mensagem que te mandamos.");
-  assert.equal(buildFormReminderText("ana", "10h"), "Ana, esse é nosso último lembrete sobre o link da simulação 🙂 Se você trabalha sem carteira ou não tem nada guardado, pode fazer do mesmo jeito. Se preferir conversar, é só responder aqui que a nossa equipe te responde.");
+  assert.equal(buildFormReminderText("ana", "10h"), "Ana, esse é nosso último lembrete sobre o link da simulação. Se você trabalha sem carteira ou não tem nada guardado, pode fazer do mesmo jeito. Se preferir conversar, é só responder aqui que a nossa equipe te responde.");
   assert.match(buildFormReminderText("", "10h"), /^Esse é nosso último lembrete/);
   assert.equal(buildFormReminderText("ana", "10h", { morning: true }), "Bom dia, Ana! Passando pra lembrar da simulação que te mandamos: ela mostra quanto você pode financiar e a parcela, sem CPF e sem compromisso. Se ficou alguma dúvida, é só responder aqui, escrita ou em áudio.");
   assert.match(buildFormReminderText("", "3h", { morning: true }), /^Bom dia! Passando/);
