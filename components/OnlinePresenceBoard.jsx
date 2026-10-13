@@ -404,7 +404,10 @@ function DeviceButton({ device, open, onClick }) {
 
 // WhatsApp do corretor: verde = número conectado (um ícone por número conectado); cinza = nenhum conectado.
 function WhatsappStatusButton({ icon, open, onClick }) {
-  const label = icon.connected ? `WhatsApp ${icon.slot === 2 ? "Número 2" : "Número 1"} conectado` : "WhatsApp desconectado";
+  const idle = icon.connected && icon.state === "idle";
+  const name = icon.slot === 2 ? "Número 2" : "Número 1";
+  const label = !icon.connected ? "WhatsApp desconectado" : idle ? `WhatsApp ${name} sem mensagens há 4 h (fora da roleta, reconectar)` : `WhatsApp ${name} conectado`;
+  const tone = !icon.connected ? "text-slate-400" : idle ? "text-orange-500" : "text-emerald-600";
   return (
     <button
       type="button"
@@ -412,7 +415,7 @@ function WhatsappStatusButton({ icon, open, onClick }) {
       aria-expanded={open}
       title={`${label} — ver conexões`}
       aria-label={`${label}. Ver histórico de conexão`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy" : "border-navy/10 bg-mist hover:border-brand"} ${icon.connected ? (open ? "text-white" : "text-emerald-600") : (open ? "text-white" : "text-slate-400")}`}
+      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy" : "border-navy/10 bg-mist hover:border-brand"} ${open ? "text-white" : tone}`}
     >
       <WhatsappGlyph className="h-4 w-4" />
     </button>

@@ -44,6 +44,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Número de WhatsApp ocioso fica laranja e sai da roleta (ROL-2e)
+
+- **Regra do dono:** 4 h sem mensagem (só 8h–21h, todos os dias) = número ocioso → laranja no painel Online e fora da roleta; volta com mensagem ou reconexão. SQL `business_minutes_between`/`whatsapp_number_activity`/`whatsapp_user_has_active_number` + roleta recriada (migration `20261013130000_whatsapp_numero_ocioso.sql`, aplicada); `lib/admin-presence*.js`, `lib/lead-distribution.js`, `components/OnlinePresenceBoard.jsx`. Teste em `tests/admin-presence-core.test.mjs`.
+
 ### 2026-10-13 — Roleta exige WhatsApp conectado (ROL-2d) e Guia com "equipe do corretor Matheus Machado"
 
 - **Regra nova do dono:** só recebe lead da roleta quem tem pelo menos 1 número do WhatsApp conectado. `pick_round_robin_broker` e `assign_round_robin_lead` recriadas com a condição (migration `20261013120000_roleta_exige_whatsapp_conectado.sql`, aplicada); `countOnlineRouletteBrokers` alinhada. Detalhe: `docs/BUSINESS_RULES.md` ROL-2d.

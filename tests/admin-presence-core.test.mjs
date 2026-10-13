@@ -55,12 +55,12 @@ test("buildPresenceSessions: separa por lacuna de inatividade e por troca de apa
   assert.equal(buildPresenceSessions([]).length, 0);
 });
 
-test("whatsappPresenceIcons: um verde por número conectado; nenhum conectado = um cinza", async () => {
+test("whatsappPresenceIcons: um ícone por número conectado (verde ativo, laranja ocioso); nenhum = um cinza", async () => {
   const { whatsappPresenceIcons } = await import("../lib/admin-presence-core.mjs");
-  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "connected" }, { slot: 2, status: "connected" }]), [{ slot: 1, connected: true }, { slot: 2, connected: true }]);
-  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "connected" }]), [{ slot: 2, connected: true }]);
-  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "error" }]), [{ slot: null, connected: false }]);
-  assert.deepEqual(whatsappPresenceIcons([]), [{ slot: null, connected: false }]);
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "connected", active: true }, { slot: 2, status: "connected", active: false }]), [{ slot: 1, connected: true, state: "active" }, { slot: 2, connected: true, state: "idle" }]);
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "connected" }]), [{ slot: 2, connected: true, state: "active" }]);
+  assert.deepEqual(whatsappPresenceIcons([{ slot: 1, status: "disconnected" }, { slot: 2, status: "error" }]), [{ slot: null, connected: false, state: "off" }]);
+  assert.deepEqual(whatsappPresenceIcons([]), [{ slot: null, connected: false, state: "off" }]);
 });
 
 test("buildWhatsappConnectionPeriods: emenda reconexão rápida e separa queda longa", async () => {
