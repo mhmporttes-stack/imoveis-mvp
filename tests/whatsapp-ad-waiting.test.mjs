@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { AD_WAITING_DISTRIBUTION, SILENCE_TRANSFER_SINCE, adReleaseVia, canReleaseAdWaitingClient, decideSilenceTransfer, hasRepliedAfterAutomation } from "../lib/whatsapp-ad-waiting-core.mjs";
+import { AD_WAITING_DISTRIBUTION, SILENCE_TRANSFER_SINCE, adReleaseVia, silenceTransferCutoffMs, canReleaseAdWaitingClient, decideSilenceTransfer, hasRepliedAfterAutomation } from "../lib/whatsapp-ad-waiting-core.mjs";
 import {
   AD_REMINDER_STEPS,
   FORM_REMINDER_BACKLOG_CUTOFF,
@@ -236,6 +236,7 @@ function silenceInput(overrides = {}, a1At = A1_AT) {
     conversation: { private_at: null, deleted_at: null, status: "open", last_human_reply_at: null },
     messages: [opening, a1],
     audits: [],
+    activatedAt: SILENCE_TRANSFER_SINCE,
     ...overrides
   };
 }
@@ -298,6 +299,21 @@ test("silêncio: só daqui para frente (A1 antes da data de corte não é transf
   const before = at(SILENCE_TRANSFER_SINCE, -1).toISOString();
   assert.equal(decideSilenceTransfer(silenceInput({}, before), at(before, 5)).reason, "antes_da_publicacao");
   assert.equal(decideSilenceTransfer(silenceInput({ messages: [silenceInput().messages[0]] }), at(A1_AT, 5)).reason, "sem_mensagem_automatica");
+});
+
+test("silêncio: data de corte = 1ª rodada em produção (marca em crm_settings), nunca antes do piso", () => {
+  // sem a marca de ativação, não transfere ninguém
+  assert.equal(decideSilenceTransfer(silenceInput({ activatedAt: null }), at(A1_AT, 5)).reason, "sem_data_de_corte");
+  assert.equal(silenceTransferCutoffMs(null), Infinity);
+  // A1 antes da publicação real (ativação depois do piso) não é transferida; A1 depois, sim
+  const activatedAt = at(A1_AT, 1).toISOString();
+  assert.equal(decideSilenceTransfer(silenceInput({ activatedAt }), at(A1_AT, 5)).reason, "antes_da_publicacao");
+  assert.equal(decideSilenceTransfer(silenceInput({ activatedAt: at(A1_AT, -1).toISOString() }), at(A1_AT, 5)).action, "transfer");
+  // ativação anterior ao piso não retroage além do piso
+  assert.equal(silenceTransferCutoffMs("2026-01-01T00:00:00Z"), new Date(SILENCE_TRANSFER_SINCE).getTime());
+  const lib = readFileSync(new URL("../lib/whatsapp-sponsored-lead.js", import.meta.url), "utf8");
+  assert.match(lib, /from\("crm_settings"\)\.insert\(\{ id: SILENCE_TRANSFER_SETTING_ID, setting_value: \{ activatedAt \}/);
+  assert.match(lib, /decideSilenceTransfer\(\{ client, conversation, messages, audits: audits \|\| \[\], activatedAt: silenceActivatedAt \}, now\)/);
 });
 
 test("rótulo da liberação: silêncio nunca vira 'respondeu'; via desconhecida não passa", () => {

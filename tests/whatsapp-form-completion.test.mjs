@@ -54,6 +54,6 @@ test("resposta antiga por palavra-chave é suprimida no pós-formulário e para 
 test("formulário enviado encerra a sessão viva do Fluxo (endLiveFlowSession)", async () => {
   const { readFileSync } = await import("node:fs");
   const reg = readFileSync(new URL("../lib/simulation-registrations.js", import.meta.url), "utf8");
-  assert.match(reg, /async function endWhatsappFlowAfterForm\(phone\)[\s\S]*endLiveFlowSession\(canonical, "formulario_enviado"\)/);
+  assert.match(reg, /async function endWhatsappFlowAfterForm\(phone\)[\s\S]*findConversationByPhone\(canonical[\s\S]*endLiveFlowSession\(sessionPhone, "formulario_enviado"\)/);
   assert.equal((reg.match(/await endWhatsappFlowAfterForm\(/g) || []).length, 4);
 });
