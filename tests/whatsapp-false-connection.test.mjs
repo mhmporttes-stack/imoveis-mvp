@@ -67,3 +67,12 @@ test("entregas: corretor em 2ª pessoa, equipe com nome; sem duplicar nem se avi
   assert.equal(staff.kind, "important");
   assert.deepEqual(buildFalseConnectionDeliveries({ definition: { enabled: false }, brokerId: "B", staffIds: ["M"], brokerKey: "bk", staffKey: "sk" }), []);
 });
+
+test("caso Bruna Nº1: reconexão automática (queda recente) não zera o silêncio; pareamento limpo espera 1 h útil", () => {
+  // Última recebida seg 11:43 (14:43Z); reconectou sozinha ter 13:56 (16:56Z); agora ter 14:30 (17:30Z).
+  const base = { session: { status: "connected", last_connected_at: "2026-10-13T16:56:00Z" }, inboundCount7d: 760, lastInboundAt: "2026-10-12T14:43:00Z", now: at("2026-10-13T17:30:00Z") };
+  assert.deepEqual(classifyFalseConnection({ ...base, recentDrops: 2 }), { suspect: true, reason: "silence" });
+  assert.equal(classifyFalseConnection({ ...base, recentDrops: 2, now: at("2026-10-13T17:05:00Z") }).suspect, false); // só 9 min conectada
+  // Sem queda recente (pareamento novo): 1 h útil conectada -> 34 min ainda não conta.
+  assert.equal(classifyFalseConnection({ ...base, recentDrops: 0 }).suspect, false);
+});
