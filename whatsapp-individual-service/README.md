@@ -95,6 +95,20 @@ alguma delas):
   altere `package.json`, rode `npm install --package-lock-only` e faça deploy conscientemente.
   O Dockerfile troca `ssh://git@github.com/` por https (a dependência `libsignal` vem do git).
 
+## Limite de tentativas depois de um 403 e logs sem chaves (2026-10-13)
+
+- Depois de um 403 num número (corretor + Número 1/2), no máximo 3 tentativas de conectar por hora (manuais e
+  automáticas); a 4ª recebe HTTP 429 `{ error, code: "CONNECT_COOLDOWN", retryAfterMinutes }` e nunca toca no WhatsApp.
+  A regra é `evaluateForbiddenConnectLimit` (`src/reconnect-policy.js`), a porta é `src/connect-limit.js`, chamada em
+  `connectSession` antes de qualquer efeito. A contagem NÃO fica em memória: o serviço grava a telemetria pendente e pergunta
+  ao CRM (`POST /api/webhooks/whatsapp-individual`, `type: "connect_events"`) o que já está em `whatsapp_session_telemetry`.
+  Sem resposta do CRM (versão antiga, fora do ar, > 8 s) a conexão segue e o log avisa "NÃO verificado". Sem variável nova,
+  sem migration. Publique o CRM (Vercel) antes ou junto deste serviço.
+- `src/console-guard.js` (primeiro import de `server.js`) instala `src/log-sanitizer.js`: o libsignal (dentro do Baileys)
+  imprimia objetos `SessionEntry` com `privKey`/`rootKey`/`chainKey`/`baseKey` nos logs; agora qualquer chamada de console
+  com essas chaves, ou mensagem conhecida do libsignal, vira uma linha curta (`[libsignal] sessão fechada (n)`). Não muda o
+  Baileys nem o lockfile. Em log novo do serviço, nunca imprima sessão, credencial ou chave.
+
 ## Limitações desta primeira versão
 
 - Mídia recebida (até 16 MB) é baixada e enviada ao storage do CRM por URL

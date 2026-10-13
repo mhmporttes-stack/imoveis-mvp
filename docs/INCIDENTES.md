@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-13 — Muitas tentativas seguidas de conectar um número que o WhatsApp recusa (403) e chaves de criptografia nos registros
+- **Data:** 2026-10-13
+- **Sintoma:** número do corretor com erro 403 ("forbidden") e 8 tentativas de conectar em 8 minutos, todas 403 (09/10, telemetria `connect_attempt`/`cycle_start`/`intervention_required`); e, nos registros da Railway, despejos com `privKey`, `rootKey`, `chainKey`, `baseKey` ("Closing session", "Bad MAC"...).
+- **Área:** WhatsApp
+- **Impacto:** cada insistência num número já recusado parece robô para o antiabuso do WhatsApp (risco de banimento do número); quem lê o log da Railway lia material de criptografia das conversas.
+- **Causa raiz:** (1) 403 já NÃO reconectava sozinho (2026-10-04), mas nada limitava as tentativas MANUAIS — o botão Conectar e a abertura da tela (que tenta conectar sozinha com o número em erro) abriam um ciclo novo a cada vez. (2) O libsignal (dentro do Baileys) imprime o objeto `SessionEntry` inteiro com `console.info/warn/error`; o serviço não filtrava o console.
+- **Correção:** (1) máximo 3 tentativas por hora depois de um 403, contadas pela telemetria gravada (não pela memória), a 4ª recusada com mensagem clara sem tocar no WhatsApp. (2) filtro do console que troca esses despejos por uma linha curta. Ver CHANGELOG_AI.md (2026-10-13), BUSINESS_RULES WA-32/WA-33.
+- **Arquivos/commit:** `whatsapp-individual-service/src/{reconnect-policy,connect-limit,sessions,log-sanitizer,console-guard}.js`, `lib/whatsapp-session-telemetry.js` — commit na branch da worktree (hash no histórico do repositório).
+- **Prevenção/teste:** `tests/whatsapp-forbidden-limit.test.mjs` (linha do tempo real de 8 tentativas, janela deslizante, fiação antes de apagar credenciais) e `tests/whatsapp-log-sanitizer.test.mjs` (SessionEntry com formato do libsignal, console real do Node); simulação com o `session_record.js` real do libsignal: 1178 linhas/57 KB -> 56 linhas, 0 chaves.
+- **Status:** Resolvido no código; vale em produção quando o CRM e o serviço (Railway) forem publicados.
+
 ### 2026-10-12 — Cliente "Não contactar" recebia robô do WhatsApp (Fluxo/palavra-chave)
 - **Data:** 2026-10-12
 - **Sintoma:** cliente marcado "Não contactar" que escreve para o número oficial recebe saudação/menu do Fluxo ou resposta automática por palavra-chave (achado da Mesa de Criação, por leitura de código).

@@ -3,11 +3,12 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
-import { notifyChatEvent, notifyGroupEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestLidCandidates } from "./webhook.js";
+import { notifyChatEvent, notifyGroupEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestConnectEvents, requestLidCandidates } from "./webhook.js";
 import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
-import { configFromEnv, createReconnectController } from "./reconnect-policy.js";
-import { createCloseHandler } from "./session-lifecycle.js";
+import { FORBIDDEN_LIMIT_CODE, configFromEnv, createReconnectController } from "./reconnect-policy.js";
+import { createCloseHandler, NEEDS_ATTENTION_PREFIX } from "./session-lifecycle.js";
+import { connectCooldownError, createConnectLimitGate } from "./connect-limit.js";
 import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
@@ -42,6 +43,14 @@ const retiredSockets = new WeakSet();
 // para sempre, para qualquer código que não fosse 401.
 const reconnectConfig = configFromEnv(process.env);
 const QR_TTL_MS = 60_000;
+// Limite de tentativas depois de um 403 (dono, 2026-10-13): conta pela telemetria GRAVADA no CRM, não pela memória.
+const forbiddenGate = createConnectLimitGate({
+  fetchEvents: requestConnectEvents,
+  flushTelemetry: () => telemetry.flush(),
+  config: reconnectConfig
+});
+// Sessão com socket vivo (ou conexão em andamento) é reaproveitada por connectSession: não abre conexão nova.
+const LIVE_STATUSES = ["connected", "qr_required", "pairing_code_required", "connecting"];
 
 // Exclusão mútua por corretor: conectar (retomada no boot / botão Conectar / QR / reconexão automática)
 // e desconectar nunca correm ao mesmo tempo para a MESMA sessão neste processo.
@@ -257,6 +266,8 @@ async function onAutoReconnectFailure(userId, entry, error) {
     console.warn(`[${userId}] Reconexão automática adiada: ${error.message}`);
     return;
   }
+  // Limite de tentativas depois de um 403: enforceForbiddenLimit já encerrou o ciclo e gravou o estado.
+  if (error?.code === FORBIDDEN_LIMIT_CODE) return;
   console.error(`[${userId}] Falha ao reconectar automaticamente:`, error.message);
   try {
     await closeHandlerFor(userId, entry)({ sock: null, statusCode: undefined, errorMessage: `startup_failed: ${error.message}` });
@@ -319,6 +330,11 @@ async function connectSessionLocked(userId, { phoneNumber, trigger = "manual" } 
   // (2026-10-02).
   const startingFresh = (Boolean(phoneNumber) || Boolean(entry.pairingMode)) && entry.status !== "connected";
 
+  // Limite de tentativas depois de um 403 (dono, 2026-10-13). ANTES de derrubar socket ou apagar credenciais (uma tentativa
+  // recusada não pode destruir a sessão) e só quando uma conexão NOVA seria aberta; o reinício 515 continua a tentativa anterior.
+  const reusesLiveConnection = !startingFresh && (Boolean(entry.connecting) || (Boolean(entry.sock) && LIVE_STATUSES.includes(entry.status)));
+  if (trigger !== "restart" && !reusesLiveConnection) await enforceForbiddenLimit(userId, entry, trigger);
+
   if (startingFresh) {
     if (entry.sock) {
       retiredSockets.add(entry.sock);
@@ -328,7 +344,7 @@ async function connectSessionLocked(userId, { phoneNumber, trigger = "manual" } 
     entry.connecting = null;
     await clearSessionCreds(userId);
   } else {
-    if (entry.sock && (entry.status === "connected" || entry.status === "qr_required" || entry.status === "pairing_code_required" || entry.status === "connecting")) {
+    if (entry.sock && LIVE_STATUSES.includes(entry.status)) {
       return { status: entry.status, qr: entry.qr, pairingCode: entry.pairingCode };
     }
     if (entry.connecting) return entry.connecting;
@@ -338,6 +354,22 @@ async function connectSessionLocked(userId, { phoneNumber, trigger = "manual" } 
   if (trigger !== "auto" && trigger !== "restart") clearRetryTimer(entry);
   entry.connecting = startSocket(userId, entry, { phoneNumber, trigger }).finally(() => { entry.connecting = null; });
   return entry.connecting;
+}
+
+// Recusa a tentativa (sem tocar no WhatsApp) quando o número já tem 403 e esgotou as tentativas da hora. Manual: só devolve o
+// erro (a tela mostra a mensagem; o estado gravado não muda). Automática/retomada: ninguém está olhando a tela — o ciclo
+// termina e o número fica em "precisa de atenção" (mesmo motivo `forbidden` do 403 original, alerta sem duplicar).
+async function enforceForbiddenLimit(userId, entry, trigger) {
+  const verdict = await forbiddenGate.check(userId);
+  if (!verdict.blocked) return;
+  console.warn(`[${userId}] Conexão (${trigger}) recusada: ${verdict.attempts} tentativas na última hora depois de um 403; aguardar ${verdict.waitMinutes} min.`);
+  if (trigger !== "manual") {
+    clearRetryTimer(entry);
+    entry.controller?.cancel("forbidden_limit");
+    entry.status = "error";
+    await notifyStatus(userId, { status: "error", error: `${NEEDS_ATTENTION_PREFIX}forbidden: ${verdict.message}`.slice(0, 300) });
+  }
+  throw connectCooldownError(verdict);
 }
 
 async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = {}) {
