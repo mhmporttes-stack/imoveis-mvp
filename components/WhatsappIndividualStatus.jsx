@@ -19,6 +19,7 @@ const STATUS_LABEL = {
   qr_required: "Aguardando QR",
   pairing_code_required: "Aguardando código",
   connected: "Conectado",
+  silent: "Conectado, mas sem receber",
   reconnecting: "Reconectando…",
   error: "Erro"
 };
@@ -233,7 +234,10 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
   useEffect(() => { setLabelInput(currentSlotInfo.label || ""); }, [activeSlot, currentSlotInfo.label]);
   // Selo do cabeçalho: conectado se QUALQUER número estiver; mostra o telefone do primeiro conectado.
   const connectedSlot = slots.find((item) => item.status === "connected");
-  const headerStatus = overallStatus || currentStatus;
+  // Conexão falsa (2026-10-13): todo número conectado está sem receber -> o ícone fica cinza e o texto diz a verdade.
+  const connectedSlots = slots.filter((item) => item.status === "connected");
+  const allSilent = connectedSlots.length > 0 && connectedSlots.every((item) => item.silent);
+  const headerStatus = allSilent ? "silent" : overallStatus || currentStatus;
 
   return (
     <>
@@ -257,7 +261,7 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
             <div className="mt-3 grid grid-cols-2 gap-1 rounded-full bg-mist/60 p-1" role="tablist" aria-label="Números de WhatsApp">
               {[1, 2].map((slot) => {
                 const info = slots.find((item) => item.slot === slot);
-                const on = info?.status === "connected";
+                const on = info?.status === "connected" && !info?.silent;
                 return (
                   <button
                     key={slot}
@@ -300,10 +304,18 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
             <div className="mt-4 flex flex-col items-center gap-3">
               {currentStatus === "connected" ? (
                 <>
+                  {currentSlotInfo.silent ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-center">
+                      <p className="text-sm font-black text-rose-700">Conectado, mas sem receber</p>
+                      <p className="text-xs text-rose-700/80">{formatPhone(status.phoneNumber) || "Número não identificado"}</p>
+                      <p className="mt-1 text-xs font-semibold text-rose-700">O WhatsApp não está entregando mensagens. Toque em Desconectar e conecte de novo pelo QR Code.</p>
+                    </div>
+                  ) : (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
                     <p className="text-sm font-black text-emerald-700">Conectado</p>
                     <p className="text-xs text-emerald-700/80">{formatPhone(status.phoneNumber) || "Número não identificado"}</p>
                   </div>
+                  )}
                   <div className="flex w-full gap-2">
                     <button type="button" disabled={busy} onClick={() => handleConnect()} className="flex-1 rounded-full border border-navy/15 px-3 py-2 text-xs font-extrabold text-navy hover:border-brand disabled:opacity-50">Reconectar</button>
                     <button type="button" disabled={busy} onClick={handleDisconnect} className="flex-1 rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-extrabold text-red-700 hover:border-red-300 disabled:opacity-50">Desconectar</button>

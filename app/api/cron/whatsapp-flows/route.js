@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "crypto";
 import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
+import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,13 +47,16 @@ export async function GET(request) {
   }
   // Serviço do WhatsApp parado (lease sem renovar há > 5 min) -> alerta à administração. Nunca lança (WA-22).
   const serviceStall = await checkWhatsappServiceStalled();
+  // Número "conectado" que não recebe (quedas 500/428 em loop ou silêncio em horário comercial): marca, avisa e pinta a tela. Nunca lança.
+  const falseConnections = await checkFalseConnections();
   if (flowsError || remindersError) {
     return NextResponse.json({
       error: flowsError ? "Falha ao processar os fluxos." : "Falha ao processar o lembrete do formulário.",
       ...(flows || {}),
       ...(formReminders ? { formReminders } : {}),
-      serviceStall
+      serviceStall,
+      falseConnections
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall });
+  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections });
 }

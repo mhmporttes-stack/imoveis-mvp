@@ -828,19 +828,21 @@ function ConversationList({ className, conversations, error, filter, filterLabel
 // nesta conversa: foto do corretor (sessão individual) ou o logo oficial.
 // Só visual — sem nome/texto ao lado (pedido explícito, pra não poluir a
 // lista); tooltip discreto no hover (desktop).
-function ConversationAccountBadge({ account, personal = false }) {
+function ConversationAccountBadge({ account, personal = false, impaired = "" }) {
   // A sessão manda (2026-10-09): conversa do WhatsApp pessoal de alguém é PESSOAL mesmo quando o canal gravado na
   // conversa ainda é o do número oficial (conversa que veio do oficial e passou para o corretor — caso Agnaldo/Jennyfer).
   // É o mesmo critério do "Enviando por" da caixa de mensagem.
   const official = personal ? false : account ? account.channel === "whatsapp_cloud_api" : true;
-  const tooltip = official ? "WhatsApp oficial" : account?.name ? `WhatsApp pessoal: ${account.name}` : "WhatsApp pessoal";
+  const baseTooltip = official ? "WhatsApp oficial" : account?.name ? `WhatsApp pessoal: ${account.name}` : "WhatsApp pessoal";
+  // Número desconectado ou "conectado, mas sem receber" (2026-10-13): o selo do WhatsApp fica CINZA, dizendo que não está funcionando.
+  const tooltip = impaired === "silent" ? `${baseTooltip} - conectado, mas sem receber` : impaired === "down" ? `${baseTooltip} - desconectado` : baseTooltip;
   return (
     <span
       className="absolute -bottom-0.5 -right-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-white shadow-sm"
       title={tooltip}
     >
-      {official ? (
-        <svg viewBox="0 0 32 32" aria-hidden="true" className="h-full w-full text-emerald-500" fill="currentColor">
+      {official || impaired ? (
+        <svg viewBox="0 0 32 32" aria-hidden="true" className={`h-full w-full ${impaired ? "text-slate-400" : "text-emerald-500"}`} fill="currentColor">
           <path d="M16.04 3.2A12.74 12.74 0 0 0 5.2 22.65L3.72 28l5.48-1.43A12.75 12.75 0 1 0 16.04 3.2Zm0 2.27a10.47 10.47 0 0 1 8.86 16.04 10.47 10.47 0 0 1-14.96 2.74l-.39-.24-3.25.85.87-3.16-.26-.41A10.46 10.46 0 0 1 16.04 5.47Zm-4.45 5.62c-.22 0-.58.08-.88.42-.3.34-1.15 1.12-1.15 2.74s1.18 3.18 1.34 3.4c.16.22 2.27 3.64 5.63 4.96 2.79 1.1 3.36.88 3.96.82.6-.05 1.94-.79 2.21-1.55.27-.76.27-1.42.19-1.55-.08-.14-.3-.22-.63-.38-.33-.16-1.94-.96-2.24-1.07-.3-.11-.52-.16-.74.16-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.86-1.63-1.93-1.82-2.26-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.16-.74-1.79-1.01-2.45-.27-.64-.54-.55-.74-.56h-.63Z" />
         </svg>
       ) : (
@@ -999,6 +1001,8 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
   const unread = conversation.unreadCount > 0 || unseenByMe;
   const name = displayName(conversation);
   const phone = formatPhone(conversation.phone);
+  // Número desta conversa desconectado ou "conectado, mas sem receber" (2026-10-13): linha rosada e selo cinza.
+  const impaired = conversation.sessionState === "down" || conversation.sessionState === "silent" ? conversation.sessionState : "";
   // Segurar (celular) ou botão direito (computador) = pré-visualização sem marcar como lida (pedido do dono, 2026-10-11).
   const pressTimer = useRef(null);
   const pressed = useRef(false);
@@ -1019,12 +1023,12 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
       onPointerMove={(event) => { if (Math.abs(event.movementY) > 4 || Math.abs(event.movementX) > 4) cancelPress(); }}
       onContextMenu={(event) => { if (!onPreview) return; event.preventDefault(); cancelPress(); pressed.current = false; onPreview(); }}
       style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
-      title={phone}
-      className={`flex w-full items-stretch gap-3 pl-3 text-left transition hover:bg-[#F5F6F6] ${selected ? "bg-[#F0F2F5]" : "bg-white"}`}
+      title={impaired ? `${phone} - ${impaired === "silent" ? "WhatsApp conectado, mas sem receber" : "WhatsApp desconectado"}` : phone}
+      className={`flex w-full items-stretch gap-3 pl-3 text-left transition ${impaired ? (selected ? "bg-rose-100 hover:bg-rose-100" : "bg-rose-50 hover:bg-rose-100") : `hover:bg-[#F5F6F6] ${selected ? "bg-[#F0F2F5]" : "bg-white"}`}`}
     >
       <span className="relative shrink-0 self-center py-2.5">
         <Avatar name={name} photoUrl={conversation.photoUrl} size={52} />
-        <ConversationAccountBadge account={conversation.account} personal={Boolean(conversation.sessionUserId)} />
+        <ConversationAccountBadge account={conversation.account} personal={Boolean(conversation.sessionUserId)} impaired={impaired} />
       </span>
       {/* Separador fino só a partir do texto (depois do avatar), como no WhatsApp */}
       <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">

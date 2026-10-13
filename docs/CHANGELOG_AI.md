@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — WhatsApp "conectado, mas sem receber" (conexão falsa): detector, avisos e visual cinza/rosado
+
+- **Data:** 2026-10-13 · **Área:** WhatsApp / Banco / Infra
+- **Alteração:** detector no cron `whatsapp-flows` (a cada 2 min) marca o número como "silencioso" quando está `connected` e (a) caiu ≥3× na última hora com 500/428 ("flapping") ou (b) ficou 6 h úteis (seg–sex 08–19, Marília) sem receber nada, com ≥5 recebidas nos últimos 7 dias e conectado há ≥2 h. Marca em `whatsapp_individual_sessions.silent_since/silent_reason`, avisa o corretor (Importante + push, repete a cada 2 h), a gestora e os administradores (uma vez) e encerra os alertas sozinho quando volta a receber ou reconecta. Chat: selo do WhatsApp fica CINZA e a linha da conversa ROSADA quando o número está desconectado ou silencioso (`sessionState` = down|silent); ícone do topo fica cinza e o painel explica. NÃO desconecta sozinho.
+- **Motivo:** pedido do dono após o caso Bruna Nº1 (sessão "conectada" sem receber desde 12/10 11:43).
+- **Arquivos afetados:** `lib/whatsapp-false-connection-core.mjs`, `lib/whatsapp-false-connection.js`, `app/api/cron/whatsapp-flows/route.js`, `lib/whatsapp-chat.js`, `lib/whatsapp-individual.js`, `app/api/admin/whatsapp-individual/status/route.js`, `components/WhatsappChat.jsx`, `components/WhatsappIndividualStatus.jsx`, `tests/whatsapp-false-connection.test.mjs`, migration `20261013210000_whatsapp_false_connection.sql` (aplicada: 2 colunas + definição de alerta `whatsapp_false_connection`).
+- **Risco/observação:** limites (2 h / 6 h úteis / 3 quedas / 5 recebidas) são constantes no core, fáceis de ajustar. Testes escritos mas não executados localmente (sem Node no PC); CI roda. Corretores continuam precisando reparear o QR (Bruna Nº1/Nº2, Izabela, Bencke).
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-14 — Novo agente `editor-video` + skill `/video`
 
 - **Pedido do dono:** um especialista só de vídeo (depois do Reels do Terras de SP feito no chat de carrosséis), separado do marketing. Diretrizes do dono: movimento/zoom/pan/transições com liberdade para evoluir (não é regra fixa); adesivo de link do Instagram sempre presente, posição livre por vídeo; o agente pode criar ofertas/ganchos/urgência como PROPOSTA, que só entram no final com confirmação do dono. Só imagens reais do imóvel; nada publicado sem "sim".
