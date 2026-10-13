@@ -102,6 +102,7 @@ Regras que só existem aqui:
 - `marketing-posicionamento`: orgânico; nunca publica/responde/envia em nome do dono sem "sim" por ação; memória em `docs/posicionamento/`.
 - `auditor-crm`/`/pre-mortem`: somente leitura, severidade P0-P3 com evidência; ledger de riscos em `docs/SYSTEM_ARCHITECTURE.md` §13.
 - `email-specialist` (**Diretor de E-mail**): estratégia, copy, HTML/MJML, entregabilidade, conformidade e métricas de e-mail; escreve só em `docs/email/`; **não envia nada** nem configura provedor/domínio sem decisão do dono; implementação no CRM é do `crm-editor`. Skills `/diretor-email`, `/planejar-campanha-email`, `/criar-email`, `/auditar-entregabilidade`, `/analisar-campanha-email`; memória em `docs/email/`.
+- `editor-video` (`/video`): vídeos verticais (Reels/Stories/anúncio) só com imagens reais; ofertas criadas por ele só entram com confirmação do dono; adesivo de link em todo vídeo; memória em `docs/posicionamento/videos/PREFERENCIAS.md`; não publica.
 - `performance-pc`: PC do dono, fora do CRM; memória fora do repo.
 - Agentes analíticos têm banco somente leitura (hook força); não contorne.
 

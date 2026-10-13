@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Novo agente `editor-video` + skill `/video`
+
+- **Pedido do dono:** um especialista só de vídeo (depois do Reels do Terras de SP feito no chat de carrosséis), separado do marketing. Diretrizes do dono: movimento/zoom/pan/transições com liberdade para evoluir (não é regra fixa); adesivo de link do Instagram sempre presente, posição livre por vídeo; o agente pode criar ofertas/ganchos/urgência como PROPOSTA, que só entram no final com confirmação do dono. Só imagens reais do imóvel; nada publicado sem "sim".
+- **Arquivos:** `.claude/agents/editor-video.md`, `.claude/skills/video/SKILL.md`, `docs/posicionamento/videos/PREFERENCIAS.md` (memória que cresce a cada vídeo), roteamento em `.claude/despachante/MAPA-AGENTES.md` e `CLAUDE.md`.
+
 ### 2026-10-14 — "Enviar lista de documentos": oficial → WhatsApp do corretor no Chat → aparelho só com restrição validada
 
 - **Pedido do dono:** a lista sai pelo número OFICIAL quando o cliente está conversando com ele (janela de 24 h aberta); senão pelo WhatsApp do corretor conectado ao CRM, no Chat, quando o cliente conversa com esse número; o WhatsApp do aparelho/Web (wa.me) só abre para quem tem **restrição do WhatsApp validada** no CRM (admin geral isento, como nas regras PRO-12/13/14). Sem nenhum desses: o modal explica e não envia.
