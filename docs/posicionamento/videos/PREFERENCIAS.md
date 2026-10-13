@@ -2,6 +2,8 @@
 
 Atualize a cada revisão aprovada. Mais recente em cima.
 
+- **2026-10-14** (vídeo "cinema" Recanto Verde — CANCELADO pelo dono: "muito serviço para um resultado semelhante aos vídeos padrões"). Voltar ao formato padrão aprovado (Terras/Recanto). Aprendizados: nunca deixar logo/crédito da incorporadora nem de terceiros (HZ, Recanto Verde, Esri/Maxar) no vídeo; não usar imagem de satélite (gratuita é antiga e exige crédito); quando houver vídeo real de gimbal/drone da incorporadora, ele vale mais que foto (o movimento "de filmmaker" que o dono gostou veio de lá); transições laterais "chicote" entre cômodos agradaram; link de simulação na altura do Terras (não mais baixo).
+
 - **2026-10-14** (teste Recanto Verde 3D — REPROVADO): o efeito 3D de profundidade nas fotos (móveis "descolando" do fundo) ficou com qualidade ruim — NÃO usar mais. O mapa estilizado também não agradou. O que o dono quer: abertura cinematográfica tipo Google Earth (satélite aproximando, virando 3D), depois imagem real na frente do condomínio, sobe, frente da casa, porta abrindo e entrando nos cômodos — exige VÍDEO REAL (drone + celular/gimbal), não dá para inventar com IA. Pedir o material antes de prometer esse formato.
 
 - **2026-10-14** (Recanto Verde, já postado — vale para os PRÓXIMOS):
