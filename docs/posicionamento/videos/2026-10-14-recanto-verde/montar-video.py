@@ -9,7 +9,7 @@ import cv2, numpy as np, subprocess, sys, math
 FOT, OV, OUT = sys.argv[1:4]; ARGS = sys.argv[4:]
 FPS = 30; W, H = 1080, 1920; TR = 0.4
 foto = [None] + [cv2.imread(f'{FOT}/foto{i}.jpg') for i in range(1, 8)]   # 1 sala, 2 sala/jantar, 3 sala integrada, 4 cozinha, 5 quarto 1, 6 quarto 2, 7 quintal/lavanderia
-ov = [None] + [cv2.imread(f'{OV}/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1, 26)]
+ov = [None] + [cv2.imread(f'{OV}/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1, 30)]
 yy, xx = np.mgrid[0:H, 0:W]
 VIG = (1 - 0.22 * np.clip(((xx - W/2) / (W*0.75))**2 + ((yy - H/2) / (H*0.7))**2, 0, 1))[..., None].astype(np.float32)
 
@@ -30,13 +30,14 @@ def cam(img, t, z0, z1, px0, px1, py0=0, py1=0, seed=0, size=(W, H), e=ease):
     cx = ws/2 + (px0 + (px1 - px0)*k)*ws; cy = hs/2 + (py0 + (py1 - py0)*k)*hs
     M = cv2.getRotationMatrix2D((cx, cy), ang, z); M[0, 2] += w/2 - cx + fx; M[1, 2] += h/2 - cy + fy
     return cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-def over(fr, o, a, dx=0, dy=0, s=1, cx=W/2, cy=H/2, ang=0, revx=None):
+def over(fr, o, a, dx=0, dy=0, s=1, cx=W/2, cy=H/2, ang=0, revx=None, clip=None):
     if a <= 0: return fr
     if dx or dy or s != 1 or ang:
         M = cv2.getRotationMatrix2D((cx, cy), ang, s); M[0, 2] += dx; M[1, 2] += dy
         o = cv2.warpAffine(o, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
     al = (o[..., 3:4].astype(np.float32) / 255) * a
     if revx is not None: al[:, int(revx):] = 0          # revela da esquerda para a direita
+    if clip is not None: al[:int(clip[0])] = 0; al[int(clip[1]):] = 0   # máscara de linha (texto sobe por dentro)
     return (fr*(1 - al) + o[..., :3]*al).astype(np.uint8)
 def mblur(fr, k, vert=False):
     k = int(k)
@@ -61,12 +62,15 @@ def c_virar(t):    # "Seu aluguel pode virar A SUA CASA."
     fr = over(fr, ov[1], 1)
     p = eout((t - 0.15)/0.35); fr = over(fr, ov[6], p, -(1 - p)*120)
     p = back((t - 0.50)/0.35); return over(fr, ov[7], cl((t - 0.5)/0.15), s=0.6 + 0.4*p, cx=330, cy=900)
-def c_cozinha(t):  # carimbo "pronta p/ morar" bate na tela
-    fr = grade(cam(foto[4], t/3.0, 1.02, 1.12, -0.16, -0.10, seed=3))
-    p = ease((t - 0.25)/0.35); fr = over(fr, ov[8], p, 0, (1 - p)*40)
-    if t >= 0.85:
-        p = eout((t - 0.85)/0.18); fr = over(fr, ov[9], cl((t - 0.85)/0.08), s=1.8 - 0.8*p, cx=540, cy=1060)
-    return shake(fr, t, 1.03, 18)
+COZ = 'A'   # revisão do dono 2026-10-14: carimbo torto reprovado → A = tipografia limpa, B = faixa azul
+def c_cozinha(t):  # bancada, pia e armários; "pronta pra morar" entra sem caixa
+    fr = grade(cam(foto[4], t/3.0, 1.00, 1.07, -0.21, -0.17, seed=3))
+    if COZ == 'A':
+        p = ease((t - 0.15)/0.4); fr = over(fr, ov[26], p, 0, (1 - p)*30)
+        p = eout((t - 0.40)/0.45); fr = over(fr, ov[27], 1 if p > 0 else 0, 0, (1 - p)*170, clip=(1250, 1405))
+        p = eout((t - 0.62)/0.45); fr = over(fr, ov[28], 1 if p > 0 else 0, 0, (1 - p)*170, clip=(1400, 1560))
+        return fr
+    r = eout((t - 0.30)/0.45); return over(fr, ov[29], 1 if r > 0 else 0, revx=r*W)
 def c_quartos(t):  # tela dividida: quarto 1 entra pela esquerda (em cima), quarto 2 pela direita (embaixo)
     p = eout(t/0.55); h2 = H//2
     top = cam(foto[5], t/3.0, 1.04, 1.12, 0.02, -0.03, seed=4, size=(W, h2))
@@ -135,6 +139,7 @@ def quadro(t, previa=False):
     fr = over(fr, ov[24], 1.0)             # espaço fixo do adesivo de link (topo esquerdo)
     return over(fr, ov[25], 1.0) if previa else fr
 
+if '--cozinha' in ARGS: COZ = ARGS[ARGS.index('--cozinha') + 1]
 if '--quadros' in ARGS:
     for s in ARGS[ARGS.index('--quadros') + 1].split(','):
         cv2.imwrite(f'{OUT}/quadro-{float(s):05.2f}s.png', quadro(float(s), previa=True))
