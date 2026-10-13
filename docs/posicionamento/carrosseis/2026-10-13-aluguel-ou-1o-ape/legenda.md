@@ -8,7 +8,7 @@ Referência: carrossel de outro perfil (8 lâminas). Frases mantidas; vermelho �
 
 Se eu tivesse que escolher entre aluguel e meu primeiro imóvel… eu faria uma conta. 🧮
 
-Aluguel dá flexibilidade, mas o imóvel continua sendo de outra pessoa. R$ 2.200 por mês, em 5 anos, são R$ 132 mil pagos ao proprietário.
+Aluguel dá flexibilidade, mas o imóvel continua sendo de outra pessoa. R$ 1.200 por mês, em 5 anos, são R$ 72 mil pagos ao proprietário.
 
 Comprar também tem custos (financiamento, IPTU, documentação), por isso a escolha não pode ser só pelo valor do aluguel ou da parcela: tem que colocar os dois cenários na ponta do lápis.
 
