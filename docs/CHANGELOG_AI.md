@@ -44,6 +44,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Simulação: preferências do cliente no topo da Etapa C
+
+- **Pedido do dono:** as preferências de imóvel que o cliente preenche no formulário (tipo, regiões, estágio, quartos, aluguel, previsão, prioridades, indispensáveis) aparecem no topo de "Imóveis sugeridos" (Etapa C) do gerador de simulação, para o corretor escolher os imóveis com base nelas. `components/SimulationGenerator.jsx` usa `getPropertyPreferenceDetails` (`lib/property-preference-display.js`, mesma fonte da Ficha do cliente) sobre `initialSimulation.registration.propertyPreferences`; só aparece com as preferências concluídas.
+
 ### 2026-10-13 — ROL-2f: só recebe lead quem veio à imobiliária (Wi-Fi), regra ligável pelo dono
 
 - **Pedido do dono:** equipe em home office produzindo pouco; só fica na roleta quem veio à imobiliária. Decisões: toda a roleta; corretores, gestora e associados; apto até 9h do dia seguinte (sábado → segunda 9h); sem ninguém apto, o lead espera; "Liberar hoje" pelo dono e pela gestora; detecção pelo Wi-Fi; aviso ao corretor.

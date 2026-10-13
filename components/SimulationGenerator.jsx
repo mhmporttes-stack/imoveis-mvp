@@ -12,6 +12,7 @@ import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsa
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
+import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
 import {
   MARITAL_STATUS_OPTIONS,
   PRIMARY_INCOME_OPTIONS,
@@ -105,6 +106,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
   const basicMode = useBasicMode();
   const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
+  // Preferências de imóvel que o cliente preencheu no formulário (dono, 2026-10-14): mostradas no topo da Etapa C.
+  const clientPreferences = useMemo(() => getPropertyPreferenceDetails(initialSimulation?.registration?.propertyPreferences || {}), [initialSimulation]);
   const formRef = useRef(form);
   const autoSaveTimerRef = useRef(null);
   const autoSaveRequestRef = useRef(null);
@@ -1081,6 +1084,19 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         </Panel>
 
         <Panel title="Imóveis sugeridos" eyebrow="Etapa C">
+          {clientPreferences.length ? (
+            <div className="mb-5 rounded-2xl border border-brand/20 bg-[#F3F8FF] p-4">
+              <p className="text-sm font-black text-navy">O que o cliente procura</p>
+              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                {clientPreferences.map((item) => (
+                  <div key={item.label} className="min-w-0">
+                    <dt className="text-xs font-bold text-muted">{item.label}</dt>
+                    <dd className="text-sm font-semibold text-ink">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
           <label className="relative block">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" />
             <input
