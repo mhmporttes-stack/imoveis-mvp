@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { History, Laptop, Smartphone } from "lucide-react";
+import { Building2, History, Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
 
@@ -96,6 +96,8 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
         <StatPill emoji="⚫" label="Offline" value={presence?.offline || 0} tone="border-slate-200 bg-slate-50 text-slate-600" />
       </div>
 
+      <OfficeNetworkPanel />
+
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Presença no CRM</h3>
@@ -104,7 +106,21 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
           {!members.length ? (
             <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Nenhum corretor na sua equipe.</p>
           ) : (
-            members.map((member) => <MemberRow key={member.id} member={member} goalPercent={goalByUser.has(member.id) ? goalByUser.get(member.id) : null} />)
+            members.map((member) => (
+              <MemberRow
+                key={member.id}
+                member={member}
+                goalPercent={goalByUser.has(member.id) ? goalByUser.get(member.id) : null}
+                onOfficeReleased={(validUntil) =>
+                  setPresence((current) => ({
+                    ...current,
+                    members: (current?.members || []).map((item) =>
+                      item.id === member.id ? { ...item, office: { ...(item.office || {}), active: true, eligible: true, validUntil, source: item.office?.active ? item.office.source : "manual", firstSeenAt: item.office?.active ? item.office.firstSeenAt : new Date().toISOString() } } : item
+                    )
+                  }))
+                }
+              />
+            ))
           )}
         </div>
       </article>
@@ -370,7 +386,7 @@ function StatPill({ emoji, label, value, tone }) {
   );
 }
 
-function MemberRow({ member, goalPercent = null }) {
+function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
   const meta = STATUS_META[member.status] || STATUS_META.offline;
   // Qual histórico está aberto: "presence" (entrou/saiu) ou "whatsapp" (conectou/desconectou).
   const [historyOpen, setHistoryOpen] = useState("");
@@ -392,6 +408,7 @@ function MemberRow({ member, goalPercent = null }) {
         </div>
         <div className="shrink-0 text-right">
           <span className="inline-flex items-center gap-1.5">
+            {member.office ? <OfficeButton office={member.office} open={historyOpen === "office"} onClick={() => toggle("office")} /> : null}
             {(member.whatsapp || []).map((icon, index) => (
               <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
             ))}
@@ -405,7 +422,160 @@ function MemberRow({ member, goalPercent = null }) {
       </div>
       {historyOpen === "presence" ? <PresenceHistory userId={member.id} /> : null}
       {historyOpen === "whatsapp" ? <WhatsappHistory userId={member.id} /> : null}
+      {historyOpen === "office" ? <OfficeDetail member={member} onReleased={onOfficeReleased} /> : null}
     </div>
+  );
+}
+
+// ROL-2f (dono, 2026-10-13): veio à imobiliária hoje? Verde = apto na roleta até 9h do dia seguinte (sábado -> segunda).
+const OFFICE_TIME = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+const OFFICE_UNTIL = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" });
+
+function OfficeButton({ office, open, onClick }) {
+  const label = office.active ? "Veio à imobiliária" : "Não veio à imobiliária";
+  const tone = office.active ? "text-emerald-600" : "text-slate-400";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      title={label}
+      aria-label={`${label}. Ver detalhes`}
+      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : `border-navy/10 bg-mist hover:border-brand ${tone}`}`}
+    >
+      <Building2 size={15} strokeWidth={2.4} aria-hidden="true" />
+    </button>
+  );
+}
+
+function OfficeDetail({ member, onReleased }) {
+  const office = member.office || {};
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function release() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/office-presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "release", userId: member.id })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível liberar.");
+      onReleased?.(data.validUntil || null);
+    } catch (releaseError) {
+      setError(releaseError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const how = office.source === "manual" ? "liberado manualmente" : "pelo Wi-Fi da imobiliária";
+  return (
+    <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
+      {office.active ? (
+        <p className="font-semibold text-navy">
+          {office.firstSeenAt ? `Chegou às ${OFFICE_TIME.format(new Date(office.firstSeenAt))}, ${how}. ` : ""}
+          Na roleta até {OFFICE_UNTIL.format(new Date(office.validUntil))}.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold text-slate-600">{office.ruleEnabled ? "Não veio à imobiliária: fora da roleta." : "Ainda não veio à imobiliária hoje."}</p>
+          <button type="button" onClick={release} disabled={busy} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+            {busy ? "Liberando…" : "Liberar hoje"}
+          </button>
+        </div>
+      )}
+      {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
+    </div>
+  );
+}
+
+// Configuração da ROL-2f: rede da imobiliária (dono e gestora marcam) e liga/desliga da regra (só o dono).
+function OfficeNetworkPanel() {
+  const [panel, setPanel] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/office-presence", { cache: "no-store" })
+      .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+      .then(({ ok, data }) => {
+        if (!cancelled && ok) setPanel(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function act(body) {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/office-presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar.");
+      setPanel(data);
+    } catch (actError) {
+      setError(actError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!panel) return null;
+  return (
+    <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Roleta</p>
+          <h3 className="mt-2 text-xl font-extrabold text-navy">Presença na imobiliária</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            {panel.enabled
+              ? "Ligada: só recebe lead quem veio à imobiliária (até 9h do dia seguinte; sábado vale até segunda)."
+              : "Desligada: a roleta segue as regras de sempre."}
+          </p>
+        </div>
+        {panel.canToggle ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => act({ action: "set-enabled", enabled: !panel.enabled })}
+            className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${panel.enabled ? "border border-navy/15 bg-white text-navy" : "bg-navy text-white"}`}
+          >
+            {panel.enabled ? "Desligar regra" : "Ligar regra"}
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-mist px-4 py-3 text-sm">
+        <p className="font-semibold text-navy">
+          {panel.networks.length ? `${panel.networks.length} ${panel.networks.length === 1 ? "rede cadastrada" : "redes cadastradas"}` : "Nenhuma rede cadastrada"}
+          {" · "}
+          {panel.currentMatches ? "este aparelho está na rede da imobiliária" : "este aparelho não está numa rede cadastrada"}
+        </p>
+        {!panel.currentMatches ? (
+          <button type="button" disabled={busy} onClick={() => act({ action: "mark-network" })} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+            Esta é a rede da imobiliária
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Toque em “Esta é a rede da imobiliária” só quando estiver conectado ao Wi-Fi de lá. Se a operadora trocar a internet, marque de novo.</p>
+      {panel.canToggle && panel.networks.length ? (
+        <ul className="mt-2 space-y-1 text-xs text-slate-500">
+          {panel.networks.map((network) => (
+            <li key={network.key} className="flex items-center justify-between gap-2">
+              <span className="truncate">{network.key}</span>
+              <button type="button" disabled={busy} onClick={() => act({ action: "remove-network", key: network.key })} className="font-semibold text-red-700 disabled:opacity-60">
+                Remover
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {error ? <p className="mt-2 text-sm font-semibold text-red-700">{error}</p> : null}
+    </article>
   );
 }
 

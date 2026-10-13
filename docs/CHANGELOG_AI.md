@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — ROL-2f: só recebe lead quem veio à imobiliária (Wi-Fi), regra ligável pelo dono
+
+- **Pedido do dono:** equipe em home office produzindo pouco; só fica na roleta quem veio à imobiliária. Decisões: toda a roleta; corretores, gestora e associados; apto até 9h do dia seguinte (sábado → segunda 9h); sem ninguém apto, o lead espera; "Liberar hoje" pelo dono e pela gestora; detecção pelo Wi-Fi; aviso ao corretor.
+- **Como:** o heartbeat (`/api/admin/heartbeat`) compara o IP da requisição com as redes cadastradas (`crm_settings` `office_presence.networks`, botão "Esta é a rede da imobiliária" em Supervisão › Online) e grava a chegada do dia (`register_office_checkin`, tabela `office_presence_checkins`). A roleta (`pick_round_robin_broker`, `assign_round_robin_lead`) passou a usar `roulette_user_extra_eligible` = número ativo (ROL-2d/2e) + `office_presence_ok`; `countOnlineRouletteBrokers` filtra por `office_presence_eligible_ids`. Painel Online: ícone de prédio por pessoa (verde = veio), detalhe com "Liberar hoje" e cartão de configuração (ligar/desligar só o dono). Aviso `components/OfficePresenceNotice.jsx` no layout.
+- **Segurança:** funções novas sem EXECUTE para anon/authenticated; rotas `/api/admin/office-presence` (`requireBrokerManagementApi`; ligar/desligar e remover rede só admin geral; liberar só a equipe visível) e `/api/admin/office-presence/me` (`requireAdminApi`, só o próprio usuário).
+- **Implantação:** migration `20261013200000_roleta_presenca_imobiliaria.sql` aplicada; a regra nasce DESLIGADA (roleta igual a antes até o dono cadastrar a rede e ligar).
+
 ### 2026-10-13 — Nova área "Anúncios" (Supervisão), somente leitura da Meta
 
 - **Pedido do dono:** área com os anúncios em cards baixos (≥ 4 por tela no celular), com foto, título, WhatsApp × Cadastro, custo por lead, leads, clientes no CRM, frequência, situação e recomendações; detalhe ao clicar. Aparência: versão B (painel claro com o DNA dos carrosséis), escolhida entre duas na vitrine. Conteúdo especificado pelo `gestor-trafego` e visual pelo `marketing-posicionamento`.

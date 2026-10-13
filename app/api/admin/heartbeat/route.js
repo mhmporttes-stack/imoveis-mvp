@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { recordAdminHeartbeat } from "@/lib/admin-presence";
+import { registerOfficeCheckinFromHeartbeat } from "@/lib/office-presence";
+import { clientIpFromHeaders } from "@/lib/office-presence-core.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +17,8 @@ export async function POST(request) {
 
   try {
     await recordAdminHeartbeat(auth, { userAgent: request.headers.get("user-agent") || "" });
+    // ROL-2f: heartbeat vindo da rede da imobiliária marca a chegada do dia (nunca derruba o heartbeat).
+    await registerOfficeCheckinFromHeartbeat(auth, clientIpFromHeaders(request.headers));
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Falha ao registrar presença." }, { status: 400 });

@@ -8,6 +8,7 @@ import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
+import OfficePresenceNotice from "@/components/OfficePresenceNotice";
 import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
@@ -78,6 +79,12 @@ export default async function AdminLayout({ children }) {
             />
           </header>
         </div>
+      ) : null}
+      {/* ROL-2f: aviso "fora da roleta, venha à imobiliária" (só para quem participa da roleta e não veio). */}
+      {auth.ok && !auth.accountSwitchMode ? (
+        <HideInFinanceiroApp>
+          <OfficePresenceNotice />
+        </HideInFinanceiroApp>
       ) : null}
       <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
