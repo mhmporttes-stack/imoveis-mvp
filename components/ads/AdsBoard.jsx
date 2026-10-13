@@ -82,12 +82,12 @@ function KindTag({ kind, className = "" }) {
   );
 }
 
-function StatusMark({ tone, theme, paused, className = "" }) {
+function StatusMark({ tone, label = null, theme, paused, className = "" }) {
   const color = paused ? theme.tone.neutral : theme.tone[tone] || theme.tone.neutral;
   return (
     <span className={cx("inline-flex shrink-0 items-center gap-1.5 font-semibold text-ink-2", className)}>
       <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
-      {paused ? "Pausado" : TONE_LABEL[tone] || "—"}
+      {paused ? "Pausado" : label || TONE_LABEL[tone] || "—"}
     </span>
   );
 }
@@ -141,7 +141,7 @@ function AdCard({ ad, theme, onOpen }) {
               <span aria-hidden="true">·</span>
               <span className="truncate tabular-nums">freq. {freq(m.frequency)}</span>
             </span>
-            <StatusMark tone={tone} theme={theme} paused={paused} />
+            <StatusMark label={ad.health?.label} tone={tone} theme={theme} paused={paused} />
           </span>
         </span>
         <span className="grid grid-cols-[minmax(0,1fr)_3.75rem_2.75rem_2.75rem] items-end gap-x-2">
@@ -251,7 +251,7 @@ function AdDetail({ ad, onClose }) {
             <p className="mt-1.5 text-xs font-semibold text-brand">{costLabel}</p>
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
               <KindTag kind={ad.kind} />
-              <StatusMark tone={ad.health?.tone || "neutral"} theme={theme} paused={ad.status !== "active"} />
+              <StatusMark label={ad.health?.label} tone={ad.health?.tone || "neutral"} theme={theme} paused={ad.status !== "active"} />
             </p>
             <p className="mt-1 text-xs text-muted">{[ad.statusLabel, ad.periodLabel].filter(Boolean).join(" · ")}</p>
           </div>
