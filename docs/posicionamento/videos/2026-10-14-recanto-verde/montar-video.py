@@ -8,7 +8,7 @@
 import cv2, numpy as np, subprocess, sys, math
 FOT, OV, OUT = sys.argv[1:4]; ARGS = sys.argv[4:]
 FPS = 30; W, H = 1080, 1920; TR = 0.4
-foto = [None] + [cv2.imread(f'{FOT}/foto{i}.jpg') for i in range(1, 8)]   # 1 sala, 2 sala/jantar, 3 sala integrada, 4 cozinha, 5 quarto 1, 6 quarto 2, 7 quintal/lavanderia
+foto = [None] + [cv2.imread(f'{FOT}/foto{i}.jpg') for i in range(1, 8)]   # 1 sala (vertical), 2 sala/sofá, 3 sala integrada, 4 cozinha (vertical), 5 quarto casal, 6 quarto solteiro, 7 quintal/lavanderia — fotos profissionais da incorporadora (Drive, 2026-10-14)
 ov = [None] + [cv2.imread(f'{OV}/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1, 34)]
 yy, xx = np.mgrid[0:H, 0:W]
 VIG = (1 - 0.22 * np.clip(((xx - W/2) / (W*0.75))**2 + ((yy - H/2) / (H*0.7))**2, 0, 1))[..., None].astype(np.float32)
@@ -50,7 +50,7 @@ def shake(fr, t, t0, amp=14):
 
 # ---------- cenas: f(t local em segundos) -> quadro ----------
 def c_gancho(t):   # "PAGA ALUGUEL?" — o risco azul passa por cima de "aluguel" e a câmera treme no impacto
-    fr = grade(cam(foto[1], t/2.8, 1.00, 1.16, 0.10, 0.03, seed=1, e=eout))
+    fr = grade(cam(foto[1], t/2.8, 1.00, 1.16, 0.03, 0.00, seed=1, e=eout))
     fr = over(fr, ov[1], ease(t/0.25))
     p = back((t - 0.10)/0.30); fr = over(fr, ov[2], cl((t - 0.10)/0.12), 0, (1 - p)*90)
     p = back((t - 0.40)/0.30); fr = over(fr, ov[3], cl((t - 0.40)/0.12), 0, (1 - p)*90)
@@ -58,13 +58,13 @@ def c_gancho(t):   # "PAGA ALUGUEL?" — o risco azul passa por cima de "aluguel
     fr = shake(fr, t, 1.35)
     p = eout((t - 1.55)/0.40); return over(fr, ov[5], p, 0, (1 - p)*40)
 def c_virar(t):    # "Seu aluguel pode virar A SUA CASA."
-    fr = grade(cam(foto[2], t/2.6, 1.12, 1.02, -0.06, 0.04, seed=2))
+    fr = grade(cam(foto[2], t/2.6, 1.12, 1.02, -0.14, -0.05, seed=2))
     fr = over(fr, ov[1], 1)
     p = eout((t - 0.15)/0.35); fr = over(fr, ov[6], p, -(1 - p)*120)
     p = back((t - 0.50)/0.35); return over(fr, ov[7], cl((t - 0.5)/0.15), s=0.6 + 0.4*p, cx=330, cy=900)
 COZ = 'A'   # revisão do dono 2026-10-14: carimbo torto reprovado → A = tipografia limpa, B = faixa azul
 def c_cozinha(t):  # bancada, pia e armários; "pronta pra morar" entra sem caixa
-    fr = grade(cam(foto[4], t/3.0, 1.00, 1.07, -0.21, -0.17, seed=3))
+    fr = grade(cam(foto[4], t/3.0, 1.00, 1.08, 0.0, -0.02, 0.02, 0.0, seed=3))
     if COZ == 'A':
         p = ease((t - 0.15)/0.4); fr = over(fr, ov[26], p, 0, (1 - p)*30)
         p = eout((t - 0.40)/0.45); fr = over(fr, ov[27], 1 if p > 0 else 0, 0, (1 - p)*170, clip=(1250, 1405))
@@ -86,7 +86,7 @@ def c_quintal(t):  # foto vertical: sobe devagar do piso para a abertura do quin
     fr = grade(cam(foto[7], t/2.8, 1.06, 1.10, 0, 0, 0.06, -0.04, seed=7))
     p = ease((t - 0.25)/0.35); return over(fr, ov[12], p, 0, (1 - p)*40)
 def c_check(t):    # checklist sobre a sala desfocada: cada item entra e o "check" pulsa
-    fr = cam(foto[1], t/5.2, 1.20, 1.28, -0.04, -0.08, seed=8)
+    fr = cam(foto[1], t/5.2, 1.20, 1.28, -0.04, -0.06, seed=8)
     fr = grade((cv2.GaussianBlur(fr, (0, 0), 12)*0.48).astype(np.uint8))
     p = eout((t - 0.10)/0.45); fr = over(fr, ov[13], p, 0, (1 - p)*50)
     for j in range(4):
@@ -94,7 +94,7 @@ def c_check(t):    # checklist sobre a sala desfocada: cada item entra e o "chec
         fr = over(fr, ov[14 + j], p, (1 - p)*160, 0)
     return fr
 def c_fecho(t):    # sala nítida → desfoca enquanto Matheus entra com a chave; textos em sequência
-    base = grade(cam(foto[1], t/5.0, 1.04, 1.10, 0.06, 0.02, seed=11))
+    base = grade(cam(foto[1], t/5.0, 1.04, 1.10, 0.03, 0.0, seed=11))
     b = ease((t - 0.3)/1.1)
     if b > 0: base = cv2.GaussianBlur(base, (0, 0), 0.1 + 16*b)
     fr = over(base, ov[18], b)
@@ -124,7 +124,7 @@ def t_corte(A, B, u): return cv2.addWeighted(A, 1 - ease(u), B, ease(u), 0)
 
 CENAS = [(c_gancho, 2.8), (c_virar, 2.6), (c_cozinha, 3.0), (c_quartos, 3.0), (c_sala, 2.6), (c_quintal, 2.8), (c_check, 5.2), (c_fecho, 5.0)]
 TRANS = [t_feed, t_cortina, t_whip, t_zoom, t_cortina, t_zoom, t_corte]
-MARCA = [(700, 440), (690, 1520), (700, 440), (80, 420), (700, 1150), (700, 440), (690, 1500)]   # assinatura móvel por cena (x, y)
+MARCA = [(700, 440), (690, 1520), (700, 440), (80, 420), (80, 560), (700, 440), (690, 1500)]   # assinatura móvel por cena (x, y)
 INI = [0.0]
 for _, d in CENAS[:-1]: INI.append(INI[-1] + d - TR)
 TOTAL = INI[-1] + CENAS[-1][1]

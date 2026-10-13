@@ -2,6 +2,8 @@
 
 Atualize a cada revisão aprovada. Mais recente em cima.
 
+- **2026-10-14** — PROTEÇÃO obrigatória em todo vídeo: logo oficial como marca d'água discreta em pelo menos 4 lugares no MEIO da imagem (não só no fecho, que foi recortado por outro corretor no vídeo do Terras), incluindo uma assinatura que muda de lugar a cada cena; metadados de autoria no MP4. Preferir sempre a foto ORIGINAL em alta da incorporadora à foto do CRM (qualidade baixa).
+
 - **2026-10-14** (Recanto Verde) — Reprovou o "carimbo" torto em caixa sobre a foto ("não gostei do design"). Aprovou a opção A: tipografia limpa direto na foto (linha de apoio pequena + título grande branco/azul subindo linha a linha), sem caixa nem faixa, mostrando o cômodo inteiro. Evitar selos/caixas inclinados.
 
 - **2026-10-14** — Movimento, zoom, pan e transições podem (e devem) melhorar a cada vídeo; não é regra fixa. Adesivo de link do Instagram é muito importante: sempre presente, mas a posição muda conforme o vídeo. O editor pode criar ofertas/ganchos/urgência que achar melhores — como proposta, confirmada pelo dono antes do final.
