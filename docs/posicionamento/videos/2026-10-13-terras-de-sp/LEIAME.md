@@ -7,3 +7,4 @@ Vertical 1080×1920, 23 s, sem áudio (o dono põe a música no Instagram).
 - Rodapé do fecho: CRECI, "fotos da casa decorada" e "condições da construtora, sujeitas a análise de crédito".
 - Runway: o plano gratuito não gera vídeo; versão "gimbal com IA" fica para quando houver plano pago (exceção à regra de imagem liberada pelo dono).
 - Revisão do dono (2026-10-13): último cômodo com rótulo "2 quartos"; vantagens numa cena só com 4 cartões (documentação grátis, entrada em até 60x, terreno inteiro para ampliar, corredor dos dois lados); fecho sem fundo azul — foto da sala que desfoca enquanto Matheus entra. 25 s.
+- Adesivo de link do Instagram (dono, 2026-10-13): o link fica no vídeo inteiro, então há um espaço FIXO para ele — canto inferior esquerdo (x 80–560, y 1470–1590 em 1080×1920), com sombra suave constante, sem transição; textos e cartões foram subidos para não colidir. Prévia: `previa-adesivo-link.png`.

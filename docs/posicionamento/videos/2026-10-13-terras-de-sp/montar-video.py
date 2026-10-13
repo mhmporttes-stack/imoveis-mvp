@@ -4,7 +4,7 @@
 import cv2, numpy as np, subprocess, sys, math
 S=sys.argv[1]; FPS=30; W,H=1080,1920
 fotos=[cv2.imread(f'{S}/../terras-fotos/foto{i}.jpg') for i in range(1,6)]
-ov=[None]+[cv2.imread(f'{S}/ov/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1,17)]   # ov[1..16]
+ov=[None]+[cv2.imread(f'{S}/ov/lamina-{i:02d}.png', cv2.IMREAD_UNCHANGED) for i in range(1,19)]   # ov[1..18] (17 = sombra fixa do adesivo de link, 18 = prévia do adesivo)
 yy,xx=np.mgrid[0:H,0:W]; VIG=(1-0.22*np.clip(((xx-W/2)/(W*0.75))**2+((yy-H/2)/(H*0.7))**2,0,1))[...,None].astype(np.float32)
 
 def grade(img):
@@ -102,7 +102,12 @@ for k in range(nf):
         if p>0: fr=over(fr,ov[idx],p,dx*(1-p),dy*(1-p))
     out.append(fr)
 
+# espaço fixo do adesivo de link (Instagram): mesma sombra em todos os quadros, fora das transições
+PREVIA=len(sys.argv)>3   # versão de prévia com o adesivo simulado
 p=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','rawvideo','-pix_fmt','bgr24','-s',f'{W}x{H}','-r',str(FPS),'-i','-',
    '-c:v','libx264','-preset','slow','-crf','17','-pix_fmt','yuv420p','-movflags','+faststart',sys.argv[2]],stdin=subprocess.PIPE)
-for f in out: p.stdin.write(f.tobytes())
+for f in out:
+    f=over(f,ov[17],1.0)
+    if PREVIA: f=over(f,ov[18],1.0)
+    p.stdin.write(f.tobytes())
 p.stdin.close(); p.wait(); print(len(out)/FPS,'s')
