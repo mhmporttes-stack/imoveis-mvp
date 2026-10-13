@@ -5,7 +5,7 @@ import {
   aggregateAdInsights,
   computeBenchmarks,
   deriveMetrics,
-  evaluateAd,
+  judgeAd,
   periodRange,
   shortCampaignName,
   statusLabelFor,
@@ -49,49 +49,69 @@ test("soma os dias do período e conta conversas do actions_raw", () => {
   assert.equal(deriveMetrics("outro", totals).costPerResult, null);
 });
 
-test("medianas da conta por tipo; poucos dados usa a reserva", () => {
-  const kinds = new Map([["a", "cadastro"], ["b", "cadastro"], ["c", "cadastro"], ["w", "whatsapp"]]);
+test("referências da conta: média ponderada; poucos dados usa a reserva", () => {
+  const kinds = new Map([["a", "cadastro"], ["b", "cadastro"], ["w", "whatsapp"]]);
   const rows = [
     { entity_id: "a", date: "2026-10-01", spend: 20, impressions: 1000, clicks: 20, leads: 10 },
-    { entity_id: "b", date: "2026-10-01", spend: 40, impressions: 1000, clicks: 20, leads: 10 },
-    { entity_id: "c", date: "2026-10-01", spend: 90, impressions: 1000, clicks: 20, leads: 10 },
+    { entity_id: "b", date: "2026-10-01", spend: 100, impressions: 1000, clicks: 20, leads: 10 },
     { entity_id: "w", date: "2026-10-01", spend: 30, impressions: 1000, clicks: 20, leads: 0, actions_raw: conv(3) }
   ];
-  const bench = computeBenchmarks(rows, kinds);
-  assert.equal(bench.costPerResult.cadastro, 4);
-  assert.equal(bench.costPerResult.whatsapp, FALLBACK_BENCHMARKS.costPerResult.whatsapp);
+  const bench = computeBenchmarks(rows, kinds, new Map([["a", 6], ["b", 4]]));
+  assert.equal(bench.meta.cadastro, 6, "120 / 20 leads");
+  assert.equal(bench.crm.cadastro, 12, "120 / 10 clientes");
+  assert.equal(bench.meta.whatsapp, FALLBACK_BENCHMARKS.meta.whatsapp);
 });
 
-const bench = { costPerResult: { cadastro: 6.55, whatsapp: 5.54 }, ctrP25: 0.84, cpmMedian: 10.66 };
-const base = { spend: 100, results: 20, costPerResult: 5, crmLeads: 0, frequency: 1.2, impressions: 5000, ctr: 2, cpm: 10, daysWithSpend: 5 };
+const bench = { crm: { cadastro: 12.13, whatsapp: 5.73 }, meta: { cadastro: 3.06, whatsapp: 3.47 }, ctrP25: 0.84, cpmAvg: 10.66 };
+const TODAY = "2026-10-13";
+function days(n, perDay, startOffset = 0) {
+  return Array.from({ length: n }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 9, 13 - startOffset - i)).toISOString().slice(0, 10);
+    return { entity_id: "x", date, ...perDay(i) };
+  });
+}
 
-test("bom: custo na média; vencedor com cliente no CRM", () => {
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: base }, bench).recommendations[0].title, "Manter");
-  const winner = evaluateAd({ kind: "cadastro", metrics: { ...base, crmLeads: 4 } }, bench);
-  assert.equal(winner.tone, "good");
-  assert.equal(winner.recommendations[0].title, "Vencedor");
+test("carrossel recente (2 dias): em aprendizado, sem julgar frequência nem CTR", () => {
+  const rows = days(2, () => ({ spend: 5.54, impressions: 525, clicks: 2, leads: 0, actions_raw: conv(1) }));
+  const result = judgeAd({ status: "ACTIVE", kind: "whatsapp", rows, crmDates: [], freq7: 2.25, today: TODAY }, bench);
+  assert.equal(result.tone, "neutral");
+  assert.equal(result.label, "Aprendendo");
+  assert.match(result.recommendations[0].title, /Em aprendizado/);
 });
 
-test("ruim: gastou sem resultado, custo alto ou frequência acima de 2", () => {
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: { ...base, spend: 20, results: 0, costPerResult: null } }, bench).tone, "bad");
-  assert.equal(evaluateAd({ kind: "whatsapp", metrics: { ...base, costPerResult: 9 } }, bench).recommendations[0].title, "Custo alto");
-  const tired = evaluateAd({ kind: "whatsapp", metrics: { ...base, frequency: 2.25, ctr: 0.38 } }, bench);
-  assert.equal(tired.tone, "bad");
-  assert.deepEqual(tired.recommendations.map((rec) => rec.title), ["Mesmas pessoas vendo demais", "Pouca gente clicando"]);
+test("vídeo aluguel (custo/cliente na média, Meta piorando): Manter com nota", () => {
+  const rows = days(7, (i) => (i < 3 ? { spend: 32.94, impressions: 2400, clicks: 37, leads: 3 } : { spend: 19.5, impressions: 2500, clicks: 46, leads: 4.5 }));
+  // CRM melhorando: 7 clientes nos últimos 3 dias completos, 4 nos 4 anteriores, 2 hoje.
+  const crmDates = ["2026-10-12", "2026-10-12", "2026-10-12", "2026-10-11", "2026-10-11", "2026-10-10", "2026-10-10", "2026-10-09", "2026-10-08", "2026-10-07", "2026-10-07", "2026-10-13", "2026-10-13"];
+  const result = judgeAd({ status: "ACTIVE", kind: "cadastro", rows, crmDates, freq7: 1.94, today: TODAY }, bench);
+  assert.equal(result.tone, "good");
+  assert.equal(result.recommendations[0].title, "Manter");
+  assert.equal(result.recommendations[1]?.title, "A Meta mostra queda, mas o CRM segue bem");
 });
 
-test("atenção: custo entre 1x e 1,5x a média, público cansando, CPM caro", () => {
-  assert.equal(evaluateAd({ kind: "whatsapp", metrics: { ...base, costPerResult: 8.17 } }, bench).tone, "warn");
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: { ...base, frequency: 1.55 } }, bench).recommendations[0].title, "Público começando a cansar");
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: { ...base, cpm: 22 } }, bench).recommendations[0].title, "Aparecer está caro");
+test("pausado nunca é julgado; reprovado é ruim", () => {
+  assert.equal(judgeAd({ status: "CAMPAIGN_PAUSED", kind: "whatsapp", rows: [], today: TODAY }, bench).recommendations[0].title, "Pausado");
+  assert.equal(judgeAd({ status: "DISAPPROVED", kind: "whatsapp", rows: [], today: TODAY }, bench).tone, "bad");
 });
 
-test("aprendendo: pouco gasto ou só 1 dia, sem alerta", () => {
-  const learning = evaluateAd({ kind: "cadastro", metrics: { ...base, spend: 5, results: 0, costPerResult: null } }, bench);
-  assert.equal(learning.tone, "neutral");
-  assert.equal(learning.recommendations[0].title, "Ainda aprendendo");
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: { ...base, daysWithSpend: 1 } }, bench).tone, "neutral");
-  assert.equal(evaluateAd({ kind: "cadastro", metrics: { ...base, spend: 0 } }, bench).recommendations[0].title, "Sem investimento no período");
+test("frequência alta sozinha não muda a cor; com custo ruim vira alerta", () => {
+  const rows = days(10, () => ({ spend: 10, impressions: 1000, clicks: 20, leads: 0, actions_raw: conv(3) }));
+  const twoClients = ["2026-10-12", "2026-10-10"];
+  const ok = judgeAd({ status: "ACTIVE", kind: "whatsapp", rows, crmDates: twoClients, freq7: 3.6, today: TODAY }, bench);
+  assert.equal(ok.tone, "good");
+  assert.equal(ok.recommendations[1]?.title, "Frequência alta");
+  const expensive = days(10, () => ({ spend: 10, impressions: 1000, clicks: 20, leads: 0, actions_raw: conv(1) }));
+  const saturated = judgeAd({ status: "ACTIVE", kind: "whatsapp", rows: expensive, crmDates: twoClients, freq7: 4.2, today: TODAY }, bench);
+  assert.equal(saturated.tone, "bad");
+  assert.match(saturated.recommendations[0].title, /Público saturado/);
+});
+
+test("gastou sem trazer cliente depois do aprendizado; vencedor com cliente barato", () => {
+  const rows = days(10, () => ({ spend: 10, impressions: 1000, clicks: 20, leads: 2 }));
+  const crmOld = ["2026-09-25"];
+  assert.equal(judgeAd({ status: "ACTIVE", kind: "cadastro", rows, crmDates: crmOld, today: TODAY }, bench).recommendations[0].title, "Gastou sem trazer cliente");
+  const cheap = Array.from({ length: 12 }, (_, i) => `2026-10-${String(7 + (i % 7)).padStart(2, "0")}`);
+  assert.equal(judgeAd({ status: "ACTIVE", kind: "cadastro", rows, crmDates: cheap, freq7: 1.5, today: TODAY }, bench).recommendations[0].title, "Vencedor");
 });
 
 test("rótulos curtos", () => {

@@ -82,7 +82,7 @@ Conhecimento especializado de tráfego vive no repositório, carregado sob deman
 
 ## 6-B. Área "Anúncios" no CRM (desde 2026-10-13)
 
-Tela `/admin/anuncios` (Supervisão › Anúncios, só administrador geral), **somente leitura**: um card por anúncio (ativo ou com gasto no período) com miniatura do criativo, tipo WhatsApp/Cadastro/Outro, custo por resultado, leads, clientes no CRM, frequência e situação (Bom/Atenção/Ruim/Aprendendo) com recomendações. Regras puras e limites em `lib/meta-ads-board-core.mjs` (medianas da própria conta, 30 dias); montagem em `lib/meta-ads-board.js`. Miniatura e `destination_type` vêm de `syncMetaAdCreatives` (`lib/meta-ads-sync.js`, GET, renovado ao abrir a tela após 20 h); alcance/frequência do período de `fetchMetaAdPeriodReach` (GET, com fallback). Nenhuma escrita na Meta.
+Tela `/admin/anuncios` (Supervisão › Anúncios, só administrador geral), **somente leitura**: um card por anúncio (ativo ou com gasto no período) com miniatura do criativo, tipo WhatsApp/Cadastro/Outro, custo por resultado, leads, clientes no CRM, frequência e situação (Bom/Atenção/Ruim/Aprendendo/Pausado) com recomendações. Julgamento (`judgeAd`, `lib/meta-ads-board-core.mjs`) especificado pelo gestor de tráfego em 2026-10-13: aprendizado de 7 dias, cliente no CRM acima do custo da Meta, frequência/CTR só explicam custo ruim, referências = médias ponderadas da conta em 30 dias (`.claude/skills/auditar-trafego/references/regras-decisao.md`); montagem em `lib/meta-ads-board.js`. Miniatura e `destination_type` vêm de `syncMetaAdCreatives` (`lib/meta-ads-sync.js`, GET, renovado ao abrir a tela após 20 h); alcance/frequência do período de `fetchMetaAdPeriodReach` (GET, com fallback). Nenhuma escrita na Meta.
 
 ## 7. Riscos e pontos a confirmar
 

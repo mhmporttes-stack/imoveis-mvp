@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-13 — Anúncios: julgamento alinhado ao gestor de tráfego + visual mais limpo
+
+- **Pedido do dono:** as recomendações contradiziam o que o gestor de tráfego orienta (carrossel recente marcado "Ruim" por frequência/CTR; vídeo aluguel com 13 clientes no CRM marcado "Atenção" por frequência 1,9) e os cards estavam poluídos, com texto vazando.
+- **Causa:** a 1ª versão julgava mecanicamente por medianas da conta e alertava por frequência/CTR sozinhos, sem fase de aprendizado nem prioridade do cliente no CRM.
+- **Correção (especificação do `gestor-trafego`):** `judgeAd` em `lib/meta-ads-board-core.mjs` substitui `evaluateAd`: (0) reprovado = Ruim, pausado = sem julgamento; (1) aprendizado nos 7 primeiros dias de gasto ou até gastar 3× o custo médio por cliente — não julga frequência/CTR/custo da Meta; (2) com ≥ 3 clientes no CRM em 7 dias manda o custo por cliente (≤ 1,3× média = Manter; ≤ 0,8× com ≥ 5 clientes = Vencedor; até 1,8× Atenção; acima Ruim); (3) sem amostra no CRM usa o custo por resultado da Meta com tolerância (≤ 1,5× Manter, ≤ 2,5× Atenção); (4) tendência 3 × 4 dias (custo/CTR piorando com CRM estável vira só nota); (5) frequência só pesa com custo ruim (≥ 3 alerta, ≥ 4 com custo ruim = saturado). Referências = médias PONDERADAS da conta em 30 dias (gasto ÷ clientes/resultados), não mediana. Janelas fixas, independentes do período da tela. Testes atualizados.
+- **Visual:** `components/ads/AdsBoard.jsx` reorganizado pelo `designer-crm` (card e detalhe mais limpos, sem texto vazando).
+
 ### 2026-10-13 — Nova área "Anúncios" (Supervisão), somente leitura da Meta
 
 - **Pedido do dono:** área com os anúncios em cards baixos (≥ 4 por tela no celular), com foto, título, WhatsApp × Cadastro, custo por lead, leads, clientes no CRM, frequência, situação e recomendações; detalhe ao clicar. Aparência: versão B (painel claro com o DNA dos carrosséis), escolhida entre duas na vitrine. Conteúdo especificado pelo `gestor-trafego` e visual pelo `marketing-posicionamento`.

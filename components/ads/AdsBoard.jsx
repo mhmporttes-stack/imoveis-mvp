@@ -71,24 +71,21 @@ function freq(value) {
   return value === null || value === undefined ? "—" : `${DEC1.format(Number(value))}×`;
 }
 
-function KindPill({ kind, theme }) {
-  const isWhatsapp = kind === "whatsapp";
-  const Icon = isWhatsapp ? MessageCircle : ClipboardCheck;
-  if (kind !== "whatsapp" && kind !== "cadastro") {
-    return <span className={cx("inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-4", theme.pill)}>Outro</span>;
-  }
+function KindTag({ kind, className = "" }) {
+  const label = kind === "whatsapp" ? "WhatsApp" : kind === "cadastro" ? "Cadastro" : "Outro";
+  const Icon = kind === "whatsapp" ? MessageCircle : kind === "cadastro" ? ClipboardCheck : null;
   return (
-    <span className={cx("inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-4", theme.pill)}>
-      <Icon size={12} strokeWidth={1.75} aria-hidden="true" />
-      {isWhatsapp ? "WhatsApp" : "Cadastro"}
+    <span className={cx("inline-flex shrink-0 items-center gap-1", className)}>
+      {Icon ? <Icon size={13} strokeWidth={1.75} aria-hidden="true" /> : null}
+      {label}
     </span>
   );
 }
 
-function StatusMark({ tone, theme, paused }) {
-  const color = theme.tone[tone] || theme.tone.neutral;
+function StatusMark({ tone, theme, paused, className = "" }) {
+  const color = paused ? theme.tone.neutral : theme.tone[tone] || theme.tone.neutral;
   return (
-    <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold", theme.label)}>
+    <span className={cx("inline-flex shrink-0 items-center gap-1.5 font-semibold text-ink-2", className)}>
       <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
       {paused ? "Pausado" : TONE_LABEL[tone] || "—"}
     </span>
@@ -97,13 +94,13 @@ function StatusMark({ tone, theme, paused }) {
 
 function Thumb({ ad, theme, size = "card" }) {
   const [failed, setFailed] = useState(false);
-  const dims = size === "card" ? "h-[88px] w-[70px]" : "h-[200px] w-[160px]";
+  const dims = size === "card" ? "h-20 w-14 rounded-control" : "h-[120px] w-24 rounded-card";
   const paused = ad.status !== "active";
   if (!ad.thumbnailUrl || failed) {
     return (
-      <div className={cx("flex shrink-0 items-center justify-center rounded-xl ring-1", dims, theme.thumbEmpty, theme.thumbRing)} aria-hidden="true">
+      <div className={cx("flex shrink-0 items-center justify-center ring-1", dims, theme.thumbEmpty, theme.thumbRing)} aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {ad.thumbnailUrl ? <ImageOff size={20} className="text-white/40" /> : <img src="/assets/matheus-machado-symbol.png" alt="" className="w-1/2 opacity-40" />}
+        {ad.thumbnailUrl ? <ImageOff size={18} className="text-white/40" /> : <img src="/assets/matheus-machado-symbol.png" alt="" className="w-1/2 opacity-40" />}
       </div>
     );
   }
@@ -114,75 +111,78 @@ function Thumb({ ad, theme, size = "card" }) {
       alt=""
       loading="lazy"
       onError={() => setFailed(true)}
-      className={cx("shrink-0 rounded-xl object-cover ring-1", dims, theme.thumbRing, paused && "opacity-60 grayscale")}
+      className={cx("shrink-0 object-cover ring-1", dims, theme.thumbRing, paused && "opacity-60 grayscale")}
     />
   );
 }
 
+// Card: 3 linhas numa grade fixa (título · tipo/frequência/situação · números).
+// Valores numa mesma linha de base e rótulos noutra, para a leitura em coluna.
 function AdCard({ ad, theme, onOpen }) {
   const tone = ad.health?.tone || "neutral";
   const paused = ad.status !== "active";
+  const m = ad.metrics;
   return (
     <button
       type="button"
       onClick={() => onOpen(ad)}
       className={cx(
-        "relative flex h-28 w-full items-stretch gap-3 overflow-hidden rounded-2xl border p-2.5 pl-3 text-left transition-[transform,border-color] duration-150 ease-out-ui active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "flex h-[104px] w-full items-center gap-3 overflow-hidden rounded-card border p-3 text-left transition-[transform,border-color] duration-150 ease-out-ui active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         theme.card
       )}
     >
-      <span className="absolute inset-y-4 left-0 w-[3px] rounded-full" style={{ backgroundColor: paused ? theme.tone.neutral : theme.tone[tone] }} aria-hidden="true" />
       <Thumb ad={ad} theme={theme} />
-      <span className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-        <span className="flex items-center justify-between gap-2">
-          <KindPill kind={ad.kind} theme={theme} />
-          <StatusMark tone={tone} theme={theme} paused={paused} />
-        </span>
-        <span className="min-w-0">
-          <span className={cx("block truncate text-[15px] font-bold leading-5", theme.name)}>{ad.name}</span>
-          <span className={cx("block truncate text-xs leading-4", theme.label)}>Investido {money(ad.metrics.spend, true)}{ad.campaignShort ? ` · ${ad.campaignShort}` : ""}</span>
-        </span>
-        <span className="flex items-end justify-between gap-2">
-          <span className="min-w-0">
-            <span className={cx("block text-[10px] font-bold uppercase tracking-[0.16em]", theme.accent)}>Custo/lead</span>
-            <span className={cx(anton.className, "block text-[24px] leading-none tabular-nums", theme.hero)}>{money(ad.metrics.costPerResult)}</span>
+      <span className="flex h-20 min-w-0 flex-1 flex-col justify-between">
+        <span className="block min-w-0">
+          <span className={cx("block truncate text-[15px] font-semibold leading-5", theme.name)}>{ad.name}</span>
+          <span className={cx("flex min-w-0 items-center justify-between gap-2 text-xs leading-4", theme.label)}>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <KindTag kind={ad.kind} />
+              <span aria-hidden="true">·</span>
+              <span className="truncate tabular-nums">freq. {freq(m.frequency)}</span>
+            </span>
+            <StatusMark tone={tone} theme={theme} paused={paused} />
           </span>
-          <span className="grid shrink-0 grid-cols-[auto_auto_auto] gap-x-3 text-right">
-            <Metric label="Leads" value={num(ad.metrics.results)} theme={theme} />
-            <Metric label="No CRM" value={num(ad.metrics.crmLeads)} theme={theme} />
-            <Metric label="Freq." value={freq(ad.metrics.frequency)} theme={theme} />
-          </span>
+        </span>
+        <span className="grid grid-cols-[minmax(0,1fr)_3.75rem_2.75rem_2.75rem] items-end gap-x-2">
+          <span className={cx(anton.className, "block truncate text-[24px] leading-none tabular-nums", theme.hero)}>{money(m.costPerResult)}</span>
+          <Metric value={money(m.spend, true)} />
+          <Metric value={num(m.results)} />
+          <Metric value={num(m.crmLeads)} />
+          <span className={cx("mt-1 block truncate text-2xs font-semibold", theme.accent)}>por lead</span>
+          <MetricLabel>investido</MetricLabel>
+          <MetricLabel>leads</MetricLabel>
+          <MetricLabel>no CRM</MetricLabel>
         </span>
       </span>
     </button>
   );
 }
 
-function Metric({ label, value, theme }) {
-  return (
-    <span className="min-w-0">
-      <span className={cx("block text-[11px] leading-4", theme.label)}>{label}</span>
-      <span className={cx("block text-[13px] font-semibold tabular-nums leading-4", theme.value)}>{value}</span>
-    </span>
-  );
+function Metric({ value }) {
+  return <span className="block truncate text-right text-[13px] font-semibold leading-4 tabular-nums text-ink">{value}</span>;
+}
+
+function MetricLabel({ children }) {
+  return <span className="mt-1 block truncate text-right text-2xs text-muted">{children}</span>;
 }
 
 function SummaryBar({ summary, theme }) {
   const items = [
-    { label: "Investido", value: money(summary?.spend, true) },
-    { label: "Leads", value: num(summary?.results) },
-    { label: "Custo", value: money(summary?.costPerResult) },
-    { label: "Ativos", value: num(summary?.activeCount) }
+    { label: "investido", value: money(summary?.spend, true) },
+    { label: "leads", value: num(summary?.results) },
+    { label: "custo por lead", value: money(summary?.costPerResult) },
+    { label: "ativos", value: num(summary?.activeCount) }
   ];
   return (
-    <div className={cx("grid grid-cols-4 divide-x rounded-2xl border", theme.summary, "divide-line")}>
+    <dl className={cx("grid grid-cols-4 divide-x divide-line rounded-card border", theme.summary)}>
       {items.map((item) => (
-        <div key={item.label} className="min-w-0 px-1.5 py-2 text-center sm:px-4">
-          <p className={cx("truncate text-[10px] font-bold uppercase tracking-[0.12em]", theme.label)}>{item.label}</p>
-          <p className={cx("truncate text-[15px] font-extrabold tabular-nums sm:text-lg", theme.value)}>{item.value}</p>
+        <div key={item.label} className="flex min-w-0 flex-col-reverse px-2 py-2.5 text-center sm:px-4">
+          <dt className="truncate text-2xs text-muted">{item.label}</dt>
+          <dd className={cx("truncate text-[15px] font-bold leading-5 tabular-nums sm:text-lg", theme.value)}>{item.value}</dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -215,44 +215,54 @@ function AdDetail({ ad, onClose }) {
   const theme = THEMES.claro;
   if (!ad) return null;
   const m = ad.metrics;
-  const resultLabel = ad.kind === "whatsapp" ? "Conversas iniciadas" : "Leads (Meta)";
+  const isWhatsapp = ad.kind === "whatsapp";
+  const costLabel = isWhatsapp ? "custo por conversa" : "custo por lead";
+  // [rótulo, explicação curta (opcional), valor]. O custo por resultado já é o
+  // número principal do topo, por isso não se repete na lista.
   const rows = [
-    ["Investido", money(m.spend)],
-    [resultLabel, num(m.results)],
-    [ad.kind === "whatsapp" ? "Custo por conversa" : "Custo por lead", money(m.costPerResult)],
-    ["Clientes no CRM", m.crmLeads === null || m.crmLeads === undefined ? "Sem rastreio" : num(m.crmLeads)],
-    ["Custo por cliente no CRM", money(m.crmCostPerLead)],
-    ["Alcance (pessoas)", num(m.reach)],
-    ["Impressões", num(m.impressions)],
-    ["Frequência (vezes por pessoa)", freq(m.frequency)],
-    ["Cliques no link", num(m.linkClicks ?? m.clicks)],
-    ["CTR (taxa de cliques)", pct(m.ctr)],
-    ["CPM (custo por mil)", money(m.cpm)],
-    ["CPC (custo por clique)", money(m.cpc)]
+    ["Investido", "", money(m.spend)],
+    [isWhatsapp ? "Conversas iniciadas" : "Leads", isWhatsapp ? "" : "contados pela Meta", num(m.results)],
+    ["Clientes no CRM", "", m.crmLeads === null || m.crmLeads === undefined ? "Sem rastreio" : num(m.crmLeads)],
+    ["Custo por cliente no CRM", "", money(m.crmCostPerLead)],
+    ["Alcance", "pessoas", num(m.reach)],
+    ["Impressões", "", num(m.impressions)],
+    ["Frequência", "vezes por pessoa", freq(m.frequency)],
+    ["Cliques no link", "", num(m.linkClicks ?? m.clicks)],
+    ["CTR", "taxa de cliques", pct(m.ctr)],
+    ["CPM", "custo por mil", money(m.cpm)],
+    ["CPC", "custo por clique", money(m.cpc)]
   ];
+  const origin = [
+    ad.campaignName ? `Campanha: ${ad.campaignName}` : "",
+    ad.adsetName ? `Conjunto: ${ad.adsetName}` : ""
+  ].filter(Boolean);
   return (
-    <Sheet open={Boolean(ad)} onClose={onClose} title={ad.name} description={[ad.campaignName, ad.adsetName].filter(Boolean).join(" · ")}>
+    <Sheet
+      open={Boolean(ad)}
+      onClose={onClose}
+      title={<span className="line-clamp-2">{ad.name}</span>}
+      description={ad.campaignShort || ad.campaignName || ""}
+    >
       <div className="space-y-5">
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
           <Thumb ad={ad} theme={theme} size="detail" />
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <KindPill kind={ad.kind} theme={theme} />
+          <div className="min-w-0 flex-1">
+            <p className={cx(anton.className, "truncate text-[40px] leading-none text-navy tabular-nums")}>{money(m.costPerResult)}</p>
+            <p className="mt-1.5 text-xs font-semibold text-brand">{costLabel}</p>
+            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
+              <KindTag kind={ad.kind} />
               <StatusMark tone={ad.health?.tone || "neutral"} theme={theme} paused={ad.status !== "active"} />
-            </div>
-            <p className="text-sm text-muted">{ad.statusLabel}</p>
-            <p className={cx(anton.className, "text-[34px] leading-none text-navy tabular-nums")}>{money(m.costPerResult)}</p>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">{ad.kind === "whatsapp" ? "Custo por conversa" : "Custo por lead"}</p>
-            {ad.periodLabel ? <p className="text-xs text-muted">{ad.periodLabel}</p> : null}
+            </p>
+            <p className="mt-1 text-xs text-muted">{[ad.statusLabel, ad.periodLabel].filter(Boolean).join(" · ")}</p>
           </div>
         </div>
 
         {ad.recommendations?.length ? (
           <section aria-label="Recomendações" className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-muted">Recomendações</h3>
+            <h3 className="text-sm font-semibold text-navy">Recomendações</h3>
             {ad.recommendations.map((rec, index) => (
-              <div key={index} className={cx("rounded-xl border px-3 py-2.5", DETAIL_TONE_BOX[rec.tone] || DETAIL_TONE_BOX.neutral)}>
-                <p className="text-sm font-bold">{rec.title}</p>
+              <div key={index} className={cx("rounded-control border px-3 py-2.5", DETAIL_TONE_BOX[rec.tone] || DETAIL_TONE_BOX.neutral)}>
+                <p className="text-sm font-semibold">{rec.title}</p>
                 {rec.detail ? <p className="mt-0.5 text-sm text-ink-2">{rec.detail}</p> : null}
               </div>
             ))}
@@ -260,16 +270,24 @@ function AdDetail({ ad, onClose }) {
         ) : null}
 
         <section aria-label="Números do anúncio">
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-muted">Números do período</h3>
-          <dl className="divide-y divide-line rounded-xl border border-line">
-            {rows.map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between gap-3 px-3 py-2">
-                <dt className="text-sm text-ink-2">{label}</dt>
-                <dd className="text-sm font-semibold tabular-nums text-ink">{value}</dd>
+          <h3 className="text-sm font-semibold text-navy">Números do período</h3>
+          <dl className="mt-1 divide-y divide-line">
+            {rows.map(([label, hint, value]) => (
+              <div key={label} className="flex items-baseline justify-between gap-3 py-2.5">
+                <dt className="min-w-0 text-sm text-ink-2">
+                  {label}
+                  {hint ? <span className="ml-1.5 text-xs text-muted">{hint}</span> : null}
+                </dt>
+                <dd className="shrink-0 text-sm font-semibold tabular-nums text-ink">{value}</dd>
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-xs text-muted">Dados da Meta. Somente leitura: nada é alterado no anúncio por aqui.</p>
+          <div className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-muted">
+            {origin.map((line) => (
+              <p key={line} className="break-words">{line}</p>
+            ))}
+            <p>Dados da Meta. Somente leitura: nada é alterado no anúncio por aqui.</p>
+          </div>
         </section>
       </div>
     </Sheet>
@@ -320,17 +338,21 @@ export default function AdsBoard({ initialData = null, initialError = "", initia
   return (
     <div className={cx("relative min-h-[calc(100dvh-4rem)] pb-16", theme.page)}>
       <div className="container-page relative space-y-3 pt-3 md:pt-6">
-        <header className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className={cx("text-[10px] font-bold uppercase tracking-[0.2em]", theme.eyebrow)}>Meta Ads</p>
-            <h1 className={cx("text-2xl font-extrabold leading-tight tracking-tight md:text-[28px]", theme.title)}>Anúncios</h1>
-            {data?.syncedAtLabel ? (
-              <p className={cx("flex items-center gap-1 text-xs", theme.sub)}>
-                <RefreshCw size={11} aria-hidden="true" /> Atualizado {data.syncedAtLabel}
-              </p>
-            ) : null}
+        <header>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className={cx("min-w-0 text-2xl font-extrabold leading-tight tracking-tight md:text-[28px]", theme.title)}>Anúncios</h1>
+            <Chips options={PERIODS} value={period} onChange={setPeriod} theme={theme} label="Período" />
           </div>
-          <Chips options={PERIODS} value={period} onChange={setPeriod} theme={theme} label="Período" />
+          <p className={cx("mt-0.5 flex min-w-0 items-center gap-1 text-xs", theme.sub)}>
+            <span className={cx("font-semibold", theme.eyebrow)}>Meta Ads</span>
+            {data?.syncedAtLabel ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <RefreshCw size={11} aria-hidden="true" className="shrink-0" />
+                <span className="truncate">Atualizado {data.syncedAtLabel}</span>
+              </>
+            ) : null}
+          </p>
         </header>
 
         <SummaryBar summary={data?.summary} theme={theme} />
@@ -354,7 +376,7 @@ export default function AdsBoard({ initialData = null, initialError = "", initia
         {loading && !data ? (
           <div role="status" className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className={cx("h-28 animate-pulse rounded-2xl border", theme.card)} />
+              <div key={index} className={cx("h-[104px] animate-pulse rounded-card border", theme.card)} />
             ))}
             <span className="sr-only">Carregando anúncios</span>
           </div>
@@ -365,7 +387,7 @@ export default function AdsBoard({ initialData = null, initialError = "", initia
             ))}
           </div>
         ) : (
-          <p className={cx("rounded-2xl border px-4 py-8 text-center text-sm", theme.summary, theme.sub)}>
+          <p className={cx("rounded-card border px-4 py-8 text-center text-sm", theme.summary, theme.sub)}>
             {data?.configured === false ? "A integração com a Meta Ads não está configurada." : `Nenhum anúncio ${onlyActive ? "ativo " : ""}neste filtro.`}
           </p>
         )}

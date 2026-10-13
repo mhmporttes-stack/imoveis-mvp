@@ -51,12 +51,27 @@ const ads = [
     metrics: { spend: 64.2, results: 11, costPerResult: 5.84, crmLeads: 6, crmCostPerLead: 10.7, reach: 4980, impressions: 6120, frequency: 1.23, clicks: 131, linkClicks: 118, ctr: 2.14, cpm: 10.49, cpc: 0.49 },
     health: { tone: "good" },
     recommendations: [{ tone: "good", title: "Vencedor", detail: "Custo abaixo da média e 6 clientes no CRM. Candidato a mais verba (decisão sua)." }]
+  },
+  {
+    // Caso-limite para a revisão visual: título muito longo e valores grandes.
+    id: "ad-7", name: "Minha Casa Minha Vida | Vídeo depoimento família completa | Entrada facilitada | Formulário site Marília e região", campaignName: "SITE | Marília e região | PATROCINADO | Vídeo depoimento | Público amplo 18-60 | Advantage+", campaignShort: "Site · Vídeo depoimento", adsetName: "Marília e região 18-60 | Advantage+ | Interesses imóveis",
+    status: "active", statusLabel: "Ativo na Meta", kind: "cadastro", thumbnailUrl: "/assets/hero-marilia.png",
+    metrics: { spend: 1234.56, results: 1250, costPerResult: 0.99, crmLeads: 312, crmCostPerLead: 3.96, reach: 184320, impressions: 412870, frequency: 12.4, clicks: 9876, linkClicks: 8790, ctr: 2.39, cpm: 2.99, cpc: 0.14 },
+    health: { tone: "warn" },
+    recommendations: [{ tone: "warn", title: "Público vendo demais", detail: "Cada pessoa viu o anúncio 12,4 vezes. Acima de 2 o público cansa e o custo sobe." }]
+  },
+  {
+    id: "ad-8", name: "Loteamento | Imagem única | WhatsApp oficial", campaignName: "WHATSAPP | Marília | Loteamento | Conversas", campaignShort: "WhatsApp · Imagem", adsetName: "Marília 25-60",
+    status: "active", statusLabel: "Ativo na Meta", kind: "whatsapp", thumbnailUrl: "/assets/og-simulacao-v3.png",
+    metrics: { spend: 987.65, results: 8, costPerResult: 123.46, crmLeads: null, crmCostPerLead: null, reach: 22140, impressions: 30115, frequency: 1.36, clicks: 210, linkClicks: 188, ctr: 0.7, cpm: 32.8, cpc: 4.7 },
+    health: { tone: "bad" },
+    recommendations: [{ tone: "bad", title: "Custo muito alto", detail: "R$ 123,46 por conversa, muito acima da média da conta." }]
   }
 ];
 
 export const data = {
   syncedAtLabel: "hoje às 15:00",
-  summary: { spend: 413.57, results: 71, costPerResult: 5.82, activeCount: 4 },
+  summary: { spend: 2635.78, results: 1329, costPerResult: 1.98, activeCount: 6 },
   ads
 };
 
