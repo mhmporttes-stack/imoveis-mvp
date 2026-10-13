@@ -60,3 +60,5 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 
 - **Gerador para foto do Matheus:** Runway `nano-banana-pro` 2K (3:4, recortar para 4:5) com referências marcadas (@rosto, @cabelo, @corpo, @cena) — muito mais realista que o gerador do Canva (dono reprovou a qualidade, 2026-10-13). Cabelo: ondas suaves penteadas para trás, nunca enrolado.
 - **Texto atrás da pessoa** (como na referência): camadas foto → título → recorte da pessoa (`rembg`, modelo isnet-general-use).
+
+- **Método que dá rosto fiel (aprovado pelo dono, 2026-10-13):** usar como base de identidade as fotos do acervo `assets/boneco-3d/realista/` (que o dono aprovou como fiéis) — @matheus = joinha, @matheus2 = bracos-cruzados — e pedir "o mesmo homem, mesma sessão de fotos" só trocando pose/cena (@cena = referência). Gerar a partir das selfies/fotos casuais produziu rostos diferentes; não repetir. Runway nano-banana-pro 2K, 3:4 recortado para 4:5. Comparar o rosto lado a lado com o acervo antes de entregar.
