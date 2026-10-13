@@ -53,7 +53,7 @@ Fachada, torres, lazer e plantas de um empreendimento são o produto que será e
 Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins`, `calendar-clock`, `file-check`, `landmark`, `calculator`, `clipboard-check`, `map-pin`, `briefcase`, `shield-check`, `key-round`, `lightbulb`, `message-circle`, `credit-card`, `wallet`, `trending-up`.
 
 ## Fidelidade e sobriedade (dono, 2026-10-13)
-- **Foto nova do Matheus gerada por IA:** usar como referência principal as fotos REAIS dele (selfies/fotos enviadas em 2026-10-11: rosto fino e alongado, nariz reto marcado, barba curta cheia, cabelo para trás com volume, magro), não só o acervo `realista/`. Conferir o rosto em tamanho grande antes de usar; se parecer outra pessoa, regerar.
+- **Foto nova do Matheus gerada por IA:** usar como referência principal as fotos REAIS em `assets/fotos-reais/` (ref1 = de pé na Caixa, ref2 = evento de terno azul, ref3 = close do rosto). Dados dele: 29 anos, magro (58 kg, 1,71 m), rosto fino e alongado, nariz reto marcado, barba curta, cabelo ondulado para trás, sorriso largo. Nunca deixar mais velho, mais largo ou mais forte. Conferir o rosto em tamanho grande antes de usar; se parecer outra pessoa, regerar.
 - **Paleta sem exagero:** fundos preto/azul-marinho; azul só no destaque; evitar fundos chapados em azul ou vermelho saturado.
 - **Texto curto:** uma ideia por lâmina, frases resumidas (a referência é só a ideia, não precisa copiar o texto inteiro).
 - **Tipografia:** Inter (pesos 400–800, títulos 800 com tracking negativo) + Playfair Display itálico para a palavra de destaque; evitar condensada pesada em bloco.
