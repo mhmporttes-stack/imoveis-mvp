@@ -96,8 +96,6 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
         <StatPill emoji="⚫" label="Offline" value={presence?.offline || 0} tone="border-slate-200 bg-slate-50 text-slate-600" />
       </div>
 
-      <OfficeNetworkPanel />
-
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Presença no CRM</h3>
@@ -126,6 +124,9 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
       </article>
 
       <HoursReport />
+
+      {/* Configuração da presença na imobiliária: no fim da página (dono, 2026-10-14). */}
+      <OfficeNetworkPanel />
     </div>
   );
 }
@@ -414,7 +415,7 @@ function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
             {(member.whatsapp || []).map((icon, index) => (
               <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
             ))}
-            <DeviceButton device={member.device} open={historyOpen === "presence"} onClick={() => toggle("presence")} />
+            <DeviceButton device={member.device} online={member.status === "online"} open={historyOpen === "presence"} onClick={() => toggle("presence")} />
             <span className="ml-auto min-w-0 truncate text-right text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</span>
           </div>
         </div>
@@ -605,7 +606,8 @@ function GoalRing({ percent, children }) {
 
 // Aparelho do último acesso (celular = app/navegador do celular; notebook = computador). Clique abre o histórico do
 // dia (entrou/saiu e aparelho). Sem aparelho conhecido ainda: ícone de histórico.
-function DeviceButton({ device, open, onClick }) {
+// On-line: o ícone do aparelho acende em verde (dono, 2026-10-14).
+function DeviceButton({ device, online = false, open, onClick }) {
   const label = device === "mobile" ? "Pelo celular" : device === "desktop" ? "Pelo computador" : "Histórico de hoje";
   const Icon = device === "mobile" ? Smartphone : device === "desktop" ? Laptop : History;
   return (
@@ -615,7 +617,7 @@ function DeviceButton({ device, open, onClick }) {
       aria-expanded={open}
       title={`${label} — ver entradas e saídas de hoje`}
       aria-label={`${label}. Ver entradas e saídas de hoje`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : "border-navy/10 bg-mist text-navy hover:border-brand hover:text-brand"}`}
+      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : online ? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-brand" : "border-navy/10 bg-mist text-navy hover:border-brand hover:text-brand"}`}
     >
       <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
     </button>
