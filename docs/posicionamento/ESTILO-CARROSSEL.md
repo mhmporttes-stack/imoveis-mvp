@@ -71,3 +71,9 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 - **No máximo 5 hashtags** — o Instagram só permite 5; nunca entregar 6 ou mais.
 - Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
 - **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
+
+## Passo a passo com prints (dono, 2026-10-14)
+- **Prints reais** de cada tela (nunca tela desenhada); dados pessoais e valores sempre borrados — nunca salvar o print original com dados.
+- Marcar onde clicar com contorno azul + **mão branca cheia** (Font Awesome `hand-point-right`, branca com contorno azul-marinho), **afastada** do botão (não encostar).
+- Dois cliques na mesma tela: **número em quadrado azul** (degradê #4C8DF6→#1F4CB3) sobre cada mão, **uma mão de cada lado**.
+- Juntar passos curtos na mesma lâmina quando a mesma tela mostra os dois cliques. Exemplo: `carrosseis/2026-10-14-registrato/`.

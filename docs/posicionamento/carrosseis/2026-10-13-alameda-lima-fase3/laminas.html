@@ -1,0 +1,115 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Montserrat:wght@400;500;600;700;800">
+<style>
+:root{--azul:#4C8DF6;--txt:#DCE6F7}
+*{box-sizing:border-box;margin:0;padding:0} body{background:#000}
+.lamina{position:relative;width:1080px;height:1350px;overflow:hidden;font-family:Montserrat,sans-serif;color:#fff;
+ background:radial-gradient(900px 760px at 50% 34%, #1F4CB3 0%, #173A8E 30%, #0E2257 62%, #08112E 100%)}
+.lamina::after{content:"";position:absolute;inset:0;z-index:9;pointer-events:none;opacity:.10;mix-blend-mode:overlay;
+ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")}
+.cond{font-family:Anton,sans-serif;text-transform:uppercase;line-height:1.08;letter-spacing:.005em}
+em{font-style:normal;color:var(--azul)}
+.handle{position:absolute;top:58px;left:0;right:0;text-align:center;font-weight:700;font-size:22px;letter-spacing:.08em;z-index:5;color:rgba(255,255,255,.9)}
+.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sh{text-shadow:0 4px 30px rgba(0,0,0,.45)}
+.ico{display:inline-block;vertical-align:-6px;width:40px;height:40px;fill:none;stroke:var(--azul);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.janela{background:#F4F6FA;border-radius:26px;color:#0B1A3A;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.barra{height:62px;border-bottom:1.5px solid #DDE3EC;display:flex;align-items:center;padding:0 26px;gap:12px;position:relative}
+.barra i{width:20px;height:20px;border-radius:50%;display:block}
+.barra span{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:22px;color:#33415C}
+.linha{display:flex;align-items:center;gap:22px;padding:24px 0;border-bottom:1.5px solid #E3E8F0;font-size:33px;font-weight:600}
+.linha:last-child{border-bottom:0}
+.linha .ck{width:46px;height:46px;border-radius:50%;background:#1F4CB3;display:grid;place-items:center;flex-shrink:0}
+.linha .ck svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.linha b{color:#1F4CB3}
+</style></head><body>
+
+<!-- 1 CAPA -->
+<section class="lamina">
+  <img class="bg" src="img/capa.jpg" alt="">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,17,46,.15) 0%,rgba(8,17,46,0) 30%,rgba(8,17,46,.15) 55%,rgba(8,17,46,.88) 100%)"></div>
+  <div class="handle sh">@MHM.MACHADO</div>
+  <div style="position:absolute;left:0;right:0;bottom:120px;text-align:center;z-index:3" class="sh">
+    <div class="cond" style="font-size:92px">Se eu quisesse</div>
+    <div class="cond" style="font-size:150px;color:var(--azul);line-height:1">Sair do aluguel</div>
+    <div class="cond" style="display:inline-block;font-size:84px;background:rgba(8,17,46,.78);padding:6px 26px 10px;margin-top:10px;border-radius:6px">em 2027</div>
+    <p style="font-size:38px;font-weight:500;margin-top:26px">olharia esse apê aqui...</p>
+  </div>
+</section>
+
+<!-- 2 LOCALIZAÇÃO -->
+<section class="lamina">
+  <div class="handle">@MHM.MACHADO</div>
+  <div style="position:absolute;left:90px;right:90px;top:150px;z-index:3">
+    <h2 class="cond" style="font-size:84px">Se você quer sair do aluguel, a <em>localização</em> pesa muito.<br>Olha onde esse está:</h2>
+    <p style="font-size:36px;font-weight:700;margin-top:44px"><svg class="ico" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Av. Alcebíades Spadotto, 205</p>
+    <p style="font-size:30px;font-weight:500;color:var(--txt);margin:8px 0 0 52px">Zona Norte de Marília</p>
+    <p style="font-size:30px;font-weight:700;margin-top:40px;color:var(--azul);letter-spacing:.04em">PERTINHO DE:</p>
+    <p style="font-size:33px;font-weight:600;line-height:1.55;margin-top:10px">Nikkey Clube · Novo Max Atacadista<br>Fundação Bradesco · Faculdade FAIP/FAEF<br>Lucas Lima Sport Center · Sasazaki</p>
+  </div>
+  <img src="img/aerea.jpg" alt="" style="position:absolute;left:0;bottom:0;width:100%;height:470px;object-fit:cover;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 38%);mask-image:linear-gradient(180deg,transparent 0,#000 38%)">
+  <p style="position:absolute;right:26px;bottom:18px;font-size:16px;color:rgba(255,255,255,.75);z-index:4">Foto aérea da região</p>
+</section>
+
+<!-- 3 PLANTA -->
+<section class="lamina">
+  <div class="handle">@MHM.MACHADO</div>
+  <div style="position:absolute;left:0;right:0;top:150px;text-align:center;z-index:3">
+    <p style="font-size:40px;font-weight:500">Agora olha a planta:</p>
+    <h2 class="cond" style="font-size:112px;margin-top:6px">49,59 <span style="text-transform:none">m²</span><br><em>com varanda</em></h2>
+  </div>
+  <div class="janela" style="position:absolute;left:150px;right:150px;top:500px;padding:26px 26px 0">
+    <img src="img/planta.png" alt="" style="width:100%;display:block;border-radius:14px">
+    <p style="text-align:center;font-size:27px;font-weight:700;padding:24px 0 26px">2 quartos · sala para 2 ambientes · varanda · 1 vaga</p>
+  </div>
+  <p style="position:absolute;left:0;right:0;bottom:92px;text-align:center;font-size:30px;font-weight:600;color:var(--txt)">Espaço de sobra para quem está saindo do aluguel.</p>
+</section>
+
+<!-- 4 LAZER -->
+<section class="lamina">
+  <img src="img/piscina.jpg" alt="" style="position:absolute;left:0;top:0;width:540px;height:675px;object-fit:cover;object-position:50% 70%">
+  <img src="img/cinema.jpg" alt="" style="position:absolute;left:540px;top:0;width:540px;height:675px;object-fit:cover">
+  <img src="img/quadra.jpg" alt="" style="position:absolute;left:0;top:675px;width:540px;height:675px;object-fit:cover">
+  <img src="img/playground.jpg" alt="" style="position:absolute;left:540px;top:675px;width:540px;height:675px;object-fit:cover;object-position:40% 50%">
+  <div style="position:absolute;inset:0;background:radial-gradient(760px 420px at 50% 50%,rgba(8,17,46,.88) 0%,rgba(8,17,46,.6) 55%,rgba(8,17,46,.05) 100%)"></div>
+  <div class="handle sh">@MHM.MACHADO</div>
+  <div style="position:absolute;left:70px;right:70px;top:470px;text-align:center;z-index:3" class="sh">
+    <h2 class="cond" style="font-size:84px">E o condomínio tem<br><em>12 opções de lazer</em></h2>
+    <p style="font-size:30px;font-weight:600;line-height:1.4;margin-top:22px">Piscinas adulto e infantil, academia, quadra,<br>quadra de areia, cinema, salão de festas e mais.</p>
+    <p style="font-size:38px;font-weight:700;margin-top:22px">288 famílias já moram lá.</p>
+  </div>
+</section>
+
+<!-- 5 PAGAMENTO -->
+<section class="lamina">
+  <div class="handle">@MHM.MACHADO</div>
+  <div style="position:absolute;left:0;right:0;top:140px;text-align:center">
+    <h2 class="cond" style="font-size:90px">E olha como pode<br>funcionar o <em>pagamento:</em></h2>
+    <p style="font-size:36px;font-weight:500;margin-top:18px">Apartamento de 49,59 <span>m²</span>, 2 quartos.</p>
+  </div>
+  <div class="janela" style="position:absolute;left:110px;right:110px;top:470px">
+    <div class="barra"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span>Nova janela</span></div>
+    <div style="padding:10px 50px 16px">
+      <div class="linha"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7.5"/></svg></div><p>Financiamento pela <b>Caixa</b> no Minha Casa Minha Vida</p></div>
+      <div class="linha"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7.5"/></svg></div><p>Subsídio de <b>até R$ 55 mil</b></p></div>
+      <div class="linha"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7.5"/></svg></div><p>Entrada parcelada <b>direto com a construtora</b></p></div>
+      <div class="linha"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7.5"/></svg></div><p>E ainda dá pra usar o <b>FGTS</b></p></div>
+      <div class="linha"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7.5"/></svg></div><p>Prazo de <b>até 420 meses</b></p></div>
+    </div>
+    <p style="text-align:center;font-size:20px;color:#5A6680;padding:0 40px 28px;line-height:1.4">Subsídio conforme renda e enquadramento no programa. Financiamento<br>sujeito à análise de crédito. Condições sujeitas à tabela vigente.</p>
+  </div>
+</section>
+
+<!-- 6 CTA -->
+<section class="lamina">
+  <img class="bg" src="img/sala.jpg" alt="" style="filter:blur(6px) brightness(.7);transform:scale(1.06)">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,17,46,.35) 0%,rgba(8,17,46,.2) 40%,rgba(8,17,46,.92) 78%)"></div>
+  <img src="img/pensando.png" alt="" style="position:absolute;left:50%;transform:translateX(-50%);bottom:0;height:1120px;z-index:2">
+  <div class="handle sh">@MHM.MACHADO</div>
+  <div style="position:absolute;left:0;right:0;bottom:96px;text-align:center;z-index:3" class="sh">
+    <p style="font-size:38px;font-weight:500">Quer saber se a sua parcela cabe no bolso?</p>
+    <div class="cond" style="font-size:96px;margin-top:16px;color:var(--azul)">Comenta “Alameda”</div>
+    <div class="cond" style="font-size:72px;margin-top:4px">que eu te mando a<br>simulação no Direct</div>
+  </div>
+</section>
+</body></html>
