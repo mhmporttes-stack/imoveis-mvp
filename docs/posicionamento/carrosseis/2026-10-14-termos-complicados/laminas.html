@@ -1,0 +1,96 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Montserrat:wght@400;500;600;700;800">
+<style>
+:root{--azul:#1F5FD6;--txt:#3A4A66}
+*{box-sizing:border-box;margin:0;padding:0} body{background:#000}
+.lamina{position:relative;width:1080px;height:1350px;overflow:hidden;font-family:Montserrat,sans-serif;color:#0B1A3A;
+ background:radial-gradient(900px 760px at 50% 34%, #FFFFFF 0%, #F7F9FD 35%, #EAF0FA 70%, #DCE5F4 100%)}
+.cond{font-family:Anton,sans-serif;text-transform:uppercase;line-height:1.24;letter-spacing:.005em}
+em{font-style:normal;color:var(--azul)}
+.rod{position:absolute;left:80px;right:80px;bottom:64px;border-top:1.5px solid rgba(11,26,58,.14);padding-top:24px;display:flex;justify-content:space-between;align-items:center;z-index:5}
+.rod span{font-size:22px;letter-spacing:.3em;color:rgba(11,26,58,.5);font-weight:600}
+.rod svg{width:34px;height:34px;fill:none;stroke:rgba(11,26,58,.5);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tagp{display:inline-flex;align-items:center;gap:14px;font-size:24px;font-weight:800;letter-spacing:.22em;color:#1F5FD6;background:rgba(31,95,214,.08);border:1.5px solid rgba(31,95,214,.35);border-radius:999px;padding:10px 26px}
+.tile{width:110px;height:110px;border-radius:28px;background:rgba(31,95,214,.16);border:1.5px solid rgba(31,95,214,.35);display:grid;place-items:center}
+.tile svg{width:58px;height:58px;fill:none;stroke:var(--azul);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.bloco{position:absolute;left:80px;right:80px}
+.bloco h2{font-size:120px;margin-top:30px}
+.bloco p{font-size:39px;line-height:1.5;font-weight:500;color:var(--txt);margin-top:26px}
+.bloco p b{color:#0B1A3A;font-weight:700}
+.nota{margin-top:40px;border-left:5px solid var(--azul);padding-left:26px;font-size:34px;line-height:1.45;font-weight:600}
+.nota small{display:block;font-size:22px;font-weight:800;letter-spacing:.2em;color:var(--azul);margin-bottom:6px}
+.wm{position:absolute;right:-40px;top:70px;width:420px;height:420px;opacity:.10}
+.wm svg{width:100%;height:100%;fill:none;stroke:#1F5FD6;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.pose{position:absolute;bottom:0;z-index:1;filter:drop-shadow(0 30px 50px rgba(11,26,58,.25))}
+.chip{position:absolute;z-index:3;background:#fff;color:#1F4CB3;font-family:Anton;font-size:46px;letter-spacing:.04em;padding:10px 28px 12px;border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.4)}
+.lista{margin-top:34px}
+.li{display:flex;gap:22px;align-items:flex-start;padding:18px 0;border-top:1.5px solid rgba(11,26,58,.12);font-size:33px;line-height:1.38;font-weight:500;color:var(--txt)}
+.li:last-child{border-bottom:1.5px solid rgba(11,26,58,.12)}
+.li b{color:#0B1A3A}
+.li .x{flex-shrink:0;width:46px;height:46px;border-radius:50%;background:rgba(255,80,80,.16);display:grid;place-items:center;margin-top:2px}
+.li .x svg{width:26px;height:26px;fill:none;stroke:#FF6B6B;stroke-width:2.4;stroke-linecap:round}
+</style></head><body>
+<section class="lamina">
+  <div style="position:absolute;right:-120px;top:120px;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(31,95,214,.35),transparent 65%)"></div>
+  <span style="position:absolute;left:90px;top:720px;z-index:3;background:#0B1A3A;color:#fff;font-family:Anton;font-size:50px;letter-spacing:.04em;padding:8px 26px 10px;border-radius:14px;transform:rotate(-9deg);box-shadow:0 16px 34px rgba(11,26,58,.28)">MATRÍCULA</span><span style="position:absolute;left:450px;top:690px;z-index:3;background:#1F5FD6;color:#fff;font-family:Anton;font-size:46px;letter-spacing:.04em;padding:8px 26px 10px;border-radius:14px;transform:rotate(8deg);box-shadow:0 16px 34px rgba(11,26,58,.28)">ITBI</span><span style="position:absolute;left:70px;top:880px;z-index:3;background:#1F5FD6;color:#fff;font-family:Anton;font-size:46px;letter-spacing:.04em;padding:8px 26px 10px;border-radius:14px;transform:rotate(6deg);box-shadow:0 16px 34px rgba(11,26,58,.28)">SAC</span><span style="position:absolute;left:300px;top:860px;z-index:3;background:#0B1A3A;color:#fff;font-family:Anton;font-size:48px;letter-spacing:.04em;padding:8px 26px 10px;border-radius:14px;transform:rotate(-5deg);box-shadow:0 16px 34px rgba(11,26,58,.28)">PRICE</span>
+  <img src="img/malabares.png" alt="" style="position:absolute;right:-150px;bottom:0;height:1120px;z-index:2;filter:drop-shadow(0 30px 50px rgba(11,26,58,.25))">
+  <div style="position:absolute;left:80px;top:150px;width:560px;z-index:3">
+    <div style="font-size:26px;font-weight:800;letter-spacing:.3em;color:var(--azul)">ANTES DE COMPRAR</div>
+    <h1 class="cond" style="font-size:100px;margin-top:20px;">Termos que<br>parecem<br><em>complicados</em></h1>
+    <p style="font-size:38px;font-weight:600;margin-top:22px;color:var(--txt)">mas que você <b style="color:#0B1A3A">precisa</b><br>entender.</p>
+    
+  </div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+<section class="lamina"><div class="wm"><svg viewBox="0 0 24 24">
+  <path d="M15 12h-5" />
+  <path d="M15 8h-5" />
+  <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+  <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+</svg></div>
+  <div class="bloco" style="top:420px"><span class="tagp">TERMO 01</span>
+    <h2 class="cond">Matrícula</h2><p>É como a <b>“certidão de nascimento”</b> do imóvel. Nela estão o dono, o tamanho e todo o <b>histórico</b> da propriedade.</p>
+    <div class="nota"><small>NA PRÁTICA</small>Antes de comprar, confira se a matrícula está <b>atualizada</b> e sem pendências.</div></div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div></section>
+<section class="lamina"><div class="wm"><svg viewBox="0 0 24 24">
+  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+  <path d="M14 8H8" />
+  <path d="M16 12H8" />
+  <path d="M13 16H8" />
+</svg></div>
+  <div class="bloco" style="top:420px"><span class="tagp">TERMO 02</span>
+    <h2 class="cond">ITBI</h2><p>É o <b>imposto</b> pago à Prefeitura quando o imóvel passa para o seu nome.</p>
+    <div class="nota"><small>EXEMPLO</small>Imóvel de R$ 200 mil com alíquota de 2%<br>→ <span class="cond" style="font-size:52px;color:var(--azul)">R$ 4 mil</span> de ITBI.<br><span style="font-size:24px;font-weight:500;color:var(--txt)">A alíquota muda de cidade para cidade.</span></div></div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div></section>
+<section class="lamina"><div class="wm"><svg viewBox="0 0 24 24">
+  <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
+  <polyline points="16 17 22 17 22 11" />
+</svg></div>
+  <div class="bloco" style="top:340px"><span class="tagp">TERMO 03</span>
+    <h2 class="cond">Tabela SAC</h2><p>As parcelas <b>começam mais altas</b> e <b>diminuem</b> com o tempo, porque a dívida é paga em partes iguais todo mês.</p><svg viewBox="0 0 740 300" style="width:560px;margin-top:34px;display:block"><rect x="20" y="30" width="80" height="250" rx="8" fill="#1F5FD6" fill-opacity="0.85"/><rect x="140" y="58" width="80" height="222" rx="8" fill="#1F5FD6" fill-opacity="0.73"/><rect x="260" y="86" width="80" height="194" rx="8" fill="#1F5FD6" fill-opacity="0.61"/><rect x="380" y="114" width="80" height="166" rx="8" fill="#1F5FD6" fill-opacity="0.49"/><rect x="500" y="142" width="80" height="138" rx="8" fill="#1F5FD6" fill-opacity="0.37"/><rect x="620" y="170" width="80" height="110" rx="8" fill="#1F5FD6" fill-opacity="0.25"/><path d="M10 285h720" stroke="rgba(11,26,58,.3)" stroke-width="3"/><path d="M60 14 C 250 30, 500 120, 700 180" fill="none" stroke="#0B1A3A" stroke-width="3" stroke-dasharray="10 12"/><path d="M682 166 702 181 678 190" fill="none" stroke="#0B1A3A" stroke-width="3" stroke-linecap="round"/></svg>
+    <div class="nota"><small>PONTO POSITIVO</small>No total, tende a gerar <b>menos juros</b>.</div></div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div></section>
+<section class="lamina"><div class="wm"><svg viewBox="0 0 24 24">
+  <line x1="5" x2="19" y1="9" y2="9" />
+  <line x1="5" x2="19" y1="15" y2="15" />
+</svg></div>
+  <div class="bloco" style="top:300px"><span class="tagp">TERMO 04</span>
+    <h2 class="cond">Tabela Price</h2><p>As parcelas são <b>iguais do começo ao fim</b>. No início, você paga mais juros e amortiza menos da dívida.</p><svg viewBox="0 0 740 300" style="width:560px;margin-top:34px;display:block"><rect x="20" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><rect x="140" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><rect x="260" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><rect x="380" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><rect x="500" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><rect x="620" y="110" width="80" height="170" rx="8" fill="#1F5FD6" fill-opacity=".75"/><path d="M10 285h720" stroke="rgba(11,26,58,.3)" stroke-width="3"/><path d="M20 80H700" fill="none" stroke="#0B1A3A" stroke-width="3" stroke-dasharray="10 12"/></svg>
+    <div class="nota"><small>NA PRÁTICA</small>Começa com parcela <b>menor que na SAC</b>, mas no total você paga <b>mais juros</b>.</div></div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div></section>
+<section class="lamina">
+  <div class="bloco" style="top:400px"><div class="tile"><svg viewBox="0 0 24 24">
+  <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+  <path d="m9 14 2 2 4-4" />
+</svg></div>
+    <h2 class="cond" style="font-size:96px;margin-top:40px">Isso deveria vir<br><em>junto com a compra</em></h2>
+    <p>Comprar um imóvel é muito mais do que escolher uma casa bonita.</p>
+    <div class="nota">É entender <b>documentação, impostos, financiamento e registro.</b></div>
+  </div><div class="rod"><span>@MHM.MACHADO</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div></section>
+<section class="lamina">
+  <img class="pose" src="img/chave.png" alt="" style="right:-250px;height:1000px">
+  <div style="position:absolute;left:80px;top:250px;width:480px;z-index:2">
+    <div style="font-size:26px;font-weight:800;letter-spacing:.3em;color:var(--azul)">PRIMEIRO IMÓVEL</div>
+    <h2 class="cond" style="font-size:96px;margin-top:22px">Quer comprar<br>sua casa<br><em>sem susto?</em></h2>
+    <p style="font-size:35px;line-height:1.45;font-weight:500;color:var(--txt);margin-top:30px">Eu te explico cada etapa: <b style="color:#0B1A3A">documentos, impostos, financiamento e registro.</b></p>
+    <div style="margin-top:38px;border-left:5px solid var(--azul);padding-left:24px;font-size:33px;line-height:1.35;font-weight:600"><span class="cond" style="font-size:52px;color:var(--azul)">Me chama</span><br>no Direct ou no WhatsApp.</div>
+  </div>
+  <div class="rod"><span>@MHM.MACHADO</span><span style="letter-spacing:.1em">CRECI 323106-F</span></div>
+</section>
+</body></html>
