@@ -31,7 +31,9 @@ export async function GET(request) {
     noFutureActivityOnly: params.get("noFutureActivity") === "1",
     needsFirstContact: params.get("needsFirstContact") === "1",
     statusGroup: params.get("statusGroup") || "all",
-    status: params.get("status") || "all"
+    status: params.get("status") || "all",
+    dateFrom: /^\d{4}-\d{2}-\d{2}$/.test(params.get("dateFrom") || "") ? params.get("dateFrom") : "",
+    dateTo: /^\d{4}-\d{2}-\d{2}$/.test(params.get("dateTo") || "") ? params.get("dateTo") : ""
   };
   const page = Number(params.get("page")) || 1;
   const pageSize = Number(params.get("pageSize")) || undefined;

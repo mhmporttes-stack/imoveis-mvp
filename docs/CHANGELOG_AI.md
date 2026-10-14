@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Clientes: filtro de data de cadastro
+
+- **Pedido do dono:** filtrar a lista de Clientes por data (print da aba Patrocinado). Em Filtros: "Data de cadastro" — Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, Este mês ou Personalizado (de/até), dia de São Paulo. Vale para a lista, os contadores das abas e o "investido / por cliente" do Patrocinado; aparece como etiqueta removível ("Cadastro: 08/10 a 14/10").
+- **Onde:** `components/clients/client-format.js` (`datePresetRange`, `formatDateRangeLabel`), `ClientWorkspace.jsx` (filtro + etiqueta), `useClientList.js` (parâmetros), `app/api/simulation-registrations/list/route.js` (`dateFrom`/`dateTo` validados) e `lib/simulation-list-query.js` (`applyScopedFilters`: `created_at` entre os dias).
+
 ### 2026-10-13 — Pausa por entrega baixa: reinício do serviço não apaga mais a evidência (caso Bruna)
 
 - **Sintoma:** Bruna Santos com 15 mensagens enviadas e 0 entregues não foi pausada pela regra nova depois da publicação.

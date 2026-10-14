@@ -148,6 +148,8 @@ export function useClientList({
     if (filters.needsFirstContact) params.set("needsFirstContact", "1");
     if (filters.statusGroup !== "all") params.set("statusGroup", filters.statusGroup);
     if (filters.status !== "all") params.set("status", filters.status);
+    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+    if (filters.dateTo) params.set("dateTo", filters.dateTo);
     if (pinClientId) params.set("clientId", pinClientId);
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));

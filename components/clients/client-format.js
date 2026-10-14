@@ -40,8 +40,35 @@ export const DEFAULT_FILTERS = {
   noFutureActivityOnly: false,
   needsFirstContact: false,
   statusGroup: "all",
-  status: "all"
+  status: "all",
+  // Data de cadastro (dono, 2026-10-14): atalho escolhido + intervalo AAAA-MM-DD (São Paulo).
+  datePreset: "all",
+  dateFrom: "",
+  dateTo: ""
 };
+
+const SP_DAY = (date) => date.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+// Intervalo (São Paulo) de cada atalho de data de cadastro. "custom" mantém as datas digitadas.
+export function datePresetRange(preset, now = new Date()) {
+  const today = SP_DAY(now);
+  const shift = (days) => SP_DAY(new Date(now.getTime() + days * 86400000));
+  if (preset === "today") return { dateFrom: today, dateTo: today };
+  if (preset === "yesterday") return { dateFrom: shift(-1), dateTo: shift(-1) };
+  if (preset === "7d") return { dateFrom: shift(-6), dateTo: today };
+  if (preset === "30d") return { dateFrom: shift(-29), dateTo: today };
+  if (preset === "month") return { dateFrom: `${today.slice(0, 8)}01`, dateTo: today };
+  return { dateFrom: "", dateTo: "" };
+}
+
+export function formatDateRangeLabel(dateFrom, dateTo) {
+  const short = (value) => (value ? `${value.slice(8, 10)}/${value.slice(5, 7)}` : "");
+  if (dateFrom && dateTo && dateFrom === dateTo) return short(dateFrom);
+  if (dateFrom && dateTo) return `${short(dateFrom)} a ${short(dateTo)}`;
+  if (dateFrom) return `desde ${short(dateFrom)}`;
+  if (dateTo) return `até ${short(dateTo)}`;
+  return "";
+}
 
 export function ensureArray(value) {
   return Array.isArray(value) ? value.filter(Boolean) : [];

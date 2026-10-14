@@ -19,7 +19,7 @@ import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
 import ClientSheet from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
-import { PAGE_SIZE_OPTIONS } from "./client-format";
+import { PAGE_SIZE_OPTIONS, datePresetRange, formatDateRangeLabel } from "./client-format";
 import { useClientList } from "./useClientList";
 
 // Lista de clientes (/admin/simulacoes) — redesenho do Designer CRM,
@@ -64,7 +64,7 @@ export default function ClientWorkspace(props) {
   const responsibleProfileOf = (client) => list.responsibleProfileMap.get(client.registration?.responsibleUserId || "") || null;
 
   const { filters } = list;
-  const extraFilterCount = [filters.responsibleUserId !== "all", filters.tagId !== "all", filters.staleContactOnly, filters.noFutureActivityOnly].filter(Boolean).length;
+  const extraFilterCount = [filters.responsibleUserId !== "all", filters.tagId !== "all", filters.staleContactOnly, filters.noFutureActivityOnly, Boolean(filters.dateFrom || filters.dateTo)].filter(Boolean).length;
   const chips = buildChips(filters, list);
   const anyFilter = chips.length > 0 || filters.statusGroup !== "all" || filters.status !== "all" || Boolean(filters.query);
   const pageStart = list.total ? (list.page - 1) * list.pageSize + 1 : 0;
@@ -391,7 +391,7 @@ function StageTab({ label, count, ratio = null, active, onClick, muted = false }
 
 function FiltersSheet({ open, onClose, list, canManage }) {
   const { filters } = list;
-  const ids = { responsible: useId(), tag: useId() };
+  const ids = { responsible: useId(), tag: useId(), date: useId(), from: useId(), to: useId() };
   return (
     <Sheet
       open={open}
@@ -400,7 +400,7 @@ function FiltersSheet({ open, onClose, list, canManage }) {
       title="Filtros"
       footer={
         <div className="flex gap-2">
-          <Button variant="secondary" block onClick={() => list.updateFilters({ responsibleUserId: "all", tagId: "all", staleContactOnly: false, noFutureActivityOnly: false })}>Limpar</Button>
+          <Button variant="secondary" block onClick={() => list.updateFilters({ responsibleUserId: "all", tagId: "all", staleContactOnly: false, noFutureActivityOnly: false, datePreset: "all", dateFrom: "", dateTo: "" })}>Limpar</Button>
           <Button block onClick={onClose}>Ver {list.total} {list.total === 1 ? "cliente" : "clientes"}</Button>
         </div>
       }
@@ -416,6 +416,40 @@ function FiltersSheet({ open, onClose, list, canManage }) {
             </select>
           </div>
         ) : null}
+        <div>
+          {/* Data de cadastro (dono, 2026-10-14): filtra lista, contadores e o "investido" do Patrocinado. */}
+          <label htmlFor={ids.date} className="text-sm font-medium text-ink">Data de cadastro</label>
+          <select
+            id={ids.date}
+            className={cx(inputClasses, "mt-1.5")}
+            value={filters.datePreset || "all"}
+            onChange={(event) => {
+              const preset = event.target.value;
+              if (preset === "custom") list.updateFilters({ datePreset: "custom" });
+              else list.updateFilters({ datePreset: preset, ...datePresetRange(preset) });
+            }}
+          >
+            <option value="all">Todas as datas</option>
+            <option value="today">Hoje</option>
+            <option value="yesterday">Ontem</option>
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="month">Este mês</option>
+            <option value="custom">Personalizado</option>
+          </select>
+          {filters.datePreset === "custom" ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor={ids.from} className="text-xs text-muted">De</label>
+                <input id={ids.from} type="date" className={cx(inputClasses, "mt-1")} value={filters.dateFrom} max={filters.dateTo || undefined} onChange={(event) => list.updateFilters({ dateFrom: event.target.value })} />
+              </div>
+              <div>
+                <label htmlFor={ids.to} className="text-xs text-muted">Até</label>
+                <input id={ids.to} type="date" className={cx(inputClasses, "mt-1")} value={filters.dateTo} min={filters.dateFrom || undefined} onChange={(event) => list.updateFilters({ dateTo: event.target.value })} />
+              </div>
+            </div>
+          ) : null}
+        </div>
         <div>
           <label htmlFor={ids.tag} className="text-sm font-medium text-ink">Tag</label>
           <select id={ids.tag} className={cx(inputClasses, "mt-1.5")} value={filters.tagId} onChange={(event) => list.updateFilters({ tagId: event.target.value })}>
@@ -473,6 +507,9 @@ function buildChips(filters, list) {
   if (filters.tagId !== "all") {
     const label = list.localTags.find((tag) => tag.id === filters.tagId)?.name || "Tag selecionada";
     chips.push({ key: "tagId", label: `Tag: ${label}`, onRemove: () => list.updateFilters({ tagId: "all" }) });
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    chips.push({ key: "date", label: `Cadastro: ${formatDateRangeLabel(filters.dateFrom, filters.dateTo)}`, onRemove: () => list.updateFilters({ datePreset: "all", dateFrom: "", dateTo: "" }) });
   }
   if (filters.staleContactOnly) chips.push({ key: "staleContactOnly", label: "Sem contato há +3 dias", onRemove: () => list.updateFilters({ staleContactOnly: false }) });
   if (filters.noFutureActivityOnly) chips.push({ key: "noFutureActivityOnly", label: "Sem atividade futura", onRemove: () => list.updateFilters({ noFutureActivityOnly: false }) });
