@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Presença na imobiliária: dois botões de liberação
+
+- **Pedido do dono:** no detalhe do prédio (Supervisão › Online), duas opções: **"Chegou e não conectou"** (veio, mas o celular não entrou no Wi-Fi) e **"Liberar hoje"** (trabalho externo). As duas deixam a pessoa apta até 9h do dia seguinte (mesma regra ROL-2f); o detalhe mostra "marcado como chegou (sem Wi-Fi)" ou "liberado manualmente".
+- **Onde:** `releaseOfficeToday(auth, userId, reason)` em `lib/office-presence.js` (motivo "arrived" gravado no campo `ip` da chegada manual como `manual:chegou-sem-wifi`, sem migration), rota `/api/admin/office-presence` (`reason`), `components/OnlinePresenceBoard.jsx`.
+
 ### 2026-10-14 — Clientes: filtro de data de cadastro
 
 - **Pedido do dono:** filtrar a lista de Clientes por data (print da aba Patrocinado). Em Filtros: "Data de cadastro" — Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, Este mês ou Personalizado (de/até), dia de São Paulo. Vale para a lista, os contadores das abas e o "investido / por cliente" do Patrocinado; aparece como etiqueta removível ("Cadastro: 08/10 a 14/10").

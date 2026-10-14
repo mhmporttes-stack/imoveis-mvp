@@ -109,11 +109,11 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
                 key={member.id}
                 member={member}
                 goalPercent={goalByUser.has(member.id) ? goalByUser.get(member.id) : null}
-                onOfficeReleased={(validUntil) =>
+                onOfficeReleased={(validUntil, releasedSource = "manual") =>
                   setPresence((current) => ({
                     ...current,
                     members: (current?.members || []).map((item) =>
-                      item.id === member.id ? { ...item, office: { ...(item.office || {}), active: true, eligible: true, validUntil, source: item.office?.active ? item.office.source : "manual", firstSeenAt: item.office?.active ? item.office.firstSeenAt : new Date().toISOString() } } : item
+                      item.id === member.id ? { ...item, office: { ...(item.office || {}), active: true, eligible: true, validUntil, source: item.office?.active ? item.office.source : releasedSource, firstSeenAt: item.office?.active ? item.office.firstSeenAt : new Date().toISOString() } } : item
                     )
                   }))
                 }
@@ -450,27 +450,28 @@ function OfficeButton({ office, open, onClick }) {
 
 function OfficeDetail({ member, onReleased }) {
   const office = member.office || {};
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  async function release() {
-    setBusy(true);
+  // Duas liberações manuais (dono, 2026-10-14): trabalho externo ou chegou e não conectou ao Wi-Fi.
+  async function release(reason) {
+    setBusy(reason);
     setError("");
     try {
       const response = await fetch("/api/admin/office-presence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "release", userId: member.id })
+        body: JSON.stringify({ action: "release", userId: member.id, reason })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível liberar.");
-      onReleased?.(data.validUntil || null);
+      onReleased?.(data.validUntil || null, reason === "arrived" ? "arrived" : "manual");
     } catch (releaseError) {
       setError(releaseError.message);
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
-  const how = office.source === "manual" ? "liberado manualmente" : "pelo Wi-Fi da imobiliária";
+  const how = office.source === "arrived" ? "marcado como chegou (sem Wi-Fi)" : office.source === "manual" ? "liberado manualmente" : "pelo Wi-Fi da imobiliária";
   return (
     <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
       {office.active ? (
@@ -481,9 +482,14 @@ function OfficeDetail({ member, onReleased }) {
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-semibold text-slate-600">{office.ruleEnabled ? "Não veio à imobiliária: fora da roleta." : "Ainda não veio à imobiliária hoje."}</p>
-          <button type="button" onClick={release} disabled={busy} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
-            {busy ? "Liberando…" : "Liberar hoje"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+              {busy === "arrived" ? "Salvando…" : "Chegou e não conectou"}
+            </button>
+            <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+              {busy === "external" ? "Liberando…" : "Liberar hoje"}
+            </button>
+          </div>
         </div>
       )}
       {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}

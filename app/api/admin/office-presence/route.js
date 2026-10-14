@@ -34,7 +34,7 @@ export async function POST(request) {
     if (body.action === "mark-network") await markCurrentOfficeNetwork(auth, ip);
     else if (body.action === "remove-network") await removeOfficeNetwork(auth, String(body.key || ""));
     else if (body.action === "set-enabled") await setOfficeRuleEnabled(auth, body.enabled === true);
-    else if (body.action === "release") return NextResponse.json(await releaseOfficeToday(auth, String(body.userId || "")));
+    else if (body.action === "release") return NextResponse.json(await releaseOfficeToday(auth, String(body.userId || ""), body.reason === "arrived" ? "arrived" : "external"));
     else return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
     return NextResponse.json(await getOfficeNetworkPanel(auth, ip));
   } catch (error) {
