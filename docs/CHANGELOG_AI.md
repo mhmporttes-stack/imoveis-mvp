@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Motivo obrigatório ao arquivar ou "Não contactar" (FUN-14)
+
+- **Regra do dono:** "obrigatório todo cliente ao ser arquivado ou ser colocado em não contactar deve ter um motivo — quando o corretor tentar alterar abre uma janela obrigatória para o corretor escrever." Vale para todos os perfis; automação sem usuário (opt-out do WhatsApp, regras do cron) não é travada.
+- **Servidor (barreira real):** `updateSimulationRegistration` recusa mudança feita por pessoa para `archived`/`do_not_contact` sem `statusReason` válido (mín. 5 letras/números, `lib/status-reason-core.mjs`) ANTES do UPDATE e grava o motivo na linha do tempo (evento `status_reason`, "MOTIVO DO ARQUIVAMENTO/NÃO CONTACTAR"). "Não contactar" pela Prospecção (`recordDoNotContactAudit`) passou a exigir texto em qualquer opção (antes só "Outro"); "Não tem interesse" das Respostas da prospecção também.
+- **Telas:** janela única `components/clients/StatusReasonDialog.jsx` (seletor de etapa do card/ficha, botão "Não contactar", "Arquivar cliente" do Chat — trocou o `confirm`); formulário inline em `ProspectingRepliesPanel.jsx`. Sem migration. Testes: `tests/status-reason.test.mjs`.
+
 ### 2026-10-14 — Presença na imobiliária: dois botões de liberação
 
 - **Pedido do dono:** no detalhe do prédio (Supervisão › Online), duas opções: **"Chegou e não conectou"** (veio, mas o celular não entrou no Wi-Fi) e **"Liberar hoje"** (trabalho externo). As duas deixam a pessoa apta até 9h do dia seguinte (mesma regra ROL-2f); o detalhe mostra "marcado como chegou (sem Wi-Fi)" ou "liberado manualmente".

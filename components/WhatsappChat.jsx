@@ -54,6 +54,7 @@ import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudio
 import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarning } from "@/lib/whatsapp-contact-warning.mjs";
 import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
+import StatusReasonDialog from "@/components/clients/StatusReasonDialog";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { forgetChatDetail, readChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
@@ -1260,21 +1261,28 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
   // Atalho "Arquivar" (pedido do dono, 2026-10-09): para conversa particular que virou cliente, muda o STATUS DO
   // CLIENTE para Arquivado (sai do funil e a conversa sai do Chat, WA-13) e finaliza a conversa. Sem cliente: só finaliza.
+  // Motivo obrigatório (FUN-14, dono 2026-10-14): o "Arquivar" abre a janela de motivo; só grava depois dela.
   const [archiving, setArchiving] = useState(false);
+  const [archiveReasonTarget, setArchiveReasonTarget] = useState(null);
   async function archiveClient() {
     const clientId = conversation.client?.id;
     if (!clientId) {
       await changeStatus("finished");
       return;
     }
-    if (!window.confirm(`Arquivar ${conversation.client?.name || displayName(conversation)}? O cliente vai para "Arquivado" e esta conversa sai do Chat.`)) return;
+    setArchiveReasonTarget({ client: { name: conversation.client?.name || displayName(conversation) }, kind: "archived", via: "chat", note: "Ele vai para \"Arquivado\" e esta conversa sai do Chat." });
+  }
+  async function confirmArchiveClient(_reasonKey, statusReason) {
+    const clientId = conversation.client?.id;
+    setArchiveReasonTarget(null);
+    if (!clientId) return;
     setArchiving(true);
     setReactionError("");
     try {
       const response = await fetch(`/api/simulation-registrations/${clientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "archived" })
+        body: JSON.stringify({ status: "archived", statusReason })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível arquivar o cliente.");
@@ -1586,6 +1594,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
           </div>
         </div>
       ) : null}
+      <StatusReasonDialog target={archiveReasonTarget} onCancel={() => setArchiveReasonTarget(null)} onConfirm={confirmArchiveClient} />
     </>
   );
 }

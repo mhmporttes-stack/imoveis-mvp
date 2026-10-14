@@ -46,7 +46,7 @@ const FIELD_LABEL = {
 // uma categoria; tudo que não está mapeado explicitamente cai em "sistema"
 // (nunca desaparece da timeline por ser um tipo novo/desconhecido).
 const CATEGORY_BY_TYPE = {
-  created: "sistema", legacy_status: "status", status: "status", notify: "jornada", regenerate: "jornada",
+  created: "sistema", legacy_status: "status", status: "status", status_reason: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
   sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
@@ -81,7 +81,7 @@ function EventIcon({ type }) {
   if (type === "data_updated" || type === "form_resubmitted") return <FileText {...props} />;
   if (type.startsWith("activity_")) return <CalendarCheck {...props} />;
   if (type === "sale_registered") return <KeyRound {...props} />;
-  if (type === "prospecting:do_not_contact") return <Ban {...props} />;
+  if (type === "prospecting:do_not_contact" || type === "status_reason") return <Ban {...props} />;
   if (type.startsWith("prospecting:")) return <Phone {...props} />;
   if (type === "document_deleted") return <Trash2 {...props} />;
   if (type === "document_sent_to_cca") return <Send {...props} />;
@@ -115,6 +115,8 @@ function eventTitleAndDescription(event, context = {}) {
     case "status":
     case "legacy_status":
       return { title: "STATUS ALTERADO", description: [`${CLIENT_STATUS_META[event.previousStatus]?.label || event.previousStatus || "—"} → ${CLIENT_STATUS_META[event.newStatus]?.label || event.newStatus}`] };
+    case "status_reason":
+      return { title: d.newStatus === "do_not_contact" ? "MOTIVO DO NÃO CONTACTAR" : "MOTIVO DO ARQUIVAMENTO", description: [d.reason ? `Motivo: ${d.reason}` : ""].filter(Boolean) };
     case "notify":
       return { title: "PROGRESSO AVISADO AO CLIENTE", description: ["Acionado via WhatsApp"] };
     case "regenerate":

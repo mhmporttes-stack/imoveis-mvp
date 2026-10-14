@@ -11,6 +11,7 @@ import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
+import { statusRequiresReason } from "@/lib/status-reason-core.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
@@ -64,7 +65,8 @@ export function useClientList({
   const [chatNavPending, startChatNavigation] = useTransition();
   // Estado real do WhatsApp do usuário (decide o destino do botão "WhatsApp"). Desconhecido = Chat interno.
   const [waState, setWaState] = useState(null);
-  const [dncTarget, setDncTarget] = useState(null);
+  // Janela de motivo obrigatório (FUN-14, dono 2026-10-14): { client, kind: "archived"|"do_not_contact", via: "status"|"prospecting" }
+  const [reasonTarget, setReasonTarget] = useState(null);
   const [receivedDateTarget, setReceivedDateTarget] = useState(null);
   // Botão "Enviar lista de documentos" da ficha: mensagem pronta aguardando a confirmação do corretor ({ client, message, decision })
   const [docsListTarget, setDocsListTarget] = useState(null);
@@ -297,12 +299,12 @@ export function useClientList({
     });
   }
 
-  async function applyStatusUpdate(client, nextStatus, { receivedDate } = {}) {
+  async function applyStatusUpdate(client, nextStatus, { receivedDate, statusReason, statusReasonKey } = {}) {
     await withBusy(client, async () => {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus, ...(receivedDate ? { receivedDate } : {}) })
+        body: JSON.stringify({ status: nextStatus, ...(receivedDate ? { receivedDate } : {}), ...(statusReason ? { statusReason, statusReasonKey } : {}) })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -327,6 +329,11 @@ export function useClientList({
     if (nextStatus === client.status) return;
     if (nextStatus === CLIENT_STATUS.SALE_PAID) {
       setReceivedDateTarget({ client, nextStatus });
+      return;
+    }
+    // Arquivar / Não contactar: só grava depois do motivo escrito (FUN-14).
+    if (statusRequiresReason(nextStatus)) {
+      setReasonTarget({ client, kind: nextStatus, via: "status" });
       return;
     }
     await applyStatusUpdate(client, nextStatus);
@@ -373,7 +380,7 @@ export function useClientList({
 
   async function handleProspectingAction(client, action, extraPayload = {}) {
     if (action === "do_not_contact") {
-      setDncTarget(client);
+      setReasonTarget({ client, kind: CLIENT_STATUS.DO_NOT_CONTACT, via: "prospecting" });
       return;
     }
     // A janela do WhatsApp precisa abrir no mesmo gesto do clique (antes de
@@ -405,10 +412,15 @@ export function useClientList({
     });
   }
 
-  async function confirmDoNotContact(reasonKey, reasonText) {
-    const client = dncTarget;
-    if (!client) return;
-    setDncTarget(null);
+  async function confirmStatusReason(reasonKey, reasonText) {
+    const target = reasonTarget;
+    if (!target) return;
+    setReasonTarget(null);
+    const { client } = target;
+    if (target.via === "status") {
+      await applyStatusUpdate(client, target.kind, { statusReason: reasonText, statusReasonKey: target.kind === CLIENT_STATUS.DO_NOT_CONTACT ? reasonKey : "" });
+      return;
+    }
     await withBusy(client, async () => {
       const response = await fetch(`/api/prospecting/clients/${client.registration.id}`, {
         method: "POST",
@@ -847,12 +859,12 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), dncTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap,
+    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
     activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser, returnClientToRoulette,
-    handleProspectingAction, confirmDoNotContact, cancelDoNotContact: () => setDncTarget(null),
+    handleProspectingAction, confirmStatusReason, cancelStatusReason: () => setReasonTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
     saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft

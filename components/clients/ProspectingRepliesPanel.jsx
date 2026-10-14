@@ -7,6 +7,9 @@ import EmptyState from "@/components/ui/EmptyState";
 import Sheet from "@/components/ui/Sheet";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { formatBrazilianPhone } from "@/lib/phone-utils";
+import { inputClasses } from "@/components/ui/Field";
+import { cx } from "@/components/ui/cx";
+import { STATUS_REASON_MAX_LENGTH, STATUS_REASON_REQUIRED_MESSAGE, isValidStatusReason } from "@/lib/status-reason-core.mjs";
 import { formatAgo, formatFullDateTime } from "./client-format";
 
 // "Respostas da prospecção" (pedido do dono, 2026-10-02): clientes que
@@ -19,6 +22,9 @@ export default function ProspectingRepliesPanel({ open, onClose, onChanged, noti
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  // "Não tem interesse" pede o motivo escrito antes de gravar (FUN-14, dono 2026-10-14).
+  const [reasonFor, setReasonFor] = useState("");
+  const [reasonText, setReasonText] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,17 +45,18 @@ export default function ProspectingRepliesPanel({ open, onClose, onChanged, noti
     if (open) load();
   }, [open, load]);
 
-  const act = async (item, action, successMessage) => {
+  const act = async (item, action, successMessage, extra = {}) => {
     setBusyId(item.id);
     try {
       const response = await fetch(`/api/admin/prospecting-replies/${item.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, ...extra })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível atualizar.");
       setItems((current) => current.filter((row) => row.id !== item.id));
+      if (reasonFor === item.id) { setReasonFor(""); setReasonText(""); }
       notify?.(successMessage);
       onChanged?.();
     } catch (actionError) {
@@ -101,10 +108,36 @@ export default function ProspectingRepliesPanel({ open, onClose, onChanged, noti
                 ) : (
                   <>
                     <Button size="sm" loading={busy} disabled={Boolean(busyId)} onClick={() => act(item, "start_service", "Cliente movido para Em atendimento.")}>Iniciar atendimento</Button>
-                    <Button size="sm" variant="danger-ghost" disabled={Boolean(busyId)} onClick={() => act(item, "do_not_contact", "Cliente movido para Não contactar.")}>Não tem interesse</Button>
+                    <Button size="sm" variant="danger-ghost" disabled={Boolean(busyId)} onClick={() => { setReasonFor(item.id); setReasonText(""); }}>Não tem interesse</Button>
                   </>
                 )}
               </div>
+              {reasonFor === item.id ? (
+                <form
+                  className="mt-3 rounded-control border border-danger/20 bg-danger-soft/40 p-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (isValidStatusReason(reasonText)) act(item, "do_not_contact", "Cliente movido para Não contactar.", { reasonKey: "not_interested", reasonText: reasonText.trim() });
+                  }}
+                >
+                  <label className="block text-sm font-semibold text-ink" htmlFor={`reason-${item.id}`}>Motivo (obrigatório)</label>
+                  <textarea
+                    id={`reason-${item.id}`}
+                    className={cx(inputClasses, "mt-1 py-2")}
+                    rows={2}
+                    maxLength={STATUS_REASON_MAX_LENGTH}
+                    placeholder="Ex.: disse que já comprou outro imóvel"
+                    value={reasonText}
+                    onChange={(event) => setReasonText(event.target.value)}
+                    autoFocus
+                  />
+                  {reasonText && !isValidStatusReason(reasonText) ? <p className="mt-1 text-xs font-semibold text-danger">{STATUS_REASON_REQUIRED_MESSAGE}</p> : null}
+                  <div className="mt-2 flex gap-2">
+                    <Button size="sm" type="submit" variant="danger" loading={busy} disabled={Boolean(busyId) || !isValidStatusReason(reasonText)}>Confirmar Não contactar</Button>
+                    <Button size="sm" variant="secondary" disabled={busy} onClick={() => setReasonFor("")}>Cancelar</Button>
+                  </div>
+                </form>
+              ) : null}
             </li>
           );
         })}

@@ -28,7 +28,6 @@ import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS } from "@/lib/client-status";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
-import { getDoNotContactReasonOptions } from "@/lib/do-not-contact-reasons";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
   booleanLabel,
@@ -44,10 +43,10 @@ import {
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import StatusReasonDialog from "./StatusReasonDialog";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
-const DO_NOT_CONTACT_REASONS = getDoNotContactReasonOptions();
 
 // `focus` abre a ficha já no ponto pedido pelo card: "agenda" (formulário de
 // agendamento aberto), "tags" (editor aberto) ou "documents" (modal).
@@ -189,10 +188,10 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         />
       ) : null}
 
-      <DoNotContactDialog
-        client={list.dncTarget}
-        onCancel={list.cancelDoNotContact}
-        onConfirm={list.confirmDoNotContact}
+      <StatusReasonDialog
+        target={list.reasonTarget}
+        onCancel={list.cancelStatusReason}
+        onConfirm={list.confirmStatusReason}
       />
 
       <DocumentsListDialog
@@ -682,55 +681,6 @@ function EditableItem({ label, registrationId, field, initialValue, placeholder,
         </button>
       </dd>
     </div>
-  );
-}
-
-// Motivo obrigatório para "Não contactar novamente": ação registrada e
-// auditável no servidor (lib/daily-goal-wallet.js).
-function DoNotContactDialog({ client, onCancel, onConfirm }) {
-  const ref = useRef(null);
-  const [reasonKey, setReasonKey] = useState("client_requested");
-  const [reasonText, setReasonText] = useState("");
-  const titleId = useId();
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (client && !dialog.open) {
-      setReasonKey("client_requested");
-      setReasonText("");
-      dialog.showModal();
-    }
-    if (!client && dialog.open) dialog.close();
-  }, [client]);
-
-  const invalid = reasonKey === "other" && !reasonText.trim();
-
-  return (
-    <dialog ref={ref} aria-labelledby={titleId} className="ui-confirm" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
-      {client ? (
-        <form className="p-5 sm:p-6" onSubmit={(event) => { event.preventDefault(); if (!invalid) onConfirm(reasonKey, reasonText.trim()); }}>
-          <h2 id={titleId} className="text-base font-semibold text-ink">Não contactar novamente</h2>
-          <p className="mt-1 text-sm text-ink-2">Escolha o motivo para {client.name || "este cliente"}. A ação fica registrada e auditável.</p>
-          <fieldset className="mt-4 space-y-1">
-            <legend className="sr-only">Motivo</legend>
-            {DO_NOT_CONTACT_REASONS.map((option) => (
-              <label key={option.key} className="flex min-h-touch cursor-pointer items-center gap-3 rounded-control px-2 text-sm text-ink hover:bg-navy/[0.03]">
-                <input type="radio" name="dnc-reason" value={option.key} checked={reasonKey === option.key} onChange={() => setReasonKey(option.key)} className="h-4 w-4 accent-brand" />
-                {option.label}
-              </label>
-            ))}
-          </fieldset>
-          {reasonKey === "other" ? (
-            <textarea className={cx(inputClasses, "mt-2 py-2")} rows={3} placeholder="Descreva o motivo" value={reasonText} onChange={(event) => setReasonText(event.target.value)} aria-label="Descreva o motivo" />
-          ) : null}
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" variant="danger" disabled={invalid}>Confirmar</Button>
-          </div>
-        </form>
-      ) : null}
-    </dialog>
   );
 }
 
