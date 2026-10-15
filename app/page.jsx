@@ -41,68 +41,83 @@ export default async function HomePage() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(realEstateAgentJsonLd()) }} />
 
-      {/* Abertura */}
-      <section className="relative overflow-hidden bg-[#061A2F] text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(30,107,198,0.32),transparent_42%)]" aria-hidden="true" />
-        <div className="container-page relative grid items-center gap-10 py-8 sm:py-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-16">
-          <div className="min-w-0">
-            {/* No computador, nome e CRECI ficam na legenda da foto ao lado. */}
+      {/* Abertura (redesenho visual 2026-10-15): mesma promessa, mesmos links. A foto do Matheus entra num
+          arco "de porta" apoiado na base da faixa (metáfora de casa, sem card); o brilho azul usa o azul da
+          logo (#3673C2) para dar profundidade ao marinho. No celular, prioridade para a promessa e os botões. */}
+      <section className="relative isolate overflow-hidden bg-[#061A2F] text-white">
+        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_0%_0%,rgba(54,115,194,0.38),transparent_70%)]" />
+          <div className="absolute inset-0 hidden bg-[radial-gradient(ellipse_38%_60%_at_76%_72%,rgba(54,115,194,0.42),transparent_72%)] lg:block" />
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[#041427]" />
+        </div>
+
+        <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-12">
+          <div className="min-w-0 self-center pb-10 pt-7 sm:pb-14 sm:pt-12 lg:py-20">
+            {/* No computador, nome e CRECI ficam no selo junto da foto. */}
             <div className="flex items-center gap-3 lg:hidden">
-              <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25 lg:hidden">
-                <Image src="/assets/corretor-matheus-rosto.jpg" alt="Matheus Machado, corretor de imóveis" fill sizes="48px" className="object-cover" priority />
+              <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-[#3673C2] ring-offset-2 ring-offset-[#061A2F]">
+                <Image src="/assets/corretor-matheus-rosto.jpg" alt="Matheus Machado, corretor de imóveis" fill sizes="56px" className="object-cover" priority />
               </span>
               <p className="leading-tight">
-                <span className="block text-sm font-black uppercase tracking-[0.16em] text-white">Matheus Machado</span>
+                <span className="block text-base font-extrabold text-white">Matheus Machado</span>
                 <span className="mt-1 block text-sm font-semibold text-blue-100/80">Corretor em Marília · CRECI 323106-F</span>
               </p>
             </div>
 
-            <h1 className="mt-6 text-[clamp(2rem,5.4vw,3.6rem)] lg:mt-0 font-black leading-[1.04] tracking-[-0.01em] sm:mt-8">
-              Seu primeiro imóvel em Marília
-              <span className="mt-2 block text-[clamp(1.2rem,2.6vw,1.85rem)] font-extrabold leading-tight text-blue-200">
-                com Minha Casa Minha Vida e financiamento Caixa.
+            {/* "em Marília" e "Minha Casa Minha Vida" nunca se partem: nome do programa e da cidade leem como um bloco. */}
+            <h1 className="mt-7 text-[clamp(2.15rem,5.6vw,3.9rem)] font-extrabold leading-[1.04] tracking-[-0.025em] sm:mt-9 lg:mt-0">
+              Seu primeiro imóvel <span className="whitespace-nowrap">em Marília</span>
+              <span className="mt-3 block max-w-[30rem] text-[clamp(1.2rem,2.5vw,1.75rem)] font-bold leading-snug tracking-[-0.01em] text-[#A8CBF5]">
+                com <span className="whitespace-nowrap">Minha Casa Minha Vida</span> e financiamento Caixa.
               </span>
             </h1>
-            <p className="mt-5 max-w-[34rem] text-base leading-7 text-white/80 sm:text-lg sm:leading-8">
+            <p className="mt-5 max-w-[33rem] text-[1.0625rem] leading-relaxed text-white/85 sm:mt-6 sm:text-lg sm:leading-8">
               Descubra em menos de 2 minutos quanto você pode financiar. Depois, a gente acompanha você da aprovação até a entrega das chaves.
             </p>
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Link
                 href={SIMULATION_FORM_URLS.main}
-                className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_18px_45px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+                className="group inline-flex min-h-14 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_12px_40px_rgba(54,115,194,0.45)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 Simular quanto posso financiar
-                <ArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-1" aria-hidden="true" />
+                <ArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" aria-hidden="true" />
               </Link>
               <a
                 href={siteWhatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/30 px-7 text-base font-extrabold text-white transition duration-300 hover:border-white/60 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+                className="inline-flex min-h-14 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-white/35 px-7 text-base font-extrabold text-white transition duration-300 hover:border-white/70 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60 motion-reduce:transition-none"
               >
                 <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
                 Falar no WhatsApp
               </a>
             </div>
-            <p className="mt-4 text-sm font-semibold text-white/60">Simulação gratuita e sem compromisso.</p>
+            <p className="mt-5 flex items-center gap-2 text-sm font-semibold text-white/80">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#3673C2]/35 text-[#CFE1FA]" aria-hidden="true">
+                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              </span>
+              Simulação gratuita e sem compromisso.
+            </p>
           </div>
 
-          <figure className="relative mx-auto hidden w-full max-w-[400px] lg:block">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] ring-1 ring-white/15">
+          <figure className="relative mx-auto hidden w-full max-w-[400px] self-end pt-14 lg:block">
+            {/* Arco de fundo deslocado: dá profundidade sem sombra pesada. */}
+            <div className="absolute -inset-x-5 bottom-0 top-9 rounded-t-full border border-white/10" aria-hidden="true" />
+            <div className="relative aspect-[4/5] overflow-hidden rounded-t-full bg-[#0A2747]">
               <Image
                 src="/assets/corretor-matheus-caixa.jpg"
                 alt="Matheus Machado, corretor de imóveis em Marília"
                 fill
                 priority
                 sizes="400px"
-                className="object-cover"
+                className="object-cover object-top"
               />
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#061A2F]/85 to-transparent" aria-hidden="true" />
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#041427] via-[#041427]/55 to-transparent" aria-hidden="true" />
             </div>
-            <figcaption className="absolute bottom-5 left-5 right-5 text-white">
-              <span className="block text-lg font-black">Matheus Machado</span>
-              <span className="block text-sm font-semibold text-white/80">Corretor de imóveis · CRECI 323106-F</span>
+            <figcaption className="absolute -left-10 bottom-10 rounded-2xl bg-[#0A2747] px-5 py-3.5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)] ring-1 ring-white/15">
+              <span className="block text-base font-extrabold">Matheus Machado</span>
+              <span className="mt-0.5 block text-sm font-semibold text-blue-100/80">Corretor de imóveis · CRECI 323106-F</span>
             </figcaption>
           </figure>
         </div>
