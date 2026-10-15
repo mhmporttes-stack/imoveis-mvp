@@ -118,12 +118,10 @@ test("lista de clientes: simulação só com SAC já conta como realizada (soma 
   assert.ok(utils.includes("flatMap(({ key }) => [models[key] || {}, models[key]?.sac || {}])"));
 });
 
-test("gerador e player: blocos Price/SAC e PDF/imagem só Price; player com as cenas duplas", () => {
+test("gerador e player: blocos Price/SAC; player com as cenas duplas (PDF/imagem removidos em 2026-10-15)", () => {
   const generator = read("components/SimulationGenerator.jsx");
   assert.ok(generator.includes('data-system="price"') && generator.includes('data-system="sac"'));
   assert.ok(generator.includes("updateSacModel(key, \"firstInstallment\""));
-  assert.ok(!generator.includes("SISTEMA ${escapeXml"), "PDF/imagem não levam rótulo de sistema");
-  assert.ok(generator.includes('model.system !== "sac"'), "PDF/imagem só com o Price");
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.ok(player.includes("if (scene.comparison) return <SceneParcelasDuo") && player.includes("SceneParcelasDuo"));
   assert.ok(!player.includes("SceneComparativo"), "a cena comparativo separada saiu");

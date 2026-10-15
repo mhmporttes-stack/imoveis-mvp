@@ -190,7 +190,6 @@ test("MODO BÁSICO (automação desativada): PDF e apresentação só caem para 
   const generator = source("components/SimulationGenerator.jsx");
   assert.match(generator, /const basicMode = useBasicMode\(\);/);
   assert.match(generator, /\{basicMode \? null : \(<>/);
-  assert.match(generator, /\{basicMode \? null : <aside/);
   assert.match(source("components/clients/ClientCard.jsx"), /hidden: basicMode/);
   assert.match(source("components/clients/ClientSheet.jsx"), /\{basicMode \? null : <Button variant="secondary" onClick=\{\(\) => list\.openSimulation/);
 });

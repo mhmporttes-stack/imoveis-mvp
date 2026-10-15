@@ -22,17 +22,16 @@ test("arquivado e nao contactar nao recebem; sem cadastro e demais status recebe
   assert.equal(canSendPresentationTo({ status: "do_not_contact" }), false);
 });
 
-test("gerador: envio só pelo link da apresentação (dono, 2026-10-09); PDF/imagem ficam só para baixar", () => {
+test("gerador: envio só pelo link da apresentação (dono, 2026-10-09); PDF/imagem removidos (2026-10-15)", () => {
   const src = read("components/SimulationGenerator.jsx");
   assert.match(src, /value: "presentation", label: "Link \(apresentação\)"/);
   assert.doesNotMatch(src, /\{ value: "pdf", label: "PDF" \}/);
   assert.match(src, /useState\("presentation"\)/);
-  assert.match(src, /sendFormat === "presentation"/);
+  assert.match(src, /await sendPresentationToWhatsApp\(\);/);
   assert.match(src, /enviar-preparar/);
   assert.match(src, /enviar-registrar/);
-  // o fluxo de PDF/imagem continua intacto
-  assert.match(src, /const format = sendFormat === "image" \? "image" : "pdf";/);
-  assert.match(src, /createSimulationPdfUrl\(form, simulationAssets, propertyImageDataUris\)/);
+  // dono, 2026-10-15: "remova tudo relacionado a gerar PDF de apresentação"
+  assert.doesNotMatch(src, /createSimulationPdfUrl|buildPdfFromJpegs|createSimulationImageDownloads|Baixar PDF|Baixar imagens/);
 });
 
 test("rota: enviar passa pelo guard e escopo da simulacao, bloqueia arquivado/DNC e nunca envia", () => {

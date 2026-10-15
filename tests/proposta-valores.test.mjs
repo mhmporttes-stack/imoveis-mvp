@@ -217,13 +217,13 @@ test("PDF: arquivo leve e nome do arquivo sanitizado", async () => {
 
 // ---- Regressões estáticas --------------------------------------------------
 
-test("componentes não duplicam o valor/zero do Casa Paulista e o PDF antigo segue disponível", () => {
+test("componentes não duplicam o valor/zero do Casa Paulista; PDF de apresentação do gerador removido (2026-10-15)", () => {
   const pres = fs.readFileSync(new URL("../components/EmpreendimentoPresentation.jsx", import.meta.url), "utf8");
   const gen = fs.readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
   assert.equal(/casaPaulista\s*:\s*\d/.test(pres), false);
   assert.equal(/casaPaulista\s*:\s*\d/.test(gen), false);
   assert.equal(/10000/.test(pres), false);
-  assert.ok(gen.includes("createSimulationPdfUrl") && gen.includes("buildPdfFromJpegs") && gen.includes("Baixar PDF"));
+  assert.ok(!gen.includes("createSimulationPdfUrl") && !gen.includes("buildPdfFromJpegs") && !gen.includes("Baixar PDF"));
   assert.ok(pres.includes("buildPresentationModel"));
 });
 

@@ -250,9 +250,10 @@ test("logo da Caixa: a MESMA do formulário, no rodapé fixo do palco (todas as 
 
 test("escala: palco com altura total e unidade --u; sem coluna fixa estreita", () => {
   const css = read("components/presentation/presentation.module.css");
-  assert.match(css, /height: 100dvh/);
-  assert.match(css, /--fw: min\(100vw, calc\(100dvh \* 0\.7\), 700px\)/);
-  assert.match(css, /--u: min\(calc\(var\(--fw\) \/ 390\), calc\(100dvh \/ 780\)\)/);
+  // svh desde 2026-10-15: no navegador interno do WhatsApp a barra de baixo cortava a logo da Caixa com dvh.
+  assert.match(css, /height: 100svh/);
+  assert.match(css, /--fw: min\(100vw, calc\(100svh \* 0\.7\), 700px\)/);
+  assert.match(css, /--u: min\(calc\(var\(--fw\) \/ 390\), calc\(100svh \/ 780\)\)/);
   assert.ok(!/max-width: 480px|max-width: 560px/.test(css));
 });
 

@@ -80,6 +80,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** deploy no Railway reinicia o serviço (todas as sessões reconectam em seguida). Consulta: `select occurred_at, user_id, detail from whatsapp_session_telemetry where event_type='disconnected' and status_code=401 and detail is not null`.
 - **Autor:** Claude (sessão de operação do dono)
 
+### 2026-10-15 — Gerador de simulação: removido tudo de gerar PDF/imagens da apresentação
+
+- **Pedido do dono:** "remova tudo relacionado a gerar PDF de apresentação". Saíram do gerador (`components/SimulationGenerator.jsx`) os botões "Baixar imagens"/"Baixar PDF", a prévia "Apresentação 1 de N" e todo o gerador de páginas SVG/PDF (~600 linhas). "Enviar simulação" segue só pelo link da apresentação interativa (`/s/<token>`).
+- **Mantido de propósito:** a apresentação interativa e o "Baixar apresentação" dela (imagem PNG do resumo para o cliente), a Proposta de valores (`/api/simulations/[id]/proposta-valores`) e a evidência de PDF antigo em `lib/simulation-sent-lock-core.mjs` (vale para envios antigos). Testes ajustados: `simulation-presentation-send`, `simulation-systems-comparison`, `proposta-valores`, `whatsapp-access`, `simulation-presentation-round2` (svh).
+
 ### 2026-10-15 — Imóveis (painel): card enxuto + publicar com ou sem valores
 
 - **Pedido do dono:** card sem as etiquetas do topo e sem "Construtora a confirmar"; só foto, nome, local · situação e o valor no canto direito. "Aprovar e publicar" abre uma caixa: **Publicar com valores** / **Publicar sem valores**.
