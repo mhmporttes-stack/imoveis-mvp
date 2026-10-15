@@ -71,6 +71,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** deploy no Railway reinicia o serviço (todas as sessões reconectam em seguida). Consulta: `select occurred_at, user_id, detail from whatsapp_session_telemetry where event_type='disconnected' and status_code=401 and detail is not null`.
 - **Autor:** Claude (sessão de operação do dono)
 
+### 2026-10-15 — Imóveis (painel): card enxuto + publicar com ou sem valores
+
+- **Pedido do dono:** card sem as etiquetas do topo e sem "Construtora a confirmar"; só foto, nome, local · situação e o valor no canto direito. "Aprovar e publicar" abre uma caixa: **Publicar com valores** / **Publicar sem valores**.
+- **Onde:** `components/AdminPropertyList.jsx`; coluna `properties.hide_price` (migration `20261015120000_properties_hide_price.sql`, aplicada); `lib/property-mapper.js` (`hidePrice`); `lib/public-properties.js` (`stripInternalFields` zera `price`/`installmentEntry` no site quando `hidePrice`; o site mostra "Consulte condições"). O CRM (inclusive a consulta da equipe) continua vendo o valor. Teste: `tests/property-hide-price.test.mjs`.
+
 ### 2026-10-15 — Menu do corretor: "Imóveis" no lugar de "Cadastrar depoimento"
 
 - **Pedido do dono:** corretor/associado deixam de ver "Cadastrar depoimento" e passam a ver **Imóveis** (todos os imóveis cadastrados, publicados ou não no site), só consulta. Gestora mantém "Cadastrar depoimento" e também ganha Imóveis.

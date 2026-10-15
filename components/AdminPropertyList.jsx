@@ -1,12 +1,17 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { coverImage, propertyCity, typeLabel } from "@/lib/format";
+import { coverImage, propertyCity } from "@/lib/format";
 
+// Lista de imóveis do painel (admin/gestor). Card enxuto (dono, 2026-10-15): sem etiquetas no topo, sem
+// "Construtora a confirmar"; só foto, nome, local/situação e o VALOR no canto direito. "Aprovar e publicar" pergunta
+// se o site mostra o imóvel com ou sem os valores (hidePrice — o site público some com preço/entrada).
 export default function AdminPropertyList({ properties }) {
   const router = useRouter();
+  const [publishTarget, setPublishTarget] = useState(null);
 
   async function removeProperty(property) {
     if (!confirm(`Excluir "${property.name}"?`)) return;
@@ -14,72 +19,109 @@ export default function AdminPropertyList({ properties }) {
     router.refresh();
   }
 
-  async function togglePublished(property) {
-    const nextPublished = !property.isPublished;
-    const action = nextPublished ? "aprovar e publicar" : "reprovar (tirar do site)";
-    if (!confirm(`Confirma ${action} "${property.name}" no site público?`)) return;
-
+  async function savePublication(property, patch) {
     const response = await fetch(`/api/properties/${property.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isPublished: nextPublished })
+      body: JSON.stringify(patch)
     });
-
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       alert(data.error || "Não foi possível atualizar a publicação.");
       return;
     }
-
     router.refresh();
   }
 
+  async function unpublish(property) {
+    if (!confirm(`Confirma reprovar (tirar do site) "${property.name}"?`)) return;
+    await savePublication(property, { isPublished: false });
+  }
+
+  async function confirmPublish(withPrice) {
+    const property = publishTarget;
+    setPublishTarget(null);
+    if (property) await savePublication(property, { isPublished: true, hidePrice: !withPrice });
+  }
+
   return (
-    <div className="container-page grid gap-5">
-      {properties.length ? properties.map((property) => (
-        <article key={property.id} className="grid gap-5 rounded-2xl border border-line bg-white p-4 shadow-soft lg:grid-cols-[180px_1fr_auto] lg:items-center">
-          <div className="relative h-44 overflow-hidden rounded-2xl bg-mist lg:h-32">
-            <Image src={coverImage(property)} alt={property.name} fill className="object-cover" />
-          </div>
-          <div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${property.isPublished ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{property.isPublished ? "Publicado" : "Em moderação"}</span>
-              <span className="rounded-full bg-[#E9F2FF] px-3 py-1 text-sm font-extrabold text-navy">{typeLabel(property.type)}</span>
-              <span className="rounded-full border border-line px-3 py-1 text-sm font-bold text-muted">{propertyCity(property.location)}</span>
+    <div className="container-page grid gap-4">
+      {properties.length ? properties.map((property) => {
+        const place = propertyCity(property.location) || property.location || "";
+        const situation = property.isPublished ? (property.hidePrice ? "No site, sem valores" : "No site") : "Em moderação";
+        return (
+          <article key={property.id} className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[120px_minmax(0,1fr)_auto]">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-mist">
+                <Image src={coverImage(property)} alt={property.name} fill className="object-cover" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-extrabold leading-snug text-navy sm:text-xl">{property.name}</h2>
+                <p className="mt-1 text-sm text-muted">
+                  {place ? `${place} · ` : ""}
+                  <span className={property.isPublished ? "font-bold text-emerald-700" : "font-bold text-amber-700"}>{situation}</span>
+                </p>
+                <p className="mt-1 text-base font-extrabold text-navy sm:hidden">{property.price || "Sem valor"}</p>
+              </div>
+              <p className="hidden self-start text-right text-lg font-extrabold text-navy sm:block">{property.price || "Sem valor"}</p>
             </div>
-            <h2 className="text-2xl font-extrabold text-navy">{property.name}</h2>
-            <p className="mt-2 text-muted">{property.builder || "Construtora a confirmar"} · {property.price || "Preço sob consulta"}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {property.isPublished ? (
-              <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
-            ) : (
-              <span
-                className="premium-button-secondary cursor-not-allowed opacity-50"
-                title="Publique este imóvel para poder visualizá-lo no site."
-              >
-                Abrir
-              </span>
-            )}
-            <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
-            <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
-            <button
-              className={`premium-button border hover:shadow-soft ${property.isPublished ? "border-amber-200 bg-white text-amber-700" : "border-emerald-200 bg-white text-emerald-700"}`}
-              onClick={() => togglePublished(property)}
-            >
-              {property.isPublished ? "Reprovar (tirar do site)" : "Aprovar e publicar"}
-            </button>
-            <button className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft" onClick={() => removeProperty(property)}>
-              Excluir
-            </button>
-          </div>
-        </article>
-      )) : (
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
+              {property.isPublished ? (
+                <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
+              ) : null}
+              <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
+              <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
+              {property.isPublished ? (
+                <button className="premium-button border border-amber-200 bg-white text-amber-700 hover:shadow-soft" onClick={() => unpublish(property)}>
+                  Reprovar (tirar do site)
+                </button>
+              ) : (
+                <button className="premium-button border border-emerald-200 bg-white text-emerald-700 hover:shadow-soft" onClick={() => setPublishTarget(property)}>
+                  Aprovar e publicar
+                </button>
+              )}
+              <button className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft" onClick={() => removeProperty(property)}>
+                Excluir
+              </button>
+            </div>
+          </article>
+        );
+      }) : (
         <div className="rounded-2xl border border-line bg-white p-12 text-center shadow-soft">
           <h2 className="text-2xl font-extrabold text-navy">Nenhum empreendimento cadastrado</h2>
           <p className="mt-3 text-muted">Comece adicionando o primeiro imóvel ao portfólio.</p>
         </div>
       )}
+      <PublishDialog property={publishTarget} onCancel={() => setPublishTarget(null)} onConfirm={confirmPublish} />
     </div>
+  );
+}
+
+function PublishDialog({ property, onCancel, onConfirm }) {
+  const ref = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (property && !dialog.open) dialog.showModal();
+    if (!property && dialog.open) dialog.close();
+  }, [property]);
+
+  return (
+    <dialog ref={ref} aria-labelledby={titleId} className="ui-confirm" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
+      {property ? (
+        <div className="p-5 sm:p-6">
+          <h2 id={titleId} className="text-base font-semibold text-ink">Publicar no site</h2>
+          <p className="mt-1 text-sm text-ink-2">
+            Como &quot;{property.name}&quot; deve aparecer no site?{property.price ? ` Valor cadastrado: ${property.price}.` : ""}
+          </p>
+          <div className="mt-5 grid gap-2">
+            <button type="button" className="premium-button-primary w-full" onClick={() => onConfirm(true)}>Publicar com valores</button>
+            <button type="button" className="premium-button-secondary w-full" onClick={() => onConfirm(false)}>Publicar sem valores</button>
+            <button type="button" className="mt-1 text-sm font-bold text-muted hover:text-navy" onClick={onCancel}>Cancelar</button>
+          </div>
+        </div>
+      ) : null}
+    </dialog>
   );
 }
