@@ -237,7 +237,8 @@ export function extractChatEvent(msg, lidMap = new Map()) {
   const text = textOfContent(content);
   if (!media && !text) return null;
   const quotedId = contextInfoOf(content)?.stanzaId || "";
-  return { ...base, kind: "message", messageType: media ? media.kind : "text", text, media, quotedId };
+  const quotedText = quotedId ? quotedPreviewOf(contextInfoOf(content)) : "";
+  return { ...base, kind: "message", messageType: media ? media.kind : "text", text, media, quotedId, ...(quotedText ? { quotedText } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -265,4 +266,21 @@ export function upsertRoute({ type, fromMe = false, timestampMs = 0, now = Date.
   if (age <= APPEND_LIVE_WINDOW_MS) return "live";
   if (age <= APPEND_HISTORY_WINDOW_MS) return "history";
   return "skip";
+}
+
+// Trecho da mensagem CITADA (o WhatsApp manda o conteúdo da original junto com a resposta): serve de fallback quando a
+// original não está guardada no CRM (anterior ao pareamento/histórico). Texto até 160 caracteres ou o rótulo da mídia.
+const QUOTED_MEDIA_LABEL = { image: "Foto", video: "Vídeo", gif: "GIF", sticker: "Figurinha", audio: "Áudio", document: "Documento" };
+export function quotedPreviewOf(contextInfo) {
+  try {
+    const quoted = contextInfo?.quotedMessage;
+    if (!quoted || typeof quoted !== "object") return "";
+    const inner = unwrapContent(quoted) || quoted;
+    const text = String(textOfContent(inner) || "").replace(/\s+/g, " ").trim();
+    if (text) return text.slice(0, 160);
+    const media = mediaInfoOf(inner);
+    return media ? QUOTED_MEDIA_LABEL[media.kind] || "" : "";
+  } catch {
+    return "";
+  }
 }

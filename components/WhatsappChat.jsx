@@ -1811,6 +1811,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
   const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
+  // Citação: a original da página carregada; senão a prévia que o servidor resolveu (original fora da página ou trecho enviado pelo WhatsApp).
+  const replyRef = quoted || message.replyPreview || null;
   if (message.internal) {
     // Nota interna: centralizada, azul tracejada e com cadeado — nunca parece mensagem enviada ao cliente.
     return (
@@ -1861,8 +1863,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         {groupSender ? <p className="mb-0.5 truncate text-xs font-bold text-[#0A7D41]">{groupSender}</p> : null}
         {message.replyToMessageId ? (
           <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>
-            <span className="block font-bold text-brand">{quoted ? (quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
-            <span className="block truncate text-[#54656F]">{(quoted?.body ? stripWhatsappFormatting(quoted.body) : "") || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+            <span className="block font-bold text-brand">{replyRef?.direction ? (replyRef.direction === "inbound" ? "Cliente" : replyRef.sentByName || "Equipe") : "Em resposta a"}</span>
+            <span className="block truncate text-[#54656F]">{replyRef?.revoked ? "Mensagem apagada" : (replyRef?.body ? stripWhatsappFormatting(replyRef.body) : "") || (replyRef ? MEDIA_LABELS[replyRef.type] : "") || "Mensagem original indisponível"}</span>
           </div>
         ) : null}
         {message.revoked ? (<>

@@ -99,6 +99,7 @@ export async function POST(request) {
         fromMe: Boolean(payload.fromMe),
         media,
         quotedId: payload.quotedId,
+        quotedText: payload.quotedText,
         remoteJid: payload.remoteJid
       };
       // Foto/áudio/figurinha sem legenda também é resposta real do cliente

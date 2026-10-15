@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Chat: "Em resposta a" mostra o trecho da mensagem citada
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
+- **Alteração:** respostas citadas apareciam como "Em resposta a / Mensagem anterior" sempre que a mensagem original não estava entre as carregadas na tela (conversas longas, principalmente Particulares). Agora o servidor busca a original na MESMA conversa (`loadReplyTargets`) e devolve uma prévia (`replyPreview`: autor, trecho, mídia ou "Mensagem apagada"). Para mensagens novas, o serviço do WhatsApp também manda o trecho que o próprio WhatsApp envia junto da resposta (`quotedText` → `metadata.reply_to_preview`), usado quando a original não está guardada no CRM. Sem nenhuma das duas, mostra "Mensagem original indisponível".
+- **Motivo:** o dono viu conversas sem sentido (respostas a mensagens que não aparecem).
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, `lib/whatsapp-individual-inbound.js`, `app/api/webhooks/whatsapp-individual/route.js`, `whatsapp-individual-service/src/message-extract.js`, `tests/chat-reply-preview.test.mjs`.
+- **Risco/observação:** em 30 dias, 91% das citações tinham a original no banco (o problema era só a janela de mensagens carregada); ~9% não têm a original (anterior ao pareamento/histórico) e só as mensagens novas ganham o trecho do WhatsApp. Citações antigas sem original continuam indisponíveis. Deploy no Railway reinicia as sessões. Testes não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — Particular: a conversa trancada some do CRM para todos, exceto o dono
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Privacidade
