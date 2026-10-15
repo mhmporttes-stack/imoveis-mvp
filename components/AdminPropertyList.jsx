@@ -9,6 +9,9 @@ import { coverImage, propertyCity } from "@/lib/format";
 // Lista de imóveis do painel (admin/gestor). Card enxuto (dono, 2026-10-15): sem etiquetas no topo, sem
 // "Construtora a confirmar"; só foto, nome, local/situação e o VALOR no canto direito. "Aprovar e publicar" pergunta
 // se o site mostra o imóvel com ou sem os valores (hidePrice — o site público some com preço/entrada).
+// Botões pequenos do rodapé do card (dono, 2026-10-15: "bem menores").
+const SMALL_BTN = "inline-flex h-8 items-center rounded-full border bg-white px-3 text-xs font-bold transition hover:shadow-soft";
+
 export default function AdminPropertyList({ properties }) {
   const router = useRouter();
   const [publishTarget, setPublishTarget] = useState(null);
@@ -66,22 +69,23 @@ export default function AdminPropertyList({ properties }) {
               </div>
               <p className="hidden self-start text-right text-lg font-extrabold text-navy sm:block">{property.price || "Sem valor"}</p>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
+            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
               {property.isPublished ? (
-                <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`}>Abrir</Link>
+                <Link className={`${SMALL_BTN} border-line text-navy`} href={`/empreendimentos/${property.id}`}>Abrir</Link>
               ) : null}
-              <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
-              <Link className="premium-button-secondary" href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link>
+              <Link className={`${SMALL_BTN} border-line text-navy`} href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
+              {/* Regras de entrada só existem para empreendimento (dono, 2026-10-15). */}
+              {property.isDevelopment ? <Link className={`${SMALL_BTN} border-line text-navy`} href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link> : null}
               {property.isPublished ? (
-                <button className="premium-button border border-amber-200 bg-white text-amber-700 hover:shadow-soft" onClick={() => unpublish(property)}>
+                <button type="button" className={`${SMALL_BTN} border-amber-200 text-amber-700`} onClick={() => unpublish(property)}>
                   Reprovar (tirar do site)
                 </button>
               ) : (
-                <button className="premium-button border border-emerald-200 bg-white text-emerald-700 hover:shadow-soft" onClick={() => setPublishTarget(property)}>
+                <button type="button" className={`${SMALL_BTN} border-emerald-200 text-emerald-700`} onClick={() => setPublishTarget(property)}>
                   Aprovar e publicar
                 </button>
               )}
-              <button className="premium-button border border-red-200 bg-white text-red-700 hover:shadow-soft" onClick={() => removeProperty(property)}>
+              <button type="button" className={`${SMALL_BTN} border-red-200 text-red-700`} onClick={() => removeProperty(property)}>
                 Excluir
               </button>
             </div>
