@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Building2, Download, FileText, KeyRound, MapPin, MessageCircle, Ruler, Wallet } from "lucide-react";
+import { Building2, Download, FileText, KeyRound, MapPin, Ruler, Wallet } from "lucide-react";
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
 import { coverImage, propertyRegion, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
@@ -40,13 +40,12 @@ export default async function PropertyPage({ params }) {
           ) : (
             // Sem valor no site (dono, 2026-10-15): o quadro vira o botão "Valor", que abre o WhatsApp oficial.
             <a
-              className="mt-6 flex items-center justify-between gap-4 rounded-3xl bg-navy px-6 py-5 text-white shadow-soft transition hover:opacity-95"
+              className="mt-6 flex items-center justify-center gap-4 rounded-3xl bg-navy px-6 py-5 text-white shadow-soft transition hover:opacity-95"
               target="_blank"
               rel="noopener noreferrer"
               href={officialWhatsappUrl(`Olá! Quero saber o valor do imóvel ${property.name}.`)}
             >
               <span className="text-3xl font-black">Valor</span>
-              <span className="inline-flex items-center gap-2 text-sm font-bold"><MessageCircle className="h-5 w-5" aria-hidden="true" />Consultar no WhatsApp</span>
             </a>
           )}
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
