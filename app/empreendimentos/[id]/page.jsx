@@ -5,6 +5,7 @@ import { Building2, Download, FileText, KeyRound, MapPin, MessageCircle, Ruler, 
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
 import { coverImage, propertyRegion, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
+import { officialWhatsappUrl } from "@/lib/official-whatsapp.mjs";
 
 // ISR: página pública, mesmo conteúdo para todo visitante (sem sessão/auth).
 // force-dynamic forçava um round-trip ao Supabase a cada visita; 60s de cache
@@ -17,6 +18,9 @@ export default async function PropertyPage({ params }) {
   const property = await getPublicProperty(id);
   if (!property) notFound();
   const photos = property.photos?.length ? property.photos : [{ name: property.name, data: coverImage(property) }];
+  const showBuilderUrl = Boolean(property.isDevelopment && property.builderUrl);
+  const hasConditions = Boolean(property.terms || property.discounts || property.installmentEntry);
+  const hasMaterials = Boolean(property.pdfData || showBuilderUrl);
   const titleLength = property.name.length;
   const titleMinRem = titleLength > 38 ? 0.95 : titleLength > 30 ? 1.05 : 1.15;
   const titleViewportSize = Math.max(2.1, Math.min(5.2, 96 / Math.max(titleLength, 14)));
@@ -32,11 +36,24 @@ export default async function PropertyPage({ params }) {
           >
             {property.name}
           </h1>
-          <p className="mt-6 text-xl leading-9 text-muted">{property.salesText || "Empreendimento selecionado com condições comerciais sob consulta."}</p>
-          <div className="mt-8 rounded-3xl bg-mist p-6">
-            <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">{property.price ? "Preço inicial" : "Valores"}</p>
-            <strong className="mt-2 block text-3xl font-black text-navy">{property.price ? `A partir de ${property.price}` : "Consulte condições"}</strong>
-          </div>
+          {property.salesText ? <p className="mt-6 text-xl leading-9 text-muted">{property.salesText}</p> : null}
+          {property.price ? (
+            <div className="mt-8 rounded-3xl bg-mist p-6">
+              <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">Preço inicial</p>
+              <strong className="mt-2 block text-3xl font-black text-navy">A partir de {property.price}</strong>
+            </div>
+          ) : (
+            // Sem valor no site (dono, 2026-10-15): o quadro vira o botão "Valor", que abre o WhatsApp oficial.
+            <a
+              className="mt-8 flex items-center justify-between gap-4 rounded-3xl bg-navy p-6 text-white shadow-soft transition hover:opacity-95"
+              target="_blank"
+              rel="noopener noreferrer"
+              href={officialWhatsappUrl(`Olá! Quero saber o valor do imóvel ${property.name}.`)}
+            >
+              <span className="text-3xl font-black">Valor</span>
+              <span className="inline-flex items-center gap-2 text-sm font-bold"><MessageCircle className="h-5 w-5" aria-hidden="true" />Consultar no WhatsApp</span>
+            </a>
+          )}
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero agendar uma visita no ${property.name}.`)}>Agendar visita</a>
             <Link className="premium-button-secondary" href="/simulacao">Simular financiamento</Link>
@@ -47,39 +64,47 @@ export default async function PropertyPage({ params }) {
       </section>
 
       <section className="container-page grid gap-6 py-12 md:grid-cols-4">
-        <Info icon={Building2} label="Construtora" value={property.builder} />
-        <Info icon={MapPin} label="Região" value={propertyRegion(property)} />
+        {/* Construtora só para empreendimento (dono, 2026-10-15). */}
+        <Info icon={Building2} label="Construtora" value={property.isDevelopment ? property.builder : ""} />
+        <Info icon={MapPin} label="Região" value={propertyRegion(property) === "Região a confirmar" ? "" : propertyRegion(property)} />
         <Info icon={Ruler} label="Metragem" value={property.area} />
         <Info icon={KeyRound} label="Quartos" value={property.bedrooms} />
       </section>
 
-      <section className="container-page grid gap-8 py-12 lg:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Condições comerciais</p>
-          <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">Compra, financiamento e campanhas.</h2>
-          <div className="mt-8 grid gap-6">
-            <TextBlock title="Condições" text={property.terms || "Consulte as condições atualizadas."} />
-            <TextBlock title="Descontos/subsídios" text={property.discounts || "Campanhas sob consulta."} />
-            <TextBlock title="Entrada parcelada" text={property.installmentEntry || "Condição a confirmar."} />
-          </div>
-        </div>
-        <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Materiais</p>
-          <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">Catálogo e construtora.</h2>
-          <div className="mt-8 grid gap-3">
-            {property.pdfData ? <a className="premium-button-primary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}><Download className="mr-2 h-5 w-5" />Baixar PDF</a> : <span className="rounded-2xl bg-mist p-5 font-bold text-muted">Catálogo ainda não anexado.</span>}
-            {property.builderUrl ? <a className="premium-button-secondary" target="_blank" href={property.builderUrl}><FileText className="mr-2 h-5 w-5" />Site da construtora</a> : null}
-          </div>
-        </div>
-      </section>
+      {/* Só o que existe no cadastro aparece; nada de "a confirmar/sob consulta" (dono, 2026-10-15). */}
+      {hasConditions || hasMaterials ? (
+        <section className={`container-page grid gap-8 py-12 ${hasConditions && hasMaterials ? "lg:grid-cols-[1fr_0.8fr]" : ""}`}>
+          {hasConditions ? (
+            <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Condições comerciais</p>
+              <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">Compra, financiamento e campanhas.</h2>
+              <div className="mt-8 grid gap-6">
+                {property.terms ? <TextBlock title="Condições" text={property.terms} /> : null}
+                {property.discounts ? <TextBlock title="Descontos/subsídios" text={property.discounts} /> : null}
+                {property.installmentEntry ? <TextBlock title="Entrada parcelada" text={property.installmentEntry} /> : null}
+              </div>
+            </div>
+          ) : null}
+          {hasMaterials ? (
+            <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Materiais</p>
+              <h2 className="mt-3 text-[clamp(1.85rem,3vw,2.5rem)] font-black leading-tight text-navy lg:whitespace-nowrap">{showBuilderUrl ? "Catálogo e construtora." : "Catálogo."}</h2>
+              <div className="mt-8 grid gap-3">
+                {property.pdfData ? <a className="premium-button-primary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}><Download className="mr-2 h-5 w-5" />Baixar PDF</a> : null}
+                {showBuilderUrl ? <a className="premium-button-secondary" target="_blank" href={property.builderUrl}><FileText className="mr-2 h-5 w-5" />Site da construtora</a> : null}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="container-page py-12">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Galeria</p>
-        <h2 className="mt-3 text-[clamp(2rem,3.6vw,2.75rem)] font-black leading-tight text-navy md:whitespace-nowrap">Imagens do empreendimento</h2>
+        <h2 className="mt-3 text-[clamp(2rem,3.6vw,2.75rem)] font-black leading-tight text-navy md:whitespace-nowrap">{property.isDevelopment ? "Imagens do empreendimento" : "Imagens do imóvel"}</h2>
         <div className="mt-8 grid auto-rows-[220px] gap-5 md:grid-cols-4">
           {photos.map((photo, index) => (
             <div key={`${photo.name}-${index}`} className={`relative overflow-hidden rounded-3xl bg-mist ${index === 0 ? "md:col-span-2 md:row-span-2" : ""}`}>
-              <Image src={photo.data} alt={photo.name || property.name} fill className="object-cover" />
+              <Image src={photo.data} alt={photo.name || property.name} fill className="object-contain" />
             </div>
           ))}
         </div>
