@@ -737,6 +737,8 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
             <p role="alert" className="mt-2 text-xs font-semibold text-warning" data-documents-list-blocked="">
               {target.decision?.reason === "session_down"
                 ? "Seu WhatsApp não está conectado ao CRM. Conecte o número para enviar pelo Chat."
+                : target.decision?.reason === "printed_list_mode"
+                  ? "Seu WhatsApp está desconectado: você está no modo lista impressa e o Chat fica indisponível até reconectar."
                 : target.decision?.reason === "hourly_cap"
                   ? "Você atingiu o limite de envios por hora do Chat. Tente de novo em alguns minutos."
                   : "Este cliente ainda não conversou com o número oficial nem com o seu WhatsApp no Chat do CRM. Assim que ele mandar mensagem, a lista sai pelo Chat."}{" "}

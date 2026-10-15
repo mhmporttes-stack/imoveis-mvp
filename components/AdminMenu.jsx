@@ -205,11 +205,12 @@ const ownerGroups = [
 // Fonte única dos grupos do menu por perfil — usada também pela barra
 // inferior do celular (components/AdminBottomNav.jsx, sheet "Mais"), para
 // que nenhum destino exista em um menu e falte no outro.
-export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, academiaEnabled = false } = {}) {
+export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden = false, academiaEnabled = false } = {}) {
   const treatAsBroker = isBroker || isManager;
   const groups = isAdmin ? ownerGroups : isManager ? managerGroups : treatAsBroker ? (isAssociate ? associateGroups : brokerGroups) : adminGroups;
   // Acesso WhatsApp bloqueado (2026-10-04): Chat (e a Meta Diária do corretor) NÃO são renderizados — nada de item cinza.
-  const hidden = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
+  // Modo lista impressa (PRO-15, 2026-10-15): `chatHidden` tira só o Chat.
+  const hidden = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
   const visible = hidden.size ? groups.map((group) => ({ ...group, items: group.items.filter((item) => !hidden.has(item.key)) })) : groups;
   // Chave da Academia desligada (padrão): devolve exatamente os mesmos grupos de sempre.
   return withAcademyMenuGroup(visible, academiaEnabled);
@@ -244,7 +245,7 @@ function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false }) 
   );
 }
 
-export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false }) {
+export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden = false }) {
   const pathname = usePathname();
   // Gestor enxerga o mesmo padrão de menu do corretor (pedido do dono,
   // 2026-09-29): CRM/CADASTROS/DESEMPENHO, CRM colapsado num único pill com
@@ -255,8 +256,8 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
   const treatAsBroker = isBroker || isManager;
   const academiaEnabled = useAcademyMenuEnabled();
   const groups = useMemo(
-    () => getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, academiaEnabled }),
-    [isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, academiaEnabled]
+    () => getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, chatHidden, academiaEnabled }),
+    [isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, chatHidden, academiaEnabled]
   );
   const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
   const menuRef = useRef(null);
@@ -352,7 +353,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                     {group.label}
                   </Link>
                   {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
-                  {showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft hideChat={whatsappBlocked} /> : null}
+                  {showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft hideChat={whatsappBlocked || chatHidden} /> : null}
                 </div>
               );
             }
@@ -367,7 +368,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
                 {group.label}
               </Link>
               {["clientes", "crm"].includes(group.key) && crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
-              {["clientes", "crm"].includes(group.key) && showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft={!isAdmin} hideChat={whatsappBlocked} /> : null}
+              {["clientes", "crm"].includes(group.key) && showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft={!isAdmin} hideChat={whatsappBlocked || chatHidden} /> : null}
               </div>
             );
           }

@@ -9,6 +9,7 @@ import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
 import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsapp-core.mjs";
+import { PRINTED_LIST_MODE_CODE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
@@ -643,28 +644,35 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         // Janela do oficial aberta mas o envio automático falhou: NÃO joga para o WhatsApp pessoal (o cliente está
         // falando pelo oficial). Abre a conversa do oficial no Chat com o link no campo e mostra o motivo.
         const failure = sendResponse ? await sendResponse.json().catch(() => ({})) : {};
+        // Modo lista impressa (PRO-15, 2026-10-15): sem Chat — segue para o WhatsApp do celular/Web, como sem conversa oficial.
+        if (failure?.code === PRINTED_LIST_MODE_CODE) return await sendPresentationExternally(saved, registrationId, data, post);
         setError(failure?.error ? `Não deu para enviar sozinho: ${failure.error} Abri a conversa com o link pronto.` : "Não deu para enviar sozinho. Abri a conversa com o link pronto para você enviar.");
         router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(data.message)}`);
         setSendingSimulation(false);
         return;
       }
-      await post("enviar-registrar").catch(() => null);
-      const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
-      const device = detectDevice({ userAgent: navigator.userAgent, standalone: window.matchMedia?.("(display-mode: standalone)").matches === true, maxTouchPoints: navigator.maxTouchPoints || 0 });
-      // SÓ o link, sem texto junto (dono, 2026-10-11): com mensagem acompanhando o WhatsApp não carrega a prévia.
-      const onlyLink = data.link || data.message;
-      const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), onlyLink);
-      if (externalUrl) {
-        window.location.assign(externalUrl);
-        setSendingSimulation(false);
-        return;
-      }
-      // Sem telefone válido no cadastro: abre a conversa no Chat com o link no campo.
-      router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(onlyLink)}`);
+      await sendPresentationExternally(saved, registrationId, data, post);
     } catch (sendError) {
       setError(sendError.message || "Não foi possível preparar o envio da apresentação.");
       setSendingSimulation(false);
     }
+  }
+
+  // Envio pelo WhatsApp do celular/Web (sem conversa do oficial ou modo lista impressa).
+  async function sendPresentationExternally(saved, registrationId, data, post) {
+    await post("enviar-registrar").catch(() => null);
+    const phone = saved?.registration?.phoneNormalized || saved?.registration?.phone || form.registration?.phone || form.clientWhatsApp || "";
+    const device = detectDevice({ userAgent: navigator.userAgent, standalone: window.matchMedia?.("(display-mode: standalone)").matches === true, maxTouchPoints: navigator.maxTouchPoints || 0 });
+    // SÓ o link, sem texto junto (dono, 2026-10-11): com mensagem acompanhando o WhatsApp não carrega a prévia.
+    const onlyLink = data.link || data.message;
+    const externalUrl = withWhatsappText(buildExternalWhatsappUrl(phone, device), onlyLink);
+    if (externalUrl) {
+      window.location.assign(externalUrl);
+      setSendingSimulation(false);
+      return;
+    }
+    // Sem telefone válido no cadastro: abre a conversa no Chat com o link no campo.
+    router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(onlyLink)}`);
   }
 
   return (

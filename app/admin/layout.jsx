@@ -25,6 +25,7 @@ import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys, isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
+import { readChatHiddenForNav } from "@/lib/whatsapp-manual-disconnect";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export default async function AdminLayout({ children }) {
   const auth = await getAdminFromCookies();
   // Acesso WhatsApp bloqueado (2026-10-04): conexão/status da sessão, Chat e Meta Diária do corretor não são renderizados.
   const whatsappBlocked = auth.ok && isEffectivelyBlocked(auth.profile);
+  // Modo lista impressa (PRO-15, 2026-10-15): WhatsApp desconectado (não banido/restrito) tira o Chat do menu.
+  const chatHidden = auth.ok && !whatsappBlocked && (await readChatHiddenForNav(auth));
 
   return (
     <AcademyMenuProvider enabled={isAcademyEnabled()}>
@@ -87,12 +90,12 @@ export default async function AdminLayout({ children }) {
           <OfficePresenceNotice />
         </HideInFinanceiroApp>
       ) : null}
-      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
+      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
       {/* Navegação principal no celular (< md); do tablet para cima continua
           o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
-      {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked)} /> : null}
+      {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked, chatHidden)} /> : null}
       {auth.ok ? (
         <AdminBottomNav
           isAdmin={isGeneralAdminProfile(auth.profile)}
@@ -100,6 +103,7 @@ export default async function AdminLayout({ children }) {
           isAssociate={isAssociateProfile(auth.profile)}
           isManager={isManagerProfile(auth.profile)}
           whatsappBlocked={whatsappBlocked}
+          chatHidden={chatHidden}
         />
       ) : null}
       {auth.ok ? (
@@ -120,10 +124,11 @@ export default async function AdminLayout({ children }) {
 // Pré-carregamento (components/AdminWarmup.jsx): as MESMAS telas que a barra inferior mostra para esta conta
 // (AdminBottomNav: Meta, Clientes, Chat + Desempenho no admin geral ou Agenda nos demais; hiddenNavKeys tira Chat/Meta
 // de quem tem WhatsApp bloqueado).
-function warmupTargets(auth, whatsappBlocked) {
+function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
   const isAdmin = isGeneralAdminProfile(auth.profile);
   const hidden = hiddenNavKeys({
     blocked: whatsappBlocked,
+    chatHidden,
     isBrokerOrAssociate: (isBrokerProfile(auth.profile) || isAssociateProfile(auth.profile)) && !isManagerProfile(auth.profile) && !isAdmin
   });
   const chat = !hidden.has("chat");

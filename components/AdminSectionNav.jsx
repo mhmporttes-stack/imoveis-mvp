@@ -13,6 +13,7 @@ import {
 import { calculateCrmMetrics, countUnreadCrmNotifications } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
+import { readChatHiddenForNav } from "@/lib/whatsapp-manual-disconnect";
 
 export default async function AdminSectionNav({ active = "properties" }) {
   const admin = await getAdminFromCookies();
@@ -21,6 +22,9 @@ export default async function AdminSectionNav({ active = "properties" }) {
   const isBroker = isBrokerProfile(profile);
   const isAssociate = isAssociateProfile(profile);
   const isManager = isManagerProfile(profile);
+  const whatsappBlocked = isEffectivelyBlocked(profile);
+  // Modo lista impressa (PRO-15, 2026-10-15): o Chat some do menu enquanto o WhatsApp estiver desconectado.
+  const chatHidden = admin.ok && !whatsappBlocked && (await readChatHiddenForNav(admin));
   let brokerSummary = null;
   let unreadNotifications = 0;
 
@@ -41,7 +45,7 @@ export default async function AdminSectionNav({ active = "properties" }) {
     // Celular: para quem não é gestor o bloco não mostra nada (o menu do topo é só ≥ md), então sem margem — o espaço
     // vazio acima de "Clientes" (dono, 2026-10-12). Gestor mantém (links e sub-barra aparecem no celular).
     <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"} ${!isManager || isAdmin ? "max-md:mb-0" : ""}`}>
-      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={isEffectivelyBlocked(profile)} />
+      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={whatsappBlocked} chatHidden={chatHidden} />
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
       {isManager && ["performance", "daily-report", "financial", "ai-usage", "scoring", "online", "audit"].includes(active) ? (

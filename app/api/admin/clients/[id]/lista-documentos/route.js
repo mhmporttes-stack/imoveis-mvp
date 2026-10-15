@@ -5,6 +5,7 @@ import { prepareClientDocumentsList, recordClientDocumentsListSent } from "@/lib
 import { findOpenOfficialConversationId, getChatReplyReadiness } from "@/lib/whatsapp-chat";
 import { getOpenRestriction } from "@/lib/whatsapp-restriction";
 import { VALIDATION_VALIDATED } from "@/lib/whatsapp-restriction-core.mjs";
+import { isPrintedListModeAuth } from "@/lib/whatsapp-manual-disconnect";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,14 +56,18 @@ export async function POST(request, { params }) {
     //   3. WhatsApp do aparelho (wa.me/Web) SOMENTE com restrição do WhatsApp VALIDADA no CRM (PRO-13/14);
     //      admin geral segue isento, como nas demais regras de restrição;
     //   4. senão, não envia (o modal explica). Falha ao checar = nunca abre o WhatsApp externo por engano.
-    let channel = { type: "blocked", reason: "no_conversation", conversationId: "" };
-    try {
-      const officialId = await findOpenOfficialConversationId(id);
-      if (officialId) channel = { type: "official", reason: "official_window", conversationId: officialId };
-    } catch (officialError) {
-      console.error("Falha ao checar a conversa do número oficial (lista de documentos):", officialError?.message || officialError);
+    //   Modo lista impressa (PRO-15, dono 2026-10-15): sem Chat — os passos 1 e 2 não valem; sem restrição validada, não envia.
+    const printedListMode = await isPrintedListModeAuth(auth);
+    let channel = { type: "blocked", reason: printedListMode ? "printed_list_mode" : "no_conversation", conversationId: "" };
+    if (!printedListMode) {
+      try {
+        const officialId = await findOpenOfficialConversationId(id);
+        if (officialId) channel = { type: "official", reason: "official_window", conversationId: officialId };
+      } catch (officialError) {
+        console.error("Falha ao checar a conversa do número oficial (lista de documentos):", officialError?.message || officialError);
+      }
     }
-    if (channel.type === "blocked") {
+    if (channel.type === "blocked" && !printedListMode) {
       try {
         const chat = await getChatReplyReadiness(id);
         if (chat.ready) channel = { type: "individual", reason: "reply", conversationId: chat.conversationId || "" };

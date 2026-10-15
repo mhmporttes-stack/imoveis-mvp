@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — PRO-15: WhatsApp desconectado (sem ban/restrição) = modo lista impressa
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp / Prospecção / Chat / Permissões
+- **Alteração:** corretor/associado com o WhatsApp desconectado (botão do CRM, logout pelo celular ou outra queda que não seja 403/restrição) perde o Chat (menu, atalho, página, `/chat-app` e APIs `/api/admin/whatsapp-chat/**` + `client-documents/from-chat` com 403 `WHATSAPP_PRINTED_LIST_MODE` no `requireAdminApi`) e vê na Prospecção/Meta Diária "Seu WhatsApp está desconectado: você está no modo lista impressa — peça sua lista à gestão." (botão Conectar mantido); a supervisão mostra o selo "Modo lista impressa"; o card do cliente abre o WhatsApp de fora; a "Enviar lista de documentos" não usa o Chat (oficial/individual) e, sem restrição validada, não envia (motivo `printed_list_mode` no modal). Núcleo único `lib/whatsapp-manual-disconnect-core.mjs`; PRO-11 intacta; "Imprimir lista" inalterado; nada apaga dado.
+- **Motivo:** regra oficial nova do dono (2026-10-15). Registrada em `docs/BUSINESS_RULES.md` PRO-15 e `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Arquivos afetados:** `lib/whatsapp-manual-disconnect-core.mjs` (novo), `lib/whatsapp-manual-disconnect.js` (novo), `lib/admin-auth.js`, `lib/whatsapp-access-core.mjs`, `lib/client-card-whatsapp-core.mjs`, `lib/daily-goal.js`, `lib/daily-goal-auto.js`, `app/admin/layout.jsx`, `app/admin/prospeccao/page.jsx`, `app/chat-app/page.jsx`, `app/api/admin/whatsapp-individual/card-state/route.js`, `app/api/admin/whatsapp-chat/conversations/[id]/messages/route.js` (devolve `code`), `app/api/admin/clients/[id]/lista-documentos/route.js`, `components/clients/ClientSheet.jsx`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`, `components/AdminSectionNav.jsx`, `components/WhatsappAccessProvider.jsx`, `components/clients/ClientWorkspace.jsx`, `components/clients/useClientList.js`, `components/DailyGoalDashboard.jsx`, `components/TeamDailyPerformance.jsx`, `components/SimulationGenerator.jsx`, `tests/whatsapp-manual-disconnect.test.mjs` (novo). Sem migration.
+- **Risco/observação:** o layout e o menu passam a ler a sessão/restrição do corretor/associado a cada navegação (2 consultas leves, memoizadas por requisição). A página do Chat pode ficar em cache no navegador por até 5 min (`unstable_dynamicStaleTime`), mas as APIs já recusam. Substitui, só para este caso, a regra de 2026-10-09 de que WhatsApp pessoal desconectado não tira o corretor do Chat. PENDENTE: gestor executando por si não entra no modo. Situação real da Bruna Santos não conferida nesta sessão (sem acesso ao banco). Falhas de teste pré-existentes, não relacionadas (mesmo resultado antes da mudança): 13 em `node --test tests/*.test.mjs` (ex.: `client-card-whatsapp-chat` ×2, `heartbeat`, descrições de skills/agentes, `whatsapp-individual-service` runtime).
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-15 — SEO técnico do site público (ficha, robots/sitemap, JSON-LD, captação canônica, mensagens prontas)
 
 - **Data:** 2026-10-15 · **Área:** Site público / SEO

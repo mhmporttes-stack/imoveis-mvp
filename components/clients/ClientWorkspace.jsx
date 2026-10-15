@@ -14,6 +14,7 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { useChatHidden } from "@/components/WhatsappAccessProvider";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
@@ -34,6 +35,8 @@ export default function ClientWorkspace(props) {
   const [openClientId, setOpenClientId] = useState("");
   const list = useClientList({ ...props, notify, confirmAction, pinClientId: openClientId });
   const badgeCounts = useCrmBadgeCounts();
+  // Modo lista impressa (PRO-15, 2026-10-15): sem atalho do Chat enquanto o WhatsApp estiver desconectado.
+  const chatHidden = useChatHidden();
   const [openFocus, setOpenFocus] = useState("");
   const openFicha = (clientId, focus = "") => {
     setOpenFocus(focus);
@@ -92,10 +95,12 @@ export default function ClientWorkspace(props) {
             <SceneTransitionLink href="/admin/meta-diaria" direction="forward" aria-label="Meta Diária" title="Meta Diária" className={SHORTCUT}>
               <Target className="h-5 w-5" aria-hidden="true" />
             </SceneTransitionLink>
-            <Link href="/admin/chat" aria-label={`Chat${badgeCounts.chat ? ` (${badgeCounts.chat} não lidas)` : ""}`} title="Chat" className={SHORTCUT}>
-              <MessageCircle className="h-5 w-5" aria-hidden="true" />
-              <CountBadge count={badgeCounts.chat} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.chat} mensagens não lidas`} />
-            </Link>
+            {chatHidden ? null : (
+              <Link href="/admin/chat" aria-label={`Chat${badgeCounts.chat ? ` (${badgeCounts.chat} não lidas)` : ""}`} title="Chat" className={SHORTCUT}>
+                <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                <CountBadge count={badgeCounts.chat} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.chat} mensagens não lidas`} />
+              </Link>
+            )}
             <Link href="/admin/calendario" aria-label={`Agenda${badgeCounts.agenda ? ` (${badgeCounts.agenda} pendentes)` : ""}`} title="Agenda" className={SHORTCUT}>
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />

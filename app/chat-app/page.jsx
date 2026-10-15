@@ -8,6 +8,8 @@ import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { isChatDisabled, isChatRestrictedProfile } from "@/lib/chat-control";
 import { isArchivedChatViewer } from "@/lib/whatsapp-chat-scope.mjs";
 import { isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
+import { PRINTED_LIST_CHAT_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
+import { isPrintedListModeAuth } from "@/lib/whatsapp-manual-disconnect";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,10 @@ export default async function ChatAppPage({ searchParams }) {
   if (!auth.ok) redirect(`/admin/login${auth.status === 403 ? "?error=unauthorized&" : "?"}next=/chat-app`);
   if (isEffectivelyBlocked(auth.profile)) {
     return <ChatAppNotice title="Chat indisponível" text="O acesso ao WhatsApp está bloqueado para esta conta." />;
+  }
+  // Modo lista impressa (PRO-15, 2026-10-15): WhatsApp desconectado (não banido/restrito) = sem Chat até reconectar.
+  if (await isPrintedListModeAuth(auth)) {
+    return <ChatAppNotice title="Modo lista impressa" text={PRINTED_LIST_CHAT_MESSAGE} />;
   }
   if (isChatRestrictedProfile(auth.profile) && (await isChatDisabled())) {
     return <ChatAppNotice title="Chat temporariamente desativado" text="Por enquanto, envie e responda as mensagens dos clientes pelo WhatsApp do seu celular. Avisaremos quando o Chat voltar." />;

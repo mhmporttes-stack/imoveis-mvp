@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request, { params }) {
   const auth = await requireAdminApi(request);
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  // `code` (ex.: WHATSAPP_PRINTED_LIST_MODE, PRO-15) deixa a tela de simulação seguir para o WhatsApp do celular/Web.
+  if (!auth.ok) return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
 
   try {
     const body = await request.json().catch(() => ({}));

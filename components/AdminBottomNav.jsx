@@ -61,7 +61,7 @@ function isEditableTarget(target) {
 
 // `currentPath` só existe para a vitrine de desenvolvimento simular a rota;
 // no painel o caminho vem do roteador.
-export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, currentPath = "" }) {
+export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden = false, currentPath = "" }) {
   const routerPath = usePathname() || "";
   const pathname = currentPath || routerPath;
   const counts = useCrmBadgeCounts();
@@ -69,9 +69,10 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const [typing, setTyping] = useState(false);
   const navRef = useRef(null);
   const resyncRef = useRef(() => {});
-  const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked };
+  const flags = { isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, chatHidden };
   // Acesso WhatsApp bloqueado (2026-10-04): Chat e Meta Diária do corretor NÃO são renderizados (nada de botão cinza).
-  const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
+  // Modo lista impressa (PRO-15, 2026-10-15): `chatHidden` tira só o Chat.
+  const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
   const destinations = destinationsFor(flags).filter((item) => !hiddenKeys.has(item.key));
   const activeKey = destinations.find((item) => item.match(pathname))?.key || "";
 
@@ -314,7 +315,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
-  ].filter((item) => item.count > 0 && !(flags.whatsappBlocked && item.label === "Chat"));
+  ].filter((item) => item.count > 0 && !((flags.whatsappBlocked || flags.chatHidden) && item.label === "Chat"));
 
   return (
     <div className="space-y-3.5">

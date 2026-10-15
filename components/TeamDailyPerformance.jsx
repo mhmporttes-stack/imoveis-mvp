@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
-import { X, History, ListRestart } from "lucide-react";
+import { X, History, ListRestart, Printer } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
 import { formatAutoQueueCardLine, formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
+import { PRINTED_LIST_MODE_LABEL } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 import Avatar from "@/components/Avatar";
 import { RestrictionValidationActions, useTeamRestrictions, WhatsappStateChip } from "@/components/WhatsappStateChip";
 import IntegrationStatusIcon, { googleContactsTone } from "@/components/IntegrationStatusIcon";
@@ -391,6 +392,12 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           <div data-card-badges className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
             <WhatsappStateChip small sessionStatus={automation.sessionStatus} restriction={restriction} />
+            {/* PRO-15 (dono, 2026-10-15): desconectado sem ban/restrição — a gestão gera a lista impressa deste corretor. */}
+            {automation.printedListMode && !restriction ? (
+              <span title="WhatsApp desconectado (não é banimento nem restrição): sem Chat e sem Prospecção pelo CRM. Gere a lista impressa dele em Prospecção › Imprimir lista." className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800 ring-1 ring-amber-300">
+                <Printer aria-hidden="true" className="h-2.5 w-2.5" />{PRINTED_LIST_MODE_LABEL}
+              </span>
+            ) : null}
           </div>
           <div data-card-icons className="mt-1.5 flex items-center gap-2">
             <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappCardIconTone({ silent: automation.sessionSilent === true, sessionStatus: automation.sessionStatus, openRestriction: restriction ? { validation_status: restriction.validationStatus } : null })} label={`WhatsApp: ${automation.sessionSilent ? "Conectado, mas sem receber" : sessionInfo.label}`} />

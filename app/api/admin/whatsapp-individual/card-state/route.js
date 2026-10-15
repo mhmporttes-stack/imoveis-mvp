@@ -3,6 +3,7 @@ import { requireAdminApi } from "@/lib/admin-auth";
 import { getIndividualSessionStatusForUser } from "@/lib/whatsapp-individual";
 import { getOpenRestriction } from "@/lib/whatsapp-restriction";
 import { isChatDisabled } from "@/lib/chat-control";
+import { isPrintedListModeAuth } from "@/lib/whatsapp-manual-disconnect";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +21,9 @@ export async function GET(request) {
   try {
     // Botão do card (dono, 2026-10-09): só sai do CRM quando o WhatsApp do corretor está desconectado — ou quando o Chat
     // inteiro está desligado. O Chat híbrido (envio pessoal desligado) NÃO manda mais para o WhatsApp Web/app.
-    const [sessionStatus, open, chatDisabled] = await Promise.all([getIndividualSessionStatusForUser(userId), getOpenRestriction(userId), isChatDisabled()]);
-    return NextResponse.json({ userId, sessionStatus: sessionStatus || null, restricted: Boolean(open) && sessionStatus !== "connected", chatDisabled });
+    // printedListMode (PRO-15, 2026-10-15): WhatsApp desconectado (não banido/restrito) = sem Chat; o card abre fora.
+    const [sessionStatus, open, printedListMode, chatDisabled] = await Promise.all([getIndividualSessionStatusForUser(userId), getOpenRestriction(userId), isPrintedListModeAuth(auth), isChatDisabled()]);
+    return NextResponse.json({ userId, sessionStatus: sessionStatus || null, restricted: Boolean(open) && sessionStatus !== "connected", chatDisabled, printedListMode });
   } catch (error) {
     console.error("Falha ao ler o estado do WhatsApp para o card:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível ler o estado." }, { status: 500 });

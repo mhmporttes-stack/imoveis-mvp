@@ -6,6 +6,8 @@ import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { listAdminProfiles } from "@/lib/admin-profiles";
 import { listProspectingContacts } from "@/lib/prospecting";
 import { getProspectingGate } from "@/lib/prospecting-eligibility";
+import { isPrintedListModeAuth } from "@/lib/whatsapp-manual-disconnect";
+import { PRINTED_LIST_MODE_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +17,11 @@ export default async function ProspectingPage() {
   // rotas também barram no servidor). Administrador geral e gestor mantêm a supervisão.
   const gate = await getProspectingGate(auth, "access");
   if (!gate.allowed) {
+    // Modo lista impressa (PRO-15, 2026-10-15): desconectado sem ban/restrição — a lista é feita pela gestão.
+    const message = (await isPrintedListModeAuth(auth)) ? PRINTED_LIST_MODE_MESSAGE : gate.message;
     return <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="prospecting" />
-      <ProspectingConnectGate message={gate.message} />
+      <ProspectingConnectGate message={message} />
     </main>;
   }
   const isAdmin = isGeneralAdminAuth(auth);

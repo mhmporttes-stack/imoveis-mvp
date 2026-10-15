@@ -9,6 +9,7 @@ import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
 import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
+import { PRINTED_LIST_MODE_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 
 // Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
 // tela continua usando a identidade azul/navy padrão do CRM. A cor do anel e
@@ -189,7 +190,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
 
       {goal.prospectingBlocked ? (
         <p role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-          <span>Conecte seu WhatsApp para receber novos clientes de Prospecção e executar a Meta Diária.</span>
+          <span>{goal.printedListMode ? PRINTED_LIST_MODE_MESSAGE : "Conecte seu WhatsApp para receber novos clientes de Prospecção e executar a Meta Diária."}</span>
           <button type="button" className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-black text-white" onClick={() => window.dispatchEvent(new CustomEvent("crm:open-whatsapp-connect"))}>Conectar WhatsApp</button>
         </p>
       ) : null}
