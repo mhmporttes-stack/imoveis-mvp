@@ -4,6 +4,11 @@ Capa só com a foto da cozinha planejada (pedido do dono, só neste post). Códi
 
 Dados enviados pelo dono: Rua João Batista Raphael, 807 – Palmital (próximo ao Preço Certo); terreno 5,5 x 30 m (165 m²); 2 dormitórios; sala integrada; cozinha com planejados; área gourmet; pé-direito alto; estuda imóvel ou carro como parte da entrada.
 
+
+## Site / CRM
+
+Fotos já no armazenamento (`property-media/cod4354-palmital/`, 10 lâminas na ordem, enviadas em 2026-10-15). **Falta criar o imóvel em `properties`** (publicado, `code`=4354, sem valor até o dono mandar): a conexão do banco estava fora do ar.
+
 ## Legenda
 
 Casa nova à venda no Palmital, Zona Norte de Marília 🏡
