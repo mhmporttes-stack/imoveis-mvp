@@ -432,8 +432,10 @@ const OFFICE_TIME = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Pa
 const OFFICE_UNTIL = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" });
 
 function OfficeButton({ office, open, onClick }) {
-  const label = office.active ? "Veio à imobiliária" : "Não veio à imobiliária";
-  const tone = office.active ? "text-emerald-600" : "text-slate-400";
+  // Três estados (dono, 2026-10-15): verde cheio = no Wi-Fi da imobiliária agora; contorno verde = veio hoje (ou foi
+  // liberado) e segue na roleta até 9h, mas não está lá agora; cinza = não veio. Só visual: a roleta usa office.active.
+  const label = office.here ? "Na imobiliária agora" : office.active ? "Veio hoje, não está na imobiliária agora (segue na roleta)" : "Não veio à imobiliária";
+  const tone = office.here ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600" : office.active ? "border-emerald-500 bg-white text-emerald-600 hover:border-emerald-600" : "border-navy/10 bg-mist text-slate-400 hover:border-brand";
   return (
     <button
       type="button"
@@ -441,7 +443,7 @@ function OfficeButton({ office, open, onClick }) {
       aria-expanded={open}
       title={label}
       aria-label={`${label}. Ver detalhes`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : `border-navy/10 bg-mist hover:border-brand ${tone}`}`}
+      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : tone}`}
     >
       <Building2 size={15} strokeWidth={2.4} aria-hidden="true" />
     </button>
@@ -478,6 +480,9 @@ function OfficeDetail({ member, onReleased }) {
         <p className="font-semibold text-navy">
           {office.firstSeenAt ? `Chegou às ${OFFICE_TIME.format(new Date(office.firstSeenAt))}, ${how}. ` : ""}
           Na roleta até {OFFICE_UNTIL.format(new Date(office.validUntil))}.
+          <span className={`mt-0.5 block text-xs ${office.here ? "text-emerald-700" : "text-slate-500"}`}>
+            {office.here ? "Está no Wi-Fi da imobiliária agora." : office.lastWifiSeenAt ? `Não está na imobiliária agora (último sinal no Wi-Fi às ${OFFICE_TIME.format(new Date(office.lastWifiSeenAt))}).` : "Não está no Wi-Fi da imobiliária agora."}
+          </span>
         </p>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">

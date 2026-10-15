@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Painel Online: prédio verde só "na imobiliária agora"
+
+- **Pedido do dono:** às 6h todos apareciam verdes (chegaram ontem; a chegada vale até 9h). Agora: verde cheio = no Wi-Fi da imobiliária nos últimos 10 min; contorno verde = apto na roleta até 9h, mas fora agora; cinza = não veio. Roleta inalterada.
+- **Onde:** migration `20261015090000_presenca_imobiliaria_agora.sql` (aplicada: coluna `last_wifi_seen_at`, `register_office_checkin` renova no conflito quando Wi-Fi), `lib/office-presence.js` (heartbeat no Wi-Fi renova a cada 2 min por instância, antes 1x/dia), `officeStatus.here` em `lib/office-presence-core.mjs`, `components/OnlinePresenceBoard.jsx`.
+
 ### 2026-10-14 — Motivo obrigatório ao arquivar ou "Não contactar" (FUN-14)
 
 - **Regra do dono:** "obrigatório todo cliente ao ser arquivado ou ser colocado em não contactar deve ter um motivo — quando o corretor tentar alterar abre uma janela obrigatória para o corretor escrever." Vale para todos os perfis; automação sem usuário (opt-out do WhatsApp, regras do cron) não é travada.

@@ -35,3 +35,18 @@ test("regra desligada não tira ninguém da roleta", () => {
   assert.equal(officeStatus({ ruleEnabled: true, validUntil: "2026-10-14T12:00:00.000Z", nowMs: sp("2026-10-14T08:59:00") }).eligible, true);
   assert.equal(officeStatus({ ruleEnabled: true, validUntil: "2026-10-14T12:00:00.000Z", nowMs: sp("2026-10-14T09:00:00") }).eligible, false);
 });
+
+test("'na imobiliária agora' (2026-10-15): Wi-Fi nos últimos 10 min; não muda a elegibilidade da roleta", () => {
+  const now = Date.parse("2026-10-15T13:00:00.000Z");
+  const validUntil = "2026-10-16T12:00:00.000Z";
+  const here = officeStatus({ ruleEnabled: true, validUntil, lastWifiSeenAt: "2026-10-15T12:52:00.000Z", nowMs: now });
+  assert.equal(here.here, true);
+  assert.equal(here.eligible, true);
+  const left = officeStatus({ ruleEnabled: true, validUntil, lastWifiSeenAt: "2026-10-15T12:45:00.000Z", nowMs: now });
+  assert.equal(left.here, false);
+  assert.equal(left.active, true);
+  assert.equal(left.eligible, true);
+  const released = officeStatus({ ruleEnabled: true, validUntil, lastWifiSeenAt: null, nowMs: now });
+  assert.equal(released.here, false);
+  assert.equal(released.eligible, true);
+});
