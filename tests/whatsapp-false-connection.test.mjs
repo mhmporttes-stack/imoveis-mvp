@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  AUTO_DISCONNECT_GRACE_MS, autoDisconnectKey, brokerDedupeKey, brokerKeyPrefix, buildAutoDisconnectDelivery, businessHoursBetween, buildFalseConnectionDeliveries, shouldAutoDisconnect, classifyFalseConnection, isSessionImpaired, sessionUiState, staffDedupeKey
+  AUTO_DISCONNECT_GRACE_MS, buildDuplicateNumberDelivery, findDuplicateNumberSessions, autoDisconnectKey, brokerDedupeKey, brokerKeyPrefix, buildAutoDisconnectDelivery, businessHoursBetween, buildFalseConnectionDeliveries, shouldAutoDisconnect, classifyFalseConnection, isSessionImpaired, sessionUiState, staffDedupeKey
 } from "../lib/whatsapp-false-connection-core.mjs";
 
 // Marília = UTC-3. 2026-10-12 é segunda-feira.
@@ -109,4 +109,27 @@ test("aviso da desconexão automática: chave própria (não é encerrada pela l
   assert.match(row.body, /^Seu WhatsApp \(Número 2\) aparecia como conectado/);
   assert.equal(row.context.push_kind, "whatsapp_connection");
   assert.equal(buildAutoDisconnectDelivery({ definition: { enabled: false }, brokerId: "U", dedupeKey: key }), null);
+});
+
+test("mesma conta nos dois números do corretor: fica o de menor ordem, só entre conectados e do MESMO corretor", () => {
+  const rows = [
+    { user_id: "K", slot: 1, status: "connected", phone_number: "5514998822934" },
+    { user_id: "K", slot: 2, status: "connected", phone_number: "5514998822934" },
+    { user_id: "B", slot: 1, status: "connected", phone_number: "5514998822934" },
+    { user_id: "C", slot: 1, status: "connected", phone_number: "5514911111111" },
+    { user_id: "C", slot: 2, status: "connected", phone_number: "5514922222222" },
+    { user_id: "D", slot: 1, status: "connected", phone_number: "5514933333333" },
+    { user_id: "D", slot: 2, status: "disconnected", phone_number: "5514933333333" },
+    { user_id: "E", slot: 1, status: "connected", phone_number: null },
+    { user_id: "E", slot: 2, status: "connected", phone_number: "" }
+  ];
+  const extra = findDuplicateNumberSessions(rows);
+  assert.equal(extra.length, 1);
+  assert.equal(extra[0].user_id, "K");
+  assert.equal(extra[0].slot, 2);
+  assert.deepEqual(findDuplicateNumberSessions([]), []);
+  const notice = buildDuplicateNumberDelivery({ brokerId: "K", keepSlot: 1, slot: 2, dedupeKey: "wa_dup:K#2:x" });
+  assert.match(notice.body, /Número 2 é o mesmo do Número 1/);
+  assert.equal(notice.context.push_kind, "whatsapp_connection");
+  assert.equal(buildDuplicateNumberDelivery({ slot: 2, dedupeKey: "k" }), null);
 });

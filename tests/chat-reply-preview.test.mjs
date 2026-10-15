@@ -20,7 +20,7 @@ test("trecho da mensagem citada: texto (até 160), legenda ou rótulo da mídia;
 test("servidor resolve a original fora da página e guarda o trecho enviado pelo WhatsApp", () => {
   const chat = read("lib/whatsapp-chat.js");
   assert.match(chat, /async function loadReplyTargets\(conversationId, rows\)/);
-  assert.match(chat, /\.eq\("conversation_id", conversationId\)\.in\("metadata->>wa_message_id", missing\)/, "só a mesma conversa");
+  assert.match(chat, /\.in\("conversation_id", scopeIds\)\.in\("metadata->>wa_message_id", missing\)/, "mesma conversa e a conversa irmã (mesmo corretor e contato)");
   assert.match(chat, /replyPreview: replyPreviewFor\(row, replyTargets\),/);
   assert.match(read("lib/whatsapp-individual-inbound.js"), /metadata\.reply_to_preview = preview/);
   assert.match(read("app/api/webhooks/whatsapp-individual/route.js"), /quotedText: payload\.quotedText,/);

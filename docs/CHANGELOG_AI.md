@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Mesma conta ligada nos dois números do corretor: desconecta o duplicado e acha a original nas citações
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp / Chat
+- **Causa achada:** a Ketlin ligou o MESMO WhatsApp (14 99882-2934) no Número 1 e no Número 2 ("trabalho"). Cada mensagem chega em uma das duas sessões, então o cliente fala numa conversa e a equipe responde na outra (33 conversas duplicadas), e as respostas citadas perdiam a original ("Mensagem original indisponível", inclusive nas recentes).
+- **Alteração:** (1) detector (cron `whatsapp-flows`): conta ligada duas vezes pelo mesmo corretor → mantém o número de menor ordem, desconecta o outro (marca `last_error=same_number_other_slot` antes, sem aviso duplicado ao dono) e avisa o corretor (Importante + push) para conectar um chip diferente; (2) a busca da original da citação (`loadReplyTargets`) passa a olhar também a conversa irmã (mesmo corretor e contato, outro número), o que corrige já as 33 conversas existentes.
+- **Arquivos afetados:** `lib/whatsapp-false-connection-core.mjs` (`findDuplicateNumberSessions`, `buildDuplicateNumberDelivery`), `lib/whatsapp-false-connection.js`, `lib/whatsapp-connection-alert-core.mjs`, `lib/whatsapp-chat.js`, testes `tests/whatsapp-false-connection.test.mjs` e `tests/chat-reply-preview.test.mjs`.
+- **Risco/observação:** só trata o MESMO corretor com o mesmo telefone em dois números; telefone igual em corretores diferentes não é tocado. As conversas já duplicadas continuam duplicadas (não foram mescladas); novas mensagens passam a cair numa conversa só. Testes não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — Chat: "Em resposta a" mostra o trecho da mensagem citada
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
