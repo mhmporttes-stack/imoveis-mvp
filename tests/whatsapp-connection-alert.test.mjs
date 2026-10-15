@@ -179,3 +179,31 @@ test("definição desligada ou campos faltando: nenhuma entrega montada", () => 
   assert.equal(buildConnectionDelivery({ ...base, definition, action: "x" }), null);
   assert.equal(buildConnectionDelivery({ ...base, definition }).kind, "informative");
 });
+
+import { OWNER_AUTO_DISCONNECT_ERROR, buildOwnerDisconnectDeliveries, decideOwnerDisconnectAlert, ownerDedupeKey, resolveOwnerRecipients } from "../lib/whatsapp-connection-alert-core.mjs";
+
+test("aviso ao dono: logout x desconexão pelo CRM, sem alerta para o que já estava fora do ar, automático ou QR expirado", () => {
+  const prev = { status: "connected", last_connected_at: T0 };
+  const logout = decideOwnerDisconnectAlert({ userId: "A", prev, nextStatus: "disconnected", error: "logged_out", now });
+  assert.equal(logout.cause, "logout");
+  assert.equal(logout.dedupeKey, ownerDedupeKey("A", T0));
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev, nextStatus: "disconnected", error: "", now }).cause, "manual");
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev: { ...prev, status: "disconnected" }, nextStatus: "disconnected", error: "logged_out", now }), null);
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev: { ...prev, last_error: OWNER_AUTO_DISCONNECT_ERROR }, nextStatus: "disconnected", error: "", now }), null);
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev, nextStatus: "disconnected", error: "qr_expired", now }), null);
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev, nextStatus: "disconnected", error: "logged_out", now, recentAt: new Date(now - 60_000).toISOString() }), null);
+  assert.equal(decideOwnerDisconnectAlert({ userId: "A", prev: { status: "connected" }, nextStatus: "disconnected", error: "logged_out", now }), null);
+});
+
+test("aviso ao dono: só administradores ativos, texto diz que logout não é restrição", () => {
+  assert.deepEqual(resolveOwnerRecipients(users, "A"), ["G"]);
+  const decision = { dedupeKey: "k", episode: T0, cause: "logout" };
+  const rows = buildOwnerDisconnectDeliveries({ recipientIds: ["G", "G", "A"], brokerId: "A", brokerName: "Ana Souza", slot: 2, decision });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].recipient_id, "G");
+  assert.match(rows[0].body, /Ana Souza/);
+  assert.match(rows[0].body, /\(Número 2\)/);
+  assert.match(rows[0].body, /Isso não é restrição/);
+  assert.equal(rows[0].context.push_kind, "whatsapp_connection");
+  assert.match(buildOwnerDisconnectDeliveries({ recipientIds: ["G"], brokerId: "A", brokerName: "Ana", decision: { ...decision, cause: "manual" } })[0].body, /pelo próprio corretor/);
+});

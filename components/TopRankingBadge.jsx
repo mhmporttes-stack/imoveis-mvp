@@ -23,7 +23,7 @@ const REFRESH_MS = 5 * 60 * 1000;
 // Celular (pedido do dono, 2026-10-12): os dois cards lado a lado, metade da
 // largura cada, compactos (rótulo em cima, foto de 42px, nome em 1 linha,
 // pontos). Desktop (lg): como antes — foto grande à esquerda e texto ao lado.
-const INDICATOR_POSITION = "absolute right-1.5 top-1 z-20 max-lg:[&>span>button]:h-7 max-lg:[&>span>button]:w-7 lg:right-3";
+const INDICATOR_POSITION = "absolute right-1.5 top-1 z-20 flex items-center gap-1 max-lg:[&>span>button]:h-7 max-lg:[&>span>button]:w-7 lg:right-3";
 // Desktop: no Campeão da Semana o indicador fica logo abaixo do título; no Melhor do Dia, no topo.
 const WEEKLY_TOP = "lg:top-[1.625rem]";
 const DAILY_TOP = "lg:top-2";
@@ -108,7 +108,7 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
       </div>
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${DAILY_CARD} ${CARD_GRID}`}>
-          <span className={`${LABEL} text-[#2370BC]`}>🥇 Melhor do Dia</span>
+          <span className={`${LABEL} text-[#2370BC] max-lg:!pr-[4.25rem] lg:!pr-[6.5rem]`}>🥇 Melhor do Dia</span>
           {daily ? (
             <>
               <span className={PHOTO}><Avatar name={daily.name} photoUrl={daily.photoUrl} size={58} className={PHOTO_DAILY} /></span>

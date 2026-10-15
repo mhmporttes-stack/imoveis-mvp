@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Botão de sino no cabeçalho com o histórico de notificações
+
+- **Data:** 2026-10-14 · **Área:** Alertas / Interface
+- **Alteração:** botão pequeno só com o ícone de sino, ao lado do ícone do Google Contacts no card "Melhor do Dia" (cabeçalho de todas as telas do painel). Abre uma lista com as notificações da Central de Alertas do PRÓPRIO usuário dos últimos 30 dias (lidas e não lidas, mais recentes primeiro), com horário relativo, tipo (Importante/Informativo) e clique que leva à tela do alerta. Bolinha vermelha quando há alguma sem "Entendi". Somente leitura. Fora de "Alterar conta".
+- **Motivo:** pedido do dono: ter o histórico das notificações à mão.
+- **Arquivos afetados:** `components/alerts/NotificationHistoryButton.jsx`, `app/api/admin/alerts/history/route.js`, `lib/crm-alerts.js` (`listMyAlertHistory`), `app/admin/layout.jsx`, `components/TopRankingBadge.jsx`.
+- **Risco/observação:** a rota devolve só id, tipo, título, texto, horário, se foi confirmada e o link seguro do próprio destinatário. Atualiza a cada 2 min com a aba visível e ao abrir. No celular o rótulo "Melhor do Dia" ganhou mais respiro à direita para não encostar nos dois ícones. Não conferi visualmente no navegador (precisa de login); conferir no celular.
+- **Autor:** Claude (sessão de operação do dono)
+
+### 2026-10-14 — Aviso ao dono quando o corretor desconecta (e a diferença para "possível restrição")
+
+- **Data:** 2026-10-14 · **Área:** WhatsApp / Alertas
+- **Alteração:** os administradores gerais (o dono) passam a receber alerta Importante + push quando o WhatsApp de um corretor desconecta, com a causa: **logout 401** ("aparelho removido no celular ou sessão encerrada pelo WhatsApp — não é restrição") ou **desconectado pelo próprio corretor no CRM**. **Restrição**: o alerta de atenção para 403/forbidden agora tem título "Possível restrição do WhatsApp", texto próprio ("não é uma desconexão comum") e push. Desconexão automática por "sem receber" não gera este aviso (tem o próprio). Some sozinho quando o número reconecta. Corretor inativo não gera aviso.
+- **Motivo:** pedido do dono: saber na hora quando um corretor cai e distinguir de restrição da conta.
+- **Arquivos afetados:** `lib/whatsapp-connection-alert-core.mjs` (`decideOwnerDisconnectAlert`, `buildOwnerDisconnectDeliveries`), `lib/whatsapp-connection-alert.js` (`notifyOwnerDisconnect`), `lib/whatsapp-individual.js` (chamada em `applyIndividualSessionStatus`), `lib/whatsapp-session-attention-core.mjs`, `lib/whatsapp-false-connection.js`, testes em `tests/whatsapp-connection-alert.test.mjs` e `tests/whatsapp-session-attention.test.mjs`.
+- **Risco/observação:** o sistema só identifica restrição pelo código 403 (WhatsApp recusou a conexão) ou pela restrição informada no cartão; um banimento que apareça como 401 não é distinguido de desconexão comum. Sem migration (alerta sem definição editável na Central; sempre ligado). Testes escritos, não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-14 — Telemetria: motivo do logout (401) do WhatsApp individual
 
 - **Data:** 2026-10-14 · **Área:** WhatsApp / Infra (microsserviço Railway)

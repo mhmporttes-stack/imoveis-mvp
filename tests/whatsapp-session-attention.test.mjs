@@ -178,7 +178,7 @@ test("entrega: tipo da definição, clique para rota real e segura, contexto sem
     assert.equal(row.kind, "important");
     assert.equal(row.context.link, ATTENTION_LINK);
     assert.equal(alertLink(row.context), "/admin/meta-diaria");
-    assert.deepEqual(Object.keys(row.context).sort(), ["broker_id", "link", "occurred_at", "reason", "source", "state"]);
+    assert.deepEqual(Object.keys(row.context).sort(), ["broker_id", "link", "occurred_at", "push_kind", "reason", "source", "state"]); // forbidden = possível restrição: com push
     assert.equal(JSON.stringify(row).match(/\d{10,}/), null);
   }
   assert.equal(buildAttentionDeliveries({ definition: { ...definition, enabled: false }, recipientIds: ["G"], brokerId: "A", classification: { state: "needs_attention", reason: "forbidden" }, dedupeKey: "k" }).length, 0);
