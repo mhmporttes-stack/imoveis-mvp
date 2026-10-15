@@ -384,3 +384,12 @@ test("histórico: login das sessões já pareadas nunca usa syncFullHistory; par
   assert.match(sessions, /browser: fullHistory\n\s*\? \["CRM Imoveis", "Desktop", "1\.0"\]/);
   assert.doesNotMatch(sessions, /syncFullHistory: HISTORY_SYNC_ENABLED/);
 });
+
+test("summarizeDisconnectData: só tags/códigos curtos, nunca texto livre", async () => {
+  const { summarizeDisconnectData } = await import("../whatsapp-individual-service/src/reconnect-policy.js");
+  assert.equal(summarizeDisconnectData({ tag: "stream:error", attrs: {}, content: [{ tag: "conflict", attrs: { type: "device_removed" } }] }), "stream:error.conflict.device_removed");
+  assert.equal(summarizeDisconnectData({ reason: "401", location: "frc" }), "401.frc");
+  assert.equal(summarizeDisconnectData(null), "");
+  assert.equal(summarizeDisconnectData("texto livre 5514999999999"), "");
+  assert.ok(summarizeDisconnectData({ reason: "x".repeat(300), location: "y".repeat(300) }).length <= 40);
+});

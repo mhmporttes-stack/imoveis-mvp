@@ -1,4 +1,4 @@
-import { ACTION, isPairedCreds } from "./reconnect-policy.js";
+import { ACTION, isPairedCreds, summarizeDisconnectData } from "./reconnect-policy.js";
 
 // O que fazer quando o socket de uma sessão FECHA, dado o veredito da política
 // de reconexão (reconnect-policy.js). Separado de sessions.js (que importa o
@@ -28,7 +28,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
     entry.pairingError = null;
   };
 
-  return async function handleClose({ sock, statusCode, errorMessage = "", payload }) {
+  return async function handleClose({ sock, statusCode, errorMessage = "", payload, errorData }) {
     entry.sock = null;
     // Serviço encerrando (SIGTERM): o fechamento do socket é nosso — não é queda, não grava estado, não agenda nada.
     if (isShuttingDown()) {
@@ -37,7 +37,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
     }
     // Sem socket (falha ao iniciar) não há como saber: não trata como "não pareada".
     const unpaired = Boolean(sock) && !isPairedCreds(sock?.authState?.creds);
-    const decision = controller.onClose({ statusCode, unpaired, message: errorMessage });
+    const decision = controller.onClose({ statusCode, unpaired, message: errorMessage, detail: summarizeDisconnectData(errorData) });
     const message = String(errorMessage || "").slice(0, 300);
 
     if (decision.action === ACTION.LOGOUT) {

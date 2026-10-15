@@ -301,7 +301,7 @@ export function createReconnectController({
 
     // Queda da conexão. `unpaired` = sessão que nunca foi pareada (aguardando QR).
     // -> { action, delayMs?, nextAttempt?, code?, reason?, message?, kind }
-    onClose({ statusCode, unpaired = false, message = "" } = {}) {
+    onClose({ statusCode, unpaired = false, message = "", detail = "" } = {}) {
       clearStable();
       const connectedMs = state.openedAt ? now() - state.openedAt : null;
       state.openedAt = null;
@@ -314,7 +314,7 @@ export function createReconnectController({
         state.attempt = 1;
         emit("cycle_start", { trigger: "drop" });
       }
-      emit("disconnected", { statusCode: verdict.code, reason: verdict.reason, kind: verdict.kind, connectedMs });
+      emit("disconnected", { statusCode: verdict.code, reason: verdict.reason, kind: verdict.kind, connectedMs, ...(detail ? { detail } : {}) });
 
       if (verdict.kind === KIND.LOGOUT) {
         endCycle("logout");
@@ -402,4 +402,22 @@ export const RESUME_SPACING_MS = 5000;
 export const RESUME_JITTER_MS = 3000;
 export function resumeSpacingMs(random = Math.random) {
   return RESUME_SPACING_MS + Math.floor(random() * RESUME_JITTER_MS);
+}
+
+// Resumo SEGURO do motivo que o WhatsApp mandou junto com a queda (Boom.data do Baileys): só tags/códigos curtos
+// (ex.: "stream:error.conflict.device_removed", "401.frc"), nunca texto livre nem número de telefone. Vai para a
+// telemetria (`detail`, 40 caracteres) e serve para descobrir POR QUE o WhatsApp derruba a sessão (2026-10-14).
+export function summarizeDisconnectData(data) {
+  try {
+    if (!data || typeof data !== "object") return "";
+    const attrs = data.attrs && typeof data.attrs === "object" ? data.attrs : data;
+    const child = Array.isArray(data.content) ? data.content.find((item) => item && typeof item === "object" && typeof item.tag === "string") : null;
+    const parts = [data.tag, child?.tag, child?.attrs?.type, attrs.reason, attrs.type, attrs.location, attrs.code]
+      .filter((value) => value !== undefined && value !== null && value !== "" && typeof value !== "object")
+      .map((value) => String(value).replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 16))
+      .filter(Boolean);
+    return [...new Set(parts)].join(".").slice(0, 40);
+  } catch {
+    return "";
+  }
 }
