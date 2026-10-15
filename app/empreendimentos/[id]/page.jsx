@@ -24,23 +24,23 @@ export default async function PropertyPage({ params }) {
 
   return (
     <main className="pb-24">
-      <section className="container-wide grid gap-8 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
+      <section className="container-wide grid gap-8 py-12 lg:grid-cols-2 lg:items-stretch">
         <PropertyImageCarousel photos={photos} propertyName={property.name} />
-        <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-8 shadow-soft md:p-12">
+        <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-6 shadow-soft md:p-8">
           {/* Título quebra em linhas e cabe no quadro (dono, 2026-10-15: "diminua o título para caber"). */}
           <h1 className="w-full text-balance break-words text-[clamp(1.75rem,3.2vw,2.75rem)] font-black leading-tight text-navy">
             {property.name}
           </h1>
-          {property.salesText ? <p className="mt-6 text-xl leading-9 text-muted">{property.salesText}</p> : null}
+          {property.salesText ? <p className="mt-4 text-base leading-7 text-muted">{property.salesText}</p> : null}
           {property.price ? (
-            <div className="mt-8 rounded-3xl bg-mist p-6">
+            <div className="mt-6 rounded-3xl bg-mist p-5">
               <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">Preço inicial</p>
               <strong className="mt-2 block text-3xl font-black text-navy">A partir de {property.price}</strong>
             </div>
           ) : (
             // Sem valor no site (dono, 2026-10-15): o quadro vira o botão "Valor", que abre o WhatsApp oficial.
             <a
-              className="mt-8 flex items-center justify-between gap-4 rounded-3xl bg-navy p-6 text-white shadow-soft transition hover:opacity-95"
+              className="mt-6 flex items-center justify-between gap-4 rounded-3xl bg-navy px-6 py-5 text-white shadow-soft transition hover:opacity-95"
               target="_blank"
               rel="noopener noreferrer"
               href={officialWhatsappUrl(`Olá! Quero saber o valor do imóvel ${property.name}.`)}
@@ -49,7 +49,7 @@ export default async function PropertyPage({ params }) {
               <span className="inline-flex items-center gap-2 text-sm font-bold"><MessageCircle className="h-5 w-5" aria-hidden="true" />Consultar no WhatsApp</span>
             </a>
           )}
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero agendar uma visita no ${property.name}.`)}>Agendar visita</a>
             <Link className="premium-button-secondary" href="/simulacao">Simular financiamento</Link>
             <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property)}>Conversar no WhatsApp</a>
