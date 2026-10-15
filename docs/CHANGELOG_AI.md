@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Código do imóvel (chip "COD4352" na lista do painel)
+
+- **Data:** 2026-10-15 · **Área:** Banco / Imóveis (painel admin)
+- **Alteração:** coluna nova `properties.code` (text, nullable, único quando preenchido — `properties_code_unique`). Guarda só o código (o formulário aceita "COD4352" e grava "4352"; vazio vira null). A lista de imóveis do `/admin` mostra o chip `COD{code}` junto de "Publicado/Em moderação" e do tipo; o formulário de cadastrar/editar ganhou o campo "Código". Não aparece no site público. Migration preenche os 2 imóveis existentes (4352 e 4353). Código repetido → erro "Já existe outro imóvel com o código COD…".
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `supabase/migrations/20261015120000_properties_code.sql`, `lib/property-mapper.js` (`normalizePropertyCode`), `lib/properties.js` (`writePropertyRecord`: se a coluna `code` não existir no banco, regrava só sem ela; depois o fallback legado de sempre), `components/AdminPropertyList.jsx`, `components/PropertyForm.jsx`, `docs/DATABASE.md`.
+- **Risco/observação:** publicação/visibilidade inalteradas (o "Aprovar e publicar" manda só `isPublished` e `updateProperty` mescla com o registro existente, preservando o código). A lista do painel não tem busca/filtro hoje, então não houve busca a estender. SQLite local (`lib/db.js`) não tem a coluna — código não persiste no modo local (só produção/Supabase). Migration **aplicada em produção em 2026-10-15** (via MCP Supabase); conferido: 4352 e 4353 gravados.
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-14 — Botão de sino no cabeçalho com o histórico de notificações
 
 - **Data:** 2026-10-14 · **Área:** Alertas / Interface
@@ -74,7 +83,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 ### 2026-10-15 — Imóveis (painel): card enxuto + publicar com ou sem valores
 
 - **Pedido do dono:** card sem as etiquetas do topo e sem "Construtora a confirmar"; só foto, nome, local · situação e o valor no canto direito. "Aprovar e publicar" abre uma caixa: **Publicar com valores** / **Publicar sem valores**.
-- **Onde:** `components/AdminPropertyList.jsx`; coluna `properties.hide_price` (migration `20261015120000_properties_hide_price.sql`, aplicada); `lib/property-mapper.js` (`hidePrice`); `lib/public-properties.js` (`stripInternalFields` zera `price`/`installmentEntry` no site quando `hidePrice`; o site mostra "Consulte condições"). O CRM (inclusive a consulta da equipe) continua vendo o valor. Teste: `tests/property-hide-price.test.mjs`.
+- **Onde:** `components/AdminPropertyList.jsx`; coluna `properties.hide_price` (migration `20261015121000_properties_hide_price.sql`, aplicada); `lib/property-mapper.js` (`hidePrice`); `lib/public-properties.js` (`stripInternalFields` zera `price`/`installmentEntry` no site quando `hidePrice`; o site mostra "Consulte condições"). O CRM (inclusive a consulta da equipe) continua vendo o valor. Teste: `tests/property-hide-price.test.mjs`.
 
 ### 2026-10-15 — Menu do corretor: "Imóveis" no lugar de "Cadastrar depoimento"
 

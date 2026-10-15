@@ -58,6 +58,7 @@ export default function AdminPropertyList({ properties }) {
               <div className="min-w-0">
                 <h2 className="text-lg font-extrabold leading-snug text-navy sm:text-xl">{property.name}</h2>
                 <p className="mt-1 text-sm text-muted">
+                  {property.code ? <span className="font-bold text-navy">COD{property.code} · </span> : null}
                   {place ? `${place} · ` : ""}
                   <span className={property.isPublished ? "font-bold text-emerald-700" : "font-bold text-amber-700"}>{situation}</span>
                 </p>

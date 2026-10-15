@@ -32,6 +32,7 @@ const MAX_PHOTOS = 20;
 const MAX_PHOTO_UPLOAD_BYTES = 1_200_000;
 
 const emptyProperty = {
+  code: "",
   name: "",
   builder: "",
   location: "",
@@ -339,6 +340,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
       <section className="grid gap-5 lg:grid-cols-2">
         <Field label="Nome" value={form.name} onChange={(value) => update("name", value)} required />
         <Field label="Construtora" value={form.builder} onChange={(value) => update("builder", value)} />
+        <Field label="Código" value={form.code} onChange={(value) => update("code", value)} placeholder="Ex.: 4352 (aparece como COD4352)" />
         <label className="grid gap-2 font-extrabold text-ink">
           Região
           <select className="rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={normalizeRegionValue(form.region)} onChange={(event) => update("region", event.target.value)}>
