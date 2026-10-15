@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { ensureDailyBackup } from "@/lib/backup";
 import { requireFinancialManagerApi } from "@/lib/admin-auth";
 import { canManageProperties, deleteProperty, updateProperty } from "@/lib/properties";
@@ -33,6 +34,14 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Empreendimento não encontrado." }, { status: 404 });
     }
     await ensureDailyBackup();
+    // Site atualiza na hora ao publicar/editar (dono, 2026-10-15: "aprovei e não vi no site" — a página guardava
+    // a lista por até 60 s). Falha aqui nunca derruba o salvamento.
+    try {
+      revalidatePath("/");
+      revalidatePath(`/empreendimentos/${id}`);
+    } catch (revalidateError) {
+      console.warn("Não foi possível atualizar o cache do site:", revalidateError?.message || revalidateError);
+    }
     return NextResponse.json(property);
   } catch (error) {
     console.error(error);
