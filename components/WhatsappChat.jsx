@@ -570,6 +570,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         window.history.replaceState(null, "", window.location.pathname); // /admin/chat ou /chat-app (app da tela inicial)
         setTab("conversations");
         await loadList({ silent: true });
+        // Contato Particular com card (2026-10-15): o Chat não mostra a conversa trancada; o card segue pelo WhatsApp do celular.
+        if (data.privateContact) setOpenError("Contato particular: o CRM não mostra a conversa dele. Atenda pelo WhatsApp do celular; a simulação e o acompanhamento seguem no card.");
         // Cliente arquivado (WA-13) para quem não é o dono: Chat em branco, nenhuma conversa aberta.
         if (data.conversationId) {
           openConversation(data.conversationId);

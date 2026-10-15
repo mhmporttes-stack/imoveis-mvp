@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Contato Particular pode ter card de cliente (sem mostrar a conversa trancada)
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Clientes
+- **Regra (ideia do dono):** mesmo com a conversa trancada, o corretor pode ter o card do cliente e fazer simulação, acompanhamento e follow-up. O CRM não mostra a conversa: o atendimento segue pelo WhatsApp do celular/Web.
+- **Alteração:** `hasPrivateConversationForClient` (telefone do cliente, no número oficial e no WhatsApp pessoal do responsável). Com conversa trancada: `open-client` devolve `{ conversationId: null, privateContact: true }` SEM ligar o card à conversa nem criar outra (antes ligava o card à conversa trancada e dava erro); `check-client` devolve `privateContact`; `getChatReplyReadiness` (lista de documentos) cai no envio externo. O botão WhatsApp do card abre o WhatsApp externo com aviso; a página do Chat (`?client=`) mostra a explicação em vez de abrir a conversa.
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `components/clients/useClientList.js`, `components/WhatsappChat.jsx`, `tests/chat-private-contact-card.test.mjs`.
+- **Risco/observação:** não mudei o Particular AUTOMÁTICO (WA-26): conversa pessoal que ganha card sai sozinha do Particular e aparece com o histórico inteiro; se o dono quiser que ela também continue escondida, é decisão à parte. "Enviar simulação" já usava o WhatsApp externo quando não há conversa do oficial. Não conferi visualmente no navegador.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — Chat: aba com o nome da gestora/administrador (só os clientes dela)
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
