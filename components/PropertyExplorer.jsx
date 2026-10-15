@@ -133,7 +133,7 @@ export default function PropertyExplorer({ properties = [] }) {
                 value={draftFilters.minPrice}
                 onChange={(event) => updateMoneyFilter("minPrice", event.target.value)}
                 className="min-h-14 rounded-2xl border border-line bg-white px-4 text-base font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/10"
-                placeholder="R$ 250.000,00"
+                placeholder="R$ 250.000"
               />
             </label>
 
@@ -144,7 +144,7 @@ export default function PropertyExplorer({ properties = [] }) {
                 value={draftFilters.maxPrice}
                 onChange={(event) => updateMoneyFilter("maxPrice", event.target.value)}
                 className="min-h-14 rounded-2xl border border-line bg-white px-4 text-base font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/10"
-                placeholder="R$ 500.000,00"
+                placeholder="R$ 500.000"
               />
             </label>
 
