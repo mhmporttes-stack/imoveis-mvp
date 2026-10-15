@@ -95,3 +95,16 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - **Lâminas internas:** uma foto inteira por lâmina, com o selo "📍 Condomínio/Bairro" no topo (pino vermelho) e uma etiqueta branca numerada (01, 02…) com o nome do ambiente e um detalhe.
 - **Final:** versão clara, o dono com a chave, "Gostou? Vem conhecer de perto. Me chama no Direct ou no WhatsApp" e o CRECI.
 - **Valor:** só entra se o dono pedir. Nunca inventar número de quartos ou área; perguntar.
+
+## Imóvel no CRM (dono, 2026-10-15)
+- Fluxo: tratar as fotos, montar o carrossel, o dono manda o valor e as condições (só para o CRM) e dá **ok**; aí cadastrar em `properties` com `is_published=false`.
+- **Fotos do CRM = lâminas do carrossel, na mesma ordem** (capa primeiro), em JPEG 1080×1350 com menos de 1,5 MB cada (limite do bucket `property-media`). Upload pelo segredo de rede `claude-fotos` (só `/storage/v1/`); o cadastro em si é feito via MCP Supabase.
+- **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel (selo de localização e ao lado do @). Códigos usados: 4352 (Cavalari), 4353 (Terra Nova).
+- Postar no Instagram: a integração Windsor publica carrossel (máx. 10 imagens), foto, story e Reels, **só com "sim" do dono por post**; agendamento via lembrete da sessão.
+
+## Rosto e texto (dono, 2026-10-15)
+- **Nunca colocar texto em cima do rosto do dono.** Na capa, o título fica **atrás** dele (a cabeça passa levemente por trás da faixa do título, como na referência).
+- Logo do MCMV para fundo claro: `assets/mcmv-logo-cor.png`.
+
+## Fila de postagem (dono, 2026-10-15)
+Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
