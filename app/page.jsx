@@ -1,13 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Award, FileText, Handshake, ShieldCheck } from "lucide-react";
-import HomeSearch from "@/components/HomeSearch";
-import PropertyCard from "@/components/PropertyCard";
+import { ArrowRight, Check } from "lucide-react";
+import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyExplorer from "@/components/PropertyExplorer";
-import SectionHeading from "@/components/SectionHeading";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
+import { SIMULATION_FORM_URLS } from "@/lib/simulation-links";
+import { HOME_DESCRIPTION, jsonLdHtml, realEstateAgentJsonLd } from "@/lib/public-seo";
 
 // ISR: página pública, mesmo conteúdo para todo visitante (sem sessão/auth).
 // force-dynamic forçava um round-trip ao Supabase a cada visita (TTFB medido
@@ -15,142 +16,173 @@ import { listPublicTestimonials } from "@/lib/public-testimonials";
 // em todo pico de tráfego. Achado da auditoria de performance 2026-10-01.
 export const revalidate = 60;
 
-const benefits = [
-  { icon: ShieldCheck, title: "Compra segura", text: "Acompanhamento consultivo para comparar condições, prazos e documentação." },
-  { icon: FileText, title: "Informação clara", text: "Catálogos, valores, metragem e condições comerciais organizados em um só lugar." },
-  { icon: Handshake, title: "Negociação guiada", text: "Suporte para entender campanhas, subsídios e entrada parcelada." },
-  { icon: Award, title: "Curadoria local", text: "Seleção de oportunidades em Marília com foco em perfil, localização e momento de compra." }
-];
+// SEO da home (dono, 2026-10-15): descrição e canônica; dados da imobiliária em JSON-LD (lib/public-seo.js).
+export const metadata = {
+  description: HOME_DESCRIPTION,
+  alternates: { canonical: "/" }
+};
 
-const steps = [
-  { title: "Simulação", text: "Entenda valores, entrada, financiamento e subsídios possíveis." },
-  { title: "Escolha", text: "Compare empreendimentos, bairros, plantas e diferenciais." },
-  { title: "Aprovação", text: "Avance com documentação e análise de crédito com orientação." },
-  { title: "Entrega das chaves", text: "Acompanhe o processo até a assinatura e recebimento do imóvel." }
+// Home mais curta (dono aprovou em 2026-10-15): abertura com a promessa + simular; uma lista só de imóveis
+// (busca no topo dela, 6 por vez); "Por que comprar comigo" como linha do tempo; "Quem é o Matheus" com
+// foto real (docs/posicionamento/assets/fotos-reais); depoimentos; vender. Sem número de famílias e sem nota
+// do Google (o dono não informou esses dados).
+const journey = [
+  { title: "Simulação", text: "Você descobre quanto pode financiar, a entrada e os subsídios possíveis." },
+  { title: "Escolha", text: "Comparamos imóveis, bairros e condições em Marília para o seu momento." },
+  { title: "Aprovação", text: "Documentação e análise de crédito com orientação em cada passo." },
+  { title: "Chaves", text: "Acompanhamento até a assinatura e a entrega do seu imóvel." }
 ];
 
 export default async function HomePage() {
   const properties = await listPublicProperties();
   const testimonials = await listPublicTestimonials();
-  const featuredProperties = properties.filter((property) => property.isFeatured);
-  const featured = (featuredProperties.length ? featuredProperties : properties).slice(0, 3);
 
   return (
     <main>
-      <section className="relative min-h-[100svh] overflow-hidden bg-[#061A2F] text-white">
-        <Image src="/assets/hero-premium-casal.png" alt="Empreendimentos imobiliários em Marília" fill priority sizes="100vw" className="object-cover object-[58%_center] md:object-[62%_center]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,16,31,0.97)_0%,rgba(4,20,38,0.9)_28%,rgba(6,28,52,0.52)_52%,rgba(4,16,31,0.2)_78%,rgba(3,12,24,0.08)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_26%,rgba(30,107,198,0.28),transparent_30%),linear-gradient(180deg,rgba(3,12,24,0.06)_0%,rgba(3,12,24,0.34)_100%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-[#061A2F]/90 to-transparent" />
-        <div className="relative z-10 flex min-h-[100svh] items-center px-5 py-12 sm:px-[5.8vw] sm:py-16 lg:py-14 xl:py-16">
-          <div className="w-full max-w-[calc(100vw-40px)] md:max-w-[850px] xl:max-w-[900px] 2xl:max-w-[940px]">
-            <div className="relative h-[88px] w-[112px] sm:h-[104px] sm:w-[132px] xl:h-28 xl:w-36">
-              <Image
-                src="/assets/matheus-machado-symbol.png"
-                alt="Matheus Machado - Corretor de Imóveis"
-                fill
-                sizes="(max-width: 640px) 112px, 144px"
-                className="object-contain object-center"
-              />
-            </div>
-            <div className="mt-4">
-              <p className="text-xl font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.32)] sm:text-2xl xl:text-[1.65rem]">
-                MATHEUS MACHADO
-              </p>
-              <p className="mt-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100/90 sm:text-sm">
-                CORRETOR DE IMÓVEIS · CRECI 323106-F
-              </p>
-            </div>
-            <h1 className="mt-9 max-w-[940px] text-[clamp(1.52rem,3vw,3.4rem)] font-black leading-[1.02] text-white drop-shadow-[0_14px_38px_rgba(0,0,0,0.36)] md:whitespace-nowrap md:leading-[0.96]">
-              <span className="md:hidden">
-                ENCONTRE SEU IMÓVEL EM
-                <br />
-                MARÍLIA
-              </span>
-              <span className="hidden md:inline">ENCONTRE SEU IMÓVEL EM MARÍLIA</span>
-            </h1>
-            <div className="mt-7 max-w-[680px] space-y-2 text-[0.95rem] leading-7 text-white/88 [overflow-wrap:anywhere] sm:text-lg sm:leading-8 sm:[overflow-wrap:normal]">
-              <p>Especialista no mercado imobiliário de Marília.</p>
-              <p>Simulação de financiamento, aprovação de crédito e acompanhamento personalizado durante todo o processo.</p>
-            </div>
-            <HomeSearch />
-            <p className="mt-6 text-base text-blue-100/90 sm:text-lg">Atendimento personalizado</p>
-            <div className="sm:hidden">
-              <HeroPropertyLinks />
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-24 left-0 right-0 z-20 hidden px-5 sm:block sm:px-[5.8vw] lg:bottom-28">
-          <HeroPropertyLinks align="end" />
-        </div>
-      </section>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(realEstateAgentJsonLd()) }} />
 
-      <section id="empreendimentos" className="py-24">
-        <SectionHeading
-          eyebrow="Imóveis em destaque"
-          title="Oportunidades para morar ou investir."
-          subtitle="Encontre o imóvel ideal com praticidade, segurança e todas as informações necessárias para decidir."
-          titleClassName="max-w-none md:whitespace-nowrap md:text-[clamp(2.2rem,3.2vw,3.1rem)]"
-          subtitleClassName="max-w-none md:whitespace-nowrap"
-        />
-        <div className="container-wide grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {featured.map((property) => <PropertyCard key={property.id} property={property} large />)}
+      {/* Abertura */}
+      <section className="relative overflow-hidden bg-[#061A2F] text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(30,107,198,0.32),transparent_42%)]" aria-hidden="true" />
+        <div className="container-page relative grid items-center gap-10 py-8 sm:py-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-16">
+          <div className="min-w-0">
+            {/* No computador, nome e CRECI ficam na legenda da foto ao lado. */}
+            <div className="flex items-center gap-3 lg:hidden">
+              <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25 lg:hidden">
+                <Image src="/assets/corretor-matheus-rosto.jpg" alt="Matheus Machado, corretor de imóveis" fill sizes="48px" className="object-cover" priority />
+              </span>
+              <p className="leading-tight">
+                <span className="block text-sm font-black uppercase tracking-[0.16em] text-white">Matheus Machado</span>
+                <span className="mt-1 block text-sm font-semibold text-blue-100/80">Corretor em Marília · CRECI 323106-F</span>
+              </p>
+            </div>
+
+            <h1 className="mt-6 text-[clamp(2rem,5.4vw,3.6rem)] lg:mt-0 font-black leading-[1.04] tracking-[-0.01em] sm:mt-8">
+              Seu primeiro imóvel em Marília
+              <span className="mt-2 block text-[clamp(1.2rem,2.6vw,1.85rem)] font-extrabold leading-tight text-blue-200">
+                com Minha Casa Minha Vida e financiamento Caixa.
+              </span>
+            </h1>
+            <p className="mt-5 max-w-[34rem] text-base leading-7 text-white/80 sm:text-lg sm:leading-8">
+              Descubra em menos de 2 minutos quanto você pode financiar. Depois, a gente acompanha você da aprovação até a entrega das chaves.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href={SIMULATION_FORM_URLS.main}
+                className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_18px_45px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+              >
+                Simular quanto posso financiar
+                <ArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-1" aria-hidden="true" />
+              </Link>
+              <a
+                href={siteWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/30 px-7 text-base font-extrabold text-white transition duration-300 hover:border-white/60 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+              >
+                <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
+                Falar no WhatsApp
+              </a>
+            </div>
+            <p className="mt-4 text-sm font-semibold text-white/60">Simulação gratuita e sem compromisso.</p>
+          </div>
+
+          <figure className="relative mx-auto hidden w-full max-w-[400px] lg:block">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] ring-1 ring-white/15">
+              <Image
+                src="/assets/corretor-matheus-caixa.jpg"
+                alt="Matheus Machado, corretor de imóveis em Marília"
+                fill
+                priority
+                sizes="400px"
+                className="object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#061A2F]/85 to-transparent" aria-hidden="true" />
+            </div>
+            <figcaption className="absolute bottom-5 left-5 right-5 text-white">
+              <span className="block text-lg font-black">Matheus Machado</span>
+              <span className="block text-sm font-semibold text-white/80">Corretor de imóveis · CRECI 323106-F</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
       <PropertyExplorer properties={properties} />
 
-      <section className="bg-mist py-24">
-        <SectionHeading
-          eyebrow="Por que comprar comigo"
-          title="Consultoria com método, clareza e acompanhamento."
-          titleClassName="xl:whitespace-nowrap"
-        />
-        <div className="container-page grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {benefits.map(({ icon: Icon, title, text }) => (
-            <article key={title} className="rounded-2xl border border-line bg-white p-8 shadow-soft">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#E9F2FF] text-brand">
-                <Icon className="h-7 w-7" />
-              </span>
-              <h3 className="mt-7 text-2xl font-extrabold text-navy">{title}</h3>
-              <p className="mt-4 leading-7 text-muted">{text}</p>
-            </article>
-          ))}
+      {/* Por que comprar comigo — linha do tempo curta */}
+      <section aria-labelledby="jornada-title" className="bg-mist py-12 sm:py-20">
+        <div className="container-page">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Por que comprar comigo</p>
+          <h2 id="jornada-title" className="mt-2 max-w-3xl text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">
+            Do primeiro contato às chaves, com alguém do seu lado.
+          </h2>
+          <ol className="relative mt-8 grid gap-6 md:mt-12 md:grid-cols-4 md:gap-8">
+            <span className="absolute bottom-3 left-[15px] top-3 w-px bg-brand/25 md:bottom-auto md:left-4 md:right-4 md:top-[15px] md:h-px md:w-auto" aria-hidden="true" />
+            {journey.map((step, index) => (
+              <li key={step.title} className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-4 md:grid-cols-1 md:gap-5">
+                <span className="relative z-10 grid h-8 w-8 place-items-center rounded-full bg-navy text-sm font-black text-white ring-4 ring-mist">
+                  {index + 1}
+                </span>
+                <div>
+                  <h3 className="text-lg font-extrabold text-navy">{step.title}</h3>
+                  <p className="mt-1 leading-7 text-muted">{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Link
+            href={SIMULATION_FORM_URLS.main}
+            className="mt-8 inline-flex items-center gap-2 text-base font-extrabold text-brand transition hover:text-navy md:mt-10"
+          >
+            Começar pela simulação
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
       </section>
 
-      <section className="py-24">
-        <SectionHeading eyebrow="Como funciona" title="Uma jornada simples até as chaves." />
-        <div className="container-page grid gap-6 md:grid-cols-4">
-          {steps.map((step, index) => (
-            <article key={step.title} className="rounded-2xl border border-line bg-white p-8 shadow-soft">
-              <span className="text-sm font-black text-brand">0{index + 1}</span>
-              <h3 className="mt-5 text-2xl font-extrabold text-navy">{step.title}</h3>
-              <p className="mt-4 leading-7 text-muted">{step.text}</p>
-            </article>
-          ))}
+      {/* Quem é o Matheus */}
+      <section aria-labelledby="quem-title" className="py-12 sm:py-20">
+        <div className="container-page grid items-center gap-8 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:gap-14">
+          <div className="relative mx-auto aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-[24px] bg-mist sm:max-w-[360px]">
+            <Image src="/assets/corretor-matheus-caixa.jpg" alt="Matheus Machado na porta de uma agência bancária" fill sizes="(min-width: 768px) 360px, 90vw" className="object-cover lg:hidden" />
+            <Image src="/assets/corretor-matheus-retrato.jpg" alt="Matheus Machado sorrindo" fill sizes="360px" className="hidden object-cover lg:block" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Quem é o Matheus</p>
+            <h2 id="quem-title" className="mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">
+              Prazer, eu sou o Matheus.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-8 text-ink-2 sm:text-lg">
+              Sou corretor de imóveis em Marília, com CRECI 323106-F. Meu foco é quem vai comprar o primeiro imóvel:
+              explico o Minha Casa Minha Vida e o financiamento da Caixa sem palavras difíceis, e minha equipe e eu
+              acompanhamos cada etapa com você.
+            </p>
+            <ul className="mt-6 grid gap-3 text-base font-semibold text-ink">
+              {["Simulação gratuita, sem compromisso", "Imóveis na planta e prontos em Marília", "Acompanhamento até a entrega das chaves"].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <Check className="mt-1 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
       <TestimonialsSection testimonials={testimonials} />
+
+      <section className="container-page pt-4">
+        <PropertyCaptureSection />
+      </section>
     </main>
   );
 }
 
-function HeroPropertyLinks({ align = "start" }) {
+function WhatsAppIcon({ className }) {
   return (
-    <nav
-      className={`mt-8 flex flex-col items-stretch gap-3 sm:mt-0 sm:flex-row sm:items-center ${
-        align === "end" ? "sm:justify-end" : "sm:justify-start"
-      }`}
-      aria-label="Navegação de imóveis"
-    >
-      <Link href="/#empreendimentos" className="inline-flex min-h-12 items-center justify-center rounded-full border border-blue-100/35 bg-[#08233f]/60 px-6 text-sm font-extrabold text-white shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-blue-100/70 hover:bg-white hover:text-navy sm:min-w-48">
-        Imóveis na Planta
-      </Link>
-      <Link href="/#todos" className="inline-flex min-h-12 items-center justify-center rounded-full border border-blue-100/35 bg-[#08233f]/60 px-6 text-sm font-extrabold text-white shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-blue-100/70 hover:bg-white hover:text-navy sm:min-w-48">
-        Imóveis Prontos
-      </Link>
-    </nav>
+    <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M16.04 3.2A12.74 12.74 0 0 0 5.2 22.65L3.72 28l5.48-1.43A12.75 12.75 0 1 0 16.04 3.2Zm0 2.27a10.47 10.47 0 0 1 8.86 16.04 10.47 10.47 0 0 1-14.96 2.74l-.39-.24-3.25.85.87-3.16-.26-.41A10.46 10.46 0 0 1 16.04 5.47Zm-4.45 5.62c-.22 0-.58.08-.88.42-.3.34-1.15 1.12-1.15 2.74s1.18 3.18 1.34 3.4c.16.22 2.27 3.64 5.63 4.96 2.79 1.1 3.36.88 3.96.82.6-.05 1.94-.79 2.21-1.55.27-.76.27-1.42.19-1.55-.08-.14-.3-.22-.63-.38-.33-.16-1.94-.96-2.24-1.07-.3-.11-.52-.16-.74.16-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.86-1.63-1.93-1.82-2.26-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.16-.74-1.79-1.01-2.45-.27-.64-.54-.55-.74-.56h-.63Z" />
+    </svg>
   );
 }

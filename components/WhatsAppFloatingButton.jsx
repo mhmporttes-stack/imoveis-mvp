@@ -1,13 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { whatsappMessageLink } from "@/lib/format";
+import { siteWhatsappUrl } from "@/components/site/site-links";
 
-const whatsappUrl =
-  whatsappMessageLink("Olá, Matheus! Encontrei seu contato pelo site e gostaria de mais informações sobre os imóveis.");
-
-// Desligado temporariamente: número da WABA está desabilitado pela Meta (não recebe mensagens).
-const WHATSAPP_BUTTON_ENABLED = false;
+// Religado em 2026-10-15: o número oficial novo está ativo e conectado ao CRM (whatsappMessageLink → oficial).
+// Só no computador (≥ 768px): no celular quem leva ao WhatsApp é a barra inferior (MobileActionBar).
+const WHATSAPP_BUTTON_ENABLED = true;
 
 export default function WhatsAppFloatingButton() {
   const pathname = usePathname();
@@ -18,14 +16,14 @@ export default function WhatsAppFloatingButton() {
 
   return (
     <a
-      href={whatsappUrl}
+      href={siteWhatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Falar com Matheus pelo WhatsApp"
-      className="group fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-[100] grid h-[52px] w-[52px] place-items-center rounded-full bg-[#25D366] text-white shadow-[0_18px_45px_rgba(18,140,82,0.34)] transition duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-[#20BF5A] hover:shadow-[0_22px_60px_rgba(18,140,82,0.46)] focus:outline-none focus:ring-4 focus:ring-[#25D366]/30 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
+      aria-label="Falar com o corretor pelo WhatsApp"
+      className="group fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-[100] hidden h-[52px] w-[52px] md:grid place-items-center rounded-full bg-[#25D366] text-white shadow-[0_18px_45px_rgba(18,140,82,0.34)] transition duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-[#20BF5A] hover:shadow-[0_22px_60px_rgba(18,140,82,0.46)] focus:outline-none focus:ring-4 focus:ring-[#25D366]/30 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
     >
       <span className="pointer-events-none absolute right-full top-1/2 mr-3 hidden -translate-y-1/2 whitespace-nowrap rounded-full bg-[#071f38] px-4 py-2 text-sm font-bold text-white opacity-0 shadow-[0_16px_40px_rgba(0,0,0,0.22)] transition duration-300 group-hover:opacity-100 sm:block">
-        Fale comigo no WhatsApp
+        Falar com o corretor
       </span>
       <WhatsAppIcon className="h-7 w-7 sm:h-8 sm:w-8" />
     </a>

@@ -66,7 +66,11 @@ export default function LeadCaptureModal() {
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.setTimeout(() => nameRef.current?.focus(), 80);
+    // Sem foco automático no campo (2026-10-15): no celular isso abria o teclado sozinho e cobria o convite.
+    // O foco vai para a caixa do diálogo (leitor de tela e teclado continuam funcionando).
+    window.setTimeout(() => dialogRef.current?.focus({ preventScroll: true }), 80);
+    // Avisa o convite "Faça sua simulação" (WhatsAppSimulationPrompt) para não aparecer junto.
+    document.documentElement.dataset.mmLeadModal = "open";
 
     function handleKeyDown(event) {
       if (event.key === "Escape") closeModal("closed");
@@ -76,6 +80,8 @@ export default function LeadCaptureModal() {
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      delete document.documentElement.dataset.mmLeadModal;
+      window.dispatchEvent(new Event("mm-lead-modal-closed"));
     };
   }, [isOpen]);
 
@@ -143,6 +149,7 @@ export default function LeadCaptureModal() {
     >
       <div
         ref={dialogRef}
+        tabIndex={-1}
         className="relative max-h-[calc(100svh-48px)] w-full max-w-[540px] overflow-x-hidden overflow-y-auto rounded-[30px] border border-white/20 bg-white shadow-[0_34px_100px_rgba(3,16,31,0.36)] outline-none transition duration-300 motion-reduce:transition-none"
       >
         <button
@@ -156,7 +163,7 @@ export default function LeadCaptureModal() {
 
         <div className="relative h-44 overflow-hidden rounded-t-[30px] bg-navy sm:h-52">
           <Image
-            src="/assets/hero-premium-casal.png"
+            src="/assets/hero-premium-casal.webp"
             alt="Atendimento imobiliário Matheus Machado"
             fill
             sizes="(max-width: 640px) 100vw, 540px"
@@ -198,7 +205,7 @@ export default function LeadCaptureModal() {
                   value={phone}
                   onChange={(event) => setPhone(maskBrazilianPhone(event.target.value))}
                   className="w-full bg-transparent py-3 text-base font-semibold outline-none"
-                  placeholder="(14) 9 9840-7380"
+                  placeholder="(DDD) 00000-0000"
                   required
                 />
               </span>

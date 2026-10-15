@@ -204,7 +204,7 @@ function TestimonialCard({ testimonial, onPlay }) {
 
       <div className="flex flex-1 flex-col bg-white p-7 sm:p-8">
         <Quote className="h-9 w-9 text-brand" aria-hidden="true" />
-        <p className="mt-6 flex-1 text-[1.03rem] leading-8 text-ink sm:text-[1.08rem]">“{testimonial.testimonialText}”</p>
+        <p className="mt-6 flex-1 text-[1.03rem] leading-8 text-ink sm:text-[1.08rem]">{stripQuotes(testimonial.testimonialText)}</p>
         <div className="mt-8">
           <p className="text-xl font-black leading-tight text-navy">{testimonial.clientName}</p>
           {testimonial.clientDescription ? (
@@ -292,4 +292,9 @@ function toEmbedUrl(url = "") {
   } catch {
     return "";
   }
+}
+
+// O ícone de aspas já abre o depoimento; o texto cadastrado às vezes vem entre aspas — tirar evita aspas duplas.
+function stripQuotes(text = "") {
+  return String(text || "").trim().replace(/^["“”«»\s]+/, "").replace(/["“”«»\s]+$/, "");
 }

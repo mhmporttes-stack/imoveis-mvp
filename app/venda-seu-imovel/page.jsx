@@ -4,7 +4,9 @@ import PropertyCaptureForm from "@/components/captacoes/PropertyCaptureForm";
 
 export const metadata = {
   title: "Venda seu imóvel | Matheus Machado Imóveis",
-  description: "Cadastre seu imóvel para análise de venda com Matheus Machado Imóveis."
+  description: "Cadastre seu imóvel para análise de venda com Matheus Machado Imóveis.",
+  // /captacao reexporta esta página: as duas URLs apontam esta como a oficial para o Google (dono, 2026-10-15).
+  alternates: { canonical: "/venda-seu-imovel" }
 };
 
 export default function VendaSeuImovelPage() {

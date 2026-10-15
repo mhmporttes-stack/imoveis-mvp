@@ -1,10 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { Building2, Download, FileText, KeyRound, MapPin, Ruler, Wallet } from "lucide-react";
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
-import { coverImage, propertyRegion, whatsappLink } from "@/lib/format";
+import PropertyFeatureIcon from "@/components/PropertyFeatureIcon";
+import ReadMore from "@/components/site/ReadMore";
+import { formatAreaText, propertyDisplayTitle, propertyPlaceLine } from "@/components/site/property-display";
+import { normalizePropertyFeatures } from "@/lib/property-features";
+import { coverImage, propertyRegion, propertyWhatsappMessage, whatsappLink } from "@/lib/format";
 import { getPublicProperty } from "@/lib/public-properties";
+import { jsonLdHtml, propertyJsonLd, propertyMetadata } from "@/lib/public-seo";
 import { officialWhatsappUrl } from "@/lib/official-whatsapp.mjs";
 
 // ISR: página pública, mesmo conteúdo para todo visitante (sem sessão/auth).
@@ -13,25 +19,45 @@ import { officialWhatsappUrl } from "@/lib/official-whatsapp.mjs";
 // todo pico de tráfego. Achado da auditoria de performance 2026-10-01.
 export const revalidate = 60;
 
+// SEO da ficha (dono, 2026-10-15): título, descrição e foto do próprio imóvel (lib/public-seo.js).
+// cache(): metadados e página leem o imóvel uma vez só por requisição.
+const loadPublicProperty = cache(getPublicProperty);
+
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const property = await loadPublicProperty(id);
+  return property ? propertyMetadata(property) : {};
+}
+
 export default async function PropertyPage({ params }) {
   const { id } = await params;
-  const property = await getPublicProperty(id);
+  const property = await loadPublicProperty(id);
   if (!property) notFound();
   const photos = property.photos?.length ? property.photos : [{ name: property.name, data: coverImage(property) }];
   const showBuilderUrl = Boolean(property.isDevelopment && property.builderUrl);
   const hasConditions = Boolean(property.terms || property.discounts || property.installmentEntry);
   const hasMaterials = Boolean(property.pdfData || showBuilderUrl);
+  const displayTitle = propertyDisplayTitle(property);
+  const placeLine = propertyPlaceLine(property);
+  const features = Array.isArray(property.features) ? normalizePropertyFeatures(property.features) : [];
 
   return (
     <main className="pb-24">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(propertyJsonLd(property)) }} />
       <section className="container-wide grid gap-8 py-12 lg:grid-cols-2 lg:items-stretch">
         <PropertyImageCarousel photos={photos} propertyName={property.name} />
         <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-6 shadow-soft md:p-8">
           {/* Título quebra em linhas e cabe no quadro (dono, 2026-10-15: "diminua o título para caber"). */}
-          <h1 className="w-full text-balance break-words text-[clamp(1.75rem,3.2vw,2.75rem)] font-black leading-tight text-navy">
-            {property.name}
+          {/* Nome genérico ("Casa") vira título montado do cadastro: "Casa 3 quartos · Zona Norte" (2026-10-15). */}
+          <h1 className="w-full text-balance break-words text-[clamp(1.6rem,3.2vw,2.75rem)] font-black leading-tight text-navy">
+            {displayTitle}
           </h1>
-          {property.salesText ? <p className="mt-4 text-base leading-7 text-muted">{property.salesText}</p> : null}
+          {placeLine ? (
+            <p className="mt-2 flex items-start gap-2 text-sm font-semibold text-muted">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+              <span>{placeLine}</span>
+            </p>
+          ) : null}
           {property.price ? (
             <div className="mt-6 rounded-3xl bg-mist p-5">
               <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">Preço inicial</p>
@@ -43,17 +69,19 @@ export default async function PropertyPage({ params }) {
               className="mt-6 flex items-center justify-center gap-4 rounded-3xl bg-navy px-6 py-5 text-white shadow-soft transition hover:opacity-95"
               target="_blank"
               rel="noopener noreferrer"
-              href={officialWhatsappUrl(`Olá! Quero saber o valor do imóvel ${property.name}.`)}
+              href={officialWhatsappUrl(propertyWhatsappMessage(property, "price"))}
             >
               <span className="text-3xl font-black">Valor</span>
             </a>
           )}
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero agendar uma visita no ${property.name}.`)}>Agendar visita</a>
+            <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, propertyWhatsappMessage(property, "visit"))}>Agendar visita</a>
             <Link className="premium-button-secondary" href="/simulacao">Simular financiamento</Link>
             <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property)}>Conversar no WhatsApp</a>
-            {property.pdfData ? <a className="premium-button-secondary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}>Receber catálogo</a> : <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero receber o catálogo do ${property.name}.`)}>Receber catálogo</a>}
+            {property.pdfData ? <a className="premium-button-secondary" download={property.pdfName || "catalogo.pdf"} href={property.pdfData}>Receber catálogo</a> : <a className="premium-button-secondary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, propertyWhatsappMessage(property, "catalog"))}>Receber catálogo</a>}
           </div>
+          {/* Texto longo depois do resumo e dos botões, com "Ler mais" (celular vê a ação antes — 2026-10-15). */}
+          <ReadMore text={property.salesText} className="mt-6 border-t border-line pt-5" />
         </div>
       </section>
 
@@ -61,9 +89,25 @@ export default async function PropertyPage({ params }) {
         {/* Construtora só para empreendimento (dono, 2026-10-15). */}
         <Info icon={Building2} label="Construtora" value={property.isDevelopment ? property.builder : ""} />
         <Info icon={MapPin} label="Região" value={propertyRegion(property) === "Região a confirmar" ? "" : propertyRegion(property)} />
-        <Info icon={Ruler} label="Metragem" value={property.area} />
+        <Info icon={Ruler} label="Metragem" value={formatAreaText(property.area)} />
         <Info icon={KeyRound} label="Quartos" value={property.bedrooms} />
       </section>
+
+      {/* Diferenciais do cadastro, todos (2026-10-15): antes a ficha não mostrava nenhum. */}
+      {features.length ? (
+        <section aria-labelledby="diferenciais-title" className="container-page py-8 md:py-10">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Diferenciais</p>
+          <h2 id="diferenciais-title" className="mt-2 text-[clamp(1.5rem,2.6vw,2.1rem)] font-black leading-tight text-navy">O que este imóvel tem</h2>
+          <ul className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <li key={`${feature.text}-${feature.icon}`} className="flex items-center gap-3 border-b border-line pb-3 text-base font-semibold text-ink">
+                <PropertyFeatureIcon icon={feature.icon} className="h-5 w-5 shrink-0 text-brand" />
+                <span>{feature.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* Só o que existe no cadastro aparece; nada de "a confirmar/sob consulta" (dono, 2026-10-15). */}
       {hasConditions || hasMaterials ? (

@@ -2,8 +2,11 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import AppChrome from "@/components/AppChrome";
+import { CANONICAL_SITE_URL } from "@/lib/site-url.mjs";
 
 export const metadata = {
+  // Base das URLs relativas de metadados (canônica, Open Graph): sempre o domínio da marca.
+  metadataBase: new URL(CANONICAL_SITE_URL),
   title: "Matheus Machado - Corretor de Imóveis",
   description: "Empreendimentos imobiliários em Marília com atendimento consultivo.",
   applicationName: "Painel Matheus",

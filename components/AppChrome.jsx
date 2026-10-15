@@ -10,9 +10,9 @@ import MobileAdminEntryRedirect from "@/components/MobileAdminEntryRedirect";
 import FinanceiroAppGuard from "@/components/FinanceiroAppGuard";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import InstagramFloatingButton from "@/components/InstagramFloatingButton";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import MetaPixel from "@/components/MetaPixel";
+import MobileActionBar from "@/components/MobileActionBar";
 import PwaLifecycle from "@/components/PwaLifecycle";
 import ViewportZoomLock from "@/components/ViewportZoomLock";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
@@ -88,7 +88,9 @@ export default function AppChrome({ children }) {
         <>
           <LeadCaptureModal />
           <WhatsAppSimulationPrompt />
-          <InstagramFloatingButton />
+          {/* Instagram saiu do botão flutuante para o rodapé (2026-10-15); no celular, barra fixa
+              Simular/WhatsApp; no computador, botão flutuante do WhatsApp oficial. */}
+          <MobileActionBar />
           <WhatsAppFloatingButton />
         </>
       ) : null}

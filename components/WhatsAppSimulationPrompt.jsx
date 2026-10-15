@@ -8,6 +8,9 @@ import { SIMULATION_FORM_URLS } from "@/lib/simulation-links";
 const SESSION_STATE_KEY = "mm_whatsapp_simulation_prompt_state";
 const SESSION_ENTERED_AT_KEY = "mm_whatsapp_simulation_prompt_entered_at";
 const DISPLAY_DELAY_MS = 30000;
+const AFTER_LEAD_MODAL_DELAY_MS = 8000;
+// Mesma chave de sessão do LeadCaptureModal (vazia = o pop-up de cadastro ainda vai abrir).
+const LEAD_MODAL_STATE_KEY = "mm_lead_capture_modal_state";
 
 export default function WhatsAppSimulationPrompt() {
   const pathname = usePathname();
@@ -34,12 +37,38 @@ export default function WhatsAppSimulationPrompt() {
     writeSessionValue(SESSION_ENTERED_AT_KEY, String(enteredAt));
 
     const remainingDelay = Math.max(DISPLAY_DELAY_MS - (now - enteredAt), 0);
-    const timer = window.setTimeout(() => {
+    let followUp = null;
+
+    function show() {
       writeSessionValue(SESSION_STATE_KEY, "shown");
       setVisible(true);
-    }, remainingDelay);
+    }
 
-    return () => window.clearTimeout(timer);
+    // Nunca junto com o pop-up de cadastro (LeadCaptureModal, também aos 30 s): se ele está aberto ou
+    // ainda não apareceu nesta sessão, espera ele fechar e entra alguns segundos depois (2026-10-15).
+    function leadModalPending() {
+      if (document.documentElement.dataset.mmLeadModal === "open") return true;
+      return !readSessionValue(LEAD_MODAL_STATE_KEY);
+    }
+
+    function handleLeadModalClosed() {
+      window.clearTimeout(followUp);
+      followUp = window.setTimeout(show, AFTER_LEAD_MODAL_DELAY_MS);
+    }
+
+    const timer = window.setTimeout(() => {
+      if (leadModalPending()) {
+        window.addEventListener("mm-lead-modal-closed", handleLeadModalClosed, { once: true });
+        return;
+      }
+      show();
+    }, remainingDelay + 1500);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(followUp);
+      window.removeEventListener("mm-lead-modal-closed", handleLeadModalClosed);
+    };
   }, [isAdminRoute, isSimulationRoute, pathname]);
 
   useEffect(() => {
@@ -81,7 +110,7 @@ export default function WhatsAppSimulationPrompt() {
       {visible ? (
         <aside
           aria-label="Convite para simulação de financiamento"
-          className="simulation-prompt fixed right-5 top-1/2 z-[90] w-[260px] max-w-[calc(100vw-40px)] -translate-y-1/2 sm:right-7 sm:w-auto"
+          className="simulation-prompt fixed right-5 top-1/2 z-[90] hidden w-[260px] max-w-[calc(100vw-40px)] -translate-y-1/2 sm:right-7 sm:w-auto md:block"
         >
           <button
             aria-label="Fazer uma simulação de financiamento"

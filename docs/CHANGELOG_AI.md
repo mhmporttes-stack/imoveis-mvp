@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — SEO técnico do site público (ficha, robots/sitemap, JSON-LD, captação canônica, mensagens prontas)
+
+- **Data:** 2026-10-15 · **Área:** Site público / SEO
+- **Alteração:** (1) ficha `/empreendimentos/[id]` ganhou `generateMetadata`: título "<nome · tipo de N quartos no bairro/região>, Marília | Matheus Machado", descrição do texto de venda (até 160 caracteres; com "publicado sem valores", frase com "R$" sai), canônica e foto do imóvel no Open Graph/Twitter (foto em base64 ou a imagem de reserva → imagem padrão da marca); leitura do imóvel deduplicada com `React.cache`. (2) `app/robots.js` (bloqueia `/admin` e `/api`) e `app/sitemap.js` (home, `/simulacao`, `/venda-seu-imovel` e fichas publicadas; nunca os 3 imóveis de exemplo da reserva). (3) JSON-LD `RealEstateAgent` na home (nome, CRECI 323106-F, Av. Ipiranga, 147 — Marília/SP, número oficial) e `RealEstateListing` na ficha (residência + oferta "a partir de" só quando o preço é visível e escrito como valor); sem avaliações nem número de famílias. (4) Descrição da home: primeiro imóvel, MCMV, financiamento Caixa, Marília, CRECI. (5) `/captacao` e `/venda-seu-imovel`: canônica = `/venda-seu-imovel` (rota `/captacao` mantida). (6) `public/assets/hero-premium-casal.webp` (176 KB, mesma resolução 1672×941) no lugar do PNG de 2,3 MB na abertura da home e no pop-up (só o `src`); o PNG fica no repositório porque a vitrine `app/dev/vitrine` usa. (7) Mensagens prontas do WhatsApp da ficha (visita, conversar, catálogo, valor) por `propertyWhatsappMessage` (`lib/format.js`): tipo + quartos + bairro (do campo Localização, ignorando rua/número/cidade/CEP) ou zona + `(COD…)` quando houver código (senão o nome, se não for genérico). Número continua o oficial. `metadataBase` = domínio da marca no `app/layout.jsx`.
+- **Motivo:** melhorias técnicas do site público aprovadas pelo dono.
+- **Arquivos afetados:** `lib/public-seo.js` (novo), `lib/format.js`, `app/robots.js`, `app/sitemap.js`, `app/layout.jsx`, `app/page.jsx`, `components/LeadCaptureModal.jsx` (só o `src`), `app/empreendimentos/[id]/page.jsx`, `app/venda-seu-imovel/page.jsx`, `public/assets/hero-premium-casal.webp`, `tests/public-seo.test.mjs`.
+- **Risco/observação:** o código do imóvel (COD) agora aparece na mensagem pronta do WhatsApp da ficha (pedido do dono com o exemplo "COD4353"); continua fora do título/visual. Otimização do `next/image` **não foi ligada**: `next.config.mjs` tem `images.unoptimized: true` global e o carrossel/depoimentos passam `unoptimized` no JSX; ligar exige `remotePatterns` de `*.supabase.co` e qualquer foto de outro domínio quebraria, além de consumir a cota de otimização de imagem da Vercel — **decisão do dono/plano Vercel** (fotos públicas conferidas estão todas no Supabase Storage). `tests/official-whatsapp-links.test.mjs` já falhava antes desta mudança (asserção sobre `components/WhatsappChat.jsx`).
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-15 — Código do imóvel (chip "COD4352" na lista do painel)
 
 - **Data:** 2026-10-15 · **Área:** Banco / Imóveis (painel admin)
