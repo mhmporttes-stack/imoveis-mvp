@@ -8,13 +8,18 @@
   --navy-2: #0d3b66;
   --blue: #1769d1;
   --sky: #9cc3f5;
-  --fw: min(100vw, calc(100dvh * 0.7), 700px);
-  --u: min(calc(var(--fw) / 390), calc(100dvh / 780));
+  --fw: min(100vw, calc(100svh * 0.7), 700px);
+  --u: min(calc(var(--fw) / 390), calc(100svh / 780));
   --cw: calc(var(--fw) - var(--u) * 48);
+  /* svh (altura com as barras do navegador visíveis), não dvh: no navegador interno do WhatsApp/Instagram no iPhone a
+     barra de baixo fica POR CIMA da página e cortava a logo da Caixa (dono, 2026-10-15). Sem bottom: a tela termina
+     acima da barra. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 100vh;
-  height: 100dvh;
+  height: 100svh;
   overflow: hidden;
   color: var(--fg);
   background: var(--bg);
@@ -457,7 +462,7 @@
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .root {
     --fw: min(100vw, 1680px);
-    --u0: min(calc(var(--fw) / 1120), calc(100dvh / 680));
+    --u0: min(calc(var(--fw) / 1120), calc(100svh / 680));
     --u: var(--u0);
     --cw: calc(var(--fw) * 0.4);
     --art: rgba(156, 195, 245, 0.4);
