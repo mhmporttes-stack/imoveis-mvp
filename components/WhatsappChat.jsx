@@ -246,7 +246,7 @@ function useChatAppMode(enabled, ref) {
   }, [enabled, ref]);
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
   // Volta ao Chat sem "Carregando…" (2026-10-12, components/chat-view-cache.js): começa com o que esta mesma conta já
   // tinha na tela e atualiza em seguida, em segundo plano. Sem cache (1ª vez, outra conta, >30 min) = como sempre.
   const [cached] = useState(() => readChatView(viewerKey));
@@ -638,6 +638,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             selectedId={selectedId}
             totalUnread={totalUnread}
             currentUserId={currentUserId}
+            mineScope={canManage && currentUserId ? { active: scopedBroker?.id === currentUserId, label: String(currentUserName || "").trim().split(/\s+/)[0] || "Meus", onToggle: () => setScopedBroker(scopedBroker?.id === currentUserId ? null : { id: currentUserId, name: currentUserName }) } : null}
             hasMore={listHasMore}
             loadingMore={listLoadingMore}
             onLoadMore={loadMoreList}
@@ -727,7 +728,7 @@ function listPageIsFull(count, filter) {
   return count >= 100 || (["awaiting", "waiting_us", "silent", "private_unseen"].includes(filter) && count > 0);
 }
 
-function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
   const [previewId, setPreviewId] = useState("");
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
@@ -755,6 +756,19 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           />
         </label>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {/* Aba com o PRÓPRIO nome (pedido do dono, 2026-10-15; gestora/admin): só as conversas dos clientes dela, em vez de
+              toda a equipe. Primeira da fila, destacada; toca de novo para voltar a ver todos. */}
+          {mineScope ? (
+            <button
+              type="button"
+              onClick={mineScope.onToggle}
+              aria-pressed={mineScope.active}
+              title={mineScope.active ? "Mostrando só os seus clientes. Toque para ver todos." : "Ver só os seus clientes"}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${mineScope.active ? "border-[#0A7D41] bg-[#0A7D41] text-white" : "border-[#0A7D41]/40 bg-white text-[#0A5C30] hover:bg-[#D9FDD3]"}`}
+            >
+              <UserRound className="h-3.5 w-3.5" aria-hidden="true" />{mineScope.label}
+            </button>
+          ) : null}
           {FILTERS.filter((item) => item.key !== "private" || canSeeArchived).map((item) => (
             <button
               key={item.key}

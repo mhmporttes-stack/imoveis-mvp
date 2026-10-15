@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Chat: aba com o nome da gestora/administrador (só os clientes dela)
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
+- **Alteração:** primeira aba da fila de filtros do Chat, com o primeiro nome de quem está logado (só gestora e administrador). Toque = lista só as conversas dos clientes dela (os que ela responde, os atribuídos a ela e o WhatsApp pessoal dela); toque de novo = volta a ver toda a equipe. Usa o filtro por corretor que já existia no servidor (`brokerId`), sem mudança de regra de acesso.
+- **Motivo:** a Carol (gestora) se perdia na lista com a equipe toda; o dono pediu uma aba com o nome dela.
+- **Arquivos afetados:** `components/WhatsappChat.jsx`, `app/admin/chat/page.jsx`, `tests/chat-mine-tab.test.mjs`.
+- **Risco/observação:** a escolha fica guardada na visão do Chat daquela conta. Não conferi visualmente no navegador (precisa de login).
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — Mesma conta ligada nos dois números do corretor: desconecta o duplicado e acha a original nas citações
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp / Chat
