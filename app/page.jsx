@@ -36,7 +36,7 @@ const journey = [
 
 // Fundo da abertura: "A" (degradê + grão + brilho), "B" (cidade desfocada sob véu azul) ou "C" (traço de casas/planta).
 // Opções desenhadas em 2026-10-15 para o dono escolher; detalhes em components/site/HeroBackground.jsx.
-const HERO_BACKGROUND = "A";
+const HERO_BACKGROUND = "B";
 
 export default async function HomePage() {
   const properties = await listPublicProperties();
