@@ -108,3 +108,6 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 
 ## Fila de postagem (dono, 2026-10-15)
 Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
+
+## Acervo de fotos do dono (já recortadas, prontas para usar)
+`assets/boneco-3d/realista/`: apontando, bracos-cruzados, celular, celular-instagram (Instagram dele na tela), chave, comemorando, desespero (coçando a cabeça, sorriso nervoso; feita pelo dono no ChatGPT em 2026-10-15 com joinha + bracos-cruzados de referência, aprovada), explicando, joinha, lupa, lupa-olho, malabares-contratos, pensando, pensativo, prancha. **Usar estas fotos; não gerar de novo.** Só gerar uma pose nova se o dono pedir ou se a capa precisar de algo inédito (método aprovado acima). Logos: `assets/mcmv-logo-branco.png` e `assets/mcmv-logo-cor.png`.

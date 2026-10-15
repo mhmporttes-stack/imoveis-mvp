@@ -15,17 +15,19 @@ Regra do dono (2026-10-15):
 
 ### Carrossel claro
 - **Escolher entre o aluguel ou o meu 1º apê?** — `carrosseis/2026-10-15-aluguel-ou-primeiro-ape/` (7 lâminas)
-- **Termos que parecem complicados** — `carrosseis/2026-10-14-termos-complicados/` (7) — A CONFIRMAR se já foi postado
 
 ### Carrossel azul (escuro)
-- **Como consultar o Bacen (Registrato)** — `carrosseis/2026-10-14-registrato/` (11) — A CONFIRMAR se já foi postado
-- **Vai comprar seu primeiro imóvel? 5 passos** — `carrosseis/2026-10-13-guia-primeiro-imovel/` (7) — A CONFIRMAR se já foi postado
-- **Alameda Lima Fase 3** — `carrosseis/2026-10-13-alameda-lima-fase3/` (6) — falta o valor da lâmina de pagamento; A CONFIRMAR se ainda vale postar
+- (nenhum)
 
 ### Imóvel
-- **Casa + edícula independente · Cavalari (COD4352)** — `carrosseis/2026-10-15-cavalari-casa-edicula/` (11)
-- **Casa com área gourmet e spa · Condomínio Terra Nova (COD4353)** — `carrosseis/2026-10-15-terra-nova-casa/` (12)
+- (nenhum)
 
 ## Publicados
 - Aluguel ou 1º apê (2026-10-13, azul)
 - Coisas que ninguém te conta sobre seu 1º imóvel (2026-10-13, azul)
+- Termos que parecem complicados (claro) — confirmado pelo dono em 2026-10-15
+- Como consultar o Bacen / Registrato (azul)
+- Vai comprar seu primeiro imóvel? 5 passos (azul)
+- Alameda Lima Fase 3 (azul)
+- Casa + edícula · Cavalari (COD4352, imóvel)
+- Casa com área gourmet e spa · Terra Nova (COD4353, imóvel)

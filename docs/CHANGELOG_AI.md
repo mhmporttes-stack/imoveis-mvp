@@ -42,6 +42,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Autor:** <agente/ferramenta ou pessoa>
 ```
 
+
+## 2026-10-15 — Home: novo topo (hero) aprovado pelo dono
+- **Alteração:** hero da home refeito (só apresentação): recorte do dono apontando (dedo editado por IA a pedido dele), fundo B (cidade desfocada + véu azul-marinho, `components/site/HeroBackground.jsx`, opções A/B/C via `HERO_BACKGROUND` em `app/page.jsx`), cabeçalho transparente só na home (`components/Header.jsx`), selos (simulação gratuita, CRECI, logo MCMV).
+- **Arquivos afetados:** `app/page.jsx`, `components/Header.jsx`, `components/site/HeroBackground.jsx`, `public/assets/{matheus-machado-apontando-recorte.webp,hero-fundo-cidade.webp,mcmv-logo-branco.png}`.
+- **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
+
 ## Registro
 
 ### 2026-10-15 — PRO-15: WhatsApp desconectado (sem ban/restrição) = modo lista impressa
