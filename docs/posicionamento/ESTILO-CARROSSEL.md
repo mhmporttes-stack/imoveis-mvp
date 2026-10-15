@@ -82,3 +82,16 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 - **Segunda paleta oficial:** fundo claro com o mesmo desenho do degradê — `radial-gradient(900px 760px at 50% 34%, #FFFFFF 0%, #F7F9FD 35%, #EAF0FA 70%, #DCE5F4 100%)`. Texto em azul-marinho `#0B1A3A`, texto secundário `#3A4A66` e destaque em azul `#1F5FD6`.
 - No perfil, organizar a grade em **blocos de 3 claros e 3 escuros (azuis)**, uma linha inteira de cada (dono, 2026-10-15). Em 15/10 o bloco claro tinha só 1 post ("Termos que parecem complicados"); faltavam 2 claros.
 - **Não repetir a mesma foto do dono** na capa de posts seguidos; quando o acervo se repetir, criar uma pose nova e chamativa que combine com o tema (exemplo: malabarismo com contratos). Para recortar foto com objetos soltos (papéis, chaves), usar o modelo `birefnet-general` do rembg.
+
+## Post de imóvel: modelo padrão (dono, 2026-10-15)
+Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `carrosseis/2026-10-15-terra-nova-casa/`.
+- **Fotos:** remover marca d'água de terceiros com LaMa (ONNX) e aumentar a resolução 2x com ESRGAN (`2xNomosUni`), com ajuste de cor leve e natural (sem HDR nem cantos escuros). Nunca usar borrão ou inpaint simples, porque deixa rastro.
+- **Capa:**
+  - O dono aparece à esquerda, apontando (`apontando.png` espelhado).
+  - Ao fundo, **duas fotos mescladas sem borda**: em cima, o ambiente de destaque; embaixo, o segundo destaque, com degradê entre elas.
+  - Sombra só na faixa do título.
+  - Texto em cima: "Olha o que eu encontrei pra você…" em Playfair itálico; título em Anton **numa linha só**, com o destaque em azul; e 📍 localização com o **pino vermelho** (#FF3B30).
+  - Embaixo, à direita: selo azul "À venda" e o botão branco "ARRASTE PARA VER MAIS →".
+- **Lâminas internas:** uma foto inteira por lâmina, com o selo "📍 Condomínio/Bairro" no topo (pino vermelho) e uma etiqueta branca numerada (01, 02…) com o nome do ambiente e um detalhe.
+- **Final:** versão clara, o dono com a chave, "Gostou? Vem conhecer de perto. Me chama no Direct ou no WhatsApp" e o CRECI.
+- **Valor:** só entra se o dono pedir. Nunca inventar número de quartos ou área; perguntar.
