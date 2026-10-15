@@ -432,10 +432,10 @@ const OFFICE_TIME = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Pa
 const OFFICE_UNTIL = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" });
 
 function OfficeButton({ office, open, onClick }) {
-  // Três estados (dono, 2026-10-15): verde cheio = no Wi-Fi da imobiliária agora; contorno verde = veio hoje (ou foi
-  // liberado) e segue na roleta até 9h, mas não está lá agora; cinza = não veio. Só visual: a roleta usa office.active.
-  const label = office.here ? "Na imobiliária agora" : office.active ? "Veio hoje, não está na imobiliária agora (segue na roleta)" : "Não veio à imobiliária";
-  const tone = office.here ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600" : office.active ? "border-emerald-500 bg-white text-emerald-600 hover:border-emerald-600" : "border-navy/10 bg-mist text-slate-400 hover:border-brand";
+  // Três estados (dono, 2026-10-15): VERDE só para quem está no Wi-Fi da imobiliária agora. Veio hoje (ou foi liberado)
+  // e saiu = prédio cinza com um pontinho verde (segue na roleta até 9h); não veio = cinza. Só visual: a roleta usa office.active.
+  const label = office.here ? "Na imobiliária agora" : office.active ? "Não está na imobiliária agora (segue na roleta até 9h)" : "Não veio à imobiliária";
+  const tone = office.here ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600" : "border-navy/10 bg-mist text-slate-400 hover:border-brand";
   return (
     <button
       type="button"
@@ -443,9 +443,10 @@ function OfficeButton({ office, open, onClick }) {
       aria-expanded={open}
       title={label}
       aria-label={`${label}. Ver detalhes`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : tone}`}
+      className={`relative grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : tone}`}
     >
       <Building2 size={15} strokeWidth={2.4} aria-hidden="true" />
+      {office.active && !office.here ? <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" /> : null}
     </button>
   );
 }
