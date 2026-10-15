@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Aviso ao dono quando o corretor desconecta (e a diferença para "possível restrição")
+
+- **Data:** 2026-10-14 · **Área:** WhatsApp / Alertas
+- **Alteração:** os administradores gerais (o dono) passam a receber alerta Importante + push quando o WhatsApp de um corretor desconecta, com a causa: **logout 401** ("aparelho removido no celular ou sessão encerrada pelo WhatsApp — não é restrição") ou **desconectado pelo próprio corretor no CRM**. **Restrição**: o alerta de atenção para 403/forbidden agora tem título "Possível restrição do WhatsApp", texto próprio ("não é uma desconexão comum") e push. Desconexão automática por "sem receber" não gera este aviso (tem o próprio). Some sozinho quando o número reconecta. Corretor inativo não gera aviso.
+- **Motivo:** pedido do dono: saber na hora quando um corretor cai e distinguir de restrição da conta.
+- **Arquivos afetados:** `lib/whatsapp-connection-alert-core.mjs` (`decideOwnerDisconnectAlert`, `buildOwnerDisconnectDeliveries`), `lib/whatsapp-connection-alert.js` (`notifyOwnerDisconnect`), `lib/whatsapp-individual.js` (chamada em `applyIndividualSessionStatus`), `lib/whatsapp-session-attention-core.mjs`, `lib/whatsapp-false-connection.js`, testes em `tests/whatsapp-connection-alert.test.mjs` e `tests/whatsapp-session-attention.test.mjs`.
+- **Risco/observação:** o sistema só identifica restrição pelo código 403 (WhatsApp recusou a conexão) ou pela restrição informada no cartão; um banimento que apareça como 401 não é distinguido de desconexão comum. Sem migration (alerta sem definição editável na Central; sempre ligado). Testes escritos, não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-14 — Telemetria: motivo do logout (401) do WhatsApp individual
 
 - **Data:** 2026-10-14 · **Área:** WhatsApp / Infra (microsserviço Railway)
