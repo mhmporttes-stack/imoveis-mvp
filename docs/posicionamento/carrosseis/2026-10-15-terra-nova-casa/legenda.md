@@ -1,6 +1,6 @@
 # Post de imóvel: casa no Condomínio Terra Nova (2026-10-15)
 
-Carrossel com 12 lâminas, no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos enviadas pelo proprietário: a marca d'água foi removida com LaMa e a resolução aumentada 2x com ESRGAN. **Sem valor**, a pedido do dono. Nada foi publicado.
+No CRM: **COD4353**, R$ 400.000, **não publicado** (fotos = lâminas na ordem; faltam quartos, área e região). Carrossel com 12 lâminas, no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos enviadas pelo proprietário: a marca d'água foi removida com LaMa e a resolução aumentada 2x com ESRGAN. **Sem valor**, a pedido do dono. Nada foi publicado.
 
 ## Legenda
 
