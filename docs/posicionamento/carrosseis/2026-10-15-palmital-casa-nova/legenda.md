@@ -1,13 +1,13 @@
 # Post de imóvel: casa nova no Palmital, Zona Norte (2026-10-15)
 
-Capa só com a foto da cozinha planejada (pedido do dono, só neste post). Código **COD4354** (provisório até o cadastro no CRM). Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros (LaMa não foi necessário); resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. **Sem valor**, conforme o modelo. Endereço completo fica fora do post (só bairro). Nada foi publicado.
+Capa só com a foto da cozinha planejada (pedido do dono, só neste post). Código **COD4354**. Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros (LaMa não foi necessário); resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. **Sem valor**, conforme o modelo. Endereço completo fica fora do post (só bairro). Nada foi publicado.
 
 Dados enviados pelo dono: Rua João Batista Raphael, 807 – Palmital (próximo ao Preço Certo); terreno 5,5 x 30 m (165 m²); 2 dormitórios; sala integrada; cozinha com planejados; área gourmet; pé-direito alto; estuda imóvel ou carro como parte da entrada.
 
 
 ## Site / CRM
 
-Fotos já no armazenamento (`property-media/cod4354-palmital/`, 10 lâminas na ordem, enviadas em 2026-10-15). **Falta criar o imóvel em `properties`** (publicado, `code`=4354, sem valor até o dono mandar): a conexão do banco estava fora do ar.
+**No site desde 2026-10-15:** `properties` id `de60e613-c9fa-432b-b342-1f4f7e0926fe`, `code`=4354, publicado, sem valor (dono ainda não mandou), 10 fotos = lâminas na ordem (`property-media/cod4354-palmital/`). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/de60e613-c9fa-432b-b342-1f4f7e0926fe
 
 ## Legenda
 
