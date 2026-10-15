@@ -903,3 +903,13 @@ html.chat-app-mode .chat-app-root {
     width: 100%;
   }
 }
+
+/* Home: o cabeçalho fica transparente por cima da abertura (dono, 2026-10-15). Feito em CSS porque, na
+   página gerada em cache (ISR), o usePathname do Header nem sempre vinha "/" e a faixa azul voltava. */
+body:has([data-home-hero]) .site-header {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  background: transparent;
+  border-bottom-color: transparent;
+}

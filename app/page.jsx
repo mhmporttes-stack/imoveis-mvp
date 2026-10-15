@@ -50,7 +50,7 @@ export default async function HomePage() {
           degradê azul da marca com o ponto claro atrás do Matheus (recorte sem moldura, apoiado na base, apontando
           para o texto). No celular, texto e botões vêm primeiro; a foto fica embaixo e não empurra os botões. */}
       {/* O cabeçalho do site fica transparente por cima desta seção (components/Header.jsx); pt-14/sm:pt-16 = altura dele. */}
-      <section className="relative isolate overflow-hidden bg-[#08112E] pt-14 text-white sm:pt-16">
+      <section data-home-hero className="relative isolate overflow-hidden bg-[#08112E] pt-14 text-white sm:pt-16">
         <HeroBackground variant={HERO_BACKGROUND} />
         <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
           <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">

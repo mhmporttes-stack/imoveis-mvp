@@ -25,7 +25,7 @@ export default function Header() {
   const isHome = pathname === "/";
 
   return (
-    <header className={`z-[80] text-white ${isHome ? "absolute inset-x-0 top-0 bg-transparent" : "relative border-b border-white/10 bg-[#061A2F]"}`}>
+    <header className={`site-header z-[80] text-white ${isHome ? "absolute inset-x-0 top-0 bg-transparent" : "relative border-b border-white/10 bg-[#061A2F]"}`}>
       <div className="container-page flex h-14 items-center justify-between gap-3 sm:h-16">
         <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/40" aria-label="Matheus Machado Imóveis, página inicial">
           <span className="relative block h-7 w-9 shrink-0 sm:h-8 sm:w-10">
