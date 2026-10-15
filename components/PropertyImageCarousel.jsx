@@ -196,7 +196,8 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
         {images.map((image, index) => (
           <Image
             alt={image.alt}
-            className={`object-cover transition-opacity duration-700 ease-out ${index === currentIndex ? "opacity-100" : "opacity-0"}`}
+            // Foto inteira, sem corte (dono, 2026-10-15): object-contain sobre o fundo do quadro.
+            className={`object-contain transition-opacity duration-700 ease-out ${index === currentIndex ? "opacity-100" : "opacity-0"}`}
             fill
             key={`${image.src}-${index}`}
             priority={index === 0}

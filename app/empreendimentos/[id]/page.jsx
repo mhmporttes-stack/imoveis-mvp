@@ -34,8 +34,8 @@ export default async function PropertyPage({ params }) {
           </h1>
           <p className="mt-6 text-xl leading-9 text-muted">{property.salesText || "Empreendimento selecionado com condições comerciais sob consulta."}</p>
           <div className="mt-8 rounded-3xl bg-mist p-6">
-            <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">Preço inicial</p>
-            <strong className="mt-2 block text-3xl font-black text-navy">A partir de {property.price || "consulte"}</strong>
+            <p className="text-sm font-black uppercase tracking-[0.16em] text-muted">{property.price ? "Preço inicial" : "Valores"}</p>
+            <strong className="mt-2 block text-3xl font-black text-navy">{property.price ? `A partir de ${property.price}` : "Consulte condições"}</strong>
           </div>
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <a className="premium-button-primary" target="_blank" rel="noopener noreferrer" href={whatsappLink(property, `Olá! Quero agendar uma visita no ${property.name}.`)}>Agendar visita</a>
@@ -47,10 +47,10 @@ export default async function PropertyPage({ params }) {
       </section>
 
       <section className="container-page grid gap-6 py-12 md:grid-cols-4">
-        <Info icon={Building2} label="Construtora" value={property.builder || "A confirmar"} />
+        <Info icon={Building2} label="Construtora" value={property.builder} />
         <Info icon={MapPin} label="Região" value={propertyRegion(property)} />
-        <Info icon={Ruler} label="Metragem" value={property.area || "A confirmar"} />
-        <Info icon={KeyRound} label="Quartos" value={property.bedrooms || "A confirmar"} />
+        <Info icon={Ruler} label="Metragem" value={property.area} />
+        <Info icon={KeyRound} label="Quartos" value={property.bedrooms} />
       </section>
 
       <section className="container-page grid gap-8 py-12 lg:grid-cols-[1fr_0.8fr]">
@@ -98,7 +98,9 @@ export default async function PropertyPage({ params }) {
   );
 }
 
+// Sem valor, o quadro não aparece ("A confirmar" não faz sentido para o cliente — dono, 2026-10-15).
 function Info({ icon: Icon, label, value }) {
+  if (!value) return null;
   return (
     <article className="rounded-2xl border border-line bg-white p-6 shadow-soft">
       <Icon className="h-7 w-7 text-brand" />
