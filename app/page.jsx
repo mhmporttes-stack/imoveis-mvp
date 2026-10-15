@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
@@ -41,36 +41,34 @@ export default async function HomePage() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(realEstateAgentJsonLd()) }} />
 
-      {/* Abertura */}
-      <section className="relative overflow-hidden bg-[#061A2F] text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(30,107,198,0.32),transparent_42%)]" aria-hidden="true" />
-        <div className="container-page relative grid items-center gap-10 py-8 sm:py-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-16">
-          <div className="min-w-0">
-            {/* No computador, nome e CRECI ficam na legenda da foto ao lado. */}
-            <div className="flex items-center gap-3 lg:hidden">
-              <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25 lg:hidden">
-                <Image src="/assets/corretor-matheus-rosto.jpg" alt="Matheus Machado, corretor de imóveis" fill sizes="48px" className="object-cover" priority />
-              </span>
-              <p className="leading-tight">
-                <span className="block text-sm font-black uppercase tracking-[0.16em] text-white">Matheus Machado</span>
-                <span className="mt-1 block text-sm font-semibold text-blue-100/80">Corretor em Marília · CRECI 323106-F</span>
-              </p>
-            </div>
+      {/* Abertura — direção de arte dos carrosséis aprovados (docs/posicionamento/ESTILO-CARROSSEL.md, dono 2026-10-15):
+          degradê azul da marca com o ponto claro atrás do Matheus (recorte sem moldura, apoiado na base, apontando
+          para o texto). No celular, texto e botões vêm primeiro; a foto fica embaixo e não empurra os botões. */}
+      <section className="relative isolate overflow-hidden bg-[#08112E] text-white">
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(900px_760px_at_50%_86%,#1F4CB3_0%,#173A8E_30%,#0E2257_62%,#08112E_100%)] md:bg-[radial-gradient(900px_760px_at_74%_46%,#1F4CB3_0%,#173A8E_30%,#0E2257_62%,#08112E_100%)]"
+          aria-hidden="true"
+        />
+        <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
+          <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-200/90 sm:text-sm sm:tracking-[0.2em] md:text-xs lg:text-sm">
+              Matheus Machado <span className="text-white/35" aria-hidden="true">·</span> Corretor em Marília
+            </p>
 
-            <h1 className="mt-6 text-[clamp(2rem,5.4vw,3.6rem)] lg:mt-0 font-black leading-[1.04] tracking-[-0.01em] sm:mt-8">
-              Seu primeiro imóvel em Marília
-              <span className="mt-2 block text-[clamp(1.2rem,2.6vw,1.85rem)] font-extrabold leading-tight text-blue-200">
+            <h1 className="mt-4 text-[clamp(2.15rem,5.6vw,4rem)] font-black leading-[1.16] tracking-[-0.015em] sm:mt-5">
+              Seu primeiro imóvel em <span className="text-[#4C8DF6]">Marília</span>
+              <span className="mt-3 block max-w-[30rem] text-[clamp(1.15rem,2.2vw,1.6rem)] font-bold leading-snug tracking-normal text-white/85">
                 com Minha Casa Minha Vida e financiamento Caixa.
               </span>
             </h1>
-            <p className="mt-5 max-w-[34rem] text-base leading-7 text-white/80 sm:text-lg sm:leading-8">
+            <p className="mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/70 sm:text-lg sm:leading-8">
               Descubra em menos de 2 minutos quanto você pode financiar. Depois, a gente acompanha você da aprovação até a entrega das chaves.
             </p>
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center md:flex-col md:items-start lg:flex-row lg:items-center">
               <Link
                 href={SIMULATION_FORM_URLS.main}
-                className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_18px_45px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+                className="group inline-flex min-h-14 whitespace-nowrap items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-black text-[#0E2257] shadow-[0_14px_34px_rgba(4,10,30,0.5),0_8px_30px_rgba(76,141,246,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60"
               >
                 Simular quanto posso financiar
                 <ArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-1" aria-hidden="true" />
@@ -79,32 +77,45 @@ export default async function HomePage() {
                 href={siteWhatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/30 px-7 text-base font-extrabold text-white transition duration-300 hover:border-white/60 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50"
+                className="inline-flex min-h-12 whitespace-nowrap items-center justify-center gap-2 rounded-full border border-white/25 bg-white/[0.04] px-6 text-[15px] font-bold text-white/90 transition duration-300 hover:border-white/50 hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/50 sm:min-h-14"
               >
                 <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
                 Falar no WhatsApp
               </a>
             </div>
-            <p className="mt-4 text-sm font-semibold text-white/60">Simulação gratuita e sem compromisso.</p>
+
+            {/* Selos de confiança: pequenos e na mesma linha visual, sem competir com os botões. */}
+            <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-[13px] font-semibold text-white/65 sm:mt-7 sm:text-sm">
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-[#4C8DF6]" aria-hidden="true" />
+                Simulação gratuita e sem compromisso.
+              </li>
+              <li className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-[#4C8DF6]" aria-hidden="true" />
+                CRECI 323106-F
+              </li>
+              <li className="flex items-center border-l border-white/15 pl-5">
+                <Image src="/assets/mcmv-logo-branco.png" alt="Minha Casa Minha Vida" width={101} height={30} className="h-[26px] w-auto opacity-80" />
+              </li>
+            </ul>
           </div>
 
-          <figure className="relative mx-auto hidden w-full max-w-[400px] lg:block">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] ring-1 ring-white/15">
+          <div className="relative -mx-4 mt-2 h-[340px] sm:mx-0 sm:h-[380px] md:mt-0 md:h-auto">
+            <span
+              className="pointer-events-none absolute bottom-0 left-1/2 h-[70%] w-[78%] -translate-x-1/2 rounded-[50%] bg-[#4C8DF6]/20 blur-[70px] md:h-[62%]"
+              aria-hidden="true"
+            />
+            <div className="absolute inset-x-0 bottom-0 top-0 md:top-8">
               <Image
-                src="/assets/corretor-matheus-caixa.jpg"
+                src="/assets/matheus-machado-apontando-recorte.webp"
                 alt="Matheus Machado, corretor de imóveis em Marília"
                 fill
                 priority
-                sizes="400px"
-                className="object-cover"
+                sizes="(min-width: 768px) 560px, 92vw"
+                className="object-contain object-bottom [filter:drop-shadow(0_28px_36px_rgba(3,8,26,0.55))_drop-shadow(0_2px_6px_rgba(3,8,26,0.35))]"
               />
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#061A2F]/85 to-transparent" aria-hidden="true" />
             </div>
-            <figcaption className="absolute bottom-5 left-5 right-5 text-white">
-              <span className="block text-lg font-black">Matheus Machado</span>
-              <span className="block text-sm font-semibold text-white/80">Corretor de imóveis · CRECI 323106-F</span>
-            </figcaption>
-          </figure>
+          </div>
         </div>
       </section>
 
