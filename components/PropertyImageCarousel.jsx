@@ -36,6 +36,22 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
     });
     if (Object.keys(found).length) setRatios((current) => ({ ...found, ...current }));
   }, []);
+  // Setas (dono, 2026-10-15): sem os pontinhos de baixo; as setas aparecem na 1ª foto e, depois que ela passa, somem —
+  // voltam ao passar o mouse (computador) ou ao tocar na foto (celular, por alguns segundos).
+  const [leftFirstImage, setLeftFirstImage] = useState(false);
+  const [arrowsRevealed, setArrowsRevealed] = useState(false);
+  const revealTimer = useRef(null);
+  const lastPointerType = useRef("mouse");
+  useEffect(() => {
+    if (currentIndex !== 0) setLeftFirstImage(true);
+  }, [currentIndex]);
+  useEffect(() => () => clearTimeout(revealTimer.current), []);
+  const revealArrows = useCallback(() => {
+    setArrowsRevealed(true);
+    clearTimeout(revealTimer.current);
+    revealTimer.current = setTimeout(() => setArrowsRevealed(false), 3500);
+  }, []);
+  const arrowsVisible = !leftFirstImage || arrowsRevealed;
   const carouselTouchStart = useRef(null);
   const carouselSwiped = useRef(false);
   const lightboxTouchStart = useRef(null);
@@ -188,12 +204,20 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
         aria-label={`Abrir galeria de fotos de ${propertyName}`}
         // Ficha do imóvel (dono, 2026-10-15): foto inteira e GRANDE, cantos levemente arredondados NA PRÓPRIA FOTO e a
         // mesma altura do quadro de texto ao lado (h-full no grid; no celular, proporção 4:5).
-        className="relative max-h-[80vh] w-full cursor-zoom-in outline-none focus-visible:ring-4 focus-visible:ring-brand/30 lg:!aspect-auto lg:h-full lg:max-h-none lg:min-h-[520px]"
+        className="group relative max-h-[80vh] w-full cursor-zoom-in outline-none focus-visible:ring-4 focus-visible:ring-brand/30 lg:!aspect-auto lg:h-full lg:max-h-none lg:min-h-[520px]"
         ref={frameRef}
         style={{ aspectRatio: String(ratios[currentIndex] || 0.8) }}
+        onPointerDown={(event) => {
+          lastPointerType.current = event.pointerType || "mouse";
+        }}
         onClick={() => {
           if (carouselSwiped.current) {
             carouselSwiped.current = false;
+            return;
+          }
+          // Celular: com as setas escondidas, o 1º toque só mostra as setas; o seguinte abre a galeria.
+          if (lastPointerType.current !== "mouse" && hasMultipleImages && !arrowsVisible) {
+            revealArrows();
             return;
           }
 
@@ -231,10 +255,11 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
           <>
             <button
               aria-label="Foto anterior"
-              className="absolute left-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-navy/55 text-white shadow-soft backdrop-blur transition hover:bg-white hover:text-navy focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40"
+              className={`absolute left-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-navy/55 text-white shadow-soft backdrop-blur transition hover:bg-white hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40 ${arrowsVisible ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"}`}
               onClick={(event) => {
                 event.stopPropagation();
                 goToPrevious();
+                if (lastPointerType.current !== "mouse") revealArrows();
               }}
               type="button"
             >
@@ -242,30 +267,17 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
             </button>
             <button
               aria-label="Proxima foto"
-              className="absolute right-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-navy/55 text-white shadow-soft backdrop-blur transition hover:bg-white hover:text-navy focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40"
+              className={`absolute right-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-navy/55 text-white shadow-soft backdrop-blur transition hover:bg-white hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40 ${arrowsVisible ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"}`}
               onClick={(event) => {
                 event.stopPropagation();
                 goToNext();
+                if (lastPointerType.current !== "mouse") revealArrows();
               }}
               type="button"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/25 bg-navy/55 px-4 py-2 shadow-soft backdrop-blur">
-              {images.map((image, index) => (
-                <button
-                  aria-label={`Mostrar foto ${index + 1} de ${images.length}`}
-                  className={`h-2.5 rounded-full transition-all ${index === currentIndex ? "w-7 bg-white" : "w-2.5 bg-white/45 hover:bg-white/75"}`}
-                  key={`${image.alt}-${index}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    goToImage(index);
-                  }}
-                  type="button"
-                />
-              ))}
-            </div>
           </>
         ) : null}
       </div>
