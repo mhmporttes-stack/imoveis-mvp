@@ -755,7 +755,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           />
         </label>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {FILTERS.map((item) => (
+          {FILTERS.filter((item) => item.key !== "private" || canSeeArchived).map((item) => (
             <button
               key={item.key}
               type="button"

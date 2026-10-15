@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Particular: a conversa trancada some do CRM para todos, exceto o dono
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Privacidade
+- **Alteração:** antes, corretor e gestora viam a "casca" da conversa particular (nome, telefone, "Conversa particular") na aba Particular e na busca, sem poder ler as mensagens. Agora quem não é o administrador geral não recebe a conversa em lugar nenhum: nem lista, nem aba Particular (escondida), nem busca, e abrir pelo id devolve "Conversa não encontrada". Só o dono vê (e lê) tudo.
+- **Motivo:** pedido do dono: conversas colocadas em Particular devem sumir do CRM para todos exceto ele.
+- **Arquivos afetados:** `lib/whatsapp-chat.js` (lista e `loadConversation`), `components/WhatsappChat.jsx` (aba), `tests/whatsapp-private-conversations.test.mjs`.
+- **Risco/observação:** consequência: o corretor que move uma conversa para Particular não a vê mais e não consegue "Tirar de Particular" sozinho; só o dono destranca (o que apaga as mensagens do Chat, como antes). As travas antigas (casca/403) ficam no código como defesa extra.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — PRO-15: WhatsApp desconectado (sem ban/restrição) = modo lista impressa
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp / Prospecção / Chat / Permissões
