@@ -195,7 +195,7 @@ export default async function HomePage() {
               Prazer, eu sou o <span className="text-[#1F4CB3]">Matheus</span>.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-8 text-ink-2 sm:text-lg">
-              Sou corretor de imóveis em Marília, com CRECI 323106-F. Meu foco é quem vai comprar o primeiro imóvel:
+              Sou corretor de imóveis em Marília, com CRECI 323106-F, e sou especialista na compra do primeiro imóvel:
               explico o Minha Casa Minha Vida e o financiamento da Caixa sem palavras difíceis, e minha equipe e eu
               acompanhamos cada etapa com você.
             </p>
