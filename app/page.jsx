@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, Calculator, Check, KeyRound, ShieldCheck } from "lucide-react";
 import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
@@ -25,7 +25,7 @@ export const metadata = {
 
 // Home mais curta (dono aprovou em 2026-10-15): abertura com a promessa + simular; uma lista só de imóveis
 // (busca no topo dela, 6 por vez); "Por que comprar comigo" como linha do tempo; "Quem é o Matheus" com
-// foto real (docs/posicionamento/assets/fotos-reais); depoimentos; vender. Sem número de famílias e sem nota
+// recorte do Matheus (docs/posicionamento/assets/boneco-3d/realista); depoimentos; vender. Sem número de famílias e sem nota
 // do Google (o dono não informou esses dados).
 const journey = [
   { title: "Simulação", text: "Você descobre quanto pode financiar, a entrada e os subsídios possíveis." },
@@ -155,28 +155,64 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Quem é o Matheus */}
-      <section aria-labelledby="quem-title" className="py-12 sm:py-20">
-        <div className="container-page grid items-center gap-8 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:gap-14">
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-[24px] bg-mist sm:max-w-[360px]">
-            <Image src="/assets/corretor-matheus-caixa.jpg" alt="Matheus Machado na porta de uma agência bancária" fill sizes="(min-width: 768px) 360px, 90vw" className="object-cover lg:hidden" />
-            <Image src="/assets/corretor-matheus-retrato.jpg" alt="Matheus Machado sorrindo" fill sizes="360px" className="hidden object-cover lg:block" />
+      {/* Quem é o Matheus (redesenho 2026-10-15, pedido do dono): fundo claro da marca para contrastar com a abertura
+          escura; recorte do Matheus de braços cruzados (pose diferente da abertura) saindo de um círculo com o degradê
+          azul, sem moldura; selo do CRECI na base do círculo (longe do rosto); os 3 itens como cartões com ícone. */}
+      <section
+        aria-labelledby="quem-title"
+        className="relative isolate overflow-hidden bg-[radial-gradient(120%_90%_at_28%_45%,#FFFFFF_0%,#F7F9FD_38%,#EAF0FA_72%,#DCE5F4_100%)] py-14 sm:py-20 lg:py-24"
+      >
+        <div className="container-page grid items-center gap-12 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-12 lg:gap-16">
+          <div className="relative mx-auto w-[272px] sm:w-[320px] lg:w-[380px]">
+            {/* Halo e anel: decorativos, atrás do círculo. */}
+            <span className="pointer-events-none absolute inset-x-[-12%] bottom-[-6%] aspect-square rounded-full bg-[#4C8DF6]/20 blur-[60px]" aria-hidden="true" />
+            <span className="pointer-events-none absolute inset-x-[-5%] bottom-[-5%] aspect-square rounded-full border border-[#1F4CB3]/15" aria-hidden="true" />
+            <div className="relative aspect-[100/122]">
+              <span
+                className="absolute inset-x-0 bottom-0 aspect-square rounded-full bg-[radial-gradient(circle_at_50%_32%,#4C8DF6_0%,#1F4CB3_38%,#0E2257_74%,#08112E_100%)] shadow-[0_34px_60px_-24px_rgba(8,17,46,0.55)]"
+                aria-hidden="true"
+              />
+              {/* O recorte sai pelo topo do círculo e é cortado pela curva de baixo (rounded-b), sem borda reta. */}
+              <div className="absolute inset-0 overflow-hidden rounded-b-[9999px]">
+                <Image
+                  src="/assets/matheus-machado-bracos-cruzados-recorte.webp"
+                  alt="Matheus Machado, corretor de imóveis em Marília, sorrindo de braços cruzados"
+                  fill
+                  sizes="(min-width: 1024px) 380px, 320px"
+                  className="object-contain object-bottom"
+                />
+              </div>
+            </div>
+            <p className="absolute bottom-0 left-1/2 inline-flex -translate-x-1/2 translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#DCE5F4] bg-white px-4 py-2 text-[13px] font-bold text-[#0E2257] shadow-[0_10px_24px_-10px_rgba(8,17,46,0.35)]">
+              <ShieldCheck className="h-4 w-4 text-[#1F4CB3]" aria-hidden="true" />
+              CRECI 323106-F
+            </p>
           </div>
+
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Quem é o Matheus</p>
-            <h2 id="quem-title" className="mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">
-              Prazer, eu sou o Matheus.
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#1F4CB3] sm:text-sm">Quem é o Matheus</p>
+            <h2 id="quem-title" className="mt-3 text-[clamp(1.75rem,3.4vw,2.75rem)] font-black leading-[1.15] tracking-[-0.015em] text-[#0E2257]">
+              Prazer, eu sou o <span className="text-[#1F4CB3]">Matheus</span>.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-8 text-ink-2 sm:text-lg">
               Sou corretor de imóveis em Marília, com CRECI 323106-F. Meu foco é quem vai comprar o primeiro imóvel:
               explico o Minha Casa Minha Vida e o financiamento da Caixa sem palavras difíceis, e minha equipe e eu
               acompanhamos cada etapa com você.
             </p>
-            <ul className="mt-6 grid gap-3 text-base font-semibold text-ink">
-              {["Simulação gratuita, sem compromisso", "Imóveis na planta e prontos em Marília", "Acompanhamento até a entrega das chaves"].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <Check className="mt-1 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-                  {item}
+            <ul className="mt-7 grid gap-3 lg:grid-cols-3">
+              {[
+                { text: "Simulação gratuita, sem compromisso", Icon: Calculator },
+                { text: "Imóveis na planta e prontos em Marília", Icon: Building2 },
+                { text: "Acompanhamento até a entrega das chaves", Icon: KeyRound }
+              ].map(({ text, Icon }) => (
+                <li
+                  key={text}
+                  className="flex items-center gap-3 rounded-2xl border border-white bg-white/75 p-3.5 text-[15px] font-semibold leading-snug text-ink shadow-[0_8px_24px_-14px_rgba(14,34,87,0.35)] backdrop-blur-sm lg:flex-col lg:items-start lg:gap-3 lg:p-4"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#1F4CB3_0%,#0E2257_100%)] text-white shadow-[0_6px_14px_-6px_rgba(31,76,179,0.7)]">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  {text}
                 </li>
               ))}
             </ul>
