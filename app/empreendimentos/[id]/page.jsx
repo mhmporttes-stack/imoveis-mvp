@@ -21,19 +21,14 @@ export default async function PropertyPage({ params }) {
   const showBuilderUrl = Boolean(property.isDevelopment && property.builderUrl);
   const hasConditions = Boolean(property.terms || property.discounts || property.installmentEntry);
   const hasMaterials = Boolean(property.pdfData || showBuilderUrl);
-  const titleLength = property.name.length;
-  const titleMinRem = titleLength > 38 ? 0.95 : titleLength > 30 ? 1.05 : 1.15;
-  const titleViewportSize = Math.max(2.1, Math.min(5.2, 96 / Math.max(titleLength, 14)));
 
   return (
     <main className="pb-24">
       <section className="container-wide grid gap-8 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
         <PropertyImageCarousel photos={photos} propertyName={property.name} />
         <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-8 shadow-soft md:p-12">
-          <h1
-            className="w-full whitespace-nowrap text-center font-black leading-none text-navy"
-            style={{ fontSize: `clamp(${titleMinRem}rem, ${titleViewportSize}vw, 3.75rem)` }}
-          >
+          {/* Título quebra em linhas e cabe no quadro (dono, 2026-10-15: "diminua o título para caber"). */}
+          <h1 className="w-full text-balance break-words text-[clamp(1.75rem,3.2vw,2.75rem)] font-black leading-tight text-navy">
             {property.name}
           </h1>
           {property.salesText ? <p className="mt-6 text-xl leading-9 text-muted">{property.salesText}</p> : null}
