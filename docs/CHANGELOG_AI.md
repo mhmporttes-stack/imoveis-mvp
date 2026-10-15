@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Botão de sino no cabeçalho com o histórico de notificações
+
+- **Data:** 2026-10-14 · **Área:** Alertas / Interface
+- **Alteração:** botão pequeno só com o ícone de sino, ao lado do ícone do Google Contacts no card "Melhor do Dia" (cabeçalho de todas as telas do painel). Abre uma lista com as notificações da Central de Alertas do PRÓPRIO usuário dos últimos 30 dias (lidas e não lidas, mais recentes primeiro), com horário relativo, tipo (Importante/Informativo) e clique que leva à tela do alerta. Bolinha vermelha quando há alguma sem "Entendi". Somente leitura. Fora de "Alterar conta".
+- **Motivo:** pedido do dono: ter o histórico das notificações à mão.
+- **Arquivos afetados:** `components/alerts/NotificationHistoryButton.jsx`, `app/api/admin/alerts/history/route.js`, `lib/crm-alerts.js` (`listMyAlertHistory`), `app/admin/layout.jsx`, `components/TopRankingBadge.jsx`.
+- **Risco/observação:** a rota devolve só id, tipo, título, texto, horário, se foi confirmada e o link seguro do próprio destinatário. Atualiza a cada 2 min com a aba visível e ao abrir. No celular o rótulo "Melhor do Dia" ganhou mais respiro à direita para não encostar nos dois ícones. Não conferi visualmente no navegador (precisa de login); conferir no celular.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-14 — Aviso ao dono quando o corretor desconecta (e a diferença para "possível restrição")
 
 - **Data:** 2026-10-14 · **Área:** WhatsApp / Alertas
