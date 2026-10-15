@@ -71,6 +71,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** deploy no Railway reinicia o serviço (todas as sessões reconectam em seguida). Consulta: `select occurred_at, user_id, detail from whatsapp_session_telemetry where event_type='disconnected' and status_code=401 and detail is not null`.
 - **Autor:** Claude (sessão de operação do dono)
 
+### 2026-10-15 — Menu do corretor: "Imóveis" no lugar de "Cadastrar depoimento"
+
+- **Pedido do dono:** corretor/associado deixam de ver "Cadastrar depoimento" e passam a ver **Imóveis** (todos os imóveis cadastrados, publicados ou não no site), só consulta. Gestora mantém "Cadastrar depoimento" e também ganha Imóveis.
+- **Onde:** `components/AdminMenu.jsx` (`brokerGroups`/`managerGroups`), ícone em `AdminBottomNav.jsx`, páginas novas `app/admin/imoveis` e `app/admin/imoveis/[id]` (`requireAdminPage`; "Informações internas" filtradas por `redactProperty(ies)ForAuth`; editar/publicar continua só admin/gestor em `/admin`). A rota de depoimento continua existindo (só saiu do menu). Teste: `tests/permissoes-tags-notas-internas.test.mjs`.
+
 ### 2026-10-15 — Painel Online: prédio verde só "na imobiliária agora"
 
 - **Pedido do dono:** às 6h todos apareciam verdes (chegaram ontem; a chegada vale até 9h). Agora: verde cheio = no Wi-Fi da imobiliária nos últimos 10 min; contorno verde = apto na roleta até 9h, mas fora agora; cinza = não veio. Roleta inalterada.

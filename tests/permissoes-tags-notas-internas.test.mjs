@@ -105,10 +105,14 @@ test("só os consumidores conhecidos de internalNotes existem em app/ e componen
   walk("app"); walk("components");
   assert.deepEqual(consumers.sort(), [
     "app/admin/empreendimentos/consulta/[id]/page.jsx",
+    "app/admin/imoveis/[id]/page.jsx",
     "app/api/analyze/route.js",
     "components/EmpreendimentoPresentation.jsx",
     "components/PropertyForm.jsx"
   ]);
+  // Consulta de Imóveis para a equipe (2026-10-15): passa pelo filtro do servidor antes de renderizar.
+  assert.match(read("app/admin/imoveis/[id]/page.jsx"), /redactPropertyForAuth\(await getProperty\(id\), auth\)/);
+  assert.match(read("app/admin/imoveis/page.jsx"), /redactPropertiesForAuth\(/);
   // O cadastro/edição (PropertyForm) só abre para admin e gestor.
   assert.match(read("app/admin/empreendimentos/[id]/page.jsx"), /!isGeneralAdminAuth\(auth\) && !isManagerProfile\(auth\.profile\)\) redirect/);
   // O gerador de simulação nunca leu as notas.

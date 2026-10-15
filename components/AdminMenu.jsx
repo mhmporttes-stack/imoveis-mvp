@@ -94,7 +94,8 @@ const brokerGroups = [
     items: [
       { href: "/admin/novo", label: "Cadastrar imóvel", key: "new-property" },
       { href: "/admin/empreendimentos", label: "Empreendimentos", key: "developments" },
-      { href: "/admin/depoimentos/novo", label: "Cadastrar depoimento", key: "new-testimonial", activeKeys: ["testimonials"] }
+      // Corretor/associado (dono, 2026-10-15): sai "Cadastrar depoimento", entra a consulta de Imóveis (todos, mesmo fora do site).
+      { href: "/admin/imoveis", label: "Imóveis", key: "properties-catalog" }
     ]
   },
   {
@@ -125,7 +126,15 @@ const associateGroups = brokerGroups.map((group) => {
 // continua nas próprias páginas (requireBrokerManagementPage: admin OU
 // gestor, sempre limitado à equipe dela — nunca aos clientes/financeiro do
 // dono) — isso aqui é só garantir que o item do menu não suma de novo.
-const managerGroups = [...brokerGroups.filter((group) => group.key !== "ajuda"), adminGroups.find((group) => group.key === "gestao"), manualGroup];
+// Gestora mantém "Cadastrar depoimento" (a troca de 2026-10-15 foi só para corretor/associado) e ganha a consulta de Imóveis.
+const NEW_TESTIMONIAL_ITEM = { href: "/admin/depoimentos/novo", label: "Cadastrar depoimento", key: "new-testimonial", activeKeys: ["testimonials"] };
+const managerGroups = [
+  ...brokerGroups
+    .filter((group) => group.key !== "ajuda")
+    .map((group) => (group.key === "cadastros" ? { ...group, items: [...group.items, NEW_TESTIMONIAL_ITEM] } : group)),
+  adminGroups.find((group) => group.key === "gestao"),
+  manualGroup
+];
 
 // Menu do administrador geral, organizado em torno de supervisionar o time.
 // Gestor continua com adminGroups (acima), sem alteração.

@@ -259,6 +259,7 @@ const ITEM_ICONS = {
   captacoes: Radar,
   testimonials: MessageSquareQuote,
   "new-testimonial": MessageSquarePlus,
+  "properties-catalog": House,
   brokers: UsersRound,
   "campaign-links": Link2,
   "client-journey": Route,
