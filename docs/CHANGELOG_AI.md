@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-14 — Telemetria: motivo do logout (401) do WhatsApp individual
+
+- **Data:** 2026-10-14 · **Área:** WhatsApp / Infra (microsserviço Railway)
+- **Alteração:** o evento `disconnected` da telemetria passa a levar `detail` com um resumo SEGURO do que o WhatsApp mandou junto com a queda (`summarizeDisconnectData`: só tags/códigos curtos, ex. `stream:error.conflict.device_removed`; até 40 caracteres; nunca texto livre/telefone). Sem mudança de comportamento: reconexão, logout e alertas seguem iguais.
+- **Motivo:** 37 logouts (401) em 10 dias, em todos os corretores, sem causa conhecida (não coincidem com reinício do serviço). O detalhe do próximo 401 mostra se foi aparelho removido no celular, conflito ou outra coisa.
+- **Arquivos afetados:** `whatsapp-individual-service/src/reconnect-policy.js`, `session-lifecycle.js`, `sessions.js`, `tests/whatsapp-reconnect-policy.test.mjs`.
+- **Risco/observação:** deploy no Railway reinicia o serviço (todas as sessões reconectam em seguida). Consulta: `select occurred_at, user_id, detail from whatsapp_session_telemetry where event_type='disconnected' and status_code=401 and detail is not null`.
+- **Autor:** Claude (sessão de operação do dono)
+
 ### 2026-10-15 — Painel Online: prédio verde só "na imobiliária agora"
 
 - **Pedido do dono:** às 6h todos apareciam verdes (chegaram ontem; a chegada vale até 9h). Agora: verde cheio = no Wi-Fi da imobiliária nos últimos 10 min; contorno verde = apto na roleta até 9h, mas fora agora; cinza = não veio. Roleta inalterada.

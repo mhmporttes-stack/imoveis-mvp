@@ -602,7 +602,8 @@ async function onConnectionUpdate(userId, entry, sock, update) {
       sock,
       statusCode: lastDisconnect?.error?.output?.statusCode,
       errorMessage: lastDisconnect?.error?.message,
-      payload: lastDisconnect?.error?.output?.payload
+      payload: lastDisconnect?.error?.output?.payload,
+      errorData: lastDisconnect?.error?.data
     });
   }
 }
