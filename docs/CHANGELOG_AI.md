@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+## 2026-10-15 — Home: faixa do cabeçalho, contorno da foto e "Quem é o Matheus"
+- **Causa raiz:** na página da home gerada em cache (ISR, `revalidate = 60`), o `usePathname()` do `components/Header.jsx` não vinha `"/"` e o cabeçalho saía com a faixa azul-marinho e a borda. **Correção:** a regra de transparência agora é CSS (`body:has([data-home-hero]) .site-header` em `app/globals.css`; o hero tem `data-home-hero`), e o `isHome` foi mantido.
+- Foto apontando (`public/assets/matheus-machado-apontando-recorte.webp`): a borda do recorte foi apertada para tirar o contorno claro (pedido do dono).
+- Seção "Quem é o Matheus" refeita (recorte de braços cruzados, cards, selo do CRECI), com a frase "sou especialista na compra do primeiro imóvel".
+
 ## 2026-10-15 — Home: novo topo (hero) aprovado pelo dono
 - **Alteração:** hero da home refeito (só apresentação): recorte do dono apontando (dedo editado por IA a pedido dele), fundo B (cidade desfocada + véu azul-marinho, `components/site/HeroBackground.jsx`, opções A/B/C via `HERO_BACKGROUND` em `app/page.jsx`), cabeçalho transparente só na home (`components/Header.jsx`), selos (simulação gratuita, CRECI, logo MCMV).
 - **Arquivos afetados:** `app/page.jsx`, `components/Header.jsx`, `components/site/HeroBackground.jsx`, `public/assets/{matheus-machado-apontando-recorte.webp,hero-fundo-cidade.webp,mcmv-logo-branco.png}`.
