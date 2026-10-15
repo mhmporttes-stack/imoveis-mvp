@@ -90,12 +90,6 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
         <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-bold text-red-700">{error}</div>
       ) : null}
 
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <StatPill emoji="🟢" label="Online" value={presence?.online || 0} tone="border-emerald-100 bg-emerald-50 text-emerald-700" />
-        <StatPill emoji="🟡" label="Ausentes" value={presence?.away || 0} tone="border-amber-100 bg-amber-50 text-amber-700" />
-        <StatPill emoji="⚫" label="Offline" value={presence?.offline || 0} tone="border-slate-200 bg-slate-50 text-slate-600" />
-      </div>
-
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Presença no CRM</h3>
@@ -372,18 +366,6 @@ function HoursReport() {
         </>
       ) : null}
     </article>
-  );
-}
-
-function StatPill({ emoji, label, value, tone }) {
-  return (
-    <div className={`flex items-center justify-center gap-2.5 rounded-2xl border px-4 py-3 text-center sm:px-5 sm:py-4 ${tone}`}>
-      <span className="text-xl leading-none sm:text-2xl">{emoji}</span>
-      <div className="text-center">
-        <p className="text-xl font-black leading-none sm:text-2xl">{value}</p>
-        <p className="text-[11px] font-bold uppercase tracking-wide sm:text-xs">{label}</p>
-      </div>
-    </div>
   );
 }
 
