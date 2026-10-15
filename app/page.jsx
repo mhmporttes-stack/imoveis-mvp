@@ -4,6 +4,7 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import HeroBackground from "@/components/site/HeroBackground";
 import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
@@ -33,6 +34,10 @@ const journey = [
   { title: "Chaves", text: "Acompanhamento até a assinatura e a entrega do seu imóvel." }
 ];
 
+// Fundo da abertura: "A" (degradê + grão + brilho), "B" (cidade desfocada sob véu azul) ou "C" (traço de casas/planta).
+// Opções desenhadas em 2026-10-15 para o dono escolher; detalhes em components/site/HeroBackground.jsx.
+const HERO_BACKGROUND = "A";
+
 export default async function HomePage() {
   const properties = await listPublicProperties();
   const testimonials = await listPublicTestimonials();
@@ -44,11 +49,9 @@ export default async function HomePage() {
       {/* Abertura — direção de arte dos carrosséis aprovados (docs/posicionamento/ESTILO-CARROSSEL.md, dono 2026-10-15):
           degradê azul da marca com o ponto claro atrás do Matheus (recorte sem moldura, apoiado na base, apontando
           para o texto). No celular, texto e botões vêm primeiro; a foto fica embaixo e não empurra os botões. */}
-      <section className="relative isolate overflow-hidden bg-[#08112E] text-white">
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(900px_760px_at_50%_86%,#1F4CB3_0%,#173A8E_30%,#0E2257_62%,#08112E_100%)] md:bg-[radial-gradient(900px_760px_at_74%_46%,#1F4CB3_0%,#173A8E_30%,#0E2257_62%,#08112E_100%)]"
-          aria-hidden="true"
-        />
+      {/* O cabeçalho do site fica transparente por cima desta seção (components/Header.jsx); pt-14/sm:pt-16 = altura dele. */}
+      <section className="relative isolate overflow-hidden bg-[#08112E] pt-14 text-white sm:pt-16">
+        <HeroBackground variant={HERO_BACKGROUND} />
         <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
           <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-200/90 sm:text-sm sm:tracking-[0.2em] md:text-xs lg:text-sm">
