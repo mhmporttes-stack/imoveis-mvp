@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-15 — Código do imóvel (chip "COD4352" na lista do painel)
+
+- **Data:** 2026-10-15 · **Área:** Banco / Imóveis (painel admin)
+- **Alteração:** coluna nova `properties.code` (text, nullable, único quando preenchido — `properties_code_unique`). Guarda só o código (o formulário aceita "COD4352" e grava "4352"; vazio vira null). A lista de imóveis do `/admin` mostra o chip `COD{code}` junto de "Publicado/Em moderação" e do tipo; o formulário de cadastrar/editar ganhou o campo "Código". Não aparece no site público. Migration preenche os 2 imóveis existentes (4352 e 4353). Código repetido → erro "Já existe outro imóvel com o código COD…".
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `supabase/migrations/20261015120000_properties_code.sql`, `lib/property-mapper.js` (`normalizePropertyCode`), `lib/properties.js` (`writePropertyRecord`: se a coluna `code` não existir no banco, regrava só sem ela; depois o fallback legado de sempre), `components/AdminPropertyList.jsx`, `components/PropertyForm.jsx`, `docs/DATABASE.md`.
+- **Risco/observação:** publicação/visibilidade inalteradas (o "Aprovar e publicar" manda só `isPublished` e `updateProperty` mescla com o registro existente, preservando o código). A lista do painel não tem busca/filtro hoje, então não houve busca a estender. SQLite local (`lib/db.js`) não tem a coluna — código não persiste no modo local (só produção/Supabase). **A CONFIRMAR:** aplicação da migration em produção (esta sessão não tinha acesso ao banco); até aplicar, o chip não aparece e o campo não grava, sem quebrar o salvamento.
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-14 — Botão de sino no cabeçalho com o histórico de notificações
 
 - **Data:** 2026-10-14 · **Área:** Alertas / Interface
