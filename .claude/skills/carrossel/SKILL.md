@@ -52,3 +52,5 @@ O `generate-image` só devolve miniatura. Para baixar em tamanho cheio, automati
 2. Um design auxiliar 1080×1350: `generate-design` (instagram_post, `asset_ids` = 1ª imagem) → `create-design-from-candidate`; `read-design` com `open_transaction`; `edit-design`: apagar todos os elementos do modelo, `insert_fill` da imagem em top 0/left 0/1089×1350, `add_page` (fundo #000) para as demais e `insert_fill` em cada; `commit`.
 3. `export-design` PNG 1080×1350 → URLs públicas temporárias → `curl` para `carrosseis/<pasta>/img/`.
 Pedir textos da imagem em português e conferir cada PNG (IA às vezes escreve em inglês).
+
+**Sempre, depois da legenda:** perguntar "Vai postar agora?". Se a resposta for não, registrar o post em `docs/posicionamento/FILA-POSTAGEM.md` (fila de não publicados, agrupada por claro, azul e imóvel).

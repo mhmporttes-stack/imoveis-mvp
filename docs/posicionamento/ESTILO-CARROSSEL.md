@@ -105,3 +105,6 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 ## Rosto e texto (dono, 2026-10-15)
 - **Nunca colocar texto em cima do rosto do dono.** Na capa, o título fica **atrás** dele (a cabeça passa levemente por trás da faixa do título, como na referência).
 - Logo do MCMV para fundo claro: `assets/mcmv-logo-cor.png`.
+
+## Fila de postagem (dono, 2026-10-15)
+Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
