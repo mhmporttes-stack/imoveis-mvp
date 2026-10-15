@@ -80,5 +80,5 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 
 ## Versão clara (dono, 2026-10-14)
 - **Segunda paleta oficial:** fundo claro com o mesmo desenho do degradê — `radial-gradient(900px 760px at 50% 34%, #FFFFFF 0%, #F7F9FD 35%, #EAF0FA 70%, #DCE5F4 100%)`. Texto em azul-marinho `#0B1A3A`, texto secundário `#3A4A66` e destaque em azul `#1F5FD6`.
-- No perfil, **alternar** um post azul e um claro, para a grade ficar organizada.
+- No perfil, organizar a grade em **blocos de 3 claros e 3 escuros (azuis)**, uma linha inteira de cada (dono, 2026-10-15). Em 15/10 o bloco claro tinha só 1 post ("Termos que parecem complicados"); faltavam 2 claros.
 - **Não repetir a mesma foto do dono** na capa de posts seguidos; quando o acervo se repetir, criar uma pose nova e chamativa que combine com o tema (exemplo: malabarismo com contratos). Para recortar foto com objetos soltos (papéis, chaves), usar o modelo `birefnet-general` do rembg.
