@@ -53,7 +53,7 @@ export default async function HomePage() {
       <section data-home-hero className="relative isolate overflow-hidden bg-[#08112E] pt-14 text-white sm:pt-16">
         <HeroBackground variant={HERO_BACKGROUND} />
         <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
-          <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
+          <div className="min-w-0 pb-12 pt-7 sm:pb-14 sm:pt-12 md:self-center md:py-16 lg:py-20">
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-200/90 sm:text-sm sm:tracking-[0.2em] md:text-xs lg:text-sm">
               Matheus Machado <span className="text-white/35" aria-hidden="true">·</span> Corretor em Marília
             </p>
@@ -103,7 +103,8 @@ export default async function HomePage() {
             </ul>
           </div>
 
-          <div className="relative -mx-4 mt-2 h-[340px] sm:mx-0 sm:h-[380px] md:mt-0 md:h-auto">
+          {/* Foto só do tablet/computador para cima: no celular ela caía embaixo dos botões apontando para o nada (dono, 2026-10-15); o rosto aparece logo abaixo em "Quem é o Matheus". */}
+          <div className="relative hidden md:mt-0 md:block md:h-auto">
             <span
               className="pointer-events-none absolute bottom-0 left-1/2 h-[70%] w-[78%] -translate-x-1/2 rounded-[50%] bg-[#4C8DF6]/20 blur-[70px] md:h-[62%]"
               aria-hidden="true"
