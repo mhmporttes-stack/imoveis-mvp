@@ -27,7 +27,7 @@ export default async function PropertyPage({ params }) {
 
   return (
     <main className="pb-24">
-      <section className="container-wide grid gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="container-wide grid gap-8 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
         <PropertyImageCarousel photos={photos} propertyName={property.name} />
         <div className="flex flex-col justify-center rounded-[32px] border border-line bg-white p-8 shadow-soft md:p-12">
           <h1
@@ -63,7 +63,7 @@ export default async function PropertyPage({ params }) {
         </div>
       </section>
 
-      <section className="container-page grid gap-6 py-12 md:grid-cols-4">
+      <section className="container-page grid grid-cols-2 gap-3 py-6 md:grid-cols-4">
         {/* Construtora só para empreendimento (dono, 2026-10-15). */}
         <Info icon={Building2} label="Construtora" value={property.isDevelopment ? property.builder : ""} />
         <Info icon={MapPin} label="Região" value={propertyRegion(property) === "Região a confirmar" ? "" : propertyRegion(property)} />
@@ -126,11 +126,14 @@ export default async function PropertyPage({ params }) {
 // Sem valor, o quadro não aparece ("A confirmar" não faz sentido para o cliente — dono, 2026-10-15).
 function Info({ icon: Icon, label, value }) {
   if (!value) return null;
+  // Quadro compacto (dono, 2026-10-15: "diminua o card da região").
   return (
-    <article className="rounded-2xl border border-line bg-white p-6 shadow-soft">
-      <Icon className="h-7 w-7 text-brand" />
-      <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-muted">{label}</p>
-      <strong className="mt-2 block text-xl text-navy">{value}</strong>
+    <article className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 shadow-soft">
+      <Icon className="h-5 w-5 shrink-0 text-brand" />
+      <div className="min-w-0">
+        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-muted">{label}</p>
+        <strong className="block truncate text-base text-navy">{value}</strong>
+      </div>
     </article>
   );
 }

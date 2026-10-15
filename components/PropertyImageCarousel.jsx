@@ -23,6 +23,19 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
   const [autoPlayKey, setAutoPlayKey] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  // Proporção real de cada foto: no celular o quadro acompanha a foto atual (sem faixa vazia em foto deitada).
+  const [ratios, setRatios] = useState({});
+  const frameRef = useRef(null);
+  // A foto pode já ter carregado antes da hidratação (onLoad não dispara): lê as já completas ao montar.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const found = {};
+    frame.querySelectorAll("img[data-photo-index]").forEach((img) => {
+      if (img.complete && img.naturalWidth && img.naturalHeight) found[img.dataset.photoIndex] = img.naturalWidth / img.naturalHeight;
+    });
+    if (Object.keys(found).length) setRatios((current) => ({ ...found, ...current }));
+  }, []);
   const carouselTouchStart = useRef(null);
   const carouselSwiped = useRef(false);
   const lightboxTouchStart = useRef(null);
@@ -166,14 +179,18 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
   }
 
   if (!currentImage) {
-    return <div className="relative min-h-[520px] overflow-hidden rounded-[32px] bg-mist shadow-premium" />;
+    return <div className="relative aspect-[4/5] w-full rounded-2xl bg-mist lg:aspect-auto lg:h-full lg:min-h-[520px]" />;
   }
 
   return (
     <>
       <div
         aria-label={`Abrir galeria de fotos de ${propertyName}`}
-        className="relative min-h-[520px] cursor-zoom-in overflow-hidden rounded-[32px] bg-mist shadow-premium outline-none focus-visible:ring-4 focus-visible:ring-brand/30"
+        // Ficha do imóvel (dono, 2026-10-15): foto inteira e GRANDE, cantos levemente arredondados NA PRÓPRIA FOTO e a
+        // mesma altura do quadro de texto ao lado (h-full no grid; no celular, proporção 4:5).
+        className="relative max-h-[80vh] w-full cursor-zoom-in outline-none focus-visible:ring-4 focus-visible:ring-brand/30 lg:!aspect-auto lg:h-full lg:max-h-none lg:min-h-[520px]"
+        ref={frameRef}
+        style={{ aspectRatio: String(ratios[currentIndex] || 0.8) }}
         onClick={() => {
           if (carouselSwiped.current) {
             carouselSwiped.current = false;
@@ -194,16 +211,19 @@ export default function PropertyImageCarousel({ photos, propertyName }) {
         tabIndex={0}
       >
         {images.map((image, index) => (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             alt={image.alt}
-            // Foto inteira, sem corte (dono, 2026-10-15): object-contain sobre o fundo do quadro.
-            className={`object-contain transition-opacity duration-700 ease-out ${index === currentIndex ? "opacity-100" : "opacity-0"}`}
-            fill
+            // Foto inteira, sem corte, centralizada e com cantos arredondados na própria imagem.
+            className={`absolute inset-0 m-auto max-h-full max-w-full rounded-2xl object-contain shadow-premium transition-opacity duration-700 ease-out ${index === currentIndex ? "opacity-100" : "opacity-0"}`}
             key={`${image.src}-${index}`}
-            priority={index === 0}
-            sizes="(min-width: 1024px) 56vw, 100vw"
+            data-photo-index={index}
+            loading={index === 0 ? "eager" : "lazy"}
+            onLoad={(event) => {
+              const { naturalWidth, naturalHeight } = event.currentTarget;
+              if (naturalWidth && naturalHeight) setRatios((current) => (current[index] ? current : { ...current, [index]: naturalWidth / naturalHeight }));
+            }}
             src={image.src}
-            unoptimized
           />
         ))}
 
