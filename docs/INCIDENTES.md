@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-16 — Mensagem enviada pelo Chat/automação não aparece no celular do corretor
+- **Data:** 2026-10-16
+- **Sintoma:** mensagem do CRM chega ao cliente, mas não aparece no WhatsApp do celular do corretor.
+- **Área:** WhatsApp
+- **Impacto:** corretores com número pessoal conectado; casos reais não medidos (a telemetria `send_retry_*` passa a medir).
+- **Causa raiz:** o celular pede reenvio (retry) da cópia `deviceSentMessage` que não decifrou e o Baileys 6.7.24 não reenviava: sem `getMessage` no `makeWASocket`; pedido pelo LID com `me.lid` vazio nem é reconhecido como do próprio número.
+- **Correção:** cache em memória + `getMessage`; reenvio à mão no caso do LID. Detalhe em `docs/WHATSAPP.md` §1-H e `CHANGELOG_AI.md` (2026-10-16).
+- **Arquivos/commit:** `whatsapp-individual-service/src/send-retry.js`, `whatsapp-individual-service/src/sessions.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-send-retry.test.mjs`.
+- **Status:** Diagnosticado, correção pendente de publicação (depois das 18h) e de confirmação pela telemetria.
+
 ### 2026-10-16 — Disparo Oficial por planilha (CSV) mandava para cliente "Não contactar"
 - **Data:** 2026-10-16
 - **Sintoma:** cliente marcado "Não contactar" no CRM recebia a campanha do Disparo Oficial quando vinha numa planilha CSV.

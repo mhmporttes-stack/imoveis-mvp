@@ -54,6 +54,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — WhatsApp individual: mensagem do Chat/automação não aparecia no celular do corretor
+- **Data:** 2026-10-16
+- **Área:** WhatsApp individual (microsserviço)
+- **Alteração:** `makeWASocket` ganha `getMessage`, lido de um cache em memória das mensagens enviadas pelo `/send` (300 por sessão, 30 min, nunca em disco/banco, limpo ao desconectar — `whatsapp-individual-service/src/send-retry.js`). Pedido de reenvio do próprio celular pelo LID com `creds.me.lid` vazio (que o Baileys 6.7.24 ignora) é reenviado à mão, só para o aparelho que pediu (no máximo 2 vezes). Telemetria `history_sync` com motivos `send_retry_*` (sem conteúdo nem telefone). Cifrar/enviar do pedido "peer" extraído para `sendRawEncrypted` (mesmo nó de antes).
+- **Motivo:** o celular pede reenvio da cópia `deviceSentMessage` que não decifrou e o Baileys desistia por não ter a mensagem (`getMessage` padrão devolve `undefined`). Dono aprovou juntar à publicação das 18h.
+- **Arquivos afetados:** `whatsapp-individual-service/src/send-retry.js` (novo), `whatsapp-individual-service/src/sessions.js`, `tests/whatsapp-send-retry.test.mjs` (novo), `tests/whatsapp-older-history.test.mjs` (trava do pedido "peer" ajustada à extração), `docs/WHATSAPP.md` §1-H, `docs/INCIDENTES.md`.
+- **Risco/observação:** mensagens enviadas antes do reinício, há mais de 30 min ou pelo próprio celular não estão no cache (`send_retry_missing`). Reação/edição/apagar não entram no cache. O reenvio à mão pelo LID segue o formato do Baileys/whatsmeow, mas só a telemetria em produção confirma que o celular aceita (A CONFIRMAR). Publicar depois das 18h (reconecta todos os números).
+- **Autor:** Claude Code
 ### 2026-10-16 — Nome oficial da marca: "Matheus Machado Corretor de Imóveis" (MARCA-1)
 - **Data:** 2026-10-16
 - **Área:** Site/SEO, WhatsApp (Meta Diária v2), PDFs, Academia, Agenda, Permissões (2FA), Docs

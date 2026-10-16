@@ -12,7 +12,8 @@ import { connectCooldownError, createConnectLimitGate } from "./connect-limit.js
 import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
-import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt } from "./message-diagnostics.js";
+import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt, hashMessageId } from "./message-diagnostics.js";
+import { createSentMessageCache, decideSendRetry, mediaTypeOf, MANUAL_RESEND_LIMIT, SEND_RETRY_REASON } from "./send-retry.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -435,7 +436,10 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
       ? ["CRM Imoveis", "Desktop", "1.0"]
       : !state.creds.registered && !phoneNumber
       ? Browsers.macOS("Desktop")
-      : (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"]
+      : (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"],
+    // Reenvio quando um aparelho pede de novo (recibo retry, 2026-10-16): o Baileys só reenvia se achar a mensagem aqui.
+    // Só as enviadas pelo /send, em memória (send-retry.js); fora do cache = undefined, como antes.
+    getMessage: async (key) => sentMessages.get(userId, key?.id)
   });
   entry.sock = sock;
 
@@ -480,6 +484,11 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
       const fields = describeRetryReceipt(node);
       if (fields && diag.track(fields.reason)) telemetry.record(userId, "history_sync", fields);
     } catch { /* só diagnóstico */ }
+  });
+  // Pedido de reenvio de mensagem comum enviada pelo CRM (2026-10-16): telemetria send_retry_* e, no caso que o Baileys
+  // não reconhece (aparelho do próprio número pelo LID com me.lid vazio), reenvio à mão. Ver send-retry.js.
+  sock.ws.on("CB:receipt", (node) => {
+    try { onSendRetryReceipt(userId, sock, diag, node); } catch { /* nunca derruba o socket */ }
   });
   sock.ws.on("CB:ack,class:message", (node) => { try { observePeerNode(userId, "ack", node); } catch { /* só diagnóstico */ } });
   sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType, peerDataRequestSessionId }) => {
@@ -974,6 +983,77 @@ async function resendPeerRequest(userId, id, from) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Reenvio de mensagem comum enviada pelo CRM (2026-10-16). Sintoma: mensagem do Chat/automação não aparecia no celular
+// do corretor — o celular pede reenvio da cópia (deviceSentMessage) e o Baileys não tinha a mensagem (sem getMessage).
+// Telemetria `history_sync` sem conteúdo nem telefone: reason send_retry_rcpt (kind = quem reenvia/de quem veio),
+// send_retry_missing, send_retry_resent, send_retry_failed, send_retry_gaveup; trigger from_lid/from_pn; detail id_<hash8>.
+// ---------------------------------------------------------------------------
+const sentMessages = createSentMessageCache();
+const manualResends = new Map(); // `${userId}|${id}|${aparelho}` -> reenvios feitos à mão
+
+function onSendRetryReceipt(userId, sock, diag, node) {
+  const id = String(node?.attrs?.id || "");
+  if (node?.attrs?.type !== "retry" || !id) return;
+  // Pedido de histórico ao celular tem tratamento próprio (observePeerNode/resendPeerRequest).
+  if (onDemandRequests.isPending(userId, id) || sentPeerRequests.has(`${userId}|${id}`)) return;
+  const creds = sock.authState?.creds || {};
+  const decision = decideSendRetry(node, { meId: creds.me?.id || "", meLid: creds.me?.lid || "", cached: sentMessages.get(userId, id) !== undefined });
+  if (!decision) return;
+  const detail = `id_${hashMessageId(id)}`;
+  const record = (reason, extra = {}) => {
+    if (diag.track(reason)) telemetry.record(userId, "history_sync", { reason, trigger: decision.trigger, kind: decision.kind, attempt: decision.attempt, detail, ...extra });
+  };
+  if (decision.action === "missing") { record(SEND_RETRY_REASON.MISSING); return; }
+  record(SEND_RETRY_REASON.RECEIPT, { kind: decision.action === "baileys" ? `baileys_${decision.kind}` : `${decision.action}_${decision.kind}` });
+  if (decision.action !== "manual") return;
+  resendOwnDeviceRetry(userId, sock, id, decision)
+    .then((sent) => record(sent ? SEND_RETRY_REASON.RESENT : SEND_RETRY_REASON.GAVE_UP))
+    .catch((error) => {
+      record(SEND_RETRY_REASON.FAILED);
+      console.error(`[${userId}] Falha ao reenviar mensagem ao próprio celular:`, error.message);
+    });
+}
+
+// O Baileys não reenvia (não reconhece o LID como do próprio número): reenvia como ele faria no reenvio a um aparelho
+// (relayMessage com participant) e como o whatsmeow — cópia deviceSentMessage cifrada SÓ para o aparelho que pediu, com
+// sessão nova, mesmo id, `count` no <enc>, to = quem pediu, recipient = a conversa, device_fanout=false.
+async function resendOwnDeviceRetry(userId, sock, id, decision) {
+  const key = `${userId}|${id}|${decision.target}`;
+  const done = manualResends.get(key) || 0;
+  if (done >= MANUAL_RESEND_LIMIT) return false;
+  manualResends.set(key, done + 1);
+  if (manualResends.size > 1000) manualResends.delete(manualResends.keys().next().value);
+  const message = sentMessages.get(userId, id);
+  if (!message) return false;
+  const destinationJid = jidNormalizedUser(decision.recipient);
+  const meMsg = { deviceSentMessage: { destinationJid, message }, messageContextInfo: message.messageContextInfo };
+  const mediatype = mediaTypeOf(message);
+  await sendRawEncrypted(sock, {
+    bytes: encodeWAMessage(meMsg),
+    encryptJid: decision.target,
+    forceSession: true,
+    retryCount: decision.attempt || done + 1,
+    encExtraAttrs: mediatype ? { mediatype } : {},
+    attrs: { id, type: "text", device_fanout: "false", to: decision.target, recipient: destinationJid }
+  });
+  return true;
+}
+
+// Cifra `bytes` para UM aparelho (sessão nova se forceSession) e manda o <message> com os atributos dados. Usado pelo
+// pedido "peer" ao celular e pelo reenvio da cópia de mensagem comum.
+async function sendRawEncrypted(sock, { bytes, encryptJid, forceSession = false, retryCount = 0, attrs, leadingNodes = [], encExtraAttrs = {} }) {
+  let encrypted;
+  await sock.authState.keys.transaction(async () => {
+    await sock.assertSessions([encryptJid], forceSession);
+    encrypted = await sock.signalRepository.encryptMessage({ jid: encryptJid, data: bytes });
+  });
+  const encAttrs = { v: "2", type: encrypted.type, ...encExtraAttrs, ...(retryCount ? { count: String(retryCount) } : {}) };
+  const content = [...leadingNodes, { tag: "enc", attrs: encAttrs, content: encrypted.ciphertext }];
+  if (encrypted.type === "pkmsg") content.push({ tag: "device-identity", attrs: {}, content: encodeSignedDeviceIdentity(sock.authState.creds.account, true) });
+  await sock.sendNode({ tag: "message", attrs, content });
+}
+
 // Pedido "peer" ao próprio celular como o whatsmeow faz (SendPeerMessage): protocolMessage DIRETO (sem o
 // deviceSentMessage que o relayMessage do Baileys 6.7.24 põe), cifrado para o próprio número no aparelho 0 (o celular),
 // com <meta appdata="default"/> + <enc> e a identidade do aparelho quando a sessão é nova. Não toca em ninguém além do
@@ -984,16 +1064,14 @@ async function sendRawPeerRequest(sock, built, { id: fixedId = "", encryptJid = 
   if (!meJid) throw new Error("Sessão sem identificação do próprio número.");
   const id = fixedId || generateMessageIDV2(sock.user?.id);
   const target = encryptJid || meJid;
-  const bytes = encodeWAMessage(built.message);
-  let encrypted;
-  await sock.authState.keys.transaction(async () => {
-    await sock.assertSessions([target], forceSession);
-    encrypted = await sock.signalRepository.encryptMessage({ jid: target, data: bytes });
+  await sendRawEncrypted(sock, {
+    bytes: encodeWAMessage(built.message),
+    encryptJid: target,
+    forceSession,
+    retryCount,
+    attrs: { id, to: meJid, ...built.stanzaAttrs },
+    leadingNodes: [built.metaNode]
   });
-  const encAttrs = { v: "2", type: encrypted.type, ...(retryCount ? { count: String(retryCount) } : {}) };
-  const content = [built.metaNode, { tag: "enc", attrs: encAttrs, content: encrypted.ciphertext }];
-  if (encrypted.type === "pkmsg") content.push({ tag: "device-identity", attrs: {}, content: encodeSignedDeviceIdentity(sock.authState.creds.account, true) });
-  await sock.sendNode({ tag: "message", attrs: { id, to: meJid, ...built.stanzaAttrs }, content });
   return id;
 }
 
@@ -1061,6 +1139,7 @@ async function disconnectSessionLocked(userId) {
     try { entry.sock.end(undefined); } catch { /* idem */ }
   }
   sockets.delete(userId);
+  sentMessages.clear(userId);
   await clearSessionCreds(userId);
   await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null });
 }
@@ -1167,6 +1246,8 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
   const result = await sock.sendMessage(jid, buildContent(text, media), options);
   const waMessageId = result?.key?.id || "";
   if (!waMessageId) throw new Error("O WhatsApp não retornou o ID da mensagem enviada.");
+  // Guarda o conteúdo (só em memória, 30 min) para reenviar se um aparelho pedir — ver send-retry.js.
+  sentMessages.remember(userId, waMessageId, result?.message);
   return { waMessageId, remoteJid: result?.key?.remoteJid || jid };
 }
 

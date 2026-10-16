@@ -12,7 +12,9 @@ test("serviço: pede ao celular (pedido próprio, não o fetchMessageHistory em 
   assert.match(sessions, /export async function requestOlderHistory\(/);
   // Como o whatsmeow: protocolMessage direto (sem deviceSentMessage do relayMessage), cifrado para o próprio celular.
   assert.match(sessions, /const sentId = await sendRawPeerRequest\(sock, item\.built\);/);
-  assert.match(sessions, /await sock\.sendNode\(\{ tag: "message", attrs: \{ id, to: meJid, \.\.\.built\.stanzaAttrs \}, content \}\);/);
+  // 2026-10-16: cifrar+enviar extraído para sendRawEncrypted (também usado no reenvio de mensagem comum); mesmo nó.
+  assert.match(sessions, /attrs: \{ id, to: meJid, \.\.\.built\.stanzaAttrs \},\s*leadingNodes: \[built\.metaNode\]/);
+  assert.match(sessions, /await sock\.sendNode\(\{ tag: "message", attrs, content \}\);/);
   assert.doesNotMatch(sessions, /sock\.relayMessage\(/);
   // Recibo do celular e ack do servidor observados no nó bruto (o Baileys não emite evento para peer_msg).
   assert.match(sessions, /sock\.ws\.on\("CB:receipt"/);
