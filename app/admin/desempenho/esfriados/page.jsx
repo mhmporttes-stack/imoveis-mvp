@@ -18,7 +18,8 @@ const DECISIONS = [
   { key: "canceled", label: "Encerrados sozinhos" }
 ];
 const STATUS_LABEL = { awaiting_reason: "Aguardando corretor", awaiting_decision: "Aguardando decisão", closed: "Decidido", canceled: "Encerrado sozinho" };
-const CANCEL_LABEL = { responsavel_mudou: "mudou de responsável", contato_retomado: "contato retomado", status_negativo: "status negativo", contato_particular: "contato particular", cliente_removido: "cliente removido", cliente_aprovado: "cliente aprovado" };
+const CANCEL_LABEL = { responsavel_mudou: "mudou de responsável", contato_retomado: "contato retomado", status_negativo: "status negativo", contato_particular: "contato particular", cliente_removido: "cliente removido", cliente_aprovado: "cliente aprovado", cliente_com_restricao: "cliente com restrição" };
+const TRANSFER_REASON_LABEL = { sem_conversa: "automático: sem conversa", nao_respondeu: "automático: não respondeu" };
 
 function formatDate(value) {
   if (!value) return "";
@@ -26,7 +27,7 @@ function formatDate(value) {
 }
 
 function outcome(item) {
-  if (item.decision === "transferred") return `Transferido${item.transferredToName ? ` para ${item.transferredToName}` : ""}`;
+  if (item.decision === "transferred") return `Transferido${TRANSFER_REASON_LABEL[item.transferReason] ? ` (${TRANSFER_REASON_LABEL[item.transferReason]})` : ""}${item.transferredToName ? ` para ${item.transferredToName}` : ""}`;
   if (item.decision === "status") return `Status: ${item.decisionStatusLabel}`;
   if (item.status === "canceled") return `Encerrado (${CANCEL_LABEL[item.canceledReason] || item.canceledReason || "sem motivo"})`;
   return STATUS_LABEL[item.status] || item.status;

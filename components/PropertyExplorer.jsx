@@ -130,7 +130,7 @@ export default function PropertyExplorer({ properties = [] }) {
         <form
           onSubmit={(event) => event.preventDefault()}
           role="search"
-          className="mt-5 grid gap-3 rounded-[20px] border border-line bg-mist p-3 sm:p-4"
+          className="relative mt-5 grid gap-3 rounded-[20px] border border-line bg-mist p-3 sm:p-4"
         >
           <div className={`grid gap-3 ${anyPrice ? "lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]" : "lg:grid-cols-[2fr_1fr_1fr]"}`}>
             <label className="flex h-12 items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 transition focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
