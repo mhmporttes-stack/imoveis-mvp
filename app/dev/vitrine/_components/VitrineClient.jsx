@@ -35,6 +35,8 @@ import ManualAdmin from "@/components/manual/ManualAdmin";
 import * as manual from "../_fixtures/manual";
 import * as rankingTopo from "../_fixtures/ranking-topo";
 import TopRankingBadge from "@/components/TopRankingBadge";
+import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
+import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 
@@ -76,7 +78,7 @@ const TELAS = {
       <>
         <div className="mm-app-hide">
           <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
-            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
+            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<><CooledClientsInbox align="end" /><NotificationHistoryButton align="end" /><GoogleContactsStatus align="end" /></>} />
           </header>
         </div>
         <main className="bg-mist pb-14 pt-3 md:pt-14">

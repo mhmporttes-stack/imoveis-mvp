@@ -913,6 +913,9 @@ export function propsFor(perfil = "admin", { pageSize = 20 } = {}) {
     canReturnAssignedProspecting: isAdmin,
     isOwner: isAdmin,
     brokerSimulationLink: isBrokerLike ? `${SITE}/simulacao?ref=${viewerRef}` : "",
+    // Atalhos do topo (app/admin/simulacoes/page.jsx): caixinha só para dono/gestor; sino para todos.
+    showCooledInbox: isAdmin || isManager,
+    showNotifications: true,
     tags: sortTags(TAGS)
   };
 }

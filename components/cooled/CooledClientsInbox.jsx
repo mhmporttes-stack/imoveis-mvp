@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { MailWarning } from "lucide-react";
+import { CountBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
+import { shortcutIconClasses } from "@/components/ui/shortcut-icon";
 import { useKeepInViewport } from "@/components/ui/useKeepInViewport";
 import { COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 
@@ -23,7 +25,8 @@ async function postJson(url, body) {
   return data;
 }
 
-export default function CooledClientsInbox({ align = "end" }) {
+export default function CooledClientsInbox({ align = "end", variant = "compact" }) {
+  const ui = shortcutIconClasses(variant);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
@@ -76,12 +79,11 @@ export default function CooledClientsInbox({ align = "end" }) {
         title="Clientes que esfriaram"
         aria-label={`Clientes que esfriaram (${items.length} para decidir)`}
         aria-expanded={open}
-        className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-warning/40 bg-warning-soft text-warning transition-colors duration-150 before:absolute before:-inset-1.5 before:content-[''] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:h-8 lg:w-8"
+        className={ui.button}
       >
-        <MailWarning className="h-4 w-4" aria-hidden="true" />
-        {items.length ? (
-          <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-4 justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-black leading-3 text-white tabular-nums">{items.length}</span>
-        ) : null}
+        {/* Mesmo padrão do Chat/Agenda (dono, 2026-10-16): ícone neutro + contador verde (components/ui/shortcut-icon.js). */}
+        <MailWarning className={ui.icon} aria-hidden="true" />
+        <CountBadge count={items.length} className={ui.badge} label={`${items.length} para decidir`} />
       </button>
       {open ? (
         <div

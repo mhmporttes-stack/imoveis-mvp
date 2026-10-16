@@ -15,6 +15,7 @@ import Sheet from "@/components/ui/Sheet";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
+import { SHORTCUT_ICON_BUTTON } from "@/components/ui/shortcut-icon";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useChatHidden } from "@/components/WhatsappAccessProvider";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
@@ -115,8 +116,8 @@ export default function ClientWorkspace(props) {
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
             </Link>
-            {showCooledInbox ? <CooledClientsInbox align="end" /> : null}
-            {showNotifications ? <NotificationHistoryButton align="end" /> : null}
+            {showCooledInbox ? <CooledClientsInbox align="end" variant="shortcut" /> : null}
+            {showNotifications ? <NotificationHistoryButton align="end" variant="shortcut" /> : null}
           </nav>
           {brokerSimulationLink ? (
             <Button variant="ghost" size="md" onClick={list.copyBrokerSimulationLink} className="hidden sm:inline-flex">
@@ -297,7 +298,8 @@ export default function ClientWorkspace(props) {
   );
 }
 
-const SHORTCUT = "relative inline-flex h-touch w-touch items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-navy/[0.06] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+// Padrão único dos atalhos (Chat, Agenda, Clientes que esfriaram, Notificações): components/ui/shortcut-icon.js.
+const SHORTCUT = SHORTCUT_ICON_BUTTON;
 
 // Funil da carteira: cada etapa mostra quantos clientes estão nela e uma
 // barra proporcional — a lista inteira vira um mapa do funil.

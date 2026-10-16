@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Cabeçalho: ícones Chat, Agenda, "Clientes que esfriaram" e Notificações no mesmo padrão
+- **Data:** 2026-10-16
+- **Área:** Painel (apresentação) — atalhos do topo de Clientes e card "Melhor do Dia"
+- **Alteração:** pedido do dono ("mesmo tamanho, mesma cor, mesmo estilo de notificação do chat e da agenda nos 4"). Envelope e sino perderam o fundo/borda (amarelo e cinza), ícone passou a 20px na cor neutra e o contador virou o `CountBadge` verde do Chat/Agenda. O sino agora mostra o NÚMERO de pendentes (o `pending` já vinha de `/api/admin/alerts/history`; antes só bolinha). Padrão único em `components/ui/shortcut-icon.js` (variante `shortcut` 44px nos atalhos; `compact` 28/32px com toque ≥44px no card). Vitrine: os dois ícones entram no cabeçalho do ranking e nos atalhos de Clientes, com dados fictícios.
+- **Motivo:** cada ícone tinha um estilo de alerta próprio; urgência agora vem do número, não da cor do botão.
+- **Arquivos afetados:** `components/ui/shortcut-icon.js` (novo), `components/cooled/CooledClientsInbox.jsx`, `components/alerts/NotificationHistoryButton.jsx`, `components/clients/ClientWorkspace.jsx`, `app/dev/vitrine/**`.
+- **Risco/observação:** só apresentação; abrir, polling e quando o envelope aparece (só com casos) inalterados. Pré-existente: no celular, com envelope + sino + Google Contacts no card "Melhor do Dia" (só dono/gestor), o rótulo fica cortado ("MELHOR DO…").
+- **Autor:** designer-crm (Claude Code)
+
 ### 2026-10-16 — Chat (gestora): aba com o próprio nome no app do Chat e ao voltar para a tela
 - **Data:** 2026-10-16
 - **Área:** WhatsApp (Chat)

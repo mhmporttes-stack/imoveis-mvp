@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
+import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
+import { shortcutIconClasses } from "@/components/ui/shortcut-icon";
 import { useKeepInViewport } from "@/components/ui/useKeepInViewport";
 
 // Botão pequeno de sino no cabeçalho (pedido do dono, 2026-10-14): só o ícone; ao tocar abre o HISTÓRICO das notificações
-// (Central de Alertas) do próprio usuário dos últimos 30 dias. Bolinha quando há alguma ainda sem "Entendi".
+// (Central de Alertas) do próprio usuário dos últimos 30 dias. Contador com o número das que ainda estão sem "Entendi" (antes era só uma bolinha).
 // Lista TODAS as notificações do usuário (alertas da Central + cliente novo/atividade agendada/transferência, 2026-10-16). Só abrir uma
 // notificação do sino antigo a marca como lida; os alertas da Central continuam só com "Entendi". Dados: GET /api/admin/alerts/history.
 
@@ -34,7 +36,8 @@ function fullTime(value) {
   }
 }
 
-export default function NotificationHistoryButton({ align = "end" }) {
+export default function NotificationHistoryButton({ align = "end", variant = "compact" }) {
+  const ui = shortcutIconClasses(variant);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [pending, setPending] = useState(0);
@@ -100,10 +103,11 @@ export default function NotificationHistoryButton({ align = "end" }) {
         title="Notificações"
         aria-label={pending ? `Notificações (${pending} pendentes)` : "Notificações"}
         aria-expanded={open}
-        className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-line bg-neutral-soft text-muted transition-colors duration-150 before:absolute before:-inset-1.5 before:content-[''] hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:h-8 lg:w-8"
+        className={ui.button}
       >
-        <Bell className="h-4 w-4" aria-hidden="true" />
-        {pending > 0 ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" aria-hidden="true" /> : null}
+        {/* Mesmo padrão do Chat/Agenda (dono, 2026-10-16): ícone neutro + NÚMERO de não lidas no contador verde. */}
+        <Bell className={ui.icon} aria-hidden="true" />
+        <CountBadge count={pending} className={ui.badge} label={`${pending} notificações pendentes`} />
       </button>
       {open ? (
         <div
