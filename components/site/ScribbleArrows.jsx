@@ -142,20 +142,54 @@ export default function ScribbleArrows({ containerRef }) {
       })
     : [];
 
-  // comprimento real de cada traço (para o desenho "à mão" por stroke-dashoffset)
-  const signature = built.map((arrow) => arrow.d).join("|");
+  // comprimento real do corpo e da ponta de cada seta (para o desenho contínuo por stroke-dashoffset)
+  const signature = built.map((arrow) => arrow.d + arrow.head).join("|");
   useEffect(() => {
     const next = {};
     for (const arrow of built) {
-      const el = pathRefs.current[arrow.id];
-      if (el) next[arrow.id] = Math.ceil(el.getTotalLength());
+      const body = pathRefs.current[arrow.id + ":body"];
+      const head = pathRefs.current[arrow.id + ":head"];
+      if (body && head) next[arrow.id] = { body: Math.ceil(body.getTotalLength()) + 1, head: Math.ceil(head.getTotalLength()) + 1 };
     }
     setLengths(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
+  // A CENA: o traço nasce ESCONDIDO (dashoffset = comprimento) e, só quando a cena dispara E os comprimentos já são
+  // conhecidos, é desenhado de forma CONTÍNUA do começo ao fim (Web Animations API, uma curva só, sem etapas); a ponta da
+  // seta se desenha logo na sequência, na mesma velocidade, como se a mão não tivesse levantado do papel.
+  const ready = built.length > 0 && built.every((arrow) => lengths[arrow.id]);
+  const [played, setPlayed] = useState(false);
+  const builtRef = useRef(built);
+  const lengthsRef = useRef(lengths);
+  builtRef.current = built;
+  lengthsRef.current = lengths;
+  useEffect(() => {
+    if (!go || !ready || played || reduced) return undefined;
+    const timers = [];
+    // dois quadros com o traço já escondido antes de começar (garante que nunca aparece pronto)
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const arrow of builtRef.current) {
+        const size = lengthsRef.current[arrow.id];
+        const body = pathRefs.current[arrow.id + ":body"];
+        const head = pathRefs.current[arrow.id + ":head"];
+        if (!body || !head || typeof body.animate !== "function") continue;
+        const ms = arrow.duration * 1000;
+        body.animate([{ strokeDashoffset: size.body }, { strokeDashoffset: 0 }], { duration: ms, delay: arrow.delay * 1000, easing: "cubic-bezier(0.4, 0, 0.25, 1)", fill: "both" });
+        head.animate([{ strokeDashoffset: size.head }, { strokeDashoffset: 0 }], { duration: 380, delay: arrow.delay * 1000 + ms, easing: "linear", fill: "both" });
+      }
+      setPlayed(true);
+    }));
+    return () => {
+      cancelAnimationFrame(frame);
+      timers.forEach(clearTimeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [go, ready, played, reduced]);
+
   if (!layout) return null;
-  const instant = reduced;
+  const show = reduced || played; // estado final (reduzir movimento, ou depois de a cena ter rodado)
+  const stroke = { fill: "none", stroke: "#0D3B66", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
   return (
     <svg
       className="pointer-events-none absolute left-0 top-0 z-[5] hidden overflow-visible md:block"
@@ -166,37 +200,20 @@ export default function ScribbleArrows({ containerRef }) {
       focusable="false"
     >
       {built.map((arrow) => {
-        const length = lengths[arrow.id];
-        const ready = Boolean(length);
-        const drawn = instant || go;
-        const style = {
-          fill: "none",
-          stroke: "#0D3B66",
-          strokeWidth: 2,
-          strokeLinecap: "round",
-          strokeLinejoin: "round"
-        };
+        const size = lengths[arrow.id];
+        // sem comprimento ainda: invisível; com comprimento: escondido (offset = comprimento) até a animação rodar
+        const hidden = (length) => ({ strokeDasharray: length, strokeDashoffset: show ? 0 : length });
         return (
           <g key={arrow.id}>
             <path
-              ref={(el) => { pathRefs.current[arrow.id] = el; }}
+              ref={(el) => { pathRefs.current[arrow.id + ":body"] = el; }}
               d={arrow.d}
-              style={{
-                ...style,
-                strokeDasharray: ready ? length : undefined,
-                strokeDashoffset: ready ? (drawn ? 0 : length) : 0,
-                opacity: ready ? 1 : 0,
-                // a transição só existe a partir do disparo da cena (antes disso o traço já nasce "escondido", sem animar ao contrário)
-                transition: instant || !go ? "none" : `stroke-dashoffset ${arrow.duration}s cubic-bezier(0.45, 0.05, 0.3, 1) ${arrow.delay}s`
-              }}
+              style={{ ...stroke, opacity: size ? 1 : 0, ...(size ? hidden(size.body) : {}), ...(played ? { strokeDashoffset: 0 } : {}) }}
             />
             <path
+              ref={(el) => { pathRefs.current[arrow.id + ":head"] = el; }}
               d={arrow.head}
-              style={{
-                ...style,
-                opacity: drawn ? 1 : 0,
-                transition: instant || !go ? "none" : `opacity 0.25s ease ${arrow.delay + arrow.duration - 0.1}s`
-              }}
+              style={{ ...stroke, opacity: size ? 1 : 0, ...(size ? hidden(size.head) : {}), ...(played ? { strokeDashoffset: 0 } : {}) }}
             />
           </g>
         );
