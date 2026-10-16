@@ -1,0 +1,15 @@
+# Fontes oficiais e de mercado (consultadas em 2026-10-16) — especialista web
+
+**Conclusão:** prospecção fria por número pessoal via cliente não oficial (Baileys) **contraria os Termos e as Diretrizes atuais do WhatsApp**. Não há limite "seguro" documentado — os ~15/dia são parâmetro interno. [trecho] = só o trecho exibido na busca (página não renderizou inteira).
+
+1. **Desconexão do aparelho vinculado (fato documentado):** vinculado é deslogado se o celular principal ficar > 14 dias sem uso [trecho] — https://faq.whatsapp.com/378279804439436 , https://faq.whatsapp.com/1324084875126592 ; vinculado inativo cai após 30 dias [trecho, redação não confirmada]. Não confirmado em página oficial: reinstalação/troca de aparelho/"sair de todos".
+2. **Banimento/restrição (fato documentado):**
+   - Diretrizes de Mensagens (atualizadas 23/09/2026): proíbem mensagem em massa, automática, auto-discagem, automação que prejudique o serviço, clientes não oficiais e contato indesejado repetido; sanções: aviso, suspensão temporária ou permanente — https://www.whatsapp.com/legal/messaging-guidelines
+   - Termos de Serviço (vigência exibida 04/01/2021): proíbem acesso automatizado não autorizado, engenharia reversa e uso em vários aparelhos fora das ferramentas do WhatsApp — https://www.whatsapp.com/legal/terms-of-service
+   - "Conta restrita": por spam/massa, prazo não informado, expira sozinha; durante ela não inicia conversa nova, não cria grupo e **não usa aparelho vinculado** [trecho] — https://faq.whatsapp.com/717472490411581
+   - "Banida temporariamente": app não oficial ou scraping; risco de banimento permanente [trecho] — https://faq.whatsapp.com/1848531392146538 , https://faq.whatsapp.com/520312452657376
+   - Política do WhatsApp Business (vale para o app Business, 23/09/2026): só contatar quem deu o número e consentiu (opt-in); atender pedido de parar, dentro ou fora do WhatsApp; bloqueios e denúncias limitam envios ou removem acesso — https://whatsappbusiness.com/policy/
+3. **Links de desconhecido (parcial):** link de quem não está nos contatos não é clicável; salvar o contato libera [trecho; título real trata de grupos] — https://faq.whatsapp.com/405131861951765 . "Libera quando o destinatário responde" e diferença iOS/Android: só fornecedor, não confirmado.
+4. **Aquecimento e 401/403:** aquecimento = prática de mercado/folclore, nada oficial. Baileys (projeto, não Meta): `loggedOut`=401, `forbidden`=403 (issue #1923); 401 é terminal, precisa de QR novo — https://baileys.wiki/advanced/troubleshooting , https://github.com/WhiskeySockets/Baileys/issues/1923 . Relatos de usuários (não regra): 401/`device_removed` logo após parear ou reconectar, hipóteses **IP de datacenter em lista negra** e impressão digital do cliente rejeitada; contorno relatado: esperar 24 h ou IP residencial; WhatsApp Web oficial pareou no mesmo celular/IP onde o Baileys falhou (issues #2248, #2140, #2381, #2832 — maioria em 7.x rc). 403 sem explicação oficial (tratar como recusa/restrição é inferência).
+
+Confiança: alta em (2); média em (1) e (3); baixa nas causas de 401/403.
