@@ -24,12 +24,14 @@ export default function HeroJourney() {
         </h1>
       </div>
 
+      {/* A linha do tempo vai exatamente da largura da frase (até o fim de "financiar"): os dois ficam no mesmo bloco. */}
+      <div className="w-fit max-w-full">
       <p className={`${styles.rise} mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/80 sm:text-lg sm:leading-8`} style={{ "--d": "0.32s" }}>
         Descubra em menos de 2 minutos quanto você pode financiar.
       </p>
 
       {/* Linha do tempo: cada ponto acende e a linha seguinte se desenha até o próximo (tempo = --d). */}
-      <ol className={`${styles.track} mt-7 max-w-[30rem] sm:mt-8`} aria-label="Do primeiro passo até a entrega das chaves">
+      <ol className={`${styles.track} mt-7 w-full sm:mt-8`} aria-label="Do primeiro passo até a entrega das chaves">
         {STEPS.map((step, index) => {
           const last = index === STEPS.length - 1;
           const start = 0.7 + index * 0.55;
@@ -47,6 +49,7 @@ export default function HeroJourney() {
           );
         })}
       </ol>
+      </div>
     </>
   );
 }
