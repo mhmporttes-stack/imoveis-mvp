@@ -27,7 +27,7 @@ O próprio dono publica pelo celular, para escolher a música (a API do Instagra
 4. **Roteiro JSON** (tipos: `capa`, `texto`, `lista`, `citacao`, `cta` — ver cabeçalho do gerador) em `docs/posicionamento/carrosseis/<AAAA-MM-DD>-<tema>/roteiro.json`.
 5. **Gerar**: `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_PATH=/opt/node22/lib/node_modules node .claude/design/tools/renderizar-carrossel.mjs <roteiro.json> --saida docs/posicionamento/carrosseis/<pasta>` (na máquina do dono: Playwright com Chromium instalado).
 6. **Conferir cada PNG com Read** (texto cortado, sobra de espaço, contraste) antes de entregar; ajustar e gerar de novo.
-7. **Entregar**: as lâminas (SendUserFile) + legenda pronta (gancho, texto mais longo que identifique o conteúdo, uma linha em branco entre os parágrafos, CTA para a simulação/link na bio, **no máximo 5 hashtags** — limite do Instagram; ver "Legenda" em `docs/posicionamento/ESTILO-CARROSSEL.md`) + sugestão de horário.
+7. **Entregar**: as lâminas (SendUserFile) + legenda pronta (gancho, texto mais longo que identifique o conteúdo, uma linha em branco entre os parágrafos, CTA para a simulação/link na bio, **no máximo 5 hashtags** — limite do Instagram; ~80% do limite de caracteres (≈1.750), sem #marilia (hashtag-gancho), entregue numa caixa de código para copiar, seguindo a "Estrutura padrão"; ver "Legenda" em `docs/posicionamento/ESTILO-CARROSSEL.md`) + sugestão de horário.
 
 ## Foto do Matheus
 Arquivo padrão: `docs/posicionamento/assets/matheus-perfil.png` (foto oficial enviada pelo dono em 2026-10-11; recorte do rosto por `fotoZoom`/`fotoPosicao`). Sem o arquivo, o rodapé usa o símbolo "M" — peça a foto ao dono.

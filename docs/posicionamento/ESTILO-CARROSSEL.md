@@ -74,6 +74,15 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 - **Entregar a legenda no chat dentro de uma caixa de código** (bloco com botão de copiar), para o dono copiar com um toque (dono, 2026-10-16).
 - Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
 - **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
+- **Estrutura padrão (aprovada pelo dono em 2026-10-16; exemplo: `carrosseis/2026-10-15-receita-federal-chatgpt/legenda.md`):**
+  1. Gancho na 1ª linha (frase do tema + 1 emoji).
+  2. Contexto curto que puxa a identificação ("quem vê só… não imagina…").
+  3. 2–3 parágrafos resumindo os pontos das lâminas, com linguagem leve.
+  4. Um parágrafo que ensina algo útil e verdadeiro (ex.: simulação ≠ aprovação), sem prometer resultado.
+  5. Virada para o cliente: por que isso importa para quem vai comprar o 1º imóvel + convite para chamar.
+  6. CTA de comentário/marcação ("Qual dessas…? Conta aqui e marca…") + 👇.
+  7. Assinatura: `Matheus Machado · Corretor de imóveis em Marília/SP · CRECI 323106-F`.
+  8. 5 hashtags na última linha (com a hashtag-gancho, sem #marilia).
 
 ## Passo a passo com prints (dono, 2026-10-14)
 - **Prints reais** de cada tela (nunca tela desenhada); dados pessoais e valores sempre borrados — nunca salvar o print original com dados.
