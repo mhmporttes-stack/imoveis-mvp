@@ -10,7 +10,7 @@ import { ADMIN_THEME_BOOT_SCRIPT } from "@/components/admin-theme";
 export const metadata = {
   // Base das URLs relativas de metadados (canônica, Open Graph): sempre o domínio da marca.
   metadataBase: new URL(CANONICAL_SITE_URL),
-  title: "Matheus Machado - Corretor de Imóveis",
+  title: "Matheus Machado Corretor de Imóveis",
   description: "Empreendimentos imobiliários em Marília com atendimento consultivo.",
   applicationName: "Painel Matheus",
   manifest: "/manifest.webmanifest",
@@ -31,7 +31,7 @@ export const metadata = {
     type: "website",
     locale: "pt_BR",
     siteName: "Matheus Machado Corretor de Imóveis",
-    images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado-v2.png", width: 1200, height: 630, alt: "Matheus Machado - Corretor de Imóveis" }]
+    images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado-v2.png", width: 1200, height: 630, alt: "Matheus Machado Corretor de Imóveis" }]
   },
   twitter: {
     card: "summary_large_image",

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Política de Privacidade | Matheus Machado",
-  description: "Política de privacidade do site Matheus Machado - Corretor de Imóveis."
+  description: "Política de privacidade do site Matheus Machado Corretor de Imóveis."
 };
 
 export default function PrivacyPolicyPage() {

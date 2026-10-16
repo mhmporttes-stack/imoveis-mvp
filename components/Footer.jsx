@@ -75,7 +75,7 @@ export default function Footer() {
 
       <div className="border-t border-white/10 py-5">
         <div className="container-page flex flex-col items-center justify-between gap-4 text-sm text-white/55 sm:flex-row">
-          <span>© {new Date().getFullYear()} Matheus Machado - Corretor de Imóveis.</span>
+          <span>© {new Date().getFullYear()} Matheus Machado Corretor de Imóveis.</span>
           {/* Entrada da equipe, discreta: o cliente não precisa dela. */}
           <Link href="/admin" className="text-xs font-semibold text-white/35 transition hover:text-white/70">
             Acesso administrativo
