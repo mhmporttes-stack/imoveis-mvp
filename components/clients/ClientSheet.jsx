@@ -140,9 +140,9 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
               {registration ? <CcaStatusCard clientId={registration.id} clientStatus={client.status} canManage={canManage} /> : null}
             </div>
             {registration ? <ClientJourneyActions registration={registration} canManage={canManage} responsibleName={responsibleName} tags={tags} /> : null}
-            {/* Cliente transferido pelo fluxo de clientes que esfriaram: resumo + mensagem sugerida (nada é enviado). */}
+            {/* Cliente transferido pelo fluxo de clientes que esfriaram: rascunho da mensagem (nada é enviado). */}
             {registration?.id ? <div className="mt-3"><CooledHandoffCard clientId={registration.id} /></div> : null}
-            {/* FUN-15g: conversa com o corretor anterior até a transferência, somente leitura (nada é enviado). */}
+            {/* FUN-15g: conversa com o corretor anterior até a transferência (FUN-15, manual, devolver à roleta), somente leitura. */}
             {registration?.id ? <div className="mt-3"><CooledChatHistory clientId={registration.id} /></div> : null}
           </Section>
 

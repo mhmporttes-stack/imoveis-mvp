@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { OFFICIAL_SESSION_KEY, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
+import { OFFICIAL_SESSION_KEY, TRANSFER_HISTORY_JOURNEY_TYPES, TRANSFER_HISTORY_RELEASE_SOURCE, latestTransferHistoryCut, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
 import { transferHistoryDivider, transferHistoryNumberLabel } from "../lib/cooled-clients-core.mjs";
 
 // FUN-15g (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16): o corretor que recebe o cliente transferido lê, somente
@@ -58,14 +58,14 @@ test("permissão: rotas exigem login e a lib checa o escopo do responsável atua
     assert.match(source, /const auth = await requireAdminApi\(request\);\n\s+if \(!auth\.ok\)/, path);
   }
   const lib = read("lib/cooled-clients.js");
-  const loader = lib.slice(lib.indexOf("async function loadTransferredCase"), lib.indexOf("export async function getCooledHandoff"));
-  assert.match(loader, /assertCanAccessResponsibleUser\(auth, registration\.responsible_user_id\)/);
-  // Ainda com o corretor anterior, sem responsável ou na fila de espera: nada.
-  assert.match(loader, /registration\.responsible_user_id === row\.broker_id/);
-  assert.match(loader, /registration\.pending_distribution_at\) return null/);
+  const loader = lib.slice(lib.indexOf("async function loadTransferHistoryCut"), lib.indexOf("function historyMedia"));
+  assert.ok(loader.indexOf("assertCanAccessResponsibleUser(auth, registration.responsible_user_id)") < loader.indexOf("client_journey_events"));
+  // Sem responsável, na fila de espera ou ainda com o corretor anterior: nada.
+  assert.match(loader, /if \(!registration\.responsible_user_id \|\| registration\.pending_distribution_at\) return null/);
+  assert.match(loader, /cut\.previousUserId === registration\.responsible_user_id\) return null/);
   for (const name of ["export async function getCooledChatHistory", "export async function resolveCooledHistoryMedia"]) {
     const body = lib.slice(lib.indexOf(name), lib.indexOf("\n}\n", lib.indexOf(name)));
-    assert.match(body, /await loadTransferredCase\(auth, clientId\)/, name);
+    assert.match(body, /await loadTransferHistoryCut\(auth, clientId\)/, name);
     assert.match(body, /transferHistoryConversationAllowed/, name);
     assert.match(body, /transferHistoryMessageAllowed/, name);
   }
@@ -81,4 +81,32 @@ test("somente leitura: nada é copiado, gravado nem enviado", () => {
   assert.doesNotMatch(component, /<textarea|sendChat|sendWhatsapp|whatsapp-chat\/conversations/i);
   assert.match(component, /data-transfer-divider/);
   assert.match(read("components/clients/ClientSheet.jsx"), /<CooledChatHistory clientId=\{registration\.id\} \/>/);
+});
+
+// FUN-15g estendida (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16, "Sim"): o mesmo histórico na transferência manual de
+// responsável e no "Devolver para a roleta" fora do fluxo. Corte = a transferência elegível mais recente.
+test("corte: a transferência elegível mais recente (manual, devolver à roleta, liberar no Chat, FUN-15)", () => {
+  assert.deepEqual(TRANSFER_HISTORY_JOURNEY_TYPES, ["manual", "distributed", "roulette"]);
+  assert.equal(TRANSFER_HISTORY_RELEASE_SOURCE, "whatsapp_chat_release");
+  assert.equal(latestTransferHistoryCut([]), null);
+  assert.equal(latestTransferHistoryCut([{ previousUserId: "", at: "2026-10-16T10:00:00Z" }, { previousUserId: JENNYFER, at: "" }]), null);
+  const cut = latestTransferHistoryCut([
+    { previousUserId: OTHER, at: "2026-10-10T10:00:00Z", source: "cooled" },
+    { previousUserId: JENNYFER, at: "2026-10-16T10:00:00Z", source: "journey:manual" },
+    { previousUserId: OTHER, at: "2026-10-12T10:00:00Z", source: "chat_release" }
+  ]);
+  assert.deepEqual(cut, { previousUserId: JENNYFER, at: "2026-10-16T10:00:00Z", source: "journey:manual" });
+});
+
+test("corte lido só do que as ações já gravam (sem migration), redistribuição automática fora", () => {
+  const lib = read("lib/cooled-clients.js");
+  const loader = lib.slice(lib.indexOf("async function loadTransferHistoryCut"), lib.indexOf("function historyMedia"));
+  assert.match(loader, /from\("client_journey_events"\)[\s\S]*eq\("event_type", "responsible_transferred"\)[\s\S]*in\("details->>transferType", TRANSFER_HISTORY_JOURNEY_TYPES\)/);
+  assert.match(loader, /from\("lead_distribution_history"\)[\s\S]*eq\("details->>source", TRANSFER_HISTORY_RELEASE_SOURCE\)/);
+  assert.match(loader, /from\("cooled_client_cases"\)[\s\S]*eq\("decision", "transferred"\)/);
+  assert.match(loader, /latestTransferHistoryCut\(/);
+  // Os caminhos que gravam esses registros continuam gravando com o "de quem" e o tipo.
+  assert.match(read("lib/simulation-registrations.js"), /eventType: "responsible_transferred",[\s\S]{0,200}transferType: "manual"/);
+  assert.match(read("lib/lead-distribution.js"), /eventType: "responsible_transferred",[\s\S]{0,200}fromId: fromUserId[\s\S]{0,200}transferType: "roulette"/);
+  assert.match(read("lib/whatsapp-chat.js"), /fromUserId: client\.responsible_user_id \|\| null,[\s\S]{0,120}source: "whatsapp_chat_release"/);
 });

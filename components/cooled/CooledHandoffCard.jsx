@@ -7,10 +7,11 @@ import { inputClasses } from "@/components/ui/Field";
 import { cx } from "@/components/ui/cx";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 
-// Ficha do cliente TRANSFERIDO pelo fluxo de clientes que esfriaram (dono, 2026-10-16): resumo do atendimento
-// anterior + RASCUNHO de primeira mensagem para o novo corretor. Gerado uma vez por transferência no servidor
-// (GET /api/admin/cooled-clients/handoff); sem transferência não mostra nada.
-// REGRA OFICIAL (dono, 2026-10-16, FUN-15b): mensagem gerada por IA na transferência NUNCA é enviada sozinha. O
+// Ficha do cliente TRANSFERIDO pelo fluxo de clientes que esfriaram (dono, 2026-10-16): RASCUNHO de primeira mensagem
+// para o novo corretor. Gerado uma vez por transferência no servidor (GET /api/admin/cooled-clients/handoff); sem
+// transferência não mostra nada. Sem resumo por IA desde 2026-10-16 ("Pode tirar o resumo, acho que essa ideia de
+// transferir o histórico da conversa já ajuda bastante." — dono): a conversa anterior fica em CooledChatHistory.
+// REGRA OFICIAL (dono, 2026-10-16, FUN-15b): mensagem sugerida na transferência NUNCA é enviada sozinha. O
 // corretor edita o rascunho, confirma que revisou e só então copia para enviar ele mesmo. Este card não envia
 // nada e não pode ganhar envio automático (trava: tests/cooled-handoff-no-autosend.test.mjs).
 
@@ -66,9 +67,8 @@ export default function CooledHandoffCard({ clientId }) {
           {handoff.clientPhone ? <CooledClientPhone phone={handoff.clientPhone} /> : null}
         </p>
       ) : null}
-      <p className="mt-2 whitespace-pre-line text-[13px] leading-5 text-ink-2">{handoff.summary}</p>
       <label className="mt-3 block text-xs font-semibold text-navy" htmlFor={`handoff-draft-${clientId}`}>
-        Rascunho da primeira mensagem (gerado por IA, ainda não enviado)
+        Rascunho da primeira mensagem (ainda não enviado)
       </label>
       <p className="mt-0.5 text-xs text-muted">Leia a conversa, ajuste o texto ao contexto do cliente e só então envie você mesmo.</p>
       <textarea

@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15h/FUN-15i: conversa anterior também na transferência manual/roleta; resumo por IA retirado
+- **Data:** 2026-10-16
+- **Área:** Clientes / WhatsApp / Funil
+- **Alteração:** (h) o bloco "Conversa anterior" da ficha (FUN-15g) passa a valer também para transferência manual de responsável (ficha, Chat, exclusão de usuário), "Devolver para a roleta" e "Ninguém (liberar)" do Chat; corte = transferência elegível mais recente (`loadTransferHistoryCut` + `latestTransferHistoryCut`), lido de `client_journey_events` `responsible_transferred`, `lead_distribution_history` `whatsapp_chat_release` e `cooled_client_cases`; redistribuição automática não é corte. (i) Card da transferência sem resumo; rascunho de pós-atendimento pelo modelo do dono (`genericHandoffMessage`), sem IA e sem ler conversa.
+- **Motivo:** decisões do dono de 16/10/2026 ("Sim"; "Pode tirar o resumo, acho que essa ideia de transferir o histórico da conversa já ajuda bastante.").
+- **Arquivos afetados:** `lib/whatsapp-chat-scope.mjs`, `lib/cooled-clients.js`, `lib/cooled-clients-core.mjs` (sem `parseHandoffResponse`), `lib/ai-chat-assist.js` (sem `summarizeCooledHandoff`/`HANDOFF_INSTRUCTIONS`), `components/cooled/CooledHandoffCard.jsx`, `components/cooled/CooledChatHistory.jsx` (só comentário), `components/clients/ClientSheet.jsx` (comentários), rota `.../handoff/history` (comentário), testes `cooled-transfer-chat-history`, `cooled-handoff-no-autosend`, `cooled-clients-core`; docs BUSINESS_RULES FUN-15/15g/15h/15i, WHATSAPP, rules `crm-clientes-funil`/`integracoes-externas`. Sem migration.
+- **Risco/observação:** mesmas regras de privacidade/permissão da FUN-15g (Particular, excluída, grupo, interna, apagada e WhatsApp pessoal de terceiros fora; escopo do responsável atual). `handoff` antigo continua no banco (só a mensagem é exibida). Limitações: transferência cujo registro na linha do tempo falhou não abre histórico; devolvido à fila de espera e depois transferido à mão mostra o dono como anterior; transferência manual saindo do dono mostra ao novo corretor as conversas do cliente nos números do dono (mesma regra "números 1/2 do anterior"). Falhas pré-existentes em `tests/client-card-whatsapp-chat.test.mjs` (4, iguais em origin/main). Sem push.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-16 — FUN-15g: novo corretor lê a conversa anterior do cliente transferido
 - **Data:** 2026-10-16
 - **Área:** Clientes que esfriaram (FUN-15) / Ficha do cliente / Chat (exceção de leitura ao escopo WA-11)

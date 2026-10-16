@@ -22,7 +22,6 @@ import {
   keepFirstPendingCooledAlert,
   pinCooledHead,
   isValidCooledText,
-  parseHandoffResponse,
   renderHandoffMessage,
   resolveDeciderId
 } from "../lib/cooled-clients-core.mjs";
@@ -181,13 +180,9 @@ test("janela do corretor: Importante, chave por caso e rodada, sem link", () => 
   assert.equal(isCooledDedupeKey("reply_waiting:1"), false);
 });
 
-test("mensagem sugerida: saudação trocada na hora e resposta da IA separada", () => {
+test("mensagem sugerida: saudação trocada na hora", () => {
   const generic = genericHandoffMessage("Maria da Silva", "João Pedro");
   assert.match(renderHandoffMessage(generic, "Boa tarde"), /^Boa tarde, Maria, sou associado\(a\) do corretor Matheus Machado, e vi que você estava em atendimento com João, certo\?/);
-  const parsed = parseHandoffResponse("Quer: casa\nOnde parou: simulação\nO que faltou: documentos\nMENSAGEM: {saudacao}, Maria, vi que...", "fallback");
-  assert.equal(parsed.summary, "Quer: casa\nOnde parou: simulação\nO que faltou: documentos");
-  assert.equal(parsed.message, "{saudacao}, Maria, vi que...");
-  assert.equal(parseHandoffResponse("só resumo", "fb").message, "fb");
 });
 
 test("Meta Diária: motivo escrito hoje resolve a pendência congelada (MD-8)", () => {

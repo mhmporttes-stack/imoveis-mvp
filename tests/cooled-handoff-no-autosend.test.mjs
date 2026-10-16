@@ -32,17 +32,20 @@ test("card do rascunho: só lê (GET), texto editável e cópia só depois da re
   assert.match(source, /disabled=\{!canCopy\}/);
 });
 
-test("prompt da IA pede rascunho de pós-atendimento no formato do dono (FUN-15c)", () => {
-  const source = read("lib/ai-chat-assist.js");
-  const start = source.indexOf("const HANDOFF_INSTRUCTIONS");
-  const prompt = source.slice(start, source.indexOf("`;", start));
-  assert.match(prompt, /PÓS-ATENDIMENTO/);
-  assert.match(prompt, /associado do corretor Matheus Machado/);
-  assert.match(prompt, /não acrescente "Imóveis" nem nome de empresa/);
-  assert.match(prompt, /sem inventar nome/);
-  assert.match(prompt, /sem emoji/);
-  assert.match(prompt, /sem promessas/);
-  assert.match(prompt, /Comece EXATAMENTE com "\{saudacao\}, "|comece EXATAMENTE com "\{saudacao\}, "/);
+// REGRA OFICIAL (dono, 2026-10-16): "Pode tirar o resumo, acho que essa ideia de transferir o histórico da conversa já
+// ajuda bastante." Sem resumo por IA; o rascunho (FUN-15b/c) continua, montado pelo modelo do dono sem ler conversa.
+test("transferência sem resumo: rascunho pelo modelo do dono, sem IA e sem ler a conversa", () => {
+  const lib = read("lib/cooled-clients.js");
+  const handoff = lib.slice(lib.indexOf("export async function getCooledHandoff"), lib.indexOf("\n}\n", lib.indexOf("export async function getCooledHandoff")));
+  assert.match(handoff, /genericHandoffMessage\(/);
+  assert.doesNotMatch(handoff, /summar|ai-chat-assist|whatsapp_messages|whatsapp_conversations/i);
+  assert.doesNotMatch(lib, /summarizeCooledHandoff|loadConversationLines|parseHandoffResponse/);
+  assert.doesNotMatch(read("lib/ai-chat-assist.js"), /HANDOFF_INSTRUCTIONS|summarizeCooledHandoff|cooled_client_handoff/);
+  const present = lib.slice(lib.indexOf("function presentHandoff"), lib.indexOf("\n}\n", lib.indexOf("function presentHandoff")));
+  assert.doesNotMatch(present, /summary/);
+  const card = read("components/cooled/CooledHandoffCard.jsx");
+  assert.doesNotMatch(card, /handoff\.summary/);
+  assert.match(card, /<textarea/);
 });
 
 // FUN-15d (dono, 2026-10-16): telefone do cliente em todos os cards do fluxo, só para quem já pode ver o cliente.

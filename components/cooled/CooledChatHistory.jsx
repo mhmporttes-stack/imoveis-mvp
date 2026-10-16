@@ -9,6 +9,8 @@ import { cx } from "@/components/ui/cx";
 // histórico de conversas caso haja no chat ... e indica que dali para trás as conversas foram feitas pela Jennyfer e
 // agora ele irá assumir." Ficha do cliente transferido: conversa anterior SOMENTE LEITURA, por número, com o divisor
 // no fim. Só lê (GET /api/admin/cooled-clients/handoff/history); nada aqui envia mensagem nem usa o número anterior.
+// Estendido pelo dono em 2026-10-16 ("Sim"): também na transferência manual de responsável e no "Devolver para a roleta"
+// fora do fluxo — o servidor escolhe o corte (loadTransferHistoryCut, lib/cooled-clients.js); este componente é o mesmo.
 
 const MEDIA_LABEL = { image: "Foto", audio: "Áudio", video: "Vídeo", document: "Documento", sticker: "Figurinha" };
 
