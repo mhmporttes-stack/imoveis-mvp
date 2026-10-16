@@ -9,7 +9,7 @@ import Button from "@/components/ui/Button";
 import { useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
 import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
-import { COOLED_ALERT_TYPE, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
+import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -102,10 +102,17 @@ export default function AlertCenterGate({ userId }) {
   const dismissInformative = useCallback((id) => setQueue((current) => current.filter((item) => item.id !== id)), []);
 
   // openLink: "Entendi e abrir" leva ao destino do alerta (context.link, só rota interna /admin/...) depois da ciência.
-  async function acknowledge(alert, openLink = false, reasonText = "") {
-    // Cliente que esfriou (2026-10-16): a janela só sai com o motivo escrito (o servidor dá a ciência).
-    if (alert.context?.type === COOLED_ALERT_TYPE) await postJson(`/api/admin/cooled-clients/${alert.context.case_id}/reason`, { text: reasonText });
-    else await postJson(`/api/admin/alerts/${alert.id}/ack`);
+  async function acknowledge(alert, openLink = false, reasonText = "", quickReason = "") {
+    // Cliente que esfriou (2026-10-16): a janela só sai com o motivo escrito ou com a opção pronta "Cliente não
+    // respondeu mais" (que transfere direto pela roleta) — o servidor dá a ciência.
+    if (alert.context?.type === COOLED_ALERT_TYPE) {
+      try {
+        await postJson(`/api/admin/cooled-clients/${alert.context.case_id}/reason`, quickReason ? { quickReason } : { text: reasonText });
+      } catch (error) {
+        load(); // caso encerrado no meio (cliente mudou de responsável/situação): a fila atualiza e mostra o próximo
+        throw error;
+      }
+    } else await postJson(`/api/admin/alerts/${alert.id}/ack`);
     setImportant((current) => current.filter((item) => item.id !== alert.id));
     // FUN-15e (dono, 2026-10-16): o servidor manda UM cliente que esfriou por vez; concluído este, busca o próximo da fila.
     if (alert.context?.type === COOLED_ALERT_TYPE) load();
@@ -250,10 +257,12 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
   const link = alertLink(alert.context);
   const cooled = alert.context?.type === COOLED_ALERT_TYPE;
   const [reason, setReason] = useState("");
+  // Opção pronta "Cliente não respondeu mais" (regra do dono, 2026-10-16): 1 clique escolhe; o botão principal confirma.
+  const [noResponse, setNoResponse] = useState(false);
   const [errorText, setErrorText] = useState("");
   async function confirm(openLink = false) {
     if (state === "sending") return;
-    if (cooled && !isValidCooledText(reason)) {
+    if (cooled && !noResponse && !isValidCooledText(reason)) {
       setErrorText(`Escreva o motivo com pelo menos ${COOLED_REASON_MIN_LENGTH} letras.`);
       setState("error");
       return;
@@ -261,7 +270,7 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
     setState("sending");
     try {
       if (dialogRef.current) dialogRef.current.dataset.ack = "1";
-      await onAcknowledge(alert, openLink, reason);
+      await onAcknowledge(alert, openLink, reason, cooled && noResponse ? COOLED_NO_RESPONSE_REASON.key : "");
       dialogRef.current?.close();
     } catch (error) {
       if (dialogRef.current) delete dialogRef.current.dataset.ack;
@@ -299,6 +308,18 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
         ) : null}
         <p id={`alert-body-${alert.id}`} className={cooled ? "mt-3 text-[15px] font-semibold leading-6 text-navy" : "mt-2 text-[15px] leading-6 text-ink-2"}>{alert.body}</p>
         {cooled ? (
+          <button
+            type="button"
+            aria-pressed={noResponse}
+            onClick={() => { setNoResponse((current) => !current); if (state === "error") setState("idle"); }}
+            className={`mt-2 w-full rounded-control border px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand ${noResponse ? "border-brand bg-info-soft" : "border-line bg-white"}`}
+            data-cooled-quick-reason="no_response"
+          >
+            <span className="block text-[15px] font-semibold text-navy">{COOLED_NO_RESPONSE_REASON.label}</span>
+            <span className="block text-xs text-muted">O cliente vai direto para a roleta, sem passar pela aprovação da gestão.</span>
+          </button>
+        ) : null}
+        {cooled && !noResponse ? (
           <textarea
             value={reason}
             onChange={(event) => { setReason(event.target.value); if (state === "error") setState("idle"); }}
@@ -306,14 +327,14 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
             maxLength={1000}
             autoFocus
             aria-label="Motivo"
-            placeholder="Escreva aqui o que aconteceu com este cliente."
+            placeholder="Outro motivo? Escreva aqui o que aconteceu com este cliente."
             className="mt-2 w-full rounded-control border border-line bg-white p-3 text-[15px] leading-6 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
             data-cooled-reason="true"
           />
         ) : null}
         {state === "error" ? <p role="alert" className="mt-3 text-xs text-danger">{errorText || "Não foi possível confirmar. Tente de novo."}</p> : null}
         <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={() => confirm(false)} autoFocus={!cooled} data-alert-ack="true">
-          {cooled ? (state === "sending" ? "Enviando…" : "Enviar motivo") : state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
+          {cooled ? (state === "sending" ? "Enviando…" : noResponse ? "Transferir para a roleta" : "Enviar motivo") : state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
         </Button>
         {link && !cooled ? (
           <Button size="lg" block variant="secondary" className="mt-2" disabled={state === "sending"} onClick={() => confirm(true)} data-alert-open="true">
