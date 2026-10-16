@@ -54,6 +54,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15: migration `cooled_client_cases` aplicada em produção (fluxo continua DESLIGADO)
+- **Data:** 2026-10-16
+- **Área:** Banco / Clientes que esfriaram (FUN-15)
+- **Alteração:** aplicada em produção (`tshhasbbchjcvhoyizoo`, via `apply_migration` do conector Supabase) a migration `supabase/migrations/20261016120000_cooled_client_cases.sql`: tabela `cooled_client_cases` (RLS ligado, sem policy, sem acesso para anon/authenticated) + índices + `crm_settings.cooled_clients_flow = {"enabled": false}`. Conferido: tabela existe, RLS ligado, 0 linhas.
+- **Prévia (`docs/analytics/clientes-esfriados-previa.sql`, somente leitura, 2026-10-16):** 186 casos seriam abertos ao ligar — ketlin 57, Caroline Mayumi 54, Jennyfer Zorzato 36, Bruna Santos 31, Eduardo Bueno 8; decisora Caroline Mayumi 132, dono 54.
+- **Motivo:** ativar a base do fluxo FUN-15 (código já publicado no main).
+- **Arquivos afetados:** nenhum código; só este registro.
+- **Risco/observação:** o fluxo NÃO foi ligado; o dono liga em Desempenho › Clientes esfriados. A prévia em SQL trata como "admin geral" só o role `admin` (o código também exclui os e-mails do dono), então a contagem real pode variar levemente.
+- **Autor:** Claude Code
+
 ### 2026-10-16 — Presença: "Chegou e não conectou" / "Liberar hoje" também com a chegada de ontem ainda valendo
 - **Data:** 2026-10-16
 - **Área:** Roleta / Presença na imobiliária (ROL-2f)
