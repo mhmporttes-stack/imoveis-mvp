@@ -20,7 +20,7 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ### Imóvel
-- (nenhum)
+- **Casa nova com 2 dormitórios · Palmital, Zona Norte (COD4354)** — `carrosseis/2026-10-15-palmital-casa-nova/` (10 lâminas; já no site)
 
 ## Publicados
 - Aluguel ou 1º apê (2026-10-13, azul)
