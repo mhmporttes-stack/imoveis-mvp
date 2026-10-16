@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15h ampliada: redistribuição automática também abre a conversa anterior (inclusive as antigas)
+- **Data:** 2026-10-16
+- **Área:** Clientes / WhatsApp / Roleta
+- **Alteração:** o corte do bloco "Conversa anterior" passa a ser a ÚLTIMA troca de responsável registrada, de pessoa ou automática (`lastResponsibleTransferCut`, `lib/whatsapp-chat-scope.mjs`), lida por `loadTransferHistoryCut` de `client_journey_events`, `cooled_client_cases` e TODO o `lead_distribution_history` `assigned`/`auto_transferred` (antes só `whatsapp_chat_release`). Cobre prazo vencido (REDISTRIBUIÇÃO), ida/saída da fila de espera (entrega da fila = quem segurava, o dono), anúncio (resposta/formulário/silêncio), Fluxos e "Ninguém (liberar)". Anterior desconhecido na última troca = sem histórico (não cai em corte antigo).
+- **Motivo:** decisão do dono de 16/10/2026: "deve mostrar sim, inclusive as que já foram transferidas pela regra, adicione"; confirmou também os comportamentos "saindo do dono mostra os números pessoais do dono" e "fila → à mão vem do dono".
+- **Arquivos afetados:** `lib/whatsapp-chat-scope.mjs`, `lib/cooled-clients.js`, `tests/cooled-transfer-chat-history.test.mjs`, `docs/BUSINESS_RULES.md`, `docs/WHATSAPP.md`, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** sem migration, nada gravado; retroativo pela leitura (`lead_distribution_history` desde 2026-09-07). Mesmas regras de privacidade/permissão da FUN-15g. Não abrem corte (não gravam registro): resgate de órfão (`reassignOrphanedClientsToOwner`) e reivindicação/atribuição da Prospecção/Meta Diária. `lead_distribution_history` não tem índice por `registration_id` (consulta por cliente já existia na linha do tempo).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-16 — FUN-15h/FUN-15i: conversa anterior também na transferência manual/roleta; resumo por IA retirado
 - **Data:** 2026-10-16
 - **Área:** Clientes / WhatsApp / Funil
