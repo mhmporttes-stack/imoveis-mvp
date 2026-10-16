@@ -7,7 +7,8 @@ import { cx } from "@/components/ui/cx";
 
 // Botão pequeno de sino no cabeçalho (pedido do dono, 2026-10-14): só o ícone; ao tocar abre o HISTÓRICO das notificações
 // (Central de Alertas) do próprio usuário dos últimos 30 dias. Bolinha quando há alguma ainda sem "Entendi".
-// Somente leitura: não confirma nem apaga nada. Dados: GET /api/admin/alerts/history (só do próprio usuário).
+// Lista TODAS as notificações do usuário (alertas da Central + cliente novo/atividade agendada/transferência, 2026-10-16). Só abrir uma
+// notificação do sino antigo a marca como lida; os alertas da Central continuam só com "Entendi". Dados: GET /api/admin/alerts/history.
 
 const POLL_MS = 120000;
 const KIND_LABEL = { important: "Importante", informative: "Informativo" };
@@ -77,6 +78,12 @@ export default function NotificationHistoryButton({ align = "end" }) {
   }, [open, load]);
 
   const openItem = (item) => {
+    // Notificação do sino antigo (cliente novo, atividade agendada…): abrir marca como lida (mesma rota da lista de notificações).
+    if (item.source === "notification" && !item.acknowledged && item.notificationId) {
+      setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, acknowledged: true } : entry)));
+      setPending((value) => Math.max(0, value - 1));
+      fetch(`/api/crm-notifications/${item.notificationId}`, { method: "PATCH" }).catch(() => {});
+    }
     if (!item.link) return;
     setOpen(false);
     router.push(item.link);
@@ -128,7 +135,7 @@ export default function NotificationHistoryButton({ align = "end" }) {
                         <span className="shrink-0 text-[11px] text-muted" title={fullTime(item.createdAt)}>{timeAgo(item.createdAt)}</span>
                       </span>
                       <span className="mt-0.5 line-clamp-3 block text-xs leading-snug text-slate-600">{item.body}</span>
-                      <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-muted">{KIND_LABEL[item.kind] || ""}{item.acknowledged ? "" : " · não confirmada"}</span>
+                      <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-muted">{item.label || KIND_LABEL[item.kind] || ""}{item.acknowledged ? "" : item.source === "notification" ? " · não lida" : " · não confirmada"}</span>
                     </span>
                   </button>
                 </li>

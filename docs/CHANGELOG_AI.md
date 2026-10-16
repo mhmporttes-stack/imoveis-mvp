@@ -54,6 +54,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Sino do cabeçalho mostra todas as notificações
+- **Data:** 2026-10-16
+- **Área:** Alertas / Notificações
+- **Alteração:** o histórico do sino (últimos 30 dias) passou a incluir, junto dos alertas da Central (WhatsApp precisa de atenção etc.), as notificações do sino antigo do próprio usuário: cliente novo, atividade agendada e clientes transferidos (`crm_notifications`). Abrir uma dessas marca como lida e leva ao cliente; o ponto vermelho do sino soma as não lidas.
+- **Motivo:** pedido do dono ("todas as notificações devem aparecer aqui, não só as do WhatsApp").
+- **Arquivos afetados:** `lib/crm-alerts.js`, `components/alerts/NotificationHistoryButton.jsx`, `tests/bell-all-notifications.test.mjs`
+- **Risco/observação:** só leitura/escopo do próprio usuário (privacidade de 2026-10-02 mantida). Push do celular não é gravado em lugar nenhum, então não aparece no histórico (a política de push continua: só cliente novo e atividade agendada, com a mesma notificação no sino). Se a leitura das notificações falhar, o sino mostra só os alertas.
+- **Autor:** Claude Code
 ### 2026-10-16 — FUN-15e (complemento): card do cliente que esfriou fica fixo até o motivo
 - **Data:** 2026-10-16
 - **Área:** Clientes que esfriaram (FUN-15) / Central de Alertas
