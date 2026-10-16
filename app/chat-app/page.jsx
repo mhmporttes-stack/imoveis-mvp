@@ -36,7 +36,7 @@ export default async function ChatAppPage({ searchParams }) {
     <WhatsappAccessProvider blocked={false} basic={isBasicMode(auth.profile)}>
       <ChatAppHome />
       <main className="bg-mist">
-        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
+        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} currentUserName={auth.profile?.name || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
       </main>
     </WhatsappAccessProvider>
   );

@@ -19,4 +19,10 @@ test("a aba aparece só para quem gerencia, com o primeiro nome, como primeira d
   assert.match(ui, /mineScope=\{canManage && currentUserId \? \{ active: scopedBroker\?\.id === currentUserId/);
   assert.match(ui, /\{mineScope \? \(\s*<button[\s\S]*?\{mineScope\.label\}\s*<\/button>\s*\) : null\}\s*\{FILTERS\.filter/);
   assert.match(read("app/admin/chat/page.jsx"), /currentUserName=\{auth\.profile\?\.name \|\| ""\}/);
+  // App do Chat da tela inicial (/chat-app): mesmo nome na aba (antes aparecia "Meus").
+  assert.match(read("app/chat-app/page.jsx"), /currentUserName=\{auth\.profile\?\.name \|\| ""\}/);
+});
+
+test("voltar ao Chat mantém a aba com o próprio nome marcada quando a lista guardada era só dela", () => {
+  assert.match(read("components/WhatsappChat.jsx"), /useState\(\(\) => \(canManage && currentUserId && view\?\.scopedBroker\?\.id === currentUserId \? view\.scopedBroker : null\)\)/);
 });

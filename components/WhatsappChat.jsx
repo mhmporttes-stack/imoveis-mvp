@@ -306,7 +306,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   // Aba "Corretores": ver o Chat filtrado por um corretor específico — o
   // MESMO componente/estado, só um escopo extra na consulta (nunca um Chat
   // paralelo). null = visão normal (tudo dentro da permissão de quem está logado).
-  const [scopedBroker, setScopedBroker] = useState(null); // { id, name } | null — vinha da aba Corretores (removida em 2026-10-12)
+  // Volta ao Chat (cache por conta): a aba com o próprio nome continua marcada se a lista guardada era só dela — antes
+  // voltava desmarcada mostrando a lista guardada "só dela" como se fosse a de todos (2026-10-16).
+  const [scopedBroker, setScopedBroker] = useState(() => (canManage && currentUserId && view?.scopedBroker?.id === currentUserId ? view.scopedBroker : null)); // { id, name } | null — vinha da aba Corretores (removida em 2026-10-12)
 
   const sectionRef = useRef(null);
   useChatAppMode(appMode, sectionRef);

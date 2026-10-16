@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Chat (gestora): aba com o próprio nome no app do Chat e ao voltar para a tela
+- **Data:** 2026-10-16
+- **Área:** WhatsApp (Chat)
+- **Alteração:** (1) `/chat-app` (app "Chat" da tela inicial) não passava `currentUserName` ao `WhatsappChat`: a aba da gestora aparecia como "Meus" em vez do primeiro nome (em `/admin/chat` já vinha certo). (2) Ao voltar ao Chat com a lista guardada (cache por conta), a aba com o próprio nome voltava desmarcada (`scopedBroker` sempre começava `null`), mostrando por instantes a lista "só dela" como se fosse a de todos; agora é restaurada quando a lista guardada era dela.
+- **Motivo:** diagnóstico pedido pelo dono ("botões do chat da Carol"); demais botões do topo conferidos sem problema (escopo no servidor `runScopedQuery`/`allowedBrokerFilter`; PRO-15 e Chat desativado não se aplicam a gestor).
+- **Arquivos afetados:** `app/chat-app/page.jsx`, `components/WhatsappChat.jsx`, `tests/chat-mine-tab.test.mjs`.
+- **Risco/observação:** só apresentação/estado da tela; escopo no servidor inalterado. Falhas PRÉ-EXISTENTES (já falhavam em 15/10, fora do escopo): `tests/chat-reply-preview.test.mjs` (1) e `tests/client-card-whatsapp-chat.test.mjs` (4). Build ok.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-16 — Imóveis: contato do imóvel (interno) para agendar visita
 - **Data:** 2026-10-16
 - **Área:** Banco / Imóveis (painel) / Permissões
