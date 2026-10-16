@@ -69,6 +69,8 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 
 ## Legenda (dono, 2026-10-13)
 - **No máximo 5 hashtags** — o Instagram só permite 5; nunca entregar 6 ou mais.
+- **Nunca usar #marilia** (dono, 2026-10-16). No lugar, uma hashtag-gancho ligada ao assunto do post, que puxe engajamento (ex.: humor sobre a rotina de corretor → #vendas; aluguel → #sairdoaluguel). Evitar hashtag genérica que só descreve o tema.
+- **Entregar a legenda no chat dentro de uma caixa de código** (bloco com botão de copiar), para o dono copiar com um toque (dono, 2026-10-16).
 - Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
 - **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
 

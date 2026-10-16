@@ -16,4 +16,4 @@ Qual dessas você já mandou (ou já recebeu)? Conta aqui nos comentários e mar
 
 Matheus Machado · Corretor de imóveis em Marília/SP · CRECI 323106-F
 
-#corretordeimoveis #vidadecorretor #humor #marilia #primeiroimovel
+#corretordeimoveis #vidadecorretor #humor #vendas #primeiroimovel
