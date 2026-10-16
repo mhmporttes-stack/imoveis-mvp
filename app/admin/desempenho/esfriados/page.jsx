@@ -18,7 +18,7 @@ const DECISIONS = [
   { key: "canceled", label: "Encerrados sozinhos" }
 ];
 const STATUS_LABEL = { awaiting_reason: "Aguardando corretor", awaiting_decision: "Aguardando decisão", closed: "Decidido", canceled: "Encerrado sozinho" };
-const CANCEL_LABEL = { responsavel_mudou: "mudou de responsável", contato_retomado: "contato retomado", status_negativo: "status negativo", contato_particular: "contato particular", cliente_removido: "cliente removido", cliente_aprovado: "cliente aprovado" };
+const CANCEL_LABEL = { responsavel_mudou: "mudou de responsável", contato_retomado: "contato retomado", status_negativo: "status negativo", contato_particular: "contato particular", cliente_removido: "cliente removido", cliente_aprovado: "cliente aprovado", cliente_com_restricao: "cliente com restrição" };
 
 function formatDate(value) {
   if (!value) return "";

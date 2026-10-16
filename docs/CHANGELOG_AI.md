@@ -54,6 +54,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15k: cliente com restrição, arquivado ou "não contactar" fora do fluxo de esfriados
+- **Data:** 2026-10-16
+- **Área:** Clientes (fluxo de clientes que esfriaram)
+- **Alteração:** regra do dono "clientes com restrição, arquivados ou não contactar não entram nessa regra". Arquivado/Não contactar já ficavam fora e encerravam casos (confirmado por teste). Novo: status Restrição encerra com motivo próprio `cliente_com_restricao`; motivo escrito que cita restrição (`isRestrictionReasonText`: restrição/nome sujo/negativado/score, negação não conta) encerra o caso como restrição (ação `restriction_reason`), sem decisora e sem roleta; o classificador "não respondeu mais" nunca transfere texto com restrição; casos já na caixinha com esse motivo somem da caixinha e a rotina encerra; cliente encerrado por texto fica fora do fluxo até mudar de status (`isRestrictionHoldActive`). Histórico (`/admin/desempenho/esfriados`) mostra "cliente com restrição".
+- **Motivo:** decisão do dono de 16/10/2026.
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `lib/cooled-clients.js`, `app/admin/desempenho/esfriados/page.jsx`, `tests/cooled-restriction.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15k), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** sem migration (`canceled_reason` é texto livre). A CONFIRMAR com o dono: aplicar o status "Restrição" automaticamente quando o motivo cita restrição (hoje não muda o status, para não disparar mensagem de jornada nem mexer no funil sem decisão) e se Blindagem deve ficar fora. Não existe campo/etiqueta estruturada de restrição de crédito além do status.
 ### 2026-10-16 — CLI-7a: corretor transfere o próprio cliente
 - **Data:** 2026-10-16
 - **Área:** Clientes / Permissões
