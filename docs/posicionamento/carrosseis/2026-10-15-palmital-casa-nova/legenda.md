@@ -1,6 +1,6 @@
 # Post de imóvel: casa nova no Palmital, Zona Norte (2026-10-15)
 
-Capa só com a foto da cozinha planejada (pedido do dono, só neste post). Código **COD4354**. Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros (LaMa não foi necessário); resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. **Sem valor**, conforme o modelo. Endereço completo fica fora do post (só bairro). Nada foi publicado.
+Capa só com a foto da cozinha planejada (pedido do dono, só neste post). Código **COD4354**. Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros (LaMa não foi necessário); resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. **Sem valor**, conforme o modelo. Endereço completo fica fora do post (só bairro). **Postado no Instagram pelo dono em 2026-10-16.**
 
 Dados enviados pelo dono: Rua João Batista Raphael, 807 – Palmital (próximo ao Preço Certo); terreno 5,5 x 30 m (165 m²); 2 dormitórios; sala integrada; cozinha com planejados; área gourmet; pé-direito alto; estuda imóvel ou carro como parte da entrada.
 
