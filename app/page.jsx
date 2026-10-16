@@ -5,6 +5,7 @@ import PropertyCaptureSection from "@/components/PropertyCaptureSection";
 import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import HeroBackground from "@/components/site/HeroBackground";
+import HeroJourney, { HeroReveal } from "@/components/site/HeroJourney";
 import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
@@ -54,21 +55,9 @@ export default async function HomePage() {
         <HeroBackground variant={HERO_BACKGROUND} />
         <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
           <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
-            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-200/90 sm:text-sm sm:tracking-[0.2em] md:text-xs lg:text-sm">
-              Matheus Machado <span className="text-white/35" aria-hidden="true">·</span> Corretor em Marília
-            </p>
+            <HeroJourney />
 
-            <h1 className="mt-4 text-[clamp(2.15rem,5.6vw,4rem)] font-black leading-[1.16] tracking-[-0.015em] sm:mt-5">
-              Seu primeiro imóvel em <span className="text-[#4C8DF6]">Marília</span>
-              <span className="mt-3 block max-w-[30rem] text-[clamp(1.15rem,2.2vw,1.6rem)] font-bold leading-snug tracking-normal text-white/85">
-                com Minha Casa Minha Vida e financiamento Caixa.
-              </span>
-            </h1>
-            <p className="mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/70 sm:text-lg sm:leading-8">
-              Descubra em menos de 2 minutos quanto você pode financiar. Depois, a gente acompanha você da aprovação até a entrega das chaves.
-            </p>
-
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center md:flex-col md:items-start lg:flex-row lg:items-center">
+            <HeroReveal delay={2.2} className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center md:flex-col md:items-start lg:flex-row lg:items-center">
               <Link
                 href={SIMULATION_FORM_URLS.main}
                 className="group inline-flex min-h-14 whitespace-nowrap items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-black text-[#0E2257] shadow-[0_14px_34px_rgba(4,10,30,0.5),0_8px_30px_rgba(76,141,246,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60"
@@ -85,7 +74,7 @@ export default async function HomePage() {
                 <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
                 Falar no WhatsApp
               </a>
-            </div>
+            </HeroReveal>
 
             {/* Selos de confiança: pequenos e na mesma linha visual, sem competir com os botões. */}
             <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-[13px] font-semibold text-white/65 sm:mt-7 sm:text-sm">

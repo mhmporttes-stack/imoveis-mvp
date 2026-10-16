@@ -1,0 +1,34 @@
+/* Cena de abertura da home (modelo B): só opacity/transform, nada que force layout. Tempo total ≈ 2,6 s, uma vez. */
+.rise { opacity: 0; transform: translateY(14px); animation: rise 0.62s cubic-bezier(0.2, 0, 0, 1) var(--d, 0s) both; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+
+.track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin-left: 0; padding: 0; }
+.node { min-width: 0; }
+.dotRow { display: flex; align-items: center; }
+
+.dot { flex: none; width: 12px; height: 12px; border-radius: 999px; background: #4c8df6; opacity: 0; transform: scale(0.4); animation: dotOn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.3) var(--d, 0s) both; }
+@keyframes dotOn { to { opacity: 1; transform: none; } }
+
+/* chegada (chaves): ponto branco com um anel que se expande uma vez */
+.dotEnd { background: #fff; position: relative; }
+.dotEnd::after { content: ""; position: absolute; inset: -5px; border-radius: 999px; border: 2px solid rgba(255, 255, 255, 0.55); opacity: 0; animation: arrive 1.1s ease-out calc(var(--d, 0s) + 0.15s) both; }
+@keyframes arrive { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.1); } }
+
+/* linha entre os pontos: trilho apagado + preenchimento que se desenha da esquerda para a direita */
+.line { position: relative; flex: 1; height: 2px; margin: 0 10px 0 8px; background: rgba(255, 255, 255, 0.16); overflow: hidden; border-radius: 2px; }
+.line::after { content: ""; position: absolute; inset: 0; background: #4c8df6; transform: scaleX(0); transform-origin: left center; animation: draw 0.5s ease-out var(--d, 0s) both; }
+@keyframes draw { to { transform: scaleX(1); } }
+
+.label { margin: 8px 0 0; font-size: 13px; line-height: 1.35; color: rgba(255, 255, 255, 0.72); opacity: 0; transform: translateY(6px); animation: rise 0.5s ease-out var(--d, 0s) both; }
+.label b { display: block; font-size: 14px; font-weight: 700; color: #fff; }
+.label span { display: block; }
+@media (min-width: 640px) {
+  .label { font-size: 14px; }
+  .label b { font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .dot, .label { animation: none; opacity: 1; transform: none; }
+  .dotEnd::after { display: none; }
+  .line::after { animation: none; transform: scaleX(1); }
+}
