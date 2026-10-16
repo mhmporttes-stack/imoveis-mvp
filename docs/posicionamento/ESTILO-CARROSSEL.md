@@ -74,6 +74,7 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 - **Entregar a legenda no chat dentro de uma caixa de código** (bloco com botão de copiar), para o dono copiar com um toque (dono, 2026-10-16).
 - Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
 - **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
+- **Entregar a legenda sempre dentro de uma caixa de texto** (bloco de código no chat), para o dono copiar com um toque (dono, 2026-10-16).
 - **Estrutura padrão (aprovada pelo dono em 2026-10-16; exemplo: `carrosseis/2026-10-15-receita-federal-chatgpt/legenda.md`):**
   1. Gancho na 1ª linha (frase do tema + 1 emoji).
   2. Contexto curto que puxa a identificação ("quem vê só… não imagina…").
