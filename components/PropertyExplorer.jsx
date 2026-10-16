@@ -110,7 +110,7 @@ export default function PropertyExplorer({ properties = [] }) {
       <span id="todos" className="block scroll-mt-20" aria-hidden="true" />
       <span id="empreendimentos" className="block scroll-mt-20" aria-hidden="true" />
       <div className="container-page">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col items-center gap-1 text-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Imóveis em Marília</p>
             <h2 id="imoveis-title" className="mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">

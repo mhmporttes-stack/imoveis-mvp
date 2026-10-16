@@ -103,6 +103,7 @@ export default function TestimonialsSection({ testimonials = [] }) {
   return (
     <section className="bg-mist py-24">
       <SectionHeading
+        centered
         eyebrow="Depoimentos"
         title="Experiências reais, decisões mais seguras."
         subtitle="Conheça a experiência de clientes atendidos durante a busca e a compra do imóvel."
