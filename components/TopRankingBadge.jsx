@@ -23,7 +23,9 @@ const REFRESH_MS = 5 * 60 * 1000;
 // Celular (pedido do dono, 2026-10-12): os dois cards lado a lado, metade da
 // largura cada, compactos (rótulo em cima, foto de 42px, nome em 1 linha,
 // pontos). Desktop (lg): como antes — foto grande à esquerda e texto ao lado.
-const INDICATOR_POSITION = "absolute right-1.5 top-1 z-20 flex items-center gap-1 max-lg:[&>span>button]:h-7 max-lg:[&>span>button]:w-7 lg:right-3";
+// z-40: os painéis dos ícones (Notificações, WhatsApp, Google Contacts) abrem para baixo e precisam ficar POR CIMA da barra de busca
+// fixa das telas (sticky z-20, ex.: Clientes) — com z-20 a busca cobria o painel.
+const INDICATOR_POSITION = "absolute right-1.5 top-1 z-40 flex items-center gap-1 max-lg:[&>span>button]:h-7 max-lg:[&>span>button]:w-7 lg:right-3";
 // Desktop: no Campeão da Semana o indicador fica logo abaixo do título; no Melhor do Dia, no topo.
 const WEEKLY_TOP = "lg:top-[1.625rem]";
 const DAILY_TOP = "lg:top-2";
