@@ -109,8 +109,13 @@ export default async function HomePage() {
             </div>
           </div>
         </div>
-        {/* Emenda suave com a página: o azul-marinho se dissolve no branco (antes terminava numa linha reta). */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-24 bg-gradient-to-b from-transparent to-white sm:h-32" aria-hidden="true" />
+        {/* Emenda suave com a página: faixa BAIXA e bem misturada. O degradê passa por azul-claro (não por cinza) e as paradas
+            seguem uma curva suave, então o azul-marinho se dissolve no branco sem linha reta nem faixa suja. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-14 sm:h-20"
+          style={{ backgroundImage: "linear-gradient(to bottom, rgba(8,17,46,0) 0%, rgba(70,110,190,0.10) 18%, rgba(120,155,215,0.28) 38%, rgba(185,205,238,0.55) 58%, rgba(235,242,252,0.85) 80%, #ffffff 100%)" }}
+          aria-hidden="true"
+        />
       </section>
 
       <PropertyExplorer properties={properties} />

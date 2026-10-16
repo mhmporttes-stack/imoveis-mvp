@@ -1,4 +1,5 @@
 import styles from "./HeroJourney.module.css";
+import FitLine from "./FitLine";
 
 // Abertura da home — modelo B aprovado pelo dono (2026-10-16): título calmo, uma frase e a linha do tempo
 // "Simule → Aprovação → Chaves". A CENA de apresentação é só CSS (sem JavaScript no navegador): o texto entra em
@@ -17,15 +18,13 @@ export default function HeroJourney() {
         Minha Casa Minha Vida <span className="text-white/35" aria-hidden="true">·</span> Financiamento Caixa
       </p>
 
-      {/* Uma linha só, em maiúsculas: o tamanho acompanha a largura da coluna (container query), então nunca quebra nem estoura. */}
-      <div className={styles.titleBox}>
-        <h1 className={`${styles.rise} ${styles.title} mt-4 font-extrabold sm:mt-5`} style={{ "--d": "0.12s" }}>
-          Seu primeiro imóvel em <span className="text-[#6FA8FA]">Marília</span>
-        </h1>
-      </div>
-
-      {/* A linha do tempo vai exatamente da largura da frase (até o fim de "financiar"): os dois ficam no mesmo bloco. */}
+      {/* Título, frase e linha do tempo têm a MESMA largura (a da frase, até o fim de "financiar"): ficam no mesmo bloco e o
+          título (uma linha, maiúsculas) é ajustado por FitLine para terminar exatamente onde a frase termina. */}
       <div className="w-fit max-w-full">
+      <FitLine className={`${styles.rise} ${styles.title} mt-4 font-extrabold sm:mt-5`} style={{ "--d": "0.12s" }}>
+        Seu primeiro imóvel em <span className="text-[#6FA8FA]">Marília</span>
+      </FitLine>
+
       <p className={`${styles.rise} mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/80 sm:text-lg sm:leading-8`} style={{ "--d": "0.32s" }}>
         Descubra em menos de 2 minutos quanto você pode financiar.
       </p>

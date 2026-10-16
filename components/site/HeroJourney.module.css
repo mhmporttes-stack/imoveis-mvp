@@ -2,9 +2,8 @@
 .rise { opacity: 0; transform: translateY(14px); animation: rise 0.62s cubic-bezier(0.2, 0, 0, 1) var(--d, 0s) both; }
 @keyframes rise { to { opacity: 1; transform: none; } }
 
-/* título em UMA linha, maiúsculas; fonte proporcional à largura da coluna (fallback em vw para navegador sem cqw) */
-.titleBox { container-type: inline-size; }
-.title { white-space: nowrap; text-transform: uppercase; letter-spacing: 0.005em; line-height: 1.15; font-size: clamp(0.95rem, 4.4vw, 2.2rem); font-size: clamp(0.95rem, 4.45cqw, 3rem); }
+/* título em UMA linha, maiúsculas; o tamanho exato é calculado por FitLine (largura da frase); aqui só o ponto de partida */
+.title { contain: inline-size; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.005em; line-height: 1.15; font-size: clamp(0.95rem, 4.2vw, 2rem); }
 
 .track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin-left: 0; padding: 0; }
 .node { min-width: 0; }
