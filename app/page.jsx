@@ -6,6 +6,8 @@ import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import HeroBackground from "@/components/site/HeroBackground";
 import HeroJourney, { HeroReveal } from "@/components/site/HeroJourney";
+import SceneReveal from "@/components/site/SceneReveal";
+import aboutScene from "@/components/site/AboutScene.module.css";
 import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
@@ -158,39 +160,44 @@ export default async function HomePage() {
         aria-labelledby="quem-title"
         className="relative isolate overflow-hidden bg-[radial-gradient(120%_90%_at_28%_45%,#FFFFFF_0%,#F7F9FD_38%,#EAF0FA_72%,#DCE5F4_100%)] py-14 sm:py-20 lg:py-24"
       >
-        <div className="container-page grid items-center gap-12 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-12 lg:gap-16">
+        <SceneReveal className={`${aboutScene.scene} container-page grid items-center gap-12 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:gap-12 lg:gap-16`}>
           <div className="relative mx-auto w-[272px] sm:w-[320px] lg:w-[380px]">
             {/* Halo e anel: decorativos, atrás do círculo. */}
-            <span className="pointer-events-none absolute inset-x-[-12%] bottom-[-6%] aspect-square rounded-full bg-[#4C8DF6]/20 blur-[60px]" aria-hidden="true" />
-            <span className="pointer-events-none absolute inset-x-[-5%] bottom-[-5%] aspect-square rounded-full border border-[#1F4CB3]/15" aria-hidden="true" />
+            <span className={`${aboutScene.halo} pointer-events-none absolute inset-x-[-12%] bottom-[-6%] aspect-square rounded-full bg-[#4C8DF6]/20 blur-[60px]`} aria-hidden="true" />
+            {/* Anel: círculo em SVG para poder ser DESENHADO na cena (pathLength 1 + stroke-dashoffset). */}
+            <svg className="pointer-events-none absolute bottom-[-5%] left-[-5%] aspect-square w-[110%]" viewBox="0 0 100 100" aria-hidden="true">
+              <circle className={aboutScene.ring} cx="50" cy="50" r="49.5" fill="none" stroke="#1F4CB3" strokeOpacity="0.28" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength="1" strokeDasharray="1" strokeDashoffset="0" transform="rotate(-90 50 50)" />
+            </svg>
             <div className="relative aspect-[100/122]">
               <span
-                className="absolute inset-x-0 bottom-0 aspect-square rounded-full bg-[radial-gradient(circle_at_50%_32%,#4C8DF6_0%,#1F4CB3_38%,#0E2257_74%,#08112E_100%)] shadow-[0_34px_60px_-24px_rgba(8,17,46,0.55)]"
+                className={`${aboutScene.disc} absolute inset-x-0 bottom-0 aspect-square rounded-full bg-[radial-gradient(circle_at_50%_32%,#4C8DF6_0%,#1F4CB3_38%,#0E2257_74%,#08112E_100%)] shadow-[0_34px_60px_-24px_rgba(8,17,46,0.55)]`}
                 aria-hidden="true"
               />
               {/* O recorte sai pelo topo do círculo e é cortado pela curva de baixo (rounded-b), sem borda reta. */}
               <div className="absolute inset-0 overflow-hidden rounded-b-[9999px]">
-                <Image
-                  src="/assets/matheus-machado-bracos-cruzados-recorte.webp"
-                  alt="Matheus Machado, corretor de imóveis em Marília, sorrindo de braços cruzados"
-                  fill
-                  sizes="(min-width: 1024px) 380px, 320px"
-                  className="object-contain object-bottom"
-                />
+                <div className={`${aboutScene.photo} absolute inset-0`}>
+                  <Image
+                    src="/assets/matheus-machado-bracos-cruzados-recorte.webp"
+                    alt="Matheus Machado, corretor de imóveis em Marília, sorrindo de braços cruzados"
+                    fill
+                    sizes="(min-width: 1024px) 380px, 320px"
+                    className="object-contain object-bottom"
+                  />
+                </div>
               </div>
             </div>
-            <p className="absolute bottom-0 left-1/2 inline-flex -translate-x-1/2 translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#DCE5F4] bg-white px-4 py-2 text-[13px] font-bold text-[#0E2257] shadow-[0_10px_24px_-10px_rgba(8,17,46,0.35)]">
+            <p className={`${aboutScene.pill} absolute bottom-0 left-1/2 inline-flex -translate-x-1/2 translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#DCE5F4] bg-white px-4 py-2 text-[13px] font-bold text-[#0E2257] shadow-[0_10px_24px_-10px_rgba(8,17,46,0.35)]`}>
               <ShieldCheck className="h-4 w-4 text-[#1F4CB3]" aria-hidden="true" />
               CRECI 323106-F
             </p>
           </div>
 
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#1F4CB3] sm:text-sm">Quem é o Matheus</p>
-            <h2 id="quem-title" className="mt-3 text-[clamp(1.75rem,3.4vw,2.75rem)] font-black leading-[1.15] tracking-[-0.015em] text-[#0E2257]">
+            <p className={`${aboutScene.rise} text-xs font-black uppercase tracking-[0.2em] text-[#1F4CB3] sm:text-sm`} style={{ "--d": "0.9s" }}>Quem é o Matheus</p>
+            <h2 id="quem-title" style={{ "--d": "1.05s" }} className={`${aboutScene.rise} mt-3 text-[clamp(1.75rem,3.4vw,2.75rem)] font-black leading-[1.15] tracking-[-0.015em] text-[#0E2257]`}>
               Prazer, eu sou o <span className="text-[#1F4CB3]">Matheus</span>.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-ink-2 sm:text-lg">
+            <p className={`${aboutScene.rise} mt-4 max-w-2xl text-base leading-8 text-ink-2 sm:text-lg`} style={{ "--d": "1.25s" }}>
               Sou corretor de imóveis em Marília, com CRECI 323106-F, e sou especialista na compra do primeiro imóvel:
               explico o Minha Casa Minha Vida e o financiamento da Caixa sem palavras difíceis, e minha equipe e eu
               acompanhamos cada etapa com você.
@@ -200,10 +207,11 @@ export default async function HomePage() {
                 { text: "Simulação gratuita, sem compromisso", Icon: Calculator },
                 { text: "Imóveis na planta e prontos em Marília", Icon: Building2 },
                 { text: "Acompanhamento até a entrega das chaves", Icon: KeyRound }
-              ].map(({ text, Icon }) => (
+              ].map(({ text, Icon }, index) => (
                 <li
                   key={text}
-                  className="flex items-center gap-3 rounded-2xl border border-white bg-white/75 p-3.5 text-[15px] font-semibold leading-snug text-ink shadow-[0_8px_24px_-14px_rgba(14,34,87,0.35)] backdrop-blur-sm lg:flex-col lg:items-start lg:gap-3 lg:p-4"
+                  style={{ "--d": `${1.55 + index * 0.16}s` }}
+                  className={`${aboutScene.rise} flex items-center gap-3 rounded-2xl border border-white bg-white/75 p-3.5 text-[15px] font-semibold leading-snug text-ink shadow-[0_8px_24px_-14px_rgba(14,34,87,0.35)] backdrop-blur-sm lg:flex-col lg:items-start lg:gap-3 lg:p-4`}
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#1F4CB3_0%,#0E2257_100%)] text-white shadow-[0_6px_14px_-6px_rgba(31,76,179,0.7)]">
                     <Icon className="h-5 w-5" aria-hidden="true" />
@@ -213,7 +221,7 @@ export default async function HomePage() {
               ))}
             </ul>
           </div>
-        </div>
+        </SceneReveal>
       </section>
 
       <TestimonialsSection testimonials={testimonials} />
