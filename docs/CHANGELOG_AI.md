@@ -63,6 +63,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** só tela; a regra da roleta (`office_presence_ok`, uma chegada por dia, vale até 9h do dia seguinte) e o servidor não mudaram. A chegada de hoje só é registrada pelo Wi-Fi quando o CRM está aberto num aparelho conectado à rede da imobiliária (ou manualmente).
 - **Autor:** Claude Code
 
+### 2026-10-16 — FUN-15: dono confirma 4 decisões técnicas
+- **Data:** 2026-10-16
+- **Área:** Clientes / Meta Diária
+- **Alteração:** em `docs/BUSINESS_RULES.md` FUN-15, os itens (a), (b), (c) e (f) passam a ser regra oficial; (d) e (e) continuam como comportamento atual. Itens: (a) venda, Carta de cancelamento e M.O de pesquisa fora; (b) o caso se encerra sozinho se o cliente voltar a ter contato antes do motivo; (c) com o caso aguardando a decisora, o cliente fica fora dos pendentes; (f) troca de responsável há menos de 3 dias não abre caso.
+- **Motivo:** o dono respondeu "sim" às quatro.
+- **Arquivos afetados:** `docs/BUSINESS_RULES.md`
+- **Risco/observação:** só documentação, sem mudança de código.
+- **Autor:** Claude Code
+
 ### 2026-10-16 — Fluxo de clientes que esfriaram (FUN-15)
 - **Data:** 2026-10-16 · **Área:** Clientes / Funil / Meta Diária / Central de Alertas / Roleta / IA
 - **Alteração:** cliente de corretor/associado/gestora com mais de 3 dias sem contato e sem atividade futura abre um caso: janela obrigatória da Central de Alertas pede o motivo ao responsável (mín. 15 letras, servidor); a decisora (gestora da equipe ou o dono) decide numa caixinha do cabeçalho — Transferir (mesmo "Devolver para a roleta"), status negativo (Restrição/Reprovado/Comprometimento de renda/Arquivado/Não contactar, com FUN-14 e auditoria de DNC `cooled_client_decision`) ou Devolver (uma vez). Motivo escrito resolve a pendência da Meta Diária no dia (MD-8). Depois de transferido, a ficha do novo corretor mostra resumo + mensagem sugerida por IA (uma vez por transferência; `ai_usage_log` feature `cooled_client_handoff`). Histórico em Desempenho › Clientes esfriados, com o liga/desliga (só admin geral).
