@@ -107,6 +107,8 @@ export default function AlertCenterGate({ userId }) {
     if (alert.context?.type === COOLED_ALERT_TYPE) await postJson(`/api/admin/cooled-clients/${alert.context.case_id}/reason`, { text: reasonText });
     else await postJson(`/api/admin/alerts/${alert.id}/ack`);
     setImportant((current) => current.filter((item) => item.id !== alert.id));
+    // FUN-15e (dono, 2026-10-16): o servidor manda UM cliente que esfriou por vez; concluído este, busca o próximo da fila.
+    if (alert.context?.type === COOLED_ALERT_TYPE) load();
     const link = openLink ? alertLink(alert.context) : "";
     if (link) router.push(link);
   }

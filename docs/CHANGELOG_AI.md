@@ -54,6 +54,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15e: clientes que esfriaram um por vez e aprovados fora da transferência
+- **Data:** 2026-10-16
+- **Área:** Clientes que esfriaram (FUN-15) / Central de Alertas
+- **Alteração:** duas regras oficiais novas do dono (FUN-15e). (1) Um cliente por vez: a Central de Alertas e o histórico do sino mostram só a janela pendente mais antiga do fluxo (`keepFirstPendingCooledAlert`; as demais seguem pendentes no banco, em fila) e a Central relê ao enviar o motivo; a caixinha da decisora mostra um caso por vez + "Mais N na fila". (2) Cliente aprovado (etapa "Cliente aprovado", Reunião ou Venda — `isApprovedForCooledFlow`) não abre caso; caso aberto é encerrado com `cliente_aprovado` (rótulo no histórico de Desempenho › Clientes esfriados), some da caixinha da decisora e a decisão é recusada. Sem migration, sem rota nova.
+- **Motivo:** pedido do dono: cards de clientes empilhados na notificação; aprovados não devem ir para a lista de transferência.
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `lib/cooled-clients.js`, `lib/crm-alerts.js`, `components/alerts/AlertCenterGate.jsx`, `components/cooled/CooledClientsInbox.jsx`, `app/admin/desempenho/esfriados/page.jsx`, `tests/cooled-clients-core.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15e), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** casos já abertos de clientes aprovados só são encerrados na próxima rodada do cron (fluxo ligado); até lá a decisão deles é recusada e eles não aparecem para a decisora. Push do fluxo já era bloqueado pela política de notificações (nada a mudar). A CONFIRMAR com o dono se "aprovado" deve incluir quem já teve `approved_at` e voltou a uma etapa anterior (hoje não inclui).
+- **Autor:** Claude Code
 ### 2026-10-16 — FUN-15b/c/d: rascunho da transferência editável, nunca enviado sozinho, de pós-atendimento, e telefone nos cards
 - **Data:** 2026-10-16
 - **Área:** Clientes que esfriaram (FUN-15) / IA

@@ -9,7 +9,8 @@ import { COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-client
 
 // Caixinha da decisora no fluxo de clientes que esfriaram (dono, 2026-10-16): NÃO é janela bloqueante. Ícone de carta
 // com alerta + contador no cabeçalho (celular e computador); abre quando ela quiser. Cada caso: Transferir (roleta),
-// Não transferir (status negativo, um clique) ou Devolver (uma vez). Só aparece quando há caso para decidir.
+// Não transferir (status negativo, um clique) ou Devolver (uma vez). Só aparece quando há caso para decidir. Mostra UM
+// caso por vez (FUN-15e): o próximo só depois de decidir o atual.
 // Dados: GET /api/admin/cooled-clients/inbox (só os casos do próprio usuário); decisão: POST .../[id]/decision.
 
 const POLL_MS = 60000;
@@ -92,7 +93,9 @@ export default function CooledClientsInbox({ align = "end" }) {
           {notice ? <p role="status" className="border-b border-line bg-mist px-3 py-2 text-xs font-semibold text-navy">{notice}</p> : null}
           <div className="max-h-[min(75vh,32rem)] space-y-2 overflow-y-auto p-2">
             {!items.length ? <p className="px-2 py-3 text-sm text-muted">Nenhum caso para decidir agora.</p> : null}
-            {items.map((item) => <CooledCaseCard key={item.id} item={item} statusOptions={statusOptions} onDone={done} />)}
+            {/* FUN-15e (dono, 2026-10-16): um cliente por vez — o próximo só aparece depois de decidir este (fila do servidor, mais antigo primeiro). */}
+            {items[0] ? <CooledCaseCard key={items[0].id} item={items[0]} statusOptions={statusOptions} onDone={done} /> : null}
+            {items.length > 1 ? <p className="px-1 text-[11px] font-semibold text-muted" data-cooled-queue="true">Mais {items.length - 1} na fila. O próximo aparece depois que você decidir este.</p> : null}
           </div>
         </div>
       ) : null}

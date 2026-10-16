@@ -15,8 +15,10 @@ import {
   cooledDedupeKey,
   genericHandoffMessage,
   hadStatusOtherThanAwaitingReturn,
+  isApprovedForCooledFlow,
   isCooledCandidate,
   isCooledDedupeKey,
+  keepFirstPendingCooledAlert,
   isValidCooledText,
   parseHandoffResponse,
   renderHandoffMessage,
@@ -202,4 +204,27 @@ test("rascunho de pós-atendimento: sem atendente anterior não inventa nome; se
     assert.doesNotMatch(sample, /garant|prometo|aprovad|R\$|https?:/i);
     assert.match(sample, /aconteceu alguma coisa/);
   }
+});
+
+test("FUN-15e: cliente aprovado (Cliente aprovado, Reunião, Venda) nunca entra nem chega à transferência", () => {
+  for (const status of ["approved", "meeting_pending", "meeting_done", "sale_completed"]) {
+    assert.equal(isApprovedForCooledFlow(status), true, status);
+    assert.equal(isCooledCandidate({ client: client({ status }), responsible: broker, now: NOW }), false, status);
+  }
+  for (const status of ["in_service", "approval_pending", "shielding", "documentation_pending"]) assert.equal(isApprovedForCooledFlow(status), false, status);
+  const row = { ...baseCase };
+  assert.equal(autoCancelReason({ row, client: client({ status: "approved" }), stillCandidate: true }), "cliente_aprovado");
+  // Também depois do motivo (aguardando a decisora): não vai para a transferência.
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client({ status: "meeting_pending" }), stillCandidate: true }), "cliente_aprovado");
+});
+
+test("FUN-15e: uma janela de cliente esfriado por vez, a mais antiga; o resto continua na fila", () => {
+  const cooled = (id, at, extra = {}) => ({ id, kind: "important", created_at: at, acknowledged_at: null, context: { type: "cooled_client" }, ...extra });
+  const other = { id: "z", kind: "important", created_at: "2026-10-16T09:00:00Z", acknowledged_at: null, context: {} };
+  const rows = [cooled("b", "2026-10-16T10:00:00Z"), other, cooled("a", "2026-10-16T10:00:00Z"), cooled("c", "2026-10-15T10:00:00Z", { acknowledged_at: "x" }), cooled("d", "2026-10-16T11:00:00Z")];
+  assert.deepEqual(keepFirstPendingCooledAlert(rows).map((row) => row.id), ["z", "a", "c"]);
+  assert.deepEqual(keepFirstPendingCooledAlert([...rows].reverse()).map((row) => row.id).sort(), ["a", "c", "z"]);
+  // Sino: frente conhecida por consulta própria; sem frente, nenhuma pendente do fluxo aparece.
+  assert.deepEqual(keepFirstPendingCooledAlert(rows, "d").map((row) => row.id), ["z", "c", "d"]);
+  assert.deepEqual(keepFirstPendingCooledAlert(rows, null).map((row) => row.id), ["z", "c"]);
 });
