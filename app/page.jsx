@@ -109,6 +109,8 @@ export default async function HomePage() {
             </div>
           </div>
         </div>
+        {/* Emenda suave com a página: o azul-marinho se dissolve no branco (antes terminava numa linha reta). */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-24 bg-gradient-to-b from-transparent to-white sm:h-32" aria-hidden="true" />
       </section>
 
       <PropertyExplorer properties={properties} />
