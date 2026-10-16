@@ -413,6 +413,20 @@ function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
 const OFFICE_TIME = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
 const OFFICE_UNTIL = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" });
 
+// Dia da chegada em linguagem simples (2026-10-16): a chegada de ontem continua valendo até as 9h de hoje e NÃO pode parecer
+// "chegou hoje" só por mostrar a hora (foi o que confundiu o dono).
+const OFFICE_DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });
+const OFFICE_WEEKDAY = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long" });
+function officeDayLabel(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const now = new Date();
+  const key = OFFICE_DAY_KEY.format(date);
+  if (key === OFFICE_DAY_KEY.format(now)) return "hoje";
+  if (key === OFFICE_DAY_KEY.format(new Date(now.getTime() - 24 * 3600 * 1000))) return "ontem";
+  return OFFICE_WEEKDAY.format(date);
+}
+
 function OfficeButton({ office, open, onClick }) {
   // Três estados (dono, 2026-10-15): VERDE só para quem está no Wi-Fi da imobiliária agora. Veio hoje (ou foi liberado)
   // e saiu = prédio cinza com um pontinho verde (segue na roleta até 9h); não veio = cinza. Só visual: a roleta usa office.active.
@@ -457,27 +471,43 @@ function OfficeDetail({ member, onReleased }) {
     }
   }
   const how = office.source === "arrived" ? "marcado como chegou (sem Wi-Fi)" : office.source === "manual" ? "liberado manualmente" : "pelo Wi-Fi da imobiliária";
+  const arrivalDay = officeDayLabel(office.firstSeenAt);
+  const arrivedToday = arrivalDay === "hoje";
+  const lastWifiDay = officeDayLabel(office.lastWifiSeenAt);
+  // As duas liberações manuais também aparecem quando a chegada que ainda vale é de OUTRO dia (ex.: ontem, válida até 9h de
+  // hoje) e a pessoa ainda não registrou a de hoje: dono/gestora marcam sem esperar a chegada anterior vencer.
+  const manualButtons = (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+        {busy === "arrived" ? "Salvando…" : "Chegou e não conectou"}
+      </button>
+      <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+        {busy === "external" ? "Liberando…" : "Liberar hoje"}
+      </button>
+    </div>
+  );
   return (
     <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
       {office.active ? (
-        <p className="font-semibold text-navy">
-          {office.firstSeenAt ? `Chegou às ${OFFICE_TIME.format(new Date(office.firstSeenAt))}, ${how}. ` : ""}
-          Na roleta até {OFFICE_UNTIL.format(new Date(office.validUntil))}.
-          <span className={`mt-0.5 block text-xs ${office.here ? "text-emerald-700" : "text-slate-500"}`}>
-            {office.here ? "Está no Wi-Fi da imobiliária agora." : office.lastWifiSeenAt ? `Não está na imobiliária agora (último sinal no Wi-Fi às ${OFFICE_TIME.format(new Date(office.lastWifiSeenAt))}).` : "Não está no Wi-Fi da imobiliária agora."}
-          </span>
-        </p>
+        <>
+          <p className="font-semibold text-navy">
+            {office.firstSeenAt ? `Chegou ${arrivedToday ? "" : `${arrivalDay} `}às ${OFFICE_TIME.format(new Date(office.firstSeenAt))}, ${how}. ` : ""}
+            Na roleta até {OFFICE_UNTIL.format(new Date(office.validUntil))}.
+            <span className={`mt-0.5 block text-xs ${office.here ? "text-emerald-700" : "text-slate-500"}`}>
+              {office.here ? "Está no Wi-Fi da imobiliária agora." : office.lastWifiSeenAt ? `Não está na imobiliária agora (último sinal no Wi-Fi ${lastWifiDay === "hoje" ? "" : `${lastWifiDay} `}às ${OFFICE_TIME.format(new Date(office.lastWifiSeenAt))}).` : "Não está no Wi-Fi da imobiliária agora."}
+            </span>
+          </p>
+          {!arrivedToday && !office.here ? (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-navy/10 pt-2">
+              <p className="text-xs font-semibold text-slate-600">Hoje ainda não registrou a chegada.</p>
+              {manualButtons}
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-semibold text-slate-600">{office.ruleEnabled ? "Não veio à imobiliária: fora da roleta." : "Ainda não veio à imobiliária hoje."}</p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
-              {busy === "arrived" ? "Salvando…" : "Chegou e não conectou"}
-            </button>
-            <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
-              {busy === "external" ? "Liberando…" : "Liberar hoje"}
-            </button>
-          </div>
+          {manualButtons}
         </div>
       )}
       {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}

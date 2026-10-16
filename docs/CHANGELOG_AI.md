@@ -54,6 +54,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Presença: "Chegou e não conectou" / "Liberar hoje" também com a chegada de ontem ainda valendo
+- **Data:** 2026-10-16
+- **Área:** Roleta / Presença na imobiliária (ROL-2f)
+- **Alteração:** no painel Online, o texto da chegada passa a dizer o DIA ("Chegou ontem às 08:43…"; antes só a hora, parecendo de hoje) e, quando a chegada que ainda vale é de outro dia e a pessoa não está no Wi-Fi, aparecem as duas liberações manuais ("Chegou e não conectou" e "Liberar hoje") para dono/gestora registrarem a de hoje sem esperar as 9h.
+- **Motivo:** pedido do dono (a chegada da Carol de hoje não aparecia; os botões só existiam depois que a chegada anterior vencia).
+- **Arquivos afetados:** `components/OnlinePresenceBoard.jsx`, `tests/office-manual-release.test.mjs`
+- **Risco/observação:** só tela; a regra da roleta (`office_presence_ok`, uma chegada por dia, vale até 9h do dia seguinte) e o servidor não mudaram. A chegada de hoje só é registrada pelo Wi-Fi quando o CRM está aberto num aparelho conectado à rede da imobiliária (ou manualmente).
+- **Autor:** Claude Code
 
 ### 2026-10-16 — Meta Diária sem 3ª tentativa, espera pós-conexão de 30 min, textos neutros e dois defeitos (CSV do Oficial, recibos)
 
