@@ -5,6 +5,7 @@ import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { MailWarning } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
+import { useKeepInViewport } from "@/components/ui/useKeepInViewport";
 import { COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 
 // Caixinha da decisora no fluxo de clientes que esfriaram (dono, 2026-10-16): NÃO é janela bloqueante. Ícone de carta
@@ -28,6 +29,8 @@ export default function CooledClientsInbox({ align = "end" }) {
   const [statusOptions, setStatusOptions] = useState([]);
   const [notice, setNotice] = useState("");
   const rootRef = useRef(null);
+  const panelRef = useRef(null);
+  useKeepInViewport(panelRef, open);
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +85,7 @@ export default function CooledClientsInbox({ align = "end" }) {
       </button>
       {open ? (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Clientes que esfriaram"
           className={cx("absolute top-full z-40 mt-1.5 w-[min(94vw,24rem)] overflow-hidden rounded-2xl border border-line bg-white text-left shadow-float", align === "end" ? "right-0" : "left-0")}

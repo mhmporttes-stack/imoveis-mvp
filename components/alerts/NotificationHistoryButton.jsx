@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { cx } from "@/components/ui/cx";
+import { useKeepInViewport } from "@/components/ui/useKeepInViewport";
 
 // Botão pequeno de sino no cabeçalho (pedido do dono, 2026-10-14): só o ícone; ao tocar abre o HISTÓRICO das notificações
 // (Central de Alertas) do próprio usuário dos últimos 30 dias. Bolinha quando há alguma ainda sem "Entendi".
@@ -40,6 +41,8 @@ export default function NotificationHistoryButton({ align = "end" }) {
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const rootRef = useRef(null);
+  const panelRef = useRef(null);
+  useKeepInViewport(panelRef, open);
   const router = useRouter();
 
   const load = useCallback(async () => {
@@ -104,6 +107,7 @@ export default function NotificationHistoryButton({ align = "end" }) {
       </button>
       {open ? (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Histórico de notificações"
           className={cx(
