@@ -17,9 +17,12 @@ export default function HeroJourney() {
         Minha Casa Minha Vida <span className="text-white/35" aria-hidden="true">·</span> Financiamento Caixa
       </p>
 
-      <h1 className={`${styles.rise} mt-4 text-[clamp(2.15rem,5.6vw,4rem)] font-extrabold leading-[1.12] tracking-[-0.015em] sm:mt-5`} style={{ "--d": "0.12s" }}>
-        Seu primeiro imóvel em <span className="text-[#6FA8FA]">Marília</span>
-      </h1>
+      {/* Uma linha só, em maiúsculas: o tamanho acompanha a largura da coluna (container query), então nunca quebra nem estoura. */}
+      <div className={styles.titleBox}>
+        <h1 className={`${styles.rise} ${styles.title} mt-4 font-extrabold sm:mt-5`} style={{ "--d": "0.12s" }}>
+          Seu primeiro imóvel em <span className="text-[#6FA8FA]">Marília</span>
+        </h1>
+      </div>
 
       <p className={`${styles.rise} mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/80 sm:text-lg sm:leading-8`} style={{ "--d": "0.32s" }}>
         Descubra em menos de 2 minutos quanto você pode financiar.
