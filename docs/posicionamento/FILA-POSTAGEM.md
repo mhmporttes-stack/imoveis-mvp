@@ -23,6 +23,7 @@ Regra do dono (2026-10-15):
 - **Casa nova com 2 dormitórios · Palmital, Zona Norte (COD4354)** — `carrosseis/2026-10-15-palmital-casa-nova/` (10 lâminas; já no site)
 
 ## Publicados
+- Perguntas que a Receita Federal encontraria no meu ChatGPT (2026-10-16, claro) — dono postou na hora
 - Aluguel ou 1º apê (2026-10-13, azul)
 - Coisas que ninguém te conta sobre seu 1º imóvel (2026-10-13, azul)
 - Termos que parecem complicados (claro) — confirmado pelo dono em 2026-10-15
