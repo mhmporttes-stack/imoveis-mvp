@@ -129,7 +129,7 @@ export default async function HomePage() {
         {/* Cena (dono, 2026-10-16): a linha se desenha e cada número aparece quando ela chega nele. O título fica numa linha só
             no computador (FitLine); no celular quebra no tamanho mínimo para continuar legível. */}
         <SceneReveal className={`${journeyScene.scene} container-page`}>
-          <p className={`${journeyScene.rise} text-center text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm`} style={{ "--d": "0s" }}>Por que comprar comigo</p>
+          <p className={`${journeyScene.rise} text-center text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm`} style={{ "--d": "0s" }}>Por que comprar comigo?</p>
           <FitLine
             as="h2"
             id="jornada-title"
