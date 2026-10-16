@@ -9,6 +9,7 @@ import {
   ChevronDown,
   FileCheck,
   Handshake,
+  Info,
   MessageCircle,
   RefreshCw,
   Search,
@@ -410,7 +411,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
         </div>
 
-        <FunnelChart funnel={funnel} />
+        <FunnelChart funnel={funnel} range={overview?.range} />
       </article>
 
       <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
@@ -625,14 +626,16 @@ function DateField({ label, value, onChange }) {
 
 // Tons do azul institucional (navy -> brand -> claro), do topo (mais escuro)
 // até o fundo do funil (mais claro). As duas últimas camadas usam texto navy
-// em vez de branco para manter contraste sobre o azul claro.
+// em vez de branco para manter contraste sobre o azul claro (cor inline: o
+// fundo da camada não muda no modo escuro, então o texto também não pode mudar,
+// e classes de cor — até hex arbitrário — são remapeadas pelo tema escuro).
 const FUNNEL_LAYER_COLORS = [
   { bg: "#0A2E52", text: "text-white" },
   { bg: "#0D3B66", text: "text-white" },
   { bg: "#14508C", text: "text-white" },
   { bg: "#1769D1", text: "text-white" },
-  { bg: "#6FA8E6", text: "text-navy" },
-  { bg: "#B7D8F7", text: "text-navy" }
+  { bg: "#6FA8E6", text: "", ink: "#0D3B66" },
+  { bg: "#B7D8F7", text: "", ink: "#0D3B66" }
 ];
 const FUNNEL_MIN_WIDTH_PERCENT = 30;
 
@@ -748,18 +751,130 @@ function TeamTrendChart({ trend, loading }) {
   );
 }
 
-function FunnelChart({ funnel }) {
+// Nomes curtos das etapas: cabeçalho "Desde …", seletor e linha no celular
+// (o nome completo continua na linha da etapa do computador).
+const FUNNEL_SHORT_LABELS = {
+  clients: "Prospecção",
+  service: "Atendimento",
+  simulation: "Simulação",
+  documentation: "Documentação",
+  approval: "Em aprovação",
+  approved: "Aprovado",
+  meeting: "Reunião",
+  sale: "Venda"
+};
+const FUNNEL_BASE_STORAGE_KEY = "mm-desempenho-funil-base";
+const FUNNEL_SHORT_PERIOD_DAYS = 30;
+
+function readStoredFunnelBase() {
+  try {
+    return window.localStorage.getItem(FUNNEL_BASE_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeFunnelBase(key) {
+  try {
+    window.localStorage.setItem(FUNNEL_BASE_STORAGE_KEY, key);
+  } catch {
+    // Aparelho sem armazenamento (modo privado etc.): a escolha só não fica lembrada.
+  }
+}
+
+// Dias corridos do período (início e fim inclusos); null se o período não veio.
+function countRangeDays(range) {
+  const start = String(range?.startDate || "");
+  const end = String(range?.endDate || start);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return null;
+  const diff = Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`);
+  return Number.isFinite(diff) ? Math.round(diff / 86400000) + 1 : null;
+}
+
+function FunnelChart({ funnel, range }) {
   const boundaries = useMemo(() => getFunnelBoundaries(funnel.length), [funnel.length]);
   const bottleneck = useMemo(() => findFunnelBottleneck(funnel), [funnel]);
+  // Base da coluna "Desde …" (pedido do dono, 2026-10-16): escolhida no seletor
+  // ou tocando no nome da etapa; lembrada no aparelho. Só apresentação: divide
+  // as contagens que já vêm prontas do servidor.
+  const [baseKey, setBaseKey] = useState("");
+  const [openTipKey, setOpenTipKey] = useState("");
+
+  useEffect(() => {
+    setBaseKey(readStoredFunnelBase());
+  }, []);
+
+  useEffect(() => {
+    if (!openTipKey) return undefined;
+    function close(event) {
+      if (event.target instanceof Element && event.target.closest("[data-funnel-tip]")) return;
+      setOpenTipKey("");
+    }
+    function onKey(event) {
+      if (event.key === "Escape") setOpenTipKey("");
+    }
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [openTipKey]);
+
   if (!funnel.length) return null;
+
+  const baseIndex = Math.max(0, funnel.findIndex((stage) => stage.key === baseKey));
+  const base = funnel[baseIndex];
+  const baseShortLabel = FUNNEL_SHORT_LABELS[base.key] || base.label;
+  const baseValue = Number(base.value || 0);
+  const rangeDays = countRangeDays(range);
+  const isShortPeriod = rangeDays !== null && rangeDays < FUNNEL_SHORT_PERIOD_DAYS;
+
+  function chooseBase(key) {
+    setBaseKey(key);
+    setOpenTipKey("");
+    storeFunnelBase(key);
+  }
 
   return (
     <>
-    <div className="mt-4 grid grid-cols-[minmax(64px,1fr)_minmax(0,3fr)_minmax(34px,0.55fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(120px,1fr)_minmax(0,3.2fr)_minmax(64px,0.8fr)] sm:gap-x-5 sm:gap-y-1.5">
+    <div className="mt-4 flex items-center gap-2">
+      <label htmlFor="funnel-base-select" className="shrink-0 text-xs font-bold text-slate-500">
+        Conversão desde
+      </label>
+      <span className="relative inline-flex min-w-0">
+        <select
+          id="funnel-base-select"
+          value={base.key}
+          onChange={(event) => chooseBase(event.target.value)}
+          className="min-h-9 w-auto max-w-full appearance-none rounded-full border border-navy/15 bg-white py-1 pl-3 pr-8 text-xs font-extrabold text-navy outline-none transition hover:border-brand focus:border-brand focus:ring-4 focus:ring-brand/15"
+        >
+          {funnel.map((stage) => (
+            <option key={stage.key} value={stage.key}>{FUNNEL_SHORT_LABELS[stage.key] || stage.label}</option>
+          ))}
+        </select>
+        <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+      </span>
+    </div>
+
+    <div
+      className="mt-3 grid grid-cols-[minmax(80px,1fr)_minmax(0,1.8fr)_auto_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(120px,1fr)_minmax(0,3.2fr)_auto_auto] sm:gap-x-5 sm:gap-y-1.5"
+    >
       <span aria-hidden="true" />
       <span aria-hidden="true" />
-      <p className="text-right text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-400 sm:text-[11px] sm:tracking-[0.16em]">
-        Conversão
+      <p
+        className="min-w-[2.5rem] self-end text-right text-[9px] font-extrabold uppercase leading-tight tracking-[0.1em] text-slate-400 sm:min-w-[4.5rem] sm:text-[11px] sm:tracking-[0.14em]"
+        title="Conversão de uma etapa para a seguinte"
+      >
+        <span className="sm:hidden">Etapa</span>
+        <span className="hidden sm:inline">Etapa a etapa</span>
+      </p>
+      <p
+        className="min-w-[2.75rem] self-end text-right text-[9px] font-extrabold uppercase leading-tight tracking-[0.04em] text-brand sm:min-w-[5.5rem] sm:text-[11px] sm:tracking-[0.14em]"
+        title={`Quantos chegaram a cada etapa, em relação a ${base.label}`}
+      >
+        <span className="block sm:inline">Desde</span>{" "}
+        <span className="block sm:inline">{baseShortLabel}</span>
       </p>
 
       {funnel.map((stage, index) => {
@@ -768,16 +883,39 @@ function FunnelChart({ funnel }) {
         const insetTop = (100 - topWidth) / 2;
         const insetBottom = (100 - bottomWidth) / 2;
         const color = FUNNEL_LAYER_COLORS[index] || FUNNEL_LAYER_COLORS[FUNNEL_LAYER_COLORS.length - 1];
-        const hasConversion = stage.conversion !== null && stage.conversion !== undefined;
-        const conversionLabel = index === 0 ? "Base" : (hasConversion ? formatPercent(stage.conversion) : "—");
+        const hasConversion = index > 0 && stage.conversion !== null && stage.conversion !== undefined;
+        const stepLabel = hasConversion ? formatConversionPercent(stage.conversion) : "—";
+        const previous = index > 0 ? funnel[index - 1] : null;
+        const stepTitle = index === 0
+          ? "Primeira etapa: não tem etapa anterior"
+          : `${formatInteger(stage.value)} de ${formatInteger(previous.value)} (${previous.label})`;
+        const isBase = index === baseIndex;
+        const value = Number(stage.value || 0);
+        const sinceRatio = index > baseIndex && baseValue > 0 ? value / baseValue : null;
+        const sinceText = `${formatInteger(value)} de ${formatInteger(baseValue)}`;
+        const tipOpen = openTipKey === stage.key;
 
         return (
-          <Link key={stage.key} href={buildFunnelStageHref(stage.key)} className="group contents">
-            <span className="text-[11px] font-extrabold leading-tight text-navy transition group-hover:text-brand sm:text-sm sm:leading-normal">
-              {stage.label}
-            </span>
+          <div key={stage.key} className="contents">
+            <button
+              type="button"
+              onClick={() => chooseBase(stage.key)}
+              aria-pressed={isBase}
+              title={isBase ? "Base da conversão" : `Calcular a conversão desde ${stage.label}`}
+              className={`min-h-8 min-w-0 py-0.5 text-left text-[11px] font-extrabold leading-tight transition hover:text-brand sm:min-h-11 sm:text-sm sm:leading-normal ${
+                isBase ? "text-brand" : "text-navy"
+              }`}
+            >
+              {isBase && <span className="mr-1 hidden size-2 rounded-full bg-brand align-middle sm:inline-block" aria-hidden="true" />}
+              <span className="sm:hidden">{FUNNEL_SHORT_LABELS[stage.key] || stage.label}</span>
+              <span className="hidden sm:inline">{stage.label}</span>
+            </button>
 
-            <span className="relative flex h-8 items-center justify-center sm:h-11">
+            <Link
+              href={buildFunnelStageHref(stage.key)}
+              className="group relative flex h-8 items-center justify-center sm:h-11"
+              aria-label={`${stage.label}: ${formatInteger(stage.value)} — ver clientes`}
+            >
               <span
                 className="absolute inset-0 flex items-center justify-center transition duration-300 group-hover:brightness-110"
                 style={{
@@ -785,26 +923,60 @@ function FunnelChart({ funnel }) {
                   clipPath: `polygon(${insetTop}% 0, ${100 - insetTop}% 0, ${100 - insetBottom}% 100%, ${insetBottom}% 100%)`
                 }}
               >
-                <span className={`text-xs font-black tracking-tight sm:text-lg ${color.text}`}>
+                <span className={`text-xs font-black tracking-tight sm:text-lg ${color.text}`} style={color.ink ? { color: color.ink } : undefined}>
                   {formatInteger(stage.value)}
                 </span>
               </span>
+            </Link>
+
+            <span className="text-right text-[11px] font-black tabular-nums text-navy sm:text-sm" title={stepTitle}>
+              {stepLabel}
             </span>
 
-            <span
-              className="text-right text-[11px] font-black text-navy sm:text-sm"
-              title="Conversão da etapa anterior"
-            >
-              {conversionLabel}
+            <span className="text-right text-[11px] font-black tabular-nums sm:text-sm">
+              {isBase ? (
+                <span className="font-extrabold text-brand" title={`${base.label}: ${formatInteger(baseValue)}`}>Base</span>
+              ) : sinceRatio === null ? (
+                <span className="text-slate-400" title={index < baseIndex ? "Etapa antes da base" : "Base sem clientes no período"}>—</span>
+              ) : (
+                <span className="relative inline-block" data-funnel-tip>
+                  <button
+                    type="button"
+                    onClick={() => setOpenTipKey(tipOpen ? "" : stage.key)}
+                    aria-label={`${formatConversionPercent(sinceRatio)}: ${sinceText} desde ${base.label}`}
+                    aria-expanded={tipOpen}
+                    title={sinceText}
+                    className="peer rounded px-0.5 text-brand underline decoration-brand/30 decoration-dotted underline-offset-4 outline-none transition hover:decoration-brand focus-visible:ring-2 focus-visible:ring-brand/40"
+                  >
+                    {formatConversionPercent(sinceRatio)}
+                  </button>
+                  <span
+                    role="tooltip"
+                    className={`pointer-events-none absolute bottom-full right-0 z-10 mb-1.5 whitespace-nowrap rounded-lg border border-navy/10 bg-white px-2 py-1 text-[11px] font-extrabold text-navy shadow-soft sm:text-xs ${
+                      tipOpen ? "block" : "hidden sm:peer-hover:block sm:peer-focus-visible:block"
+                    }`}
+                  >
+                    {sinceText}
+                  </span>
+                </span>
+              )}
             </span>
-          </Link>
+          </div>
         );
       })}
     </div>
     {bottleneck && (
       <p className="mt-3 text-xs font-bold text-slate-500">
         <span className="font-extrabold uppercase tracking-[0.08em] text-amber-700">Maior gargalo</span>
-        {" — "}{bottleneck.from} → {bottleneck.to}: <span className="font-extrabold text-navy">{formatPercent(bottleneck.conversion)}</span> de conversão
+        {" — "}{bottleneck.from} → {bottleneck.to}: <span className="font-extrabold text-navy">{formatConversionPercent(bottleneck.conversion)}</span> de conversão
+      </p>
+    )}
+    {isShortPeriod && (
+      <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold leading-snug text-slate-500">
+        <Info size={14} className="mt-px shrink-0 text-slate-400" aria-hidden="true" />
+        <span>
+          Período curto: clientes recentes ainda não tiveram tempo de chegar às últimas etapas. Para ver a conversão total, use de 60 a 90 dias.
+        </span>
       </p>
     )}
     </>
@@ -847,9 +1019,14 @@ function formatInteger(value) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Number(value || 0));
 }
 
-function formatPercent(value) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "percent",
-    maximumFractionDigits: 0
-  }).format(Number(value || 0));
+
+// Uma casa decimal (pt-BR): 0,2% / 33,3%. 0% e 100% exatos sem decimal; valor
+// positivo pequeno demais para aparecer vira "<0,1%" (nunca some como 0).
+function formatConversionPercent(value) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+  const ratio = Number(value);
+  const tenths = Math.round(ratio * 1000);
+  if (ratio > 0 && tenths === 0) return "<0,1%";
+  if (tenths % 1000 === 0) return `${tenths / 10}%`;
+  return `${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(tenths / 10)}%`;
 }

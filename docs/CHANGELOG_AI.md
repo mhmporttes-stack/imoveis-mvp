@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Desempenho: funil com coluna "Desde <etapa base>"
+- **Data:** 2026-10-16
+- **Área:** Ranking / Desempenho (só apresentação)
+- **Alteração:** card "Funil comercial" ganhou a 2ª coluna de porcentagem "Desde <etapa base>" (contagem da etapa ÷ contagem da base; "Base" na linha base, "—" acima dela ou com base zero), escolhida pelo seletor "Conversão desde" ou tocando no nome da etapa; base lembrada no aparelho (localStorage `mm-desempenho-funil-base`, try/catch). Toque/hover no número mostra "2 de 322". As duas colunas e o "Maior gargalo" em 1 casa decimal pt-BR (0% e 100% exatos sem decimal; "<0,1%" se positivo e menor). Aviso discreto de período curto (< 30 dias). Celular: títulos "Etapa"/"Desde <nome curto>" e nomes curtos das etapas (Documentação, Em aprovação, Aprovado), sem rolagem horizontal. A linha Prospecção na coluna etapa a etapa passou de "Base" para "—" (não tem etapa anterior; evitava dois "Base"). Números das camadas claras com cor fixa (antes ficavam ilegíveis no modo escuro).
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/PerformanceOverviewDashboard.jsx`, `tests/performance-funnel-period-label.test.mjs`
+- **Risco/observação:** cálculo das contagens, `lib/` e API intactos; gargalo continua usando `stage.conversion` do servidor. O nome da etapa deixou de ser link para a lista de clientes (agora define a base); o link continua na faixa do funil (número). Revisado na vitrine 1280/390/360, claro e escuro, base Prospecção/Atendimento/Documentação, tooltip aberto; build ok; teste 2/2.
+- **Autor:** designer-crm
+
 ### 2026-10-16 — CLI-7a: corretor transfere o próprio cliente
 - **Data:** 2026-10-16
 - **Área:** Clientes / Permissões
