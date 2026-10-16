@@ -37,8 +37,12 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
     }
     // Sem socket (falha ao iniciar) não há como saber: não trata como "não pareada".
     const unpaired = Boolean(sock) && !isPairedCreds(sock?.authState?.creds);
-    const decision = controller.onClose({ statusCode, unpaired, message: errorMessage, detail: summarizeDisconnectData(errorData) });
+    const detail = summarizeDisconnectData(errorData);
+    const decision = controller.onClose({ statusCode, unpaired, message: errorMessage, detail });
     const message = String(errorMessage || "").slice(0, 300);
+    // Diagnóstico passivo (dono, 2026-10-16): o mesmo resumo seguro da queda (`detail`, só tags/códigos e id em hash) vai
+    // também no `output` do status -> whatsapp_session_events.output (antes só ia para a telemetria). Nada mais muda.
+    const output = detail ? { ...(payload && typeof payload === "object" ? payload : {}), detail } : payload;
 
     if (decision.action === ACTION.LOGOUT) {
       // 401 = o WhatsApp desvinculou/encerrou o aparelho (logout, aparelho removido no celular):
@@ -48,7 +52,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
       resetPairingState();
       entry.qr = null;
       await clearSessionCreds(userId);
-      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out", statusCode, output: payload });
+      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: "logged_out", statusCode, output });
       await retireSocket(sock);
       return decision;
     }
@@ -61,7 +65,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
         : decision.message;
       entry.status = "error";
       resetPairingState();
-      await notifyStatus(userId, { status: "error", error: `${NEEDS_ATTENTION_PREFIX}${reason}: ${text}`.slice(0, 300), statusCode, output: payload });
+      await notifyStatus(userId, { status: "error", error: `${NEEDS_ATTENTION_PREFIX}${reason}: ${text}`.slice(0, 300), statusCode, output });
       await retireSocket(sock);
       return decision;
     }
@@ -71,7 +75,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
       // NUNCA gera QR sozinho — só um humano pede QR novo.
       entry.status = "disconnected";
       resetPairingState();
-      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: decision.reason === "qr_expired" ? "qr_expired" : "pairing_interrupted", statusCode, output: payload });
+      await notifyStatus(userId, { status: "disconnected", phoneNumber: null, qr: null, error: decision.reason === "qr_expired" ? "qr_expired" : "pairing_interrupted", statusCode, output });
       await retireSocket(sock);
       return decision;
     }
@@ -98,7 +102,7 @@ export function createCloseHandler({ userId, entry, controller, notifyStatus, cl
     entry.pairingMode = false;
     entry.pairingCode = null;
     entry.pairingError = null;
-    await notifyStatus(userId, { status: "reconnecting", error: message, statusCode, output: payload });
+    await notifyStatus(userId, { status: "reconnecting", error: message, statusCode, output });
     try {
       scheduleRetry({ delayMs: decision.delayMs, sock, trigger: "auto" });
     } catch (error) {

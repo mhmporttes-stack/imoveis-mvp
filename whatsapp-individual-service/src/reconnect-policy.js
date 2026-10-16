@@ -21,6 +21,8 @@
 //   515 restartRequired   o WhatsApp SEMPRE pede isso logo depois de aceitar o QR/código
 // Este módulo não importa o Baileys de propósito (testável sem instalar nada).
 
+import { hashMessageId } from "./message-diagnostics.js";
+
 export const KIND = Object.freeze({
   LOGOUT: "logout",
   TRANSIENT: "transient",
@@ -412,6 +414,15 @@ export function summarizeDisconnectData(data) {
     if (!data || typeof data !== "object") return "";
     const attrs = data.attrs && typeof data.attrs === "object" ? data.attrs : data;
     const child = Array.isArray(data.content) ? data.content.find((item) => item && typeof item === "object" && typeof item.tag === "string") : null;
+    // Diagnóstico passivo (dono, 2026-10-16): queda "stream:error" reclamando de um <ack> — guarda também a classe do ack
+    // e o id da mensagem em HASH (4 primeiros caracteres de hashMessageId, o mesmo dos eventos diag_decrypt_fail), para
+    // cruzar com a mensagem recebida que não decifrou. Ex.: "stream:error.ack.text.message.h1a2b" (até 40 caracteres).
+    if (child?.tag === "ack") {
+      const clean = (value, max) => String(value ?? "").replace(/[^A-Za-z0-9_:-]/g, "").slice(0, max);
+      const hash = hashMessageId(child.attrs?.id).slice(0, 4);
+      const ackParts = [clean(data.tag, 12) || "stream:error", "ack", clean(child.attrs?.type, 8), clean(child.attrs?.class, 7), hash ? `h${hash}` : ""].filter(Boolean);
+      return ackParts.join(".").slice(0, 40);
+    }
     const parts = [data.tag, child?.tag, child?.attrs?.type, attrs.reason, attrs.type, attrs.location, attrs.code]
       .filter((value) => value !== undefined && value !== null && value !== "" && typeof value !== "object")
       .map((value) => String(value).replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 16))

@@ -99,6 +99,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** fluxo nasce DESLIGADO e sem a migration não faz nada (cron lê o liga/desliga; Meta Diária ignora a tabela ausente). **Migration NÃO aplicada** nesta sessão (MCP do Supabase indisponível) — aplicar antes de ligar. Prévia de casos por pessoa: `docs/analytics/clientes-esfriados-previa.sql` (somente leitura) — **A CONFIRMAR** os números. Decisões técnicas sem confirmação do dono listadas em FUN-15 (etapas de venda fora; cancelamento automático antes do 1º motivo; cliente aguardando decisora fora do congelamento seguinte; alerta sem expiração). A trava anti-abuso de "Não contactar" (5 em 10 min) vale também para a decisora. `node --test`: 16 testes novos ok; suíte completa com as mesmas 16 falhas que já existiam antes da mudança (heartbeat, botão WhatsApp do card, Receber minha simulação, serviço WhatsApp etc. — fora do escopo). `pnpm build` ok.
 - **Autor:** Claude (crm-editor)
 
+### 2026-10-16 — WhatsApp individual: diagnóstico passivo das quedas de ~50 min (microsserviço)
+
+- **Data:** 2026-10-16 · **Área:** WhatsApp (microsserviço Railway)
+- **Alteração:** o microsserviço passa a contar e mandar à telemetria (ids em hash) mensagens recebidas que não decifram (CIPHERTEXT), pedidos de reenvio das nossas mensagens (recibo `retry`) e um resumo por socket; o `detail` da queda `stream:error` com `<ack>` ganha tipo, classe e id em hash; o mesmo `detail` vai no `output` do status (`whatsapp_session_events`). Nenhuma mudança de comportamento do Baileys (sem patch, sem ack/nack, sem log `debug`). Detalhe: `docs/WHATSAPP.md` §1-G.
+- **Motivo:** decisão do dono (16/10, "Sim para todas as outras") na Mesa "WhatsApp dos corretores": 58 % das quedas 500 acontecem aos ~50 min; separar a hipótese "mensagem que não decifra fica sem confirmação" da "confirmação sem `from`" antes de qualquer patch.
+- **Arquivos afetados:** `whatsapp-individual-service/src/message-diagnostics.js` (novo), `whatsapp-individual-service/src/sessions.js`, `whatsapp-individual-service/src/reconnect-policy.js`, `whatsapp-individual-service/src/session-lifecycle.js`, `tests/whatsapp-message-diagnostics.test.mjs`, `docs/WHATSAPP.md`. Sem migration; CRM inalterado.
+- **Risco/observação:** **publicar só depois das 18h** (o deploy no Railway reconecta todos os números; pela regra 7b, volta em < 30 min não recomeça a espera). Usa o tipo existente `history_sync` com motivos `diag_*` (o CHECK do banco não aceita tipo novo sem migration) — análises de histórico devem filtrar `reason not like 'diag_%'`. Até 20 eventos por motivo por socket + 1 resumo (sem inundar a telemetria). `tests/whatsapp-service-lease.test.mjs` e `tests/whatsapp-false-connection.test.mjs` já falhavam antes desta mudança (SIGTERM com promessa pendente; horário) — não relacionados.
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-16 — Meta Diária sem 3ª tentativa, espera pós-conexão de 30 min, textos neutros e dois defeitos (CSV do Oficial, recibos)
 
 - **Data:** 2026-10-16 · **Área:** Meta Diária / WhatsApp

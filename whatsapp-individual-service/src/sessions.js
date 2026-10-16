@@ -12,6 +12,7 @@ import { connectCooldownError, createConnectLimitGate } from "./connect-limit.js
 import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
+import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt } from "./message-diagnostics.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -440,11 +441,29 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
 
   sock.ev.on("creds.update", saveCreds);
 
+  // Diagnóstico PASSIVO (dono, 2026-10-16): conta mensagens recebidas que não decifram e pedidos de reenvio das nossas,
+  // por socket, e manda à telemetria (ids só em hash). Nunca responde nem altera o Baileys — ver message-diagnostics.js.
+  const diag = createMessageDiagnostics();
+  let diagSummarySent = false;
+  sock.ev.on("connection.update", (update) => {
+    if (update?.connection === "close" && !diagSummarySent) {
+      diagSummarySent = true;
+      try { const summary = diag.summary(); if (summary) telemetry.record(userId, "history_sync", summary); } catch { /* só diagnóstico */ }
+    }
+  });
   sock.ev.on("connection.update", (update) => {
     if (retiredSockets.has(sock)) return;
     // Evento de um socket que não é mais o atual desta sessão: nunca age.
     if (entry.sock && entry.sock !== sock) return;
     return onConnectionUpdate(userId, entry, sock, update);
+  });
+  sock.ev.on("messages.upsert", ({ messages }) => {
+    for (const msg of messages || []) {
+      try {
+        const fields = describeDecryptFailure(msg);
+        if (fields && diag.track(fields.reason)) telemetry.record(userId, "history_sync", fields);
+      } catch { /* só diagnóstico */ }
+    }
   });
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
   sock.ev.on("messages.update", (updates) => onMessagesUpdate(userId, updates));
@@ -455,6 +474,13 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
   // Diagnóstico do ON_DEMAND (2026-10-12): o recibo do celular para mensagem "peer" (tipo peer_msg) e o ack do servidor
   // NÃO viram evento no Baileys 6.7.24 — observa o nó bruto, só para pedidos nossos. Nunca altera nada.
   sock.ws.on("CB:receipt", (node) => { try { observePeerNode(userId, "receipt", node); } catch { /* só diagnóstico */ } });
+  // Pedido de reenvio de mensagem NOSSA (recibo type="retry" do celular do contato) — só conta (2026-10-16).
+  sock.ws.on("CB:receipt", (node) => {
+    try {
+      const fields = describeRetryReceipt(node);
+      if (fields && diag.track(fields.reason)) telemetry.record(userId, "history_sync", fields);
+    } catch { /* só diagnóstico */ }
+  });
   sock.ws.on("CB:ack,class:message", (node) => { try { observePeerNode(userId, "ack", node); } catch { /* só diagnóstico */ } });
   sock.ev.on("messaging-history.set", ({ messages, contacts, chats, syncType, peerDataRequestSessionId }) => {
     // Histórico do pareamento só com a variável ligada; ON_DEMAND (botão do Chat) sempre.
