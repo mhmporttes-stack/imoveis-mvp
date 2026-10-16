@@ -1,0 +1,119 @@
+/* Modo escuro do painel — ajustes de componente (pedido do dono, 2026-10-16).
+   Tokens, paletas e classes de cor fixa: app/admin-theme-auto.css (gerado). Ativado por html.mm-dark
+   (components/admin-theme.js), só no painel/app Chat/vitrine. Sem a classe, nada aqui se aplica.
+   Direção: azul-marinho da marca em 3 camadas (fundo #0C1827 · superfície #122236 · elevada), nunca preto puro;
+   texto claro azulado (contraste AA ou mais); azul de marca clareado para link/realce e mantido forte nos
+   botões sólidos; cores de estado em versão clara sobre fundo tingido. */
+
+html.mm-dark {
+  color-scheme: dark;
+  background: var(--mm-page);
+}
+
+html.mm-dark body {
+  background: var(--mm-page);
+  color: rgb(var(--mm-ink));
+}
+
+/* Troca de tema sem "escorrer" cor em cada botão com transition (dura 2 quadros). */
+html.mm-theme-switching *,
+html.mm-theme-switching *::before,
+html.mm-theme-switching *::after {
+  transition: none !important;
+}
+
+html.mm-dark ::selection {
+  background: #2f74d0;
+  color: #ffffff;
+}
+
+/* Sombras: o azul translúcido some sobre o escuro; o que flutua ganha sombra preta discreta. */
+:where(html.mm-dark) .shadow-soft { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28); }
+:where(html.mm-dark) .shadow-premium { box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35); }
+:where(html.mm-dark) .shadow-float { box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3); }
+:where(html.mm-dark) .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+
+/* Classes de globals.css montadas com @apply (as cores ficam copiadas nelas, não nas utilidades). */
+html.mm-dark .premium-button-primary { background-color: #24578f; color: #fff; }
+html.mm-dark .premium-button-primary:hover { background-color: #1d4a7c; }
+html.mm-dark .premium-button-secondary,
+html.mm-dark .client-action-button,
+html.mm-dark .premium-card,
+html.mm-dark .admin-input {
+  background-color: var(--mm-surface);
+}
+html.mm-dark .client-action-button:hover { background-color: #173457; }
+html.mm-dark .admin-logout-button { border-color: rgb(var(--mm-line)); }
+
+/* Campos nativos sem classe de fundo (select/date) seguem o esquema escuro; o autofill do Chrome não fica amarelo-claro. */
+html.mm-dark input:-webkit-autofill,
+html.mm-dark textarea:-webkit-autofill,
+html.mm-dark select:-webkit-autofill {
+  -webkit-text-fill-color: #dce5ef;
+  -webkit-box-shadow: 0 0 0 1000px #16283d inset;
+}
+
+/* Sheet e confirmação (components/ui): camada elevada, um degrau acima da superfície. */
+html.mm-dark .ui-sheet,
+html.mm-dark .ui-confirm {
+  background: var(--mm-surface-raised);
+  color: rgb(var(--mm-ink));
+  box-shadow: 0 -12px 40px -12px rgba(0, 0, 0, 0.6);
+}
+html.mm-dark .ui-sheet::backdrop,
+html.mm-dark .ui-confirm::backdrop,
+html.mm-dark .crm-alert-dialog::backdrop {
+  background: rgba(2, 7, 14, 0.62);
+}
+html.mm-dark .ui-sheet-handle { background: #3a4f69; }
+html.mm-dark .ui-sheet :where(.bg-white) { background-color: #1a2d44; }
+@media (max-width: 767px) {
+  html.mm-dark .ui-sheet-full.ui-sheet-auto,
+  html.mm-dark .ui-sheet-right {
+    border-top-color: var(--mm-surface-raised);
+  }
+}
+html.mm-dark .ui-progress { background: rgba(125, 179, 248, 0.14); }
+html.mm-dark .ui-progress::after { background: #7db3f8; }
+
+/* Apps "Chat"/"Financeiro" da tela inicial: a faixa do relógio acompanha o fundo. */
+html.mm-dark[data-mm-app="chat"].chat-app-mode body,
+html.mm-dark[data-mm-app="financeiro"] body {
+  border-top-color: var(--mm-page);
+  background: var(--mm-page);
+}
+html.mm-dark[data-mm-app="chat"] .chat-composer-safe { background: #16263a; }
+
+/* Chat (components/WhatsappChat.jsx): papel de parede e bolhas no padrão escuro do WhatsApp, em azul da marca.
+   O papel de parede vem em style inline — por isso o !important. */
+html.mm-dark [data-chat-wallpaper] {
+  background-color: #0a1521 !important;
+  background-image: none !important;
+}
+:where(html.mm-dark) .bg-\[\#D9FDD3\],
+:where(html.mm-dark) .bg-\[\#d9fdd3\] {
+  background-color: #154536;
+}
+:where(html.mm-dark) .bg-\[\#F6F5F3\],
+:where(html.mm-dark) .bg-\[\#F0F2F5\] {
+  background-color: #16263a;
+}
+
+/* Barra inferior e cabeçalho do ranking: superfície sólida, borda sutil. */
+html.mm-dark .admin-bottom-nav { background-color: rgb(18 34 54 / 0.96); }
+html.mm-dark .admin-ranking-header { background-color: var(--mm-surface); }
+
+/* Gráficos e anéis em SVG com cor fixa no atributo (trilho do anel da Meta, grade do Desempenho, linha do zero
+   do Financeiro): propriedade CSS vence o atributo de apresentação. */
+html.mm-dark :is(circle, line, path)[stroke="#E5EAF1" i],
+html.mm-dark :is(circle, line, path)[stroke="#e7eef8" i],
+html.mm-dark :is(circle, line, path)[stroke="#E2E8F0" i] {
+  stroke: #24384f;
+}
+html.mm-dark line[stroke="#B8C4D6" i] { stroke: #3a4f69; }
+html.mm-dark circle[stroke="#fff" i] { stroke: var(--mm-surface); }
+
+/* Scrollbar no desktop. */
+html.mm-dark * {
+  scrollbar-color: #33475e transparent;
+}

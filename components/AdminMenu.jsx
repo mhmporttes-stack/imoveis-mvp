@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import { withAcademyMenuGroup } from "@/lib/academy-menu.mjs";
@@ -384,6 +385,8 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             </button>
           );
         })}
+        {/* Modo claro/escuro (dono, 2026-10-16): mesmo botão do "Mais" do celular. */}
+        <AdminThemeToggle variant="pill" />
       </nav>
 
       {(isAdmin && visibleGroup === "clientes") || (treatAsBroker && visibleGroup === "crm") || visibleGroup === "ajuda" ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">

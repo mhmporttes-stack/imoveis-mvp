@@ -15,6 +15,7 @@ import MetaPixel from "@/components/MetaPixel";
 import MobileActionBar from "@/components/MobileActionBar";
 import PwaLifecycle from "@/components/PwaLifecycle";
 import ViewportZoomLock from "@/components/ViewportZoomLock";
+import { applyAdminTheme, readStoredAdminTheme } from "@/components/admin-theme";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import WhatsAppSimulationPrompt from "@/components/WhatsAppSimulationPrompt";
 
@@ -31,6 +32,11 @@ export default function AppChrome({ children }) {
   useEffect(() => {
     document.body.classList.toggle("admin-scroll-fix", Boolean(isAdminRoute));
   }, [isAdminRoute]);
+
+  // Modo escuro (components/admin-theme.js): segue a rota — sai ao navegar para o site público, volta no painel.
+  useEffect(() => {
+    applyAdminTheme(readStoredAdminTheme(), pathname || "");
+  }, [pathname]);
 
   if (pathname?.startsWith("/minha-jornada/")) return children;
   // App "Chat" da tela inicial (/chat-app, 2026-10-09): só o Chat, sem cabeçalho/rodapé do site nem o

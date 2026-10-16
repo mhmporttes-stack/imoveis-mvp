@@ -7,6 +7,7 @@
 //     [--base http://localhost:3000] [--saida scratch/vitrine] [--pagina-inteira]
 //     [--clicar "texto visível" | "botao:Nome"]  (clica antes de capturar)
 //     [--sufixo nome]             (acrescenta ao nome do arquivo, ex.: conversa-aberta)
+//     [--tema escuro]             (modo escuro do painel; acrescenta "-escuro" ao nome do arquivo)
 //
 // Saída: <saida>/<tela>-<perfil>-<estado>-<largura>.png (scratch/ é ignorado
 // pelo git — apague ao terminar).
@@ -54,6 +55,7 @@ const paginaInteira = Boolean(arg("pagina-inteira", false));
 const clicar = arg("clicar", "");
 const sufixo = arg("sufixo", "");
 const variante = arg("variante", "");
+const tema = arg("tema", "claro");
 
 const { chromium } = loadPlaywright();
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
@@ -71,6 +73,8 @@ for (const largura of larguras) {
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo"
   });
+  // Modo escuro: mesma preferência por aparelho do painel (components/admin-theme.js), gravada antes da página abrir.
+  if (tema === "escuro") await context.addInitScript(() => { try { localStorage.setItem("mm-admin-theme", "dark"); } catch {} });
   const page = await context.newPage();
   const avisos = [];
   page.on("console", (msg) => { if (["warning", "error"].includes(msg.type())) avisos.push(msg.text()); });
@@ -91,7 +95,7 @@ for (const largura of larguras) {
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${fonte !== "manrope" ? `-${fonte}` : ""}${sufixo ? `-${sufixo}` : ""}-${largura}.png`);
+  const arquivo = path.join(saida, `${tela}-${perfil}-${estado}${fonte !== "manrope" ? `-${fonte}` : ""}${sufixo ? `-${sufixo}` : ""}${tema === "escuro" ? "-escuro" : ""}-${largura}.png`);
   await page.screenshot({ path: arquivo, fullPage: paginaInteira });
   console.log(`${arquivo}${overflow > 0 ? `  ⚠ rolagem horizontal de ${overflow}px` : ""}`);
   for (const aviso of avisos.slice(0, 8)) console.log(`   · ${aviso.slice(0, 200)}`);

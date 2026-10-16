@@ -12,6 +12,7 @@ import { getAdminMenuGroups } from "@/components/AdminMenu";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Sheet from "@/components/ui/Sheet";
+import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
@@ -359,6 +360,12 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
           </section>
         );
       })}
+
+      {/* Modo claro/escuro (dono, 2026-10-16): preferência do aparelho, fora da navegação. */}
+      <section aria-labelledby="mais-aparencia">
+        <h3 id="mais-aparencia" className={SECTION_TITLE}>Aparência</h3>
+        <AdminThemeToggle />
+      </section>
     </div>
   );
 }

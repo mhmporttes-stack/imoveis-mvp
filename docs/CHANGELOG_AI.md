@@ -50,6 +50,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-16 — Modo escuro do painel (botão Lua/Sol no "Mais" e no menu do topo)
+
+- **Data:** 2026-10-16 · **Área:** Frontend do painel / PWA (só apresentação)
+- **Alteração:** botão "Modo escuro"/"Modo claro" (Lua no claro, Sol no escuro) no menu "Mais" do celular (seção Aparência) e no fim da linha de categorias do menu do computador. Preferência por aparelho em `localStorage` (`mm-admin-theme`), aplicada como classe `mm-dark` no `<html>` antes da pintura (sem piscar branco) e só em `/admin`, `/chat-app` e `/dev`; troca também o `theme-color`. Modo claro (padrão) idêntico ao de antes: todas as cores do Tailwind passaram a ler uma variável CSS com o valor claro de fallback. Escuro em azul-marinho da marca (fundo `#0C1827`, superfície `#122236`), texto claro com contraste AA, estados em versão clara sobre fundo tingido, Chat com papel de parede escuro e bolha enviada verde-escura.
+- **Motivo:** pedido do dono ("deixar o app mais confortável para os corretores").
+- **Arquivos afetados:** `tailwind.config.cjs`, `app/layout.jsx`, `app/admin-theme.css` (novo), `app/admin-theme-auto.css` (novo, gerado por `.claude/design/tools/gerar-tema-escuro.mjs`), `components/admin-theme.js` (novo), `components/AdminThemeToggle.jsx` (novo), `components/AdminBottomNav.jsx`, `components/AdminMenu.jsx`, `components/AppChrome.jsx`, `.claude/skills/design-crm/scripts/capturar-vitrine.mjs` (`--tema escuro`), `.claude/skills/design-crm/references/sistema-visual.md`.
+- **Risco/observação:** nada em `lib/`, API, banco ou regra. Telas revisadas no escuro pela vitrine (Clientes, ficha, Chat lista/conversa, Meta Diária corretor e equipe, Desempenho, Online, ranking do topo, alertas, menu Mais). Telas raras (Financeiro, cadastros, automações, fluxos, Academia fora do escopo) ficam só com o tratamento global — cor fixa em `style` inline ou atributo SVG pode sobrar clara; tela nova com cor fixa: rodar o gerador.
+- **Autor:** Claude (designer-crm)
+
 ### 2026-10-15 — PRO-15: WhatsApp desconectado (sem ban/restrição) = modo lista impressa
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp / Prospecção / Chat / Permissões

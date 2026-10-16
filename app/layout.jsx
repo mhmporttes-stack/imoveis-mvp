@@ -1,8 +1,11 @@
 import "./globals.css";
+import "./admin-theme-auto.css";
+import "./admin-theme.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import AppChrome from "@/components/AppChrome";
 import { CANONICAL_SITE_URL } from "@/lib/site-url.mjs";
+import { ADMIN_THEME_BOOT_SCRIPT } from "@/components/admin-theme";
 
 export const metadata = {
   // Base das URLs relativas de metadados (canônica, Open Graph): sempre o domínio da marca.
@@ -53,10 +56,12 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body>
         {/* Apps "Financeiro"/"Chat" (components/pwaHome.js): marca antes da pintura para esconder menus/ranking sem piscar. */}
         <script dangerouslySetInnerHTML={{ __html: `try{var h=sessionStorage.getItem("mm_pwa_home")||"";var s=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;var a=h.indexOf("/admin/financeiro")===0?"financeiro":(h.indexOf("/admin/chat")===0||h.indexOf("/chat-app")===0)?"chat":"";if(location.pathname.indexOf("/chat-app")===0){a="chat";s=true}if(s&&a)document.documentElement.setAttribute("data-mm-app",a)}catch(e){}` }} />
+        {/* Modo escuro do painel (components/admin-theme.js): só /admin, /chat-app e /dev, antes da pintura. */}
+        <script dangerouslySetInnerHTML={{ __html: ADMIN_THEME_BOOT_SCRIPT }} />
         <AppChrome>{children}</AppChrome>
         {/* Instrumentação pura (zero HTML/CSS visível) — baseline de Core
             Web Vitals real (LCP/INP/CLS/TTFB/FCP) para a auditoria de
