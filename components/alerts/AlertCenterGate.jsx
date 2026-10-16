@@ -8,6 +8,7 @@ import { Bell, Clock, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
 import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
+import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { COOLED_ALERT_TYPE, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
@@ -322,12 +323,14 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
   );
 }
 
-// Cliente que esfriou: nome, etapa e — na 2ª vez — o que a gestão pediu a mais (só o texto, sem dados extras).
+// Cliente que esfriou: nome, telefone (FUN-15d), etapa e — na 2ª vez — o que a gestão pediu a mais (só o texto, sem dados extras).
 function CooledReasonFields({ alert }) {
   const context = alert.context || {};
   return (
     <div className="mt-3 rounded-card border border-line bg-mist px-3 py-2.5 text-[13px] leading-5 text-ink-2" data-cooled-context="true">
       <p><span className="font-semibold text-navy">{context.client_name || "Cliente"}</span>{context.stage_label ? ` · ${context.stage_label}` : ""}</p>
+      {/* Telefone para achar a conversa no celular (FUN-15d); só vem do servidor se quem vê pode acessar o cliente. */}
+      {context.client_phone ? <CooledClientPhone phone={context.client_phone} className="mt-0.5" /> : null}
       <p className="text-muted">Mais de 3 dias sem contato e sem atividade agendada.</p>
       {context.round === 2 && context.returned_text ? (
         <div className="mt-2 border-t border-line pt-2">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import CooledFlowToggle from "@/components/cooled/CooledFlowToggle";
+import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { isGeneralAdmin, requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getCooledFlowSettings, listCooledCaseHistory } from "@/lib/cooled-clients";
 
@@ -90,6 +91,7 @@ export default async function CooledClientsHistoryPage({ searchParams }) {
                 <Link href={`/admin/simulacoes/${item.clientId}`} className="font-black text-brand hover:underline">{item.clientName}</Link>
                 <span className="text-xs font-bold text-navy">{outcome(item)}</span>
               </div>
+              {item.clientPhone ? <CooledClientPhone phone={item.clientPhone} className="mt-1 text-[13px]" /> : null}
               <p className="mt-1 text-xs font-semibold text-muted">Corretor: {item.brokerName || "—"} · Aberto em {formatDate(item.openedAt)} · Decisor: {item.deciderName || "—"}</p>
               {item.firstReason ? <p className="mt-2 text-ink-2"><b className="text-navy">Motivo ({formatDate(item.firstReasonAt)}):</b> {item.firstReason}</p> : null}
               {item.returnedText ? <p className="mt-1 text-ink-2"><b className="text-navy">Devolvido por {item.returnedByName || "—"} ({formatDate(item.returnedAt)}):</b> {item.returnedText}</p> : null}

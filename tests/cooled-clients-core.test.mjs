@@ -168,7 +168,7 @@ test("janela do corretor: Importante, chave por caso e rodada, sem link", () => 
 
 test("mensagem sugerida: saudação trocada na hora e resposta da IA separada", () => {
   const generic = genericHandoffMessage("Maria da Silva", "João Pedro");
-  assert.match(renderHandoffMessage(generic, "Boa tarde"), /^Boa tarde, Maria, tudo bem\? Vi que você estava sendo atendido\(a\) pelo\(a\) João\./);
+  assert.match(renderHandoffMessage(generic, "Boa tarde"), /^Boa tarde, Maria, sou associado\(a\) do corretor Matheus Machado, e vi que você estava em atendimento com João, certo\?/);
   const parsed = parseHandoffResponse("Quer: casa\nOnde parou: simulação\nO que faltou: documentos\nMENSAGEM: {saudacao}, Maria, vi que...", "fallback");
   assert.equal(parsed.summary, "Quer: casa\nOnde parou: simulação\nO que faltou: documentos");
   assert.equal(parsed.message, "{saudacao}, Maria, vi que...");
@@ -183,4 +183,23 @@ test("Meta Diária: motivo escrito hoje resolve a pendência congelada (MD-8)", 
   assert.equal(evaluateDailyGoalPending({ ...base, clientsById: new Map([["c1", { ...pending, cooledReasonAt: "2026-10-16T13:00:00Z" }]]) }).done, 1);
   // Motivo de ontem não resolve a pendência de hoje.
   assert.equal(evaluateDailyGoalPending({ ...base, clientsById: new Map([["c1", { ...pending, cooledReasonAt: "2026-10-15T13:00:00Z" }]]) }).done, 0);
+});
+
+// FUN-15c (dono, 2026-10-16): rascunho 100% de pós-atendimento.
+test("rascunho de pós-atendimento: formato do dono (novo corretor, associado do corretor Matheus Machado, atendente anterior)", () => {
+  const text = renderHandoffMessage(genericHandoffMessage("Maria da Silva", "Ana Paula", { newBrokerName: "Gabriel Ribeiro", newBrokerGender: "male", previousBrokerGender: "female" }), "Bom dia");
+  assert.equal(text, "Bom dia, Maria, meu nome é Gabriel, sou associado do corretor Matheus Machado, e vi que você estava em atendimento com a corretora Ana, certo? Estou te mandando essa mensagem hoje para saber se aconteceu alguma coisa e se você foi bem atendido(a).");
+  const female = renderHandoffMessage(genericHandoffMessage("Pedro", "Carlos", { newBrokerName: "Bruna Santos", newBrokerGender: "female", previousBrokerGender: "male" }), "Boa noite");
+  assert.match(female, /^Boa noite, Pedro, meu nome é Bruna, sou associada do corretor Matheus Machado, e vi que você estava em atendimento com o corretor Carlos, certo\?/);
+});
+
+test("rascunho de pós-atendimento: sem atendente anterior não inventa nome; sem emoji, sem 'Imóveis', sem promessa", () => {
+  const text = renderHandoffMessage(genericHandoffMessage("", "", { newBrokerName: "Gabriel" }), "Boa tarde");
+  assert.equal(text, "Boa tarde, meu nome é Gabriel, sou associado(a) do corretor Matheus Machado, e vi que você já tinha começado um atendimento com a nossa equipe, certo? Estou te mandando essa mensagem hoje para saber se aconteceu alguma coisa e se você foi bem atendido(a).");
+  for (const sample of [text, genericHandoffMessage("Maria", "Ana", { newBrokerName: "Gabriel" })]) {
+    assert.doesNotMatch(sample, /\p{Extended_Pictographic}/u);
+    assert.doesNotMatch(sample, /Matheus Machado Imóveis/);
+    assert.doesNotMatch(sample, /garant|prometo|aprovad|R\$|https?:/i);
+    assert.match(sample, /aconteceu alguma coisa/);
+  }
 });

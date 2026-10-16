@@ -54,6 +54,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15b/c/d: rascunho da transferência editável, nunca enviado sozinho, de pós-atendimento, e telefone nos cards
+- **Data:** 2026-10-16
+- **Área:** Clientes que esfriaram (FUN-15) / IA
+- **Alteração:** regras oficiais novas do dono FUN-15b (mensagem de IA da transferência nunca sai sozinha; corretor edita e aprova antes) e FUN-15c (rascunho 100% de pós-atendimento, modelo do dono) e FUN-15d (telefone copiável em todos os cards do fluxo: janela do motivo, decisora, histórico e quem recebe; componente `CooledClientPhone`; na janela do motivo o número é lido na hora por `attachCooledAlertPhones`, só com `assertCanAccessResponsibleUser`). `CooledHandoffCard` virou rascunho editável com "Revisei a mensagem" obrigatório antes de "Copiar mensagem revisada"; `genericHandoffMessage` e o prompt `HANDOFF_INSTRUCTIONS` reescritos no formato do dono (nome/gênero do novo responsável vindos de `admin_users`). Nenhuma rota, tabela ou envio novo.
+- **Motivo:** relato do dono (caso do Gabriel Ribeiro): o corretor recebeu o cliente transferido e uma mensagem "sem nexo" foi enviada pelo WhatsApp dele.
+- **Arquivos afetados:** `components/cooled/CooledHandoffCard.jsx`, `lib/cooled-clients-core.mjs`, `lib/cooled-clients.js`, `lib/ai-chat-assist.js`, `tests/cooled-clients-core.test.mjs`, `tests/cooled-handoff-no-autosend.test.mjs` (novo), `components/cooled/CooledClientPhone.jsx` (novo), `components/alerts/AlertCenterGate.jsx`, `components/cooled/CooledClientsInbox.jsx`, `app/admin/desempenho/esfriados/page.jsx`, `lib/crm-alerts.js`, `docs/BUSINESS_RULES.md` (FUN-15b/c/d), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** A CONFIRMAR — o código do FUN-15 nunca enviou mensagem (só mostrava "Sugestão" + Copiar); o único envio automático pelo WhatsApp do corretor é a cadência da Meta Diária (modelos fixos, não IA). Falta conferir no banco quem enviou a mensagem do caso (consultas no relatório). A faixa "Prospecção" com "Em atendimento"/"Não contactar" no card do cliente é a `ProspectingStrip` existente (`components/clients/ClientCard.jsx`): são BOTÕES de ação para cliente vindo da prospecção que está em "Tentando contato", não selos de status — não alterada.
+- **Autor:** Claude Code
 ### 2026-10-16 — WhatsApp individual: mensagem do Chat/automação não aparecia no celular do corretor
 - **Data:** 2026-10-16
 - **Área:** WhatsApp individual (microsserviço)

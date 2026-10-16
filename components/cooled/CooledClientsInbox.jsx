@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { MailWarning } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
@@ -122,6 +123,7 @@ function CooledCaseCard({ item, statusOptions, onDone }) {
   return (
     <article className="rounded-card border border-line bg-white p-3" data-cooled-case="true">
       <p className="text-sm font-extrabold text-navy">{item.clientName}{item.stageLabel ? <span className="font-semibold text-muted"> · {item.stageLabel}</span> : null}</p>
+      {item.clientPhone ? <CooledClientPhone phone={item.clientPhone} className="mt-0.5 text-[13px]" /> : null}
       <p className="mt-0.5 text-xs text-muted">Mais de 3 dias sem contato por {item.brokerName}</p>
       <p className="mt-2 text-[13px] leading-5 text-ink-2"><span className="font-semibold text-navy">Motivo:</span> {item.firstReason}</p>
       {item.returnedText ? <p className="mt-1 text-[13px] leading-5 text-ink-2"><span className="font-semibold text-navy">{item.returnedByName || "Gestão"} pediu:</span> {item.returnedText}</p> : null}
