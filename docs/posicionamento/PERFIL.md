@@ -8,7 +8,7 @@
 ## Dados canônicos (NAP + marca)
 | Campo | Valor | Fonte |
 |---|---|---|
-| Nome | Matheus Machado Imóveis (marca) · Matheus Machado, corretor de imóveis | código do site |
+| Nome | Matheus Machado Corretor de Imóveis (marca) · Matheus Machado, corretor de imóveis | código do site |
 | CRECI | 323106-F | código do site |
 | Site | https://www.matheusmachadoimoveis.com.br | produção |
 | Instagram | https://www.instagram.com/mhm.machado/ | código do site |

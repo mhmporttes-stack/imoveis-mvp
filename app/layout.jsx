@@ -30,7 +30,7 @@ export const metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    siteName: "Matheus Machado Imóveis",
+    siteName: "Matheus Machado Corretor de Imóveis",
     images: [{ url: "https://www.matheusmachadoimoveis.com.br/assets/og-matheus-machado-v2.png", width: 1200, height: 630, alt: "Matheus Machado - Corretor de Imóveis" }]
   },
   twitter: {

@@ -66,6 +66,15 @@ test("nenhum código/config referencia a logo antiga", () => {
   assert.deepEqual(hits, [], `referência à logo antiga em: ${hits.join(", ")}`);
 });
 
+// Nome oficial (regra do dono, 2026-10-16): "Matheus Machado Corretor de Imóveis" — nunca "Matheus Machado Imóveis".
+// Domínio, e-mail e nomes de arquivo (matheusmachadoimoveis, matheus-machado-*) não entram: não têm espaço.
+test("nenhum texto do app usa o nome antigo 'Matheus Machado Imóveis'", () => {
+  const files = [...walk("app"), ...walk("components"), ...walk("lib"), ...walk("scripts"), ...walk("public")]
+    .filter((f) => !f.endsWith("public/sw.js"));
+  const hits = files.filter((f) => /Matheus\s+Machado\s+Im(ó|o)veis/i.test(fs.readFileSync(path.join(root, f), "utf8")));
+  assert.deepEqual(hits, [], `nome antigo da marca em: ${hits.join(", ")}`);
+});
+
 test("manifest, layout e service worker usam só ícones oficiais (-mm)", () => {
   for (const f of ["app/manifest.js", "app/layout.jsx", "public/sw.js"]) {
     const text = fs.readFileSync(path.join(root, f), "utf8");

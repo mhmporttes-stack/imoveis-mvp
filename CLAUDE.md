@@ -1,4 +1,4 @@
-# Matheus Machado Imóveis — imoveis-mvp
+# Matheus Machado Corretor de Imóveis — imoveis-mvp
 
 CRM imobiliário completo: site público (imóveis, empreendimentos, simulação de financiamento, captação) + painel interno multiusuário (CRM, prospecção, roleta de leads, Meta Diária, ranking, documentação/CCA, financeiro, automações, WhatsApp, disparo).
 
@@ -56,6 +56,7 @@ Regra nova confirmada pelo dono → skill `/registrar-regra`. Rule nunca carrega
 8. **Nunca remover, simplificar ou "limpar" uma funcionalidade existente que não faz parte do pedido**, mesmo que pareça código morto ou redundante à primeira vista — muita coisa aqui tem uma razão de negócio documentada em comentário. Ver a filosofia completa do agente `crm-editor`.
 9. **Sistema vivo em produção:** nunca enviar mensagem/e-mail/push real, rodar disparo ou gravar em produção como "teste"; cliente `do_not_contact` e telefones bloqueados nunca recebem contato automático; nunca imprimir/commitar segredos (só o nome da variável).
 10. **Identidade visual única (regra do dono, 2026-10-04):** “A única identidade visual autorizada é a identidade visual atual do Matheus Machado. Logos antigas são descontinuadas e NÃO podem ser utilizadas, copiadas, restauradas ou usadas como referência em nenhuma nova implementação. Sempre reutilizar os assets oficiais atuais existentes no projeto.” Assets oficiais: `public/assets/matheus-machado-symbol.png` (símbolo "M"), `public/assets/og-matheus-machado-v2.png` (marca completa com texto, sobre azul-marinho) e `public/icons/*-mm.png` (favicon/PWA/avatar). A logo antiga (prédios/skyline: `matheus-machado-logo*`, `*-premium*`, `company-mark-avatar`, ícones `icon-*`/`favicon-32`/`apple-touch-icon` sem `-mm`) foi **apagada** — nunca restaurar do git nem recriar. Não criar nem redesenhar logo; precisando de variante nova, pedir ao dono. Trava: `tests/brand-assets.test.mjs`.
+    **Nome oficial (regra do dono, 2026-10-16):** “Matheus Machado Corretor de Imóveis” — nunca “Matheus Machado Imóveis” em texto que cliente ou corretor leia (domínio/e-mail/arquivos não mudam). Detalhe: `.claude/rules/frontend-pwa.md`, `docs/BUSINESS_RULES.md` MARCA-1.
 
 ## Perfis de usuário
 

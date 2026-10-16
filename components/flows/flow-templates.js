@@ -152,7 +152,7 @@ const TEMPLATES = [
       const edges = [];
       const simEntry = simulationPath("s", nodes, edges);
       const brokerEntry = brokerPath("b", nodes, edges);
-      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! Bem-vindo(a) ao atendimento do Matheus Machado Imóveis. Como você prefere seguir?", nodes, edges, simEntry, brokerEntry);
+      const menu = choiceMenu("m", "Olá, {{primeiro_nome}}! Bem-vindo(a) ao atendimento do Matheus Machado Corretor de Imóveis. Como você prefere seguir?", nodes, edges, simEntry, brokerEntry);
       nodes.push(cond("hours", BUSINESS_HOURS));
       nodes.push(text("after", "Olá, {{primeiro_nome}}! Nosso time atende de segunda a sábado, das 8h às 19h, mas você não precisa esperar: já dá para adiantar tudo por aqui."));
       edges.push(edge("start", "next", "hours"), edge("hours", "yes", menu), edge("hours", "no", "after"), edge("after", "next", menu));

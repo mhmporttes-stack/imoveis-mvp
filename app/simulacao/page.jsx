@@ -16,7 +16,7 @@ export const metadata = {
     url: SHARE_URL,
     title: SHARE_TITLE,
     description: SHARE_DESCRIPTION,
-    siteName: "Matheus Machado Imóveis",
+    siteName: "Matheus Machado Corretor de Imóveis",
     locale: "pt_BR",
     images: [{ url: SHARE_IMAGE, secureUrl: SHARE_IMAGE, width: 1200, height: 630, type: "image/png", alt: SHARE_IMAGE_ALT }]
   },

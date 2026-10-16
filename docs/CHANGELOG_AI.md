@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Nome oficial da marca: "Matheus Machado Corretor de Imóveis" (MARCA-1)
+- **Data:** 2026-10-16
+- **Área:** Site/SEO, WhatsApp (Meta Diária v2), PDFs, Academia, Agenda, Permissões (2FA), Docs
+- **Alteração:** regra do dono registrada (CLAUDE.md item 10, `.claude/rules/frontend-pwa.md`, `docs/BUSINESS_RULES.md` MARCA-1) e "Matheus Machado Imóveis" trocado por "Matheus Machado Corretor de Imóveis" em todos os textos do código: 10 modelos da política v2 (forma "da equipe do Matheus Machado Corretor de Imóveis"; o curto 1/6 foi encurtado para caber em ≤ 200), aviso de entrega da Meta Diária, modelo de fluxo, metadados/JSON-LD/Open Graph, captação, PDFs (proposta, lista manual, certificado), evento `.ics`, emissor do 2FA, cabeçalho; prompts de agentes e perfis de marketing/e-mail.
+- **Motivo:** pedido do dono (literal: "não é Matheus Machado Imóveis, [é] Matheus Machado Corretor de Imóveis.").
+- **Arquivos afetados:** `lib/daily-goal-policy-messages.mjs`, `lib/daily-goal-delivery-monitor-core.mjs`, `components/flows/flow-templates.js`, `components/Header.jsx`, `lib/public-seo.js`, `lib/share-preview-html.mjs`, `lib/simulacao-share.mjs`, `lib/simulation-presentation-share.mjs`, `lib/simulacao-entrada/proposta-pdf.mjs`, `lib/prospecting-manual-list-pdf.mjs`, `lib/academy-certificate-pdf.mjs`, `lib/client-appointments-core.mjs`, `lib/admin-two-factor-core.mjs`, `app/layout.jsx`, `app/simulacao/page.jsx`, `app/venda-seu-imovel/page.jsx`, `tests/brand-assets.test.mjs` (nova trava), `.claude/agents/*`, `docs/{email,posicionamento}/PERFIL.md`.
+- **Risco/observação:** domínio, e-mails, URLs, arquivos, `package.json` e User-Agent técnico inalterados. 2FA: só cadastros novos mostram o nome novo no autenticador (os códigos não dependem do nome). Itens já na fila `daily_goal_auto_queue` guardam o texto antigo até serem enviados. Textos no banco (`whatsapp_flows`, `attendance_guides`, `manual_sections`, `crm_settings`, `whatsapp_chat_shortcuts`, `celebration_message_templates`) e modelos do Oficial na Meta (reaprovação) ficaram para o dono executar. Docs históricos, `README.md`, `DOCUMENTACAO-TECNICA-DESENVOLVEDOR.md`, `docs/posicionamento/mesa/` e scripts de vídeos já feitos não foram tocados.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-16 — FUN-15: migration `cooled_client_cases` aplicada em produção (fluxo continua DESLIGADO)
 - **Data:** 2026-10-16
 - **Área:** Banco / Clientes que esfriaram (FUN-15)

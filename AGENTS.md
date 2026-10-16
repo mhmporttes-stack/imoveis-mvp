@@ -5,7 +5,7 @@
 
 ## O que é o sistema
 
-**imoveis-mvp** = CRM imobiliário em **produção real** (https://www.matheusmachadoimoveis.com.br) da Matheus Machado Imóveis: site público (imóveis, empreendimentos, simulação de financiamento, captação, "Minha Jornada") + painel interno multiusuário (clientes/funil, agenda, roleta de leads, Meta Diária, ranking, documentação/CCA, financeiro, automações, WhatsApp Chat/Fluxos/Disparo, Meta Ads). O dono é não técnico e usa o sistema todo dia: **interface e respostas ao dono sempre em português do Brasil**.
+**imoveis-mvp** = CRM imobiliário em **produção real** (https://www.matheusmachadoimoveis.com.br) do Matheus Machado Corretor de Imóveis: site público (imóveis, empreendimentos, simulação de financiamento, captação, "Minha Jornada") + painel interno multiusuário (clientes/funil, agenda, roleta de leads, Meta Diária, ranking, documentação/CCA, financeiro, automações, WhatsApp Chat/Fluxos/Disparo, Meta Ads). O dono é não técnico e usa o sistema todo dia: **interface e respostas ao dono sempre em português do Brasil**.
 
 ## Tecnologias
 

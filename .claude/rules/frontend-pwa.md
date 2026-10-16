@@ -29,6 +29,8 @@ A Lista de clientes é `components/clients/` (`ClientWorkspace` tela, `useClient
 
 Tailwind CSS, identidade visual azul institucional/navy, português do Brasil em toda a interface. Datas/horários sempre em `America/Sao_Paulo` (helpers em `lib/daily-report.js`: `getTodayInSaoPaulo`, `getTimeGreeting`, etc. — reutilize, não reimplemente cálculo de fuso horário). Valores monetários em BRL com formatação brasileira (`Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`).
 
+**[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-16] Nome da marca.** “não é Matheus Machado Imóveis, [é] Matheus Machado Corretor de Imóveis.” Todo texto lido por cliente ou corretor (site, SEO/JSON-LD/Open Graph, mensagens de WhatsApp e fluxos, e-mails, PDFs, avisos do CRM, Manual/guias) usa “Matheus Machado Corretor de Imóveis” (em frase: “da equipe do Matheus Machado Corretor de Imóveis”); nunca “Matheus Machado Imóveis”. Não mudam: domínio `matheusmachadoimoveis.com.br`, e-mails/URLs, nomes de arquivo/asset, variáveis de ambiente, docs históricos. Fonte do nome no SEO: `BUSINESS_NAME` (`lib/public-seo.js`). Textos no banco (fluxos, guias, Manual, `crm_settings`, modelos da Meta) precisam de ajuste à parte. Trava: `tests/brand-assets.test.mjs`. Detalhes: `docs/BUSINESS_RULES.md` MARCA-1.
+
 Academia (`/academia`): fonte Fraunces e a metáfora do prédio com guindaste aprovadas pelo dono; o orçamento de 150 KB vale só para a parte própria da Academia — `.claude/rules/academia.md` (ACA-3 a ACA-6).
 
 ## PWA

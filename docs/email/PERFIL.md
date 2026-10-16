@@ -5,7 +5,7 @@
 ## Identidade do remetente (marca)
 | Campo | Valor | Fonte |
 |---|---|---|
-| Nome | Matheus Machado Imóveis · Matheus Machado, corretor de imóveis | `docs/posicionamento/PERFIL.md` |
+| Nome | Matheus Machado Corretor de Imóveis · Matheus Machado, corretor de imóveis | `docs/posicionamento/PERFIL.md` |
 | CRECI | 323106-F | idem |
 | Site / CTA | https://www.matheusmachadoimoveis.com.br/simulacao | produção |
 | Política de privacidade | `/politica-de-privacidade` (existe no site) | `app/politica-de-privacidade` |

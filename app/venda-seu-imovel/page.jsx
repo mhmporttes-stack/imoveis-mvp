@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import PropertyCaptureForm from "@/components/captacoes/PropertyCaptureForm";
 
 export const metadata = {
-  title: "Venda seu imóvel | Matheus Machado Imóveis",
-  description: "Cadastre seu imóvel para análise de venda com Matheus Machado Imóveis.",
+  title: "Venda seu imóvel | Matheus Machado Corretor de Imóveis",
+  description: "Cadastre seu imóvel para análise de venda com Matheus Machado Corretor de Imóveis.",
   // /captacao reexporta esta página: as duas URLs apontam esta como a oficial para o Google (dono, 2026-10-15).
   alternates: { canonical: "/venda-seu-imovel" }
 };
