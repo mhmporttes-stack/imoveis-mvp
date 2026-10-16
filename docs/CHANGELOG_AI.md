@@ -55,6 +55,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-16 — Meta Diária: espera de 2 h não recomeça mais em reconexão automática rápida (prospecção automática destravada)
+
+- **Data:** 2026-10-16 · **Área:** Meta Diária / WhatsApp
+- **Alteração:** o início da espera de 2 h pós-conexão de cada número deixa de ser `last_connected_at` (gravado a cada volta a "connected", `lib/whatsapp-individual.js:77`) e passa a ser `settle_anchor_at`, calculado em memória a partir de `whatsapp_session_telemetry`: recomeça só em conexão por pessoa (QR/código/Conectar), depois de 401/403/queda que exige pessoa, depois de queda longa (≥ 30 min), na retomada manual de pausa (`slot_controls[n].resumedAt`, novo campo do jsonb gravado por `clearSlotPauses`) e, na dúvida (telemetria ausente/atrasada, erro de leitura), na última conexão. Reconexão automática < 30 min por 428/500/503/408/515 não recomeça. Usado em `chooseDispatchSlot`, `loadV2ConnectedAtMs` (todos os pontos de agendamento/trava/saúde da fila) e no cartão da Automação.
+- **Motivo:** aprovado pelo dono em 2026-10-16 ("sim, pode corrigir a prospecção parada"). 14/10 = 7 envios e 15/10 = 2 (contra 45–52/dia em 10–13/10): os números reconectam sozinhos com mediana de ~50 min na janela (quedas 428/500/503), e cada reconexão regravava `last_connected_at`, então a espera de 2 h nunca terminava. Itens "retomada" e "queda longa" são proteção extra pedida pela coordenação (a confirmar com o dono).
+- **Arquivos afetados:** `lib/daily-goal-reconnect-settle-core.mjs` (novo, puro), `lib/daily-goal-reconnect-settle.js` (novo, leitura), `lib/daily-goal-policy-core.mjs` (`connectedMsOf`), `lib/daily-goal-protection-core.mjs` (`clearSlotPauses` aceita `nowIso`), `lib/daily-goal-auto.js`, `tests/daily-goal-reconnect-settle.test.mjs`; docs: `.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md` MD-15 7b, `docs/OPERACAO_DISPAROS.md` §8.7, `docs/INCIDENTES.md`. Sem migration; microsserviço inalterado.
+- **Risco/observação:** +1 consulta indexada (`user_id, occurred_at`) à telemetria por cálculo, só quando algum número reconectou há < ~2 h. Primeira conexão de um número dentro da janela lida sem histórico anterior conta como início da espera (conservador). Número que reconectar logo após a publicação e cuja última conexão "de cautela" tem > 2 h volta a enviar no ciclo seguinte do cron (2 min), sem rajada: atrasados continuam reprogramados e o mínimo de 5 min/espalhamento seguem. Consultas de produção NÃO rodadas nesta sessão (sem acesso ao banco): números do caso vêm do relatório R2-1 (Dados) — A CONFIRMAR no ar com o cartão da Automação. Testes da área + `pnpm build` ok.
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-15 — Contato Particular pode ter card de cliente (sem mostrar a conversa trancada)
 
 - **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Clientes
