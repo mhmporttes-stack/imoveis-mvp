@@ -246,7 +246,7 @@ function useChatAppMode(enabled, ref) {
   }, [enabled, ref]);
 }
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
   // Volta ao Chat sem "Carregando…" (2026-10-12, components/chat-view-cache.js): começa com o que esta mesma conta já
   // tinha na tela e atualiza em seguida, em segundo plano. Sem cache (1ª vez, outra conta, >30 min) = como sempre.
   const [cached] = useState(() => readChatView(viewerKey));
@@ -570,6 +570,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
         window.history.replaceState(null, "", window.location.pathname); // /admin/chat ou /chat-app (app da tela inicial)
         setTab("conversations");
         await loadList({ silent: true });
+        // Contato Particular com card (2026-10-15): o Chat não mostra a conversa trancada; o card segue pelo WhatsApp do celular.
+        if (data.privateContact) setOpenError("Contato particular: o CRM não mostra a conversa dele. Atenda pelo WhatsApp do celular; a simulação e o acompanhamento seguem no card.");
         // Cliente arquivado (WA-13) para quem não é o dono: Chat em branco, nenhuma conversa aberta.
         if (data.conversationId) {
           openConversation(data.conversationId);
@@ -638,6 +640,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             selectedId={selectedId}
             totalUnread={totalUnread}
             currentUserId={currentUserId}
+            mineScope={canManage && currentUserId ? { active: scopedBroker?.id === currentUserId, label: String(currentUserName || "").trim().split(/\s+/)[0] || "Meus", onToggle: () => setScopedBroker(scopedBroker?.id === currentUserId ? null : { id: currentUserId, name: currentUserName }) } : null}
             hasMore={listHasMore}
             loadingMore={listLoadingMore}
             onLoadMore={loadMoreList}
@@ -727,7 +730,7 @@ function listPageIsFull(count, filter) {
   return count >= 100 || (["awaiting", "waiting_us", "silent", "private_unseen"].includes(filter) && count > 0);
 }
 
-function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
   const [previewId, setPreviewId] = useState("");
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
@@ -755,7 +758,20 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           />
         </label>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {FILTERS.map((item) => (
+          {/* Aba com o PRÓPRIO nome (pedido do dono, 2026-10-15; gestora/admin): só as conversas dos clientes dela, em vez de
+              toda a equipe. Primeira da fila, destacada; toca de novo para voltar a ver todos. */}
+          {mineScope ? (
+            <button
+              type="button"
+              onClick={mineScope.onToggle}
+              aria-pressed={mineScope.active}
+              title={mineScope.active ? "Mostrando só os seus clientes. Toque para ver todos." : "Ver só os seus clientes"}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${mineScope.active ? "border-[#0A7D41] bg-[#0A7D41] text-white" : "border-[#0A7D41]/40 bg-white text-[#0A5C30] hover:bg-[#D9FDD3]"}`}
+            >
+              <UserRound className="h-3.5 w-3.5" aria-hidden="true" />{mineScope.label}
+            </button>
+          ) : null}
+          {FILTERS.filter((item) => item.key !== "private" || canSeeArchived).map((item) => (
             <button
               key={item.key}
               type="button"
@@ -1811,6 +1827,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
   const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
+  // Citação: a original da página carregada; senão a prévia que o servidor resolveu (original fora da página ou trecho enviado pelo WhatsApp).
+  const replyRef = quoted || message.replyPreview || null;
   if (message.internal) {
     // Nota interna: centralizada, azul tracejada e com cadeado — nunca parece mensagem enviada ao cliente.
     return (
@@ -1861,8 +1879,8 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
         {groupSender ? <p className="mb-0.5 truncate text-xs font-bold text-[#0A7D41]">{groupSender}</p> : null}
         {message.replyToMessageId ? (
           <div className={`mb-1 rounded-md border-l-4 border-brand px-2 py-1 text-xs ${outbound ? "bg-[#CFE9C7]" : "bg-[#F0F2F5]"}`}>
-            <span className="block font-bold text-brand">{quoted ? (quoted.direction === "inbound" ? "Cliente" : quoted.sentByName || "Equipe") : "Em resposta a"}</span>
-            <span className="block truncate text-[#54656F]">{(quoted?.body ? stripWhatsappFormatting(quoted.body) : "") || (quoted ? MEDIA_LABELS[quoted.type] : "Mensagem anterior")}</span>
+            <span className="block font-bold text-brand">{replyRef?.direction ? (replyRef.direction === "inbound" ? "Cliente" : replyRef.sentByName || "Equipe") : "Em resposta a"}</span>
+            <span className="block truncate text-[#54656F]">{replyRef?.revoked ? "Mensagem apagada" : (replyRef?.body ? stripWhatsappFormatting(replyRef.body) : "") || (replyRef ? MEDIA_LABELS[replyRef.type] : "") || "Mensagem original indisponível"}</span>
           </div>
         ) : null}
         {message.revoked ? (<>

@@ -43,6 +43,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+## 2026-10-15 — Home: faixa do cabeçalho, contorno da foto e "Quem é o Matheus"
+- **Causa raiz:** na página da home gerada em cache (ISR, `revalidate = 60`), o `usePathname()` do `components/Header.jsx` não vinha `"/"` e o cabeçalho saía com a faixa azul-marinho e a borda. **Correção:** a regra de transparência agora é CSS (`body:has([data-home-hero]) .site-header` em `app/globals.css`; o hero tem `data-home-hero`), e o `isHome` foi mantido.
+- Foto apontando (`public/assets/matheus-machado-apontando-recorte.webp`): a borda do recorte foi apertada para tirar o contorno claro (pedido do dono).
+- Seção "Quem é o Matheus" refeita (recorte de braços cruzados, cards, selo do CRECI), com a frase "sou especialista na compra do primeiro imóvel".
+
 ## 2026-10-15 — Home: novo topo (hero) aprovado pelo dono
 - **Alteração:** hero da home refeito (só apresentação): recorte do dono apontando (dedo editado por IA a pedido dele), fundo B (cidade desfocada + véu azul-marinho, `components/site/HeroBackground.jsx`, opções A/B/C via `HERO_BACKGROUND` em `app/page.jsx`), cabeçalho transparente só na home (`components/Header.jsx`), selos (simulação gratuita, CRECI, logo MCMV).
 - **Arquivos afetados:** `app/page.jsx`, `components/Header.jsx`, `components/site/HeroBackground.jsx`, `public/assets/{matheus-machado-apontando-recorte.webp,hero-fundo-cidade.webp,mcmv-logo-branco.png}`.
@@ -58,6 +63,60 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `tailwind.config.cjs`, `app/layout.jsx`, `app/admin-theme.css` (novo), `app/admin-theme-auto.css` (novo, gerado por `.claude/design/tools/gerar-tema-escuro.mjs`), `components/admin-theme.js` (novo), `components/AdminThemeToggle.jsx` (novo), `components/AdminBottomNav.jsx`, `components/AdminMenu.jsx`, `components/AppChrome.jsx`, `.claude/skills/design-crm/scripts/capturar-vitrine.mjs` (`--tema escuro`), `.claude/skills/design-crm/references/sistema-visual.md`.
 - **Risco/observação:** nada em `lib/`, API, banco ou regra. Telas revisadas no escuro pela vitrine (Clientes, ficha, Chat lista/conversa, Meta Diária corretor e equipe, Desempenho, Online, ranking do topo, alertas, menu Mais). Telas raras (Financeiro, cadastros, automações, fluxos, Academia fora do escopo) ficam só com o tratamento global — cor fixa em `style` inline ou atributo SVG pode sobrar clara; tela nova com cor fixa: rodar o gerador.
 - **Autor:** Claude (designer-crm)
+
+### 2026-10-16 — Meta Diária: espera de 2 h não recomeça mais em reconexão automática rápida (prospecção automática destravada)
+
+- **Data:** 2026-10-16 · **Área:** Meta Diária / WhatsApp
+- **Alteração:** o início da espera de 2 h pós-conexão de cada número deixa de ser `last_connected_at` (gravado a cada volta a "connected", `lib/whatsapp-individual.js:77`) e passa a ser `settle_anchor_at`, calculado em memória a partir de `whatsapp_session_telemetry`: recomeça só em conexão por pessoa (QR/código/Conectar), depois de 401/403/queda que exige pessoa, depois de queda longa (≥ 30 min), na retomada manual de pausa (`slot_controls[n].resumedAt`, novo campo do jsonb gravado por `clearSlotPauses`) e, na dúvida (telemetria ausente/atrasada, erro de leitura), na última conexão. Reconexão automática < 30 min por 428/500/503/408/515 não recomeça. Usado em `chooseDispatchSlot`, `loadV2ConnectedAtMs` (todos os pontos de agendamento/trava/saúde da fila) e no cartão da Automação.
+- **Motivo:** aprovado pelo dono em 2026-10-16 ("sim, pode corrigir a prospecção parada"). 14/10 = 7 envios e 15/10 = 2 (contra 45–52/dia em 10–13/10): os números reconectam sozinhos com mediana de ~50 min na janela (quedas 428/500/503), e cada reconexão regravava `last_connected_at`, então a espera de 2 h nunca terminava. Itens "retomada" e "queda longa" são proteção extra pedida pela coordenação (a confirmar com o dono).
+- **Arquivos afetados:** `lib/daily-goal-reconnect-settle-core.mjs` (novo, puro), `lib/daily-goal-reconnect-settle.js` (novo, leitura), `lib/daily-goal-policy-core.mjs` (`connectedMsOf`), `lib/daily-goal-protection-core.mjs` (`clearSlotPauses` aceita `nowIso`), `lib/daily-goal-auto.js`, `tests/daily-goal-reconnect-settle.test.mjs`; docs: `.claude/rules/meta-diaria-ranking.md`, `docs/BUSINESS_RULES.md` MD-15 7b, `docs/OPERACAO_DISPAROS.md` §8.7, `docs/INCIDENTES.md`. Sem migration; microsserviço inalterado.
+- **Risco/observação:** +1 consulta indexada (`user_id, occurred_at`) à telemetria por cálculo, só quando algum número reconectou há < ~2 h. Primeira conexão de um número dentro da janela lida sem histórico anterior conta como início da espera (conservador). Número que reconectar logo após a publicação e cuja última conexão "de cautela" tem > 2 h volta a enviar no ciclo seguinte do cron (2 min), sem rajada: atrasados continuam reprogramados e o mínimo de 5 min/espalhamento seguem. Consultas de produção NÃO rodadas nesta sessão (sem acesso ao banco): números do caso vêm do relatório R2-1 (Dados) — A CONFIRMAR no ar com o cartão da Automação. Testes da área + `pnpm build` ok.
+- **Autor:** Claude (crm-editor)
+
+### 2026-10-15 — Contato Particular pode ter card de cliente (sem mostrar a conversa trancada)
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Clientes
+- **Regra (ideia do dono):** mesmo com a conversa trancada, o corretor pode ter o card do cliente e fazer simulação, acompanhamento e follow-up. O CRM não mostra a conversa: o atendimento segue pelo WhatsApp do celular/Web.
+- **Alteração:** `hasPrivateConversationForClient` (telefone do cliente, no número oficial e no WhatsApp pessoal do responsável). Com conversa trancada: `open-client` devolve `{ conversationId: null, privateContact: true }` SEM ligar o card à conversa nem criar outra (antes ligava o card à conversa trancada e dava erro); `check-client` devolve `privateContact`; `getChatReplyReadiness` (lista de documentos) cai no envio externo. O botão WhatsApp do card abre o WhatsApp externo com aviso; a página do Chat (`?client=`) mostra a explicação em vez de abrir a conversa.
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `components/clients/useClientList.js`, `components/WhatsappChat.jsx`, `tests/chat-private-contact-card.test.mjs`.
+- **Risco/observação:** não mudei o Particular AUTOMÁTICO (WA-26): conversa pessoal que ganha card sai sozinha do Particular e aparece com o histórico inteiro; se o dono quiser que ela também continue escondida, é decisão à parte. "Enviar simulação" já usava o WhatsApp externo quando não há conversa do oficial. Não conferi visualmente no navegador.
+- **Autor:** Claude (sessão de operação do dono)
+
+### 2026-10-15 — Chat: aba com o nome da gestora/administrador (só os clientes dela)
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
+- **Alteração:** primeira aba da fila de filtros do Chat, com o primeiro nome de quem está logado (só gestora e administrador). Toque = lista só as conversas dos clientes dela (os que ela responde, os atribuídos a ela e o WhatsApp pessoal dela); toque de novo = volta a ver toda a equipe. Usa o filtro por corretor que já existia no servidor (`brokerId`), sem mudança de regra de acesso.
+- **Motivo:** a Carol (gestora) se perdia na lista com a equipe toda; o dono pediu uma aba com o nome dela.
+- **Arquivos afetados:** `components/WhatsappChat.jsx`, `app/admin/chat/page.jsx`, `tests/chat-mine-tab.test.mjs`.
+- **Risco/observação:** a escolha fica guardada na visão do Chat daquela conta. Não conferi visualmente no navegador (precisa de login).
+- **Autor:** Claude (sessão de operação do dono)
+
+### 2026-10-15 — Mesma conta ligada nos dois números do corretor: desconecta o duplicado e acha a original nas citações
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp / Chat
+- **Causa achada:** a Ketlin ligou o MESMO WhatsApp (14 99882-2934) no Número 1 e no Número 2 ("trabalho"). Cada mensagem chega em uma das duas sessões, então o cliente fala numa conversa e a equipe responde na outra (33 conversas duplicadas), e as respostas citadas perdiam a original ("Mensagem original indisponível", inclusive nas recentes).
+- **Alteração:** (1) detector (cron `whatsapp-flows`): conta ligada duas vezes pelo mesmo corretor → mantém o número de menor ordem, desconecta o outro (marca `last_error=same_number_other_slot` antes, sem aviso duplicado ao dono) e avisa o corretor (Importante + push) para conectar um chip diferente; (2) a busca da original da citação (`loadReplyTargets`) passa a olhar também a conversa irmã (mesmo corretor e contato, outro número), o que corrige já as 33 conversas existentes.
+- **Arquivos afetados:** `lib/whatsapp-false-connection-core.mjs` (`findDuplicateNumberSessions`, `buildDuplicateNumberDelivery`), `lib/whatsapp-false-connection.js`, `lib/whatsapp-connection-alert-core.mjs`, `lib/whatsapp-chat.js`, testes `tests/whatsapp-false-connection.test.mjs` e `tests/chat-reply-preview.test.mjs`.
+- **Risco/observação:** só trata o MESMO corretor com o mesmo telefone em dois números; telefone igual em corretores diferentes não é tocado. As conversas já duplicadas continuam duplicadas (não foram mescladas); novas mensagens passam a cair numa conversa só. Testes não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
+### 2026-10-15 — Chat: "Em resposta a" mostra o trecho da mensagem citada
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat)
+- **Alteração:** respostas citadas apareciam como "Em resposta a / Mensagem anterior" sempre que a mensagem original não estava entre as carregadas na tela (conversas longas, principalmente Particulares). Agora o servidor busca a original na MESMA conversa (`loadReplyTargets`) e devolve uma prévia (`replyPreview`: autor, trecho, mídia ou "Mensagem apagada"). Para mensagens novas, o serviço do WhatsApp também manda o trecho que o próprio WhatsApp envia junto da resposta (`quotedText` → `metadata.reply_to_preview`), usado quando a original não está guardada no CRM. Sem nenhuma das duas, mostra "Mensagem original indisponível".
+- **Motivo:** o dono viu conversas sem sentido (respostas a mensagens que não aparecem).
+- **Arquivos afetados:** `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, `lib/whatsapp-individual-inbound.js`, `app/api/webhooks/whatsapp-individual/route.js`, `whatsapp-individual-service/src/message-extract.js`, `tests/chat-reply-preview.test.mjs`.
+- **Risco/observação:** em 30 dias, 91% das citações tinham a original no banco (o problema era só a janela de mensagens carregada); ~9% não têm a original (anterior ao pareamento/histórico) e só as mensagens novas ganham o trecho do WhatsApp. Citações antigas sem original continuam indisponíveis. Deploy no Railway reinicia as sessões. Testes não rodados localmente (sem Node); CI roda.
+- **Autor:** Claude (sessão de operação do dono)
+
+### 2026-10-15 — Particular: a conversa trancada some do CRM para todos, exceto o dono
+
+- **Data:** 2026-10-15 · **Área:** WhatsApp (Chat) / Privacidade
+- **Alteração:** antes, corretor e gestora viam a "casca" da conversa particular (nome, telefone, "Conversa particular") na aba Particular e na busca, sem poder ler as mensagens. Agora quem não é o administrador geral não recebe a conversa em lugar nenhum: nem lista, nem aba Particular (escondida), nem busca, e abrir pelo id devolve "Conversa não encontrada". Só o dono vê (e lê) tudo.
+- **Motivo:** pedido do dono: conversas colocadas em Particular devem sumir do CRM para todos exceto ele.
+- **Arquivos afetados:** `lib/whatsapp-chat.js` (lista e `loadConversation`), `components/WhatsappChat.jsx` (aba), `tests/whatsapp-private-conversations.test.mjs`.
+- **Risco/observação:** consequência: o corretor que move uma conversa para Particular não a vê mais e não consegue "Tirar de Particular" sozinho; só o dono destranca (o que apaga as mensagens do Chat, como antes). As travas antigas (casca/403) ficam no código como defesa extra.
+- **Autor:** Claude (sessão de operação do dono)
 
 ### 2026-10-15 — PRO-15: WhatsApp desconectado (sem ban/restrição) = modo lista impressa
 

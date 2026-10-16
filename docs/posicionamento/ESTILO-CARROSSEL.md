@@ -69,8 +69,20 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 
 ## Legenda (dono, 2026-10-13)
 - **No máximo 5 hashtags** — o Instagram só permite 5; nunca entregar 6 ou mais.
+- **Nunca usar #marilia** (dono, 2026-10-16). No lugar, uma hashtag-gancho ligada ao assunto do post, que puxe engajamento (ex.: humor sobre a rotina de corretor → #vendas; aluguel → #sairdoaluguel). Evitar hashtag genérica que só descreve o tema.
+- **Tamanho: cerca de 80% do limite do Instagram** (≈1.750 de 2.200 caracteres, contando hashtags; dono, 2026-10-16) — conferir a contagem antes de entregar.
+- **Entregar a legenda no chat dentro de uma caixa de código** (bloco com botão de copiar), para o dono copiar com um toque (dono, 2026-10-16).
 - Legenda **mais longa**, que aproveite o espaço e deixe claro de que é o conteúdo (resumo dos pontos do carrossel + CTA).
 - **Pular pelo menos uma linha entre os parágrafos**, para o texto ficar organizado.
+- **Estrutura padrão (aprovada pelo dono em 2026-10-16; exemplo: `carrosseis/2026-10-15-receita-federal-chatgpt/legenda.md`):**
+  1. Gancho na 1ª linha (frase do tema + 1 emoji).
+  2. Contexto curto que puxa a identificação ("quem vê só… não imagina…").
+  3. 2–3 parágrafos resumindo os pontos das lâminas, com linguagem leve.
+  4. Um parágrafo que ensina algo útil e verdadeiro (ex.: simulação ≠ aprovação), sem prometer resultado.
+  5. Virada para o cliente: por que isso importa para quem vai comprar o 1º imóvel + convite para chamar.
+  6. CTA de comentário/marcação ("Qual dessas…? Conta aqui e marca…") + 👇.
+  7. Assinatura: `Matheus Machado · Corretor de imóveis em Marília/SP · CRECI 323106-F`.
+  8. 5 hashtags na última linha (com a hashtag-gancho, sem #marilia).
 
 ## Passo a passo com prints (dono, 2026-10-14)
 - **Prints reais** de cada tela (nunca tela desenhada); dados pessoais e valores sempre borrados — nunca salvar o print original com dados.
@@ -97,9 +109,10 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - **Valor:** só entra se o dono pedir. Nunca inventar número de quartos ou área; perguntar.
 
 ## Imóvel no CRM (dono, 2026-10-15)
-- Fluxo: tratar as fotos, montar o carrossel, o dono manda o valor e as condições (só para o CRM) e dá **ok**; aí cadastrar em `properties` com `is_published=false`.
+- **Atualizado pelo dono em 2026-10-15:** todo imóvel de carrossel **vai para o site sempre** (`properties` com `is_published=true`), sem esperar o ok. Valor só entra quando o dono mandar. **Se o dono mudar qualquer coisa no post (texto, foto, ordem, dado), corrigir o carrossel aqui e atualizar o cadastro no site também**, para os dois ficarem iguais.
+- Fluxo antigo (substituído pela linha acima): tratar as fotos, montar o carrossel, o dono manda o valor e as condições (só para o CRM) e dá **ok**; aí cadastrar em `properties` com `is_published=false`.
 - **Fotos do CRM = lâminas do carrossel, na mesma ordem** (capa primeiro), em JPEG 1080×1350 com menos de 1,5 MB cada (limite do bucket `property-media`). Upload pelo segredo de rede `claude-fotos` (só `/storage/v1/`); o cadastro em si é feito via MCP Supabase.
-- **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel (selo de localização e ao lado do @). Códigos usados: 4352 (Cavalari), 4353 (Terra Nova).
+- **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel (selo de localização e ao lado do @). Códigos usados: 4352 (Cavalari), 4353 (Terra Nova), 4354 (Palmital).
 - Postar no Instagram: a integração Windsor publica carrossel (máx. 10 imagens), foto, story e Reels, **só com "sim" do dono por post**; agendamento via lembrete da sessão.
 
 ## Rosto e texto (dono, 2026-10-15)
@@ -110,4 +123,4 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
 
 ## Acervo de fotos do dono (já recortadas, prontas para usar)
-`assets/boneco-3d/realista/`: apontando, bracos-cruzados, celular, celular-instagram (Instagram dele na tela), chave, comemorando, desespero (coçando a cabeça, sorriso nervoso; feita pelo dono no ChatGPT em 2026-10-15 com joinha + bracos-cruzados de referência, aprovada), explicando, joinha, lupa, lupa-olho, malabares-contratos, pensando, pensativo, prancha. **Usar estas fotos; não gerar de novo.** Só gerar uma pose nova se o dono pedir ou se a capa precisar de algo inédito (método aprovado acima). Logos: `assets/mcmv-logo-branco.png` e `assets/mcmv-logo-cor.png`.
+`assets/boneco-3d/realista/`: apontando, bracos-cruzados, celular, celular-instagram (Instagram dele na tela), chave, comemorando, calma (olhos fechados, gesto de ok), desconfiado (escorado, sobrancelha levantada), entediado (escorado, mão no rosto), irritado (escorado, sorriso forçado), la-vem (escorado, olhar de lado), desespero (coçando a cabeça, sorriso nervoso; feita pelo dono no ChatGPT em 2026-10-15 com joinha + bracos-cruzados de referência, aprovada), explicando, joinha, lupa, lupa-olho, malabares-contratos, pensando, pensativo, prancha. **Usar estas fotos; não gerar de novo.** Só gerar uma pose nova se o dono pedir ou se a capa precisar de algo inédito (método aprovado acima). Logos: `assets/mcmv-logo-branco.png` e `assets/mcmv-logo-cor.png`.

@@ -331,12 +331,14 @@ html.mm-dark {
 :where(html.mm-dark) .bg-slate-950\/65 { background-color: rgb(27 42 62 / 0.65); }
 :where(html.mm-dark) .bg-white { background-color: rgb(18 34 54 / 1); }
 :where(html.mm-dark) .bg-white\/70 { background-color: rgb(18 34 54 / 0.7); }
+:where(html.mm-dark) .bg-white\/75 { background-color: rgb(18 34 54 / 0.75); }
 :where(html.mm-dark) .bg-white\/80 { background-color: rgb(18 34 54 / 0.8); }
 :where(html.mm-dark) .bg-white\/85 { background-color: rgb(18 34 54 / 0.85); }
 :where(html.mm-dark) .bg-white\/90 { background-color: rgb(18 34 54 / 0.9); }
 :where(html.mm-dark) .bg-white\/95 { background-color: rgb(18 34 54 / 0.95); }
 :where(html.mm-dark) .border-\[\#A9C8EC\] { border-color: rgb(26 58 97 / 1); }
 :where(html.mm-dark) .border-\[\#C9DDF6\] { border-color: rgb(23 57 100 / 1); }
+:where(html.mm-dark) .border-\[\#DCE5F4\] { border-color: rgb(30 56 93 / 1); }
 :where(html.mm-dark) .border-\[\#E9CB73\] { border-color: rgb(75 73 49 / 1); }
 :where(html.mm-dark) .border-\[\#E9EDEF\] { border-color: rgb(43 62 80 / 1); }
 :where(html.mm-dark) .border-white { border-color: #122236; }
@@ -357,6 +359,7 @@ html.mm-dark {
 :where(html.mm-dark) .text-\[\#111B21\] { color: rgb(221 232 238 / 1); }
 :where(html.mm-dark) .text-\[\#176BC4\] { color: rgb(162 194 228 / 1); }
 :where(html.mm-dark) .text-\[\#1D6FE8\] { color: rgb(144 176 223 / 1); }
+:where(html.mm-dark) .text-\[\#1F4CB3\] { color: rgb(165 185 229 / 1); }
 :where(html.mm-dark) .text-\[\#2370BC\] { color: rgb(160 194 227 / 1); }
 :where(html.mm-dark) .text-\[\#2563EB\] { color: rgb(139 165 221 / 1); }
 :where(html.mm-dark) .text-\[\#25D366\] { color: rgb(149 224 177 / 1); }
@@ -371,6 +374,7 @@ html.mm-dark {
 :where(html.mm-dark) .focus\:bg-white:focus { background-color: rgb(18 34 54 / 1); }
 :where(html.mm-dark) .group:hover .group-hover\:bg-brand { background-color: rgb(47 116 208 / 1); }
 :where(html.mm-dark) .group:hover .group-hover\:bg-white { background-color: rgb(18 34 54 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#D9FDD3\]:hover { background-color: rgb(22 55 52 / 1); }
 :where(html.mm-dark) .hover\:bg-\[\#E4E7EA\]:hover { background-color: rgb(29 45 64 / 1); }
 :where(html.mm-dark) .hover\:bg-\[\#E9F2FF\]:hover { background-color: rgb(19 40 68 / 1); }
 :where(html.mm-dark) .hover\:bg-\[\#EDF6FF\]:hover { background-color: rgb(19 41 67 / 1); }

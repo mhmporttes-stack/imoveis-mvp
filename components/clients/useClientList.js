@@ -711,6 +711,18 @@ export function useClientList({
         notify("O número não possui WhatsApp.", "danger");
         return;
       }
+      // Contato Particular com card (2026-10-15): o CRM não mostra a conversa trancada; o atendimento segue pelo WhatsApp do celular/Web.
+      if (check?.privateContact) {
+        const privateUrl = buildExternalWhatsappUrl(value, readCardDevice());
+        fetch(`/api/simulation-registrations/${registrationId}/whatsapp-contact`, { method: "POST", keepalive: true }).catch(() => {});
+        if (privateUrl) {
+          notify("Contato particular: o CRM não mostra a conversa. Abrindo o WhatsApp.");
+          if (!window.open(privateUrl, "_blank", "noopener,noreferrer")) window.location.assign(privateUrl);
+        } else {
+          notify("Contato particular: o CRM não mostra a conversa. Atenda pelo WhatsApp do celular.");
+        }
+        return;
+      }
     }
     // Falha no registro NUNCA bloqueia a navegação: só deixa um aviso discreto no Chat
     // ("aberto, mas o contato não pôde ser salvo/sincronizado" — lib/whatsapp-contact-warning.mjs).

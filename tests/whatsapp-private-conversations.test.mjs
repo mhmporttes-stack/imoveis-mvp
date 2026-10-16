@@ -97,3 +97,10 @@ test("Destrancar: cópia interna, apaga o histórico, contato volta limpo e o pa
   // sem aviso na tela ao destrancar: a confirmação continua só ao mover para Particular
   assert.match(read("components/WhatsappChat.jsx"), /if \(makePrivate && conversation\.client\?\.id && !window\.confirm/);
 });
+
+test("Particular some do CRM para todos, exceto o dono (2026-10-15): nem lista, nem busca, nem a casca; aba escondida" , () => {
+  const chat = read("lib/whatsapp-chat.js");
+  assert.match(chat, /if \(!isGeneralAdminAuth\(auth\)\) request = request\.is\("private_at", null\);/, "lista, aba Particular e busca");
+  assert.match(chat, /if \(data\.private_at && !\(auth && isGeneralAdminAuth\(auth\)\)\) throw new WhatsappChatError\("Conversa não encontrada\.", \{ status: 404 \}\);/, "abrir por id = não existe");
+  assert.match(read("components/WhatsappChat.jsx"), /FILTERS\.filter\(\(item\) => item\.key !== "private" \|\| canSeeArchived\)/, "aba Particular só para o dono");
+});

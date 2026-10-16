@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-16 — Prospecção automática da Meta Diária quase parou (números conectados, mas nada sai)
+- **Data:** 2026-10-16
+- **Sintoma:** "a automação parou": 14/10 = 7 envios, 15/10 = 2 (antes 45–52/dia); cartão mostra "aguardando 2 h após reconectar" o dia todo.
+- **Área:** Meta Diária / WhatsApp
+- **Impacto:** todos os corretores com automação v2 cujos números caem e voltam sozinhos (~a cada 50 min na janela).
+- **Causa raiz:** a espera de 2 h (regra de 13/10) contava de `last_connected_at`, regravado em TODA volta a "connected" (`applyIndividualSessionStatus`, `lib/whatsapp-individual.js`), inclusive reconexão automática por 428/500/503; com reconexão a cada ~50 min a espera recomeçava antes de terminar.
+- **Correção:** início da espera derivado da telemetria (`settle_anchor_at`, `lib/daily-goal-reconnect-settle*.js`): só QR/código/Conectar, 401/403, queda ≥ 30 min, retomada de pausa ou dúvida recomeçam. Detalhe no `CHANGELOG_AI.md` (2026-10-16).
+- **Arquivos/commit:** `lib/daily-goal-reconnect-settle-core.mjs`, `lib/daily-goal-reconnect-settle.js`, `lib/daily-goal-policy-core.mjs`, `lib/daily-goal-auto.js` — commit desta data.
+- **Prevenção/teste:** `tests/daily-goal-reconnect-settle.test.mjs` (caso 50 min reproduzido: regra antiga segura, nova libera 2 h após o pareamento).
+- **Status:** Monitorando (conferir envios do dia seguinte à publicação).
 ### 2026-10-13 — Muitas tentativas seguidas de conectar um número que o WhatsApp recusa (403) e chaves de criptografia nos registros
 - **Data:** 2026-10-13
 - **Sintoma:** número do corretor com erro 403 ("forbidden") e 8 tentativas de conectar em 8 minutos, todas 403 (09/10, telemetria `connect_attempt`/`cycle_start`/`intervention_required`); e, nos registros da Railway, despejos com `privKey`, `rootKey`, `chainKey`, `baseKey` ("Closing session", "Bad MAC"...).

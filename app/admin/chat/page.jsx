@@ -38,7 +38,7 @@ export default async function ChatPage({ searchParams }) {
     // (WhatsappChat appMode + .chat-app-* em app/globals.css).
     <main className="bg-mist pt-3 md:pt-6">
       <AdminSectionNav active="chat" />
-      <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText={typeof params.text === "string" ? params.text.slice(0, 2000) : ""} initialSlot={typeof params.slot === "string" ? params.slot.slice(0, 2) : ""} />
+      <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} currentUserName={auth.profile?.name || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText={typeof params.text === "string" ? params.text.slice(0, 2000) : ""} initialSlot={typeof params.slot === "string" ? params.slot.slice(0, 2) : ""} />
     </main>
   );
 }
