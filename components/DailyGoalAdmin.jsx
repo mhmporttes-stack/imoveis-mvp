@@ -111,7 +111,7 @@ const TABS = [
 const MESSAGE_FIELDS = [
   { key: "message1", label: "Mensagem 1 — Primeiro contato" },
   { key: "message2", label: "Mensagem 2 — Pós-atendimento" },
-  { key: "message3", label: "Mensagem 3 — Última tentativa" }
+  { key: "message3", label: "Mensagem 3 — sem uso (a 3ª tentativa foi removida em 16/10/2026)" }
 ];
 
 export default function DailyGoalAdmin({ initialSettings }) {
@@ -893,7 +893,7 @@ function GlobalConfigPanel({ onSaved }) {
 const AUTO_MESSAGE_FIELDS = [
   { key: "message1", label: "1ª tentativa", max: 4 },
   { key: "message2", label: "2ª tentativa", max: 4 },
-  { key: "message3", label: "3ª tentativa", max: 10 }
+  { key: "message3", label: "3ª tentativa (sem uso desde 16/10/2026)", max: 10 }
 ];
 
 // Variações sorteadas pela automação no momento do envio, com anti-repetição
@@ -942,7 +942,7 @@ function AutoMessagesEditor() {
     <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
-          <h3 className="text-lg font-black text-navy">Mensagens da automação (até 4 variações na 1ª e 2ª tentativa, até 10 na 3ª)</h3>
+          <h3 className="text-lg font-black text-navy">Mensagens da automação (até 4 variações na 1ª e 2ª tentativa; a 3ª não é mais enviada)</h3>
           <p className="mt-1 text-xs font-bold text-muted">Sorteadas no envio sem repetir nenhuma até todas daquela tentativa terem saído pelo mesmo WhatsApp. Campo vazio é ignorado. Variáveis disponíveis: {"{saudacao}"}, {"{primeiro_nome}"}, {"{nome_corretor}"}, {"{associado_a}"}</p>
         </div>
         <span className="text-sm font-black text-brand">{open ? "Fechar" : "Editar"}</span>
@@ -1044,7 +1044,7 @@ function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
       <div className="rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
         <h2 className="text-xl font-black text-navy">Carteira ativa</h2>
         <p className="mt-1 text-sm font-bold text-muted">
-          Total de clientes que um corretor pode ter aguardando 1ª, 2ª e 3ª tentativa AO MESMO TEMPO (soma das três
+          Total de clientes que um corretor pode ter aguardando 1ª e 2ª tentativa AO MESMO TEMPO (soma das duas
           etapas). A distribuição diária nunca ultrapassa o espaço disponível: novos clientes = mínimo entre a cota
           diária e (limite − carteira ativa atual).
         </p>

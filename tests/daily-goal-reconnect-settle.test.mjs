@@ -42,12 +42,14 @@ test("caso de 14-15/10: reconexão rápida a cada 50 min NÃO recomeça a espera
   assert.equal(anchor.anchorMs, T0);
   assert.equal(anchor.reason, SETTLE_REASON.MANUAL);
 
-  const nowMs = T0 + RECONNECT_SETTLE_MINUTES * MIN + 5 * MIN; // 08:05 em São Paulo
+  // Espera de 30 min desde 2026-10-16 (dono; eram 2 h).
+  const nowMs = T0 + 100 * MIN + 20 * 1000 + 10 * MIN; // 07:50 em São Paulo
   const rawRow = { slot: 1, status: "connected", last_connected_at: iso(T0 + 100 * MIN + 20 * 1000) }; // reconectou às 07:40
   const settleRow = { ...rawRow, settle_anchor_at: iso(T0) };
-  assert.deepEqual(slotsPastReconnectWait({ rows: [rawRow], slots: [1], nowMs }), [], "regra antiga: segurava até 09:40");
-  assert.deepEqual(slotsPastReconnectWait({ rows: [settleRow], slots: [1], nowMs }), [1], "regra nova: libera 2 h depois do pareamento");
-  assert.equal(reconnectHoldUntilMs({ rows: [settleRow], slots: [1], nowMs: T0 + HOUR }), T0 + 2 * HOUR, "antes das 2 h continua segurando");
+  assert.deepEqual(slotsPastReconnectWait({ rows: [rawRow], slots: [1], nowMs }), [], "regra antiga: segurava até 08:10");
+  assert.deepEqual(slotsPastReconnectWait({ rows: [settleRow], slots: [1], nowMs }), [1], "regra nova: libera 30 min depois do pareamento");
+  assert.equal(reconnectHoldUntilMs({ rows: [settleRow], slots: [1], nowMs: T0 + 10 * MIN }), T0 + RECONNECT_SETTLE_MINUTES * MIN, "antes dos 30 min continua segurando");
+  assert.equal(RECONNECT_SETTLE_MINUTES, 30);
 });
 
 test("número estável sem pareamento recente: só quedas rápidas na janela => nada segura (null)", () => {
@@ -114,14 +116,15 @@ test("retomada manual de pausa recomeça a espera e fica gravada em slot_control
 });
 
 test("só lê telemetria para conexão que ainda pode estar na espera; janela cobre espera + queda longa", () => {
-  assert.equal(needsSettleTelemetry({ lastConnectedAt: iso(T0), nowMs: T0 + HOUR }), true);
+  assert.equal(needsSettleTelemetry({ lastConnectedAt: iso(T0), nowMs: T0 + 20 * MIN }), true);
+  assert.equal(needsSettleTelemetry({ lastConnectedAt: iso(T0), nowMs: T0 + HOUR }), false, "passou a espera de 30 min + folga");
   assert.equal(needsSettleTelemetry({ lastConnectedAt: iso(T0), nowMs: T0 + 3 * HOUR }), false);
   assert.equal(needsSettleTelemetry({ lastConnectedAt: null, nowMs: T0 }), false);
   assert.ok(SETTLE_LOOKBACK_MS >= RECONNECT_SETTLE_MINUTES * MIN + LOW_DELIVERY_LONG_OUTAGE_MS);
 });
 
 test("linha sem settle_anchor_at continua na regra antiga (last_connected_at)", () => {
-  const nowMs = T0 + HOUR;
+  const nowMs = T0 + 20 * MIN;
   assert.deepEqual(slotsPastReconnectWait({ rows: [{ slot: 1, status: "connected", last_connected_at: iso(T0) }], slots: [1], nowMs }), []);
   assert.deepEqual(slotsPastReconnectWait({ rows: [{ slot: 1, status: "connected", last_connected_at: iso(T0), settle_anchor_at: null }], slots: [1], nowMs }), [1]);
 });

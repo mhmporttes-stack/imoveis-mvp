@@ -20,10 +20,11 @@ const PROGRESS_COLOR_POSITIONS = [0, 50, 100];
 
 const RADIUS = 45;
 
+// [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] A cadência termina na 2ª tentativa (a 3ª foi removida): o 2º contato
+// é a última tentativa. O backend ainda devolve `groups.third` (vazio) por compatibilidade; a tela não o mostra.
 const GROUPS = [
   { key: "new", title: "Novos contatos", chipLabel: "Novos" },
-  { key: "second", title: "2º contato", chipLabel: "2º contato" },
-  { key: "third", title: "Última tentativa", chipLabel: "Última tentativa" }
+  { key: "second", title: "2º contato (última tentativa)", chipLabel: "2º contato" }
 ];
 
 // variant="card": só o cartão-resumo da PRÓPRIA meta (progresso, quantidades, pendências, carteira, grupos,
@@ -159,7 +160,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
               <p className={`text-sm font-black ${goal.wallet.atLimit ? "text-red-600" : "text-navy"}`}>{goal.wallet.current}/{goal.wallet.limit}</p>
             </div>
             <p className="mt-1 text-[11px] font-bold text-muted">
-              1ª: {goal.wallet.byAttempt.first} · 2ª: {goal.wallet.byAttempt.second} · 3ª: {goal.wallet.byAttempt.third}
+              1ª: {goal.wallet.byAttempt.first} · 2ª: {goal.wallet.byAttempt.second}
             </p>
             {goal.wallet.atLimit ? (
               <p className="mt-2 text-xs font-bold text-red-700">
@@ -169,7 +170,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
           </div>
         ) : null}
 
-        <StaggerContainer className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3" delayChildren={0.15}>
+        <StaggerContainer className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2" delayChildren={0.15}>
           {GROUPS.map((group) => (
             <StaggerItem key={group.key} className="rounded-2xl border border-line bg-mist/40 px-4 py-3 text-center">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">{group.chipLabel}</p>

@@ -40,7 +40,7 @@ const emptyUsage = () => summarizeV2Usage([]);
 
 test("constantes da política v2 (REGRA OFICIAL 2026-10-04; janela e intervalo: dono, 2026-10-13)", () => {
   assert.equal(DAILY_CAP, 30);
-  assert.deepEqual({ ...CAP_BY_ATTEMPT }, { 1: 10, 2: 10, 3: 10 });
+  assert.deepEqual({ ...CAP_BY_ATTEMPT }, { 1: 10, 2: 10, 3: 0 }, "3ª tentativa removida (dono, 2026-10-16): teto 0");
   assert.equal(WINDOW_START_MINUTES, 6 * 60 + 30);
   assert.equal(WINDOW_END_MINUTES, 18 * 60, "janela até 18:00 (era 15:30)");
   assert.equal(MIN_GAP_SECONDS, 300, "mínimo 5 min (inegociável)");
@@ -51,7 +51,7 @@ test("constantes da política v2 (REGRA OFICIAL 2026-10-04; janela e intervalo: 
   assert.equal(PAUSE_EVERY_MAX, 12);
   assert.equal(PAUSE_MIN_MINUTES, 15);
   assert.equal(PAUSE_MAX_MINUTES, 30);
-  assert.equal(RECONNECT_SETTLE_MINUTES, 120, "espera de 2 h depois de QUALQUER (re)conexão (dono, 2026-10-13; era 5 min)");
+  assert.equal(RECONNECT_SETTLE_MINUTES, 30, "espera de 30 min depois de (re)conexão que exige cautela (dono, 2026-10-16; era 2 h desde 2026-10-13, antes 5 min)");
 });
 
 test("v2 VIGENTE por padrão: coluna ausente/NULL = ligada; só false explícito desliga; sem linha de configuração não regula", () => {
@@ -256,22 +256,23 @@ test("teto de 30/dia e 10/10/10: Meta Diária por tentativa, fila extra soma só
   assert.equal(dailyCapFor({ daily_cap_override: 12 }), 12, "teto manual menor vale");
 });
 
-test("fila do dia: 10 na 1ª, 10 na 2ª, 10 na 3ª (30 no total) a partir de qualquer volume", () => {
+test("fila do dia: 10 na 1ª, 10 na 2ª e nenhuma na 3ª (removida em 2026-10-16) a partir de qualquer volume", () => {
   const cands = [];
   for (let i = 0; i < 50; i += 1) for (const attempt of [1, 2, 3]) cands.push({ attempt, id: `${attempt}-${i}` });
   const allowance = v2EnqueueAllowance({ usage: emptyUsage(), pendingTodayByAttempt: {}, settings: v2() });
   const picked = pickV2EnqueueCandidates(cands, allowance);
-  assert.equal(picked.length, 30);
-  for (const a of [1, 2, 3]) assert.equal(picked.filter((c) => c.attempt === a).length, 10);
-  // Já saiu 4 da 1ª e há 3 pendentes da 2ª hoje: sobram 6/7/10, total 30-7=23 -> 6+7+10.
+  assert.equal(picked.length, 20);
+  for (const a of [1, 2]) assert.equal(picked.filter((c) => c.attempt === a).length, 10);
+  assert.equal(picked.filter((c) => c.attempt === 3).length, 0, "3ª tentativa nunca entra na fila");
+  // Já saiu 4 da 1ª e há 3 pendentes da 2ª hoje: sobram 6/7/0, total 30-7=23 mas só 13 cabem nas tentativas.
   const usage = summarizeV2Usage(Array.from({ length: 4 }, (_, i) => ({ id: `s${i}`, attempt_number: 1, source: "meta", status: "sent", send_started_at: `${MONDAY}T07:0${i}:00-03:00` })));
   const al2 = v2EnqueueAllowance({ usage, pendingTodayByAttempt: { 2: 3 }, settings: v2() });
-  assert.deepEqual(al2.byAttempt, { 1: 6, 2: 7, 3: 10 });
+  assert.deepEqual(al2.byAttempt, { 1: 6, 2: 7, 3: 0 });
   assert.equal(al2.totalLeft, 23);
   const picked2 = pickV2EnqueueCandidates(cands, al2);
-  assert.equal(picked2.length, 23);
-  // Menos candidatos que a cota: não inventa.
-  assert.equal(pickV2EnqueueCandidates([{ attempt: 1 }, { attempt: 3 }], allowance).length, 2);
+  assert.equal(picked2.length, 13);
+  // Menos candidatos que a cota: não inventa (e a 3ª nunca entra).
+  assert.equal(pickV2EnqueueCandidates([{ attempt: 1 }, { attempt: 2 }, { attempt: 3 }], allowance).length, 2);
   assert.equal(v2EnqueueAllowance({ usage: emptyUsage(), pendingTodayByAttempt: { 1: 10, 2: 10, 3: 10 }, settings: v2() }).totalLeft, 0);
 });
 
@@ -295,17 +296,18 @@ test("nunca 2 mensagens no mesmo momento: intervalo mínimo e pausa contados do 
   assert.equal(v2SendBlockReason({ nowMs: now, usage: summarizeV2Usage(first, { excludeItemId: "B" }), settings: wide() }), "intervalo_minimo_politica");
 });
 
-test("reconexão: nada de rajada — espera 2 h depois de conectar (Meta Diária e fila extra)", () => {
+test("reconexão: nada de rajada — espera 30 min depois de conectar (Meta Diária e fila extra; eram 2 h até 2026-10-16)", () => {
   const now = at(`${MONDAY}T10:00:00-03:00`);
   const block = (connectedAtMs, source) => v2SendBlockReason({ nowMs: now, usage: emptyUsage(), settings: wide(), connectedAtMs, source });
   assert.equal(block(now - 3 * MIN), "aguardando_apos_reconexao");
   assert.equal(block(now - 6 * MIN), "aguardando_apos_reconexao", "os 5 min antigos não bastam mais");
-  assert.equal(block(now - 119 * MIN), "aguardando_apos_reconexao");
-  assert.equal(block(now - 120 * MIN), null, "exatamente 2 h já libera");
-  assert.equal(block(now - 121 * MIN), null);
+  assert.equal(block(now - 29 * MIN), "aguardando_apos_reconexao");
+  assert.equal(block(now - 30 * MIN), null, "exatamente 30 min já libera");
+  assert.equal(block(now - 31 * MIN), null);
+  assert.equal(block(now - 119 * MIN), null, "as 2 h antigas não valem mais");
   assert.equal(block(null), null, "sem dado de conexão nunca segura");
   assert.equal(block(now - 3 * MIN, "extra"), "aguardando_apos_reconexao", "a fila 'Disparar' espera igual");
-  assert.equal(block(now - 121 * MIN, "extra"), null);
+  assert.equal(block(now - 31 * MIN, "extra"), null);
 });
 
 test("espera pós-conexão é POR NÚMERO: o número que acabou de conectar espera, o outro segue", () => {
@@ -317,38 +319,38 @@ test("espera pós-conexão é POR NÚMERO: o número que acabou de conectar espe
   ];
   assert.deepEqual(slotsPastReconnectWait({ rows, slots: [1, 2], nowMs: now }), [1], "o número 2 ainda espera");
   assert.deepEqual(slotsPastReconnectWait({ rows, slots: [2], nowMs: now }), []);
-  assert.deepEqual(slotsPastReconnectWait({ rows, slots: [1, 2], nowMs: now + 111 * MIN }), [1, 2], "10 min + 110 min = 2 h");
+  assert.deepEqual(slotsPastReconnectWait({ rows, slots: [1, 2], nowMs: now + 21 * MIN }), [1, 2], "10 min + 20 min = 30 min");
   assert.deepEqual(slotsPastReconnectWait({ rows: [{ slot: 1, status: "connected", last_connected_at: null }], slots: [1], nowMs: now }), [1], "sem last_connected_at não segura");
   // Corretor: vale a conexão MAIS ANTIGA entre os números aptos (basta um liberado para poder enviar).
   assert.equal(brokerReconnectReferenceMs({ rows, slots: [1, 2] }), now - 5 * 3600 * 1000);
   assert.equal(reconnectHoldUntilMs({ rows, slots: [1, 2], nowMs: now }), null, "o número 1 está liberado: o corretor não fica parado");
-  assert.equal(reconnectHoldUntilMs({ rows, slots: [2], nowMs: now }), now - 10 * MIN + 120 * MIN, "só o número 2 apto: espera até conexão + 2 h");
-  assert.equal(reconnectHoldUntilMs({ rows, slots: [2], nowMs: now + 111 * MIN }), null, "passou a espera");
+  assert.equal(reconnectHoldUntilMs({ rows, slots: [2], nowMs: now }), now - 10 * MIN + 30 * MIN, "só o número 2 apto: espera até conexão + 30 min");
+  assert.equal(reconnectHoldUntilMs({ rows, slots: [2], nowMs: now + 21 * MIN }), null, "passou a espera");
   assert.equal(reconnectHoldUntilMs({ rows, slots: [], nowMs: now }), null, "nenhum número apto: o motivo é outro (sessão), não a espera");
   assert.equal(brokerReconnectReferenceMs({ rows: [{ slot: 1, last_connected_at: iso(now - MIN) }, { slot: 2, status: "connected", last_connected_at: null }], slots: [1, 2] }), null, "um número sem dado = sem espera");
   assert.equal(brokerReconnectReferenceMs({ rows, slots: [] }), now - 5 * 3600 * 1000, "sem número apto cai no Número 1");
-  assert.equal(reconnectReadyAtMs(now), now + 120 * MIN);
+  assert.equal(reconnectReadyAtMs(now), now + 30 * MIN);
   assert.equal(reconnectReadyAtMs(null), null);
 });
 
-test("cartão da Automação: 'aguardando 2 h após reconectar (envia a partir de HH:MM)'", () => {
+test("cartão da Automação: 'aguardando 30 min após reconectar (envia a partir de HH:MM)'", () => {
   const line = formatReconnectHoldLine(at(`${MONDAY}T11:58:00-03:00`));
-  assert.equal(line, "aguardando 2 h após reconectar (envia a partir de 11:58)");
+  assert.equal(line, "aguardando 30 min após reconectar (envia a partir de 11:58)");
   assert.equal(formatReconnectHoldLine(NaN), "");
 });
 
-test("reconexão: atrasados são REPROGRAMADOS (não saem de uma vez): espaçados, sem passado, nunca 2 no mesmo minuto, depois de conectar + 2 h", () => {
+test("reconexão: atrasados são REPROGRAMADOS (não saem de uma vez): espaçados, sem passado, nunca 2 no mesmo minuto, depois de conectar + 30 min", () => {
   const settings = wide();
   const now = at(`${MONDAY}T10:00:00-03:00`);
   const connectedAtMs = now - 2 * MIN; // reconectou há 2 min, depois de horas fora
-  const items = Array.from({ length: 12 }, (_, i) => ({ id: `i${i}`, attempt_number: (i % 3) + 1, scheduled_for: new Date(now - (180 - i * 10) * MIN).toISOString() }));
+  const items = Array.from({ length: 12 }, (_, i) => ({ id: `i${i}`, attempt_number: (i % 2) + 1, scheduled_for: new Date(now - (180 - i * 10) * MIN).toISOString() }));
   const stale = findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, connectedAtMs });
   assert.equal(stale.length, 12, "todos estão atrasados além da tolerância");
   const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: emptyUsage(), connectedAtMs, random: seeded(9) });
   assert.equal(updates.length, 12, "ninguém é cancelado nem perdido");
   assert.equal(new Set(updates.map((u) => u.id)).size, 12, "sem duplicar");
   const times = updates.map((u) => u.scheduledMs);
-  assert.ok(times.every((ms) => ms >= connectedAtMs + 120 * MIN && ms >= now), "nenhum no passado nem antes de conectar + 2 h");
+  assert.ok(times.every((ms) => ms >= connectedAtMs + 30 * MIN && ms >= now), "nenhum no passado nem antes de conectar + 30 min");
   assert.equal(new Set(times.map((ms) => Math.floor(ms / MIN))).size, 12, "nunca 2 no mesmo minuto");
   const sorted = [...times].sort((a, b) => a - b);
   for (let i = 1; i < sorted.length; i += 1) assert.ok(sorted[i] - sorted[i - 1] >= 300 * 1000 - 1000, "espaçados (>= 5 min)");
@@ -373,33 +375,33 @@ test("itens velhos, atrasados ou segurados pela reconexão são detectados; item
   assert.deepEqual(stale.sort(), ["atrasado", "fora_da_janela", "invalido", "ontem"].sort());
   const gate = findStaleV2Items([mk("segurado", `${MONDAY}T09:58:00-03:00`)], { nowMs: now, dateStr: MONDAY, settings, connectedAtMs: now - 2 * MIN });
   assert.deepEqual(gate, ["segurado"], "venceu enquanto a sessão reconectava: reprograma");
-  // Espera de 2 h: o que cairia DENTRO da espera (mesmo no futuro, ainda não vencido) é reprogramado agora; o que cai depois
+  // Espera de 30 min: o que cairia DENTRO da espera (mesmo no futuro, ainda não vencido) é reprogramado agora; o que cai depois
   // da espera, ou em dia futuro, fica como está. Conexão antiga (passou a espera) não segura nada.
-  const hold = findStaleV2Items([mk("dentro_da_espera", `${MONDAY}T10:30:00-03:00`), mk("depois_da_espera", `${MONDAY}T12:30:00-03:00`), mk("amanha", "2026-10-06T07:00:00-03:00")], { nowMs: now, dateStr: MONDAY, settings, connectedAtMs: now - 2 * MIN });
+  const hold = findStaleV2Items([mk("dentro_da_espera", `${MONDAY}T10:20:00-03:00`), mk("depois_da_espera", `${MONDAY}T12:30:00-03:00`), mk("amanha", "2026-10-06T07:00:00-03:00")], { nowMs: now, dateStr: MONDAY, settings, connectedAtMs: now - 2 * MIN });
   assert.deepEqual(hold, ["dentro_da_espera"]);
   assert.deepEqual(findStaleV2Items([mk("dentro", `${MONDAY}T10:30:00-03:00`)], { nowMs: now, dateStr: MONDAY, settings, connectedAtMs: now - 3 * 3600 * 1000 }), [], "espera já cumprida");
 });
 
 test("reconexão tarde (a espera passa do fim da janela): nada é cancelado, tudo vai para o próximo dia de disparo", () => {
   const settings = wide();
-  const now = at(`${MONDAY}T16:30:00-03:00`);
-  const connectedAtMs = now - 5 * MIN; // pronto às 18:25, depois das 18:00
-  const items = Array.from({ length: 8 }, (_, i) => ({ id: `t${i}`, attempt_number: (i % 3) + 1, scheduled_for: `${MONDAY}T14:${String(10 + i * 5).padStart(2, "0")}:00-03:00` }));
+  const now = at(`${MONDAY}T17:45:00-03:00`);
+  const connectedAtMs = now - 5 * MIN; // pronto às 18:10 (espera de 30 min), depois das 18:00
+  const items = Array.from({ length: 8 }, (_, i) => ({ id: `t${i}`, attempt_number: (i % 2) + 1, scheduled_for: `${MONDAY}T14:${String(10 + i * 5).padStart(2, "0")}:00-03:00` }));
   assert.equal(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, connectedAtMs }).length, 8);
   const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: emptyUsage(), connectedAtMs, random: seeded(5) });
   assert.equal(updates.length, 8, "ninguém perdido nem cancelado");
   assert.equal(new Set(updates.map((u) => u.id)).size, 8, "sem duplicar");
   assert.ok(updates.every((u) => u.scheduledMs >= saoPauloInstantMs("2026-10-06", settings.window_start_minutes)), "todos no dia seguinte (terça)");
   // Sábado tarde: o próximo dia de disparo pula o domingo.
-  const saturdayNow = at("2026-10-03T16:30:00-03:00");
+  const saturdayNow = at("2026-10-03T17:45:00-03:00");
   const sat = rescheduleV2Items(items, { nowMs: saturdayNow, dateStr: "2026-10-03", settings, usage: emptyUsage(), connectedAtMs: saturdayNow - 5 * MIN, random: seeded(5) });
   assert.ok(sat.every((u) => saoPauloDateMinutes(u.scheduledMs).weekday === 1), "sábado → segunda");
 });
 
-test("fila passa ao dia seguinte sem duplicar, respeitando 30/dia e 10/10/10; domingo vai para segunda", () => {
+test("fila passa ao dia seguinte sem duplicar, respeitando 30/dia e 10/10 (sem 3ª); domingo vai para segunda", () => {
   const settings = wide();
   const now = at(`${MONDAY}T14:30:00-03:00`);
-  const items = Array.from({ length: 45 }, (_, i) => ({ id: `q${i}`, attempt_number: (i % 3) + 1, scheduled_for: `${MONDAY}T07:${String(i).padStart(2, "0")}:00-03:00` }));
+  const items = Array.from({ length: 45 }, (_, i) => ({ id: `q${i}`, attempt_number: (i % 2) + 1, scheduled_for: `${MONDAY}T07:${String(i).padStart(2, "0")}:00-03:00` }));
   const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: emptyUsage(), random: seeded(4) });
   assert.equal(updates.length, 45);
   assert.equal(new Set(updates.map((u) => u.id)).size, 45, "sem duplicar");
@@ -579,23 +581,24 @@ test("limpeza do excesso: no máximo 10 por tentativa, mantém os 10 PRIORITÁRI
   const items = [...mk(1, 20), ...mk(2, 19), ...mk(3, 44)];
   const shuffled = items.slice().sort((a, b) => (a.id < b.id ? 1 : -1));
   const plan = planV2Trim(shuffled);
-  assert.deepEqual(plan.byAttempt, { 1: { kept: 10, trimmed: 10 }, 2: { kept: 10, trimmed: 9 }, 3: { kept: 10, trimmed: 34 } });
-  assert.equal(plan.trimIds.length, 53);
+  // 3ª tentativa removida (dono, 2026-10-16): teto 0 — todo pendente de 3ª sai da fila.
+  assert.deepEqual(plan.byAttempt, { 1: { kept: 10, trimmed: 10 }, 2: { kept: 10, trimmed: 9 }, 3: { kept: 0, trimmed: 44 } });
+  assert.equal(plan.trimIds.length, 63);
   const kept = items.filter((i) => !plan.trimIds.includes(i.id));
-  assert.equal(kept.length, 30, "30 por corretor no máximo (10+10+10)");
-  for (const attempt of [1, 2, 3]) {
+  assert.equal(kept.length, 20, "20 por corretor no máximo (10+10, sem 3ª)");
+  for (const attempt of [1, 2]) {
     const keptIds = kept.filter((i) => i.attempt_number === attempt).map((i) => i.id).sort();
     assert.deepEqual(keptIds, items.filter((i) => i.attempt_number === attempt).slice(0, 10).map((i) => i.id), "ficam os 10 mais prioritários (horário mais cedo)");
   }
   assert.deepEqual(planV2Trim(kept).trimIds, [], "idempotente: rodar de novo não retira nada");
 });
 
-test("limpeza do excesso: sem empréstimo entre tentativas (10 + 6 + 10 = 26, nunca 30) e desempate por created_at", () => {
+test("limpeza do excesso: sem empréstimo entre tentativas (10 + 6 = 16, nunca 20) e desempate por created_at", () => {
   const same = "2026-10-03T10:00:00.000Z";
   const mk = (attempt, n) => Array.from({ length: n }, (_, i) => ({ id: `b${attempt}-${i}`, attempt_number: attempt, scheduled_for: same, created_at: new Date(Date.UTC(2026, 9, 3, 9, i)).toISOString() }));
-  const plan = planV2Trim([...mk(1, 10), ...mk(2, 6), ...mk(3, 10)]);
+  const plan = planV2Trim([...mk(1, 10), ...mk(2, 6)]);
   assert.deepEqual(plan.trimIds, []);
-  assert.deepEqual(plan.byAttempt, { 1: { kept: 10, trimmed: 0 }, 2: { kept: 6, trimmed: 0 }, 3: { kept: 10, trimmed: 0 } });
+  assert.deepEqual(plan.byAttempt, { 1: { kept: 10, trimmed: 0 }, 2: { kept: 6, trimmed: 0 }, 3: { kept: 0, trimmed: 0 } });
   const trimmed = planV2Trim(mk(1, 14).reverse());
   assert.deepEqual(trimmed.trimIds.sort(), ["b1-10", "b1-11", "b1-12", "b1-13"].sort(), "empate de horário: fica quem foi criado primeiro");
   assert.deepEqual(planV2Trim([]).trimIds, []);
@@ -620,7 +623,7 @@ test("limpeza do excesso: ligada ao cron, à reconexão e à geração da fila; 
   assert.equal(TRIM_SKIP_REASON, "policy_v2_trim_excess");
 });
 
-test("espera de 2 h: constante única, usada por número no envio e mostrada no cartão; envio manual fora disso", () => {
+test("espera pós-conexão (30 min): constante única, usada por número no envio e mostrada no cartão; envio manual fora disso", () => {
   const core = readFileSync("lib/daily-goal-policy-core.mjs", "utf8");
   assert.doesNotMatch(core, /RECONNECT_DELAY_MINUTES/, "o atraso de 5 min foi substituído");
   assert.equal((core.match(/RECONNECT_SETTLE_MINUTES \* MINUTE_MS/g) || []).length, 1, "o cálculo da espera existe num lugar só (reconnectReadyAtMs)");
@@ -642,7 +645,7 @@ test("publicação: pendentes de HOJE gravados antes do espalhamento são reprog
   const oldWrite = new Date(at(`${MONDAY}T06:31:00-03:00`)).toISOString();
   // Fila montada pelo esquema antigo: 8 pendentes de 5 a 8 min entre si, o 1º já vencendo (10:01) — sairiam em ~1 h.
   const offsets = [1, 7, 13, 20, 26, 31, 38, 44];
-  const items = offsets.map((m, i) => ({ id: `old${i}`, attempt_number: (i % 3) + 1, scheduled_for: new Date(now + m * MIN).toISOString(), updated_at: oldWrite }));
+  const items = offsets.map((m, i) => ({ id: `old${i}`, attempt_number: (i % 2) + 1, scheduled_for: new Date(now + m * MIN).toISOString(), updated_at: oldWrite }));
   assert.deepEqual(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings }), [], "sem a marca nada seria reprogramado: era o buraco");
   assert.equal(findStaleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, legacyBeforeMs: rolloutMs }).length, 8, "com a marca todos são do esquema antigo");
 
@@ -669,8 +672,8 @@ test("publicação: o que não cabe hoje (teto do dia e 10/10/10 já descontado 
   const settings = v2({ daily_cap_override: 15 });
   const now = at(`${MONDAY}T10:00:00-03:00`);
   const oldWrite = new Date(at(`${MONDAY}T06:31:00-03:00`)).toISOString();
-  const items = Array.from({ length: 10 }, (_, i) => ({ id: `p${i}`, attempt_number: (i % 3) + 1, scheduled_for: new Date(now + (i + 1) * 6 * MIN).toISOString(), updated_at: oldWrite }));
-  const sent = summarizeV2Usage(Array.from({ length: 9 }, (_, i) => ({ id: `e${i}`, attempt_number: (i % 3) + 1, source: "meta", status: "sent", send_started_at: new Date(at(`${MONDAY}T06:40:00-03:00`) + i * 6 * MIN).toISOString() })));
+  const items = Array.from({ length: 10 }, (_, i) => ({ id: `p${i}`, attempt_number: (i % 2) + 1, scheduled_for: new Date(now + (i + 1) * 6 * MIN).toISOString(), updated_at: oldWrite }));
+  const sent = summarizeV2Usage(Array.from({ length: 9 }, (_, i) => ({ id: `e${i}`, attempt_number: (i % 2) + 1, source: "meta", status: "sent", send_started_at: new Date(at(`${MONDAY}T06:40:00-03:00`) + i * 6 * MIN).toISOString() })));
   const updates = rescheduleV2Items(items, { nowMs: now, dateStr: MONDAY, settings, usage: sent, random: seeded(8) });
   assert.equal(updates.length, 10);
   assert.equal(new Set(updates.map((u) => u.id)).size, 10, "sem duplicar");

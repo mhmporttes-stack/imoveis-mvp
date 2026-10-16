@@ -302,7 +302,7 @@ function minutesToTime(minutes) {
 function formatNextDispatchCompact(automation) {
   if (!automation?.enabled) return "desligada";
   if (automation.paused) return "pausada";
-  // Espera de 2 h depois de (re)conectar (regra do dono, 2026-10-13): diz o motivo e a hora, em vez de "sem pendências".
+  // Espera depois de (re)conectar (regra do dono, 2026-10-13; 30 min desde 2026-10-16): diz o motivo e a hora, em vez de "sem pendências".
   const holdUntil = automation.reconnectHoldUntil ? new Date(automation.reconnectHoldUntil).getTime() : NaN;
   if (Number.isFinite(holdUntil) && holdUntil > Date.now()) return formatReconnectHoldLine(holdUntil);
   if (!automation.nextDispatchAt) return "sem pendências";
@@ -464,7 +464,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       {automation?.enabled && automation.policyV2Queue ? (
         <p
           className="mt-1 text-center text-xs font-extrabold text-navy"
-          title="O que a automação realmente envia hoje: no máximo 10 de 1ª, 10 de 2ª e 10 de 3ª tentativa (30 por dia). Conta as enviadas hoje mais as que estão na fila."
+          title="O que a automação realmente envia hoje: no máximo 10 de 1ª e 10 de 2ª tentativa (não existe mais 3ª tentativa), dentro do teto do dia. Conta as enviadas hoje mais as que estão na fila."
         >
           {formatAutoQueueCardLine(automation.policyV2Queue)}
         </p>
@@ -475,10 +475,10 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           className={`mt-2 text-center text-xs font-extrabold ${broker.wallet.atLimit ? "text-red-600" : "text-muted"}`}
           title={broker.wallet.current > broker.wallet.limit
             ? "A carteira passou do teto: ninguém é removido, mas não entram contatos novos até ficar abaixo do teto. O teto limita a entrada, não o envio automático."
-            : "Clientes que estão em cadência (aguardando 1ª, 2ª ou 3ª tentativa). O teto limita a entrada de contatos novos."}
+            : "Clientes que estão em cadência (aguardando 1ª ou 2ª tentativa). O teto limita a entrada de contatos novos."}
         >
           Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
-          <span className="ml-1 font-bold text-muted">(aguardando 1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second} · 3ª:{broker.wallet.byAttempt.third})</span>
+          <span className="ml-1 font-bold text-muted">(aguardando 1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second})</span>
         </p>
       ) : null}
 
@@ -755,7 +755,11 @@ function PendingClients({ pending, brokerId }) {
 const STAGE_KEYS = { 1: "first", 2: "second", 3: "third" };
 
 function AttemptBreakdown({ porMensagem, totalContatos, stages = null }) {
-  const attempts = [1, 2, 3].map((number) => ({ number, ...(porMensagem?.[number] || { abordados: 0, convertidos: 0 }), stage: stages?.[STAGE_KEYS[number]] || null }));
+  // A 3ª tentativa foi removida em 2026-10-16 (dono): a linha dela só aparece quando o período ainda tem 3ª tentativa
+  // registrada (histórico) ou etapa do dia com contato nela.
+  const attempts = [1, 2, 3]
+    .map((number) => ({ number, ...(porMensagem?.[number] || { abordados: 0, convertidos: 0 }), stage: stages?.[STAGE_KEYS[number]] || null }))
+    .filter((attempt) => attempt.number < 3 || attempt.abordados > 0 || (attempt.stage && attempt.stage.total > 0));
   const abordadosSoma = attempts.reduce((sum, item) => sum + item.abordados, 0);
   // Contatos via Prospecção manual (fora da cadência estruturada de 3
   // tentativas) também entram em "Contatos realizados" — mostrados à parte

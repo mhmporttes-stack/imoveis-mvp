@@ -30,7 +30,7 @@ export default function DailyGoalAutoPanel() {
         <div>
           <p className="text-sm font-black text-navy">Automação da Meta Diária</p>
           <p className="text-[11px] font-bold text-muted">
-            {status.paused ? "Pausada pela gestão." : "Manda sozinho a 1ª, 2ª e 3ª tentativa de cada contato pelo seu WhatsApp, dentro do horário configurado pela gestão."}
+            {status.paused ? "Pausada pela gestão." : "Manda sozinho a 1ª e a 2ª tentativa de cada contato pelo seu WhatsApp, dentro do horário configurado pela gestão."}
           </p>
         </div>
       </div>

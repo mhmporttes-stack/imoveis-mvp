@@ -187,7 +187,7 @@ function eventTitleAndDescription(event, context = {}) {
     case "prospecting:daily_goal_round_ended":
       return { title: "CICLO DE PROSPECÇÃO ENCERRADO", description: [] };
     case "prospecting:daily_goal_round_hibernated":
-      return { title: "CLIENTE EM HIBERNAÇÃO", description: ["Sem resposta 24h após a 3ª tentativa — saiu do corretor", "Volta para a base de prospecção em 30 dias"] };
+      return { title: "CLIENTE EM HIBERNAÇÃO", description: ["Sem resposta 24h após a última tentativa — saiu do corretor", "Volta para a base de prospecção em 30 dias"] };
     case "prospecting:bulk_assigned":
       return { title: "ATRIBUÍDO EM LOTE", description: [] };
     case "prospecting:edited":
