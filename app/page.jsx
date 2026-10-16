@@ -6,7 +6,9 @@ import PropertyExplorer from "@/components/PropertyExplorer";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import HeroBackground from "@/components/site/HeroBackground";
 import HeroJourney, { HeroReveal } from "@/components/site/HeroJourney";
+import FitLine from "@/components/site/FitLine";
 import SceneReveal from "@/components/site/SceneReveal";
+import journeyScene from "@/components/site/JourneyScene.module.css";
 import aboutScene from "@/components/site/AboutScene.module.css";
 import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
@@ -124,33 +126,49 @@ export default async function HomePage() {
 
       {/* Por que comprar comigo — linha do tempo curta */}
       <section aria-labelledby="jornada-title" className="bg-mist py-12 sm:py-20">
-        <div className="container-page">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Por que comprar comigo</p>
-          <h2 id="jornada-title" className="mt-2 max-w-3xl text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">
+        {/* Cena (dono, 2026-10-16): a linha se desenha e cada número aparece quando ela chega nele. O título fica numa linha só
+            no computador (FitLine); no celular quebra no tamanho mínimo para continuar legível. */}
+        <SceneReveal className={`${journeyScene.scene} container-page`}>
+          <p className={`${journeyScene.rise} text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm`} style={{ "--d": "0s" }}>Por que comprar comigo</p>
+          <FitLine
+            as="h2"
+            id="jornada-title"
+            minPx={22}
+            maxPx={40}
+            style={{ "--d": "0.1s" }}
+            className={`${journeyScene.rise} mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy`}
+          >
             Do primeiro contato às chaves, com alguém do seu lado.
-          </h2>
+          </FitLine>
           <ol className="relative mt-8 grid gap-6 md:mt-12 md:grid-cols-4 md:gap-8">
-            <span className="absolute bottom-3 left-[15px] top-3 w-px bg-brand/25 md:bottom-auto md:left-4 md:right-4 md:top-[15px] md:h-px md:w-auto" aria-hidden="true" />
-            {journey.map((step, index) => (
-              <li key={step.title} className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-4 md:grid-cols-1 md:gap-5">
-                <span className="relative z-10 grid h-8 w-8 place-items-center rounded-full bg-navy text-sm font-black text-white ring-4 ring-mist">
-                  {index + 1}
-                </span>
-                <div>
-                  <h3 className="text-lg font-extrabold text-navy">{step.title}</h3>
-                  <p className="mt-1 leading-7 text-muted">{step.text}</p>
-                </div>
-              </li>
-            ))}
+            <span className={`${journeyScene.line} absolute bottom-3 left-[15px] top-3 w-px bg-brand/25 md:bottom-auto md:left-4 md:right-4 md:top-[15px] md:h-px md:w-auto`} aria-hidden="true" />
+            {journey.map((step, index) => {
+              const arrive = [0.25, 0.75, 1.2, 1.7][index] ?? 1.7;
+              return (
+                <li key={step.title} className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-4 md:grid-cols-1 md:gap-5">
+                  <span
+                    className={`${journeyScene.pop} relative z-10 grid h-8 w-8 place-items-center rounded-full bg-navy text-sm font-black text-white ring-4 ring-mist`}
+                    style={{ "--d": `${arrive}s` }}
+                  >
+                    {index + 1}
+                  </span>
+                  <div className={journeyScene.rise} style={{ "--d": `${arrive + 0.12}s` }}>
+                    <h3 className="text-lg font-extrabold text-navy">{step.title}</h3>
+                    <p className="mt-1 leading-7 text-muted">{step.text}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
           <Link
             href={SIMULATION_FORM_URLS.main}
-            className="mt-8 inline-flex items-center gap-2 text-base font-extrabold text-brand transition hover:text-navy md:mt-10"
+            className={`${journeyScene.rise} mt-8 inline-flex items-center gap-2 text-base font-extrabold text-brand transition hover:text-navy md:mt-10`}
+            style={{ "--d": "2.3s" }}
           >
             Começar pela simulação
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
-        </div>
+        </SceneReveal>
       </section>
 
       {/* Quem é o Matheus (redesenho 2026-10-15, pedido do dono): fundo claro da marca para contrastar com a abertura

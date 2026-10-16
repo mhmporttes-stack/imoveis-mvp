@@ -1,0 +1,23 @@
+/* Cena "Por que comprar comigo": a linha do caminho se desenha e cada número aparece quando a linha chega nele, seguido do
+   seu texto; o link final fecha a cena. Só opacity/translate/scale, uma vez, quando a seção aparece. */
+.scene { position: relative; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scene[data-state="armed"] .rise { opacity: 0; translate: 0 14px; }
+  .scene[data-state="go"] .rise { animation: riseIn 0.65s cubic-bezier(0.2, 0, 0, 1) var(--d, 0s) both; }
+  @keyframes riseIn { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+
+  /* linha: horizontal no computador (esquerda → direita), vertical no celular (cima → baixo) */
+  .scene[data-state="armed"] .line { scale: 1 0; transform-origin: top center; }
+  .scene[data-state="go"] .line { animation: drawY 1.9s linear 0.3s both; transform-origin: top center; }
+  @keyframes drawY { from { scale: 1 0; } to { scale: 1 1; } }
+  @media (min-width: 768px) {
+    .scene[data-state="armed"] .line { scale: 0 1; transform-origin: left center; }
+    .scene[data-state="go"] .line { animation-name: drawX; transform-origin: left center; }
+    @keyframes drawX { from { scale: 0 1; } to { scale: 1 1; } }
+  }
+
+  .scene[data-state="armed"] .pop { opacity: 0; scale: 0.4; }
+  .scene[data-state="go"] .pop { animation: popIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) var(--d, 0s) both; }
+  @keyframes popIn { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
+}
