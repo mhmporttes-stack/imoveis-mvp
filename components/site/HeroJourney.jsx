@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import styles from "./HeroJourney.module.css";
 import FitLine from "./FitLine";
 
@@ -29,25 +30,30 @@ export default function HeroJourney() {
         Descubra em menos de 2 minutos quanto você pode financiar.
       </p>
 
-      {/* Linha do tempo: cada ponto acende e a linha seguinte se desenha até o próximo (tempo = --d). */}
-      <ol className={`${styles.track} mt-7 w-full sm:mt-8`} aria-label="Do primeiro passo até a entrega das chaves">
-        {STEPS.map((step, index) => {
-          const last = index === STEPS.length - 1;
-          const start = 0.7 + index * 0.55;
-          return (
-            <li key={step.title} className={styles.node}>
-              <div className={styles.dotRow}>
-                <span className={`${styles.dot} ${last ? styles.dotEnd : ""}`} style={{ "--d": `${start}s` }} aria-hidden="true" />
-                {last ? null : <span className={styles.line} style={{ "--d": `${start + 0.12}s` }} aria-hidden="true" />}
-              </div>
-              <p className={styles.label} style={{ "--d": `${start + 0.05}s` }}>
-                <b>{step.title}</b>
-                <span>{step.detail}</span>
-              </p>
+      {/* Linha do tempo: os pontos ficam no começo, no meio e NO FIM da largura (as chaves chegam na ponta direita, onde a
+          frase termina); cada ponto acende e a linha seguinte se desenha até o próximo (tempo = --d). */}
+      <div className={`${styles.track} mt-7 sm:mt-8`}>
+        <div className={styles.dots} aria-hidden="true">
+          {STEPS.map((step, index) => {
+            const last = index === STEPS.length - 1;
+            const start = 0.7 + index * 0.55;
+            return (
+              <Fragment key={step.title}>
+                <span className={`${styles.dot} ${last ? styles.dotEnd : ""}`} style={{ "--d": `${start}s` }} />
+                {last ? null : <span className={styles.line} style={{ "--d": `${start + 0.12}s` }} />}
+              </Fragment>
+            );
+          })}
+        </div>
+        <ol className={styles.labels} aria-label="Do primeiro passo até a entrega das chaves">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className={`${styles.label} ${index === 0 ? styles.labelStart : index === STEPS.length - 1 ? styles.labelEnd : styles.labelMid}`} style={{ "--d": `${0.75 + index * 0.55}s` }}>
+              <b>{step.title}</b>
+              <span>{step.detail}</span>
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ol>
+      </div>
       </div>
     </>
   );
