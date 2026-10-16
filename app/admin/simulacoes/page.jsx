@@ -112,6 +112,8 @@ export default async function AdminSimulationsPage({ searchParams }) {
           isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           brokerSimulationLink={isBrokerProfile(auth.profile) ? buildBrokerSimulationLink(auth.profile) : ""}
           tags={tags}
+          showCooledInbox={!auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManager)}
+          showNotifications={!auth.accountSwitchMode}
         />
       )}
     </main>

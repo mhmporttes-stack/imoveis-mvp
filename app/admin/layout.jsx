@@ -80,7 +80,7 @@ export default async function AdminLayout({ children }) {
                 corretor não percebia o próprio WhatsApp cair). */}
             <TopRankingBadge
               weeklyIndicator={whatsappBlocked ? null : <WhatsappIndividualStatus align="end" />}
-              dailyIndicator={<>{auth.ok && !auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile)) ? <CooledClientsInbox align="end" /> : null}{auth.ok && !auth.accountSwitchMode ? <NotificationHistoryButton align="end" /> : null}<GoogleContactsStatus align="end" /></>}
+              dailyIndicator={<>{auth.ok && !auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile)) ? <span data-top-moved-indicator="true" className="contents"><CooledClientsInbox align="end" /></span> : null}{auth.ok && !auth.accountSwitchMode ? <span data-top-moved-indicator="true" className="contents"><NotificationHistoryButton align="end" /></span> : null}<GoogleContactsStatus align="end" /></>}
             />
           </header>
         </div>

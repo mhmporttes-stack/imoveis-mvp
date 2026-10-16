@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
+import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
+import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import { CountBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -29,7 +31,15 @@ import { useClientList } from "./useClientList";
 //   funil · 3) os cards dos clientes (ClientCard), com o que se usa no dia a
 //   dia · 4) a ficha do cliente numa gaveta para o secundário.
 export default function ClientWorkspace(props) {
-  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
+  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "", showCooledInbox = false, showNotifications = false } = props;
+  // No computador, "Clientes que esfriaram" e "Notificações" ficam nos atalhos do topo desta tela (dono, 2026-10-16); o
+  // marcador abaixo esconde as cópias do cartão "Melhor do Dia" (só md+; no celular continuam lá, pois estes atalhos não existem).
+  const movedShortcuts = showCooledInbox || showNotifications;
+  useEffect(() => {
+    if (!movedShortcuts) return undefined;
+    document.body.dataset.shortcutsMoved = "true";
+    return () => { delete document.body.dataset.shortcutsMoved; };
+  }, [movedShortcuts]);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const [openClientId, setOpenClientId] = useState("");
@@ -105,6 +115,8 @@ export default function ClientWorkspace(props) {
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
             </Link>
+            {showCooledInbox ? <CooledClientsInbox align="end" /> : null}
+            {showNotifications ? <NotificationHistoryButton align="end" /> : null}
           </nav>
           {brokerSimulationLink ? (
             <Button variant="ghost" size="md" onClick={list.copyBrokerSimulationLink} className="hidden sm:inline-flex">
