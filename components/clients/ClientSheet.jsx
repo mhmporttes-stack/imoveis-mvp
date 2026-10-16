@@ -45,6 +45,7 @@ import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import StatusReasonDialog from "./StatusReasonDialog";
 import CooledHandoffCard from "@/components/cooled/CooledHandoffCard";
+import CooledChatHistory from "@/components/cooled/CooledChatHistory";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
@@ -141,6 +142,8 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
             {registration ? <ClientJourneyActions registration={registration} canManage={canManage} responsibleName={responsibleName} tags={tags} /> : null}
             {/* Cliente transferido pelo fluxo de clientes que esfriaram: resumo + mensagem sugerida (nada é enviado). */}
             {registration?.id ? <div className="mt-3"><CooledHandoffCard clientId={registration.id} /></div> : null}
+            {/* FUN-15g: conversa com o corretor anterior até a transferência, somente leitura (nada é enviado). */}
+            {registration?.id ? <div className="mt-3"><CooledChatHistory clientId={registration.id} /></div> : null}
           </Section>
 
           <ProspectingActions client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
