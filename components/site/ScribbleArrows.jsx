@@ -6,15 +6,17 @@ import { arrowHead, scribblePoints, smoothPath } from "./scribble-path.mjs";
 /**
  * Setas-rabisco da seção "Imóveis em Marília" (dono, 2026-10-17): duas linhas finas, na cor do título, que SE DESENHAM
  * sozinhas como um rabisco quando a seção aparece:
- *  1. sai da direita do "U" de "SEU" e termina no meio do botão "Região" (trajeto com laço);
- *  2. sai da esquerda do "E" de "ENCONTRE" e termina no "ou" de "Bairro, nome ou diferencial" (trajeto em vai-e-vem).
+ *  1. sai da direita do "U" de "SEU" e termina acima do meio do botão "Região" (trajeto com um laço);
+ *  2. sai da esquerda do "E" de "ENCONTRE" e termina acima do "ou" de "Bairro, nome ou diferencial" (arco suave).
+ * As duas PARAM apontando para baixo, logo acima do cartão de pesquisa, sem entrar nele; o traço é liso (sem tremido).
  * Posições são MEDIDAS no navegador (letras do título, botão e texto do campo), então acompanham qualquer largura de tela.
  * Só no computador (md+): no celular os campos empilham e a seta não faria sentido. Com "reduzir movimento" ligado as
  * setas aparecem prontas. Decorativo (aria-hidden), nunca captura clique.
  */
 const ARROWS = [
-  { id: "regiao", shape: "laco", delay: 0.2, duration: 1.7 },
-  { id: "busca", shape: "onda", delay: 0.9, duration: 1.9 }
+  // cada traço leva 3 s para se desenhar (dono, 2026-10-17: "muito rápida"); a segunda seta começa logo depois da primeira
+  { id: "regiao", shape: "laco", delay: 0.2, duration: 3 },
+  { id: "busca", shape: "onda", delay: 0.7, duration: 3 }
 ];
 
 function characterRect(root, index) {
@@ -46,6 +48,7 @@ function measure(container) {
   if (!first || !last || !region || !input) return null;
 
   const regionRect = region.getBoundingClientRect();
+  const tipY = form.getBoundingClientRect().top - 7; // a ponta fica logo ACIMA do cartão de pesquisa
   const inputRect = input.getBoundingClientRect();
   const style = getComputedStyle(input);
   const placeholder = getComputedStyle(input, "::placeholder");
@@ -64,11 +67,11 @@ function measure(container) {
     arrows: {
       regiao: {
         from: rel(last.right + 10, last.top + last.height / 2),
-        to: rel(regionRect.left + regionRect.width / 2, regionRect.top + regionRect.height * 0.35)
+        to: rel(regionRect.left + regionRect.width / 2, tipY)
       },
       busca: {
         from: rel(first.left - 10, first.top + first.height / 2),
-        to: rel(inputRect.left + padding + before + ou / 2, inputRect.top + inputRect.height / 2 - 10)
+        to: rel(inputRect.left + padding + before + ou / 2, tipY)
       }
     }
   };
@@ -134,7 +137,8 @@ export default function ScribbleArrows({ containerRef }) {
     ? ARROWS.map((arrow) => {
         const { from, to } = layout.arrows[arrow.id];
         const points = scribblePoints(from, to, arrow.shape);
-        return { ...arrow, d: smoothPath(points), head: arrowHead(points[points.length - 3], to) };
+        // ponta sempre apontando reto para baixo
+        return { ...arrow, d: smoothPath(points), head: arrowHead({ x: to.x, y: to.y - 16 }, to) };
       })
     : [];
 

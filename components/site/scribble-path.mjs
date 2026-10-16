@@ -7,35 +7,32 @@
 
 // [fração de dx, fração de dy, folga em px no eixo y, folga em px no eixo x]
 const SHAPES = {
-  // Sai da direita do "U", sobe em arco, desce fazendo um laço e entra no meio do botão "Região".
+  // Sai da direita do "U", sobe num arco largo, faz UM laço limpo e termina descendo na vertical, acima do botão "Região".
   laco: [
     [0, 0, 0, 0],
-    [0.1, 0, -12, 0],
-    [0.26, 0, -26, 0],
-    [0.46, 0, -24, 0],
-    [0.62, 0.04, -6, 0],
-    [0.7, 0.2, 0, 8],
-    [0.66, 0.36, 4, 4],
-    [0.56, 0.3, 0, -6],
-    [0.58, 0.16, 0, 0],
-    [0.72, 0.22, 0, 0],
-    [0.86, 0.52, 0, 0],
-    [0.96, 0.84, 0, 0],
+    [0.12, 0, -10, 0],
+    [0.3, 0, -20, 0],
+    [0.5, 0.02, -14, 0],
+    [0.64, 0.14, -2, 0],
+    [0.72, 0.3, 4, 6],
+    [0.62, 0.44, 6, 0],
+    [0.56, 0.3, 0, -4],
+    [0.72, 0.2, 0, 0],
+    [0.9, 0.3, 0, 0],
+    [1, 0.5, 0, 0],
+    [1, 0.78, 0, 0],
     [1, 1, 0, 0]
   ],
-  // Sai da esquerda do "E", faz um arco para fora, um vai-e-vem (zigue-zague) e chega no "ou" da busca.
+  // Sai da esquerda do "E", faz UM arco largo e suave para a esquerda e termina descendo na vertical, acima do "ou" da busca.
   onda: [
     [0, 0, 0, 0],
-    [0.08, 0, -14, 0],
-    [0.24, 0, -28, 0],
-    [0.46, 0.02, -20, 0],
-    [0.62, 0.14, 0, -6],
-    [0.5, 0.3, 0, 10],
-    [0.36, 0.42, 0, -2],
-    [0.52, 0.56, 0, 12],
-    [0.66, 0.66, 0, 0],
-    [0.5, 0.82, 0, 6],
-    [0.8, 0.92, 0, 0],
+    [0.1, 0, -14, 0],
+    [0.3, 0, -30, 0],
+    [0.55, 0.02, -28, 0],
+    [0.78, 0.1, -12, 0],
+    [0.93, 0.3, 0, 0],
+    [1, 0.55, 0, 0],
+    [1, 0.8, 0, 0],
     [1, 1, 0, 0]
   ]
 };
