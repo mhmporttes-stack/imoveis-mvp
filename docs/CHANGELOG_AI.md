@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15j: motivo "sem conversa" transfere direto para a roleta
+- **Data:** 2026-10-16
+- **Área:** Clientes (fluxo de clientes que esfriaram)
+- **Alteração:** motivo que diz que o corretor nunca teve conversa com o cliente (`isNoConversationReasonText`) transfere igual ao botão "Cliente não respondeu mais", também para os casos já na caixinha (rotina). Transferência marcada `sem_conversa`/`nao_respondeu` (`directTransferReasonKey`) nos eventos da jornada e no histórico de `/admin/desempenho/esfriados`.
+- **Motivo:** decisão do dono de 16/10/2026 (12 motivos reais viraram teste).
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `lib/cooled-clients.js`, `app/admin/desempenho/esfriados/page.jsx`, `tests/cooled-no-conversation.test.mjs`, `tests/cooled-no-response.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15j), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** sem migration; a marca é derivada do motivo gravado (não há coluna). Restrição é checada antes (FUN-15k).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-16 — FUN-15k: cliente com restrição, arquivado ou "não contactar" fora do fluxo de esfriados
 - **Data:** 2026-10-16
 - **Área:** Clientes (fluxo de clientes que esfriaram)

@@ -82,6 +82,8 @@ test("classificador: continuam com a decisora (bloqueios, ressalva no fim, sem m
     "Já passei para a Carol, não respondeu",
     "Aguardando documento do cônjuge",
     "Aguardando documentação",
+    // "Nunca teve conversa" não é "não respondeu", mas também transfere direto: isNoConversationReasonText
+    // (tests/cooled-no-conversation.test.mjs, regra do dono de 2026-10-16).
     "Não tenho conversa com esse cliente",
     "Esse cliente não era meu",
     "Nunca falei com esse cliente",
@@ -144,7 +146,7 @@ test("servidor: mesmo efeito do 'Transferir' (roleta, etiqueta, evento) e sem en
   assert.match(core, /await revert\(\)/);
   const answer = lib.slice(lib.indexOf("export async function answerCooledCase"));
   assert.match(answer, /isNoResponseQuickReason\(quickReason\)/);
-  assert.match(answer, /isNoResponseReasonText\(text\)/);
+  assert.match(answer, /directTransferReasonKey\(text\)/);
   assert.match(lib, /Object\.assign\(summary, await autoTransferNoResponseCases\(stillOpen\)\)/);
 });
 

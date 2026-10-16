@@ -108,7 +108,7 @@ test("caso encerrado como restrição segura o cliente fora até mudar de status
 test("servidor: motivo com restrição é tratado antes do 'não respondeu mais'; histórico mostra o motivo", () => {
   const server = read("lib/cooled-clients.js");
   const restriction = server.indexOf("if (isRestrictionReasonText(text)) return answerRestrictionAndClose");
-  const noResponse = server.indexOf("if (isNoResponseReasonText(text)) return answerNoResponseAndTransfer");
+  const noResponse = server.indexOf("if (directTransferReasonKey(text)) return answerNoResponseAndTransfer");
   assert.ok(restriction > 0 && noResponse > restriction);
   assert.match(server, /restrictionClosedAt: restrictionClosedAt\.get\(client\.id\)/);
   assert.match(read("app/admin/desempenho/esfriados/page.jsx"), /cliente_com_restricao: "cliente com restrição"/);
