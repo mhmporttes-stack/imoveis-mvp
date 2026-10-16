@@ -41,44 +41,45 @@ export default async function HomePage() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(realEstateAgentJsonLd()) }} />
 
-      {/* Abertura (redesenho visual 2026-10-15): mesma promessa, mesmos links. A foto do Matheus entra num
-          arco "de porta" apoiado na base da faixa (metáfora de casa, sem card); o brilho azul usa o azul da
-          logo (#3673C2) para dar profundidade ao marinho. No celular, prioridade para a promessa e os botões. */}
+      {/* Abertura (redesenho visual 2026-10-15, ajustado após crítica independente): mesma promessa, mesmos
+          links. A foto do Matheus (meio corpo) fica numa moldura com o canto cortado no ângulo das hastes do "M"
+          da logo e uma placa azul (#3673C2) deslocada atrás — dialoga com a marca sem redesenhá-la. No celular a
+          foto aparece ao lado do nome, sem empurrar os botões para baixo da dobra. Os botões levam
+          data-hero-cta: a barra fixa do celular (MobileActionBar) só aparece depois que eles saem da tela. */}
       <section className="relative isolate overflow-hidden bg-[#061A2F] text-white">
         <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_0%_0%,rgba(54,115,194,0.38),transparent_70%)]" />
-          <div className="absolute inset-0 hidden bg-[radial-gradient(ellipse_38%_60%_at_76%_72%,rgba(54,115,194,0.42),transparent_72%)] lg:block" />
+          <div className="absolute inset-0 hidden bg-[radial-gradient(ellipse_38%_60%_at_76%_60%,rgba(54,115,194,0.32),transparent_72%)] md:block" />
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[#041427]" />
         </div>
 
-        <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-12">
-          <div className="min-w-0 self-center pb-10 pt-7 sm:pb-14 sm:pt-12 lg:py-20">
-            {/* No computador, nome e CRECI ficam no selo junto da foto. */}
-            <div className="flex items-center gap-3 lg:hidden">
-              <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-[#3673C2] ring-offset-2 ring-offset-[#061A2F]">
-                <Image src="/assets/corretor-matheus-rosto.jpg" alt="Matheus Machado, corretor de imóveis" fill sizes="56px" className="object-cover" priority />
-              </span>
-              <p className="leading-tight">
-                <span className="block text-base font-extrabold text-white">Matheus Machado</span>
-                <span className="mt-1 block text-sm font-semibold text-blue-100/80">Corretor em Marília · CRECI 323106-F</span>
+        <div className="container-page grid gap-10 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)] md:items-center lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-12">
+          <div className="min-w-0 pb-10 pt-6 sm:pb-14 sm:pt-12 md:py-16 lg:py-20">
+            {/* No celular, a foto acompanha o nome; do tablet em diante, a foto grande fica ao lado. */}
+            <div className="flex items-end gap-4 md:hidden">
+              <HeroPortrait className="w-[30%] max-w-[128px] shrink-0" plateOffset={6} sizes="128px" />
+              <p className="pb-1 leading-tight">
+                <span className="block text-lg font-extrabold text-white">Matheus Machado</span>
+                <span className="mt-1 block text-sm font-semibold text-blue-100/80">Corretor em Marília</span>
+                <span className="mt-0.5 block text-sm font-semibold text-blue-100/80">CRECI 323106-F</span>
               </p>
             </div>
 
             {/* "em Marília" e "Minha Casa Minha Vida" nunca se partem: nome do programa e da cidade leem como um bloco. */}
-            <h1 className="mt-7 text-[clamp(2.15rem,5.6vw,3.9rem)] font-extrabold leading-[1.04] tracking-[-0.025em] sm:mt-9 lg:mt-0">
+            <h1 className="mt-6 text-[clamp(2.15rem,5.6vw,3.9rem)] font-extrabold leading-[1.04] tracking-[-0.025em] sm:mt-8 md:mt-0">
               Seu primeiro imóvel <span className="whitespace-nowrap">em Marília</span>
               <span className="mt-3 block max-w-[30rem] text-[clamp(1.2rem,2.5vw,1.75rem)] font-bold leading-snug tracking-[-0.01em] text-[#A8CBF5]">
                 com <span className="whitespace-nowrap">Minha Casa Minha Vida</span> e financiamento Caixa.
               </span>
             </h1>
-            <p className="mt-5 max-w-[33rem] text-[1.0625rem] leading-relaxed text-white/85 sm:mt-6 sm:text-lg sm:leading-8">
+            <p className="mt-4 max-w-[33rem] text-[1.0625rem] leading-[1.55] text-white/85 sm:mt-6 sm:text-lg sm:leading-8">
               Descubra em menos de 2 minutos quanto você pode financiar. Depois, a gente acompanha você da aprovação até a entrega das chaves.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div data-hero-cta className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
               <Link
                 href={SIMULATION_FORM_URLS.main}
-                className="group inline-flex min-h-14 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_12px_40px_rgba(54,115,194,0.45)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="group inline-flex min-h-14 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-7 text-base font-black text-navy shadow-[0_10px_30px_rgba(0,0,0,0.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 Simular quanto posso financiar
                 <ArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" aria-hidden="true" />
@@ -101,21 +102,9 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <figure className="relative mx-auto hidden w-full max-w-[400px] self-end pt-14 lg:block">
-            {/* Arco de fundo deslocado: dá profundidade sem sombra pesada. */}
-            <div className="absolute -inset-x-5 bottom-0 top-9 rounded-t-full border border-white/10" aria-hidden="true" />
-            <div className="relative aspect-[4/5] overflow-hidden rounded-t-full bg-[#0A2747]">
-              <Image
-                src="/assets/corretor-matheus-caixa.jpg"
-                alt="Matheus Machado, corretor de imóveis em Marília"
-                fill
-                priority
-                sizes="400px"
-                className="object-cover object-top"
-              />
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#041427] via-[#041427]/55 to-transparent" aria-hidden="true" />
-            </div>
-            <figcaption className="absolute -left-10 bottom-10 rounded-2xl bg-[#0A2747] px-5 py-3.5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)] ring-1 ring-white/15">
+          <figure className="relative mx-auto hidden w-full max-w-[400px] pb-12 pr-3 md:block md:pt-12 lg:pb-14 lg:pt-14">
+            <HeroPortrait plateOffset={14} sizes="(max-width: 1023px) 280px, 400px" />
+            <figcaption className="absolute bottom-[4.25rem] left-4 right-7 rounded-xl bg-[#061A2F]/90 px-4 py-3 text-white ring-1 ring-white/15 lg:bottom-[4.75rem] lg:left-5 lg:right-auto">
               <span className="block text-base font-extrabold">Matheus Machado</span>
               <span className="mt-0.5 block text-sm font-semibold text-blue-100/80">Corretor de imóveis · CRECI 323106-F</span>
             </figcaption>
@@ -199,5 +188,34 @@ function WhatsAppIcon({ className }) {
     <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="currentColor">
       <path d="M16.04 3.2A12.74 12.74 0 0 0 5.2 22.65L3.72 28l5.48-1.43A12.75 12.75 0 1 0 16.04 3.2Zm0 2.27a10.47 10.47 0 0 1 8.86 16.04 10.47 10.47 0 0 1-14.96 2.74l-.39-.24-3.25.85.87-3.16-.26-.41A10.46 10.46 0 0 1 16.04 5.47Zm-4.45 5.62c-.22 0-.58.08-.88.42-.3.34-1.15 1.12-1.15 2.74s1.18 3.18 1.34 3.4c.16.22 2.27 3.64 5.63 4.96 2.79 1.1 3.36.88 3.96.82.6-.05 1.94-.79 2.21-1.55.27-.76.27-1.42.19-1.55-.08-.14-.3-.22-.63-.38-.33-.16-1.94-.96-2.24-1.07-.3-.11-.52-.16-.74.16-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.86-1.63-1.93-1.82-2.26-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.16-.74-1.79-1.01-2.45-.27-.64-.54-.55-.74-.56h-.63Z" />
     </svg>
+  );
+}
+
+// Moldura da foto do Matheus: canto superior esquerdo cortado no ângulo das hastes do "M" (~39°) e placa azul
+// da marca deslocada atrás. A imagem é a mesma foto oficial, só enquadrada em meio corpo (até a cintura).
+const PORTRAIT_CLIP = "polygon(0 15%, 22% 0, 100% 0, 100% 100%, 0 100%)";
+
+function HeroPortrait({ className = "", plateOffset = 12, sizes }) {
+  return (
+    <div className={`relative ${className}`}>
+      <div
+        className="absolute inset-0 bg-[#3673C2]"
+        style={{ clipPath: PORTRAIT_CLIP, transform: `translate(${plateOffset}px, ${plateOffset}px)` }}
+        aria-hidden="true"
+      />
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#0A2747]" style={{ clipPath: PORTRAIT_CLIP }}>
+        <div className="absolute inset-x-0 top-0 h-[138%]">
+          <Image
+            src="/assets/corretor-matheus-caixa.jpg"
+            alt="Matheus Machado, corretor de imóveis em Marília"
+            fill
+            priority
+            sizes={sizes}
+            className="object-cover object-[46%_top]"
+          />
+        </div>
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#041427]/70 to-transparent" aria-hidden="true" />
+      </div>
+    </div>
   );
 }

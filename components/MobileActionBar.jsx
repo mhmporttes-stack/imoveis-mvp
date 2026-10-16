@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calculator } from "lucide-react";
@@ -10,32 +11,56 @@ import { siteWhatsappUrl } from "@/components/site/site-links";
 // Some no computador (lá fica o botão flutuante do WhatsApp) e nos formulários de captação, onde
 // cobriria o botão de enviar. O rodapé reserva o espaço dela (Footer.jsx, padding inferior).
 const HIDDEN_PREFIXES = ["/venda-seu-imovel", "/captacao", "/financeiro"];
+// Páginas cuja abertura já mostra os mesmos dois botões (marcados com data-hero-cta): ali a barra
+// espera eles saírem da tela, para não somar 4 botões e o verde não competir com "Simular" (2026-10-15).
+const HERO_CTA_PATHS = ["/"];
 
 export default function MobileActionBar() {
   const pathname = usePathname() || "";
+  const waitsForHero = HERO_CTA_PATHS.includes(pathname);
+  const [heroCtaVisible, setHeroCtaVisible] = useState(waitsForHero);
+
+  useEffect(() => {
+    if (!waitsForHero) {
+      setHeroCtaVisible(false);
+      return undefined;
+    }
+    const target = document.querySelector("[data-hero-cta]");
+    if (!target || typeof IntersectionObserver === "undefined") {
+      setHeroCtaVisible(false);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => setHeroCtaVisible(entry.isIntersecting), { threshold: 0 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [waitsForHero, pathname]);
+
   if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-[95] border-t border-line bg-white/95 px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-2.5 shadow-float backdrop-blur md:hidden"
+      className={`fixed inset-x-0 bottom-0 z-[95] border-t border-line bg-white/95 px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-2.5 shadow-float backdrop-blur transition-[transform,visibility] duration-300 motion-reduce:transition-none md:hidden ${
+        heroCtaVisible ? "pointer-events-none invisible translate-y-full" : "visible translate-y-0"
+      }`}
       role="region"
       aria-label="Ações rápidas"
+      aria-hidden={heroCtaVisible || undefined}
     >
-      <div className="mx-auto grid max-w-md grid-cols-2 gap-2.5">
+      <div className="mx-auto grid max-w-md grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-2.5">
         <Link
           href="/simulacao"
-          className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-navy px-2 text-sm font-extrabold text-white transition active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30"
+          className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-navy px-2 text-[13px] font-extrabold min-[380px]:text-sm text-white transition active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30"
         >
-          <Calculator className="h-[18px] w-[18px]" aria-hidden="true" />
+          <Calculator className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
           Simular grátis
         </Link>
         <a
           href={siteWhatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#25D366] px-2 text-sm font-extrabold text-[#06361C] transition active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/35"
+          className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#25D366] px-2 text-[13px] font-extrabold min-[380px]:text-sm text-[#06361C] transition active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/35"
         >
-          <WhatsAppIcon className="h-5 w-5" />
+          <WhatsAppIcon className="h-5 w-5 shrink-0" />
           Falar com o corretor
         </a>
       </div>
