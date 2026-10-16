@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15j: classificador "não respondeu mais" ampliado (ajuste do dono)
+- **Data:** 2026-10-16
+- **Área:** Clientes (fluxo de clientes que esfriaram)
+- **Alteração:** `isNoResponseReasonText` passa a transferir quando o motivo TERMINA dizendo que o cliente não respondeu (ressalva só conta se vier depois da última menção); documentação pendente, simulação enviada, interesse anterior e "era de outro corretor" deixam de bloquear; tolera letras repetidas ("rresponde"); "falta de resposta" e "nunca me respondeu" reconhecidos. Bloqueios mantidos/novos: restrição/renda/reprovado, desinteresse/já comprou, cliente respondendo/escreveu, "não tira", "já passei para…", número/pessoa errada, bloqueio.
+- **Motivo:** dono: "os que pararam de responder, você pode jogar direto para a roleta junto." (14 motivos reais que ficaram com a decisora viraram teste).
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `tests/cooled-no-response.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15j).
+- **Risco/observação:** sem migration; aplica-se também aos casos já na caixinha pela rotina do fluxo. "Não tenho conversa / não era meu / nunca falei" sem menção a não responder continuam com a decisora (aguardam decisão do dono).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-16 — FUN-15j "Cliente não respondeu mais" transfere direto + MD-8: mudar a etapa resolve a pendência do dia
 - **Data:** 2026-10-16
 - **Área:** Clientes (fluxo de clientes que esfriaram) / Roleta / Meta Diária

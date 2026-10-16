@@ -33,37 +33,67 @@ test("classificador: frases de 'não respondeu mais' contam", () => {
     "Não atende as ligações",
     "não me dá retorno",
     "Nunca respondeu",
-    "ainda não respondeu"
+    "ainda não respondeu",
+    "Não está respondendo"
   ]) assert.equal(isNoResponseReasonText(text), true, text);
 });
 
-test("classificador: ressalvas e outros motivos NÃO contam (na dúvida fica com a decisora)", () => {
+// Ajuste do dono (16/10/2026): "os que pararam de responder, você pode jogar direto para a roleta junto." Motivos reais
+// que ficaram com a decisora na 1ª versão e passam a transferir: termina dizendo que não respondeu; "mas", documentação
+// pendente, simulação enviada, interesse anterior e "era de outro corretor" não bloqueiam; erro de digitação simples.
+test("classificador: motivos reais que terminam em 'não respondeu' transferem", () => {
+  for (const text of [
+    "Estava procurando, mas parou de responder.",
+    "Ficou de enviar a documentação, mas parou de responder.",
+    "Ficou devendo documentação dele e da esposa, não respondeu mais.",
+    "Ficou devendo todas as documentações, simulação enviada e não respondeu.",
+    "Cliente se interessou por um imovel, mas parou de responder.",
+    "Queria imóvel em região especifica, mas parou de responder.",
+    "Procurando imóvel, mas parou de responder.",
+    "Enviou a simulação, mas não responde.",
+    "Falta de resposta",
+    "Cliente não rresponde.",
+    "Cliente nunca me respondeu, em dois números diferentes.",
+    "Cliente não era minha , mandei mensagem e não respondeu se comprou o imóvel ou não",
+    "Cliente de outro corretor, já tentei contato, nunca respondeu.",
+    "Cliente era de outro corretor, mandei 2 mensagens e não me respondeu."
+  ]) assert.equal(isNoResponseReasonText(text), true, text);
+});
+
+test("classificador: continuam com a decisora (bloqueios, ressalva no fim, sem menção a não responder)", () => {
   for (const text of [
     "",
     "Respondeu mas disse que vai pensar",
     "não responde, mas vou tentar ligar amanhã",
-    "Cliente pediu para falar depois",
-    "Aguardando documento do cônjuge",
-    "aguardando retorno do banco, cliente não responde",
-    "Não tem interesse, não responde",
-    "Desistiu da compra",
-    "Comprou com outro corretor",
+    "Cliente com restrição, não responde.",
     "Está com restrição no nome",
     "Renda não comprova, não respondeu",
-    "Número errado, não atende",
+    "Cliente reprovado",
+    "Não tem interesse, não responde",
+    "Desistiu da compra",
+    "Já comprou com outro corretor",
+    "Cliente está respondendo, só demora",
+    "Cliente me mandou mensagem hoje",
+    "Não respondia, mas me mandou mensagem hoje",
     "Ele já respondeu hoje",
     "Voltou a responder ontem",
     "Respondeu hoje dizendo que vai juntar a entrada",
+    "Não tira esse cliente, ele não responde mas vai fechar",
+    "Já passei para a Carol, não respondeu",
+    "Aguardando documento do cônjuge",
+    "Aguardando documentação",
+    "Não tenho conversa com esse cliente",
+    "Esse cliente não era meu",
+    "Nunca falei com esse cliente",
+    "Número errado, não atende",
+    "Cliente bloqueou meu número, não responde",
     "Vai me retornar semana que vem",
     "Agendei visita para sábado",
-    "Cliente reprovado",
-    "Cliente bloqueou meu número, não responde",
     "Atendimento normal, enviei a simulação"
   ]) assert.equal(isNoResponseReasonText(text), false, text);
 });
-
 test("classificador: texto muito longo é dúvida (fica com a decisora)", () => {
-  assert.equal(isNoResponseReasonText(`Não responde. ${"Tentei falar várias vezes por mensagem e ligação. ".repeat(5)}`), false);
+  assert.equal(isNoResponseReasonText(`Não responde. ${"Tentei falar várias vezes por mensagem e ligação. ".repeat(6)}`), false);
 });
 
 test("opção pronta: chave única e motivo gravado com o rótulo", () => {
