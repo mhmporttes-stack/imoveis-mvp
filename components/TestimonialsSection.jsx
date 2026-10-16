@@ -107,7 +107,7 @@ export default function TestimonialsSection({ testimonials = [] }) {
         eyebrow="Depoimentos"
         title="Experiências reais, decisões mais seguras."
         subtitle="Conheça a experiência de clientes atendidos durante a busca e a compra do imóvel."
-        titleClassName="max-w-none md:whitespace-nowrap md:text-[clamp(2.1rem,3vw,3rem)]"
+        titleClassName="max-w-none uppercase md:whitespace-nowrap md:text-[clamp(1.6rem,2.4vw,2.4rem)]"
         subtitleClassName="max-w-none md:whitespace-nowrap"
       />
 

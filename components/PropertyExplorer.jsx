@@ -113,7 +113,7 @@ export default function PropertyExplorer({ properties = [] }) {
         <div className="flex flex-col items-center gap-1 text-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Imóveis em Marília</p>
-            <h2 id="imoveis-title" className="mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy">
+            <h2 id="imoveis-title" className="mt-2 text-[clamp(1.6rem,3vw,2.5rem)] font-black uppercase leading-tight text-navy">
               Encontre o seu
             </h2>
           </div>

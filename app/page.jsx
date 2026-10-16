@@ -136,7 +136,7 @@ export default async function HomePage() {
             minPx={22}
             maxPx={40}
             style={{ "--d": "0.1s" }}
-            className={`${journeyScene.rise} mt-2 text-center text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-tight text-navy`}
+            className={`${journeyScene.rise} mt-2 text-center text-[clamp(1.6rem,3vw,2.5rem)] font-black uppercase leading-tight text-navy`}
           >
             Do primeiro contato às chaves, com alguém do seu lado.
           </FitLine>
@@ -211,7 +211,7 @@ export default async function HomePage() {
           </div>
 
           <div className="min-w-0">
-            <p className={`${aboutScene.rise} text-xs font-black uppercase tracking-[0.2em] text-[#1F4CB3] sm:text-sm`} style={{ "--d": "0.9s" }}>Quem é o Matheus</p>
+            <p className={`${aboutScene.rise} text-xs font-black uppercase tracking-[0.2em] text-[#1F4CB3] sm:text-sm`} style={{ "--d": "0.9s" }}>Quem é o Matheus?</p>
             <h2 id="quem-title" style={{ "--d": "1.05s" }} className={`${aboutScene.rise} mt-3 text-[clamp(1.75rem,3.4vw,2.75rem)] font-black leading-[1.15] tracking-[-0.015em] text-[#0E2257]`}>
               Prazer, eu sou o <span className="text-[#1F4CB3]">Matheus</span>.
             </h2>
