@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, RotateCcw, Search } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
+import ScribbleArrows from "@/components/site/ScribbleArrows";
 import {
   REGION_FILTER_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
@@ -29,6 +30,7 @@ const STAGE_OPTIONS = [
 // preço publicado, filtrar por valor zerava a lista. Âncoras antigas (#todos, #empreendimentos) continuam
 // caindo aqui. ?situacao=pronto|planta na URL já abre filtrado (links do rodapé).
 export default function PropertyExplorer({ properties = [] }) {
+  const containerRef = useRef(null);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -109,7 +111,9 @@ export default function PropertyExplorer({ properties = [] }) {
     <section id="imoveis" aria-labelledby="imoveis-title" className="scroll-mt-20 py-10 sm:py-16">
       <span id="todos" className="block scroll-mt-20" aria-hidden="true" />
       <span id="empreendimentos" className="block scroll-mt-20" aria-hidden="true" />
-      <div className="container-page">
+      <div ref={containerRef} className="container-page relative">
+        {/* Setas-rabisco (dono, 2026-10-17): se desenham do "U" até Região e do "E" até o "ou" da busca; só no computador. */}
+        <ScribbleArrows containerRef={containerRef} />
         <div className="flex flex-col items-center gap-1 text-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-brand sm:text-sm">Imóveis em Marília</p>
