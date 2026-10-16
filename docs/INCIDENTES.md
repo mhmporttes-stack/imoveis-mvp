@@ -40,6 +40,27 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-16 — Disparo Oficial por planilha (CSV) mandava para cliente "Não contactar"
+- **Data:** 2026-10-16
+- **Sintoma:** cliente marcado "Não contactar" no CRM recebia a campanha do Disparo Oficial quando vinha numa planilha CSV.
+- **Área:** WhatsApp (Disparo)
+- **Impacto:** qualquer cliente "Não contactar" sem linha bloqueada na fila da prospecção; risco de denúncia/bloqueio do número oficial. Casos reais não medidos.
+- **Causa raiz:** `resolveCsvRecipients` (`lib/whatsapp-broadcasts.js`) só consultava `prospecting_contacts.status = 'do_not_contact'`, não o cadastro do cliente (`simulation_registrations`).
+- **Correção:** consulta as duas tabelas pelos mesmos formatos de telefone; erro de leitura lança. Detalhe no `CHANGELOG_AI.md` (2026-10-16).
+- **Arquivos/commit:** `lib/whatsapp-broadcasts.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-broadcast-csv-do-not-contact.test.mjs`.
+- **Status:** Resolvido (aguardando publicação).
+
+### 2026-10-16 — Mensagem automática sem "tique" mesmo entregue (recibo perdido)
+- **Sintoma:** ~48 % das mensagens automáticas de 02–16/10 sem recibo; em 26–28 casos o recibo aparecia "antes do envio" (`delivered_at` < `sent_at`).
+- **Área:** Meta Diária / WhatsApp
+- **Impacto:** taxa de entrega subestimada (monitor de 60 %, pausa por entrega muito baixa e análises).
+- **Causa raiz:** corrida de gravação — o `wa_message_id` do item da fila só era gravado depois de registrar a tentativa (vários acessos ao banco); o 1º recibo (~0,1 s após o envio) chegava antes, não achava o item e era descartado (`item_nao_encontrado`). O `sent_at` também é gravado só no fim, por isso recibos casados pareciam "antes do envio".
+- **Correção:** grava o `wa_message_id` logo após o envio; o webhook espera um envio automático em andamento iniciado antes do recibo (`send_started_at`) e tenta de novo pelo id. Para análise, comparar recibo com `send_started_at`.
+- **Arquivos/commit:** `lib/daily-goal-auto.js`, `lib/daily-goal-auto-core.mjs`, `lib/whatsapp-individual-inbound.js` — commit desta data.
+- **Prevenção/teste:** `tests/daily-goal-recibo-corrida.test.mjs`, `tests/daily-goal-auto-window.test.mjs` (`sent_unregistered`).
+- **Status:** Monitorando (medir a fatia sem recibo depois da publicação).
+
 ### 2026-10-16 — Prospecção automática da Meta Diária quase parou (números conectados, mas nada sai)
 - **Data:** 2026-10-16
 - **Sintoma:** "a automação parou": 14/10 = 7 envios, 15/10 = 2 (antes 45–52/dia); cartão mostra "aguardando 2 h após reconectar" o dia todo.

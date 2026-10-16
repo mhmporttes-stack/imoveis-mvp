@@ -187,6 +187,11 @@ test("preso em 'enviando': dentro do tempo normal -> espera", () => {
 test("preso com prova de envio -> marcado como enviado, sem reenviar", () => {
   assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1, wa_message_id: "WA1" }, round: activeRound, now: NOW }), "mark_sent");
   assert.equal(decideStuckSendingItem({ item: { updated_at: ago(30), attempt_number: 1, delivered_at: ago(29) }, round: activeRound, now: NOW }), "mark_sent");
+  // 2026-10-16: wa_message_id gravado logo após o envio (corrida dos recibos). Saiu, mas a tentativa não foi registrada:
+  // erro para conferência (como a falha de registro), nunca reenvio; se a tentativa foi registrada, só faltou marcar "sent".
+  const sentMid = { updated_at: ago(30), attempt_number: 1, wa_message_id: "WA2", send_started_at: ago(31) };
+  assert.equal(decideStuckSendingItem({ item: sentMid, round: activeRound, now: NOW }), "sent_unregistered");
+  assert.equal(decideStuckSendingItem({ item: sentMid, round: activeRound, slotAlreadyAttempted: true, now: NOW }), "mark_sent");
 });
 
 test("preso com envio iniciado e sem confirmação -> revisão, NUNCA reenvia", () => {
