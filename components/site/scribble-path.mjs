@@ -1,47 +1,51 @@
-// Trajetos "à mão" das setas-rabisco da seção de imóveis (dono, 2026-10-17). Puro (sem DOM): recebe ponto de saída e de
-// chegada e devolve pontos que passam por uma curva suave, no estilo de uma anotação feita à mão. Cada `shape` é um
-// caminho diferente (um com laço, outro em vai-e-vem), definidos em frações do deslocamento (dx, dy) mais folgas em px,
-// então funcionam em qualquer largura de tela.
+// Trajetos "à mão" das setas-rabisco da seção de imóveis (dono, 2026-10-17). Puro (sem DOM).
+//
+// Os dois desenhos vieram do quadro de modelos aprovado pelo dono (setas 1 e 2). Cada um é uma lista de pontos medidos
+// no desenho original; aqui eles são ESTICADOS para ligar o ponto de saída S ao ponto de chegada T de qualquer tela:
+//  - o eixo x vai de S até T (se T está à esquerda de S o desenho sai ESPELHADO, que é o que a seta da esquerda precisa);
+//  - o eixo y é escalado para o traço terminar exatamente em T, com o arco para cima limitado (para não invadir o
+//    texto acima); se o arco limitado deixar o fim curto, a diferença é distribuída suavemente ao longo do percurso.
 
 /** @typedef {{x:number,y:number}} Point */
 
-// [fração de dx, fração de dy, folga em px no eixo y, folga em px no eixo x]
+// Pontos do desenho original (coordenadas da imagem do quadro), do início ao fim, ponta apontando para baixo.
 const SHAPES = {
-  // Sai da direita do "U", sobe num arco largo, faz UM laço limpo e termina descendo na vertical, acima do botão "Região".
+  // Seta 1: arco largo, um laço grande e uma descida em curva até a ponta.
   laco: [
-    [0, 0, 0, 0],
-    [0.12, 0, -10, 0],
-    [0.3, 0, -20, 0],
-    [0.5, 0.02, -14, 0],
-    [0.64, 0.14, -2, 0],
-    [0.72, 0.3, 4, 6],
-    [0.62, 0.44, 6, 0],
-    [0.56, 0.3, 0, -4],
-    [0.72, 0.2, 0, 0],
-    [0.9, 0.3, 0, 0],
-    [0.965, 0.52, 0, 0],
-    [0.995, 0.8, 0, 0],
-    [1, 1, 0, 0]
+    [70, 218], [105, 172], [160, 130], [230, 102], [320, 86], [395, 92], [450, 112], [484, 150], [494, 190], [478, 230],
+    [432, 254], [392, 240], [380, 205], [402, 165], [455, 133], [520, 122], [590, 130], [645, 158], [680, 205], [696, 258],
+    [697, 303]
   ],
-  // Sai da esquerda do "E", faz UM arco largo e suave para a esquerda e termina descendo na vertical, acima do "ou" da busca.
+  // Seta 2: onda suave, um laço pequeno no meio e um gancho final até a ponta.
   onda: [
-    [0, 0, 0, 0],
-    [0.1, 0, -14, 0],
-    [0.3, 0, -30, 0],
-    [0.55, 0.02, -28, 0],
-    [0.78, 0.1, -12, 0],
-    [0.93, 0.3, 0, 0],
-    [0.975, 0.56, 0, 0],
-    [0.997, 0.82, 0, 0],
-    [1, 1, 0, 0]
+    [828, 182], [850, 168], [880, 162], [920, 172], [970, 200], [1020, 240], [1070, 268], [1120, 280], [1180, 270],
+    [1235, 238], [1262, 200], [1268, 168], [1250, 132], [1215, 121], [1178, 135], [1163, 168], [1178, 200], [1215, 214],
+    [1255, 208], [1300, 193], [1345, 190], [1395, 205], [1428, 240], [1442, 282], [1447, 308]
   ]
 };
 
-/** Pontos do rabisco indo de S até T. */
+const MAX_UP_PX = 42; // até onde o arco pode subir acima do ponto de saída
+const smoothstep = (t) => t * t * (3 - 2 * t);
+
+/** Pontos do rabisco indo de S até T (a curva passa por eles). */
 export function scribblePoints(S, T, shape = "laco") {
+  const ref = SHAPES[shape] || SHAPES.laco;
   const dx = T.x - S.x;
   const dy = T.y - S.y;
-  return (SHAPES[shape] || SHAPES.laco).map(([fx, fy, oy, ox]) => ({ x: S.x + dx * fx + ox, y: S.y + dy * fy + oy }));
+  const [x0, y0] = ref[0];
+  const [xEnd, yEnd] = ref[ref.length - 1];
+  const endRel = yEnd - y0;
+  const upAmp = y0 - Math.min(...ref.map((p) => p[1]));
+  // escala vertical natural (o fim cai exatamente em T); limitada pelo arco máximo
+  const kx = Math.abs(dx / (xEnd - x0));
+  let ky = endRel !== 0 ? Math.min(dy / endRel, kx * 1.05) : 1; // nunca mais esticado na vertical que na horizontal: laços continuam redondos
+  if (ky * upAmp > MAX_UP_PX) ky = MAX_UP_PX / upAmp;
+  const correction = dy - endRel * ky; // o que faltou descer (0 quando não houve limite)
+  const last = ref.length - 1;
+  return ref.map(([x, y], i) => ({
+    x: S.x + dx * ((x - x0) / (xEnd - x0)),
+    y: S.y + (y - y0) * ky + correction * smoothstep(i / last)
+  }));
 }
 
 /** Curva suave (Catmull-Rom → Bézier cúbica) passando por todos os pontos. */
