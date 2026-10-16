@@ -15,6 +15,7 @@ import { reassignPendingRouletteLeads } from "@/lib/lead-distribution";
 import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
 import { reconcileExpectedReceiptActivities } from "@/lib/financial";
+import { runCooledClientsFlow } from "@/lib/cooled-clients";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -171,6 +172,16 @@ export async function GET(request) {
       console.error("Falha na rotina de chegada da Alexa.", arrivalError?.name || arrivalError);
     }
 
+    // Fluxo de clientes que esfriaram (dono, 2026-10-16): só com o liga/desliga LIGADO (crm_settings
+    // `cooled_clients_flow`, nasce desligado) e no máximo a cada 10 min. Nunca derruba o resto do cron.
+    let cooledClients = null;
+    try {
+      cooledClients = await runCooledClientsFlow();
+    } catch (cooledError) {
+      console.error("Falha no fluxo de clientes que esfriaram.", cooledError);
+      cooledClients = { error: cooledError?.message || "Falha no fluxo." };
+    }
+
     const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
@@ -184,7 +195,8 @@ export async function GET(request) {
       sponsoredLeads,
       pendingRouletteAssignment,
       orphanReassignment,
-      captacaoUploadCleanup
+      captacaoUploadCleanup,
+      cooledClients
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);

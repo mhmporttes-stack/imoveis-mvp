@@ -6,6 +6,7 @@ import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
 import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
+import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
@@ -79,7 +80,7 @@ export default async function AdminLayout({ children }) {
                 corretor não percebia o próprio WhatsApp cair). */}
             <TopRankingBadge
               weeklyIndicator={whatsappBlocked ? null : <WhatsappIndividualStatus align="end" />}
-              dailyIndicator={<>{auth.ok && !auth.accountSwitchMode ? <NotificationHistoryButton align="end" /> : null}<GoogleContactsStatus align="end" /></>}
+              dailyIndicator={<>{auth.ok && !auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile)) ? <CooledClientsInbox align="end" /> : null}{auth.ok && !auth.accountSwitchMode ? <NotificationHistoryButton align="end" /> : null}<GoogleContactsStatus align="end" /></>}
             />
           </header>
         </div>

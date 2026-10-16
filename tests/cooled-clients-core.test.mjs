@@ -1,0 +1,186 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  CASE_STATUS,
+  NEGATIVE_DECISION_OPTIONS,
+  NEGATIVE_DECISION_STATUSES,
+  applyCaseAction,
+  autoCancelReason,
+  availableDecisionActions,
+  buildReasonAlertDelivery,
+  canAnswerCase,
+  canDecideCase,
+  caseLatestReason,
+  caseLatestReasonAt,
+  cooledDedupeKey,
+  genericHandoffMessage,
+  hadStatusOtherThanAwaitingReturn,
+  isCooledCandidate,
+  isCooledDedupeKey,
+  isValidCooledText,
+  parseHandoffResponse,
+  renderHandoffMessage,
+  resolveDeciderId
+} from "../lib/cooled-clients-core.mjs";
+import { evaluateDailyGoalPending } from "../lib/daily-goal-progress.mjs";
+
+const NOW = Date.parse("2026-10-16T15:00:00Z");
+const DAY = 24 * 60 * 60 * 1000;
+const broker = { id: "b1", role: "broker", status: "active", manager_id: "m1" };
+const client = (patch = {}) => ({ id: "c1", status: "in_service", responsibleUserId: "b1", lastWhatsappContactAt: new Date(NOW - 5 * DAY).toISOString(), createdAt: new Date(NOW - 30 * DAY).toISOString(), latestActivityAt: null, privateContactAt: null, ...patch });
+
+test("gatilho: ativo, mais de 3 dias sem contato e sem atividade futura entra (backlog incluso)", () => {
+  assert.equal(isCooledCandidate({ client: client(), responsible: broker, now: NOW }), true);
+  assert.equal(isCooledCandidate({ client: client({ lastWhatsappContactAt: new Date(NOW - 30 * DAY).toISOString() }), responsible: broker, now: NOW }), true);
+});
+
+test("gatilho: contato recente ou atividade futura não entram", () => {
+  assert.equal(isCooledCandidate({ client: client({ lastWhatsappContactAt: new Date(NOW - 2 * DAY).toISOString() }), responsible: broker, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ latestActivityAt: new Date(NOW + DAY).toISOString() }), responsible: broker, now: NOW }), false);
+});
+
+test("escopo: corretor, associado e gestora entram; dono/admin, inativo e responsável errado ficam fora", () => {
+  assert.equal(isCooledCandidate({ client: client({ responsibleUserId: "a1" }), responsible: { id: "a1", role: "associate", status: "active" }, now: NOW }), true);
+  assert.equal(isCooledCandidate({ client: client({ responsibleUserId: "m1" }), responsible: { id: "m1", role: "manager", status: "active" }, now: NOW }), true);
+  assert.equal(isCooledCandidate({ client: client({ responsibleUserId: "o1" }), responsible: { id: "o1", role: "admin", status: "active", isGeneralAdmin: true }, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ responsibleUserId: "o2" }), responsible: { id: "o2", role: "broker", status: "active", isGeneralAdmin: true }, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client(), responsible: { ...broker, status: "inactive" }, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ responsibleUserId: "x" }), responsible: broker, now: NOW }), false);
+});
+
+test("escopo: arquivado, Não contactar, os 5 negativos e Particular ficam fora; Blindagem entra", () => {
+  for (const status of NEGATIVE_DECISION_STATUSES) assert.equal(isCooledCandidate({ client: client({ status }), responsible: broker, now: NOW }), false, status);
+  assert.equal(isCooledCandidate({ client: client({ privateContactAt: new Date(NOW - DAY).toISOString() }), responsible: broker, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ status: "shielding" }), responsible: broker, now: NOW }), true);
+});
+
+test("responsável trocado há menos de 3 dias não entra (novo corretor ganha os 3 dias)", () => {
+  assert.equal(isCooledCandidate({ client: client({ responsibleChangedAt: new Date(NOW - DAY).toISOString() }), responsible: broker, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ responsibleChangedAt: new Date(NOW - 4 * DAY).toISOString() }), responsible: broker, now: NOW }), true);
+});
+
+test("Tentando contato: só entra se já teve outro status antes", () => {
+  const awaiting = client({ status: "awaiting_return", lastStatusChangeAt: new Date(NOW - 10 * DAY).toISOString() });
+  assert.equal(isCooledCandidate({ client: awaiting, responsible: broker, historyRows: [], now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: awaiting, responsible: broker, historyRows: [{ previous_status: null, new_status: "awaiting_return" }], now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: awaiting, responsible: broker, historyRows: [{ previous_status: "awaiting_return", new_status: "in_service" }, { previous_status: "in_service", new_status: "awaiting_return" }], now: NOW }), true);
+  assert.equal(hadStatusOtherThanAwaitingReturn([{ previous_status: "simulation_sent", new_status: "awaiting_return" }]), true);
+});
+
+test("decisor: gestora da equipe; associado pela gestora do corretor; gestora e sem gestora -> dono", () => {
+  const users = new Map([
+    ["m1", { id: "m1", role: "manager", status: "active" }],
+    ["b1", broker],
+    ["b2", { id: "b2", role: "broker", status: "active", manager_id: null }],
+    ["a1", { id: "a1", role: "associate", status: "active", linked_broker_id: "b1" }],
+    ["b3", { id: "b3", role: "broker", status: "active", manager_id: "m2" }],
+    ["m2", { id: "m2", role: "manager", status: "inactive" }]
+  ]);
+  assert.equal(resolveDeciderId({ responsible: broker, usersById: users, ownerId: "own" }), "m1");
+  assert.equal(resolveDeciderId({ responsible: users.get("a1"), usersById: users, ownerId: "own" }), "m1");
+  assert.equal(resolveDeciderId({ responsible: users.get("m1"), usersById: users, ownerId: "own" }), "own");
+  assert.equal(resolveDeciderId({ responsible: users.get("b2"), usersById: users, ownerId: "own" }), "own");
+  assert.equal(resolveDeciderId({ responsible: users.get("b3"), usersById: users, ownerId: "own" }), "own");
+});
+
+test("motivo: mínimo 15 letras/números (espaços e pontuação não contam)", () => {
+  assert.equal(isValidCooledText("não respondeu"), false);
+  assert.equal(isValidCooledText("...............   ..........."), false);
+  assert.equal(isValidCooledText("Cliente não responde mais"), true);
+});
+
+const baseCase = { id: "k1", client_id: "c1", broker_id: "b1", decider_id: "m1", status: CASE_STATUS.AWAITING_REASON };
+
+test("transições: motivo -> decisão -> devolução -> 2º motivo -> decisão final sem Devolver", () => {
+  const p1 = applyCaseAction(baseCase, "reason", { actorId: "b1", text: "Cliente não responde desde a simulação", now: "t1" });
+  assert.equal(p1.status, CASE_STATUS.AWAITING_DECISION);
+  assert.equal(p1.first_reason_at, "t1");
+  const c1 = { ...baseCase, ...p1 };
+  assert.deepEqual(availableDecisionActions(c1), ["transfer", "status", "return"]);
+  const p2 = applyCaseAction(c1, "return", { actorId: "m1", text: "Faltou dizer quantas vezes ligou", now: "t2" });
+  assert.equal(p2.status, CASE_STATUS.AWAITING_REASON);
+  const c2 = { ...c1, ...p2 };
+  const p3 = applyCaseAction(c2, "reason", { actorId: "b1", text: "Liguei três vezes e mandei áudio", now: "t3" });
+  assert.equal(p3.second_reason_at, "t3");
+  assert.equal(p3.first_reason, undefined);
+  const c3 = { ...c2, ...p3 };
+  assert.deepEqual(availableDecisionActions(c3), ["transfer", "status"]);
+  assert.throws(() => applyCaseAction(c3, "return", { text: "Mais uma vez por favor explique" }), /já foi devolvido/);
+  assert.equal(caseLatestReason(c3), "Liguei três vezes e mandei áudio");
+  assert.equal(caseLatestReasonAt({ first_reason_at: "2026-10-16T10:00:00Z", second_reason_at: "2026-10-16T12:00:00Z" }), "2026-10-16T12:00:00.000Z");
+  const p4 = applyCaseAction(c3, "status", { actorId: "m1", status: "archived" });
+  assert.equal(p4.status, CASE_STATUS.CLOSED);
+  assert.equal(p4.decision_status, "archived");
+});
+
+test("transições inválidas", () => {
+  assert.throws(() => applyCaseAction(baseCase, "transfer"), /aguarda o corretor/);
+  assert.throws(() => applyCaseAction(baseCase, "reason", { text: "curto" }), /15 letras/);
+  const open = { ...baseCase, status: CASE_STATUS.AWAITING_DECISION };
+  assert.throws(() => applyCaseAction(open, "status", { status: "shielding" }), /Status inválido/);
+  assert.throws(() => applyCaseAction(open, "return", { text: "pouco" }), /15 letras/);
+  assert.throws(() => applyCaseAction({ ...baseCase, status: CASE_STATUS.CLOSED }, "reason", { text: "Cliente sumiu faz tempo demais" }), /não está aguardando/);
+});
+
+test("status negativos da decisão: os 5, sem Blindagem", () => {
+  assert.deepEqual(NEGATIVE_DECISION_OPTIONS.map((option) => option.status), ["restriction", "rejected", "income_commitment", "archived", "do_not_contact"]);
+  assert.equal(NEGATIVE_DECISION_STATUSES.includes("shielding"), false);
+});
+
+test("permissões: corretor só responde o próprio caso; gestora só a equipe e casos dela; dono todos", () => {
+  assert.equal(canAnswerCase("b1", baseCase), true);
+  assert.equal(canAnswerCase("b2", baseCase), false);
+  assert.equal(canAnswerCase("b1", { ...baseCase, status: CASE_STATUS.AWAITING_DECISION }), false);
+  const deciding = { ...baseCase, status: CASE_STATUS.AWAITING_DECISION };
+  assert.equal(canDecideCase({ viewerId: "m1", isManager: true, managedUserIds: ["m1", "b1"] }, deciding), true);
+  assert.equal(canDecideCase({ viewerId: "m1", isManager: true, managedUserIds: ["m1"] }, deciding), false);
+  assert.equal(canDecideCase({ viewerId: "m9", isManager: true, managedUserIds: ["b1"] }, deciding), false);
+  assert.equal(canDecideCase({ viewerId: "m1", isManager: true, managedUserIds: ["m1"] }, { ...deciding, broker_id: "m1", decider_id: "m1" }), false);
+  assert.equal(canDecideCase({ viewerId: "own", isOwner: true }, { ...deciding, decider_id: "m1" }), true);
+  assert.equal(canDecideCase({ viewerId: "b1", managedUserIds: ["b1"] }, deciding), false);
+});
+
+test("cancelamento automático", () => {
+  const row = { ...baseCase };
+  assert.equal(autoCancelReason({ row, client: client(), stillCandidate: true }), "");
+  assert.equal(autoCancelReason({ row, client: client({ responsibleUserId: "b2" }), stillCandidate: true }), "responsavel_mudou");
+  assert.equal(autoCancelReason({ row, client: client({ status: "do_not_contact" }), stillCandidate: false }), "status_negativo");
+  assert.equal(autoCancelReason({ row, client: client(), stillCandidate: false }), "contato_retomado");
+  // Depois do 1º motivo o caso espera a decisora mesmo que o contato volte.
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client(), stillCandidate: false }), "");
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.CLOSED }, client: null, stillCandidate: false }), "");
+  assert.equal(autoCancelReason({ row, client: null, stillCandidate: false }), "cliente_removido");
+});
+
+test("janela do corretor: Importante, chave por caso e rodada, sem link", () => {
+  const delivery = buildReasonAlertDelivery({ caseRow: baseCase, clientName: "Ana Souza", stageLabel: "Em atendimento" });
+  assert.equal(delivery.kind, "important");
+  assert.equal(delivery.recipient_id, "b1");
+  assert.equal(delivery.body, "Conte o motivo do desinteresse, desistência ou falta de resposta deste cliente.");
+  assert.equal(delivery.dedupe_key, "cooled_client:k1:1");
+  assert.equal(delivery.context.link, undefined);
+  const second = buildReasonAlertDelivery({ caseRow: { ...baseCase, returned_at: "t", returned_text: "Explique melhor por favor", first_reason: "x" }, clientName: "Ana", returnedByName: "Carol" });
+  assert.equal(second.dedupe_key, cooledDedupeKey("k1", 2));
+  assert.equal(second.context.returned_text, "Explique melhor por favor");
+  assert.equal(isCooledDedupeKey(second.dedupe_key), true);
+  assert.equal(isCooledDedupeKey("reply_waiting:1"), false);
+});
+
+test("mensagem sugerida: saudação trocada na hora e resposta da IA separada", () => {
+  const generic = genericHandoffMessage("Maria da Silva", "João Pedro");
+  assert.match(renderHandoffMessage(generic, "Boa tarde"), /^Boa tarde, Maria, tudo bem\? Vi que você estava sendo atendido\(a\) pelo\(a\) João\./);
+  const parsed = parseHandoffResponse("Quer: casa\nOnde parou: simulação\nO que faltou: documentos\nMENSAGEM: {saudacao}, Maria, vi que...", "fallback");
+  assert.equal(parsed.summary, "Quer: casa\nOnde parou: simulação\nO que faltou: documentos");
+  assert.equal(parsed.message, "{saudacao}, Maria, vi que...");
+  assert.equal(parseHandoffResponse("só resumo", "fb").message, "fb");
+});
+
+test("Meta Diária: motivo escrito hoje resolve a pendência congelada (MD-8)", () => {
+  const dayStartMs = Date.parse("2026-10-16T03:00:00Z");
+  const pending = { id: "c1", responsibleUserId: "b1", status: "in_service", lastWhatsappContactAt: "2026-10-10T12:00:00Z", latestActivityAt: null };
+  const base = { brokerId: "b1", frozenIds: ["c1"], dayStartMs, nowMs: NOW };
+  assert.equal(evaluateDailyGoalPending({ ...base, clientsById: new Map([["c1", pending]]) }).done, 0);
+  assert.equal(evaluateDailyGoalPending({ ...base, clientsById: new Map([["c1", { ...pending, cooledReasonAt: "2026-10-16T13:00:00Z" }]]) }).done, 1);
+  // Motivo de ontem não resolve a pendência de hoje.
+  assert.equal(evaluateDailyGoalPending({ ...base, clientsById: new Map([["c1", { ...pending, cooledReasonAt: "2026-10-15T13:00:00Z" }]]) }).done, 0);
+});

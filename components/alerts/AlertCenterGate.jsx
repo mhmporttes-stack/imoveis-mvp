@@ -8,6 +8,7 @@ import { Bell, Clock, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
 import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
+import { COOLED_ALERT_TYPE, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -100,8 +101,10 @@ export default function AlertCenterGate({ userId }) {
   const dismissInformative = useCallback((id) => setQueue((current) => current.filter((item) => item.id !== id)), []);
 
   // openLink: "Entendi e abrir" leva ao destino do alerta (context.link, só rota interna /admin/...) depois da ciência.
-  async function acknowledge(alert, openLink = false) {
-    await postJson(`/api/admin/alerts/${alert.id}/ack`);
+  async function acknowledge(alert, openLink = false, reasonText = "") {
+    // Cliente que esfriou (2026-10-16): a janela só sai com o motivo escrito (o servidor dá a ciência).
+    if (alert.context?.type === COOLED_ALERT_TYPE) await postJson(`/api/admin/cooled-clients/${alert.context.case_id}/reason`, { text: reasonText });
+    else await postJson(`/api/admin/alerts/${alert.id}/ack`);
     setImportant((current) => current.filter((item) => item.id !== alert.id));
     const link = openLink ? alertLink(alert.context) : "";
     if (link) router.push(link);
@@ -242,15 +245,24 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
   }
 
   const link = alertLink(alert.context);
+  const cooled = alert.context?.type === COOLED_ALERT_TYPE;
+  const [reason, setReason] = useState("");
+  const [errorText, setErrorText] = useState("");
   async function confirm(openLink = false) {
     if (state === "sending") return;
+    if (cooled && !isValidCooledText(reason)) {
+      setErrorText(`Escreva o motivo com pelo menos ${COOLED_REASON_MIN_LENGTH} letras.`);
+      setState("error");
+      return;
+    }
     setState("sending");
     try {
       if (dialogRef.current) dialogRef.current.dataset.ack = "1";
-      await onAcknowledge(alert, openLink);
+      await onAcknowledge(alert, openLink, reason);
       dialogRef.current?.close();
-    } catch {
+    } catch (error) {
       if (dialogRef.current) delete dialogRef.current.dataset.ack;
+      setErrorText(cooled ? error?.message || "" : "");
       setState("error");
     }
   }
@@ -279,17 +291,50 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
         </div>
         <span className="mt-4 grid size-11 place-items-center rounded-full bg-warning-soft text-warning" aria-hidden="true"><Clock className="h-[22px] w-[22px]" /></span>
         <h2 id={`alert-title-${alert.id}`} className="mt-3 text-lg font-semibold text-navy text-balance">{alert.title}</h2>
-        <p id={`alert-body-${alert.id}`} className="mt-2 text-[15px] leading-6 text-ink-2">{alert.body}</p>
-        {state === "error" ? <p role="alert" className="mt-3 text-xs text-danger">Não foi possível confirmar. Tente de novo.</p> : null}
-        <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={() => confirm(false)} autoFocus data-alert-ack="true">
-          {state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
+        {cooled ? (
+          <CooledReasonFields alert={alert} />
+        ) : null}
+        <p id={`alert-body-${alert.id}`} className={cooled ? "mt-3 text-[15px] font-semibold leading-6 text-navy" : "mt-2 text-[15px] leading-6 text-ink-2"}>{alert.body}</p>
+        {cooled ? (
+          <textarea
+            value={reason}
+            onChange={(event) => { setReason(event.target.value); if (state === "error") setState("idle"); }}
+            rows={4}
+            maxLength={1000}
+            autoFocus
+            aria-label="Motivo"
+            placeholder="Escreva aqui o que aconteceu com este cliente."
+            className="mt-2 w-full rounded-control border border-line bg-white p-3 text-[15px] leading-6 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            data-cooled-reason="true"
+          />
+        ) : null}
+        {state === "error" ? <p role="alert" className="mt-3 text-xs text-danger">{errorText || "Não foi possível confirmar. Tente de novo."}</p> : null}
+        <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={() => confirm(false)} autoFocus={!cooled} data-alert-ack="true">
+          {cooled ? (state === "sending" ? "Enviando…" : "Enviar motivo") : state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
         </Button>
-        {link ? (
+        {link && !cooled ? (
           <Button size="lg" block variant="secondary" className="mt-2" disabled={state === "sending"} onClick={() => confirm(true)} data-alert-open="true">
             Entendi e abrir
           </Button>
         ) : null}
       </motion.div>
     </dialog>
+  );
+}
+
+// Cliente que esfriou: nome, etapa e — na 2ª vez — o que a gestão pediu a mais (só o texto, sem dados extras).
+function CooledReasonFields({ alert }) {
+  const context = alert.context || {};
+  return (
+    <div className="mt-3 rounded-card border border-line bg-mist px-3 py-2.5 text-[13px] leading-5 text-ink-2" data-cooled-context="true">
+      <p><span className="font-semibold text-navy">{context.client_name || "Cliente"}</span>{context.stage_label ? ` · ${context.stage_label}` : ""}</p>
+      <p className="text-muted">Mais de 3 dias sem contato e sem atividade agendada.</p>
+      {context.round === 2 && context.returned_text ? (
+        <div className="mt-2 border-t border-line pt-2">
+          {context.first_reason ? <p><span className="font-semibold text-navy">Seu motivo:</span> {context.first_reason}</p> : null}
+          <p className="mt-1"><span className="font-semibold text-navy">{context.returned_by_name || "A gestão"} pediu:</span> {context.returned_text}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -17,6 +17,10 @@ paths:
   - "app/admin/simulacoes/**"
   - "app/api/simulation-registrations/**"
   - "app/api/client-*/**"
+  - "lib/cooled-clients*"
+  - "components/cooled/**"
+  - "app/api/admin/cooled-clients/**"
+  - "app/admin/desempenho/esfriados/**"
 ---
 
 # Clientes, status e funil comercial
@@ -30,6 +34,8 @@ Cliente principal: `simulation_registrations` (persistência em `lib/simulation-
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Trava "Simulação enviada".** Corretor e associado (perfil efetivo, inclusive admin/gestor em "Alterar conta" como eles) não mudam o cliente para "Simulação enviada" sem ter realmente enviado: evento `presentation_sent`, link `/s/<token>` em mensagem de saída não falha de qualquer conversa do cliente, ou PDF `simulacao-*.pdf` do CRM enviado pelo Chat. Admin geral e gestor no próprio perfil passam. Barreira no servidor antes de gravar (`assertManualSimulationSentAllowed` em `updateSimulationRegistration` e no cadastro novo); automação sem usuário não é travada; não retroativo. Fonte única da evidência: `lib/simulation-sent-evidence.js` (+ `-lock-core.mjs`) — também usada pela ROL-4c; não crie outra definição de "simulação enviada". Detalhes: `docs/BUSINESS_RULES.md` FUN-13.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-14] Motivo obrigatório ao arquivar / "Não contactar" (FUN-14).** Mudança feita por pessoa para Arquivado ou Não contactar só grava com motivo escrito (janela `components/clients/StatusReasonDialog.jsx`; servidor `assertStatusReason` em `updateSimulationRegistration` e `recordDoNotContactAudit`). Porta nova que arquive/marque Não contactar por ação de usuário precisa repassar `statusReason`. Automação sem usuário não é travada. Detalhe: `docs/BUSINESS_RULES.md` FUN-14.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Fluxo de clientes que esfriaram (FUN-15).** Cliente de corretor/associado/gestora (nunca do dono) com mais de 3 dias sem contato e sem atividade futura (`isClientAwaitingAction`, etapas ativas da MD-8; "Tentando contato" só se já teve outro status; fora Particular, arquivado, Não contactar e negativos) abre UM caso: (1) o responsável escreve o motivo numa janela obrigatória da Central de Alertas (mín. 15 letras, sem IA; resolve a pendência da Meta Diária no dia); (2) a decisora — gestora da equipe, ou o dono para clientes da gestora/corretor sem gestora — decide numa caixinha do cabeçalho: Transferir (`returnClientToRoulette`), status negativo (Restrição/Reprovado/Comprometimento de renda/Arquivado/Não contactar, motivo do corretor como `statusReason`) ou Devolver (uma vez). Depois de transferido, a ficha do novo corretor mostra resumo + mensagem sugerida por IA (uma vez por transferência, nunca envia). Liga/desliga `crm_settings` `cooled_clients_flow` (nasce desligado). Permissões e transições só em `lib/cooled-clients-core.mjs` (+ `lib/cooled-clients.js`); não crie outro detector de "cliente esfriado" nem outra janela bloqueante. Detalhe e decisões técnicas a confirmar: `docs/BUSINESS_RULES.md` FUN-15.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 
