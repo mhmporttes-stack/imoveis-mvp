@@ -166,7 +166,7 @@ function CooledCaseCard({ item, statusOptions, onDone }) {
         </div>
       ) : (
         <div className={cx("mt-3 grid gap-1.5", canReturn ? "grid-cols-3" : "grid-cols-2")}>
-          <Button size="sm" loading={busy} onClick={() => decide({ action: "transfer" }, (result) => `${item.clientName}: transferido${result.waiting ? " (aguardando um corretor on-line)" : result.toName ? ` para ${result.toName}` : ""}.`)}>Transferir</Button>
+          <Button size="sm" loading={busy} onClick={() => decide({ action: "transfer" }, (result) => `${item.clientName}: transferido${result.waiting ? " (aguardando um corretor on-line)" : result.toName ? ` para ${result.toName}` : ""}.${result.tagError ? ` ${result.tagError}` : ""}`)}>Transferir</Button>
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMode("status")}>Não transferir</Button>
           {canReturn ? <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMode("return")}>Devolver</Button> : null}
         </div>

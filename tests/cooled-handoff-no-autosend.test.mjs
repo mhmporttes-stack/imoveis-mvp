@@ -59,3 +59,20 @@ test("cards do fluxo mostram o telefone copiável (motivo, decisora, histórico 
   assert.match(attach, /assertCanAccessResponsibleUser\(auth, row\.responsible_user_id\)/);
   assert.match(read("lib/crm-alerts.js"), /attachCooledAlertPhones\(auth, own\)/);
 });
+
+// REGRA OFICIAL (dono, 2026-10-16): "Os clientes transferidos para novos corretores devem receber uma tag informando o
+// recebimento desse novo cliente transferido." Tag única do sistema de etiquetas, sem recolorir e sem duplicar.
+test("transferência do fluxo aplica a etiqueta 'Cliente transferido' (uma vez, sem recolorir)", async () => {
+  const { COOLED_TRANSFER_TAG } = await import("../lib/cooled-clients-core.mjs");
+  assert.equal(COOLED_TRANSFER_TAG.name, "Cliente transferido");
+  // Cor da paleta padrão das etiquetas (lib/client-tags.js, DEFAULT_TAG_COLORS).
+  assert.ok(read("lib/client-tags.js").includes(`"${COOLED_TRANSFER_TAG.color}"`));
+  const server = read("lib/cooled-clients.js");
+  const transferBranch = server.slice(server.indexOf('} else if (action === "transfer") {'), server.indexOf("} else {", server.indexOf('} else if (action === "transfer") {')));
+  assert.match(transferBranch, /returnClientToRoulette[\s\S]*tagTransferredClient\(row\.client_id\)/);
+  assert.match(server, /addSystemTagToClient\(clientId, COOLED_TRANSFER_TAG\.name, COOLED_TRANSFER_TAG\.color\)/);
+  const tags = read("lib/client-tags.js");
+  const fn = tags.slice(tags.indexOf("export async function addSystemTagToClient"), tags.indexOf("export function rowToTag"));
+  assert.match(fn, /createTagKeepingExisting/);
+  assert.match(fn, /ignoreDuplicates: true/);
+});

@@ -1,6 +1,8 @@
 ---
 paths:
   - "lib/client-*.js"
+  - "lib/client-attendance-core.mjs"
+  - "lib/chat-contact-signal*"
   - "lib/simulation-*.js"
   - "lib/simulations.js"
   - "lib/simulation-sent-*"
@@ -41,7 +43,9 @@ Cliente principal: `simulation_registrations` (persistência em `lib/simulation-
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Um cliente por vez e aprovados fora (FUN-15e).** (1) "Não deve aparecer um card de um cliente em cima do outro pela notificação. Só deve aparecer o próximo depois que concluírem o primeiro." — corretor (janela do motivo e sino) e decisora (caixinha) veem UM caso por vez; os demais ficam na fila, sem se perder. Filtro único `keepFirstPendingCooledAlert` (`lib/cooled-clients-core.mjs`, usado em `lib/crm-alerts.js`); caixinha mostra `items[0]` + "Mais N na fila". Não volte a listar vários cards de uma vez nem crie outro filtro. (2) "Clientes aprovados não devem entrar nessa lista de transferência." — aprovado = etapa "Cliente aprovado" e posteriores (Reunião, Venda), `isApprovedForCooledFlow`; fora do gatilho, caso aberto encerrado (`cliente_aprovado`) e decisão recusada. Detalhe: `docs/BUSINESS_RULES.md` FUN-15e.
 
-**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Card fixo até concluir (complemento da FUN-15e).** "Esse primeiro fica até ele concluir. Assim que concluiu, atualiza e vem o próximo." A frente da fila do corretor é SEMPRE a da consulta estável `loadFirstPendingCooledAlert` (`lib/crm-alerts.js`, `created_at` + `id`) aplicada por `pinCooledHead` (`lib/cooled-clients-core.mjs`) — nunca escolha a frente a partir de uma lista limitada (entregas do backlog têm o mesmo `created_at`). Não crie botão de fechar/adiar que pule o cliente. [PENDENTE DE VALIDAÇÃO] auto-encerramento por contato retomado (FUN-15 b) com o card aberto. Detalhe: `docs/BUSINESS_RULES.md` FUN-15e (complemento).
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Card fixo até concluir (complemento da FUN-15e).** "Esse primeiro fica até ele concluir. Assim que concluiu, atualiza e vem o próximo." A frente da fila do corretor é SEMPRE a da consulta estável `loadFirstPendingCooledAlert` (`lib/crm-alerts.js`, `created_at` + `id`) aplicada por `pinCooledHead` (`lib/cooled-clients-core.mjs`) — nunca escolha a frente a partir de uma lista limitada (entregas do backlog têm o mesmo `created_at`). Não crie botão de fechar/adiar que pule o cliente. Detalhe: `docs/BUSINESS_RULES.md` FUN-15e (complemento).
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Card até o motivo, aprovado nunca volta, último atendimento e tag de transferido (FUN-15f).** (1) Caso aguardando motivo só sai com o motivo do corretor — contato/atividade não encerram (`autoCancelReason`); saídas: cliente removido, responsável trocado, Particular, negativos, aprovado/Reunião/Venda. (2) Cliente que JÁ FOI aprovado (status, `approved_at` ou `client_status_history`) nunca entra nem segue no fluxo: `wasEverApprovedForCooledFlow`. (3) Qualquer atendimento zera os 3 dias (pendentes, "Sem contato há +3 dias", pendentes da Meta Diária, casos novos): fonte única `lib/client-attendance-core.mjs` (lista de sinais) + `lib/client-attendance.js` (leitura) → campo `lastAttendanceAt` aceito por `pendingReferenceAt`/`isStaleContactClient`. Não crie outra definição de "último atendimento" nem regrave `last_whatsapp_contact_at` por isso (roleta/prazo/crédito dependem dele). Sinal novo de atendimento entra na lista do core. (4) "Transferir" aplica a etiqueta "Cliente transferido" (`COOLED_TRANSFER_TAG`, `addSystemTagToClient`). Detalhe: `docs/BUSINESS_RULES.md` FUN-15f.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 

@@ -17,6 +17,7 @@ import {
   hadStatusOtherThanAwaitingReturn,
   isApprovedForCooledFlow,
   isCooledCandidate,
+  wasEverApprovedForCooledFlow,
   isCooledDedupeKey,
   keepFirstPendingCooledAlert,
   pinCooledHead,
@@ -145,16 +146,27 @@ test("permissões: corretor só responde o próprio caso; gestora só a equipe e
 
 test("cancelamento automático", () => {
   const row = { ...baseCase };
-  assert.equal(autoCancelReason({ row, client: client(), stillCandidate: true }), "");
-  assert.equal(autoCancelReason({ row, client: client({ responsibleUserId: "b2" }), stillCandidate: true }), "responsavel_mudou");
-  assert.equal(autoCancelReason({ row, client: client({ status: "do_not_contact" }), stillCandidate: false }), "status_negativo");
-  assert.equal(autoCancelReason({ row, client: client(), stillCandidate: false }), "contato_retomado");
-  // Depois do 1º motivo o caso espera a decisora mesmo que o contato volte.
-  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client(), stillCandidate: false }), "");
-  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.CLOSED }, client: null, stillCandidate: false }), "");
-  assert.equal(autoCancelReason({ row, client: null, stillCandidate: false }), "cliente_removido");
+  assert.equal(autoCancelReason({ row, client: client() }), "");
+  assert.equal(autoCancelReason({ row, client: client({ responsibleUserId: "b2" }) }), "responsavel_mudou");
+  assert.equal(autoCancelReason({ row, client: client({ status: "do_not_contact" }) }), "status_negativo");
+  assert.equal(autoCancelReason({ row, client: client({ privateContactAt: new Date(NOW).toISOString() }) }), "contato_particular");
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client() }), "");
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.CLOSED }, client: null }), "");
+  assert.equal(autoCancelReason({ row, client: null }), "cliente_removido");
 });
 
+// Regra do dono (2026-10-16): "Se o corretor mandar mensagem ao cliente ou agendar atividade antes de informar o
+// motivo, o card continua até ele informar?" -> "sim".
+test("caso aguardando motivo NÃO se encerra por contato retomado, atividade futura nem atendimento", () => {
+  const row = { ...baseCase };
+  const contacted = client({ lastWhatsappContactAt: new Date(NOW - 60 * 1000).toISOString() });
+  const scheduled = client({ latestActivityAt: new Date(NOW + DAY).toISOString() });
+  const attended = client({ lastAttendanceAt: new Date(NOW - 60 * 1000).toISOString(), status: "approval_pending" });
+  for (const value of [contacted, scheduled, attended]) assert.equal(autoCancelReason({ row, client: value }), "");
+  // Saídas que continuam: responsável trocado, Particular, negativos (inclui Arquivado/Não contactar), aprovado/venda.
+  assert.equal(autoCancelReason({ row, client: { ...contacted, status: "archived" } }), "status_negativo");
+  assert.equal(autoCancelReason({ row, client: { ...contacted, status: "sale_completed" } }), "cliente_aprovado");
+});
 test("janela do corretor: Importante, chave por caso e rodada, sem link", () => {
   const delivery = buildReasonAlertDelivery({ caseRow: baseCase, clientName: "Ana Souza", stageLabel: "Em atendimento" });
   assert.equal(delivery.kind, "important");
@@ -214,9 +226,9 @@ test("FUN-15e: cliente aprovado (Cliente aprovado, Reunião, Venda) nunca entra 
   }
   for (const status of ["in_service", "approval_pending", "shielding", "documentation_pending"]) assert.equal(isApprovedForCooledFlow(status), false, status);
   const row = { ...baseCase };
-  assert.equal(autoCancelReason({ row, client: client({ status: "approved" }), stillCandidate: true }), "cliente_aprovado");
+  assert.equal(autoCancelReason({ row, client: client({ status: "approved" }) }), "cliente_aprovado");
   // Também depois do motivo (aguardando a decisora): não vai para a transferência.
-  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client({ status: "meeting_pending" }), stillCandidate: true }), "cliente_aprovado");
+  assert.equal(autoCancelReason({ row: { ...row, status: CASE_STATUS.AWAITING_DECISION }, client: client({ status: "meeting_pending" }) }), "cliente_aprovado");
 });
 
 test("FUN-15e: uma janela de cliente esfriado por vez, a mais antiga; o resto continua na fila", () => {
@@ -253,4 +265,33 @@ test("FUN-15e complemento (dono, 2026-10-16): o card fica fixo até concluir, me
   assert.deepEqual(pinCooledHead([other, all[5]], null).map((row) => row.id), ["z"]);
   // Concluído o motivo, a próxima frente (consulta própria) é o seguinte pela ordem estável.
   assert.deepEqual(pendingIds(pinCooledHead(all.slice(1), all[1])), [all[1].id]);
+});
+
+// Regra do dono (2026-10-16): "Cliente aprovado que voltou para uma etapa anterior pode entrar de novo na lista?" -> "não".
+test("cliente que JÁ FOI aprovado alguma vez nunca entra, mesmo de volta a uma etapa anterior", () => {
+  const back = client({ status: "documentation" });
+  assert.equal(isCooledCandidate({ client: back, responsible: broker, now: NOW }), true);
+  assert.equal(isCooledCandidate({ client: { ...back, approvedAt: "2026-09-01T12:00:00Z" }, responsible: broker, now: NOW }), false);
+  for (const historyRows of [
+    [{ previous_status: "approval_pending", new_status: "approved" }],
+    [{ previous_status: "approval_pending", new_status: "meeting_pending" }],
+    [{ previous_status: "approved", new_status: "documentation" }],
+    [{ previous_status: "in_service", new_status: "sale_completed" }]
+  ]) {
+    assert.equal(wasEverApprovedForCooledFlow({ status: "documentation", historyRows }), true, JSON.stringify(historyRows));
+    assert.equal(isCooledCandidate({ client: back, responsible: broker, historyRows, now: NOW }), false);
+  }
+  assert.equal(wasEverApprovedForCooledFlow({ status: "documentation", historyRows: [{ previous_status: "in_service", new_status: "approval_pending" }] }), false);
+  // Caso aberto (motivo ou decisora) é encerrado se o cliente já foi aprovado alguma vez.
+  assert.equal(autoCancelReason({ row: { ...baseCase }, client: back, historyRows: [{ previous_status: "approved", new_status: "documentation" }] }), "cliente_aprovado");
+  assert.equal(autoCancelReason({ row: { ...baseCase, status: CASE_STATUS.AWAITING_DECISION }, client: { ...back, approvedAt: "2026-09-01T12:00:00Z" } }), "cliente_aprovado");
+  assert.equal(autoCancelReason({ row: { ...baseCase }, client: back, historyRows: [] }), "");
+});
+
+// Regra do dono (2026-10-16): "o último contato com o cliente deve atualizar conforme o chat" e "muda o status ...
+// automaticamente o cliente recebeu atendimento hoje, então zera os 3 dias novamente".
+test("último atendimento nos últimos 3 dias (chat, status, atividade...) impede abrir caso novo", () => {
+  assert.equal(isCooledCandidate({ client: client({ lastAttendanceAt: new Date(NOW - 2 * 60 * 60 * 1000).toISOString() }), responsible: broker, now: NOW }), false);
+  assert.equal(isCooledCandidate({ client: client({ lastAttendanceAt: new Date(NOW - 4 * DAY).toISOString() }), responsible: broker, now: NOW }), true);
+  assert.equal(isCooledCandidate({ client: client({ lastAttendanceAt: null }), responsible: broker, now: NOW }), true);
 });
