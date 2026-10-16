@@ -19,8 +19,8 @@ const SHAPES = {
     [0.56, 0.3, 0, -4],
     [0.72, 0.2, 0, 0],
     [0.9, 0.3, 0, 0],
-    [1, 0.5, 0, 0],
-    [1, 0.78, 0, 0],
+    [0.965, 0.52, 0, 0],
+    [0.995, 0.8, 0, 0],
     [1, 1, 0, 0]
   ],
   // Sai da esquerda do "E", faz UM arco largo e suave para a esquerda e termina descendo na vertical, acima do "ou" da busca.
@@ -31,8 +31,8 @@ const SHAPES = {
     [0.55, 0.02, -28, 0],
     [0.78, 0.1, -12, 0],
     [0.93, 0.3, 0, 0],
-    [1, 0.55, 0, 0],
-    [1, 0.8, 0, 0],
+    [0.975, 0.56, 0, 0],
+    [0.997, 0.82, 0, 0],
     [1, 1, 0, 0]
   ]
 };
@@ -61,14 +61,26 @@ export function smoothPath(points, tension = 0.5) {
   return d;
 }
 
-/** Ponta da seta (duas hastes finas) no ponto final, alinhada à direção de chegada. */
-export function arrowHead(from, to, size = 11, spread = 0.5) {
+/**
+ * Ponta da seta ARREDONDADA, desenhada à mão: duas asas em curva suave (Bézier quadrática) que se encontram na ponta,
+ * sem hastes retas nem ângulo duro (o traço usa pontas e junções arredondadas). Alinhada à direção de chegada.
+ */
+export function arrowHead(from, to, size = 14) {
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
-  const wing = (sign) => ({ x: to.x - size * Math.cos(angle + sign * spread), y: to.y - size * Math.sin(angle + sign * spread) });
-  const a = wing(1);
-  const b = wing(-1);
+  const fx = Math.cos(angle);
+  const fy = Math.sin(angle);
+  const sx = -fy;
+  const sy = fx;
+  const at = (back, side) => ({ x: to.x - fx * back + sx * side, y: to.y - fy * back + sy * side });
+  const wingA = at(size * 1.0, size * 0.62);
+  const wingB = at(size * 1.0, -size * 0.62);
+  const ctrlA = at(size * 0.78, size * 0.1); // curva as asas para dentro (efeito "gancho" de caneta)
+  const ctrlB = at(size * 0.78, -size * 0.1);
+  const tipA = at(size * 0.1, size * 0.02);
+  const tipB = at(size * 0.1, -size * 0.02);
   const f = (n) => Math.round(n * 10) / 10;
-  return `M${f(a.x)} ${f(a.y)} L${f(to.x)} ${f(to.y)} L${f(b.x)} ${f(b.y)}`;
+  const pt = (q) => `${f(q.x)} ${f(q.y)}`;
+  return `M${pt(wingA)} Q${pt(ctrlA)} ${pt(tipA)} Q${pt(to)} ${pt(tipB)} Q${pt(ctrlB)} ${pt(wingB)}`;
 }
 
 export const SCRIBBLE_SHAPES = Object.keys(SHAPES);
