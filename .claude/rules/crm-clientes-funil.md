@@ -20,6 +20,7 @@ paths:
   - "app/api/simulation-registrations/**"
   - "app/api/client-*/**"
   - "lib/cooled-clients*"
+  - "lib/broker-client-transfer-core.mjs"
   - "components/cooled/**"
   - "app/api/admin/cooled-clients/**"
   - "app/admin/desempenho/esfriados/**"
@@ -54,6 +55,8 @@ Cliente principal: `simulation_registrations` (persistência em `lib/simulation-
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Redistribuição automática também abre o histórico, inclusive as já feitas (FUN-15h).** "deve mostrar sim, inclusive as que já foram transferidas pela regra, adicione". Confirmados: saindo do dono mostra os números pessoais do dono (Particular fora); fila de espera → à mão aparece como vindo do dono. Corte = última troca de responsável registrada, calculada na leitura por `lastResponsibleTransferCut` (`lib/whatsapp-chat-scope.mjs`; entrega da fila = quem segurava, o dono; anterior desconhecido = sem histórico, nunca um corte mais antigo). Não grave cópia nem backfill para isso. Detalhe: `docs/BUSINESS_RULES.md` FUN-15h.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Sem resumo por IA na transferência (FUN-15i).** "Pode tirar o resumo, acho que essa ideia de transferir o histórico da conversa já ajuda bastante." O rascunho (FUN-15b/c) continua, pelo modelo do dono (`genericHandoffMessage`), sem IA e sem ler conversa. Não reintroduza resumo nem mande a conversa à IA sem nova decisão do dono. `handoff` antigo fica no banco; só a mensagem é exibida. Detalhe: `docs/BUSINESS_RULES.md` FUN-15i.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Corretor transfere o próprio cliente (CLI-7a).** "o corretor, ele deve ter o poder de transferir o cliente dele para outro corretor, tá, caso queira. Para mim, para outro corretor, para a Carol." Só perfil efetivo corretor (associado NÃO), só cliente do qual ele é o responsável, só para usuário ativo admin/gestor/corretor (nunca associado nem "sem responsável"); quem recebe não aceita (cai direto) e é avisado (`clients_transferred`); motivo opcional. Barreira no servidor: `updateSimulationRegistration` + `lib/broker-client-transfer-core.mjs` — mesmo caminho da transferência manual (CLI-7); não crie outro. Admin/gestor seguem a CLI-7. Detalhe: `docs/BUSINESS_RULES.md` CLI-7a.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 

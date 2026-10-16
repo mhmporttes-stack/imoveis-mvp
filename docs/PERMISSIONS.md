@@ -57,7 +57,7 @@ Asserts de negócio (`lib/admin-access.js`, dentro dos `lib/*.js`): `assertGener
 | Capacidade | Admin/dono | Gestor | Corretor | Associado |
 |---|---|---|---|---|
 | Clientes: ver/editar | todos | equipe | próprios | do corretor vinculado |
-| Transferir responsável | sim | dentro da equipe; “sem responsável” sim | só para quem tem acesso (na prática si) | idem corretor |
+| Transferir responsável | sim | dentro da equipe; “sem responsável” sim | **só os próprios clientes**, para dono/admin, gestor ou outro corretor ativos (nunca associado nem “sem responsável”) — CLI-7a, dono 2026-10-16; barreira em `updateSimulationRegistration` (`lib/broker-client-transfer-core.mjs`) | **não** transfere para outra pessoa (a API segue a CLI-7: no máximo para o corretor vinculado; sem botão na tela) |
 | Excluir cliente | **só dono** | não | não | não |
 | Ver “não contactar” | **só dono** | não | não | não |
 | Documentação: enviar arquivos, ver checklist, reanalisar | sim | sim (equipe) | sim (próprios) | sim (do vinculado) |

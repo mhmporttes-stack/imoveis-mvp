@@ -13,6 +13,7 @@ import {
 import { canManageSimulations } from "@/lib/simulations";
 import { newRenderId } from "@/lib/render-id.mjs";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
+import { brokerTransferTargets, canBrokerTransferOwnClients } from "@/lib/broker-client-transfer-core.mjs";
 
 export const dynamic = "force-dynamic";
 // Voltar para Clientes na hora (pedido do dono, 2026-10-12): o navegador reaproveita esta tela por até 5 min em vez de
@@ -52,7 +53,11 @@ export default async function AdminSimulationsPage({ searchParams }) {
 
   const isGeneralAdmin = isGeneralAdminAuth(auth);
   const isManager = isManagerProfile(auth.profile);
+  // CLI-7a (dono, 2026-10-16): corretor (não associado) transfere os próprios clientes — precisa da lista de destinos.
+  const canTransferOwnClients = !isGeneralAdmin && canBrokerTransferOwnClients(auth.profile);
   const needsAdminProfiles = isGeneralAdmin || isManager;
+  const needsProfileList = needsAdminProfiles || canTransferOwnClients;
+  let transferTargets = [];
   const filters = filtersFromSearchParams(resolvedSearchParams);
   const pinClientId = resolvedSearchParams?.clientId || "";
 
@@ -62,9 +67,10 @@ export default async function AdminSimulationsPage({ searchParams }) {
   const isDefaultView = !pinClientId && JSON.stringify(filters) === JSON.stringify(filtersFromSearchParams({}));
   if (isDefaultView) {
     try {
-      const [tagsResult, adminProfilesResult] = await Promise.all([listTags(), needsAdminProfiles ? listAdminProfiles() : Promise.resolve([])]);
+      const [tagsResult, adminProfilesResult] = await Promise.all([listTags(), needsProfileList ? listAdminProfiles() : Promise.resolve([])]);
       tags = tagsResult;
       adminProfiles = scopeAdminProfiles(adminProfilesResult, auth, isManager, needsAdminProfiles);
+      if (canTransferOwnClients) transferTargets = brokerTransferTargets(adminProfilesResult, auth.profile.id);
       initialData = { deferred: true, page: 1, pageSize: 20 };
     } catch (error) {
       loadError = error?.message || "Não foi possível carregar a lista de clientes.";
@@ -82,12 +88,13 @@ export default async function AdminSimulationsPage({ searchParams }) {
       getSimulationClientCounters({ auth, filters }),
       getPendingClientsCount({ auth }),
       listTags(),
-      needsAdminProfiles ? listAdminProfiles() : Promise.resolve([]),
+      needsProfileList ? listAdminProfiles() : Promise.resolve([]),
       activitiesPromise
     ]);
 
     tags = tagsResult;
     adminProfiles = scopeAdminProfiles(adminProfilesResult, auth, isManager, needsAdminProfiles);
+    if (canTransferOwnClients) transferTargets = brokerTransferTargets(adminProfilesResult, auth.profile.id);
 
     // renderId: identifica esta renderização — se o navegador reaproveitar a tela, a lista sabe que precisa se atualizar.
     initialData = { ...pageResult, counters, pendingClientsCount, clientActivities, renderId: newRenderId() };
@@ -108,6 +115,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
           initialFilters={filters}
           adminProfiles={adminProfiles}
           canManageResponsibleUsers={isGeneralAdmin || isManager}
+          ownTransfer={canTransferOwnClients ? { selfId: auth.profile.id, targets: transferTargets } : null}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           brokerSimulationLink={isBrokerProfile(auth.profile) ? buildBrokerSimulationLink(auth.profile) : ""}

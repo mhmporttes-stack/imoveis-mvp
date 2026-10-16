@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — CLI-7a: corretor transfere o próprio cliente
+- **Data:** 2026-10-16
+- **Área:** Clientes / Permissões
+- **Alteração:** corretor (perfil efetivo `broker`; associado não) pode trocar o responsável de um cliente DELE para dono/admin, gestor ou outro corretor ativos (nunca associado, inativo ou "sem responsável"). Barreira no servidor em `updateSimulationRegistration` (decisão pura `brokerTransferDenial`, `lib/broker-client-transfer-core.mjs`), no mesmo caminho da transferência manual (CLI-7: `previous_responsible_user_id`, `responsible_changed_at`, evento `responsible_transferred` `manual`, fim da fila de espera/ROL-4d, conversa pelo trigger CLI-8, "Conversa anterior" FUN-15h). Quem recebe ganha o aviso de transferência já existente (sino `clients_transferred` + push "Você recebeu 1 cliente", link para a ficha). Tela: ficha do cliente › Situação › "Responsável" vira seletor ("Você" + "Transferir para …") com confirmação, só nos clientes do corretor; lista de destinos montada no servidor (só id e nome). Admin/gestor inalterados.
+- **Motivo:** regra do dono de 16/10/2026 ("o corretor, ele deve ter o poder de transferir o cliente dele para outro corretor ... Para mim, para outro corretor, para a Carol"); associado não transfere; sem aceite; motivo opcional.
+- **Arquivos afetados:** `lib/broker-client-transfer-core.mjs` (novo), `lib/simulation-registrations.js`, `app/admin/simulacoes/page.jsx`, `components/clients/useClientList.js`, `components/clients/ClientSheet.jsx`, `tests/broker-client-transfer.test.mjs` (novo), `docs/BUSINESS_RULES.md` (CLI-7a), `docs/PERMISSIONS.md`, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** sem migration nem coluna nova. Interações: caso FUN-15 aberto é encerrado sozinho como `responsavel_mudou` (`autoCancelReason`) — ou seja, um corretor com a janela obrigatória do motivo aberta pode sair dela transferindo o cliente (decisão do dono se isso deve ser barrado). Meta Diária/pendências e carteira passam a contar para quem recebe (leem `responsible_user_id`); pontuação não muda (transferência não grava `client_status_history`); roleta: transferência manual desliga a redistribuição do cliente (ROL-4d). Card da lista (chip de responsável) continua só para admin/gestor. O aviso ao destinatário é melhor esforço (falha fica no log, a transferência não é desfeita).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-16 — FUN-15h ampliada: redistribuição automática também abre a conversa anterior (inclusive as antigas)
 - **Data:** 2026-10-16
 - **Área:** Clientes / WhatsApp / Roleta

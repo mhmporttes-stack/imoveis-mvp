@@ -32,6 +32,8 @@ function readCardDevice() {
 export function useClientList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
+  // CLI-7a (dono, 2026-10-16): corretor transfere os próprios clientes — { selfId, targets: [{ id, name }] } ou null.
+  ownTransfer = null,
   brokerSimulationLink = "",
   initialData: serverData,
   initialFilters,
@@ -346,8 +348,24 @@ export function useClientList({
     await applyStatusUpdate(target.client, target.nextStatus, { receivedDate });
   }
 
+  // Corretor só transfere cliente do qual é o responsável; a barreira real é o servidor (updateSimulationRegistration).
+  const transferTargets = ownTransfer?.targets || [];
+  const canTransferOwnClient = (client) => Boolean(ownTransfer?.selfId) && client?.registration?.responsibleUserId === ownTransfer.selfId;
+
+  async function transferOwnClient(client, toUserId) {
+    if (!toUserId || !canTransferOwnClient(client)) return;
+    const name = client.name || "Este cliente";
+    const toName = transferTargets.find((target) => target.id === toUserId)?.name || "a pessoa escolhida";
+    const ok = await confirmAction({
+      title: "Transferir o cliente?",
+      description: `${name} passa a ser atendido(a) por ${toName}, que recebe um aviso. Você deixa de ver este cliente na sua carteira.`,
+      confirmLabel: "Transferir"
+    });
+    if (ok) await updateClientResponsibleUser(client, toUserId);
+  }
+
   async function updateClientResponsibleUser(client, responsibleUserId) {
-    if (!canManageResponsibleUsers) return;
+    if (!canManageResponsibleUsers && !canTransferOwnClient(client)) return;
     await withBusy(client, async () => {
       const response = await fetch(`/api/simulation-registrations/${client.registration.id}`, {
         method: "PATCH",
@@ -873,11 +891,11 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap,
+    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap, transferTargets,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
-    activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser, returnClientToRoulette,
+    activitiesFor, openSimulation, openValues, removeClient, updateClientStatus, updateClientResponsibleUser, returnClientToRoulette, canTransferOwnClient, transferOwnClient,
     handleProspectingAction, confirmStatusReason, cancelStatusReason: () => setReasonTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,

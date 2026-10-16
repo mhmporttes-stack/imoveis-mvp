@@ -126,6 +126,17 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
                   <option value="">Sem corretor</option>
                   {list.responsibleProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
                 </LabeledSelect>
+              ) : list.canTransferOwnClient(client) && list.transferTargets.length ? (
+                // CLI-7a (dono, 2026-10-16): o corretor transfere o próprio cliente (confirmação antes; servidor valida).
+                <LabeledSelect
+                  label="Responsável"
+                  value={registration?.responsibleUserId || ""}
+                  disabled={busy}
+                  onChange={(value) => list.transferOwnClient(client, value)}
+                >
+                  <option value={registration?.responsibleUserId || ""}>Você</option>
+                  {list.transferTargets.map((target) => <option key={target.id} value={target.id}>Transferir para {target.name}</option>)}
+                </LabeledSelect>
               ) : (
                 <div>
                   <p className="text-xs font-medium text-muted">Responsável</p>
