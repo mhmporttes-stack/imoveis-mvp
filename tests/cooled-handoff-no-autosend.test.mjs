@@ -38,7 +38,7 @@ test("prompt da IA pede rascunho de pós-atendimento no formato do dono (FUN-15c
   const prompt = source.slice(start, source.indexOf("`;", start));
   assert.match(prompt, /PÓS-ATENDIMENTO/);
   assert.match(prompt, /associado do corretor Matheus Machado/);
-  assert.match(prompt, /nunca "Matheus Machado Imóveis"/);
+  assert.match(prompt, /não acrescente "Imóveis" nem nome de empresa/);
   assert.match(prompt, /sem inventar nome/);
   assert.match(prompt, /sem emoji/);
   assert.match(prompt, /sem promessas/);
