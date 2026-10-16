@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ensureDailyBackup } from "@/lib/backup";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { canManageProperties, createProperty } from "@/lib/properties";
+import { canManageProperties, createProperty, savePropertyContact } from "@/lib/properties";
+import { hasPropertyContactInput } from "@/lib/property-contact-core.mjs";
 import { listPublicProperties } from "@/lib/public-properties";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 
@@ -31,6 +32,8 @@ export async function POST(request) {
     const payload = await request.json();
     const canPublish = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile);
     const property = await createProperty({ ...payload, isPublished: canPublish && payload.isPublished === true }, auth);
+    // Contato do imóvel (interno, 2026-10-16): só admin/gestor grava — mesmo critério de quem edita imóvel.
+    if (canPublish && hasPropertyContactInput(payload)) await savePropertyContact(property.id, payload);
     await ensureDailyBackup();
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

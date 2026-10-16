@@ -122,7 +122,7 @@ test("só os consumidores conhecidos de internalNotes existem em app/ e componen
 // ---------- (d) site público segue sem notas ----------
 test("site público continua removendo internalNotes e createdByUserId", () => {
   const source = read("lib/public-properties.js");
-  assert.match(source, /const \{ internalNotes, createdByUserId, \.\.\.publicSafe \} = property;/);
+  assert.match(source, /const \{ internalNotes, createdByUserId, [^}]*\.\.\.publicSafe \} = property;/);
   assert.match(source, /\.map\(rowToProperty\)\.map\(stripInternalFields\)/);
   assert.match(source, /stripInternalFields\(rowToProperty\(data\)\)/);
 });

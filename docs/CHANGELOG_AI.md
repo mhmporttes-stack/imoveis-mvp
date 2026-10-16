@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — Imóveis: contato do imóvel (interno) para agendar visita
+- **Data:** 2026-10-16
+- **Área:** Banco / Imóveis (painel) / Permissões
+- **Alteração:** cadastro de imóvel/empreendimento ganhou "Contato do imóvel" (nome, telefone/WhatsApp, tipo Proprietário ou Corretor parceiro) com link "Chamar no WhatsApp" (`buildWhatsAppUrl`) e autocomplete do nome com contatos já usados em outros imóveis (escolher preenche os 3 campos, editáveis). Aparece no formulário de edição (`/admin/empreendimentos/<id>`, também usado pelos imóveis) e no novo cadastro só para admin/gestor, e na tela "Ver detalhes" (`/admin/imoveis/<id>`) só para admin/gestor. Tabela nova `property_contacts` (RLS sem policy); `lib/properties.js` (`getPropertyContact`, `listPropertyContacts`, `savePropertyContact`), `lib/property-contact-core.mjs`; rota nova `GET /api/admin/property-contacts` (`requireFinancialManagerApi`). PUT `/api/properties/[id]` (já admin/gestor) grava o contato só quando os campos vêm no corpo; POST `/api/properties` só grava se admin/gestor.
+- **Motivo:** pedido do dono (achar quem chamar na hora de agendar visita).
+- **Arquivos afetados:** `supabase/migrations/20261016150000_property_contacts.sql`, `lib/properties.js`, `lib/property-contact-core.mjs`, `lib/public-properties.js`, `lib/property-visibility-core.mjs`, `app/api/properties/route.js`, `app/api/properties/[id]/route.js`, `app/api/admin/property-contacts/route.js`, `app/admin/empreendimentos/[id]/page.jsx`, `app/admin/imoveis/[id]/page.jsx`, `components/PropertyForm.jsx`, `tests/property-contact.test.mjs`, `tests/permissoes-tags-notas-internas.test.mjs` (regex aceita os campos extras removidos), `docs/DATABASE.md`, `docs/PERMISSIONS.md`.
+- **Risco/observação:** contato fica fora de `getProperty`/`listProperties`/mapper — nenhum consumidor existente (site, apresentação, links, sitemap, PDF) passa a recebê-lo; `stripInternalFields` e a redação por perfil (`INTERNAL_PROPERTY_FIELDS`) também removem os campos por garantia. Não usei colunas em `properties` porque a tabela tem policy pública de leitura para a anon key (pública no navegador): coluna nova seria lida por qualquer um na API REST. **Achado fora do escopo, não corrigido:** pelo mesmo motivo, `properties.internal_notes` e `created_by_user_id` dos imóveis publicados provavelmente são legíveis com a anon key direto na API REST do Supabase (o site não mostra; A CONFIRMAR no banco) — decidir com o dono. Código tolera a tabela ainda inexistente (lista vazia; salvar contato preenchido dá erro claro). Migration **A CONFIRMAR** aplicação em produção (sem credencial nesta sessão). Build ok; testes 27/27 da área.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-16 — Desempenho: funil com coluna "Desde <etapa base>"
 - **Data:** 2026-10-16
 - **Área:** Ranking / Desempenho (só apresentação)

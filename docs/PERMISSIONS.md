@@ -103,7 +103,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 
 **`requireBrokerManagementApi` (admin/gestor):** `admin/whatsapp-individual/health` (GET, 2026-10-10, WA-21: saúde por número; admin principal = todos, gestora = só a equipe, recorte no `lib`), `admin-users`, `admin-users/[id]`, `admin-users/[id]/photo`, `admin/presence`, `admin/presence/report`, `admin/office-presence` (GET/POST, ROL-2f: ligar/desligar e remover rede só admin geral; "Liberar hoje" só a equipe visível — checado em `lib/office-presence.js`), `admin/whatsapp-flows` (todas), `admin/whatsapp-master/automation-replies*`, `campaigns`, `campaigns/[id]`, `captacoes` (GET), `captacoes/[id]`, `captacoes/[id]/publish`, `crm-automation-rules*`, `crm-settings/whatsapp-master*`, `daily-message/cards*`, `daily-message/dispatch*`, `daily-message/settings`, `lead-distribution`, `performance-overview*`, `scoring-rules` (GET/history), `whatsapp-master/events`.
 
-**`requireFinancialManagerApi` (admin/gestor):** `empreendimentos/[id]`, `properties/[id]` (PUT/DELETE), `testimonials/[id]`, `testimonials/[id]/publish`, `uploads/documents`.
+**`requireFinancialManagerApi` (admin/gestor):** `empreendimentos/[id]`, `properties/[id]` (PUT/DELETE), `admin/property-contacts` (GET, autocomplete do contato do imóvel), `testimonials/[id]`, `testimonials/[id]/publish`, `uploads/documents`.
 
 **`requirePerformanceApi` (não-associado):** `daily-report`, `financeiro/[id]` (GET — e bloqueia gestor dentro da rota). **`requireFinancialAccessApi` (não-gestor):** `financeiro` (GET).
 

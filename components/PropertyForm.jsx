@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GripVertical, Sparkles } from "lucide-react";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import PropertyFeatureIcon, { getPropertyFeatureIcon } from "@/components/PropertyFeatureIcon";
 import { DEFAULT_FEATURE_ICON, FEATURE_ICON_OPTIONS, SUGGESTED_FEATURES, normalizePropertyFeatures } from "@/lib/property-features";
 import { ADMIN_REGION_OPTIONS, normalizeRegionValue } from "@/lib/property-filter-options";
+import { PROPERTY_CONTACT_TYPES, findPropertyContactByName, propertyContactTypeLabel } from "@/lib/property-contact-core.mjs";
+import { buildWhatsAppUrl } from "@/lib/phone-utils";
 
 const TYPE_OPTIONS = [
   { value: "apartamento", label: "Apartamento" },
@@ -75,6 +77,26 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  // Contatos já usados em outros imóveis (autocomplete do nome) — só admin/gestor; a rota repete o guard.
+  const [knownContacts, setKnownContacts] = useState([]);
+  useEffect(() => {
+    if (!canPublish) return;
+    let active = true;
+    fetch("/api/admin/property-contacts")
+      .then((response) => (response.ok ? response.json() : { contacts: [] }))
+      .then((result) => { if (active) setKnownContacts(Array.isArray(result.contacts) ? result.contacts : []); })
+      .catch((error) => console.warn("Contatos de imóveis indisponíveis para o autocomplete:", error?.message || error));
+    return () => { active = false; };
+  }, [canPublish]);
+
+  // Escolher um contato já usado preenche nome, telefone e tipo (todos continuam editáveis).
+  function updateContactName(value) {
+    const known = findPropertyContactByName(knownContacts, value);
+    setForm((current) => (known
+      ? { ...current, contactName: value, contactPhone: known.contactPhone, contactType: known.contactType }
+      : { ...current, contactName: value }));
   }
 
   async function analyzeUrl() {
@@ -451,6 +473,27 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
       <Textarea label="Condições comerciais" value={form.terms} onChange={(value) => update("terms", value)} />
       <Textarea label="Descontos/subsídios" value={form.discounts} onChange={(value) => update("discounts", value)} />
       <Textarea label="Observações internas" value={form.internalNotes} onChange={(value) => update("internalNotes", value)} />
+
+      {/* Contato do imóvel (dono, 2026-10-16): interno, só admin/gestor (canPublish) — nunca vai ao site. */}
+      {canPublish ? <section className="grid gap-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 sm:p-6 lg:grid-cols-3">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800 lg:col-span-3">Contato do imóvel (interno — não aparece no site)</p>
+        <Field label="Nome do contato" value={form.contactName} onChange={updateContactName} list="property-contact-options" autoComplete="off" placeholder="Digite ou escolha um contato já usado" />
+        <datalist id="property-contact-options">
+          {knownContacts.map((contact) => <option key={`${contact.contactName}|${contact.contactPhone}|${contact.contactType}`} value={contact.contactName} label={[propertyContactTypeLabel(contact.contactType), contact.contactPhone].filter(Boolean).join(" · ")} />)}
+        </datalist>
+        <label className="grid gap-2 font-extrabold text-ink">
+          Telefone/WhatsApp do contato
+          <input className="rounded-2xl border border-line bg-white px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" type="tel" value={form.contactPhone || ""} onChange={(event) => update("contactPhone", event.target.value)} placeholder="(14) 99999-9999" />
+          {buildWhatsAppUrl(form.contactPhone) ? <a className="text-sm font-black text-brand hover:text-navy" href={buildWhatsAppUrl(form.contactPhone)} target="_blank" rel="noreferrer">Chamar no WhatsApp</a> : null}
+        </label>
+        <label className="grid gap-2 font-extrabold text-ink">
+          Tipo do contato
+          <select className="rounded-2xl border border-line bg-white px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={form.contactType || ""} onChange={(event) => update("contactType", event.target.value)}>
+            <option value="">Selecione</option>
+            {PROPERTY_CONTACT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+      </section> : null}
 
       <section className="grid gap-5 lg:grid-cols-2">
         <FilePicker

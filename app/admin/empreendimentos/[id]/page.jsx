@@ -5,7 +5,7 @@ import EmpreendimentoAdminTabs from "@/components/EmpreendimentoAdminTabs";
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
-import { canManageProperties, getProperty } from "@/lib/properties";
+import { canManageProperties, getProperty, getPropertyContact } from "@/lib/properties";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +29,10 @@ export default async function EditPropertyPage({ params, searchParams }) {
 
   const { id } = await params;
   const query = await searchParams;
-  const property = await getProperty(id);
-  if (!property) notFound();
+  const found = await getProperty(id);
+  if (!found) notFound();
+  // Contato do imóvel (interno): esta página já é só admin/gestor (redirect acima).
+  const property = { ...found, ...(await getPropertyContact(id)) };
 
   return (
     <main className="bg-mist py-14">
