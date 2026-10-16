@@ -54,6 +54,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-16 — FUN-15e (complemento): card do cliente que esfriou fica fixo até o motivo
+- **Data:** 2026-10-16
+- **Área:** Clientes que esfriaram (FUN-15) / Central de Alertas
+- **Alteração:** regra oficial do dono (complemento da FUN-15e): o primeiro cliente fica até o corretor concluir; depois vem o próximo, em ordem estável. Bug corrigido: com mais de 50 pendências, a Central lia um recorte diferente das entregas empatadas no `created_at` (backlog gravado numa só rodada do cron) e a janela trocava de cliente sozinha (relato da Carol). Agora a frente vem de `loadFirstPendingCooledAlert` (`created_at` + `id`, limite 1) e é garantida por `pinCooledHead` na Central e no sino; listas desempatam pelo `id` (inclusive a caixinha da decisora).
+- **Motivo:** relato do dono: a corretora pesquisava a conversa do cliente e, ao voltar, a janela já era de outro cliente.
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `lib/crm-alerts.js`, `lib/cooled-clients.js`, `tests/cooled-clients-core.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15e complemento), `.claude/rules/crm-clientes-funil.md`, `docs/INCIDENTES.md`.
+- **Risco/observação:** sem migration. PENDENTE DE VALIDAÇÃO: pela FUN-15 (b), mandar mensagem ao cliente (ou agendar atividade) com a janela aberta ainda encerra o caso na próxima rodada do cron e traz o próximo; o texto digitado na janela não é guardado se a página recarregar.
+- **Autor:** Claude Code
+
 ### 2026-10-16 — FUN-15e: clientes que esfriaram um por vez e aprovados fora da transferência
 - **Data:** 2026-10-16
 - **Área:** Clientes que esfriaram (FUN-15) / Central de Alertas

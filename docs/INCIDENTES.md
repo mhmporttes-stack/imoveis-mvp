@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-16 — Janela "cliente esfriou" troca de cliente sozinha antes de o corretor escrever o motivo
+- **Data:** 2026-10-16
+- **Sintoma:** a corretora sai para pesquisar a conversa do cliente e, quando volta, a janela do motivo já mostra outro cliente.
+- **Área:** Clientes que esfriaram (FUN-15) / Central de Alertas
+- **Impacto:** corretores com backlog grande de clientes esfriados (mais de ~50 pendências na Central); janela trocava a cada releitura (tempo real, intervalo de 60 s, recarregar).
+- **Causa raiz:** `listMyPendingAlerts` (`lib/crm-alerts.js`) lia no máximo 50 pendências ordenadas só por `created_at`; as entregas do backlog nascem na mesma rodada do cron com o MESMO `created_at`, então cada leitura trazia um recorte diferente dos empatados e `keepFirstPendingCooledAlert` escolhia a "mais antiga" dentro de recortes diferentes.
+- **Correção:** frente da fila lida por consulta própria (`loadFirstPendingCooledAlert`, ordem `created_at` + `id`, limite 1) e garantida na lista por `pinCooledHead` (Central e sino); listas com desempate pelo `id`. Detalhe no `CHANGELOG_AI.md` (2026-10-16).
+- **Arquivos/commit:** `lib/cooled-clients-core.mjs`, `lib/crm-alerts.js`, `lib/cooled-clients.js` — branch `fun15-card-fixo`.
+- **Prevenção/teste:** `tests/cooled-clients-core.test.mjs` (60 entregas empatadas, recortes diferentes → sempre o mesmo cliente). Risco residual: mandar mensagem ao cliente com a janela aberta encerra o caso pela FUN-15 (b) — pendente de decisão do dono.
+- **Status:** Resolvido (aguardando publicação).
+
 ### 2026-10-16 — Mensagem enviada pelo Chat/automação não aparece no celular do corretor
 - **Data:** 2026-10-16
 - **Sintoma:** mensagem do CRM chega ao cliente, mas não aparece no WhatsApp do celular do corretor.

@@ -19,6 +19,7 @@ import {
   isCooledCandidate,
   isCooledDedupeKey,
   keepFirstPendingCooledAlert,
+  pinCooledHead,
   isValidCooledText,
   parseHandoffResponse,
   renderHandoffMessage,
@@ -227,4 +228,29 @@ test("FUN-15e: uma janela de cliente esfriado por vez, a mais antiga; o resto co
   // Sino: frente conhecida por consulta própria; sem frente, nenhuma pendente do fluxo aparece.
   assert.deepEqual(keepFirstPendingCooledAlert(rows, "d").map((row) => row.id), ["z", "c", "d"]);
   assert.deepEqual(keepFirstPendingCooledAlert(rows, null).map((row) => row.id), ["z", "c"]);
+});
+
+test("FUN-15e complemento (dono, 2026-10-16): o card fica fixo até concluir, mesmo com backlog maior que o limite da consulta", () => {
+  // Backlog: 60 entregas gravadas na mesma rodada do cron (mesmo created_at). A Central lê no máximo 50 — antes, cada
+  // releitura recebia um recorte diferente dos empatados e a janela trocava de cliente sozinha (caso da Carol).
+  const at = "2026-10-16T10:00:00Z";
+  const ids = Array.from({ length: 60 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
+  const cooled = (id) => ({ id, kind: "important", created_at: at, acknowledged_at: null, context: { type: "cooled_client", case_id: `case-${id}` } });
+  const all = ids.map(cooled);
+  const head = all[0]; // a consulta própria ordena por created_at e id: sempre a mesma frente
+  const shuffled = (seed) => [...all].sort((a, b) => ((a.id.charCodeAt(35) * seed) % 61) - ((b.id.charCodeAt(35) * seed) % 61));
+  const pendingIds = (rows) => rows.filter((row) => row.context?.type === "cooled_client" && !row.acknowledged_at).map((row) => row.id);
+  for (const seed of [1, 7, 13, 29, 53]) {
+    const cut = shuffled(seed).slice(0, 50); // recortes diferentes, inclusive sem a frente
+    assert.deepEqual(pendingIds(pinCooledHead(cut, head)), [head.id]);
+  }
+  // Releituras repetidas (foco, tempo real, recarregar, outro aparelho) devolvem sempre o mesmo cliente.
+  const reads = new Set([1, 2, 3, 4].map((seed) => pendingIds(pinCooledHead(shuffled(seed).slice(10), head))[0]));
+  assert.deepEqual([...reads], [head.id]);
+  // Outros alertas não somem; sem frente pendente (fila vazia), nenhuma janela do fluxo.
+  const other = { id: "z", kind: "important", created_at: at, acknowledged_at: null, context: {} };
+  assert.deepEqual(pinCooledHead([other, all[5]], head).map((row) => row.id), ["z", head.id]);
+  assert.deepEqual(pinCooledHead([other, all[5]], null).map((row) => row.id), ["z"]);
+  // Concluído o motivo, a próxima frente (consulta própria) é o seguinte pela ordem estável.
+  assert.deepEqual(pendingIds(pinCooledHead(all.slice(1), all[1])), [all[1].id]);
 });
