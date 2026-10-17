@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-17 — Ícone do Chat sumiu e não volta mesmo com o WhatsApp conectado
+- **Data:** 2026-10-17
+- **Sintoma:** corretora relata que "o ícone de chat sumiu"; no banco os dois números dela estavam conectados.
+- **Área:** WhatsApp / Frontend (modo lista impressa, PRO-15)
+- **Impacto:** corretor/associado que passou pelo modo lista impressa e reconectou: o Chat seguia fora da barra/menu até fechar e reabrir o app.
+- **Causa raiz:** `chatHidden` era calculado só no layout do painel (Server Component), que não é renderizado de novo na navegação dentro do app instalado; nada relia o estado depois de reconectar. Hipótese de que quedas automáticas (428/500/503/515) contavam como desconexão manual foi **refutada**: o serviço grava `reconnecting`/`connecting` nessas quedas (`session-lifecycle.js`), lido como TRANSIENT; com 2 números, um no ar já basta. Nos últimos 4 dias a corretora só teve quedas `reconnecting` (nenhum momento com os dois números fora do ar), então **a causa exata do relato dela não foi confirmada** — falta saber qual ícone/aparelho/horário.
+- **Correção:** `WhatsappAccessProvider` passa a manter o valor vivo: relê `printedListMode` de `/api/admin/whatsapp-individual/card-state` ao voltar o app ao primeiro plano e, enquanto o Chat estiver escondido, a cada 20 s (só corretor/associado); barra inferior e menu do topo leem esse valor (`useLiveChatHidden`). Só apresentação; APIs do Chat continuam barradas no servidor.
+- **Arquivos/commit:** `components/WhatsappAccessProvider.jsx`, `app/admin/layout.jsx`, `components/AdminBottomNav.jsx`, `components/AdminMenu.jsx`.
+- **Prevenção/teste:** `tests/whatsapp-manual-disconnect.test.mjs` (status real gravado pelo serviço em 428/500/503/408/515 → TRANSIENT; 401 continua modo lista impressa; barra dentro do provider).
+- **Status:** Monitorando (causa do caso concreto a confirmar com print/aparelho).
+
 ### 2026-10-16 — Janela "cliente esfriou" troca de cliente sozinha antes de o corretor escrever o motivo
 - **Data:** 2026-10-16
 - **Sintoma:** a corretora sai para pesquisar a conversa do cliente e, quando volta, a janela do motivo já mostra outro cliente.

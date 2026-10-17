@@ -14,6 +14,8 @@ import {
 } from "../lib/whatsapp-manual-disconnect-core.mjs";
 import { hiddenNavKeys } from "../lib/whatsapp-access-core.mjs";
 import { decideCardWhatsapp, CARD_WA_EXTERNAL, CARD_WA_CHAT } from "../lib/client-card-whatsapp-core.mjs";
+import { createReconnectController } from "../whatsapp-individual-service/src/reconnect-policy.js";
+import { createCloseHandler } from "../whatsapp-individual-service/src/session-lifecycle.js";
 
 // PRO-15 (REGRA OFICIAL — dono, 2026-10-15): WhatsApp desconectado que não é banimento (403) nem restrição =
 // modo lista impressa (sem Chat e sem Prospecção pelo CRM).
@@ -140,4 +142,56 @@ test("nada apaga dado: o núcleo e a leitura não escrevem no banco", () => {
   const lib = source("lib/whatsapp-manual-disconnect.js");
   assert.doesNotMatch(lib, /\.(insert|update|upsert|delete)\(/);
   assert.doesNotMatch(lib, /disconnectIndividualSession/);
+});
+
+// Caso Jennyfer (2026-10-17): o status que o MICROSSERVIÇO grava numa queda que ele mesmo reconecta (428/500/503/408 do
+// Baileys, 515) precisa ser lido como TRANSIENT aqui — nunca modo lista impressa. Liga os dois lados de verdade.
+async function serviceStatusAfterDrop(statusCode) {
+  const notified = [];
+  const controller = createReconnectController({ random: () => 0.5, setTimer: () => ({}), clearTimer: () => {} });
+  const entry = { sock: null, status: "connected", qr: null, pairingCode: null, pairingMode: false, pairingError: null };
+  const handleClose = createCloseHandler({
+    userId: "u1", entry, controller,
+    notifyStatus: async (_id, payload) => { notified.push(payload); },
+    clearSessionCreds: async () => {},
+    retireSocket: async () => {},
+    scheduleRetry: () => {}
+  });
+  const sock = { authState: { creds: { registered: true, me: { id: "5511999999999:1@s.whatsapp.net" } } } };
+  await handleClose({ sock, statusCode, errorMessage: "queda de teste" });
+  return notified.at(-1);
+}
+
+test("queda que o serviço reconecta sozinho (428/500/503/408/515) = TRANSIENT, nunca modo lista impressa", async () => {
+  for (const code of [428, 500, 503, 408, 515]) {
+    const payload = await serviceStatusAfterDrop(code);
+    assert.ok(["reconnecting", "connecting"].includes(payload.status), `código ${code}: ${payload.status}`);
+    const rows = [{ slot: 1, status: payload.status, last_error: payload.error || null, last_disconnect_code: code, last_disconnect_at: "2026-10-17T06:43:14Z", last_connected_at: CONNECTED_AT }];
+    assert.equal(classifyWhatsappDisconnect({ rows }), DISCONNECT_KIND.TRANSIENT, `código ${code}`);
+    assert.equal(isPrintedListMode(broker(rows)), false, `código ${code}`);
+    // Dois números: um caindo e o outro no ar = conectado.
+    assert.equal(isPrintedListMode(broker([...rows, { slot: 2, status: "connected", last_connected_at: CONNECTED_AT }])), false);
+  }
+  // PRO-15 intacta: logout (401) continua tirando o Chat.
+  const logout = await serviceStatusAfterDrop(401);
+  assert.equal(logout.status, "disconnected");
+  assert.equal(isPrintedListMode(broker([{ slot: 1, status: logout.status, last_error: logout.error, last_disconnect_code: 401, last_disconnect_at: "2026-10-17T06:43:14Z", last_connected_at: CONNECTED_AT }])), true);
+});
+
+test("Chat volta sozinho ao reconectar: menu/barra leem o valor vivo do provider (sem fechar o app)", () => {
+  const provider = source("components/WhatsappAccessProvider.jsx");
+  assert.match(provider, /\/api\/admin\/whatsapp-individual\/card-state/);
+  assert.match(provider, /data\?\.printedListMode/);
+  assert.match(provider, /visibilitychange/);
+  assert.match(provider, /export function useLiveChatHidden/);
+  for (const file of ["components/AdminBottomNav.jsx", "components/AdminMenu.jsx"]) assert.match(source(file), /useLiveChatHidden\(chatHiddenProp\)/, file);
+  const layout = source("app/admin/layout.jsx");
+  assert.match(layout, /liveCheck=\{auth\.ok && printedListModeAppliesTo\(/);
+  // A barra inferior fica DENTRO do provider (senão não recebe o valor vivo).
+  const open = layout.indexOf("<WhatsappAccessProvider");
+  const close = layout.indexOf("</WhatsappAccessProvider>");
+  const bar = layout.indexOf("<AdminBottomNav");
+  assert.ok(open > -1 && open < bar && bar < close, "AdminBottomNav dentro do WhatsappAccessProvider");
+  // card-state continua fora das APIs barradas pelo modo lista impressa (é por ela que o Chat volta).
+  assert.equal(isPrintedListProtectedPath("/api/admin/whatsapp-individual/card-state"), false);
 });

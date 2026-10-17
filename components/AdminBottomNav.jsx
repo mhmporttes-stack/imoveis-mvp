@@ -16,6 +16,7 @@ import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 
 // Navegação principal do painel no celular (< md): barra inferior fixa com os
@@ -62,7 +63,9 @@ function isEditableTarget(target) {
 
 // `currentPath` só existe para a vitrine de desenvolvimento simular a rota;
 // no painel o caminho vem do roteador.
-export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden = false, currentPath = "" }) {
+export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden: chatHiddenProp = false, currentPath = "" }) {
+  // Valor vivo do modo lista impressa (PRO-15): volta o Chat quando o WhatsApp reconecta, sem fechar o app.
+  const chatHidden = useLiveChatHidden(chatHiddenProp);
   const routerPath = usePathname() || "";
   const pathname = currentPath || routerPath;
   const counts = useCrmBadgeCounts();

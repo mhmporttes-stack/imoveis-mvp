@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — PRO-15: Chat volta sozinho ao reconectar o WhatsApp (sem fechar o app)
+- **Data:** 2026-10-17
+- **Área:** WhatsApp / Frontend (modo lista impressa)
+- **Alteração:** o "Chat escondido" do modo lista impressa era decidido só no layout do servidor e ficava parado no app instalado. `WhatsappAccessProvider` agora relê o mesmo cálculo do servidor (`printedListMode` de `/api/admin/whatsapp-individual/card-state`) ao voltar ao primeiro plano e a cada 20 s enquanto o Chat está escondido (só corretor/associado, `liveCheck`); a barra inferior passou a ficar dentro do provider e `AdminBottomNav`/`AdminMenu` usam `useLiveChatHidden(prop)` (vitrine segue pela prop). Regra PRO-15 inalterada; nenhuma permissão/API mudou.
+- **Motivo:** relato "o ícone de chat da Jennyfer sumiu". Diagnóstico: quedas automáticas já são `reconnecting`/`connecting` (TRANSIENT) — hipótese de classificação errada refutada com o código do serviço e a telemetria; o defeito real encontrado foi o valor parado no app. Causa do caso concreto **A CONFIRMAR** (ver `docs/INCIDENTES.md`).
+- **Arquivos afetados:** `components/WhatsappAccessProvider.jsx`, `app/admin/layout.jsx`, `components/AdminBottomNav.jsx`, `components/AdminMenu.jsx`, `tests/whatsapp-manual-disconnect.test.mjs`.
+- **Risco/observação:** +1 leitura leve por volta ao primeiro plano para corretor/associado; polling só enquanto o Chat está escondido.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-17 — Clientes que esfriaram: "Segunda chance" ao mesmo corretor (FUN-15m)
 - **Data:** 2026-10-17
 - **Área:** Clientes (FUN-15)

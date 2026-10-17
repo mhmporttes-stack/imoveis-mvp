@@ -23,10 +23,11 @@ import { getAdminFromCookies, isOwnerAdminEmail } from "@/lib/admin-auth";
 import { resolvePresenceProfileId } from "@/lib/admin-presence-core.mjs";
 import { isAcademyEnabled } from "@/lib/academy-flags";
 import { AcademyMenuProvider } from "@/components/AcademyMenuContext";
-import { isAssociateProfile, isBrokerProfile, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
+import { isAssociateProfile, isBrokerProfile, isGeneralAdminAuth, isGeneralAdminProfile, isManagerProfile } from "@/lib/admin-profiles";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys, isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
 import { readChatHiddenForNav } from "@/lib/whatsapp-manual-disconnect";
+import { printedListModeAppliesTo } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +92,10 @@ export default async function AdminLayout({ children }) {
           <OfficePresenceNotice />
         </HideInFinanceiroApp>
       ) : null}
-      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden}><SceneTransitionRoot>{children}</SceneTransitionRoot></WhatsappAccessProvider>
+      {/* O provider envolve também a barra inferior: o modo lista impressa (PRO-15) é relido no cliente e o Chat volta
+          sozinho quando o WhatsApp reconecta, sem fechar o app (components/WhatsappAccessProvider.jsx). */}
+      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden} liveCheck={auth.ok && printedListModeAppliesTo({ role: auth.profile?.role || "", isGeneralAdmin: isGeneralAdminAuth(auth) })}>
+      <SceneTransitionRoot>{children}</SceneTransitionRoot>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
       {/* Navegação principal no celular (< md); do tablet para cima continua
@@ -107,6 +111,7 @@ export default async function AdminLayout({ children }) {
           chatHidden={chatHidden}
         />
       ) : null}
+      </WhatsappAccessProvider>
       {auth.ok ? (
         <div className="admin-page-footer container-page flex flex-col items-center gap-3 py-10">
           <AdminLogoutButton />

@@ -8,6 +8,7 @@ import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
 import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
+import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { withAcademyMenuGroup } from "@/lib/academy-menu.mjs";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 import { CalendarDays, CircleDot, MessageCircle, MessageSquareReply, UserRoundPlus } from "lucide-react";
@@ -248,7 +249,9 @@ function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false }) 
   );
 }
 
-export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden = false }) {
+export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden: chatHiddenProp = false }) {
+  // Valor vivo do modo lista impressa (PRO-15): volta o Chat quando o WhatsApp reconecta, sem recarregar a página.
+  const chatHidden = useLiveChatHidden(chatHiddenProp);
   const pathname = usePathname();
   // Gestor enxerga o mesmo padrão de menu do corretor (pedido do dono,
   // 2026-09-29): CRM/CADASTROS/DESEMPENHO, CRM colapsado num único pill com
