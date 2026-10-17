@@ -11,6 +11,11 @@
   transform-origin: center;
 }
 
+/* celular: a foto é menor e fica ao lado do título; o rodapé dela se dissolve no fundo em vez de terminar numa borda reta */
+@media (max-width: 767px) {
+  .photo { -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ring { animation: ringDraw 2.6s cubic-bezier(0.45, 0, 0.55, 1) 0.2s both; }
   @keyframes ringDraw { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }

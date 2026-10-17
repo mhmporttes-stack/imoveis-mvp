@@ -22,13 +22,16 @@ export default function HeroJourney() {
       {/* Título, frase e linha do tempo têm a MESMA largura (a da frase, até o fim de "financiar"): ficam no mesmo bloco e o
           título (uma linha, maiúsculas) é ajustado por FitLine para terminar exatamente onde a frase termina. */}
       <div className="w-fit max-w-full">
-      <FitLine className={`${styles.rise} ${styles.title} mt-4 font-extrabold sm:mt-5`} style={{ "--d": "0.12s" }}>
+      {/* Celular: título e frase ocupam só a coluna da esquerda (a foto fica à direita, como no computador); a linha do tempo segue em largura total. */}
+      <div className="max-w-[54%] sm:max-w-[58%] md:max-w-none">
+      <FitLine minPx={16} className={`${styles.rise} ${styles.title} mt-4 font-extrabold sm:mt-5`} style={{ "--d": "0.12s" }}>
         Seu primeiro imóvel em <span className="text-[#6FA8FA]">Marília</span>
       </FitLine>
 
-      <p className={`${styles.rise} mt-5 max-w-[32rem] text-[15px] leading-relaxed text-white/80 sm:text-lg sm:leading-8`} style={{ "--d": "0.32s" }}>
+      <p className={`${styles.rise} mt-5 max-w-[32rem] text-[14px] leading-[1.45] text-white/80 sm:text-lg sm:leading-8`} style={{ "--d": "0.32s" }}>
         Descubra em menos de 2 minutos quanto você pode financiar.
       </p>
+      </div>
 
       {/* Linha do tempo: os pontos ficam no começo, no meio e NO FIM da largura (as chaves chegam na ponta direita, onde a
           frase termina); cada ponto acende e a linha seguinte se desenha até o próximo (tempo = --d). */}

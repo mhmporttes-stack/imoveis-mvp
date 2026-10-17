@@ -59,7 +59,7 @@ export default async function HomePage() {
       <section data-home-hero className="relative isolate overflow-hidden bg-[#08112E] pt-14 text-white sm:pt-16">
         <HeroBackground variant={HERO_BACKGROUND} />
         <div className="container-page relative grid md:min-h-[600px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-6 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
-          <div className="min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
+          <div className="relative z-10 min-w-0 pt-7 sm:pt-12 md:self-center md:py-16 lg:py-20">
             <HeroJourney />
 
             <HeroReveal delay={2.2} className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center md:flex-col md:items-start lg:flex-row lg:items-center">
@@ -97,19 +97,20 @@ export default async function HomePage() {
             </ul>
           </div>
 
-          <div className="relative -mx-4 mt-2 h-[340px] sm:mx-0 sm:h-[380px] md:mt-0 md:h-auto">
+          {/* Celular: a foto fica no MESMO lugar do computador (à direita do título), só menor, e o rodapé dela se dissolve; texto por cima. */}
+          <div className="pointer-events-none absolute -right-2 top-12 h-[300px] w-[48%] sm:right-0 sm:top-14 sm:h-[360px] sm:w-[42%] md:pointer-events-auto md:relative md:right-auto md:top-auto md:mt-0 md:h-auto md:w-auto">
             <span
               className="pointer-events-none absolute bottom-0 left-1/2 h-[70%] w-[78%] -translate-x-1/2 rounded-[50%] bg-[#4C8DF6]/20 blur-[70px] md:h-[62%]"
               aria-hidden="true"
             />
             {/* Anel de luz ATRÁS do Matheus (cena, dono 2026-10-17): centrado no corpo dele; a foto vem depois no DOM, então fica na frente. */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-[10%] top-[16%] flex items-center justify-center md:inset-0 md:pt-8" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-x-0 bottom-[6%] top-[14%] flex items-center justify-center md:inset-0 md:pt-8" aria-hidden="true">
               <svg viewBox="0 0 200 200" className="aspect-square h-full max-w-[98%] overflow-visible md:h-[88%]" focusable="false">
                 <circle className={heroRing.dots} cx="100" cy="100" r="106" fill="none" stroke="#8DB4F3" strokeOpacity="0.45" strokeWidth="0.7" strokeDasharray="1.2 5" strokeLinecap="round" />
                 <circle className={heroRing.ring} cx="100" cy="100" r="98" pathLength="1" fill="none" stroke="#8DB4F3" strokeWidth="1.1" strokeLinecap="round" transform="rotate(-90 100 100)" />
               </svg>
             </div>
-            <div className={`${heroRing.photo} absolute inset-x-0 bottom-0 top-10 md:top-8`}>
+            <div className={`${heroRing.photo} absolute inset-x-0 bottom-0 top-0 md:top-8`}>
               <Image
                 src="/assets/matheus-machado-apontando-recorte.webp"
                 alt="Matheus Machado, corretor de imóveis em Marília"

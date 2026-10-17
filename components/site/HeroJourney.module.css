@@ -5,6 +5,9 @@
 /* título em UMA linha, maiúsculas; o tamanho exato é calculado por FitLine (largura da frase); aqui só o ponto de partida */
 .title { contain: inline-size; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.005em; line-height: 1.15; font-size: clamp(0.95rem, 4.2vw, 2rem); }
 
+/* celular: a coluna estreita do título pode quebrar em mais linhas (FitLine cai no tamanho mínimo quando uma linha só não cabe) */
+@media (max-width: 767px) { .title { white-space: normal; } }
+
 .track { width: 100%; }
 .dots { display: flex; align-items: center; }
 .labels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 8px 0 0; padding: 0; }
