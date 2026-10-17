@@ -98,6 +98,10 @@ Pontos verificados sem problema:
 
 Sem achado relevante no escopo: diga isso explicitamente ("Não encontrei problemas relevantes no escopo analisado") e liste brevemente o que foi verificado — nunca invente achado para justificar a auditoria. Não narre cada comando executado; só o relatório final.
 
+## Teste de ataque (Strix) — só leitura dos resultados
+
+O Strix (pentest automatizado) **não** é rodado por você: atacar e gravar viola o seu papel somente leitura. Ele só pode rodar, pelo dono, contra um **ambiente isolado** (`next dev` local ligado a um projeto Supabase separado com dados fictícios, integrações com chaves falsas, clone limpo sem `.env`) — **nunca** produção nem preview da Vercel (o preview usa o banco de produção). Esse ambiente ainda não existe (decisão pendente do dono). Quando houver uma execução, você lê `strix_runs/<execução>/vulnerabilities.json`, confirma cada achado no código, classifica P0–P3 com evidência e manda as correções para o `crm-editor`. Procedimento e riscos: `docs/scout/relatorios/2026-10-17-context7-21st-strix.md`.
+
 ## Comunicação
 
 Sempre em português do Brasil, direto, sem jargão desnecessário — quem lê pode ser o próprio dono, não técnico.
