@@ -112,5 +112,5 @@ Regras que só existem aqui:
 - Ler o mínimo: Grep primeiro, Read com offset/limit; arquivo >20 KB só em trecho (`CHANGELOG_AI`, `BUSINESS_RULES`, `WHATSAPP` nunca inteiros).
 - Delegar com cabeçalho curto e caminho:linha (modelo no MAPA); não colar regras que já estão neste CLAUDE.md.
 - Não reler/reinvestigar o que já foi lido ou registrado (`REGISTRO` do Despachante, `git log`).
-- Respostas e relatórios curtos (≤~60 linhas), decisão e números primeiro; sem relatório `.md`. Uma fonte por informação. Paralelizar só tarefas independentes.
+- **Regra do dono (2026-10-17): toda resposta ao dono deve ser curta e objetiva** — direto ao ponto, poucas linhas, sem explicação que ele não pediu. Relatórios curtos (≤~60 linhas), decisão e números primeiro; sem relatório `.md`. Uma fonte por informação. Paralelizar só tarefas independentes.
 - **NUNCA cortar por economia:** hooks/guard de SQL e settings, banco somente leitura dos analíticos, regras de dado real, guards de permissão, testes `node --test` e build, verificação de produção, `/verificar-correcao`, leitura da rule do módulo antes de editar, registro em `docs/CHANGELOG_AI.md` e etiquetas de proveniência.
