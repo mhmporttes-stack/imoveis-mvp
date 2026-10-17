@@ -12,8 +12,9 @@ import { createPortal } from "react-dom";
  *     no MEIO da borda de baixo; ele fica suave (opacidade reduzida);
  *  3. quando fecha, o filtro dá o mesmo efeito de passar o mouse (sobe um pouco, ganha sombra e borda azulada) e volta.
  * Posições são MEDIDAS no navegador (letras do título, botão, texto do campo e o próprio filtro), então acompanham qualquer
- * largura de tela. O contorno vive DENTRO do filtro (portal), por isso acompanha o efeito de subir. Só no computador (md+):
- * no celular os campos empilham. Com "reduzir movimento" tudo aparece pronto. Decorativo (aria-hidden), nunca captura clique.
+ * largura de tela. O contorno vive DENTRO do filtro (portal), por isso acompanha o efeito de subir. No celular/tablet estreito
+ * os campos empilham (Região fica abaixo da busca): aí as duas linhas descem retas das pontas do título (E e U) até logo acima do
+ * filtro, com a setinha, e o resto da cena é igual. Com "reduzir movimento" tudo aparece pronto. Decorativo (aria-hidden).
  */
 const COLOR = "#1769D1";
 const HIDDEN = 1.02; // dashoffset que deixa o traço (pathLength=1) totalmente escondido, sem pingo na ponta redonda
@@ -76,18 +77,20 @@ function measure(container) {
   const ou = canvas.measureText("ou").width;
   const padding = Number.parseFloat(style.paddingLeft) || 0;
 
-  const rightFrom = rel(last.right + 10, last.top + last.height / 2);
-  const leftFrom = rel(first.left - 10, first.top + first.height / 2);
-  const rightX = regionRect.left - box.left + regionRect.width / 2;
-  const leftX = inputRect.left - box.left + padding + before + ou / 2;
+  // campos empilhados (celular): Região fica ABAIXO da busca
+  const stacked = regionRect.top > inputRect.bottom - 2;
+  const rightFrom = stacked ? rel(last.right - 8, last.bottom + 3) : rel(last.right + 10, last.top + last.height / 2);
+  const leftFrom = stacked ? rel(first.left + 8, first.bottom + 3) : rel(first.left - 10, first.top + first.height / 2);
+  const rightX = stacked ? rightFrom.x : regionRect.left - box.left + regionRect.width / 2;
+  const leftX = stacked ? leftFrom.x : inputRect.left - box.left + padding + before + ou / 2;
   return {
     width: box.width,
     height: box.height,
     form: { width: form.offsetWidth, height: form.offsetHeight, element: form },
     tipY,
     // cada seta só existe se o alvo estiver do lado certo do título (em telas estreitas pode não haver espaço)
-    right: rightX - rightFrom.x >= 16 ? { from: rightFrom, x: rightX } : null,
-    left: leftFrom.x - leftX >= 16 ? { from: leftFrom, x: leftX } : null
+    right: stacked || rightX - rightFrom.x >= 16 ? { from: rightFrom, x: rightX } : null,
+    left: stacked || leftFrom.x - leftX >= 16 ? { from: leftFrom, x: leftX } : null
   };
 }
 
@@ -97,7 +100,9 @@ function elbow(from, x, tipY) {
   const endY = tipY - 8;
   const r = Math.max(0, Math.min(24, Math.abs(x - from.x) / 2, (endY - from.y) / 2));
   const f = (n) => Math.round(n * 10) / 10;
-  const body = `M${f(from.x)} ${f(from.y)} H${f(x - dir * r)} Q${f(x)} ${f(from.y)} ${f(x)} ${f(from.y + r)} V${f(endY)}`;
+  const body = r < 1
+    ? `M${f(x)} ${f(from.y)} V${f(endY)}`
+    : `M${f(from.x)} ${f(from.y)} H${f(x - dir * r)} Q${f(x)} ${f(from.y)} ${f(x)} ${f(from.y + r)} V${f(endY)}`;
   const head = `M${f(x - 7)} ${f(endY)} L${f(x)} ${f(tipY)} L${f(x + 7)} ${f(endY)}`;
   return { body, head };
 }
@@ -163,9 +168,10 @@ export default function ScribbleArrows({ containerRef }) {
           observer.disconnect();
         }
       },
-      { threshold: 0.35 }
+      { threshold: 0.5 }
     );
-    observer.observe(container);
+    // observa o FILTRO (não o bloco todo): no celular o bloco inclui a lista inteira de imóveis, tão alta que 35% dela nunca aparece
+    observer.observe(container.querySelector('form[role="search"]') || container);
     return () => observer.disconnect();
   }, [containerRef, go]);
 
@@ -228,7 +234,7 @@ export default function ScribbleArrows({ containerRef }) {
   const paths = outlinePaths(layout.form.width, layout.form.height);
   const outline = (
     <svg
-      className="pointer-events-none absolute hidden overflow-visible md:block"
+      className="pointer-events-none absolute overflow-visible"
       style={{ left: -1, top: -1 }}
       width={layout.form.width}
       height={layout.form.height}
@@ -251,7 +257,7 @@ export default function ScribbleArrows({ containerRef }) {
   return (
     <>
       <svg
-        className="pointer-events-none absolute left-0 top-0 z-[5] hidden overflow-visible md:block"
+        className="pointer-events-none absolute left-0 top-0 z-[5] overflow-visible"
         width={layout.width}
         height={layout.height}
         viewBox={`0 0 ${layout.width} ${layout.height}`}
