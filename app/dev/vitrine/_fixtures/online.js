@@ -10,7 +10,7 @@ export const presence = {
     { id: "u1", name: "Eduardo Demo", photoUrl: "", status: "away", lastActivityAt: ago(9), device: "mobile", whatsapp: wa(["off"]), office: office(false) },
     { id: "u2", name: "Jennyfer Demo", photoUrl: "", status: "away", lastActivityAt: ago(12), device: "mobile", whatsapp: wa(["active", "active"]), office: office(true, "manual") },
     { id: "u3", name: "Bruna Demo", photoUrl: "", status: "online", lastActivityAt: ago(1), device: "desktop", whatsapp: wa(["idle"]), office: office(true, "wifi", true) },
-    { id: "u4", name: "Bencke Demo", photoUrl: "", status: "offline", lastActivityAt: ago(660), device: "mobile", whatsapp: wa(["off"]), office: office(false) },
+    { id: "u4", name: "Bencke Demo", photoUrl: "", status: "offline", lastActivityAt: ago(660), device: "mobile", whatsapp: wa(["off"]), office: { ...office(false), wifiDetectedWhileAbsent: true, absence: { markedAt: ago(30), absentUntil: new Date(now + 30 * 3600000).toISOString(), markedByName: "Matheus Demo" } } },
     { id: "u5", name: "Caroline Demo", photoUrl: "", status: "offline", lastActivityAt: ago(960), device: "mobile", whatsapp: wa(["off"]), office: office(false) }
   ]
 };

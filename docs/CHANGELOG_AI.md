@@ -73,6 +73,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — ROL-2f: "Marcar ausente" na presença da imobiliária
+- **Data:** 2026-10-17
+- **Área:** Roleta / Supervisão › Online (ROL-2f)
+- **Alteração:** novo "Marcar ausente" (Hoje / Até domingo / data) e "Desfazer" no detalhe do prédio do painel Online, para dono (todos) e gestora (só a equipe). Ausente não conta como presente mesmo com Wi-Fi, sai da roleta e a chegada do período deixa de valer (check-ins nunca apagados). Nova tabela `office_presence_absences` e `office_presence_ok` reescrita (migration `20261017120000_roleta_presenca_marcar_ausente.sql`); ações `mark-absent`/`clear-absent` em `POST /api/admin/office-presence` (guard `requireBrokerManagementApi` + escopo `listVisibleTeamProfiles` no lib). "Liberar hoje" recusa quem está ausente.
+- **Motivo:** dono: "O notebook que a Bruna utiliza estava aqui, ela não veio para a imobiliária e o Eduardo usou o notebook, então está constando que ela veio. Eu preciso de uma opção de desativar isso... ela tem que ficar desativada nesse final de semana."
+- **Arquivos afetados:** `lib/office-presence.js`, `lib/office-presence-core.mjs`, `lib/admin-presence.js`, `app/api/admin/office-presence/route.js`, `components/OnlinePresenceBoard.jsx`, `components/OfficePresenceNotice.jsx`, `app/dev/vitrine/_fixtures/online.js`, `tests/office-presence.test.mjs`; docs `BUSINESS_RULES.md` (ROL-2f), `DATABASE.md`, `PERMISSIONS.md`, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** até a migration ser aplicada, o painel segue como antes e marcar ausente responde "migration pendente" (a roleta só respeita a ausência depois dela). Só tem efeito com a regra ROL-2f ligada. O Wi-Fi continua registrando chegada durante a ausência (só é ignorada). Falhas pré-existentes não relacionadas em 11 arquivos de `tests/` (ex.: `admin-presence-real-user` regex do heartbeat) — iguais sem esta mudança.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-17 — Chat: mesmo cliente nos dois números do corretor aparece uma vez (WA-34)
 - **Data:** 2026-10-17
 - **Área:** WhatsApp / Chat

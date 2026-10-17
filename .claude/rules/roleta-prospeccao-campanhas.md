@@ -10,6 +10,8 @@ paths:
   - "lib/whatsapp-sponsored-lead.js"
   - "lib/whatsapp-referral.mjs"
   - "lib/admin-presence.js"
+  - "components/OnlinePresenceBoard.jsx"
+  - "lib/office-presence*"
   - "components/Prospecting*.jsx"
   - "components/LeadDistributionDashboard.jsx"
   - "components/CampaignsManager.jsx"
@@ -48,6 +50,7 @@ Dois fluxos distintos, não confundir:
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-13] ROL-2e Número ocioso sai da roleta.** Número conectado que fica **4 horas sem enviar nem receber mensagem**, contando só das **8h às 21h, todos os dias** (Brasília), vira **ocioso**: ícone laranja no painel Online e não vale para a ROL-2d (se nenhum outro número do corretor estiver ativo, ele sai da roleta). Volta com qualquer mensagem naquele número ou ao reconectar (`last_connected_at`). Fonte única: SQL `whatsapp_number_activity`/`whatsapp_user_has_active_number`/`business_minutes_between` (migration `20261013130000_whatsapp_numero_ocioso.sql`), usada por `pick_round_robin_broker`, `assign_round_robin_lead`, `countOnlineRouletteBrokers` e o painel. Não reimplemente a conta em JS.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-13] ROL-2f Só recebe lead quem veio à imobiliária.** Toda a roleta, todos os perfis: chegada detectada pelo Wi-Fi da imobiliária (heartbeat, IP cadastrado em Supervisão › Online) ou "Liberar hoje" (dono/gestora) → apto até 9h do dia seguinte (sábado → segunda 9h); sem ninguém apto o lead espera na fila. Só vale com a regra LIGADA (`crm_settings` `office_presence`). Fonte única no banco: `office_presence_ok`/`roulette_user_extra_eligible` (migration `20261013200000`) — não reimplemente em JS. Detalhe: `docs/BUSINESS_RULES.md` ROL-2f.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-17] ROL-2f "Marcar ausente" (inverso do "Liberar hoje").** "Eu preciso de uma opção de desativar isso." Dono (todos) ou gestora (só a equipe dela) marca a pessoa como **ausente** até o fim de um dia (Hoje, Até domingo ou data escolhida, até 60 dias; São Paulo). Enquanto vale: não conta como presente mesmo com o Wi-Fi detectando, fica fora da roleta e de tudo que exige ROL-2f, a chegada daquele período deixa de valer (inclusive depois que a ausência acaba: só chegada NOVA vale) e o painel mostra prédio cinza + "Ausente (marcado por X)". "Desfazer" encerra (`cleared_at`), check-ins voltam a valer; nada é apagado. "Liberar hoje" por cima de ausência é recusado (desfazer antes). Só tem efeito com a regra ligada. Banco: `office_presence_absences` + `office_presence_ok` (migration `20261017120000`); código `lib/office-presence.js` (`markOfficeAbsent`/`clearOfficeAbsence`/`loadOfficeAbsences`, escopo por `listVisibleTeamProfiles`), espelho puro `officeStatus`/`isCheckinIgnoredByAbsence` (`lib/office-presence-core.mjs`); rota `POST /api/admin/office-presence` ações `mark-absent`/`clear-absent`. Detalhe: `docs/BUSINESS_RULES.md` ROL-2f.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Fila de espera aos poucos.** A fila de espera entrega no máximo 1 cliente por corretor on-line a cada rodada do cron (2 min), do mais antigo para o mais novo — quem fica on-line primeiro não leva a fila inteira. Sem prazo máximo de espera. Ver `docs/BUSINESS_RULES.md` ROL-2b.
 

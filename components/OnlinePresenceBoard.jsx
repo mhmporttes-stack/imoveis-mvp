@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, History, Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
+import { nextSundayKey } from "@/lib/office-presence-core.mjs";
 
 // Mesmo espírito de NewClientSoundListener: intervalo fixo e moderado, só
 // enquanto a aba está visível — nunca polling agressivo nem uma requisição
@@ -22,6 +23,7 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
   const [presence, setPresence] = useState(initialPresence);
   const [error, setError] = useState(initialError);
   const [, setTick] = useState(0);
+  const reloadRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +45,7 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
       }
     }
 
+    reloadRef.current = load;
     const intervalId = setInterval(load, POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", load);
     // Recalcula só os textos relativos ("há X min") a cada minuto, sem
@@ -111,6 +114,7 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
                     )
                   }))
                 }
+                onOfficeChanged={() => reloadRef.current?.()}
               />
             ))
           )}
@@ -369,7 +373,7 @@ function HoursReport() {
   );
 }
 
-function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
+function MemberRow({ member, goalPercent = null, onOfficeReleased, onOfficeChanged }) {
   const meta = STATUS_META[member.status] || STATUS_META.offline;
   // Qual histórico está aberto: "presence" (entrou/saiu) ou "whatsapp" (conectou/desconectou).
   const [historyOpen, setHistoryOpen] = useState("");
@@ -394,6 +398,7 @@ function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
           <p className="truncate text-[11px] font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
           <div className="mt-2 flex items-center gap-1.5">
             {member.office ? <OfficeButton office={member.office} open={historyOpen === "office"} onClick={() => toggle("office")} /> : null}
+            {member.office?.absence ? <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-black text-slate-600">Ausente</span> : null}
             {(member.whatsapp || []).map((icon, index) => (
               <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
             ))}
@@ -404,7 +409,7 @@ function MemberRow({ member, goalPercent = null, onOfficeReleased }) {
       </div>
       {historyOpen === "presence" ? <PresenceHistory userId={member.id} /> : null}
       {historyOpen === "whatsapp" ? <WhatsappHistory userId={member.id} /> : null}
-      {historyOpen === "office" ? <OfficeDetail member={member} onReleased={onOfficeReleased} /> : null}
+      {historyOpen === "office" ? <OfficeDetail member={member} onReleased={onOfficeReleased} onChanged={onOfficeChanged} /> : null}
     </div>
   );
 }
@@ -430,7 +435,8 @@ function officeDayLabel(iso) {
 function OfficeButton({ office, open, onClick }) {
   // Três estados (dono, 2026-10-15): VERDE só para quem está no Wi-Fi da imobiliária agora. Veio hoje (ou foi liberado)
   // e saiu = prédio cinza com um pontinho verde (segue na roleta até 9h); não veio = cinza. Só visual: a roleta usa office.active.
-  const label = office.here ? "Na imobiliária agora" : office.active ? "Não está na imobiliária agora (segue na roleta até 9h)" : "Não veio à imobiliária";
+  // "Marcar ausente" (dono, 2026-10-17): cinza, sem pontinho, mesmo com o Wi-Fi detectando.
+  const label = office.absence ? `Ausente${office.absence.markedByName ? ` (marcado por ${firstName(office.absence.markedByName)})` : ""}` : office.here ? "Na imobiliária agora" : office.active ? "Não está na imobiliária agora (segue na roleta até 9h)" : "Não veio à imobiliária";
   const tone = office.here ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600" : "border-navy/10 bg-mist text-slate-400 hover:border-brand";
   return (
     <button
@@ -447,10 +453,68 @@ function OfficeButton({ office, open, onClick }) {
   );
 }
 
-function OfficeDetail({ member, onReleased }) {
+const ABSENT_UNTIL = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" });
+
+function OfficeDetail({ member, onReleased, onChanged }) {
   const office = member.office || {};
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const todayKey = OFFICE_DAY_KEY.format(new Date());
+  const sundayKey = nextSundayKey();
+  const [absentDate, setAbsentDate] = useState("");
+  // "Marcar ausente" / "Desfazer" (dono, 2026-10-17): o servidor confere perfil e equipe; a tela só recarrega a presença.
+  async function absenceAction(action, untilDate = "") {
+    setBusy(action === "clear-absent" ? "clear" : untilDate);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/office-presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: member.id, untilDate })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar.");
+      await onChanged?.();
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setBusy("");
+    }
+  }
+  if (office.absence) {
+    return (
+      <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold text-slate-600">
+            Ausente até {ABSENT_UNTIL.format(new Date(Date.parse(office.absence.absentUntil) - 1))}
+            {office.absence.markedByName ? ` (marcado por ${firstName(office.absence.markedByName)})` : ""}{office.ruleEnabled ? ": fora da roleta." : "."}
+            {office.wifiDetectedWhileAbsent ? <span className="mt-0.5 block text-xs text-slate-500">O Wi-Fi da imobiliária está detectando o aparelho, mas não conta como presença.</span> : null}
+          </p>
+          <button type="button" onClick={() => absenceAction("clear-absent")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+            {busy === "clear" ? "Desfazendo…" : "Desfazer"}
+          </button>
+        </div>
+        {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
+      </div>
+    );
+  }
+  const absentButtons = (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-navy/10 pt-2">
+      <p className="w-full text-xs font-semibold text-slate-600">Marcar ausente (não conta presença mesmo com o Wi-Fi):</p>
+      <button type="button" onClick={() => absenceAction("mark-absent", todayKey)} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+        {busy === todayKey ? "Salvando…" : "Hoje"}
+      </button>
+      {sundayKey !== todayKey ? (
+        <button type="button" onClick={() => absenceAction("mark-absent", sundayKey)} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+          {busy === sundayKey ? "Salvando…" : "Até domingo"}
+        </button>
+      ) : null}
+      <input type="date" value={absentDate} min={todayKey} onChange={(event) => setAbsentDate(event.target.value)} aria-label="Ausente até a data" className="rounded-full border border-navy/20 bg-white px-3 py-1 text-xs font-bold text-navy" />
+      <button type="button" onClick={() => absenceAction("mark-absent", absentDate)} disabled={Boolean(busy) || !absentDate} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+        {busy && busy === absentDate ? "Salvando…" : "Até a data"}
+      </button>
+    </div>
+  );
   // Duas liberações manuais (dono, 2026-10-14): trabalho externo ou chegou e não conectou ao Wi-Fi.
   async function release(reason) {
     setBusy(reason);
@@ -510,6 +574,7 @@ function OfficeDetail({ member, onReleased }) {
           {manualButtons}
         </div>
       )}
+      {absentButtons}
       {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
     </div>
   );
