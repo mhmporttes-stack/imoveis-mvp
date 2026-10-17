@@ -1,6 +1,6 @@
 # Post de imóvel: casa no Terra Verde (2026-10-17)
 
-Código **COD4355**. Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros; resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. Uma das fotos veio repetida (sala) e entrou uma vez só. **Sem valor no post**, conforme o modelo. Endereço completo fica fora do post (só bairro).
+Código **COD4355**. Carrossel com 10 lâminas no **modelo padrão de post de imóvel** (ver `ESTILO-CARROSSEL.md`). Fotos sem marca d'água de terceiros; resolução aumentada 2x com ESRGAN (`2xNomosUni`) e ajuste leve de cor. Uma das fotos veio repetida (sala) e entrou uma vez só. **Sem valor no post**, conforme o modelo. Endereço completo fica fora do post (só bairro). **Publicado no Instagram pelo Claude em 2026-10-17 (media 18381444688238971).**
 
 Dados enviados pelo dono: Rua Genuide Martins, 17 – Terra Verde; 2 dormitórios, sendo 1 suíte; rica em móveis planejados; área gourmet ampla e privativa; jardim de inverno; cozinha planejada; lavanderia; portão eletrônico e interfone; R$ 450.000,00; estuda permuta. Contato: corretor parceiro Guilherme Perez (telefone não informado).
 
