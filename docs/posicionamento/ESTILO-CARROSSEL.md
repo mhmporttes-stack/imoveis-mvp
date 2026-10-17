@@ -116,6 +116,7 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel (selo de localização e ao lado do @). Códigos usados: 4352 (Cavalari), 4353 (Terra Nova), 4354 (Palmital).
 - **Contato do imóvel (dono, 2026-10-16):** no cadastro, guardar nome, telefone e se é Proprietário ou Corretor (campos internos, nunca no site). Se o dono mandar só o nome e esse contato já existir em outro imóvel, reaproveitar telefone e tipo dele.
 - Postar no Instagram: a integração Windsor publica carrossel (máx. 10 imagens), foto, story e Reels, **só com "sim" do dono por post**; agendamento via lembrete da sessão.
+  - Como funciona (2026-10-17): a conta foi reconectada no Windsor **pelo Facebook** (pelo Instagram só lê). As imagens precisam de URL pública em JPEG: salvar em `carrosseis/<pasta>/ig/*.jpg`, dar push e usar `raw.githubusercontent.com/mhmporttes-stack/imoveis-mvp/<commit>/...`.
 
 ## Rosto e texto (dono, 2026-10-15)
 - **Nunca colocar texto em cima do rosto do dono.** Na capa, o título fica **atrás** dele (a cabeça passa levemente por trás da faixa do título, como na referência).

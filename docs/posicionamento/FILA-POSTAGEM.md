@@ -23,6 +23,7 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ## Publicados
+- Casa no Terra Verde (COD4355, imóvel) — publicado pelo Claude via Windsor em 2026-10-17 (media 18381444688238971); ainda falta o site
 - Casa nova com 2 dormitórios · Palmital (COD4354, imóvel) — postado em 2026-10-16, no site
 - Perguntas que a Receita Federal encontraria no meu ChatGPT (2026-10-16, claro) — dono postou na hora
 - Aluguel ou 1º apê (2026-10-13, azul)
