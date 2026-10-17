@@ -10,6 +10,7 @@ import FitLine from "@/components/site/FitLine";
 import SceneReveal from "@/components/site/SceneReveal";
 import journeyScene from "@/components/site/JourneyScene.module.css";
 import aboutScene from "@/components/site/AboutScene.module.css";
+import heroRing from "@/components/site/HeroRing.module.css";
 import { siteWhatsappUrl } from "@/components/site/site-links";
 import { listPublicProperties } from "@/lib/public-properties";
 import { listPublicTestimonials } from "@/lib/public-testimonials";
@@ -101,7 +102,14 @@ export default async function HomePage() {
               className="pointer-events-none absolute bottom-0 left-1/2 h-[70%] w-[78%] -translate-x-1/2 rounded-[50%] bg-[#4C8DF6]/20 blur-[70px] md:h-[62%]"
               aria-hidden="true"
             />
-            <div className="absolute inset-x-0 bottom-0 top-0 md:top-8">
+            {/* Anel de luz ATRÁS do Matheus (cena, dono 2026-10-17): centrado no corpo dele; a foto vem depois no DOM, então fica na frente. */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:pt-8" aria-hidden="true">
+              <svg viewBox="0 0 200 200" className="aspect-square h-[88%] max-w-[98%] overflow-visible" focusable="false">
+                <circle className={heroRing.dots} cx="100" cy="100" r="106" fill="none" stroke="#8DB4F3" strokeOpacity="0.45" strokeWidth="0.7" strokeDasharray="1.2 5" strokeLinecap="round" />
+                <circle className={heroRing.ring} cx="100" cy="100" r="98" pathLength="1" fill="none" stroke="#8DB4F3" strokeWidth="1.1" strokeLinecap="round" transform="rotate(-90 100 100)" />
+              </svg>
+            </div>
+            <div className={`${heroRing.photo} absolute inset-x-0 bottom-0 top-0 md:top-8`}>
               <Image
                 src="/assets/matheus-machado-apontando-recorte.webp"
                 alt="Matheus Machado, corretor de imóveis em Marília"
