@@ -98,7 +98,7 @@ export default async function HomePage() {
           </div>
 
           {/* Celular: a foto fica no MESMO lugar do computador (à direita do título), só menor, e o rodapé dela se dissolve; texto por cima. */}
-          <div className="pointer-events-none absolute -right-2 top-12 h-[300px] w-[48%] sm:right-0 sm:top-14 sm:h-[360px] sm:w-[42%] md:pointer-events-auto md:relative md:right-auto md:top-auto md:mt-0 md:h-auto md:w-auto">
+          <div className="pointer-events-none absolute right-0 top-12 h-[285px] w-[46%] sm:right-0 sm:top-14 sm:h-[360px] sm:w-[42%] md:pointer-events-auto md:relative md:right-auto md:top-auto md:mt-0 md:h-auto md:w-auto">
             <span
               className="pointer-events-none absolute bottom-0 left-1/2 h-[70%] w-[78%] -translate-x-1/2 rounded-[50%] bg-[#4C8DF6]/20 blur-[70px] md:h-[62%]"
               aria-hidden="true"
