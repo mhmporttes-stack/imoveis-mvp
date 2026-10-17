@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-17 — Mensagem disparada pela automação não aparece no Chat (corretor só vê a resposta do cliente)
+- **Data:** 2026-10-17
+- **Sintoma:** "a mensagem no WhatsApp não carrega a mensagem que foi disparada ... o povo não sabe o que foi mandado" — o cliente responde e a conversa no Chat mostra só a resposta.
+- **Área:** WhatsApp / Meta Diária
+- **Impacto:** todos os corretores com a automação da Meta Diária ou o "Disparar" (fila extra) ligados — toda mensagem automática desde o início da automação (29/09); também a confirmação de descadastro ("SAIR").
+- **Causa raiz:** o envio automático (`processClaimedItem`, `lib/daily-goal-auto.js`) gravava a mensagem só em `daily_goal_auto_queue`, nunca em `whatsapp_messages`. O serviço do WhatsApp descarta o eco do próprio envio nos primeiros 60 s (`APPEND_OWN_SEND_GRACE_MS`) e o eco que chegava depois era descartado de propósito como `eco_automacao` (`recordBrokerAppMessage`). Não era dedupe nem número/conversa errados: a linha simplesmente nunca era criada.
+- **Correção:** depois do envio, linha de **Automação** no Chat na conversa (telefone, dono, número que enviou), criada se não existe (`recordIndividualAutomationMessage`); o eco grava a mesma linha como Automação se faltar; o recibo de entrega continua marcando a fila (senão o monitor/pausa por entrega baixa da MD-15 pararia de ver as entregas). Não é contato humano. Mensagens antigas: backfill proposto em `docs/sql-manual/chat-mensagens-automaticas-backfill.sql` (não aplicado).
+- **Arquivos/commit:** `lib/whatsapp-automation-chat-core.mjs`, `lib/whatsapp-individual-inbound.js`, `lib/daily-goal-auto.js`, `lib/prospecting-reply.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-automation-chat.test.mjs`. Depois do deploy: `select count(*) from whatsapp_messages where sender_type='automation' and metadata->>'kind'='daily_goal_auto'` deve crescer junto com os envios da fila. Risco residual: Disparo em massa (número Oficial) também não aparece no Chat — fora deste escopo.
+- **Status:** Resolvido (verificação em produção A CONFIRMAR após o deploy)
+
 ### 2026-10-17 — Chat com clientes duplicados (mesmo cliente duas vezes na lista)
 - **Data:** 2026-10-17
 - **Sintoma:** "Observando o chat da corretora, tem muitos clientes duplicados."

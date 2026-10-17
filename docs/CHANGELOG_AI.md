@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-17 — Mensagem automática do WhatsApp pessoal passa a aparecer no Chat
+- **Data:** 2026-10-17
+- **Área:** WhatsApp / Meta Diária
+- **Alteração:** Meta Diária automática, fila "Disparar" e confirmação de descadastro gravam, depois do envio, uma linha de Automação (`sender_type = 'automation'`, `metadata.kind = daily_goal_auto`/`opt_out_confirmation`, `wa_message_id`) na conversa do número que enviou, criada se ainda não existe (`recordIndividualAutomationMessage`, `lib/whatsapp-individual-inbound.js`; linha pura em `lib/whatsapp-automation-chat-core.mjs`). O eco do celular grava a mesma linha como Automação se faltar (antes era descartado). Recibo de entrega de mensagem que está no Chat continua marcando `daily_goal_auto_queue.delivered_at`.
+- **Motivo:** bug relatado pelo dono ("o povo não sabe o que foi mandado") — ver `docs/INCIDENTES.md` 2026-10-17.
+- **Arquivos afetados:** `lib/whatsapp-automation-chat-core.mjs`, `lib/whatsapp-individual-inbound.js`, `lib/daily-goal-auto.js`, `lib/prospecting-reply.js`, `tests/whatsapp-automation-chat.test.mjs`, `tests/whatsapp-auto-private.test.mjs`, `docs/WHATSAPP.md`, `docs/sql-manual/chat-mensagens-automaticas-backfill.sql` (backfill proposto, não aplicado). Sem migration; microsserviço (Railway) não mudou.
+- **Risco/observação:** não é contato humano (MD-13/WA-4a intactos: sem `registerHumanContact`, sem "Em atendimento", sem atribuir conversa). Conversas de prospecção sem resposta passam a aparecer no Chat do corretor (ligadas ao card pelo telefone, WA-26). A mensagem automática atualiza `last_message_at` da conversa, então conta como atividade do número na regra de número ocioso (ROL-2e) — A CONFIRMAR com o dono. Disparo em massa (Oficial) continua fora do Chat. Testes `node --test` (mesmas 18 falhas pré-existentes) e build OK.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-17 — Context7, 21st.dev e Strix ligados aos agentes
 - **Data:** 2026-10-17
 - **Área:** Agentes
