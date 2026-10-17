@@ -144,6 +144,9 @@ export default function ScribbleArrows({ containerRef }) {
     run();
     const observer = typeof ResizeObserver === "function" ? new ResizeObserver(run) : null;
     observer?.observe(container);
+    // o filtro também muda de altura sozinho (a fileira de botões "Todos / Prontos para morar" aparece depois), sem mexer no bloco
+    const formEl = container.querySelector('form[role="search"]');
+    if (formEl) observer?.observe(formEl);
     window.addEventListener("resize", run);
     document.fonts?.ready?.then(run).catch(() => {});
     return () => {
