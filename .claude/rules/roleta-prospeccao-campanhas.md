@@ -26,6 +26,7 @@ paths:
   - "lib/simulation-registrations.js"
   - "app/api/cron/scheduled-activities/**"
   - "lib/whatsapp-manual-disconnect*"
+  - "lib/cooled-clients-reactivation*"
 ---
 
 # Roleta (distribuição de leads), prospecção e campanhas
@@ -49,6 +50,8 @@ Dois fluxos distintos, não confundir:
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-13] ROL-2f Só recebe lead quem veio à imobiliária.** Toda a roleta, todos os perfis: chegada detectada pelo Wi-Fi da imobiliária (heartbeat, IP cadastrado em Supervisão › Online) ou "Liberar hoje" (dono/gestora) → apto até 9h do dia seguinte (sábado → segunda 9h); sem ninguém apto o lead espera na fila. Só vale com a regra LIGADA (`crm_settings` `office_presence`). Fonte única no banco: `office_presence_ok`/`roulette_user_extra_eligible` (migration `20261013200000`) — não reimplemente em JS. Detalhe: `docs/BUSINESS_RULES.md` ROL-2f.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Fila de espera aos poucos.** A fila de espera entrega no máximo 1 cliente por corretor on-line a cada rodada do cron (2 min), do mais antigo para o mais novo — quem fica on-line primeiro não leva a fila inteira. Sem prazo máximo de espera. Ver `docs/BUSINESS_RULES.md` ROL-2b.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-17] ROL-2g Fila de reativação (só clientes transferidos pelo FUN-15).** Fila própria, separada da fila de espera comum (que os ignora: `listCooledReactivationQueuedClientIds`): mesma elegibilidade da roleta (ROL-2/2d/2e/2f, `listOnlineRouletteBrokerIds`), 1 cliente por corretor e o próximo para ele só 3 min depois; sem mensagem em 3 min o cliente volta ao FIM da fila; nunca ao corretor que o perdeu no FUN-15 (quem o perdeu nesta fila pode recebê-lo de novo). Não mexe na posição da roleta nem nos outros leads (ROL-2b/ROL-4 inalterados). Detalhe: `.claude/rules/crm-clientes-funil.md` FUN-15l, `docs/BUSINESS_RULES.md` ROL-2g.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Não atendeu em 5 min e ninguém mais on-line → fila de espera.** O cliente sai de quem não atendeu (ainda Aguardando simulação, sem WhatsApp/Chat — quem está conversando fica com ele) e fica com o dono na fila de espera; o próximo corretor on-line o recebe, nunca quem o perdeu. A entrega pela fila reinicia o prazo de 5 min. Ver `docs/BUSINESS_RULES.md` ROL-4a.
 

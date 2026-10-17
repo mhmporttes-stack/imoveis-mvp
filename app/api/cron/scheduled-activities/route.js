@@ -141,6 +141,17 @@ export async function GET(request) {
       pendingRouletteAssignment = { error: pendingError?.message || "Falha ao reconciliar." };
     }
 
+    // Fila de reativação dos clientes transferidos pelo FUN-15 (FUN-15l, dono 2026-10-17): toda rodada (prazo de 3 min),
+    // só com o liga/desliga `cooled_clients_flow` LIGADO. Depois da fila comum; nunca derruba o resto do cron.
+    let cooledReactivation = null;
+    try {
+      const { runCooledReactivationQueue } = await import("@/lib/cooled-clients-reactivation");
+      cooledReactivation = await runCooledReactivationQueue();
+    } catch (reactivationError) {
+      console.error("Falha na fila de reativação dos clientes transferidos.", reactivationError);
+      cooledReactivation = { error: reactivationError?.message || "Falha na fila de reativação." };
+    }
+
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
     // qualquer registro que tenha ficado com responsible_user_id nulo por
     // qualquer caminho (não só o de exclusão de corretor, já tratado na hora)
@@ -194,6 +205,7 @@ export async function GET(request) {
       expectedReceipts,
       sponsoredLeads,
       pendingRouletteAssignment,
+      cooledReactivation,
       orphanReassignment,
       captacaoUploadCleanup,
       cooledClients

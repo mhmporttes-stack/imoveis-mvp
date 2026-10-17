@@ -26,7 +26,7 @@ test("ROL-4d: ação manual cancela automação — atribuir à mão encerra o A
 test("Devolver para a roleta: só admin/gestor, próximo on-line sem quem perdeu, fila de espera se ninguém on-line (2026-10-09)", () => {
 
   const lib = fs.readFileSync(new URL("../lib/lead-distribution.js", import.meta.url), "utf8");
-  assert.match(lib, /export async function returnClientToRoulette\(clientId, auth\)/);
+  assert.match(lib, /export async function returnClientToRoulette\(clientId, auth(?:, \{ cooledReactivation = null \} = \{\})?\)/);
   assert.match(lib, /assertGeneralAdminOrManager\(auth\);/);
   assert.match(lib, /assignRoundRobinLead\(\{ excludedBrokerId: fromUserId \}\)/);
   assert.match(lib, /pending_distribution_at: waiting \? now : null/);

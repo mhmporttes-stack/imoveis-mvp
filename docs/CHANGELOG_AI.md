@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — Clientes que esfriaram: transferidos passam por uma fila de reativação (FUN-15l / ROL-2g)
+- **Data:** 2026-10-17
+- **Área:** Clientes (FUN-15) / Roleta
+- **Alteração:** "Transferir" do FUN-15 (decisora, "não respondeu mais", "sem conversa", rotina) deixa de entregar direto: o cliente vai para o FIM de uma fila própria (com o dono, "Aguardando"). A cada 2 min o cron entrega aos corretores elegíveis da roleta, 1 por corretor e o próximo para ele só 3 min depois; sem mensagem humana em 3 min volta ao fim da fila; nunca ao corretor que o perdeu no FUN-15 (quem perdeu nesta fila pode recebê-lo de novo — correção do dono no mesmo dia). Fila de espera comum ignora esses clientes. Conversa anterior continua sendo a do corretor do FUN-15 (`historyPreviousUserId` em `lastResponsibleTransferCut`); rascunho agora é por quem recebe. Backfill único dos transferidos sem contato (contagens em `crm_settings` `cooled_reactivation_backfill`).
+- **Motivo:** regra do dono. Em 17/10, dos 98 transferidos em 16/10 só 10 tiveram contato registrado depois da transferência; 88 sem contato.
+- **Arquivos afetados:** `lib/cooled-clients-reactivation-core.mjs` (novo), `lib/cooled-clients-reactivation.js` (novo), `lib/lead-distribution.js`, `lib/cooled-clients.js`, `lib/whatsapp-chat-scope.mjs`, `app/api/cron/scheduled-activities/route.js`, `supabase/migrations/20261017120000_cooled_reactivation_queue.sql`, `tests/cooled-reactivation-queue.test.mjs`, `tests/manual-transfer-disables-roulette.test.mjs`; docs `BUSINESS_RULES.md` (FUN-15l, ROL-2g), `DATABASE.md`, rules `crm-clientes-funil.md`/`roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** migration **A CONFIRMAR aplicação** — até lá o código segue o caminho antigo (roleta direta) e a rotina da fila não roda. Prazo de 3 min checado no cron de 2 min (devolução entre 3 e 5 min). Cliente cujo único corretor on-line é o do FUN-15 espera sem prazo. Pré-existente, inalterado: cliente transferido em "Aguardando simulação" com renda informada continua sujeito à REDISTRIBUIÇÃO (ROL-4b, 10 min) mesmo depois de receber mensagem.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-16 — Cabeçalho: ícones Chat, Agenda, "Clientes que esfriaram" e Notificações no mesmo padrão
 - **Data:** 2026-10-16
 - **Área:** Painel (apresentação) — atalhos do topo de Clientes e card "Melhor do Dia"
