@@ -86,7 +86,7 @@ test("Destrancar: cópia interna, apaga o histórico, contato volta limpo e o pa
   const wipe = chat.slice(chat.indexOf("async function wipeConversationMessages"));
   assert.ok(wipe.indexOf('from("whatsapp_private_wipe_backup")') < wipe.indexOf('.from("whatsapp_messages").delete()'), "copia antes de apagar");
   assert.match(wipe, /if \(backupError\) throw backupError;/);
-  assert.match(chat, /if \(conversation\.history_cutoff_at\) request = request\.gte\("message_at", conversation\.history_cutoff_at\);/);
+  assert.match(chat, /const historyCutoff = \[conversation\.history_cutoff_at, [\s\S]*?if \(historyCutoff\) request = request\.gte\("message_at", historyCutoff\);/);
   const inbound = read("lib/whatsapp-individual-inbound.js");
   assert.match(inbound, /allItems\.filter\(\(item\) => new Date\(item\.messageAt\)\.getTime\(\) >= cutoff\)/);
   const lookup = read("lib/client-phone-lookup.js");

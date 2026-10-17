@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — Chat: mesmo cliente nos dois números do corretor aparece uma vez (WA-34)
+- **Data:** 2026-10-17
+- **Área:** WhatsApp / Chat
+- **Alteração:** lista, abertura e contadores do Chat agrupam as conversas "irmãs" (mesmo dono do WhatsApp pessoal + mesmo telefone, Número 1 e Número 2). Lista: uma linha (irmã mais recente que entra na aba), não lidas somadas, selo "Nº N". Abrir: mensagens das duas juntas (as do outro número só leitura, marcadas "Nº N"); abre a irmã em que o cliente escreveu por último, então a resposta sai por esse número. Ler, arquivar/reabrir/atender, resolvida, excluir e marcar Particular valem para as duas; destrancar não. Nada é fundido/apagado no banco; sem migration.
+- **Motivo:** dono: "Observando o chat da Ketlin, tem muitos clientes duplicados... Isso não deve acontecer." Banco (leitura): nenhum cliente duplicado em `simulation_registrations`; 5 telefones com uma conversa em cada número da corretora (mesmo cliente), por ter falado com os dois números.
+- **Arquivos afetados:** `lib/whatsapp-chat-siblings.mjs` (novo), `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`, `tests/whatsapp-chat-siblings.test.mjs` (novo) e ajuste de regex em `tests/chat-media-gallery-preview`, `chat-private-unseen`, `whatsapp-archived-client-hidden`, `whatsapp-chat-redundant`, `whatsapp-private-conversations`; docs `BUSINESS_RULES.md` (WA-34), `WHATSAPP.md` §1-D, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** +1 consulta leve por abertura/lista/contador (irmãs). Casos-limite aceitos: com filtro de etapa do cliente a irmã só conta se tiver o mesmo cadastro; contato destrancado em só uma das conversas usa o corte mais recente para as duas; se as duas conversas tinham situações diferentes antes desta mudança (ex.: uma arquivada), a linha segue a mais recente e a conversa aberta pode mostrar outra situação até a próxima ação. "Destrancar" continua por conversa.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-17 — PRO-15: Chat volta sozinho ao reconectar o WhatsApp (sem fechar o app)
 - **Data:** 2026-10-17
 - **Área:** WhatsApp / Frontend (modo lista impressa)

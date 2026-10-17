@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-17 — Chat com clientes duplicados (mesmo cliente duas vezes na lista)
+- **Data:** 2026-10-17
+- **Sintoma:** "Observando o chat da corretora, tem muitos clientes duplicados."
+- **Área:** WhatsApp / Chat
+- **Impacto:** corretores com 2 números conectados; na corretora do relato, 5 clientes repetidos na lista e contadores contados em dobro.
+- **Causa raiz:** não era cadastro duplicado. Conversa = telefone + dono + número (WA-15): o cliente que falou com o Número 1 e com o Número 2 (ex.: disparo dividido entre os dois) tem duas conversas, e a lista/contadores mostravam uma linha por conversa.
+- **Correção:** agrupamento só na leitura (WA-34, `lib/whatsapp-chat-siblings.mjs`): uma linha por cliente, abertura com as mensagens dos dois números, contadores contam uma vez. Detalhe no `CHANGELOG_AI.md` (2026-10-17).
+- **Arquivos/commit:** `lib/whatsapp-chat-siblings.mjs`, `lib/whatsapp-chat.js`, `components/WhatsappChat.jsx`
+- **Prevenção/teste:** `tests/whatsapp-chat-siblings.test.mjs`.
+- **Status:** Resolvido (verificação em produção com a lista da corretora A CONFIRMAR após o deploy)
 
 ### 2026-10-17 — Ícone do Chat sumiu e não volta mesmo com o WhatsApp conectado
 - **Data:** 2026-10-17

@@ -38,7 +38,7 @@ test("sem push nem atribuição para conversa escondida; card não reabre conver
   assert.match(chat, /client\.status === "archived"[\s\S]{0,600}if \(!isArchivedChatViewer\(auth\)\) return \{ conversationId: null \}/);
   assert.match(chat, /return \{ conversationId: archivedRows\[0\]\.id, archivedReadOnly: true \}/);
   assert.match(chat, /archivedConversationAccess\(\{[^}]*isOwner: isArchivedChatViewer\(auth\)/);
-  assert.match(chat, /archivedReadOnly \? \{ canReply: false, canReact: false, canEdit: false, canDelete: false \}/);
+  assert.match(chat, /archivedReadOnly(?: \|\| [^?]+)? \? \{ canReply: false, canReact: false, canEdit: false, canDelete: false \}/);
   assert.match(source("components/WhatsappChat.jsx"), /if \(data\.conversationId\) openConversation\(data\.conversationId\)/);
   assert.match(chat, /pushTargets\.delete\(row\.id\)/);
 });

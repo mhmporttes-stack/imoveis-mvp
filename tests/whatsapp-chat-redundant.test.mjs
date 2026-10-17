@@ -57,5 +57,5 @@ test("é só apresentação: a listagem filtra linhas e nunca altera/apaga dados
   const body = code.slice(start, code.indexOf("async function buildConversationRows("));
   assert.doesNotMatch(body, /\.(update|delete|insert|upsert)\(/, "nenhuma escrita no banco");
   assert.match(code, /await hideRedundantOfficialRows\(visible, auth\)/);
-  assert.match(code, /await hideRedundantOfficialRows\(data\.slice\(0, 500\), auth\)/);
+  assert.match(code, /collapseSiblingRows\(data\.slice\(0, 500\)\)[\s\S]{0,200}await hideRedundantOfficialRows\(once, auth\)/);
 });

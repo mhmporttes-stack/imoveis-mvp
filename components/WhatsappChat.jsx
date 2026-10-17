@@ -410,9 +410,10 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       // Atualização silenciosa (tempo real) não descarta as páginas antigas já carregadas por "Carregar mais".
       setConversations((current) => {
         if (!silent) return fresh;
-        const ids = new Set(fresh.map((item) => item.id));
+        // WA-34: o cliente nos dois números é uma linha só (groupIds) — a linha antiga dele não fica repetida.
+        const ids = new Set(fresh.flatMap(conversationIdsOf));
         const oldest = fresh.at(-1)?.lastMessageAt || "";
-        return [...fresh, ...current.filter((item) => !ids.has(item.id) && oldest && item.lastMessageAt && item.lastMessageAt < oldest)];
+        return [...fresh, ...current.filter((item) => !conversationIdsOf(item).some((itemId) => ids.has(itemId)) && oldest && item.lastMessageAt && item.lastMessageAt < oldest)];
       });
       if (!silent) setListHasMore(listPageIsFull(fresh.length, filterRef.current));
       setListError("");
@@ -440,8 +441,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar mais conversas.");
       const more = data.conversations || [];
       setConversations((current) => {
-        const ids = new Set(current.map((item) => item.id));
-        return [...current, ...more.filter((item) => !ids.has(item.id))];
+        const ids = new Set(current.flatMap(conversationIdsOf));
+        return [...current, ...more.filter((item) => !conversationIdsOf(item).some((itemId) => ids.has(itemId)))];
       });
       setListHasMore(listPageIsFull(more.length, filterRef.current));
     } catch (error) {
@@ -470,11 +471,11 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       setDetail(data);
       setDetailError("");
       // Abrir a conversa lê as mensagens internas (o servidor marca): a bolinha azul da lista some na hora.
-      setConversations((current) => (current.some((item) => item.id === id && item.internalUnread > 0) ? current.map((item) => (item.id === id ? { ...item, internalUnread: 0 } : item)) : current));
+      setConversations((current) => (current.some((item) => isSameConversation(item, id) && item.internalUnread > 0) ? current.map((item) => (isSameConversation(item, id) ? { ...item, internalUnread: 0 } : item)) : current));
       // Particular: abrir marca como vista por mim (o servidor grava) — tira o destaque da linha na hora.
-      setConversations((current) => (current.some((item) => item.id === id && item.seenByMe === false) ? current.map((item) => (item.id === id ? { ...item, seenByMe: true } : item)) : current));
+      setConversations((current) => (current.some((item) => isSameConversation(item, id) && item.seenByMe === false) ? current.map((item) => (isSameConversation(item, id) ? { ...item, seenByMe: true } : item)) : current));
       // Abrir = vista por mim (o servidor grava por pessoa): o número de não lidas some da MINHA lista na hora.
-      setConversations((current) => (current.some((item) => item.id === id && item.unreadCount > 0) ? current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)) : current));
+      setConversations((current) => (current.some((item) => isSameConversation(item, id) && item.unreadCount > 0) ? current.map((item) => (isSameConversation(item, id) ? { ...item, unreadCount: 0 } : item)) : current));
       // O servidor decide se a abertura conta como leitura (administrador/gestor só supervisionando
       // uma conversa que não é dele NÃO a marca como lida). Uma tentativa por conversa/contagem.
       const unread = data.conversation.unreadCount;
@@ -484,7 +485,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
           .then((res) => res.json().catch(() => ({})))
           .then((result) => {
             if (result?.marked === false) return;
-            setConversations((current) => current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)));
+            setConversations((current) => current.map((item) => (isSameConversation(item, id) ? { ...item, unreadCount: 0 } : item)));
           })
           .catch(() => {});
       }
@@ -727,6 +728,15 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   );
 }
 
+// Mesmo cliente nos dois números do corretor (WA-34): a linha da lista representa as duas conversas (groupIds).
+function conversationIdsOf(item) {
+  return item?.groupIds?.length ? item.groupIds : [item?.id];
+}
+
+function isSameConversation(item, id) {
+  return Boolean(id) && (item?.id === id || Boolean(item?.groupIds?.includes(id)));
+}
+
 // Página cheia = pode haver mais. Filtros de espera são filtrados depois no servidor (página pode vir menor).
 function listPageIsFull(count, filter) {
   return count >= 100 || (["awaiting", "waiting_us", "silent", "private_unseen"].includes(filter) && count > 0);
@@ -828,7 +838,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           </p>
         ) : null}
         {conversations.map((conversation) => (
-          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={conversation.id === selectedId} onSelect={() => onSelect(conversation.id)} onPreview={() => setPreviewId(conversation.id)} />
+          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={isSameConversation(conversation, selectedId)} onSelect={() => onSelect(conversation.id)} onPreview={() => setPreviewId(conversation.id)} />
         ))}
         {previewId ? <ConversationPreviewModal conversationId={previewId} onClose={() => setPreviewId("")} onOpen={() => { const id = previewId; setPreviewId(""); onSelect(id); }} /> : null}
         {!loading && conversations.length && hasMore ? (
@@ -1055,6 +1065,8 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
           <span className="flex min-w-0 items-center gap-1.5">
             {/* Só o nome (a situação do cliente vai para a linha de baixo: nome nunca mais é cortado por ela) */}
             <span title={name} className={`min-w-0 truncate text-[16px] leading-6 text-[#111B21] ${unread ? "font-black" : "font-bold"}`}>{listFirstName(conversation)}</span>
+            {/* WA-34: cliente com conversa nos dois números do corretor — uma linha só; o selo é o número da última mensagem. */}
+            {conversation.groupIds?.length > 1 ? <span className="shrink-0 rounded-full bg-[#F0F2F5] px-1.5 text-[11px] font-bold leading-4 text-[#54656F]" title="Conversa nos dois números; a última mensagem foi por este">Nº {conversation.sessionSlot || 1}</span> : null}
           </span>
           <span className={`shrink-0 text-xs ${unread ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{formatListTime(conversation.lastMessageAt)}</span>
         </span>
@@ -1776,6 +1788,8 @@ function BubbleMeta({ message, outbound }) {
   return (
     <>
       {message.editedAt ? <span title={message.originalBody ? `Original: ${message.originalBody}` : undefined}>editada</span> : null}
+      {/* WA-34: mensagem da conversa do mesmo cliente no OUTRO número do corretor (só leitura). */}
+      {message.otherNumber ? <span title={`Pelo Número ${message.sessionSlot || ""} do corretor`}>Nº {message.sessionSlot}</span> : null}
       <span>{TIME_FORMATTER.format(new Date(message.at))}</span>
       {outbound ? <StatusTicks status={message.status} /> : null}
     </>

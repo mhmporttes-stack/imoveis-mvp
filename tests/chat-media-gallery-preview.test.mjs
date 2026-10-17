@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 // Pedido do dono (2026-10-11): "Mídia, links e docs" e pré-visualização ao segurar a conversa (sem marcar lida).
 test("pré-visualização não marca nada como lido/visto", () => {
   const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
-  assert.match(chat, /if \(!preview && !\(conversation\.private_at && privateContentHidden\(conversation, auth\)\)\) await markSeenByViewer/);
+  assert.match(chat, /if \(!preview && !\(conversation\.private_at && privateContentHidden\(conversation, auth\)\)\) await Promise\.all\(groupIds\.map\(\(conversationId\) => markSeenByViewer/);
   assert.match(chat, /if \(!preview && !archivedReadOnly && await readerOwnsConversation/);
   const route = readFileSync(new URL("../app/api/admin/whatsapp-chat/conversations/[id]/route.js", import.meta.url), "utf8");
   assert.match(route, /const preview = searchParams\.get\("preview"\) === "1";/);
