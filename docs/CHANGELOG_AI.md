@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — Fila de reativação (FUN-15l): "volte TODOS" — bloqueio de 30 dias não vale e 2ª passada do backfill
+- **Data:** 2026-10-17
+- **Área:** Clientes (FUN-15) / Roleta
+- **Alteração:** a 1ª passada do backfill deixou 29 de fora como "inelegíveis" porque o critério reaproveitado (`isRouletteEligibleClient`) inclui o bloqueio de 30 dias do contato da Prospecção (`available_after`), que pega quase todo "Tentando contato". Para a fila de reativação esse bloqueio não vale mais (status negativo/arquivado/Não contactar/venda continuam tirando). 2ª passada única (`cooled_reactivation_backfill_2`) para os que faltam + casos `left` pelo mesmo motivo; queued/offered/kept nunca entram de novo. Fila de espera comum e status dos clientes inalterados.
+- **Motivo:** dono pediu "volte TODOS que não foram contactados".
+- **Arquivos afetados:** `lib/cooled-clients-reactivation.js`, `lib/cooled-clients-reactivation-core.mjs`, `tests/cooled-reactivation-queue.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15l).
+- **Risco/observação:** antes desta correção, a rotina podia marcar como `left` (e tirar da fila) cliente da fila em bloqueio de 30 dias; a 2ª passada os recoloca.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-17 — Clientes que esfriaram: transferidos passam por uma fila de reativação (FUN-15l / ROL-2g)
 - **Data:** 2026-10-17
 - **Área:** Clientes (FUN-15) / Roleta

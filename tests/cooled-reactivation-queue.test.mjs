@@ -128,3 +128,15 @@ test("conversa anterior (FUN-15g/h) do novo corretor é a do corretor do FUN-15,
   assert.equal(cut.previousUserId, "jen");
   assert.equal(cut.at, "2026-10-17T13:00:00Z");
 });
+
+test("volte TODOS (dono, 2026-10-17): bloqueio de 30 dias da Prospecção não tira da fila; 'left' pode voltar no backfill", () => {
+  const src = read("lib/cooled-clients-reactivation.js");
+  assert.match(src, /isRouletteEligibleClient\(\{ \.\.\.row, available_after: null \}\)/);
+  assert.doesNotMatch(src, /from\("prospecting_contacts"\)/);
+  assert.match(src, /BACKFILL_SETTING_ID = "cooled_reactivation_backfill_2"/);
+  const caseRow = { decision: "transferred", broker_id: "jen", transferred_to: "gab" };
+  assert.equal(backfillCaseDecision({ caseRow: { ...caseRow, reactivation_status: "left" }, client: { responsible_user_id: "gab" }, ownerId: OWNER, contacted: false }), "queue");
+  for (const status of ["queued", "offered", "kept"]) {
+    assert.equal(backfillCaseDecision({ caseRow: { ...caseRow, reactivation_status: status }, client: { responsible_user_id: "gab" }, ownerId: OWNER, contacted: false }), "skip_already_in_queue");
+  }
+});
