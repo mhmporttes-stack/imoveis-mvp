@@ -12,7 +12,7 @@ import { COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-client
 
 // Caixinha da decisora no fluxo de clientes que esfriaram (dono, 2026-10-16): NÃO é janela bloqueante. Ícone de carta
 // com alerta + contador no cabeçalho (celular e computador); abre quando ela quiser. Cada caso: Transferir (roleta),
-// Não transferir (status negativo, um clique) ou Devolver (uma vez). Só aparece quando há caso para decidir. Mostra UM
+// Segunda chance (fica com o mesmo corretor, FUN-15m), Não transferir (status negativo, um clique) ou Devolver (uma vez). Só aparece quando há caso para decidir. Mostra UM
 // caso por vez (FUN-15e): o próximo só depois de decidir o atual.
 // Dados: GET /api/admin/cooled-clients/inbox (só os casos do próprio usuário); decisão: POST .../[id]/decision.
 
@@ -129,6 +129,7 @@ function CooledCaseCard({ item, statusOptions, onDone }) {
   }
 
   const canReturn = item.actions.includes("return");
+  const canSecondChance = item.actions.includes("second_chance");
   return (
     <article className="rounded-card border border-line bg-white p-3" data-cooled-case="true">
       <p className="text-sm font-extrabold text-navy">{item.clientName}{item.stageLabel ? <span className="font-semibold text-muted"> · {item.stageLabel}</span> : null}</p>
@@ -171,8 +172,10 @@ function CooledCaseCard({ item, statusOptions, onDone }) {
           {!isValidCooledText(text) ? <p className="mt-1 text-[11px] text-muted">Pelo menos {COOLED_REASON_MIN_LENGTH} letras.</p> : null}
         </div>
       ) : (
-        <div className={cx("mt-3 grid gap-1.5", canReturn ? "grid-cols-3" : "grid-cols-2")}>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
           <Button size="sm" loading={busy} onClick={() => decide({ action: "transfer" }, (result) => `${item.clientName}: transferido${result.waiting ? " (aguardando um corretor on-line)" : result.toName ? ` para ${result.toName}` : ""}.${result.tagError ? ` ${result.tagError}` : ""}`)}>Transferir</Button>
+          {/* FUN-15m (dono, 2026-10-17): o cliente continua com o mesmo corretor, que é avisado. Diferente do "Devolver". */}
+          {canSecondChance ? <Button size="sm" variant="secondary" disabled={busy} title={`Manter com ${item.brokerName}`} onClick={() => decide({ action: "second_chance" }, `${item.clientName}: segunda chance para ${item.brokerName}.`)}>Segunda chance</Button> : null}
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMode("status")}>Não transferir</Button>
           {canReturn ? <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMode("return")}>Devolver</Button> : null}
         </div>

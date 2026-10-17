@@ -64,6 +64,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-17 — Clientes que esfriaram: "Segunda chance" ao mesmo corretor (FUN-15m)
+- **Data:** 2026-10-17
+- **Área:** Clientes (FUN-15)
+- **Alteração:** nova ação "Segunda chance" na caixinha da decisora (gestora ou dono), em todo caso aguardando decisão (antes e depois do "Devolver", que continua igual). O cliente fica com o corretor do caso: sem roleta, sem fila de reativação (FUN-15l), sem etiqueta "Cliente transferido". O caso fecha com `decision = 'second_chance'` (`decided_by`/`decided_at`), evento `cooled_decision` na timeline ("SEGUNDA CHANCE") e filtro próprio em Desempenho › Clientes esfriados. Corretor recebe aviso Informativo da Central de Alertas (tela + sino): "Segunda chance: <cliente> continua com você — agende a próxima atividade." Nada vai para o cliente. Os 3 dias recomeçam a partir da decisão: `isCooledCandidate` recebe `secondChanceAt` (último caso `second_chance` do cliente) — eventos do fluxo não contam como atendimento (`client-attendance-core`), então não foi usado o "último atendimento" (isso também tiraria o cliente dos pendentes da Meta Diária); nenhuma atividade fictícia.
+- **Motivo:** dono: "Quando vier para gerente, ou da gerente para mim, ele deve ter uma opção de devolver o cliente a esse corretor... como se fosse uma segunda chance para alguns casos."
+- **Arquivos afetados:** `lib/cooled-clients-core.mjs`, `lib/cooled-clients.js`, `components/cooled/CooledClientsInbox.jsx`, `components/ClientJourneyActions.jsx`, `app/admin/desempenho/esfriados/page.jsx`, `supabase/migrations/20261017180000_cooled_second_chance.sql`, `tests/cooled-second-chance.test.mjs`, `tests/cooled-clients-core.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15m), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** migration `20261017180000` (amplia o CHECK de `decision`) **A CONFIRMAR aplicação** — sem ela, o botão responde "ainda não foi ativada no banco" (erro visível, nada gravado) e o resto do fluxo segue igual. Push no celular NÃO foi ligado: a política de notificações (só cliente novo, atividade agendada, transferência, queda do WhatsApp) exigiria nova exceção do dono.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-17 — Fila de reativação (FUN-15l): "volte TODOS" — bloqueio de 30 dias não vale e 2ª passada do backfill
 - **Data:** 2026-10-17
 - **Área:** Clientes (FUN-15) / Roleta

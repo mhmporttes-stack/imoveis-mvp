@@ -99,7 +99,7 @@ test("transições: motivo -> decisão -> devolução -> 2º motivo -> decisão 
   assert.equal(p1.status, CASE_STATUS.AWAITING_DECISION);
   assert.equal(p1.first_reason_at, "t1");
   const c1 = { ...baseCase, ...p1 };
-  assert.deepEqual(availableDecisionActions(c1), ["transfer", "status", "return"]);
+  assert.deepEqual(availableDecisionActions(c1), ["transfer", "second_chance", "status", "return"]);
   const p2 = applyCaseAction(c1, "return", { actorId: "m1", text: "Faltou dizer quantas vezes ligou", now: "t2" });
   assert.equal(p2.status, CASE_STATUS.AWAITING_REASON);
   const c2 = { ...c1, ...p2 };
@@ -107,7 +107,7 @@ test("transições: motivo -> decisão -> devolução -> 2º motivo -> decisão 
   assert.equal(p3.second_reason_at, "t3");
   assert.equal(p3.first_reason, undefined);
   const c3 = { ...c2, ...p3 };
-  assert.deepEqual(availableDecisionActions(c3), ["transfer", "status"]);
+  assert.deepEqual(availableDecisionActions(c3), ["transfer", "second_chance", "status"]);
   assert.throws(() => applyCaseAction(c3, "return", { text: "Mais uma vez por favor explique" }), /já foi devolvido/);
   assert.equal(caseLatestReason(c3), "Liguei três vezes e mandei áudio");
   assert.equal(caseLatestReasonAt({ first_reason_at: "2026-10-16T10:00:00Z", second_reason_at: "2026-10-16T12:00:00Z" }), "2026-10-16T12:00:00.000Z");

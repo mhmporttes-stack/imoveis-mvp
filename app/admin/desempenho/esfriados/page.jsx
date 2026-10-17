@@ -14,6 +14,7 @@ const DECISIONS = [
   { key: "", label: "Todos" },
   { key: "open", label: "Em aberto" },
   { key: "transferred", label: "Transferidos" },
+  { key: "second_chance", label: "Segunda chance" },
   { key: "status", label: "Status negativo" },
   { key: "canceled", label: "Encerrados sozinhos" }
 ];
@@ -28,6 +29,7 @@ function formatDate(value) {
 
 function outcome(item) {
   if (item.decision === "transferred") return `Transferido${TRANSFER_REASON_LABEL[item.transferReason] ? ` (${TRANSFER_REASON_LABEL[item.transferReason]})` : ""}${item.transferredToName ? ` para ${item.transferredToName}` : ""}`;
+  if (item.decision === "second_chance") return `Segunda chance${item.brokerName ? ` para ${item.brokerName}` : ""}`;
   if (item.decision === "status") return `Status: ${item.decisionStatusLabel}`;
   if (item.status === "canceled") return `Encerrado (${CANCEL_LABEL[item.canceledReason] || item.canceledReason || "sem motivo"})`;
   return STATUS_LABEL[item.status] || item.status;

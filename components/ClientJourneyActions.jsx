@@ -215,6 +215,10 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "DOCUMENTAÇÃO ENVIADA PARA CCA", description: [d.ccaName ? `CCA: ${d.ccaName}` : "", d.documentCount ? `Arquivos: ${d.documentCount}` : ""].filter(Boolean) };
     case "cca_reassigned":
       return { title: "CCA ALTERADA", description: [`${d.fromCcaName || "—"} → ${d.toCcaName || "—"}`] };
+    case "cooled_decision":
+      // Cliente que esfriou — "Segunda chance" (FUN-15m): continua com o mesmo corretor. Demais decisões: título padrão.
+      if (d.decision === "second_chance") return { title: "SEGUNDA CHANCE", description: [`Cliente continua com ${d.brokerName || "o mesmo corretor"}.`] };
+      return { title: "COOLED DECISION", description: [] };
     default:
       return { title: event.type.replace(/^prospecting:|^distribution:/, "").replace(/_/g, " ").toUpperCase(), description: [] };
   }
