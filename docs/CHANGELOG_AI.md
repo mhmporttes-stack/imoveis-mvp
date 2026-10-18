@@ -73,6 +73,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-25: aviso ao corretor (sino + push) e religar cliente arquivado
+- **Data:** 2026-10-18
+- **Área:** Notificações (AUT-9c), WhatsApp oficial (PRES-25)
+- **Alteração:** quando a conversa do oficial passa a ser do corretor pelo código do atendimento, ele recebe UM aviso no sino e push ("Cliente <nome> chamou no WhatsApp oficial pelo link — abra o Chat."). Novo tipo `official_chat_assigned` em `lib/notification-policy-core.mjs` e no gatilho do sino (migration `20261018150000_crm_notifications_official_chat_assigned.sql`, **não aplicada**). Dedupe: avisa só quando `assigned_user_id` mudou agora, e o UPDATE é condicionado à atribuição lida. Rótulo "WhatsApp oficial" no sino (`lib/crm-alerts.js`). Religar conversa de cadastro arquivado (que já estava implementado) confirmado pelo dono como exceção à WA-13.
+- **Motivo:** dono respondeu "sim e sim" às duas decisões pendentes da entrada anterior.
+- **Arquivos afetados:** `lib/whatsapp-contact-code{-core.mjs,.js}`, `lib/notification-policy-core.mjs`, `lib/crm-alerts.js`, migration nova; testes `tests/whatsapp-contact-code.test.mjs`, `tests/notification-policy.test.mjs`; docs `BUSINESS_RULES.md` (AUT-9c, PRES-25), `.claude/rules/integracoes-externas.md`, `.claude/rules/automacoes-notificacoes.md`, `DATABASE.md`.
+- **Risco/observação:** até a migration ser aplicada, o push sai e o aviso do sino é descartado pelo gatilho (gravação não falha).
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-18 — PRES-25/WA-10: botões do link abrem o oficial, mas a conversa fica com o corretor
 - **Data:** 2026-10-18
 - **Área:** Apresentação `/s/<token>` (PRES-17/22/24), botão "Receber minha simulação" (WA-10), webhook do WhatsApp oficial

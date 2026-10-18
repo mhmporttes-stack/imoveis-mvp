@@ -8,8 +8,9 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 
 test("só cliente novo, atividade agendada, transferência de clientes e teste são permitidos; o resto é negado", () => {
   // whatsapp_connection: exceção do dono (2026-10-10, WA-20) — push da queda do PRÓPRIO WhatsApp, só ao corretor dono.
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "new_client", "scheduled_activity", "test", "whatsapp_connection"]);
-  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection"]) assert.equal(isNotificationAllowed(kind), true, kind);
+  // official_chat_assigned: exceção do dono (2026-10-18, PRES-25) — conversa do oficial atribuída pelo código do atendimento.
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
+  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
 
@@ -55,4 +56,7 @@ test("sino: avisos de cliente novo usam o tipo permitido; Roleta parou/Documenta
   const migration = read("supabase/migrations/20261006100000_crm_notifications_policy.sql");
   assert.ok(migration.includes("('new_client', 'scheduled_activity', 'clients_transferred')"));
   assert.ok(migration.includes("before insert on public.crm_notifications"));
+  const exception = read("supabase/migrations/20261018150000_crm_notifications_official_chat_assigned.sql");
+  assert.ok(exception.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned')"));
+  assert.ok(exception.includes("set search_path = public, extensions"));
 });

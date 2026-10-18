@@ -7,6 +7,7 @@ import {
   decideCodedConversationLink,
   extractContactCode,
   hasContactCodeMarker,
+  officialChatAssignedNotice,
   withContactCode
 } from "../lib/whatsapp-contact-code-core.mjs";
 
@@ -88,4 +89,22 @@ test("todos os botões de contato do link e o 'Receber minha simulação' levam 
   assert.equal((read("lib/client-appointments.js").match(/buildBrokerWhatsappUrl\(ctx\.client\.id, message\)/g) || []).length, 2);
   assert.match(read("lib/payment-strategy.js"), /buildBrokerWhatsappUrl\(loaded\.simulation\.registration\?\.id \|\| loaded\.simulation\.registrationId, message\)/);
   assert.match(read("components/simulation-form/ReceiveSimulationWhatsappButton.jsx"), /withContactCode\(MESSAGE, registrationId\)/);
+});
+
+test("aviso ao corretor (exceção do dono, 2026-10-18): sino + push só na ATRIBUIÇÃO, uma vez", () => {
+  assert.deepEqual(officialChatAssignedNotice("Maria Souza"), {
+    title: "Cliente Maria Souza chamou no WhatsApp oficial pelo link — abra o Chat.",
+    description: "A conversa do WhatsApp oficial já está atribuída a você no Chat."
+  });
+  assert.match(officialChatAssignedNotice("").title, /^Cliente sem nome chamou/);
+  assert.ok(!/[\n\r]/.test(officialChatAssignedNotice("Ana\nX").title));
+  const code = read("lib/whatsapp-contact-code.js");
+  // só avisa quando a atribuição mudou agora, e a gravação é condicionada à atribuição lida (entregas simultâneas = 1 aviso)
+  assert.match(code, /if \(decision\.assigned\) await notifyAssignedBroker\(/);
+  assert.match(code, /query\.eq\("assigned_user_id", conversation\.assigned_user_id\) : query\.is\("assigned_user_id", null\)/);
+  assert.ok(code.indexOf("if (!updated?.length)") < code.indexOf("if (decision.assigned) await notifyAssignedBroker("));
+  assert.match(code, /notification_type: NOTIFICATION_KIND\.OFFICIAL_CHAT_ASSIGNED/);
+  assert.match(code, /kind: NOTIFICATION_KIND\.OFFICIAL_CHAT_ASSIGNED, title, body: description, url: "\/admin\/chat"/);
+  // as demais mensagens do Chat continuam sem aviso
+  assert.ok(!/sendPushToUser\([^)]*kind:/.test(read("lib/whatsapp-chat.js")));
 });
