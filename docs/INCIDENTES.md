@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-18 — iPhone ainda dá zoom ao tocar no "Valor" da Estratégia (depois de cbef8ae)
+- **Data:** 2026-10-18
+- **Sintoma:** em `/s/<token>`, ao tocar/digitar no campo "Valor" da folha "ESTRATÉGIA COM AMORTIZAÇÃO", a página amplia ~1,3x (texto todo maior e deslocado) e não volta.
+- **Área:** Apresentação da simulação (PRES-24) / Frontend
+- **Impacto:** cliente no link `/s/`, só iPhone (Safari e Chrome iOS = WebKit). Prévia do corretor não (já tinha `maximumScale: 1` pelo layout raiz).
+- **Causa raiz:** zoom automático de foco do WebKit iOS liberado pelo viewport da página pública (`maximumScale: 5`), somado ao `touch-action: pan-y` da `.root`, que impede desfazer com pinça. A fonte do campo já era 17px e nenhum ancestral da folha aplica `transform`/`zoom` (hipótese de escala descartada no código), mas o iOS ainda pode ampliar o campo focado quando o viewport permite.
+- **Correção:** `maximumScale: 1` só na apresentação pública (`lib/presentation-viewport.mjs`), `userScalable` mantido `true` — no iOS 10+ a pinça manual continua liberada.
+- **Arquivos/commit:** `lib/presentation-viewport.mjs`, `app/apresentacao/[token]/page.jsx` — commit desta data.
+- **Prevenção/teste:** `tests/presentation-viewport.test.mjs`. O Playwright WebKit (Linux) não reproduz o zoom de foco do iOS — confirmar no iPhone.
+- **Status:** Monitorando — confirmar no iPhone do dono.
 ### 2026-10-18 — iPhone: tela da Estratégia fica "mais larga" que a tela depois de digitar (cortada à direita, não volta)
 - **Data:** 2026-10-18
 - **Sintoma:** na folha "ESTRATÉGIA COM AMORTIZAÇÃO" do `/s/<token>`, depois de digitar um valor os cards e textos saem pela borda e a tela fica "com zoom" sem voltar.

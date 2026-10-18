@@ -4,6 +4,7 @@ import PresentationPlayer from "@/components/presentation/PresentationPlayer";
 import { getPublicPresentation as loadPublicPresentation } from "@/lib/simulation-presentation";
 import { isClientAppointmentsReady } from "@/lib/client-appointments";
 import { buildShareMetadata, shareFirstName } from "@/lib/simulation-presentation-share.mjs";
+import { PRESENTATION_VIEWPORT } from "@/lib/presentation-viewport.mjs";
 
 // Página PÚBLICA da apresentação interativa (aberta como /s/<token> via proxy.js). Sem login; o token é o acesso.
 // Só o DTO em allowlist chega ao navegador. Token inexistente/revogado/inválido → o mesmo 404 genérico.
@@ -18,7 +19,8 @@ export async function generateMetadata({ params }) {
   if (!dto) return { title: "Sua simulação", robots: { index: false, follow: false, nocache: true, noarchive: true }, referrer: "no-referrer" };
   return buildShareMetadata({ token, firstName: shareFirstName(dto) });
 }
-export const viewport = { width: "device-width", initialScale: 1, maximumScale: 5, userScalable: true, viewportFit: "cover", themeColor: "#071B31" };
+// maximumScale: 1 só aqui: sem zoom automático de foco no iPhone; pinça manual segue liberada no iOS (lib/presentation-viewport.mjs).
+export const viewport = { ...PRESENTATION_VIEWPORT };
 
 export default async function PresentationPage({ params }) {
   const { token } = await params;

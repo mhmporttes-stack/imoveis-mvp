@@ -1,4 +1,5 @@
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
+import { PRESENTATION_VIEWPORT } from "@/lib/presentation-viewport.mjs";
 import { approvalScenes, presentationBranch, presentationScenes, presentationStrategy } from "../_fixtures/apresentacao";
 
 // Vitrine DEV da Apresentação interativa da simulação (só existe no `next dev`; *.dev.jsx não entra no build).
@@ -13,6 +14,8 @@ import { approvalScenes, presentationBranch, presentationScenes, presentationStr
 //   ?estrategia=nao (sem o botão "Estratégia de pagamento": simulação sem taxa/prazo) · PDF da estratégia: rota DEV ./estrategia
 //   ?modo=aprovacao (apresentação de CRÉDITO APROVADO, PRES-21; com 1 imóvel) · &v=sem-imovel (só carimbo + valores)
 export const dynamic = "force-dynamic";
+// mesmo viewport da página pública (/s/<token>), para a vitrine reproduzir o zoom de foco do iPhone fielmente
+export const viewport = { ...PRESENTATION_VIEWPORT };
 
 export default async function PresentationVitrine({ searchParams }) {
   const query = await searchParams;

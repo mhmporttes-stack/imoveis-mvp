@@ -73,6 +73,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-24: iPhone sem zoom automático ao tocar nos campos da apresentação (viewport maximumScale 1)
+- **Data:** 2026-10-18
+- **Área:** Apresentação da simulação (PRES-24) / Frontend
+- **Alteração:** viewport da página pública `/s/<token>` (`app/apresentacao/[token]/page.jsx`) passa de `maximumScale: 5` para `maximumScale: 1` (`userScalable` continua `true`), por uma fonte única `lib/presentation-viewport.mjs` (também na vitrine `app/dev/vitrine/apresentacao`). No iOS 10+ isso desliga o zoom automático de foco do WebKit (Safari e Chrome iOS) sem bloquear a pinça manual. A prévia do corretor já herdava `maximumScale: 1` do layout raiz. Fonte dos campos (17px fixos) e CSS sem mudança: conferido que nenhum ancestral da folha tem `transform`/`zoom` (o `zoom` do `fitScene` só atinge a cena, e a folha é irmã dela).
+- **Motivo:** print do dono depois do commit cbef8ae: a página ainda ampliava ~1,3x ao tocar/digitar em "Valor" e não voltava (pinça já bloqueada por `touch-action: pan-y` da `.root`).
+- **Verificação:** `tests/presentation-viewport.test.mjs`; build; `next start` local: `/s/<token>` sai com `maximum-scale=1, user-scalable=yes`, home continua com o viewport do layout raiz. O WebKit do Playwright no Linux não simula o zoom de foco do iOS (sonda: `visualViewport.scale` = 1 até com fonte 12px e maximum-scale 5) — confirmação final só no iPhone.
+- **Arquivos afetados:** `lib/presentation-viewport.mjs`, `app/apresentacao/[token]/page.jsx`, `app/dev/vitrine/apresentacao/page.dev.jsx`, `tests/presentation-viewport.test.mjs`.
+- **Risco/observação:** no Android o `maximum-scale=1` bloqueia a pinça, mas ela já era bloqueada na apresentação pelo `touch-action: pan-y` — nada muda na prática. Painel e demais páginas públicas inalterados.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-18 — PRES-24: tela "mais larga" que o iPhone na ESTRATÉGIA COM AMORTIZAÇÃO (causa real) + cursor da máscara
 - **Data:** 2026-10-18
 - **Área:** Apresentação da simulação `/s/<token>` (PRES-24) / Frontend
