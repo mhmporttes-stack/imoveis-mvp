@@ -45,7 +45,7 @@ export function presentationSimulation(variant = "completo") {
     simulationDate: "2026-10-03",
     interestRateAnnual: 5.4,
     // cadastro FICTÍCIO: só alimenta a personalização da lista de documentos (o valor cru nunca sai do servidor)
-    registration: { simulationType: "individual", oldestBirthDate: "1990-05-10", primaryIncomeType: "registered_employment", primaryMaritalStatus: "married", hasChildrenUnder18: true },
+    registration: { simulationType: "individual", oldestBirthDate: "1990-05-10", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 3000, primaryMaritalStatus: "married", hasChildrenUnder18: true },
     simulationModels: {
       novo: { financingValue: "190.000,00", subsidyValue: "42.000,00", firstInstallment: "1.085,40", lastInstallment: "812,15" },
       usado: { financingValue: "190.000,00", subsidyValue: "0", firstInstallment: "1.085,40", lastInstallment: "812,15" }

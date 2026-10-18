@@ -73,6 +73,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-24: IR removido, 13º/FGTS automáticos pela renda CLT, nome "ESTRATÉGIA COM AMORTIZAÇÃO"
+- **Data:** 2026-10-18
+- **Área:** Apresentação `/s/<token>` e prévia do CRM (PRES-24)
+- **Alteração:** (1) "Restituição do IR" removida (tela, motor, PDF, DTO, testes). (2) 13º e FGTS sem campo de valor: o servidor calcula pela renda bruta CLT do cadastro (`cltMonthlyIncome`: principal CLT + segundo CLT em conjunta) — 13º = 1 salário/ano no mês escolhido; FGTS = salário × 8% × 24 a cada 2 anos; DTO `estrategia.opcoes = {decimoTerceiro, fgts}` agora em R$ (0 = indisponível), nunca a renda; o valor aparece ao lado da opção. (3) `parseStrategyChoices` recusa `valor` em 13º/FGTS e a chave `restituicaoIr`; a tela envia `choicesForRequest`; gravações antigas lidas por `choicesFromSaved`. (4) Nome visível "ESTRATÉGIA COM AMORTIZAÇÃO" (`STRATEGY_NAME`/`STRATEGY_NAME_CAPS`): botão, título da folha, PDF (título, cabeçalho e arquivo `estrategia-com-amortizacao-*.pdf`), resumo do CRM e mensagem do WhatsApp; rótulos "Sem/Com estratégia" viram "Sem/Com amortização" (tela, gráfico, PDF); frase do resultado passa a "… você quita seu imóvel em X e economiza R$ Y de juros." O botão do player usa a constante (a trava de `tests/simulation-presentation.test.mjs` proíbe a palavra "amortiza" no player).
+- **Motivo:** segunda decisão do dono no mesmo dia (substitui as dúvidas do registro anterior sobre CLT + IR).
+- **Arquivos afetados:** `lib/payment-strategy-core.mjs`, `lib/payment-strategy-pdf.mjs`, `lib/simulation-presentation-core.mjs`, `components/presentation/{StrategySheet,PresentationPlayer,SimulationPresentationPanel}.jsx`, fixture da vitrine (`primaryMonthlyIncome` fictício), `tests/payment-strategy.test.mjs`; docs `BUSINESS_RULES.md`, `PERMISSIONS.md`, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** CLT com renda 0/ausente no cadastro não vê 13º/FGTS. Renda usada é a informada no cadastro (bruta, como digitada). Sem migration.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-18 — PRES-24: opções da "Estratégia de pagamento" conforme o tipo de renda + valor extra por ano
 - **Data:** 2026-10-18
 - **Área:** Apresentação `/s/<token>` e prévia do CRM — "Estratégia de pagamento" (PRES-24)

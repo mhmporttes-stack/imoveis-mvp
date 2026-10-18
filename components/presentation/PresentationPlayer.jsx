@@ -28,6 +28,7 @@ import {
 import AppointmentSheet from "./AppointmentSheet";
 import ForecastSheet from "./ForecastSheet";
 import StrategySheet from "./StrategySheet";
+import { STRATEGY_NAME_CAPS } from "@/lib/payment-strategy-core.mjs";
 import OpeningAnimation from "./OpeningAnimation";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
 import styles from "./presentation.module.css";
@@ -705,7 +706,7 @@ function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, href
         {hasStrategy ? (
           <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenStrategy} data-no-nav="" data-open-strategy="">
             <TrendingDown aria-hidden="true" />
-            ESTRATÉGIA DE PAGAMENTO
+            {STRATEGY_NAME_CAPS}
           </button>
         ) : null}
         <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.ghostBtn} hint="Disponível no link enviado ao cliente" />

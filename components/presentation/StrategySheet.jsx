@@ -9,31 +9,32 @@ import {
   DEFAULT_13TH_MONTH,
   DEFAULT_ANNUAL_EXTRA_MONTH,
   MONTH_NAMES,
+  STRATEGY_NAME,
   balanceChartPaths,
   compareStrategy,
   emptyChoices,
   formatDuration,
+  automaticOptionValue,
+  choicesForRequest,
+  choicesFromSaved,
   hasActiveExtras,
   isOptionAllowed,
-  parseStrategyChoices,
   restrictChoices,
   strategyHeadline
 } from "@/lib/payment-strategy-core.mjs";
 import styles from "./presentation.module.css";
 
 // Folha "Estratégia de pagamento" (PRES-24). Abre com os números da simulação (`strategy` = base do DTO, nunca redigitada) e
-// deixa o cliente — ou o corretor, na prévia do CRM — ligar 13º, restituição do IR, FGTS a cada 2 anos e valores extras por
-// mês e por ano. Só aparecem as opções que o cadastro permite (`strategy.opcoes`, decidido no servidor: 13º/FGTS só com renda
-// CLT, IR só declarante; informal/sem dado = só os extras por mês e por ano — regra do dono 2026-10-18). O servidor recusa
-// opção fora disso.
+// deixa o cliente — ou o corretor, na prévia do CRM — ligar 13º e FGTS (AUTOMÁTICOS: valor calculado no servidor pela renda
+// CLT do cadastro, `strategy.opcoes`; sem campo de valor) e valores extras por mês e por ano (editáveis, para todos). Sem renda
+// CLT, 13º e FGTS não aparecem (regras do dono 2026-10-18). O servidor recusa opção fora disso e valor de 13º/FGTS do cliente.
 // O cálculo é do motor puro `lib/payment-strategy-core.mjs` (amortização extra REDUZ O PRAZO). "Baixar minha estratégia" pede
 // o PDF ao servidor; "Falar com meu corretor" grava as escolhas e recebe o wa.me (só na resposta, nunca no DTO).
 // Prévia (`preview`): PDF pelo endpoint do CRM (`pdfEndpoint`); o contato fica desativado.
 
 const OPTIONS = [
-  { key: "decimoTerceiro", label: "13º salário", hint: "valor por ano" },
-  { key: "restituicaoIr", label: "Restituição do Imposto de Renda", hint: "valor por ano, em junho" },
-  { key: "fgts", label: "FGTS", hint: "valor a cada 2 anos" },
+  { key: "decimoTerceiro", label: "13º salário", hint: (value) => `${formatBRL(value)} por ano (1 salário)`, auto: true },
+  { key: "fgts", label: "FGTS", hint: (value) => `${formatBRL(value)} a cada 2 anos (8% do salário × 24 meses)`, auto: true },
   { key: "extraMensal", label: "Valor extra por mês", hint: "todo mês, junto da parcela" },
   { key: "extraAnual", label: "Valor extra por ano", hint: "uma vez por ano, no mês escolhido" }
 ];
@@ -48,10 +49,9 @@ function moneyText(value) {
 }
 
 function initialState(saved, strategy) {
-  const parsed = saved ? parseStrategyChoices(saved) : null;
-  const choices = restrictChoices(parsed || emptyChoices(), strategy);
+  const choices = restrictChoices(saved ? choicesFromSaved(saved) : emptyChoices(), strategy);
   const texts = {};
-  for (const { key } of OPTIONS) texts[key] = moneyText(choices[key].valor);
+  for (const { key, auto } of OPTIONS) texts[key] = auto ? "" : moneyText(choices[key].valor);
   return { choices, texts };
 }
 
@@ -103,7 +103,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
     setPhase("pdf");
     setError("");
     try {
-      const body = preview || !token ? { escolhas: choices } : { acao: "pdf", escolhas: choices };
+      const body = preview || !token ? { escolhas: choicesForRequest(choices) } : { acao: "pdf", escolhas: choicesForRequest(choices) };
       const response = await fetch(pdfUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", credentials: preview ? "same-origin" : "omit" });
       if (!response.ok || !String(response.headers.get("content-type") || "").includes("application/pdf")) {
         const data = await response.json().catch(() => ({}));
@@ -112,7 +112,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
         return;
       }
       const blob = await response.blob();
-      const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") || "")?.[1] || "estrategia-de-pagamento.pdf";
+      const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") || "")?.[1] || "estrategia-com-amortizacao.pdf";
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -136,7 +136,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
       const response = await fetch(`/api/s/${encodeURIComponent(token)}/estrategia`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acao: "contato", escolhas: choices }),
+        body: JSON.stringify({ acao: "contato", escolhas: choicesForRequest(choices) }),
         cache: "no-store",
         credentials: "omit"
       });
@@ -168,7 +168,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
     <div className={styles.sheetBackdrop} data-no-nav="" data-sheet="" onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="strategy-title">
         <header className={styles.sheetHead}>
-          <h2 id="strategy-title" className={styles.sheetTitle}>Estratégia de pagamento</h2>
+          <h2 id="strategy-title" className={styles.sheetTitle}>{STRATEGY_NAME}</h2>
           <button ref={closeRef} type="button" className={styles.sheetClose} onClick={onClose} disabled={busy} aria-label="Fechar">
             <X aria-hidden="true" />
           </button>
@@ -186,7 +186,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
           <p className={styles.stLabel}>Use dinheiro extra para quitar antes</p>
           <p className={styles.stHelp}>Cada valor abate o saldo devedor e reduz o prazo: a parcela segue o mesmo sistema, e você termina antes.</p>
           <div className={styles.stOptions}>
-            {options.map(({ key, label, hint }) => {
+            {options.map(({ key, label, hint, auto }) => {
               const option = choices[key];
               const inputId = `st-${key}`;
               return (
@@ -195,11 +195,12 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
                     <input type="checkbox" className={styles.stCheck} checked={option.ativo} onChange={(event) => setOption(key, { ativo: event.target.checked })} disabled={busy} data-st-toggle={key} />
                     <span className={styles.stToggleText}>
                       <strong>{label}</strong>
-                      <span>{hint}</span>
+                      <span>{auto ? hint(automaticOptionValue(strategy, key)) : hint}</span>
                     </span>
                   </label>
-                  {option.ativo ? (
+                  {option.ativo && (!auto || MONTH_DEFAULTS[key]) ? (
                     <div className={styles.stFields}>
+                      {auto ? null : (
                       <label className={styles.stField} htmlFor={inputId}>
                         <span>Valor</span>
                         <span className={styles.stMoney}>
@@ -207,6 +208,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
                           <input id={inputId} inputMode="decimal" autoComplete="off" placeholder="0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target.value)} onBlur={() => formatAmount(key)} disabled={busy} data-st-value={key} />
                         </span>
                       </label>
+                      )}
                       {MONTH_DEFAULTS[key] ? (
                         <label className={styles.stField} htmlFor={`st-mes-${key}`}>
                           <span>Mês</span>
@@ -224,13 +226,13 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
 
           <div className={styles.stCompare} aria-live="polite">
             <div className={styles.stCol}>
-              <span className={styles.stColTitle}>Sem estratégia</span>
+              <span className={styles.stColTitle}>Sem amortização</span>
               <strong className={styles.stYears}>{formatDuration(sem.months)}</strong>
               <span className={styles.stLine}>{sem.months} parcelas</span>
               <span className={styles.stLine}>{formatBRL(sem.totalInterest)} de juros</span>
             </div>
             <div className={`${styles.stCol} ${styles.stColOn}`}>
-              <span className={styles.stColTitle}>Com estratégia</span>
+              <span className={styles.stColTitle}>Com amortização</span>
               <strong className={styles.stYears}>{formatDuration(com.months)}</strong>
               <span className={styles.stLine}>{com.months} parcelas</span>
               <span className={styles.stLine}>{formatBRL(com.totalInterest)} de juros</span>
@@ -249,15 +251,15 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
 
           <figure className={styles.stChart}>
             <figcaption className={styles.stLabel}>Saldo devedor ao longo do tempo</figcaption>
-            <svg viewBox={`-2 -4 ${CHART_W + 4} ${CHART_H + 8}`} role="img" aria-label={`Sem estratégia o saldo zera em ${formatDuration(sem.months)}; com estratégia, em ${formatDuration(com.months)}.`}>
+            <svg viewBox={`-2 -4 ${CHART_W + 4} ${CHART_H + 8}`} role="img" aria-label={`Sem amortização o saldo zera em ${formatDuration(sem.months)}; com amortização, em ${formatDuration(com.months)}.`}>
               <line x1="0" y1={CHART_H} x2={CHART_W} y2={CHART_H} className={styles.stAxis} />
               <path d={paths.sem} className={styles.stPathSem} />
               <path d={paths.com} className={styles.stPathCom} />
             </svg>
             <div className={styles.stChartScale}><span>hoje</span><span>{years} {years === 1 ? "ano" : "anos"}</span></div>
             <div className={styles.stLegend}>
-              <span><i className={styles.stDotSem} aria-hidden="true" />Sem estratégia</span>
-              <span><i className={styles.stDotCom} aria-hidden="true" />Com estratégia</span>
+              <span><i className={styles.stDotSem} aria-hidden="true" />Sem amortização</span>
+              <span><i className={styles.stDotCom} aria-hidden="true" />Com amortização</span>
             </div>
           </figure>
 

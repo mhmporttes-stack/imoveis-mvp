@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { formatDateBR } from "@/lib/simulation-presentation-format.mjs";
 import { displayLink } from "@/lib/short-links.mjs";
 import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
-import { describeChoices, formatDuration } from "@/lib/payment-strategy-core.mjs";
+import { STRATEGY_NAME, describeChoices, formatDuration } from "@/lib/payment-strategy-core.mjs";
 
 // "Apresentação da simulação" no CRM (tela da simulação, onde também se gera o PDF). OPÇÃO ADICIONAL: o PDF não muda.
 // Lê o estado pela API admin (mesmo escopo da simulação). O link mostra sempre os valores ATUAIS da simulação salva.
@@ -41,7 +41,7 @@ function PaymentStrategySummary({ strategy }) {
   const summary = strategy.resumo;
   return (
     <div className="rounded-control border border-line bg-mist px-3 py-2 text-sm text-navy">
-      <p className="font-semibold">Estratégia de pagamento do cliente{strategy.salvoEm ? ` · ${formatMoment(strategy.salvoEm)}` : ""}</p>
+      <p className="font-semibold">{STRATEGY_NAME} do cliente{strategy.salvoEm ? ` · ${formatMoment(strategy.salvoEm)}` : ""}</p>
       <p className="text-muted">{lines.length ? lines.join(" · ") : "Nenhum valor extra ligado."}</p>
       {summary && summary.economiaJuros > 0 ? (
         <p className="text-muted">
