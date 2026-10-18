@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import { BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play } from "lucide-react";
+import { BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play, TrendingDown } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
@@ -27,12 +27,14 @@ import {
 } from "./player-core.mjs";
 import AppointmentSheet from "./AppointmentSheet";
 import ForecastSheet from "./ForecastSheet";
+import StrategySheet from "./StrategySheet";
 import OpeningAnimation from "./OpeningAnimation";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
 import styles from "./presentation.module.css";
 
 // Player da apresentação interativa da simulação. Recebe só o DTO público (cenas já decididas no servidor) e nunca
-// calcula valor financeiro: apenas anima e formata o que veio. Sem biblioteca de animação nem áudio.
+// calcula valor financeiro nas cenas: apenas anima e formata o que veio. Única exceção: a folha "Estratégia de pagamento"
+// (PRES-24, `StrategySheet`), que roda o motor puro `lib/payment-strategy-core.mjs` sobre a base da simulação (`strategy`). Sem biblioteca de animação nem áudio.
 // `token` vazio ou `preview` = prévia do CRM: não envia nenhuma métrica e os botões de download ficam desativados.
 // A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
 // Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
@@ -672,7 +674,7 @@ function DownloadAction({ href, label, className, hint }) {
   );
 }
 
-function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment }) {
+function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment, hasStrategy, onOpenStrategy }) {
   const propertiesLabel = propertiesButtonLabel(propertyCount);
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   return (
@@ -697,6 +699,13 @@ function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, href
           <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onOpenAppointment} data-no-nav="" data-open-appointment="">
             <CalendarDays aria-hidden="true" />
             AGENDAR ATENDIMENTO
+          </button>
+        ) : null}
+        {/* PRES-24: só quando a simulação tem financiamento, taxa de juros e prazo (base do DTO) */}
+        {hasStrategy ? (
+          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenStrategy} data-no-nav="" data-open-strategy="">
+            <TrendingDown aria-hidden="true" />
+            ESTRATÉGIA DE PAGAMENTO
           </button>
         ) : null}
         <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.ghostBtn} hint="Disponível no link enviado ao cliente" />
@@ -777,7 +786,7 @@ function renderScene(scene, ctx) {
       : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
     case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} />;
-    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} />;
+    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;
@@ -796,7 +805,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false, strategy = null, strategyPdfEndpoint = "", strategyInitialChoices = null }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -811,6 +820,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   const [direction, setDirection] = useState("forward");
   const [forecastOpen, setForecastOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
+  const [strategyOpen, setStrategyOpen] = useState(false);
   // ramo opcional de imóveis: null = roteiro principal; número = posição (0-based) dentro de `branch`
   // `initialBranch` (1-based) só é usado pela vitrine de desenvolvimento
   // O ramo anda cena a cena: [imóvel, valores do imóvel (se houver)] para cada imóvel sugerido. `branch` continua sendo 1 item por
@@ -853,6 +863,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     elapsed.current = 0;
     setForecastOpen(false);
     setAppointmentOpen(false);
+    setStrategyOpen(false);
     if (fillRef.current) fillRef.current.style.transform = isLastScene(stateRef.current) ? "scaleX(1)" : "scaleX(0)";
     const plan = transitionPlan(effective, prevIndex.current);
     prevIndex.current = state.index;
@@ -865,7 +876,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
   }, [state.index]);
 
   // auto-avanço: relógio que só corre sem pausa (aba oculta também pausa) e respeita o tempo de leitura da cena
-  const auto = isAutoAdvancing(state) && !inBranch && !appointmentOpen; // no ramo de imóveis quem avança é o cliente; agendando, a cena espera
+  const auto = isAutoAdvancing(state) && !inBranch && !appointmentOpen && !strategyOpen; // no ramo de imóveis quem avança é o cliente; agendando, a cena espera
   useEffect(() => {
     if (!auto) return undefined;
     const duration = scene.durationMs;
@@ -960,6 +971,14 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     setAppointmentOpen(false);
     if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
   }, []);
+  const openStrategy = useCallback((event) => {
+    openerRef.current = event?.currentTarget || null;
+    setStrategyOpen(true);
+  }, []);
+  const closeStrategy = useCallback(() => {
+    setStrategyOpen(false);
+    if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
+  }, []);
   const closeForecast = useCallback(() => {
     setForecastOpen(false);
     if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
@@ -1005,7 +1024,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openForecast, canReceiveList, openAppointment, canSchedule, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
+  const ctx = { reduced, restart, validate, openForecast, canReceiveList, openAppointment, canSchedule, strategy, openStrategy, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
     // roteiro principal com imóvel/valores (apresentação de aprovação)
     inBranch, mainNext: () => act("next"), mainLast: !inBranch && isLastScene(state), mainNextIsValues: !inBranch && scenes[state.index + 1]?.id === "valores" };
 
@@ -1069,6 +1088,9 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
           </div>
           {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
           {appointmentOpen && current.id === "proximo" && canSchedule ? <AppointmentSheet token={token} preview={preview} onClose={closeAppointment} /> : null}
+          {strategyOpen && current.id === "proximo" && strategy ? (
+            <StrategySheet strategy={strategy} token={token} preview={preview} pdfEndpoint={strategyPdfEndpoint} canContact={canReceiveList} initialChoices={strategyInitialChoices} onClose={closeStrategy} />
+          ) : null}
         </div>
 
         {/* logo da Caixa (a MESMA do formulário público): rodapé fixo de TODAS as cenas, direto sobre o fundo (sem pílula,

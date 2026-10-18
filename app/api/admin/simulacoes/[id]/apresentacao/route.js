@@ -12,6 +12,7 @@ import {
   setPresentationApproval
 } from "@/lib/simulation-presentation";
 import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journey";
+import { readPaymentStrategy } from "@/lib/payment-strategy";
 import { findOpenOfficialConversationId } from "@/lib/whatsapp-chat";
 import {
   PRESENTATION_SENT_EVENT,
@@ -65,6 +66,11 @@ async function stateBody(simulation, result, request) {
   }
   const presentation = result.presentation;
   const sceneCount = await countPresentationScenes(simulation);
+  // Última "Estratégia de pagamento" gravada pelo cliente no link (PRES-24). Falha de leitura não derruba o painel.
+  const paymentStrategy = presentation ? await readPaymentStrategy(presentation.id).catch((error) => {
+    console.error("[apresentacao] nao foi possivel ler a estrategia de pagamento:", error?.message || error);
+    return null;
+  }) : null;
   return {
     schemaReady: true,
     ready: sceneCount > 0,
@@ -75,6 +81,7 @@ async function stateBody(simulation, result, request) {
     approvalEnabledAt: presentation?.approvalEnabledAt || "",
     clientName: simulation.clientName || "",
     simulationDate: simulation.simulationDate || "",
+    paymentStrategy,
     presentation: presentation
       ? {
           url: presentationUrl(presentation.token, origin(request)),

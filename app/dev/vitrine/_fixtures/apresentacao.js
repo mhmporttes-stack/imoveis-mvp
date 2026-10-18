@@ -1,4 +1,4 @@
-import { buildApprovalPresentation, buildPublicPresentation } from "@/lib/simulation-presentation-core.mjs";
+import { buildApprovalPresentation, buildPaymentStrategyBase, buildPublicPresentation } from "@/lib/simulation-presentation-core.mjs";
 
 // Dados 100% FICTÍCIOS da vitrine da Apresentação interativa (só `next dev`; nunca vão para produção).
 //   v = completo (formal + casado + com filhos + 2 imóveis + juros 5,4 + subsídio novo ≠ usado) | informal (informal + solteiro + sem
@@ -144,6 +144,13 @@ export function presentationSimulation(variant = "completo") {
 export function presentationDto(variant) {
   const simulation = presentationSimulation(variant);
   return buildPublicPresentation({ simulation, defaultReason: DEFAULT_REASON, entryResults: simulation.entryResults });
+}
+
+/** Base da "Estratégia de pagamento" (PRES-24) da vitrine: o modelo "novo" com prazo de 420 meses e a taxa 5,4% fictícios. */
+export function presentationStrategy(variant) {
+  const simulation = presentationSimulation(variant);
+  for (const model of Object.values(simulation.simulationModels || {})) if (model && !model.termMonths) model.termMonths = "420";
+  return buildPaymentStrategyBase(simulation);
 }
 
 export function presentationScenes(variant) {

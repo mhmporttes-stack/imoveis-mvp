@@ -1,5 +1,5 @@
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
-import { approvalScenes, presentationBranch, presentationScenes } from "../_fixtures/apresentacao";
+import { approvalScenes, presentationBranch, presentationScenes, presentationStrategy } from "../_fixtures/apresentacao";
 
 // Vitrine DEV da Apresentação interativa da simulação (só existe no `next dev`; *.dev.jsx não entra no build).
 // Renderiza o MESMO player com DADOS 100% FICTÍCIOS (../_fixtures/apresentacao.js), sem login e sem banco, e SEM enviar
@@ -10,6 +10,7 @@ import { approvalScenes, presentationBranch, presentationScenes } from "../_fixt
 //   ?lista=nao (cena de documentos SEM o botão "Receber lista de documentos": sem responsável com WhatsApp válido)
 //   ?envio=erro (revisão do estado de erro da folha da previsão: token fora do formato, o servidor responde 404 sem tocar no banco)
 //   ?cena=N (começa na cena N, 0-based; cenas finais abrem já liberadas) · use o botão de pausa para parar o auto-avanço.
+//   ?estrategia=nao (sem o botão "Estratégia de pagamento": simulação sem taxa/prazo) · PDF da estratégia: rota DEV ./estrategia
 //   ?modo=aprovacao (apresentação de CRÉDITO APROVADO, PRES-21; com 1 imóvel) · &v=sem-imovel (só carimbo + valores)
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ export default async function PresentationVitrine({ searchParams }) {
       assetsQuery={`v=${encodeURIComponent(variant)}`}
       canReceiveList={query?.lista !== "nao"}
       canSchedule={query?.lista !== "nao"}
+      strategy={query?.estrategia === "nao" ? null : presentationStrategy(variant)}
+      strategyPdfEndpoint={`/dev/vitrine/apresentacao/estrategia?v=${encodeURIComponent(variant)}`}
     />
   );
 }

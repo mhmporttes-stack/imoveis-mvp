@@ -9,6 +9,8 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { formatDateBR } from "@/lib/simulation-presentation-format.mjs";
 import { displayLink } from "@/lib/short-links.mjs";
+import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
+import { describeChoices, formatDuration } from "@/lib/payment-strategy-core.mjs";
 
 // "Apresentação da simulação" no CRM (tela da simulação, onde também se gera o PDF). OPÇÃO ADICIONAL: o PDF não muda.
 // Lê o estado pela API admin (mesmo escopo da simulação). O link mostra sempre os valores ATUAIS da simulação salva.
@@ -30,6 +32,24 @@ function Metrics({ presentation, sceneCount }) {
     presentation.completedAt ? "viu até o fim" : presentation.lastScene ? `parou na cena ${presentation.lastScene}${sceneCount ? ` de ${sceneCount}` : ""}` : ""
   ].filter(Boolean);
   return <p className="text-sm text-muted">{parts.join(" · ")}</p>;
+}
+
+// Última "Estratégia de pagamento" montada pelo cliente no link (PRES-24): o que ele ligou e o resultado (prazo e juros).
+function PaymentStrategySummary({ strategy }) {
+  if (!strategy?.escolhas) return null;
+  const lines = describeChoices(strategy.escolhas, formatBRL);
+  const summary = strategy.resumo;
+  return (
+    <div className="rounded-control border border-line bg-mist px-3 py-2 text-sm text-navy">
+      <p className="font-semibold">Estratégia de pagamento do cliente{strategy.salvoEm ? ` · ${formatMoment(strategy.salvoEm)}` : ""}</p>
+      <p className="text-muted">{lines.length ? lines.join(" · ") : "Nenhum valor extra ligado."}</p>
+      {summary && summary.economiaJuros > 0 ? (
+        <p className="text-muted">
+          Quita em {formatDuration(summary.mesesCom)} em vez de {formatDuration(summary.mesesSem)}, com {formatBRL(summary.economiaJuros)} a menos de juros.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function SimulationPresentationPanel({ simulationId }) {
@@ -213,6 +233,7 @@ export default function SimulationPresentationPanel({ simulationId }) {
             </div>
             {approvalToggle}
             <Metrics presentation={presentation} sceneCount={state.sceneCount} />
+            <PaymentStrategySummary strategy={state.paymentStrategy} />
             <p className="text-xs text-faint">"Visualizar antes de enviar" não conta como abertura. "Abrir o link" conta, como se fosse o cliente.</p>
           </div>
         ) : null}

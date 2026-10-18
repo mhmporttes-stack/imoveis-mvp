@@ -26,5 +26,5 @@ export default async function PresentationPage({ params }) {
   if (!dto) notFound();
   // "Agendar atendimento" (PRES-22): mesma condição do "Receber lista de documentos" + tabela de agendamentos já criada.
   const canSchedule = dto.podeReceberLista === true && (await isClientAppointmentsReady());
-  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} canSchedule={canSchedule} />;
+  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} canSchedule={canSchedule} strategy={dto.estrategia || null} />;
 }

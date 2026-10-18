@@ -460,7 +460,8 @@ test("DTO público: ganha SÓ o booleano podeReceberLista; nenhum telefone, wa.m
   assert.equal(dto.podeReceberLista, true);
   assert.equal(withReceiveListFlag(base, false).podeReceberLista, false);
   assert.equal(withReceiveListFlag(base, "yes").podeReceberLista, false); // só `true` liga
-  assert.deepEqual(Object.keys(dto).sort(), [...PUBLIC_DTO_FIELDS].sort());
+  // `estrategia` (PRES-24) só entra com financiamento + taxa + prazo, e por outro acréscimo (withPaymentStrategy)
+  assert.deepEqual(Object.keys(dto).sort(), PUBLIC_DTO_FIELDS.filter((key) => key !== "estrategia").sort());
   const json = JSON.stringify(dto);
   for (const forbidden of ["14999887766", "wa.me", "whatsapp", "5514", "responsibleUserId", "u1", "phone"]) assert.ok(!json.toLowerCase().includes(forbidden.toLowerCase()), forbidden);
   assert.equal(withReceiveListFlag(null, true), null);

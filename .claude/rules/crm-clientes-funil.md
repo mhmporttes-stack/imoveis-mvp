@@ -24,6 +24,9 @@ paths:
   - "components/cooled/**"
   - "app/api/admin/cooled-clients/**"
   - "app/admin/desempenho/esfriados/**"
+  - "lib/payment-strategy*"
+  - "components/presentation/**"
+  - "app/api/s/**"
 ---
 
 # Clientes, status e funil comercial
@@ -95,6 +98,8 @@ O que **já foi** um bug real (corrigido 2026-09-22): a coorte de "quem entra no
 - `client_status_history` é gravado **pelo código** (`recordClientStatusChange`, `lib/client-status-history.js`) — **não existe trigger de banco** para ele (divergência D-2, reconciliada em 2026-10-01). Consequência: uma mudança de `status` feita por UPDATE direto sem chamar essa função não entra no histórico, nem no funil/pontuação que leem essa tabela (problema conhecido P-02 em `docs/SYSTEM_ARCHITECTURE.md` §13). Avisos da jornada NÃO são inseridos ali, para não distorcer pontuação/relatórios que leem esse histórico. (Os triggers que existem em `simulation_registrations` são outros: `capture_client_journey`, `guard_client_identity`, criação de venda financeira.)
 
 - **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-05] Apresentação interativa da simulação** (`/s/<token>`): opção ADICIONAL ao PDF, que não pode ser alterado por ela. Os números vêm da mesma fonte do PDF (`getRenderableSimulationModels`), nunca de cálculo novo; o link lê a simulação atual. A página é pública: o DTO é uma allowlist (`lib/simulation-presentation-core.mjs`) — nunca CPF, telefone, renda, notas, `internalNotes`/`regras`, ids internos. Contato só pelo caminho do "Receber minha simulação" (WhatsApp do corretor responsável; nunca o número oficial). Detalhe: `docs/BUSINESS_RULES.md` PRES-1..PRES-8. **Round 4 (PRES-17):** "Receber lista de documentos" (data nos próximos 10 dias + período) grava compromisso, move o status para "Aguardando documentação" só de `completed`/`simulation_sent`/`in_service` (como 'sistema', 0 pontos), cria/atualiza a atividade `documentos` na agenda do corretor e leva ao WhatsApp dele (o `wa.me` só na resposta do POST, nunca no DTO); o botão "Enviar lista de documentos" da ficha é do corretor (texto + link, prévia e confirmação). Código em `lib/documents-forecast-*.{mjs,js}`.
+
+- **[REGRA OFICIAL DE NEGÓCIO — pedido e aprovado pelo dono em 2026-10-17/18] Estratégia de pagamento na apresentação (PRES-24).** Botão "ESTRATÉGIA DE PAGAMENTO" no "Próximo passo" do `/s/<token>`: números da simulação (mesma fonte e mesmo modelo destacado, nunca redigitados), cliente e corretor (prévia do CRM) ligam 13º (valor + mês), restituição do IR, FGTS a cada 2 anos e extra mensal; **a amortização extra reduz o prazo** (Price: prestação fixa; SAC: cota de amortização fixa); lado a lado sem × com estratégia, "R$ Z a menos de juros", gráfico do saldo, PDF da marca atual e "Falar com meu corretor" pelo mesmo caminho de contato da apresentação (wa.me só na resposta do POST). **Sem aviso de "simulação ilustrativa"** (pedido do dono). Motor só em `lib/payment-strategy-core.mjs` (não crie outro cálculo de amortização; não toque `lib/simulacao-entrada/*` nem os números/PDF existentes). Detalhe e itens A CONFIRMAR: `docs/BUSINESS_RULES.md` PRES-24.
 
 ## Prospecção/roleta como origem de cliente
 
