@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-18 — iPhone: tela da Estratégia fica "mais larga" que a tela depois de digitar (cortada à direita, não volta)
+- **Data:** 2026-10-18
+- **Sintoma:** na folha "ESTRATÉGIA COM AMORTIZAÇÃO" do `/s/<token>`, depois de digitar um valor os cards e textos saem pela borda e a tela fica "com zoom" sem voltar.
+- **Área:** Apresentação da simulação (PRES-24) / Frontend
+- **Impacto:** cliente no link `/s/` e corretor na prévia, celulares estreitos (reproduzido a 320 e 375 px; iPhone com fonte do sistema mais larga tende a pegar 390 px).
+- **Causa raiz:** botões da cena "Próximo passo" com `white-space: nowrap`; o rótulo novo "ESTRATÉGIA COM AMORTIZAÇÃO" deixava a cena mais larga que a tela. A raiz da apresentação (`position: fixed; overflow: hidden`) virava área rolável por programa e, ao focar/digitar no campo da folha, o navegador a rolava para o lado (scrollLeft 8–33 px) — sem gesto para desfazer. Não era (só) o zoom de foco do incidente anterior.
+- **Correção:** raiz com `overflow: clip`; botões do "Próximo passo" com `max-width: 100%`/`min-width: 0` e quebra quando não cabem; folha com rede de segurança de largura (textos quebram, colunas empilham, número com `clamp`). Achado junto: cursor da máscara dentro do ",00" ("99999" → R$ 90.000,00), corrigido.
+- **Arquivos/commit:** `components/presentation/presentation.module.css`, `components/presentation/StrategySheet.jsx` — commit desta data.
+- **Prevenção/teste:** `tests/strategy-sheet-layout.test.mjs`; Playwright Chromium+WebKit 320/375/390/430 px (raiz sem rolagem lateral antes/depois de digitar). Regra geral: nada de `nowrap` sem `max-width` dentro da `.root`.
+- **Status:** Monitorando — confirmar no iPhone do dono.
+
 ### 2026-10-18 — iPhone dá zoom ao tocar em "Valor extra por mês" e não volta
 - **Data:** 2026-10-18
 - **Sintoma:** no Safari do iPhone, ao tocar no campo de valor da folha "ESTRATÉGIA COM AMORTIZAÇÃO" a tela ampliou e não voltou ao normal.

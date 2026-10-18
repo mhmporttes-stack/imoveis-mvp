@@ -21,6 +21,10 @@
   height: 100vh;
   height: 100svh;
   overflow: hidden;
+  /* clip (não só hidden): a raiz não pode ser rolada nem por programa. Com hidden, se algo da cena passava da largura,
+     o Safari rolava a raiz para o lado ao focar/digitar num campo da Estratégia e a tela ficava deslocada sem volta
+     (INCIDENTES.md, 2026-10-18). Navegador sem clip fica no hidden acima. */
+  overflow: clip;
   color: var(--fg);
   background: var(--bg);
   font-family: var(--font-ui, Inter, system-ui, sans-serif);
@@ -389,7 +393,11 @@
 .scene[data-scene="proximo"] .actions { margin-top: calc(var(--u) * 20); gap: calc(var(--u) * 10); max-width: calc(var(--u) * 340); }
 .scene[data-scene="proximo"] .cta, .scene[data-scene="proximo"] .ghostBtn {
   min-height: max(46px, calc(var(--u) * 50)); padding: 0 calc(var(--u) * 18); gap: 8px;
-  font-size: max(14px, calc(var(--u) * 15)); white-space: nowrap;
+  font-size: max(14px, calc(var(--u) * 15));
+  /* nunca mais largo que a tela (2026-10-18): com nowrap, "ESTRATÉGIA COM AMORTIZAÇÃO" passava da largura em 320–375 px e
+     deixava a raiz rolável para o lado. Rótulo curto continua numa linha (cabe); só o que não cabe quebra, equilibrado. */
+  max-width: 100%; min-width: 0; box-sizing: border-box; white-space: normal; text-wrap: balance; line-height: 1.2;
+  padding-top: 6px; padding-bottom: 6px;
 }
 .scene[data-scene="proximo"] .ctaCaps { letter-spacing: 0.06em; }
 .scene[data-scene="proximo"] .cta svg, .scene[data-scene="proximo"] .ghostBtn svg { width: 19px; height: 19px; }
@@ -912,3 +920,21 @@ a.fcSubmit { text-decoration: none; }
 .stLegend span { display: inline-flex; align-items: center; gap: 6px; }
 .stDotSem, .stDotCom { display: inline-block; width: 18px; height: 0; border-top: 3px dashed #8a9bb0; }
 .stDotCom { border-top: 3px solid #067647; }
+/* PRES-24 — largura da folha da Estratégia no celular (dono, 2026-10-18, INCIDENTES.md): NADA passa de 100% da largura a
+   320–430 px, antes e depois do resultado aparecer. A folha é item de um flex em LINHA (.sheetBackdrop): sem min-width: 0 ela
+   não encolhe abaixo da largura mínima do conteúdo e, se algum texto/campo não quebrar, fica mais larga que a tela e o
+   .root (overflow: hidden) corta a borda direita. Rede de segurança + quebra em todo texto que pode crescer com valores. */
+.stSheet { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.stSheet .sheetHead, .stSheet .sheetBody { min-width: 0; }
+.stSheet .sheetTitle { min-width: 0; overflow-wrap: anywhere; }
+.stSheet .sheetBody { overflow-x: hidden; }
+.stSheet .sheetBody > * { min-width: 0; max-width: 100%; }
+.stBase dd, .stToggleText strong, .stToggleText span, .stColTitle, .stYears, .stLine, .stHighlight, .stHighlight strong, .stHighlight span,
+.stChartScale span, .stLegend span, .stField, .stSheet .fcFoot button, .stSheet .fcNote { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+.stOption, .stToggleRow, .stField, .stMoney, .stCol, .stHighlight, .stChart, .stLegend, .stSheet .fcFoot, .stSheet .fcFoot button { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.stFields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); }
+.stMoney input, .stSelect { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+/* "Sem" × "Com amortização": duas colunas quando cabem (≥ 140 px cada); em tela estreita (320 px) empilham */
+.stCompare { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+.stYears { font-size: clamp(19px, calc(var(--u) * 23), 42px); }
+.stHighlight strong { font-size: clamp(19px, calc(var(--u) * 24), 44px); }

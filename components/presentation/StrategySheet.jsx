@@ -59,7 +59,13 @@ function caretPosition(text, digitsFromEnd) {
   let seen = 0;
   for (let index = text.length - 1; index >= 0; index -= 1) {
     if (/\d/.test(text[index])) seen += 1;
-    if (seen === digitsFromEnd) return index;
+    if (seen === digitsFromEnd) {
+      // o cursor fica colado ao dígito anterior: "R$ 9,00" com 2 à direita → antes da vírgula (não entre "," e "00",
+      // senão o próximo dígito vira centavo e "99999" virava R$ 90.000,00 — achado no teste de largura de 2026-10-18)
+      let caret = index;
+      while (caret > 0 && !/\d/.test(text[caret - 1])) caret -= 1;
+      return caret;
+    }
   }
   return 0;
 }
@@ -196,7 +202,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
 
   return (
     <div className={styles.sheetBackdrop} data-no-nav="" data-sheet="" onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="strategy-title">
+      <section className={`${styles.sheet} ${styles.stSheet}`} role="dialog" aria-modal="true" aria-labelledby="strategy-title" data-st-sheet="">
         <header className={styles.sheetHead}>
           <h2 id="strategy-title" className={styles.sheetTitle}>{STRATEGY_NAME}</h2>
           <button ref={closeRef} type="button" className={styles.sheetClose} onClick={onClose} disabled={busy} aria-label="Fechar">

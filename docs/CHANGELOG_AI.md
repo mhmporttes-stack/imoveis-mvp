@@ -73,6 +73,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-24: tela "mais larga" que o iPhone na ESTRATÉGIA COM AMORTIZAÇÃO (causa real) + cursor da máscara
+- **Data:** 2026-10-18
+- **Área:** Apresentação da simulação `/s/<token>` (PRES-24) / Frontend
+- **Alteração:** (1) **Causa:** na cena "Próximo passo" os botões tinham `white-space: nowrap`; com o rótulo novo "ESTRATÉGIA COM AMORTIZAÇÃO" eles passavam da largura da tela (WebKit: raiz com 359 px em tela de 320; 383 px em 375 px com a altura útil do Safari). A raiz `.root` (`position: fixed; overflow: hidden`) ficava rolável por programa e, ao focar/digitar no campo da folha, o navegador rolava a raiz para o lado (scrollLeft 8–33 px) — tela deslocada e cortada, sem gesto para voltar. Correção: `.root` com `overflow: clip` (não rola nem por programa; `hidden` fica como reserva) e botões do "Próximo passo" com `max-width: 100%`, `min-width: 0`, quebra equilibrada só quando o rótulo não cabe. (2) Rede de segurança na folha (`.stSheet`): `min-width: 0`/`max-width: 100%` (item de flex em linha não encolhia abaixo do conteúdo), `overflow-x: hidden` no corpo, `overflow-wrap: anywhere` nos textos que crescem com os valores, "Sem/Com amortização" e campos com `auto-fit, minmax(min(100%, …), 1fr)` (empilham a 320 px), número grande com `clamp`, campos `width: 100%` + `border-box`; fonte dos campos segue 17px. (3) Máscara: o cursor caía entre "," e "00" — digitar "99999" virava R$ 90.000,00; `caretPosition` agora para antes da vírgula.
+- **Motivo:** print do dono no iPhone (conteúdo saindo pela direita depois de digitar).
+- **Verificação:** Playwright Chromium e WebKit, emulação iPhone (deviceScaleFactor 3), 320/375/390/430 px, alturas 664 e 844, variantes CLT e informal, todas as opções ligadas e R$ 99.999,00 digitado: `scrollWidth == clientWidth` no documento e `scrollLeft == 0` na raiz antes e depois; com um elemento intruso de 600 px a raiz continua sem rolar. Trava: `tests/strategy-sheet-layout.test.mjs`.
+- **Arquivos afetados:** `components/presentation/StrategySheet.jsx`, `components/presentation/presentation.module.css`, `tests/strategy-sheet-layout.test.mjs`.
+- **Risco/observação:** a cena "Próximo passo" a 320–375 px mostra "ESTRATÉGIA COM AMORTIZAÇÃO" em duas linhas (antes passava da tela); rótulos que cabem continuam em uma linha. Não testado em iPhone físico.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-18 — PRES-24: zoom do iPhone nos campos, máscara de moeda e "Valor extra por ano" só para informal
 - **Data:** 2026-10-18
 - **Área:** Apresentação da simulação (PRES-24)
