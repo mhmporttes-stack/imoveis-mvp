@@ -12,6 +12,7 @@ import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsa
 import { PRINTED_LIST_MODE_CODE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
+import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
 import {
@@ -445,7 +446,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   async function persistSimulation({ silent = false } = {}) {
     const currentForm = formRef.current;
     const formToSave = currentForm;
-    const payload = JSON.stringify(serializeForm(formToSave));
+    const body = serializeForm(formToSave);
+    const payload = JSON.stringify(body);
     const endpoint = currentForm.id ? `/api/simulations/${currentForm.id}` : "/api/simulations";
     const method = currentForm.id ? "PUT" : "POST";
 
@@ -453,6 +455,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     const interestCheck = parseInterestRateInput(formToSave.interestRateAnnual);
     if (!interestCheck.ok && !silent) {
       setError(interestCheck.error);
+      return null;
+    }
+    // Prazo e taxa obrigatórios no Salvar/Enviar (regra do dono, 2026-10-18); o autosave segue sem barrar (o servidor também).
+    const requiredError = silent ? "" : simulationRequiredFieldsError({ ...formToSave, interestRateAnnual: interestCheck.value });
+    if (requiredError) {
+      setError(requiredError);
+      setMessage("");
       return null;
     }
 
@@ -475,7 +484,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     const request = fetch(endpoint, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: payload
+      body: silent ? JSON.stringify({ ...body, autosave: true }) : payload
     }).then(async (response) => ({
       data: await response.json().catch(() => ({})),
       response
@@ -587,7 +596,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     fetch(`/api/simulations/${currentForm.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: payload,
+      body: JSON.stringify({ ...JSON.parse(payload), autosave: true }),
       keepalive: true
     }).catch(() => {});
   }
@@ -627,7 +636,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
     try {
       const saved = await persistSimulation();
-      if (!saved) throw new Error("Salve a simulação antes de enviar a apresentação.");
+      if (!saved) {
+        // falta prazo/taxa: a mensagem diz qual campo (senão, a genérica)
+        const current = formRef.current;
+        const rate = parseInterestRateInput(current.interestRateAnnual);
+        throw new Error((rate.ok && simulationRequiredFieldsError({ ...current, interestRateAnnual: rate.value })) || "Salve a simulação antes de enviar a apresentação.");
+      }
       const registrationId = saved?.registrationId || form.registrationId;
       if (!registrationId) throw new Error("Crie o cadastro do cliente antes de enviar: a simulação é enviada pela conversa dele no Chat.");
       const response = await post("enviar-preparar");
@@ -922,7 +936,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               </label>
               <p id="interest-rate-help" className={`self-end text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
                 {interestRateCheck.ok
-                  ? "Opcional. Aparece ao lado das parcelas na apresentação interativa do cliente (não entra no PDF). Vale para a simulação toda."
+                  ? "Obrigatória para salvar. Aparece ao lado das parcelas na apresentação interativa do cliente (não entra no PDF). Vale para a simulação toda."
                   : interestRateCheck.error}
               </p>
             </div>

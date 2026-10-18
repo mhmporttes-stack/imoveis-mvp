@@ -73,6 +73,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — Prazo e taxa obrigatórios no Gerador + prazo padrão de 420 meses na Estratégia com amortização
+- **Data:** 2026-10-18
+- **Área:** Gerador de simulação (PRES-11/SIM-5) e apresentação `/s/<token>` (PRES-24)
+- **Alteração:** (1) "Salvar"/"Enviar" do Gerador e o servidor (`createSimulation`/`updateSimulation`) exigem prazo (modelo destacado, 1–600) e taxa (> 0) quando a simulação tem valores — regra única `lib/simulation-required-fields.mjs`; autosave (`autosave: true`) não é barrado. (2) Estratégia: prazo em branco = 420 meses (`DEFAULT_STRATEGY_TERM`), inclusive para deduzir a taxa. `docs/BUSINESS_RULES.md` PRES-11/SIM-5 e PRES-24.
+- **Motivo:** decisão do dono (2026-10-18) depois da medição do botão (23 → 26 só com a taxa deduzida; o bloqueio era o prazo).
+- **Arquivos afetados:** `lib/simulation-required-fields.mjs` (novo), `lib/simulations.js`, `components/SimulationGenerator.jsx`, `lib/payment-strategy-core.mjs`, `lib/simulation-presentation-core.mjs`, `tests/simulation-required-fields.test.mjs`, `tests/payment-strategy.test.mjs`.
+- **Risco/observação:** botão em 152 das 211 simulações (58 sem valores, 1 com prazo 816). Simulação antiga salva manualmente passa a pedir prazo e taxa. Autosave confia no marcador do cliente (não é barreira de segurança, é qualidade de dado). Prazo real menor que 420 → taxa deduzida acima da real.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-18 — PRES-24: "ESTRATÉGIA COM AMORTIZAÇÃO" também sem taxa gravada (taxa deduzida da parcela)
 - **Data:** 2026-10-18
 - **Área:** Apresentação `/s/<token>` e prévia do CRM (PRES-24)

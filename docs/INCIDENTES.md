@@ -48,7 +48,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Correção:** `deduceAnnualRate` em `buildPaymentStrategyBase` (taxa deduzida, `taxaEstimada`, sem exibir como taxa do contrato). Botão 23 → 26 das 211.
 - **Arquivos/commit:** `lib/payment-strategy-core.mjs`, `lib/simulation-presentation-core.mjs` — commit desta data.
 - **Prevenção/teste:** `tests/payment-strategy.test.mjs` (casos reais anônimos com taxa conhecida). Para checar um link sem botão: o modelo destacado tem prazo (meses) e parcela?
-- **Status:** Diagnosticado, correção parcial (prazo pendente de decisão do dono)
+- **Status:** Resolvido — decisão do dono no mesmo dia: prazo padrão 420 na estratégia + prazo/taxa obrigatórios no Gerador; botão em 152 das 211 (58 sem valores, 1 prazo inválido).
 ### 2026-10-17 — Mensagem disparada pela automação não aparece no Chat (corretor só vê a resposta do cliente)
 - **Data:** 2026-10-17
 - **Sintoma:** "a mensagem no WhatsApp não carrega a mensagem que foi disparada ... o povo não sabe o que foi mandado" — o cliente responde e a conversa no Chat mostra só a resposta.

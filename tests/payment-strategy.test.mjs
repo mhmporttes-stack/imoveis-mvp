@@ -212,9 +212,20 @@ test("base da estratégia = modelo destacado pela apresentação (Price; só SAC
   impossible.simulationModels.novo.lastInstallment = "300,00";
   assert.equal(buildPaymentStrategyBase(impossible), null);
   assert.equal(buildPaymentStrategyBase(simulation({ simulationDate: "2026-12-20" })).mesInicial, 1); // dezembro → janeiro
+  // sem prazo: 420 meses (regra do dono, 2026-10-18); prazo digitado inválido (> 600): sem estratégia
   const noTerm = simulation();
   noTerm.simulationModels.novo.termMonths = "";
-  assert.equal(buildPaymentStrategyBase(noTerm), null);
+  assert.equal(buildPaymentStrategyBase(noTerm).prazoMeses, 420);
+  assert.equal(buildPaymentStrategyBase(noTerm).taxaAnual, 5.4);
+  const noTermNoRate = simulation({ interestRateAnnual: null });
+  noTermNoRate.simulationModels.novo.termMonths = "";
+  const both = buildPaymentStrategyBase(noTermNoRate);
+  assert.equal(both.prazoMeses, 420);
+  assert.equal(both.taxaEstimada, true);
+  assert.equal(both.taxaAnual, deduceAnnualRate({ financing: 190000, termMonths: 420, lastInstallment: 812.15 }));
+  const badTerm = simulation();
+  badTerm.simulationModels.novo.termMonths = "816";
+  assert.equal(buildPaymentStrategyBase(badTerm), null);
 });
 
 test("DTO público: `estrategia` só com os campos da allowlist e nada sensível", () => {
@@ -228,7 +239,8 @@ test("DTO público: `estrategia` só com os campos da allowlist e nada sensível
   const json = JSON.stringify(dto);
   for (const forbidden of ["123.456.789-09", "14999887766", "8123", "u1", "Souza", "wa.me", "registered_employment", "income_tax", "self_employed"]) assert.ok(!json.includes(forbidden), forbidden);
   const noRate = simulation({ interestRateAnnual: null });
-  noRate.simulationModels.novo.termMonths = "";
+  noRate.simulationModels.novo.firstInstallment = "300,00"; // parcela sem taxa plausível: sem estratégia
+  noRate.simulationModels.novo.lastInstallment = "300,00";
   const without = withPaymentStrategy(buildPublicPresentation({ simulation: noRate, defaultReason: "x" }), noRate);
   assert.equal("estrategia" in without, false);
   assert.equal(withPaymentStrategy(null, sim), null);
