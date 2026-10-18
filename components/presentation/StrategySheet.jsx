@@ -7,18 +7,25 @@ import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
 import { parseSimulationMoney } from "@/lib/simulation-models.js";
 import {
   DEFAULT_13TH_MONTH,
+  DEFAULT_ANNUAL_EXTRA_MONTH,
   MONTH_NAMES,
   balanceChartPaths,
   compareStrategy,
   emptyChoices,
   formatDuration,
   hasActiveExtras,
-  parseStrategyChoices
+  isOptionAllowed,
+  parseStrategyChoices,
+  restrictChoices,
+  strategyHeadline
 } from "@/lib/payment-strategy-core.mjs";
 import styles from "./presentation.module.css";
 
 // Folha "Estratégia de pagamento" (PRES-24). Abre com os números da simulação (`strategy` = base do DTO, nunca redigitada) e
-// deixa o cliente — ou o corretor, na prévia do CRM — ligar 13º, restituição do IR, FGTS a cada 2 anos e valor extra por mês.
+// deixa o cliente — ou o corretor, na prévia do CRM — ligar 13º, restituição do IR, FGTS a cada 2 anos e valores extras por
+// mês e por ano. Só aparecem as opções que o cadastro permite (`strategy.opcoes`, decidido no servidor: 13º/FGTS só com renda
+// CLT, IR só declarante; informal/sem dado = só os extras por mês e por ano — regra do dono 2026-10-18). O servidor recusa
+// opção fora disso.
 // O cálculo é do motor puro `lib/payment-strategy-core.mjs` (amortização extra REDUZ O PRAZO). "Baixar minha estratégia" pede
 // o PDF ao servidor; "Falar com meu corretor" grava as escolhas e recebe o wa.me (só na resposta, nunca no DTO).
 // Prévia (`preview`): PDF pelo endpoint do CRM (`pdfEndpoint`); o contato fica desativado.
@@ -27,8 +34,10 @@ const OPTIONS = [
   { key: "decimoTerceiro", label: "13º salário", hint: "valor por ano" },
   { key: "restituicaoIr", label: "Restituição do Imposto de Renda", hint: "valor por ano, em junho" },
   { key: "fgts", label: "FGTS", hint: "valor a cada 2 anos" },
-  { key: "extraMensal", label: "Valor extra por mês", hint: "todo mês, junto da parcela" }
+  { key: "extraMensal", label: "Valor extra por mês", hint: "todo mês, junto da parcela" },
+  { key: "extraAnual", label: "Valor extra por ano", hint: "uma vez por ano, no mês escolhido" }
 ];
+const MONTH_DEFAULTS = { decimoTerceiro: DEFAULT_13TH_MONTH, extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH };
 
 const SYSTEM_LABEL = { price: "Tabela Price", sac: "SAC" };
 const CHART_W = 320;
@@ -38,9 +47,9 @@ function moneyText(value) {
   return value > 0 ? formatBRL(value).replace(/^R\$\s*/, "") : "";
 }
 
-function initialState(saved) {
+function initialState(saved, strategy) {
   const parsed = saved ? parseStrategyChoices(saved) : null;
-  const choices = parsed || emptyChoices();
+  const choices = restrictChoices(parsed || emptyChoices(), strategy);
   const texts = {};
   for (const { key } of OPTIONS) texts[key] = moneyText(choices[key].valor);
   return { choices, texts };
@@ -55,14 +64,16 @@ function errorMessage(status, fallback) {
 
 export default function StrategySheet({ strategy, token = "", preview = false, pdfEndpoint = "", canContact = false, initialChoices = null, onClose }) {
   const closeRef = useRef(null);
-  const [{ choices, texts }, setForm] = useState(() => initialState(initialChoices));
+  const [{ choices, texts }, setForm] = useState(() => initialState(initialChoices, strategy));
   const [phase, setPhase] = useState("idle"); // idle | pdf | contact | opening | error
   const [error, setError] = useState("");
   const [fallbackUrl, setFallbackUrl] = useState("");
   const busy = phase === "pdf" || phase === "contact" || phase === "opening";
   const comparison = useMemo(() => compareStrategy(strategy, choices), [strategy, choices]);
   const paths = useMemo(() => balanceChartPaths(comparison, { width: CHART_W, height: CHART_H }), [comparison]);
-  const active = hasActiveExtras(choices);
+  const active = hasActiveExtras(choices, strategy);
+  const options = OPTIONS.filter(({ key }) => isOptionAllowed(strategy, key));
+  const headline = strategyHeadline(comparison, choices, strategy, formatBRL);
   const rate = formatInterestRateLabel(strategy?.taxaAnual);
   const pdfUrl = preview || !token ? pdfEndpoint : `/api/s/${encodeURIComponent(token)}/estrategia`;
   const contactEnabled = canContact && !preview && Boolean(token);
@@ -175,7 +186,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
           <p className={styles.stLabel}>Use dinheiro extra para quitar antes</p>
           <p className={styles.stHelp}>Cada valor abate o saldo devedor e reduz o prazo: a parcela segue o mesmo sistema, e você termina antes.</p>
           <div className={styles.stOptions}>
-            {OPTIONS.map(({ key, label, hint }) => {
+            {options.map(({ key, label, hint }) => {
               const option = choices[key];
               const inputId = `st-${key}`;
               return (
@@ -196,10 +207,10 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
                           <input id={inputId} inputMode="decimal" autoComplete="off" placeholder="0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target.value)} onBlur={() => formatAmount(key)} disabled={busy} data-st-value={key} />
                         </span>
                       </label>
-                      {key === "decimoTerceiro" ? (
-                        <label className={styles.stField} htmlFor="st-mes">
+                      {MONTH_DEFAULTS[key] ? (
+                        <label className={styles.stField} htmlFor={`st-mes-${key}`}>
                           <span>Mês</span>
-                          <select id="st-mes" className={styles.stSelect} value={option.mes || DEFAULT_13TH_MONTH} onChange={(event) => setOption(key, { mes: Number(event.target.value) })} disabled={busy}>
+                          <select id={`st-mes-${key}`} className={styles.stSelect} value={option.mes || MONTH_DEFAULTS[key]} onChange={(event) => setOption(key, { mes: Number(event.target.value) })} disabled={busy}>
                             {MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
                           </select>
                         </label>
@@ -229,7 +240,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
             {active && comparison.economiaJuros > 0 ? (
               <>
                 <strong>{formatBRL(comparison.economiaJuros)} a menos de juros</strong>
-                <span>{formatDuration(comparison.mesesAMenos)} a menos de financiamento</span>
+                <span>{headline || `${formatDuration(comparison.mesesAMenos)} a menos de financiamento`}</span>
               </>
             ) : (
               <span>Ligue uma opção e informe o valor para ver quanto você economiza.</span>

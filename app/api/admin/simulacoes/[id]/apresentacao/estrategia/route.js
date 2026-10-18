@@ -29,6 +29,7 @@ export async function POST(request, { params }) {
     if (!simulation) return NextResponse.json({ error: "Simulação não encontrada." }, { status: 404 });
     const result = await buildPaymentStrategyPdf({ simulation, choices, origin: new URL(request.url).origin });
     if (!result) return NextResponse.json({ error: "A simulação precisa de financiamento, taxa de juros e prazo para montar a estratégia." }, { status: 400 });
+    if (result.notAllowed) return NextResponse.json({ error: "Opção não disponível para o tipo de renda deste cliente." }, { status: 400 });
     return new NextResponse(Buffer.from(result.bytes), {
       status: 200,
       headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${result.fileName}"`, "Cache-Control": "no-store" }
