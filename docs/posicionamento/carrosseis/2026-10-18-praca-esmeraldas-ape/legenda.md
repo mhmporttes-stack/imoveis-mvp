@@ -1,6 +1,6 @@
 # Post de imóvel: apartamento no Praça Esmeraldas (2026-10-18)
 
-Código **COD4356**. Carrossel com 10 lâminas no modelo padrão. Fotos com resolução aumentada 2x (ESRGAN) e ajuste leve de cor; uma foto da cozinha ficou de fora para caber em 10. **Atenção:** as fotos parecem ter decoração/móveis gerados digitalmente (home staging virtual); avisado ao dono. **Sem valor no post.**
+Código **COD4356**. Carrossel com 10 lâminas no modelo padrão. Fotos com resolução aumentada 2x (ESRGAN) e ajuste leve de cor; uma foto da cozinha ficou de fora para caber em 10. **Atenção:** as fotos parecem ter decoração/móveis gerados digitalmente (home staging virtual); avisado ao dono. **Sem valor no post.** **Postado pelo dono em 2026-10-18.**
 
 Dados enviados pelo dono: apartamento todo reformado no Praça Esmeraldas; 2 dormitórios, sendo 1 suíte; 2 vagas; ar-condicionado nos 2 quartos fica; coifa, cooktop e forno ficam; fechamento na varanda; R$ 395.000. Contato: corretor parceiro Rafael Rainere (telefone não informado).
 
