@@ -12,6 +12,7 @@ import {
   choicesToExtras,
   cltMonthlyIncome,
   compareStrategy,
+  deduceAnnualRate,
   describeChoices,
   emptyChoices,
   extraForMonth,
@@ -158,6 +159,27 @@ test("formatDuration e mensagem do WhatsApp (só o primeiro nome)", () => {
   assert.match(buildStrategyMessage({ firstName: "", comparison: null }), /quero conversar/);
 });
 
+// ---------- taxa deduzida da parcela (sem taxa gravada) ----------
+test("taxa deduzida: Price pela última parcela (casos reais com taxa conhecida), SAC pela 1ª, faixa 0,5–20% a.a.", () => {
+  // números de simulações reais da Caixa (anônimos) com taxa gravada de 4,5% a.a.: a última parcela devolve a taxa
+  assert.equal(deduceAnnualRate({ financing: 113717.85, termMonths: 288, firstInstallment: 749.97, lastInstallment: 646.4 }), 4.5);
+  assert.equal(deduceAnnualRate({ financing: 161550.66, termMonths: 420, firstInstallment: 794.97, lastInstallment: 764.55 }), 4.5);
+  // só a 1ª parcela (com seguros/taxa de administração): taxa um pouco acima da real, ainda plausível
+  const fromFirst = deduceAnnualRate({ financing: 161550.66, termMonths: 420, firstInstallment: 794.97 });
+  assert.ok(fromFirst > 4.5 && fromFirst < 5.2, String(fromFirst));
+  // Price exato: a parcela da própria fórmula devolve a taxa
+  assert.equal(deduceAnnualRate({ financing: 200000, termMonths: 360, lastInstallment: pricePayment(200000, 0.09 / 12, 360) }), 9);
+  // SAC: (1ª − F/n) / F
+  assert.equal(deduceAnnualRate({ system: "sac", financing: 120000, termMonths: 300, firstInstallment: 400 + 120000 * 0.006 }), 7.2);
+  assert.equal(deduceAnnualRate({ system: "sac", financing: 120000, termMonths: 300, lastInstallment: 410 }), null); // SAC sem 1ª parcela
+  // fora da faixa ou dado incompleto → null (nunca taxa inventada)
+  assert.equal(deduceAnnualRate({ financing: 120000, termMonths: 360, lastInstallment: 300 }), null); // abaixo de F/n
+  assert.equal(deduceAnnualRate({ financing: 120000, termMonths: 360, lastInstallment: 335 }), null); // ~0,1% a.a.
+  assert.equal(deduceAnnualRate({ financing: 120000, termMonths: 360, lastInstallment: 3000 }), null); // > 20% a.a.
+  assert.equal(deduceAnnualRate({ financing: 120000, termMonths: 0, lastInstallment: 900 }), null);
+  assert.equal(deduceAnnualRate({ financing: 0, termMonths: 360, lastInstallment: 900 }), null);
+});
+
 // ---------- base do DTO ----------
 function simulation(overrides = {}) {
   return {
@@ -176,10 +198,19 @@ function simulation(overrides = {}) {
 
 test("base da estratégia = modelo destacado pela apresentação (Price; só SAC → SAC), sem redigitar", () => {
   const clt = { decimoTerceiro: 3000, fgts: 5760 };
-  assert.deepEqual(buildPaymentStrategyBase(simulation()), { sistema: "price", financiamento: 190000, taxaAnual: 5.4, prazoMeses: 420, parcela: 1085.4, mesInicial: 11, opcoes: clt });
+  assert.deepEqual(buildPaymentStrategyBase(simulation()), { sistema: "price", financiamento: 190000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 420, parcela: 1085.4, mesInicial: 11, opcoes: clt });
   const sacOnly = simulation({ simulationModels: { usado: { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "", termMonths: "", sac: { financingValue: "150.000,00", firstInstallment: "1.400,00", lastInstallment: "420,00", termMonths: "300" } } } });
-  assert.deepEqual(buildPaymentStrategyBase(sacOnly), { sistema: "sac", financiamento: 150000, taxaAnual: 5.4, prazoMeses: 300, parcela: 1400, mesInicial: 11, opcoes: clt });
-  assert.equal(buildPaymentStrategyBase(simulation({ interestRateAnnual: null })), null); // sem taxa: sem estratégia
+  assert.deepEqual(buildPaymentStrategyBase(sacOnly), { sistema: "sac", financiamento: 150000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 300, parcela: 1400, mesInicial: 11, opcoes: clt });
+  // sem taxa gravada: deduzida da última parcela do Price (812,15 em 420 meses sobre 190 mil) e marcada como estimada
+  const deduced = buildPaymentStrategyBase(simulation({ interestRateAnnual: null }));
+  assert.equal(deduced.taxaEstimada, true);
+  assert.equal(deduced.taxaAnual, deduceAnnualRate({ system: "price", financing: 190000, termMonths: 420, firstInstallment: 1085.4, lastInstallment: 812.15 }));
+  assert.ok(deduced.taxaAnual > 3 && deduced.taxaAnual < 4.5, String(deduced.taxaAnual));
+  // parcela que não dá taxa plausível (abaixo da amortização pura): sem estratégia, nunca taxa inventada
+  const impossible = simulation({ interestRateAnnual: null });
+  impossible.simulationModels.novo.firstInstallment = "300,00";
+  impossible.simulationModels.novo.lastInstallment = "300,00";
+  assert.equal(buildPaymentStrategyBase(impossible), null);
   assert.equal(buildPaymentStrategyBase(simulation({ simulationDate: "2026-12-20" })).mesInicial, 1); // dezembro → janeiro
   const noTerm = simulation();
   noTerm.simulationModels.novo.termMonths = "";
@@ -196,7 +227,9 @@ test("DTO público: `estrategia` só com os campos da allowlist e nada sensível
   // a renda (8123,45 do cadastro / 3000 de renda CLT) nunca sai; só os valores resultantes (3000 = 1 salário é o 13º)
   const json = JSON.stringify(dto);
   for (const forbidden of ["123.456.789-09", "14999887766", "8123", "u1", "Souza", "wa.me", "registered_employment", "income_tax", "self_employed"]) assert.ok(!json.includes(forbidden), forbidden);
-  const without = withPaymentStrategy(buildPublicPresentation({ simulation: simulation({ interestRateAnnual: null }), defaultReason: "x" }), simulation({ interestRateAnnual: null }));
+  const noRate = simulation({ interestRateAnnual: null });
+  noRate.simulationModels.novo.termMonths = "";
+  const without = withPaymentStrategy(buildPublicPresentation({ simulation: noRate, defaultReason: "x" }), noRate);
   assert.equal("estrategia" in without, false);
   assert.equal(withPaymentStrategy(null, sim), null);
 });
@@ -207,6 +240,9 @@ test("PDF: gera um A4 válido, nome do arquivo sem acento", async () => {
   const bytes = await generatePaymentStrategyPdf({ base, choices: { ...emptyChoices(), decimoTerceiro: { ativo: true, mes: 12 } }, comparison, firstName: "Mariana", dateText: "18/10/2026" });
   assert.equal(Buffer.from(bytes.slice(0, 5)).toString(), "%PDF-");
   assert.ok(bytes.length > 1500);
+  // taxa deduzida (taxaEstimada): o PDF sai sem a célula "Taxa de juros", sem quebrar
+  const estimated = await generatePaymentStrategyPdf({ base: { ...base, taxaEstimada: true }, choices: emptyChoices(), comparison, firstName: "Mariana", dateText: "18/10/2026" });
+  assert.equal(Buffer.from(estimated.slice(0, 5)).toString(), "%PDF-");
   assert.equal(strategyPdfFileName("Júlia Ávila"), "estrategia-com-amortizacao-julia-avila.pdf");
   assert.equal(strategyPdfFileName(""), "estrategia-com-amortizacao.pdf");
 });

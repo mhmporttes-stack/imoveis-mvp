@@ -74,7 +74,8 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
   const active = hasActiveExtras(choices, strategy);
   const options = OPTIONS.filter(({ key }) => isOptionAllowed(strategy, key));
   const headline = strategyHeadline(comparison, choices, strategy, formatBRL);
-  const rate = formatInterestRateLabel(strategy?.taxaAnual);
+  // Taxa deduzida da parcela (simulação sem taxa gravada) não aparece como "taxa de juros": é só a base do cálculo.
+  const rate = strategy?.taxaEstimada ? "" : formatInterestRateLabel(strategy?.taxaAnual);
   const pdfUrl = preview || !token ? pdfEndpoint : `/api/s/${encodeURIComponent(token)}/estrategia`;
   const contactEnabled = canContact && !preview && Boolean(token);
 

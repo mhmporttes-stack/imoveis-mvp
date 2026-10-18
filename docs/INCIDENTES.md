@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-18 — Botão "ESTRATÉGIA COM AMORTIZAÇÃO" não aparece no "Próximo passo" do link /s/
+- **Data:** 2026-10-18
+- **Sintoma:** cliente abre o link da apresentação e não há o botão da estratégia na cena "Próximo passo".
+- **Área:** Apresentação da simulação (PRES-24)
+- **Impacto:** 188 de 211 simulações dos últimos 30 dias sem o botão.
+- **Causa raiz:** a base da estratégia exige financiamento, taxa e prazo no modelo destacado. A taxa é opcional (só 41 gravadas) — corrigido deduzindo da parcela. Mas a causa principal é o PRAZO em branco (127 simulações; campo existe desde 2026-10-08) — não corrigido, depende do dono.
+- **Correção:** `deduceAnnualRate` em `buildPaymentStrategyBase` (taxa deduzida, `taxaEstimada`, sem exibir como taxa do contrato). Botão 23 → 26 das 211.
+- **Arquivos/commit:** `lib/payment-strategy-core.mjs`, `lib/simulation-presentation-core.mjs` — commit desta data.
+- **Prevenção/teste:** `tests/payment-strategy.test.mjs` (casos reais anônimos com taxa conhecida). Para checar um link sem botão: o modelo destacado tem prazo (meses) e parcela?
+- **Status:** Diagnosticado, correção parcial (prazo pendente de decisão do dono)
 ### 2026-10-17 — Mensagem disparada pela automação não aparece no Chat (corretor só vê a resposta do cliente)
 - **Data:** 2026-10-17
 - **Sintoma:** "a mensagem no WhatsApp não carrega a mensagem que foi disparada ... o povo não sabe o que foi mandado" — o cliente responde e a conversa no Chat mostra só a resposta.

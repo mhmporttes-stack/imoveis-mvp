@@ -73,6 +73,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-24: "ESTRATÉGIA COM AMORTIZAÇÃO" também sem taxa gravada (taxa deduzida da parcela)
+- **Data:** 2026-10-18
+- **Área:** Apresentação `/s/<token>` e prévia do CRM (PRES-24)
+- **Alteração:** `buildPaymentStrategyBase` passa a deduzir a taxa da parcela do modelo destacado quando a simulação não tem taxa gravada (`deduceAnnualRate`: Price pela última parcela, ou a 1ª; SAC pela 1ª; faixa 0,5–20% a.a.; fora disso, sem estratégia). DTO ganha `taxaEstimada` (allowlist `PUBLIC_STRATEGY_FIELDS`); folha e PDF não mostram a taxa deduzida como "Taxa de juros". Taxa gravada tem prioridade. `docs/BUSINESS_RULES.md` PRES-24 atualizado.
+- **Motivo:** relato do dono (print do link): o botão não aparecia no "Próximo passo". Só 41 de 211 simulações dos últimos 30 dias têm taxa gravada.
+- **Arquivos afetados:** `lib/payment-strategy-core.mjs`, `lib/simulation-presentation-core.mjs`, `lib/payment-strategy-pdf.mjs`, `components/presentation/StrategySheet.jsx`, `tests/payment-strategy.test.mjs`.
+- **Risco/observação:** medido com a função real sobre as 211 simulações (leitura): botão em 23 → 26. O bloqueio principal é o PRAZO: 127 simulações com valores não têm prazo no modelo (campo criado em 2026-10-08) e 58 não têm valores. Prazo não é deduzido (decisão do dono pendente). Taxa deduzida fica um pouco acima da real quando a parcela inclui seguros/taxa de administração.
+- **Autor:** crm-editor (Claude Code)
 ### 2026-10-18 — PRES-24: IR removido, 13º/FGTS automáticos pela renda CLT, nome "ESTRATÉGIA COM AMORTIZAÇÃO"
 - **Data:** 2026-10-18
 - **Área:** Apresentação `/s/<token>` e prévia do CRM (PRES-24)
