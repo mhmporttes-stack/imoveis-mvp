@@ -29,7 +29,7 @@ import { PUBLIC_DTO_FIELDS, PUBLIC_STRATEGY_FIELDS, PUBLIC_STRATEGY_OPTION_FIELD
 import { generatePaymentStrategyPdf, strategyPdfFileName } from "../lib/payment-strategy-pdf.mjs";
 
 const close = (actual, expected, tolerance = 1) => assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected} (±${tolerance})`);
-const ALL = { decimoTerceiro: 3000, fgts: 5760 }; // salário CLT de R$ 3.000: 13º = 3.000; FGTS = 3.000 × 8% × 24
+const ALL = { decimoTerceiro: 3000, fgts: 5760, extraAnual: false }; // salário CLT de R$ 3.000: 13º = 3.000; FGTS = 3.000 × 8% × 24; CLT não tem extra anual
 const base = { sistema: "price", financiamento: 200000, taxaAnual: 5.4, prazoMeses: 420, parcela: 1250, mesInicial: 11, opcoes: ALL };
 
 // ---------- motor: sem estratégia ----------
@@ -197,7 +197,7 @@ function simulation(overrides = {}) {
 }
 
 test("base da estratégia = modelo destacado pela apresentação (Price; só SAC → SAC), sem redigitar", () => {
-  const clt = { decimoTerceiro: 3000, fgts: 5760 };
+  const clt = { decimoTerceiro: 3000, fgts: 5760, extraAnual: false };
   assert.deepEqual(buildPaymentStrategyBase(simulation()), { sistema: "price", financiamento: 190000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 420, parcela: 1085.4, mesInicial: 11, opcoes: clt });
   const sacOnly = simulation({ simulationModels: { usado: { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "", termMonths: "", sac: { financingValue: "150.000,00", firstInstallment: "1.400,00", lastInstallment: "420,00", termMonths: "300" } } } });
   assert.deepEqual(buildPaymentStrategyBase(sacOnly), { sistema: "sac", financiamento: 150000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 300, parcela: 1400, mesInicial: 11, opcoes: clt });
@@ -234,7 +234,9 @@ test("DTO público: `estrategia` só com os campos da allowlist e nada sensível
   for (const key of Object.keys(dto)) assert.ok(PUBLIC_DTO_FIELDS.includes(key), key);
   assert.deepEqual(Object.keys(dto.estrategia).sort(), [...PUBLIC_STRATEGY_FIELDS].sort());
   assert.deepEqual(Object.keys(dto.estrategia.opcoes).sort(), [...PUBLIC_STRATEGY_OPTION_FIELDS].sort());
-  for (const value of Object.values(dto.estrategia.opcoes)) assert.equal(typeof value, "number");
+  assert.equal(typeof dto.estrategia.opcoes.decimoTerceiro, "number");
+  assert.equal(typeof dto.estrategia.opcoes.fgts, "number");
+  assert.equal(typeof dto.estrategia.opcoes.extraAnual, "boolean");
   // a renda (8123,45 do cadastro / 3000 de renda CLT) nunca sai; só os valores resultantes (3000 = 1 salário é o 13º)
   const json = JSON.stringify(dto);
   for (const forbidden of ["123.456.789-09", "14999887766", "8123", "u1", "Souza", "wa.me", "registered_employment", "income_tax", "self_employed"]) assert.ok(!json.includes(forbidden), forbidden);
@@ -262,22 +264,22 @@ test("PDF: gera um A4 válido, nome do arquivo sem acento", async () => {
 // ---------- opções conforme o cadastro (regras do dono, 2026-10-18) ----------
 test("13º e FGTS automáticos pela renda CLT: CLT, composição, informal, sem dado", () => {
   const clt = strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 3000 });
-  assert.deepEqual(clt, { decimoTerceiro: 3000, fgts: 5760 }); // 3.000 × 8% × 24
+  assert.deepEqual(clt, { decimoTerceiro: 3000, fgts: 5760, extraAnual: false }); // 3.000 × 8% × 24
   // composição: soma só a renda das pessoas CLT
   assert.equal(cltMonthlyIncome({ simulationType: "joint", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 2500, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 1500 }), 4000);
-  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", primaryMonthlyIncome: 5000, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 2000 }), { decimoTerceiro: 2000, fgts: 3840 });
+  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", primaryMonthlyIncome: 5000, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 2000 }), { decimoTerceiro: 2000, fgts: 3840, extraAnual: false });
   assert.equal(cltMonthlyIncome({ simulationType: "joint", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 2000, secondaryIncomeType: "income_tax_declarant", secondaryMonthlyIncome: 9000 }), 2000);
   // segundo participante só conta em simulação conjunta
   assert.equal(cltMonthlyIncome({ simulationType: "individual", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 3000 }), 0);
-  const none = { decimoTerceiro: 0, fgts: 0 };
+  const none = { decimoTerceiro: 0, fgts: 0, extraAnual: true }; // informal: só os extras por mês e por ano
+  const formalNoClt = { decimoTerceiro: 0, fgts: 0, extraAnual: false };
   assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "self_employed_unregistered", primaryMonthlyIncome: 4000 }), none); // informal
-  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "income_tax_declarant", primaryMonthlyIncome: 4000 }), none); // declarante: IR saiu
-  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 0 }), none); // CLT sem renda
+  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "income_tax_declarant", primaryMonthlyIncome: 4000 }), formalNoClt); // declarante: IR saiu, sem extra anual
+  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 0 }), formalNoClt); // CLT sem renda: continua CLT
   for (const semDado of [undefined, null, {}, { primaryIncomeType: "" }]) assert.deepEqual(strategyOptionsFromRegistration(semDado), none);
-  for (const opcoes of [clt, none, undefined]) {
-    assert.equal(isOptionAllowed({ opcoes }, "extraMensal"), true);
-    assert.equal(isOptionAllowed({ opcoes }, "extraAnual"), true);
-  }
+  for (const opcoes of [clt, none, formalNoClt, undefined]) assert.equal(isOptionAllowed({ opcoes }, "extraMensal"), true);
+  assert.equal(isOptionAllowed({ opcoes: none }, "extraAnual"), true);
+  for (const opcoes of [clt, formalNoClt, undefined, { extraAnual: "true" }]) assert.equal(isOptionAllowed({ opcoes }, "extraAnual"), false);
   assert.equal(isOptionAllowed({ opcoes: none }, "fgts"), false);
   assert.equal(isOptionAllowed({ opcoes: clt }, "fgts"), true);
   assert.equal(isOptionAllowed({ opcoes: { decimoTerceiro: true } }, "decimoTerceiro"), false); // só valor numérico > 0
@@ -285,7 +287,7 @@ test("13º e FGTS automáticos pela renda CLT: CLT, composição, informal, sem 
 });
 
 test("motor e servidor recusam opção não permitida; 13º/FGTS usam o valor da base", () => {
-  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0 } };
+  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0, extraAnual: true } };
   const forced = { ...emptyChoices(), fgts: { ativo: true }, decimoTerceiro: { ativo: true, mes: 12 } };
   assert.equal(choicesFitBase(forced, informalBase), false);
   assert.equal(choicesFitBase(forced, base), true);
@@ -306,14 +308,14 @@ test("motor e servidor recusam opção não permitida; 13º/FGTS usam o valor da
   assert.deepEqual(describeChoices(forced, (v) => `R$ ${v}`, base), ["13º salário: R$ 3000 por ano, em dezembro", "FGTS: R$ 5760 a cada 2 anos"]);
 });
 
-test("valor extra por ano: mês escolhido, todos os perfis, frase do resultado", () => {
+test("valor extra por ano: mês escolhido, só informal, frase do resultado", () => {
   assert.equal(extraForMonth(2, 11, { extraAnual: { valor: 1000, mes: 12 } }), 1000);
   assert.equal(extraForMonth(3, 11, { extraAnual: { valor: 1000, mes: 12 } }), 0);
   assert.equal(extraForMonth(8, 11, { extraAnual: { valor: 1000, mes: 6 } }), 1000);
   const parsed = parseStrategyChoices({ extraMensal: { ativo: true, valor: 100 }, extraAnual: { ativo: true, valor: 1000, mes: 3 } });
   assert.deepEqual(parsed.extraAnual, { ativo: true, valor: 1000, mes: 3 });
   assert.equal(parseStrategyChoices({ extraAnual: { ativo: true, valor: 1, mes: 0 } }), null);
-  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0 } };
+  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0, extraAnual: true } };
   const comparison = compareStrategy(informalBase, parsed);
   assert.ok(comparison.economiaJuros > 0);
   assert.ok(comparison.economiaJuros > compareStrategy(informalBase, { ...parsed, extraAnual: { ativo: false, valor: 0, mes: 12 } }).economiaJuros);
@@ -324,10 +326,36 @@ test("valor extra por ano: mês escolhido, todos os perfis, frase do resultado",
 });
 
 test("PDF de perfil informal com 13º forçado: só as opções válidas entram", async () => {
-  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0 } };
+  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0, extraAnual: true } };
   const choices = { ...emptyChoices(), extraAnual: { ativo: true, valor: 1000, mes: 12 }, decimoTerceiro: { ativo: true, mes: 12 } };
   const comparison = compareStrategy(informalBase, choices);
   const bytes = await generatePaymentStrategyPdf({ base: informalBase, choices, comparison, firstName: "Ana", dateText: "18/10/2026" });
   assert.equal(Buffer.from(bytes.slice(0, 5)).toString(), "%PDF-");
   assert.equal(comparison.com.totalExtra % 1000, 0); // só múltiplos do extra anual; o 13º não entrou
+});
+
+// ---------- "Valor extra por ano" só para informal (regra do dono, 2026-10-18) ----------
+test("extra anual: só informal (Autônomo/sem tipo); CLT ou declarante (inclusive na composição) não tem; servidor recusa", () => {
+  const informal = (reg) => strategyOptionsFromRegistration(reg).extraAnual;
+  assert.equal(informal({ simulationType: "individual", primaryIncomeType: "self_employed_unregistered" }), true);
+  assert.equal(informal({ simulationType: "individual", primaryIncomeType: "" }), true);
+  assert.equal(informal({ simulationType: "individual", primaryIncomeType: "registered_employment" }), false);
+  assert.equal(informal({ simulationType: "individual", primaryIncomeType: "income_tax_declarant" }), false);
+  // composição: basta um CLT/declarante
+  assert.equal(informal({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "income_tax_declarant" }), false);
+  assert.equal(informal({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "registered_employment" }), false);
+  assert.equal(informal({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "self_employed_unregistered" }), true);
+  // 2º participante só conta em simulação conjunta
+  assert.equal(informal({ simulationType: "individual", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "registered_employment" }), true);
+  // CLT: extra anual ligado é recusado; zerado no cálculo e no PDF; mensal continua
+  const choices = { ...emptyChoices(), extraMensal: { ativo: true, valor: 300 }, extraAnual: { ativo: true, valor: 1000, mes: 12 } };
+  assert.equal(choicesFitBase(choices, base), false);
+  assert.equal(choicesFitBase({ ...choices, extraAnual: { ativo: false, valor: 0, mes: 12 } }, base), true);
+  assert.deepEqual(restrictChoices(choices, base).extraAnual, emptyChoices().extraAnual);
+  assert.deepEqual(describeChoices(choices, (v) => `R$ ${v}`, base), ["Valor extra: R$ 300 por mês"]);
+  const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0, extraAnual: true } };
+  assert.equal(choicesFitBase(choices, informalBase), true);
+  // DTO de cliente CLT leva extraAnual = false
+  const sim = simulation();
+  assert.equal(withPaymentStrategy(buildPublicPresentation({ simulation: sim, defaultReason: "x" }), sim).estrategia.opcoes.extraAnual, false);
 });

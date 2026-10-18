@@ -885,9 +885,13 @@ a.fcSubmit { text-decoration: none; }
 .stField { display: grid; gap: 4px; font-size: max(13px, calc(var(--u) * 14)); font-weight: 700; color: #3a5878; }
 .stMoney { display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 calc(var(--u) * 12); border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 12); background: #fff; color: var(--navy-2); font-size: max(16px, calc(var(--u) * 17)); font-weight: 780; }
 .stMoney:focus-within { outline: 3px solid var(--blue); outline-offset: 1px; }
-.stMoney input { width: 100%; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: max(16px, calc(var(--u) * 17)); outline: none; }
-.stSelect { min-height: 52px; padding: 0 calc(var(--u) * 10); border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 12); background: #fff; color: var(--navy-2); font: inherit; font-size: max(16px, calc(var(--u) * 17)); font-weight: 700; }
+.stMoney input { width: 100%; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 17px; outline: none; }
+.stSelect { min-height: 52px; padding: 0 calc(var(--u) * 10); border: 2px solid #c5d6ec; border-radius: calc(var(--u) * 12); background: #fff; color: var(--navy-2); font: inherit; font-size: 17px; font-weight: 700; }
 .stSelect:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
+/* Safari do iPhone dá zoom ao tocar num campo com fonte < 16px e o zoom não volta (incidente 2026-10-18, INCIDENTES.md): no
+   celular os campos da Estratégia têm fonte FIXA de 17px, sem depender de --u (svh/var); só a tela larga escala. Não bloquear o
+   zoom com maximum-scale=1 (acessibilidade). */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) { .stMoney input, .stSelect { font-size: max(17px, calc(var(--u) * 17)); } }
 .stCompare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--u) * 10); }
 .stCol { display: grid; align-content: start; gap: 4px; padding: calc(var(--u) * 14); border-radius: calc(var(--u) * 16); border: 2px solid #d6e2f1; background: #f7f9fc; min-width: 0; }
 .stColOn { border-color: #067647; background: #e7f7ef; }

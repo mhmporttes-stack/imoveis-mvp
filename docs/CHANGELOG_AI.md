@@ -73,6 +73,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-18 — PRES-24: zoom do iPhone nos campos, máscara de moeda e "Valor extra por ano" só para informal
+- **Data:** 2026-10-18
+- **Área:** Apresentação da simulação (PRES-24)
+- **Alteração:** (1) campos de valor e de mês da folha "ESTRATÉGIA COM AMORTIZAÇÃO" com fonte FIXA de 17px no celular (antes `max(16px, calc(var(--u) * 17))`, dependente de `--u`); tela larga continua escalando; viewport público segue com zoom liberado (`maximumScale: 5`). (2) Máscara de reais inteiros ao digitar: "300" → "R$ 300,00", "1000" → "R$ 1.000,00", `inputMode="numeric"`, cursor sempre antes do ",00" fixo — `formatCurrencyInput(valor, { cents: true })` + `wholeReaisFromCurrencyInput` (`lib/property-filter-options.js`; sem a opção, o filtro do site continua "R$ 1.000"). (3) **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-18]** "Valor extra por ano" só para cliente INFORMAL (Autônomo ou sem tipo de renda); CLT ou Declarante de IR — inclusive se algum participante da composição for — não vê. "Valor extra por mês" para todos. Servidor: `isInformalRegistration` → `estrategia.opcoes.extraAnual` (booleano no DTO, allowlist `PUBLIC_STRATEGY_OPTION_FIELDS`); `isOptionAllowed`/`choicesFitBase` recusam (400) extra anual ligado de quem não é informal; motor e PDF ignoram.
+- **Motivo:** teste do dono no iPhone em produção (zoom ao tocar em "Valor extra por mês" que não voltava) + pedido de máscara + regra nova.
+- **Arquivos afetados:** `lib/payment-strategy-core.mjs`, `lib/simulation-presentation-core.mjs`, `lib/property-filter-options.js`, `components/presentation/StrategySheet.jsx`, `components/presentation/presentation.module.css`, `tests/payment-strategy.test.mjs`, `tests/property-filter-currency.test.mjs`.
+- **Risco/observação:** escolhas já gravadas de cliente CLT com extra anual continuam no painel do CRM (histórico, lidas sem base); a prévia/PDF passam a ignorá-las. Zoom: em emulação Chromium (390px) a fonte já era 16px antes da correção — a causa exata no Safari não foi reproduzida aqui (ver `docs/INCIDENTES.md`); conferir no iPhone. `html`/`body`/`.root` têm `touch-action: pan-y`, o que impede desfazer um zoom com pinça — não alterado (fora do escopo).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-18 — Prazo e taxa obrigatórios no Gerador + prazo padrão de 420 meses na Estratégia com amortização
 - **Data:** 2026-10-18
 - **Área:** Gerador de simulação (PRES-11/SIM-5) e apresentação `/s/<token>` (PRES-24)

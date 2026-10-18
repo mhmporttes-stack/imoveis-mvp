@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-18 — iPhone dá zoom ao tocar em "Valor extra por mês" e não volta
+- **Data:** 2026-10-18
+- **Sintoma:** no Safari do iPhone, ao tocar no campo de valor da folha "ESTRATÉGIA COM AMORTIZAÇÃO" a tela ampliou e não voltou ao normal.
+- **Área:** Apresentação da simulação (PRES-24) / Frontend
+- **Impacto:** cliente no link `/s/` e corretor na prévia, só no iPhone.
+- **Causa raiz:** iOS amplia campos com fonte < 16px ao receber foco. A fonte dos campos era `max(16px, calc(var(--u) * 17))` — 16px na emulação Chromium, mas dependente de `--u` (svh/var). **Não reproduzido em WebKit real** neste ambiente (sem iPhone). O "não volta" é explicado por `touch-action: pan-y` em `html`/`body`/`.root` da apresentação, que bloqueia o gesto de pinça para desfazer o zoom.
+- **Correção:** fonte FIXA de 17px nos campos de valor e no seletor de mês no celular (sem depender de `--u`); tela larga continua escalando. Zoom de acessibilidade não bloqueado (sem `maximum-scale=1`). `touch-action` não alterado.
+- **Arquivos/commit:** `components/presentation/presentation.module.css` — commit desta data.
+- **Prevenção/teste:** emulação iPhone 390px confere 17px nos três campos. Risco residual: se ainda ampliar no iPhone, investigar o deslocamento do teclado com a raiz `position: fixed` e o `touch-action: pan-y`.
+- **Status:** Monitorando — confirmar no iPhone do dono.
+
 ### 2026-10-18 — Botão "ESTRATÉGIA COM AMORTIZAÇÃO" não aparece no "Próximo passo" do link /s/
 - **Data:** 2026-10-18
 - **Sintoma:** cliente abre o link da apresentação e não há o botão da estratégia na cena "Próximo passo".

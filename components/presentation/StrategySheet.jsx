@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, MessageCircle, X } from "lucide-react";
 import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
-import { parseSimulationMoney } from "@/lib/simulation-models.js";
+import { formatCurrencyInput, wholeReaisFromCurrencyInput } from "@/lib/property-filter-options";
 import {
   DEFAULT_13TH_MONTH,
   DEFAULT_ANNUAL_EXTRA_MONTH,
   MONTH_NAMES,
+  STRATEGY_MAX_AMOUNT,
   STRATEGY_NAME,
   balanceChartPaths,
   compareStrategy,
@@ -26,8 +27,10 @@ import styles from "./presentation.module.css";
 
 // Folha "Estratégia de pagamento" (PRES-24). Abre com os números da simulação (`strategy` = base do DTO, nunca redigitada) e
 // deixa o cliente — ou o corretor, na prévia do CRM — ligar 13º e FGTS (AUTOMÁTICOS: valor calculado no servidor pela renda
-// CLT do cadastro, `strategy.opcoes`; sem campo de valor) e valores extras por mês e por ano (editáveis, para todos). Sem renda
-// CLT, 13º e FGTS não aparecem (regras do dono 2026-10-18). O servidor recusa opção fora disso e valor de 13º/FGTS do cliente.
+// CLT do cadastro, `strategy.opcoes`; sem campo de valor) e valores extras por mês (todos) e por ano (só cliente informal,
+// `strategy.opcoes.extraAnual`). Sem renda CLT, 13º e FGTS não aparecem (regras do dono 2026-10-18). O servidor recusa opção
+// fora disso e valor de 13º/FGTS do cliente. Valor digitado = reais inteiros com máscara ("300" → "R$ 300,00", teclado
+// numérico); campos com fonte ≥ 16px para o Safari do iPhone não dar zoom ao tocar (INCIDENTES, 2026-10-18).
 // O cálculo é do motor puro `lib/payment-strategy-core.mjs` (amortização extra REDUZ O PRAZO). "Baixar minha estratégia" pede
 // o PDF ao servidor; "Falar com meu corretor" grava as escolhas e recebe o wa.me (só na resposta, nunca no DTO).
 // Prévia (`preview`): PDF pelo endpoint do CRM (`pdfEndpoint`); o contato fica desativado.
@@ -45,7 +48,28 @@ const CHART_W = 320;
 const CHART_H = 140;
 
 function moneyText(value) {
-  return value > 0 ? formatBRL(value).replace(/^R\$\s*/, "") : "";
+  return value > 0 ? formatBRL(value) : "";
+}
+
+// Cursor estável na máscara: mantém o mesmo número de dígitos à direita (nunca dentro do ",00" fixo).
+function caretDigitsFromEnd(text, caret) {
+  return Math.max(2, (String(text).slice(caret ?? text.length).match(/\d/g) || []).length);
+}
+function caretPosition(text, digitsFromEnd) {
+  let seen = 0;
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    if (/\d/.test(text[index])) seen += 1;
+    if (seen === digitsFromEnd) return index;
+  }
+  return 0;
+}
+function placeCaret(input, digitsFromEnd = 2) {
+  if (!input) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== input || !input.value) return;
+    const position = caretPosition(input.value, digitsFromEnd);
+    try { input.setSelectionRange(position, position); } catch { /* tipo de campo sem seleção: nada a ajustar */ }
+  });
 }
 
 function initialState(saved, strategy) {
@@ -92,12 +116,17 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
   }, [onClose]);
 
   const setOption = (key, patch) => setForm((current) => ({ ...current, choices: { ...current.choices, [key]: { ...current.choices[key], ...patch } } }));
-  const setAmount = (key, text) => {
-    const clean = text.replace(/[^\d.,]/g, "").slice(0, 14);
-    const valor = Math.min(parseSimulationMoney(clean), 10_000_000);
-    setForm((current) => ({ texts: { ...current.texts, [key]: clean }, choices: { ...current.choices, [key]: { ...current.choices[key], valor, ativo: valor > 0 ? true : current.choices[key].ativo } } }));
+  // Reais inteiros com máscara: "300" → "R$ 300,00"; "1000" → "R$ 1.000,00" (STRATEGY_MAX_AMOUNT = R$ 10 milhões).
+  const setAmount = (key, input) => {
+    const digitsFromEnd = caretDigitsFromEnd(input.value, input.selectionStart);
+    // apagou a vírgula do ",00" fixo: vale como apagar o último dígito dos reais (nunca "R$ 300,00" → 30.000)
+    const removedComma = String(texts[key]).includes(",") && !input.value.includes(",");
+    const typed = removedComma ? String(texts[key]).replace(/,\d*$/, "").replace(/\d$/, "") : input.value;
+    const valor = Math.min(wholeReaisFromCurrencyInput(typed), STRATEGY_MAX_AMOUNT);
+    const text = valor > 0 ? formatCurrencyInput(String(valor), { cents: true }) : "";
+    setForm((current) => ({ texts: { ...current.texts, [key]: text }, choices: { ...current.choices, [key]: { ...current.choices[key], valor, ativo: valor > 0 ? true : current.choices[key].ativo } } }));
+    placeCaret(input, digitsFromEnd);
   };
-  const formatAmount = (key) => setForm((current) => ({ ...current, texts: { ...current.texts, [key]: moneyText(current.choices[key].valor) } }));
 
   const downloadPdf = useCallback(async () => {
     if (!pdfUrl || busy) return;
@@ -205,8 +234,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
                       <label className={styles.stField} htmlFor={inputId}>
                         <span>Valor</span>
                         <span className={styles.stMoney}>
-                          <span aria-hidden="true">R$</span>
-                          <input id={inputId} inputMode="decimal" autoComplete="off" placeholder="0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target.value)} onBlur={() => formatAmount(key)} disabled={busy} data-st-value={key} />
+                          <input id={inputId} type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target)} onFocus={(event) => placeCaret(event.target)} disabled={busy} data-st-value={key} />
                         </span>
                       </label>
                       )}
