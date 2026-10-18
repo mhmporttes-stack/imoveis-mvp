@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 
 import { FORM_COMPLETION_MESSAGE as MESSAGE } from "@/lib/whatsapp-form-completion.mjs";
 import { RECEIVE_CONTACT_STATE } from "@/lib/receive-simulation-contact.mjs";
+import { withContactCode } from "@/lib/whatsapp-contact-code-core.mjs";
 
 // Enquanto o cadastro espera um corretor on-line (fila de espera da roleta),
 // consulta de novo a cada 15 s por até ~10 min — depois disso para e mostra
@@ -12,13 +13,12 @@ import { RECEIVE_CONTACT_STATE } from "@/lib/receive-simulation-contact.mjs";
 const WAITING_POLL_MS = 15000;
 const WAITING_MAX_ATTEMPTS = 40;
 
-// Botão da tela final do formulário (WA-10, regra do dono 2026-10-01): abre o
-// WhatsApp do corretor RESPONSÁVEL pelo cadastro recém-criado, inclusive o
-// escolhido pela roleta. Sem responsável ainda (fila de espera), mostra o
-// aviso de espera e consulta de novo; responsável sem WhatsApp válido mostra
-// que o corretor vai chamar. Nunca abre um número "de reserva" (outro
-// corretor, Matheus ou número oficial). Quando o cliente escreve primeiro,
-// quem recebe já tem a mensagem pronta para responder.
+// Botão da tela final do formulário (WA-10). Desde 2026-10-09 (dono) abre o
+// número OFICIAL (a rota devolve OFFICIAL_WHATSAPP_DIGITS); desde 2026-10-18
+// (dono) a mensagem leva o código do atendimento do cadastro, e o webhook do
+// oficial entrega a conversa ao corretor responsável (sem roleta, sem cliente
+// novo — lib/whatsapp-contact-code.js). Os estados de espera/indisponível
+// continuam tratados aqui (modo antigo da rota).
 export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "" }) {
   const [contact, setContact] = useState({ state: "loading", phone: "" });
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
@@ -68,7 +68,7 @@ export default function ReceiveSimulationWhatsappButton({ brokerRef = "", regist
       <div className="mx-auto mt-9 max-w-md">
         <a
           className="inline-flex min-h-[58px] w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-7 py-3 text-lg font-black text-white shadow-[0_18px_45px_rgba(37,211,102,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#1fb857] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]"
-          href={`https://wa.me/${contact.phone}?text=${encodeURIComponent(MESSAGE)}`}
+          href={`https://wa.me/${contact.phone}?text=${encodeURIComponent(withContactCode(MESSAGE, registrationId))}`}
           rel="noopener noreferrer"
           target="_blank"
         >

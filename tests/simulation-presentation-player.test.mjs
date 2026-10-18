@@ -145,7 +145,7 @@ test("player: previa e token vazio não enviam métrica; sem áudio, sem CDN, te
   assert.match(source, /Seu poder de compra vem do financiamento\./);
   const css = fs.readFileSync(path.join(root, "components/presentation/presentation.module.css"), "utf8");
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /100dvh/);
+  assert.match(css, /100svh/); // svh, não dvh (dono, 2026-10-15: barra do navegador do WhatsApp/Instagram no iPhone)
   assert.match(css, /safe-area-inset/);
   assert.ok(!/transition:\s*all/.test(css));
 });

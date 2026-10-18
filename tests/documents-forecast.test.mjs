@@ -135,11 +135,12 @@ test("mensagem do cliente ao corretor: texto exato, só o primeiro nome, sem dad
   assert.ok(!/[\n\r\t]/.test(buildForecastMessage({ fullName: "Jo\não\u0007 X", data: "2026-10-07", periodo: "manha" })));
 });
 
-test("link do WhatsApp do cliente: SEMPRE o número oficial (dono, 2026-10-09), com o texto codificado", () => {
-  const url = buildBrokerWhatsappUrl("5514991112222", "Olá! Pode ser às 9h?");
-  assert.equal(url, `https://wa.me/5514991056706?text=${encodeURIComponent("Olá! Pode ser às 9h?")}`);
-  assert.equal(new URL(url).searchParams.get("text"), "Olá! Pode ser às 9h?");
-  for (const phone of ["", null, undefined, "abc"]) assert.equal(buildBrokerWhatsappUrl(phone, "x"), "https://wa.me/5514991056706?text=x");
+test("link do WhatsApp do cliente: SEMPRE o número oficial (dono, 2026-10-09) + código do atendimento (dono, 2026-10-18)", () => {
+  const url = buildBrokerWhatsappUrl("3f9a12c4-1111-2222-3333-444455556666", "Olá! Pode ser às 9h?");
+  assert.ok(url.startsWith("https://wa.me/5514991056706?text="));
+  assert.equal(new URL(url).searchParams.get("text"), "Olá! Pode ser às 9h?\n\nCódigo do atendimento: MM-3F9A12C4");
+  // sem cadastro identificado (ou um telefone por engano): o texto sai sem código, nunca o WhatsApp de outra pessoa
+  for (const value of ["", null, undefined, "abc", "5514991112222"]) assert.equal(buildBrokerWhatsappUrl(value, "x"), "https://wa.me/5514991056706?text=x");
 });
 
 // ---------- status ----------
@@ -249,12 +250,13 @@ const confirm = (db, extra = {}) => {
   return confirmDocumentsForecast({ ...ctx.deps, token: TOKEN, input: INPUT, now: NOW, ...extra }).then((result) => ({ result, ...ctx }));
 };
 
-test("confirmação: grava o compromisso, muda o status, cria a atividade e devolve o wa.me do responsável", async () => {
+test("confirmação: grava o compromisso, muda o status, cria a atividade e devolve o wa.me do número oficial", async () => {
   const db = createFakeDb(seedWorld());
   const { result, history, journey } = await confirm(db);
   assert.equal(result.kind, "ok");
   const expectedText = "Olá! Aqui é Maria. Vi minha simulação e acredito que consigo enviar toda a documentação até 07/10, no período da manhã. Pode me mandar a lista de documentos?";
-  assert.equal(result.url, `https://wa.me/5514991112222?text=${encodeURIComponent(expectedText)}`);
+  // Dono, 2026-10-09/18: número OFICIAL; a conversa é entregue ao responsável pelo código (aqui o id "r1" não é uuid: sem código).
+  assert.equal(result.url, `https://wa.me/5514991056706?text=${encodeURIComponent(expectedText)}`);
 
   const presentation = db.tables.simulation_presentations[0];
   assert.equal(presentation.docs_forecast_date, "2026-10-07");
@@ -358,7 +360,7 @@ test("'Não contactar': nada é gravado e nenhum link é devolvido; arquivado: s
   const archived = createFakeDb(seedWorld({ registration: { status: "archived" } }));
   const result = (await confirm(archived)).result;
   assert.equal(result.kind, "ok");
-  assert.ok(result.url.startsWith("https://wa.me/5514991112222?text="));
+  assert.ok(result.url.startsWith("https://wa.me/5514991056706?text="));
   assert.equal(archived.tables.simulation_registrations[0].status, "archived");
 });
 
@@ -386,17 +388,21 @@ test("advanceClientStatusOnForecast isolado: lista fechada, histórico 'sistema'
   assert.equal(db.calls.length, 0);
 });
 
-test("sem cadastro vinculado (registration_id nulo): grava só o compromisso; sem status, sem agenda e sem link", async () => {
+// Dono, 2026-10-09: o link leva SEMPRE ao número oficial (o corretor atende pelo Chat), mesmo sem responsável pronto; o que
+// depende do responsável ativo é só status/agenda. Sem cadastro: a mensagem sai sem código do atendimento.
+test("sem cadastro vinculado (registration_id nulo): grava só o compromisso; sem status, sem agenda; link do oficial sem código", async () => {
   const db = createFakeDb(seedWorld({ presentation: { registration_id: null }, simulation: { registration_id: null }, noClient: true }));
   const { result, history, journey } = await confirm(db);
-  assert.deepEqual({ kind: result.kind, url: result.url }, { kind: "ok", url: "" });
+  assert.equal(result.kind, "ok");
+  assert.ok(result.url.startsWith("https://wa.me/5514991056706?text="));
+  assert.ok(!new URL(result.url).searchParams.get("text").includes("Código do atendimento"));
   assert.equal(db.tables.simulation_presentations[0].docs_forecast_count, 1);
   assert.equal(db.tables.calendar_activities.length, 0);
   assert.equal(history.length, 0);
   assert.equal(journey.length, 0);
 });
 
-test("sem responsável ativo com WhatsApp válido: sem link, sem status e sem agenda (o botão também não aparece no cliente)", async () => {
+test("sem responsável ativo com WhatsApp válido: sem status e sem agenda; link do oficial (o botão também não aparece no cliente)", async () => {
   const cases = [
     { name: "sem responsável", registration: { responsible_user_id: null } },
     { name: "responsável inativo", broker: { status: "inactive" } },
@@ -408,7 +414,7 @@ test("sem responsável ativo com WhatsApp válido: sem link, sem status e sem ag
     const db = createFakeDb(seedWorld(item));
     const { result, history } = await confirm(db);
     assert.equal(result.kind, "ok", item.name);
-    assert.equal(result.url, "", item.name);
+    assert.ok(result.url.startsWith("https://wa.me/5514991056706?text="), item.name);
     assert.equal(db.tables.calendar_activities.length, 0, item.name);
     assert.equal(db.tables.simulation_registrations[0].status, item.registration?.status || "in_service", item.name);
     assert.equal(history.length, 0, item.name);
