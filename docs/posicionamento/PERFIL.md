@@ -38,3 +38,6 @@
 
 ## Concorrentes monitorados
 _(vazio — preenchido por `/concorrentes-marilia` com a fonte e a data em que cada um foi encontrado)_
+
+## Passo a passo (dono, 2026-10-19)
+Sempre que pedir para o dono fazer algo em outra tela/app, dar o passo a passo **bem detalhado e facilitado**: onde fica cada botão (canto da tela, ícone, nome exato), um passo por linha, e o que ele deve ver depois. Resposta curta, mas o passo a passo completo.
