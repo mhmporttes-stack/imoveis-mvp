@@ -6,7 +6,7 @@ Dados enviados pelo dono: apartamento todo reformado no Praça Esmeraldas; 2 dor
 
 ## Site / CRM
 
-Pendente: chave de fotos (`claude-fotos`) fora do ar.
+**No site desde 2026-10-19:** `properties` id `861a1a8b-4e33-4b65-ab56-04df30ff3b46`, publicado, contato salvo (corretor parceiro, sem telefone). Fotos **provisórias** apontando para `ig/*.jpg` no GitHub (commit bc70744), porque a chave de armazenamento não valia nesta sessão; mover para `property-media` quando possível. Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/861a1a8b-4e33-4b65-ab56-04df30ff3b46
 
 ## Legenda
 
