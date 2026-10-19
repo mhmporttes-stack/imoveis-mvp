@@ -11,6 +11,7 @@ import { toBrazilianE164 } from "@/lib/phone-utils";
 import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsapp-core.mjs";
 import { PRINTED_LIST_MODE_CODE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
+import { SEND_SIMULATION_REQUEST_EVENT, SEND_SIMULATION_STATE_EVENT } from "@/lib/simulation-presentation-send.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
@@ -787,6 +788,19 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       keepalive: true
     }).catch(() => {});
   }
+
+  // "Enviar simulação" do painel da apresentação (dono, 2026-10-19): o painel pede por evento de página e ESTA mesma função
+  // envia — um único fluxo de envio. O estado (enviando / erro) volta ao painel pelo evento de estado.
+  const sendRequestRef = useRef(null);
+  sendRequestRef.current = sendSimulationToWhatsApp;
+  useEffect(() => {
+    const onRequest = () => { sendRequestRef.current?.(); };
+    window.addEventListener(SEND_SIMULATION_REQUEST_EVENT, onRequest);
+    return () => window.removeEventListener(SEND_SIMULATION_REQUEST_EVENT, onRequest);
+  }, []);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(SEND_SIMULATION_STATE_EVENT, { detail: { sending: sendingSimulation, error } }));
+  }, [sendingSimulation, error]);
 
   async function sendSimulationToWhatsApp() {
     const phone = normalizeClientWhatsApp(form.clientWhatsApp);

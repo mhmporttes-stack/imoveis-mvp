@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Painel da apresentação: "Enviar simulação" principal e "copiado" registrado (lote A item 4)
+- **Área:** Clientes / Apresentação
+- **Alteração:** painel "Apresentação da simulação": botão cheio "Enviar simulação" pela mesma função do gerador (evento de página, sem fluxo novo; desativado com "Este cliente não pode receber mensagens." para arquivado/Não contactar); "Copiar link" e "Visualizar" com contorno; copiar grava `presentation_link_copied` (rota `POST /api/admin/simulacoes/[id]/apresentacao` ação `copiar-registrar`, mesmo guard/escopo) com aviso "copiado às {hh:mm}"; linha "Aberto pelo cliente em {data} · envio não registrado". Rótulo do evento na linha do tempo. `docs/BUSINESS_RULES.md` PRES-19.
+- **Arquivos:** `components/presentation/SimulationPresentationPanel.jsx`, `components/SimulationGenerator.jsx`, `components/ClientJourneyActions.jsx`, `lib/simulation-presentation-send.mjs`, `lib/simulation-sent-evidence.js`, `app/api/admin/simulacoes/[id]/apresentacao/route.js`, `tests/simulation-presentation-panel.test.mjs`.
+- **Risco/observação:** o GET do painel faz mais 3 leituras quando o link já foi aberto (prova de envio + último copiado); falha nelas só esconde a linha (log). O registro do copiado usa `logClientJourneyEvent` (melhor esforço, como o `presentation_sent`).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Apresentação: registro de toques (tabela nova, lote A item 3)
 - **Área:** Apresentação / Banco
 - **Alteração:** tabela aditiva `simulation_presentation_events` (migration `20261020100000_simulation_presentation_events.sql`, **não aplicada**); a rota `/api/s/<token>/evento` aceita `toque` (alvo fechado + cena exata) e a abertura de nova sessão também grava uma linha; marca `equipe` decidida no servidor da página (`isPanelSessionViewer`, só o token de acesso, sem renovar sessão), fora do DTO. `docs/DATABASE.md`, `docs/BUSINESS_RULES.md` PRES-7.
