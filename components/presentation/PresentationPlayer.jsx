@@ -667,7 +667,7 @@ function SceneAprovValores({ scene, reduced, hasStrategy = false, onOpenStrategy
 }
 
 /** Botão de download de imagem: link do mesmo token; sem link (prévia do CRM) fica desativado e diz por quê. */
-function DownloadAction({ href, label, className, hint }) {
+function DownloadAction({ href, label, className, hint, onClick }) {
   if (!href) {
     return (
       <button type="button" className={className} disabled aria-disabled="true" title={hint} data-no-nav="">
@@ -677,7 +677,7 @@ function DownloadAction({ href, label, className, hint }) {
     );
   }
   return (
-    <a className={className} href={href} download data-no-nav="">
+    <a className={className} href={href} download data-no-nav="" onClick={onClick}>
       <Download aria-hidden="true" />
       {label}
     </a>
@@ -688,7 +688,7 @@ function DownloadAction({ href, label, className, hint }) {
 // ação do antigo VALIDAR SIMULAÇÃO) e, logo abaixo, quantas telas faltam para pedir a lista (número do roteiro, `telasAteLista`;
 // só quando a lista pode ser pedida). Os demais caminhos continuam, com contorno, na ordem Agendar · Estratégia · Imóveis, e
 // "Baixar apresentação" vira link de texto. Nenhum botão some e as condições de exibição são as de antes.
-function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment, hasStrategy, onOpenStrategy, canReceiveList }) {
+function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment, hasStrategy, onOpenStrategy, canReceiveList, onDownload }) {
   const propertiesLabel = propertiesButtonLabel(propertyCount);
   const listNote = canReceiveList ? nextStepListNote(scene.telasAteLista) : null;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
@@ -724,7 +724,7 @@ function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, href
             {propertiesLabel}
           </button>
         ) : null}
-        <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.textBtn} hint="Disponível no link enviado ao cliente" />
+        <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.textBtn} hint="Disponível no link enviado ao cliente" onClick={onDownload} />
       </div>
     </div>
   );
@@ -804,7 +804,7 @@ function renderScene(scene, ctx) {
       : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
     case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
-    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} canReceiveList={ctx.canReceiveList} />;
+    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} canReceiveList={ctx.canReceiveList} onDownload={ctx.onDownload} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;
@@ -823,7 +823,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false, attendantName = "", strategy = null, strategyPdfEndpoint = "", strategyInitialChoices = null }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false, attendantName = "", teamViewer = false, strategy = null, strategyPdfEndpoint = "", strategyInitialChoices = null }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -938,8 +938,8 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     } catch {
       isNew = false;
     }
-    sendEvent(token, { tipo: "abriu", nova: isNew });
-  }, [tracking, token]);
+    sendEvent(token, teamViewer ? { tipo: "abriu", nova: isNew, equipe: true } : { tipo: "abriu", nova: isNew });
+  }, [tracking, token, teamViewer]);
 
   useEffect(() => {
     if (!tracking) return;
@@ -1001,6 +1001,21 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     setForecastOpen(false);
     if (openerRef.current && typeof openerRef.current.focus === "function") openerRef.current.focus();
   }, []);
+  // Toque nos botões (lote A, 2026-10-19): alvo da lista fechada + cena EXATA onde o toque aconteceu. Só no link real
+  // (prévia do CRM não conta); `teamViewer` vem do servidor da página (sessão do painel), nunca do DTO.
+  const touch = useCallback((alvo) => {
+    if (!tracking) return;
+    const body = { tipo: "toque", alvo, cena: stateRef.current.index + 1 };
+    sendEvent(token, teamViewer ? { ...body, equipe: true } : body);
+  }, [tracking, token, teamViewer]);
+  const touched = useMemo(() => ({
+    validar: () => { touch("validar"); validate(); },
+    lista: (event) => { touch("lista"); openForecast(event); },
+    agendar: (event) => { touch("agendar"); openAppointment(event); },
+    estrategia: (event) => { touch("estrategia"); openStrategy(event); },
+    imoveis: () => { touch("imoveis"); openProperties(); },
+    baixar: () => touch("baixar")
+  }), [touch, validate, openForecast, openAppointment, openStrategy, openProperties]);
 
   const onPointerDown = (event) => {
     if (event.target.closest("a,button,[data-no-nav]")) {
@@ -1042,7 +1057,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
     dispatch({ type: "goto", index: 0 });
   }, []);
   const dir = direction === "back" ? styles.back : "";
-  const ctx = { reduced, restart, validate, openForecast, canReceiveList, openAppointment, canSchedule, strategy, openStrategy, hrefs, openProperties, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
+  const ctx = { reduced, restart, validate: touched.validar, openForecast: touched.lista, canReceiveList, openAppointment: touched.agendar, canSchedule, strategy, openStrategy: touched.estrategia, hrefs, openProperties: touched.imoveis, onDownload: touched.baixar, branchNext, propertyCount: branch.length, branchLast: inBranch && branchIndex >= flat.length - 1, nextIsValues: inBranch && flat[branchIndex + 1]?.id === "valores", fast: returned,
     // roteiro principal com imóvel/valores (apresentação de aprovação)
     inBranch, mainNext: () => act("next"), mainLast: !inBranch && isLastScene(state), mainNextIsValues: !inBranch && scenes[state.index + 1]?.id === "valores" };
 

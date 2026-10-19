@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Apresentação: registro de toques (tabela nova, lote A item 3)
+- **Área:** Apresentação / Banco
+- **Alteração:** tabela aditiva `simulation_presentation_events` (migration `20261020100000_simulation_presentation_events.sql`, **não aplicada**); a rota `/api/s/<token>/evento` aceita `toque` (alvo fechado + cena exata) e a abertura de nova sessão também grava uma linha; marca `equipe` decidida no servidor da página (`isPanelSessionViewer`, só o token de acesso, sem renovar sessão), fora do DTO. `docs/DATABASE.md`, `docs/BUSINESS_RULES.md` PRES-7.
+- **Arquivos:** `supabase/migrations/20261020100000_simulation_presentation_events.sql`, `lib/simulation-presentation{.js,-core.mjs}`, `app/apresentacao/[token]/page.jsx`, `components/presentation/PresentationPlayer.jsx`, `tests/simulation-presentation{,-events}.test.mjs`.
+- **Risco/observação:** sem a migration o evento é descartado com aviso `[apresentacao] tabela de eventos ausente` no log (nada quebra); aplicar ANTES de medir. A marca `equipe` é enviada pelo navegador (métrica, não autorização). A página pública passa a conferir o cookie do painel quando existe (1 chamada ao Supabase Auth só para quem tem sessão).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Apresentação: textos da lista sem "toda", frase de compromisso e T6 (lote A item 2)
 - **Área:** Apresentação / Agenda
 - **Alteração:** PRES-17 revista pelo dono: título e nota novos na cena de documentos; pergunta, ajuda e aviso "WhatsApp oficial … quem te responde é {1º nome}" na folha; mensagem pronta nova (código do atendimento mantido); observação da atividade `documentos` com o texto T6. DTO público ganhou `atendentePrimeiroNome` (só o 1º nome do responsável, só com contato pronto). `docs/BUSINESS_RULES.md` PRES-17.
