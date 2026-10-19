@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação: SAC recolhido e campos lado a lado (ajuste pontual sobre o layout antigo)
+- **Data:** 2026-10-19
+- **Área:** aba da simulação (`SimulationGenerator`, Etapa B), só apresentação. O redesenho 2ae61e4 foi reprovado pelo dono e revertido (e0805b7).
+- **Alteração:** SAC fica recolhido (título "SAC" com setinha; abre novo e usado juntos; simulação com SAC preenchido abre aberto). Pares lado a lado também no celular: financiamento + subsídio, 1ª + última parcela, prazo + taxa de juros. A taxa saiu do bloco próprio e aparece ao lado do prazo de cada tipo (é o MESMO campo — uma taxa por simulação; validação e aviso iguais). No celular, menos respiro no painel e nos campos para "R$ 190.000,00" caber inteiro em 360 px.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** antes/depois em 360/390/1280 px (vitrine temporária, apagada); testes da área; `pnpm build`. `tests/drag-reorder.test.mjs`: recorte do fluxo Enviar no lugar da janela fixa de 4.000 caracteres (falhava desde 51eb5c7).
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `tests/drag-reorder.test.mjs`.
+- **Risco/observação:** nenhum dado, regra ou API mudou.
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-19 — SIM-AUTO: peso da parcela (R$ 60) no melhor cenário; lógica para o redesenho da aba da simulação
 - **Data:** 2026-10-19
 - **Área:** Motor da estimativa; aba da simulação (`SimulationGenerator`, `/admin/simulacoes/[id]`); cenários

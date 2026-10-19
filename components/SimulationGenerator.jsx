@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBasicMode } from "@/components/WhatsappAccessProvider";
-import { Check, GripVertical, Save, Search, Sparkles, Trash2 } from "lucide-react";
+import { Check, ChevronDown, GripVertical, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
@@ -130,6 +130,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [sendingSimulation, setSendingSimulation] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState(form.id ? "saved" : "idle");
   const [message, setMessage] = useState("");
+  // SAC recolhido por padrão (pedido do dono, 2026-10-19): só o título "SAC" com a setinha; abre novo e usado juntos.
+  // Simulação que já tem SAC preenchido abre com os campos à mostra (para o valor lançado não ficar escondido).
+  const [sacOpen, setSacOpen] = useState(() => {
+    const models = normalizeSimulationModels(form.simulationModels, form);
+    return SIMULATION_MODEL_TYPES.some(({ key }) => ["financingValue", "subsidyValue", "firstInstallment", "lastInstallment", "termMonths"].some((field) => String(models[key]?.sac?.[field] || "").trim()));
+  });
   const [error, setError] = useState("");
 
   const normalizedModels = useMemo(() => normalizeSimulationModels(form.simulationModels, form), [form]);
@@ -835,7 +841,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
           <div className="mt-5 grid gap-5">
             {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => (
-              <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-4 sm:p-5">
+              <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-3 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">
@@ -849,7 +855,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 </div>
 
                 <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
-                <div className="mt-2 grid gap-4 md:grid-cols-2" data-system="price">
+                {/* Pares lado a lado também no celular (dono, 2026-10-19): financiamento + subsídio, 1ª + última parcela, prazo + taxa. */}
+                <div className="mt-2 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="price">
                   <MoneyField
                     label="Valor do financiamento"
                     value={normalizedModels[key]?.financingValue || ""}
@@ -877,15 +884,47 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     pattern="[0-9]*"
                     placeholder="Ex.: 420"
                     autoComplete="off"
+                    inputClassName="!px-2.5 sm:!px-4"
                     value={normalizedModels[key]?.termMonths || ""}
                     onChange={(value) => updateSimulationModel(key, "termMonths", cleanTermMonths(value))}
                   />
+                  {/* Taxa de juros: UMA por simulação (vale para novo e usado) — o mesmo campo aparece ao lado do prazo de cada tipo. */}
+                  <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+                    Taxa de juros (% ao ano)
+                    <input
+                      className="admin-input min-w-0 !px-2.5 sm:!px-4"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      enterKeyHint="next"
+                      maxLength={8}
+                      placeholder="Ex.: 5,4"
+                      value={form.interestRateAnnual || ""}
+                      onChange={(event) => update("interestRateAnnual", event.target.value)}
+                      aria-invalid={!interestRateCheck.ok}
+                      aria-describedby={`interest-rate-help-${key}`}
+                    />
+                  </label>
+                  <p id={`interest-rate-help-${key}`} className={`col-span-2 mt-2 text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
+                    {interestRateCheck.ok
+                      ? "Prazo e taxa são obrigatórios para salvar. A taxa vale para a simulação toda e aparece ao lado das parcelas na apresentação do cliente."
+                      : interestRateCheck.error}
+                  </p>
                 </div>
 
-                <div className="mt-6 border-t border-blue-100 pt-4">
-                  <p className="text-sm font-black uppercase tracking-[0.14em] text-navy">SAC</p>
+                <div className="mt-6 border-t border-blue-100 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSacOpen((open) => !open)}
+                    aria-expanded={sacOpen}
+                    className="flex min-h-11 items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-navy"
+                  >
+                    SAC
+                    <ChevronDown className={`h-4 w-4 transition-transform ${sacOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                  </button>
+                  {sacOpen ? (<>
                   <p className="mt-1 text-xs leading-5 text-muted">Opcional. Preencha o SAC (além do Price) para a apresentação do cliente mostrar também o comparativo SAC x Price. Com um sistema só, não há comparação.</p>
-                  <div className="mt-3 grid gap-4 md:grid-cols-2" data-system="sac">
+                  <div className="mt-1 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="sac">
                     <MoneyField
                       label="Valor do financiamento (SAC)"
                       value={normalizedModels[key]?.sac?.financingValue || ""}
@@ -913,39 +952,15 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                       pattern="[0-9]*"
                       placeholder="Ex.: 420"
                       autoComplete="off"
+                      inputClassName="!px-2.5 sm:!px-4"
                       value={normalizedModels[key]?.sac?.termMonths || ""}
                       onChange={(value) => updateSacModel(key, "termMonths", cleanTermMonths(value))}
                     />
                   </div>
+                  </>) : null}
                 </div>
               </div>
             ))}
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 sm:p-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-                Taxa de juros (% ao ano)
-                <input
-                  className="admin-input min-w-0"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  enterKeyHint="next"
-                  maxLength={8}
-                  placeholder="Ex.: 5,4"
-                  value={form.interestRateAnnual || ""}
-                  onChange={(event) => update("interestRateAnnual", event.target.value)}
-                  aria-invalid={!interestRateCheck.ok}
-                  aria-describedby="interest-rate-help"
-                />
-              </label>
-              <p id="interest-rate-help" className={`self-end text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
-                {interestRateCheck.ok
-                  ? "Obrigatória para salvar. Aparece ao lado das parcelas na apresentação interativa do cliente. Vale para a simulação toda."
-                  : interestRateCheck.error}
-              </p>
-            </div>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -1142,7 +1157,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
 function Panel({ children, eyebrow, title }) {
   return (
-    <section className="min-w-0 rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-6 md:p-8">
+    <section className="min-w-0 rounded-[28px] border border-line bg-white p-3 shadow-soft min-[400px]:p-4 sm:p-6 md:p-8">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
       <h2 className="mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy">{title}</h2>
       <div className="mt-6">{children}</div>
@@ -1150,13 +1165,13 @@ function Panel({ children, eyebrow, title }) {
   );
 }
 
-function Field({ label, onChange, textarea = false, type = "text", value, ...props }) {
+function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
     <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
       {label}
       <Component
-        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""}`}
+        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${inputClassName}`}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
@@ -1203,6 +1218,7 @@ function MoneyField({ label, onChange, value }) {
       pattern="[0-9,.]*"
       enterKeyHint="next"
       autoComplete="off"
+      inputClassName="!px-2.5 sm:!px-4"
       value={value}
       onChange={(nextValue) => onChange(formatCurrencyInput(nextValue))}
     />
