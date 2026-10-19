@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Prova de envio do link em conversa Particular (lote A item 6)
+- **Área:** Clientes / WhatsApp
+- **Alteração:** `loadSimulationSentEvidence` passa a procurar, quando as provas de sempre não bastam, o token exato dos links de apresentação do cliente nas mensagens de saída do WhatsApp pessoal do responsável/equipe (`session_user_id`), devolvendo só sim/não (`tokenLinkSent`). Vale para a trava "Simulação enviada" (FUN-13), a ROL-4c e a linha do painel. `docs/BUSINESS_RULES.md` FUN-13.
+- **Arquivos:** `lib/simulation-sent-evidence.js`, `lib/simulation-sent-lock-core.mjs`, `tests/simulation-sent-lock.test.mjs`.
+- **Risco/observação:** busca `ilike` sem índice de texto, limitada às sessões da equipe e a 1 linha; se ficar lenta, índice trigram por migration (decisão do dono). Envio feito pelo celular de quem não é da equipe do responsável (ex.: outra equipe) continua sem contar.
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Card: "Recebi documentos por fora" (lote A item 5)
 - **Área:** Clientes / Documentação
 - **Alteração:** DOC-7 (regra do dono): ação no card só em "Aguardando documentação" sem lote salvo; confirmação, etiqueta "1º documento recebido por fora · {data}" e "Desfazer" por 10 s. Só grava `document_received_offline` / `document_received_offline_undone` na linha do tempo (fora do atendimento e da pontuação). Rota nova `POST /api/admin/client-documents/received-offline` (`requireAdminApi` + `assertCanAccessResponsibleUser`). `logClientJourneyEvent` ganhou `strict` (opcional) para a falha de gravação chegar à tela. `docs/BUSINESS_RULES.md` DOC-7, `docs/PERMISSIONS.md`.

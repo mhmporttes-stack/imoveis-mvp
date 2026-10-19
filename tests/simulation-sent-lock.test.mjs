@@ -103,3 +103,22 @@ test("servidor: a trava roda antes de gravar no update e no cadastro novo; o Cha
   const chat = read("lib/whatsapp-chat.js");
   assert.match(chat, /const evidence = await loadSimulationSentEvidence\(conversation\.client_id\);/);
 });
+
+// Prova de envio em conversa Particular (dono, 2026-10-19 — Mesa "Atendimento depois da simulação", lote A item 6)
+test("token exato do link em conversa do responsável/equipe conta como envio do link (só sim/não)", () => {
+  const evidence = classifySimulationSentEvidence({ presentationEvents: 0, messages: [], tokenLinkSent: true });
+  assert.equal(evidence.sent, true);
+  assert.equal(evidence.presentationLink, true);
+  assert.equal(classifySimulationSentEvidence({ tokenLinkSent: "sim" }).sent, false); // só `true` liga
+  const fn = /async function isPresentationTokenSentByTeam[\s\S]*?\n}\n/.exec(read("lib/simulation-sent-evidence.js"))?.[0] || "";
+  assert.ok(fn, "isPresentationTokenSentByTeam");
+  // nenhum conteúdo de mensagem sai daqui e nada é gravado (a conversa não é ligada ao cliente)
+  assert.match(fn, /from\("whatsapp_messages"\)\s*\.select\("id"\)/);
+  assert.match(fn, /\.in\("session_user_id", teamIds\)/);
+  assert.match(fn, /\.eq\("direction", "outbound"\)\s*\.neq\("status", "failed"\)/);
+  assert.match(fn, /\.limit\(1\)/);
+  assert.match(fn, /return \(data \|\| \[\]\)\.length > 0;/);
+  assert.ok(!/\.update\(|\.insert\(|\.upsert\(|client_id:/.test(fn));
+  // só tokens no formato do link entram no filtro de texto
+  assert.match(fn, /\/\^\[A-Za-z0-9\]\{22,64\}\$\/\.test\(token/);
+});
