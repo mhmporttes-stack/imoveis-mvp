@@ -919,16 +919,23 @@ a.fcSubmit { text-decoration: none; }
 .stYAxis { position: relative; grid-column: 1; grid-row: 2; }
 .stYSizer { display: block; visibility: hidden; height: 0; overflow: hidden; padding-right: 8px; font-size: 12px; font-weight: 400; white-space: nowrap; }
 .stYAxis span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
-.stPlot { position: relative; grid-column: 2; grid-row: 2; height: clamp(176px, 52cqi, 250px); min-width: 0; }
+.stPlot { position: relative; grid-column: 2; grid-row: 2; height: clamp(228px, 74cqi, 300px); min-width: 0; }
 .stPlotSvg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
 .stGrid { stroke: #e3ebf5; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .stAxis { stroke: #9fb4cf; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-.stPathSem { fill: none; stroke: #b42318; stroke-width: 2.2; stroke-dasharray: 7 5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.stPathCom { fill: none; stroke: #067647; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.stDot { position: absolute; z-index: 1; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2.5px solid #fff; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.12); }
-.stDotEnd { background: #b42318; }
-.stDotPayoff { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #067647; }
-.stAnnot { display: flex; align-items: flex-end; grid-column: 2; grid-row: 1; min-width: 0; min-height: 44px; padding-bottom: 6px; }
+/* as duas linhas IGUAIS (dono, 2026-10-19): mesma espessura, sólidas, mesma curva — só a cor muda */
+.stPathSem, .stPathCom { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.stPathSem { stroke: #b42318; }
+.stPathCom { stroke: #067647; }
+.stDot { position: absolute; z-index: 2; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2.5px solid #fff; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.14); }
+.stDotSem { background: #b42318; --ring: rgba(180, 35, 24, 0.28); }
+.stDotCom { background: #067647; --ring: rgba(6, 118, 71, 0.3); }
+/* "N anos a menos" dentro da faixa verde (posição calculada no componente para não encostar nas linhas) */
+.stGap { position: absolute; z-index: 1; margin: 0; display: grid; justify-items: center; line-height: 1.08; font-weight: 850; letter-spacing: -0.01em; color: #054f31; text-align: center; white-space: nowrap; pointer-events: none; text-shadow: 0 0 6px rgba(255, 255, 255, 0.9); }
+.stGapBeside { justify-items: end; text-align: right; }
+.stGap .stGapSoft { font-weight: 700; font-size: 0.82em; color: #067647; }
+.stGapOut { margin: calc(var(--u) * 8) 0 0; font-size: max(17px, calc(var(--u) * 19)); font-weight: 850; color: #054f31; text-align: center; overflow-wrap: anywhere; }
+.stAnnot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 8px; grid-column: 2; grid-row: 1; min-width: 0; min-height: 44px; padding-bottom: 9px; }
 .stPayoff { position: relative; margin-left: calc(var(--x) - 8px); display: grid; gap: 1px; max-width: calc(100% - var(--x) + 8px); color: #054f31; text-align: left; box-sizing: border-box; }
 .stPayoffEnd { margin-left: auto; margin-right: calc(100% - var(--x) - 8px); max-width: calc(var(--x) + 8px); text-align: right; }
 .stPayoff small { font-size: 12px; font-weight: 650; line-height: 1.2; color: #2f6b4f; }
@@ -936,24 +943,32 @@ a.fcSubmit { text-decoration: none; }
 .stPayoff strong span { white-space: nowrap; }
 .stPayoffSem { color: #912018; }
 .stPayoffSem small { color: #a3362c; }
-.stLeader.stLeaderSem { border-left-color: rgba(180, 35, 24, 0.5); }
-.stLeader { position: absolute; top: -4px; bottom: 0; width: 0; border-left: 1.5px dashed rgba(6, 118, 71, 0.55); }
 .stXAxis { position: relative; grid-column: 2; grid-row: 3; height: 24px; }
 .stXAxis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
 .stXAxis .stXStart { transform: none; }
-.stXAxis .stXEnd { transform: none; font-weight: 800; color: #b42318; }
+.stXAxis .stXEnd { transform: none; font-weight: 700; }
 @container (max-width: 330px) { .stXAxis .stXMinor { display: none; } }
-.stDraw { animation: stReveal 1.2s cubic-bezier(0.33, 1, 0.68, 1) both; }
-.stDot, .stPayoff, .stLeader { animation: stFadeUp 0.3s ease-out both; }
-.stIntro .stDot, .stIntro .stPayoff, .stIntro .stLeader { animation-duration: 0.45s; animation-delay: 1s; }
+/* cena (dono, 2026-10-19): as duas linhas desenham JUNTAS no mesmo relógio (o eixo do tempo), em 2,4 s (dobro do 1,2 s
+   anterior); rótulo e bolinha de cada linha entram quando a linha chega nela (--d, calculado no componente) e a bolinha pulsa */
+.stDraw { animation: stReveal 2.4s linear both; }
+.stDot { animation: stPulse 0.9s ease-out both; }
+.stPayoff, .stGap { animation: stFadeUp 0.35s ease-out both; }
+.stIntro .stDot, .stIntro .stPayoff, .stIntro .stGap { animation-delay: var(--d, 0s); }
+.stIntro .stPayoff, .stIntro .stGap { animation-duration: 0.5s; }
 @keyframes stReveal { from { clip-path: inset(-20% 100% -20% -2%); } to { clip-path: inset(-20% -2% -20% -2%); } }
 @keyframes stFadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.stWaiting .stDraw, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stLeader { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .stDraw, .stDot, .stPayoff, .stLeader { animation: none; } }
+@keyframes stPulse {
+  0% { opacity: 0; transform: scale(0.4); box-shadow: 0 0 0 0 var(--ring); }
+  18% { opacity: 1; transform: scale(1); }
+  50% { transform: scale(1.9); box-shadow: 0 0 0 7px var(--ring); }
+  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.14); }
+}
+.stWaiting .stDraw, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stGap { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .stDraw, .stDot, .stPayoff, .stGap { animation: none; } }
 .stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 16); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: max(13px, calc(var(--u) * 14)); color: #2f4d6e; }
 .stLegend li { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
-.stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: repeating-linear-gradient(90deg, #b42318 0 7px, transparent 7px 11px); }
-.stKeyCom { height: 3.5px; background: #067647; }
+.stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: #b42318; }
+.stKeyCom { background: #067647; }
 .stKeyBand { height: 12px; border-radius: 3px; background: linear-gradient(180deg, rgba(6, 118, 71, 0.32), rgba(6, 118, 71, 0.12)); }
 /* PRES-24 — largura da folha da Estratégia no celular (dono, 2026-10-18, INCIDENTES.md): NADA passa de 100% da largura a
    320–430 px, antes e depois do resultado aparecer. A folha é item de um flex em LINHA (.sheetBackdrop): sem min-width: 0 ela

@@ -5,16 +5,21 @@ import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatDuration } from "@/lib/payment-strategy-core.mjs";
 import styles from "./presentation.module.css";
 
-// Gráfico "Saldo devedor ao longo do tempo" da folha da Estratégia (PRES-24). SÓ APRESENTAÇÃO: lê as séries de saldo que o
-// motor (`compareStrategy`, lib/payment-strategy-core.mjs) já calculou — nenhum número é recalculado aqui.
-// - Sem amortização = vermelho tracejado; com amortização = verde; a faixa entre as duas = juros que você deixa de pagar
-//   (os juros de cada mês incidem sobre o saldo: menos saldo carregado = menos juros).
-// - Uma amostra por ano (com amortização: a cada 2 anos se passar de 6 anos, o ciclo do FGTS) e o mês de quitação, ligada por curva monotônica (Fritsch–Carlson): suaviza os degraus dos aportes
-//   anuais/bienais sem inventar subida, sem passar abaixo de zero e passando exatamente pelos saldos amostrados.
-// - Quitação anotada ACIMA do gráfico, com uma guia vertical até o ponto: nunca cobre as curvas, em qualquer prazo.
+// Gráfico "Quanto do financiamento você já quitou" da folha da Estratégia (PRES-24). SÓ APRESENTAÇÃO: lê as séries de saldo
+// que o motor (`compareStrategy`, lib/payment-strategy-core.mjs) já calculou — o valor quitado é só (financiado − saldo devedor)
+// do mesmo mês; nenhum número de amortização/juros é recalculado aqui.
+// - Ajustes do dono (2026-10-19): as duas linhas iguais (mesma espessura, sólidas, mesma curva), só a cor muda — vermelho
+//   sem amortização, verde com amortização; o gráfico SOBE de R$ 0 (hoje) até o total financiado (quitado); no fim de cada
+//   linha, os anos; dentro da faixa verde entre as linhas, "N anos a menos".
+// - A faixa verde = saldo que você deixa de carregar (os juros de cada mês incidem sobre o saldo: menos saldo = menos juros).
+// - Uma amostra por ano (com amortização: a cada 2 anos se passar de 6 anos, o ciclo do FGTS) e o mês de quitação, ligada por
+//   curva monotônica (Fritsch–Carlson): suaviza os degraus dos aportes sem inventar descida e passa pelos valores amostrados.
 // - Linhas/áreas num SVG esticado (preserveAspectRatio="none" + traço que não escala) e textos/marcadores em HTML por %:
-//   o texto fica legível (≥ 12px) em 320 px e nada passa da largura da folha (incidente de overflow de 2026-10-18).
-// - Desenha da esquerda para a direita quando entra na tela; sem animação com prefers-reduced-motion.
+//   texto legível (≥ 12px) em 320 px e nada passa da largura da folha (incidente de overflow de 2026-10-18). O texto
+//   "a menos" só entra dentro da faixa se couber sem encostar nas linhas (medido no tamanho real do gráfico); senão vai
+//   logo abaixo do gráfico.
+// - As duas linhas desenham JUNTAS (mesmo relógio: o tempo do eixo) quando o gráfico entra na tela, em 2,4 s (o dobro do
+//   1,2 s anterior); a bolinha da ponta de cada linha pulsa quando a linha chega nela. prefers-reduced-motion: tudo pronto.
 
 const VB = 1000; // quadro do SVG (0..1000 nos dois eixos)
 
@@ -68,11 +73,12 @@ function niceStep(raw) {
   return [1, 2, 2.5, 5, 10].map((f) => f * power).find((step) => step >= raw) || 10 * power;
 }
 
+// eixo do valor: "R$ 0" embaixo e "190 mil" nos demais (sem repetir "R$": sobra largura para o gráfico em 320 px)
 function compactBRL(value) {
   if (value <= 0) return "R$ 0";
-  if (value >= 1e6) return `R$ ${(value / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`;
-  if (value >= 1e3) return `R$ ${(value / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
-  return `R$ ${Math.round(value)}`;
+  if (value >= 1e6) return `${(value / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`;
+  if (value >= 1e3) return `${(value / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+  return `${Math.round(value)}`;
 }
 
 // "12 anos e 1 mês" quebra só entre "12 anos" e "e 1 mês", nunca no meio de cada parte
@@ -82,12 +88,88 @@ function splitDuration(months) {
 
 const pct = (value) => `${r1(value * 100)}%`;
 
+const DRAW_SECONDS = 2.4; // desenho das linhas (dono, 2026-10-19: "dobre o tempo da cena" — antes 1,2 s)
+
+// fração quitada (0..1) num mês, a partir do saldo calculado pelo motor
+function paidFraction(balances, start, month) {
+  const index = Math.max(0, Math.min(balances.length - 1, Math.round(month)));
+  return start > 0 ? Math.min(1, Math.max(0, (start - balances[index]) / start)) : 0;
+}
+
+// Onde cabe o texto "N anos a menos" DENTRO da faixa verde, sem encostar em nenhuma linha. Mede no tamanho real do gráfico
+// (px): tenta a maior fonte e o menor número de linhas primeiro; devolve null se não couber (o texto vai para baixo do gráfico).
+function placeGap({ width, height, font, span, start, sem, com, parts }) {
+  if (!width || !height) return null;
+  // largura real do texto na fonte da página (canvas); sem canvas, estimativa conservadora por caractere
+  const context = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+  const textWidth = (line, size) => {
+    if (!context) return line.length * size * 0.6;
+    context.font = `850 ${size}px ${font || "sans-serif"}`;
+    return context.measureText(line).width;
+  };
+  const columns = 96;
+  const colW = width / columns;
+  const low = [];
+  const high = [];
+  for (let c = 0; c < columns; c += 1) {
+    const month = ((c + 0.5) / columns) * span;
+    low.push(paidFraction(sem.balances, start, month) * height);
+    high.push(month < com.months ? paidFraction(com.balances, start, month) * height : height);
+  }
+  // borda nas pontas da coluna (a curva entre as amostras pode variar um pouco dentro da coluna)
+  const lowAt = (c) => Math.max(low[c], low[Math.min(columns - 1, c + 1)]);
+  const highAt = (c) => Math.min(high[c], high[Math.max(0, c - 1)]);
+  const [years, months] = parts;
+  const layouts = months
+    ? [[`${years} e ${months}`, "a menos"], [years, `e ${months}`, "a menos"]]
+    : [[`${years} a menos`], [years, "a menos"]];
+  const margin = 6;
+  // 1º dentro da faixa verde (entre as linhas); 2º no espaço livre acima da linha verde (antes da quitação), ao lado da
+  // faixa — quando a faixa é estreita demais para o texto caber sem encostar nas linhas
+  const zones = [
+    { inside: true, floorAt: lowAt, ceilingAt: highAt },
+    { inside: false, floorAt: (c) => (((c + 1) / columns) * span < com.months ? Math.max(high[c], high[Math.min(columns - 1, c + 1)]) : height), ceilingAt: () => height },
+  ];
+  for (const zone of zones) {
+    for (const size of [24, 22, 20, 18, 16, 15]) {
+      for (const lines of layouts) {
+        const boxW = Math.max(...lines.map((line) => textWidth(line, size))) + 8;
+        const boxH = lines.length * size * 1.08 + 4;
+        const needCols = Math.ceil(boxW / colW);
+        let best = null;
+        for (let left = 0; left + needCols <= columns; left += 1) {
+          let floor = 0;
+          let ceiling = height;
+          for (let c = left; c < left + needCols; c += 1) { floor = Math.max(floor, zone.floorAt(c)); ceiling = Math.min(ceiling, zone.ceilingAt(c)); }
+          const slack = ceiling - floor - 2 * margin - boxH;
+          // dentro: a maior folga; fora: o mais perto da faixa (mais à direita)
+          if (slack >= 0 && (!best || (zone.inside ? slack > best.slack : left > best.left))) best = { slack, left, floor, ceiling };
+        }
+        if (best) {
+          const middle = zone.inside ? (best.floor + best.ceiling) / 2 : best.floor + margin + boxH / 2; // de baixo
+          return {
+            inside: zone.inside,
+            lines,
+            size,
+            left: (best.left * colW + (needCols * colW - boxW) / (zone.inside ? 2 : 1)) / width,
+            width: boxW / width,
+            top: 1 - (middle + boxH / 2) / height,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export default function StrategyBalanceChart({ comparison, showStrategy }) {
-  // abertura da folha: linhas desenham e os marcadores entram depois; depois disso, trocar opção mostra o marcador na hora
+  // abertura da folha: as linhas desenham e os marcadores entram no ritmo delas; depois disso, trocar opção mostra tudo na hora
   // o desenho só começa quando o gráfico aparece na tela (ele fica abaixo das opções: abrir a folha não basta)
   const plotRef = useRef(null);
+  const areaRef = useRef(null);
   const [seen, setSeen] = useState(false);
   const [intro, setIntro] = useState(true);
+  const [box, setBox] = useState({ width: 0, height: 0, font: "" });
   useEffect(() => {
     const node = plotRef.current;
     if (!node || typeof IntersectionObserver === "undefined") { setSeen(true); return undefined; }
@@ -99,29 +181,45 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
   }, []);
   useEffect(() => {
     if (!seen) return undefined;
-    const timer = setTimeout(() => setIntro(false), 1600);
+    const timer = setTimeout(() => setIntro(false), (DRAW_SECONDS + 1.2) * 1000);
     return () => clearTimeout(timer);
   }, [seen]);
+  useEffect(() => {
+    const node = areaRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      const font = typeof getComputedStyle === "function" ? getComputedStyle(node).fontFamily : "";
+      setBox((prev) => (prev.width === node.clientWidth && prev.height === node.clientHeight && prev.font === font ? prev : { width: node.clientWidth, height: node.clientHeight, font }));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [comparison]);
   if (!comparison) return null;
   const { sem, com } = comparison;
   const start = sem.balances[0] || 0;
   const span = Math.max(1, sem.months);
-  const step = niceStep(start / 4);
-  const yMax = Math.max(step, Math.ceil(start / step) * step);
+  const yMax = Math.max(1, start); // topo do gráfico = financiamento inteiro quitado
+  const step = niceStep(yMax / 4);
   const sx = (month) => (month / span) * VB;
-  const sy = (balance) => VB - (balance / yMax) * VB;
+  const sy = (paid) => VB - (paid / yMax) * VB;
   const withStrategy = Boolean(showStrategy) && com.months < sem.months;
+  const toPaid = ([month, balance]) => [month, start - balance];
 
-  const semSeg = monotoneSegments(samples(sem.balances));
-  const comSeg = withStrategy ? monotoneSegments(samples(com.balances, com.months > 72 ? 24 : 12)) : [];
+  const semSeg = monotoneSegments(samples(sem.balances).map(toPaid));
+  const comSeg = withStrategy ? monotoneSegments(samples(com.balances, com.months > 72 ? 24 : 12).map(toPaid)) : [];
   const semPath = curve(semSeg, sx, sy);
   const comPath = curve(comSeg, sx, sy);
-  // faixa da economia: desce pela curva sem amortização, volta pela linha do zero até a quitação e sobe pela curva com amortização
-  const bandPath = withStrategy ? `${semPath} L${r1(sx(com.months))} ${VB}${curve(comSeg, sx, sy, { reverse: true, move: false })} Z` : "";
-  const comArea = withStrategy ? `${comPath} L${r1(sx(0))} ${VB} Z` : "";
+  // faixa verde: sobe pela curva sem amortização até o topo, volta pelo topo até a quitação e desce pela curva com amortização
+  const bandPath = withStrategy ? `${semPath} L${r1(sx(com.months))} 0${curve(comSeg, sx, sy, { reverse: true, move: false })} Z` : "";
+  const semArea = `${semPath} L${VB} ${VB} Z`;
 
+  // eixo do valor quitado: R$ 0, passos redondos e o topo = valor financiado (sem rótulo colado no topo)
   const yTicks = [];
-  for (let value = 0; value <= yMax + 0.5; value += step) yTicks.push(value);
+  for (let value = 0; value < yMax * 0.82; value += step) yTicks.push(value);
+  yTicks.push(yMax);
 
   const totalYears = sem.months / 12;
   const yearStep = totalYears <= 6 ? 1 : totalYears <= 12 ? 2 : totalYears <= 24 ? 4 : 5;
@@ -134,28 +232,31 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
   }
   const endLabel = sem.months % 12 === 0 ? `${totalYears} ${totalYears === 1 ? "ano" : "anos"}` : formatDuration(sem.months);
   const payoffX = sx(com.months) / VB;
+  const gapMonths = sem.months - com.months;
+  const gapText = `${formatDuration(gapMonths)} a menos`;
+  const gap = withStrategy ? placeGap({ ...box, span, start, sem, com, parts: formatDuration(gapMonths).split(" e ") }) : null;
+  const delay = (fraction) => ({ "--d": `${r1(Math.max(0, fraction) * DRAW_SECONDS * 100) / 100}s` });
 
   const summary = withStrategy
-    ? `Saldo devedor começa em ${formatBRL(start)}. Sem amortização, zera em ${formatDuration(sem.months)}. Com amortização, o financiamento é quitado em ${formatDuration(com.months)}${comparison.economiaJuros > 0 ? `, com ${formatBRL(comparison.economiaJuros)} a menos de juros` : ""}.`
-    : `Saldo devedor começa em ${formatBRL(start)} e, sem amortização, zera em ${formatDuration(sem.months)}.`;
+    ? `Valor financiado: ${formatBRL(start)}. Sem amortização, fica todo quitado em ${formatDuration(sem.months)}. Com amortização, quitado em ${formatDuration(com.months)}: ${gapText}${comparison.economiaJuros > 0 ? `, com ${formatBRL(comparison.economiaJuros)} a menos de juros` : ""}.`
+    : `Valor financiado: ${formatBRL(start)}. Sem amortização, fica todo quitado em ${formatDuration(sem.months)}.`;
 
   return (
     <figure className={styles.stChart}>
-      <figcaption className={styles.stLabel}>Saldo devedor ao longo do tempo</figcaption>
+      <figcaption className={styles.stLabel}>Quanto do financiamento você já quitou</figcaption>
       <p className={styles.stSrOnly}>{summary}</p>
       <div ref={plotRef} className={`${styles.stPlotWrap} ${intro ? styles.stIntro : ""} ${seen ? "" : styles.stWaiting}`} aria-hidden="true">
         <div className={styles.stAnnot}>
           {withStrategy ? (
-            <span className={`${styles.stPayoff} ${payoffX > 0.5 ? styles.stPayoffEnd : ""}`} style={{ "--x": pct(payoffX) }}>
-              <small>Quitado em</small>
+            <span className={`${styles.stPayoff} ${styles.stPayoffCom}`} style={{ "--x": pct(payoffX), ...delay(payoffX) }}>
+              <small>quitado em</small>
               <strong>{splitDuration(com.months)}</strong>
             </span>
-          ) : (
-            <span className={`${styles.stPayoff} ${styles.stPayoffEnd} ${styles.stPayoffSem}`} style={{ "--x": "100%" }}>
-              <small>Sem amortização, quitado em</small>
-              <strong>{splitDuration(sem.months)}</strong>
-            </span>
-          )}
+          ) : null}
+          <span className={`${styles.stPayoff} ${styles.stPayoffEnd} ${styles.stPayoffSem}`} style={{ "--x": "100%", ...delay(1) }}>
+            <small>{withStrategy ? "quitado em" : "Sem amortização, quitado em"}</small>
+            <strong>{splitDuration(sem.months)}</strong>
+          </span>
         </div>
         <div className={styles.stYAxis}>
           <b className={styles.stYSizer}>{compactBRL(yMax)}</b>
@@ -163,19 +264,15 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
             <span key={value} style={{ top: pct(1 - value / yMax) }}>{compactBRL(value)}</span>
           ))}
         </div>
-        <div className={styles.stPlot}>
+        <div ref={areaRef} className={styles.stPlot}>
           <svg viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="none" focusable="false" className={styles.stPlotSvg}>
             <defs>
               <linearGradient id="stBandFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#067647" stopOpacity="0.26" />
-                <stop offset="1" stopColor="#067647" stopOpacity="0.08" />
-              </linearGradient>
-              <linearGradient id="stComFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#0b3a6e" stopOpacity="0.1" />
-                <stop offset="1" stopColor="#0b3a6e" stopOpacity="0.02" />
+                <stop offset="0" stopColor="#067647" stopOpacity="0.28" />
+                <stop offset="1" stopColor="#067647" stopOpacity="0.1" />
               </linearGradient>
               <linearGradient id="stSemFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#b42318" stopOpacity="0.1" />
+                <stop offset="0" stopColor="#b42318" stopOpacity="0.08" />
                 <stop offset="1" stopColor="#b42318" stopOpacity="0.01" />
               </linearGradient>
             </defs>
@@ -183,25 +280,22 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
               <line key={value} x1="0" x2={VB} y1={r1(sy(value))} y2={r1(sy(value))} className={value === 0 ? styles.stAxis : styles.stGrid} />
             ))}
             <g className={styles.stDraw}>
-              {withStrategy ? (
-                <>
-                  <path d={comArea} fill="url(#stComFill)" />
-                  <path d={bandPath} fill="url(#stBandFill)" />
-                </>
-              ) : (
-                <path d={`${semPath} L0 ${VB} Z`} fill="url(#stSemFill)" />
-              )}
+              <path d={semArea} fill="url(#stSemFill)" />
+              {withStrategy ? <path d={bandPath} fill="url(#stBandFill)" /> : null}
               <path d={semPath} className={styles.stPathSem} />
               {withStrategy ? <path d={comPath} className={styles.stPathCom} /> : null}
             </g>
           </svg>
-          <i className={`${styles.stDot} ${styles.stDotEnd}`} style={{ left: "100%", top: "100%" }} />
-          {withStrategy ? (
-            <>
-              <i className={styles.stLeader} style={{ left: pct(payoffX) }} />
-              <i className={`${styles.stDot} ${styles.stDotPayoff}`} style={{ left: pct(payoffX), top: "100%" }} />
-            </>
-          ) : <i className={`${styles.stLeader} ${styles.stLeaderSem}`} style={{ left: "100%" }} />}
+          {gap ? (
+            <p
+              className={`${styles.stGap} ${gap.inside ? "" : styles.stGapBeside}`}
+              style={{ left: pct(gap.left), top: pct(gap.top), width: pct(gap.width), fontSize: `${gap.size}px`, ...delay(gap.left + gap.width / 2) }}
+            >
+              {gap.lines.map((line, index) => <span key={index} className={index === gap.lines.length - 1 && line === "a menos" ? styles.stGapSoft : ""}>{line}</span>)}
+            </p>
+          ) : null}
+          <i className={`${styles.stDot} ${styles.stDotSem}`} style={{ left: "100%", top: "0%", ...delay(1) }} />
+          {withStrategy ? <i className={`${styles.stDot} ${styles.stDotCom}`} style={{ left: pct(payoffX), top: "0%", ...delay(payoffX) }} /> : null}
         </div>
         <div className={styles.stXAxis}>
           <span className={styles.stXStart} style={{ left: 0 }}>hoje</span>
@@ -211,10 +305,11 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
           <span className={styles.stXEnd} style={{ right: 0 }}>{endLabel}</span>
         </div>
       </div>
+      {withStrategy && !gap ? <p className={styles.stGapOut}>{gapText}</p> : null}
       <ul className={styles.stLegend}>
         <li><i className={styles.stKeySem} aria-hidden="true" />Sem amortização</li>
         {withStrategy ? <li><i className={styles.stKeyCom} aria-hidden="true" />Com amortização</li> : null}
-        {withStrategy && comparison.economiaJuros > 0 ? <li><i className={styles.stKeyBand} aria-hidden="true" />Diferença = juros que você deixa de pagar</li> : null}
+        {withStrategy && comparison.economiaJuros > 0 ? <li><i className={styles.stKeyBand} aria-hidden="true" />Área verde = juros que você deixa de pagar</li> : null}
       </ul>
     </figure>
   );

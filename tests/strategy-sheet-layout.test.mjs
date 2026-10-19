@@ -91,3 +91,14 @@ test("gráfico do saldo: sem amortização vermelho, com amortização verde, ca
   assert.doesNotMatch(chart, /import[^;]*\b(compareStrategy|simulateStrategy)\b|taxaAnual|interestRate/);
   assert.match(chart, /<p className=\{styles\.stSrOnly\}>\{summary\}<\/p>/, "resumo para leitor de tela");
 });
+
+test("gráfico (dono, 2026-10-19): linhas iguais só com cor diferente, sobe de R$ 0, anos nas pontas, cena de 2,4 s com pulso", () => {
+  const chart = read("components/presentation/StrategyBalanceChart.jsx");
+  assert.match(css, /\.stPathSem, \.stPathCom \{[^}]*stroke-width:\s*3/, "mesma espessura nas duas linhas");
+  assert.doesNotMatch(rule(".stPathSem"), /dasharray/, "sem amortização também sólida");
+  assert.match(chart, /const toPaid = \(\[month, balance\]\) => \[month, start - balance\]/, "eixo = valor quitado (financiado − saldo do motor)");
+  assert.match(chart, /a menos`/);
+  assert.match(rule(".stDraw"), /animation:\s*stReveal 2\.4s linear/, "as duas linhas no mesmo relógio, dobro do 1,2 s");
+  assert.match(css, /@keyframes stPulse/);
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.stDraw, \.stDot, \.stPayoff, \.stGap \{ animation: none/);
+});

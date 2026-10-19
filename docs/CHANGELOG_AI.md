@@ -82,6 +82,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — PRES-24: gráfico da Estratégia invertido ("quanto você já quitou"), linhas iguais, anos nas pontas e cena de 2,4 s
+- **Data:** 2026-10-19
+- **Área:** Apresentação da simulação `/s/<token>` (PRES-24) / Frontend + PDF da estratégia
+- **Alteração:** `StrategyBalanceChart.jsx` agora mostra o **valor quitado** (financiado − saldo devedor do motor, mesmo mês) subindo de R$ 0 até o financiado; título "Quanto do financiamento você já quitou" (não "do seu imóvel": o eixo não inclui a entrada). Duas linhas iguais (3 px, sólidas, mesma curva monotônica) — vermelho sem amortização, verde com; faixa verde entre elas. Rótulo "quitado em N anos" na ponta de cada linha; "N anos [e M meses] a menos" dentro da faixa verde, posicionado medindo o tamanho real do gráfico e a largura real do texto (canvas) para nunca encostar nas linhas; se a faixa for estreita demais, vai para o espaço livre ao lado da linha verde (acima dela), também sem cruzar linhas. Cena: as duas linhas desenham juntas no mesmo relógio (eixo do tempo), 2,4 s lineares (antes 1,2 s); rótulo e bolinha de cada linha entram quando a linha chega na ponta e a bolinha pulsa (cresce ~1,9x e volta, com halo). Movimento reduzido: tudo estático. Eixo Y sem "R$" repetido ("190 mil"; "R$ 0" embaixo) e gráfico mais alto (`clamp(228px, 74cqi, 300px)`) para caber o texto na faixa em 320 px. PDF (`lib/payment-strategy-pdf.mjs`): mesma inversão (caminho de `balanceChartPaths` espelhado na vertical, só desenho), linhas sólidas iguais, faixa verde, bolinhas e anos nas pontas, "N anos a menos" na faixa e legenda da área verde.
+- **Motivo:** pedido do dono (2026-10-19) sobre o commit 9ee665e.
+- **Verificação:** vitrine (`next dev`) a 390 e 320 px — sem estratégia, R$ 300/mês (15 anos e 3 meses: no 390/320 o texto vai ao lado da linha verde), R$ 800/mês (23 anos e 1 mês: dentro da faixa), 13º; quadros a 0,9 s e 2 s da cena; `scrollWidth == clientWidth` na folha. PDF renderizado (R$ 300 e R$ 800). Testes `strategy-sheet-layout` (+1 teste), `payment-strategy`, `simulation-presentation*`, `presentation-viewport`; build.
+- **Arquivos afetados:** `components/presentation/StrategyBalanceChart.jsx`, `components/presentation/presentation.module.css`, `lib/payment-strategy-pdf.mjs`, `tests/strategy-sheet-layout.test.mjs`.
+- **Risco/observação:** nenhum cálculo do motor mudou (`balanceChartPaths` intacto). Edição em `lib/` restrita ao desenho do PDF, a pedido explícito.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-18 — PRES-24: iPhone sem zoom automático ao tocar nos campos da apresentação (viewport maximumScale 1)
 - **Data:** 2026-10-18
 - **Área:** Apresentação da simulação (PRES-24) / Frontend
