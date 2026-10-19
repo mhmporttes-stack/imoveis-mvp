@@ -439,7 +439,8 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
       : (phoneNumber && !state.creds.registered) || state.creds.pairingCode ? Browsers.macOS("Chrome") : ["CRM Imoveis", "Chrome", "1.0"],
     // Reenvio quando um aparelho pede de novo (recibo retry, 2026-10-16): o Baileys só reenvia se achar a mensagem aqui.
     // Só as enviadas pelo /send, em memória (send-retry.js); fora do cache = undefined, como antes.
-    getMessage: async (key) => sentMessages.get(userId, key?.id)
+    // 2026-10-19: espera o envio em andamento do mesmo id (o pedido chega antes de o sendMessage terminar).
+    getMessage: async (key) => sentMessages.wait(userId, key?.id)
   });
   entry.sock = sock;
 
@@ -997,8 +998,14 @@ function onSendRetryReceipt(userId, sock, diag, node) {
   if (node?.attrs?.type !== "retry" || !id) return;
   // Pedido de histórico ao celular tem tratamento próprio (observePeerNode/resendPeerRequest).
   if (onDemandRequests.isPending(userId, id) || sentPeerRequests.has(`${userId}|${id}`)) return;
-  const creds = sock.authState?.creds || {};
-  const decision = decideSendRetry(node, { meId: creds.me?.id || "", meLid: creds.me?.lid || "", cached: sentMessages.get(userId, id) !== undefined });
+  // 2026-10-19: espera o envio em andamento (o celular pede reenvio antes de o sendMessage do Baileys terminar).
+  sentMessages.wait(userId, id).then((message) => {
+    const creds = sock.authState?.creds || {};
+    handleSendRetryDecision(userId, sock, diag, id, decideSendRetry(node, { meId: creds.me?.id || "", meLid: creds.me?.lid || "", cached: message !== undefined }));
+  }).catch(() => { /* nunca derruba o socket */ });
+}
+
+function handleSendRetryDecision(userId, sock, diag, id, decision) {
   if (!decision) return;
   const detail = `id_${hashMessageId(id)}`;
   const record = (reason, extra = {}) => {
@@ -1243,11 +1250,23 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
   if (quoted?.id) {
     options.quoted = { key: keyFor(jid, quoted.id, quoted.fromMe), message: { conversation: String(quoted.text || "") } };
   }
-  const result = await sock.sendMessage(jid, buildContent(text, media), options);
+  // Id escolhido ANTES do envio (2026-10-19): o pedido de reenvio do celular chega antes de o sendMessage do Baileys
+  // terminar (ele grava as chaves no banco depois de mandar) — com o id marcado como "em andamento", o pedido espera.
+  const messageId = generateMessageIDV2(sock.user?.id);
+  options.messageId = messageId;
+  sentMessages.begin(userId, messageId);
+  let result;
+  try {
+    result = await sock.sendMessage(jid, buildContent(text, media), options);
+  } catch (error) {
+    sentMessages.abandon(userId, messageId);
+    throw error;
+  }
   const waMessageId = result?.key?.id || "";
-  if (!waMessageId) throw new Error("O WhatsApp não retornou o ID da mensagem enviada.");
-  // Guarda o conteúdo (só em memória, 30 min) para reenviar se um aparelho pedir — ver send-retry.js.
+  if (!waMessageId) { sentMessages.abandon(userId, messageId); throw new Error("O WhatsApp não retornou o ID da mensagem enviada."); }
+  // Guarda o conteúdo (só em memória, 6 h) para reenviar se um aparelho pedir — ver send-retry.js.
   sentMessages.remember(userId, waMessageId, result?.message);
+  if (waMessageId !== messageId) sentMessages.abandon(userId, messageId);
   return { waMessageId, remoteJid: result?.key?.remoteJid || jid };
 }
 

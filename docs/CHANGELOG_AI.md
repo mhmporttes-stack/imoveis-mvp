@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — WhatsApp individual: reenvio ao próprio celular das mensagens do CRM (reincidência do §1-H)
+- **Alteração:** `whatsapp-individual-service`: (1) `sendMessage` escolhe o id antes do envio (`options.messageId`) e o marca como "em andamento"; o pedido de reenvio (`onSendRetryReceipt`) e o `getMessage` esperam o envio terminar (até 20 s, `PENDING_SEND_WAIT_MS`); (2) pedido do próprio celular (`own_device`, fora de grupo) passa a ser sempre reenviado à mão só para o aparelho que pediu, com sessão nova (antes só com `me.lid` vazio); (3) cache 30 min → 6 h (só memória, 300 por sessão).
+- **Motivo:** caso real (corretor, 19/10): 7 de 7 automáticas pedidas de novo pelo celular; 4 "fora do cache" porque o pedido chega antes de o Baileys terminar o commit das chaves; 3 reenviadas pelo Baileys reusando a sessão que falhou (celular pediu de novo 2 h depois). Mensagens chegaram ao cliente (`delivered_at`), sessão/número certos.
+- **Arquivos:** `whatsapp-individual-service/src/send-retry.js`, `whatsapp-individual-service/src/sessions.js`, `tests/whatsapp-send-retry.test.mjs`, `docs/WHATSAPP.md` §1-H, `docs/INCIDENTES.md`.
+- **Deploy:** Railway (à parte da Vercel; reconecta todos os números — publicar fora do horário de disparo).
+
 ### 2026-10-19 — Simulação: ficha do cliente salva sozinha (sem "Atualizar cadastro")
 - **Data:** 2026-10-19
 - **Área:** Clientes / Simulação

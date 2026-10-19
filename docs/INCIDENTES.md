@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — Mensagem automática do corretor chega ao cliente mas não aparece no celular dele (reincidência de 2026-10-16)
+- **Data:** 2026-10-19
+- **Sintoma:** disparos automáticos (Meta Diária/fila) do WhatsApp do corretor aparecem no Chat do CRM, mas não no celular nem no WhatsApp Web dele.
+- **Área:** WhatsApp individual (microsserviço Railway)
+- **Impacto:** corretor do relato: 7 de 7 automáticas do dia (todas ENTREGUES ao cliente — `delivered_at` preenchido, mesmo número/sessão, nenhum JID errado); provável em todos os números.
+- **Causa raiz:** o celular não decifra a cópia (`deviceSentMessage`) e pede reenvio pelo LID — em todas. (1) O pedido chega enquanto o `sendMessage` do Baileys ainda grava as chaves no banco (commit da transação depois de mandar), antes de a mensagem entrar no cache → `send_retry_missing` (4 de 7); (2) quando estava no cache, o reenvio do próprio Baileys (`sendMessagesAgain` sem participant = "para todos") não força sessão nova com o celular e reusa a que falhou — o celular pediu de novo 2 h depois (3 de 7); (3) cache de 30 min não cobria esse 2º pedido.
+- **Correção:** id escolhido antes do envio e marcado "em andamento" — pedido e `getMessage` esperam o fim do envio (até 20 s); pedido do próprio celular sempre reenviado à mão só ao aparelho que pediu, com sessão nova (`resendOwnDeviceRetry`); cache 6 h. Detalhe: `docs/WHATSAPP.md` §1-H.
+- **Arquivos/commit:** `whatsapp-individual-service/src/send-retry.js`, `whatsapp-individual-service/src/sessions.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-send-retry.test.mjs`. Verificar após deploy no Railway: `send_retry_rcpt` com `kind = manual_own_device` seguido de `send_retry_resent` e `send_retry_missing own_device` caindo para ~0 (`whatsapp_session_telemetry`).
+- **Status:** Diagnosticado, correção pendente de deploy no Railway e de confirmação no celular do corretor.
+
 ### 2026-10-19 — "Criar cadastro" na nova simulação não cria o cliente (renomeia outro com o mesmo WhatsApp)
 - **Data:** 2026-10-19
 - **Sintoma:** em Simulações › Nova, o corretor preenche o cadastro do cliente, clica "Criar cadastro" e o cliente não aparece em Clientes; um cliente antigo com o mesmo WhatsApp aparece com o nome novo.
