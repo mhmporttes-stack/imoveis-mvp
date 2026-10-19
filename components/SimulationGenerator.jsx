@@ -32,6 +32,7 @@ import {
   cleanTermMonths,
   normalizeSimulationModels,
   removeSimulationModelsFromNote,
+  simulationModelHasValues,
   simulationModelLabel,
   simulationModelTotals
 } from "@/lib/simulation-models";
@@ -111,7 +112,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const router = useRouter();
   // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
   const basicMode = useBasicMode();
-  const [form, setForm] = useState(() => normalizeInitialSimulation(initialSimulation));
+  // Valor do imóvel (dono, 2026-10-19): simulação ainda sem valores nasce com o teto da faixa (automático, editável);
+  // simulação já salva não é reescrita — sem valor gravado, o teto aparece só como sugestão no campo.
+  const [form, setForm] = useState(() => withDefaultPropertyValues(normalizeInitialSimulation(initialSimulation), fieldSuggestions?.propertyValue));
   // Preferências de imóvel que o cliente preencheu no formulário (dono, 2026-10-14): mostradas no topo da Etapa C.
   const clientPreferences = useMemo(() => getPropertyPreferenceDetails(initialSimulation?.registration?.propertyPreferences || {}), [initialSimulation]);
   const formRef = useRef(form);
@@ -868,6 +871,21 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                   </span>
                 </div>
 
+                {/* Valor do imóvel (dono, 2026-10-19): padrão = teto da faixa MCMV da renda (automático), editável. */}
+                <div className="mt-2 grid items-end gap-x-2.5 min-[400px]:grid-cols-2 sm:gap-x-4" data-property-value={key}>
+                  <MoneyField
+                    label="Valor do imóvel"
+                    placeholder={fieldSuggestions?.propertyValue?.[key]?.value ? formatCurrency(fieldSuggestions.propertyValue[key].value) : ""}
+                    value={normalizedModels[key]?.propertyValue || ""}
+                    onChange={(value) => updateSimulationModel(key, "propertyValue", value)}
+                  />
+                  <p className="mt-1 text-xs font-bold leading-snug text-muted min-[400px]:mt-0 min-[400px]:min-h-14 min-[400px]:self-end min-[400px]:pb-2">
+                    {fieldSuggestions?.propertyValue?.[key]
+                      ? `Teto da ${fieldSuggestions.propertyValue[key].faixa}: ${formatCurrency(fieldSuggestions.propertyValue[key].value)}`
+                      : "Teto da faixa: informe a renda no cadastro"}
+                  </p>
+                </div>
+
                 <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
                 {/* Pares lado a lado também no celular (dono, 2026-10-19): financiamento + subsídio, 1ª + última parcela, prazo + taxa. */}
                 <div className="mt-2 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="price">
@@ -1205,7 +1223,7 @@ function BooleanField({ label, onChange, value, compact = false }) {
   );
 }
 
-function MoneyField({ label, onChange, value, compact = false }) {
+function MoneyField({ label, onChange, value, compact = false, placeholder = undefined }) {
   return (
     <Field
       compact={compact}
@@ -1216,6 +1234,7 @@ function MoneyField({ label, onChange, value, compact = false }) {
       enterKeyHint="next"
       autoComplete="off"
       inputClassName="!px-2.5 sm:!px-4"
+      placeholder={placeholder}
       value={value}
       onChange={(nextValue) => onChange(formatCurrencyInput(nextValue))}
     />
@@ -1413,6 +1432,7 @@ function formatSimulationModelsForForm(models) {
         firstInstallment: formatStoredCurrencyInput(normalized[key]?.firstInstallment),
         lastInstallment: formatStoredCurrencyInput(normalized[key]?.lastInstallment),
         termMonths: cleanTermMonths(normalized[key]?.termMonths),
+        propertyValue: formatStoredCurrencyInput(normalized[key]?.propertyValue),
         sac: {
           financingValue: formatStoredCurrencyInput(normalized[key]?.sac?.financingValue),
           subsidyValue: formatStoredCurrencyInput(normalized[key]?.sac?.subsidyValue),
@@ -1440,6 +1460,17 @@ function createModelSyncState(form) {
       }
     ];
   }));
+}
+
+function withDefaultPropertyValues(form, defaults) {
+  if (!defaults) return form;
+  const models = normalizeSimulationModels(form.simulationModels, form);
+  if (SIMULATION_MODEL_TYPES.some(({ key }) => simulationModelHasValues(models[key]))) return form;
+  const filled = Object.fromEntries(SIMULATION_MODEL_TYPES.map(({ key }) => [key, {
+    ...models[key],
+    propertyValue: models[key]?.propertyValue || (defaults[key]?.value ? formatCurrency(defaults[key].value) : "")
+  }]));
+  return { ...form, simulationModels: filled };
 }
 
 function isSyncedModelField(field) {

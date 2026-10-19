@@ -126,6 +126,7 @@ function ScenarioCard({ card, current, highlights, busy, onUse }) {
               {highlights[type].lowestInstallmentId === card.id ? <span className="rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-bold text-info">Menor parcela</span> : null}
             </div>
             <dl className="mt-1 grid grid-cols-2 gap-x-2 text-xs tabular-nums">
+              {values.propertyValue > 0 ? <><dt className="text-muted">Valor do imóvel</dt><dd className="text-right text-ink">{money(values.propertyValue)}</dd></> : null}
               <dt className="text-muted">Financiado</dt><dd className="text-right text-ink">{money(values.price.financing || values.sac.financing)}</dd>
               <dt className="text-muted">Subsídio</dt><dd className="text-right text-ink">{money(values.price.subsidy || values.sac.subsidy)}</dd>
               <dt className="text-muted">1ª Price</dt><dd className="text-right text-ink">{money(values.price.firstInstallment)}</dd>

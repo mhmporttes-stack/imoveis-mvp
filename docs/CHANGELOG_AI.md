@@ -118,6 +118,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Valor do imóvel na simulação do cliente (teto da faixa, editável)
+- **Data:** 2026-10-19
+- **Área:** motor (`lib/financiamento-estimativa-core.mjs`), simulação automática/Refazer (`lib/simulations.js`), modelos (`lib/simulation-models.js`), conferência e cenários (`lib/simulation-auto-review-core.mjs`, `lib/simulation-scenarios-core.mjs`), Gerador (`components/SimulationGenerator.jsx`), "Comparar simulações" (`components/SimulationScenarios.jsx`)
+- **Alteração:** "Valor do imóvel" por tipo, padrão = teto da faixa MCMV da renda considerada (235 mil até R$ 5 mil em Marília; 400 mil até R$ 9,6 mil; 600 mil até R$ 13 mil), editável no Gerador; gravado no JSON dos modelos (sem coluna nova, sem migration); snapshot e cenários levam o valor. Simulações antigas não são reescritas.
+- **Motivo:** regra oficial do dono (2026-10-19). Tetos conferidos no gov.br (MCMV-FGTS) — motor já usava o teto da faixa; nenhum 235 mil fixo fora da tabela.
+- **Verificação:** `tests/simulation-property-value.test.mjs` (rendas 2,5k/5k/6k/9k/12k); suíte sem falha nova; `pnpm build`; render do Gerador 360/390 (scratchpad/simulacao-aba/gerador-valor-imovel-*.png).
+- **Arquivos afetados:** os acima + `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** o valor não aparece no site público, no PDF nem na apresentação (não pedido). O Gerador não recalcula nada com ele (valores vêm da Caixa).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Simulador Caixa: sem "Regime", renda do corretor exata, "Valor do imóvel" e grade uniforme
 - **Data:** 2026-10-19
 - **Área:** `components/CaixaSimulator.jsx`, `lib/caixa-simulator-core.mjs`, `lib/financiamento-estimativa-core.mjs` (valor do imóvel opcional), API do voto, SQL de análise (seção 4)
