@@ -76,15 +76,13 @@ test("financiamento trava em 80% do teto da faixa (Faixas 1 e 2: R$ 188.000)", (
   assert.ok(result.purchasePower <= 235000);
 });
 
-test("entrada mínima = o que falta para a cota de 80% depois do subsídio; recurso maior aumenta o poder de compra", () => {
+test("poder de compra = financiado + subsídio (sem entrada nem recurso); entrada em linha separada", () => {
   const base = { primaryMonthlyIncome: 2300, hasOverThreeYearsRegisteredWork: true, hasChildrenUnder18: false, oldestBirthDate: "2000-01-01", hasResidentialProperty: false, availablePurchaseResource: 0 };
   const semRecurso = estimateFinancing(base, REFERENCE_DATE);
-  assert.equal(semRecurso.minimumDownPayment, Math.round(semRecurso.financing / 0.8 - semRecurso.financing - semRecurso.subsidy));
-  assert.equal(semRecurso.downPayment, semRecurso.minimumDownPayment);
-  assert.equal(semRecurso.purchasePower, Math.round((semRecurso.financing + semRecurso.subsidy + semRecurso.downPayment) * 100) / 100);
+  assert.equal(semRecurso.downPayment, Math.round(semRecurso.financing / 0.8 - semRecurso.financing - semRecurso.subsidy));
+  assert.equal(semRecurso.purchasePower, Math.round((semRecurso.financing + semRecurso.subsidy) * 100) / 100);
   const comRecurso = estimateFinancing({ ...base, availablePurchaseResource: 60000 }, REFERENCE_DATE);
-  assert.equal(comRecurso.purchasePower, Math.round((comRecurso.financing + comRecurso.subsidy + 60000) * 100) / 100);
-  assert.equal(comRecurso.downPayment, 60000);
+  assert.equal(comRecurso.purchasePower, semRecurso.purchasePower);
   const rendaBaixaComFilhos = estimateFinancing({ ...base, primaryMonthlyIncome: 1800, hasChildrenUnder18: true }, REFERENCE_DATE);
   assert.equal(rendaBaixaComFilhos.downPayment, 0); // subsídio cheio cobre os 20%
 });

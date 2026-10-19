@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: confirmações do dono (teto R$ 235 mil, subsídio zero de R$ 4 a 5 mil, poder = financiado + subsídio)
+- **Data:** 2026-10-19
+- **Área:** Estimativa automática do site + bloco da ficha no CRM
+- **Alteração:** "pode comprar até" passa a ser financiado + subsídio (antes somava a entrada/recurso), igual às apresentações; entrada continua em linha separada (sem a nota "Mínimo exigido"). Teto de R$ 235 mil (Marília, renda até R$ 5 mil) e subsídio zero acima de R$ 4 mil viram regra oficial (`docs/BUSINESS_RULES.md` SIM-AUTO).
+- **Motivo:** respostas do dono às 3 perguntas da entrega anterior.
+- **Verificação:** `tests/financiamento-estimativa.test.mjs`, `pnpm build`, tela final renderizada em 390 e 320 px (sem rolagem lateral).
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `components/simulation-form/SimulationSuccess.jsx` (cartões cabem em 320 px), `tests/financiamento-estimativa.test.mjs`, `docs/BUSINESS_RULES.md`, vitrine DEV `app/dev/vitrine/estimativa/page.dev.jsx` (dados fictícios, só `next dev`).
+- **Risco/observação:** nenhum.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: site calcula sozinho a simulação Caixa/MCMV e mostra ao cliente depois do cadastro
 - **Data:** 2026-10-19
 - **Área:** Site público `/simulacao` (tela final) + ficha do cliente no CRM / motor de cálculo novo

@@ -56,17 +56,13 @@ function EstimateResult({ estimate }) {
     <section aria-label="Resultado da simulação estimada" className="mt-6 text-left">
       <div className="rounded-2xl bg-navy px-5 py-5 text-white">
         <p className="text-sm font-semibold text-white/80">Você pode comprar um imóvel de até</p>
-        <p className="mt-1 text-[clamp(1.9rem,8vw,2.5rem)] font-black leading-tight tracking-[-0.02em] tabular-nums">{formatMoneyBR(estimate.purchasePower)}</p>
+        <p className="mt-1 text-[clamp(1.5rem,8vw,2.5rem)] font-black leading-tight tracking-[-0.02em] tabular-nums">{formatMoneyBR(estimate.purchasePower)}</p>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-3">
+      <dl className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
         <EstimateItem label="Valor financiado" value={formatMoneyBR(estimate.financing)} />
         <EstimateItem label="Subsídio estimado" value={formatMoneyBR(estimate.subsidy)} />
-        <EstimateItem
-          label="Entrada necessária"
-          value={formatMoneyBR(estimate.downPayment)}
-          note={estimate.downPayment > estimate.minimumDownPayment ? `Mínimo exigido: ${formatMoneyBR(estimate.minimumDownPayment)}` : ""}
-        />
+        <EstimateItem label="Entrada necessária" value={formatMoneyBR(estimate.downPayment)} />
         <EstimateItem label="Prazo" value={`${estimate.termMonths} meses`} note={`Juros de ${rate}% ao ano`} />
         <EstimateItem label="1ª parcela Price" value={formatMoneyBR(estimate.priceFirstInstallment)} note={`${percent(estimate.priceIncomeShare)} · parcelas quase iguais`} />
         <EstimateItem label="1ª parcela SAC" value={formatMoneyBR(estimate.sacFirstInstallment)} note={`${percent(estimate.sacIncomeShare)} · diminui todo mês`} />
@@ -79,9 +75,9 @@ function EstimateResult({ estimate }) {
 
 function EstimateItem({ label, value, note = "" }) {
   return (
-    <div className="rounded-2xl border border-line px-4 py-3">
+    <div className="min-w-0 rounded-2xl border border-line px-3 py-3 sm:px-4">
       <dt className="text-xs font-semibold text-muted">{label}</dt>
-      <dd className="mt-0.5 text-base font-black text-navy tabular-nums">{value}</dd>
+      <dd className="mt-0.5 text-[clamp(0.8rem,4vw,1rem)] font-black text-navy tabular-nums">{value}</dd>
       {note ? <dd className="mt-0.5 text-xs leading-4 text-muted">{note}</dd> : null}
     </div>
   );
