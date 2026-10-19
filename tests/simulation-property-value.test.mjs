@@ -102,3 +102,18 @@ test("Gerador: campo Valor do imóvel por tipo, automático só em simulação s
   assert.match(ui, /withDefaultPropertyValues\(normalizeInitialSimulation\(initialSimulation\), fieldSuggestions\?\.propertyValue\)/);
   assert.match(ui, /if \(SIMULATION_MODEL_TYPES\.some\(\(\{ key \}\) => simulationModelHasValues\(models\[key\]\)\)\) return form;/);
 });
+
+// Caso real #C6771 (dono, 2026-10-19): Caixa MCMV-FGTS, imóvel novo de R$ 400.000 (Faixa 3), 420 meses, 7,66% a.a.,
+// nascido em 04/01/1997, cotista, com dependente: financiado R$ 291.128,51, 1ª parcela R$ 2.074,42, última R$ 2.021,27.
+// Reproduz com renda de R$ 7.000 na Caixa e margem proporcional ao valor do imóvel (R$ 15,03 por R$ 235 mil).
+test("Faixa 3, imóvel R$ 400 mil: margem da parcela proporcional ao valor do imóvel (#C6771)", () => {
+  const estimate = estimateFinancing(person(7000, { oldestBirthDate: "1997-01-04", propertyValue: 400000 }), REF);
+  assert.equal(estimate.annualRate, 7.66);
+  assert.equal(estimate.termMonths, 420);
+  assert.equal(estimate.priceFirstInstallment, 2074.42);
+  assert.ok(Math.abs(estimate.priceLastInstallment - 2021.27) <= 0.02);
+  assert.ok(Math.abs(estimate.financing - 291128.51) <= 1);
+  // imóvel de R$ 235 mil: margem de sempre (R$ 15,03)
+  const at235 = estimateFinancing(person(3000), REF);
+  assert.equal(at235.priceFirstInstallment, Math.round((0.3 * 3000 - 15.03) * 100) / 100);
+});

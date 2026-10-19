@@ -131,6 +131,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Motor: margem da parcela proporcional ao valor do imóvel (Faixa 3)
+- **Data:** 2026-10-19
+- **Área:** `lib/financiamento-estimativa-core.mjs` (`INSTALLMENT_MARGIN_RATE`)
+- **Alteração:** parcela máxima = 30% da renda − R$ 15,03 × (valor do imóvel ÷ 235 mil), em vez de R$ 15,03 fixos. Só muda quando o valor do imóvel é digitado acima de 235 mil.
+- **Motivo:** caso #C6771 do dono (Faixa 3, imóvel R$ 400 mil) e simulações reais de Faixa 3 (margens R$ 19,19 / R$ 25,58 = mesma proporção). Com renda de R$ 7.000 reproduz a Caixa no centavo; a renda informada pelo dono (R$ 7.500) não reproduz — a confirmar.
+- **Verificação:** `tests/simulation-property-value.test.mjs` (#C6771); suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `tests/simulation-property-value.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** o backtest (sem valor do imóvel salvo nas simulações reais) não muda; a aderência de Faixa 3 só melhora quando o corretor digita o valor do imóvel.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Motor: subsídio zero para comprador sozinho acima de R$ 3.200 e valor padrão do imóvel R$ 235 mil
 - **Data:** 2026-10-19
 - **Área:** `lib/financiamento-estimativa-core.mjs` (vale para site, Refazer, Gerador e Simulador Caixa), textos em `lib/simulations.js`, `components/SimulationGenerator.jsx`, `components/CaixaSimulator.jsx`
