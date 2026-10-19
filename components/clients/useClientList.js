@@ -724,7 +724,17 @@ export function useClientList({
     // sessão conectada do corretor; sem sessão ou sem resposta em 5 s, segue normalmente (nunca bloqueia por não saber).
     if (decision.action !== CARD_WA_EXTERNAL) {
       const check = await fetch(`/api/admin/whatsapp-chat/check-client?clientId=${encodeURIComponent(registrationId)}`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
-        .then((response) => (response.ok ? response.json() : null)).catch(() => null);
+        .then(async (response) => {
+          if (response.ok) return response.json();
+          // Cliente que voltou para a fila de reativação por falta de mensagem no prazo (FUN-15l, dono 2026-10-19): avisa o
+          // motivo em vez de abrir o Chat para dar "sem acesso". Demais erros seguem como antes (não bloqueiam aqui).
+          const data = response.status === 403 ? await response.json().catch(() => null) : null;
+          return data?.code === "REACTIVATION_REQUEUED" ? { requeued: true, error: data.error } : null;
+        }).catch(() => null);
+      if (check?.requeued) {
+        notify(check.error, "danger");
+        return;
+      }
       if (check?.exists === false) {
         notify("O número não possui WhatsApp.", "danger");
         return;

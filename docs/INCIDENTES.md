@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — Corretor recebe cliente e o WhatsApp diz que ele não tem acesso
+- **Data:** 2026-10-19
+- **Sintoma:** "o corretor está recebendo clientes e, ao clicar no WhatsApp do card, aparece que ele não tem acesso ao cliente — mesmo dentro do prazo".
+- **Área:** Roleta / fila de reativação (FUN-15l), WhatsApp/Chat
+- **Impacto:** 1 corretor, 10 clientes em ~2 h; nenhum dado errado.
+- **Causa raiz:** não era permissão quebrada. Cada cliente da fila de reativação voltava ao dono 3,5–4,5 min depois da entrega (prazo de 3 min sem mensagem; cron de 2 min). O aviso "Cliente transferido para você" continuava no sino e o corretor o abria depois disso; aí `openChatForClient` recusava com o genérico "Você não tem acesso a este cliente.".
+- **Correção:** decisão do dono: prazo de 5 min, contagem regressiva no aviso, "Prazo encerrado — o cliente voltou para a fila" e mensagem específica no clique — ver `CHANGELOG_AI.md` (2026-10-19, FUN-15l).
+- **Arquivos/commit:** `lib/cooled-clients-reactivation*.{js,mjs}`, `lib/whatsapp-chat.js`, `components/cooled/ReactivationNoticeStatus.jsx` — ver `git log` de 2026-10-19
+- **Prevenção/teste:** `tests/cooled-reactivation-queue.test.mjs` (prazo, estados do aviso, mensagem do clique). Diagnóstico: `lead_distribution_history` (`trigger` da devolução) × `crm_notifications.read_at`.
+- **Status:** Resolvido (aguardando deploy)
 ### 2026-10-19 — Corretora enviou a simulação mas o Chat diz que não enviou e não deixa mandar mensagem
 - **Data:** 2026-10-19
 - **Sintoma:** "já enviei a simulação (o link está no Chat), mas o sistema diz que ainda não enviei e não consigo mandar mensagens"; também recusa marcar "Simulação enviada".

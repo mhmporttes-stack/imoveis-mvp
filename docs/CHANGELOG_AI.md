@@ -162,6 +162,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Fila de reativação: prazo de 5 min, contagem regressiva no aviso e motivo claro no WhatsApp (FUN-15l)
+- **Data:** 2026-10-19
+- **Área:** Clientes que esfriaram / fila de reativação (FUN-15l), sino/Notificações, botão WhatsApp do card e Chat.
+- **Alteração:** (1) prazo sem mensagem humana passa de 3 para **5 min** (`REACTIVATION_DEADLINE_MS`, fonte única em `lib/cooled-clients-reactivation-core.mjs`; não havia prazo em SQL, sem migration); devoluções novas gravam `trigger = no_message_deadline` (antigas `no_message_3min` lidas como 3 min). (2) Aviso "Cliente transferido para você" ganha contagem regressiva e, vencido/devolvido, "Prazo encerrado — o cliente voltou para a fila" (`attachReactivationNoticeStates` em `lib/cooled-clients-reactivation.js`, só leitura; usado por `listMyBellNotifications` e `listCrmNotifications`; tela `components/cooled/ReactivationNoticeStatus.jsx`). (3) Clique no WhatsApp de cliente devolvido por prazo: 403 com código `REACTIVATION_REQUEUED` e "Este cliente voltou para a fila porque nenhuma mensagem foi enviada em 5 minutos" (`clientOutOfScopeError`, `lib/whatsapp-chat.js`, nas 3 checagens de escopo); o card de Clientes mostra o aviso e não abre o Chat. Demais "sem acesso" inalterados.
+- **Motivo:** decisão do dono (2026-10-19) depois do relato "Gabriel recebe clientes e o WhatsApp diz que não tem acesso": em 10 entregas nenhuma mensagem foi enviada; ele abria o aviso depois que o cliente já tinha voltado para a fila e via só o erro genérico.
+- **Verificação:** `node --test tests/cooled-reactivation-queue.test.mjs` (17 ok) + testes de chat/alertas/cooled (falhas pré-existentes iguais sem a mudança: `chat-reply-preview` 1, `client-card-whatsapp-chat` 4); `pnpm build`.
+- **Arquivos afetados:** `lib/cooled-clients-reactivation-core.mjs`, `lib/cooled-clients-reactivation.js`, `lib/whatsapp-chat.js`, `lib/crm-alerts.js`, `lib/crm.js`, `components/cooled/ReactivationNoticeStatus.jsx`, `components/alerts/NotificationHistoryButton.jsx`, `components/CrmNotificationsList.jsx`, `components/clients/useClientList.js`, `tests/cooled-reactivation-queue.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15l, ROL-2g, ROL-2h), `.claude/rules/crm-clientes-funil.md`, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** como o cron roda a cada 2 min, a devolução real acontece entre 5 e 7 min; nesse intervalo o aviso já mostra "Prazo encerrado" embora uma mensagem enviada ainda segure o cliente. A contagem usa o relógio do aparelho.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Trava "simulação primeiro"/"Simulação enviada" não reconhecia a apresentação enviada com botão pelo número oficial
 - **Data:** 2026-10-19
 - **Área:** Chat/ROL-4c e FUN-13 (evidência única de "simulação enviada").
