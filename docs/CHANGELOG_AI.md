@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Agendar atendimento: escassez oscila de 10% a 40% por dia
+- **Data:** 2026-10-19
+- **Área:** Apresentação da simulação — "Agendar atendimento" (PRES-22)
+- **Alteração:** a escassez artificial deixou de ser ~metade de cada trecho (manhã/tarde). Agora, por dia, sorteia-se uma fração entre 10% e 40% (determinística por data + gestora + segredo) e esses horários ficam "Indisponível" em blocos de 2 a 4, separados por 2+ livres, posicionados no dia inteiro. Atendimentos reais da gestora continuam sempre indisponíveis e somam-se. Tela (`buildClientAgenda`) e validação do POST (`slotState`) seguem a mesma função. `scarcityIndexes` passou a receber a quantidade (`(n, busy, random)`); nova `scarcityCountForDay`.
+- **Motivo:** pedido do dono em 2026-10-19: "Em agendar reunião oscile nos dias, deixe apenas de 10 a 40% das datas indisponíveis."
+- **Arquivos afetados:** `lib/client-appointments-core.mjs`, `tests/client-appointments.test.mjs`, `docs/BUSINESS_RULES.md`, `.claude/rules/crm-clientes-funil.md` (regra + `paths:` do agendamento).
+- **Risco/observação:** a agenda mostrada a todos os clientes muda uma vez com a publicação (novo sorteio); reservas já gravadas não são afetadas. Seg-sex: 3 a 8 de 21; sábado: 2 a 3 de 9 (1 de 9 ficaria isolado). Sem migration.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — Estratégia com amortização: 13º líquido, 13º sempre em dezembro e "Projeção de quitação"
 - **Data:** 2026-10-19
 - **Área:** Apresentação da simulação (PRES-24)

@@ -78,27 +78,53 @@ function datesAhead(count) {
   return Array.from({ length: count }, (_, i) => new Date(Date.UTC(2026, 9, 5) + i * 86_400_000).toISOString().slice(0, 10));
 }
 
-test("escassez: manhã e tarde com ~metade indisponível, em blocos de 2 a 4, nunca alternado", () => {
-  for (const date of datesAhead(120)) {
-    for (const manager of ["g1", "g2", "g3"]) {
-      const busy = scarcityBusyTimes(date, agendaSeed("s", manager));
-      const slots = baseSlotsForDate(date);
-      for (const part of [slots.filter((t) => t < "12:00"), slots.filter((t) => t >= "12:00")]) {
-        if (!part.length) continue;
-        const flags = part.map((time) => busy.has(time));
-        const count = flags.filter(Boolean).length;
-        if (part.length < 4) {
-          assert.equal(count, Math.floor(part.length / 2), `${date} trecho curto`);
-          continue;
-        }
-        assert.ok(count >= Math.floor(part.length / 2) && count <= Math.ceil(part.length / 2), `${date} ${manager}: ${count}/${part.length}`);
-        const parts = runs(flags);
+test("escassez (dono, 2026-10-19): por dia, 10% a 40% indisponível, em blocos de 2 a 4, nunca alternado", () => {
+  for (const date of datesAhead(400)) {
+    const slots = baseSlotsForDate(date);
+    if (!slots.length) continue;
+    for (const manager of ["g1", "g2", "g3", "g4", "g5"]) {
+      for (const secret of ["s", "outro-segredo"]) {
+        const busy = scarcityBusyTimes(date, agendaSeed(secret, manager));
+        const fraction = busy.size / slots.length;
+        assert.ok(fraction >= 0.1 && fraction <= 0.4, `${date} ${manager}: ${busy.size}/${slots.length}`);
+        for (const time of busy) assert.ok(slots.includes(time), `${date} horário inexistente ${time}`);
+        const parts = runs(slots.map((time) => busy.has(time)));
         parts.forEach((run, i) => {
           if (run.busy) assert.ok(run.size >= 2 && run.size <= 4, `${date} bloco de ${run.size}`);
           // livre isolado entre dois blocos ocupados = alternado
           if (!run.busy && i > 0 && i < parts.length - 1) assert.ok(run.size >= 2, `${date} livre isolado entre blocos`);
         });
       }
+    }
+  }
+});
+
+test("escassez: a fração oscila entre os dias (não é sempre a mesma)", () => {
+  const counts = new Set(datesAhead(60).filter((d) => baseSlotsForDate(d).length === 21).map((d) => scarcityBusyTimes(d, SEED).size));
+  assert.ok(counts.size >= 4, `quantidades vistas: ${[...counts]}`);
+  assert.ok(Math.min(...counts) <= 4 && Math.max(...counts) >= 7, `faixa vista: ${[...counts]}`);
+});
+
+test("escassez: a regra só sorteia; atendimento real soma-se e nunca é liberado", () => {
+  for (const date of datesAhead(30)) {
+    const slots = baseSlotsForDate(date);
+    if (!slots.length) continue;
+    const real = new Set(slots.filter((_, i) => i % 3 === 0).map((time) => slotStartsAt(date, time)));
+    const scarce = scarcityBusyTimes(date, SEED);
+    const before = new Date(`${date}T00:00:00-03:00`); // horários do dia todos no futuro
+    for (const time of slots) {
+      const state = slotState({ date, time, now: before, seed: SEED, busyStarts: real });
+      const expected = real.has(slotStartsAt(date, time)) || scarce.has(time) ? "unavailable" : "available";
+      if (state !== "invalid") assert.equal(state, expected, `${date} ${time}`);
+    }
+  }
+});
+
+test("escassez: a agenda da tela e o slotState (validação do POST) seguem a mesma regra", () => {
+  const busyStarts = new Set([slotStartsAt("2026-10-09", "14:00"), slotStartsAt("2026-10-13", "08:30")]);
+  for (const day of buildClientAgenda({ now: NOW, seed: SEED, busyStarts })) {
+    for (const slot of day.slots) {
+      assert.equal(slot.available, slotState({ date: day.date, time: slot.time, now: NOW, seed: SEED, busyStarts }) === "available");
     }
   }
 });
