@@ -161,3 +161,30 @@ test("aba da simulação: Enviar bloqueado na automática, Salvar só para nova/
   assert.deepEqual(auto.annualRate, { value: 4.25, source: "simulacao_automatica", label: "Taxa da simulação automática" });
   assert.equal(simulationFieldSuggestions({ registration: {}, simulation: { interestRateAnnual: 5 }, referenceDate: "2026-10-19" }).annualRate.source, "ultima_usada");
 });
+
+import { snapshotWithPreviousRound } from "../lib/simulation-auto-review-core.mjs";
+
+test("refazer sem a migration 20261019200000: conferência fechada é reaberta como pendente, rodada anterior guardada (incidente 2026-10-19)", () => {
+  const lib = source("lib/simulation-auto-reviews.js");
+  assert.match(lib, /if \(newRound\) return reopenClosedReview\(\{ simulationId, snapshot \}\)/);
+  const reopen = /async function reopenClosedReview[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
+  assert.match(reopen, /review_status: AUTO_REVIEW_STATUS\.PENDING/);
+  assert.match(reopen, /snapshotWithPreviousRound\(snapshot, previous\)/);
+  const previous = { id: "r1", review_status: "ok", reviewed_by_email: "a@b", auto_snapshot: { version: "v1", origin: "site", previousRounds: [{ review_status: "corrected" }] } };
+  const next = snapshotWithPreviousRound({ version: "v2", origin: "refazer" }, previous);
+  assert.equal(next.version, "v2");
+  assert.deepEqual(next.previousRounds.map((round) => round.review_status), ["ok", "corrected"]);
+  assert.deepEqual(next.previousRounds[0].auto_snapshot, { version: "v1", origin: "site" });
+  assert.equal(next.previousRounds[0].id, undefined);
+  assert.deepEqual(snapshotWithPreviousRound({ version: "v2" }, null), { version: "v2" });
+});
+
+test("/s/<token> de simulação automática aguardando conferência: aviso amigável, demais motivos seguem 404", () => {
+  const page = source("app/apresentacao/[token]/page.jsx");
+  assert.match(page, /reason === PRESENTATION_UPDATING_REASON\) return <PresentationUpdating \/>/);
+  assert.match(page, /if \(!dto\) notFound\(\)/);
+  assert.doesNotMatch(page.split("function PresentationUpdating")[1], /dto|token|recordPresentationEvent/);
+  const lib = source("lib/simulation-presentation.js");
+  assert.match(lib, /PRESENTATION_UPDATING_REASON = "simulacao_automatica_nao_conferida"/);
+  assert.match(lib, /export async function getPublicPresentation\(token, options = \{\}\) \{\n  return \(await resolvePublicPresentation\(token, options\)\)\.dto;/);
+});

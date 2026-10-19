@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Correção: "Refazer simulação automática" sem a migration de histórico deixava o /s/ em 404 sem conferência
+- **Causa raiz:** `saveAutoSnapshot(newRound)` caía no índice único antigo `simulation_auto_reviews(simulation_id)` (migration 20261019200000 não aplicada) e desistia com `false` quando a conferência anterior já estava fechada; a simulação voltava a automática (portão SIM-AUTO → 404) sem conferência pendente.
+- **Correção:** reabre a mesma linha como `pending` e guarda a rodada anterior em `auto_snapshot.previousRounds` (`snapshotWithPreviousRound`, `lib/simulation-auto-review-core.mjs`). Com a migration aplicada, o caminho normal (superseded + linha nova) segue igual. `/s/<token>` de simulação automática aguardando conferência mostra "Esta apresentação está sendo atualizada pelo seu corretor" (`resolvePublicPresentation` + `PRESENTATION_UPDATING_REASON`, `lib/simulation-presentation.js`); `getPublicPresentation` (og/imagem/documentos) inalterada; demais motivos seguem 404; links de simulações não automáticas sem mudança.
+- **Arquivos afetados:** `lib/simulation-auto-reviews.js`, `lib/simulation-auto-review-core.mjs`, `lib/simulation-presentation.js`, `app/apresentacao/[token]/page.jsx`, `tests/simulation-auto-status.test.mjs`, `docs/INCIDENTES.md`.
+- **Risco/observação:** a análise `docs/analytics/simulacao-automatica-conferencia.sql` passa a ver a linha reaberta como pendente (a rodada anterior fica no JSON). Testes da área (209) e build ok.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Atalho do Simulador Caixa no cabeçalho de Clientes (computador)
 - **Pedido do dono:** ícone de calculadora do Simulador Caixa na fileira de atalhos (Meta, Chat, Agenda, E-mail, Sino), mesmo estilo (`SHORTCUT_ICON_BUTTON`), sem contador, título/aria-label "Simulador Caixa", para todos os perfis (a página usa `requireAdminPage`). Colocado depois da Agenda; nenhum ícone removido.
 - **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`, `tests/caixa-simulator.test.mjs`.

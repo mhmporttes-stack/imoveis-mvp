@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — Link de apresentação /s/ dá 404 depois de "Refazer simulação automática"
+- **Data:** 2026-10-19
+- **Sintoma:** o link `/s/<token>` de um cliente cuja simulação já tinha sido conferida ("Simulação OK") passou a mostrar "This page could not be found" logo depois de o corretor clicar "Refazer simulação automática".
+- **Área:** Simulação / Apresentação (SIM-AUTO)
+- **Impacto:** todo cliente com conferência já fechada (OK/corrigida) em que se clicasse "Refazer" (ou "Usar este cenário" não conferido): link em 404 e nenhuma conferência pendente gravada (os 👍/👎 da tela, guiados por `createdBy`, ainda liberavam; o OK/correção não era registrado).
+- **Causa raiz:** o 404 em si é o portão SIM-AUTO (`resolvePublicPresentation`, simulação voltou a ser automática). O defeito: `saveAutoSnapshot(newRound)` tenta inserir uma conferência nova, mas a migration 20261019200000 nunca foi aplicada — o índice único antigo por `simulation_id` devolvia 23505 e a função só registrava aviso e devolvia `false`, deixando a simulação automática sem conferência pendente.
+- **Correção:** sem a migration, o "Refazer" reabre a linha existente como `pending` (limpa revisor/correção) e guarda a rodada anterior em `auto_snapshot.previousRounds` (`snapshotWithPreviousRound`). Link bloqueado agora mostra "Esta apresentação está sendo atualizada pelo seu corretor" em vez do 404 cru (demais motivos seguem 404).
+- **Arquivos/commit:** `lib/simulation-auto-reviews.js`, `lib/simulation-auto-review-core.mjs`, `lib/simulation-presentation.js`, `app/apresentacao/[token]/page.jsx` — ver `git log`
+- **Prevenção/teste:** `tests/simulation-auto-status.test.mjs` (reabertura + página amigável). Cliente do caso continua com a conferência 'ok' antiga: basta clicar 👍 (ou "Refazer" de novo, já corrigido) para liberar.
+- **Status:** Resolvido
 ### 2026-10-18 — iPhone ainda dá zoom ao tocar no "Valor" da Estratégia (depois de cbef8ae)
 - **Data:** 2026-10-18
 - **Sintoma:** em `/s/<token>`, ao tocar/digitar no campo "Valor" da folha "ESTRATÉGIA COM AMORTIZAÇÃO", a página amplia ~1,3x (texto todo maior e deslocado) e não volta.
