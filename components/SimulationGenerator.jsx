@@ -13,6 +13,7 @@ import { PRINTED_LIST_MODE_CODE } from "@/lib/whatsapp-manual-disconnect-core.mj
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
 import {
@@ -103,7 +104,10 @@ const INITIAL_FORM = {
 const SYNCED_MODEL_FIELDS = ["financingValue", "firstInstallment", "lastInstallment"];
 const MODEL_PEER = { novo: "usado", usado: "novo" };
 
-export default function SimulationGenerator({ properties = [], initialSimulation = null }) {
+// Props para o redesenho da aba (designer-crm, 2026-10-19): `fieldSuggestions` = { termMonths, annualRate } de
+// simulationFieldSuggestions (lib/financiamento-estimativa-core.mjs), cada um { value, source, label } ou null — a tela
+// marca "confira" com a origem. `clientSheetHref` = onde editar o cadastro completo.
+export default function SimulationGenerator({ properties = [], initialSimulation = null, fieldSuggestions = null, clientSheetHref = "" }) {
   const router = useRouter();
   // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
   const basicMode = useBasicMode();
@@ -520,7 +524,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             id: data.id || current.id,
             registrationId: data.registrationId || current.registrationId,
             registration: nextRegistration,
-            clientName: data.clientName || current.clientName
+            clientName: data.clientName || current.clientName,
+            // Depois de salvar a correção da simulação automática ela vira do corretor (o Enviar volta a funcionar).
+            createdBy: data.createdBy !== undefined ? data.createdBy : current.createdBy
           };
           return JSON.stringify(next) === JSON.stringify(current) ? current : next;
         });
@@ -619,6 +625,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   //  2) senão -> abre o WhatsApp do PRÓPRIO corretor (app no celular/PWA, WhatsApp Web no computador) com SÓ o link (sem
   //     texto: com texto junto a prévia não carrega) — o app dele monta a prévia, o que o envio pelo Chat no pessoal não faz.
   async function sendPresentationToWhatsApp() {
+    // Simulação automática ainda não conferida (SIM-AUTO): o Enviar NÃO pode salvar por cima (isso a converteria sem o
+    // OK/Corrigir obrigatório) nem gerar o link — mostra o aviso da conferência.
+    if (isAutomaticSimulationSource(formRef.current?.createdBy)) {
+      setError(AUTO_PRESENTATION_LOCKED_MESSAGE);
+      setMessage("");
+      return;
+    }
     if (!form.id) {
       setError("Salve a simulação antes de enviar a apresentação.");
       setMessage("");
@@ -1091,9 +1104,14 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             </div>
           </div>
           )}
+          {/* "Salvar simulação" só para simulação NOVA (cria) ou automática (salvar = correção da Caixa). Simulação existente
+              do corretor: o autosave grava tudo (mesmo corpo do Salvar) e o Enviar faz o salvamento completo (prazo/taxa
+              obrigatórios) antes de gerar o link (dono, 2026-10-19). */}
+          {!form.id || isAutomaticSimulationSource(form.createdBy) ? (
           <button className="premium-button-primary" disabled={saving} onClick={saveSimulation} type="button">
-            <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : "Salvar simulação"}
+            <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : isAutomaticSimulationSource(form.createdBy) ? "Salvar correção da Caixa" : "Salvar simulação"}
           </button>
+          ) : null}
           {form.id ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-extrabold text-navy">
               <span>{autoSaveStatusLabel(autoSaveStatus)}</span>

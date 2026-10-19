@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: peso da parcela (R$ 60) no melhor cenário; lógica para o redesenho da aba da simulação
+- **Data:** 2026-10-19
+- **Área:** Motor da estimativa; aba da simulação (`SimulationGenerator`, `/admin/simulacoes/[id]`); cenários
+- **Alteração:** otimizador por tipo usa poder − 60 × parcela (caso do dono: novo R$ 1.770, usado R$ 2.550). `simulationFieldSuggestions` (prazo pela idade, taxa com origem) e `clientSheetHref` passados ao Gerador como props. Enviar bloqueado na automática não conferida (antes salvava por cima e liberava o link sem a conferência); "Salvar" só para nova/automática; autosave do corretor grava cenário (agrupado em 30 min).
+- **Motivo:** aprovação do dono (2026-10-19) do peso e do redesenho.
+- **Verificação:** testes `financiamento-estimativa`, `simulation-auto-status`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `lib/simulations.js`, `lib/simulation-scenarios.js`, `components/SimulationGenerator.jsx`, `app/admin/simulacoes/[id]/page.jsx`, testes, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** "cadastro completo fora da aba" NÃO feito — a ficha do cliente não edita renda/regime/nascimento/filhos/3 anos (só e-mail e PIS); tirar da aba perderia a edição. Pendente de decisão.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: renda ideal separada para novo e usado; aba "Comparar simulações"
 - **Data:** 2026-10-19
 - **Área:** Motor da estimativa, simulação automática, aba da simulação

@@ -145,3 +145,19 @@ test("cenários: gravados no site, no refazer e no Salvar do corretor; usar cen�
   assert.match(route, /requireAdminApi/);
   assert.match(route, /assertCanAccessResponsibleUser/);
 });
+
+test("aba da simulação: Enviar bloqueado na automática, Salvar só para nova/automática, sugestões de prazo e taxa", async () => {
+  const generator = source("components/SimulationGenerator.jsx");
+  assert.match(generator, /async function sendPresentationToWhatsApp\(\) \{[\s\S]{0,400}isAutomaticSimulationSource\(formRef\.current\?\.createdBy\)[\s\S]{0,80}AUTO_PRESENTATION_LOCKED_MESSAGE/);
+  assert.match(generator, /\{!form\.id \|\| isAutomaticSimulationSource\(form\.createdBy\) \? \(/);
+  assert.match(source("lib/simulations.js"), /mergeWindowMinutes: 30/);
+  const { simulationFieldSuggestions } = await import("../lib/financiamento-estimativa-core.mjs");
+  const older = simulationFieldSuggestions({ registration: { oldestBirthDate: "1960-05-01", primaryMonthlyIncome: 2400, primaryIncomeType: "registered_employment", hasOverThreeYearsRegisteredWork: true }, simulation: {}, referenceDate: "2026-10-19" });
+  assert.deepEqual(older.termMonths, { value: 169, source: "idade", label: "Prazo máximo pela idade do mais velho" });
+  assert.equal(older.annualRate.source, "faixa_renda");
+  assert.equal(older.annualRate.value, 4.5);
+  const auto = simulationFieldSuggestions({ registration: { oldestBirthDate: "1998-01-01" }, simulation: { interestRateAnnual: 4.25 }, automatic: true, referenceDate: "2026-10-19" });
+  assert.equal(auto.termMonths.value, 420);
+  assert.deepEqual(auto.annualRate, { value: 4.25, source: "simulacao_automatica", label: "Taxa da simulação automática" });
+  assert.equal(simulationFieldSuggestions({ registration: {}, simulation: { interestRateAnnual: 5 }, referenceDate: "2026-10-19" }).annualRate.source, "ultima_usada");
+});

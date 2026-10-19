@@ -159,17 +159,21 @@ test("renda: informal com só filho OU só 3 anos = declarada, com teto de R$ 2.
   assert.equal(estimateFinancing(onlyFgts, REFERENCE_DATE).income, 2550);
 });
 
-test("renda: informal com filho E 3 anos — novo e usado otimizados separadamente (maior poder; empate → menor parcela)", () => {
+test("renda: informal com filho E 3 anos — novo e usado separados; melhor = poder − R$ 60 × parcela (dono, 2026-10-19)", async () => {
+  const { scenarioScore, INSTALLMENT_WEIGHT } = await import("../lib/financiamento-estimativa-core.mjs");
+  assert.equal(INSTALLMENT_WEIGHT, 60);
   const input = { ...base, primaryMonthlyIncome: 5000, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true };
   const best = estimateFinancing(input, REFERENCE_DATE);
   assert.equal(best.incomeRule, "optimize");
-  assert.ok(best.income >= 1621 && best.income <= 2550);
-  assert.ok(best.used.income >= 1621 && best.used.income <= 2550);
   for (let income = 1621; income <= 2550; income += 7) {
     const other = estimateFinancing({ ...input, primaryMonthlyIncome: income, primaryIncomeType: "registered_employment" }, REFERENCE_DATE);
-    assert.ok(best.financing + best.subsidy >= other.financing + other.subsidy - 0.01, `novo, renda ${income}`);
-    assert.ok(best.used.financing + best.used.subsidy >= other.financing + other.used.subsidy - 0.01, `usado, renda ${income}`);
+    assert.ok(scenarioScore(best.financing + best.subsidy, best.priceFirstInstallment) >= scenarioScore(other.financing + other.subsidy, other.priceFirstInstallment) - 0.01, `novo, renda ${income}`);
+    assert.ok(scenarioScore(best.used.financing + best.used.subsidy, best.used.priceFirstInstallment) >= scenarioScore(other.financing + other.used.subsidy, other.priceFirstInstallment) - 0.01, `usado, renda ${income}`);
   }
+  // Caso do dono (#C6771): 2.400 informal, filho + 3 anos, nascido 1997-01-04, sem recurso → novo ~R$ 1.770, usado R$ 2.550.
+  const owner = estimateFinancing({ ...base, oldestBirthDate: "1997-01-04", primaryMonthlyIncome: 2400, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true }, "2026-10-19");
+  assert.equal(owner.income, 1770);
+  assert.equal(owner.used.income, 2550);
 });
 
 test("renda: casal misto — CLT fixa, só a parte informal é ajustada (teto por pessoa)", () => {

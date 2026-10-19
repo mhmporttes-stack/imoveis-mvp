@@ -14,6 +14,7 @@ import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import SimulationScenarios from "@/components/SimulationScenarios";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import { isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { simulationFieldSuggestions, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,11 @@ export default async function EditSimulationPage({ params }) {
       {/* Apresentação interativa (o PDF da simulação saiu do CRM). */}
       {/* Modo básico (automação desativada): sem apresentação interativa; o lançamento dos valores segue. */}
       {isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}
-      <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))} initialSimulation={simulation} />
+      <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))}
+        initialSimulation={simulation}
+        fieldSuggestions={simulation.registration ? simulationFieldSuggestions({ registration: simulation.registration, simulation, automatic: isAutomaticSimulationSource(simulation.createdBy), referenceDate: todayInSaoPaulo() }) : null}
+        clientSheetHref={simulation.registrationId ? `/admin/simulacoes?clientId=${encodeURIComponent(simulation.registrationId)}` : ""}
+      />
     </main>
   );
 }
