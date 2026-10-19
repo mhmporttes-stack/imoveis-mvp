@@ -37,6 +37,14 @@ test("link /s/ em mensagem de saída conta (Chat ou celular); falha, entrada e n
   assert.equal(classifySimulationSentEvidence({ messages: [{ direction: "outbound", status: "sent", body: "Oi, tudo bem?" }] }).sent, false);
 });
 
+test("apresentação pelo oficial (botão Visualizar simulação: link só em metadata.link.url) conta — caso #C6600", () => {
+  const cta = { direction: "outbound", status: "delivered", body: "Rô, sua simulação de financiamento está pronta.", metadata: { link: { label: "Visualizar simulação", url: LINK }, presentation: true } };
+  assert.equal(classifySimulationSentEvidence({ messages: [cta] }).presentationLink, true);
+  assert.equal(classifySimulationSentEvidence({ messages: [{ ...cta, status: "failed" }] }).sent, false);
+  const formShortcut = { direction: "outbound", status: "delivered", body: "Aqui está o link para fazer a sua simulação.", metadata: { link: { label: "Fazer simulação", url: "https://www.matheusmachadoimoveis.com.br/s/12?jornada=simulacao" } } };
+  assert.equal(classifySimulationSentEvidence({ messages: [formShortcut] }).sent, false, "link do formulário não é a apresentação");
+});
+
 test("PDF da simulação (simulacao-<cliente>.pdf) enviado conta; outro documento não", () => {
   const pdf = (name, status = "sent") => ({ direction: "outbound", status, message_type: "document", metadata: { media: { name } } });
   assert.equal(classifySimulationSentEvidence({ messages: [pdf("simulacao-cliente-ficticio.pdf")] }).simulationPdf, true);

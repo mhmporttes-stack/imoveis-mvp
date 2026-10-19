@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — Corretora enviou a simulação mas o Chat diz que não enviou e não deixa mandar mensagem
+- **Data:** 2026-10-19
+- **Sintoma:** "já enviei a simulação (o link está no Chat), mas o sistema diz que ainda não enviei e não consigo mandar mensagens"; também recusa marcar "Simulação enviada".
+- **Área:** WhatsApp/Chat, Clientes (ROL-4c, FUN-13)
+- **Impacto:** clientes da roleta cuja apresentação saiu pelo número oficial como botão e sem evento `presentation_sent` (1 caso relatado; 20 clientes com esse formato de mensagem, quase todos com o evento).
+- **Causa raiz:** pelo oficial a apresentação vai como botão "Visualizar simulação" e o texto gravado não tem o link (fica em `metadata.link.url`); a evidência única (`lib/simulation-sent-evidence.js` + `-lock-core.mjs`) procurava `/s/` só no texto.
+- **Correção:** evidência lê também `metadata.link.url` (só link de apresentação, não o do formulário). Sem alteração de dados.
+- **Arquivos/commit:** `lib/simulation-sent-lock-core.mjs`, `lib/simulation-sent-evidence.js` — ver `git log` de 2026-10-19
+- **Prevenção/teste:** caso novo em `tests/simulation-sent-lock.test.mjs`. Regra: quem mudar o formato gravado de uma mensagem do Chat confere os leitores que procuram texto nela.
+- **Status:** Resolvido (aguardando deploy)
 ### 2026-10-19 — Mensagem automática do corretor chega ao cliente mas não aparece no celular dele (reincidência de 2026-10-16)
 - **Data:** 2026-10-19
 - **Sintoma:** disparos automáticos (Meta Diária/fila) do WhatsApp do corretor aparecem no Chat do CRM, mas não no celular nem no WhatsApp Web dele.
