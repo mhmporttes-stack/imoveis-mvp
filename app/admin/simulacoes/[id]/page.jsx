@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import SimulationGenerator from "@/components/SimulationGenerator";
 import SimulationPresentationPanel from "@/components/presentation/SimulationPresentationPanel";
 import { requireAdminPage } from "@/lib/admin-auth";
@@ -27,25 +29,36 @@ export default async function EditSimulationPage({ params }) {
 
   if (!simulation) notFound();
 
-  // Redesenho da aba (designer-crm, aprovado pelo dono em 2026-10-19): a página monta os blocos e o Gerador os posiciona
-  // (conferência no topo, Refazer junto dela, "Comparar simulações" como aba e o link da apresentação na coluna de envio).
-  const automatic = isAutomaticSimulationSource(simulation.createdBy);
   return (
-    <main className="bg-mist pb-10 pt-4 md:pt-6">
+    <main className="bg-mist py-14">
+      <section className="container-page mb-8">
+        <Link href="/admin/simulacoes" className="inline-flex items-center gap-2 text-sm font-black text-brand transition hover:text-navy">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Voltar para clientes
+        </Link>
+      </section>
+      {/* Simulação automática do site ainda não conferida (SIM-AUTO, dono 2026-10-19): conferência obrigatória em destaque
+          na própria aba da simulação; o link da apresentação fica bloqueado até o OK ou a correção salva. */}
+      {AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(simulation.createdBy) ? (
+        <section className="container-page mb-4">
+          <AutoSimulationReview simulationId={simulation.id} inEditor prominent />
+        </section>
+      ) : null}
+      {/* "Refazer simulação automática" (dono, 2026-10-19): recalcula com o cadastro atual; volta a exigir a conferência. */}
+      {simulation.registrationId ? (
+        <section className="container-page mb-8 space-y-4">
+          <RedoAutoSimulationButton registrationId={simulation.registrationId} />
+          {/* "Comparar simulações" (dono, 2026-10-19): componente separado, fácil de reposicionar no redesenho. */}
+          <SimulationScenarios registrationId={simulation.registrationId} />
+        </section>
+      ) : null}
+      {/* Apresentação interativa (o PDF da simulação saiu do CRM). */}
+      {/* Modo básico (automação desativada): sem apresentação interativa; o lançamento dos valores segue. */}
+      {isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}
       <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))}
         initialSimulation={simulation}
-        fieldSuggestions={simulation.registration ? simulationFieldSuggestions({ registration: simulation.registration, simulation, automatic, referenceDate: todayInSaoPaulo() }) : null}
+        fieldSuggestions={simulation.registration ? simulationFieldSuggestions({ registration: simulation.registration, simulation, automatic: isAutomaticSimulationSource(simulation.createdBy), referenceDate: todayInSaoPaulo() }) : null}
         clientSheetHref={simulation.registrationId ? `/admin/simulacoes?clientId=${encodeURIComponent(simulation.registrationId)}` : ""}
-        /* Simulação automática do site ainda não conferida (SIM-AUTO, dono 2026-10-19): conferência obrigatória em destaque
-           na própria aba da simulação; o link da apresentação fica bloqueado até o OK ou a correção salva. */
-        reviewSlot={AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(simulation.createdBy) ? <AutoSimulationReview simulationId={simulation.id} inEditor prominent /> : null}
-        /* "Refazer simulação automática" (dono, 2026-10-19): recalcula com o cadastro atual; volta a exigir a conferência. */
-        redoSlot={simulation.registrationId ? <RedoAutoSimulationButton registrationId={simulation.registrationId} size="md" /> : null}
-        /* "Comparar simulações" (dono, 2026-10-19): aba ao lado de "Simulação". */
-        scenariosSlot={simulation.registrationId ? <SimulationScenarios registrationId={simulation.registrationId} /> : null}
-        /* Apresentação interativa (o PDF da simulação saiu do CRM). Modo básico (automação desativada): sem apresentação
-           interativa; o lançamento dos valores segue. */
-        presentationSlot={isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}
       />
     </main>
   );

@@ -26,10 +26,7 @@ test("telas sem setas de subir/descer: usam arrastar", () => {
 // tests/simulation-presentation-send.test.mjs). Sem telefone válido continua abrindo o Chat com o texto no campo.
 test("Enviar simulação: sem telefone válido abre o Chat com o link no campo", () => {
   const sim = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
-  // Do início do envio até o fim de sendPresentationExternally (o fluxo inteiro do "Enviar"); antes era uma janela fixa de
-  // 4.000 caracteres, que estourou quando o envio ganhou o bloqueio da simulação automática (2026-10-19).
-  const start = sim.indexOf("async function sendPresentationToWhatsApp()");
-  const fn = sim.slice(start, sim.indexOf("\n  }\n", sim.indexOf("async function sendPresentationExternally", start)));
+  const fn = sim.slice(sim.indexOf("async function sendPresentationToWhatsApp()"), sim.indexOf("async function sendPresentationToWhatsApp()") + 4000);
   assert.match(fn, /router\.push\(`\/admin\/chat\?client=\$\{encodeURIComponent\(registrationId\)\}&text=\$\{encodeURIComponent\(onlyLink\)\}`\)/);
   assert.doesNotMatch(fn, /wa\.me/);
   const chat = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");

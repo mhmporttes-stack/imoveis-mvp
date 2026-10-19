@@ -39,13 +39,6 @@ import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
-import SimulationGenerator from "@/components/SimulationGenerator";
-import SimulationPresentationPanel from "@/components/presentation/SimulationPresentationPanel";
-import AutoSimulationReview from "@/components/AutoSimulationReview";
-import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
-import SimulationScenarios from "@/components/SimulationScenarios";
-import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
-import * as simulacao from "../_fixtures/simulacao";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
@@ -259,36 +252,6 @@ const TELAS = {
         <AutoClick passos={variante.split("|").slice(1).join("|")} />
       </main>
     )
-  },
-  simulacao: {
-    // Aba da simulação (app/admin/simulacoes/[id]/page.jsx). ?variante= (automática) | manual | basico | nova | erro-prazo
-    // erro-prazo: toque em "Enviar simulação" para ver o aviso no campo. Abas/folhas: use AutoClick (?variante=manual|Editar).
-    path: "/admin/simulacoes",
-    titulo: "Simulação do cliente (Gerador)",
-    active: "simulations",
-    rotas: simulacao.routes,
-    render: (perfil, variante) => {
-      const [base, ...cliques] = String(variante || "").split("|");
-      const simulation = simulacao.simulationFor(base);
-      const generator = (
-        <SimulationGenerator
-          properties={simulacao.properties}
-          initialSimulation={simulation}
-          fieldSuggestions={simulacao.suggestionsFor(base)}
-          clientSheetHref={simulation ? "/admin/simulacoes?clientId=reg-vitrine" : ""}
-          reviewSlot={simulation && simulation.createdBy === "Simulação automática do site" ? <AutoSimulationReview simulationId={simulation.id} inEditor prominent /> : null}
-          redoSlot={simulation ? <RedoAutoSimulationButton registrationId="reg-vitrine" size="md" /> : null}
-          scenariosSlot={simulation ? <SimulationScenarios registrationId="reg-vitrine" /> : null}
-          presentationSlot={simulation && base !== "basico" ? <SimulationPresentationPanel simulationId={simulation.id} /> : null}
-        />
-      );
-      return (
-        <main className="bg-mist pb-10 pt-4 md:pt-6">
-          {base === "basico" ? <WhatsappAccessProvider basic>{generator}</WhatsappAccessProvider> : generator}
-          {cliques.length ? <AutoClick passos={cliques.join("|")} /> : null}
-        </main>
-      );
-    }
   },
   desempenho: {
     path: "/admin/desempenho",

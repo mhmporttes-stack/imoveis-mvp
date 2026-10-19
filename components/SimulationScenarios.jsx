@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSimulationTab } from "@/components/simulation-tab-context";
+import { useState } from "react";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -15,9 +14,7 @@ const signed = (value) => (value ? `${value > 0 ? "+" : "−"}${Math.abs(value).
 const when = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 
 export default function SimulationScenarios({ registrationId }) {
-  // Como aba da tela da simulação (redesenho 2026-10-19): já abre carregado, sem o botão de abrir/fechar.
-  const embedded = Boolean(useSimulationTab()?.embeddedScenarios);
-  const [open, setOpen] = useState(embedded);
+  const [open, setOpen] = useState(false);
   const [state, setState] = useState({ loading: false, error: "", schemaReady: true, current: null, items: [] });
   const [busyId, setBusyId] = useState("");
   const [confirmAction, confirmElement] = useConfirm();
@@ -33,11 +30,6 @@ export default function SimulationScenarios({ registrationId }) {
       setState((previous) => ({ ...previous, loading: false, error: error.message }));
     }
   }
-
-  useEffect(() => {
-    if (embedded) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embedded, registrationId]);
 
   function toggle() {
     if (!open) load();
@@ -77,13 +69,7 @@ export default function SimulationScenarios({ registrationId }) {
   const highlights = scenarioHighlights(cards);
 
   return (
-    <section className="rounded-card border border-line bg-white p-4 sm:p-5">
-      {embedded ? (
-        <div>
-          <h2 className="text-base font-bold text-navy">Comparar simulações</h2>
-          <p className="text-sm text-muted">Valores anteriores do cliente, lado a lado. "Usar este cenário" troca a simulação atual (pede confirmação).</p>
-        </div>
-      ) : (
+    <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
       <button type="button" onClick={toggle} className="flex w-full items-center justify-between gap-3 text-left" aria-expanded={open}>
         <span>
           <span className="block text-base font-black text-navy">Comparar simulações</span>
@@ -91,7 +77,6 @@ export default function SimulationScenarios({ registrationId }) {
         </span>
         <ChevronDown className={`h-5 w-5 shrink-0 text-muted transition ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
-      )}
       {open ? (
         <div className="mt-4">
           {state.loading ? <p className="text-sm text-muted">Carregando…</p> : null}
@@ -151,7 +136,7 @@ function ScenarioCard({ card, current, highlights, busy, onUse }) {
           </div>
         );
       })}
-      {onUse ? <Button variant="secondary" className="mt-3 w-full" onClick={onUse} loading={busy}>Usar este cenário</Button> : null}
+      {onUse ? <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={onUse} loading={busy}>Usar este cenário</Button> : null}
     </article>
   );
 }
