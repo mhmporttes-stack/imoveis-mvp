@@ -167,6 +167,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — 1ª mensagem pelo Chat para cliente recebido pela distribuição (WA-13b)
+- **Data:** 2026-10-19
+- **Área:** Chat do WhatsApp (sessão pessoal), roleta/fila de reativação.
+- **Alteração:** exceção ao "Chat só responde" (`assertIndividualChatReplyOnly`) e ao aviso/"enviar pelo celular" da tela (`awaitingCustomer`) para cliente cuja última distribuição automática foi para o responsável atual, sem troca manual depois e fora da fila (`isDistributionFirstMessageAllowed`, `lib/distribution-first-message-core.mjs`). Limite por hora, ROL-4c e proteção dos demais casos mantidos.
+- **Motivo:** decisão do dono (2026-10-19): o corretor mandava pelo WhatsApp Web, a cópia não chegava ao CRM e o cliente voltava para a fila. Junto: SQL entregue ao coordenador para devolver 5 clientes ao corretor pelo mesmo registro da transferência manual (aplicação manual, fora do código).
+- **Verificação:** `node --test tests/distribution-first-message.test.mjs tests/chat-reply-only.test.mjs` + testes do Chat; `pnpm build`.
+- **Arquivos afetados:** `lib/distribution-first-message-core.mjs`, `lib/whatsapp-chat.js`, `tests/distribution-first-message.test.mjs`, `tests/chat-reply-only.test.mjs`, `docs/BUSINESS_RULES.md` (WA-13a/WA-13b), rules de funil e roleta.
+- **Risco/observação:** aumenta mensagens "frias" pela sessão pessoal (cliente que não escreveu) — risco de restrição do número que o dono aceitou para esses clientes. "Enviar lista de documentos" sem conversa ainda pode cair no WhatsApp externo (fora do pedido).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Roleta exige WhatsApp sem restrição; saída não decifrada conta como contato (CRM pronto, serviço pendente)
 - **Data:** 2026-10-19
 - **Área:** Roleta/distribuição (ROL-2d), fila de reativação (FUN-15l), contato humano (WA-4a), webhook do WhatsApp individual.
