@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — Corretor manda mensagem pelo WhatsApp Web e o cliente volta para a fila mesmo assim
+- **Data:** 2026-10-19
+- **Sintoma:** "ele clica no WhatsApp, abre o WhatsApp Web, envia a mensagem, mas ela não aparece no Chat e o cliente vai para outro corretor".
+- **Área:** WhatsApp individual / Roleta (FUN-15l)
+- **Impacto:** 1 corretor; 5 clientes da fila de reativação com Chat aberto no prazo e devolvidos sem mensagem registrada.
+- **Causa raiz:** (1) pela sessão pessoal o Chat só responde (proteção de 2026-10-05): cliente que nunca escreveu → botão de enviar pelo celular/Web; (2) a sessão do CRM não decifrava as cópias das mensagens enviadas pelo celular dele (`diag_decrypt_fail` from_me), então o envio não virava contato humano.
+- **Correção:** CRM aceita o evento `undecrypted_message` e o conta como contato; restrição aberta tira da roleta. Pendentes: o microsserviço emitir o evento e a decisão do dono sobre a 1ª mensagem pelo Chat — ver `CHANGELOG_AI.md` (2026-10-19).
+- **Arquivos/commit:** `lib/whatsapp-undecrypted-core.mjs`, `lib/whatsapp-individual-inbound.js`, `app/api/webhooks/whatsapp-individual/route.js` — ver `git log` de 2026-10-19
+- **Prevenção/teste:** `tests/whatsapp-undecrypted.test.mjs`. Diagnóstico: `admin_presence_activity` (kind `grace`) + `whatsapp_conversations` criadas na sessão × `lead_distribution_history`.
+- **Status:** Diagnosticado, correção parcial (serviço pendente)
 ### 2026-10-19 — Corretor recebe cliente e o WhatsApp diz que ele não tem acesso
 - **Data:** 2026-10-19
 - **Sintoma:** "o corretor está recebendo clientes e, ao clicar no WhatsApp do card, aparece que ele não tem acesso ao cliente — mesmo dentro do prazo".

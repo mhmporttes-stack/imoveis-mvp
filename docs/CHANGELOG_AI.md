@@ -162,6 +162,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Roleta exige WhatsApp sem restrição; saída não decifrada conta como contato (CRM pronto, serviço pendente)
+- **Data:** 2026-10-19
+- **Área:** Roleta/distribuição (ROL-2d), fila de reativação (FUN-15l), contato humano (WA-4a), webhook do WhatsApp individual.
+- **Alteração:** (1) restrição aberta tira o corretor de toda distribuição automática: `roulette_user_extra_eligible` (migration `20261019235900_roleta_exige_whatsapp_sem_restricao.sql`, **NÃO aplicada**) e `listOnlineRouletteBrokerIds`. (2) Webhook `type: "undecrypted_message"` (saída do corretor que a sessão não decifrou) grava linha no Chat com texto fixo e conta como contato humano pelo caminho único (`recordBrokerAppMessage` → `registerHumanContact`); conteúdo real que chegar depois completa a linha. Regras em `lib/whatsapp-undecrypted-core.mjs`.
+- **Motivo:** decisão do dono após o caso do corretor que enviava pelo WhatsApp Web e o cliente voltava para a fila: a sessão do CRM não decifrava as cópias das mensagens do celular dele (`diag_decrypt_fail` from_me, 75 só entre 15:07 e 15:46), então nada era registrado.
+- **Verificação:** `node --test tests/whatsapp-undecrypted.test.mjs` + testes de roleta/contato humano/chat; `pnpm build`.
+- **Arquivos afetados:** `lib/lead-distribution.js`, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-undecrypted-core.mjs`, `app/api/webhooks/whatsapp-individual/route.js`, migration acima, `tests/whatsapp-undecrypted.test.mjs`, `docs/BUSINESS_RULES.md` (ROL-2d, FUN-15l/WA-4a, WA-13a), rules de roleta e funil.
+- **Risco/observação:** **microsserviço pendente** — hoje a mensagem CIPHERTEXT só vira telemetria e não é enviada ao CRM; falta emitir o evento (`messageStubType = 2`, `key.fromMe`, telefone por `resolveChatPhone`). Botão do card já abre o Chat; quem manda para o WhatsApp Web é a trava "Chat só responde" (2026-10-05) — liberar a 1ª mensagem de cliente da distribuição é decisão do dono (registrado em WA-13a).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Fila de reativação: prazo de 5 min, contagem regressiva no aviso e motivo claro no WhatsApp (FUN-15l)
 - **Data:** 2026-10-19
 - **Área:** Clientes que esfriaram / fila de reativação (FUN-15l), sino/Notificações, botão WhatsApp do card e Chat.
