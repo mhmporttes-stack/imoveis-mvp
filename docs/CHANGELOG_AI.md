@@ -118,6 +118,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Roleta: 10 min entre dois clientes recebidos pelo mesmo corretor (ROL-2h)
+- **Data:** 2026-10-19
+- **Área:** roleta/fila de espera (`pick_round_robin_broker`, `assign_round_robin_lead`, `lib/lead-distribution.js`), fila de reativação do FUN-15l (`lib/cooled-clients-reactivation*.{js,mjs}`), formulário (`lib/simulation-registrations.js`)
+- **Alteração:** corretor que recebe cliente pela distribuição automática só recebe o próximo 10 min depois, contando qualquer caminho (lead novo, fila de espera, redistribuição, "Devolver para a roleta", fila de reativação). Marca `admin_users.last_roulette_received_at` gravada no lock da roleta; `claim_roulette_receipt` para a fila de reativação; `release_roulette_receipt` desfaz o sorteio de formulário reenviado por cliente que já existe. Espaçamento da fila de reativação 3 → 10 min; prazo de 3 min sem mensagem mantido.
+- **Motivo:** regra oficial do dono (2026-10-19) — corretora recebendo um cliente atrás do outro. Origem exata do ritmo **A CONFIRMAR** com dado de produção (sem acesso ao banco nesta sessão); pelo código, a fila de reativação entregava 1 a cada ~4 min (3 min + cron de 2 min) a cada corretor, somada aos leads novos da roleta, sem contar um com o outro.
+- **Migration:** `supabase/migrations/20261019235500_roleta_intervalo_10min_por_corretor.sql` (coluna + 5 funções + redefinição de `pick_round_robin_broker`/`assign_round_robin_lead` + marca inicial dos últimos 10 min) — **A CONFIRMAR aplicação**. Código tolerante: sem ela a roleta segue sem pausa e a fila de reativação usa só o espaçamento de 10 min dela.
+- **Verificação:** `tests/cooled-reactivation-queue.test.mjs` (+ suíte cooled/roleta sem falha); `pnpm build`.
+- **Arquivos afetados:** os acima + `docs/BUSINESS_RULES.md` (ROL-2h, complemento FUN-15l), `.claude/rules/roleta-prospeccao-campanhas.md`, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** fila de espera passa a entregar no máximo 1 por corretor a cada 10 min; redistribuição por prazo sem ninguém liberado leva o cliente para a espera com o dono (antes só sem ninguém on-line). Sorteio que não vira cliente por outra falha rara (corrida na gravação) deixa o corretor em pausa sem cliente por até 10 min.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Valor do imóvel na simulação do cliente (teto da faixa, editável)
 - **Data:** 2026-10-19
 - **Área:** motor (`lib/financiamento-estimativa-core.mjs`), simulação automática/Refazer (`lib/simulations.js`), modelos (`lib/simulation-models.js`), conferência e cenários (`lib/simulation-auto-review-core.mjs`, `lib/simulation-scenarios-core.mjs`), Gerador (`components/SimulationGenerator.jsx`), "Comparar simulações" (`components/SimulationScenarios.jsx`)

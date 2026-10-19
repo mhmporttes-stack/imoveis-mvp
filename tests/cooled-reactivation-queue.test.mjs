@@ -15,23 +15,42 @@ import { lastResponsibleTransferCut } from "../lib/whatsapp-chat-scope.mjs";
 // [REGRA OFICIAL — dono, 2026-10-17, FUN-15l] Transferidos do FUN-15 seguem a roleta por uma fila de reativação: quem fica
 // on-line recebe 1, depois de 3 min recebe outro; sem mensagem em 3 min, o cliente volta ao FIM da fila. Nunca volta ao
 // corretor que o perdeu no FUN-15; quem o perdeu nesta fila pode recebê-lo de novo (correção do dono no mesmo dia).
+// [REGRA OFICIAL — dono, 2026-10-19, ROL-2h] O intervalo entre dois recebimentos do mesmo corretor passou a 10 min (por
+// qualquer caminho da distribuição); o prazo de 3 min para mandar a mensagem não mudou.
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const T0 = Date.parse("2026-10-17T13:00:00.000Z");
 const iso = (ms) => new Date(ms).toISOString();
 const OWNER = "owner";
 
-test("prazos são de 3 minutos", () => {
+test("prazo para mandar mensagem continua 3 min; intervalo entre entregas passa a 10 min (ROL-2h, dono 2026-10-19)", () => {
   assert.equal(REACTIVATION_DEADLINE_MS, 3 * 60 * 1000);
-  assert.equal(REACTIVATION_SPACING_MS, 3 * 60 * 1000);
+  assert.equal(REACTIVATION_SPACING_MS, 10 * 60 * 1000);
 });
 
-test("espaçamento: o mesmo corretor só recebe outro 3 min depois do anterior", () => {
+test("espaçamento: o mesmo corretor só recebe outro 10 min depois do anterior", () => {
   const queue = [{ caseId: "c1", previousBrokerId: "jen" }, { caseId: "c2", previousBrokerId: "jen" }];
-  // Recebeu há 2 min: fica de fora nesta rodada.
-  assert.deepEqual(planReactivationDeliveries({ queue, onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 2 * 60 * 1000)]]), now: T0 }), []);
-  // Recebeu há 3 min: recebe 1 (só 1 por rodada, mesmo com a fila cheia).
-  assert.deepEqual(planReactivationDeliveries({ queue, onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 3 * 60 * 1000)]]), now: T0 }), [{ caseId: "c1", brokerId: "gab" }]);
+  // Recebeu há 3 min ou 9 min: fica de fora nesta rodada.
+  assert.deepEqual(planReactivationDeliveries({ queue, onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 3 * 60 * 1000)]]), now: T0 }), []);
+  assert.deepEqual(planReactivationDeliveries({ queue, onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 9 * 60 * 1000)]]), now: T0 }), []);
+  // Recebeu há 10 min: recebe 1 (só 1 por rodada, mesmo com a fila cheia).
+  assert.deepEqual(planReactivationDeliveries({ queue, onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 10 * 60 * 1000)]]), now: T0 }), [{ caseId: "c1", brokerId: "gab" }]);
+});
+
+test("ROL-2h: a pausa de 10 min conta também o lead novo da roleta (fonte única no banco, reserva no lock)", () => {
+  const runner = read("lib/cooled-clients-reactivation.js");
+  assert.match(runner, /filterRouletteCooldownFreeIds\(await listOnlineRouletteBrokerIds\(\)\)/);
+  assert.match(runner, /if \(!\(await claimRouletteReceipt\(brokerId\)\)\) return false;/);
+  assert.match(runner, /releaseRouletteReceipt\(brokerId, claimedSince\)/);
+  const sql = read("supabase/migrations/20261019235500_roleta_intervalo_10min_por_corretor.sql");
+  assert.match(sql, /select interval '10 minutes'/);
+  // pick_round_robin_broker e a reserva assign_round_robin_lead: filtram a pausa e gravam o recebimento no lock.
+  assert.equal((sql.match(/last_roulette_received_at, '-infinity'::timestamptz\) <= now\(\) - public\.roulette_receive_interval\(\)/g) || []).length >= 3, true);
+  assert.equal((sql.match(/last_roulette_received_at = now\(\)/g) || []).length, 3);
+  assert.match(sql, /function public\.claim_roulette_receipt[\s\S]*pg_advisory_xact_lock\(hashtext\('lead_distribution_round_robin'\)\)/);
+  // Formulário reenviado por cliente que já existe não deixa o corretor sorteado em pausa sem cliente.
+  const reg = read("lib/simulation-registrations.js");
+  assert.equal((reg.match(/else await releaseUnusedRoulettePick\(assignment, roulettePickedSince\);/g) || []).length, 2);
 });
 
 test("1 por corretor por rodada, na ordem da fila; quem recebeu da fila há mais tempo vem primeiro", () => {
@@ -55,8 +74,9 @@ test("nunca entrega ao corretor que perdeu o cliente no FUN-15, nem ao dono", ()
 });
 
 test("quem perdeu o cliente nesta fila (3 min sem mensagem) PODE recebê-lo de novo", () => {
-  // Gabriel recebeu há 4 min e perdeu; é o único on-line: recebe de novo (correção do dono, 2026-10-17).
-  const plan = planReactivationDeliveries({ queue: [{ caseId: "c1", previousBrokerId: "jen" }], onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 4 * 60 * 1000)]]), now: T0 });
+  // Gabriel recebeu e perdeu; é o único on-line: recebe de novo (correção do dono, 2026-10-17) — depois da pausa de 10 min
+  // entre recebimentos (ROL-2h, dono 2026-10-19).
+  const plan = planReactivationDeliveries({ queue: [{ caseId: "c1", previousBrokerId: "jen" }], onlineBrokerIds: ["gab"], lastOfferAtByBroker: new Map([["gab", iso(T0 - 10 * 60 * 1000)]]), now: T0 });
   assert.deepEqual(plan, [{ caseId: "c1", brokerId: "gab" }]);
   assert.doesNotMatch(read("lib/cooled-clients-reactivation-core.mjs"), /excluded_ids|losers/);
 });
