@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Simulação: ficha do cliente salva sozinha (sem "Atualizar cadastro")
+- **Data:** 2026-10-19
+- **Área:** Clientes / Simulação
+- **Alteração:** pedido do dono. Em cadastro EXISTENTE, o bloco "Ficha completa" grava sozinho 1 s depois da última mudança (e na hora ao sair da página, `keepalive`), pela mesma rota/função do antigo botão (`POST /api/simulation-registrations/manual` → `ensureManualSimulationRegistration`, mesmos guard e validações; sem `status` no corpo). Uma gravação por vez; o que mudou durante ela vai na seguinte. Indicador discreto ("Salvando...", "Ficha salva automaticamente.", erro + "Tentar novamente"; nome vazio/WhatsApp incompleto avisam e não gravam). WhatsApp trocado para o de outro cliente: o servidor recusa (409, nada salvo) e a tela oferece "Abrir este cadastro" (nova aba) ou "Manter o telefone atual". Simulação nova sem cadastro: "Criar cadastro" continua explícito. A resposta do salvamento da simulação não sobrescreve mais a ficha já vinculada (evita apagar o que está sendo digitado).
+- **Motivo:** pedido do dono (2026-10-19).
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `lib/simulation-registrations.js`, `tests/manual-registration-phone-match.test.mjs`, `tests/registration-form-labels.test.mjs`, `docs/BUSINESS_RULES.md` (CLI-5).
+- **Risco/observação:** cada gravação passa por `updateSimulationRegistration` (mesmo efeito do botão antigo, só que mais frequente e agrupado). Testes da área e build ok; sem teste no navegador (sem login neste ambiente).
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Correção: "Criar cadastro" da nova simulação atualizava em silêncio cliente com o mesmo WhatsApp
 - **Data:** 2026-10-19
 - **Área:** Clientes / Simulação

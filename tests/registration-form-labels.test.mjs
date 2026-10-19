@@ -24,5 +24,5 @@ test("bloco do cadastro: cabeçalho 'Ficha completa' (dono, 2026-10-19), minimiz
   for (const label of ["3 anos FGTS", "Dependentes", "Primeiro imóvel"]) assert.match(generator, new RegExp(`label="${label}"`));
   assert.match(generator, /updateRegistration\("hasResidentialProperty", hasResidentialPropertyFromFirstPropertyOption\(value\)\)/);
   const block = generator.slice(generator.indexOf("{registrationOpen ? ("));
-  assert.ok(block.indexOf('label="Primeiro imóvel"') < block.indexOf("Atualizar cadastro"));
+  assert.ok(block.indexOf('label="Primeiro imóvel"') < block.indexOf("Criar cadastro"));
 });
