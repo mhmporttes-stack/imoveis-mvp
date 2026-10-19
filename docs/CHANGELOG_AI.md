@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: respostas do dono (critério confirmado, usado zero acima de R$ 2.850, imagem travada) e SIM-6 sem opção de PDF
+- **Data:** 2026-10-19
+- **Área:** Motor da estimativa, Gerador de simulação, apresentação
+- **Alteração:** critério de melhor cenário e "OK → Simulação realizada + ponto" viram regra oficial. Usado recalibrado: subsídio zero acima de R$ 2.850 (Caixa zerou 18/24); até R$ 2.850 os zeros (~1 em 4) não se explicam pelos dados da ficha. Imagem da simulação automática: mesma trava do link (só sai pelo token, inexistente/404 antes da conferência). Gerador: removida a última opção do PDF da simulação ("Modo de páginas dos imóveis"); texto da apresentação sem menção ao PDF. Migrations 20261019180000/20261019190000 aplicadas pelo dono.
+- **Motivo:** respostas do dono (2026-10-19).
+- **Verificação:** testes `financiamento-estimativa`, `simulation-auto-status`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `components/SimulationGenerator.jsx`, `components/presentation/SimulationPresentationPanel.jsx`, `tests/*`, `docs/BUSINESS_RULES.md` (SIM-AUTO, SIM-6), `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** outros PDFs intactos (Proposta de Valores, Estratégia com amortização, documentação/CCA, lista impressa).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: simulação automática gravada (novo + usado, link pronto), status "Simulação automática" e renda do melhor cenário
 - **Data:** 2026-10-19
 - **Área:** Site `/simulacao`, cadastro (`/api/simulation-registrations`), `simulations`, status do cliente, roleta, card/ficha do CRM

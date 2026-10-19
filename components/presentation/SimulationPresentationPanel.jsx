@@ -175,7 +175,7 @@ export default function SimulationPresentationPanel({ simulationId }) {
           </div>
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
-          Mostra a simulação ao cliente em cenas, pelo celular, por um link individual. É uma opção a mais: o PDF continua igual.
+          Mostra a simulação ao cliente em cenas, pelo celular, por um link individual.
           O link sempre exibe os valores atuais da simulação salva.
         </p>
 

@@ -799,17 +799,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         </Panel>
 
         <Panel title="Dados da simulação" eyebrow="Etapa B">
-          <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-extrabold text-ink">
-              Modo de páginas dos imóveis
-              <select className="admin-input" value={form.outputMode} onChange={(event) => update("outputMode", event.target.value)}>
-                <option value="individual">Individual</option>
-                <option value="comparativo">Comparativo</option>
-              </select>
-            </label>
-          </div>
-
-          <fieldset className="mt-5 rounded-2xl border border-blue-100 bg-white p-4">
+          {/* "Modo de páginas dos imóveis" (Individual/Comparativo) era só do PDF da simulação — removido a pedido do dono
+              (2026-10-19, "Opção PDF deve ser removido do CRM"). A coluna output_mode continua no banco; simulações antigas
+              abrem normalmente (o valor gravado é ignorado). */}
+          <fieldset className="rounded-2xl border border-blue-100 bg-white p-4">
             <legend className="px-1 text-sm font-extrabold text-ink">Tipos de imóvel desta simulação</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {SIMULATION_MODEL_TYPES.map(({ key, label }) => {
@@ -823,7 +816,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               })}
             </div>
             <p className="mt-2 text-xs leading-5 text-muted">
-              Desmarque o tipo que o cliente não quer: os valores dele são apagados e a simulação (PDF, imagem e apresentação) mostra só o outro, sem comparação entre novo e usado.
+              Desmarque o tipo que o cliente não quer: os valores dele são apagados e a apresentação mostra só o outro, sem comparação entre novo e usado.
             </p>
           </fieldset>
 
@@ -936,7 +929,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               </label>
               <p id="interest-rate-help" className={`self-end text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
                 {interestRateCheck.ok
-                  ? "Obrigatória para salvar. Aparece ao lado das parcelas na apresentação interativa do cliente (não entra no PDF). Vale para a simulação toda."
+                  ? "Obrigatória para salvar. Aparece ao lado das parcelas na apresentação interativa do cliente. Vale para a simulação toda."
                   : interestRateCheck.error}
               </p>
             </div>

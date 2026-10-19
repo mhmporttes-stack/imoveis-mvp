@@ -84,3 +84,10 @@ test("link da apresentação travado até a conferência (servidor e tela)", () 
   assert.doesNotMatch(source("app/api/simulation-registrations/route.js"), /ensurePresentation/);
   assert.match(source("app/api/simulations/[id]/conferencia/route.js"), /assertCanAccessResponsibleUser/);
 });
+
+test("usado: subsídio zero acima de R$ 2.850 (Caixa zera); Gerador sem a opção do PDF; imagem só pelo token", () => {
+  assert.equal(estimateFinancing({ primaryMonthlyIncome: 3000, primaryIncomeType: "registered_employment", hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true, oldestBirthDate: "1998-01-01", hasResidentialProperty: false }, "2026-10-19").used.subsidy, 0);
+  assert.ok(estimateFinancing({ primaryMonthlyIncome: 2300, primaryIncomeType: "registered_employment", hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true, oldestBirthDate: "1998-01-01", hasResidentialProperty: false }, "2026-10-19").used.subsidy > 0);
+  assert.doesNotMatch(source("components/SimulationGenerator.jsx"), /Modo de páginas dos imóveis\s*<select/);
+  assert.match(source("app/apresentacao/[token]/imagem/route.js"), /getPublicPresentation\(token/);
+});
