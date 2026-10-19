@@ -713,25 +713,21 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   return (
     <div className="container-page grid min-w-0 gap-8">
       <div className="grid min-w-0 gap-6">
-        <Panel title="Dados do cliente" eyebrow="Etapa A">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
-            <Field
-              autoComplete="tel"
-              inputMode="numeric"
-              label="WhatsApp do cliente"
-              placeholder="(14) 99999-9999"
-              type="tel"
-              value={form.clientWhatsApp}
-              onChange={(value) => update("clientWhatsApp", formatPhoneInput(value))}
-            />
-            <Field label="Data da simulação" type="date" value={form.simulationDate} onChange={(value) => update("simulationDate", value)} />
-          </div>
-          <Field label="Observação interna" textarea value={form.internalNote} onChange={(value) => update("internalNote", value)} />
+        {/* Etapa A enxuta (dono, 2026-10-19): só o nome; a data aparece como texto abaixo dele; o WhatsApp fica só na ficha
+            completa (é o mesmo dado: clientWhatsApp e registration.phone andam juntos); a observação interna vira texto
+            somente leitura — o valor continua no formulário e é gravado pelo autosave/Salvar como antes (nada se apaga). */}
+        <Panel title="Dados do cliente" eyebrow="Etapa A" compact>
+          <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
+          {form.simulationDate ? <p className="mt-1.5 text-xs font-semibold text-muted">Simulação de {formatDateBr(form.simulationDate)}</p> : null}
+          {readableInternalNote(form.internalNote) ? (
+            <p className="mt-3 whitespace-pre-line break-words rounded-2xl border border-line bg-mist px-3 py-2 text-xs font-medium leading-5 text-ink-2" aria-label="Observação interna">
+              {readableInternalNote(form.internalNote)}
+            </p>
+          ) : null}
 
           {/* Bloco "Cadastro do cliente" (dono, 2026-10-19): minimizado por padrão (aberto só em simulação nova sem cadastro),
               rótulos curtos, 2–3 campos por linha e o botão no fim. Só apresentação: os mesmos campos e dados de antes. */}
-          <div className="mt-6 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
+          <div className={`mt-4 rounded-2xl border border-blue-100 bg-[#F5FAFF] px-3 sm:px-4 ${registrationOpen ? "pb-4" : ""}`}>
             <button
               type="button"
               className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
@@ -739,16 +735,18 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               onClick={() => setRegistrationOpen((open) => !open)}
               data-registration-toggle=""
             >
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastro do cliente</span>
-              <ChevronDown className={`h-5 w-5 shrink-0 text-brand transition ${registrationOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              <span className="text-sm font-bold text-navy">Ficha completa</span>
+              <ChevronDown className={`h-4 w-4 shrink-0 text-brand transition ${registrationOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
 
             {registrationOpen ? (
             <>
-            <div className="grid grid-cols-2 items-end gap-x-3 md:grid-cols-3">
-              <div className="col-span-2 md:col-span-1">
+            <div className="grid grid-cols-2 gap-x-2 min-[400px]:gap-x-3 md:grid-cols-3">
+              <div className="col-span-2 flex md:col-span-1">
                 <Field compact label="Nome" value={form.registration?.fullName || form.clientName} onChange={(value) => updateRegistration("fullName", value)} />
               </div>
+              {/* WhatsApp em linha inteira no celular (o número não cabe em meia coluna a 360 px). */}
+              <div className="col-span-2 flex min-[400px]:col-span-1">
               <Field compact
                 autoComplete="tel"
                 inputMode="numeric"
@@ -758,6 +756,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 value={form.registration?.phone || form.clientWhatsApp}
                 onChange={(value) => updateRegistration("phone", formatPhoneInput(value))}
               />
+              </div>
               <Field compact label="Nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
               <Field compact label="Início" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
               <Field compact label="Venda em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
@@ -783,7 +782,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               <MoneyField compact label="Entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
               <MoneyField compact label="FGTS" value={form.registration?.availableFgtsBalance || ""} onChange={(value) => updateRegistration("availableFgtsBalance", value)} />
             </div>
-            <div className="grid grid-cols-3 items-end gap-x-3">
+            <div className="grid grid-cols-3 gap-x-2 min-[400px]:gap-x-3">
               <BooleanField compact
                 label="3 anos FGTS"
                 value={form.registration?.hasOverThreeYearsRegisteredWork}
@@ -804,7 +803,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             </div>
 
             {form.registration?.simulationType === "joint" ? (
-              <div className="mt-4 grid grid-cols-2 items-end gap-x-3 border-t border-blue-100 pt-1 md:grid-cols-3">
+              <div className="mt-4 grid grid-cols-2 gap-x-3 border-t border-blue-100 pt-1 md:grid-cols-3">
                 <SelectField compact
                   label="Regime (2ª pessoa)"
                   options={PRIMARY_INCOME_OPTIONS}
@@ -834,12 +833,13 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           </div>
         </Panel>
 
-        <Panel title="Dados da simulação" eyebrow="Etapa B">
+        <Panel title="Simulação" eyebrow="Etapa B" compact>
           {/* "Modo de páginas dos imóveis" (Individual/Comparativo) era só do PDF da simulação — removido a pedido do dono
               (2026-10-19, "Opção PDF deve ser removido do CRM"). A coluna output_mode continua no banco; simulações antigas
               abrem normalmente (o valor gravado é ignorado). */}
-          <fieldset className="rounded-2xl border border-blue-100 bg-white p-4">
-            <legend className="px-1 text-sm font-extrabold text-ink">Tipos de imóvel desta simulação</legend>
+          {/* Só as caixas (dono, 2026-10-19): legenda e texto de ajuda saíram da tela; a legenda segue para leitor de tela. */}
+          <fieldset className="mt-2 rounded-2xl border border-blue-100 bg-white px-4 py-1">
+            <legend className="sr-only">Tipos de imóvel desta simulação</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {SIMULATION_MODEL_TYPES.map(({ key, label }) => {
                 const onlyOne = enabledModels[key] && SIMULATION_MODEL_TYPES.filter((item) => enabledModels[item.key]).length === 1;
@@ -851,9 +851,6 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 );
               })}
             </div>
-            <p className="mt-2 text-xs leading-5 text-muted">
-              Desmarque o tipo que o cliente não quer: os valores dele são apagados e a apresentação mostra só o outro, sem comparação entre novo e usado.
-            </p>
           </fieldset>
 
           <div className="mt-5 grid gap-5">
@@ -1144,28 +1141,33 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   );
 }
 
-function Panel({ children, eyebrow, title }) {
+function Panel({ children, eyebrow, title, compact = false }) {
   return (
-    <section className="min-w-0 rounded-[28px] border border-line bg-white p-3 shadow-soft min-[400px]:p-4 sm:p-6 md:p-8">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
-      <h2 className="mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy">{title}</h2>
-      <div className="mt-6">{children}</div>
+    <section className={`min-w-0 rounded-[28px] border border-line bg-white shadow-soft ${compact ? "p-3 min-[400px]:p-4 sm:p-5" : "p-3 min-[400px]:p-4 sm:p-6 md:p-8"}`}>
+      <p className={`font-black uppercase tracking-[0.18em] text-brand ${compact ? "text-xs" : "text-sm"}`}>{eyebrow}</p>
+      <h2 className={compact ? "mt-1 text-xl font-black leading-tight text-navy" : "mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy"}>{title}</h2>
+      <div className={compact ? "mt-1" : "mt-6"}>{children}</div>
     </section>
   );
 }
 
 // `compact` (bloco "Cadastro do cliente", 2–3 campos por linha no celular): rótulo menor e menos recuo interno; a fonte
 // do campo continua 16px (abaixo disso o iPhone dá zoom ao tocar).
-const COMPACT_LABEL = "mt-3 grid min-w-0 gap-1.5 text-xs font-extrabold text-ink sm:text-sm";
-const COMPACT_INPUT = "!px-2 !font-semibold sm:!px-4";
+// Alinhamento (dono, 2026-10-19): o texto do rótulo ocupa o espaço que sobra e encosta embaixo, então rótulos de uma
+// linha ficam na mesma linha de base e todos os campos da linha têm a mesma altura (h-14) e a largura da coluna.
+const COMPACT_LABEL = "mt-3 flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-extrabold text-ink sm:text-sm";
+const COMPACT_INPUT = "!h-14 !px-1.5 !font-semibold min-[400px]:!px-2 sm:!px-4";
+// type=date no iOS: sem isto o campo ignora a largura da coluna e estoura a borda.
+const DATE_INPUT = "block w-full max-w-full min-w-0 appearance-none [-webkit-appearance:none] text-left [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]";
+const compactLabelText = (label) => <span className="flex flex-1 items-end">{label}</span>;
 
 function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
     <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
-      {label}
+      {compact ? compactLabelText(label) : label}
       <Component
-        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${inputClassName}`}
+        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${type === "date" ? DATE_INPUT : ""} ${inputClassName}`}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
@@ -1177,7 +1179,7 @@ function Field({ label, onChange, textarea = false, type = "text", value, inputC
 function SelectField({ label, onChange, options = [], value, compact = false }) {
   return (
     <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
-      {label}
+      {compact ? compactLabelText(label) : label}
       <select className={`admin-input min-w-0 ${compact ? COMPACT_INPUT : ""}`} value={value || ""} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -1190,7 +1192,7 @@ function SelectField({ label, onChange, options = [], value, compact = false }) 
 function BooleanField({ label, onChange, value, compact = false }) {
   return (
     <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
-      {label}
+      {compact ? compactLabelText(label) : label}
       <select
         className={`admin-input min-w-0 ${compact ? COMPACT_INPUT : ""}`}
         value={value === true ? "true" : value === false ? "false" : ""}
@@ -1225,6 +1227,21 @@ function Alert({ children, tone }) {
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
     : "border-red-200 bg-red-50 text-red-800";
   return <div className={`rounded-2xl border px-5 py-4 font-bold ${classes}`}>{children}</div>;
+}
+
+function formatDateBr(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+// Observação interna exibida (somente leitura): só as linhas humanas. Linhas de máquina (__SIMULATION_MODELS__ e
+// qualquer outro marcador "__X__:", e a linha "WhatsApp do cadastro:") nunca aparecem. Não altera o valor gravado.
+function readableInternalNote(note) {
+  return String(note || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^__[A-Z0-9_]+__\s*:/.test(line) && !line.toLowerCase().startsWith(CLIENT_WHATSAPP_NOTE_PREFIX.toLowerCase()))
+    .join("\n");
 }
 
 function normalizeInitialSimulation(simulation) {

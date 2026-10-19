@@ -96,11 +96,13 @@ test("servidor: chave lida à parte (link funciona sem a coluna), imagens sempre
   assert.ok(!/\b(drop|delete|update|truncate)\b/i.test(migration.replace(/--.*$/gm, "")), "migration só aditiva");
 });
 
-test("painel e player: chave com confirmação ao ligar; cenas de aprovação sem botão de contato; última cena sem botão", () => {
+// Dono, 2026-10-19: a chave "Apresentação de aprovação" saiu do painel da aba Simulação — a aprovação passa a ligar
+// sozinha quando o cliente vai para "Aprovado" (lógica no servidor, crm-editor). O painel não pode voltar a ter a chave.
+test("painel sem a chave de aprovação; cenas de aprovação sem botão de contato; última cena sem botão", () => {
   const panel = read("components/presentation/SimulationPresentationPanel.jsx");
-  assert.match(panel, /<Switch checked=\{Boolean\(state\.approvalEnabled\)\} onChange=\{setApproval\}/);
-  assert.match(panel, /Ligar a apresentação de aprovação\?/);
-  assert.match(panel, /\?modo=aprovacao/);
+  const panelCode = panel.replace(/\/\/.*$|\{?\/\*[\s\S]*?\*\/\}?/gm, "");
+  assert.doesNotMatch(panelCode, /<Switch|setApproval|Abrir o link|Gerar novo link/);
+  assert.match(panel, /Copiar link/);
   const player = read("components/presentation/PresentationPlayer.jsx");
   const body = (name) => (new RegExp(`function ${name}\\([\\s\\S]*?\\n}\\n`).exec(player)?.[0] || "").replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
   const scenes = body("SceneAprovado") + body("SceneAprovValores");

@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, Copy, ExternalLink, Eye, Link2, Presentation, RefreshCw } from "lucide-react";
+import { Copy, Eye, Link2, Presentation } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Switch from "@/components/ui/Switch";
-import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
-import { formatDateBR } from "@/lib/simulation-presentation-format.mjs";
 import { displayLink } from "@/lib/short-links.mjs";
 import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { STRATEGY_NAME, describeChoices, formatDuration } from "@/lib/payment-strategy-core.mjs";
@@ -20,18 +17,6 @@ function formatMoment(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date).replace(",", " às");
-}
-
-function Metrics({ presentation, sceneCount }) {
-  const opened = presentation.viewCount > 0 || presentation.firstOpenedAt;
-  if (!opened) return <p className="text-sm text-muted">Ainda não foi aberta pelo cliente.</p>;
-  const parts = [
-    `${presentation.viewCount} ${presentation.viewCount === 1 ? "abertura" : "aberturas"}`,
-    presentation.firstOpenedAt ? `primeira em ${formatMoment(presentation.firstOpenedAt)}` : "",
-    presentation.lastOpenedAt ? `última em ${formatMoment(presentation.lastOpenedAt)}` : "",
-    presentation.completedAt ? "viu até o fim" : presentation.lastScene ? `parou na cena ${presentation.lastScene}${sceneCount ? ` de ${sceneCount}` : ""}` : ""
-  ].filter(Boolean);
-  return <p className="text-sm text-muted">{parts.join(" · ")}</p>;
 }
 
 // Última "Estratégia de pagamento" montada pelo cliente no link (PRES-24): o que ele ligou e o resultado (prazo e juros).
@@ -57,7 +42,6 @@ export default function SimulationPresentationPanel({ simulationId }) {
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [notify, toastElement] = useToast();
-  const [confirmAction, confirmElement] = useConfirm();
   const endpoint = `/api/admin/simulacoes/${encodeURIComponent(simulationId)}/apresentacao`;
   const previewHref = `/admin/simulacoes/${encodeURIComponent(simulationId)}/apresentacao`;
 
@@ -92,29 +76,6 @@ export default function SimulationPresentationPanel({ simulationId }) {
     }
   }
 
-  // Chave "Apresentação de aprovação" (PRES-21): o MESMO link passa a mostrar o crédito aprovado. Não mexe na etapa do cliente.
-  async function setApproval(enabled) {
-    if (enabled) {
-      const ok = await confirmAction({
-        title: "Ligar a apresentação de aprovação?",
-        description: "Ao abrir o link, o cliente verá CRÉDITO APROVADO com os valores atuais da simulação. Confira se eles já são os valores da aprovação.",
-        confirmLabel: "Ligar"
-      });
-      if (!ok) return;
-    }
-    setBusy(true);
-    try {
-      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "aprovacao", enabled }) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível alterar a apresentação.");
-      setState(data);
-      notify(enabled ? "Pronto: o link agora mostra o crédito aprovado." : "Pronto: o link voltou a mostrar a simulação.");
-    } catch (error) {
-      notify(error.message || "Não foi possível alterar a apresentação.", "danger");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function copyLink(url) {
     try {
@@ -125,90 +86,51 @@ export default function SimulationPresentationPanel({ simulationId }) {
     }
   }
 
-  async function regenerate() {
-    const ok = await confirmAction({
-      title: "Gerar um novo link?",
-      description: "O link atual deixa de funcionar. Quem já recebeu o link antigo verá uma página não encontrada.",
-      confirmLabel: "Gerar novo link",
-      tone: "danger"
-    });
-    if (ok) run("regenerate");
-  }
 
   const presentation = state?.presentation || null;
   const canGenerate = state?.schemaReady && state?.ready;
-  const approvalToggle = canGenerate && state.approvalReady ? (
-    <div className="mt-4 flex items-start justify-between gap-4 rounded-control border border-line bg-white px-4 py-3">
-      <div className="min-w-0">
-        <p className="flex items-center gap-2 text-sm font-bold text-navy">
-          <BadgeCheck className={`h-4 w-4 ${state.approvalEnabled ? "text-success" : "text-brand"}`} aria-hidden="true" />
-          Apresentação de aprovação {state.approvalEnabled ? "· ligada" : "· desligada"}
-        </p>
-        <p className="mt-1 text-xs leading-5 text-muted">
-          {state.approvalEnabled
-            ? "O link mostra CRÉDITO APROVADO com os valores atuais da simulação. Desligue para voltar à simulação."
-            : "Ligue quando o cliente for aprovado: o mesmo link passa a mostrar CRÉDITO APROVADO. Não muda a etapa do cliente."}
-        </p>
-        <a className="mt-1 inline-block text-xs font-bold text-brand underline underline-offset-2" href={`${previewHref}?modo=aprovacao`} target="_blank" rel="noopener">
-          Visualizar a apresentação de aprovação
-        </a>
-      </div>
-      <Switch checked={Boolean(state.approvalEnabled)} onChange={setApproval} disabled={busy} label="Apresentação de aprovação" />
-    </div>
-  ) : null;
 
+  // Painel enxuto (dono, 2026-10-19): só o título, o link, "Copiar link" e "Visualizar" (não conta como abertura).
+  // Saíram daqui: "Abrir o link", "Gerar novo link", a chave "Apresentação de aprovação" (passa a ligar sozinha quando o
+  // cliente vai para "Aprovado" — lógica no servidor), a linha de aberturas e a nota de rodapé.
   return (
     <section className="container-page mb-6" aria-labelledby="presentation-title">
       <Card padding="lg">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 id="presentation-title" className="flex items-center gap-2 text-lg font-bold text-navy">
-              <Presentation className="h-5 w-5 text-brand" aria-hidden="true" />
-              Apresentação da simulação
-            </h2>
-            {state?.schemaReady ? (
-              <p className="mt-1 text-sm text-muted">
-                {state.clientName || "Cliente"}
-                {state.simulationDate ? ` · simulação de ${formatDateBR(state.simulationDate)}` : ""}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
-          Mostra a simulação ao cliente em cenas, pelo celular, por um link individual.
-          O link sempre exibe os valores atuais da simulação salva.
-        </p>
+        <h2 id="presentation-title" className="flex items-center gap-2 text-lg font-bold text-navy">
+          <Presentation className="h-5 w-5 text-brand" aria-hidden="true" />
+          Apresentação da simulação
+        </h2>
 
-        {!state && !loadError ? <p className="mt-4 text-sm text-muted" role="status">Carregando…</p> : null}
-        {loadError ? <p className="mt-4 text-sm font-semibold text-danger" role="alert">{loadError}</p> : null}
+        {!state && !loadError ? <p className="mt-3 text-sm text-muted" role="status">Carregando…</p> : null}
+        {loadError ? <p className="mt-3 text-sm font-semibold text-danger" role="alert">{loadError}</p> : null}
 
         {state && !state.schemaReady ? (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button disabled>Apresentação da simulação</Button>
             <p className="text-sm font-semibold text-muted" role="status">{state.message || "Recurso ainda não ativado no banco."}</p>
           </div>
         ) : null}
 
         {state?.schemaReady && !state.ready ? (
-          <p className="mt-4 text-sm font-semibold text-muted">Preencha e salve os valores da simulação (financiamento, subsídio ou parcelas) para liberar a apresentação.</p>
+          <p className="mt-3 text-sm font-semibold text-muted">Preencha e salve os valores da simulação (financiamento, subsídio ou parcelas) para liberar a apresentação.</p>
         ) : null}
 
-        {canGenerate && !presentation ? approvalToggle : null}
+        {/* Sem link ainda: "Enviar simulação" também cria o link; aqui dá para criar sem enviar. */}
         {canGenerate && !presentation ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Button onClick={() => run("generate")} loading={busy}>
               <Link2 className="h-4 w-4" aria-hidden="true" />
-              Gerar apresentação
+              Gerar link
             </Button>
             <Button variant="secondary" href={previewHref} target="_blank" rel="noopener">
               <Eye className="h-4 w-4" aria-hidden="true" />
-              Visualizar antes
+              Visualizar
             </Button>
           </div>
         ) : null}
 
         {canGenerate && presentation ? (
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3 grid gap-3">
             <div className="flex min-w-0 items-center gap-2 rounded-control border border-line bg-mist px-3 py-2">
               <Link2 className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
               <input readOnly aria-label="Link da apresentação" value={displayLink(presentation.url)} onFocus={(event) => event.target.select()} className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-navy outline-none" />
@@ -220,26 +142,15 @@ export default function SimulationPresentationPanel({ simulationId }) {
               </Button>
               <Button variant="secondary" href={previewHref} target="_blank" rel="noopener">
                 <Eye className="h-4 w-4" aria-hidden="true" />
-                Visualizar antes de enviar
-              </Button>
-              <Button variant="secondary" href={presentation.url} target="_blank" rel="noopener">
-                <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                Abrir o link
-              </Button>
-              <Button variant="ghost" onClick={regenerate} loading={busy}>
-                <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                Gerar novo link
+                Visualizar
               </Button>
             </div>
-            {approvalToggle}
-            <Metrics presentation={presentation} sceneCount={state.sceneCount} />
+            {/* Mantido: único lugar do CRM que mostra a estratégia montada pelo cliente no link (só aparece se ele salvou). */}
             <PaymentStrategySummary strategy={state.paymentStrategy} />
-            <p className="text-xs text-faint">"Visualizar antes de enviar" não conta como abertura. "Abrir o link" conta, como se fosse o cliente.</p>
           </div>
         ) : null}
       </Card>
       {toastElement}
-      {confirmElement}
     </section>
   );
 }

@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação: Etapa A enxuta, "Ficha completa" alinhada, Etapa B "Simulação" e painel da apresentação enxuto
+- **Data:** 2026-10-19
+- **Área:** aba da simulação (`SimulationGenerator`, `SimulationPresentationPanel`), só apresentação, layout antigo.
+- **Alteração:** Etapa A menor: só o nome; data da simulação como texto abaixo dele (o valor segue gravado, sem edição na tela); WhatsApp só na "Ficha completa" (mesmo dado — `clientWhatsApp` e `registration.phone` andam juntos); observação interna em texto somente leitura, sem linhas de máquina (`__X__:` e "WhatsApp do cadastro:"), oculto se vazio — o valor continua no formulário e o autosave/Salvar o grava como antes. Cabeçalho "Cadastro do cliente" → "Ficha completa", menor (toque 44 px). Campos da ficha alinhados (rótulo encosta embaixo, todos h-14, data com largura da coluna no iOS; WhatsApp em linha inteira abaixo de 400 px). Etapa B: título "Simulação", sem legenda visível (fica para leitor de tela) e sem o texto de ajuda das caixas. Painel "Apresentação da simulação": só título, link, "Copiar link" e "Visualizar" (antes "Visualizar antes de enviar"; não conta abertura); sem link ainda: "Gerar link" + "Visualizar". Saíram do painel "Abrir o link", "Gerar novo link", a chave "Apresentação de aprovação" (passa a ligar sozinha pela etapa "Aprovado" — crm-editor), a linha de aberturas e a nota de rodapé. Mantido o resumo da "Estratégia de pagamento" do cliente (único lugar do CRM que a mostra; aparece só se o cliente salvou).
+- **Motivo:** pedidos do dono (2026-10-19).
+- **Verificação:** antes/depois 360/390/1280 px (vitrines temporárias, apagadas); testes da área; `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `components/presentation/SimulationPresentationPanel.jsx`, `tests/registration-form-labels.test.mjs`, `tests/simulation-presentation-approval.test.mjs` (trava: painel sem a chave).
+- **Risco/observação:** a data da simulação deixou de ser editável na tela (pedido do dono: "só mostrar a data").
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-19 — "Simulador Caixa" no menu do painel (com voto 👍/👎)
 - **Data:** 2026-10-19
 - **Área:** menu (`components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`), nova página `/admin/simulador-caixa`, nova API `/api/admin/simulador-caixa/feedback`, nova tabela `caixa_simulator_feedback`

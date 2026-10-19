@@ -15,9 +15,10 @@ test("Primeiro imóvel = Sim grava has_residential_property = false (e Não grav
   assert.deepEqual(FIRST_PROPERTY_OPTIONS.map((option) => option.value), ["true", "false"]);
 });
 
-test("bloco do cadastro: só 'Cadastro do cliente', minimizado, rótulos curtos, botão no fim, mesmo campo gravado", () => {
+test("bloco do cadastro: cabeçalho 'Ficha completa' (dono, 2026-10-19), minimizado, rótulos curtos, botão no fim, mesmo campo gravado", () => {
   const generator = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
-  assert.doesNotMatch(generator, /Ficha completa|Use estes campos para criar ou atualizar/);
+  assert.doesNotMatch(generator, /Use estes campos para criar ou atualizar/);
+  assert.match(generator, />Ficha completa</);
   assert.match(generator, /useState\(\(\) => !initialSimulation\?\.registrationId\)/);
   assert.match(generator, /aria-expanded=\{registrationOpen\}/);
   for (const label of ["3 anos FGTS", "Dependentes", "Primeiro imóvel"]) assert.match(generator, new RegExp(`label="${label}"`));
