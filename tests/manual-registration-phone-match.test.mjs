@@ -23,7 +23,7 @@ test("rota manual devolve 409 com o cliente existente", () => {
 
 test("tela pergunta (só ao criar) e mostra o retorno junto do botão", () => {
   const ui = read("components/SimulationGenerator.jsx");
-  assert.match(ui, /creating \? \{ onPhoneMatch \} : \{\}/);
+  assert.match(ui, /\.\.\.registrationRequestBody\(currentForm\), onPhoneMatch \}/);
   assert.match(ui, /onClick=\{\(\) => saveClientRegistration\(\)\}/, "não passar o evento de clique como onPhoneMatch");
   assert.match(ui, /saveClientRegistration\("create"\)/);
   assert.match(ui, /registrationFeedback\.existing/);
@@ -32,4 +32,26 @@ test("tela pergunta (só ao criar) e mostra o retorno junto do botão", () => {
 test("salvar simulação só vincula ao cliente do mesmo WhatsApp, sem renomear", () => {
   const sims = read("lib/simulations.js");
   assert.match(sims, /includeDetails: false,[\s\S]{0,200}keepExistingIdentity: true/);
+});
+
+test("ficha de cliente existente salva sozinha pela mesma rota, sem botão Atualizar cadastro", () => {
+  const ui = read("components/SimulationGenerator.jsx");
+  assert.doesNotMatch(ui, /"Atualizar cadastro"/);
+  assert.match(ui, /async function autoSaveRegistration\(\)/);
+  const fn = ui.slice(ui.indexOf("async function autoSaveRegistration()"), ui.indexOf("function scheduleRegistrationAutoSave"));
+  assert.match(fn, /\/api\/simulation-registrations\/manual/);
+  assert.match(fn, /onPhoneMatch: "ask"/);
+  assert.doesNotMatch(fn, /status:/, "salvamento automático nunca manda status");
+  assert.match(ui, /setTimeout\(\(\) => autoSaveRegistration\(\), 1000\)/);
+  assert.match(ui, /Tentar novamente/);
+  assert.match(ui, /Manter o telefone atual/);
+  assert.match(ui, /keepalive: true/);
+});
+
+test("servidor recusa trocar o WhatsApp da ficha para o de outro cliente", () => {
+  const lib = read("lib/simulation-registrations.js");
+  const fn = lib.slice(lib.indexOf("export async function ensureManualSimulationRegistration"));
+  const check = fn.indexOf("!isSamePhone(existing.phoneNormalized || existing.phone, draft.phoneNormalized)");
+  assert.ok(check > 0 && check < fn.indexOf("updateSimulationRegistration(existing.id"));
+  assert.match(fn, /other\.id !== existing\.id/);
 });

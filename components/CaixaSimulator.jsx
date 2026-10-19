@@ -110,8 +110,8 @@ export default function CaixaSimulator() {
   const update = (key, value) => setAnswers((current) => ({ ...current, [key]: value }));
   // Valor do imóvel no Simulador Caixa (dono, 2026-10-19): enquanto o corretor NÃO digita, o campo acompanha o TETO DA FAIXA da
   // renda (até R$ 5 mil = R$ 235 mil; até R$ 9,6 mil = R$ 400 mil; até R$ 13 mil = R$ 600 mil) e muda sozinho quando a renda
-  // muda de faixa; digitado, o valor dele vale (acima do teto, aviso "fora do MCMV"). Vale só aqui: a simulação automática,
-  // o Refazer e o Gerador seguem com o padrão R$ 235 mil do motor.
+  // muda de faixa; digitado, o valor dele vale (acima do teto, aviso "fora do MCMV"). Mesma regra do motor (simulação
+  // automática, Refazer e Gerador também usam o teto da faixa).
   const incomeTotal = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) + (joint ? Number(String(answers.secondaryMonthlyIncome).replace(/\D/g, "")) : 0);
   const bandCap = bandForIncome(incomeTotal)?.propertyCap || 0;
   const autoPropertyValue = formatCurrencyInput(String(bandCap || DEFAULT_PROPERTY_VALUE));
