@@ -35,6 +35,11 @@ export function notifyChatEvent(userId, event) {
   return post({ userId, type: "message", ...event });
 }
 
+// Saída do corretor que o CRM não decifrou (2026-10-19): { from, fromMe: true, waMessageId, remoteJid, at }, sem texto.
+export function notifyUndecryptedOwnMessage(userId, event) {
+  return post({ userId, type: "undecrypted_message", ...event });
+}
+
 // Mensagem de GRUPO (2026-10-11): evento próprio — o CRM guarda só para a aba "Grupos" do dono, nunca como cliente.
 // Resposta { ignored: true } = grupo removido do Chat pelo dono (o serviço para de baixar mídia dele).
 export function notifyGroupEvent(userId, event) {

@@ -44,6 +44,11 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Microsserviço envia `undecrypted_message` (saída do corretor não decifrada)
+- **Alteração:** `whatsapp-individual-service`: stub CIPHERTEXT `fromMe` em conversa 1:1 (live) vira o evento `undecrypted_message` ao webhook (`extractUndecryptedOwnEvent` + `notifyUndecryptedOwnMessage`), sem texto, telefone por `resolveChatPhone`; grupo/broadcast/status/contato fora. Completa o lado do CRM (commit 4ec48bf). `docs/WHATSAPP.md` §1-I.
+- **Arquivos:** `whatsapp-individual-service/src/message-extract.js`, `src/webhook.js`, `src/sessions.js`, `tests/whatsapp-undecrypted-service.test.mjs`.
+- **Deploy:** Railway (reconecta todos os números).
+
 ### 2026-10-19 — WhatsApp individual: reenvio ao próprio celular das mensagens do CRM (reincidência do §1-H)
 - **Alteração:** `whatsapp-individual-service`: (1) `sendMessage` escolhe o id antes do envio (`options.messageId`) e o marca como "em andamento"; o pedido de reenvio (`onSendRetryReceipt`) e o `getMessage` esperam o envio terminar (até 20 s, `PENDING_SEND_WAIT_MS`); (2) pedido do próprio celular (`own_device`, fora de grupo) passa a ser sempre reenviado à mão só para o aparelho que pediu, com sessão nova (antes só com `me.lid` vazio); (3) cache 30 min → 6 h (só memória, 300 por sessão).
 - **Motivo:** caso real (corretor, 19/10): 7 de 7 automáticas pedidas de novo pelo celular; 4 "fora do cache" porque o pedido chega antes de o Baileys terminar o commit das chaves; 3 reenviadas pelo Baileys reusando a sessão que falhou (celular pediu de novo 2 h depois). Mensagens chegaram ao cliente (`delivered_at`), sessão/número certos.
