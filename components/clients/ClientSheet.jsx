@@ -26,7 +26,9 @@ import Button from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Field";
 import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
-import { CLIENT_STATUS } from "@/lib/client-status";
+import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
+import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
@@ -42,7 +44,6 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
-import { estimateFinancing, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import StatusOptions from "./StatusOptions";
 import StatusReasonDialog from "./StatusReasonDialog";
 import CooledHandoffCard from "@/components/cooled/CooledHandoffCard";
@@ -167,8 +168,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
 
           {/* Simulação */}
           <Section title="Simulação">
-            <SimulationSummary client={client} />
-            {registration ? <SiteEstimate registration={registration} /> : null}
+            <SimulationSummary client={client} list={list} />
           </Section>
 
           {/* Tags */}
@@ -434,7 +434,55 @@ function IconAction({ label, onClick, disabled, tone, children }) {
   );
 }
 
-function SimulationSummary({ client }) {
+// Botões TEMPORÁRIOS (SIM-AUTO, dono 2026-10-19; desligar em AUTO_SIMULATION_REVIEW_ENABLED): depois de refazer no
+// simulador da Caixa, o corretor marca "Simulação OK" ou "Corrigir simulação" (renda usada na Caixa → edição normal).
+function AutoSimulationReview({ simulationId, list }) {
+  const [mode, setMode] = useState("");
+  const [income, setIncome] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function send(action) {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/simulations/${simulationId}/conferencia`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, caixaIncome: income })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível registrar a conferência.");
+      if (data.editUrl) window.location.assign(data.editUrl);
+      else await list.fetchClients({ silent: true });
+    } catch (sendError) {
+      setError(sendError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-3">
+      {mode === "corrigir" ? (
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-muted" htmlFor={`caixa-income-${simulationId}`}>Renda usada no simulador da Caixa</label>
+          <input id={`caixa-income-${simulationId}`} className={inputClasses} inputMode="decimal" placeholder="Ex.: 2.550,00" value={income} onChange={(event) => setIncome(event.target.value)} disabled={busy} />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => send("corrigir")} loading={busy}>Abrir edição</Button>
+            <Button size="sm" variant="ghost" onClick={() => setMode("")} disabled={busy}>Voltar</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => send("ok")} loading={busy}><Check className="h-4 w-4" aria-hidden="true" /> Simulação OK</Button>
+          <Button size="sm" variant="secondary" onClick={() => setMode("corrigir")} disabled={busy}><Pencil className="h-4 w-4" aria-hidden="true" /> Corrigir simulação</Button>
+        </div>
+      )}
+      {error ? <p className="mt-2 text-xs font-medium text-danger">{error}</p> : null}
+    </div>
+  );
+}
+
+function SimulationSummary({ client, list }) {
   if (client.completed && client.summary) {
     return (
       <div>
@@ -444,8 +492,24 @@ function SimulationSummary({ client }) {
       </div>
     );
   }
+  const automatic = client.summary?.automatic;
+  if (automatic) {
+    return (
+      <div>
+        <p className="text-xs font-medium text-muted">Poder de compra · estimativa automática do site</p>
+        <p className="mt-0.5 text-[28px] font-bold leading-9 tracking-[-0.015em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</p>
+        <p className="mt-1 text-[13px] text-ink-2 tabular-nums">
+          {[`Financiamento ${formatMoneyBR(automatic.financing)}`, `Subsídio ${formatMoneyBR(automatic.subsidy)}`, automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : ""].filter(Boolean).join(" · ")}
+        </p>
+        {automatic.incomeConsidered ? <p className="mt-1 text-[13px] font-medium text-ink tabular-nums">Renda para usar na Caixa: {automatic.incomeConsidered}</p> : null}
+        <p className="mt-1 text-xs text-muted">Calculada pelo site (imóvel novo e usado).</p>
+        <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
+        {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id ? <AutoSimulationReview simulationId={client.simulation.id} list={list} /> : null}
+      </div>
+    );
+  }
   const registration = client.registration;
-  const awaiting = client.status === CLIENT_STATUS.PENDING;
+  const awaiting = isAwaitingSimulationStatus(client.status);
   const filled = registration && hasSimulationData(registration);
   const lines = filled ? [
     Number(registration.primaryMonthlyIncome) > 0 ? `Renda ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
@@ -456,32 +520,6 @@ function SimulationSummary({ client }) {
     <div>
       <p className={cx("text-sm font-semibold", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Cliente aguardando simulação" : "Simulação ainda não realizada"}</p>
       {lines.length ? <p className="mt-1 text-[13px] text-ink-2">{lines.join(" · ")}</p> : null}
-    </div>
-  );
-}
-
-// Estimativa automática que o site mostrou ao cliente (SIM-AUTO, dono 2026-10-19): recalculada aqui com os dados da
-// ficha e a data do formulário — nunca gravada em `simulations` nem misturada com a simulação real da Caixa.
-function SiteEstimate({ registration }) {
-  const submittedAt = registration.lastFormSubmittedAt || registration.createdAt;
-  const estimate = submittedAt ? estimateFinancing(registration, todayInSaoPaulo(new Date(submittedAt))) : null;
-  if (!estimate?.eligible) return null;
-  const share = (value) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-  return (
-    <div className="mt-4 rounded-control border border-dashed border-line px-3 py-2.5">
-      <p className="text-xs font-medium text-muted">Estimativa automática do site</p>
-      <p className="mt-0.5 text-[15px] font-semibold text-navy tabular-nums">Poder de compra {formatMoneyBR(estimate.purchasePower)}</p>
-      <p className="mt-1 text-[13px] text-ink-2 tabular-nums">
-        {[
-          `Financiado ${formatMoneyBR(estimate.financing)}`,
-          `Subsídio ${formatMoneyBR(estimate.subsidy)}`,
-          `Entrada ${formatMoneyBR(estimate.downPayment)}`,
-          `Price ${formatMoneyBR(estimate.priceFirstInstallment)} (${share(estimate.priceIncomeShare)})`,
-          `SAC ${formatMoneyBR(estimate.sacFirstInstallment)} (${share(estimate.sacIncomeShare)})`,
-          `${estimate.termMonths} meses a ${estimate.annualRate.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.a.`
-        ].join(" · ")}
-      </p>
-      <p className="mt-1 text-xs text-muted">Calculada pelo site com os dados do cadastro. Não é a simulação da Caixa.</p>
     </div>
   );
 }

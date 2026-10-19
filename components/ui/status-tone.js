@@ -9,6 +9,7 @@ import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 const TONE_BY_STATUS = {
   [CLIENT_STATUS.AUTOMATED_SERVICE]: "info",
   [CLIENT_STATUS.PENDING]: "warning",
+  [CLIENT_STATUS.AUTO_SIMULATION]: "warning",
   [CLIENT_STATUS.COMPLETED]: "info",
   [CLIENT_STATUS.SIMULATION_SENT]: "info",
   [CLIENT_STATUS.IN_SERVICE]: "info",

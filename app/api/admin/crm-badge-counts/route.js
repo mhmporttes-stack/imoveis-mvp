@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { applyResponsibleUserScope } from "@/lib/admin-access";
 import { getSupabaseAdminClient } from "@/lib/supabase";
-import { CLIENT_STATUS } from "@/lib/client-status";
+import { AWAITING_SIMULATION_STATUS_VALUES, CLIENT_STATUS } from "@/lib/client-status";
 import { getUnattendedClientIds } from "@/lib/simulation-list-query";
 import { countOpenProspectingReplies } from "@/lib/prospecting-reply";
 
@@ -22,7 +22,7 @@ export async function GET(request) {
       getUnattendedClientIds(auth),
       applyResponsibleUserScope(db.from("simulation_registrations")
         .select("id", { count: "exact", head: true })
-        .eq("status", CLIENT_STATUS.PENDING), auth),
+        .in("status", AWAITING_SIMULATION_STATUS_VALUES), auth),
       db.from("simulation_registrations").select("id", { count: "exact", head: true })
         .eq("responsible_user_id", auth.profile.id)
         .not("scheduled_activity_at", "is", null)

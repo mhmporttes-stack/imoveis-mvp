@@ -201,6 +201,7 @@ export async function POST(request, { params }) {
       : await ensurePresentation({ simulation, userId });
     return NextResponse.json(await stateBody(simulation, result, request), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error?.code === "AUTO_SIMULATION_NOT_REVIEWED") return NextResponse.json({ error: error.message }, { status: 409 });
     console.error("Falha ao gerar apresentação da simulação:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível gerar a apresentação." }, { status: 500 });
   }

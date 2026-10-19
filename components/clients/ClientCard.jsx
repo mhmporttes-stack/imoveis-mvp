@@ -25,7 +25,7 @@ import Button from "@/components/ui/Button";
 import Menu from "@/components/ui/Menu";
 import { cx } from "@/components/ui/cx";
 import { clientStatusTone } from "@/components/ui/status-tone";
-import { CLIENT_STATUS, clientStatusLabel } from "@/lib/client-status";
+import { CLIENT_STATUS, clientStatusLabel, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
@@ -377,8 +377,22 @@ function SimulationLine({ client }) {
       </div>
     );
   }
+  // Simulação automática do site (SIM-AUTO): mostra a estimativa no lugar de "Simulação a fazer".
+  const automatic = client.summary?.automatic;
+  if (automatic) {
+    return (
+      <div className="min-w-0">
+        <p className="text-[13px] text-ink-2">
+          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span>
+        </p>
+        <p className="truncate text-xs leading-4 text-muted tabular-nums">
+          {[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}
+        </p>
+      </div>
+    );
+  }
   const registration = client.registration;
-  const awaiting = client.status === CLIENT_STATUS.PENDING;
+  const awaiting = isAwaitingSimulationStatus(client.status);
   const filled = registration && hasSimulationData(registration);
   const details = filled ? [
     Number(registration.primaryMonthlyIncome) > 0 ? `Renda ${formatCurrency(registration.primaryMonthlyIncome)}` : "",

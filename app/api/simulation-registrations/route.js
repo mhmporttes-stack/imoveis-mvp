@@ -3,11 +3,14 @@ import {
   canManageSimulationRegistrations,
   createSimulationRegistration,
   formatSimulationRegistrationError,
+  markRegistrationAutoSimulation,
   SimulationRegistrationValidationError
 } from "@/lib/simulation-registrations";
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
 import { announceAlexaEvent } from "@/lib/alexa-service";
-import { createPendingSimulationFromRegistration } from "@/lib/simulations";
+import { saveSiteSimulationFromRegistration } from "@/lib/simulations";
+import { saveAutoSnapshot } from "@/lib/simulation-auto-reviews";
+import { buildAutoSnapshot } from "@/lib/simulation-auto-review-core.mjs";
 import { extractRequestMetadata } from "@/lib/meta-conversions-api";
 import { buildRateLimitKey, checkPublicRateLimit } from "@/lib/rate-limit";
 
@@ -36,10 +39,18 @@ export async function POST(request) {
 
   try {
     const registration = await createSimulationRegistration(payload, extractRequestMetadata(request));
+    // SIM-AUTO (dono, 2026-10-19): elegível ao MCMV → simulação automática gravada (novo + usado), status "Simulação
+    // automática" e retrato para a conferência. O link da apresentação só nasce depois que o corretor marca "Simulação
+    // OK" ou conclui a correção (regra oficial; trava em lib/simulation-presentation.js). Fora do MCMV: a vazia de sempre.
+    // Falha aqui nunca derruba o cadastro (mesmo tratamento da simulação vazia de antes).
     try {
-      await createPendingSimulationFromRegistration(registration);
+      const saved = await saveSiteSimulationFromRegistration(registration);
+      if (saved.automatic && saved.simulation?.id) {
+        await markRegistrationAutoSimulation(registration.id);
+        await saveAutoSnapshot({ registrationId: registration.id, simulationId: saved.simulation.id, snapshot: buildAutoSnapshot(registration, saved.estimate, saved.referenceDate) });
+      }
     } catch (simulationError) {
-      console.warn("Pending simulation creation failed:", simulationError?.message || simulationError);
+      console.warn("Site simulation creation failed:", simulationError?.message || simulationError);
     }
 
     try {

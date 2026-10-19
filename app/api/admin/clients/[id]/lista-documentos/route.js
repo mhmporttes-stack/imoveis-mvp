@@ -104,6 +104,7 @@ export async function POST(request, { params }) {
     );
   } catch (error) {
     if (error?.name === "AdminPermissionError") return NextResponse.json({ error: error.message || "Acesso negado." }, { status: 403 });
+    if (error?.code === "AUTO_SIMULATION_NOT_REVIEWED") return NextResponse.json({ error: error.message }, { status: 409 });
     console.error("Falha ao preparar a lista de documentos do cliente:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível preparar a lista de documentos." }, { status: 500 });
   }

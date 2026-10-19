@@ -59,6 +59,11 @@ function EstimateResult({ estimate }) {
         <p className="mt-1 text-[clamp(1.5rem,8vw,2.5rem)] font-black leading-tight tracking-[-0.02em] tabular-nums">{formatMoneyBR(estimate.purchasePower)}</p>
       </div>
 
+      <p className="mt-3 text-center text-xs font-semibold leading-5 text-muted">
+        Renda considerada na simulação: <span className="text-navy tabular-nums">{formatMoneyBR(estimate.income)}</span>
+        {estimate.incomeAdjusted ? <> (melhor cenário para o seu perfil; você informou {formatMoneyBR(estimate.declaredIncome)})</> : null}
+      </p>
+
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
         <EstimateItem label="Valor financiado" value={formatMoneyBR(estimate.financing)} />
         <EstimateItem label="Subsídio estimado" value={formatMoneyBR(estimate.subsidy)} />
@@ -67,6 +72,12 @@ function EstimateResult({ estimate }) {
         <EstimateItem label="1ª parcela Price" value={formatMoneyBR(estimate.priceFirstInstallment)} note={`${percent(estimate.priceIncomeShare)} · parcelas quase iguais`} />
         <EstimateItem label="1ª parcela SAC" value={formatMoneyBR(estimate.sacFirstInstallment)} note={`${percent(estimate.sacIncomeShare)} · diminui todo mês`} />
       </dl>
+
+      {estimate.used ? (
+        <p className="mt-3 rounded-2xl bg-mist px-4 py-3 text-xs font-semibold leading-5 text-muted">
+          Imóvel usado: subsídio estimado de <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.subsidy)}</span> · pode comprar até <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.purchasePower)}</span>
+        </p>
+      ) : null}
 
       <p className="mt-3 text-center text-xs font-semibold leading-5 text-muted">{ESTIMATE_DISCLAIMER}</p>
     </section>

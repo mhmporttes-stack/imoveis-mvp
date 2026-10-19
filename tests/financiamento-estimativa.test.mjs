@@ -5,7 +5,9 @@ import {
   ESTIMATE_DISCLAIMER,
   ageInMonths,
   estimateFinancing,
-  estimateSubsidy
+  estimateSubsidy,
+  estimateUsedSubsidy,
+  scenarioValue
 } from "../lib/financiamento-estimativa-core.mjs";
 
 // Casos REAIS do simulador da Caixa gravados no CRM (tabela `simulations`, jul–out/2026), anonimizados: sem nome,
@@ -106,4 +108,72 @@ test("idade em meses completos e aviso oficial", () => {
   assert.equal(ageInMonths("2000-10-02", "2026-10-01"), 25 * 12 + 11);
   assert.equal(ageInMonths("2000-10-01", "2026-10-01"), 26 * 12);
   assert.equal(ESTIMATE_DISCLAIMER, "Valores estimados, sujeitos à análise de crédito da Caixa.");
+});
+
+test("imóvel usado: metade do desconto integral (para baixo), teto R$ 24.750; 30% para um comprador sem filhos", () => {
+  // Pares reais (novo → usado) do simulador da Caixa gravados no CRM.
+  assert.equal(estimateUsedSubsidy({ income: 2000, cotista: false, fullFamily: true }), 21457); // novo 42.915
+  assert.equal(estimateUsedSubsidy({ income: 2300, cotista: true, fullFamily: true }), 14214); // novo 28.429
+  assert.equal(estimateUsedSubsidy({ income: 2125, cotista: true, fullFamily: true }), 17962); // novo 35.925
+  assert.equal(estimateUsedSubsidy({ income: 1500, cotista: false, fullFamily: true }), 24750); // novo 55.000 (teto)
+  assert.equal(estimateUsedSubsidy({ income: 1500, cotista: false, fullFamily: false }), 7425); // novo 16.500
+  assert.equal(estimateUsedSubsidy({ income: 2000, cotista: false, fullFamily: false }), 6437); // novo 12.874
+  const result = estimateFinancing(inputOf(CAIXA_CASES[0]), REFERENCE_DATE);
+  assert.equal(result.used.purchasePower, Math.round((result.financing + result.used.subsidy) * 100) / 100);
+});
+
+test("última parcela Price = prestação pura + taxa de administração (como a Caixa)", () => {
+  // Caso real: renda 2.300, cotista, 18 anos → Caixa: 1ª 674,97 e última 647,07 para 136.726,92.
+  const result = estimateFinancing({ primaryMonthlyIncome: 2300, hasOverThreeYearsRegisteredWork: true, hasChildrenUnder18: true, oldestBirthDate: "2008-02-01", hasResidentialProperty: false }, REFERENCE_DATE);
+  assert.ok(Math.abs(result.priceLastInstallment - 647.07) <= 0.05, String(result.priceLastInstallment));
+  assert.ok(result.sacLastInstallment < result.sacFirstInstallment);
+});
+
+// Renda considerada (REGRA OFICIAL — dono, 2026-10-19: "achar o MELHOR CENÁRIO").
+const informal = "self_employed_unregistered";
+const base = { oldestBirthDate: "1998-01-01", hasResidentialProperty: false, availablePurchaseResource: 0 };
+
+test("renda: CLT e declarante de IR nunca mudam", () => {
+  for (const type of ["registered_employment", "income_tax_declarant"]) {
+    const result = estimateFinancing({ ...base, primaryMonthlyIncome: 6000, primaryIncomeType: type, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true }, REFERENCE_DATE);
+    assert.equal(result.income, 6000);
+    assert.equal(result.incomeRule, "declared");
+    assert.equal(result.incomeAdjusted, false);
+  }
+});
+
+test("renda: informal sem filho e sem 3 anos de registro = direto R$ 2.550 (mesmo declarando menos ou mais)", () => {
+  for (const declared of [1500, 10000]) {
+    const result = estimateFinancing({ ...base, primaryMonthlyIncome: declared, primaryIncomeType: informal, hasChildrenUnder18: false, hasOverThreeYearsRegisteredWork: false }, REFERENCE_DATE);
+    assert.equal(result.income, 2550);
+    assert.equal(result.incomeRule, "max");
+    assert.equal(result.declaredIncome, declared);
+  }
+});
+
+test("renda: informal com só filho OU só 3 anos = declarada, com teto de R$ 2.550 por pessoa", () => {
+  const onlyKids = { ...base, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: false };
+  assert.equal(estimateFinancing({ ...onlyKids, primaryMonthlyIncome: 1800 }, REFERENCE_DATE).income, 1800);
+  assert.equal(estimateFinancing({ ...onlyKids, primaryMonthlyIncome: 10000 }, REFERENCE_DATE).income, 2550);
+  const onlyFgts = { ...base, primaryIncomeType: informal, hasChildrenUnder18: false, hasOverThreeYearsRegisteredWork: true, primaryMonthlyIncome: 4000 };
+  assert.equal(estimateFinancing(onlyFgts, REFERENCE_DATE).incomeRule, "cap");
+  assert.equal(estimateFinancing(onlyFgts, REFERENCE_DATE).income, 2550);
+});
+
+test("renda: informal com filho E 3 anos testa de 1 salário mínimo a R$ 2.550 e fica com o maior imóvel possível", () => {
+  const input = { ...base, primaryMonthlyIncome: 5000, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true };
+  const best = estimateFinancing(input, REFERENCE_DATE);
+  assert.equal(best.incomeRule, "optimize");
+  assert.ok(best.income >= 1621 && best.income <= 2550);
+  for (const income of [1621, 1900, 2000, 2300, 2550]) {
+    const other = estimateFinancing({ ...input, primaryMonthlyIncome: income, primaryIncomeType: "registered_employment" }, REFERENCE_DATE);
+    assert.ok(scenarioValue(best) >= scenarioValue(other) - 1, `renda ${income}`);
+  }
+});
+
+test("renda: casal misto — CLT fixa, só a parte informal é ajustada (teto por pessoa)", () => {
+  const result = estimateFinancing({ ...base, primaryMonthlyIncome: 3000, primaryIncomeType: "registered_employment", secondaryMonthlyIncome: 9000, secondaryIncomeType: informal, hasChildrenUnder18: false, hasOverThreeYearsRegisteredWork: false }, REFERENCE_DATE);
+  assert.equal(result.primaryIncomeConsidered, 3000);
+  assert.equal(result.secondaryIncomeConsidered, 2550);
+  assert.equal(result.income, 5550);
 });
