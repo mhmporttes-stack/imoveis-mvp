@@ -889,6 +889,25 @@ export function useClientList({
     });
   }
 
+  // "Recebi documentos por fora" (dono, 2026-10-19): só um evento na linha do tempo — não conta como atendimento nem como
+  // ponto. `undo` desfaz logo depois de marcar (a tela oferece por 10 s). Devolve true quando gravou.
+  async function setDocumentReceivedOffline(client, { undo = false } = {}) {
+    return withBusy(client, async () => {
+      const response = await fetch("/api/admin/client-documents/received-offline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: client.id, undo })
+      }).catch(() => null);
+      const data = response ? await response.json().catch(() => ({})) : {};
+      if (!response?.ok) {
+        notify(data.error || "Não foi possível marcar agora. Tente de novo.", "danger");
+        return false;
+      }
+      setItems((current) => current.map((item) => (item.id === client.id && item.documentsOffline ? { ...item, documentsOffline: { receivedAt: data.receivedAt || "" } } : item)));
+      return true;
+    });
+  }
+
   async function copyBrokerSimulationLink() {
     try {
       await navigator.clipboard.writeText(brokerSimulationLink);
@@ -909,6 +928,6 @@ export function useClientList({
     handleProspectingAction, confirmStatusReason, cancelStatusReason: () => setReasonTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
-    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
+    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, setDocumentReceivedOffline, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
   };
 }

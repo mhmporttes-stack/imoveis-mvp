@@ -31,6 +31,7 @@ import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
+import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITLE, OFFLINE_UNDO_MS, offlineMarkLabel } from "@/lib/document-received-offline-core.mjs";
 
 // Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
 // em 2026-10-01): o conceito do card antigo — ver o cliente inteiro sem abrir
@@ -126,6 +127,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
           {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : null}
         </p>
         {tags.length ? <TagsLine tags={tags} onEdit={() => onOpen("tags")} /> : null}
+        {client.documentsOffline ? <DocumentsOfflineAction client={client} busy={busy} list={list} confirmAction={confirmAction} /> : null}
       </div>
 
       <ProspectingStrip client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
@@ -404,6 +406,56 @@ function SimulationLine({ client }) {
       <p className={cx("text-[13px] font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</p>
       {details.length ? <p className="truncate text-xs leading-4 text-muted">{details.join(" · ")}</p> : null}
     </div>
+  );
+}
+
+// "Recebi documentos por fora" (REGRA OFICIAL do dono, 2026-10-19): o servidor só manda `documentsOffline` para cliente em
+// "Aguardando documentação" SEM lote salvo. Ação discreta com contorno → confirmação → etiqueta neutra "1º documento recebido
+// por fora · dd/mm" (nunca "documentos recebidos") e "Desfazer" por 10 s. Não conta como atendimento nem como ponto.
+function formatDayMonth(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(date);
+}
+
+function DocumentsOfflineAction({ client, busy, list, confirmAction }) {
+  const receivedAt = client.documentsOffline?.receivedAt || "";
+  const [undoUntil, setUndoUntil] = useState(0);
+  useEffect(() => {
+    if (!undoUntil) return undefined;
+    const timer = setTimeout(() => setUndoUntil(0), Math.max(0, undoUntil - Date.now()));
+    return () => clearTimeout(timer);
+  }, [undoUntil]);
+
+  async function mark() {
+    const ok = await confirmAction({ title: OFFLINE_CONFIRM_TITLE, description: OFFLINE_CONFIRM_DESCRIPTION, confirmLabel: "Marcar", cancelLabel: "Cancelar" });
+    if (!ok) return;
+    if (await list.setDocumentReceivedOffline(client)) setUndoUntil(Date.now() + OFFLINE_UNDO_MS);
+  }
+  async function undo() {
+    setUndoUntil(0);
+    await list.setDocumentReceivedOffline(client, { undo: true });
+  }
+
+  if (receivedAt) {
+    return (
+      <p className="flex flex-wrap items-center gap-2 text-xs" data-documents-offline="marked">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 font-medium text-ink-2">
+          <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+          {offlineMarkLabel(receivedAt, formatDayMonth)}
+        </span>
+        {undoUntil ? (
+          <button type="button" onClick={undo} disabled={busy} className="inline-flex min-h-touch items-center rounded-chip px-1 font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50">
+            Desfazer
+          </button>
+        ) : null}
+      </p>
+    );
+  }
+  return (
+    <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={mark} disabled={busy} data-documents-offline="action">
+      <FileText className="h-4 w-4" aria-hidden="true" /> {OFFLINE_ACTION_LABEL}
+    </Button>
   );
 }
 

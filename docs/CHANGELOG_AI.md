@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Card: "Recebi documentos por fora" (lote A item 5)
+- **Área:** Clientes / Documentação
+- **Alteração:** DOC-7 (regra do dono): ação no card só em "Aguardando documentação" sem lote salvo; confirmação, etiqueta "1º documento recebido por fora · {data}" e "Desfazer" por 10 s. Só grava `document_received_offline` / `document_received_offline_undone` na linha do tempo (fora do atendimento e da pontuação). Rota nova `POST /api/admin/client-documents/received-offline` (`requireAdminApi` + `assertCanAccessResponsibleUser`). `logClientJourneyEvent` ganhou `strict` (opcional) para a falha de gravação chegar à tela. `docs/BUSINESS_RULES.md` DOC-7, `docs/PERMISSIONS.md`.
+- **Arquivos:** `lib/document-received-offline{.js,-core.mjs}`, `lib/client-journey.js`, `lib/simulation-list-query.js`, `app/api/admin/client-documents/received-offline/route.js`, `components/clients/{ClientCard.jsx,useClientList.js}`, `components/ClientJourneyActions.jsx`, `tests/document-received-offline.test.mjs`.
+- **Risco/observação:** a lista de clientes faz mais 2 leituras por página só quando há cliente em "Aguardando documentação" (lotes e eventos desses clientes); falha só esconde a ação (log).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Painel da apresentação: "Enviar simulação" principal e "copiado" registrado (lote A item 4)
 - **Área:** Clientes / Apresentação
 - **Alteração:** painel "Apresentação da simulação": botão cheio "Enviar simulação" pela mesma função do gerador (evento de página, sem fluxo novo; desativado com "Este cliente não pode receber mensagens." para arquivado/Não contactar); "Copiar link" e "Visualizar" com contorno; copiar grava `presentation_link_copied` (rota `POST /api/admin/simulacoes/[id]/apresentacao` ação `copiar-registrar`, mesmo guard/escopo) com aviso "copiado às {hh:mm}"; linha "Aberto pelo cliente em {data} · envio não registrado". Rótulo do evento na linha do tempo. `docs/BUSINESS_RULES.md` PRES-19.
