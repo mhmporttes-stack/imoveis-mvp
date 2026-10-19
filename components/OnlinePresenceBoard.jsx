@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, History, Laptop, Smartphone } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
 import { nextSundayKey } from "@/lib/office-presence-core.mjs";
 
@@ -19,7 +20,7 @@ const STATUS_META = {
   offline: { emoji: "⚫", label: "Offline", dot: "bg-slate-400", chip: "border-slate-200 bg-slate-50 text-slate-600" }
 };
 
-export default function OnlinePresenceBoard({ initialPresence, initialError = "" }) {
+export default function OnlinePresenceBoard({ initialPresence, initialError = "", renderId = "" }) {
   const [presence, setPresence] = useState(initialPresence);
   const [error, setError] = useState(initialError);
   const [, setTick] = useState(0);
@@ -60,6 +61,8 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
       document.removeEventListener("visibilitychange", load);
     };
   }, []);
+  // Tela pré-carregada ou reaproveitada (dono, 2026-10-19): mostra na hora e busca a presença atual em segundo plano.
+  useRevalidateOnReuse(renderId, () => reloadRef.current?.());
 
   const members = presence?.members || [];
 

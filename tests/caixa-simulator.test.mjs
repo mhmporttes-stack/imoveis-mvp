@@ -81,3 +81,14 @@ test("página e API com guard; API recalcula no servidor; não cria cliente nem 
   assert.match(migration, /create table if not exists public\.caixa_simulator_feedback/);
   assert.match(migration, /enable row level security/);
 });
+
+test("barra do corretor/associado: Simulador no lugar da Meta; pré-carregamento do Online no admin (dono, 2026-10-19)", () => {
+  const nav = read("components/AdminBottomNav.jsx");
+  assert.match(nav, /return \[DESTINATIONS\.caixaSimulator, DESTINATIONS\.clients, DESTINATIONS\.chat, DESTINATIONS\.agenda\]/);
+  assert.match(nav, /if \(isManager\) return \[DESTINATIONS\.dailyGoal,/);
+  const layout = read("app/admin/layout.jsx");
+  assert.match(layout, /isAdmin \? \["\/admin\/desempenho\/online", "\/admin\/desempenho"\]/);
+  assert.match(layout, /!isAdmin && !hidden\.has\("daily-goal"\) \? \["\/admin\/meta-diaria"\]/);
+  assert.match(read("app/admin/desempenho/online/page.jsx"), /unstable_dynamicStaleTime = 300/);
+  assert.match(read("components/OnlinePresenceBoard.jsx"), /useRevalidateOnReuse\(renderId/);
+});

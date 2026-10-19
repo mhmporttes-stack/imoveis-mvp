@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Barra do corretor: Simulador no lugar da Meta; pré-carregamento do "Online" no admin
+- **Pedido do dono:** trocar o atalho "Meta Diária" da barra do celular pelo "Simulador Caixa" e levar o pré-carregamento da Meta (que ele quase não usa) para o "Online".
+- **Barra (`components/AdminBottomNav.jsx`):** corretor/associado = Simulador, Clientes, Chat, Agenda (Meta vai para o "Mais"); gestor sem mudança (Meta, Clientes, Chat, Agenda); admin geral sem mudança (Online, Clientes, Chat, Desempenho). Menu do topo (desktop) e atalho de Meta na tela Clientes (desktop) não mudaram.
+- **Causa da lentidão do Online:** `warmupTargets` (`app/admin/layout.jsx`) ainda montava `/admin/meta-diaria` inteira para o admin geral (visão da equipe, pode congelar pendentes/carteira), embora a Meta tenha saído da barra dele em 2026-10-13, e não pré-carregava o Online. Agora o admin pré-carrega Online (só leitura: `getTeamPresence`) e não a Meta. Online ganhou `unstable_dynamicStaleTime = 300` + `renderId`/`useRevalidateOnReuse` (presença atualiza em segundo plano ao reaproveitar). Corretor/associado pré-carregam também o Simulador (página sem consulta ao banco).
+- **Mantido de propósito:** gestor/corretor/associado continuam pré-carregando a Meta inteira — é esse pedido que gera a cota do dia ao abrir o app (MD-16). Sem ele, com a Meta fora da barra, os contatos do dia só entrariam quando o corretor abrisse a Meta pelo "Mais" (ou pela automação). Tirar exige decisão do dono.
+- **Arquivos afetados:** `components/AdminBottomNav.jsx`, `app/admin/layout.jsx`, `components/AdminWarmup.jsx` (comentário), `app/admin/desempenho/online/page.jsx`, `components/OnlinePresenceBoard.jsx`, `tests/caixa-simulator.test.mjs`.
+- **Risco/observação:** testes da área ok (falha conhecida e alheia: `admin-presence-real-user` heartbeat, já falhava antes); build ok. Ganho não medido no aparelho (pré-carregamento só age em build de produção, no celular).
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Agendar atendimento: escassez oscila de 10% a 40% por dia
 - **Data:** 2026-10-19
 - **Área:** Apresentação da simulação — "Agendar atendimento" (PRES-22)

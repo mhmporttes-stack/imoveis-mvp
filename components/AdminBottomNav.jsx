@@ -28,10 +28,12 @@ import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 // Distribuição (decisão do Designer, autorizada pelo dono em 2026-10-01):
 // - Administrador geral supervisiona o time: Online (presença da equipe), Clientes,
 //   Chat, Desempenho (Meta Diária no "Mais" desde 2026-10-13).
-// - Gestor, corretor e associado operam a própria carteira: Meta Diária,
-//   Clientes, Chat, Agenda.
+// - Gestor opera a própria carteira e a da equipe: Meta Diária, Clientes, Chat, Agenda.
+// - Corretor e associado (dono, 2026-10-19): Simulador Caixa no lugar da Meta Diária;
+//   a Meta Diária continua no "Mais" (e no menu do topo).
 const DESTINATIONS = {
   dailyGoal: { key: "daily-goal", href: "/admin/meta-diaria", label: "Meta", Icon: Target, match: (path) => path === "/admin/meta-diaria" },
+  caixaSimulator: { key: "caixa-simulator", href: "/admin/simulador-caixa", label: "Simulador", Icon: Calculator, match: (path) => path.startsWith("/admin/simulador-caixa") },
   clients: { key: "simulations", href: "/admin/simulacoes", label: "Clientes", Icon: Users, match: (path) => path.startsWith("/admin/simulacoes") },
   chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
@@ -40,10 +42,11 @@ const DESTINATIONS = {
 };
 
 // Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
-function destinationsFor({ isAdmin }) {
-  return isAdmin
-    ? [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance]
-    : [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
+// Corretor/associado (dono, 2026-10-19): "Simulador Caixa" no lugar da Meta Diária; gestor mantém a Meta.
+function destinationsFor({ isAdmin, isManager }) {
+  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance];
+  if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
+  return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
 }
 
 function badgeFor(key, counts) {

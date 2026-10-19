@@ -127,11 +127,12 @@ export default async function AdminLayout({ children }) {
   );
 }
 
-// Pré-carregamento (components/AdminWarmup.jsx): as MESMAS telas que a barra inferior mostra para esta conta
-// (AdminBottomNav: Meta, Clientes, Chat + Desempenho no admin geral ou Agenda nos demais; hiddenNavKeys tira Chat/Meta
-// de quem tem WhatsApp bloqueado).
+// Pré-carregamento (components/AdminWarmup.jsx): as telas que a barra inferior mostra para esta conta
+// (AdminBottomNav: Online/Clientes/Chat/Desempenho no admin geral; Meta/Clientes/Chat/Agenda no gestor;
+// Simulador/Clientes/Chat/Agenda no corretor e associado; hiddenNavKeys tira Chat/Meta de quem tem WhatsApp bloqueado).
 function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
   const isAdmin = isGeneralAdminProfile(auth.profile);
+  const isManager = !isAdmin && isManagerProfile(auth.profile);
   const hidden = hiddenNavKeys({
     blocked: whatsappBlocked,
     chatHidden,
@@ -143,13 +144,18 @@ function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
     chat,
     performance: isAdmin,
     clients: true,
-    // Meta Diária completa (REGRA OFICIAL — dono, 2026-10-12): a Meta do dia pode ser montada quando o app abre. O pedido
-    // pré-carregado é o mesmo da abertura (mesma página/função no servidor, com o perfil EFETIVO da sessão).
     fullRoutes: [
       "/admin/simulacoes",
       ...(chat ? ["/admin/chat"] : []),
-      ...(hidden.has("daily-goal") ? [] : ["/admin/meta-diaria"]),
-      ...(isAdmin ? ["/admin/desempenho"] : [])
+      // Admin geral (dono, 2026-10-19): "Online" no lugar da Meta Diária — a Meta saiu da barra dele em 2026-10-13 e
+      // continuava sendo montada ao abrir o app (visão da equipe inteira, pesada). Online só lê a presença da equipe.
+      ...(isAdmin ? ["/admin/desempenho/online", "/admin/desempenho"] : []),
+      // Gestor/corretor/associado: Meta Diária completa (REGRA OFICIAL — dono, 2026-10-12, MD-16): é este pedido que
+      // gera a cota do dia quando o app abre (mesma página/função da abertura, perfil EFETIVO da sessão). Para o corretor
+      // a Meta saiu da barra (2026-10-19, foi para o "Mais"); manter aqui garante que os contatos do dia continuem entrando.
+      ...(!isAdmin && !hidden.has("daily-goal") ? ["/admin/meta-diaria"] : []),
+      // Simulador Caixa (barra do corretor/associado): a página não consulta o banco, só confere o login.
+      ...(!isAdmin && !isManager ? ["/admin/simulador-caixa"] : [])
     ],
     lightRoutes: isAdmin ? [] : ["/admin/calendario"]
   };
