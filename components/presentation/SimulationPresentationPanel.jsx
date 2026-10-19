@@ -11,6 +11,7 @@ import { formatDateBR } from "@/lib/simulation-presentation-format.mjs";
 import { displayLink } from "@/lib/short-links.mjs";
 import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { STRATEGY_NAME, describeChoices, formatDuration } from "@/lib/payment-strategy-core.mjs";
+import { useSimulationTab } from "@/components/simulation-tab-context";
 
 // "Apresentação da simulação" no CRM (tela da simulação, onde também se gera o PDF). OPÇÃO ADICIONAL: o PDF não muda.
 // Lê o estado pela API admin (mesmo escopo da simulação). O link mostra sempre os valores ATUAIS da simulação salva.
@@ -60,6 +61,9 @@ export default function SimulationPresentationPanel({ simulationId }) {
   const [confirmAction, confirmElement] = useConfirm();
   const endpoint = `/api/admin/simulacoes/${encodeURIComponent(simulationId)}/apresentacao`;
   const previewHref = `/admin/simulacoes/${encodeURIComponent(simulationId)}/apresentacao`;
+  // Na coluna de envio da aba da simulação (redesenho 2026-10-19): versão enxuta; o "Enviar simulação" do Gerador já cria o
+  // link, então "Gerar apresentação" vira a ação secundária "Só gerar o link" (nada some).
+  const compact = Boolean(useSimulationTab()?.compactPresentation);
 
   const load = useCallback(async () => {
     try {
@@ -156,6 +160,73 @@ export default function SimulationPresentationPanel({ simulationId }) {
       <Switch checked={Boolean(state.approvalEnabled)} onChange={setApproval} disabled={busy} label="Apresentação de aprovação" />
     </div>
   ) : null;
+
+  if (compact) {
+    return (
+      <div className="border-t border-line pt-4" aria-labelledby="presentation-title">
+        <h3 id="presentation-title" className="flex items-center gap-2 text-sm font-semibold text-navy">
+          <Presentation className="h-4 w-4 text-brand" aria-hidden="true" />
+          Link da apresentação
+        </h3>
+        {!state && !loadError ? <p className="mt-2 text-sm text-muted" role="status">Carregando…</p> : null}
+        {loadError ? <p className="mt-2 text-sm font-semibold text-danger" role="alert">{loadError}</p> : null}
+        {state && !state.schemaReady ? (
+          <p className="mt-2 text-sm font-semibold text-muted" role="status">{state.message || "Recurso ainda não ativado no banco."}</p>
+        ) : null}
+        {state?.schemaReady && !state.ready ? (
+          <p className="mt-2 text-sm text-muted">Preencha e salve os valores da simulação (financiamento, subsídio ou parcelas) para liberar a apresentação.</p>
+        ) : null}
+        {canGenerate && !presentation ? (
+          <>
+            <p className="mt-2 text-sm text-muted">O link é criado quando você envia.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="secondary" href={previewHref} target="_blank" rel="noopener">
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                Visualizar antes
+              </Button>
+              <Button variant="ghost" onClick={() => run("generate")} loading={busy}>
+                <Link2 className="h-4 w-4" aria-hidden="true" />
+                Só gerar o link
+              </Button>
+            </div>
+            {approvalToggle}
+          </>
+        ) : null}
+        {canGenerate && presentation ? (
+          <div className="mt-2 grid gap-3">
+            <div className="flex min-w-0 items-center gap-2 rounded-control border border-line bg-mist pl-3">
+              <Link2 className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+              <input readOnly aria-label="Link da apresentação" value={displayLink(presentation.url)} onFocus={(event) => event.target.select()} className="min-h-touch min-w-0 flex-1 bg-transparent text-sm font-semibold text-navy outline-none" />
+              <Button variant="ghost" onClick={() => copyLink(presentation.url)}>
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                Copiar link
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" href={previewHref} target="_blank" rel="noopener">
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                Visualizar antes de enviar
+              </Button>
+              <Button variant="ghost" href={presentation.url} target="_blank" rel="noopener">
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Abrir o link
+              </Button>
+              <Button variant="ghost" onClick={regenerate} loading={busy}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Gerar novo link
+              </Button>
+            </div>
+            <Metrics presentation={presentation} sceneCount={state.sceneCount} />
+            <PaymentStrategySummary strategy={state.paymentStrategy} />
+            {approvalToggle}
+            <p className="text-xs text-muted">"Visualizar antes de enviar" não conta como abertura. "Abrir o link" conta, como se fosse o cliente.</p>
+          </div>
+        ) : null}
+        {toastElement}
+        {confirmElement}
+      </div>
+    );
+  }
 
   return (
     <section className="container-page mb-6" aria-labelledby="presentation-title">

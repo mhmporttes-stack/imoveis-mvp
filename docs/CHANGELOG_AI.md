@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação redesenhada (aparência; aprovada pelo dono)
+- **Data:** 2026-10-19
+- **Área:** aba da simulação (`/admin/simulacoes/[id]` e `/nova`, `SimulationGenerator`), só apresentação.
+- **Alteração:** cabeçalho de uma linha ("← Clientes", nome, telefone/data); abas "Simulação | Comparar simulações"; faixa da conferência com renda para a Caixa + OK/Corrigir/Refazer; "Valores da Caixa" com abas Novo/Usado (selo "igual ao novo" e "Usar valores próprios"), taxa e prazo obrigatórios no mesmo bloco, sugestões "confira" (prazo pela idade, taxa da automática) e SAC sob "+ Comparar com SAC"; "Recursos do cliente"; imóveis em lista arrastável com folhas "Editar imóvel"/"Adicionar imóvel"; Observações e Cadastro recolhidos (cadastro completo continua na aba; na simulação nova vem primeiro e aberto); coluna de envio (poder de compra, estado do salvamento, Salvar/Enviar, link da apresentação) e barra fixa no celular acima da navegação inferior. Enviar fica desativado com o motivo (conferência pendente, prazo/taxa faltando, simulação ainda não salva); "Salvar correção da Caixa" só após editar a automática; "Gerar apresentação" virou "Só gerar o link" (o Enviar já cria o link). Saíram da tela só o seletor "Formato para envio" (uma opção) e o link "Histórico" (mesmo endereço do "← Clientes"). Mensagens sem acento corrigidas. Celular 390 px: de ~14.700 px para ~2.300 px de altura.
+- **Motivo:** pedido do dono ("aba muito poluída"); direção v2 aprovada em 2026-10-19; crítica independente do design-critic (duas rodadas, "pode publicar").
+- **Verificação:** vitrine `?tela=simulacao&variante=` (automática, manual, basico, nova, erro-prazo) em 360/390/1280 px; testes da área (`simulation-*`, `drag-reorder`, `whatsapp-access`, `proposta-valores`, `documents-forecast`, `permissoes-tags-notas-internas`, `brand-assets`); `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `components/simulation-tab-context.js` (novo), `components/AutoSimulationReview.jsx`, `components/SimulationScenarios.jsx`, `components/presentation/SimulationPresentationPanel.jsx`, `app/admin/simulacoes/[id]/page.jsx`, `app/admin/simulacoes/nova/page.jsx`, vitrine (`_components/VitrineClient.jsx`, `_fixtures/simulacao.js`), `tests/drag-reorder.test.mjs` (recorte do fluxo Enviar no lugar da janela fixa de 4.000 caracteres), `tests/simulation-auto-status.test.mjs`.
+- **Risco/observação:** ordenar imóveis segue só por arrastar (decisão do dono de 2026-10-09, trava em `drag-reorder.test.mjs`). Nenhuma regra, API ou dado mudou.
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-19 — SIM-AUTO: peso da parcela (R$ 60) no melhor cenário; lógica para o redesenho da aba da simulação
 - **Data:** 2026-10-19
 - **Área:** Motor da estimativa; aba da simulação (`SimulationGenerator`, `/admin/simulacoes/[id]`); cenários

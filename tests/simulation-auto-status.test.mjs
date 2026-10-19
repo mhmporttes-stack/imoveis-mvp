@@ -161,3 +161,13 @@ test("aba da simulação: Enviar bloqueado na automática, Salvar só para nova/
   assert.deepEqual(auto.annualRate, { value: 4.25, source: "simulacao_automatica", label: "Taxa da simulação automática" });
   assert.equal(simulationFieldSuggestions({ registration: {}, simulation: { interestRateAnnual: 5 }, referenceDate: "2026-10-19" }).annualRate.source, "ultima_usada");
 });
+
+// Redesenho da aba (designer-crm, 2026-10-19): na automática não conferida, "Salvar correção da Caixa" só aparece depois de
+// editar algum valor e o Enviar fica desativado com o motivo até o OK/Corrigir (o envio também barra — teste acima).
+test("aba da simulação: Salvar correção só após edição; Enviar desativado com motivo na automática", () => {
+  const generator = source("components/SimulationGenerator.jsx");
+  assert.match(generator, /const automaticEdited = isAutomatic && JSON\.stringify\(serializeForm\(form\)\) !== initialPayloadRef\.current;/);
+  assert.match(generator, /\{!form\.id \|\| isAutomaticSimulationSource\(form\.createdBy\) \? \(!form\.id \|\| automaticEdited\) && \(/);
+  assert.match(generator, /const sendBlockedReason = isAutomatic\s*\? "Confira a simulação \(OK ou Corrigir\) para liberar o envio\."/);
+  assert.match(generator, /disabled=\{sendingSimulation \|\| Boolean\(sendBlockedReason\)\}/);
+});

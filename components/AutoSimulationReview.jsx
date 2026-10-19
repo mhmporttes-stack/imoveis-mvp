@@ -5,6 +5,7 @@ import { Check, Pencil } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Field";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
+import { useSimulationTab } from "@/components/simulation-tab-context";
 
 // Conferência OBRIGATÓRIA da simulação automática do site (SIM-AUTO, dono 2026-10-19), na ficha do cliente e na aba da
 // simulação (Gerador): depois de refazer no simulador da Caixa, "Simulação OK" ou "Corrigir simulação". O link da
@@ -17,6 +18,9 @@ export default function AutoSimulationReview({ simulationId, onDone = null, inEd
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [correcting, setCorrecting] = useState(false);
+  // Dentro da aba da simulação (redesenho 2026-10-19): a faixa traz a renda para a Caixa e o "Refazer" junto do OK/Corrigir.
+  const tab = useSimulationTab();
+  const extras = prominent ? tab?.reviewExtras || null : null;
 
   async function send(action) {
     setBusy(true);
@@ -44,9 +48,10 @@ export default function AutoSimulationReview({ simulationId, onDone = null, inEd
   const entryNote = "Não lance a entrada mostrada pela Caixa (a simulação usa imóvel de R$ 235 mil; poder de compra = financiado + subsídio).";
 
   return (
-    <div className={prominent ? "rounded-2xl border border-warning-line bg-warning-soft p-4 sm:p-5" : "mt-3"}>
-      {prominent ? <p className="text-base font-black text-navy">Simulação automática do site</p> : null}
+    <div className={prominent ? "rounded-card border border-warning-line bg-warning-soft p-4 sm:p-5" : "mt-3"}>
+      {prominent ? <p className="text-base font-bold text-navy">Simulação automática do site: confira na Caixa</p> : null}
       <p className={prominent ? "mt-1 text-sm font-semibold text-warning" : "rounded-control bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning"}>{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
+      {extras?.before ? <div className="mt-3">{extras.before}</div> : null}
       {correcting ? (
         <p className="mt-3 text-sm font-semibold text-ink">Renda registrada. Lance abaixo os valores da Caixa (financiado, subsídio, parcelas, prazo e taxa de novo e/ou usado) e salve — o link é liberado ao salvar. {entryNote}</p>
       ) : mode === "corrigir" ? (
@@ -60,9 +65,10 @@ export default function AutoSimulationReview({ simulationId, onDone = null, inEd
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className={extras ? "mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" : "mt-3 flex flex-wrap gap-2"}>
           <Button size={prominent ? "md" : "sm"} onClick={() => send("ok")} loading={busy}><Check className="h-4 w-4" aria-hidden="true" /> Simulação OK</Button>
-          <Button size={prominent ? "md" : "sm"} variant="secondary" onClick={() => setMode("corrigir")} disabled={busy}><Pencil className="h-4 w-4" aria-hidden="true" /> Corrigir simulação</Button>
+          <Button size={prominent ? "md" : "sm"} variant="secondary" onClick={() => setMode("corrigir")} disabled={busy}><Pencil className="h-4 w-4" aria-hidden="true" /> {extras ? <><span className="sm:hidden">Corrigir</span><span className="hidden sm:inline">Corrigir simulação</span></> : "Corrigir simulação"}</Button>
+          {extras?.actions ? <div className="col-span-2">{extras.actions}</div> : null}
         </div>
       )}
       {error ? <p className="mt-2 text-xs font-medium text-danger">{error}</p> : null}

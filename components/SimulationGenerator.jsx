@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBasicMode } from "@/components/WhatsappAccessProvider";
-import { Check, GripVertical, Save, Search, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, GripVertical, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
+import Button from "@/components/ui/Button";
+import Sheet from "@/components/ui/Sheet";
+import Switch from "@/components/ui/Switch";
+import { inputClasses } from "@/components/ui/Field";
+import { SimulationTabContext } from "@/components/simulation-tab-context";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { coverImage, propertyCardFeatures, propertyRegion, propertyPrice, typeLabel } from "@/lib/format";
 import { normalizePersonName } from "@/lib/name-utils";
@@ -12,8 +17,8 @@ import { buildExternalWhatsappUrl, detectDevice } from "@/lib/client-card-whatsa
 import { PRINTED_LIST_MODE_CODE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
-import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { RATE_REQUIRED_ERROR, simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE, automaticIncomeFromNote, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
 import {
@@ -32,6 +37,7 @@ import {
   cleanTermMonths,
   normalizeSimulationModels,
   removeSimulationModelsFromNote,
+  simulationModelHasValues,
   simulationModelLabel,
   simulationModelTotals
 } from "@/lib/simulation-models";
@@ -107,7 +113,9 @@ const MODEL_PEER = { novo: "usado", usado: "novo" };
 // Props para o redesenho da aba (designer-crm, 2026-10-19): `fieldSuggestions` = { termMonths, annualRate } de
 // simulationFieldSuggestions (lib/financiamento-estimativa-core.mjs), cada um { value, source, label } ou null — a tela
 // marca "confira" com a origem. `clientSheetHref` = onde editar o cadastro completo.
-export default function SimulationGenerator({ properties = [], initialSimulation = null, fieldSuggestions = null, clientSheetHref = "" }) {
+// Blocos da página (redesenho 2026-10-19): `reviewSlot` (conferência da automática), `redoSlot` (Refazer),
+// `scenariosSlot` (Comparar simulações, vira aba) e `presentationSlot` (link da apresentação, na coluna de envio).
+export default function SimulationGenerator({ properties = [], initialSimulation = null, fieldSuggestions = null, clientSheetHref = "", reviewSlot = null, redoSlot = null, scenariosSlot = null, presentationSlot = null }) {
   const router = useRouter();
   // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
   const basicMode = useBasicMode();
@@ -118,13 +126,16 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const autoSaveTimerRef = useRef(null);
   const autoSaveRequestRef = useRef(null);
   const lastSavedPayloadRef = useRef(JSON.stringify(serializeForm(form)));
+  // Corpo ao abrir a tela: na simulação automática, "Salvar correção da Caixa" só aparece depois de alguma edição.
+  const initialPayloadRef = useRef(lastSavedPayloadRef.current);
   const syncingFieldsRef = useRef(createModelSyncState(form));
   // Caixas "Imóvel novo" / "Imóvel usado" (pedido do dono 2026-10-06): tipo desligado some da simulação, sem comparação.
   const [enabledModels, setEnabledModels] = useState(() => enabledModelsFromModels(form.simulationModels));
   const enabledModelsRef = useRef(enabledModels);
   enabledModelsRef.current = enabledModels;
   const [propertyQuery, setPropertyQuery] = useState("");
-  const [sendFormat, setSendFormat] = useState("presentation");
+  // Formato único (link). O seletor "Formato para envio" saiu da tela no redesenho de 2026-10-19 (tinha uma opção só).
+  const [sendFormat] = useState("presentation");
   const [saving, setSaving] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
@@ -471,7 +482,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
     if (payload === lastSavedPayloadRef.current) {
       setAutoSaveStatus("saved");
-      if (!silent) setMessage("Simulacao salva com sucesso.");
+      if (!silent) setMessage("Simulação salva com sucesso.");
       return currentForm;
     }
 
@@ -503,14 +514,14 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         if (silent) {
           setAutoSaveStatus("error");
         } else {
-          setError(data.error || "Nao foi possivel salvar a simulacao.");
+          setError(data.error || "Não foi possível salvar a simulação.");
         }
         return null;
       }
 
       lastSavedPayloadRef.current = payload;
       setAutoSaveStatus("saved");
-      if (!silent) setMessage("Simulacao salva com sucesso.");
+      if (!silent) setMessage("Simulação salva com sucesso.");
       // Coluna da taxa de juros ainda não existe no banco: o resto foi salvo, mas a taxa não (aviso claro, nada some em silêncio).
       if (data?.saveWarning) setError(data.saveWarning);
 
@@ -541,7 +552,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       if (silent) {
         setAutoSaveStatus("error");
       } else {
-        setError("Nao foi possivel salvar a simulacao.");
+        setError("Não foi possível salvar a simulação.");
       }
       return null;
     } finally {
@@ -572,7 +583,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(data.error || "Nao foi possivel salvar o cadastro do cliente.");
+        setError(data.error || "Não foi possível salvar o cadastro do cliente.");
         return null;
       }
 
@@ -586,7 +597,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
       setMessage("Cadastro do cliente salvo.");
       return data;
     } catch {
-      setError("Nao foi possivel salvar o cadastro do cliente.");
+      setError("Não foi possível salvar o cadastro do cliente.");
       return null;
     } finally {
       setRegistrationSaving(false);
@@ -702,495 +713,696 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     router.push(`/admin/chat?client=${encodeURIComponent(registrationId)}&text=${encodeURIComponent(onlyLink)}`);
   }
 
-  return (
-    <div className="container-page grid min-w-0 gap-8">
-      <div className="grid min-w-0 gap-6">
-        <Panel title="Dados do cliente" eyebrow="Etapa A">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
-            <Field
-              autoComplete="tel"
-              inputMode="numeric"
-              label="WhatsApp do cliente"
-              placeholder="(14) 99999-9999"
-              type="tel"
-              value={form.clientWhatsApp}
-              onChange={(value) => update("clientWhatsApp", formatPhoneInput(value))}
-            />
-            <Field label="Data da simulação" type="date" value={form.simulationDate} onChange={(value) => update("simulationDate", value)} />
-          </div>
-          <Field label="Observação interna" textarea value={form.internalNote} onChange={(value) => update("internalNote", value)} />
+  // Estado só de tela do layout da aba (redesenho 2026-10-19).
+  const [view, setView] = useState("simulacao");
+  const [activeType, setActiveType] = useState(() => SIMULATION_MODEL_TYPES.find(({ key }) => enabledModels[key])?.key || "novo");
+  const [sacOpen, setSacOpen] = useState({});
+  const [usadoOwn, setUsadoOwn] = useState(false);
+  const [cadastroOpen, setCadastroOpen] = useState(() => !form.id || !form.clientName);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [startedNew] = useState(() => !form.id);
+  const propertyDrag = useDragReorder(moveProperty);
 
-          <div className="mt-6 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastro do cliente</p>
-                <h3 className="mt-1 text-2xl font-black text-navy">Ficha completa</h3>
-                <p className="mt-1 text-sm font-semibold text-muted">
-                  Use estes campos para criar ou atualizar manualmente o cadastro vinculado a esta simulação.
-                </p>
-              </div>
-              <button
-                className="premium-button-secondary shrink-0"
-                disabled={registrationSaving}
-                onClick={saveClientRegistration}
-                type="button"
-              >
-                {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
-              </button>
-            </div>
+  // ---------- Apresentação da aba (redesenho aprovado pelo dono em 2026-10-19, designer-crm) ----------
+  // Ordem pensada para a tarefa principal: conferir/lançar os valores da Caixa e enviar. O que é raro (SAC, cadastro
+  // completo, observações, campos de cada imóvel) fica recolhido, mas continua na própria aba — nada foi removido.
+  const isAutomatic = isAutomaticSimulationSource(form.createdBy);
+  const enabledTypes = SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]);
+  const shownType = enabledModels[activeType] ? activeType : enabledTypes[0]?.key || "novo";
+  const filledModels = renderableModels.filter((model) => simulationModelHasValues(model.values));
+  const requiredIssue = interestRateCheck.ok ? simulationRequiredFieldsError({ ...form, interestRateAnnual: interestRateCheck.value }) : "";
+  // Campo obrigatório em falta (prazo/taxa): aviso no próprio campo, selo "Incompleto" e Enviar desativado com o motivo.
+  const requiredShown = Boolean(requiredIssue);
+  const missingRate = requiredShown && requiredIssue === RATE_REQUIRED_ERROR;
+  const missingTerm = requiredShown && !missingRate ? filledModels[0] || null : null;
+  const usadoMirrorsNovo = Boolean(enabledModels.novo && enabledModels.usado) && !usadoOwn
+    && SYNCED_MODEL_FIELDS.some((field) => normalizedModels.novo?.[field])
+    && SYNCED_MODEL_FIELDS.every((field) => (normalizedModels.novo?.[field] || "") === (normalizedModels.usado?.[field] || ""));
+  const termSuggestion = fieldSuggestions?.termMonths || null;
+  const rateSuggestion = fieldSuggestions?.annualRate || null;
+  const incomeForCaixa = isAutomatic ? automaticIncomeFromNote(initialSimulation?.internalNote || "") : "";
+  const automaticEdited = isAutomatic && JSON.stringify(serializeForm(form)) !== initialPayloadRef.current;
+  const showSaveButton = !form.id || automaticEdited;
+  const missingLabel = missingRate ? "falta a taxa" : missingTerm ? `falta o prazo do ${simulationModelLabel(missingTerm.type).toLowerCase()}${missingTerm.system === "sac" ? " (SAC)" : ""}` : "";
+  // Motivo de o Enviar estar desativado (o envio faria a mesma checagem e pararia com aviso).
+  const sendBlockedReason = isAutomatic
+    ? "Confira a simulação (OK ou Corrigir) para liberar o envio."
+    : !interestRateCheck.ok ? interestRateCheck.error
+      : missingLabel ? `Para enviar, ${missingLabel}.`
+        : !form.id ? "Salve a simulação para poder enviar."
+          : "";
+  const editingProperty = editingIndex !== null ? form.properties[editingIndex] || null : null;
+  const preferenceLine = clientPreferences.map((item) => item.value).filter(Boolean).join(" · ");
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Nome no cadastro" value={form.registration?.fullName || form.clientName} onChange={(value) => updateRegistration("fullName", value)} />
-              <Field
-                autoComplete="tel"
-                inputMode="numeric"
-                label="WhatsApp no cadastro"
-                placeholder="(14) 99999-9999"
-                type="tel"
-                value={form.registration?.phone || form.clientWhatsApp}
-                onChange={(value) => updateRegistration("phone", formatPhoneInput(value))}
-              />
-              <Field label="Data de nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
-              <Field label="Início do atendimento" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
-              <Field label="Venda concluída em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
-              <SelectField
-                label="Tipo de simulação"
-                options={SIMULATION_TYPE_OPTIONS}
-                value={form.registration?.simulationType || "individual"}
-                onChange={(value) => updateRegistration("simulationType", value)}
-              />
-              <SelectField
-                label="Regime de trabalho"
-                options={PRIMARY_INCOME_OPTIONS}
-                value={form.registration?.primaryIncomeType || "self_employed_unregistered"}
-                onChange={(value) => updateRegistration("primaryIncomeType", value)}
-              />
-              <MoneyField label="Renda mensal" value={form.registration?.primaryMonthlyIncome || ""} onChange={(value) => updateRegistration("primaryMonthlyIncome", value)} />
-              <SelectField
-                label="Estado civil"
-                options={MARITAL_STATUS_OPTIONS}
-                value={form.registration?.primaryMaritalStatus || "single"}
-                onChange={(value) => updateRegistration("primaryMaritalStatus", value)}
-              />
-              <MoneyField label="Recurso próprio / entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
-              <BooleanField
-                label="Mais de 3 anos de registro?"
-                value={form.registration?.hasOverThreeYearsRegisteredWork}
-                onChange={(value) => updateRegistration("hasOverThreeYearsRegisteredWork", value)}
-              />
-              <BooleanField
-                label="Filhos menores de 18 anos?"
-                value={form.registration?.hasChildrenUnder18}
-                onChange={(value) => updateRegistration("hasChildrenUnder18", value)}
-              />
-              <BooleanField
-                label="Possui imóvel residencial?"
-                value={form.registration?.hasResidentialProperty}
-                onChange={(value) => updateRegistration("hasResidentialProperty", value)}
-              />
-            </div>
+  function useOwnUsadoValues() {
+    SYNCED_MODEL_FIELDS.forEach((field) => {
+      syncingFieldsRef.current[field] = { ...(syncingFieldsRef.current[field] || {}), linked: false };
+    });
+    setUsadoOwn(true);
+  }
 
-            {form.registration?.simulationType === "joint" ? (
-              <div className="mt-5 grid gap-4 border-t border-blue-100 pt-5 md:grid-cols-2">
-                <SelectField
-                  label="Regime da segunda pessoa"
-                  options={PRIMARY_INCOME_OPTIONS}
-                  value={form.registration?.secondaryIncomeType || "self_employed_unregistered"}
-                  onChange={(value) => updateRegistration("secondaryIncomeType", value)}
-                />
-                <MoneyField label="Renda da segunda pessoa" value={form.registration?.secondaryMonthlyIncome || ""} onChange={(value) => updateRegistration("secondaryMonthlyIncome", value)} />
-                <SelectField
-                  label="Estado civil da segunda pessoa"
-                  options={MARITAL_STATUS_OPTIONS}
-                  value={form.registration?.secondaryMaritalStatus || "single"}
-                  onChange={(value) => updateRegistration("secondaryMaritalStatus", value)}
-                />
-              </div>
-            ) : null}
-          </div>
-        </Panel>
+  function termField(key) {
+    const value = normalizedModels[key]?.termMonths || "";
+    const missing = missingTerm && missingTerm.type === key && missingTerm.system !== "sac";
+    const matchesSuggestion = termSuggestion && String(value) === String(termSuggestion.value);
+    return (
+      <Field
+        label="Prazo (meses)"
+        required
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        placeholder="Ex.: 420"
+        autoComplete="off"
+        value={value}
+        error={missing ? "Informe o prazo para salvar e enviar." : ""}
+        badge={matchesSuggestion ? <ConfirmBadge /> : null}
+        hint={matchesSuggestion ? termSuggestion.label : !value && termSuggestion ? (
+          <SuggestionButton onClick={() => updateSimulationModel(key, "termMonths", String(termSuggestion.value))}>
+            Usar {termSuggestion.value} meses ({termSuggestion.label.toLowerCase()})
+          </SuggestionButton>
+        ) : ""}
+        onChange={(next) => updateSimulationModel(key, "termMonths", cleanTermMonths(next))}
+      />
+    );
+  }
 
-        <Panel title="Dados da simulação" eyebrow="Etapa B">
-          {/* "Modo de páginas dos imóveis" (Individual/Comparativo) era só do PDF da simulação — removido a pedido do dono
-              (2026-10-19, "Opção PDF deve ser removido do CRM"). A coluna output_mode continua no banco; simulações antigas
-              abrem normalmente (o valor gravado é ignorado). */}
-          <fieldset className="rounded-2xl border border-blue-100 bg-white p-4">
-            <legend className="px-1 text-sm font-extrabold text-ink">Tipos de imóvel desta simulação</legend>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              {SIMULATION_MODEL_TYPES.map(({ key, label }) => {
-                const onlyOne = enabledModels[key] && SIMULATION_MODEL_TYPES.filter((item) => enabledModels[item.key]).length === 1;
-                return (
-                  <label key={key} className={`flex min-h-11 items-center gap-2 text-sm font-bold text-navy ${onlyOne ? "opacity-70" : "cursor-pointer"}`}>
-                    <input type="checkbox" className="h-5 w-5 accent-brand" checked={Boolean(enabledModels[key])} disabled={onlyOne} onChange={(event) => setModelEnabled(key, event.target.checked)} data-model-toggle={key} />
-                    {label}
-                  </label>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-xs leading-5 text-muted">
-              Desmarque o tipo que o cliente não quer: os valores dele são apagados e a apresentação mostra só o outro, sem comparação entre novo e usado.
-            </p>
-          </fieldset>
+  function rateField() {
+    const matchesSuggestion = rateSuggestion && rateSuggestion.source !== "ultima_usada" && interestRateCheck.ok && interestRateCheck.value === rateSuggestion.value;
+    const empty = !String(form.interestRateAnnual || "").trim();
+    return (
+      <Field
+        label="Taxa de juros (% a.a.)"
+        aria-label="Taxa de juros (% ao ano)"
+        required
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        enterKeyHint="next"
+        maxLength={8}
+        placeholder="Ex.: 5,4"
+        value={form.interestRateAnnual || ""}
+        error={!interestRateCheck.ok ? interestRateCheck.error : missingRate ? "Obrigatória para salvar e enviar." : ""}
+        badge={matchesSuggestion ? <ConfirmBadge /> : null}
+        hint={matchesSuggestion ? rateSuggestion.label : empty && rateSuggestion ? (
+          <SuggestionButton onClick={() => update("interestRateAnnual", formatInterestRateInput(rateSuggestion.value))}>
+            Usar {formatInterestRateInput(rateSuggestion.value)}% ({rateSuggestion.label.toLowerCase()})
+          </SuggestionButton>
+        ) : "Vale para novo e usado; aparece ao lado das parcelas."}
+        onChange={(next) => update("interestRateAnnual", next)}
+      />
+    );
+  }
 
-          <div className="mt-5 grid gap-5">
-            {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => (
-              <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-4 sm:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">
-                      Modelo de simulação
-                    </p>
-                    <h3 className="mt-1 text-2xl font-black text-navy">{label}</h3>
-                  </div>
-                  <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-navy shadow-soft">
-                    {formatCurrency(modelTotals[key]?.total || 0)}
-                  </span>
-                </div>
+  const saveStatus = form.id && missingLabel ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-xs font-semibold text-danger" role="status">
+      Incompleto: {missingLabel}
+    </span>
+  ) : form.id ? (
+    <span className="inline-flex items-center gap-2">
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${autoSaveStatus === "error" ? "bg-danger-soft text-danger" : autoSaveStatus === "saving" ? "bg-neutral-soft text-ink-2" : "bg-success-soft text-success"}`} role="status">
+        {autoSaveStatus === "saved" ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+        {autoSaveStatusLabel(autoSaveStatus)}
+      </span>
+      {autoSaveStatus === "error" ? (
+        <button className="min-h-touch text-sm font-semibold text-brand underline-offset-4 hover:underline" onClick={() => persistSimulation({ silent: true })} type="button">
+          Tentar novamente
+        </button>
+      ) : null}
+    </span>
+  ) : (
+    <span className="rounded-full bg-neutral-soft px-2.5 py-1 text-xs font-semibold text-ink-2">Ainda não salva</span>
+  );
 
-                <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
-                <div className="mt-2 grid gap-4 md:grid-cols-2" data-system="price">
-                  <MoneyField
-                    label="Valor do financiamento"
-                    value={normalizedModels[key]?.financingValue || ""}
-                    onChange={(value) => updateSimulationModel(key, "financingValue", value)}
-                  />
-                  <MoneyField
-                    label="Valor do subsídio"
-                    value={normalizedModels[key]?.subsidyValue || ""}
-                    onChange={(value) => updateSimulationModel(key, "subsidyValue", value)}
-                  />
-                  <MoneyField
-                    label="Primeira parcela"
-                    value={normalizedModels[key]?.firstInstallment || ""}
-                    onChange={(value) => updateSimulationModel(key, "firstInstallment", value)}
-                  />
-                  <MoneyField
-                    label="Última parcela"
-                    value={normalizedModels[key]?.lastInstallment || ""}
-                    onChange={(value) => updateSimulationModel(key, "lastInstallment", value)}
-                  />
-                  <Field
-                    label="Prazo (meses)"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Ex.: 420"
-                    autoComplete="off"
-                    value={normalizedModels[key]?.termMonths || ""}
-                    onChange={(value) => updateSimulationModel(key, "termMonths", cleanTermMonths(value))}
-                  />
-                </div>
-
-                <div className="mt-6 border-t border-blue-100 pt-4">
-                  <p className="text-sm font-black uppercase tracking-[0.14em] text-navy">SAC</p>
-                  <p className="mt-1 text-xs leading-5 text-muted">Opcional. Preencha o SAC (além do Price) para a apresentação do cliente mostrar também o comparativo SAC x Price. Com um sistema só, não há comparação.</p>
-                  <div className="mt-3 grid gap-4 md:grid-cols-2" data-system="sac">
-                    <MoneyField
-                      label="Valor do financiamento (SAC)"
-                      value={normalizedModels[key]?.sac?.financingValue || ""}
-                      onChange={(value) => updateSacModel(key, "financingValue", value)}
-                    />
-                    <MoneyField
-                      label="Valor do subsídio (SAC)"
-                      value={normalizedModels[key]?.sac?.subsidyValue || ""}
-                      onChange={(value) => updateSacModel(key, "subsidyValue", value)}
-                    />
-                    <MoneyField
-                      label="Primeira parcela (SAC)"
-                      value={normalizedModels[key]?.sac?.firstInstallment || ""}
-                      onChange={(value) => updateSacModel(key, "firstInstallment", value)}
-                    />
-                    <MoneyField
-                      label="Última parcela (SAC)"
-                      value={normalizedModels[key]?.sac?.lastInstallment || ""}
-                      onChange={(value) => updateSacModel(key, "lastInstallment", value)}
-                    />
-                    <Field
-                      label="Prazo em meses (SAC)"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Ex.: 420"
-                      autoComplete="off"
-                      value={normalizedModels[key]?.sac?.termMonths || ""}
-                      onChange={(value) => updateSacModel(key, "termMonths", cleanTermMonths(value))}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 sm:p-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-                Taxa de juros (% ao ano)
-                <input
-                  className="admin-input min-w-0"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  enterKeyHint="next"
-                  maxLength={8}
-                  placeholder="Ex.: 5,4"
-                  value={form.interestRateAnnual || ""}
-                  onChange={(event) => update("interestRateAnnual", event.target.value)}
-                  aria-invalid={!interestRateCheck.ok}
-                  aria-describedby="interest-rate-help"
-                />
-              </label>
-              <p id="interest-rate-help" className={`self-end text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
-                {interestRateCheck.ok
-                  ? "Obrigatória para salvar. Aparece ao lado das parcelas na apresentação interativa do cliente. Vale para a simulação toda."
-                  : interestRateCheck.error}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <MoneyField label="Entrada disponível" value={form.downPaymentValue} onChange={(value) => update("downPaymentValue", value)} />
-            <MoneyField label="FGTS disponível" value={form.fgtsValue} onChange={(value) => update("fgtsValue", value)} />
-          </div>
-          <label className="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-bold text-ink">
-            <input type="checkbox" checked={form.showExpandedPower} onChange={(event) => update("showExpandedPower", event.target.checked)} />
-            Mostrar poder de compra ampliado na apresentação
-          </label>
-          <div className="mt-5 grid gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 md:grid-cols-2">
-            {renderableModels.map((model) => (
-              <Metric
-                key={`${model.type}-${model.system}`}
-                label={`Poder total - ${simulationModelLabel(model.type)}${model.systemLabel ? ` · ${model.systemLabel}` : ""}`}
-                value={formatCurrency(model.totals.total)}
-              />
-            ))}
-          </div>
-          <Field label="Observação pública" textarea value={form.publicNote} onChange={(value) => update("publicNote", value)} />
-        </Panel>
-
-        <Panel title="Imóveis sugeridos" eyebrow="Etapa C">
-          {clientPreferences.length ? (
-            <div className="mb-5 rounded-2xl border border-brand/20 bg-[#F3F8FF] p-4">
-              <p className="text-sm font-black text-navy">O que o cliente procura</p>
-              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                {clientPreferences.map((item) => (
-                  <div key={item.label} className="min-w-0">
-                    <dt className="text-xs font-bold text-muted">{item.label}</dt>
-                    <dd className="text-sm font-semibold text-ink">{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : null}
-          <label className="relative block">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" />
-            <input
-              className="admin-input admin-search-input"
-              value={propertyQuery}
-              onChange={(event) => setPropertyQuery(event.target.value)}
-              placeholder="Pesquisar imóvel por nome, região, valor ou construtora"
-            />
-          </label>
-          <div className="mt-5 grid max-h-[420px] gap-3 overflow-auto pr-1">
-            {filteredProperties.slice(0, 10).map((property) => (
-              <button
-                key={property.id}
-                className="grid gap-4 rounded-2xl border border-line bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-soft sm:grid-cols-[92px_1fr_auto] sm:items-center"
-                onClick={() => addProperty(property)}
-                type="button"
-              >
-                <img src={coverImage(property)} alt="" className="h-24 w-full rounded-xl object-cover sm:h-20 sm:w-[92px]" />
-                <span>
-                  <span className="block text-lg font-black text-navy">{property.name}</span>
-                  <span className="mt-1 block text-sm text-muted">{typeLabel(property.type)} · {propertyRegion(property)} · {propertyPrice(property)}</span>
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#E9F2FF] px-4 py-2 text-sm font-black text-navy">
-                  <Check className="h-4 w-4" /> Selecionar
-                </span>
-              </button>
-            ))}
-          </div>
-        </Panel>
-
-        {form.properties.length > 1 ? <PropertyOrderList properties={form.properties} onMove={moveProperty} /> : null}
-
-        {form.properties.map((property, propertyIndex) => (
-          <Panel key={`${property.propertyId}-${propertyIndex}`} title={property.customName || "Imóvel sugerido"} eyebrow={`Imóvel ${propertyIndex + 1}`}>
-            <div className="mb-5 flex flex-wrap gap-3">
-              <button className="premium-button border border-red-200 bg-white text-red-700" onClick={() => removeProperty(propertyIndex)} type="button">
-                <Trash2 className="mr-2 h-4 w-4" /> Remover
-              </button>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Field label="Nome na apresentação" value={property.customName} onChange={(value) => updateSelectedProperty(propertyIndex, "customName", value)} />
-              <Field label="Valor na apresentação" value={property.customPrice} onChange={(value) => updateSelectedProperty(propertyIndex, "customPrice", value)} />
-              <Field label="Localização" value={property.customLocation} onChange={(value) => updateSelectedProperty(propertyIndex, "customLocation", value)} />
-              <Field label="Tipo" value={property.customType} onChange={(value) => updateSelectedProperty(propertyIndex, "customType", value)} />
-              <Field label="Área" value={property.customArea} onChange={(value) => updateSelectedProperty(propertyIndex, "customArea", value)} />
-              <Field label="Dormitórios" value={property.customBedrooms} onChange={(value) => updateSelectedProperty(propertyIndex, "customBedrooms", value)} />
-              <Field label="Construtora" value={property.customBuilder} onChange={(value) => updateSelectedProperty(propertyIndex, "customBuilder", value)} />
-              <Field label="Entrega" value={property.customDelivery} onChange={(value) => updateSelectedProperty(propertyIndex, "customDelivery", value)} />
-            </div>
-
-            <label className="mt-5 grid gap-2 text-sm font-extrabold text-ink">
-              Por que este imóvel foi sugerido?
-              <select className="admin-input" value={property.recommendationReason} onChange={(event) => updateSelectedProperty(propertyIndex, "recommendationReason", event.target.value)}>
-                {RECOMMENDATION_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
-              </select>
-            </label>
-            <Field textarea label="Editar motivo da indicação" value={property.recommendationReason} onChange={(value) => updateSelectedProperty(propertyIndex, "recommendationReason", value)} />
-
-            <div className="mt-6">
-              <p className="text-sm font-black uppercase tracking-[0.16em] text-brand">Benefícios e destaques</p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {BENEFIT_OPTIONS.map((benefit) => (
-                  <label key={benefit} className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-bold text-ink">
-                    <input
-                      type="checkbox"
-                      checked={property.benefits.some((item) => item.text === benefit)}
-                      onChange={() => toggleBenefit(propertyIndex, benefit)}
-                    />
-                    {benefit}
-                  </label>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input
-                  className="admin-input"
-                  value={property.customBenefitDraft || ""}
-                  onChange={(event) => updateSelectedProperty(propertyIndex, "customBenefitDraft", event.target.value)}
-                  placeholder="Adicionar benefício personalizado"
-                />
-                <button className="premium-button-secondary" onClick={() => addCustomBenefit(propertyIndex, property.customBenefitDraft || "")} type="button">
-                  Adicionar
-                </button>
-              </div>
-              <BenefitOrderList benefits={property.benefits} onMove={(from, to) => moveBenefit(propertyIndex, from, to)} onRemove={(benefitIndex) => removeBenefit(propertyIndex, benefitIndex)} />
-            </div>
-          </Panel>
-        ))}
-
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert tone="success">{message}</Alert> : null}
-
-        <div className="grid gap-4 rounded-3xl border border-line bg-white p-4 shadow-soft sm:p-5">
-          {basicMode ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-black uppercase tracking-[0.14em] text-amber-800">CRM básico</p>
-              <p className="mt-1 text-sm font-semibold text-amber-900">Sua automação está desativada: aqui você lança e salva os valores da simulação para controle. A apresentação interativa fica indisponível. Fale com a gestão para reativar.</p>
-            </div>
-          ) : (
-          <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
-              <p className="mt-1 text-sm font-semibold text-muted">A simulação é enviada ao cliente pelo link da apresentação interativa.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {SEND_FORMAT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`rounded-full px-3 py-3 text-sm font-black transition sm:px-5 ${
-                    sendFormat === option.value
-                      ? "bg-navy text-white shadow-soft"
-                      : "border border-line bg-white text-navy hover:border-brand"
-                  }`}
-                  onClick={() => setSendFormat(option.value)}
-                  type="button"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          )}
-          {/* "Salvar simulação" só para simulação NOVA (cria) ou automática (salvar = correção da Caixa). Simulação existente
-              do corretor: o autosave grava tudo (mesmo corpo do Salvar) e o Enviar faz o salvamento completo (prazo/taxa
-              obrigatórios) antes de gerar o link (dono, 2026-10-19). */}
-          {!form.id || isAutomaticSimulationSource(form.createdBy) ? (
-          <button className="premium-button-primary" disabled={saving} onClick={saveSimulation} type="button">
-            <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : isAutomaticSimulationSource(form.createdBy) ? "Salvar correção da Caixa" : "Salvar simulação"}
-          </button>
-          ) : null}
-          {form.id ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-extrabold text-navy">
-              <span>{autoSaveStatusLabel(autoSaveStatus)}</span>
-              {autoSaveStatus === "error" ? (
-                <button className="text-brand underline-offset-4 hover:underline" onClick={() => persistSimulation({ silent: true })} type="button">
-                  Tentar novamente
-                </button>
-              ) : null}
-            </div>
+  // Ações de salvar/enviar (coluna lateral no computador; barra fixa no celular). Mesmos botões e regras de antes.
+  function renderActions(place) {
+    return (
+      <div className={place === "bar" ? "grid gap-2" : "grid gap-3"}>
+        {error ? <Alert tone="error" compact={place === "bar"}>{error}</Alert> : null}
+        {message ? <Alert tone="success" compact={place === "bar"}>{message}</Alert> : null}
+        <div className={place === "bar" && !showSaveButton && !missingLabel ? "flex items-center gap-2" : "grid gap-2"}>
+          {place === "bar" && !showSaveButton && !missingLabel ? <span className="shrink-0">{saveStatus}</span> : null}
+          {!form.id || isAutomaticSimulationSource(form.createdBy) ? (!form.id || automaticEdited) && (
+            <Button variant={isAutomatic || basicMode || !form.id ? "primary" : "secondary"} size="lg" className="w-full" disabled={saving} onClick={saveSimulation}>
+              <Save className="h-5 w-5" aria-hidden="true" /> {saving ? "Salvando..." : isAutomaticSimulationSource(form.createdBy) ? "Salvar correção da Caixa" : "Salvar simulação"}
+            </Button>
           ) : null}
           {basicMode ? null : (<>
           <button
-            className="premium-button bg-[#25D366] text-white shadow-[0_18px_45px_rgba(18,140,82,0.24)] hover:-translate-y-0.5 hover:bg-[#20BF5A] hover:shadow-[0_22px_56px_rgba(18,140,82,0.32)] disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={sendingSimulation}
+            className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-control px-5 text-[15px] font-semibold transition-[background-color,transform] duration-150 ease-out-ui active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100 ${sendBlockedReason ? "bg-neutral-soft text-ink-2" : "bg-[#25D366] text-white hover:bg-[#20BF5A] disabled:opacity-60"} ${place === "bar" && !showSaveButton && !missingLabel ? "min-w-0 flex-1" : "w-full"}`}
+            disabled={sendingSimulation || Boolean(sendBlockedReason)}
             onClick={sendSimulationToWhatsApp}
             type="button"
           >
-            <WhatsAppIcon className="mr-2 h-5 w-5" /> {sendingSimulation ? "Preparando..." : "Enviar simulação"}
+            <WhatsAppIcon className="h-5 w-5" /> {sendingSimulation ? "Preparando..." : "Enviar simulação"}
           </button>
           </>)}
-          <Link href="/admin/simulacoes" className="premium-button-secondary">Histórico</Link>
         </div>
+        {!basicMode && sendBlockedReason ? <p className={`text-center text-xs font-semibold ${isAutomatic || !form.id ? "text-warning" : "text-danger"}`}>{sendBlockedReason}</p> : null}
+        {!basicMode && !sendBlockedReason && place !== "bar" ? <p className="text-xs text-muted">Enviar salva, cria o link (se ainda não existir) e abre a conversa do cliente.</p> : null}
       </div>
+    );
+  }
 
+  // Cadastro do cliente: recolhido no fim da aba; numa simulação NOVA vem primeiro e aberto (nome e WhatsApp antes dos valores).
+  const cadastroBlock = (
+    <Disclosure
+      title="Cadastro do cliente"
+      summary={registrationSummary(form) || "Nome, WhatsApp, renda, regime e demais dados do cadastro"}
+      actionLabel="Editar"
+      open={cadastroOpen}
+      onToggle={() => setCadastroOpen((current) => !current)}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
+        <Field
+          autoComplete="tel"
+          inputMode="numeric"
+          label="WhatsApp do cliente"
+          placeholder="(14) 99999-9999"
+          type="tel"
+          value={form.clientWhatsApp}
+          onChange={(value) => update("clientWhatsApp", formatPhoneInput(value))}
+        />
+        <Field label="Data de nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
+        <SelectField label="Tipo de simulação" options={SIMULATION_TYPE_OPTIONS} value={form.registration?.simulationType || "individual"} onChange={(value) => updateRegistration("simulationType", value)} />
+        <SelectField label="Regime de trabalho" options={PRIMARY_INCOME_OPTIONS} value={form.registration?.primaryIncomeType || "self_employed_unregistered"} onChange={(value) => updateRegistration("primaryIncomeType", value)} />
+        <MoneyField label="Renda mensal" value={form.registration?.primaryMonthlyIncome || ""} onChange={(value) => updateRegistration("primaryMonthlyIncome", value)} />
+        <SelectField label="Estado civil" options={MARITAL_STATUS_OPTIONS} value={form.registration?.primaryMaritalStatus || "single"} onChange={(value) => updateRegistration("primaryMaritalStatus", value)} />
+        <MoneyField label="Recurso próprio / entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
+        <BooleanField label="Mais de 3 anos de registro?" value={form.registration?.hasOverThreeYearsRegisteredWork} onChange={(value) => updateRegistration("hasOverThreeYearsRegisteredWork", value)} />
+        <BooleanField label="Filhos menores de 18 anos?" value={form.registration?.hasChildrenUnder18} onChange={(value) => updateRegistration("hasChildrenUnder18", value)} />
+        <BooleanField label="Possui imóvel residencial?" value={form.registration?.hasResidentialProperty} onChange={(value) => updateRegistration("hasResidentialProperty", value)} />
+        <Field label="Início do atendimento" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
+        <Field label="Venda concluída em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
+      </div>
+      {form.registration?.simulationType === "joint" ? (
+        <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+          <p className="text-sm font-semibold text-navy sm:col-span-2">Segunda pessoa</p>
+          <SelectField label="Regime da segunda pessoa" options={PRIMARY_INCOME_OPTIONS} value={form.registration?.secondaryIncomeType || "self_employed_unregistered"} onChange={(value) => updateRegistration("secondaryIncomeType", value)} />
+          <MoneyField label="Renda da segunda pessoa" value={form.registration?.secondaryMonthlyIncome || ""} onChange={(value) => updateRegistration("secondaryMonthlyIncome", value)} />
+          <SelectField label="Estado civil da segunda pessoa" options={MARITAL_STATUS_OPTIONS} value={form.registration?.secondaryMaritalStatus || "single"} onChange={(value) => updateRegistration("secondaryMaritalStatus", value)} />
+        </div>
+      ) : null}
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+        <Button variant="secondary" loading={registrationSaving} onClick={saveClientRegistration}>
+          {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
+        </Button>
+        {clientSheetHref ? <Link href={clientSheetHref} className="inline-flex min-h-touch items-center text-sm font-semibold text-brand hover:text-navy">Abrir ficha do cliente</Link> : null}
+        <p className="w-full text-xs text-muted">Os dados do cadastro são gravados ao tocar em {form.registrationId ? "“Atualizar cadastro”" : "“Criar cadastro”"}; o refazer da simulação automática usa estes dados.</p>
+      </div>
+    </Disclosure>
+  );
+
+  const body = (
+    <div className="container-page min-w-0 pb-6">
+      <header className="flex min-h-touch flex-wrap items-center gap-x-3 gap-y-0">
+        <Link href="/admin/simulacoes" className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-navy">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Clientes
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-[-0.01em] text-navy sm:text-xl">{form.clientName || "Nova simulação"}</h1>
+        <p className="hidden text-sm text-muted sm:block tabular-nums">
+          {[form.clientWhatsApp, form.simulationDate ? `simulação de ${formatDateLabel(form.simulationDate)}` : ""].filter(Boolean).join(" · ")}
+        </p>
+      </header>
+
+      {scenariosSlot ? (
+        <div role="tablist" aria-label="Seções da simulação" className="mt-2 flex gap-1 border-b border-line">
+          {[["simulacao", "Simulação"], ["comparar", "Comparar simulações"]].map(([value, label]) => (
+            <button
+              key={value}
+              role="tab"
+              type="button"
+              aria-selected={view === value}
+              onClick={() => setView(value)}
+              className={`-mb-px min-h-touch whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition-colors ${view === value ? "border-brand text-navy" : "border-transparent text-muted hover:text-navy"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {view === "comparar" && scenariosSlot ? (
+        <div className="mt-4">{scenariosSlot}</div>
+      ) : (
+        <>
+          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
+            {reviewSlot ? <div className="min-w-0 lg:col-span-2">{reviewSlot}</div> : null}
+
+            <div className="grid min-w-0 gap-4">
+              {startedNew ? cadastroBlock : null}
+              <Section
+                title="Valores da Caixa"
+                hint={<>O que o cliente vai ver na apresentação. <strong className="font-semibold text-ink">Prazo</strong> e <strong className="font-semibold text-ink">taxa</strong> são obrigatórios.</>}
+              >
+                <div className="flex items-center gap-2">
+                  {enabledTypes.length > 1 ? (
+                    <div role="tablist" aria-label="Tipo de imóvel" className="flex min-w-0 flex-1 gap-1 rounded-control bg-mist p-1">
+                      {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => {
+                        const hasError = missingTerm && missingTerm.type === key;
+                        return (
+                          <button
+                            key={key}
+                            role="tab"
+                            type="button"
+                            aria-selected={shownType === key}
+                            onClick={() => setActiveType(key)}
+                            className={`flex min-h-touch min-w-0 flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-[8px] px-2 text-sm font-semibold transition-colors ${shownType === key ? "bg-white text-navy shadow-[0_1px_3px_rgba(13,59,102,0.12)]" : "text-muted hover:text-navy"}`}
+                          >
+                            {label}
+                            {key === "usado" && usadoMirrorsNovo ? (
+                              <span className="rounded-full bg-info-soft px-1.5 py-0.5 text-2xs font-semibold text-info"><span className="sm:hidden">= novo</span><span className="hidden sm:inline">igual ao novo</span></span>
+                            ) : null}
+                            {hasError ? <span className="h-2 w-2 rounded-full bg-danger-strong" aria-label="Falta campo obrigatório" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="min-w-0 flex-1 text-[15px] font-semibold text-navy">{enabledTypes[0]?.label}</p>
+                  )}
+                  <details className="relative shrink-0">
+                    <summary className="flex min-h-touch cursor-pointer list-none items-center gap-1 rounded-control px-2 text-sm font-semibold text-brand hover:bg-navy/[0.06] [&::-webkit-details-marker]:hidden">
+                      Tipos <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                    </summary>
+                    <fieldset className="absolute right-0 z-20 mt-1 w-72 rounded-card border border-line bg-white p-3 shadow-float">
+                      <legend className="sr-only">Tipos de imóvel desta simulação</legend>
+                      <p className="text-sm font-semibold text-navy">Tipos de imóvel desta simulação</p>
+                      {SIMULATION_MODEL_TYPES.map(({ key, label }) => {
+                        const onlyOne = enabledModels[key] && enabledTypes.length === 1;
+                        return (
+                          <label key={key} className={`flex min-h-touch items-center gap-2 text-sm font-semibold text-navy ${onlyOne ? "opacity-70" : "cursor-pointer"}`}>
+                            <input type="checkbox" className="h-5 w-5 accent-brand" checked={Boolean(enabledModels[key])} disabled={onlyOne} onChange={(event) => setModelEnabled(key, event.target.checked)} data-model-toggle={key} />
+                            {label}
+                          </label>
+                        );
+                      })}
+                      <p className="mt-1 text-xs leading-5 text-muted">
+                        Desmarque o tipo que o cliente não quer: os valores dele são apagados e a apresentação mostra só o outro, sem comparação entre novo e usado.
+                      </p>
+                    </fieldset>
+                  </details>
+                </div>
+
+                {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => key !== shownType ? null : (
+                  <div key={key} role="tabpanel" aria-label={label} className="mt-4">
+                    {key === "usado" && usadoMirrorsNovo ? (
+                      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-control bg-info-soft px-3 py-2 text-sm text-navy">
+                        <p className="min-w-0 flex-1">Financiamento e parcelas estão <strong className="font-semibold">iguais ao novo</strong> e acompanham o que você lançar lá.</p>
+                        <Button size="md" variant="secondary" onClick={useOwnUsadoValues}>Usar valores próprios</Button>
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-system="price">
+                      <MoneyField label="Financiamento" value={normalizedModels[key]?.financingValue || ""} onChange={(value) => updateSimulationModel(key, "financingValue", value)} />
+                      <MoneyField label="Subsídio" value={normalizedModels[key]?.subsidyValue || ""} onChange={(value) => updateSimulationModel(key, "subsidyValue", value)} />
+                      {rateField()}
+                      <MoneyField label="1ª parcela" value={normalizedModels[key]?.firstInstallment || ""} onChange={(value) => updateSimulationModel(key, "firstInstallment", value)} />
+                      <MoneyField label="Última parcela" value={normalizedModels[key]?.lastInstallment || ""} onChange={(value) => updateSimulationModel(key, "lastInstallment", value)} />
+                      {termField(key)}
+                    </div>
+
+                    {sacOpen[key] || modelHasSac(normalizedModels[key]) ? (
+                      <div className="mt-5 border-t border-line pt-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-semibold text-navy">SAC · {label.toLowerCase()}</h3>
+                            <p className="text-xs leading-5 text-muted">Opcional. Com o SAC preenchido (além do Price), a apresentação mostra o comparativo SAC x Price.</p>
+                          </div>
+                          {!modelHasSac(normalizedModels[key]) ? (
+                            <Button size="md" variant="ghost" onClick={() => setSacOpen((current) => ({ ...current, [key]: false }))}>Esconder SAC</Button>
+                          ) : null}
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-system="sac">
+                          <MoneyField label="Financiamento (SAC)" value={normalizedModels[key]?.sac?.financingValue || ""} onChange={(value) => updateSacModel(key, "financingValue", value)} />
+                          <MoneyField label="Subsídio (SAC)" value={normalizedModels[key]?.sac?.subsidyValue || ""} onChange={(value) => updateSacModel(key, "subsidyValue", value)} />
+                          <Field
+                            label="Prazo em meses (SAC)"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="Ex.: 420"
+                            autoComplete="off"
+                            value={normalizedModels[key]?.sac?.termMonths || ""}
+                            error={missingTerm && missingTerm.type === key && missingTerm.system === "sac" ? "Informe o prazo para salvar e enviar." : ""}
+                            onChange={(value) => updateSacModel(key, "termMonths", cleanTermMonths(value))}
+                          />
+                          <MoneyField label="1ª parcela (SAC)" value={normalizedModels[key]?.sac?.firstInstallment || ""} onChange={(value) => updateSacModel(key, "firstInstallment", value)} />
+                          <MoneyField label="Última parcela (SAC)" value={normalizedModels[key]?.sac?.lastInstallment || ""} onChange={(value) => updateSacModel(key, "lastInstallment", value)} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 border-t border-dashed border-line pt-1">
+                        <Button size="md" variant="ghost" className="-ml-2 text-brand" onClick={() => setSacOpen((current) => ({ ...current, [key]: true }))}>
+                          <Plus className="h-4 w-4" aria-hidden="true" /> Comparar com SAC
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {!isAutomatic && redoSlot ? <div className="mt-4 border-t border-line pt-4">{redoSlot}</div> : null}
+              </Section>
+
+              <Section title="Recursos do cliente">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <MoneyField label="Entrada disponível" value={form.downPaymentValue} onChange={(value) => update("downPaymentValue", value)} />
+                  <MoneyField label="FGTS disponível" value={form.fgtsValue} onChange={(value) => update("fgtsValue", value)} />
+                  <label className="col-span-2 flex min-h-touch cursor-pointer items-center gap-3 self-end text-sm font-medium text-ink sm:col-span-1">
+                    <Switch checked={Boolean(form.showExpandedPower)} onChange={(value) => update("showExpandedPower", value)} label="Mostrar poder de compra ampliado na apresentação" />
+                    Mostrar poder ampliado na apresentação
+                  </label>
+                </div>
+              </Section>
+
+              <Section
+                title={<>Imóveis da apresentação {form.properties.length ? <span className="font-medium text-muted">({form.properties.length})</span> : null}</>}
+                hint={form.properties.length > 1 ? "Arraste para mudar a ordem." : preferenceLine ? `O cliente procura: ${preferenceLine}` : ""}
+                action={<Button variant="secondary" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Adicionar imóvel</Button>}
+              >
+                {form.properties.length ? (
+                  <ol className="grid">
+                    {form.properties.map((property, propertyIndex) => (
+                      <li
+                        key={`${property.propertyId}-${propertyIndex}`}
+                        {...propertyDrag.itemProps(propertyIndex)}
+                        className={`grid grid-cols-[16px_56px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-3 last:border-b-0 sm:grid-cols-[20px_72px_minmax(0,1fr)_auto] sm:gap-3 ${propertyDrag.itemClass(propertyIndex)}`}
+                      >
+                        <GripVertical className="h-5 w-5 text-faint" aria-hidden="true" />
+                        {property.imageUrl ? <img src={property.imageUrl} alt="" className="h-12 w-14 rounded-control object-cover sm:h-14 sm:w-[72px]" /> : <span className="h-12 w-14 rounded-control bg-mist sm:h-14 sm:w-[72px]" />}
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 font-semibold leading-5 text-navy">{propertyIndex + 1} · {property.customName || "Imóvel sugerido"}</p>
+                          <p className="text-[13px] text-muted">{[property.customType, property.customLocation].filter(Boolean).join(" · ")}{property.customPrice ? <>{property.customType || property.customLocation ? " · " : ""}<span className="whitespace-nowrap">{property.customPrice}</span></> : null}</p>
+                          {property.benefits.length ? (
+                            <p className="mt-1 flex flex-wrap gap-1">
+                              {property.benefits.slice(0, 2).map((benefit) => <span key={benefit.text} className="rounded-chip bg-info-soft px-1.5 py-0.5 text-2xs font-semibold text-navy">{shortBenefitLabel(benefit.text)}</span>)}
+                              {property.benefits.length > 2 ? <span className="px-1 text-2xs font-semibold text-muted">+{property.benefits.length - 2}</span> : null}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button variant="ghost" className="min-w-touch px-2 text-brand" aria-label={`Editar imóvel ${propertyIndex + 1}`} onClick={() => setEditingIndex(propertyIndex)}><Pencil className="h-4 w-4 sm:hidden" aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="rounded-control bg-mist px-4 py-5 text-center text-sm text-muted">Nenhum imóvel ainda. Adicione os que vão na apresentação do cliente.</p>
+                )}
+              </Section>
+
+              <Disclosure
+                title="Observações"
+                summary={[form.publicNote ? "para o cliente preenchida" : "", form.internalNote ? "interna preenchida" : ""].filter(Boolean).join(" · ") || "Para o cliente (aparece na apresentação), interna e data da simulação"}
+                open={notesOpen}
+                onToggle={() => setNotesOpen((current) => !current)}
+              >
+                <div className="grid gap-3">
+                  <Field label="Observação pública" textarea hint="Aparece para o cliente na apresentação." value={form.publicNote} onChange={(value) => update("publicNote", value)} />
+                  <Field label="Observação interna" textarea hint="Só a equipe vê." value={form.internalNote} onChange={(value) => update("internalNote", value)} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Data da simulação" type="date" value={form.simulationDate} onChange={(value) => update("simulationDate", value)} />
+                  </div>
+                </div>
+              </Disclosure>
+
+              {startedNew ? null : cadastroBlock}
+            </div>
+
+            <aside className="min-w-0 lg:sticky lg:top-4">
+              <div className="rounded-card border border-line bg-white p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-bold text-navy">Poder de compra</h2>
+                  <span className={basicMode ? "inline-flex" : "hidden lg:inline-flex"}>{saveStatus}</span>
+                </div>
+                {filledModels.length ? (
+                  <dl className="mt-3 grid grid-cols-2 gap-2">
+                    {renderableModels.map((model) => (
+                      <div key={`${model.type}-${model.system}`} className="min-w-0 rounded-control bg-info-soft px-3 py-2">
+                        <dt className="truncate text-xs font-medium text-ink-2">{simulationModelLabel(model.type)}{model.systemLabel ? ` · ${model.systemLabel}` : ""}</dt>
+                        <dd className="text-lg font-bold tabular-nums text-navy">{formatCurrency(model.totals.total)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">Lance os valores da Caixa para ver o poder de compra.</p>
+                )}
+                {basicMode ? (
+                  <p className="mt-4 rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-sm font-medium text-warning">
+                    CRM básico: sua automação está desativada. Aqui você lança os valores da simulação para controle (eles são salvos automaticamente); a apresentação interativa fica indisponível. Fale com a gestão para reativar.
+                  </p>
+                ) : null}
+                <div className="mt-4 hidden lg:block">{renderActions("aside")}</div>
+                {presentationSlot ? <div className="mt-4">{presentationSlot}</div> : null}
+              </div>
+            </aside>
+          </div>
+
+          {showSaveButton || !basicMode || error || message ? (
+            <div className="sticky bottom-[var(--admin-bottom-nav-space,0px)] z-20 mt-4 rounded-card border border-line bg-white/95 p-3 shadow-float backdrop-blur lg:hidden">
+              {showSaveButton || missingLabel ? <div className="mb-2 flex items-center justify-between gap-2">{saveStatus}</div> : null}
+              {renderActions("bar")}
+            </div>
+          ) : null}
+        </>
+      )}
+
+      <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Adicionar imóvel" description="Toque em Incluir; os já incluídos somem da lista.">
+        {clientPreferences.length ? (
+          <div className="mb-4 rounded-control bg-info-soft p-3">
+            <p className="text-sm font-semibold text-navy">O que o cliente procura</p>
+            <dl className="mt-1 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+              {clientPreferences.map((item) => (
+                <div key={item.label} className="min-w-0">
+                  <dt className="text-xs text-muted">{item.label}</dt>
+                  <dd className="text-sm font-medium text-ink">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
+        <label className="relative block">
+          <span className="sr-only">Pesquisar imóvel</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
+          <input
+            className={`${inputClasses} pl-10`}
+            value={propertyQuery}
+            onChange={(event) => setPropertyQuery(event.target.value)}
+            placeholder="Nome, região, valor ou construtora"
+          />
+        </label>
+        <ul className="mt-3 grid">
+          {filteredProperties.slice(0, 10).map((property) => (
+            <li key={property.id} className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line py-2.5 last:border-b-0">
+              <img src={coverImage(property)} alt="" className="h-12 w-16 rounded-control object-cover" />
+              <span className="min-w-0">
+                <span className="block truncate font-semibold text-navy">{property.name}</span>
+                <span className="block truncate text-[13px] text-muted">{typeLabel(property.type)} · {propertyRegion(property)} · {propertyPrice(property)}</span>
+              </span>
+              <Button variant="secondary" onClick={() => addProperty(property)}><Plus className="h-4 w-4" aria-hidden="true" /> Incluir</Button>
+            </li>
+          ))}
+        </ul>
+        {!filteredProperties.length ? <p className="py-6 text-center text-sm text-muted">Nenhum imóvel encontrado.</p> : null}
+      </Sheet>
+
+      <Sheet
+        open={Boolean(editingProperty)}
+        onClose={() => setEditingIndex(null)}
+        title={editingProperty ? `Imóvel ${editingIndex + 1}` : ""}
+        description="Mudanças valem só para esta apresentação; o cadastro do imóvel não muda."
+        footer={editingProperty ? (
+          <div className="flex flex-wrap justify-between gap-2">
+            <Button variant="danger-ghost" onClick={() => { removeProperty(editingIndex); setEditingIndex(null); }}><Trash2 className="h-4 w-4" aria-hidden="true" /> Remover da apresentação</Button>
+            <Button onClick={() => setEditingIndex(null)}>Pronto</Button>
+          </div>
+        ) : null}
+      >
+        {editingProperty ? (
+          <div className="grid gap-4">
+            {editingProperty.imageUrl ? <img src={editingProperty.imageUrl} alt="" className="h-36 w-full rounded-card object-cover" /> : null}
+            <div className="grid grid-cols-2 gap-3">
+              <Field className="col-span-2" label="Nome na apresentação" value={editingProperty.customName} onChange={(value) => updateSelectedProperty(editingIndex, "customName", value)} />
+              <Field label="Valor na apresentação" value={editingProperty.customPrice} onChange={(value) => updateSelectedProperty(editingIndex, "customPrice", value)} />
+              <Field label="Localização" value={editingProperty.customLocation} onChange={(value) => updateSelectedProperty(editingIndex, "customLocation", value)} />
+              <Field label="Tipo" value={editingProperty.customType} onChange={(value) => updateSelectedProperty(editingIndex, "customType", value)} />
+              <Field label="Área" value={editingProperty.customArea} onChange={(value) => updateSelectedProperty(editingIndex, "customArea", value)} />
+              <Field label="Dormitórios" value={editingProperty.customBedrooms} onChange={(value) => updateSelectedProperty(editingIndex, "customBedrooms", value)} />
+              <Field label="Construtora" value={editingProperty.customBuilder} onChange={(value) => updateSelectedProperty(editingIndex, "customBuilder", value)} />
+              <Field label="Entrega" value={editingProperty.customDelivery} onChange={(value) => updateSelectedProperty(editingIndex, "customDelivery", value)} />
+            </div>
+            <div className="grid gap-2">
+              <SelectField
+                label="Motivo pronto"
+                options={[...(RECOMMENDATION_REASONS.includes(editingProperty.recommendationReason) ? [] : [{ value: editingProperty.recommendationReason || "", label: "Motivo personalizado (abaixo)" }]), ...RECOMMENDATION_REASONS.map((reason) => ({ value: reason, label: reason }))]}
+                value={editingProperty.recommendationReason}
+                onChange={(value) => updateSelectedProperty(editingIndex, "recommendationReason", value)}
+              />
+              <Field textarea label="Por que este imóvel foi sugerido?" value={editingProperty.recommendationReason} onChange={(value) => updateSelectedProperty(editingIndex, "recommendationReason", value)} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-navy">Benefícios e destaques</p>
+              <p className="text-xs text-muted">Toque para ligar ou desligar.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {BENEFIT_OPTIONS.map((benefit) => {
+                  const on = editingProperty.benefits.some((item) => item.text === benefit);
+                  return (
+                    <button
+                      key={benefit}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleBenefit(editingIndex, benefit)}
+                      className={`inline-flex min-h-touch items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors ${on ? "border-navy bg-navy text-white" : "border-line bg-white text-navy hover:border-brand/40"}`}
+                    >
+                      {on ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}{benefit}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <input
+                  className={inputClasses}
+                  aria-label="Adicionar benefício personalizado"
+                  value={editingProperty.customBenefitDraft || ""}
+                  onChange={(event) => updateSelectedProperty(editingIndex, "customBenefitDraft", event.target.value)}
+                  placeholder="Benefício personalizado"
+                />
+                <Button variant="secondary" onClick={() => addCustomBenefit(editingIndex, editingProperty.customBenefitDraft || "")}>Adicionar</Button>
+              </div>
+              {editingProperty.benefits.length ? (
+                <>
+                  <p className="mt-4 text-sm font-semibold text-navy">Ordem na apresentação</p>
+                  <p className="text-xs text-muted">Arraste para ordenar.</p>
+                  <BenefitOrderList benefits={editingProperty.benefits} onMove={(from, to) => moveBenefit(editingIndex, from, to)} onRemove={(benefitIndex) => removeBenefit(editingIndex, benefitIndex)} />
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Sheet>
     </div>
+  );
+
+  return (
+    <SimulationTabContext.Provider value={{
+      compactPresentation: true,
+      embeddedScenarios: true,
+      reviewExtras: {
+        before: incomeForCaixa ? (
+          <p className="inline-flex flex-wrap gap-x-1 rounded-control border border-warning-line bg-white px-3 py-2 text-sm text-navy tabular-nums">
+            <span className="text-ink-2">Renda para usar na Caixa —</span> <strong className="font-semibold">{incomeForCaixa}</strong>
+          </p>
+        ) : null,
+        actions: redoSlot
+      }
+    }}>
+      {body}
+    </SimulationTabContext.Provider>
   );
 }
 
-function Panel({ children, eyebrow, title }) {
+function Section({ title, hint = "", action = null, children }) {
   return (
-    <section className="min-w-0 rounded-[28px] border border-line bg-white p-4 shadow-soft sm:p-6 md:p-8">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
-      <h2 className="mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy">{title}</h2>
-      <div className="mt-6">{children}</div>
+    <section className="min-w-0 rounded-card border border-line bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-bold text-navy">{title}</h2>
+          {hint ? <p className="mt-0.5 text-sm text-muted">{hint}</p> : null}
+        </div>
+        {action}
+      </div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
 
-function Field({ label, onChange, textarea = false, type = "text", value, ...props }) {
-  const Component = textarea ? "textarea" : "input";
+// Bloco recolhível (Observações, Cadastro): título + resumo de uma linha; abre ali mesmo.
+function Disclosure({ title, summary, actionLabel = "Abrir", open, onToggle, children }) {
+  const id = useId();
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-      {label}
+    <section className="min-w-0 rounded-card border border-line bg-white">
+      <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={id} className="flex min-h-16 w-full items-center gap-3 rounded-card px-4 py-3 text-left transition-colors hover:bg-mist/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand sm:px-5">
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-bold text-navy">{title}</span>
+          <span className="block truncate text-[13px] text-muted">{summary}</span>
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand">
+          {open ? "Fechar" : actionLabel}
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ease-out-ui ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        </span>
+      </button>
+      {open ? <div id={id} className="border-t border-line px-4 pb-5 pt-4 sm:px-5">{children}</div> : null}
+    </section>
+  );
+}
+
+function ConfirmBadge() {
+  return <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-2xs font-semibold text-warning">confira</span>;
+}
+
+function SuggestionButton({ children, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="min-h-touch text-left text-xs font-semibold text-brand underline-offset-4 hover:underline">
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, onChange, textarea = false, type = "text", value, hint = "", error = "", required = false, badge = null, className = "", ...props }) {
+  const id = useId();
+  const Component = textarea ? "textarea" : "input";
+  const messageId = error || hint ? `${id}-msg` : undefined;
+  return (
+    <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
+      <label htmlFor={id} className="flex flex-wrap items-center gap-x-1.5 text-sm font-medium text-ink">
+        <span>{label}{required ? <span className="ml-0.5 text-danger" aria-hidden="true">*</span> : null}</span>
+        {badge}
+      </label>
       <Component
-        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""}`}
+        id={id}
+        className={`${inputClasses} min-w-0 tabular-nums ${textarea ? "min-h-24 py-2.5" : ""}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={messageId}
+        aria-required={required || undefined}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
       />
-    </label>
+      {error ? <p id={messageId} className="text-xs font-medium text-danger">{error}</p> : hint ? <div id={messageId} className="text-xs text-muted">{hint}</div> : null}
+    </div>
   );
 }
 
 function SelectField({ label, onChange, options = [], value }) {
+  const id = useId();
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-      {label}
-      <select className="admin-input min-w-0" value={value || ""} onChange={(event) => onChange(event.target.value)}>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink">{label}</label>
+      <select id={id} className={`${inputClasses} min-w-0`} value={value || ""} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
 function BooleanField({ label, onChange, value }) {
+  const id = useId();
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-      {label}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink">{label}</label>
       <select
-        className="admin-input min-w-0"
+        id={id}
+        className={`${inputClasses} min-w-0`}
         value={value === true ? "true" : value === false ? "false" : ""}
         onChange={(event) => onChange(event.target.value === "true")}
       >
         <option value="false">Não</option>
         <option value="true">Sim</option>
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -1209,20 +1421,45 @@ function MoneyField({ label, onChange, value }) {
   );
 }
 
-function Metric({ label, value }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">{label}</p>
-      <p className="mt-1 break-words text-[clamp(1.5rem,8vw,1.875rem)] font-black leading-tight text-navy">{value}</p>
-    </div>
-  );
+function Alert({ children, tone, compact = false }) {
+  const classes = tone === "success"
+    ? "border-success-line bg-success-soft text-success"
+    : "border-danger-line bg-danger-soft text-danger";
+  return <div role={tone === "success" ? "status" : "alert"} className={`rounded-control border font-medium ${compact ? "px-3 py-2 text-xs" : "px-4 py-3 text-sm"} ${classes}`}>{children}</div>;
 }
 
-function Alert({ children, tone }) {
-  const classes = tone === "success"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : "border-red-200 bg-red-50 text-red-800";
-  return <div className={`rounded-2xl border px-5 py-4 font-bold ${classes}`}>{children}</div>;
+function modelHasSac(model) {
+  const sac = model?.sac || {};
+  return ["financingValue", "subsidyValue", "firstInstallment", "lastInstallment", "termMonths"].some((field) => String(sac[field] || "").trim());
+}
+
+// Rótulo curto só para a etiqueta da lista (o texto completo continua na apresentação e na edição).
+function shortBenefitLabel(text) {
+  return text === "Subsídio do Minha Casa Minha Vida" ? "Subsídio MCMV" : text;
+}
+
+function formatDateLabel(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function optionLabel(options, value) {
+  return options.find((option) => option.value === value)?.label || "";
+}
+
+// Resumo de uma linha do cadastro (bloco recolhido). Só exibe o que está preenchido.
+function registrationSummary(form) {
+  const registration = form.registration || {};
+  const income = registration.primaryMonthlyIncome ? `renda ${registration.primaryMonthlyIncome}` : "";
+  const birth = registration.oldestBirthDate ? `nasc. ${formatDateLabel(registration.oldestBirthDate)}` : "";
+  return [
+    form.clientWhatsApp,
+    optionLabel(PRIMARY_INCOME_OPTIONS, registration.primaryIncomeType),
+    income,
+    birth,
+    optionLabel(MARITAL_STATUS_OPTIONS, registration.primaryMaritalStatus),
+    registration.hasChildrenUnder18 ? "com filhos" : ""
+  ].filter(Boolean).join(" · ");
 }
 
 function normalizeInitialSimulation(simulation) {
@@ -1419,10 +1656,10 @@ function isSyncedModelField(field) {
 }
 
 function autoSaveStatusLabel(status) {
-  if (status === "saving") return "Salvando automaticamente...";
-  if (status === "saved") return "Alteracoes salvas automaticamente";
-  if (status === "error") return "Erro ao salvar automaticamente";
-  return "Salvamento automatico ativo";
+  if (status === "saving") return "Salvando…";
+  if (status === "saved") return "Salvo";
+  if (status === "error") return "Erro ao salvar";
+  return "Salvamento automático ativo";
 }
 
 function formatPhoneInput(value) {
@@ -1487,41 +1724,23 @@ function WhatsAppIcon({ className }) {
 }
 
 
-// Ordem dos imóveis da apresentação (pedido do dono, 2026-10-09): arrastar com o mouse ou segurar e mover no celular.
-function PropertyOrderList({ properties, onMove }) {
-  const drag = useDragReorder(onMove);
-  return (
-    <Panel title="Ordem dos imóveis" eyebrow="Arraste para ordenar">
-      <div className="grid gap-2">
-        {properties.map((property, index) => (
-          <div key={`${property.propertyId}-${index}`} {...drag.itemProps(index)} className={`flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 ${drag.itemClass(index)}`}>
-            <GripVertical className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-navy text-xs font-black text-white">{index + 1}</span>
-            <span className="min-w-0 truncate font-bold text-navy">{property.customName || "Imóvel sugerido"}</span>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
 function BenefitOrderList({ benefits, onMove, onRemove }) {
   const drag = useDragReorder(onMove);
   return (
-    <div className="mt-4 grid gap-2">
+    <ol className="mt-2 grid gap-1.5">
       {benefits.map((benefit, benefitIndex) => (
-        <div key={`${benefit.text}-${benefitIndex}`} {...drag.itemProps(benefitIndex)} className={`flex items-center justify-between gap-3 rounded-2xl bg-mist px-4 py-3 ${drag.itemClass(benefitIndex)}`}>
-          <span className="flex min-w-0 items-center gap-2 font-bold text-navy"><GripVertical className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />{benefit.text}</span>
+        <li key={`${benefit.text}-${benefitIndex}`} {...drag.itemProps(benefitIndex)} className={`flex items-center justify-between gap-3 rounded-control bg-mist pl-3 ${drag.itemClass(benefitIndex)}`}>
+          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-navy"><GripVertical className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />{benefit.text}</span>
           <button
             aria-label={`Remover ${benefit.text}`}
-            className="rounded-full border border-red-100 bg-white px-3 py-1 text-red-600 transition hover:border-red-200 hover:bg-red-50"
+            className="inline-flex h-touch w-touch shrink-0 items-center justify-center rounded-control text-danger transition-colors hover:bg-danger-soft"
             onClick={() => onRemove(benefitIndex)}
             type="button"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </button>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
