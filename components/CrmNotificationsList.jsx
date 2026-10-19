@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bell, Check } from "lucide-react";
+import ReactivationNoticeStatus from "@/components/cooled/ReactivationNoticeStatus";
 
 export default function CrmNotificationsList({ initialNotifications = [] }) {
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -44,6 +45,7 @@ export default function CrmNotificationsList({ initialNotifications = [] }) {
               </p>
               <h2 className="mt-2 text-lg font-black text-navy">{notification.title}</h2>
               {notification.description ? <p className="mt-2 leading-7 text-muted">{notification.description}</p> : null}
+              {notification.reactivation ? <ReactivationNoticeStatus reactivation={notification.reactivation} className="mt-2" /> : null}
               <p className="mt-3 text-xs font-bold text-muted">{formatDateTime(notification.scheduledAt)}</p>
             </div>
             {!notification.readAt ? (

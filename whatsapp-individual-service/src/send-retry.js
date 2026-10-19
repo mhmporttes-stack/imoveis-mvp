@@ -8,7 +8,12 @@
 // só o id em hash (message-diagnostics.js), nunca telefone, JID ou conteúdo.
 
 export const SENT_CACHE_MAX_PER_SESSION = 300;
-export const SENT_CACHE_TTL_MS = 30 * 60 * 1000;
+// 2026-10-19: era 30 min — o celular pede reenvio de novo quando volta a ficar online (caso real: 2 h depois).
+export const SENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+// 2026-10-19: o Baileys só termina o sendMessage depois de gravar as chaves do Signal no banco (commit da transação,
+// DEPOIS de mandar a mensagem). O pedido de reenvio do celular chega nesse meio-tempo — o envio em andamento é esperado
+// até este limite em vez de responder "fora do cache".
+export const PENDING_SEND_WAIT_MS = 20 * 1000;
 // Reenvios feitos POR NÓS (caminho manual do LID) por mensagem + aparelho que pediu. O do Baileys tem limite próprio.
 export const MANUAL_RESEND_LIMIT = 2;
 
@@ -32,16 +37,50 @@ export function createSentMessageCache({ maxPerSession = SENT_CACHE_MAX_PER_SESS
     while (store.size > maxPerSession) store.delete(store.keys().next().value);
   }
 
-  return {
+  const pending = new Map(); // `${sessionId}|${id}` -> [resolve, ...] dos que esperam um envio em andamento
+  const pendingKey = (sessionId, id) => `${sessionId}|${String(id || "")}`;
+  function settle(sessionId, id, message) {
+    const key = pendingKey(sessionId, id);
+    const waiters = pending.get(key);
+    if (!waiters) return;
+    pending.delete(key);
+    for (const resolve of waiters) resolve(message);
+  }
+
+  const api = {
+    // Envio começando com este id (antes de mandar): pedidos de reenvio que chegarem antes do fim esperam por ele.
+    begin(sessionId, id) {
+      const key = String(id || "");
+      if (!sessionId || !key) return false;
+      if (!pending.has(pendingKey(sessionId, key))) pending.set(pendingKey(sessionId, key), []);
+      return true;
+    },
+    // Envio falhou: quem esperava recebe undefined (nada a reenviar).
+    abandon(sessionId, id) { settle(sessionId, id, undefined); },
+    isPending(sessionId, id) { return pending.has(pendingKey(sessionId, id)); },
+    // Conteúdo da mensagem: do cache, ou esperando o envio em andamento (até timeoutMs). undefined = nada a reenviar.
+    async wait(sessionId, id, timeoutMs = PENDING_SEND_WAIT_MS) {
+      const cached = api.get(sessionId, id);
+      if (cached !== undefined) return cached;
+      const waiters = pending.get(pendingKey(sessionId, id));
+      if (!waiters) return undefined;
+      return new Promise((resolve) => {
+        let done = false;
+        const finish = (value) => { if (!done) { done = true; clearTimeout(timer); resolve(value); } };
+        const timer = setTimeout(() => finish(undefined), timeoutMs);
+        waiters.push(finish);
+      });
+    },
     remember(sessionId, id, message) {
       const key = String(id || "");
-      if (!sessionId || !key || !message) return false;
+      if (!sessionId || !key || !message) { if (sessionId && key) settle(sessionId, key, undefined); return false; }
       const at = now();
       let store = sessions.get(sessionId);
       if (!store) { store = new Map(); sessions.set(sessionId, store); }
       store.delete(key); // reinserido no fim (mais novo)
       store.set(key, { message, at });
       prune(store, at);
+      settle(sessionId, key, message);
       return true;
     },
     get(sessionId, id) {
@@ -56,7 +95,10 @@ export function createSentMessageCache({ maxPerSession = SENT_CACHE_MAX_PER_SESS
       }
       return item.message;
     },
-    clear(sessionId) { sessions.delete(sessionId); },
+    clear(sessionId) {
+      sessions.delete(sessionId);
+      for (const key of [...pending.keys()]) if (key.startsWith(`${sessionId}|`)) settle(sessionId, key.slice(String(sessionId).length + 1), undefined);
+    },
     size(sessionId) {
       const store = sessions.get(sessionId);
       if (!store) return 0;
@@ -64,6 +106,7 @@ export function createSentMessageCache({ maxPerSession = SENT_CACHE_MAX_PER_SESS
       return store.size;
     }
   };
+  return api;
 }
 
 // Parte "usuário" de um JID (`5514...:3@s.whatsapp.net` -> `5514...`), sem Baileys.
@@ -105,8 +148,12 @@ export function decideSendRetry(node, { meId = "", meLid = "", cached = false } 
   const kind = !attrs.recipient ? "contact" : baileysSeesOwn ? "own_device" : ownDevice && isLid && !meLid ? "own_device_lid" : "unknown";
   const base = { trigger, kind, attempt, target: asker, recipient: String(attrs.recipient || "") };
   if (!cached) return { ...base, action: "missing" };
+  // 2026-10-19: pedido do PRÓPRIO celular -> sempre reenvio à mão para o aparelho que pediu (sessão nova). O reenvio do
+  // Baileys nesse caso (sendMessagesAgain sem participant = "manda de novo para todos") não força sessão nova com o
+  // celular — reusa a sessão que o celular não decifrou — e o celular nunca mostrava a mensagem (caso real: 7 de 7
+  // mensagens automáticas de um dia pedidas de novo, nenhuma apareceu). O Baileys continua reenviando também (inofensivo).
+  if ((kind === "own_device" && !isGroup) || kind === "own_device_lid") return { ...base, action: "manual" };
   if (baileysResends) return { ...base, action: "baileys" };
-  if (kind === "own_device_lid") return { ...base, action: "manual" };
   return { ...base, action: "ignore" };
 }
 

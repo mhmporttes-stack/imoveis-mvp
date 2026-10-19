@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — WhatsApp individual: reenvio ao próprio celular das mensagens do CRM (reincidência do §1-H)
+- **Alteração:** `whatsapp-individual-service`: (1) `sendMessage` escolhe o id antes do envio (`options.messageId`) e o marca como "em andamento"; o pedido de reenvio (`onSendRetryReceipt`) e o `getMessage` esperam o envio terminar (até 20 s, `PENDING_SEND_WAIT_MS`); (2) pedido do próprio celular (`own_device`, fora de grupo) passa a ser sempre reenviado à mão só para o aparelho que pediu, com sessão nova (antes só com `me.lid` vazio); (3) cache 30 min → 6 h (só memória, 300 por sessão).
+- **Motivo:** caso real (corretor, 19/10): 7 de 7 automáticas pedidas de novo pelo celular; 4 "fora do cache" porque o pedido chega antes de o Baileys terminar o commit das chaves; 3 reenviadas pelo Baileys reusando a sessão que falhou (celular pediu de novo 2 h depois). Mensagens chegaram ao cliente (`delivered_at`), sessão/número certos.
+- **Arquivos:** `whatsapp-individual-service/src/send-retry.js`, `whatsapp-individual-service/src/sessions.js`, `tests/whatsapp-send-retry.test.mjs`, `docs/WHATSAPP.md` §1-H, `docs/INCIDENTES.md`.
+- **Deploy:** Railway (à parte da Vercel; reconecta todos os números — publicar fora do horário de disparo).
+
 ### 2026-10-19 — Simulação: ficha do cliente salva sozinha (sem "Atualizar cadastro")
 - **Data:** 2026-10-19
 - **Área:** Clientes / Simulação
@@ -156,6 +162,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Fila de reativação: prazo de 5 min, contagem regressiva no aviso e motivo claro no WhatsApp (FUN-15l)
+- **Data:** 2026-10-19
+- **Área:** Clientes que esfriaram / fila de reativação (FUN-15l), sino/Notificações, botão WhatsApp do card e Chat.
+- **Alteração:** (1) prazo sem mensagem humana passa de 3 para **5 min** (`REACTIVATION_DEADLINE_MS`, fonte única em `lib/cooled-clients-reactivation-core.mjs`; não havia prazo em SQL, sem migration); devoluções novas gravam `trigger = no_message_deadline` (antigas `no_message_3min` lidas como 3 min). (2) Aviso "Cliente transferido para você" ganha contagem regressiva e, vencido/devolvido, "Prazo encerrado — o cliente voltou para a fila" (`attachReactivationNoticeStates` em `lib/cooled-clients-reactivation.js`, só leitura; usado por `listMyBellNotifications` e `listCrmNotifications`; tela `components/cooled/ReactivationNoticeStatus.jsx`). (3) Clique no WhatsApp de cliente devolvido por prazo: 403 com código `REACTIVATION_REQUEUED` e "Este cliente voltou para a fila porque nenhuma mensagem foi enviada em 5 minutos" (`clientOutOfScopeError`, `lib/whatsapp-chat.js`, nas 3 checagens de escopo); o card de Clientes mostra o aviso e não abre o Chat. Demais "sem acesso" inalterados.
+- **Motivo:** decisão do dono (2026-10-19) depois do relato "Gabriel recebe clientes e o WhatsApp diz que não tem acesso": em 10 entregas nenhuma mensagem foi enviada; ele abria o aviso depois que o cliente já tinha voltado para a fila e via só o erro genérico.
+- **Verificação:** `node --test tests/cooled-reactivation-queue.test.mjs` (17 ok) + testes de chat/alertas/cooled (falhas pré-existentes iguais sem a mudança: `chat-reply-preview` 1, `client-card-whatsapp-chat` 4); `pnpm build`.
+- **Arquivos afetados:** `lib/cooled-clients-reactivation-core.mjs`, `lib/cooled-clients-reactivation.js`, `lib/whatsapp-chat.js`, `lib/crm-alerts.js`, `lib/crm.js`, `components/cooled/ReactivationNoticeStatus.jsx`, `components/alerts/NotificationHistoryButton.jsx`, `components/CrmNotificationsList.jsx`, `components/clients/useClientList.js`, `tests/cooled-reactivation-queue.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-15l, ROL-2g, ROL-2h), `.claude/rules/crm-clientes-funil.md`, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** como o cron roda a cada 2 min, a devolução real acontece entre 5 e 7 min; nesse intervalo o aviso já mostra "Prazo encerrado" embora uma mensagem enviada ainda segure o cliente. A contagem usa o relógio do aparelho.
+- **Autor:** Claude Code (crm-editor)
+### 2026-10-19 — Trava "simulação primeiro"/"Simulação enviada" não reconhecia a apresentação enviada com botão pelo número oficial
+- **Data:** 2026-10-19
+- **Área:** Chat/ROL-4c e FUN-13 (evidência única de "simulação enviada").
+- **Alteração:** `isPresentationLinkSent` (`lib/simulation-sent-lock-core.mjs`) passa a aceitar o link `/s/<token>` também em `metadata.link.url`; `loadSimulationSentEvidence` (`lib/simulation-sent-evidence.js`) busca também mensagens com `/s/` nesse campo. Link do formulário (`/s/12?...`) continua não contando.
+- **Motivo:** desde 2026-10-09 a apresentação enviada pelo número OFICIAL sai como botão "Visualizar simulação" e a mensagem é gravada com o texto "…sua simulação de financiamento está pronta." (link só em `metadata.link.url`). A evidência lia só o texto: se o evento `presentation_sent` não fosse gravado (o registro é feito pela tela, sem garantia), o Chat continuava travando as mensagens (ROL-4c) e a FUN-13 recusava "Simulação enviada". Caso #C6600 (corretora travada depois de enviar). Retroativo: vale para as mensagens já gravadas, sem mexer no banco.
+- **Verificação:** `node --test tests/simulation-sent-lock.test.mjs tests/simulation-first.test.mjs` (teste novo do caso); SQL de leitura confirmando que o filtro novo acha a mensagem do caso; `pnpm build`.
+- **Arquivos afetados:** `lib/simulation-sent-lock-core.mjs`, `lib/simulation-sent-evidence.js`, `tests/simulation-sent-lock.test.mjs`, `docs/BUSINESS_RULES.md` (FUN-13 b).
+- **Risco/observação:** em 2026-10-19, 25 mensagens/20 clientes tinham apresentação só no botão; quase todos já tinham o evento. **A CONFIRMAR:** por que o `enviar-registrar` não gravou o evento no caso (chamada da tela com `.catch(() => null)`; possivelmente o link foi enviado pelo campo do Chat e não pelo botão "Enviar simulação").
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Aba da simulação: valores em duas linhas alinhadas (Price e SAC, novo e usado)
 - **Data:** 2026-10-19
 - **Área:** aba da simulação (`SimulationGenerator`), só apresentação.

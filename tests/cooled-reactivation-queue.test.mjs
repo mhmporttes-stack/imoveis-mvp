@@ -8,7 +8,13 @@ import {
   hasHumanMessageSince,
   offeredCaseOutcome,
   planReactivationDeliveries,
-  queuedCaseStillWaiting
+  queuedCaseStillWaiting,
+  REACTIVATION_DEADLINE_MINUTES,
+  REACTIVATION_REQUEUE_TRIGGER,
+  reactivationNoticeState,
+  reactivationRequeuedMessage,
+  requeueTriggerMinutes,
+  requeuedFromScopeMinutes
 } from "../lib/cooled-clients-reactivation-core.mjs";
 import { lastResponsibleTransferCut } from "../lib/whatsapp-chat-scope.mjs";
 
@@ -16,15 +22,17 @@ import { lastResponsibleTransferCut } from "../lib/whatsapp-chat-scope.mjs";
 // on-line recebe 1, depois de 3 min recebe outro; sem mensagem em 3 min, o cliente volta ao FIM da fila. Nunca volta ao
 // corretor que o perdeu no FUN-15; quem o perdeu nesta fila pode recebê-lo de novo (correção do dono no mesmo dia).
 // [REGRA OFICIAL — dono, 2026-10-19, ROL-2h] O intervalo entre dois recebimentos do mesmo corretor passou a 10 min (por
-// qualquer caminho da distribuição); o prazo de 3 min para mandar a mensagem não mudou.
+// qualquer caminho da distribuição). [REGRA OFICIAL — dono, 2026-10-19] O prazo para mandar a mensagem passou de 3 para
+// 5 min; aviso com contagem regressiva e "voltou para a fila" no clique do WhatsApp.
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const T0 = Date.parse("2026-10-17T13:00:00.000Z");
 const iso = (ms) => new Date(ms).toISOString();
 const OWNER = "owner";
 
-test("prazo para mandar mensagem continua 3 min; intervalo entre entregas passa a 10 min (ROL-2h, dono 2026-10-19)", () => {
-  assert.equal(REACTIVATION_DEADLINE_MS, 3 * 60 * 1000);
+test("prazo para mandar mensagem passa a 5 min; intervalo entre entregas 10 min (dono 2026-10-19)", () => {
+  assert.equal(REACTIVATION_DEADLINE_MS, 5 * 60 * 1000);
+  assert.equal(REACTIVATION_DEADLINE_MINUTES, 5);
   assert.equal(REACTIVATION_SPACING_MS, 10 * 60 * 1000);
 });
 
@@ -81,10 +89,11 @@ test("quem perdeu o cliente nesta fila (3 min sem mensagem) PODE recebê-lo de n
   assert.doesNotMatch(read("lib/cooled-clients-reactivation-core.mjs"), /excluded_ids|losers/);
 });
 
-test("prazo: sem mensagem em 3 min volta para a fila; com mensagem fica", () => {
+test("prazo: sem mensagem em 5 min volta para a fila; com mensagem fica", () => {
   const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab" };
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 2 * 60 * 1000 }), "wait");
-  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 3 * 60 * 1000 }), "requeue");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000 + 59 * 1000 }), "wait");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 5 * 60 * 1000 }), "requeue");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000, contacted: true }), "kept");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 60 * 1000, contacted: true }), "kept");
   // Transferido à mão ou status fora da roleta: sai da fila, nunca é tomado de volta.
@@ -159,4 +168,43 @@ test("volte TODOS (dono, 2026-10-17): bloqueio de 30 dias da Prospecção não t
   for (const status of ["queued", "offered", "kept"]) {
     assert.equal(backfillCaseDecision({ caseRow: { ...caseRow, reactivation_status: status }, client: { responsible_user_id: "gab" }, ownerId: OWNER, contacted: false }), "skip_already_in_queue");
   }
+});
+
+test("prazo em fonte única: servidor grava a marca nova e o aviso usa os minutos do core", () => {
+  const server = read("lib/cooled-clients-reactivation.js");
+  assert.match(server, /trigger: REACTIVATION_REQUEUE_TRIGGER/);
+  assert.match(server, /deadlineMinutes = REACTIVATION_DEADLINE_MINUTES/);
+  assert.doesNotMatch(server, /no_message_3min|em 3 minutos/);
+  assert.equal(requeueTriggerMinutes(REACTIVATION_REQUEUE_TRIGGER), 5);
+  assert.equal(requeueTriggerMinutes("no_message_3min"), 3); // devoluções antigas
+  assert.equal(requeueTriggerMinutes("backfill"), null);
+  assert.equal(reactivationRequeuedMessage(), "Este cliente voltou para a fila porque nenhuma mensagem foi enviada em 5 minutos.");
+});
+
+test("aviso: contagem regressiva, prazo encerrado, devolvido e mantido", () => {
+  const noticeAt = iso(T0);
+  const base = { noticeAt, stillResponsible: true };
+  assert.deepEqual(reactivationNoticeState({ ...base, now: T0 + 60 * 1000 }), { state: "pending", deadlineAt: iso(T0 + 5 * 60 * 1000) });
+  assert.equal(reactivationNoticeState({ ...base, now: T0 + 6 * 60 * 1000 }).state, "expired");
+  const requeued = reactivationNoticeState({ ...base, stillResponsible: false, requeues: [{ at: iso(T0 + 6 * 60 * 1000), trigger: REACTIVATION_REQUEUE_TRIGGER }], now: T0 + 7 * 60 * 1000 });
+  assert.equal(requeued.state, "requeued");
+  assert.equal(requeued.minutes, 5);
+  // Mandou mensagem: a rodada confirmou (kept) -> sem contagem nem "prazo encerrado".
+  assert.equal(reactivationNoticeState({ ...base, now: T0 + 6 * 60 * 1000, keptAt: iso(T0 + 6 * 60 * 1000) }).state, "kept");
+  assert.equal(reactivationNoticeState({ ...base, stillResponsible: false, now: T0 + 60 * 1000 }).state, "kept");
+  // Aviso antigo de uma entrega anterior: a devolução DEPOIS de uma nova entrega não é dele.
+  const older = reactivationNoticeState({ noticeAt, laterNoticeAt: iso(T0 + 20 * 60 * 1000), stillResponsible: true, requeues: [{ at: iso(T0 + 26 * 60 * 1000), trigger: REACTIVATION_REQUEUE_TRIGGER }], now: T0 + 30 * 60 * 1000 });
+  assert.equal(older.state, "kept");
+});
+
+test("clique no WhatsApp: mensagem de 'voltou para a fila' só quando a última movimentação foi a devolução por prazo de quem clicou", () => {
+  const row = { event_type: "auto_transferred", from_user_id: "gab", details: { trigger: REACTIVATION_REQUEUE_TRIGGER } };
+  assert.equal(requeuedFromScopeMinutes(row, ["gab"]), 5);
+  assert.equal(requeuedFromScopeMinutes(row, ["carol"]), null);
+  assert.equal(requeuedFromScopeMinutes({ ...row, details: { trigger: "backfill" } }, ["gab"]), null);
+  assert.equal(requeuedFromScopeMinutes({ ...row, event_type: "assigned" }, ["gab"]), null);
+  assert.equal(requeuedFromScopeMinutes(null, ["gab"]), null);
+  const chat = read("lib/whatsapp-chat.js");
+  assert.equal((chat.match(/throw await clientOutOfScopeError\(client, scope\)/g) || []).length, 3);
+  assert.match(chat, /code: "REACTIVATION_REQUEUED"/);
 });

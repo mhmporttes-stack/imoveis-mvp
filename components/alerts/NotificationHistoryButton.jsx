@@ -7,6 +7,7 @@ import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { shortcutIconClasses } from "@/components/ui/shortcut-icon";
 import { useKeepInViewport } from "@/components/ui/useKeepInViewport";
+import ReactivationNoticeStatus from "@/components/cooled/ReactivationNoticeStatus";
 
 // Botão pequeno de sino no cabeçalho (pedido do dono, 2026-10-14): só o ícone; ao tocar abre o HISTÓRICO das notificações
 // (Central de Alertas) do próprio usuário dos últimos 30 dias. Contador com o número das que ainda estão sem "Entendi" (antes era só uma bolinha).
@@ -143,6 +144,7 @@ export default function NotificationHistoryButton({ align = "end", variant = "co
                         <span className="shrink-0 text-[11px] text-muted" title={fullTime(item.createdAt)}>{timeAgo(item.createdAt)}</span>
                       </span>
                       <span className="mt-0.5 line-clamp-3 block text-xs leading-snug text-slate-600">{item.body}</span>
+                      {item.reactivation ? <ReactivationNoticeStatus reactivation={item.reactivation} className="mt-1" /> : null}
                       <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-muted">{item.label || KIND_LABEL[item.kind] || ""}{item.acknowledged ? "" : item.source === "notification" ? " · não lida" : " · não confirmada"}</span>
                     </span>
                   </button>
