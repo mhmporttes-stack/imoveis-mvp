@@ -50,7 +50,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Alteração:** `ensureManualSimulationRegistration` aceita `onPhoneMatch` (`"ask"`: achou cliente pelo telefone → `ExistingPhoneRegistrationError`, nada gravado; `"create"`: cria atendimento novo sem procurar). `POST /api/simulation-registrations/manual` devolve 409 `{ code: "PHONE_ALREADY_REGISTERED", existing, privateContact }`. `SimulationGenerator`: retorno junto do botão, "Abrir este cadastro"/"Criar novo atendimento". `lib/simulations.js` vincula sem renomear (`keepExistingIdentity`).
 - **Motivo:** bug relatado pelo dono — o cadastro não era criado e um cliente de teste antigo (mesmo telefone) foi renomeado.
 - **Arquivos afetados:** `lib/simulation-registrations.js`, `app/api/simulation-registrations/manual/route.js`, `components/SimulationGenerator.jsx`, `lib/simulations.js`, `tests/manual-registration-phone-match.test.mjs`, `docs/INCIDENTES.md`, `docs/BUSINESS_RULES.md` (CLI-5).
-- **Risco/observação:** chamadores sem `onPhoneMatch` (Chat, Meta Diária, Prospecção) seguem reaproveitando como antes. **A CONFIRMAR com o dono:** se "Criar novo atendimento" com telefone repetido deve continuar disponível para todos os perfis. Dados de produção não alterados. Testes da área e build ok.
+- **Risco/observação:** chamadores sem `onPhoneMatch` (Chat, Meta Diária, Prospecção) seguem reaproveitando como antes. Dono confirmou (2026-10-19): "Criar novo atendimento" vale para todos os perfis (CLI-5, regra oficial) e o C6771 fica como está. Dados de produção não alterados. Testes da área e build ok.
 - **Autor:** crm-editor (Claude Code)
 
 ### 2026-10-19 — Correção: "Refazer simulação automática" sem a migration de histórico deixava o /s/ em 404 sem conferência
