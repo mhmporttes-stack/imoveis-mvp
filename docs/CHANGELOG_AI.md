@@ -118,6 +118,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `components/SimulationGenerator.jsx`, `components/presentation/SimulationPresentationPanel.jsx`, `tests/registration-form-labels.test.mjs`, `tests/simulation-presentation-approval.test.mjs` (trava: painel sem a chave).
 - **Risco/observação:** a data da simulação deixou de ser editável na tela (pedido do dono: "só mostrar a data").
 - **Autor:** Claude Code (designer-crm)
+### 2026-10-19 — Apresentação de aprovação automática pela etapa do cliente (PRES-21)
+- **Data:** 2026-10-19
+- **Área:** apresentação da simulação (`lib/simulation-presentation.js`, `lib/client-status.js`, API `/api/admin/simulacoes/[id]/apresentacao`, prévia `/admin/simulacoes/[id]/apresentacao`)
+- **Alteração:** o link mostra o roteiro de CRÉDITO APROVADO enquanto o cliente estiver em "Cliente aprovado", Reunião ou Venda; volta à simulação se ele voltar de etapa, for reprovado, arquivado ou "não contatar". Calculado pela etapa atual a cada abertura (cobre card, ficha, automações, API e SQL sem gancho em cada caminho, sem backfill). A chave manual sai: `setPresentationApproval` removida, `action:"aprovacao"` → 409, colunas `approval_enabled_at/_by` só como histórico. Toggle do painel removido pelo designer-crm (arquivo dele).
+- **Motivo:** regra oficial do dono (2026-10-19).
+- **Verificação:** `tests/simulation-presentation-approval.test.mjs`; suíte sem falha nova; `pnpm build`. Banco (leitura): 3 links ativos de clientes aprovados/posteriores passam a mostrar a aprovação; nenhuma chave estava ligada; nada a gravar.
+- **Arquivos afetados:** `lib/client-status.js`, `lib/simulation-presentation.js`, `app/api/admin/simulacoes/[id]/apresentacao/route.js`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, `tests/simulation-presentation-approval.test.mjs`, `docs/BUSINESS_RULES.md`, `docs/DATABASE.md`.
+- **Risco/observação:** o link em aprovação mostra os valores ATUAIS da simulação — o corretor precisa ajustá-los para os da aprovação.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — "Simulador Caixa" no menu do painel (com voto 👍/👎)
 - **Data:** 2026-10-19
 - **Área:** menu (`components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`), nova página `/admin/simulador-caixa`, nova API `/api/admin/simulador-caixa/feedback`, nova tabela `caixa_simulator_feedback`

@@ -3,7 +3,7 @@ import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getSimulation } from "@/lib/simulations";
-import { buildSimulationPresentationDto, getActivePresentation } from "@/lib/simulation-presentation";
+import { buildSimulationPresentationDto, getActivePresentation, isApprovalPresentation } from "@/lib/simulation-presentation";
 import { readPaymentStrategy } from "@/lib/payment-strategy";
 
 // Prévia da apresentação ANTES de enviar o link: mesma renderização da página pública, mas só para quem pode ver a
@@ -11,7 +11,8 @@ import { readPaymentStrategy } from "@/lib/payment-strategy";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Prévia da apresentação", robots: { index: false, follow: false } };
 
-// ?modo=aprovacao: prévia da apresentação de APROVAÇÃO (PRES-21) antes de ligar a chave; com a chave ligada a prévia já é a de aprovação.
+// ?modo=aprovacao: prévia da apresentação de APROVAÇÃO (PRES-21) a qualquer momento; com o cliente aprovado (ou etapa posterior,
+// regra automática do dono de 2026-10-19) a prévia já é a de aprovação, igual ao link.
 export default async function PresentationPreviewPage({ params, searchParams }) {
   const auth = await requireAdminPage();
   const { id } = await params;
@@ -19,12 +20,11 @@ export default async function PresentationPreviewPage({ params, searchParams }) 
   const simulation = await getSimulation(id, auth);
   if (!simulation) notFound();
   const query = (await searchParams) || {};
-  let approval = query.modo === "aprovacao";
+  const approval = query.modo === "aprovacao" || isApprovalPresentation(simulation);
   let presentationId = "";
   try {
     const active = (await getActivePresentation(simulation.id)).presentation;
     presentationId = active?.id || "";
-    if (!approval) approval = Boolean(active?.approvalEnabledAt);
   } catch {
     // sem link (ou tabela ausente): prévia da simulação, sem estratégia gravada
   }

@@ -8,8 +8,8 @@ import {
   ensurePresentation,
   getActivePresentation,
   presentationUrl,
-  regeneratePresentation,
-  setPresentationApproval
+  isApprovalPresentation,
+  regeneratePresentation
 } from "@/lib/simulation-presentation";
 import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journey";
 import { readPaymentStrategy } from "@/lib/payment-strategy";
@@ -30,11 +30,10 @@ export const dynamic = "force-dynamic";
 //   GET  → estado do link + métricas discretas
 //   POST → { action: "enviar-preparar" } (get-or-create + mensagem com o link; não envia) / { action: "enviar-registrar" } (jornada)
 //   POST → { action: "generate" } (idempotente: devolve o mesmo link) ou { action: "regenerate" } (revoga e cria novo)
-//   POST → { action: "aprovacao", enabled: true|false } — chave "Apresentação de aprovação" (PRES-21): o MESMO link passa a
-//          mostrar o roteiro de CRÉDITO APROVADO. Nunca muda a etapa do cliente; registra no histórico quem ligou/desligou.
+//   POST → { action: "aprovacao" } — RECUSADO (409): a "Apresentação de aprovação" liga sozinha quando o cliente está em
+//          "Cliente aprovado" ou etapa posterior (REGRA OFICIAL — dono, 2026-10-19; substitui a chave manual do PRES-21).
 
-const APPROVAL_ON_EVENT = "presentation_approval_on";
-const APPROVAL_OFF_EVENT = "presentation_approval_off";
+const APPROVAL_AUTOMATIC_MESSAGE = "A apresentação de aprovação agora liga sozinha quando o cliente passa para \"Cliente aprovado\".";
 
 // Sempre o domínio da marca (lib/site-url.mjs): o cabeçalho Host não é confiável para montar o link enviado ao cliente
 // nem para a busca de aquecimento feita pelo servidor.
@@ -75,10 +74,8 @@ async function stateBody(simulation, result, request) {
     schemaReady: true,
     ready: sceneCount > 0,
     sceneCount,
-    // chave de aprovação: `approvalReady` false = coluna ainda não criada no banco (a chave não aparece)
-    approvalReady: result.approvalReady !== false,
-    approvalEnabled: Boolean(presentation?.approvalEnabledAt),
-    approvalEnabledAt: presentation?.approvalEnabledAt || "",
+    // Apresentação de aprovação automática (dono, 2026-10-19): ligada pela etapa atual do cliente, sem chave manual.
+    approvalEnabled: isApprovalPresentation(simulation),
     clientName: simulation.clientName || "",
     simulationDate: simulation.simulationDate || "",
     paymentStrategy,
@@ -168,27 +165,7 @@ export async function POST(request, { params }) {
     }
 
     if (action === "aprovacao") {
-      if (!countPresentationScenes(simulation)) {
-        return NextResponse.json({ error: "Preencha os valores da simulação antes de ligar a apresentação de aprovação." }, { status: 422 });
-      }
-      const enabled = payload?.enabled === true;
-      const result = await setPresentationApproval({ simulation, userId: auth.profile?.id || "", enabled });
-      if (!result?.schemaReady || result.approvalReady === false) {
-        return NextResponse.json({ error: "Recurso ainda não ativado no banco." }, { status: 503 });
-      }
-      if (simulation.registrationId) {
-        try {
-          await logClientJourneyEvent({
-            clientId: simulation.registrationId,
-            eventType: enabled ? APPROVAL_ON_EVENT : APPROVAL_OFF_EVENT,
-            actor: resolveActorSnapshot(auth),
-            details: { text: enabled ? "Apresentação de aprovação ativada no link" : "Apresentação de aprovação desativada (link volta à simulação)" }
-          });
-        } catch (journeyError) {
-          console.error("Falha ao registrar a chave de aprovação na jornada:", journeyError?.message || journeyError);
-        }
-      }
-      return NextResponse.json(await stateBody(simulation, result, request), { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ error: APPROVAL_AUTOMATIC_MESSAGE }, { status: 409 });
     }
 
     const sceneCount = await countPresentationScenes(simulation);

@@ -76,24 +76,32 @@ test("DTO de aprovação: allowlist estrita (sem renda, CPF, ids internos, nome 
   assert.equal(shareFirstName(dto), "Jussara", "prévia do WhatsApp continua só com o primeiro nome");
 });
 
-test("servidor: chave lida à parte (link funciona sem a coluna), imagens sempre da simulação, nunca muda a etapa do cliente", () => {
+test("servidor: aprovação AUTOMÁTICA pela etapa do cliente (dono, 2026-10-19), imagens sempre da simulação, nunca muda a etapa", () => {
   const lib = read("lib/simulation-presentation.js");
-  assert.match(lib, /function isApprovalColumnMissing/);
-  assert.match(lib, /const approval = simulationOnly \? false : await readPublicApproval\(token\);/);
+  assert.match(lib, /return isPresentationApprovalStatus\(simulation\?\.registration\?\.status\);/);
+  assert.match(lib, /const approval = simulationOnly \? false : isApprovalPresentation\(simulation\);/);
   assert.match(lib, /if \(approval\) return buildApprovalPresentation\(/);
-  const setter = /export async function setPresentationApproval[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
-  assert.ok(setter.includes("approval_enabled_at"));
-  assert.ok(!/CLIENT_STATUS|simulation_registrations|updateSimulationRegistration|registration/.test(setter), "a chave não toca na etapa do funil");
+  assert.ok(!/setPresentationApproval|approval_enabled_at:/.test(lib), "a chave manual não existe mais nem grava a coluna");
+  assert.ok(!/updateSimulationRegistration|from\("simulation_registrations"\)/.test(lib), "a apresentação não toca na etapa do funil");
   for (const file of ["app/apresentacao/[token]/documentos/route.js", "app/apresentacao/[token]/imagem/route.js"]) {
     assert.match(read(file), /getPublicPresentation\(token, \{ simulationOnly: true \}\)/, file);
   }
   const route = read("app/api/admin/simulacoes/[id]/apresentacao/route.js");
   assert.match(route, /requireAdminApi/);
-  assert.match(route, /action === "aprovacao"/);
-  assert.match(route, /presentation_approval_on/);
+  assert.match(route, /if \(action === "aprovacao"\) \{\n      return NextResponse\.json\(\{ error: APPROVAL_AUTOMATIC_MESSAGE \}, \{ status: 409 \}\);/);
+  assert.match(route, /approvalEnabled: isApprovalPresentation\(simulation\)/);
+  assert.match(read("app/admin/simulacoes/[id]/apresentacao/page.jsx"), /const approval = query\.modo === "aprovacao" \|\| isApprovalPresentation\(simulation\);/);
   const migration = read("supabase/migrations/20261006180000_simulation_presentation_approval.sql");
   assert.match(migration, /add column if not exists approval_enabled_at timestamptz/);
   assert.ok(!/\b(drop|delete|update|truncate)\b/i.test(migration.replace(/--.*$/gm, "")), "migration só aditiva");
+});
+
+test("etapas que ligam a apresentação de aprovação: aprovado, reunião e venda; antes/reprovado/arquivado não", async () => {
+  const { CLIENT_STATUS, isPresentationApprovalStatus } = await import("../lib/client-status.js");
+  for (const status of ["approved", "meeting_pending", "meeting_done", "sale_completed", "sale_contract", "sale_paid"]) assert.equal(isPresentationApprovalStatus(status), true, status);
+  for (const status of [CLIENT_STATUS.APPROVAL_PENDING, CLIENT_STATUS.REJECTED, CLIENT_STATUS.RESTRICTION, CLIENT_STATUS.SIMULATION_SENT, CLIENT_STATUS.DOCUMENTATION, CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT, CLIENT_STATUS.AUTO_SIMULATION, "", undefined]) {
+    assert.equal(isPresentationApprovalStatus(status), false, String(status));
+  }
 });
 
 // Dono, 2026-10-19: a chave "Apresentação de aprovação" saiu do painel da aba Simulação — a aprovação passa a ligar
