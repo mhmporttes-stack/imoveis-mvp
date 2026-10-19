@@ -720,7 +720,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             completa (é o mesmo dado: clientWhatsApp e registration.phone andam juntos); a observação interna vira texto
             somente leitura — o valor continua no formulário e é gravado pelo autosave/Salvar como antes (nada se apaga). */}
         <Panel title="Dados do cliente" eyebrow="Etapa A" compact>
-          <Field label="Nome completo do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} />
+          <Field label="Nome completo do cliente" hideLabel placeholder="Nome completo" value={form.clientName} onChange={(value) => update("clientName", value)} />
           {form.simulationDate ? <p className="mt-1.5 text-xs font-semibold text-muted">Simulação de {formatDateBr(form.simulationDate)}</p> : null}
           {readableInternalNote(form.internalNote) ? (
             <p className="mt-3 whitespace-pre-line break-words rounded-2xl border border-line bg-mist px-3 py-2 text-xs font-medium leading-5 text-ink-2" aria-label="Observação interna">
@@ -1179,11 +1179,12 @@ const COMPACT_INPUT = "!h-14 !px-1.5 !font-semibold min-[400px]:!px-2 sm:!px-4";
 const DATE_INPUT = "block w-full max-w-full min-w-0 appearance-none [-webkit-appearance:none] text-left [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]";
 const compactLabelText = (label) => <span className="flex flex-1 items-end">{label}</span>;
 
-function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, ...props }) {
+// hideLabel (2026-10-19): rótulo óbvio some da tela mas continua para leitor de tela; o campo alinha pela base ao lado dos vizinhos.
+function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, hideLabel = false, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
-    <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
-      {compact ? compactLabelText(label) : label}
+    <label className={compact ? COMPACT_LABEL : `mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink ${hideLabel ? "self-end" : ""}`}>
+      {hideLabel ? <span className="sr-only">{label}</span> : compact ? compactLabelText(label) : label}
       <Component
         className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${type === "date" ? DATE_INPUT : ""} ${inputClassName}`}
         {...(textarea ? props : { type, ...props })}
