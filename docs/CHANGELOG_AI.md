@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Correção: "Criar cadastro" da nova simulação atualizava em silêncio cliente com o mesmo WhatsApp
+- **Data:** 2026-10-19
+- **Área:** Clientes / Simulação
+- **Alteração:** `ensureManualSimulationRegistration` aceita `onPhoneMatch` (`"ask"`: achou cliente pelo telefone → `ExistingPhoneRegistrationError`, nada gravado; `"create"`: cria atendimento novo sem procurar). `POST /api/simulation-registrations/manual` devolve 409 `{ code: "PHONE_ALREADY_REGISTERED", existing, privateContact }`. `SimulationGenerator`: retorno junto do botão, "Abrir este cadastro"/"Criar novo atendimento". `lib/simulations.js` vincula sem renomear (`keepExistingIdentity`).
+- **Motivo:** bug relatado pelo dono — o cadastro não era criado e um cliente de teste antigo (mesmo telefone) foi renomeado.
+- **Arquivos afetados:** `lib/simulation-registrations.js`, `app/api/simulation-registrations/manual/route.js`, `components/SimulationGenerator.jsx`, `lib/simulations.js`, `tests/manual-registration-phone-match.test.mjs`, `docs/INCIDENTES.md`, `docs/BUSINESS_RULES.md` (CLI-5).
+- **Risco/observação:** chamadores sem `onPhoneMatch` (Chat, Meta Diária, Prospecção) seguem reaproveitando como antes. **A CONFIRMAR com o dono:** se "Criar novo atendimento" com telefone repetido deve continuar disponível para todos os perfis. Dados de produção não alterados. Testes da área e build ok.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Correção: "Refazer simulação automática" sem a migration de histórico deixava o /s/ em 404 sem conferência
 - **Causa raiz:** `saveAutoSnapshot(newRound)` caía no índice único antigo `simulation_auto_reviews(simulation_id)` (migration 20261019200000 não aplicada) e desistia com `false` quando a conferência anterior já estava fechada; a simulação voltava a automática (portão SIM-AUTO → 404) sem conferência pendente.
 - **Correção:** reabre a mesma linha como `pending` e guarda a rodada anterior em `auto_snapshot.previousRounds` (`snapshotWithPreviousRound`, `lib/simulation-auto-review-core.mjs`). Com a migration aplicada, o caminho normal (superseded + linha nova) segue igual. `/s/<token>` de simulação automática aguardando conferência mostra "Esta apresentação está sendo atualizada pelo seu corretor" (`resolvePublicPresentation` + `PRESENTATION_UPDATING_REASON`, `lib/simulation-presentation.js`); `getPublicPresentation` (og/imagem/documentos) inalterada; demais motivos seguem 404; links de simulações não automáticas sem mudança.

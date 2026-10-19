@@ -3,6 +3,7 @@ import { getActingAdminEmail, requireAdminApi } from "@/lib/admin-auth";
 import {
   canManageSimulationRegistrations,
   ensureManualSimulationRegistration,
+  ExistingPhoneRegistrationError,
   formatSimulationRegistrationError
 } from "@/lib/simulation-registrations";
 
@@ -27,6 +28,9 @@ export async function POST(request) {
     }, auth);
     return NextResponse.json(registration, { status: 201 });
   } catch (error) {
+    if (error instanceof ExistingPhoneRegistrationError) {
+      return NextResponse.json({ error: error.message, code: error.code, existing: error.existing, privateContact: error.privateContact }, { status: 409 });
+    }
     return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
   }
 }

@@ -135,6 +135,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [sendFormat] = useState("presentation");
   const [saving, setSaving] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
+  // Retorno do "Criar/Atualizar cadastro" junto do botão (o aviso geral fica no fim da página, longe dele).
+  const [registrationFeedback, setRegistrationFeedback] = useState(null);
   // Bloco "Cadastro do cliente" minimizado por padrão; aberto em simulação nova sem cadastro (dono, 2026-10-19).
   const [registrationOpen, setRegistrationOpen] = useState(() => !initialSimulation?.registrationId);
   const [sendingSimulation, setSendingSimulation] = useState(false);
@@ -609,10 +611,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
     }
   }
 
-  async function saveClientRegistration() {
+  async function saveClientRegistration(onPhoneMatch = "ask") {
     const currentForm = formRef.current;
     const registration = normalizeRegistrationDraft(currentForm.registration, currentForm, currentForm.clientWhatsApp);
+    const creating = !currentForm.registrationId;
     setRegistrationSaving(true);
+    setRegistrationFeedback(null);
     setError("");
     setMessage("");
 
@@ -625,31 +629,49 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           registrationId: currentForm.registrationId,
           fullName: currentForm.clientName || registration.fullName,
           phone: currentForm.clientWhatsApp || registration.phone,
-          includeDetails: true
+          includeDetails: true,
+          // Cliente com o mesmo WhatsApp: o servidor não reaproveita em silêncio — avisa e pergunta (incidente 2026-10-19).
+          ...(creating ? { onPhoneMatch } : {})
         })
       });
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(data.error || "Nao foi possivel salvar o cadastro do cliente.");
+        setRegistrationFeedback({
+          tone: "error",
+          text: data.error || "Não foi possível salvar o cadastro do cliente.",
+          existing: data.code === "PHONE_ALREADY_REGISTERED" ? data.existing : null
+        });
         return null;
       }
 
-      setForm((current) => ({
-        ...current,
-        registrationId: data.id,
-        registration: normalizeRegistrationDraft(data, current, current.clientWhatsApp),
-        clientName: data.fullName || current.clientName,
-        clientWhatsApp: formatPhoneInput(data.phoneNormalized || data.phone || current.clientWhatsApp)
-      }));
-      setMessage("Cadastro do cliente salvo.");
+      applySavedRegistration(data);
+      const code = data.clientCode ? ` ${data.clientCode}` : "";
+      setRegistrationFeedback({ tone: "success", text: creating ? `Cliente${code} criado.` : `Cadastro${code} atualizado.` });
       return data;
     } catch {
-      setError("Nao foi possivel salvar o cadastro do cliente.");
+      setRegistrationFeedback({ tone: "error", text: "Não foi possível salvar o cadastro do cliente. Confira a internet e tente de novo." });
       return null;
     } finally {
       setRegistrationSaving(false);
     }
+  }
+
+  function applySavedRegistration(data) {
+    setForm((current) => ({
+      ...current,
+      registrationId: data.id,
+      registration: normalizeRegistrationDraft(data, current, current.clientWhatsApp),
+      clientName: data.fullName || current.clientName,
+      clientWhatsApp: formatPhoneInput(data.phoneNormalized || data.phone || current.clientWhatsApp)
+    }));
+  }
+
+  // "Abrir este cadastro": só carrega o cliente existente na tela; nada é gravado até "Atualizar cadastro".
+  function openExistingRegistration(existing) {
+    applySavedRegistration(existing);
+    const code = existing.clientCode ? ` ${existing.clientCode}` : "";
+    setRegistrationFeedback({ tone: "success", text: `Cadastro${code} aberto. Nada foi alterado; para mudar algo, edite e clique em "Atualizar cadastro".` });
   }
 
   function flushAutoSave(currentForm) {
@@ -874,11 +896,26 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             <button
               className="premium-button-secondary mt-5 w-full sm:w-auto"
               disabled={registrationSaving}
-              onClick={saveClientRegistration}
+              onClick={() => saveClientRegistration()}
               type="button"
             >
               {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
             </button>
+            {registrationFeedback ? (
+              <div className="mt-3 space-y-3" role={registrationFeedback.tone === "error" ? "alert" : "status"}>
+                <Alert tone={registrationFeedback.tone}>{registrationFeedback.text}</Alert>
+                {registrationFeedback.existing ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button className="premium-button-secondary" disabled={registrationSaving} onClick={() => openExistingRegistration(registrationFeedback.existing)} type="button">
+                      Abrir este cadastro
+                    </button>
+                    <button className="premium-button-secondary" disabled={registrationSaving} onClick={() => saveClientRegistration("create")} type="button">
+                      Criar novo atendimento
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             </>
             ) : null}
           </div>

@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-19 — "Criar cadastro" na nova simulação não cria o cliente (renomeia outro com o mesmo WhatsApp)
+- **Data:** 2026-10-19
+- **Sintoma:** em Simulações › Nova, o corretor preenche o cadastro do cliente, clica "Criar cadastro" e o cliente não aparece em Clientes; um cliente antigo com o mesmo WhatsApp aparece com o nome novo.
+- **Área:** Clientes / Simulação
+- **Impacto:** qualquer perfil, sempre que o WhatsApp digitado já existia num cliente do mesmo responsável (inclusive arquivado ou Particular, que nem aparecem na lista). Dados do cliente antigo (nome, telefone, renda etc.) sobrescritos sem aviso.
+- **Causa raiz:** `ensureManualSimulationRegistration` (sem `registrationId`) procura cliente pelo telefone (`findMatchingRegistration`) e, achando, ATUALIZA esse cliente — comportamento pensado para os fluxos automáticos. A tela mostrava "Cadastro do cliente salvo." no fim da página, longe do botão. Salvar a simulação sem cadastro (`lib/simulations.js`) também renomeava o cliente achado pelo telefone. Não tem relação com as mudanças de Entrada/FGTS/"Primeiro imóvel" do mesmo dia; número da equipe não bloqueia cadastro manual (WA-12).
+- **Correção:** o "Criar cadastro" manda `onPhoneMatch: "ask"`: achando cliente com o mesmo WhatsApp, nada é gravado e a rota responde 409 "Já existe um cliente com este WhatsApp: C… — Nome (status, Particular). Nada foi alterado."; a tela oferece "Abrir este cadastro" (só carrega) ou "Criar novo atendimento" (`onPhoneMatch: "create"`, regra 5). Sucesso/erro aparecem junto do botão ("Cliente C… criado."). Salvar a simulação só vincula, com `keepExistingIdentity`. Demais chamadores inalterados.
+- **Arquivos/commit:** `lib/simulation-registrations.js`, `app/api/simulation-registrations/manual/route.js`, `components/SimulationGenerator.jsx`, `lib/simulations.js` — ver `git log`.
+- **Prevenção/teste:** `tests/manual-registration-phone-match.test.mjs`.
+- **Status:** Resolvido (dados já sobrescritos não foram desfeitos — decisão do dono).
+
 ### 2026-10-19 — Link de apresentação /s/ dá 404 depois de "Refazer simulação automática"
 - **Data:** 2026-10-19
 - **Sintoma:** o link `/s/<token>` de um cliente cuja simulação já tinha sido conferida ("Simulação OK") passou a mostrar "This page could not be found" logo depois de o corretor clicar "Refazer simulação automática".
