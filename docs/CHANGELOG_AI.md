@@ -118,6 +118,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Simulador Caixa: sem "Regime", renda do corretor exata, "Valor do imóvel" e grade uniforme
+- **Data:** 2026-10-19
+- **Área:** `components/CaixaSimulator.jsx`, `lib/caixa-simulator-core.mjs`, `lib/financiamento-estimativa-core.mjs` (valor do imóvel opcional), API do voto, SQL de análise (seção 4)
+- **Alteração:** remove "Regime" (renda digitada usada exatamente, como fixa; voto com `incomeSource` e sem regime); remove "Entrada necessária"/"Falta de entrada" do resultado; novo "Valor do imóvel" (automático = teto da faixa da renda, editável; cota 80%, DFI e subsídio sobre o valor; acima do teto → aviso fora do MCMV); grade regular com todos os campos de 56 px e rótulos de uma linha. O motor só muda quando recebe `propertyValue` — simulação automática do site inalterada.
+- **Motivo:** pedidos do dono (2026-10-19).
+- **Verificação:** `tests/caixa-simulator.test.mjs` (valor < 235 mil: financiamento = 80% do valor), `tests/financiamento-estimativa.test.mjs`; suíte sem falha nova; `pnpm build`; render 360/390 sem rolagem lateral (scratchpad/simulacao-aba/simulador-antes|depois-*.png).
+- **Arquivos afetados:** os acima + `app/api/admin/simulador-caixa/feedback/route.js`, `docs/analytics/simulacao-automatica-conferencia.sql`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** imóvel acima do teto da faixa vira "fora do MCMV" — confirmar com o dono se a Caixa faz outra coisa nesse caso.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Aba da simulação: Etapa A enxuta, "Ficha completa" alinhada, Etapa B "Simulação" e painel da apresentação enxuto
 - **Data:** 2026-10-19
 - **Área:** aba da simulação (`SimulationGenerator`, `SimulationPresentationPanel`), só apresentação, layout antigo.

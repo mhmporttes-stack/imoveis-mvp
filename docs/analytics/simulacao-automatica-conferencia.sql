@@ -72,7 +72,8 @@ select *
  order by reviewed_at desc;
 
 -- 4) "Simulador Caixa" do painel (dono, 2026-10-19): votos 👍/👎 dos corretores. Tabela caixa_simulator_feedback
---    (migration 20261019230000). inputs = respostas (mesmo formato do cadastro); outputs = motor recalculado no servidor
+--    (migration 20261019230000). inputs = respostas (renda informada pelo corretor, sem regime; propertyValue nulo =
+--    teto da faixa); outputs = motor recalculado no servidor
 --    (novo na raiz, usado em outputs.used); caixa_values = opcional no 👎 (income, financing, subsidy, firstInstallment).
 -- 4a) Resumo por dia.
 select date_trunc('day', created_at at time zone 'America/Sao_Paulo')::date as dia,
@@ -86,8 +87,9 @@ select date_trunc('day', created_at at time zone 'America/Sao_Paulo')::date as d
 -- 4b) 👎 com valores da Caixa: site × Caixa (imóvel novo, Price).
 select f.created_at, f.created_by_email,
        f.inputs ->> 'simulationType' as tipo,
-       f.inputs ->> 'primaryIncomeType' as regime_1, (f.inputs ->> 'primaryMonthlyIncome')::numeric as renda_1,
-       f.inputs ->> 'secondaryIncomeType' as regime_2, (f.inputs ->> 'secondaryMonthlyIncome')::numeric as renda_2,
+       f.inputs ->> 'incomeSource' as origem_renda, -- 'informada_pelo_corretor' (sem regime desde 2026-10-19)
+       (f.inputs ->> 'primaryMonthlyIncome')::numeric as renda_1, (f.inputs ->> 'secondaryMonthlyIncome')::numeric as renda_2,
+       (f.inputs ->> 'propertyValue')::numeric as valor_imovel_digitado, (f.outputs ->> 'propertyValue')::numeric as valor_imovel_usado,
        (f.outputs ->> 'income')::numeric as renda_site, (f.caixa_values ->> 'income')::numeric as renda_caixa,
        (f.outputs ->> 'financing')::numeric as financiado_site, (f.caixa_values ->> 'financing')::numeric as financiado_caixa,
        (f.outputs ->> 'subsidy')::numeric as subsidio_site, (f.caixa_values ->> 'subsidy')::numeric as subsidio_caixa,

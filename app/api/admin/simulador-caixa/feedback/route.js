@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
-import { caixaValuesFromInput, parseVote, simulate, simulatorInput } from "@/lib/caixa-simulator-core.mjs";
+import { caixaValuesFromInput, feedbackInputs, parseVote, simulate } from "@/lib/caixa-simulator-core.mjs";
 import { todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import { CAIXA_FEEDBACK_SCHEMA_MESSAGE, saveCaixaSimulatorFeedback, updateCaixaSimulatorFeedbackValues } from "@/lib/caixa-simulator-feedback";
 
@@ -17,7 +17,7 @@ export async function POST(request) {
     const vote = parseVote(body?.vote);
     if (!vote) return NextResponse.json({ error: "Voto inválido." }, { status: 400 });
     const referenceDate = todayInSaoPaulo();
-    const inputs = simulatorInput(body?.answers || {});
+    const inputs = feedbackInputs(body?.answers || {});
     const outputs = simulate(body?.answers || {}, referenceDate);
     const caixaValues = vote === "down" ? caixaValuesFromInput(body?.caixa) : null;
     const result = await saveCaixaSimulatorFeedback({ vote, inputs: { ...inputs, referenceDate }, outputs, caixaValues, version: outputs.version, auth });

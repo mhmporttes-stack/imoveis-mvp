@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
-import { ESTIMATE_DISCLAIMER, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
+import { ESTIMATE_DISCLAIMER, bandForIncome, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import { simulate } from "@/lib/caixa-simulator-core.mjs";
 import { formatCurrencyInput } from "@/lib/property-filter-options";
 
@@ -14,11 +14,6 @@ const TYPE_OPTIONS = [
   { value: "false", label: "Só eu" },
   { value: "true", label: "Conjunta" }
 ];
-const INCOME_TYPE_OPTIONS = [
-  { value: "registered_employment", label: "CLT" },
-  { value: "income_tax_declarant", label: "Declara IR" },
-  { value: "self_employed_unregistered", label: "Autônomo" }
-];
 const YES_NO = [
   { value: "false", label: "Não" },
   { value: "true", label: "Sim" }
@@ -26,20 +21,23 @@ const YES_NO = [
 
 const INITIAL = {
   joint: "false",
-  primaryIncomeType: "registered_employment",
   primaryMonthlyIncome: "",
-  secondaryIncomeType: "registered_employment",
   secondaryMonthlyIncome: "",
   oldestBirthDate: "",
   fgtsThreeYears: "false",
   dependents: "false",
   firstProperty: "true",
+  propertyValue: "",
   downPayment: "",
   fgtsAvailable: ""
 };
 
+// Grade regular (dono, 2026-10-19): todo campo com a mesma altura e largura da coluna, rótulo de uma linha só (mesma
+// linha-base) e o mesmo espaçamento. A data não pode estourar a coluna (min-width 0 / width 100%).
 const LABEL = "grid min-w-0 gap-1.5 text-xs font-extrabold text-ink sm:text-sm";
-const INPUT = "admin-input min-w-0 !px-2 !font-semibold sm:!px-4";
+const LABEL_TEXT = "block truncate whitespace-nowrap";
+const INPUT = "admin-input block !h-14 w-full min-w-0 max-w-full !px-2 !font-semibold sm:!px-4";
+const ROW = "grid items-end gap-x-3";
 
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const moneyWhole = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -48,7 +46,7 @@ const percent = (value) => `${Number(value || 0).toLocaleString("pt-BR", { maxim
 function Select({ label, value, options, onChange }) {
   return (
     <label className={LABEL}>
-      {label}
+      <span className={LABEL_TEXT}>{label}</span>
       <select className={INPUT} value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -58,16 +56,16 @@ function Select({ label, value, options, onChange }) {
   );
 }
 
-function Money({ label, value, onChange, cents = false }) {
+function Money({ label, value, onChange, cents = false, placeholder = "R$ 0" }) {
   return (
     <label className={LABEL}>
-      {label}
+      <span className={LABEL_TEXT}>{label}</span>
       <input
         className={INPUT}
         type="text"
         inputMode={cents ? "decimal" : "numeric"}
         autoComplete="off"
-        placeholder="R$ 0"
+        placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(cents ? event.target.value.replace(/[^\d,.]/g, "") : formatCurrencyInput(event.target.value))}
       />
@@ -84,19 +82,17 @@ function Row({ label, value, strong = false }) {
   );
 }
 
-function ResultCard({ title, data, declaredIncome, resource }) {
-  const adjusted = Math.abs(data.income - declaredIncome) > 0.005;
-  const missing = Math.max(0, data.downPayment - resource);
+// "Entrada necessária" (e a falta de entrada) não aparecem aqui (dono, 2026-10-19); o cálculo segue no motor e no voto.
+function ResultCard({ title, data }) {
   return (
     <section className="min-w-0 rounded-[24px] border border-blue-100 bg-white p-4" data-result={title}>
       <h3 className="text-xs font-black uppercase tracking-[0.18em] text-brand">{title}</h3>
       <dl className="mt-2">
-        <Row label={adjusted ? "Renda sugerida" : "Renda considerada"} value={money(data.income)} />
+        <Row label="Valor do imóvel" value={`${moneyWhole(data.propertyValue)} · ${data.faixa}`} />
+        <Row label="Renda considerada" value={money(data.income)} />
         <Row label="Financiado" value={money(data.financing)} />
         <Row label="Subsídio" value={moneyWhole(data.subsidy)} />
         <Row label="Pode comprar até" value={money(data.purchasePower)} strong />
-        <Row label="Entrada necessária" value={moneyWhole(data.downPayment)} />
-        {resource > 0 ? <Row label={missing > 0 ? "Falta de entrada" : "Entrada + FGTS cobrem"} value={missing > 0 ? moneyWhole(missing) : "Sim"} /> : null}
         <Row label="Price · 1ª / última" value={`${money(data.priceFirstInstallment)} / ${money(data.priceLastInstallment)}`} />
         <Row label="SAC · 1ª / última" value={`${money(data.sacFirstInstallment)} / ${money(data.sacLastInstallment)}`} />
         <Row label="Prazo · taxa" value={`${data.termMonths} meses · ${percent(data.annualRate)}`} />
@@ -115,8 +111,12 @@ export default function CaixaSimulator() {
   const answersKey = JSON.stringify(answers);
   const result = useMemo(() => simulate(answers, todayInSaoPaulo()), [answers]);
   const currentVote = vote?.key === answersKey ? vote : null;
+  // Valor do imóvel (dono, 2026-10-19): pré-preenchido AUTOMATICAMENTE com o teto da faixa da renda digitada e editável.
+  // Enquanto o corretor não editar, o campo acompanha a renda e o motor usa o teto (campo vazio nas respostas).
+  const incomeTotal = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) + (joint ? Number(String(answers.secondaryMonthlyIncome).replace(/\D/g, "")) : 0);
+  const automaticValue = bandForIncome(incomeTotal)?.propertyCap || 0;
+  const propertyFieldValue = answers.propertyValue || (automaticValue ? formatCurrencyInput(String(automaticValue)) : "");
   const ready = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) > 0 && Boolean(answers.oldestBirthDate);
-  const resource = result.eligible ? Number(result.resource || 0) : 0;
 
   async function send(method, body) {
     setStatus({ busy: true, message: "", error: "" });
@@ -156,28 +156,27 @@ export default function CaixaSimulator() {
         <p className="text-sm text-muted">Simulação rápida. Não cria cliente nem envia nada.</p>
       </header>
 
-      <div className="rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
-        <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 md:grid-cols-3">
+      <div className="space-y-3 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
+        <div className={`${ROW} grid-cols-2`}>
           <Select label="Simulação" value={answers.joint} options={TYPE_OPTIONS} onChange={(value) => update("joint", value)} />
           <label className={LABEL}>
-            Nascimento (mais velho)
+            <span className={LABEL_TEXT}>Nascimento</span>
             <input className={INPUT} type="date" value={answers.oldestBirthDate} onChange={(event) => update("oldestBirthDate", event.target.value)} />
           </label>
-          <Select label="Regime" value={answers.primaryIncomeType} options={INCOME_TYPE_OPTIONS} onChange={(value) => update("primaryIncomeType", value)} />
-          <Money label="Renda" value={answers.primaryMonthlyIncome} onChange={(value) => update("primaryMonthlyIncome", value)} />
-          {joint ? (
-            <>
-              <Select label="Regime (2ª)" value={answers.secondaryIncomeType} options={INCOME_TYPE_OPTIONS} onChange={(value) => update("secondaryIncomeType", value)} />
-              <Money label="Renda (2ª)" value={answers.secondaryMonthlyIncome} onChange={(value) => update("secondaryMonthlyIncome", value)} />
-            </>
-          ) : null}
         </div>
-        <div className="mt-3 grid grid-cols-3 items-end gap-x-3">
+        <div className={`${ROW} grid-cols-2`}>
+          <Money label={joint ? "Renda 1" : "Renda"} value={answers.primaryMonthlyIncome} onChange={(value) => update("primaryMonthlyIncome", value)} />
+          {joint ? <Money label="Renda 2" value={answers.secondaryMonthlyIncome} onChange={(value) => update("secondaryMonthlyIncome", value)} /> : null}
+        </div>
+        <div className={`${ROW} grid-cols-3`}>
           <Select label="3 anos FGTS" value={answers.fgtsThreeYears} options={YES_NO} onChange={(value) => update("fgtsThreeYears", value)} />
           <Select label="Dependentes" value={answers.dependents} options={YES_NO} onChange={(value) => update("dependents", value)} />
-          <Select label="Primeiro imóvel" value={answers.firstProperty} options={[YES_NO[1], YES_NO[0]]} onChange={(value) => update("firstProperty", value)} />
+          <Select label="1º imóvel" value={answers.firstProperty} options={[YES_NO[1], YES_NO[0]]} onChange={(value) => update("firstProperty", value)} />
         </div>
-        <div className="mt-3 grid grid-cols-2 items-end gap-x-3">
+        <div className={`${ROW} grid-cols-2`}>
+          <Money label="Valor do imóvel" placeholder="Teto da faixa" value={propertyFieldValue} onChange={(value) => update("propertyValue", value)} />
+        </div>
+        <div className={`${ROW} grid-cols-2`}>
           <Money label="Entrada" value={answers.downPayment} onChange={(value) => update("downPayment", value)} />
           <Money label="FGTS" value={answers.fgtsAvailable} onChange={(value) => update("fgtsAvailable", value)} />
         </div>
@@ -190,12 +189,9 @@ export default function CaixaSimulator() {
       ) : (
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <ResultCard title="Imóvel novo" data={result} declaredIncome={result.declaredIncome} resource={resource} />
-            <ResultCard title="Imóvel usado" data={result.used} declaredIncome={result.declaredIncome} resource={resource} />
+            <ResultCard title="Imóvel novo" data={result} />
+            <ResultCard title="Imóvel usado" data={{ ...result.used, propertyValue: result.propertyValue, faixa: result.used.faixa || result.faixa }} />
           </div>
-          {result.incomeAdjusted || Math.abs(result.used.income - result.declaredIncome) > 0.005 ? (
-            <p className="text-xs font-semibold text-muted">Renda informada: {money(result.declaredIncome)}. Autônomo: a renda sugerida é a de melhor resultado (até R$ 2.550 por pessoa).</p>
-          ) : null}
           <p className="text-xs font-semibold text-muted">{ESTIMATE_DISCLAIMER}</p>
 
           <div className="flex items-center justify-end gap-2">
