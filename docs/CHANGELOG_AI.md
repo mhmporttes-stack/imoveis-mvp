@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Gráfico "Saldo devedor ao longo do tempo" da Estratégia redesenhado
+- **Data:** 2026-10-19
+- **Área:** Apresentação da simulação (PRES-24)
+- **Alteração:** novo `StrategyBalanceChart` (SVG próprio, sem biblioteca): "Sem amortização" vermelho tracejado (#B42318), "Com amortização" verde (#067647), faixa verde entre as curvas = juros que deixa de pagar, eixos em R$ abreviado e anos com grade discreta, marcadores "Quitado em …" e "35 anos", curva monotônica com amostragem anual (fiel aos saldos do motor), animação de desenho ao entrar na tela (sem animação com prefers-reduced-motion), legenda e resumo para leitor de tela. No PDF da estratégia, a linha/legenda "Sem amortização" passou de cinza para o mesmo vermelho (só a cor).
+- **Motivo:** pedido do dono (2026-10-18): gráfico "mais rico e mais bonito", sem amortização vermelho e com amortização verde.
+- **Arquivos afetados:** `components/presentation/StrategyBalanceChart.jsx` (novo), `components/presentation/StrategySheet.jsx`, `components/presentation/presentation.module.css`, `lib/payment-strategy-pdf.mjs` (constante de cor), `tests/strategy-sheet-layout.test.mjs`
+- **Risco/observação:** cálculo intocado (`compareStrategy`/`balanceChartPaths` iguais). Vitrine renderizada a 390 e 320 px, com e sem amortização: sem overflow horizontal (scrollWidth = largura da tela). Testes strategy-sheet-layout, payment-strategy, simulation-presentation*, presentation-viewport e build OK.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-17 — Mensagem automática do WhatsApp pessoal passa a aparecer no Chat
 - **Data:** 2026-10-17
 - **Área:** WhatsApp / Meta Diária

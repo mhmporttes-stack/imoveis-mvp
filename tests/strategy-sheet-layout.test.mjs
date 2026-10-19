@@ -74,3 +74,20 @@ test("causa real: a raiz não rola para o lado e os botões do Próximo passo nu
   assert.match(buttons, /max-width:\s*100%/);
   assert.match(buttons, /min-width:\s*0/);
 });
+
+test("gráfico do saldo: sem amortização vermelho, com amortização verde, cabe na largura e respeita movimento reduzido", () => {
+  const chart = read("components/presentation/StrategyBalanceChart.jsx");
+  assert.match(jsx, /<StrategyBalanceChart comparison=\{comparison\}/);
+  assert.match(rule(".stPathSem"), /stroke:\s*#b42318/i, "Sem amortização = vermelho (danger da paleta)");
+  assert.match(rule(".stPathCom"), /stroke:\s*#067647/i, "Com amortização = verde (success)");
+  assert.match(rule(".stPlot"), /min-width:\s*0/);
+  assert.match(rule(".stPlotWrap"), /minmax\(0,\s*1fr\)/, "coluna do gráfico encolhe (nunca largura fixa)");
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.stDraw[^}]*animation:\s*none/);
+  for (const selector of [".stYAxis span", ".stXAxis span", ".stPayoff small"]) {
+    const size = Number(/font-size:\s*(\d+(?:\.\d+)?)px/.exec(rule(selector))?.[1]);
+    assert.ok(size >= 12, `${selector} com texto ≥ 12px (${size})`);
+  }
+  // só apresentação: os saldos vêm do motor (comparison); o gráfico não recalcula amortização
+  assert.doesNotMatch(chart, /import[^;]*\b(compareStrategy|simulateStrategy)\b|taxaAnual|interestRate/);
+  assert.match(chart, /<p className=\{styles\.stSrOnly\}>\{summary\}<\/p>/, "resumo para leitor de tela");
+});

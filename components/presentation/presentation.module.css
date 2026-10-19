@@ -910,16 +910,51 @@ a.fcSubmit { text-decoration: none; }
 .stHighlight { display: grid; gap: 4px; margin: calc(var(--u) * 10) 0 calc(var(--u) * 22); padding: calc(var(--u) * 16); border-radius: calc(var(--u) * 16); background: linear-gradient(150deg, var(--navy-2), var(--blue)); color: #fff; text-align: center; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.4; }
 .stHighlight strong { font-size: max(21px, calc(var(--u) * 24)); font-weight: 820; line-height: 1.2; }
 .stHighlight span { color: rgba(255, 255, 255, 0.88); }
+/* Gráfico do saldo devedor (redesenho 2026-10-18): sem amortização VERMELHO tracejado, com amortização VERDE, faixa verde entre as
+   duas = juros que você deixa de pagar; eixo do saldo (R$ abreviado) numa calha à esquerda e anos embaixo, em HTML (texto ≥ 12px
+   em 320 px); linhas num SVG esticado com traço que não escala. Desenha da esquerda para a direita quando entra na tela. */
 .stChart { margin: 0 0 calc(var(--u) * 22); }
-.stChart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.stAxis { stroke: #c5d6ec; stroke-width: 1; }
-.stPathSem { fill: none; stroke: #8a9bb0; stroke-width: 2.2; stroke-dasharray: 6 5; stroke-linecap: round; stroke-linejoin: round; }
-.stPathCom { fill: none; stroke: #067647; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-.stChartScale { display: flex; justify-content: space-between; margin-top: 4px; font-size: max(12px, calc(var(--u) * 13)); color: #3a5878; }
-.stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 16); margin-top: calc(var(--u) * 8); font-size: max(13px, calc(var(--u) * 14)); color: #2f4d6e; }
-.stLegend span { display: inline-flex; align-items: center; gap: 6px; }
-.stDotSem, .stDotCom { display: inline-block; width: 18px; height: 0; border-top: 3px dashed #8a9bb0; }
-.stDotCom { border-top: 3px solid #067647; }
+.stSrOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.stPlotWrap { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; padding: 0 8px 0 0; container-type: inline-size; }
+.stYAxis { position: relative; grid-column: 1; grid-row: 2; }
+.stYSizer { display: block; visibility: hidden; height: 0; overflow: hidden; padding-right: 8px; font-size: 12px; font-weight: 400; white-space: nowrap; }
+.stYAxis span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
+.stPlot { position: relative; grid-column: 2; grid-row: 2; height: clamp(176px, 52cqi, 250px); min-width: 0; }
+.stPlotSvg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.stGrid { stroke: #e3ebf5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.stAxis { stroke: #9fb4cf; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.stPathSem { fill: none; stroke: #b42318; stroke-width: 2.2; stroke-dasharray: 7 5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.stPathCom { fill: none; stroke: #067647; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.stDot { position: absolute; z-index: 1; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2.5px solid #fff; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.12); }
+.stDotEnd { background: #b42318; }
+.stDotPayoff { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #067647; }
+.stAnnot { display: flex; align-items: flex-end; grid-column: 2; grid-row: 1; min-width: 0; min-height: 44px; padding-bottom: 6px; }
+.stPayoff { position: relative; margin-left: calc(var(--x) - 8px); display: grid; gap: 1px; max-width: calc(100% - var(--x) + 8px); color: #054f31; text-align: left; box-sizing: border-box; }
+.stPayoffEnd { margin-left: auto; margin-right: calc(100% - var(--x) - 8px); max-width: calc(var(--x) + 8px); text-align: right; }
+.stPayoff small { font-size: 12px; font-weight: 650; line-height: 1.2; color: #2f6b4f; }
+.stPayoff strong { font-size: max(15px, calc(var(--u) * 16)); font-weight: 820; line-height: 1.15; overflow-wrap: anywhere; }
+.stPayoff strong span { white-space: nowrap; }
+.stPayoffSem { color: #912018; }
+.stPayoffSem small { color: #a3362c; }
+.stLeader.stLeaderSem { border-left-color: rgba(180, 35, 24, 0.5); }
+.stLeader { position: absolute; top: -4px; bottom: 0; width: 0; border-left: 1.5px dashed rgba(6, 118, 71, 0.55); }
+.stXAxis { position: relative; grid-column: 2; grid-row: 3; height: 24px; }
+.stXAxis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
+.stXAxis .stXStart { transform: none; }
+.stXAxis .stXEnd { transform: none; font-weight: 800; color: #b42318; }
+@container (max-width: 330px) { .stXAxis .stXMinor { display: none; } }
+.stDraw { animation: stReveal 1.2s cubic-bezier(0.33, 1, 0.68, 1) both; }
+.stDot, .stPayoff, .stLeader { animation: stFadeUp 0.3s ease-out both; }
+.stIntro .stDot, .stIntro .stPayoff, .stIntro .stLeader { animation-duration: 0.45s; animation-delay: 1s; }
+@keyframes stReveal { from { clip-path: inset(-20% 100% -20% -2%); } to { clip-path: inset(-20% -2% -20% -2%); } }
+@keyframes stFadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.stWaiting .stDraw, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stLeader { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .stDraw, .stDot, .stPayoff, .stLeader { animation: none; } }
+.stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 16); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: max(13px, calc(var(--u) * 14)); color: #2f4d6e; }
+.stLegend li { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: repeating-linear-gradient(90deg, #b42318 0 7px, transparent 7px 11px); }
+.stKeyCom { height: 3.5px; background: #067647; }
+.stKeyBand { height: 12px; border-radius: 3px; background: linear-gradient(180deg, rgba(6, 118, 71, 0.32), rgba(6, 118, 71, 0.12)); }
 /* PRES-24 — largura da folha da Estratégia no celular (dono, 2026-10-18, INCIDENTES.md): NADA passa de 100% da largura a
    320–430 px, antes e depois do resultado aparecer. A folha é item de um flex em LINHA (.sheetBackdrop): sem min-width: 0 ela
    não encolhe abaixo da largura mínima do conteúdo e, se algum texto/campo não quebrar, fica mais larga que a tela e o
@@ -930,7 +965,7 @@ a.fcSubmit { text-decoration: none; }
 .stSheet .sheetBody { overflow-x: hidden; }
 .stSheet .sheetBody > * { min-width: 0; max-width: 100%; }
 .stBase dd, .stToggleText strong, .stToggleText span, .stColTitle, .stYears, .stLine, .stHighlight, .stHighlight strong, .stHighlight span,
-.stChartScale span, .stLegend span, .stField, .stSheet .fcFoot button, .stSheet .fcNote { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+.stLegend li, .stField, .stSheet .fcFoot button, .stSheet .fcNote { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
 .stOption, .stToggleRow, .stField, .stMoney, .stCol, .stHighlight, .stChart, .stLegend, .stSheet .fcFoot, .stSheet .fcFoot button { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .stFields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); }
 .stMoney input, .stSelect { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }

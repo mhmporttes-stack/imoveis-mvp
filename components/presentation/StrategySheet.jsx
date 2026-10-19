@@ -11,7 +11,6 @@ import {
   MONTH_NAMES,
   STRATEGY_MAX_AMOUNT,
   STRATEGY_NAME,
-  balanceChartPaths,
   compareStrategy,
   emptyChoices,
   formatDuration,
@@ -23,6 +22,7 @@ import {
   restrictChoices,
   strategyHeadline
 } from "@/lib/payment-strategy-core.mjs";
+import StrategyBalanceChart from "./StrategyBalanceChart";
 import styles from "./presentation.module.css";
 
 // Folha "Estratégia de pagamento" (PRES-24). Abre com os números da simulação (`strategy` = base do DTO, nunca redigitada) e
@@ -44,8 +44,6 @@ const OPTIONS = [
 const MONTH_DEFAULTS = { decimoTerceiro: DEFAULT_13TH_MONTH, extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH };
 
 const SYSTEM_LABEL = { price: "Tabela Price", sac: "SAC" };
-const CHART_W = 320;
-const CHART_H = 140;
 
 function moneyText(value) {
   return value > 0 ? formatBRL(value) : "";
@@ -100,7 +98,6 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
   const [fallbackUrl, setFallbackUrl] = useState("");
   const busy = phase === "pdf" || phase === "contact" || phase === "opening";
   const comparison = useMemo(() => compareStrategy(strategy, choices), [strategy, choices]);
-  const paths = useMemo(() => balanceChartPaths(comparison, { width: CHART_W, height: CHART_H }), [comparison]);
   const active = hasActiveExtras(choices, strategy);
   const options = OPTIONS.filter(({ key }) => isOptionAllowed(strategy, key));
   const headline = strategyHeadline(comparison, choices, strategy, formatBRL);
@@ -198,7 +195,6 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
 
   if (!strategy || !comparison) return null;
   const { sem, com } = comparison;
-  const years = Math.max(1, Math.ceil(sem.months / 12));
 
   return (
     <div className={styles.sheetBackdrop} data-no-nav="" data-sheet="" onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
@@ -284,19 +280,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
             )}
           </div>
 
-          <figure className={styles.stChart}>
-            <figcaption className={styles.stLabel}>Saldo devedor ao longo do tempo</figcaption>
-            <svg viewBox={`-2 -4 ${CHART_W + 4} ${CHART_H + 8}`} role="img" aria-label={`Sem amortização o saldo zera em ${formatDuration(sem.months)}; com amortização, em ${formatDuration(com.months)}.`}>
-              <line x1="0" y1={CHART_H} x2={CHART_W} y2={CHART_H} className={styles.stAxis} />
-              <path d={paths.sem} className={styles.stPathSem} />
-              <path d={paths.com} className={styles.stPathCom} />
-            </svg>
-            <div className={styles.stChartScale}><span>hoje</span><span>{years} {years === 1 ? "ano" : "anos"}</span></div>
-            <div className={styles.stLegend}>
-              <span><i className={styles.stDotSem} aria-hidden="true" />Sem amortização</span>
-              <span><i className={styles.stDotCom} aria-hidden="true" />Com amortização</span>
-            </div>
-          </figure>
+          <StrategyBalanceChart comparison={comparison} showStrategy={active} />
 
           <div className={styles.fcFoot}>
             {pdfUrl ? (
