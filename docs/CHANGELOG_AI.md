@@ -131,6 +131,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Motor: Faixa 3 em 28%, normas do MCMV (subsídio × valor, mínimo R$ 1.500, usado F4 60%) e SAC automático
+- **Data:** 2026-10-19
+- **Área:** `lib/financiamento-estimativa-core.mjs` (site, Refazer, Simulador Caixa, SAC automático), `components/SimulationGenerator.jsx` (bloco SAC)
+- **Alteração:** Faixa 3 = 28% da renda (regra do dono; reproduz #C6771 com renda R$ 7.500); subsídio pelo valor do imóvel abaixo de R$ 158.625, mínimo de R$ 1.500 e usado da Faixa 4 com cota de 60% (normas citadas em `docs/BUSINESS_RULES.md`); botão "Preencher automaticamente" no SAC (`estimateSacForType`) e ajuda curta.
+- **Motivo:** pedidos e decisões do dono (2026-10-19) e pesquisa na base jurídica do MCID.
+- **Verificação:** `tests/financiamento-normas.test.mjs`, `tests/simulation-sac-autofill.test.mjs`, `tests/simulation-property-value.test.mjs` (#C6771); suíte sem falha nova; `pnpm build`. Backtest Faixa 3 (renda do cadastro): financiado <1% 73% → 39% com 28%; Faixa 4 mantida em 30% (86%; com 28% seria 71%). Normas: sem mudança no backtest.
+- **Arquivos afetados:** os acima + os três testes, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** os 28% na Faixa 3 pioram a aderência aos casos reais do backtest (a maioria mostra parcela = 30% − margem) — reportado ao dono.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Conferência da simulação automática por tipo (👍/👎 sob o novo e o usado)
 - **Data:** 2026-10-19
 - **Área:** aba Simulação (`components/SimulationGenerator.jsx`, `app/admin/simulacoes/[id]/page.jsx`), ficha (`components/clients/ClientSheet.jsx`, `lib/simulation-list-utils.js`), API `/api/simulations/[id]/conferencia`, `components/RedoAutoSimulationButton.jsx` (variante link)

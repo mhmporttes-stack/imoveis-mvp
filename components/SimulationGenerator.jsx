@@ -14,6 +14,7 @@ import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
+import { estimateSacForType, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import { FIRST_PROPERTY_OPTIONS, firstPropertyOptionValue, hasResidentialPropertyFromFirstPropertyOption } from "@/lib/registration-form-labels.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
@@ -340,6 +341,49 @@ export default function SimulationGenerator({ properties = [], initialSimulation
         ...current,
         simulationType: type,
         simulationModels: { ...models, [type]: { ...models[type], sac: { ...models[type].sac, [field]: value } } }
+      };
+    });
+  }
+
+  // "Preencher automaticamente" do SAC (dono, 2026-10-19): mesmo motor da simulação automática, com o cadastro, o valor do
+  // imóvel do tipo e a taxa/prazo do tipo; os campos continuam editáveis. Faltando dado, mostra o que falta.
+  const [sacFillMessage, setSacFillMessage] = useState({});
+  function fillSacAutomatically(type) {
+    const current = formRef.current;
+    const models = normalizeSimulationModels(current.simulationModels, current);
+    const rate = parseInterestRateInput(current.interestRateAnnual);
+    const result = estimateSacForType({
+      registration: initialSimulation?.registration || {},
+      type,
+      propertyValue: moneyNumber(models[type]?.propertyValue) || null,
+      annualRate: rate.ok && rate.value ? rate.value : null,
+      termMonths: Number(models[type]?.sac?.termMonths || models[type]?.termMonths) || null,
+      referenceDate: todayInSaoPaulo()
+    });
+    if (!result.ok) {
+      setSacFillMessage((messages) => ({ ...messages, [type]: `Para calcular, falta: ${result.missing.join(", ")}.` }));
+      return;
+    }
+    setSacFillMessage((messages) => ({ ...messages, [type]: "" }));
+    setForm((form) => {
+      const latest = normalizeSimulationModels(form.simulationModels, form);
+      return {
+        ...form,
+        simulationType: type,
+        simulationModels: {
+          ...latest,
+          [type]: {
+            ...latest[type],
+            sac: {
+              ...latest[type].sac,
+              financingValue: formatCurrency(result.financing),
+              subsidyValue: result.subsidy > 0 ? formatCurrency(result.subsidy) : "",
+              firstInstallment: formatCurrency(result.firstInstallment),
+              lastInstallment: formatCurrency(result.lastInstallment),
+              termMonths: String(result.termMonths)
+            }
+          }
+        }
       };
     });
   }
@@ -959,7 +1003,14 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     <ChevronDown className={`h-4 w-4 transition-transform ${sacOpen ? "rotate-180" : ""}`} aria-hidden="true" />
                   </button>
                   {sacOpen ? (<>
-                  <p className="mt-1 text-xs leading-5 text-muted">Opcional. Preencha o SAC (além do Price) para a apresentação do cliente mostrar também o comparativo SAC x Price. Com um sistema só, não há comparação.</p>
+                  {/* SAC (dono, 2026-10-19): ajuda curta + "Preencher automaticamente" com o motor (campos seguem editáveis). */}
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-muted">Opcional: compara SAC x Price na apresentação.</p>
+                    <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-brand/30 bg-white px-3 text-xs font-black text-brand transition hover:border-brand" onClick={() => fillSacAutomatically(key)} data-sac-autofill={key}>
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Preencher automaticamente
+                    </button>
+                  </div>
+                  {sacFillMessage[key] ? <p className="mt-1 text-xs font-semibold text-warning" role="status">{sacFillMessage[key]}</p> : null}
                   <div className="mt-1 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="sac">
                     <MoneyField
                       label="Valor do financiamento (SAC)"
