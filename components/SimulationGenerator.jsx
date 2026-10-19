@@ -112,8 +112,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const router = useRouter();
   // Modo básico (automação desativada, 2026-10-05): só lança/salva os valores — sem PDF, imagens, apresentação nem envio.
   const basicMode = useBasicMode();
-  // Valor do imóvel (dono, 2026-10-19): simulação ainda sem valores nasce com o teto da faixa (automático, editável);
-  // simulação já salva não é reescrita — sem valor gravado, o teto aparece só como sugestão no campo.
+  // Valor do imóvel (dono, 2026-10-19): simulação ainda sem valores nasce com o padrão R$ 235.000 (editável até o teto da
+  // faixa); simulação já salva não é reescrita — sem valor gravado, o padrão aparece só como sugestão no campo.
   const [form, setForm] = useState(() => withDefaultPropertyValues(normalizeInitialSimulation(initialSimulation), fieldSuggestions?.propertyValue));
   // Preferências de imóvel que o cliente preencheu no formulário (dono, 2026-10-14): mostradas no topo da Etapa C.
   const clientPreferences = useMemo(() => getPropertyPreferenceDetails(initialSimulation?.registration?.propertyPreferences || {}), [initialSimulation]);
@@ -871,7 +871,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                   </span>
                 </div>
 
-                {/* Valor do imóvel (dono, 2026-10-19): padrão = teto da faixa MCMV da renda (automático), editável. */}
+                {/* Valor do imóvel (dono, 2026-10-19): padrão R$ 235.000, editável para mais até o teto da faixa da renda. */}
                 <div className="mt-2 grid items-end gap-x-2.5 min-[400px]:grid-cols-2 sm:gap-x-4" data-property-value={key}>
                   <MoneyField
                     label="Valor do imóvel"
@@ -881,8 +881,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                   />
                   <p className="mt-1 text-xs font-bold leading-snug text-muted min-[400px]:mt-0 min-[400px]:min-h-14 min-[400px]:self-end min-[400px]:pb-2">
                     {fieldSuggestions?.propertyValue?.[key]
-                      ? `Teto da ${fieldSuggestions.propertyValue[key].faixa}: ${formatCurrency(fieldSuggestions.propertyValue[key].value)}`
-                      : "Teto da faixa: informe a renda no cadastro"}
+                      ? `Teto da ${fieldSuggestions.propertyValue[key].faixa}: ${formatCurrency(fieldSuggestions.propertyValue[key].cap)}`
+                      : "Padrão R$ 235.000; o teto depende da renda do cadastro"}
                   </p>
                 </div>
 

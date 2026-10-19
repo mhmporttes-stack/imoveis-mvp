@@ -124,6 +124,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Motor: subsídio zero para comprador sozinho acima de R$ 3.200 e valor padrão do imóvel R$ 235 mil
+- **Data:** 2026-10-19
+- **Área:** `lib/financiamento-estimativa-core.mjs` (vale para site, Refazer, Gerador e Simulador Caixa), textos em `lib/simulations.js`, `components/SimulationGenerator.jsx`, `components/CaixaSimulator.jsx`
+- **Alteração:** (a) sozinho + sem dependentes + renda > R$ 3.200 → subsídio zero (novo e usado); (b) valor do imóvel padrão R$ 235.000 em todas as faixas (antes: teto da faixa), editável até o teto; o Gerador e o Simulador mostram o teto da faixa ao lado.
+- **Motivo:** decisões do dono após o backtest com as simulações reais da Caixa (2026-10-19).
+- **Verificação:** `tests/simulation-property-value.test.mjs` (12 casos reais do backtest); suíte sem falha nova; `pnpm build`. Backtest de novo (só leitura): poder <1% Faixa 3 ~24% (antes ~69%), Faixa 4 17%; Faixas 1–2 sem mudança.
+- **Arquivos afetados:** os acima + `tests/simulation-property-value.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** na Faixa 3/4 a estimativa sem valor digitado fica abaixo do que a Caixa dá quando o imóvel real vale mais de 235 mil.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Roleta: 10 min entre dois clientes recebidos pelo mesmo corretor (ROL-2h)
 - **Data:** 2026-10-19
 - **Área:** roleta/fila de espera (`pick_round_robin_broker`, `assign_round_robin_lead`, `lib/lead-distribution.js`), fila de reativação do FUN-15l (`lib/cooled-clients-reactivation*.{js,mjs}`), formulário (`lib/simulation-registrations.js`)

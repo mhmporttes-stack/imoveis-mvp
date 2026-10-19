@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
-import { ESTIMATE_DISCLAIMER, bandForIncome, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
+import { DEFAULT_PROPERTY_VALUE, ESTIMATE_DISCLAIMER, bandForIncome, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import { simulate } from "@/lib/caixa-simulator-core.mjs";
 import { formatCurrencyInput } from "@/lib/property-filter-options";
 
@@ -111,11 +111,11 @@ export default function CaixaSimulator() {
   const answersKey = JSON.stringify(answers);
   const result = useMemo(() => simulate(answers, todayInSaoPaulo()), [answers]);
   const currentVote = vote?.key === answersKey ? vote : null;
-  // Valor do imóvel (dono, 2026-10-19): pré-preenchido AUTOMATICAMENTE com o teto da faixa da renda digitada e editável.
-  // Enquanto o corretor não editar, o campo acompanha a renda e o motor usa o teto (campo vazio nas respostas).
+  // Valor do imóvel (dono, 2026-10-19): começa em R$ 235.000 (padrão do motor, campo vazio nas respostas) e o corretor
+  // edita para mais até o teto da faixa da renda; acima do teto, aviso "fora do MCMV".
   const incomeTotal = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) + (joint ? Number(String(answers.secondaryMonthlyIncome).replace(/\D/g, "")) : 0);
-  const automaticValue = bandForIncome(incomeTotal)?.propertyCap || 0;
-  const propertyFieldValue = answers.propertyValue || (automaticValue ? formatCurrencyInput(String(automaticValue)) : "");
+  const bandCap = bandForIncome(incomeTotal)?.propertyCap || 0;
+  const propertyFieldValue = answers.propertyValue || formatCurrencyInput(String(DEFAULT_PROPERTY_VALUE));
   const ready = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) > 0 && Boolean(answers.oldestBirthDate);
 
   async function send(method, body) {
@@ -174,7 +174,8 @@ export default function CaixaSimulator() {
           <Select label="1º imóvel" value={answers.firstProperty} options={[YES_NO[1], YES_NO[0]]} onChange={(value) => update("firstProperty", value)} />
         </div>
         <div className={`${ROW} grid-cols-2`}>
-          <Money label="Valor do imóvel" placeholder="Teto da faixa" value={propertyFieldValue} onChange={(value) => update("propertyValue", value)} />
+          <Money label="Valor do imóvel" placeholder="R$ 235.000" value={propertyFieldValue} onChange={(value) => update("propertyValue", value)} />
+          <p className="self-center text-xs font-bold leading-snug text-muted">{bandCap ? `Teto da faixa: ${moneyWhole(bandCap)}` : "Padrão R$ 235.000"}</p>
         </div>
         <div className={`${ROW} grid-cols-2`}>
           <Money label="Entrada" value={answers.downPayment} onChange={(value) => update("downPayment", value)} />
