@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBasicMode } from "@/components/WhatsappAccessProvider";
 import { Check, ChevronDown, GripVertical, Save, Search, Sparkles, Trash2 } from "lucide-react";
@@ -124,7 +123,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const enabledModelsRef = useRef(enabledModels);
   enabledModelsRef.current = enabledModels;
   const [propertyQuery, setPropertyQuery] = useState("");
-  const [sendFormat, setSendFormat] = useState("presentation");
+  const [sendFormat] = useState("presentation");
   const [saving, setSaving] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
   const [sendingSimulation, setSendingSimulation] = useState(false);
@@ -971,15 +970,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             <input type="checkbox" checked={form.showExpandedPower} onChange={(event) => update("showExpandedPower", event.target.checked)} />
             Mostrar poder de compra ampliado na apresentação
           </label>
-          <div className="mt-5 grid gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 md:grid-cols-2">
-            {renderableModels.map((model) => (
-              <Metric
-                key={`${model.type}-${model.system}`}
-                label={`Poder total - ${simulationModelLabel(model.type)}${model.systemLabel ? ` · ${model.systemLabel}` : ""}`}
-                value={formatCurrency(model.totals.total)}
-              />
-            ))}
-          </div>
+          {/* Card "Poder total" removido da aba a pedido do dono (2026-10-19); o total segue no selo de cada tipo e na apresentação. */}
           <Field label="Observação pública" textarea value={form.publicNote} onChange={(value) => update("publicNote", value)} />
         </Panel>
 
@@ -1095,30 +1086,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
               <p className="text-sm font-black uppercase tracking-[0.14em] text-amber-800">CRM básico</p>
               <p className="mt-1 text-sm font-semibold text-amber-900">Sua automação está desativada: aqui você lança e salva os valores da simulação para controle. A apresentação interativa fica indisponível. Fale com a gestão para reativar.</p>
             </div>
-          ) : (
-          <div className="grid gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.14em] text-brand">Formato para envio</p>
-              <p className="mt-1 text-sm font-semibold text-muted">A simulação é enviada ao cliente pelo link da apresentação interativa.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {SEND_FORMAT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`rounded-full px-3 py-3 text-sm font-black transition sm:px-5 ${
-                    sendFormat === option.value
-                      ? "bg-navy text-white shadow-soft"
-                      : "border border-line bg-white text-navy hover:border-brand"
-                  }`}
-                  onClick={() => setSendFormat(option.value)}
-                  type="button"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          )}
+          ) : null}
+          {/* "Formato para envio" removido da tela (dono, 2026-10-19): era opção única — o envio continua sempre pelo link da
+              apresentação (sendFormat fixo em "presentation"; output_mode segue gravado como antes, pelo formulário). */}
           {/* "Salvar simulação" só para simulação NOVA (cria) ou automática (salvar = correção da Caixa). Simulação existente
               do corretor: o autosave grava tudo (mesmo corpo do Salvar) e o Enviar faz o salvamento completo (prazo/taxa
               obrigatórios) antes de gerar o link (dono, 2026-10-19). */}
@@ -1127,8 +1097,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             <Save className="mr-2 h-5 w-5" /> {saving ? "Salvando..." : isAutomaticSimulationSource(form.createdBy) ? "Salvar correção da Caixa" : "Salvar simulação"}
           </button>
           ) : null}
-          {form.id ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-extrabold text-navy">
+          {/* Aviso "Alterações salvas automaticamente" removido (dono, 2026-10-19); o salvamento automático continua. Só a
+              FALHA do salvamento automático aparece, com "Tentar novamente" (para nada se perder em silêncio). */}
+          {form.id && autoSaveStatus === "error" ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-extrabold text-red-800">
               <span>{autoSaveStatusLabel(autoSaveStatus)}</span>
               {autoSaveStatus === "error" ? (
                 <button className="text-brand underline-offset-4 hover:underline" onClick={() => persistSimulation({ silent: true })} type="button">
@@ -1147,7 +1119,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             <WhatsAppIcon className="mr-2 h-5 w-5" /> {sendingSimulation ? "Preparando..." : "Enviar simulação"}
           </button>
           </>)}
-          <Link href="/admin/simulacoes" className="premium-button-secondary">Histórico</Link>
+          {/* Botão "Histórico" removido (dono, 2026-10-19): levava a /admin/simulacoes, o mesmo destino de "Voltar para clientes". */}
         </div>
       </div>
 
@@ -1222,15 +1194,6 @@ function MoneyField({ label, onChange, value }) {
       value={value}
       onChange={(nextValue) => onChange(formatCurrencyInput(nextValue))}
     />
-  );
-}
-
-function Metric({ label, value }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-sm font-black uppercase tracking-[0.12em] text-brand">{label}</p>
-      <p className="mt-1 break-words text-[clamp(1.5rem,8vw,1.875rem)] font-black leading-tight text-navy">{value}</p>
-    </div>
   );
 }
 

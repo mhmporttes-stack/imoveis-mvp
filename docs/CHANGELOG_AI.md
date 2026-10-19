@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação: remoções pedidas pelo dono (card "Poder total", "Formato para envio", aviso de salvamento, "Histórico")
+- **Data:** 2026-10-19
+- **Área:** aba da simulação (`SimulationGenerator`), só apresentação, sobre o layout antigo.
+- **Alteração:** saíram da aba o card azul "Poder total - Imóvel novo/usado" (a apresentação do cliente `/s/` não muda), o bloco "Formato para envio" com o botão "Link (apresentação)" (opção única: o envio continua sempre pelo link; `output_mode` segue gravado pelo formulário como antes, independe do seletor), o aviso "Alterações salvas automaticamente" (o autosave continua; só a FALHA dele aparece, com "Tentar novamente") e o botão "Histórico" (ia para `/admin/simulacoes`, mesmo destino de "Voltar para clientes"). Ficam "Salvar simulação"/"Salvar correção da Caixa" (nas condições atuais) e "Enviar simulação".
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** render 390 px (vitrine temporária, apagada); testes da área; `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`.
+- **Risco/observação:** "Entrada disponível" e "FGTS disponível" também sairão da aba (mexem em dado) — a cargo do crm-editor.
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-19 — Entrada e FGTS disponíveis só no cadastro do cliente (parte 1: servidor)
 - **Data:** 2026-10-19
 - **Área:** Simulação (`simulations.down_payment_value`/`fgts_value`), cadastro (`simulation_registrations`)
