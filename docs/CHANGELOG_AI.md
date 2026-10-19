@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Entrada e FGTS disponíveis só no cadastro do cliente (parte 1: servidor)
+- **Data:** 2026-10-19
+- **Área:** Simulação (`simulations.down_payment_value`/`fgts_value`), cadastro (`simulation_registrations`)
+- **Alteração:** a simulação passa a ler entrada (`available_purchase_resource`) e FGTS (`available_fgts_balance`, coluna nova) do cadastro; simulação antiga com valores próprios (> 0) continua com os dela (`lib/simulation-resources-core.mjs`, aplicada em `getSimulation` e na lista de clientes). Ao salvar: sem os campos no corpo mantém o gravado; igual ao cadastro grava zero; digitado diferente (tela antiga) vira próprio. Cadastro aceita `availableFgtsBalance` (tolerante à coluna ausente). Simulação criada pelo card não copia mais a entrada do cadastro. Parte 2 (tirar os campos da aba e pôr o FGTS no cadastro da aba) depende do commit do designer no `SimulationGenerator`.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** `tests/simulation-resources.test.mjs`; suíte sem falha nova (o `academy-management` oscila sozinho); `pnpm build`.
+- **Arquivos afetados:** `lib/simulation-resources-core.mjs`, `lib/simulations.js`, `lib/simulation-list-query.js`, `lib/simulation-registrations.js`, `components/clients/client-format.js`, `supabase/migrations/20261019220000_registration_available_fgts.sql` (NÃO aplicada).
+- **Risco/observação:** `expanded_purchase_power` gravado passa a refletir só valores próprios (ninguém lê a coluna; telas calculam na hora). A entrada/FGTS que entram no poder de compra do card e na apresentação/Proposta agora acompanham o cadastro.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — Aba da simulação: SAC recolhido e campos lado a lado (ajuste pontual sobre o layout antigo)
 - **Data:** 2026-10-19
 - **Área:** aba da simulação (`SimulationGenerator`, Etapa B), só apresentação. O redesenho 2ae61e4 foi reprovado pelo dono e revertido (e0805b7).

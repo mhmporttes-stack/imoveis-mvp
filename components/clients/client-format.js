@@ -200,7 +200,8 @@ export function buildDraftSimulationPayload(registration = {}) {
     subsidyValue: "",
     firstInstallment: "",
     lastInstallment: "",
-    downPaymentValue: registration.availablePurchaseResource || "",
+    // Entrada/FGTS ficam no cadastro (dono, 2026-10-19): a simulação lê de lá (lib/simulation-resources-core.mjs).
+    downPaymentValue: "",
     fgtsValue: "",
     showExpandedPower: false,
     publicNote: "",
