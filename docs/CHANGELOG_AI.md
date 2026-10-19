@@ -147,6 +147,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação: valores em duas linhas alinhadas (Price e SAC, novo e usado)
+- **Data:** 2026-10-19
+- **Área:** aba da simulação (`SimulationGenerator`), só apresentação.
+- **Alteração:** linha 1 = Valor do financiamento | Valor do subsídio; linha 2 = Primeira parcela | Última parcela | Prazo (meses) | Taxa de juros (% ao ano) (vira 2×2 abaixo de 768 px). No SAC, a mesma grade; como o SAC não tem taxa própria (usa a da simulação), a 4ª coluna fica vazia. Rótulos encostam embaixo e todos os campos têm 56 px de altura, então ficam na mesma linha de base mesmo quando um rótulo quebra; fonte dos campos segue 16 px.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** antes/depois em 360/390/820/1280 px (vitrine temporária, apagada); testes da área; `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`.
+- **Risco/observação:** nenhum dado, regra ou validação mudou.
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-19 — Valor do imóvel padrão volta ao teto da faixa (acompanha a renda)
 - **Data:** 2026-10-19
 - **Área:** `lib/financiamento-estimativa-core.mjs` (site, Refazer, Gerador, Simulador Caixa, SAC automático); comentários em `components/CaixaSimulator.jsx`, `components/SimulationGenerator.jsx`, `lib/simulations.js`

@@ -972,29 +972,33 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 </div>
 
                 <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-navy">Price</p>
-                {/* Pares lado a lado também no celular (dono, 2026-10-19): financiamento + subsídio, 1ª + última parcela, prazo + taxa. */}
-                <div className="mt-2 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="price">
-                  <MoneyField
+                {/* Linhas (dono, 2026-10-19): 1) financiamento | subsídio; 2) 1ª parcela | última | prazo | taxa (2×2 no celular).
+                    Campos alinhados: rótulo encosta embaixo e todos os campos têm a mesma altura. */}
+                <div data-system="price">
+                <div className={VALUE_ROW_2}>
+                  <MoneyField aligned
                     label="Valor do financiamento"
                     value={normalizedModels[key]?.financingValue || ""}
                     onChange={(value) => updateSimulationModel(key, "financingValue", value)}
                   />
-                  <MoneyField
+                  <MoneyField aligned
                     label="Valor do subsídio"
                     value={normalizedModels[key]?.subsidyValue || ""}
                     onChange={(value) => updateSimulationModel(key, "subsidyValue", value)}
                   />
-                  <MoneyField
+                </div>
+                <div className={VALUE_ROW_4}>
+                  <MoneyField aligned
                     label="Primeira parcela"
                     value={normalizedModels[key]?.firstInstallment || ""}
                     onChange={(value) => updateSimulationModel(key, "firstInstallment", value)}
                   />
-                  <MoneyField
+                  <MoneyField aligned
                     label="Última parcela"
                     value={normalizedModels[key]?.lastInstallment || ""}
                     onChange={(value) => updateSimulationModel(key, "lastInstallment", value)}
                   />
-                  <Field
+                  <Field aligned
                     label="Prazo (meses)"
                     type="text"
                     inputMode="numeric"
@@ -1006,10 +1010,10 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     onChange={(value) => updateSimulationModel(key, "termMonths", cleanTermMonths(value))}
                   />
                   {/* Taxa de juros: UMA por simulação (vale para novo e usado) — o mesmo campo aparece ao lado do prazo de cada tipo. */}
-                  <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
-                    Taxa de juros (% ao ano)
+                  <label className={ALIGNED_LABEL}>
+                    <span className="flex flex-1 items-end">Taxa de juros (% ao ano)</span>
                     <input
-                      className="admin-input min-w-0 !px-2.5 sm:!px-4"
+                      className={`admin-input min-w-0 ${ALIGNED_INPUT}`}
                       type="text"
                       inputMode="decimal"
                       autoComplete="off"
@@ -1022,11 +1026,12 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                       aria-describedby={`interest-rate-help-${key}`}
                     />
                   </label>
-                  <p id={`interest-rate-help-${key}`} className={`col-span-2 mt-2 text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
-                    {interestRateCheck.ok
-                      ? "Prazo e taxa são obrigatórios para salvar. A taxa vale para a simulação toda e aparece ao lado das parcelas na apresentação do cliente."
-                      : interestRateCheck.error}
-                  </p>
+                </div>
+                <p id={`interest-rate-help-${key}`} className={`mt-2 text-xs font-semibold ${interestRateCheck.ok ? "text-muted" : "text-red-700"}`}>
+                  {interestRateCheck.ok
+                    ? "Prazo e taxa são obrigatórios para salvar. A taxa vale para a simulação toda e aparece ao lado das parcelas na apresentação do cliente."
+                    : interestRateCheck.error}
+                </p>
                 </div>
 
                 <div className="mt-6 border-t border-blue-100 pt-2">
@@ -1048,28 +1053,32 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                     </button>
                   </div>
                   {sacFillMessage[key] ? <p className="mt-1 text-xs font-semibold text-warning" role="status">{sacFillMessage[key]}</p> : null}
-                  <div className="mt-1 grid grid-cols-2 items-end gap-x-2.5 sm:gap-x-4" data-system="sac">
-                    <MoneyField
+                  {/* Mesmas linhas do Price; o SAC não tem taxa própria (usa a da simulação), então a 4ª coluna fica vazia. */}
+                  <div data-system="sac">
+                  <div className={VALUE_ROW_2}>
+                    <MoneyField aligned
                       label="Valor do financiamento (SAC)"
                       value={normalizedModels[key]?.sac?.financingValue || ""}
                       onChange={(value) => updateSacModel(key, "financingValue", value)}
                     />
-                    <MoneyField
+                    <MoneyField aligned
                       label="Valor do subsídio (SAC)"
                       value={normalizedModels[key]?.sac?.subsidyValue || ""}
                       onChange={(value) => updateSacModel(key, "subsidyValue", value)}
                     />
-                    <MoneyField
+                  </div>
+                  <div className={VALUE_ROW_4}>
+                    <MoneyField aligned
                       label="Primeira parcela (SAC)"
                       value={normalizedModels[key]?.sac?.firstInstallment || ""}
                       onChange={(value) => updateSacModel(key, "firstInstallment", value)}
                     />
-                    <MoneyField
+                    <MoneyField aligned
                       label="Última parcela (SAC)"
                       value={normalizedModels[key]?.sac?.lastInstallment || ""}
                       onChange={(value) => updateSacModel(key, "lastInstallment", value)}
                     />
-                    <Field
+                    <Field aligned
                       label="Prazo em meses (SAC)"
                       type="text"
                       inputMode="numeric"
@@ -1080,6 +1089,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                       value={normalizedModels[key]?.sac?.termMonths || ""}
                       onChange={(value) => updateSacModel(key, "termMonths", cleanTermMonths(value))}
                     />
+                  </div>
                   </div>
                   </>) : null}
                 </div>
@@ -1283,13 +1293,21 @@ const DATE_INPUT = "block w-full max-w-full min-w-0 appearance-none [-webkit-app
 const compactLabelText = (label) => <span className="flex flex-1 items-end">{label}</span>;
 
 // hideLabel (2026-10-19): rótulo óbvio some da tela mas continua para leitor de tela; o campo alinha pela base ao lado dos vizinhos.
-function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, hideLabel = false, ...props }) {
+// Linhas de valores da simulação (dono, 2026-10-19): 2 colunas (financiamento | subsídio) e 4 colunas (1ª | última |
+// prazo | taxa), que viram 2×2 abaixo de md. `aligned`: o texto do rótulo encosta embaixo e o campo tem altura fixa,
+// então rótulos de uma linha ficam na mesma linha de base mesmo quando outro rótulo da linha quebra.
+const VALUE_ROW_2 = "grid grid-cols-2 gap-x-2.5 sm:gap-x-4";
+const VALUE_ROW_4 = "grid grid-cols-2 gap-x-2.5 sm:gap-x-4 md:grid-cols-4";
+const ALIGNED_LABEL = "mt-4 flex min-w-0 flex-col gap-2 text-sm font-extrabold text-ink";
+const ALIGNED_INPUT = "!h-14 !px-2.5 sm:!px-4";
+
+function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, aligned = false, hideLabel = false, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
-    <label className={compact ? COMPACT_LABEL : `mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink ${hideLabel ? "self-end" : ""}`}>
-      {hideLabel ? <span className="sr-only">{label}</span> : compact ? compactLabelText(label) : label}
+    <label className={compact ? COMPACT_LABEL : aligned ? ALIGNED_LABEL : `mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink ${hideLabel ? "self-end" : ""}`}>
+      {hideLabel ? <span className="sr-only">{label}</span> : compact || aligned ? compactLabelText(label) : label}
       <Component
-        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${type === "date" ? DATE_INPUT : ""} ${inputClassName}`}
+        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${aligned ? ALIGNED_INPUT : ""} ${type === "date" ? DATE_INPUT : ""} ${inputClassName}`}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
@@ -1327,10 +1345,11 @@ function BooleanField({ label, onChange, value, compact = false }) {
   );
 }
 
-function MoneyField({ label, onChange, value, compact = false, placeholder = undefined }) {
+function MoneyField({ label, onChange, value, compact = false, aligned = false, placeholder = undefined }) {
   return (
     <Field
       compact={compact}
+      aligned={aligned}
       label={label}
       type="text"
       inputMode="decimal"
