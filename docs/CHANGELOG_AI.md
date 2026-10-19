@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Entrada e FGTS disponíveis só no cadastro (parte 2: aba da simulação)
+- **Data:** 2026-10-19
+- **Área:** Aba da simulação (`components/SimulationGenerator.jsx`)
+- **Alteração:** saem os campos "Entrada disponível" e "FGTS disponível" da Etapa B; entra "FGTS disponível" no cadastro do cliente (ao lado de "Recurso próprio / entrada"); o salvamento não envia mais entrada/FGTS (o servidor mantém os gravados — parte 1, 7fdd551). Regra registrada como SIM-7.
+- **Motivo:** pedido do dono (2026-10-19); feito depois dos ajustes do designer (34203b8, 87c4e5d).
+- **Verificação:** `tests/simulation-resources.test.mjs`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `tests/simulation-resources.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** migration `20261019220000_registration_available_fgts.sql` pendente (sem ela o FGTS digitado no cadastro não é gravado).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — Aba da simulação: remoções pedidas pelo dono (card "Poder total", "Formato para envio", aviso de salvamento, "Histórico")
 - **Data:** 2026-10-19
 - **Área:** aba da simulação (`SimulationGenerator`), só apresentação, sobre o layout antigo.

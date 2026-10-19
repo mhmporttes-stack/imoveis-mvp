@@ -779,6 +779,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                 onChange={(value) => updateRegistration("primaryMaritalStatus", value)}
               />
               <MoneyField label="Recurso próprio / entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
+              <MoneyField label="FGTS disponível" value={form.registration?.availableFgtsBalance || ""} onChange={(value) => updateRegistration("availableFgtsBalance", value)} />
               <BooleanField
                 label="Mais de 3 anos de registro?"
                 value={form.registration?.hasOverThreeYearsRegisteredWork}
@@ -962,10 +963,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             ))}
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <MoneyField label="Entrada disponível" value={form.downPaymentValue} onChange={(value) => update("downPaymentValue", value)} />
-            <MoneyField label="FGTS disponível" value={form.fgtsValue} onChange={(value) => update("fgtsValue", value)} />
-          </div>
+          {/* "Entrada disponível" e "FGTS disponível" saíram da aba (dono, 2026-10-19): são informados só no cadastro do
+              cliente ("Recurso próprio / entrada" e "FGTS disponível", acima) e a simulação lê de lá
+              (lib/simulation-resources-core.mjs; simulação antiga com valores próprios continua com os dela). */}
           <label className="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-bold text-ink">
             <input type="checkbox" checked={form.showExpandedPower} onChange={(event) => update("showExpandedPower", event.target.checked)} />
             Mostrar poder de compra ampliado na apresentação
@@ -1263,7 +1263,8 @@ function normalizeRegistrationDraft(registration = null, simulation = {}, fallba
     primaryMaritalStatus: source.primaryMaritalStatus || "single",
     secondaryMaritalStatus: source.secondaryMaritalStatus || "single",
     hasResidentialProperty: source.hasResidentialProperty === true,
-    availablePurchaseResource: formatStoredCurrencyInput(source.availablePurchaseResource)
+    availablePurchaseResource: formatStoredCurrencyInput(source.availablePurchaseResource),
+    availableFgtsBalance: formatStoredCurrencyInput(source.availableFgtsBalance)
   };
 }
 
@@ -1300,7 +1301,17 @@ function propertySnapshot(property, displayOrder) {
 }
 
 function serializeForm(form) {
-  const { registration: _registration, ...simulationForm } = form;
+  // Entrada/FGTS não vão mais no corpo (só no cadastro, dono 2026-10-19): sem eles o servidor mantém os valores
+  // gravados na simulação (resourcesToStore, lib/simulation-resources-core.mjs).
+  const {
+    registration: _registration,
+    downPaymentValue: _downPaymentValue,
+    fgtsValue: _fgtsValue,
+    storedDownPaymentValue: _storedDownPaymentValue,
+    storedFgtsValue: _storedFgtsValue,
+    resourcesSource: _resourcesSource,
+    ...simulationForm
+  } = form;
   const models = normalizeSimulationModels(form.simulationModels, form);
   const primaryModel = getPrimarySimulationModel({ ...form, simulationModels: models });
   const internalNote = mergeSimulationModelsIntoNote(
@@ -1321,8 +1332,6 @@ function serializeForm(form) {
     subsidyValue: primaryModel.totals.subsidy,
     firstInstallment: moneyNumber(primaryModel.values.firstInstallment),
     lastInstallment: moneyNumber(primaryModel.values.lastInstallment),
-    downPaymentValue: primaryModel.totals.downPayment,
-    fgtsValue: primaryModel.totals.fgts,
     totalPurchasePower: primaryModel.totals.total,
     expandedPurchasePower: primaryModel.totals.expanded,
     properties: form.properties.map(({ customBenefitDraft, ...property }) => property)

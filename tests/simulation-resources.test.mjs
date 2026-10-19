@@ -33,3 +33,12 @@ test("getSimulation e a lista usam a mesma regra; cadastro aceita o FGTS dispon�
   assert.match(registrations, /isMissingColumnError\(error, "available_fgts_balance"\)/);
   assert.match(registrations, /availableFgtsBalance: Number\(row\.available_fgts_balance \|\| 0\)/);
 });
+
+test("aba da simulação: sem os campos de entrada/FGTS; FGTS no cadastro; corpo do salvamento sem esses valores", () => {
+  const generator = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(generator, /label="Entrada disponível"/);
+  assert.doesNotMatch(generator, /<MoneyField label="FGTS disponível" value=\{form\.fgtsValue\}/);
+  assert.match(generator, /<MoneyField label="FGTS disponível" value=\{form\.registration\?\.availableFgtsBalance/);
+  assert.match(generator, /downPaymentValue: _downPaymentValue,\s*fgtsValue: _fgtsValue,/);
+  assert.doesNotMatch(generator, /downPaymentValue: primaryModel\.totals\.downPayment/);
+});
