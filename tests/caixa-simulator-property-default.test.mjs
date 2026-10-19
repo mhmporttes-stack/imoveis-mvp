@@ -24,8 +24,8 @@ test("com o valor do teto da faixa o motor usa esse valor (não os R$ 235 mil de
     assert.equal(result.propertyValue, cap, `${income}`);
     assert.match(result.faixa, new RegExp(faixa));
   }
-  // sem valor (como era antes), a renda de R$ 6.000 ficava em R$ 235 mil
-  assert.equal(simulate(answers(6000), REF).propertyValue, 235000);
+  // sem valor, o motor também usa o teto da faixa (dono, 2026-10-19 — substitui o "começa em R$ 235 mil")
+  assert.equal(simulate(answers(6000), REF).propertyValue, 400000);
 });
 
 test("tela: enquanto não digita, o campo e o motor usam o teto da faixa; digitado vale o digitado; o voto leva o valor efetivo", () => {

@@ -147,6 +147,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Valor do imóvel padrão volta ao teto da faixa (acompanha a renda)
+- **Data:** 2026-10-19
+- **Área:** `lib/financiamento-estimativa-core.mjs` (site, Refazer, Gerador, Simulador Caixa, SAC automático); comentários em `components/CaixaSimulator.jsx`, `components/SimulationGenerator.jsx`, `lib/simulations.js`
+- **Alteração:** padrão do valor do imóvel = teto da faixa da renda considerada (substitui o "começa em R$ 235 mil"); atualiza com a renda; editável; simulações salvas não são reescritas.
+- **Motivo:** decisão do dono (2026-10-19).
+- **Verificação:** `tests/simulation-property-value.test.mjs`, `tests/caixa-simulator-property-default.test.mjs`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** os acima + `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** no backtest, Faixa 3/4 sem valor digitado volta a ~69%/17% de aderência (antes de 235 mil: ~24%/17%).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Faixa 3 volta para 30% (28% revertido) e testes da apresentação de aprovação
 - **Data:** 2026-10-19
 - **Área:** `lib/financiamento-estimativa-core.mjs`; `tests/simulation-property-value.test.mjs`; `tests/simulation-presentation-approval.test.mjs`

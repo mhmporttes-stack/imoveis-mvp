@@ -5,8 +5,8 @@ import { DEFAULT_PROPERTY_VALUE, INCOME_BANDS, estimateFinancing, simulationFiel
 import { buildAutoSnapshot } from "../lib/simulation-auto-review-core.mjs";
 import { scenarioDataFromSimulation, scenarioModelsForForm } from "../lib/simulation-scenarios-core.mjs";
 
-// Valor do imóvel na simulação do cliente (REGRA OFICIAL — dono, 2026-10-19): padrão R$ 235.000 em TODAS as faixas,
-// editável até o teto da faixa da renda (Marília/SP: Faixas 1-2 R$ 235 mil; Faixa 3 R$ 400 mil; Classe Média R$ 600 mil —
+// Valor do imóvel na simulação do cliente (REGRA OFICIAL — dono, 2026-10-19; substitui o "começa em R$ 235 mil"):
+// padrão = TETO DA FAIXA da renda considerada, editável (Marília/SP: Faixas 1-2 R$ 235 mil; Faixa 3 R$ 400 mil; Classe Média R$ 600 mil —
 // gov.br MCMV-FGTS). Acima do teto: fora do MCMV.
 const REF = "2026-10-19";
 const person = (income, extra = {}) => ({
@@ -27,18 +27,18 @@ test("tetos por faixa usados pelo motor (gov.br: até R$ 5 mil 210–275 mil por
 });
 
 for (const [income, cap, faixa] of [[2500, 235000, "Faixa 1"], [5000, 235000, "Faixa 2"], [6000, 400000, "Faixa 3"], [9000, 400000, "Faixa 3"], [12000, 600000, "Faixa 4 (Classe Média)"]]) {
-  test(`renda ${income}: valor do imóvel padrão R$ 235 mil (${faixa}, teto ${cap}), editável até o teto`, () => {
+  test(`renda ${income}: valor do imóvel padrão = teto ${cap} (${faixa}), editável até o teto`, () => {
     const estimate = estimateFinancing(person(income), REF);
     assert.equal(DEFAULT_PROPERTY_VALUE, 235000);
     assert.equal(estimate.eligible, true);
-    assert.equal(estimate.propertyValue, 235000);
+    assert.equal(estimate.propertyValue, cap);
     assert.equal(estimate.propertyCap, cap);
     assert.equal(estimate.faixa, faixa);
     assert.equal(estimate.propertyValueTyped, false);
-    assert.equal(estimate.used.propertyValue, 235000);
-    assert.ok(estimate.financing <= 0.8 * 235000 + 0.01);
+    assert.equal(estimate.used.propertyValue, cap);
+    assert.ok(estimate.financing <= 0.8 * cap + 0.01);
     const suggestion = simulationFieldSuggestions({ registration: person(income), referenceDate: REF }).propertyValue;
-    assert.deepEqual(suggestion.novo, { value: 235000, faixa, cap });
+    assert.deepEqual(suggestion.novo, { value: cap, faixa, cap });
     const atCap = estimateFinancing(person(income, { propertyValue: cap }), REF);
     assert.equal(atCap.eligible, true);
     assert.equal(estimateFinancing(person(income, { propertyValue: cap + 1000 }), REF).reason, "property_above_cap");
@@ -79,8 +79,8 @@ test("simulação automática grava o valor do imóvel por tipo; snapshot e cen�
   assert.match(source, /automaticPropertyValueLine\(estimate\)/);
   const estimate = estimateFinancing(person(6000), REF);
   const snapshot = buildAutoSnapshot(person(6000), estimate, REF);
-  assert.equal(snapshot.outputs.propertyValue, 235000);
-  assert.equal(snapshot.outputs.usado.propertyValue, 235000);
+  assert.equal(snapshot.outputs.propertyValue, 400000);
+  assert.equal(snapshot.outputs.usado.propertyValue, 400000);
   const data = scenarioDataFromSimulation({ simulationModels: { novo: { financingValue: "R$ 300.000,00", propertyValue: "R$ 400.000,00", sac: {} }, usado: {} } });
   assert.equal(data.novo.propertyValue, 400000);
   assert.equal(scenarioModelsForForm(data).novo.propertyValue, "R$ 400.000,00");
