@@ -6,7 +6,7 @@ import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMo
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
 import { navigableSceneCount } from "@/lib/simulation-presentation-gate.mjs";
-import { BRAND_NAME, BRAND_ROLE, DOCUMENTS_SCENE_TEXT } from "@/lib/simulation-presentation-documents.mjs";
+import { BRAND_NAME, BRAND_ROLE, DOCUMENTS_SCENE_NOTE, DOCUMENTS_SCENE_TEXT } from "@/lib/simulation-presentation-documents.mjs";
 import {
   advanceClock,
   branchStep,
@@ -76,7 +76,7 @@ function announcement(scene, index, total) {
     }
     case "diferenca": return `${head}Diferença entre imóvel novo e usado. Diferença de subsídio: ${formatBRL(scene.difference)}.`;
     case "validar": return `${head}${scene.firstName ? `${scene.firstName}, esse` : "Esse"} é o próximo passo!`;
-    case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT}`;
+    case "documentos": return `${head}${DOCUMENTS_SCENE_TEXT} ${DOCUMENTS_SCENE_NOTE}`;
     default: return `${head}Próximo passo.`;
   }
 }
@@ -751,6 +751,8 @@ function SceneDocumentos({ onRestart, canReceiveList, onOpenForecast }) {
       <FolderArt />
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Documentos</p>
       <h2 className={`${styles.title} ${styles.titleSm} ${styles.rise}`} style={{ "--d": "350ms" }}>{DOCUMENTS_SCENE_TEXT}</h2>
+      {/* frase de compromisso (dono, 2026-10-19): tira o medo de "pedir a lista = fechar negócio" */}
+      <p className={`${styles.note} ${styles.rise}`} style={{ "--d": "700ms" }}>{DOCUMENTS_SCENE_NOTE}</p>
       <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": "1000ms" }}>
         {/* O cliente não baixa nem visualiza a lista aqui (decisão do dono, round 4 e 2026-10-06): ele a RECEBE do corretor
             pelo WhatsApp. O botão só existe quando há responsável ativo com WhatsApp válido (`canReceiveList`). */}
@@ -821,7 +823,7 @@ function sendEvent(token, body) {
   }).catch(() => {});
 }
 
-export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false, strategy = null, strategyPdfEndpoint = "", strategyInitialChoices = null }) {
+export default function PresentationPlayer({ scenes, branch = [], token = "", preview = false, initialIndex = 0, initialBranch = 0, assetsBase = "", assetsQuery = "", canReceiveList = false, canSchedule = false, attendantName = "", strategy = null, strategyPdfEndpoint = "", strategyInitialChoices = null }) {
   const reduced = usePrefersReducedMotion();
   const total = scenes.length;
   // Antes de VALIDAR SIMULAÇÃO só existem as cenas até "Próximo passo"; as finais abrem depois do botão.
@@ -1102,7 +1104,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
           <div ref={sceneRef} key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
             {renderScene(current, ctx)}
           </div>
-          {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
+          {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} attendantName={attendantName} onClose={closeForecast} /> : null}
           {appointmentOpen && current.id === "proximo" && canSchedule ? <AppointmentSheet token={token} preview={preview} onClose={closeAppointment} /> : null}
           {strategyOpen && (current.id === "proximo" || current.id === "aprovValores") && strategy ? (
             <StrategySheet strategy={strategy} token={token} preview={preview} pdfEndpoint={strategyPdfEndpoint} canContact={canReceiveList} initialChoices={strategyInitialChoices} onClose={closeStrategy} />

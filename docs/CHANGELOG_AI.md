@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Apresentação: textos da lista sem "toda", frase de compromisso e T6 (lote A item 2)
+- **Área:** Apresentação / Agenda
+- **Alteração:** PRES-17 revista pelo dono: título e nota novos na cena de documentos; pergunta, ajuda e aviso "WhatsApp oficial … quem te responde é {1º nome}" na folha; mensagem pronta nova (código do atendimento mantido); observação da atividade `documentos` com o texto T6. DTO público ganhou `atendentePrimeiroNome` (só o 1º nome do responsável, só com contato pronto). `docs/BUSINESS_RULES.md` PRES-17.
+- **Arquivos:** `lib/documents-forecast-{core,store}.mjs`, `lib/simulation-presentation{.js,-core.mjs,-documents.mjs}`, `components/presentation/{PresentationPlayer,ForecastSheet}.jsx`, `presentation.module.css`, `app/apresentacao/[token]/page.jsx`, `app/admin/simulacoes/[id]/apresentacao/page.jsx`, testes `documents-forecast`, `simulation-presentation-round2`.
+- **Risco/observação:** atividades já criadas mantêm a observação antiga até o cliente confirmar de novo. Nenhum código lê o texto da mensagem pronta (o vínculo da conversa usa só o código do atendimento).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Apresentação: "Próximo passo" com um único botão cheio (Mesa pós-simulação, lote A item 1)
 - **Área:** Apresentação (`/s/<token>`)
 - **Alteração:** PRES-12 revista pelo dono ("sim para tudo", Mesa "Atendimento depois da simulação"): título "{Nome}, falta pouco para saber o que é possível no seu caso."; único botão cheio "VER O QUE PRECISO PARA AVANÇAR" (mesma ação do VALIDAR); nota "Mais {n} telas para pedir a sua lista de documentos." com n calculado pelo roteiro (`telasAteLista`, campo novo e inofensivo da cena `proximo` no DTO); AGENDAR passou a contorno; ordem Agendar · Estratégia · Imóveis; "Baixar apresentação" virou link de texto. `docs/BUSINESS_RULES.md` PRES-12.

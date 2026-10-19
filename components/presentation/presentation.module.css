@@ -614,6 +614,9 @@
 .fcMissing { border-radius: calc(var(--u) * 18); outline: 2px solid #b3261e; outline-offset: 4px; }
 .fcNote { margin: 0; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: #3a5878; text-align: center; }
 .fcError { color: #b3261e; font-weight: 700; }
+/* dono, 2026-10-19: ajuda curta abaixo da pergunta e o aviso de para onde a pessoa vai (acima do botão final) */
+.fcHelp { margin: 0; font-size: max(14px, calc(var(--u) * 15)); line-height: 1.45; color: #3a5878; text-wrap: pretty; }
+.fcQuestion + .fcHelp { margin: calc(var(--u) * -6) 0 calc(var(--u) * 14); }
 .fcLink { color: var(--blue); font-weight: 700; text-decoration: underline; }
 /* PRES-22 — folha "Agendar atendimento": reaproveita o calendário/botões da folha de documentos (fc*) */
 .apKinds { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--u) * 10); }

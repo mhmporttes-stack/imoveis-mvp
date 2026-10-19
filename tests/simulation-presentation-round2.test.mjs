@@ -15,7 +15,7 @@ import {
 import { PUBLIC_SCENE_FIELDS, buildPresentationScenes, buildPublicPresentation, generatePresentationToken } from "../lib/simulation-presentation-core.mjs";
 import { PRESENTATION_GATED_SCENES, navigableSceneCount } from "../lib/simulation-presentation-gate.mjs";
 import { formatBRL, splitBRL } from "../lib/simulation-presentation-format.mjs";
-import { DOCUMENTS_SCENE_TEXT } from "../lib/simulation-presentation-documents.mjs";
+import { DOCUMENTS_SCENE_NOTE, DOCUMENTS_SCENE_TEXT } from "../lib/simulation-presentation-documents.mjs";
 import {
   buildSummaryImageModel,
   documentsFileName,
@@ -276,7 +276,10 @@ test("documentos: o painel é rolável, fecha (botão e Escape) e não navega a 
 
 // ---------- lista de documentos: texto-base (o conteúdo e a personalização estão no round 3) ----------
 test("documentos: texto da cena e lista final como item do DTO da cena (sem observação extra de rodapé)", () => {
-  assert.equal(DOCUMENTS_SCENE_TEXT, "Para validarmos esses valores junto à Caixa, vamos precisar montar a sua pasta. Para isso, preciso de alguns documentos.");
+  // textos revistos pelo dono em 2026-10-19 (PRES-17): título + frase de compromisso
+  assert.equal(DOCUMENTS_SCENE_TEXT, "Para a Caixa analisar esses valores, vamos montar a sua pasta. A lista é curta e feita para o seu caso.");
+  assert.equal(DOCUMENTS_SCENE_NOTE, "Receber a lista e mandar os documentos não te compromete com a compra. Quem analisa e aprova é a Caixa.");
+  assert.match(read("components/presentation/PresentationPlayer.jsx"), /\{DOCUMENTS_SCENE_NOTE\}<\/p>/);
   const doc = scenesOf().find((scene) => scene.id === "documentos");
   assert.ok(Array.isArray(doc.items) && doc.items.length >= 8);
   assert.ok(!/adicionais conforme o seu perfil/.test(read("lib/simulation-presentation-documents.mjs")));

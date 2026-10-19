@@ -46,6 +46,7 @@ export default async function PresentationPreviewPage({ params, searchParams }) 
       token=""
       preview canReceiveList={dto.podeReceberLista === true}
       canSchedule={dto.podeReceberLista === true}
+      attendantName={dto.atendentePrimeiroNome || ""}
       strategy={dto.estrategia || null}
       strategyPdfEndpoint={`/api/admin/simulacoes/${encodeURIComponent(simulation.id)}/apresentacao/estrategia`}
       strategyInitialChoices={savedStrategy?.escolhas || null}
