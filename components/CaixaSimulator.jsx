@@ -183,10 +183,6 @@ export default function CaixaSimulator() {
           <Money label="Valor do imóvel" placeholder="R$ 235.000" value={propertyFieldValue} onChange={(value) => update("propertyValue", value)} />
           <p className="self-center text-xs font-bold leading-snug text-muted">{bandCap ? (typedProperty ? `Teto da faixa: ${moneyWhole(bandCap)}` : `Teto da faixa (automático): ${moneyWhole(bandCap)}`) : "Padrão R$ 235.000"}</p>
         </div>
-        <div className={`${ROW} grid-cols-2`}>
-          <Money label="Entrada" value={answers.downPayment} onChange={(value) => update("downPayment", value)} />
-          <Money label="FGTS" value={answers.fgtsAvailable} onChange={(value) => update("fgtsAvailable", value)} />
-        </div>
       </div>
 
       {!ready ? (

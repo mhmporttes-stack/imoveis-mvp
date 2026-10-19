@@ -131,6 +131,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Simulador Caixa: campos "Entrada" e "FGTS" removidos da tela
+- **Data:** 2026-10-19
+- **Área:** Simulação / Simulador Caixa
+- **Alteração:** os campos "Entrada" e "FGTS" saíram do formulário do Simulador Caixa. As respostas continuam existindo vazias (motor e voto 👍/👎 recebem R$ 0 de entrada/FGTS, como antes quando não preenchidos).
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/CaixaSimulator.jsx`
+- **Risco/observação:** só tela. O resultado agora nunca considera recurso próprio (entrada/FGTS) no Simulador Caixa; o Gerador da ficha do cliente segue com "Entrada" e "FGTS" no cadastro (não mexi). Se a intenção era tirar daquele bloco também, avisar.
+- **Autor:** Claude Code
 ### 2026-10-19 — Apresentação de aprovação mantém a "Estratégia de pagamento" (amortização)
 - **Data:** 2026-10-19
 - **Área:** Apresentação / PRES-21 + PRES-24
