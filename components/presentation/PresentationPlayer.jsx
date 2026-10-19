@@ -623,7 +623,7 @@ function SceneAprovado({ scene, reduced }) {
 
 /** APROVAÇÃO · cena 2: valores do financiamento aprovado (financiamento, subsídio se houver, parcela e taxa de juros).
  *  Os números são os ATUAIS da simulação (o corretor os corrige para os da aprovação); aqui só formata. */
-function SceneAprovValores({ scene, reduced }) {
+function SceneAprovValores({ scene, reduced, hasStrategy = false, onOpenStrategy }) {
   const both = scene.first > 0 && scene.last > 0 && Math.round(scene.first * 100) !== Math.round(scene.last * 100);
   const rate = formatInterestRateLabel(scene.interestRate);
   const rows = [
@@ -651,6 +651,13 @@ function SceneAprovValores({ scene, reduced }) {
               </p>
             ))}
           </div>
+        ) : null}
+        {/* Depois da aprovação o cliente mantém a "Estratégia de pagamento" (amortização extra, PRES-24; dono, 2026-10-19). */}
+        {hasStrategy ? (
+          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps} ${styles.rise}`} style={{ "--d": "1800ms", marginTop: "calc(var(--u) * 22)" }} onClick={onOpenStrategy} data-no-nav="" data-open-strategy="">
+            <TrendingDown aria-hidden="true" />
+            {STRATEGY_NAME_CAPS}
+          </button>
         ) : null}
       </div>
     </div>
@@ -786,7 +793,7 @@ function renderScene(scene, ctx) {
       ? <SceneValores scene={scene} onNext={ctx.branchNext} last={ctx.branchLast} reduced={ctx.reduced} fast={ctx.fast} />
       : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
-    case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} />;
+    case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
     case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
@@ -1089,7 +1096,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
           </div>
           {forecastOpen && current.id === "documentos" && canReceiveList ? <ForecastSheet token={token} preview={preview} onClose={closeForecast} /> : null}
           {appointmentOpen && current.id === "proximo" && canSchedule ? <AppointmentSheet token={token} preview={preview} onClose={closeAppointment} /> : null}
-          {strategyOpen && current.id === "proximo" && strategy ? (
+          {strategyOpen && (current.id === "proximo" || current.id === "aprovValores") && strategy ? (
             <StrategySheet strategy={strategy} token={token} preview={preview} pdfEndpoint={strategyPdfEndpoint} canContact={canReceiveList} initialChoices={strategyInitialChoices} onClose={closeStrategy} />
           ) : null}
         </div>

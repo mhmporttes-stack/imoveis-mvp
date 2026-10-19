@@ -131,6 +131,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Apresentação de aprovação mantém a "Estratégia de pagamento" (amortização)
+- **Data:** 2026-10-19
+- **Área:** Apresentação / PRES-21 + PRES-24
+- **Alteração:** depois que o cliente é aprovado, o link (roteiro de crédito aprovado) passa a ter o botão ESTRATÉGIA DE PAGAMENTO na cena "Valores aprovados", que abre a mesma folha de amortização extra (mesma base da simulação). Antes só o roteiro da simulação tinha.
+- **Motivo:** pedido do dono ("depois do cliente aprovado no link ele deve manter a opção de amortização na apresentação").
+- **Arquivos afetados:** `lib/simulation-presentation.js`, `lib/simulation-presentation-core.mjs`, `components/presentation/PresentationPlayer.jsx`, `tests/approval-keeps-strategy.test.mjs`
+- **Risco/observação:** o DTO de aprovação ganha só o campo opcional `estrategia` (allowlist `PUBLIC_STRATEGY_FIELDS`); a folha não mostra "Falar com meu corretor" na aprovação (decisão PRES-21: sem botão de contato). A rota pública `/api/s/<token>/estrategia` já valia para qualquer link ativo. Se a simulação não tiver juros/prazo suficientes, não há botão (igual ao roteiro normal). A CONFIRMAR em produção: abrir o link de um cliente aprovado.
+- **Autor:** Claude Code
 ### 2026-10-19 — Simulador Caixa: valor do imóvel acompanha o teto da faixa da renda
 - **Data:** 2026-10-19
 - **Área:** Simulação / Simulador Caixa
