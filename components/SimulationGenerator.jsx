@@ -13,6 +13,8 @@ import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
+import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import { FIRST_PROPERTY_OPTIONS, firstPropertyOptionValue, hasResidentialPropertyFromFirstPropertyOption } from "@/lib/registration-form-labels.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
@@ -114,6 +116,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const basicMode = useBasicMode();
   // Valor do imóvel (dono, 2026-10-19): simulação ainda sem valores nasce com o padrão R$ 235.000 (editável até o teto da
   // faixa); simulação já salva não é reescrita — sem valor gravado, o padrão aparece só como sugestão no campo.
+  // Conferência por tipo da simulação automática (👍/👎 sob cada imóvel; dono, 2026-10-19).
+  const [reviewState, refreshReview] = useAutoReviewState(initialSimulation?.id, AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(initialSimulation?.createdBy));
   const [form, setForm] = useState(() => withDefaultPropertyValues(normalizeInitialSimulation(initialSimulation), fieldSuggestions?.propertyValue));
   // Preferências de imóvel que o cliente preencheu no formulário (dono, 2026-10-14): mostradas no topo da Etapa C.
   const clientPreferences = useMemo(() => getPropertyPreferenceDetails(initialSimulation?.registration?.propertyPreferences || {}), [initialSimulation]);
@@ -991,6 +995,17 @@ export default function SimulationGenerator({ properties = [], initialSimulation
                   </div>
                   </>) : null}
                 </div>
+                {/* Conferência por tipo (dono, 2026-10-19): 👍/👎 logo abaixo deste imóvel, só na simulação automática. */}
+                {reviewState?.automatic && reviewState.types?.includes(key) ? (
+                  <AutoReviewTypeVote
+                    simulationId={initialSimulation?.id}
+                    type={key}
+                    label={label}
+                    review={reviewState.typeReviews?.[key] || null}
+                    values={normalizedModels[key] || {}}
+                    onDone={(data) => (data?.done || data?.typeReviews?.[key]?.status === "corrected" ? window.location.reload() : refreshReview())}
+                  />
+                ) : null}
               </div>
             ))}
           </div>

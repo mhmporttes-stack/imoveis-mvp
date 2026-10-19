@@ -28,7 +28,7 @@ import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
-import AutoSimulationReview from "@/components/AutoSimulationReview";
+import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
@@ -171,7 +171,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           {/* Simulação */}
           <Section title="Simulação">
             <SimulationSummary client={client} list={list} />
-            {registration?.id && hasSimulationData(registration) ? <div className="mt-3"><RedoAutoSimulationButton registrationId={registration.id} onDone={() => list.fetchClients({ silent: true })} /></div> : null}
+            {registration?.id && hasSimulationData(registration) ? <div className="mt-3"><RedoAutoSimulationButton registrationId={registration.id} variant="link" onDone={() => list.fetchClients({ silent: true })} /></div> : null}
           </Section>
 
           {/* Tags */}
@@ -437,6 +437,31 @@ function IconAction({ label, onClick, disabled, tone, children }) {
   );
 }
 
+// Conferência por tipo na ficha (dono, 2026-10-19): uma linha por imóvel (novo/usado) com 👍/👎 logo abaixo.
+function AutomaticTypeReviews({ simulationId, types, onFinished }) {
+  const [state, refresh] = useAutoReviewState(simulationId, true);
+  if (!types.length) return null;
+  return (
+    <div className="mt-2 space-y-2">
+      {types.map((item) => (
+        <div key={item.type} className="rounded-control border border-line px-3 py-2">
+          <p className="text-[13px] text-ink-2 tabular-nums">
+            <span className="font-semibold text-ink">{item.label}</span>
+            {" · "}{[`Financ. ${formatMoneyBR(item.financing)}`, `Subs. ${formatMoneyBR(item.subsidy)}`, item.firstInstallment > 0 ? `1ª ${formatMoneyBR(item.firstInstallment)}` : ""].filter(Boolean).join(" · ")}
+          </p>
+          <AutoReviewTypeVote
+            simulationId={simulationId}
+            type={item.type}
+            review={state?.typeReviews?.[item.type] || null}
+            values={item.values}
+            onDone={async (data) => { if (data?.done || data?.typeReviews?.[item.type]?.status === "corrected") await onFinished(); if (!data?.done) await refresh(); }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SimulationSummary({ client, list }) {
   if (client.completed && client.summary) {
     return (
@@ -459,8 +484,9 @@ function SimulationSummary({ client, list }) {
         {automatic.incomeConsidered ? <p className="mt-1 text-[13px] font-medium text-ink tabular-nums">Renda para usar na Caixa: {automatic.incomeConsidered}</p> : null}
         <p className="mt-1 text-xs text-muted">Calculada pelo site (imóvel novo e usado).</p>
         {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id
-          ? <AutoSimulationReview simulationId={client.simulation.id} onDone={() => list.fetchClients({ silent: true })} />
-          : <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>}
+          ? <AutomaticTypeReviews simulationId={client.simulation.id} types={automatic.types || []} onFinished={() => list.fetchClients({ silent: true })} />
+          : null}
+        <p className="mt-2 text-xs font-semibold text-muted">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
       </div>
     );
   }

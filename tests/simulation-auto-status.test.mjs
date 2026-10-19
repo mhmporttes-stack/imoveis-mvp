@@ -76,7 +76,7 @@ test("conferência: retrato do site com entradas e saídas (novo e usado) e valo
 });
 
 test("link da apresentação travado até a conferência (servidor e tela)", () => {
-  assert.equal(AUTO_PRESENTATION_LOCKED_MESSAGE, "Confira na Caixa e marque OK ou Corrija para liberar o link.");
+  assert.equal(AUTO_PRESENTATION_LOCKED_MESSAGE, "Confira 👍/👎 em cada imóvel para liberar o link.");
   const presentation = source("lib/simulation-presentation.js");
   assert.match(presentation, /export async function ensurePresentation\(\{ simulation, userId \}\) \{\s*assertPresentationAllowed\(simulation\);/);
   assert.match(presentation, /export async function regeneratePresentation\(\{ simulation, userId \}\) \{\s*assertPresentationAllowed\(simulation\);/);
@@ -92,11 +92,14 @@ test("usado: subsídio zero acima de R$ 2.850 (Caixa zera); Gerador sem a opçã
   assert.match(source("app/apresentacao/[token]/imagem/route.js"), /getPublicPresentation\(token/);
 });
 
-test("conferência também na aba da simulação (Gerador), com o aviso; marca automática nunca volta pelo formulário", () => {
+test("conferência por tipo na aba da simulação (Gerador) e na ficha, com a linha curta; marca automática nunca volta pelo formulário", () => {
   const page = source("app/admin/simulacoes/[id]/page.jsx");
-  assert.match(page, /isAutomaticSimulationSource\(simulation\.createdBy\)[\s\S]*<AutoSimulationReview simulationId=\{simulation\.id\} inEditor prominent \/>/);
-  const review = source("components/AutoSimulationReview.jsx");
-  assert.match(review, /AUTO_PRESENTATION_LOCKED_MESSAGE/);
+  assert.match(page, /isAutomaticSimulationSource\(simulation\.createdBy\) \? \([\s\S]{0,200}\{AUTO_PRESENTATION_LOCKED_MESSAGE\}/);
+  assert.match(source("components/SimulationGenerator.jsx"), /<AutoReviewTypeVote[\s\S]{0,80}type=\{key\}/);
+  assert.match(source("components/clients/ClientSheet.jsx"), /<AutoReviewTypeVote[\s\S]{0,120}type=\{item\.type\}/);
+  const review = source("components/AutoReviewTypeVote.jsx");
+  assert.match(review, /ThumbsUp/);
+  assert.match(review, /ThumbsDown/);
   assert.match(review, /Não lance a entrada mostrada pela Caixa/);
   assert.match(source("lib/simulations.js"), /staleAutomaticMark \? \{ createdBy: current\.createdBy \}/);
 });

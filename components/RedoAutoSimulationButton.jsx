@@ -11,7 +11,8 @@ const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "cu
 // cadastro; informal com teto de R$ 2.550 por pessoa e a renda do melhor cenário como sugestão). Volta a exigir a
 // conferência. Simulação salva pelo corretor só é substituída depois de "Isso substitui a simulação atual. Continuar?".
 // `onDone` (opcional) roda no fim; sem ele a página recarrega.
-export default function RedoAutoSimulationButton({ registrationId, onDone = null, size = "sm" }) {
+// `variant="link"` (dono, 2026-10-19): botão pequeno e discreto (texto com ícone), sem o peso do botão secundário.
+export default function RedoAutoSimulationButton({ registrationId, onDone = null, size = "sm", variant = "button" }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState({ tone: "", text: "" });
   const [confirmAction, confirmElement] = useConfirm();
@@ -53,7 +54,13 @@ export default function RedoAutoSimulationButton({ registrationId, onDone = null
 
   return (
     <div>
-      <Button size={size} variant="secondary" onClick={redo} loading={busy}><RefreshCw className="h-4 w-4" aria-hidden="true" /> Refazer simulação automática</Button>
+      {variant === "link" ? (
+        <button type="button" className="inline-flex min-h-11 items-center gap-1.5 text-xs font-bold text-muted underline-offset-2 hover:text-brand hover:underline disabled:opacity-60" onClick={redo} disabled={busy}>
+          <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} aria-hidden="true" /> Refazer simulação automática
+        </button>
+      ) : (
+        <Button size={size} variant="secondary" onClick={redo} loading={busy}><RefreshCw className="h-4 w-4" aria-hidden="true" /> Refazer simulação automática</Button>
+      )}
       {feedback.text ? <p className={feedback.tone === "error" ? "mt-2 text-xs font-medium text-danger" : "mt-2 text-xs font-medium text-ink-2"}>{feedback.text}</p> : null}
       {confirmElement}
     </div>

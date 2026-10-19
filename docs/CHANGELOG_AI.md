@@ -131,6 +131,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Conferência da simulação automática por tipo (👍/👎 sob o novo e o usado)
+- **Data:** 2026-10-19
+- **Área:** aba Simulação (`components/SimulationGenerator.jsx`, `app/admin/simulacoes/[id]/page.jsx`), ficha (`components/clients/ClientSheet.jsx`, `lib/simulation-list-utils.js`), API `/api/simulations/[id]/conferencia`, `components/RedoAutoSimulationButton.jsx` (variante link)
+- **Alteração:** sai o bloco amarelo "Simulação OK / Corrigir" (`components/AutoSimulationReview.jsx` removido); entram 👍/👎 por tipo, correção inline só do tipo, linha curta de bloqueio e "Refazer" discreto. Fecha a conferência (e libera link + "Simulação realizada" + ponto) só com todos os tipos marcados conferidos. Marcas por tipo em `corrected_snapshot.typeReviews` (sem migration). Corrige o defeito apontado: o OK liberava o link mesmo sem conferência aberta para registrar — agora cria a conferência ou recusa com mensagem.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** `tests/simulation-auto-review-types.test.mjs`, `tests/simulation-auto-status.test.mjs`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** os acima + `lib/simulation-auto-review-types{-core.mjs,.js}`, `components/AutoReviewTypeVote.jsx`, `lib/simulation-status-lock-core.mjs` (texto do aviso), `docs/analytics/simulacao-automatica-conferencia.sql`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** sem render em navegador com sessão real (a tela depende da API logada); conferido por testes e build.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Simulador Caixa: campos "Entrada" e "FGTS" removidos da tela
 - **Data:** 2026-10-19
 - **Área:** Simulação / Simulador Caixa

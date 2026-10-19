@@ -98,3 +98,14 @@ select f.created_at, f.created_by_email,
   from public.caixa_simulator_feedback f
  where f.vote = 'down' and f.created_at >= now() - interval '7 days'
  order by f.created_at desc;
+
+-- 5) Conferência POR TIPO (👍/👎 sob o novo e o usado — dono, 2026-10-19). Marcas em corrected_snapshot.typeReviews
+--    ({ novo|usado: { status: 'ok'|'corrected', caixaIncome, values, by, at } }); conferências antigas não têm.
+select date_trunc('day', r.reviewed_at at time zone 'America/Sao_Paulo')::date as dia,
+       t.key as tipo,
+       count(*) filter (where t.value ->> 'status' = 'ok') as bateu,
+       count(*) filter (where t.value ->> 'status' = 'corrected') as corrigido
+  from public.simulation_auto_reviews r
+  cross join lateral jsonb_each(coalesce(r.corrected_snapshot -> 'typeReviews', '{}'::jsonb)) t
+ where r.reviewed_at >= now() - interval '7 days'
+ group by 1, 2 order by 1 desc, 2;

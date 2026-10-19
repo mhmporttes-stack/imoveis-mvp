@@ -9,11 +9,10 @@ import { redactPropertiesForAuth } from "@/lib/property-visibility";
 import { withoutPropertyPdf } from "@/lib/property-visibility-core.mjs";
 import { getSimulation } from "@/lib/simulations";
 import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
-import AutoSimulationReview from "@/components/AutoSimulationReview";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import SimulationScenarios from "@/components/SimulationScenarios";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
-import { isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { simulationFieldSuggestions, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 
 export const dynamic = "force-dynamic";
@@ -37,23 +36,21 @@ export default async function EditSimulationPage({ params }) {
           Voltar para clientes
         </Link>
       </section>
-      {/* Simulação automática do site ainda não conferida (SIM-AUTO, dono 2026-10-19): conferência obrigatória em destaque
-          na própria aba da simulação; o link da apresentação fica bloqueado até o OK ou a correção salva. */}
-      {AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(simulation.createdBy) ? (
-        <section className="container-page mb-4">
-          <AutoSimulationReview simulationId={simulation.id} inEditor prominent />
-        </section>
-      ) : null}
       {/* "Refazer simulação automática" (dono, 2026-10-19): recalcula com o cadastro atual; volta a exigir a conferência. */}
       {simulation.registrationId ? (
         <section className="container-page mb-8 space-y-4">
-          <RedoAutoSimulationButton registrationId={simulation.registrationId} />
+          <RedoAutoSimulationButton registrationId={simulation.registrationId} variant="link" />
           {/* "Comparar simulações" (dono, 2026-10-19): componente separado, fácil de reposicionar no redesenho. */}
           <SimulationScenarios registrationId={simulation.registrationId} />
         </section>
       ) : null}
       {/* Apresentação interativa (o PDF da simulação saiu do CRM). */}
       {/* Modo básico (automação desativada): sem apresentação interativa; o lançamento dos valores segue. */}
+      {/* Simulação automática ainda não conferida (dono, 2026-10-19): só uma linha discreta perto do link; a conferência é
+          por tipo (👍/👎 abaixo do imóvel novo e do usado, na Etapa B) e o link só libera com todos conferidos. */}
+      {AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(simulation.createdBy) ? (
+        <p className="container-page mb-2 text-xs font-semibold text-muted" data-auto-review-line="">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
+      ) : null}
       {isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}
       <SimulationGenerator properties={withoutPropertyPdf(redactPropertiesForAuth(properties, auth))}
         initialSimulation={simulation}
