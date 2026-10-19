@@ -103,7 +103,7 @@ begin
         from public.simulation_registrations r
         where r.responsible_user_id = u.id
           and r.distribution_type = 'round_robin'
-          and r.status = 'pending'
+          and r.status in ('pending', 'auto_simulation')
           and r.last_whatsapp_contact_at is null
           and coalesce(r.responsible_changed_at, r.created_at) >= now() - interval '15 minutes'
       ) as has_waiting
