@@ -108,14 +108,20 @@ export default function CaixaSimulator() {
   const [status, setStatus] = useState({ busy: false, message: "", error: "" });
   const joint = answers.joint === "true";
   const update = (key, value) => setAnswers((current) => ({ ...current, [key]: value }));
-  const answersKey = JSON.stringify(answers);
-  const result = useMemo(() => simulate(answers, todayInSaoPaulo()), [answers]);
-  const currentVote = vote?.key === answersKey ? vote : null;
-  // Valor do imóvel (dono, 2026-10-19): começa em R$ 235.000 (padrão do motor, campo vazio nas respostas) e o corretor
-  // edita para mais até o teto da faixa da renda; acima do teto, aviso "fora do MCMV".
+  // Valor do imóvel no Simulador Caixa (dono, 2026-10-19): enquanto o corretor NÃO digita, o campo acompanha o TETO DA FAIXA da
+  // renda (até R$ 5 mil = R$ 235 mil; até R$ 9,6 mil = R$ 400 mil; até R$ 13 mil = R$ 600 mil) e muda sozinho quando a renda
+  // muda de faixa; digitado, o valor dele vale (acima do teto, aviso "fora do MCMV"). Vale só aqui: a simulação automática,
+  // o Refazer e o Gerador seguem com o padrão R$ 235 mil do motor.
   const incomeTotal = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) + (joint ? Number(String(answers.secondaryMonthlyIncome).replace(/\D/g, "")) : 0);
   const bandCap = bandForIncome(incomeTotal)?.propertyCap || 0;
-  const propertyFieldValue = answers.propertyValue || formatCurrencyInput(String(DEFAULT_PROPERTY_VALUE));
+  const autoPropertyValue = formatCurrencyInput(String(bandCap || DEFAULT_PROPERTY_VALUE));
+  const typedProperty = Boolean(answers.propertyValue);
+  const propertyFieldValue = answers.propertyValue || autoPropertyValue;
+  // As respostas que vão ao motor (e ao voto) já levam o valor efetivo do imóvel: o servidor recalcula com os MESMOS números.
+  const effectiveAnswers = useMemo(() => ({ ...answers, propertyValue: answers.propertyValue || (bandCap ? autoPropertyValue : "") }), [answers, bandCap, autoPropertyValue]);
+  const answersKey = JSON.stringify(effectiveAnswers);
+  const result = useMemo(() => simulate(effectiveAnswers, todayInSaoPaulo()), [effectiveAnswers]);
+  const currentVote = vote?.key === answersKey ? vote : null;
   const ready = Number(String(answers.primaryMonthlyIncome).replace(/\D/g, "")) > 0 && Boolean(answers.oldestBirthDate);
 
   async function send(method, body) {
@@ -136,7 +142,7 @@ export default function CaixaSimulator() {
   }
 
   async function castVote(value) {
-    const data = await send("POST", { vote: value, answers });
+    const data = await send("POST", { vote: value, answers: effectiveAnswers });
     if (!data) return;
     setVote({ vote: value, id: data.id, key: answersKey });
     setCaixa({ income: "", financing: "", subsidy: "", firstInstallment: "" });
@@ -175,7 +181,7 @@ export default function CaixaSimulator() {
         </div>
         <div className={`${ROW} grid-cols-2`}>
           <Money label="Valor do imóvel" placeholder="R$ 235.000" value={propertyFieldValue} onChange={(value) => update("propertyValue", value)} />
-          <p className="self-center text-xs font-bold leading-snug text-muted">{bandCap ? `Teto da faixa: ${moneyWhole(bandCap)}` : "Padrão R$ 235.000"}</p>
+          <p className="self-center text-xs font-bold leading-snug text-muted">{bandCap ? (typedProperty ? `Teto da faixa: ${moneyWhole(bandCap)}` : `Teto da faixa (automático): ${moneyWhole(bandCap)}`) : "Padrão R$ 235.000"}</p>
         </div>
         <div className={`${ROW} grid-cols-2`}>
           <Money label="Entrada" value={answers.downPayment} onChange={(value) => update("downPayment", value)} />

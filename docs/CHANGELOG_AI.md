@@ -131,6 +131,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Simulador Caixa: valor do imóvel acompanha o teto da faixa da renda
+- **Data:** 2026-10-19
+- **Área:** Simulação / Simulador Caixa
+- **Alteração:** no Simulador Caixa, enquanto o corretor não digita o valor do imóvel, o campo mostra e usa o TETO DA FAIXA da renda (até R$ 5 mil = R$ 235 mil; até R$ 9,6 mil = R$ 400 mil; até R$ 13 mil = R$ 600 mil) e muda sozinho quando a renda muda de faixa; digitado, vale o digitado. O voto 👍/👎 grava o valor efetivo.
+- **Motivo:** pedido do dono (o valor não mudava com a faixa da renda no simulador). Decisão do dono: vale só no Simulador Caixa.
+- **Arquivos afetados:** `components/CaixaSimulator.jsx`, `tests/caixa-simulator-property-default.test.mjs`
+- **Risco/observação:** a regra "padrão R$ 235 mil em todas as faixas" (simulação automática, Refazer, Gerador) NÃO mudou. Divergência consciente: o Simulador Caixa agora parte do teto da faixa e a ficha do cliente parte de R$ 235 mil. O motor, o servidor do voto e os números das demais telas não mudaram.
+- **Autor:** Claude Code
 ### 2026-10-19 — Motor: margem da parcela proporcional ao valor do imóvel (Faixa 3)
 - **Data:** 2026-10-19
 - **Área:** `lib/financiamento-estimativa-core.mjs` (`INSTALLMENT_MARGIN_RATE`)
