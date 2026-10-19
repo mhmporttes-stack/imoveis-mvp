@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: site calcula sozinho a simulação Caixa/MCMV e mostra ao cliente depois do cadastro
+- **Data:** 2026-10-19
+- **Área:** Site público `/simulacao` (tela final) + ficha do cliente no CRM / motor de cálculo novo
+- **Alteração:** motor puro `lib/financiamento-estimativa-core.mjs` (faixas/taxas oficiais do gov.br + parâmetros calibrados nas 288 simulações reais da Caixa do CRM: margem da parcela, prazo pela idade, MIP por idade, DFI, taxa de administração, cota de 80%, tabela de subsídio). `SimulationForm` calcula a estimativa só depois do POST salvo e `SimulationSuccess` mostra poder de compra, financiado, subsídio, entrada, prazo/juros, 1ª parcela Price e SAC (% da renda) + "Valores estimados, sujeitos à análise de crédito da Caixa."; sem estimativa, a tela continua a de antes. Ficha do cliente (`ClientSheet` › Simulação) ganha o bloco "Estimativa automática do site", recalculado com os dados do cadastro (nada gravado; `simulations` intocada; sem migration).
+- **Motivo:** pedido do dono (2026-10-19) — eliminar a espera pelo corretor; decisões registradas em `docs/BUSINESS_RULES.md` SIM-AUTO.
+- **Verificação:** calibração (leitura somente) contra `simulations` × `simulation_registrations`: nas 120 simulações em que o corretor usou a renda da ficha, financiado mediana 0% / p90 1,4%, parcela 0% / 0,5%, subsídio R$ 0 / R$ 1.326, poder (financiado + subsídio) 0% / 6,8%; com a renda que o corretor digitou na Caixa (259), financiado 0% / 6,5% e parcela 0% / 0%. `tests/financiamento-estimativa.test.mjs` (24 casos reais anonimizados + regras), `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `components/simulation-form/SimulationForm.jsx`, `components/simulation-form/SimulationSuccess.jsx`, `components/clients/ClientSheet.jsx`, `tests/financiamento-estimativa.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** itens A CONFIRMAR em SIM-AUTO (teto R$ 235 mil em Marília, subsídio de R$ 4.000 a R$ 5.000, MIP acima de 65 anos). Em ~metade das simulações reais o corretor simulou renda diferente da declarada — a estimativa do site pode diferir da simulação final por isso, não pelo cálculo. O formulário rápido (`QuickAttendanceForm`) não mostra estimativa (não coleta os dados).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — PRES-24: gráfico da Estratégia invertido ("quanto você já quitou"), linhas iguais, anos nas pontas e cena de 2,4 s
 - **Data:** 2026-10-19
 - **Área:** Apresentação da simulação `/s/<token>` (PRES-24) / Frontend + PDF da estratégia

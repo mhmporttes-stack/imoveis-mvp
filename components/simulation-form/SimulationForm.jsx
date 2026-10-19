@@ -16,6 +16,7 @@ import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preference-display";
 import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
 import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
+import { estimateFinancing, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import {
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
@@ -54,6 +55,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     id: "",
     preferencesAccessToken: ""
   });
+  const [estimate, setEstimate] = useState(null);
   const advanceTimer = useRef(null);
 
   const steps = useMemo(() => buildRegistrationSteps(form), [form.simulationType]);
@@ -182,6 +184,8 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       };
 
       setRegistrationContext(nextContext);
+      // Estimativa automática só depois do cadastro salvo (regra do dono, 2026-10-19: todo resultado vira lead).
+      setEstimate(estimateFinancing(validation.data, todayInSaoPaulo()));
       setCompletionView(nextContext.id && nextContext.preferencesAccessToken ? "invite" : "success");
 
       const totalIncome = validation.data.primaryMonthlyIncome + (validation.data.secondaryMonthlyIncome || 0);
@@ -238,7 +242,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     );
   }
 
-  if (completionView === "success") return <SimulationSuccess accessToken={registrationContext.preferencesAccessToken} brokerRef={brokerRef} registrationId={registrationContext.id} />;
+  if (completionView === "success") return <SimulationSuccess accessToken={registrationContext.preferencesAccessToken} brokerRef={brokerRef} estimate={estimate} registrationId={registrationContext.id} />;
 
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 shadow-soft sm:p-8 lg:p-10">

@@ -42,6 +42,7 @@ import {
   simulationTypeLabel
 } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
+import { estimateFinancing, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import StatusOptions from "./StatusOptions";
 import StatusReasonDialog from "./StatusReasonDialog";
 import CooledHandoffCard from "@/components/cooled/CooledHandoffCard";
@@ -167,6 +168,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           {/* Simulação */}
           <Section title="Simulação">
             <SimulationSummary client={client} />
+            {registration ? <SiteEstimate registration={registration} /> : null}
           </Section>
 
           {/* Tags */}
@@ -454,6 +456,32 @@ function SimulationSummary({ client }) {
     <div>
       <p className={cx("text-sm font-semibold", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Cliente aguardando simulação" : "Simulação ainda não realizada"}</p>
       {lines.length ? <p className="mt-1 text-[13px] text-ink-2">{lines.join(" · ")}</p> : null}
+    </div>
+  );
+}
+
+// Estimativa automática que o site mostrou ao cliente (SIM-AUTO, dono 2026-10-19): recalculada aqui com os dados da
+// ficha e a data do formulário — nunca gravada em `simulations` nem misturada com a simulação real da Caixa.
+function SiteEstimate({ registration }) {
+  const submittedAt = registration.lastFormSubmittedAt || registration.createdAt;
+  const estimate = submittedAt ? estimateFinancing(registration, todayInSaoPaulo(new Date(submittedAt))) : null;
+  if (!estimate?.eligible) return null;
+  const share = (value) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  return (
+    <div className="mt-4 rounded-control border border-dashed border-line px-3 py-2.5">
+      <p className="text-xs font-medium text-muted">Estimativa automática do site</p>
+      <p className="mt-0.5 text-[15px] font-semibold text-navy tabular-nums">Poder de compra {formatMoneyBR(estimate.purchasePower)}</p>
+      <p className="mt-1 text-[13px] text-ink-2 tabular-nums">
+        {[
+          `Financiado ${formatMoneyBR(estimate.financing)}`,
+          `Subsídio ${formatMoneyBR(estimate.subsidy)}`,
+          `Entrada ${formatMoneyBR(estimate.downPayment)}`,
+          `Price ${formatMoneyBR(estimate.priceFirstInstallment)} (${share(estimate.priceIncomeShare)})`,
+          `SAC ${formatMoneyBR(estimate.sacFirstInstallment)} (${share(estimate.sacIncomeShare)})`,
+          `${estimate.termMonths} meses a ${estimate.annualRate.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.a.`
+        ].join(" · ")}
+      </p>
+      <p className="mt-1 text-xs text-muted">Calculada pelo site com os dados do cadastro. Não é a simulação da Caixa.</p>
     </div>
   );
 }
