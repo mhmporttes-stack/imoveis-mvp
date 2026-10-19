@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Apresentação: "Próximo passo" com um único botão cheio (Mesa pós-simulação, lote A item 1)
+- **Área:** Apresentação (`/s/<token>`)
+- **Alteração:** PRES-12 revista pelo dono ("sim para tudo", Mesa "Atendimento depois da simulação"): título "{Nome}, falta pouco para saber o que é possível no seu caso."; único botão cheio "VER O QUE PRECISO PARA AVANÇAR" (mesma ação do VALIDAR); nota "Mais {n} telas para pedir a sua lista de documentos." com n calculado pelo roteiro (`telasAteLista`, campo novo e inofensivo da cena `proximo` no DTO); AGENDAR passou a contorno; ordem Agendar · Estratégia · Imóveis; "Baixar apresentação" virou link de texto. `docs/BUSINESS_RULES.md` PRES-12.
+- **Arquivos:** `lib/simulation-presentation-core.mjs`, `components/presentation/{PresentationPlayer.jsx,player-core.mjs,presentation.module.css}`, `tests/simulation-presentation-{next-step,round2,round3}.test.mjs`.
+- **Risco/observação:** a nota só aparece quando a lista pode ser pedida (`podeReceberLista`); sem corretor ativo com WhatsApp ela ficaria falsa. Medição do `fitScene` na vitrine (ver relatório do lote).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Microsserviço envia `undecrypted_message` (saída do corretor não decifrada)
 - **Alteração:** `whatsapp-individual-service`: stub CIPHERTEXT `fromMe` em conversa 1:1 (live) vira o evento `undecrypted_message` ao webhook (`extractUndecryptedOwnEvent` + `notifyUndecryptedOwnMessage`), sem texto, telefone por `resolveChatPhone`; grupo/broadcast/status/contato fora. Completa o lado do CRM (commit 4ec48bf). `docs/WHATSAPP.md` §1-I.
 - **Arquivos:** `whatsapp-individual-service/src/message-extract.js`, `src/webhook.js`, `src/sessions.js`, `tests/whatsapp-undecrypted-service.test.mjs`.

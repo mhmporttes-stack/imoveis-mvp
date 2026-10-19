@@ -121,6 +121,20 @@ export function propertiesButtonLabel(count) {
   return total === 1 ? "IMÓVEL SUGERIDO" : "IMÓVEIS SUGERIDOS";
 }
 
+/** Nota abaixo do botão principal do "Próximo passo" (PRES-12, dono, 2026-10-19). `n` vem do roteiro (`telasAteLista`,
+ *  calculado no servidor); singular com 1 tela; sem número válido não há nota. */
+export function nextStepListNote(count) {
+  const total = Math.floor(Number(count)) || 0;
+  if (total <= 0) return null;
+  return `Mais ${total} ${total === 1 ? "tela" : "telas"} para pedir a sua lista de documentos.`;
+}
+
+/** Título do "Próximo passo" (PRES-12, dono, 2026-10-19): com o primeiro nome, ou sem o prefixo quando não há nome. */
+export function nextStepTitle(firstName) {
+  const name = String(firstName || "").trim();
+  return name ? `${name}, falta pouco para saber o que é possível no seu caso.` : "Falta pouco para saber o que é possível no seu caso.";
+}
+
 /** Passo dentro do ramo: `next` no último e `prev` no primeiro SAEM do ramo (voltam ao "Próximo passo"). */
 export function branchStep({ index = 0, total = 0 } = {}, action) {
   if (action === "next") return index >= total - 1 ? { index, exit: true } : { index: index + 1, exit: false };

@@ -18,6 +18,8 @@ import {
   isLastScene,
   isPaused,
   keyAction,
+  nextStepListNote,
+  nextStepTitle,
   playerReducer,
   propertiesButtonLabel,
   sceneMetricEvents,
@@ -682,29 +684,29 @@ function DownloadAction({ href, label, className, hint }) {
   );
 }
 
-function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment, hasStrategy, onOpenStrategy }) {
+// "Próximo passo" (PRES-12, revisto pelo dono em 2026-10-19): UM único botão cheio ("VER O QUE PRECISO PARA AVANÇAR", a mesma
+// ação do antigo VALIDAR SIMULAÇÃO) e, logo abaixo, quantas telas faltam para pedir a lista (número do roteiro, `telasAteLista`;
+// só quando a lista pode ser pedida). Os demais caminhos continuam, com contorno, na ordem Agendar · Estratégia · Imóveis, e
+// "Baixar apresentação" vira link de texto. Nenhum botão some e as condições de exibição são as de antes.
+function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, hrefs, fast, canSchedule, onOpenAppointment, hasStrategy, onOpenStrategy, canReceiveList }) {
   const propertiesLabel = propertiesButtonLabel(propertyCount);
+  const listNote = canReceiveList ? nextStepListNote(scene.telasAteLista) : null;
   const d = (ms) => (fast ? "0ms" : `${ms}ms`);
   return (
     <div className={styles.sceneInner}>
       <p className={`${styles.eyebrow} ${styles.rise}`} style={{ "--d": "50ms" }}>Próximo passo</p>
       <h2 className={`${styles.title} ${styles.titleMid} ${styles.rise}`} style={{ "--d": d(450) }}>
-        Agora que você conhece seu poder de compra, podemos avançar para encontrar a melhor opção dentro dessas condições.
+        {nextStepTitle(scene.firstName)}
       </h2>
       {scene.dateLabel ? <p className={`${styles.note} ${styles.rise}`} style={{ "--d": d(1100) }}>Simulação realizada em {scene.dateLabel}</p> : null}
       <div className={`${styles.actions} ${styles.rise}`} style={{ "--d": d(1500) }}>
-        {propertiesLabel ? (
-          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenProperties} data-no-nav="" data-open-properties="">
-            <House aria-hidden="true" />
-            {propertiesLabel}
-          </button>
-        ) : null}
-        <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onValidate} data-no-nav="">
-          VALIDAR SIMULAÇÃO
+        <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onValidate} data-no-nav="" data-validate="">
+          VER O QUE PRECISO PARA AVANÇAR
         </button>
+        {listNote ? <p className={styles.ctaNote}>{listNote}</p> : null}
         {/* PRES-22: só com corretor responsável ativo e WhatsApp válido (mesma condição do "Receber lista de documentos") */}
         {canSchedule ? (
-          <button type="button" className={`${styles.cta} ${styles.ctaCaps}`} onClick={onOpenAppointment} data-no-nav="" data-open-appointment="">
+          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenAppointment} data-no-nav="" data-open-appointment="">
             <CalendarDays aria-hidden="true" />
             AGENDAR ATENDIMENTO
           </button>
@@ -716,7 +718,13 @@ function SceneProximo({ scene, onValidate, onOpenProperties, propertyCount, href
             {STRATEGY_NAME_CAPS}
           </button>
         ) : null}
-        <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.ghostBtn} hint="Disponível no link enviado ao cliente" />
+        {propertiesLabel ? (
+          <button type="button" className={`${styles.ghostBtn} ${styles.ctaCaps}`} onClick={onOpenProperties} data-no-nav="" data-open-properties="">
+            <House aria-hidden="true" />
+            {propertiesLabel}
+          </button>
+        ) : null}
+        <DownloadAction href={hrefs.summary} label="Baixar apresentação" className={styles.textBtn} hint="Disponível no link enviado ao cliente" />
       </div>
     </div>
   );
@@ -794,7 +802,7 @@ function renderScene(scene, ctx) {
       : <SceneValores scene={scene} onNext={ctx.mainNext} last={ctx.mainLast} final={ctx.mainLast} reduced={ctx.reduced} fast={ctx.fast} />;
     case "aprovado": return <SceneAprovado scene={scene} reduced={ctx.reduced} />;
     case "aprovValores": return <SceneAprovValores scene={scene} reduced={ctx.reduced} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
-    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} />;
+    case "proximo": return <SceneProximo scene={scene} onValidate={ctx.validate} onOpenProperties={ctx.openProperties} propertyCount={ctx.propertyCount} hrefs={ctx.hrefs} fast={ctx.fast} canSchedule={ctx.canSchedule} onOpenAppointment={ctx.openAppointment} hasStrategy={Boolean(ctx.strategy)} onOpenStrategy={ctx.openStrategy} canReceiveList={ctx.canReceiveList} />;
     case "validar": return <SceneValidar scene={scene} />;
     case "documentos": return <SceneDocumentos onRestart={ctx.restart} canReceiveList={ctx.canReceiveList} onOpenForecast={ctx.openForecast} />;
     default: return null;

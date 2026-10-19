@@ -181,9 +181,11 @@ test("'Falar com meu corretor' removido: nenhum telefone, wa.me ou botão do cor
   }
 });
 
-test("proximo: botões VALIDAR SIMULAÇÃO (maiúsculas) e Baixar apresentação; validar avança dentro da apresentação sem enviar nada", () => {
+test("proximo: botão VER O QUE PRECISO PARA AVANÇAR (maiúsculas, antigo VALIDAR) e Baixar apresentação; avança dentro da apresentação sem enviar nada", () => {
   const source = read("components/presentation/PresentationPlayer.jsx");
-  assert.match(source, />\s*VALIDAR SIMULAÇÃO\s*</);
+  // PRES-12 (dono, 2026-10-19): o botão de avançar mudou de nome; a ação é a mesma (validate)
+  assert.match(source, />\s*VER O QUE PRECISO PARA AVANÇAR\s*</);
+  assert.ok(!/>\s*VALIDAR SIMULAÇÃO\s*</.test(source));
   assert.match(source, /label="Baixar apresentação"/);
   // round 4: o cliente não baixa mais a lista (ele a recebe do corretor); 2026-10-06: nem a visualiza na apresentação
   assert.ok(!/Baixar imagem da lista de documentos/.test(source));
