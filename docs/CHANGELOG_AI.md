@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: "Refazer simulação automática"
+- **Data:** 2026-10-19
+- **Área:** Aba Simulação (Gerador) e ficha do cliente; `simulations`; `simulation_auto_reviews`
+- **Alteração:** botão "Refazer simulação automática" recalcula com o cadastro atual (renda do cadastro; informal com teto R$ 2.550 e sugestão do melhor cenário), regrava como automática, volta a exigir a conferência e guarda a conferência anterior como histórico (`superseded`). Confirmação antes de substituir simulação do corretor. Motor ganhou `incomeMode: "registered"` e `suggestedInformalIncome`.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** testes `financiamento-estimativa`, `simulation-auto-status`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `lib/simulations.js`, `lib/simulation-auto-reviews.js`, `lib/simulation-auto-review-core.mjs`, `app/api/admin/clients/[id]/simulacao-automatica/route.js`, `components/RedoAutoSimulationButton.jsx`, `components/clients/ClientSheet.jsx`, `app/admin/simulacoes/[id]/page.jsx`, `supabase/migrations/20261019200000_simulation_auto_reviews_history.sql` (NÃO aplicada).
+- **Risco/observação:** a vitrine DEV temporária `app/dev/vitrine/simulacao-aba/` (de outro agente, análise de design) entrou por engano no commit 80ef09b; tirada do git neste commit (arquivos locais mantidos para quem a usa).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: conferência na aba da simulação; PRES-24: extra anual sempre em dezembro
 - **Data:** 2026-10-19
 - **Área:** Gerador (`/admin/simulacoes/[id]`), ficha do cliente, Estratégia com amortização (`/s/<token>`)

@@ -29,6 +29,7 @@ import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import AutoSimulationReview from "@/components/AutoSimulationReview";
+import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
@@ -170,6 +171,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           {/* Simulação */}
           <Section title="Simulação">
             <SimulationSummary client={client} list={list} />
+            {registration?.id && hasSimulationData(registration) ? <div className="mt-3"><RedoAutoSimulationButton registrationId={registration.id} onDone={() => list.fetchClients({ silent: true })} /></div> : null}
           </Section>
 
           {/* Tags */}

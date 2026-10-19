@@ -177,3 +177,18 @@ test("renda: casal misto — CLT fixa, só a parte informal é ajustada (teto po
   assert.equal(result.secondaryIncomeConsidered, 2550);
   assert.equal(result.income, 5550);
 });
+
+test("refazer: usa a renda do cadastro (informal só com teto de R$ 2.550) e devolve a sugestão do melhor cenário", async () => {
+  const { suggestedInformalIncome } = await import("../lib/financiamento-estimativa-core.mjs");
+  const input = { ...base, primaryMonthlyIncome: 1800, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true };
+  const redo = estimateFinancing(input, REFERENCE_DATE, { incomeMode: "registered" });
+  assert.equal(redo.income, 1800);
+  assert.equal(redo.informalCapped, false);
+  assert.equal(suggestedInformalIncome(input, REFERENCE_DATE), estimateFinancing(input, REFERENCE_DATE).income);
+  const high = estimateFinancing({ ...input, primaryMonthlyIncome: 9000 }, REFERENCE_DATE, { incomeMode: "registered" });
+  assert.equal(high.income, 2550);
+  assert.equal(high.informalCapped, true);
+  const clt = estimateFinancing({ ...input, primaryIncomeType: "registered_employment", primaryMonthlyIncome: 3100 }, REFERENCE_DATE, { incomeMode: "registered" });
+  assert.equal(clt.income, 3100);
+  assert.equal(suggestedInformalIncome({ ...input, primaryIncomeType: "registered_employment" }, REFERENCE_DATE), null);
+});

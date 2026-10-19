@@ -100,3 +100,16 @@ test("conferência também na aba da simulação (Gerador), com o aviso; marca a
   assert.match(review, /Não lance a entrada mostrada pela Caixa/);
   assert.match(source("lib/simulations.js"), /staleAutomaticMark \? \{ createdBy: current\.createdBy \}/);
 });
+
+test("refazer simulação automática: guard do cliente, confirmação antes de substituir a do corretor, histórico da conferência", () => {
+  const lib = source("lib/simulations.js");
+  assert.match(lib, /export async function redoAutomaticSimulation[\s\S]*assertCanAccessResponsibleUser\(auth/);
+  assert.match(lib, /incomeMode: "registered"/);
+  assert.match(lib, /REDO_REPLACE_CONFIRMATION = "Isso substitui a simulação atual\. Continuar\?"/);
+  assert.match(lib, /if \(manual && !confirmReplace\) return \{ needsConfirmation: true/);
+  const route = source("app/api/admin/clients/[id]/simulacao-automatica/route.js");
+  assert.match(route, /requireAdminApi/);
+  assert.match(route, /newRound: true/);
+  assert.match(source("lib/simulation-auto-reviews.js"), /AUTO_REVIEW_STATUS\.SUPERSEDED/);
+  assert.doesNotMatch(route, /sendWhatsapp|sendMessage|ensurePresentation/);
+});
