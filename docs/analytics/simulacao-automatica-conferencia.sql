@@ -70,3 +70,29 @@ select *
     or prazo_site is distinct from prazo_caixa
     or (renda_caixa is not null and abs(renda_caixa - renda_site) > 1)
  order by reviewed_at desc;
+
+-- 4) "Simulador Caixa" do painel (dono, 2026-10-19): votos 👍/👎 dos corretores. Tabela caixa_simulator_feedback
+--    (migration 20261019230000). inputs = respostas (mesmo formato do cadastro); outputs = motor recalculado no servidor
+--    (novo na raiz, usado em outputs.used); caixa_values = opcional no 👎 (income, financing, subsidy, firstInstallment).
+-- 4a) Resumo por dia.
+select date_trunc('day', created_at at time zone 'America/Sao_Paulo')::date as dia,
+       count(*) filter (where vote = 'up') as bateu,
+       count(*) filter (where vote = 'down') as nao_bateu,
+       count(*) filter (where vote = 'down' and caixa_values is not null) as com_valores_caixa
+  from public.caixa_simulator_feedback
+ where created_at >= now() - interval '7 days'
+ group by 1 order by 1 desc;
+
+-- 4b) 👎 com valores da Caixa: site × Caixa (imóvel novo, Price).
+select f.created_at, f.created_by_email,
+       f.inputs ->> 'simulationType' as tipo,
+       f.inputs ->> 'primaryIncomeType' as regime_1, (f.inputs ->> 'primaryMonthlyIncome')::numeric as renda_1,
+       f.inputs ->> 'secondaryIncomeType' as regime_2, (f.inputs ->> 'secondaryMonthlyIncome')::numeric as renda_2,
+       (f.outputs ->> 'income')::numeric as renda_site, (f.caixa_values ->> 'income')::numeric as renda_caixa,
+       (f.outputs ->> 'financing')::numeric as financiado_site, (f.caixa_values ->> 'financing')::numeric as financiado_caixa,
+       (f.outputs ->> 'subsidy')::numeric as subsidio_site, (f.caixa_values ->> 'subsidy')::numeric as subsidio_caixa,
+       (f.outputs ->> 'priceFirstInstallment')::numeric as parcela_site, (f.caixa_values ->> 'firstInstallment')::numeric as parcela_caixa,
+       f.estimate_version
+  from public.caixa_simulator_feedback f
+ where f.vote = 'down' and f.created_at >= now() - interval '7 days'
+ order by f.created_at desc;

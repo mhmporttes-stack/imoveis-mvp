@@ -109,6 +109,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — "Simulador Caixa" no menu do painel (com voto 👍/👎)
+- **Data:** 2026-10-19
+- **Área:** menu (`components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`), nova página `/admin/simulador-caixa`, nova API `/api/admin/simulador-caixa/feedback`, nova tabela `caixa_simulator_feedback`
+- **Alteração:** simulação rápida para todos os perfis, sem dados pessoais, com o mesmo motor da simulação automática (novo e usado); não cria cliente/lead nem envia nada. Voto 👍/👎 grava entradas, saídas recalculadas no servidor, autor e data; no 👎, valores da Caixa opcionais (PATCH no mesmo registro). Seção 4 no SQL de análise diária.
+- **Motivo:** pedido do dono (2026-10-19). Regra em `docs/BUSINESS_RULES.md` (SIM-AUTO, "Simulador Caixa").
+- **Verificação:** `tests/caixa-simulator.test.mjs`; suíte sem falha nova; `pnpm build`; render 360/390 sem rolagem lateral.
+- **Arquivos afetados:** `app/admin/simulador-caixa/page.jsx`, `components/CaixaSimulator.jsx`, `lib/caixa-simulator-core.mjs`, `lib/caixa-simulator-feedback.js`, `app/api/admin/simulador-caixa/feedback/route.js`, `supabase/migrations/20261019230000_caixa_simulator_feedback.sql`, `docs/analytics/simulacao-automatica-conferencia.sql`.
+- **Risco/observação:** migration `20261019230000` **não aplicada** — até aplicar, a tela calcula normalmente mas o voto mostra "registro dos votos ainda não está ativado".
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Aba da simulação: bloco "Cadastro do cliente" compacto e minimizado
 - **Data:** 2026-10-19
 - **Área:** `components/SimulationGenerator.jsx` (só apresentação)

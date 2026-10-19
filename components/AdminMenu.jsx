@@ -206,6 +206,9 @@ const ownerGroups = [
   manualGroup
 ];
 
+const CAIXA_SIMULATOR_ITEM = { href: "/admin/simulador-caixa", label: "Simulador Caixa", key: "caixa-simulator" };
+const CAIXA_SIMULATOR_GROUPS = new Set(["crm", "clientes"]);
+
 // Fonte única dos grupos do menu por perfil — usada também pela barra
 // inferior do celular (components/AdminBottomNav.jsx, sheet "Mais"), para
 // que nenhum destino exista em um menu e falte no outro.
@@ -215,7 +218,9 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
   // Acesso WhatsApp bloqueado (2026-10-04): Chat (e a Meta Diária do corretor) NÃO são renderizados — nada de item cinza.
   // Modo lista impressa (PRO-15, 2026-10-15): `chatHidden` tira só o Chat.
   const hidden = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
-  const visible = hidden.size ? groups.map((group) => ({ ...group, items: group.items.filter((item) => !hidden.has(item.key)) })) : groups;
+  const filtered = hidden.size ? groups.map((group) => ({ ...group, items: group.items.filter((item) => !hidden.has(item.key)) })) : groups;
+  // "Simulador Caixa" (dono, 2026-10-19): todos os perfis, no grupo de clientes (CRM / CLIENTES).
+  const visible = filtered.map((group) => (CAIXA_SIMULATOR_GROUPS.has(group.key) ? { ...group, items: [...group.items, CAIXA_SIMULATOR_ITEM] } : group));
   // Chave da Academia desligada (padrão): devolve exatamente os mesmos grupos de sempre.
   return withAcademyMenuGroup(visible, academiaEnabled);
 }

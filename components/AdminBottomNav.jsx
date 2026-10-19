@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  BarChart3, BookOpen, GraduationCap, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
+  BarChart3, BookOpen, Calculator, GraduationCap, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
   MessageCircle, MessageSquarePlus, MessageSquareQuote, MessageSquareReply, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
   UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
@@ -280,7 +280,8 @@ const ITEM_ICONS = {
   scoring: Trophy,
   "document-rules": FileText,
   alexa: Mic,
-  academy: GraduationCap
+  academy: GraduationCap,
+  "caixa-simulator": Calculator
 };
 
 // Mesma unidade visual para todo item do menu: ícone em ladrilho + nome (até
