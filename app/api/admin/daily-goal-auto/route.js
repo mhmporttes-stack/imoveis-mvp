@@ -31,7 +31,8 @@ export async function PATCH(request) {
     } else if (body.brokerId && "dailyCapOverride" in body && !("paused" in body)) {
       await adminSetBrokerDailyCapOverride(auth, body.brokerId, body.dailyCapOverride);
     } else {
-      await adminSetDailyGoalAutoPaused(auth, body.brokerId, body.paused, body.reason);
+      // `requireConnectedSession`: botão "Retomar automação" da tela de equipe da Meta Diária (recusa com WhatsApp desconectado).
+      await adminSetDailyGoalAutoPaused(auth, body.brokerId, body.paused, body.reason, { requireConnectedSession: body.requireConnectedSession === true });
     }
     return NextResponse.json({ brokers: await adminListDailyGoalAutoSettings(auth) });
   } catch (error) {

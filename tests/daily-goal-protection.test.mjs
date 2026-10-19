@@ -11,7 +11,7 @@ import {
   pendingOverdueMs, findStuckPendingItems, STUCK_PENDING_MS, errorTypeKey, consecutiveErrorStreak, isExpectedHold,
   resolveProtectionRecipients, pausedAlertDeliveries, queueProblemDeliveries, numberPausedDedupeKey, stuckDedupeKey, repeatedErrorDedupeKey,
   SLOT_PAUSE_KIND, LOW_DELIVERY_MIN_SENT, LOW_DELIVERY_MAX_DELIVERED, lowDeliveryEligibleSlots, detectLowDeliverySlots, applyLowDeliveryPauses, LOW_DELIVERY_LONG_OUTAGE_MS,
-  pauseReasonText, pauseEpisodeOf, interventionDescription
+  pauseReasonText, pauseEpisodeOf, interventionDescription, describeAutomationPause
 } from "../lib/daily-goal-protection-core.mjs";
 
 const MIN = 60 * 1000;
@@ -456,4 +456,32 @@ test("entrega baixa: reinício do serviço (queda curta) NÃO apaga a evidência
   const longOutage = connectedSlot(1, { last_disconnect_at: "2026-10-13T07:50:00-03:00", last_connected_at: "2026-10-13T09:50:00-03:00" });
   assert.deepEqual(detect(rows, { sessionRows: [longOutage] }), [], "queda longa: só sobram 4 envios depois dela");
   assert.equal(LOW_DELIVERY_LONG_OUTAGE_MS, 30 * 60 * 1000);
+});
+
+test("pausa da automação na tela de equipe: motivo, quando e por quem; retomada registra quem (dono, 2026-10-19)", () => {
+  assert.equal(describeAutomationPause({ paused: false, pausedReason: "x" }), null);
+  const auto = describeAutomationPause({
+    paused: true,
+    pausedReason: "Pausado automaticamente — Número 1: o WhatsApp foi desconectado (logout). Retomada só manual.",
+    slotPauses: [{ slot: 1, reason: "r", at: "2026-10-19T12:00:00.000Z" }],
+    updatedAt: "2026-10-19T13:00:00.000Z",
+    updatedByName: "Gestora antiga"
+  });
+  assert.equal(auto.by, "Sistema (proteção automática)");
+  assert.equal(auto.at, "2026-10-19T12:00:00.000Z");
+  assert.match(auto.reason, /logout/);
+  const manual = describeAutomationPause({ paused: true, pausedReason: "Pausado pelo admin", updatedAt: "2026-10-19T10:00:00.000Z", updatedByName: "Carol" });
+  assert.deepEqual(manual, { reason: "Pausado pelo admin", at: "2026-10-19T10:00:00.000Z", by: "Carol" });
+  assert.equal(describeAutomationPause({ paused: true, pausedReason: "" }).reason, "Motivo não registrado.");
+
+  const { controls } = clearSlotPauses({ 1: { paused: true, pausedKind: "logged_out", pausedAt: "x" } }, { todayDate: "2026-10-19", nowIso: "2026-10-19T14:00:00.000Z", actorId: "admin-1" });
+  assert.equal(controls[1].resumedBy, "admin-1");
+  assert.equal(controls[1].paused, undefined);
+
+  const lib = readFileSync(new URL("../lib/daily-goal-auto.js", import.meta.url), "utf8");
+  assert.match(lib, /if \(!paused && requireConnectedSession && !isSessionOperational\(await getDispatchSessionStatusForUser\(brokerId\)\)\)/);
+  const fnStart = lib.indexOf("export async function adminSetDailyGoalAutoPaused");
+  assert.ok(lib.indexOf("assertGeneralAdminOrManager(auth)", fnStart) < lib.indexOf("requireConnectedSession && !isSessionOperational", fnStart));
+  const team = readFileSync(new URL("../components/TeamDailyPerformance.jsx", import.meta.url), "utf8");
+  assert.match(team, /JSON\.stringify\(\{ brokerId, paused: false, requireConnectedSession: true \}\)/);
 });

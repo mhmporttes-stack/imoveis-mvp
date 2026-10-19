@@ -51,6 +51,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** a análise `docs/analytics/simulacao-automatica-conferencia.sql` passa a ver a linha reaberta como pendente (a rodada anterior fica no JSON). Testes da área (209) e build ok.
 - **Autor:** crm-editor (Claude Code)
 
+### 2026-10-19 — Meta Diária (equipe): motivo da pausa da automação e "Retomar automação"
+- **Pedido do dono:** no card do corretor e no painel "Desempenho de hoje", quando a automação está pausada, mostrar o motivo em linguagem simples, quando e por quem/sistema, e um botão de retomar para quem gerencia.
+- **O que mudou:** `adminListDailyGoalAutoSettings` devolve `pauseInfo` (`describeAutomationPause`, puro: pausa por número ou "Pausado automaticamente…" = "Sistema (proteção automática)", hora = `pausedAt` do número; senão nome de `updated_by` e `updated_at`). `components/TeamDailyPerformance.jsx` mostra o aviso (card e painel) com "Retomar automação" → `PATCH /api/admin/daily-goal-auto` `{ paused: false, requireConnectedSession: true }`. Guard: `requireAdminApi` + `assertGeneralAdminOrManager` + `assertCanAccessResponsibleUser` (já existiam; admin e gestora da equipe já podiam retomar pela Gestão — nada foi aberto). Com `requireConnectedSession`, sem número apto conectado → 409 "O WhatsApp deste corretor ainda está desconectado…" e nada muda. Quem retomou: `updated_by` (já existia) + `slot_controls[n].resumedBy` (novo, `clearSlotPauses` com `actorId`, também no "Retomar Número N").
+- **Arquivos afetados:** `lib/daily-goal-protection-core.mjs`, `lib/daily-goal-auto.js`, `app/api/admin/daily-goal-auto/route.js`, `components/TeamDailyPerformance.jsx`, `tests/daily-goal-protection.test.mjs`, `docs/BUSINESS_RULES.md` (MD-15), `.claude/rules/meta-diaria-ranking.md`.
+- **Risco/observação:** Gestão › Automação ("Retomar") não ganhou a checagem de conexão (segue como antes). Sem migration. Testes da área ok (falhas já existentes e alheias: conexão falsa 6 h e microsserviço lease/Railway); build ok.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Atalho do Simulador Caixa no cabeçalho de Clientes (computador)
 - **Pedido do dono:** ícone de calculadora do Simulador Caixa na fileira de atalhos (Meta, Chat, Agenda, E-mail, Sino), mesmo estilo (`SHORTCUT_ICON_BUTTON`), sem contador, título/aria-label "Simulador Caixa", para todos os perfis (a página usa `requireAdminPage`). Colocado depois da Agenda; nenhum ícone removido.
 - **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`, `tests/caixa-simulator.test.mjs`.

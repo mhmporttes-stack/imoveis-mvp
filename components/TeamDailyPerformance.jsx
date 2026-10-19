@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
-import { X, History, ListRestart, Printer } from "lucide-react";
+import { X, History, ListRestart, Play, Printer } from "lucide-react";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
 import { formatAutoQueueCardLine, formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
 import { PRINTED_LIST_MODE_LABEL } from "@/lib/whatsapp-manual-disconnect-core.mjs";
@@ -158,6 +158,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           automation={automationById[selectedBrokerId]}
           restriction={restrictionById[selectedBrokerId]}
           onRestrictionChanged={refetchRestrictions}
+          onAutomationChanged={refetchAutomation}
           onClose={() => setSelectedBrokerId("")}
         />
       ) : null}
@@ -404,6 +405,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
             {automation.googleContactsStatus ? <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${googleInfo.label}`} /> : null}
           </div>
           <RestrictionValidationActions brokerId={broker.brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
+          <AutomationPauseNotice automation={automation} brokerId={broker.brokerId} onResumed={onRequeued} compact />
           {broker.compensation ? <div className="mt-2"><DailyGoalCompensationNotice notice={broker.compensation} only={["credit", "until", "impacted"]} /></div> : null}
           {automation.avgGapMinutes != null ? (
             <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
@@ -504,7 +506,7 @@ function MiniStat({ label, value }) {
   );
 }
 
-function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestrictionChanged, onClose }) {
+function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestrictionChanged, onAutomationChanged, onClose }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -557,7 +559,7 @@ function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestr
             {detail.broker.compensation ? <DailyGoalCompensationNotice notice={detail.broker.compensation} /> : null}
 
             {automation ? (
-              <AutomationSection automation={automation} restriction={restriction} onRestrictionChanged={onRestrictionChanged} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />
+              <AutomationSection automation={automation} restriction={restriction} onRestrictionChanged={onRestrictionChanged} onAutomationChanged={onAutomationChanged} showHistory={showHistory} onToggleHistory={() => setShowHistory((current) => !current)} brokerId={brokerId} />
             ) : null}
 
             {detail.isToday ? <GoalRemaining broker={detail.broker} /> : null}
@@ -598,7 +600,7 @@ function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestr
 // o card e a configuração: status, próximo disparo, contagens do dia e
 // intervalo/janela configurados. O ícone abre o Histórico já existente
 // (BrokerHistoryPanel, de components/DailyGoalAdmin.jsx) — nada novo criado.
-function AutomationSection({ automation, restriction, onRestrictionChanged, showHistory, onToggleHistory, brokerId }) {
+function AutomationSection({ automation, restriction, onRestrictionChanged, onAutomationChanged, showHistory, onToggleHistory, brokerId }) {
   const sessionInfo = AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou;
   const sessionConnected = automation.sessionStatus === "connected";
   const autoLabel = !automation.enabled ? "Automação desligada" : automation.paused ? "Automação pausada" : sessionConnected ? "Automação rodando" : "Aguardando WhatsApp";
@@ -627,6 +629,7 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, show
         <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
       <RestrictionValidationActions brokerId={brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
+      <AutomationPauseNotice automation={automation} brokerId={brokerId} onResumed={onAutomationChanged} />
       <p className="mt-1 text-[10px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p>
       {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 
@@ -655,6 +658,64 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, show
       ) : null}
 
       {showHistory ? <BrokerHistoryPanel brokerId={brokerId} /> : null}
+    </div>
+  );
+}
+
+// Automação pausada (dono, 2026-10-19): motivo em linguagem simples, quando e por quem/sistema, e "Retomar automação"
+// para admin geral e gestora da equipe (a barreira é do servidor: adminSetDailyGoalAutoPaused). Com o WhatsApp ainda
+// desconectado o servidor recusa e a mensagem aparece aqui. stopPropagation: o card inteiro abre o painel do corretor.
+function formatPauseMoment(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function AutomationPauseNotice({ automation, brokerId, onResumed, compact = false }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const info = automation?.enabled && automation.paused ? automation.pauseInfo : null;
+  if (!info) return null;
+  const moment = formatPauseMoment(info.at);
+
+  async function handleResume(event) {
+    event.stopPropagation();
+    if (busy) return;
+    if (typeof window !== "undefined" && !window.confirm("Retomar a automação deste corretor? Os envios automáticos voltam a sair (com a espera depois de reconectar).")) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/daily-goal-auto", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerId, paused: false, requireConnectedSession: true })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Não foi possível retomar a automação.");
+      await onResumed?.();
+    } catch (error) {
+      setMessage(error.message || "Não foi possível retomar a automação.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={`${compact ? "mt-2" : "mt-3"} rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left`} onClick={(event) => event.stopPropagation()}>
+      <p className={`${compact ? "text-[11px]" : "text-xs"} font-bold text-amber-900`}>{info.reason}</p>
+      <p className="mt-0.5 text-[10px] font-bold text-amber-800">
+        {moment ? `Desde ${moment} · ` : ""}Por: {info.by}
+      </p>
+      <button
+        type="button"
+        onClick={handleResume}
+        disabled={busy}
+        className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-navy ring-1 ring-amber-300 transition hover:bg-amber-100 disabled:opacity-50"
+      >
+        <Play aria-hidden="true" className="h-3 w-3" />{busy ? "Retomando…" : "Retomar automação"}
+      </button>
+      {message ? <p role="alert" className="mt-1 text-[11px] font-bold text-red-700">{message}</p> : null}
     </div>
   );
 }
