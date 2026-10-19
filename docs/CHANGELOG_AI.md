@@ -44,6 +44,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Atalho do Simulador Caixa no cabeçalho de Clientes (computador)
+- **Pedido do dono:** ícone de calculadora do Simulador Caixa na fileira de atalhos (Meta, Chat, Agenda, E-mail, Sino), mesmo estilo (`SHORTCUT_ICON_BUTTON`), sem contador, título/aria-label "Simulador Caixa", para todos os perfis (a página usa `requireAdminPage`). Colocado depois da Agenda; nenhum ícone removido.
+- **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`, `tests/caixa-simulator.test.mjs`.
+- **Risco/observação:** só apresentação + link; testes da área e build ok.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-19 — Barra do corretor: Simulador no lugar da Meta; pré-carregamento do "Online" no admin
 - **Pedido do dono:** trocar o atalho "Meta Diária" da barra do celular pelo "Simulador Caixa" e levar o pré-carregamento da Meta (que ele quase não usa) para o "Online".
 - **Barra (`components/AdminBottomNav.jsx`):** corretor/associado = Simulador, Clientes, Chat, Agenda (Meta vai para o "Mais"); gestor sem mudança (Meta, Clientes, Chat, Agenda); admin geral sem mudança (Online, Clientes, Chat, Desempenho). Menu do topo (desktop) e atalho de Meta na tela Clientes (desktop) não mudaram.

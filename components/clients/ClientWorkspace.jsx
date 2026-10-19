@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
+import { Calculator, CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
@@ -115,6 +115,10 @@ export default function ClientWorkspace(props) {
             <Link href="/admin/calendario" aria-label={`Agenda${badgeCounts.agenda ? ` (${badgeCounts.agenda} pendentes)` : ""}`} title="Agenda" className={SHORTCUT}>
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
+            </Link>
+            {/* Simulador Caixa (dono, 2026-10-19): todos os perfis do painel; sem contador. */}
+            <Link href="/admin/simulador-caixa" aria-label="Simulador Caixa" title="Simulador Caixa" className={SHORTCUT}>
+              <Calculator className="h-5 w-5" aria-hidden="true" />
             </Link>
             {showCooledInbox ? <CooledClientsInbox align="end" variant="shortcut" /> : null}
             {showNotifications ? <NotificationHistoryButton align="end" variant="shortcut" /> : null}

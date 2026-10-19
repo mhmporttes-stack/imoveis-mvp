@@ -121,3 +121,9 @@ test("barra do corretor/associado: Simulador no lugar da Meta; pré-carregamento
   assert.match(read("app/admin/desempenho/online/page.jsx"), /unstable_dynamicStaleTime = 300/);
   assert.match(read("components/OnlinePresenceBoard.jsx"), /useRevalidateOnReuse\(renderId/);
 });
+
+test("atalho do Simulador Caixa no cabeçalho de Clientes (computador), sem contador (dono, 2026-10-19)", () => {
+  const workspace = read("components/clients/ClientWorkspace.jsx");
+  assert.match(workspace, /<Link href="\/admin\/simulador-caixa" aria-label="Simulador Caixa" title="Simulador Caixa" className=\{SHORTCUT\}>/);
+  assert.match(workspace, /href="\/admin\/meta-diaria"/);
+});
