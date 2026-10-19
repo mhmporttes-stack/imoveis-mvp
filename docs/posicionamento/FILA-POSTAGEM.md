@@ -23,6 +23,7 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ## Publicados
+- Erros que fazem muita gente continuar no aluguel (2026-10-19, azul) — dono postou na hora
 - Apartamento no Praça Esmeraldas (COD4356, imóvel) — postado pelo dono em 2026-10-18
 - Casa no Terra Verde (COD4355, imóvel) — publicado pelo Claude via Windsor em 2026-10-17 (media 18381444688238971); ainda falta o site
 - Casa nova com 2 dormitórios · Palmital (COD4354, imóvel) — postado em 2026-10-16, no site
