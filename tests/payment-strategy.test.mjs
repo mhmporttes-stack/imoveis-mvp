@@ -11,6 +11,11 @@ import {
   choicesFromSaved,
   choicesToExtras,
   cltMonthlyIncome,
+  employeeInss,
+  net13thSalary,
+  thirteenthIrrf,
+  THIRTEENTH_SALARY_MONTH,
+  APPLY_IR_REDUCTION_TO_13TH,
   compareStrategy,
   deduceAnnualRate,
   describeChoices,
@@ -31,7 +36,7 @@ import { PUBLIC_DTO_FIELDS, PUBLIC_STRATEGY_FIELDS, PUBLIC_STRATEGY_OPTION_FIELD
 import { generatePaymentStrategyPdf, strategyPdfFileName } from "../lib/payment-strategy-pdf.mjs";
 
 const close = (actual, expected, tolerance = 1) => assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected} (±${tolerance})`);
-const ALL = { decimoTerceiro: 3000, fgts: 5760, extraAnual: false }; // salário CLT de R$ 3.000: 13º = 3.000; FGTS = 3.000 × 8% × 24; CLT não tem extra anual
+const ALL = { decimoTerceiro: 2727.2, fgts: 5760, extraAnual: false }; // salário CLT de R$ 3.000: 13º líquido = 2.727,20; FGTS = 3.000 (bruto) × 8% × 24; CLT não tem extra anual
 const base = { sistema: "price", financiamento: 200000, taxaAnual: 5.4, prazoMeses: 420, parcela: 1250, mesInicial: 11, opcoes: ALL };
 
 // ---------- motor: sem estratégia ----------
@@ -66,7 +71,7 @@ test("taxa zero: sem juros", () => {
 });
 
 // ---------- extras ----------
-test("calendário: 13º no mês escolhido, FGTS a cada 24 meses, extra todo mês", () => {
+test("calendário: 13º sempre em dezembro, FGTS a cada 24 meses, extra todo mês", () => {
   assert.equal(calendarMonthOf(1, 11), 11);
   assert.equal(calendarMonthOf(2, 11), 12);
   assert.equal(calendarMonthOf(3, 11), 1);
@@ -80,7 +85,10 @@ test("calendário: 13º no mês escolhido, FGTS a cada 24 meses, extra todo mês
   assert.equal(extraForMonth(36, 1, fgts), 0);
   assert.equal(extraForMonth(48, 1, fgts), 10000);
   assert.equal(extraForMonth(5, 1, { extraMensal: { valor: 200 } }), 200);
-  assert.equal(extraForMonth(24, 12, { decimoTerceiro: { valor: 1000, mes: 11 }, fgts: { valor: 5000 }, extraMensal: { valor: 100 } }), 6100);
+  // mês 24 começando em dezembro = novembro: o 13º (mesmo com mes: 11 gravado) não cai aí; cai no mês 25 (dezembro)
+  assert.equal(extraForMonth(24, 12, { decimoTerceiro: { valor: 1000, mes: 11 }, fgts: { valor: 5000 }, extraMensal: { valor: 100 } }), 5100);
+  assert.equal(extraForMonth(25, 12, { decimoTerceiro: { valor: 1000, mes: 11 }, fgts: { valor: 5000 }, extraMensal: { valor: 100 } }), 1100);
+  assert.equal(THIRTEENTH_SALARY_MONTH, 12);
 });
 
 test("Price com extra mensal: prestação mantida, prazo e juros caem", () => {
@@ -135,8 +143,10 @@ test("compareStrategy: economia de juros e meses a menos; base inválida → nul
 
 // ---------- escolhas (allowlist) ----------
 test("parseStrategyChoices: allowlist estrita", () => {
+  // 13º sem mês (sempre dezembro, 2026-10-19): `mes` de tela antiga é aceito e descartado
   const ok = parseStrategyChoices({ decimoTerceiro: { ativo: true, mes: 11 }, extraMensal: { ativo: false, valor: 0 } });
-  assert.deepEqual(ok.decimoTerceiro, { ativo: true, mes: 11 });
+  assert.deepEqual(ok.decimoTerceiro, { ativo: true });
+  assert.deepEqual(emptyChoices().decimoTerceiro, { ativo: false });
   assert.deepEqual(ok.fgts, { ativo: false });
   assert.deepEqual(parseStrategyChoices({}), emptyChoices());
   // 13º e FGTS: valor vindo do cliente é recusado (o servidor calcula); restituição do IR não existe mais
@@ -146,7 +156,8 @@ test("parseStrategyChoices: allowlist estrita", () => {
     assert.equal(parseStrategyChoices(bad), null, JSON.stringify(bad));
   }
   assert.deepEqual(Object.keys(choicesToExtras(ok, base)), ["decimoTerceiro"]);
-  assert.deepEqual(describeChoices(ok, (v) => `R$${v}`, base), ["13º salário: R$3000 por ano, em novembro"]);
+  assert.deepEqual(describeChoices(ok, (v) => `R$${v}`, base), ["13º salário (líquido estimado): R$2727.2 por ano, em dezembro"]);
+  assert.deepEqual(choicesToExtras(ok, base).decimoTerceiro, { valor: 2727.2, mes: 12 });
 });
 
 test("formatDuration e mensagem do WhatsApp (só o primeiro nome)", () => {
@@ -199,7 +210,7 @@ function simulation(overrides = {}) {
 }
 
 test("base da estratégia = modelo destacado pela apresentação (Price; só SAC → SAC), sem redigitar", () => {
-  const clt = { decimoTerceiro: 3000, fgts: 5760, extraAnual: false };
+  const clt = { decimoTerceiro: 2727.2, fgts: 5760, extraAnual: false };
   assert.deepEqual(buildPaymentStrategyBase(simulation()), { sistema: "price", financiamento: 190000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 420, parcela: 1085.4, mesInicial: 11, opcoes: clt });
   const sacOnly = simulation({ simulationModels: { usado: { financingValue: "", subsidyValue: "", firstInstallment: "", lastInstallment: "", termMonths: "", sac: { financingValue: "150.000,00", firstInstallment: "1.400,00", lastInstallment: "420,00", termMonths: "300" } } } });
   assert.deepEqual(buildPaymentStrategyBase(sacOnly), { sistema: "sac", financiamento: 150000, taxaAnual: 5.4, taxaEstimada: false, prazoMeses: 300, parcela: 1400, mesInicial: 11, opcoes: clt });
@@ -239,7 +250,7 @@ test("DTO público: `estrategia` só com os campos da allowlist e nada sensível
   assert.equal(typeof dto.estrategia.opcoes.decimoTerceiro, "number");
   assert.equal(typeof dto.estrategia.opcoes.fgts, "number");
   assert.equal(typeof dto.estrategia.opcoes.extraAnual, "boolean");
-  // a renda (8123,45 do cadastro / 3000 de renda CLT) nunca sai; só os valores resultantes (3000 = 1 salário é o 13º)
+  // a renda (8123,45 do cadastro / 3000 de renda CLT) nunca sai; só os valores resultantes (13º líquido e FGTS)
   const json = JSON.stringify(dto);
   for (const forbidden of ["123.456.789-09", "14999887766", "8123", "u1", "Souza", "wa.me", "registered_employment", "income_tax", "self_employed"]) assert.ok(!json.includes(forbidden), forbidden);
   const noRate = simulation({ interestRateAnnual: null });
@@ -266,10 +277,10 @@ test("PDF: gera um A4 válido, nome do arquivo sem acento", async () => {
 // ---------- opções conforme o cadastro (regras do dono, 2026-10-18) ----------
 test("13º e FGTS automáticos pela renda CLT: CLT, composição, informal, sem dado", () => {
   const clt = strategyOptionsFromRegistration({ simulationType: "individual", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 3000 });
-  assert.deepEqual(clt, { decimoTerceiro: 3000, fgts: 5760, extraAnual: false }); // 3.000 × 8% × 24
+  assert.deepEqual(clt, { decimoTerceiro: 2727.2, fgts: 5760, extraAnual: false }); // 13º líquido; FGTS = 3.000 × 8% × 24 (bruto)
   // composição: soma só a renda das pessoas CLT
   assert.equal(cltMonthlyIncome({ simulationType: "joint", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 2500, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 1500 }), 4000);
-  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", primaryMonthlyIncome: 5000, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 2000 }), { decimoTerceiro: 2000, fgts: 3840, extraAnual: false });
+  assert.deepEqual(strategyOptionsFromRegistration({ simulationType: "joint", primaryIncomeType: "self_employed_unregistered", primaryMonthlyIncome: 5000, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 2000 }), { decimoTerceiro: 1844.31, fgts: 3840, extraAnual: false });
   assert.equal(cltMonthlyIncome({ simulationType: "joint", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 2000, secondaryIncomeType: "income_tax_declarant", secondaryMonthlyIncome: 9000 }), 2000);
   // segundo participante só conta em simulação conjunta
   assert.equal(cltMonthlyIncome({ simulationType: "individual", primaryIncomeType: "self_employed_unregistered", secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 3000 }), 0);
@@ -300,14 +311,18 @@ test("motor e servidor recusam opção não permitida; 13º/FGTS usam o valor da
   // valor de 13º/FGTS gravado/forjado é ignorado: vale o da base
   const restricted = restrictChoices({ ...forced, fgts: { ativo: true, valor: 999999 } }, base);
   assert.equal(restricted.fgts.valor, 5760);
-  assert.equal(restricted.decimoTerceiro.valor, 3000);
+  assert.equal(restricted.decimoTerceiro.valor, 2727.2);
   assert.deepEqual(choicesToExtras({ ...forced, fgts: { ativo: true, valor: 999999 } }, base).fgts, { valor: 5760, intervaloMeses: FGTS_INTERVAL_MONTHS });
   // corpo do POST nunca leva o valor automático; gravado antigo (com IR/valor) é lido sem erro
   assert.deepEqual(choicesForRequest(restricted).fgts, { ativo: true });
   assert.ok(parseStrategyChoices(choicesForRequest(restricted)));
   const legado = choicesFromSaved({ decimoTerceiro: { ativo: true, valor: 1, mes: 11 }, restituicaoIr: { ativo: true, valor: 1500 }, fgts: { ativo: true, valor: 8000 }, extraMensal: { ativo: true, valor: 50 } });
-  assert.deepEqual(legado, { ...emptyChoices(), decimoTerceiro: { ativo: true, mes: 11 }, fgts: { ativo: true }, extraMensal: { ativo: true, valor: 50 } });
-  assert.deepEqual(describeChoices(forced, (v) => `R$ ${v}`, base), ["13º salário: R$ 3000 por ano, em dezembro", "FGTS: R$ 5760 a cada 2 anos"]);
+  assert.deepEqual(legado, { ...emptyChoices(), decimoTerceiro: { ativo: true }, fgts: { ativo: true }, extraMensal: { ativo: true, valor: 50 } }); // mês antigo do 13º descartado
+  assert.deepEqual(describeChoices(forced, (v) => `R$ ${v}`, base), ["13º salário (líquido estimado): R$ 2727.2 por ano, em dezembro", "FGTS: R$ 5760 a cada 2 anos"]);
+  // painel do CRM lendo estratégia gravada ANTES (valor bruto, mês de março): sem rótulo de líquido e sempre dezembro
+  const gravada = { decimoTerceiro: { ativo: true, valor: 3000, mes: 3 } };
+  assert.deepEqual(choicesToExtras(gravada).decimoTerceiro, { valor: 3000, mes: 12 });
+  assert.deepEqual(describeChoices(gravada, (v) => `R$ ${v}`), ["13º salário: R$ 3000 por ano, em dezembro"]);
 });
 
 test("valor extra por ano: mês escolhido, só informal, frase do resultado", () => {
@@ -372,4 +387,32 @@ test("gráfico (dono, 2026-10-19): pontas e diferença só em anos inteiros, arr
   assert.equal(yearsLessText(420, 404), "1 ano a menos");
   assert.equal(yearsLessText(420, 414), ""); // diferença arredondada 0 → sem texto
   assert.doesNotMatch(yearsLessText(420, 137), /m[eê]s/);
+});
+
+// ---------- 13º líquido estimado (regra do dono, 2026-10-19) ----------
+// Conferido à mão com INSS 2026 (Portaria MPS/MF 13/2026) e IRRF mensal 2026 (Lei 15.191/2025), sem a redução da Lei 15.270:
+//  2.000: INSS 121,575 + 379×9% = 155,69; base 1.844,31 isenta → 1.844,31
+//  3.000: INSS 121,575 + 115,3656 + 97,16×12% = 248,60; base 2.751,40 × 7,5% − 182,16 = 24,20 → 2.727,20
+//  7.000: INSS ... + 2.645,73×14% = 781,51; base 6.218,49 × 27,5% − 908,73 = 801,35 → 5.417,14
+// 12.000: INSS no teto 988,09; base 11.011,91 × 27,5% − 908,73 = 2.119,55 → 8.892,36
+test("13º líquido: INSS progressivo + IRRF do 13º (tabelas 2026), valores conferidos à mão", () => {
+  assert.equal(APPLY_IR_REDUCTION_TO_13TH, false); // redução da Lei 15.270 no 13º: A CONFIRMAR (fica desligada)
+  const cases = [[2000, 155.69, 0, 1844.31], [3000, 248.6, 24.2, 2727.2], [7000, 781.51, 801.35, 5417.14], [12000, 988.09, 2119.55, 8892.36]];
+  for (const [gross, inss, ir, net] of cases) {
+    assert.equal(employeeInss(gross), inss, `INSS ${gross}`);
+    assert.equal(thirteenthIrrf(gross), ir, `IR ${gross}`);
+    assert.equal(net13thSalary(gross), net, `líquido ${gross}`);
+  }
+  assert.equal(employeeInss(20000), employeeInss(8475.55)); // teto
+  for (const empty of [0, -1, null, undefined, "x"]) assert.equal(net13thSalary(empty), 0);
+});
+
+test("13º líquido na composição: por pessoa CLT e somado (nunca sobre a soma); FGTS segue no bruto", () => {
+  const joint = { simulationType: "joint", primaryIncomeType: "registered_employment", primaryMonthlyIncome: 3000, secondaryIncomeType: "registered_employment", secondaryMonthlyIncome: 7000 };
+  const options = strategyOptionsFromRegistration(joint);
+  assert.equal(options.decimoTerceiro, 8144.34); // 2.727,20 + 5.417,14
+  assert.notEqual(options.decimoTerceiro, net13thSalary(10000)); // sobre a soma daria outro valor
+  assert.equal(options.fgts, 19200); // 10.000 × 8% × 24
+  // participante não CLT não entra no 13º
+  assert.equal(strategyOptionsFromRegistration({ ...joint, secondaryIncomeType: "income_tax_declarant" }).decimoTerceiro, 2727.2);
 });

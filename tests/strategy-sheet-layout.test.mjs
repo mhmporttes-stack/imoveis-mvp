@@ -128,3 +128,14 @@ test("gráfico (dono, 2026-10-19, 2ª rodada): vermelha sobe, depois a verde, de
   assert.match(pdf, /formatRoundedYears\(comparison\.com\.months\)/);
   assert.doesNotMatch(pdf, /formatDuration\(comparison\.sem\.months - comparison\.com\.months\)/);
 });
+
+// Ajustes do dono (2026-10-19, PRES-24): gráfico é PROJEÇÃO (o cliente nem assinou) e o 13º não tem mais seletor de mês.
+test("gráfico 'Projeção de quitação' (tela e PDF), nunca 'já quitou'; 13º sem seletor de mês e texto do 13º líquido", () => {
+  const chart = read("components/presentation/StrategyBalanceChart.jsx");
+  const pdf = read("lib/payment-strategy-pdf.mjs");
+  assert.match(chart, /<figcaption[^>]*>Projeção de quitação<\/figcaption>/);
+  assert.match(pdf, /text\("PROJEÇÃO DE QUITAÇÃO"/);
+  for (const source of [chart, pdf, jsx]) assert.doesNotMatch(source.replace(/\/\/.*$/gm, ""), /já quitou|JÁ QUITOU/);
+  assert.match(jsx, /const MONTH_DEFAULTS = \{ extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH \};/);
+  assert.match(jsx, /por ano \(13º líquido estimado\)/);
+});

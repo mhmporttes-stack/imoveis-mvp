@@ -5,7 +5,7 @@ import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatDuration, formatRoundedYears, yearsLessText } from "@/lib/payment-strategy-core.mjs";
 import styles from "./presentation.module.css";
 
-// Gráfico "Quanto do financiamento você já quitou" da folha da Estratégia (PRES-24). SÓ APRESENTAÇÃO: lê as séries de saldo
+// Gráfico "Projeção de quitação" (título do dono, 2026-10-19: é projeção da simulação, o cliente nem assinou) da folha da Estratégia (PRES-24). SÓ APRESENTAÇÃO: lê as séries de saldo
 // que o motor (`compareStrategy`, lib/payment-strategy-core.mjs) já calculou — o valor quitado é só (financiado − saldo devedor)
 // do mesmo mês; nenhum número de amortização/juros é recalculado aqui.
 // - Ajustes do dono (2026-10-19): as duas linhas iguais (mesma espessura, sólidas, mesma curva), só a cor muda — vermelho
@@ -246,12 +246,12 @@ export default function StrategyBalanceChart({ comparison, showStrategy }) {
   const COM_END = 2 * DRAW_SECONDS;
 
   const summary = withStrategy
-    ? `Valor financiado: ${formatBRL(start)}. Sem amortização, fica todo quitado em ${formatDuration(sem.months)}. Com amortização, quitado em ${formatDuration(com.months)}${gapText ? `: ${gapText}` : ""}${comparison.economiaJuros > 0 ? `, com ${formatBRL(comparison.economiaJuros)} a menos de juros` : ""}.`
-    : `Valor financiado: ${formatBRL(start)}. Sem amortização, fica todo quitado em ${formatDuration(sem.months)}.`;
+    ? `Projeção. Valor financiado: ${formatBRL(start)}. Sem amortização, seria todo quitado em ${formatDuration(sem.months)}. Com amortização, seria quitado em ${formatDuration(com.months)}${gapText ? `: ${gapText}` : ""}${comparison.economiaJuros > 0 ? `, com ${formatBRL(comparison.economiaJuros)} a menos de juros` : ""}.`
+    : `Projeção. Valor financiado: ${formatBRL(start)}. Sem amortização, seria todo quitado em ${formatDuration(sem.months)}.`;
 
   return (
     <figure className={styles.stChart}>
-      <figcaption className={styles.stLabel}>Quanto do financiamento você já quitou</figcaption>
+      <figcaption className={styles.stLabel}>Projeção de quitação</figcaption>
       <p className={styles.stSrOnly}>{summary}</p>
       <div
         key={scene.run}

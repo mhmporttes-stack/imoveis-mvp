@@ -6,7 +6,6 @@ import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
 import { formatCurrencyInput, wholeReaisFromCurrencyInput } from "@/lib/property-filter-options";
 import {
-  DEFAULT_13TH_MONTH,
   DEFAULT_ANNUAL_EXTRA_MONTH,
   MONTH_NAMES,
   STRATEGY_MAX_AMOUNT,
@@ -36,12 +35,13 @@ import styles from "./presentation.module.css";
 // Prévia (`preview`): PDF pelo endpoint do CRM (`pdfEndpoint`); o contato fica desativado.
 
 const OPTIONS = [
-  { key: "decimoTerceiro", label: "13º salário", hint: (value) => `${formatBRL(value)} por ano (1 salário)`, auto: true },
+  { key: "decimoTerceiro", label: "13º salário", hint: (value) => `${formatBRL(value)} por ano (13º líquido estimado)`, auto: true },
   { key: "fgts", label: "FGTS", hint: (value) => `${formatBRL(value)} a cada 2 anos (8% do salário × 24 meses)`, auto: true },
   { key: "extraMensal", label: "Valor extra por mês", hint: "todo mês, junto da parcela" },
   { key: "extraAnual", label: "Valor extra por ano", hint: "uma vez por ano, no mês escolhido" }
 ];
-const MONTH_DEFAULTS = { decimoTerceiro: DEFAULT_13TH_MONTH, extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH };
+// Só o extra anual tem mês: o 13º cai sempre em dezembro (regra do dono, 2026-10-19 — o seletor de mês do 13º saiu).
+const MONTH_DEFAULTS = { extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH };
 
 const SYSTEM_LABEL = { price: "Tabela Price", sac: "SAC" };
 

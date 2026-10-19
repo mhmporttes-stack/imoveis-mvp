@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Estratégia com amortização: 13º líquido, 13º sempre em dezembro e "Projeção de quitação"
+- **Data:** 2026-10-19
+- **Área:** Apresentação da simulação (PRES-24)
+- **Alteração:** (1) 13º automático passa a ser o LÍQUIDO estimado (bruto − INSS progressivo − IRRF do 13º), por pessoa CLT e somado; FGTS segue no bruto. Tabelas INSS 2026 (Portaria MPS/MF 13/2026) e IRRF 2026 (Lei 15.191/2025) num só lugar (`lib/payment-strategy-core.mjs`, `net13thSalary`). Texto "R$ X por ano (13º líquido estimado)", frase do resultado e PDF com o líquido. (2) Seletor de mês do 13º removido: sempre dezembro (`THIRTEENTH_SALARY_MONTH`); mês antigo gravado/enviado é aceito e ignorado. (3) Título do gráfico "Projeção de quitação" (tela e PDF; texto de leitor de tela no condicional).
+- **Motivo:** decisões do dono em 2026-10-19 (o 13º real chega líquido; o mês do 13º é sempre dezembro; "já quitou" afirmava um fato sobre um financiamento que nem foi assinado).
+- **Arquivos afetados:** `lib/payment-strategy-core.mjs`, `lib/payment-strategy-pdf.mjs`, `components/presentation/StrategySheet.jsx`, `components/presentation/StrategyBalanceChart.jsx`, `tests/payment-strategy.test.mjs`, `tests/strategy-sheet-layout.test.mjs`, `docs/BUSINESS_RULES.md`, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** exemplos conferidos à mão: 2.000 → 1.844,31; 3.000 → 2.727,20; 7.000 → 5.417,14; 12.000 → 8.892,36. Estratégias gravadas antes guardam o 13º bruto: o painel do CRM mostra o valor gravado sem o rótulo "líquido" (sem migration/backfill). A CONFIRMAR: redução da Lei 15.270/2025 no 13º (fonte oficial não esclarece; desligada por `APPLY_IR_REDUCTION_TO_13TH = false`). Atualizar as tabelas na virada do ano. Sem mudança de banco, rota ou permissão.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — Gráfico da Estratégia: cena em sequência que se repete e anos só inteiros
 - **Data:** 2026-10-19
 - **Área:** Apresentação da simulação (PRES-24)
