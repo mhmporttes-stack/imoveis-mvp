@@ -113,3 +113,35 @@ test("refazer simulação automática: guard do cliente, confirmação antes de 
   assert.match(source("lib/simulation-auto-reviews.js"), /AUTO_REVIEW_STATUS\.SUPERSEDED/);
   assert.doesNotMatch(route, /sendWhatsapp|sendMessage|ensurePresentation/);
 });
+
+import { scenarioDataFromSimulation, scenarioDiff, scenarioHighlights, scenarioModelsForForm, scenarioValuesKey } from "../lib/simulation-scenarios-core.mjs";
+
+test("comparar simulações: dados do cenário, destaques, diferença e volta ao formato do Gerador", () => {
+  const simulation = (financing, subsidy, first) => ({ interestRateAnnual: 4.5, simulationModels: {
+    novo: { financingValue: `R$ ${financing}`, subsidyValue: `R$ ${subsidy}`, firstInstallment: `R$ ${first}`, termMonths: "420" },
+    usado: { financingValue: `R$ ${financing}`, subsidyValue: "R$ 1000", firstInstallment: `R$ ${first}`, termMonths: "420" } } });
+  const a = { id: "a", data: scenarioDataFromSimulation(simulation(150000, 20000, 750), { estimate: { income: 2550, used: { income: 2400 } } }) };
+  const b = { id: "b", data: scenarioDataFromSimulation(simulation(115000, 48000, 555)) };
+  assert.equal(a.data.novo.power, 170000);
+  assert.equal(a.data.inputs.incomeNovo, 2550);
+  assert.equal(a.data.inputs.incomeUsado, 2400);
+  const highlights = scenarioHighlights([a, b]);
+  assert.equal(highlights.novo.bestPowerId, "a");
+  assert.equal(highlights.novo.lowestInstallmentId, "b");
+  assert.deepEqual(scenarioDiff(b.data, a.data).novo, { power: -7000, firstInstallment: -195 });
+  assert.equal(scenarioModelsForForm(b.data).novo.financingValue, "R$ 115.000,00");
+  assert.notEqual(scenarioValuesKey(a.data), scenarioValuesKey(b.data));
+  assert.equal(scenarioValuesKey(a.data), scenarioValuesKey(scenarioDataFromSimulation(simulation(150000, 20000, 750))));
+});
+
+test("cenários: gravados no site, no refazer e no Salvar do corretor; usar cenário com confirmação e guard", () => {
+  assert.match(source("app/api/simulation-registrations/route.js"), /recordScenario\(\{ registrationId: registration\.id, simulationId: saved\.simulation\.id, origin: "site"/);
+  assert.match(source("app/api/admin/clients/[id]/simulacao-automatica/route.js"), /origin: "refazer"/);
+  const lib = source("lib/simulations.js");
+  assert.match(lib, /origin: "corretor", checked: true, data: scenarioData, actor, dedupe: true/);
+  assert.match(lib, /export async function applySimulationScenario[\s\S]*assertCanAccessResponsibleUser\(auth/);
+  assert.match(lib, /if \(existing && \(Number\(existing\.financing_value\) > 0 \|\| Number\(existing\.subsidy_value\) > 0\) && !confirmReplace\)/);
+  const route = source("app/api/admin/clients/[id]/cenarios/route.js");
+  assert.match(route, /requireAdminApi/);
+  assert.match(route, /assertCanAccessResponsibleUser/);
+});

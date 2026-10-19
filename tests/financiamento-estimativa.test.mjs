@@ -6,8 +6,7 @@ import {
   ageInMonths,
   estimateFinancing,
   estimateSubsidy,
-  estimateUsedSubsidy,
-  scenarioValue
+  estimateUsedSubsidy
 } from "../lib/financiamento-estimativa-core.mjs";
 
 // Casos REAIS do simulador da Caixa gravados no CRM (tabela `simulations`, jul–out/2026), anonimizados: sem nome,
@@ -160,14 +159,16 @@ test("renda: informal com só filho OU só 3 anos = declarada, com teto de R$ 2.
   assert.equal(estimateFinancing(onlyFgts, REFERENCE_DATE).income, 2550);
 });
 
-test("renda: informal com filho E 3 anos testa de 1 salário mínimo a R$ 2.550 e fica com o maior imóvel possível", () => {
+test("renda: informal com filho E 3 anos — novo e usado otimizados separadamente (maior poder; empate → menor parcela)", () => {
   const input = { ...base, primaryMonthlyIncome: 5000, primaryIncomeType: informal, hasChildrenUnder18: true, hasOverThreeYearsRegisteredWork: true };
   const best = estimateFinancing(input, REFERENCE_DATE);
   assert.equal(best.incomeRule, "optimize");
   assert.ok(best.income >= 1621 && best.income <= 2550);
-  for (const income of [1621, 1900, 2000, 2300, 2550]) {
+  assert.ok(best.used.income >= 1621 && best.used.income <= 2550);
+  for (let income = 1621; income <= 2550; income += 7) {
     const other = estimateFinancing({ ...input, primaryMonthlyIncome: income, primaryIncomeType: "registered_employment" }, REFERENCE_DATE);
-    assert.ok(scenarioValue(best) >= scenarioValue(other) - 1, `renda ${income}`);
+    assert.ok(best.financing + best.subsidy >= other.financing + other.subsidy - 0.01, `novo, renda ${income}`);
+    assert.ok(best.used.financing + best.used.subsidy >= other.financing + other.used.subsidy - 0.01, `usado, renda ${income}`);
   }
 });
 
@@ -184,7 +185,8 @@ test("refazer: usa a renda do cadastro (informal só com teto de R$ 2.550) e dev
   const redo = estimateFinancing(input, REFERENCE_DATE, { incomeMode: "registered" });
   assert.equal(redo.income, 1800);
   assert.equal(redo.informalCapped, false);
-  assert.equal(suggestedInformalIncome(input, REFERENCE_DATE), estimateFinancing(input, REFERENCE_DATE).income);
+  const best = estimateFinancing(input, REFERENCE_DATE);
+  assert.deepEqual(suggestedInformalIncome(input, REFERENCE_DATE), { novo: best.income, usado: best.used.income });
   const high = estimateFinancing({ ...input, primaryMonthlyIncome: 9000 }, REFERENCE_DATE, { incomeMode: "registered" });
   assert.equal(high.income, 2550);
   assert.equal(high.informalCapped, true);

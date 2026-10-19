@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: renda ideal separada para novo e usado; aba "Comparar simulações"
+- **Data:** 2026-10-19
+- **Área:** Motor da estimativa, simulação automática, aba da simulação
+- **Alteração:** otimização da renda informal separada por tipo (maior financiado + subsídio; desempate menor parcela) — `used` do motor passa a ter renda, financiamento, parcelas e taxa próprios; nota "Renda para usar na Caixa — novo / usado"; sugestão do Refazer com as duas rendas. Nova aba "Comparar simulações" com histórico de cenários (`simulation_scenarios`) e "Usar este cenário".
+- **Motivo:** regras do dono (2026-10-19), teste real #C6771.
+- **Verificação:** testes `financiamento-estimativa`, `simulation-auto-status`; suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** `lib/financiamento-estimativa-core.mjs`, `lib/simulations.js`, `lib/simulation-scenarios.js`, `lib/simulation-scenarios-core.mjs`, `lib/simulation-auto-review-core.mjs`, `lib/simulation-status-lock-core.mjs`, `app/api/admin/clients/[id]/cenarios/route.js`, `app/api/admin/clients/[id]/simulacao-automatica/route.js`, `app/api/simulation-registrations/route.js`, `components/SimulationScenarios.jsx`, `components/RedoAutoSimulationButton.jsx`, `components/simulation-form/SimulationSuccess.jsx`, `app/admin/simulacoes/[id]/page.jsx`, `supabase/migrations/20261019210000_simulation_scenarios.sql` (NÃO aplicada).
+- **Risco/observação:** no caso do dono o critério "maior poder" escolhe R$ 2.550 (não R$ 1.900) — conflito reportado. Simulação tem uma só taxa (a do novo); a do usado vai na nota quando difere.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: "Refazer simulação automática"
 - **Data:** 2026-10-19
 - **Área:** Aba Simulação (Gerador) e ficha do cliente; `simulations`; `simulation_auto_reviews`

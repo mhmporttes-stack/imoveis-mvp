@@ -11,6 +11,8 @@ import { announceAlexaEvent } from "@/lib/alexa-service";
 import { saveSiteSimulationFromRegistration } from "@/lib/simulations";
 import { saveAutoSnapshot } from "@/lib/simulation-auto-reviews";
 import { buildAutoSnapshot } from "@/lib/simulation-auto-review-core.mjs";
+import { recordScenario } from "@/lib/simulation-scenarios";
+import { scenarioDataFromSimulation } from "@/lib/simulation-scenarios-core.mjs";
 import { extractRequestMetadata } from "@/lib/meta-conversions-api";
 import { buildRateLimitKey, checkPublicRateLimit } from "@/lib/rate-limit";
 
@@ -47,7 +49,10 @@ export async function POST(request) {
       const saved = await saveSiteSimulationFromRegistration(registration);
       if (saved.automatic && saved.simulation?.id) {
         await markRegistrationAutoSimulation(registration.id);
-        await saveAutoSnapshot({ registrationId: registration.id, simulationId: saved.simulation.id, snapshot: buildAutoSnapshot(registration, saved.estimate, saved.referenceDate) });
+        const snapshot = buildAutoSnapshot(registration, saved.estimate, saved.referenceDate);
+        await saveAutoSnapshot({ registrationId: registration.id, simulationId: saved.simulation.id, snapshot });
+        // Cenário para "Comparar simulações" (nunca derruba o cadastro).
+        await recordScenario({ registrationId: registration.id, simulationId: saved.simulation.id, origin: "site", data: { ...scenarioDataFromSimulation(saved.simulation, { registration, estimate: saved.estimate }), autoSnapshot: snapshot } });
       }
     } catch (simulationError) {
       console.warn("Site simulation creation failed:", simulationError?.message || simulationError);

@@ -61,7 +61,8 @@ function EstimateResult({ estimate }) {
 
       <p className="mt-3 text-center text-xs font-semibold leading-5 text-muted">
         Renda considerada na simulação: <span className="text-navy tabular-nums">{formatMoneyBR(estimate.income)}</span>
-        {estimate.incomeAdjusted ? <> (melhor cenário para o seu perfil; você informou {formatMoneyBR(estimate.declaredIncome)})</> : null}
+        {estimate.used && Math.abs(estimate.used.income - estimate.income) > 0.005 ? <> no imóvel novo e <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.income)}</span> no usado</> : null}
+        {estimate.incomeAdjusted || (estimate.used && Math.abs(estimate.used.income - estimate.declaredIncome) > 0.005) ? <> (melhor cenário para o seu perfil; você informou {formatMoneyBR(estimate.declaredIncome)})</> : null}
       </p>
 
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
@@ -75,7 +76,7 @@ function EstimateResult({ estimate }) {
 
       {estimate.used ? (
         <p className="mt-3 rounded-2xl bg-mist px-4 py-3 text-xs font-semibold leading-5 text-muted">
-          Imóvel usado: subsídio estimado de <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.subsidy)}</span> · pode comprar até <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.purchasePower)}</span>
+          Imóvel usado: subsídio estimado de <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.subsidy)}</span> · pode comprar até <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.purchasePower)}</span> · 1ª parcela Price <span className="text-navy tabular-nums">{formatMoneyBR(estimate.used.priceFirstInstallment)}</span>
         </p>
       ) : null}
 

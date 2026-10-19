@@ -37,9 +37,9 @@ export default function RedoAutoSimulationButton({ registrationId, onDone = null
       }
       if (!response.ok) throw new Error(data.error || "Não foi possível refazer a simulação.");
       const notes = [
-        `Refeita com renda de ${money(data.income)}.`,
+        `Refeita com renda de ${money(data.income)}${data.usedIncome && Math.abs(data.usedIncome - data.income) > 0.005 ? ` (usado: ${money(data.usedIncome)})` : ""}.`,
         data.informalCapped ? "Renda informal acima de R$ 2.550 por pessoa: aplicado o teto." : "",
-        data.suggestion && Math.abs(data.suggestion - data.income) > 0.005 ? `Renda sugerida para informal: ${money(data.suggestion)}.` : ""
+        data.suggestion ? `Renda sugerida para informal — novo: ${money(data.suggestion.novo)} / usado: ${money(data.suggestion.usado)}.` : ""
       ].filter(Boolean).join(" ");
       setFeedback({ tone: "ok", text: notes });
       if (onDone) await onDone();

@@ -11,6 +11,7 @@ import { getSimulation } from "@/lib/simulations";
 import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
 import AutoSimulationReview from "@/components/AutoSimulationReview";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
+import SimulationScenarios from "@/components/SimulationScenarios";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import { isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 
@@ -44,8 +45,10 @@ export default async function EditSimulationPage({ params }) {
       ) : null}
       {/* "Refazer simulação automática" (dono, 2026-10-19): recalcula com o cadastro atual; volta a exigir a conferência. */}
       {simulation.registrationId ? (
-        <section className="container-page mb-8">
+        <section className="container-page mb-8 space-y-4">
           <RedoAutoSimulationButton registrationId={simulation.registrationId} />
+          {/* "Comparar simulações" (dono, 2026-10-19): componente separado, fácil de reposicionar no redesenho. */}
+          <SimulationScenarios registrationId={simulation.registrationId} />
         </section>
       ) : null}
       {/* Apresentação interativa (o PDF da simulação saiu do CRM). */}
