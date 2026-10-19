@@ -6,8 +6,6 @@ import { formatBRL } from "@/lib/simulation-presentation-format.mjs";
 import { formatInterestRateLabel } from "@/lib/interest-rate.mjs";
 import { formatCurrencyInput, wholeReaisFromCurrencyInput } from "@/lib/property-filter-options";
 import {
-  DEFAULT_ANNUAL_EXTRA_MONTH,
-  MONTH_NAMES,
   STRATEGY_MAX_AMOUNT,
   STRATEGY_NAME,
   compareStrategy,
@@ -38,10 +36,10 @@ const OPTIONS = [
   { key: "decimoTerceiro", label: "13º salário", hint: (value) => `${formatBRL(value)} por ano (13º líquido estimado)`, auto: true },
   { key: "fgts", label: "FGTS", hint: (value) => `${formatBRL(value)} a cada 2 anos (8% do salário × 24 meses)`, auto: true },
   { key: "extraMensal", label: "Valor extra por mês", hint: "todo mês, junto da parcela" },
-  { key: "extraAnual", label: "Valor extra por ano", hint: "uma vez por ano, no mês escolhido" }
+  { key: "extraAnual", label: "Valor extra por ano", hint: "uma vez por ano" }
 ];
-// Só o extra anual tem mês: o 13º cai sempre em dezembro (regra do dono, 2026-10-19 — o seletor de mês do 13º saiu).
-const MONTH_DEFAULTS = { extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH };
+// Nenhuma opção tem mês: o 13º e o valor extra por ano caem sempre em dezembro (regras do dono, 2026-10-19 — os
+// seletores de mês saíram; DEFAULT_ANNUAL_EXTRA_MONTH em lib/payment-strategy-core.mjs).
 
 const SYSTEM_LABEL = { price: "Tabela Price", sac: "SAC" };
 
@@ -230,24 +228,14 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
                       <span>{auto ? hint(automaticOptionValue(strategy, key)) : hint}</span>
                     </span>
                   </label>
-                  {option.ativo && (!auto || MONTH_DEFAULTS[key]) ? (
+                  {option.ativo && !auto ? (
                     <div className={styles.stFields}>
-                      {auto ? null : (
                       <label className={styles.stField} htmlFor={inputId}>
                         <span>Valor</span>
                         <span className={styles.stMoney}>
                           <input id={inputId} type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target)} onFocus={(event) => placeCaret(event.target)} disabled={busy} data-st-value={key} />
                         </span>
                       </label>
-                      )}
-                      {MONTH_DEFAULTS[key] ? (
-                        <label className={styles.stField} htmlFor={`st-mes-${key}`}>
-                          <span>Mês</span>
-                          <select id={`st-mes-${key}`} className={styles.stSelect} value={option.mes || MONTH_DEFAULTS[key]} onChange={(event) => setOption(key, { mes: Number(event.target.value) })} disabled={busy}>
-                            {MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
-                          </select>
-                        </label>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>

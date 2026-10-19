@@ -28,6 +28,7 @@ import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
 import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
+import AutoSimulationReview from "@/components/AutoSimulationReview";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
 import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
@@ -434,54 +435,6 @@ function IconAction({ label, onClick, disabled, tone, children }) {
   );
 }
 
-// Botões TEMPORÁRIOS (SIM-AUTO, dono 2026-10-19; desligar em AUTO_SIMULATION_REVIEW_ENABLED): depois de refazer no
-// simulador da Caixa, o corretor marca "Simulação OK" ou "Corrigir simulação" (renda usada na Caixa → edição normal).
-function AutoSimulationReview({ simulationId, list }) {
-  const [mode, setMode] = useState("");
-  const [income, setIncome] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function send(action) {
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch(`/api/simulations/${simulationId}/conferencia`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, caixaIncome: income })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível registrar a conferência.");
-      if (data.editUrl) window.location.assign(data.editUrl);
-      else await list.fetchClients({ silent: true });
-    } catch (sendError) {
-      setError(sendError.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="mt-3">
-      {mode === "corrigir" ? (
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-muted" htmlFor={`caixa-income-${simulationId}`}>Renda usada no simulador da Caixa</label>
-          <input id={`caixa-income-${simulationId}`} className={inputClasses} inputMode="decimal" placeholder="Ex.: 2.550,00" value={income} onChange={(event) => setIncome(event.target.value)} disabled={busy} />
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => send("corrigir")} loading={busy}>Abrir edição</Button>
-            <Button size="sm" variant="ghost" onClick={() => setMode("")} disabled={busy}>Voltar</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => send("ok")} loading={busy}><Check className="h-4 w-4" aria-hidden="true" /> Simulação OK</Button>
-          <Button size="sm" variant="secondary" onClick={() => setMode("corrigir")} disabled={busy}><Pencil className="h-4 w-4" aria-hidden="true" /> Corrigir simulação</Button>
-        </div>
-      )}
-      {error ? <p className="mt-2 text-xs font-medium text-danger">{error}</p> : null}
-    </div>
-  );
-}
-
 function SimulationSummary({ client, list }) {
   if (client.completed && client.summary) {
     return (
@@ -503,8 +456,9 @@ function SimulationSummary({ client, list }) {
         </p>
         {automatic.incomeConsidered ? <p className="mt-1 text-[13px] font-medium text-ink tabular-nums">Renda para usar na Caixa: {automatic.incomeConsidered}</p> : null}
         <p className="mt-1 text-xs text-muted">Calculada pelo site (imóvel novo e usado).</p>
-        <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
-        {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id ? <AutoSimulationReview simulationId={client.simulation.id} list={list} /> : null}
+        {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id
+          ? <AutoSimulationReview simulationId={client.simulation.id} onDone={() => list.fetchClients({ silent: true })} />
+          : <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>}
       </div>
     );
   }

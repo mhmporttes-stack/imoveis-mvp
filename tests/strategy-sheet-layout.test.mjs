@@ -136,6 +136,8 @@ test("gráfico 'Projeção de quitação' (tela e PDF), nunca 'já quitou'; 13º
   assert.match(chart, /<figcaption[^>]*>Projeção de quitação<\/figcaption>/);
   assert.match(pdf, /text\("PROJEÇÃO DE QUITAÇÃO"/);
   for (const source of [chart, pdf, jsx]) assert.doesNotMatch(source.replace(/\/\/.*$/gm, ""), /já quitou|JÁ QUITOU/);
-  assert.match(jsx, /const MONTH_DEFAULTS = \{ extraAnual: DEFAULT_ANNUAL_EXTRA_MONTH \};/);
+  // 13º e valor extra por ano sem seletor de mês (dono, 2026-10-19): sempre dezembro.
+  assert.doesNotMatch(jsx, /st-mes-|MONTH_DEFAULTS|no mês escolhido/);
+  assert.match(jsx, /hint: "uma vez por ano" \}/);
   assert.match(jsx, /por ano \(13º líquido estimado\)/);
 });

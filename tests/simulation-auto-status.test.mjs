@@ -91,3 +91,12 @@ test("usado: subsídio zero acima de R$ 2.850 (Caixa zera); Gerador sem a opçã
   assert.doesNotMatch(source("components/SimulationGenerator.jsx"), /Modo de páginas dos imóveis\s*<select/);
   assert.match(source("app/apresentacao/[token]/imagem/route.js"), /getPublicPresentation\(token/);
 });
+
+test("conferência também na aba da simulação (Gerador), com o aviso; marca automática nunca volta pelo formulário", () => {
+  const page = source("app/admin/simulacoes/[id]/page.jsx");
+  assert.match(page, /isAutomaticSimulationSource\(simulation\.createdBy\)[\s\S]*<AutoSimulationReview simulationId=\{simulation\.id\} inEditor prominent \/>/);
+  const review = source("components/AutoSimulationReview.jsx");
+  assert.match(review, /AUTO_PRESENTATION_LOCKED_MESSAGE/);
+  assert.match(review, /Não lance a entrada mostrada pela Caixa/);
+  assert.match(source("lib/simulations.js"), /staleAutomaticMark \? \{ createdBy: current\.createdBy \}/);
+});

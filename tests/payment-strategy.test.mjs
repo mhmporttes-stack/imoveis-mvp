@@ -325,19 +325,21 @@ test("motor e servidor recusam opção não permitida; 13º/FGTS usam o valor da
   assert.deepEqual(describeChoices(gravada, (v) => `R$ ${v}`), ["13º salário: R$ 3000 por ano, em dezembro"]);
 });
 
-test("valor extra por ano: mês escolhido, só informal, frase do resultado", () => {
+test("valor extra por ano: sempre em dezembro (mês antigo gravado ignorado), só informal, frase do resultado", () => {
+  // Regra do dono (2026-10-19): o seletor de mês do extra anual saiu, igual ao 13º.
   assert.equal(extraForMonth(2, 11, { extraAnual: { valor: 1000, mes: 12 } }), 1000);
   assert.equal(extraForMonth(3, 11, { extraAnual: { valor: 1000, mes: 12 } }), 0);
-  assert.equal(extraForMonth(8, 11, { extraAnual: { valor: 1000, mes: 6 } }), 1000);
+  assert.equal(extraForMonth(8, 11, { extraAnual: { valor: 1000, mes: 6 } }), 0); // junho gravado antes = dezembro agora
   const parsed = parseStrategyChoices({ extraMensal: { ativo: true, valor: 100 }, extraAnual: { ativo: true, valor: 1000, mes: 3 } });
-  assert.deepEqual(parsed.extraAnual, { ativo: true, valor: 1000, mes: 3 });
+  assert.deepEqual(parsed.extraAnual, { ativo: true, valor: 1000 });
   assert.equal(parseStrategyChoices({ extraAnual: { ativo: true, valor: 1, mes: 0 } }), null);
+  assert.deepEqual(choicesFromSaved({ extraAnual: { ativo: true, valor: 500, mes: 4 } }).extraAnual, { ativo: true, valor: 500 });
   const informalBase = { ...base, opcoes: { decimoTerceiro: 0, fgts: 0, extraAnual: true } };
   const comparison = compareStrategy(informalBase, parsed);
   assert.ok(comparison.economiaJuros > 0);
-  assert.ok(comparison.economiaJuros > compareStrategy(informalBase, { ...parsed, extraAnual: { ativo: false, valor: 0, mes: 12 } }).economiaJuros);
+  assert.ok(comparison.economiaJuros > compareStrategy(informalBase, { ...parsed, extraAnual: { ativo: false, valor: 0 } }).economiaJuros);
   const money = (v) => `R$ ${v}`;
-  assert.deepEqual(describeChoices(parsed, money, informalBase), ["Valor extra: R$ 100 por mês", "Valor extra: R$ 1000 por ano, em março"]);
+  assert.deepEqual(describeChoices(parsed, money, informalBase), ["Valor extra: R$ 100 por mês", "Valor extra: R$ 1000 por ano, em dezembro"]);
   assert.equal(strategyHeadline(comparison, parsed, informalBase, money), `Com R$ 100/mês + R$ 1000/ano você quita seu imóvel em ${formatDuration(comparison.com.months)} e economiza R$ ${comparison.economiaJuros} de juros.`);
   assert.equal(strategyHeadline(compareStrategy(informalBase, emptyChoices()), emptyChoices(), informalBase, money), null);
 });

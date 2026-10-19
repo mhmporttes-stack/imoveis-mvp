@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — SIM-AUTO: conferência na aba da simulação; PRES-24: extra anual sempre em dezembro
+- **Data:** 2026-10-19
+- **Área:** Gerador (`/admin/simulacoes/[id]`), ficha do cliente, Estratégia com amortização (`/s/<token>`)
+- **Alteração:** "Simulação OK"/"Corrigir simulação" num componente único (`components/AutoSimulationReview.jsx`) usado na ficha e, em destaque, na aba da simulação, com o aviso do link bloqueado e a orientação de não lançar a entrada da Caixa. Formulário aberto antes do OK nunca devolve a marca automática (`staleAutomaticMark`, `updateSimulation`). Estratégia: seletor de mês do "Valor extra por ano" removido; sempre dezembro, mês antigo gravado tratado como dezembro.
+- **Motivo:** pedidos do dono após o teste real (#C6771 bateu com a Caixa: financiado 132.137,48 × 132.138,09; parcelas e taxa idênticas; subsídio 34.275 × 34.437).
+- **Verificação:** `tests/simulation-auto-status`, `payment-strategy`, `strategy-sheet-layout`; `pnpm build`.
+- **Arquivos afetados:** `components/AutoSimulationReview.jsx`, `components/clients/ClientSheet.jsx`, `app/admin/simulacoes/[id]/page.jsx`, `lib/simulations.js`, `lib/payment-strategy-core.mjs`, `components/presentation/StrategySheet.jsx`, testes, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** subsídio do caso real ficou R$ 162 acima da Caixa (0,5%), dentro do erro da tabela interpolada.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — SIM-AUTO: respostas do dono (critério confirmado, usado zero acima de R$ 2.850, imagem travada) e SIM-6 sem opção de PDF
 - **Data:** 2026-10-19
 - **Área:** Motor da estimativa, Gerador de simulação, apresentação
