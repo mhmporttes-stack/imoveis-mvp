@@ -1,0 +1,124 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,500;1,600">
+<!-- Recriado de referência enviada pelo dono (carrossel "erros que fazem continuar no aluguel"): estrutura e fontes da
+     referência, cores do padrão dele (azul escuro + versão clara; vermelho só na palavra negativa "erro"). -->
+<style>
+:root{--azul:#4C8DF6;--azulc:#1F5FD6;--nav:#0B1A3A;--verm:#FF5A5A;--vermc:#E03131}
+*{box-sizing:border-box;margin:0;padding:0} body{background:#000}
+.lamina{position:relative;width:1080px;height:1350px;overflow:hidden;font-family:Montserrat,sans-serif;color:#fff;
+ background:radial-gradient(900px 760px at 50% 34%, #1F4CB3 0%, #173A8E 30%, #0E2257 62%, #08112E 100%)}
+.lamina.clara{color:var(--nav);background:radial-gradient(900px 760px at 50% 34%, #FFFFFF 0%, #F7F9FD 35%, #EAF0FA 70%, #DCE5F4 100%)}
+.cond{font-family:Anton,sans-serif;text-transform:uppercase;line-height:1.22;letter-spacing:.005em}
+.it{font-family:'Playfair Display',serif;font-style:italic;font-weight:500;letter-spacing:-.01em}
+.handle{position:absolute;left:0;right:0;top:70px;text-align:center;font-size:22px;font-weight:600;letter-spacing:.08em;z-index:6}
+.lamina .handle{color:rgba(255,255,255,.75)} .lamina.clara .handle{color:rgba(11,26,58,.6)}
+.seta{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);width:50px;height:50px;z-index:6}
+.seta svg{width:50px;height:50px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lamina .seta svg{stroke:#fff} .lamina.clara .seta svg{stroke:var(--azulc)}
+.c{position:absolute;left:80px;right:80px;text-align:center}
+</style></head><body>
+
+<!-- 1 CAPA -->
+<section class="lamina">
+<div class="handle">@MHM.MACHADO</div>
+<div style="position:absolute;left:50%;top:700px;transform:translateX(-50%);width:950px;height:950px;border-radius:50%;background:radial-gradient(circle,rgba(76,141,246,.28),transparent 65%)"></div>
+<div class="c" style="top:150px;z-index:1">
+ <p style="font-size:40px;font-weight:500;letter-spacing:.01em"><b style="font-weight:800;color:var(--verm)">ERROS</b> QUE FAZEM MUITA GENTE</p>
+ <div class="cond" style="font-size:176px;line-height:1.08;margin-top:6px">Continuar</div>
+ <div class="cond" style="font-size:176px;line-height:1.08;color:var(--azul)">no aluguel</div>
+</div>
+<img src="img/bracos-cruzados.png" style="position:absolute;left:50%;transform:translateX(-50%);bottom:0;height:840px;z-index:2;filter:drop-shadow(0 30px 50px rgba(0,0,0,.4))">
+<div class="it" style="position:absolute;right:60px;top:720px;z-index:3;background:#F4F6FA;color:var(--nav);font-size:46px;line-height:1.05;padding:18px 30px 22px;transform:rotate(-5deg);box-shadow:0 14px 34px rgba(0,0,0,.35);text-align:center">mesmo não<br>precisando</div>
+</section>
+
+<!-- 2 NÃO É SÓ DINHEIRO (clara) -->
+<section class="lamina clara">
+<div class="handle">@MHM.MACHADO</div>
+<div class="c" style="top:230px">
+ <p style="font-size:48px;font-weight:500;line-height:1.3">E não... o problema quase<br>nunca <b style="font-weight:800">é só falta de dinheiro.</b></p>
+ <div class="cond" style="font-size:150px;line-height:1.12;margin-top:30px;color:var(--azulc)">Porque se<br>fosse assim</div>
+</div>
+<div style="position:absolute;left:80px;top:830px;width:360px;height:360px;border-radius:50%;background:rgba(31,95,214,.08);border:2px solid rgba(31,95,214,.25);display:grid;place-items:center">
+ <svg viewBox="0 0 24 24" style="width:190px;height:190px;fill:none;stroke:var(--azulc);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/></svg>
+</div>
+<div style="position:absolute;left:490px;right:80px;top:880px;font-size:46px;font-weight:600;line-height:1.3">
+ ninguém com renda boa continuaria <span class="it" style="font-size:54px;color:var(--azulc)">pagando aluguel</span> por anos.
+</div>
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 3 JÁ DECIDIU QUE NÃO CONSEGUE -->
+<section class="lamina">
+<div class="handle">@MHM.MACHADO</div>
+<div class="c" style="top:300px">
+ <p style="font-size:46px;font-weight:500;line-height:1.3">O que eu mais vejo é gente<br>que <b style="font-weight:800">poderia estar comprando</b></p>
+ <div class="cond" style="font-size:118px;line-height:1.14;margin-top:30px">Mas já decidiu<br>que <span style="color:var(--azul)">não</span> consegue</div>
+</div>
+<div style="position:absolute;left:110px;right:110px;top:820px;background:#F4F6FA;color:var(--nav);padding:40px 46px;text-align:center;font-size:42px;font-weight:500;line-height:1.35;border-radius:6px">
+ sem nunca ter feito uma simulação, <span class="it" style="font-size:48px;color:var(--azulc)">ter falado com um corretor</span> ou ter entendido o que o banco realmente aprova.
+</div>
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 4 PRIMEIRO ERRO -->
+<section class="lamina" style="background:radial-gradient(900px 760px at 50% 40%, #13275C 0%, #0D1C45 45%, #070F27 100%)">
+<div class="handle">@MHM.MACHADO</div>
+<p style="position:absolute;left:110px;top:220px;font-size:62px;font-weight:700;line-height:1.1">• A renda<br>&nbsp;&nbsp;perfeita</p>
+<p style="position:absolute;right:100px;top:300px;font-size:50px;font-weight:700;line-height:1.1">• A entrada<br>&nbsp;&nbsp;perfeita</p>
+<div class="c" style="top:450px">
+ <div class="cond" style="font-size:120px;line-height:1.14"><span style="color:var(--verm)">O primeiro erro</span><br>é <span style="color:var(--azul)">esperar</span> o<br>momento perfeito:</div>
+</div>
+<p style="position:absolute;left:110px;top:940px;font-size:50px;font-weight:700;line-height:1.1">• O emprego<br>&nbsp;&nbsp;perfeito</p>
+<div class="c" style="top:1080px"><p class="it" style="display:inline-block;font-size:46px;line-height:1.3;border-bottom:2px solid rgba(255,255,255,.7)">E enquanto isso, o aluguel continua<br>saindo do seu bolso todo mês.</p></div>
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 5 SEGUNDO ERRO (clara) -->
+<section class="lamina clara">
+<div class="handle">@MHM.MACHADO</div>
+<div style="position:absolute;left:90px;right:90px;top:220px">
+ <div class="cond" style="font-size:118px;line-height:1.12"><span style="color:var(--vermc)">O segundo erro</span><br>é procurar <span style="color:var(--azulc)">imóvel<br>antes de entender<br>o financiamento.</span></div>
+</div>
+<div style="position:absolute;left:300px;right:90px;top:850px;text-align:right;font-size:46px;font-weight:500;line-height:1.3">
+ A pessoa passa meses vendo decorado, salva anúncio, faz visita <span class="it" style="font-size:52px;color:var(--azulc)">e depois descobre que estava olhando imóveis fora da realidade dela.</span>
+</div>
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 6 ERRO QUE NINGUÉM PERCEBE -->
+<section class="lamina">
+<div class="handle">@MHM.MACHADO</div>
+<div class="c" style="top:190px"><p class="it" style="font-size:58px;line-height:1.15">E tem um erro que<br>quase ninguém percebe:</p></div>
+<div style="position:absolute;left:110px;right:110px;top:400px;background:#08112E;border:2px solid rgba(76,141,246,.35);border-radius:10px;padding:60px 40px;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,.35)">
+ <div class="cond" style="font-size:104px;line-height:1.14">Achar que<br>comprar imóvel<br>é só para quem<br><span style="color:var(--azul)">ganha muito</span></div>
+</div>
+<div class="c" style="top:1010px"><p style="display:inline;font-size:38px;font-weight:500;line-height:1.55;border-bottom:2px solid rgba(255,255,255,.6)">No dia a dia eu vejo gente que poderia estar comprando hoje e nem imagina isso.</p></div>
+<img src="img/mcmv-logo-branco.png" style="position:absolute;right:70px;bottom:70px;width:150px;opacity:.85">
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 7 FAZ O CONTRÁRIO (clara) -->
+<section class="lamina clara">
+<div class="handle">@MHM.MACHADO</div>
+<div style="position:absolute;left:90px;right:90px;top:210px">
+ <div class="cond" style="font-size:112px;line-height:1.12">Quem consegue<br>comprar normalmente<br>faz o <span style="color:var(--azulc)">contrário.</span></div>
+</div>
+<svg viewBox="0 0 220 140" style="position:absolute;left:200px;top:850px;width:240px;height:150px;fill:none;stroke:var(--nav);stroke-width:4;stroke-linecap:round;stroke-linejoin:round"><path d="M10 6 V110 H200"/><path d="M178 90 L202 110 L178 130"/></svg>
+<p class="it" style="position:absolute;right:90px;top:790px;text-align:right;font-size:80px;line-height:1;color:var(--azulc)">Primeiro<br>entendem<br>a renda.</p>
+<div class="c" style="top:1070px"><p style="font-size:40px;font-weight:500;line-height:1.35">Depois descobrem quanto o banco libera<br>e só então procuram o <b style="font-weight:800">imóvel certo.</b></p></div>
+<div class="seta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M10 7.5 14.5 12 10 16.5"/></svg></div>
+</section>
+
+<!-- 8 CTA -->
+<section class="lamina">
+<div class="handle">@MHM.MACHADO</div>
+<div style="position:absolute;left:50%;top:760px;transform:translateX(-50%);width:950px;height:950px;border-radius:50%;background:radial-gradient(circle,rgba(76,141,246,.28),transparent 65%)"></div>
+<div class="c" style="top:170px;z-index:1">
+ <p style="font-size:52px;font-weight:500;line-height:1.25">Se você quer<br>sair do aluguel,</p>
+ <div class="cond" style="font-size:150px;line-height:1.08;margin-top:10px;color:var(--azul)">Me chama<br>na DM</div>
+</div>
+<img src="img/chave.png" style="position:absolute;left:50%;transform:translateX(-50%);bottom:0;height:760px;z-index:2;filter:drop-shadow(0 30px 50px rgba(0,0,0,.4))">
+<div style="position:absolute;left:0;right:0;bottom:0;height:300px;z-index:3;background:linear-gradient(180deg,rgba(8,17,46,0) 0%,rgba(8,17,46,.92) 70%)"></div>
+<div class="c" style="bottom:80px;z-index:4"><p style="font-size:42px;font-weight:600;line-height:1.35">Talvez você esteja mais perto<br>do primeiro imóvel do que imagina.</p></div>
+</section>
+</body></html>
