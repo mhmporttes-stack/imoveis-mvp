@@ -935,26 +935,26 @@ a.fcSubmit { text-decoration: none; }
 .stGapBeside { justify-items: end; text-align: right; }
 .stGap .stGapSoft { font-weight: 700; font-size: 0.82em; color: #067647; }
 .stGapOut { margin: calc(var(--u) * 8) 0 0; font-size: max(17px, calc(var(--u) * 19)); font-weight: 850; color: #054f31; text-align: center; overflow-wrap: anywhere; }
-.stAnnot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 8px; grid-column: 2; grid-row: 1; min-width: 0; min-height: 44px; padding-bottom: 9px; }
-.stPayoff { position: relative; margin-left: calc(var(--x) - 8px); display: grid; gap: 1px; max-width: calc(100% - var(--x) + 8px); color: #054f31; text-align: left; box-sizing: border-box; }
-.stPayoffEnd { margin-left: auto; margin-right: calc(100% - var(--x) - 8px); max-width: calc(var(--x) + 8px); text-align: right; }
-.stPayoff small { font-size: 12px; font-weight: 650; line-height: 1.2; color: #2f6b4f; }
-.stPayoff strong { font-size: max(15px, calc(var(--u) * 16)); font-weight: 820; line-height: 1.15; overflow-wrap: anywhere; }
-.stPayoff strong span { white-space: nowrap; }
-.stPayoffSem { color: #912018; }
-.stPayoffSem small { color: #a3362c; }
+/* pontas (dono, 2026-10-19): só os anos ("11 anos"), pequenos, numa pílula clara na cor da linha, centrados na bolinha */
+.stAnnot { display: flex; align-items: flex-end; gap: 6px; grid-column: 2; grid-row: 1; min-width: 0; min-height: 34px; padding-bottom: 10px; }
+.stPayoff { position: relative; flex: none; margin-left: clamp(0px, calc(var(--x) - 30px), calc(100% - 146px)); padding: 3px 9px; border-radius: 999px; background: #e7f7ef; color: #05603a; font-size: 12.5px; font-weight: 650; line-height: 1.2; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; box-sizing: border-box; }
+.stPayoffEnd { margin-left: auto; margin-right: -4px; }
+.stPayoffSem { background: #fdeceb; color: #912018; }
 .stXAxis { position: relative; grid-column: 2; grid-row: 3; height: 24px; }
 .stXAxis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
 .stXAxis .stXStart { transform: none; }
 .stXAxis .stXEnd { transform: none; font-weight: 700; }
 @container (max-width: 330px) { .stXAxis .stXMinor { display: none; } }
-/* cena (dono, 2026-10-19): as duas linhas desenham JUNTAS no mesmo relógio (o eixo do tempo), em 2,4 s (dobro do 1,2 s
-   anterior); rótulo e bolinha de cada linha entram quando a linha chega nela (--d, calculado no componente) e a bolinha pulsa */
-.stDraw { animation: stReveal 2.4s linear both; }
+/* cena (dono, 2026-10-19, 2ª rodada): 1º a linha vermelha sobe (2,4 s), 2º a verde (2,4 s, começando quando a vermelha
+   termina), depois a faixa verde e "N anos a menos"; rótulo e bolinha de cada linha entram/pulsam quando a linha chega nela
+   (--d, relógio calculado no componente). A cena recomeça do zero quando o resultado muda (o componente remonta o gráfico). */
+.stDraw { animation: stReveal 2.4s ease-in-out both; }
+.stDrawCom { animation-delay: var(--d, 2.4s); }
+.stBand { animation: stFadeIn 0.6s ease-out both; animation-delay: var(--d, 4.8s); }
 .stDot { animation: stPulse 0.9s ease-out both; }
-.stPayoff, .stGap { animation: stFadeUp 0.35s ease-out both; }
+.stPayoff, .stGap { animation: stFadeUp 0.5s ease-out both; }
 .stIntro .stDot, .stIntro .stPayoff, .stIntro .stGap { animation-delay: var(--d, 0s); }
-.stIntro .stPayoff, .stIntro .stGap { animation-duration: 0.5s; }
+@keyframes stFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes stReveal { from { clip-path: inset(-20% 100% -20% -2%); } to { clip-path: inset(-20% -2% -20% -2%); } }
 @keyframes stFadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes stPulse {
@@ -963,8 +963,8 @@ a.fcSubmit { text-decoration: none; }
   50% { transform: scale(1.9); box-shadow: 0 0 0 7px var(--ring); }
   100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.14); }
 }
-.stWaiting .stDraw, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stGap { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .stDraw, .stDot, .stPayoff, .stGap { animation: none; } }
+.stWaiting .stDraw, .stWaiting .stBand, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stGap { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .stDraw, .stBand, .stDot, .stPayoff, .stGap { animation: none; } }
 .stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 16); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: max(13px, calc(var(--u) * 14)); color: #2f4d6e; }
 .stLegend li { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: #b42318; }

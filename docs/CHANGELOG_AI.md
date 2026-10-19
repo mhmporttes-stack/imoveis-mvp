@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-19 — Gráfico da Estratégia: cena em sequência que se repete e anos só inteiros
+- **Data:** 2026-10-19
+- **Área:** Apresentação da simulação (PRES-24)
+- **Alteração:** cena do gráfico em sequência — linha vermelha sobe (2,4 s), depois a verde (2,4 s), depois faixa verde + "N anos a menos"; bolinha de cada linha pulsa ao terminar. A cena recomeça do zero a cada mudança do resultado (opção, valor, mês), após ~400 ms sem nova mudança; 1ª vez ao entrar na tela; reduced-motion sem animação. Pontas sem "quitado em": só "11 anos"/"35 anos" em pílula pequena na cor da linha (tela e PDF). Diferença só em anos inteiros (`yearsLessText`; 0 → sem texto), pontas arredondadas ao ano mais próximo (`formatRoundedYears`), na tela e no PDF.
+- **Motivo:** pedido do dono (2026-10-19).
+- **Arquivos afetados:** `components/presentation/StrategyBalanceChart.jsx`, `components/presentation/presentation.module.css`, `lib/payment-strategy-core.mjs` (só formatação), `lib/payment-strategy-pdf.mjs`, `tests/strategy-sheet-layout.test.mjs`, `tests/payment-strategy.test.mjs`
+- **Risco/observação:** cálculo intocado. A diferença é a das pontas arredondadas (35 − 11 = 24), para o que o cliente lê bater na conta; as colunas "Sem/Com amortização" e o texto do destaque continuam com o prazo exato (anos e meses). Renderizado a 320/390/430 px (sem overflow) em vários instantes da cena e na repetição; PDF renderizado. Testes da área e build ok.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-19 — Gráfico "Saldo devedor ao longo do tempo" da Estratégia redesenhado
 - **Data:** 2026-10-19
 - **Área:** Apresentação da simulação (PRES-24)

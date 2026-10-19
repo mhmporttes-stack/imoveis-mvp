@@ -17,6 +17,8 @@ import {
   emptyChoices,
   extraForMonth,
   formatDuration,
+  formatRoundedYears,
+  yearsLessText,
   isOptionAllowed,
   parseStrategyChoices,
   pricePayment,
@@ -358,4 +360,16 @@ test("extra anual: só informal (Autônomo/sem tipo); CLT ou declarante (inclusi
   // DTO de cliente CLT leva extraAnual = false
   const sim = simulation();
   assert.equal(withPaymentStrategy(buildPublicPresentation({ simulation: sim, defaultReason: "x" }), sim).estrategia.opcoes.extraAnual, false);
+});
+
+test("gráfico (dono, 2026-10-19): pontas e diferença só em anos inteiros, arredondados", () => {
+  assert.equal(formatRoundedYears(420), "35 anos");
+  assert.equal(formatRoundedYears(136), "11 anos"); // 11 anos e 4 meses
+  assert.equal(formatRoundedYears(138), "12 anos"); // 11 anos e 6 meses → ano mais próximo
+  assert.equal(formatRoundedYears(4), "1 ano"); // nunca "0 anos"
+  assert.equal(yearsLessText(420, 136), "24 anos a menos"); // 23 anos e 8 meses → 24 (= 35 − 11)
+  assert.equal(yearsLessText(420, 140), "23 anos a menos");
+  assert.equal(yearsLessText(420, 404), "1 ano a menos");
+  assert.equal(yearsLessText(420, 414), ""); // diferença arredondada 0 → sem texto
+  assert.doesNotMatch(yearsLessText(420, 137), /m[eê]s/);
 });
