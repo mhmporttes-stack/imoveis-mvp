@@ -131,6 +131,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Faixa 3 volta para 30% (28% revertido) e testes da apresentação de aprovação
+- **Data:** 2026-10-19
+- **Área:** `lib/financiamento-estimativa-core.mjs`; `tests/simulation-property-value.test.mjs`; `tests/simulation-presentation-approval.test.mjs`
+- **Alteração:** Faixa 3 volta a 30% da renda − margem proporcional ao imóvel (decisão do dono pelo backtest: 73% → 39% com 28%); teste do #C6771 com renda R$ 7.000. Os 3 testes da apresentação de aprovação quebrados pelo commit 4f8ac40 foram ajustados só nos testes (o código estava certo): `estrategia` opcional no DTO de aprovação, `withPaymentStrategy` no servidor e o botão da Estratégia permitido na cena de valores aprovados (nenhum contato).
+- **Motivo:** decisão do dono (2026-10-19).
+- **Verificação:** suíte sem falha nova; `pnpm build`.
+- **Arquivos afetados:** os acima + `docs/BUSINESS_RULES.md`.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-19 — Motor: Faixa 3 em 28%, normas do MCMV (subsídio × valor, mínimo R$ 1.500, usado F4 60%) e SAC automático
 - **Data:** 2026-10-19
 - **Área:** `lib/financiamento-estimativa-core.mjs` (site, Refazer, Simulador Caixa, SAC automático), `components/SimulationGenerator.jsx` (bloco SAC)

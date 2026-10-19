@@ -63,7 +63,9 @@ test("aprovação SEM imóvel: só a pausa/carimbo e os valores do financiamento
 
 test("DTO de aprovação: allowlist estrita (sem renda, CPF, ids internos, nome do empreendimento do motor)", () => {
   const dto = build(simulation());
-  assert.deepEqual(Object.keys(dto).sort(), [...APPROVAL_DTO_FIELDS].sort());
+  // `estrategia` é opcional (só quando a simulação tem base para a Estratégia de pagamento — PRES-24 no aprovado, 2026-10-19).
+  for (const key of Object.keys(dto)) assert.ok(APPROVAL_DTO_FIELDS.includes(key), `DTO expôs ${key}`);
+  assert.deepEqual(Object.keys(dto).filter((key) => key !== "estrategia").sort(), APPROVAL_DTO_FIELDS.filter((key) => key !== "estrategia").sort());
   for (const scene of dto.scenes) {
     const allowed = APPROVAL_SCENE_FIELDS[scene.id]
       || (scene.id === "imovel" ? [...PUBLIC_BRANCH_FIELDS, "durationMs"] : null)
@@ -80,7 +82,7 @@ test("servidor: aprovação AUTOMÁTICA pela etapa do cliente (dono, 2026-10-19)
   const lib = read("lib/simulation-presentation.js");
   assert.match(lib, /return isPresentationApprovalStatus\(simulation\?\.registration\?\.status\);/);
   assert.match(lib, /const approval = simulationOnly \? false : isApprovalPresentation\(simulation\);/);
-  assert.match(lib, /if \(approval\) return buildApprovalPresentation\(/);
+  assert.match(lib, /if \(approval\) return withPaymentStrategy\(buildApprovalPresentation\(/);
   assert.ok(!/setPresentationApproval|approval_enabled_at:/.test(lib), "a chave manual não existe mais nem grava a coluna");
   assert.ok(!/updateSimulationRegistration|from\("simulation_registrations"\)/.test(lib), "a apresentação não toca na etapa do funil");
   for (const file of ["app/apresentacao/[token]/documentos/route.js", "app/apresentacao/[token]/imagem/route.js"]) {
@@ -115,6 +117,8 @@ test("painel sem a chave de aprovação; cenas de aprovação sem botão de cont
   const body = (name) => (new RegExp(`function ${name}\\([\\s\\S]*?\\n}\\n`).exec(player)?.[0] || "").replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
   const scenes = body("SceneAprovado") + body("SceneAprovValores");
   assert.ok(scenes.includes("Crédito") && scenes.includes("Aprovado"));
-  assert.ok(!/wa\.me|whatsapp|corretor|<button/i.test(scenes), "sem contato nem botão nas cenas de aprovação");
+  // Único botão permitido: abrir a "Estratégia de pagamento" (PRES-24 mantida no aprovado — dono, 2026-10-19). Nada de contato.
+  const withoutStrategy = scenes.replace(/\{hasStrategy \? \([\s\S]*?data-open-strategy[\s\S]*?<\/button>\s*\) : null\}/, "");
+  assert.ok(!/wa\.me|whatsapp|corretor|<button/i.test(withoutStrategy), "sem contato nem outro botão nas cenas de aprovação");
   assert.match(player, /final=\{ctx\.mainLast\}/);
 });
