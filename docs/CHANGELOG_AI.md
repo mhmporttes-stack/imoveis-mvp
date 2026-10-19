@@ -109,6 +109,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-19 — Aba da simulação: bloco "Cadastro do cliente" compacto e minimizado
+- **Data:** 2026-10-19
+- **Área:** `components/SimulationGenerator.jsx` (só apresentação)
+- **Alteração:** cabeçalho só "CADASTRO DO CLIENTE" (sem "Ficha completa" e a descrição); bloco minimizado por padrão com seta (aberto em simulação nova sem cadastro); "Atualizar cadastro" no fim; 2–3 campos por linha com rótulos curtos (Nome, WhatsApp, Nascimento, Início, Venda em, Simulação, Regime, Renda, Estado civil, Entrada, FGTS; "3 anos FGTS", "Dependentes", "Primeiro imóvel" na mesma linha). "Primeiro imóvel" é o rótulo INVERTIDO de `has_residential_property` (Sim = não possui imóvel) — o dado gravado é o mesmo (`lib/registration-form-labels.mjs`).
+- **Motivo:** pedido do dono (2026-10-19).
+- **Verificação:** `tests/registration-form-labels.test.mjs` ("Primeiro imóvel = Sim" grava `false`); render 360/390/1280 sem rolagem lateral (antes/depois em scratchpad/simulacao-aba/cadastro-*.png); `pnpm build`.
+- **Arquivos afetados:** `components/SimulationGenerator.jsx`, `lib/registration-form-labels.mjs`, `tests/registration-form-labels.test.mjs`, `tests/simulation-resources.test.mjs`.
+- **Risco/observação:** a 360 px o telefone e a data do nascimento cortam ~1 caractere (campo de 16 px para não dar zoom no iPhone); a 390 px cabem.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-19 — Entrada e FGTS disponíveis só no cadastro (parte 2: aba da simulação)
 - **Data:** 2026-10-19
 - **Área:** Aba da simulação (`components/SimulationGenerator.jsx`)

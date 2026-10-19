@@ -38,7 +38,7 @@ test("aba da simulação: sem os campos de entrada/FGTS; FGTS no cadastro; corpo
   const generator = readFileSync(new URL("../components/SimulationGenerator.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(generator, /label="Entrada disponível"/);
   assert.doesNotMatch(generator, /<MoneyField label="FGTS disponível" value=\{form\.fgtsValue\}/);
-  assert.match(generator, /<MoneyField label="FGTS disponível" value=\{form\.registration\?\.availableFgtsBalance/);
+  assert.match(generator, /<MoneyField compact label="FGTS" value=\{form\.registration\?\.availableFgtsBalance/);
   assert.match(generator, /downPaymentValue: _downPaymentValue,\s*fgtsValue: _fgtsValue,/);
   assert.doesNotMatch(generator, /downPaymentValue: primaryModel\.totals\.downPayment/);
 });

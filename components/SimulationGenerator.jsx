@@ -13,6 +13,7 @@ import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { FIRST_PROPERTY_OPTIONS, firstPropertyOptionValue, hasResidentialPropertyFromFirstPropertyOption } from "@/lib/registration-form-labels.mjs";
 import { DEFAULT_RECOMMENDATION_REASON } from "@/lib/simulation-mapper";
 import { getPropertyPreferenceDetails } from "@/lib/property-preference-display";
 import {
@@ -126,6 +127,8 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   const [sendFormat] = useState("presentation");
   const [saving, setSaving] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
+  // Bloco "Cadastro do cliente" minimizado por padrão; aberto em simulação nova sem cadastro (dono, 2026-10-19).
+  const [registrationOpen, setRegistrationOpen] = useState(() => !initialSimulation?.registrationId);
   const [sendingSimulation, setSendingSimulation] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState(form.id ? "saved" : "idle");
   const [message, setMessage] = useState("");
@@ -726,93 +729,107 @@ export default function SimulationGenerator({ properties = [], initialSimulation
           </div>
           <Field label="Observação interna" textarea value={form.internalNote} onChange={(value) => update("internalNote", value)} />
 
+          {/* Bloco "Cadastro do cliente" (dono, 2026-10-19): minimizado por padrão (aberto só em simulação nova sem cadastro),
+              rótulos curtos, 2–3 campos por linha e o botão no fim. Só apresentação: os mesmos campos e dados de antes. */}
           <div className="mt-6 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastro do cliente</p>
-                <h3 className="mt-1 text-2xl font-black text-navy">Ficha completa</h3>
-                <p className="mt-1 text-sm font-semibold text-muted">
-                  Use estes campos para criar ou atualizar manualmente o cadastro vinculado a esta simulação.
-                </p>
-              </div>
-              <button
-                className="premium-button-secondary shrink-0"
-                disabled={registrationSaving}
-                onClick={saveClientRegistration}
-                type="button"
-              >
-                {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
+              aria-expanded={registrationOpen}
+              onClick={() => setRegistrationOpen((open) => !open)}
+              data-registration-toggle=""
+            >
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastro do cliente</span>
+              <ChevronDown className={`h-5 w-5 shrink-0 text-brand transition ${registrationOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+            </button>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Nome no cadastro" value={form.registration?.fullName || form.clientName} onChange={(value) => updateRegistration("fullName", value)} />
-              <Field
+            {registrationOpen ? (
+            <>
+            <div className="grid grid-cols-2 items-end gap-x-3 md:grid-cols-3">
+              <div className="col-span-2 md:col-span-1">
+                <Field compact label="Nome" value={form.registration?.fullName || form.clientName} onChange={(value) => updateRegistration("fullName", value)} />
+              </div>
+              <Field compact
                 autoComplete="tel"
                 inputMode="numeric"
-                label="WhatsApp no cadastro"
+                label="WhatsApp"
                 placeholder="(14) 99999-9999"
                 type="tel"
                 value={form.registration?.phone || form.clientWhatsApp}
                 onChange={(value) => updateRegistration("phone", formatPhoneInput(value))}
               />
-              <Field label="Data de nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
-              <Field label="Início do atendimento" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
-              <Field label="Venda concluída em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
-              <SelectField
-                label="Tipo de simulação"
+              <Field compact label="Nascimento" type="date" value={form.registration?.oldestBirthDate || ""} onChange={(value) => updateRegistration("oldestBirthDate", value)} />
+              <Field compact label="Início" type="date" value={form.registration?.serviceStartedAt || ""} onChange={(value) => updateRegistration("serviceStartedAt", value)} />
+              <Field compact label="Venda em" type="date" value={form.registration?.saleCompletedAt || ""} onChange={(value) => updateRegistration("saleCompletedAt", value)} />
+              <SelectField compact
+                label="Simulação"
                 options={SIMULATION_TYPE_OPTIONS}
                 value={form.registration?.simulationType || "individual"}
                 onChange={(value) => updateRegistration("simulationType", value)}
               />
-              <SelectField
-                label="Regime de trabalho"
+              <SelectField compact
+                label="Regime"
                 options={PRIMARY_INCOME_OPTIONS}
                 value={form.registration?.primaryIncomeType || "self_employed_unregistered"}
                 onChange={(value) => updateRegistration("primaryIncomeType", value)}
               />
-              <MoneyField label="Renda mensal" value={form.registration?.primaryMonthlyIncome || ""} onChange={(value) => updateRegistration("primaryMonthlyIncome", value)} />
-              <SelectField
+              <MoneyField compact label="Renda" value={form.registration?.primaryMonthlyIncome || ""} onChange={(value) => updateRegistration("primaryMonthlyIncome", value)} />
+              <SelectField compact
                 label="Estado civil"
                 options={MARITAL_STATUS_OPTIONS}
                 value={form.registration?.primaryMaritalStatus || "single"}
                 onChange={(value) => updateRegistration("primaryMaritalStatus", value)}
               />
-              <MoneyField label="Recurso próprio / entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
-              <MoneyField label="FGTS disponível" value={form.registration?.availableFgtsBalance || ""} onChange={(value) => updateRegistration("availableFgtsBalance", value)} />
-              <BooleanField
-                label="Mais de 3 anos de registro?"
+              <MoneyField compact label="Entrada" value={form.registration?.availablePurchaseResource || ""} onChange={(value) => updateRegistration("availablePurchaseResource", value)} />
+              <MoneyField compact label="FGTS" value={form.registration?.availableFgtsBalance || ""} onChange={(value) => updateRegistration("availableFgtsBalance", value)} />
+            </div>
+            <div className="grid grid-cols-3 items-end gap-x-3">
+              <BooleanField compact
+                label="3 anos FGTS"
                 value={form.registration?.hasOverThreeYearsRegisteredWork}
                 onChange={(value) => updateRegistration("hasOverThreeYearsRegisteredWork", value)}
               />
-              <BooleanField
-                label="Filhos menores de 18 anos?"
+              <BooleanField compact
+                label="Dependentes"
                 value={form.registration?.hasChildrenUnder18}
                 onChange={(value) => updateRegistration("hasChildrenUnder18", value)}
               />
-              <BooleanField
-                label="Possui imóvel residencial?"
-                value={form.registration?.hasResidentialProperty}
-                onChange={(value) => updateRegistration("hasResidentialProperty", value)}
+              {/* "Primeiro imóvel" = inverso de "Possui imóvel residencial?" (só o rótulo; grava o mesmo campo). */}
+              <SelectField compact
+                label="Primeiro imóvel"
+                options={FIRST_PROPERTY_OPTIONS}
+                value={firstPropertyOptionValue(form.registration?.hasResidentialProperty)}
+                onChange={(value) => updateRegistration("hasResidentialProperty", hasResidentialPropertyFromFirstPropertyOption(value))}
               />
             </div>
 
             {form.registration?.simulationType === "joint" ? (
-              <div className="mt-5 grid gap-4 border-t border-blue-100 pt-5 md:grid-cols-2">
-                <SelectField
-                  label="Regime da segunda pessoa"
+              <div className="mt-4 grid grid-cols-2 items-end gap-x-3 border-t border-blue-100 pt-1 md:grid-cols-3">
+                <SelectField compact
+                  label="Regime (2ª pessoa)"
                   options={PRIMARY_INCOME_OPTIONS}
                   value={form.registration?.secondaryIncomeType || "self_employed_unregistered"}
                   onChange={(value) => updateRegistration("secondaryIncomeType", value)}
                 />
-                <MoneyField label="Renda da segunda pessoa" value={form.registration?.secondaryMonthlyIncome || ""} onChange={(value) => updateRegistration("secondaryMonthlyIncome", value)} />
-                <SelectField
-                  label="Estado civil da segunda pessoa"
+                <MoneyField compact label="Renda (2ª pessoa)" value={form.registration?.secondaryMonthlyIncome || ""} onChange={(value) => updateRegistration("secondaryMonthlyIncome", value)} />
+                <SelectField compact
+                  label="Estado civil (2ª)"
                   options={MARITAL_STATUS_OPTIONS}
                   value={form.registration?.secondaryMaritalStatus || "single"}
                   onChange={(value) => updateRegistration("secondaryMaritalStatus", value)}
                 />
               </div>
+            ) : null}
+
+            <button
+              className="premium-button-secondary mt-5 w-full sm:w-auto"
+              disabled={registrationSaving}
+              onClick={saveClientRegistration}
+              type="button"
+            >
+              {registrationSaving ? "Salvando..." : form.registrationId ? "Atualizar cadastro" : "Criar cadastro"}
+            </button>
+            </>
             ) : null}
           </div>
         </Panel>
@@ -1137,13 +1154,18 @@ function Panel({ children, eyebrow, title }) {
   );
 }
 
-function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", ...props }) {
+// `compact` (bloco "Cadastro do cliente", 2–3 campos por linha no celular): rótulo menor e menos recuo interno; a fonte
+// do campo continua 16px (abaixo disso o iPhone dá zoom ao tocar).
+const COMPACT_LABEL = "mt-3 grid min-w-0 gap-1.5 text-xs font-extrabold text-ink sm:text-sm";
+const COMPACT_INPUT = "!px-2 !font-semibold sm:!px-4";
+
+function Field({ label, onChange, textarea = false, type = "text", value, inputClassName = "", compact = false, ...props }) {
   const Component = textarea ? "textarea" : "input";
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+    <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
       {label}
       <Component
-        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${inputClassName}`}
+        className={`admin-input min-w-0 ${textarea ? "min-h-28 py-3" : ""} ${compact ? COMPACT_INPUT : ""} ${inputClassName}`}
         {...(textarea ? props : { type, ...props })}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
@@ -1152,11 +1174,11 @@ function Field({ label, onChange, textarea = false, type = "text", value, inputC
   );
 }
 
-function SelectField({ label, onChange, options = [], value }) {
+function SelectField({ label, onChange, options = [], value, compact = false }) {
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+    <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
       {label}
-      <select className="admin-input min-w-0" value={value || ""} onChange={(event) => onChange(event.target.value)}>
+      <select className={`admin-input min-w-0 ${compact ? COMPACT_INPUT : ""}`} value={value || ""} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -1165,12 +1187,12 @@ function SelectField({ label, onChange, options = [], value }) {
   );
 }
 
-function BooleanField({ label, onChange, value }) {
+function BooleanField({ label, onChange, value, compact = false }) {
   return (
-    <label className="mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink">
+    <label className={compact ? COMPACT_LABEL : "mt-4 grid min-w-0 gap-2 text-sm font-extrabold text-ink"}>
       {label}
       <select
-        className="admin-input min-w-0"
+        className={`admin-input min-w-0 ${compact ? COMPACT_INPUT : ""}`}
         value={value === true ? "true" : value === false ? "false" : ""}
         onChange={(event) => onChange(event.target.value === "true")}
       >
@@ -1181,9 +1203,10 @@ function BooleanField({ label, onChange, value }) {
   );
 }
 
-function MoneyField({ label, onChange, value }) {
+function MoneyField({ label, onChange, value, compact = false }) {
   return (
     <Field
+      compact={compact}
       label={label}
       type="text"
       inputMode="decimal"
