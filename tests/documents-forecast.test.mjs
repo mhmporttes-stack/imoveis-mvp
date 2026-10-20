@@ -614,9 +614,20 @@ test("ficha: botão 'Enviar lista de documentos' com guarda de escopo, bloqueio 
   const sheet = stripComments(read("components/clients/ClientSheet.jsx"));
   assert.match(sheet, /Enviar lista de documentos/);
   assert.match(sheet, /\[CLIENT_STATUS\.ARCHIVED, CLIENT_STATUS\.DO_NOT_CONTACT\]\.includes\(client\.status\)/);
-  assert.match(sheet, /list\.prepareDocumentsList\(client\)/);
-  assert.match(sheet, /<DocumentsListDialog/);
+  assert.match(sheet, /list\.prepareDocumentsList\(client, \{ accessBlocked: whatsappBlocked \}\)/);
+  assert.match(sheet, /export function DocumentsListDialog/);
   assert.match(sheet, /Cancelar/);
+  // Dono, 2026-10-20: o botão nunca some (nem com WhatsApp bloqueado) e também existe no card; a prévia fica no Workspace
+  // para abrir com a ficha fechada, e sem canal mostra só "Copiar texto" + motivo.
+  assert.doesNotMatch(sheet, /whatsappBlocked \? null : <Button variant="secondary"[^\n]*prepareDocumentsList/);
+  const card = stripComments(read("components/clients/ClientCard.jsx"));
+  assert.match(card, /list\.prepareDocumentsList\(client, \{ accessBlocked: whatsappBlocked \}\)/);
+  assert.match(card, /data-card-documents-list=""/);
+  const workspace = stripComments(read("components/clients/ClientWorkspace.jsx"));
+  assert.match(workspace, /<DocumentsListDialog/);
+  const hook = stripComments(read("components/clients/useClientList.js"));
+  assert.match(hook, /decision = \{ action: "blocked", reason: "access_blocked" \}/);
+  assert.match(hook, /decision = \{ action: "blocked", reason: "no_phone" \}/);
 });
 
 test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela abre dentro do clique; nunca muda o status", () => {

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  ListChecks,
   MessageCircle,
   MoreHorizontal,
   Pencil,
@@ -144,6 +145,13 @@ export default function ClientCard({ client, activities, responsibleName, respon
         <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => list.openValues(client)} disabled={busy}>
           <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
         </Button>
+        {/* Dono, 2026-10-20: "Lista de documentos" visível no card (mesma ação da ficha: prévia com Enviar pelo Chat ou só
+            "Copiar texto" + motivo quando o envio está bloqueado). Arquivado/Não contactar: o servidor recusa (409). */}
+        {registration.id && ![CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status) ? (
+          <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
+            <ListChecks className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Lista de documentos</span><span className="sm:hidden">Lista</span>
+          </Button>
+        ) : null}
         <Menu
           label={`Mais ações para ${name}`}
           trigger={<MoreHorizontal className="h-5 w-5" aria-hidden="true" />}

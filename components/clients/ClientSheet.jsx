@@ -111,9 +111,10 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
               <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
             </Button>
             {/* Round 4: o corretor envia a lista personalizada (texto + link) depois de conferir a prévia; não muda a etapa. */}
-            {whatsappBlocked ? null : <Button variant="secondary" className="col-span-2 sm:col-span-3" onClick={() => list.prepareDocumentsList(client)} disabled={busy || !registration?.id || [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)} data-send-documents-list="">
+            {/* Dono, 2026-10-20: sempre visível; sem canal de envio a prévia abre só com "Copiar texto" + o motivo. */}
+            <Button variant="secondary" className="col-span-2 sm:col-span-3" onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy || !registration?.id || [CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status)} data-send-documents-list="">
               <ListChecks className="h-4 w-4" aria-hidden="true" /> Enviar lista de documentos
-            </Button>}
+            </Button>
           </div>
 
           {/* Situação */}
@@ -216,11 +217,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
         onConfirm={list.confirmStatusReason}
       />
 
-      <DocumentsListDialog
-        target={list.docsListTarget}
-        onCancel={list.cancelDocumentsList}
-        onConfirm={list.confirmDocumentsList}
-      />
+      {/* DocumentsListDialog fica no ClientWorkspace (2026-10-20): o botão também existe no card, com a ficha fechada. */}
 
       <ReceivedDateDialog
         target={list.receivedDateTarget}
@@ -750,7 +747,7 @@ function EditableItem({ label, registrationId, field, initialValue, placeholder,
 }
 
 // Prévia + confirmação do "Enviar lista de documentos": a mensagem NUNCA sai sozinha; o corretor confere e confirma.
-function DocumentsListDialog({ target, onCancel, onConfirm }) {
+export function DocumentsListDialog({ target, onCancel, onConfirm }) {
   const ref = useRef(null);
   const titleId = useId();
   const [imageFile, setImageFile] = useState(null);
@@ -814,7 +811,11 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
           <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
           {blocked ? (
             <p role="alert" className="mt-2 text-xs font-semibold text-warning" data-documents-list-blocked="">
-              {target.decision?.reason === "session_down"
+              {target.decision?.reason === "access_blocked"
+                ? "Seu acesso ao WhatsApp pelo CRM está bloqueado. Use \"Copiar texto\" e envie a lista por outro meio."
+                : target.decision?.reason === "no_phone"
+                  ? "Este cliente não tem um WhatsApp válido no cadastro. Corrija o telefone para enviar pelo Chat."
+                : target.decision?.reason === "session_down"
                 ? "Seu WhatsApp não está conectado ao CRM. Conecte o número para enviar pelo Chat."
                 : target.decision?.reason === "printed_list_mode"
                   ? "Seu WhatsApp está desconectado: você está no modo lista impressa e o Chat fica indisponível até reconectar."

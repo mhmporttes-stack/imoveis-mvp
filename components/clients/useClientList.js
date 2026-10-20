@@ -791,14 +791,13 @@ export function useClientList({
 
   // "Enviar lista de documentos" (round 4): o servidor monta texto + link da lista PERSONALIZADA; a mensagem só sai depois que o
   // corretor confirma a prévia (nunca sozinha). Não muda o status do cliente.
-  async function prepareDocumentsList(client) {
+  // Dono, 2026-10-20: o botão nunca some; sem canal de envio a prévia abre só com "Copiar texto" + o motivo do bloqueio.
+  // `accessBlocked`: acesso ao WhatsApp bloqueado para o usuário (WhatsappAccessProvider) → nunca envia, só copia.
+  async function prepareDocumentsList(client, { accessBlocked = false } = {}) {
     const registrationId = client.registration?.id;
     const value = client.registration?.phoneNormalized || client.registration?.phone;
     if (!registrationId) return;
-    if (!toWhatsAppDigits(value)) {
-      notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
-      return;
-    }
+    const phoneValid = Boolean(toWhatsAppDigits(value));
     await withBusy(client, async () => {
       const response = await fetch(`/api/admin/clients/${registrationId}/lista-documentos`, {
         method: "POST",
@@ -813,7 +812,11 @@ export function useClientList({
       // Canal decidido pelo SERVIDOR (dono, 2026-10-14): oficial (janela aberta) → WhatsApp do corretor no Chat →
       // WhatsApp do aparelho só com restrição validada → senão não envia.
       let decision;
-      if ((data.channel === "official" || data.channel === "individual") && data.conversationId) {
+      if (accessBlocked) {
+        decision = { action: "blocked", reason: "access_blocked" };
+      } else if (!phoneValid) {
+        decision = { action: "blocked", reason: "no_phone" };
+      } else if ((data.channel === "official" || data.channel === "individual") && data.conversationId) {
         decision = { action: "chat", channel: data.channel, conversationId: data.conversationId };
       } else if (data.channel === "external") {
         const url = buildExternalWhatsappUrl(value, readCardDevice());

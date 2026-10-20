@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — "Lista de documentos" no card do cliente e nunca escondida
+- **Data:** 2026-10-20
+- **Área:** Lista de clientes (`components/clients/ClientCard.jsx`, `ClientSheet.jsx`, `ClientWorkspace.jsx`, `useClientList.js`).
+- **Alteração:** dono não achava o botão: ele só existia dentro da ficha (e sumia com acesso ao WhatsApp bloqueado). Agora o card tem "Lista de documentos" (rodapé, "Lista" no celular), para todo perfil com acesso ao cliente, exceto Arquivado/Não contactar (servidor recusa, 409). Na ficha o botão não some mais. Sem canal de envio (acesso bloqueado, cliente sem WhatsApp válido, cliente que nunca escreveu, modo lista impressa, etc.) a prévia abre só com "Copiar texto" + o motivo. A prévia (`DocumentsListDialog`) passou para o `ClientWorkspace` para abrir também com a ficha fechada. Mesma rota/guard (`requireAdminApi` + escopo).
+- **Verificação:** `tests/documents-forecast.test.mjs` (41); `pnpm build` ok. `tests/client-card-whatsapp-chat.test.mjs` já falhava 4 antes desta mudança (fora do escopo).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace: diagnóstico de estrutura anonimizado (extensão 1.8.5)
 - **Data:** 2026-10-20
 - **Área:** extensão (`inbox.js`, `selectors.js`, `background.js`, `popup`), rota `POST /api/marketplace/diagnostic` (chave `mkp_` + limite por IP), tabela `marketplace_diagnostics` (migration `20261020230000`, NÃO aplicada).
