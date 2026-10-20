@@ -63,6 +63,8 @@ export function decideTick(state, now = new Date()) {
   if (s.manualPause) return { action: "skip", reason: "pausado" };
   if (s.pausedUntil && new Date(s.pausedUntil).getTime() > t) return { action: "skip", reason: "pausa_verificacao" };
   if (s.running && t - new Date(s.running.startedAt).getTime() < STALE_RUN_MS) return { action: "skip", reason: "em_andamento" };
+  // Chat do Marketplace lendo/enviando agora: a publicação espera (uma automação no Facebook por vez).
+  if (s.chatRunning && t - new Date(s.chatRunning).getTime() < 10 * 60 * 1000) return { action: "skip", reason: "chat_em_andamento" };
   if (!isWithinWindow(now)) return { action: "skip", reason: "fora_do_horario" };
   if (todayCount(s, now) >= DAILY_LIMIT) return { action: "skip", reason: "limite_diario" };
   if (todayAttempts(s, now) >= DAILY_ATTEMPT_LIMIT) return { action: "skip", reason: "limite_tentativas" };
@@ -170,6 +172,9 @@ export const REASON_LABELS = {
   intervalo_minimo: "CRM: aguardando intervalo mínimo",
   intervalo_seguranca: "Aguardando intervalo de segurança",
   verificando: "Verificando…",
+  chat_em_andamento: "Chat do Marketplace sincronizando — tenta de novo em instantes",
+  chat_desligado: "Sincronização do chat desligada no CRM",
+  chat_fora_do_horario: "Chat fora do horário configurado",
   publicando: "Publicando agora — acompanhe pela aba do Facebook",
   publicado: "Publicado",
   falhou: "Falhou — veja o histórico",

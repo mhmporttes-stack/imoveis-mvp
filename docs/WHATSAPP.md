@@ -341,6 +341,10 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 | Contador de não lidas | RPC atômica (`whatsapp_chat_apply_inbound`) |
 | Mensagem automática no WhatsApp pessoal (Meta Diária/"Disparar"/descadastro) | índice único (`session_user_id`, `metadata->>wa_message_id`) — envio e eco gravam a mesma linha uma vez |
 
+## 13-A. Chat do Marketplace (MKT-2, 2026-10-20) — fora do WhatsApp
+
+Conversas do Facebook Marketplace ficam em tabelas próprias (`marketplace_conversations`/`marketplace_messages`), **não** em `whatsapp_conversations`: nenhum gatilho, Fluxo, lembrete, resposta automática ou envio do WhatsApp é acionado por elas. Tela `/admin/chat/marketplace` (menu "Chat Marketplace"), mesmo escopo do Chat, mesma roleta. Detalhes: `docs/BUSINESS_RULES.md` MKT-2.
+
 ## 14. Riscos conhecidos e pontos a confirmar
 
 Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Problemas. Resumo:

@@ -1,9 +1,12 @@
 // Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
-import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, postResult } from "./lib/crm-api.js";
+import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postOutboundResult, postResult } from "./lib/crm-api.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, decideChatTick, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
+import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 
 const ALARM = "mp-tick";
+const CHAT_ALARM = "mp-chat";
 const PUBLISH_TIMEOUT_MS = 12 * 60 * 1000;
 const PAGE_LOAD_TIMEOUT_MS = 45 * 1000;
 const FORM_WAIT_MS = 15 * 1000;
@@ -32,6 +35,9 @@ function ensureAlarm() {
   chrome.alarms.get(ALARM, (alarm) => {
     if (!alarm) chrome.alarms.create(ALARM, { delayInMinutes: 1, periodInMinutes: CHECK_EVERY_MINUTES });
   });
+  chrome.alarms.get(CHAT_ALARM, (alarm) => {
+    if (!alarm) chrome.alarms.create(CHAT_ALARM, { delayInMinutes: 1, periodInMinutes: CHAT_EVERY_MINUTES });
+  });
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -42,6 +48,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.runtime.onStartup.addListener(ensureAlarm);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) tick("alarme").catch((error) => console.warn("[marketplace] tique falhou:", error));
+  if (alarm.name === CHAT_ALARM) chatTick().catch((error) => console.warn("[marketplace] chat falhou:", error));
 });
 
 // Espera a aba terminar de carregar DEPOIS de um comando de navegação (o listener é ligado antes do comando, então
@@ -313,7 +320,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === "mp-status") {
       const config = await loadConfig();
-      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) } };
+      const { chatLast } = await chrome.storage.local.get("chatLast");
+      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, chatLast: chatLast || null };
     }
     if (message?.type === "mp-pause") return { state: await saveState(setManualPause(await loadState(), message.paused)) };
     if (message?.type === "mp-check-now") {
@@ -326,3 +334,95 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   })().then(sendResponse, (error) => sendResponse({ error: error.message }));
   return true;
 });
+
+// --- Chat do Marketplace (MKT-2) ---------------------------------------------------------------------------------
+// A cada ~2 min (horário e liga/desliga vêm do CRM): abre uma aba própria na caixa de entrada do MARKETPLACE (nunca a
+// lista geral do Messenger), lê só as conversas que mudaram, manda ao CRM e envia as respostas que os corretores
+// escreveram (cliques/teclas reais, no máximo 3 por rodada e o limite por hora do CRM). Nunca responde sozinho.
+async function readInbox(tabId) {
+  await navigateAndWait(tabId, "https://www.facebook.com/marketplace/inbox/");
+  await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+  return sendWithTimeout(tabId, { type: "mp-inbox-list" }, 30000);
+}
+
+async function readThread(tabId, thread) {
+  await navigateAndWait(tabId, thread.threadUrl);
+  await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey }, 30000);
+  return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", messages: read?.messages || [] } };
+}
+
+async function pauseForCheckpoint(where) {
+  const state = await loadState();
+  await saveState({ ...state, pausedUntil: new Date(Date.now() + CHECKPOINT_PAUSE_MS).toISOString(), pauseReason: `O Facebook pediu verificação ou avisou de limite (${where}). Resolva no Facebook; a extensão volta sozinha em 24 h.` });
+  notify("Marketplace pausado por 24 h", `O Facebook pediu verificação ou avisou de limite (${where}). Nada será lido nem enviado até lá.`);
+}
+
+async function sendOutbound(tabId, config, message) {
+  let outcome;
+  try {
+    await attachDebugger(tabId);
+    await chrome.tabs.update(tabId, { active: true });
+    await navigateAndWait(tabId, message.threadUrl || `https://www.facebook.com/messages/t/${message.threadKey}`);
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+    outcome = await sendWithTimeout(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
+  } catch (error) {
+    outcome = { ok: false, sentAttempted: true, error: error.message }; // sem saber se saiu: não reenvia
+  } finally {
+    await detachDebugger(tabId);
+  }
+  await postOutboundResult(config, message.id, outboundResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno do envio falhou:", error?.message || error));
+  return outcome;
+}
+
+async function chatTick() {
+  const { chatSettings, chatPreviews } = await chrome.storage.local.get(["chatSettings", "chatPreviews"]);
+  const state = await loadState();
+  const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date() });
+  if (decision.action !== "sync") {
+    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: decision.reason } });
+    return decision;
+  }
+  const config = await loadConfig();
+  if (!config.key) return { reason: "sem_configuracao" };
+  await saveState({ ...state, chatRunning: new Date().toISOString() });
+  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  await sleep(500);
+  const summary = { read: 0, sent: 0, failed: 0 };
+  try {
+    const inbox = await readInbox(tab.id);
+    if (inbox?.checkpoint) return await pauseForCheckpoint("caixa do Marketplace");
+    const threads = inbox?.threads || [];
+    const conversations = [];
+    for (const thread of threadsToRead(threads, chatPreviews || {})) {
+      const { read, conversation } = await readThread(tab.id, thread);
+      if (read?.checkpoint) return await pauseForCheckpoint("conversa do Marketplace");
+      if (read?.ok) conversations.push(conversation);
+    }
+    const synced = await postChatSync(config, conversations);
+    summary.read = conversations.length;
+    await chrome.storage.local.set({ chatSettings: synced.settings || chatSettings || {}, chatPreviews: rememberPreviews(chatPreviews || {}, threads.filter((thread) => conversations.some((item) => item.threadKey === thread.threadKey))) });
+    if (synced.settings?.syncEnabled === false) return { reason: "chat_desligado" };
+
+    for (let i = 0; i < MAX_SENDS_PER_ROUND; i += 1) {
+      const next = await fetchNextOutbound(config);
+      if (!next?.message) break;
+      const outcome = await sendOutbound(tab.id, config, next.message);
+      if (outcome.ok) summary.sent += 1;
+      else summary.failed += 1;
+      if (outcome.checkpoint) return await pauseForCheckpoint("envio de mensagem");
+      if (!outcome.ok) break; // não insiste na mesma rodada
+      await sleep(4000 + Math.floor(Math.random() * 6000));
+    }
+    return { reason: "chat_sincronizado", ...summary };
+  } catch (error) {
+    console.warn("[marketplace] sincronização do chat falhou:", error?.message || error);
+    return { reason: "chat_erro", error: error?.message || String(error) };
+  } finally {
+    await detachDebugger(tab.id);
+    await chrome.tabs.remove(tab.id).catch(() => {});
+    const latest = await loadState();
+    await saveState({ ...latest, chatRunning: null });
+    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: `${summary.read} conversa(s) lida(s), ${summary.sent} enviada(s)${summary.failed ? `, ${summary.failed} falha(s)` : ""}` } });
+  }
+}

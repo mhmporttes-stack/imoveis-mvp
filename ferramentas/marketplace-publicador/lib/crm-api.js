@@ -57,3 +57,24 @@ export async function downloadPhotos(urls = [], fetchImpl = fetch) {
   }
   return files;
 }
+
+// --- Chat do Marketplace (MKT-2) ---------------------------------------------------------------------------------
+async function callCrm({ baseUrl, key }, path, options = {}, fetchImpl = fetch) {
+  const response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}${path}`, { ...options, headers: headers(key), cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(data.error || `CRM respondeu ${response.status}`), { status: response.status });
+  return data;
+}
+
+// Envia as conversas lidas (só Marketplace). Devolve { settings, created, newMessages, ... }.
+export function postChatSync(config, conversations, fetchImpl = fetch) {
+  return callCrm(config, "/api/marketplace/chat/sync", { method: "POST", body: JSON.stringify({ conversations }) }, fetchImpl);
+}
+
+export function fetchNextOutbound(config, fetchImpl = fetch) {
+  return callCrm(config, "/api/marketplace/chat/outbox/next", { method: "GET" }, fetchImpl);
+}
+
+export function postOutboundResult(config, messageId, body, fetchImpl = fetch) {
+  return callCrm(config, `/api/marketplace/chat/outbox/${encodeURIComponent(messageId)}/result`, { method: "POST", body: JSON.stringify(body) }, fetchImpl);
+}

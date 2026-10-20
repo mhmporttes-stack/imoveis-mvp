@@ -101,7 +101,26 @@
       "You can't post"
     ],
     checkpointUrlParts: ["/checkpoint", "/login", "/two_step_verification"],
-    listingLink: 'a[href*="/marketplace/item/"]'
+    listingLink: 'a[href*="/marketplace/item/"]',
+    // --- Chat do Marketplace (MKT-2) — A CALIBRAR com prints da caixa real do dono ---
+    // Só a caixa de entrada do MARKETPLACE é lida: nunca a lista geral do Messenger (conversas pessoais).
+    inbox: {
+      url: "https://www.facebook.com/marketplace/inbox/",
+      // Links das conversas listadas na caixa do Marketplace.
+      threadLinks: 'a[href*="/marketplace/t/"], a[href*="/messages/t/"], a[href*="/t/"][role="link"]',
+      // Área das mensagens dentro da conversa e cada linha/bolha.
+      messageArea: '[role="main"] [role="grid"], [role="main"] [aria-label*="Mensagens"], [role="main"] [aria-label*="Messages"], [role="main"]',
+      messageRows: '[role="row"], [data-testid="message-container"]',
+      messageText: 'div[dir="auto"]',
+      // Campo de escrever e botão enviar.
+      composer: '[role="textbox"][contenteditable="true"]',
+      composerLabels: ["Mensagem", "Escreva uma mensagem", "Aa", "Message", "Write a message"],
+      sendLabels: ["Pressione Enter para enviar", "Enviar", "Press enter to send", "Send"],
+      // Textos de sistema da conversa que não são mensagem do cliente.
+      systemTexts: ["Enviado", "Sent", "Entregue", "Delivered", "Digite uma mensagem"],
+      // Começo de linha de sistema ("Visto por João", "Você enviou uma foto").
+      systemPrefixes: ["Visto por", "Seen by", "Você enviou", "You sent"]
+    }
   };
 
   // Comparação sem acento, sem caixa e com espaços normalizados.
@@ -185,6 +204,51 @@
     } catch {
       return "";
     }
+  };
+
+  // id estável da conversa a partir do link (/marketplace/t/123, /messages/t/123, /t/123).
+  MP.parseThreadKey = function parseThreadKey(href) {
+    try {
+      const url = new URL(href, "https://www.facebook.com");
+      const match = url.pathname.match(/\/(?:marketplace\/t|messages\/t|t)\/([A-Za-z0-9_.:-]{1,120})/);
+      return match ? match[1] : "";
+    } catch {
+      return "";
+    }
+  };
+
+  // O Messenger não expõe id da mensagem: id = hash de (conversa, direção, texto, ordem entre textos iguais).
+  MP.messageExternalId = function messageExternalId(threadKey, direction, body, ordinal = 0) {
+    const input = `${threadKey}|${direction}|${MP.normalize(body)}|${ordinal}`;
+    let h1 = 0x811c9dc5;
+    let h2 = 0x01000193;
+    for (let i = 0; i < input.length; i += 1) {
+      const code = input.charCodeAt(i);
+      h1 = Math.imul(h1 ^ code, 16777619) >>> 0;
+      h2 = Math.imul(h2 + code, 2246822519) >>> 0;
+    }
+    return `h:${h1.toString(16)}${h2.toString(16)}`;
+  };
+
+  // Lado da bolha pela geometria: mensagem nossa fica à direita da área de mensagens.
+  MP.directionFromGeometry = function directionFromGeometry(bubble, area) {
+    const bubbleCenter = (bubble.left + bubble.right) / 2;
+    const areaCenter = (area.left + area.right) / 2;
+    return bubbleCenter > areaCenter ? "outbound" : "inbound";
+  };
+
+  // Mensagens lidas da conversa → lista com id estável (ordinal entre repetições do mesmo texto/direção).
+  MP.buildMessages = function buildMessages(threadKey, rows) {
+    const seen = new Map();
+    return rows
+      .filter((row) => (row.body || row.attachments?.length) && !MP.matchesAny(row.body, MP.inbox.systemTexts, true)
+        && !MP.inbox.systemPrefixes.some((prefix) => MP.normalize(row.body).startsWith(MP.normalize(prefix))))
+      .map((row) => {
+        const key = `${row.direction}|${MP.normalize(row.body)}`;
+        const ordinal = seen.get(key) || 0;
+        seen.set(key, ordinal + 1);
+        return { externalId: MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal), direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: null };
+      });
   };
 
   root.MP = MP;

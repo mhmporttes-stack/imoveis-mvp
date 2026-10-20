@@ -28,6 +28,9 @@ export function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
 }
 
+// Chat do Marketplace (MKT-2, dono, 2026-10-20): conversas do Facebook Marketplace, todos os perfis (escopo no servidor).
+const MARKETPLACE_CHAT_ITEM = { href: "/admin/chat/marketplace", label: "Chat Marketplace", key: "marketplace-chat" };
+
 const clientItems = [
   { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
   { href: "/admin/calendario", label: "Calendário", key: "calendar" }
@@ -89,7 +92,7 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, MARKETPLACE_CHAT_ITEM, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
@@ -163,6 +166,7 @@ const ownerGroups = [
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
       { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
+      MARKETPLACE_CHAT_ITEM,
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" }
     ]

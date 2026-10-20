@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace dentro do CRM (MKT-2) — fases 1 e 2; extensão 1.6.0
+- **Data:** 2026-10-20
+- **Área:** nova tela `/admin/chat/marketplace` (menu "Chat Marketplace", todos os perfis), roleta, extensão `ferramentas/marketplace-publicador/`.
+- **Alteração:** migration `20261020180000_marketplace_chat.sql` (NÃO aplicada): `marketplace_conversations` + `marketplace_messages`. Tabelas próprias em vez de `whatsapp_conversations` porque o Chat do WhatsApp é ancorado em telefone/sessão e tem gatilhos (`whatsapp_chat_apply_inbound`, sincronização de responsável), Fluxos, lembretes e envio que não podem disparar para uma conversa do Facebook. Fase 1: a extensão lê a caixa do Marketplace e envia ao CRM (`/api/marketplace/chat/sync`, chave `mkp_`); conversa nova recente entra na roleta (`assignRoundRobinLead`), fila de espera e redistribuição em 10 min sem resposta rodam a cada sincronização; selo do Messenger e etiqueta "Marketplace"; "Adicionar ao CRM" com nome + WhatsApp. Fase 2: resposta do corretor vira fila de saída; a extensão envia pelo Facebook com cliques/teclas reais (chrome.debugger), confirma e devolve o status; limite por hora; configuração (liga/desliga, horário, envios/h) só do admin geral.
+- **Verificação:** `node --test tests/marketplace-chat-core.test.mjs` (9) e extensão (42, inclui inbox.js com DOM falso); `pnpm build` limpo. Sem conta do Facebook aqui: seletores da caixa do Marketplace **A CONFIRMAR** com prints reais.
+- **Docs:** BUSINESS_RULES MKT-2, WHATSAPP §13-A, PERMISSIONS §6, DATABASE §3.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): descrição no estilo da legenda do Instagram, banheiros corretos e resumo antes de aprovar
 - **Data:** 2026-10-20
 - **Área:** tela Cadastros › Marketplace (`lib/marketplace-core.mjs`), extensão.

@@ -11,7 +11,7 @@ function line(label, value) {
   return p;
 }
 
-function render({ state, config }) {
+function render({ state, config, chatLast }) {
   const status = $("status");
   status.replaceChildren();
   const paused = state.manualPause || (state.pausedUntil && new Date(state.pausedUntil) > new Date());
@@ -20,6 +20,7 @@ function render({ state, config }) {
   status.append(line("Hoje", `${todayCount(state)} de ${DAILY_LIMIT} publicações`));
   status.append(line("Próxima publicação a partir de", fmt(state.nextAllowedAt)));
   status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${describeCheck(state.lastCheckResult, state.lastCheckWaitUntil)}`));
+  if (chatLast) status.append(line("Chat do Marketplace", `${fmt(chatLast.at)} — ${REASON_LABELS[chatLast.result] || chatLast.result}`));
   if (!config.hasKey) status.append(line("Atenção", REASON_LABELS.sem_configuracao));
   $("pause").textContent = paused ? "Retomar" : "Pausar";
   $("pause").dataset.paused = paused ? "1" : "";

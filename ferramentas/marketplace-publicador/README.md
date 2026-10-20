@@ -43,6 +43,13 @@ Gerar uma chave nova no CRM desliga a anterior — cole a nova nas Opções.
 
 Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador Marketplace começou a depurar este navegador"**. É normal: a extensão usa esse modo para clicar e digitar como uma pessoa (o campo de localização do Facebook ignora cliques automáticos comuns). A faixa some quando a publicação termina e a aba fecha. **Não clique em "Cancelar"** na faixa durante a publicação (a extensão volta para o modo comum e a localização pode falhar).
 
+## Chat do Marketplace (versão 1.6.0)
+
+- A cada ~2 minutos, no horário escolhido no CRM (padrão 07h–22h), a extensão abre uma aba própria em **facebook.com/marketplace/inbox**, lê **só as conversas do Marketplace** que mudaram (nunca as conversas pessoais do Messenger) e manda ao CRM, onde elas aparecem em **Chat Marketplace** com o selo do Messenger e vão para a roleta.
+- As respostas que os corretores escrevem no CRM saem pelo **seu perfil do Facebook**, sem prefixo, com a mesma faixa "está depurando" durante o envio. No máximo 3 por rodada e o limite por hora do CRM. Nada é respondido sozinho.
+- Para desligar: no CRM, Chat Marketplace → desmarque "Sincronizar conversas do Marketplace" (só o administrador geral vê essa opção). O botão **Pausar** do popup também para tudo.
+- Precisa do PC do escritório ligado e do Chrome aberto; atraso de ~1–2 min para chegar e para sair.
+
 ## Popup
 
 Mostra a situação (ativo, pausado, publicando), quantas publicações hoje, quando pode publicar de novo, a última verificação e o histórico. **Pausar** para tudo até você tocar em **Retomar** (Retomar também encerra a pausa de 24 h depois de você resolver a verificação no Facebook). **Verificar agora** respeita as mesmas regras de horário e limite.
