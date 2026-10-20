@@ -126,12 +126,26 @@
       messageRows: '[role="row"], [data-testid="message-container"]',
       messageText: 'div[dir="auto"]',
       // Campo de escrever e botão enviar.
-      composer: '[role="textbox"][contenteditable="true"]',
+      composer: '[role="textbox"][contenteditable="true"], [role="textbox"][data-lexical-editor]',
       composerLabels: ["Mensagem", "Escreva uma mensagem", "Aa", "Message", "Write a message"],
       sendLabels: ["Pressione Enter para enviar", "Enviar", "Press enter to send", "Send"],
       // Janela de chat flutuante (print do dono): container com o campo "Aa" + cabeçalho "Nome · Anúncio".
       chatWindow: '[role="dialog"], [role="complementary"], [role="region"], [aria-label]',
-      closeLabels: ["Fechar chat", "Fechar", "Close chat", "Close"],
+      closeLabels: ["Fechar bate-papo", "Fechar chat", "Fechar", "Close chat", "Close"],
+      // Estrutura REAL da conversa aberta (diagnóstico do dono, 2026-10-20): div[role=log] virtualizado; cada mensagem é
+      // div[role=article] com o balão div[data-message-id] e um botão-irmão [role=button][tabindex=-1] cujo aria-label é
+      // o texto. Nossa: tem div[role=status] (entregue/visto) ou h2 "Você enviou"; do cliente: link /marketplace/profile/.
+      log: '[role="log"]',
+      article: '[role="article"]',
+      messageId: "[data-message-id]",
+      messageTextButton: '[role="button"][tabindex="-1"][aria-label]',
+      timeSeparator: "[data-release-focus-from]",
+      outboundMarkers: '[role="status"]',
+      inboundMarkers: 'a[href*="/marketplace/profile/"]',
+      outboundHeadings: ["Você enviou", "You sent"],
+      chatHeaderButtons: "[data-prevent_chattab_focus]",
+      // Itens da lista da caixa: clicáveis dentro do conteúdo principal (role=main) com miniatura.
+      clickables: 'a[href], [role="button"], [role="row"], [role="link"], [role="gridcell"], [role="listitem"]',
       // Textos de sistema/faixa do anúncio que não são mensagem do cliente (interface mista pt/en).
       systemTexts: ["Enviado", "Sent", "Entregue", "Delivered", "Digite uma mensagem", "Marketplace", "Mark as pending", "Marcar como pendente", "More options", "Mais opções", "Aa"],
       // Começo de linha de sistema ("Visto por João", "Você enviou uma foto").
@@ -239,7 +253,13 @@
     try {
       const url = new URL(href, "https://www.facebook.com");
       const match = url.pathname.match(/\/(?:marketplace\/t|messages\/t|t)\/([A-Za-z0-9_.:-]{1,120})/);
-      return match ? match[1] : "";
+      if (match) return match[1];
+      // /marketplace/inbox/?thread_id=… e parecidos.
+      for (const name of ["thread_id", "threadId", "thread", "conversation_id", "tid"]) {
+        const value = url.searchParams.get(name);
+        if (value && /^[A-Za-z0-9_.:-]{1,120}$/.test(value)) return value;
+      }
+      return "";
     } catch {
       return "";
     }
@@ -275,7 +295,9 @@
         const key = `${row.direction}|${MP.normalize(row.body)}`;
         const ordinal = seen.get(key) || 0;
         seen.set(key, ordinal + 1);
-        return { externalId: MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal), direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: row.at || null };
+        // id do próprio Facebook (data-message-id) quando existe; senão, hash estável.
+        const externalId = row.externalId || MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal);
+        return { externalId, direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: row.at || null };
       });
   };
 
@@ -308,7 +330,7 @@
   // Junta "janelas" de mensagens lidas enquanto rola a conversa (o Messenger só mantém parte na tela): acrescenta a
   // janela nova ao que já foi coletado, sem repetir a parte que se sobrepõe. Chave = direção + texto.
   MP.mergeRowWindows = function mergeRowWindows(collected = [], windowRows = []) {
-    const key = (row) => `${row.direction}|${MP.normalize(row.body)}|${(row.attachments || []).map((a) => a.url).join(",")}`;
+    const key = (row) => (row.externalId ? `id|${row.externalId}` : `${row.direction}|${MP.normalize(row.body)}|${(row.attachments || []).map((a) => a.url).join(",")}`);
     const tail = collected.map(key);
     const head = windowRows.map(key);
     let overlap = 0;
@@ -369,6 +391,7 @@
     const value = String(text || "").replace(/\s+/g, " ").trim();
     if (!value) return "";
     if (value.includes(" · ")) return "NOME · ANUNCIO";
+    if (value === "·") return "·";
     if (/^(você|voce|you)\s*:/i.test(value)) return "Você: TEXTO";
     if (value.length <= 12 && (MP.parseRelativeTime(value) || /^\d{1,2}:\d{2}$/.test(value))) return value;
     if (MP.UI_WORDS.some((word) => MP.normalize(word) === MP.normalize(value))) return value;
@@ -383,6 +406,193 @@
     } catch {
       return "";
     }
+  };
+
+  // --- Leitura pela estrutura REAL (1.8.6; diagnóstico do dono de 2026-10-20) ---------------------------------------
+  // As funções abaixo só usam a interface básica do DOM (childNodes, getAttribute, querySelectorAll, closest, contains)
+  // para poderem ser testadas com uma árvore falsa (tests/fake-dom.js).
+
+  // Textos das folhas (nós de texto) em ordem, sem espaços extras. Nome e anúncio ficam em spans separados.
+  MP.textLeaves = function textLeaves(element) {
+    const out = [];
+    const walk = (node, depth) => {
+      if (depth > 40) return;
+      for (const child of node?.childNodes || []) {
+        if (child.nodeType === 3) {
+          const text = String(child.textContent || "").replace(/\s+/g, " ").trim();
+          if (text) out.push(text);
+        } else if (child.nodeType === 1 && !/^(script|style|svg)$/i.test(child.tagName || "")) walk(child, depth + 1);
+      }
+    };
+    walk(element, 0);
+    return out;
+  };
+
+  const DOT_LEAF = /(^|\s)·(\s|$)/;
+  // Item da caixa a partir das folhas: "Nome" "·" "Anúncio" (ou "Nome · Anúncio" num nó só, ou "Nome ·" + "Anúncio")
+  // + prévia ("Você:" "texto") + hora. Sem " · " → null (conversa pessoal nunca entra).
+  MP.parseInboxLeaves = function parseInboxLeaves(leaves = []) {
+    const texts = leaves.map((text) => String(text || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const index = texts.findIndex((text) => DOT_LEAF.test(text));
+    if (index < 0) return null;
+    const leaf = texts[index];
+    let contactName = "";
+    let listingTitle = "";
+    let restStart = index + 1;
+    if (leaf === "·") {
+      contactName = texts[index - 1] || "";
+      listingTitle = texts[index + 1] || "";
+      restStart = index + 2;
+    } else {
+      const match = leaf.match(/^(.*?)\s*·\s*(.*)$/);
+      contactName = (match[1] || "").trim() || texts[index - 1] || "";
+      listingTitle = (match[2] || "").trim();
+      if (!listingTitle) {
+        listingTitle = texts[index + 1] || "";
+        restStart = index + 2;
+      }
+    }
+    if (!contactName || !listingTitle) return null;
+    const rest = texts.slice(restStart).flatMap((text) => text.split(/\s*·\s*/)).map((text) => text.trim()).filter((text) => text && text !== "·");
+    const isTime = (text) => text.length <= 12 && Boolean(MP.parseRelativeTime(text));
+    const timeLabel = [...rest].reverse().find(isTime) || "";
+    const preview = rest.filter((text) => text !== timeLabel && !/^\d+\s+nova/i.test(text)).join(" ").replace(/\s+:/g, ":").trim();
+    return { contactName, listingTitle, preview, previewDirection: /^(você|voce|you)\s*:/i.test(preview) ? "outbound" : "inbound", timeLabel };
+  };
+
+  // Partes da conversa aberta que nunca são item da lista (o cabeçalho da janela de chat também tem "Nome · Anúncio"
+  // e miniatura).
+  const CHAT_PARTS = '[role="log"], [role="textbox"], [data-lexical-editor], [data-prevent_chattab_focus]';
+  // Painéis de conversa: o menor ancestral de cada [role=log] que também tem o campo de escrever.
+  MP.chatPanes = function chatPanes(root) {
+    const panes = [];
+    for (const log of root?.querySelectorAll?.('[role="log"]') || []) {
+      let node = log.parentElement;
+      for (let level = 0; node && level < 25; level += 1, node = node.parentElement) {
+        if (node.querySelector?.('[role="textbox"]')) break;
+      }
+      let pane = node || log;
+      // Janela flutuante: inclui o cabeçalho (botões minimizar/fechar) se estiver logo acima.
+      for (let up = pane, level = 0; up && level < 6; level += 1, up = up.parentElement) {
+        if (up.querySelector?.(MP.inbox.chatHeaderButtons)) {
+          if (up.querySelectorAll('[role="log"]').length <= 1) pane = up;
+          break;
+        }
+      }
+      panes.push(pane);
+    }
+    return panes;
+  };
+
+  // Itens da lista da caixa do Marketplace dentro de `root` (role=main da página ou o painel "← Marketplace"):
+  // clicável (a[href] ou role=button|row|link|gridcell|listitem) com miniatura e " · " nas folhas. Fora da janela de
+  // chat; contêiner com 2+ itens não conta; do mesmo item fica o clicável mais externo (o que tem o link).
+  MP.findListItems = function findListItems(root, { visible = () => true } = {}) {
+    if (!root?.querySelectorAll) return [];
+    const panes = MP.chatPanes(root.ownerDocument || root);
+    const matches = [];
+    for (const element of root.querySelectorAll(MP.inbox.clickables)) {
+      if (!visible(element)) continue;
+      const images = element.querySelectorAll("img, image").length;
+      if (!images || images > 4) continue;
+      if (element.querySelector(CHAT_PARTS) || element.matches?.(CHAT_PARTS)) continue;
+      if (panes.some((pane) => pane.contains?.(element))) continue;
+      const leaves = MP.textLeaves(element);
+      if (leaves.length > 16) continue;
+      const parsed = MP.parseInboxLeaves(leaves);
+      if (parsed) matches.push({ element, parsed });
+    }
+    const isContainer = (item) => {
+      const inner = matches.filter((other) => other !== item && item.element.contains(other.element));
+      return inner.some((a) => inner.some((b) => a !== b && !a.element.contains(b.element) && !b.element.contains(a.element)));
+    };
+    const items = matches.filter((item) => !isContainer(item));
+    return items
+      .filter((item) => !items.some((other) => other !== item && other.element.contains(item.element)))
+      .map(({ element, parsed }) => {
+        const links = [element, ...element.querySelectorAll("a[href]")].filter((node) => node.getAttribute?.("href"));
+        const outer = element.closest?.("a[href]");
+        if (outer) links.push(outer);
+        const link = links.find((node) => MP.parseThreadKey(node.getAttribute("href"))) || null;
+        const href = link ? link.getAttribute("href") : "";
+        return { element, parsed, href, threadKey: MP.parseThreadKey(href) || MP.itemKey(parsed.contactName, parsed.listingTitle) };
+      });
+  };
+
+  // Botões para fechar janelas de chat abertas: rótulo "Fechar bate-papo"/"Close chat"…; sem rótulo conhecido, o
+  // último botão [data-prevent_chattab_focus] de cada cabeçalho (o outro é minimizar).
+  MP.chatCloseButtons = function chatCloseButtons(root) {
+    const headerButtons = [...(root?.querySelectorAll?.(MP.inbox.chatHeaderButtons) || [])];
+    const chatLabels = ["Fechar bate-papo", "Fechar chat", "Close chat"];
+    const labeled = [...(root?.querySelectorAll?.('[role="button"][aria-label]') || [])]
+      .filter((button) => MP.matchesAny(button.getAttribute("aria-label"), chatLabels, true)
+        || (headerButtons.includes(button) && MP.matchesAny(button.getAttribute("aria-label"), MP.inbox.closeLabels, true)));
+    if (labeled.length) return labeled;
+    const byHeader = new Map();
+    for (const button of headerButtons) byHeader.set(button.parentElement?.parentElement || button.parentElement, button);
+    return [...byHeader.values()];
+  };
+
+  // Direção de uma mensagem pelo conteúdo: link do perfil do cliente → inbound; role=status (entregue/visto) ou h2
+  // "Você enviou" → outbound; h2 com outro texto (nome do cliente) → inbound; nada disso → null.
+  MP.articleDirection = function articleDirection(article) {
+    if (article.querySelector(MP.inbox.inboundMarkers)) return "inbound";
+    const headings = [...article.querySelectorAll('h2, [role="heading"]')].map((node) => String(node.textContent || "").trim()).filter(Boolean);
+    const outboundHeading = headings.some((text) => MP.inbox.outboundHeadings.some((prefix) => MP.normalize(text).startsWith(MP.normalize(prefix))));
+    if (outboundHeading || article.querySelector(MP.inbox.outboundMarkers)) return "outbound";
+    return headings.length ? "inbound" : null;
+  };
+
+  // Texto de uma mensagem: botão-irmão [role=button][tabindex=-1] cujo aria-label é o texto (de preferência o que tem
+  // o mesmo texto dentro); sem ele, os div[dir=auto] do balão fora dos títulos.
+  MP.articleText = function articleText(article) {
+    const buttons = [...article.querySelectorAll(MP.inbox.messageTextButton)];
+    const same = buttons.find((button) => {
+      const label = MP.normalize(button.getAttribute("aria-label"));
+      return label && label === MP.normalize(button.textContent);
+    });
+    if (same) return String(same.getAttribute("aria-label")).trim();
+    const bubble = article.matches?.(MP.inbox.messageId) ? article : article.querySelector(MP.inbox.messageId);
+    const texts = [...(bubble || article).querySelectorAll(MP.inbox.messageText)]
+      .filter((node) => !node.closest?.('h2, [role="heading"], [role="status"]') && !node.querySelector?.(MP.inbox.messageText))
+      .map((node) => String(node.textContent || "").trim())
+      .filter(Boolean);
+    if (texts.length) return texts.join("\n");
+    const label = buttons.map((button) => String(button.getAttribute("aria-label") || "").trim()).find((text) => text && !MP.matchesAny(text, MP.inbox.systemTexts, true));
+    return label || "";
+  };
+
+  // Mensagens do div[role=log]: cada div[role=article] (balão com data-message-id) e os separadores de hora (linhas
+  // [data-release-focus-from] sem data-message-id) em ordem. external_id = "fb:" + data-message-id quando existe.
+  // directionOf/attachmentsOf: geometria e imagens (só no navegador). Sem nenhum sinal, herda a direção anterior.
+  MP.readLogRows = function readLogRows(log, { contactName = "", directionOf = null, attachmentsOf = () => [], now = new Date() } = {}) {
+    const rows = [];
+    const done = new Set();
+    const nameKey = MP.normalize(contactName);
+    let currentAt = null;
+    let lastDirection = null;
+    const units = log?.querySelectorAll?.(`${MP.inbox.article}, ${MP.inbox.messageId}, ${MP.inbox.timeSeparator}`) || [];
+    for (const unit of units) {
+      const article = unit.closest?.(MP.inbox.article) || (unit.matches?.(MP.inbox.messageId) ? unit : null);
+      if (!article) {
+        if (unit.closest?.(MP.inbox.messageId) || unit.querySelector?.(MP.inbox.messageId)) continue;
+        const text = MP.textLeaves(unit).join(" ");
+        if (text) currentAt = MP.parseClockSeparator(text, now);
+        continue;
+      }
+      if (done.has(article)) continue;
+      done.add(article);
+      const idNode = article.matches?.(MP.inbox.messageId) ? article : article.querySelector(MP.inbox.messageId);
+      const fbId = String(idNode?.getAttribute?.("data-message-id") || "").trim();
+      const body = MP.articleText(article);
+      const attachments = attachmentsOf(article) || [];
+      if (!body && !attachments.length) continue;
+      if (nameKey && MP.normalize(body) === nameKey) continue;
+      const direction = MP.articleDirection(article) || (directionOf && directionOf(article)) || lastDirection || "inbound";
+      lastDirection = direction;
+      rows.push({ externalId: fbId ? `fb:${fbId}`.slice(0, 200) : "", direction, body, attachments, at: currentAt });
+    }
+    return rows;
   };
 
   // Chave da conversa quando o item não tem link: estável por nome + anúncio.

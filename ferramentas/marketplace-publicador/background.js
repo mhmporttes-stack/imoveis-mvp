@@ -464,7 +464,7 @@ async function chatTick() {
       // Envia sozinho o diagnóstico de estrutura (no máximo 1 por hora) para calibrar os seletores.
       const { lastDiagnosticAt } = await chrome.storage.local.get("lastDiagnosticAt");
       if (!lastDiagnosticAt || Date.now() - new Date(lastDiagnosticAt).getTime() > 60 * 60 * 1000) {
-        summary.error += ` Diagnóstico: ${await sendDiagnostics(tab.id, config, { navigate: false })}`;
+        summary.error += ` Diagnóstico: ${await sendDiagnostics(tab.id, config, { navigate: true })}`;
       }
     }
     const conversations = [];
@@ -506,13 +506,17 @@ async function chatTick() {
   }
 }
 
-// --- Diagnóstico de estrutura (1.8.5) -------------------------------------------------------------------------------
-// Na aba dedicada: esqueleto da página /marketplace/inbox e do painel Messenger → "Marketplace", enviados ao CRM.
+// --- Diagnóstico de estrutura (1.8.5; lista em 1.8.6) ---------------------------------------------------------------
+// Na aba dedicada: esqueleto da lista (role=main), da página /marketplace/inbox e do painel Messenger → "Marketplace", enviados ao CRM.
 async function sendDiagnostics(tabId, config, { navigate = true } = {}) {
   const sent = [];
   try {
     if (navigate) await navigateAndWait(tabId, INBOX_URL);
     await injectInbox(tabId);
+    // 1.8.6: lista ancorada em role=main e nos clicáveis com miniatura (fecha janelas de chat antes).
+    const list = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "inbox_list" }, 60000);
+    await postDiagnostic(config, "inbox_list", list);
+    sent.push(`lista (${list?.counts?.withThumb ?? "?"} clicáveis com miniatura, ${list?.counts?.items ?? "?"} itens)`);
     const page = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "inbox_page" }, 60000);
     await postDiagnostic(config, "inbox_page", page);
     sent.push(`página (${page?.counts?.dots ?? "?"} textos " · ")`);

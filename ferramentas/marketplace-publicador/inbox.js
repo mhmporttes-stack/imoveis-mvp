@@ -32,12 +32,17 @@
     return String(element.innerText || "").split("\n").map((line) => line.trim()).filter(Boolean);
   }
 
-  // Lê os itens "Nome · Anúncio" dentro de `root` (a página da caixa ou o painel "← Marketplace"). Só itens nesse
-  // formato entram: conversas pessoais (sem " · anúncio") nunca são lidas.
-  // Elementos de conversa: o nó clicável PEQUENO que contém a miniatura do anúncio e a linha "Nome · Anúncio"
-  // (2–6 linhas de texto). Sobe de cada miniatura até achar esse nó; também aceita itens com role (lista/linha/link)
-  // que já tenham esse formato. Nunca o contêiner da lista inteira (muitas linhas). Print do dono, 2026-10-20.
+  // Itens "Nome · Anúncio" dentro de `root` (role=main da página da caixa ou o painel "← Marketplace"). Só itens com
+  // " · " entram: conversas pessoais (sem anúncio) nunca são lidas. Regra em MP.findListItems (selectors.js, 1.8.6):
+  // clicável com miniatura cujas folhas de texto têm " · " (nome e anúncio ficam em spans separados).
   function findItemElements(root) {
+    const found = MP.findListItems(root, { visible });
+    return found.length ? found : findItemElementsByLines(root);
+  }
+
+  // Reserva (1.8.4): sobe de cada miniatura até o nó pequeno (2–6 linhas de innerText) com "Nome · Anúncio" na 1ª linha;
+  // também aceita itens com role (lista/linha/link). Nunca o contêiner da lista inteira.
+  function findItemElementsByLines(root) {
     const found = [];
     const seen = new Set();
     const consider = (element) => {
@@ -61,15 +66,22 @@
     }
     for (const element of root.querySelectorAll(MP.inbox.listItems)) consider(element);
     // Só o mais interno de cada conversa (um item que contém outro item igual não conta duas vezes).
-    return found.filter((item) => !found.some((other) => other !== item && item.element.contains?.(other.element)));
+    return found
+      .filter((item) => !found.some((other) => other !== item && item.element.contains?.(other.element)))
+      .map(({ element, parsed }) => {
+        const link = element.matches?.("a") ? element : element.querySelector?.("a[href]") || element.closest?.("a[href]");
+        const href = link?.getAttribute("href") || "";
+        return { element, parsed, href, threadKey: MP.parseThreadKey(href) || MP.itemKey(parsed.contactName, parsed.listingTitle) };
+      });
+  }
+
+  function listRoot() {
+    return [...document.querySelectorAll('[role="main"]')].find(visible) || document;
   }
 
   function collectItems(root) {
     const byKey = new Map();
-    for (const { element, parsed } of findItemElements(root)) {
-      const link = element.matches?.("a") ? element : element.querySelector?.("a[href]") || element.closest?.("a[href]");
-      const href = link?.getAttribute("href") || "";
-      const threadKey = MP.parseThreadKey(href) || MP.itemKey(parsed.contactName, parsed.listingTitle);
+    for (const { element, parsed, href, threadKey } of findItemElements(root)) {
       if (byKey.has(threadKey)) continue;
       const photo = element.querySelector?.("img, image");
       const label = `${element.getAttribute?.("aria-label") || ""}`;
@@ -85,6 +97,18 @@
       });
     }
     return [...byKey.values()];
+  }
+
+  // Janelas de chat flutuantes abertas atrapalham a lista (o cabeçalho delas também é "Nome · Anúncio"): fecha todas.
+  async function closeOpenChats() {
+    let closed = 0;
+    for (let i = 0; i < 6; i += 1) {
+      const button = MP.chatCloseButtons(document).find(visible);
+      if (!button) break;
+      await clickElement(button);
+      closed += 1;
+    }
+    return closed;
   }
 
   function findByText(selector, texts, root = document) {
@@ -135,14 +159,15 @@
   // os passos (diagnóstico do popup).
   function scrollableIn(root) {
     const all = [root, ...root.querySelectorAll("div")];
-    return all.find((node) => node.scrollHeight > node.clientHeight + 40) || null;
+    const scrolls = (node) => typeof getComputedStyle !== "function" || /(auto|scroll)/.test(getComputedStyle(node).overflowY);
+    return all.find((node) => node.scrollHeight > node.clientHeight + 40 && node.nodeType === 1 && scrolls(node)) || document.scrollingElement || null;
   }
 
   // Lê o painel inteiro: rola para baixo (a lista carrega mais com "esqueleto" cinza) juntando os itens, até parar.
   async function collectAll(root, steps, label) {
     const byKey = new Map(collectItems(root).map((item) => [item.threadKey, item]));
     const box = scrollableIn(root);
-    for (let i = 0; box && i < 15; i += 1) {
+    for (let i = 0; box && i < 30; i += 1) {
       const before = byKey.size;
       box.scrollTop = box.scrollHeight;
       await sleep(between(900, 1500));
@@ -159,8 +184,10 @@
     const steps = [`aba em ${location.pathname}`];
     let threads = [];
     if (location.pathname.startsWith("/marketplace/inbox")) {
-      await waitFor(() => collectItems(document).length || null, 15000, 800);
-      threads = await collectAll(document, steps, "página /marketplace/inbox");
+      const closed = await closeOpenChats();
+      if (closed) steps.push(`fechou ${closed} janela(s) de chat`);
+      await waitFor(() => collectItems(listRoot()).length || null, 15000, 800);
+      threads = await collectAll(listRoot(), steps, "página /marketplace/inbox");
     }
     if (!threads.length) {
       const root = await openMarketplaceFromMessenger(steps);
@@ -172,17 +199,26 @@
     return { threads: threads.slice(0, 40), checkpoint: pageCheckpoint(), url: location.href, steps };
   }
 
-  // Abre a conversa clicando no item (quando não há link): a janela de chat abre na mesma página.
+  // Abre a conversa clicando no item (quando não há link): a janela de chat abre na mesma página. A lista carrega aos
+  // poucos: rola até achar o item.
   async function openItem(threadKey) {
-    for (const { element, parsed } of findItemElements(document)) {
-      if (MP.itemKey(parsed.contactName, parsed.listingTitle) !== threadKey) continue;
-      const before = location.href;
-      await clickElement(element);
-      await sleep(between(1500, 2500));
-      // O clique pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/… (o background reinjeta).
-      return { ok: true, navigated: location.href !== before };
+    await closeOpenChats();
+    const root = listRoot();
+    const box = scrollableIn(root);
+    for (let i = 0; i < 20; i += 1) {
+      const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
+      if (item) {
+        const before = location.href;
+        await clickElement(item.element);
+        await sleep(between(1500, 2500));
+        // O clique pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/… (o background reinjeta).
+        return { ok: true, navigated: location.href !== before };
+      }
+      if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 5) break;
+      box.scrollTop += Math.max(300, box.clientHeight * 0.8);
+      await sleep(between(900, 1500));
     }
-    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(document).length} itens visíveis).` };
+    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(root).length} itens visíveis).` };
   }
 
   function bubbleAttachments(row) {
@@ -195,6 +231,10 @@
   // Janela de chat flutuante aberta (a menor que tem o campo "Aa"); com `name`, a que mostra esse nome no cabeçalho.
   function chatWindow(name = "") {
     const key = MP.normalize(name);
+    // Estrutura real (1.8.6): painel = menor bloco com o div[role=log] e o campo de escrever (+ cabeçalho).
+    const panes = MP.chatPanes(document).filter((pane) => visible(pane) && pane.querySelector?.(MP.inbox.composer));
+    const named = panes.find((pane) => !key || [...pane.querySelectorAll('[role="button"][aria-label], h2')].some((node) => MP.normalize(node.getAttribute?.("aria-label") || node.textContent).startsWith(key)));
+    if (named) return named;
     const candidates = [...document.querySelectorAll(MP.inbox.chatWindow)]
       .filter((element) => visible(element) && element.querySelector?.(MP.inbox.composer))
       .filter((element) => !key || MP.normalize(itemLines(element)[0] || "").includes(key));
@@ -233,8 +273,25 @@
     return rows;
   }
 
+  // Linhas pela estrutura real (div[role=log] → div[role=article] com data-message-id); sem ela, pela geometria.
+  function geometryDirection(article, log) {
+    const bubble = article.querySelector(MP.inbox.messageId) || article;
+    return MP.directionFromGeometry(bubble.getBoundingClientRect(), log.getBoundingClientRect());
+  }
+
+  function readRows(scope, area, contactName = "") {
+    const log = (scope || document).querySelector(MP.inbox.log);
+    if (log) {
+      const rows = MP.readLogRows(log, { contactName, directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
+      if (rows.length) return rows;
+    }
+    return area ? visibleRows(area, contactName) : [];
+  }
+
   async function closeChatWindow(win) {
-    const button = win && [...win.querySelectorAll('[role="button"], [aria-label]')].find((element) => visible(element) && MP.matchesAny(element.getAttribute?.("aria-label"), MP.inbox.closeLabels, true));
+    if (!win) return;
+    const button = [...win.querySelectorAll('[role="button"], [aria-label]')].find((element) => visible(element) && MP.matchesAny(element.getAttribute?.("aria-label"), MP.inbox.closeLabels, true))
+      || MP.chatCloseButtons(win).find(visible);
     if (button) await clickElement(button);
   }
 
@@ -253,15 +310,16 @@
     // Janela flutuante (caminho do Messenger) ou, se não houver, a área principal da página da conversa.
     const win = await waitFor(() => chatWindow(contactName) || chatWindow(), 15000);
     const scope = win || document;
-    const area = win ? scroller(win.querySelector(MP.inbox.messageRows)?.parentElement || win) : document.querySelector(MP.inbox.messageArea);
+    const log = scope.querySelector?.(MP.inbox.log) || null;
+    const area = log || (win ? scroller(win.querySelector(MP.inbox.messageRows)?.parentElement || win) : document.querySelector(MP.inbox.messageArea));
     const bodyText = String(scope.innerText || document.body?.innerText || "").slice(0, 20000);
-    if (MP.matchesAny(bodyText, MP.inbox.pinTexts) && (!area || !visibleRows(area, contactName).length)) {
+    if (MP.matchesAny(bodyText, MP.inbox.pinTexts) && (!area || !readRows(scope, area, contactName).length)) {
       await closeChatWindow(win);
       return { ok: false, error: "Restaure o histórico com o PIN do Messenger (a conversa está criptografada e sem mensagens).", checkpoint: pageCheckpoint() };
     }
     if (!area) return { ok: false, error: `Janela/área de mensagens não encontrada (${location.pathname}; janelas com campo "Aa": ${document.querySelectorAll(MP.inbox.composer).length}).`, checkpoint: pageCheckpoint() };
     await sleep(between(1200, 2200));
-    let rows = visibleRows(area, contactName);
+    let rows = readRows(scope, area, contactName);
     if (full) {
       const box = scroller(area);
       // Sobe até parar de carregar (máx. 60 voltas).
@@ -272,18 +330,18 @@
         lastHeight = box.scrollHeight;
       }
       // Desce juntando as janelas.
-      rows = visibleRows(area, contactName);
+      rows = readRows(scope, area, contactName);
       for (let i = 0; i < 200 && box.scrollTop + box.clientHeight < box.scrollHeight - 5; i += 1) {
         box.scrollTop += Math.max(200, box.clientHeight * 0.8);
         await sleep(between(250, 450));
-        rows = MP.mergeRowWindows(rows, visibleRows(area, contactName));
+        rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
       }
-      rows = MP.mergeRowWindows(rows, visibleRows(area, contactName));
+      rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
     }
     const listing = scope.querySelector?.(MP.listingLink) || document.querySelector(MP.listingLink);
     const result = rows.length
-      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href) : "", messages: MP.buildMessages(threadKey, rows).slice(full ? -500 : -60), checkpoint: pageCheckpoint() }
-      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
+      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", messages: MP.buildMessages(threadKey, rows).slice(full ? -500 : -60), checkpoint: pageCheckpoint() }
+      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
     await closeChatWindow(win); // não acumula janelas abertas
     return result;
   }
@@ -297,6 +355,11 @@
   }
 
   function lastOutboundTexts(count = 3, win = null) {
+    const log = (win || document).querySelector(MP.inbox.log);
+    if (log) {
+      const rows = MP.readLogRows(log, { directionOf: (article) => geometryDirection(article, log) });
+      if (rows.length) return rows.filter((row) => row.direction === "outbound").slice(-count).map((row) => MP.normalize(row.body));
+    }
     const area = win || document.querySelector(MP.inbox.messageArea);
     if (!area) return [];
     const areaRect = area.getBoundingClientRect();
@@ -404,13 +467,59 @@
     };
   }
 
+  // Diagnóstico "inbox_list" (1.8.6): ancorado em role=main e nos clicáveis COM miniatura (sem depender de " · "),
+  // depois de fechar janelas de chat. Mesmo mascaramento do esqueleto acima (nunca nome nem mensagem real).
+  async function diagnoseList() {
+    const steps = [];
+    const closed = await closeOpenChats();
+    steps.push(`janelas de chat fechadas: ${closed}`);
+    await waitFor(() => document.querySelector('[role="main"] img, [role="main"] image') || null, 15000, 700);
+    await sleep(1500);
+    const main = listRoot() === document ? document.body : listRoot();
+    const clickables = [...main.querySelectorAll(MP.inbox.clickables)].filter(visible);
+    const withThumb = clickables.filter((element) => element.querySelector("img, image"));
+    // Prioriza os do tamanho de um item: os que não contêm 2+ outros clicáveis com miniatura.
+    const itemLike = withThumb.filter((element) => withThumb.filter((other) => other !== element && element.contains(other)).length < 2);
+    const items = itemLike.slice(0, 25).map((element) => {
+      const leaves = MP.textLeaves(element);
+      const budget = { left: 150 };
+      return {
+        leaves: leaves.length,
+        dotLeaf: leaves.some((text) => /(^|\s)·(\s|$)/.test(text)),
+        parsed: Boolean(MP.parseInboxLeaves(leaves)),
+        inChatPane: MP.chatPanes(document).some((pane) => pane.contains(element)),
+        tree: skeleton(element, 0, budget)
+      };
+    });
+    const budget = { left: 1500 };
+    return {
+      stage: "inbox_list",
+      path: MP.skeletonPath(location.href),
+      how: main === document.body ? "body (sem role=main)" : "role=main",
+      steps,
+      counts: {
+        mains: document.querySelectorAll('[role="main"]').length,
+        clickables: clickables.length,
+        withThumb: withThumb.length,
+        itemLike: itemLike.length,
+        dotLeaf: items.filter((item) => item.dotLeaf).length,
+        items: findItemElements(main).length,
+        chatPanes: MP.chatPanes(document).length,
+        imgs: main.querySelectorAll("img").length
+      },
+      items,
+      tree: skeleton(main, 0, budget),
+      truncated: budget.left <= 0
+    };
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "mp-inbox-list") {
       listThreads().then(sendResponse);
       return true;
     }
     if (message?.type === "mp-inbox-diagnose") {
-      diagnose(message.stage).then(sendResponse, (error) => sendResponse({ error: error.message }));
+      (message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage)).then(sendResponse, (error) => sendResponse({ error: error.message }));
       return true;
     }
     if (message?.type === "mp-inbox-open") {

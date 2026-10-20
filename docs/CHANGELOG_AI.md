@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: leitura pela estrutura real da caixa e da conversa (extensão 1.8.6)
+- **Data:** 2026-10-20
+- **Área:** extensão (`selectors.js`, `inbox.js`, `background.js`, testes com DOM falso `tests/fake-dom.js`), `lib/marketplace-chat.js` (`DIAGNOSTIC_KINDS` + `inbox_list`).
+- **Causa raiz (0 conversas):** diagnóstico real de `marketplace_diagnostics` (2 linhas, `/marketplace/inbox/`) ancorou na janela de chat flutuante aberta: na lista, "Nome · Anúncio" fica em spans separados, e a janela aberta tem o mesmo "Nome · Anúncio" no cabeçalho.
+- **Alteração:** (1) conversa: `MP.readLogRows` lê `div[role=log]` → `div[role=article]` (texto = aria-label do botão-irmão `[role=button][tabindex=-1]`), direção por link `/marketplace/profile/` (cliente) / `role=status` ou h2 "Você enviou" (nossa) / h2 com nome (cliente), geometria só sem marcador; hora pelos separadores `[data-release-focus-from]`; `external_id = fb:<data-message-id>` quando existe (senão o hash antigo). (2) lista: `MP.findListItems` — clicável (`a[href]`/role button|row|link|gridcell|listitem) dentro de `role=main` com miniatura e " · " nas folhas de texto; fora do painel de chat; contêiner com 2+ itens descartado; rola até o fim; o método antigo por linhas fica de reserva. Só itens com " · " (conversa pessoal nunca entra). (3) fecha janelas de chat abertas antes de ler a lista e antes de abrir um item. (4) diagnóstico novo `inbox_list` (role=main + clicáveis com miniatura, sem depender de " · ", mesmo mascaramento), enviado junto com os outros quando a lista dá 0 (máx. 1/hora) e pelo botão do popup.
+- **Verificação:** extensão `node --test tests/*.test.js` 70/70 (fixtures da estrutura real); `tests/marketplace-chat-core.test.mjs` 13/13. Nenhuma mensagem real enviada; falta confirmar com a caixa real do dono.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — "Lista de documentos" no card do cliente e nunca escondida
 - **Data:** 2026-10-20
 - **Área:** Lista de clientes (`components/clients/ClientCard.jsx`, `ClientSheet.jsx`, `ClientWorkspace.jsx`, `useClientList.js`).
