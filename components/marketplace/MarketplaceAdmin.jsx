@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowDown, ArrowUp, ImagePlus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { STATUS_LABELS } from "@/lib/marketplace-core.mjs";
+import { MARKETPLACE_MAX_PHOTOS, STATUS_LABELS } from "@/lib/marketplace-core.mjs";
+import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
+import { compressForUpload, uploadPhoto } from "@/components/image-upload";
 
 // Publicador do Facebook Marketplace (MKT-1). Toda regra (aprovação, fila, limites) fica no servidor
 // (lib/marketplace-core.mjs); a tela só mostra e chama /api/admin/marketplace/**.
@@ -76,7 +79,8 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
-  const [photosText, setPhotosText] = useState("");
+  const [photoStatus, setPhotoStatus] = useState("");
+  const drag = useDragReorder((from, to) => setForm((current) => ({ ...current, photoUrls: moveItem(current.photoUrls, from, to) })));
 
   function setField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -84,7 +88,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
 
   function resetForm() {
     setForm(EMPTY_FORM);
-    setPhotosText("");
+    setPhotoStatus("");
     setEditingId("");
   }
 
@@ -111,16 +115,23 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
     setField("propertyId", propertyId);
     if (!propertyId) return;
     run("draft", async () => {
-      const { draft } = await callApi(`/api/admin/marketplace/draft?propertyId=${encodeURIComponent(propertyId)}`);
+      setPhotoStatus("Trazendo as fotos do imóvel…");
+      const { draft, photoProblems = [] } = await callApi(`/api/admin/marketplace/draft?propertyId=${encodeURIComponent(propertyId)}`);
       setForm({ ...EMPTY_FORM, ...draft });
-      setPhotosText((draft.photoUrls || []).join("\n"));
-      if (draft.skippedPhotos) setMessage(`${draft.skippedPhotos} foto(s) do imóvel não são links públicos do CRM e ficaram de fora.`);
+      setPhotoStatus("");
+      if (!draft.totalPhotos) setError("Este imóvel não tem nenhuma foto cadastrada. Adicione as fotos abaixo em “Adicionar fotos”.");
+      else if (photoProblems.length) setError(`${photoProblems.length} foto(s) não puderam ser trazidas (${photoProblems.join("; ")}). Adicione de novo pelo botão “Adicionar fotos”, se quiser.`);
+      else setMessage(`${draft.photoUrls.length} foto(s) do imóvel carregadas.`);
     });
   }
 
   function save(event) {
     event.preventDefault();
-    const payload = { ...form, photoUrls: photosText.split(/\s+/).map((url) => url.trim()).filter(Boolean) };
+    if (!form.photoUrls.length) {
+      setError("Inclua pelo menos 1 foto (botão “Adicionar fotos”).");
+      return;
+    }
+    const payload = form;
     run("save", async () => {
       if (editingId) await callApi(`/api/admin/marketplace/${editingId}`, { method: "PATCH", body: JSON.stringify({ listing: payload }) });
       else await callApi("/api/admin/marketplace", { method: "POST", body: JSON.stringify(payload) });
@@ -141,10 +152,41 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
 
   function edit(listing) {
     setEditingId(listing.id);
-    const next = fromListing(listing);
-    setForm(next);
-    setPhotosText(next.photoUrls.join("\n"));
+    setForm(fromListing(listing));
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function addPhotos(fileList) {
+    const room = MARKETPLACE_MAX_PHOTOS - form.photoUrls.length;
+    const files = [...(fileList || [])].filter((file) => file.type?.startsWith("image/")).slice(0, Math.max(0, room));
+    if (!files.length) {
+      if (room <= 0) setError(`No máximo ${MARKETPLACE_MAX_PHOTOS} fotos.`);
+      return;
+    }
+    setBusy("photos");
+    setError("");
+    try {
+      for (const [index, file] of files.entries()) {
+        setPhotoStatus(`Enviando foto ${index + 1} de ${files.length}…`);
+        const optimized = await compressForUpload(file);
+        const uploaded = await uploadPhoto(optimized.blob, optimized.name, "marketplace");
+        setForm((current) => ({ ...current, photoUrls: [...current.photoUrls, uploaded.data].slice(0, MARKETPLACE_MAX_PHOTOS) }));
+      }
+      setPhotoStatus("");
+    } catch (uploadError) {
+      setPhotoStatus("");
+      setError(uploadError.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function movePhoto(from, to) {
+    setForm((current) => ({ ...current, photoUrls: moveItem(current.photoUrls, from, to) }));
+  }
+
+  function removePhoto(index) {
+    setForm((current) => ({ ...current, photoUrls: current.photoUrls.filter((_, position) => position !== index) }));
   }
 
   function generateToken() {
@@ -220,11 +262,38 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
           <Field label="UF"><input className={inputClasses} value={form.state} maxLength={2} onChange={(event) => setField("state", event.target.value)} /></Field>
         </div>
         <Field label="Descrição"><textarea className={`${inputClasses} min-h-40 py-2`} value={form.description} onChange={(event) => setField("description", event.target.value)} /></Field>
-        <Field label="Fotos (um link por linha)" hint="Só links https do CRM. Máximo 20." required>
-          <textarea className={`${inputClasses} min-h-24 py-2 font-mono text-xs`} value={photosText} onChange={(event) => setPhotosText(event.target.value)} />
-        </Field>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">Fotos <span className="text-muted">({form.photoUrls.length}/{MARKETPLACE_MAX_PHOTOS}) — a primeira é a capa; arraste ou use as setas para ordenar</span></p>
+            <label className={`inline-flex min-h-touch cursor-pointer items-center gap-2 rounded-control border border-navy/15 bg-white px-4 text-sm font-semibold text-navy hover:border-brand/40 hover:bg-info-soft ${busy === "photos" || form.photoUrls.length >= MARKETPLACE_MAX_PHOTOS ? "pointer-events-none opacity-50" : ""}`}>
+              <ImagePlus className="h-4 w-4" aria-hidden="true" />
+              Adicionar fotos
+              <input type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { addPhotos(event.target.files); event.target.value = ""; }} />
+            </label>
+          </div>
+          {photoStatus ? <p className="text-sm text-info">{photoStatus}</p> : null}
+          {form.photoUrls.length ? (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {form.photoUrls.map((url, index) => (
+                <li key={`${url}-${index}`} {...drag.itemProps(index)} className={`overflow-hidden rounded-control border border-line bg-white ${drag.itemClass(index)}`}>
+                  <div className="relative aspect-[4/3] bg-mist">
+                    <img src={url} alt={`Foto ${index + 1}`} draggable={false} className="pointer-events-none h-full w-full object-cover" />
+                    <span className="absolute left-2 top-2 rounded-chip bg-navy px-2 py-0.5 text-xs font-semibold text-white">{index === 0 ? "Capa" : index + 1}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1 p-1">
+                    <Button size="icon" variant="ghost" aria-label={`Mover foto ${index + 1} para cima`} disabled={index === 0} onClick={() => movePhoto(index, index - 1)}><ArrowUp className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label={`Mover foto ${index + 1} para baixo`} disabled={index === form.photoUrls.length - 1} onClick={() => movePhoto(index, index + 1)}><ArrowDown className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="danger-ghost" aria-label={`Remover foto ${index + 1}`} onClick={() => removePhoto(index)}><X className="h-4 w-4" /></Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-control border border-dashed border-line px-3 py-6 text-center text-sm text-muted">Nenhuma foto ainda. Escolha um imóvel acima ou toque em “Adicionar fotos”.</p>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" loading={busy === "save"} disabled={!ready}>{editingId ? "Salvar alterações" : "Salvar anúncio"}</Button>
+          <Button type="submit" loading={busy === "save"} disabled={!ready || busy === "photos"}>{editingId ? "Salvar alterações" : "Salvar anúncio"}</Button>
           {editingId ? <Button variant="ghost" onClick={resetForm}>Cancelar edição</Button> : null}
         </div>
       </Card>

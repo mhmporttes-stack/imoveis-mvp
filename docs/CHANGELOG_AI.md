@@ -209,6 +209,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): fotos do imóvel vêm sozinhas + galeria com envio do computador/celular
+- **Data:** 2026-10-20
+- **Área:** tela Cadastros › Marketplace, armazenamento de fotos de imóveis.
+- **Alteração:** no 1º uso real o campo "Fotos (um link por linha)" veio vazio ao escolher um imóvel (o rascunho só aceitava links https cujo host batesse com `NEXT_PUBLIC_SUPABASE_URL`; fotos em base64, de fora ou com host diferente eram descartadas — causa exata do caso **A CONFIRMAR**, sem leitura do banco nesta sessão). Agora `GET /api/admin/marketplace/draft` (`requireGeneralAdminApi`) traz TODAS as fotos: as do CRM ficam; base64 e links https de fora/caminhos internos são copiados no servidor para o bucket de imóveis em `marketplace/<sha256>.<ext>` (mesmo conteúdo = mesmo arquivo, sem duplicar; limite de 1,5 MB do bucket; `importPropertyPhotosForMarketplace`, `storeMarketplacePhoto`); host aceito passa a vir da URL pública real do bucket. Imóvel sem foto mostra aviso claro. O texto de links virou galeria (miniaturas, capa, arrastar/↑↓, remover, "Adicionar fotos" com compressão no aparelho e envio por `/api/uploads/images`, máx. 20). Compressão/envio extraídos sem mudança de `components/PropertyForm.jsx` para `components/image-upload.js` (usado pelos dois).
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (15), `drag-reorder`, `brand-assets`; `pnpm build` limpo. Sem migration.
+- **Arquivos afetados:** `lib/marketplace-core.mjs`, `lib/marketplace-listings.js`, `lib/media-storage.js`, `app/api/admin/marketplace/draft/route.js`, `components/marketplace/MarketplaceAdmin.jsx`, `components/image-upload.js`, `components/PropertyForm.jsx`, `tests/marketplace-core.test.mjs`.
+- **Risco/observação:** foto embutida maior que 1,5 MB não é copiada (aparece no aviso; dá para reenviar pelo botão, que comprime).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): extensão calibrada ao formulário real do Facebook + IPTU/condomínio/vagas
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/` (v1.1.0) e tela Cadastros › Marketplace.

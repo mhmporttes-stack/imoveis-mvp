@@ -6,6 +6,8 @@ import {
   MARKETPLACE_MAX_ATTEMPTS,
   MarketplaceInputError,
   buildDraftFromProperty,
+  classifyPhotoSource,
+  marketplacePhotoPath,
   claimPatch,
   contentChanged,
   evaluateQueueGate,
@@ -153,4 +155,35 @@ test("rotas: admin só com requireGeneralAdmin; fila só com a chave e limite", 
     assert.match(source, /verifyPublisherToken/);
     assert.ok(source.indexOf("verifyPublisherToken(token)") < source.indexOf("try {"), `${path}: chave antes de tocar na fila`);
   }
+});
+
+test("fotos do cadastro: do CRM ficam, base64 e links de fora são copiados, resto é inválido", () => {
+  const opts = { allowedHosts: HOSTS, siteBaseUrl: "https://www.matheusmachadoimoveis.com.br" };
+  assert.deepEqual(classifyPhotoSource(PHOTO, opts), { kind: "keep", url: PHOTO });
+  const data = classifyPhotoSource("data:image/jpg;base64,AAEC\nAw==", opts);
+  assert.equal(data.kind, "data");
+  assert.equal(data.contentType, "image/jpeg");
+  assert.equal(data.base64, "AAECAw==");
+  assert.deepEqual(classifyPhotoSource("https://cdn.exemplo.com/a.jpg", opts), { kind: "fetch", url: "https://cdn.exemplo.com/a.jpg" });
+  assert.deepEqual(classifyPhotoSource("/uploads/casa.jpg", opts), { kind: "fetch", url: "https://www.matheusmachadoimoveis.com.br/uploads/casa.jpg" });
+  assert.equal(classifyPhotoSource("http://inseguro.com/a.jpg", opts).kind, "invalid");
+  assert.equal(classifyPhotoSource("data:image/gif;base64,AAA", opts).kind, "invalid");
+  assert.equal(classifyPhotoSource("", opts).kind, "invalid");
+});
+
+test("cópia no armazenamento tem nome estável pelo conteúdo (não duplica)", () => {
+  assert.equal(marketplacePhotoPath("abc", "image/jpeg"), "marketplace/abc.jpg");
+  assert.equal(marketplacePhotoPath("abc", "image/png"), "marketplace/abc.png");
+  assert.equal(marketplacePhotoPath("abc", "image/webp"), "marketplace/abc.webp");
+});
+
+test("rascunho usa as fotos importadas pelo servidor; imóvel sem foto é sinalizado", () => {
+  const property = { id: "p", name: "Casa", photos: [{ data: "data:image/png;base64,AAA" }, PHOTO] };
+  const draft = buildDraftFromProperty(property, { allowedHosts: HOSTS, importedPhotoUrls: ["https://abc.supabase.co/x/marketplace/1.png", PHOTO] });
+  assert.equal(draft.photoUrls.length, 2);
+  assert.equal(draft.totalPhotos, 2);
+  assert.equal(draft.skippedPhotos, 0);
+  const empty = buildDraftFromProperty({ id: "q", name: "Sem foto", photos: [] }, { importedPhotoUrls: [] });
+  assert.equal(empty.totalPhotos, 0);
+  assert.deepEqual(empty.photoUrls, []);
 });
