@@ -26,6 +26,8 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     falharProximoSeguir: null, // ex.: { status: 400, texto: '{"message":"feedback_required"}' }
     falharPerfil: null, // resposta forçada para web_profile_info
     perfilPrivado: false, // perfil de referência privado
+    createHtml: false, // friendships/create devolve a página HTML (sem seguir)
+    legadoFunciona: true, // /web/friendships/{id}/follow/ segue de verdade
     sigoReferencia: false, // eu sigo o perfil de referência
     v1Vazio: false, // friendships/{id}/followers devolve users: []
     graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
@@ -95,8 +97,14 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       for (const id of (params.get('user_ids') || '').split(',')) mapa[id] = { following: ig.sigo.has(id), outgoing_request: false, followed_by: ig.meSeguem.has(id) };
       return ok({ friendship_statuses: mapa, status: 'ok' });
     }
+    if ((m = caminho.match(/^\/web\/friendships\/(\w+)\/(follow|unfollow)\/$/))) {
+      if (!ig.legadoFunciona) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+      if (m[2] === 'follow') ig.sigo.set(m[1], agora); else ig.sigo.delete(m[1]);
+      return ok({ result: m[2] === 'follow' ? 'following' : '', status: 'ok' });
+    }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/create\/(\w+)\/$/))) {
       if (ig.falharProximoSeguir) { const f = ig.falharProximoSeguir; ig.falharProximoSeguir = null; return f; }
+      if (ig.createHtml) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
       ig.sigo.set(m[1], agora);
       return ok({ friendship_status: { following: true, outgoing_request: false }, status: 'ok' });
     }

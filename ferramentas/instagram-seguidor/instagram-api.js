@@ -29,6 +29,9 @@ export const ENDPOINTS = {
     `/graphql/query/?query_hash=c76146de99bb02f6415203be841dd25a&variables=${encodeURIComponent(JSON.stringify({ id: String(id), include_reel: false, fetch_mutual: false, first: n, ...(depois ? { after: depois } : {}) }))}`,
   seguir: (id) => `/api/v1/friendships/create/${id}/`,
   deixarDeSeguir: (id) => `/api/v1/friendships/destroy/${id}/`,
+  // Endpoints legados (fallback; ainda costumam responder JSON).
+  seguirLegado: (id) => `/web/friendships/${id}/follow/`,
+  deixarDeSeguirLegado: (id) => `/web/friendships/${id}/unfollow/`,
   amizade: (id) => `/api/v1/friendships/show/${id}/`,
   amizadeVarios: () => '/api/v1/friendships/show_many/',
   dmTexto: () => '/api/v1/direct_v2/threads/broadcast/text/',
@@ -101,10 +104,12 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
     }
     const status = Number(resp && resp.status) || 0;
     const texto = String((resp && resp.texto) || '');
+    const diag = diagnostico({ metodo, url: BASE + caminho, cabecalhos, corpo, resp });
+    const comDiag = (msg) => `${msg} [${diag}]`;
     if (bruto) {
       if (status >= 200 && status < 300) return texto;
       const tipoB = classificarErro({ status, corpo: texto }) || 'outro';
-      throw new ErroInstagram(tipoB, `Erro do Instagram em ${nome} (HTTP ${status}) — resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
+      throw new ErroInstagram(tipoB, comDiag(`Erro do Instagram em ${nome} (HTTP ${status}) — resposta: ${trechoSeguro(texto)}`), { status, endpoint: nome, corpo: texto });
     }
     const tipo = classificarErro({ status, corpo: texto });
     if (tipo) {
@@ -116,13 +121,41 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
         mudanca_api: `O endpoint "${nome}" respondeu de forma inesperada (HTTP ${status}). O Instagram pode ter mudado a API — ajuste ENDPOINTS em instagram-api.js.`,
         outro: `Erro do Instagram em ${nome} (HTTP ${status}).`,
       };
-      throw new ErroInstagram(tipo, `${msgs[tipo] || msgs.outro} Resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
+      throw new ErroInstagram(tipo, comDiag(`${msgs[tipo] || msgs.outro} Resposta: ${trechoSeguro(texto)}`), { status, endpoint: nome, corpo: texto });
     }
     try {
       return JSON.parse(texto);
     } catch {
-      throw new ErroInstagram('mudanca_api', `Resposta de "${nome}" não é JSON (HTTP ${status}). O Instagram pode ter mudado a API. Resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
+      throw new ErroInstagram('mudanca_api', comDiag(`Resposta de "${nome}" não é JSON (HTTP ${status}). O Instagram pode ter mudado a API. Resposta: ${trechoSeguro(texto)}`), { status, endpoint: nome, corpo: texto });
     }
+  }
+
+  async function amizadeDe(id) {
+    return normalizarAmizade(await chamar('friendships/show', ENDPOINTS.amizade(id)));
+  }
+
+  /**
+   * Ação de escrita com confirmação no friendships/show e um único fallback.
+   * Limite/sessão sobem na hora (quem chama decide a pausa). Resposta estranha
+   * (HTML, sem JSON) não conta como sucesso: confere e tenta o próximo endpoint.
+   */
+  async function acaoEscrita({ nome, id, username, tentativas, confirmado }) {
+    const referer = username ? `/${username}/` : '/';
+    const corpo = form({ container_module: 'profile', nav_chain: '', user_id: String(id) });
+    const falhas = [];
+    for (const [rotulo, caminho] of tentativas) {
+      let falha = null;
+      try {
+        await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
+      } catch (e) {
+        if (!(e instanceof ErroInstagram) || (e.tipo !== 'mudanca_api' && e.tipo !== 'outro')) throw e;
+        falha = e.message;
+      }
+      const st = await amizadeDe(id);
+      if (confirmado(st)) return { ...st, via: rotulo };
+      falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
+    }
+    throw new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${tentativas.map((t) => t[0]).join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
   }
 
   return {
@@ -226,8 +259,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
 
     /** Status de amizade com UM perfil: { seguindo, meSegue, pedidoPendente, privado }. */
     async amizade(id) {
-      const j = await chamar('friendships/show', ENDPOINTS.amizade(id));
-      return normalizarAmizade(j);
+      return amizadeDe(id);
     },
 
     /**
@@ -244,24 +276,30 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
       return r;
     },
 
-    async seguir(id) {
-      const j = await chamar('friendships/create', ENDPOINTS.seguir(id), {
-        metodo: 'POST',
-        corpo: form({ container_module: 'profile', nav_chain: '', user_id: id }),
+    /**
+     * SEGUIR: POST friendships/create. Só conta como seguido se o friendships/show
+     * confirmar (following ou pedido pendente). Se não confirmar, tenta UMA vez o
+     * endpoint legado /web/friendships/{id}/follow/ e confere de novo.
+     */
+    async seguir(id, username = '') {
+      return acaoEscrita({
+        nome: 'seguir',
+        id,
+        username,
+        tentativas: [['friendships/create', ENDPOINTS.seguir(id)], ['web/friendships/follow', ENDPOINTS.seguirLegado(id)]],
+        confirmado: (st) => st.seguindo || st.pedidoPendente,
       });
-      const st = normalizarAmizade(j.friendship_status || {});
-      if (!st.seguindo && !st.pedidoPendente) {
-        throw new ErroInstagram('outro', 'O Instagram respondeu, mas o perfil não ficou como "seguindo".', { endpoint: 'friendships/create', corpo: JSON.stringify(j) });
-      }
-      return st;
     },
 
-    async deixarDeSeguir(id) {
-      const j = await chamar('friendships/destroy', ENDPOINTS.deixarDeSeguir(id), {
-        metodo: 'POST',
-        corpo: form({ container_module: 'profile', nav_chain: '', user_id: id }),
+    /** DEIXAR DE SEGUIR: friendships/destroy → legado /web/friendships/{id}/unfollow/. */
+    async deixarDeSeguir(id, username = '') {
+      return acaoEscrita({
+        nome: 'deixar de seguir',
+        id,
+        username,
+        tentativas: [['friendships/destroy', ENDPOINTS.deixarDeSeguir(id)], ['web/friendships/unfollow', ENDPOINTS.deixarDeSeguirLegado(id)]],
+        confirmado: (st) => !st.seguindo && !st.pedidoPendente,
       });
-      return normalizarAmizade(j.friendship_status || {});
     },
 
     /**
@@ -307,6 +345,17 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
       throw new ErroInstagram('incerto', 'broadcast/text respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j) });
     },
   };
+}
+
+/** Resumo técnico da chamada para o log (sem valores de tokens). */
+export function diagnostico({ metodo, url, cabecalhos = {}, corpo = null, resp = {} }) {
+  const partes = [`${resp.metodoUsado || metodo} ${resp.urlPedida || url}`];
+  if (cabecalhos['content-type']) partes.push(`content-type enviado ${cabecalhos['content-type']}`);
+  if (metodo !== 'GET') partes.push(`corpo ${corpo ? `enviado (${String(corpo).length} caracteres)` : 'VAZIO'}`);
+  if (resp.status != null) partes.push(`→ HTTP ${resp.status}${resp.tipoResposta ? ` (${resp.tipoResposta})` : ''}`);
+  if (resp.redirecionado) partes.push(`redirecionado para ${resp.urlFinal}`);
+  else if (resp.urlFinal && resp.urlFinal !== (resp.urlPedida || url)) partes.push(`URL final ${resp.urlFinal}`);
+  return partes.join(', ');
 }
 
 /** Procura o id numérico do perfil no HTML da página dele. */
@@ -369,9 +418,18 @@ export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos, referer
       referrerPolicy: 'strict-origin-when-cross-origin',
     });
     const texto = await r.text();
-    return { status: r.status, texto: texto.slice(0, 2_000_000), origem: location.origin };
+    return {
+      status: r.status,
+      texto: texto.slice(0, 2_000_000),
+      origem: location.origin,
+      metodoUsado: metodo,
+      urlPedida: url,
+      urlFinal: r.url,
+      redirecionado: r.redirected,
+      tipoResposta: r.headers.get('content-type') || '',
+    };
   } catch (e) {
-    return { status: 0, texto: `fetch falhou: ${e && e.message ? e.message : e}`, origem: location.origin };
+    return { status: 0, texto: `fetch falhou: ${e && e.message ? e.message : e}`, origem: location.origin, metodoUsado: metodo, urlPedida: url };
   }
 }
 

@@ -189,3 +189,34 @@ test('fila curta: continua a lista do MESMO perfil sozinha, devagar e só na jan
   assert.ok(e.cursorOrigem.totais.pulados.privado > 0);
   mock.timers.reset();
 });
+
+test('create devolve HTML: legado funciona → segue; legado falha → suspende o seguir só hoje', { timeout: 120_000 }, async () => {
+  const inicio = Date.parse('2026-10-20T08:00:00Z'); // 05:00 SP
+  const ig = criarInstagramFalso();
+  ig.createHtml = true;
+  const cf = criarChromeFalso(ig);
+  const ext = await iniciarExtensao(cf, inicio);
+  await ext.mensagem({ tipo: 'buscarOrigem', username: 'perfilref' });
+  await ext.avancarAte(inicio + 3 * HORA);
+  let e = ext.estado();
+  const seguidosLegado = Object.keys(e.seguidos).length;
+  assert.ok(seguidosLegado >= 2, 'deveria seguir pelo endpoint legado');
+  assert.ok(e.historico.some((h) => h.acao === 'seguir' && /confirmado \(web\/friendships\/follow\)/.test(h.resultado)));
+
+  ig.legadoFunciona = false;
+  await ext.avancarAte(inicio + 6 * HORA);
+  e = ext.estado();
+  assert.equal(e.pausaAte, null, 'HTML não é bloqueio: nada de 24 h');
+  assert.equal(e.suspensoSeguir, '2026-10-20');
+  assert.match(e.alerta.texto, /SEGUIR suspenso até amanhã/);
+  const n = Object.keys(e.seguidos).length;
+  const tentativasCreate = ig.chamadas.filter((c) => c.caminho.includes('/create/')).length;
+  await ext.avancarAte(inicio + 16 * HORA); // resto do dia: não tenta mais
+  assert.equal(ig.chamadas.filter((c) => c.caminho.includes('/create/')).length, tentativasCreate);
+
+  // No dia seguinte volta a tentar (e, com o Instagram normal, segue)
+  ig.createHtml = false;
+  await ext.avancarAte(inicio + 27 * HORA);
+  assert.ok(Object.keys(ext.estado().seguidos).length > n);
+  mock.timers.reset();
+});

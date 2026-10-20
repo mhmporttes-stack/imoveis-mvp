@@ -264,6 +264,7 @@ async function processarSeguir(e, agora) {
   e.agenda.follows.shift(); // consome o horário
   const cfg = e.config;
   if (e.contadores.seguidos >= cfg.limiteDiario) return 'ok';
+  if (e.suspensoSeguir === diaSP(agora)) return 'ok'; // falha de API hoje: só amanhã
 
   for (let tentativa = 0; tentativa < 5; tentativa += 1) {
     const cand = e.fila.shift();
@@ -299,7 +300,7 @@ async function processarSeguir(e, agora) {
 
     await pausaHumana();
     try {
-      const r = await api.seguir(cand.id);
+      const r = await api.seguir(cand.id, cand.username);
       e.vistos[cand.id] = 'seguido';
       e.seguidos[cand.id] = {
         id: cand.id,
@@ -309,11 +310,20 @@ async function processarSeguir(e, agora) {
         status: r.seguindo ? STATUS.SEGUINDO : STATUS.SOLICITADO,
       };
       e.contadores.seguidos += 1;
-      log(e, { username: cand.username, acao: 'seguir', resultado: r.seguindo ? 'seguindo' : 'pedido enviado (privado)', origem: cand.origem });
+      log(e, { username: cand.username, acao: 'seguir', resultado: `${r.seguindo ? 'seguindo' : 'pedido enviado (privado)'} — confirmado (${r.via})`, origem: cand.origem });
       return 'ok';
     } catch (err) {
       const tipo = tratarErro(e, err, 'seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
+      if (tipo === 'mudanca_api') {
+        // Resposta inesperada (ex.: HTML) mesmo após o endpoint legado: não é sucesso
+        // nem bloqueio. Suspende o SEGUIR até o fim do dia; o perfil volta para a fila.
+        e.fila.unshift(cand);
+        e.suspensoSeguir = diaSP(Date.now());
+        e.alerta = { tipo, em: Date.now(), texto: `SEGUIR suspenso até amanhã: o Instagram respondeu de forma inesperada. ${err.message}` };
+        notificar('Instagram: seguir suspenso hoje', 'O Instagram respondeu de forma inesperada ao seguir. Veja o diagnóstico no painel.');
+        return tipo;
+      }
       e.vistos[cand.id] = `erro:${tipo}`;
       return tipo;
     }
@@ -346,6 +356,7 @@ async function processarDeixarDeSeguir(e, agora) {
   e.agenda.unfollows.shift();
   const cfg = e.config;
   if (e.contadores.deixados >= cfg.limiteUnfollowDiario) return 'ok';
+  if (e.suspensoDeixar === diaSP(agora)) return 'ok';
 
   const excluir = new Set();
   for (let tentativa = 0; tentativa < 3; tentativa += 1) {
@@ -371,14 +382,19 @@ async function processarDeixarDeSeguir(e, agora) {
 
     await pausaHumana();
     try {
-      await api.deixarDeSeguir(r.id);
+      await api.deixarDeSeguir(r.id, r.username);
       r.status = STATUS.DEIXADO;
       r.deixadoEm = Date.now();
       e.contadores.deixados += 1;
       log(e, { username: r.username, acao: 'deixar de seguir', resultado: `não seguiu de volta em ${cfg.diasParaUnfollow} dias`, origem: r.origem });
       return 'ok';
     } catch (err) {
-      return tratarErro(e, err, 'deixar de seguir', r.username);
+      const tipo = tratarErro(e, err, 'deixar de seguir', r.username);
+      if (tipo === 'mudanca_api') {
+        e.suspensoDeixar = diaSP(Date.now());
+        e.alerta = { tipo, em: Date.now(), texto: `DEIXAR DE SEGUIR suspenso até amanhã: o Instagram respondeu de forma inesperada. ${err.message}` };
+      }
+      return tipo;
     }
   }
   return 'ok';
@@ -741,6 +757,8 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           e.esfriarAte = null;
           e.sessaoRecheckEm = null;
           e.errosRecentes = [];
+          e.suspensoSeguir = null;
+          e.suspensoDeixar = null;
           e.alerta = null;
           log(e, { acao: 'pausa', resultado: 'retomada pelo usuário' });
           await salvar(e);

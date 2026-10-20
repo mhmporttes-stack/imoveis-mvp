@@ -42,9 +42,15 @@ test('HTML no lugar de JSON avisa mudança de API com o nome do endpoint', async
 });
 
 test('seguir envia POST form-urlencoded e entende pedido pendente (privado)', async () => {
-  const { api, pedidos } = apiCom([{ status: 200, texto: '{"friendship_status":{"following":false,"outgoing_request":true},"status":"ok"}' }]);
-  const st = await api.seguir('77');
+  const { api, pedidos } = apiCom([
+    { status: 200, texto: '{"friendship_status":{"following":false,"outgoing_request":true},"status":"ok"}' },
+    { status: 200, texto: '{"following":false,"outgoing_request":true,"status":"ok"}' },
+  ]);
+  const st = await api.seguir('77', 'fulano');
   assert.equal(st.pedidoPendente, true);
+  assert.equal(st.via, 'friendships/create');
+  assert.equal(pedidos[0].referer, 'https://www.instagram.com/fulano/');
+  assert.match(pedidos[1].url, /friendships\/show\/77\/$/, 'confere no friendships/show');
   assert.equal(pedidos[0].metodo, 'POST');
   assert.match(pedidos[0].url, /friendships\/create\/77\/$/);
   assert.match(pedidos[0].corpo, /user_id=77/);
@@ -113,4 +119,52 @@ test('extrairIdDoHtml', () => {
   assert.equal(extrairIdDoHtml('{"id":"55","username":"jo.ao"}', 'jo.ao'), '55');
   assert.equal(extrairIdDoHtml('{"id":"55","username":"joXao"}', 'jo.ao'), null);
   assert.equal(extrairIdDoHtml('nada', 'a'), null);
+});
+
+const HTML_IG = { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>', tipoResposta: 'text/html; charset=utf-8', metodoUsado: 'POST', urlFinal: 'https://www.instagram.com/accounts/login/', redirecionado: true };
+const NAO_SIGO = { status: 200, texto: '{"following":false,"outgoing_request":false,"status":"ok"}' };
+const SIGO = { status: 200, texto: '{"following":true,"outgoing_request":false,"status":"ok"}' };
+
+test('seguir: HTML no create não conta; legado + confirmação no show resolvem', async () => {
+  const { api, pedidos } = apiCom([HTML_IG, NAO_SIGO, { status: 200, texto: '{"result":"following","status":"ok"}' }, SIGO]);
+  const st = await api.seguir('77', 'fulano');
+  assert.equal(st.seguindo, true);
+  assert.equal(st.via, 'web/friendships/follow');
+  assert.match(pedidos[2].url, /\/web\/friendships\/77\/follow\/$/);
+  assert.equal(pedidos[2].metodo, 'POST');
+});
+
+test('seguir: HTML que na verdade seguiu é confirmado pelo show (sem chamar o legado)', async () => {
+  const { api, pedidos } = apiCom([HTML_IG, SIGO]);
+  const st = await api.seguir('77', 'fulano');
+  assert.equal(st.via, 'friendships/create');
+  assert.equal(pedidos.length, 2);
+});
+
+test('seguir: tudo falha → mudanca_api com diagnóstico (método, URL final, content-type, corpo)', async () => {
+  const { api } = apiCom([HTML_IG, NAO_SIGO, HTML_IG, NAO_SIGO]);
+  await assert.rejects(api.seguir('77', 'fulano'), (e) => {
+    assert.equal(e.tipo, 'mudanca_api');
+    assert.match(e.message, /Não consegui seguir/);
+    assert.match(e.message, /POST https:\/\/www\.instagram\.com\/api\/v1\/friendships\/create\/77\//);
+    assert.match(e.message, /content-type enviado application\/x-www-form-urlencoded/);
+    assert.match(e.message, /corpo enviado \(\d+ caracteres\)/);
+    assert.match(e.message, /HTTP 200 \(text\/html/);
+    assert.match(e.message, /redirecionado para https:\/\/www\.instagram\.com\/accounts\/login\//);
+    assert.match(e.message, /web\/friendships\/follow/);
+    return true;
+  });
+});
+
+test('seguir: limite no create sobe na hora (sem tentar o legado)', async () => {
+  const { api, pedidos } = apiCom([{ status: 400, texto: '{"message":"feedback_required","spam":true}' }]);
+  await assert.rejects(api.seguir('77'), (e) => e.tipo === 'limite');
+  assert.equal(pedidos.length, 1);
+});
+
+test('deixar de seguir: confirma no show e usa o legado unfollow se preciso', async () => {
+  const { api, pedidos } = apiCom([HTML_IG, SIGO, { status: 200, texto: '{"status":"ok"}' }, NAO_SIGO]);
+  const st = await api.deixarDeSeguir('77', 'fulano');
+  assert.equal(st.seguindo, false);
+  assert.match(pedidos[2].url, /\/web\/friendships\/77\/unfollow\/$/);
 });
