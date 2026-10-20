@@ -34,13 +34,40 @@
 
   // Lê os itens "Nome · Anúncio" dentro de `root` (a página da caixa ou o painel "← Marketplace"). Só itens nesse
   // formato entram: conversas pessoais (sem " · anúncio") nunca são lidas.
+  // Elementos de conversa: o nó clicável PEQUENO que contém a miniatura do anúncio e a linha "Nome · Anúncio"
+  // (2–6 linhas de texto). Sobe de cada miniatura até achar esse nó; também aceita itens com role (lista/linha/link)
+  // que já tenham esse formato. Nunca o contêiner da lista inteira (muitas linhas). Print do dono, 2026-10-20.
+  function findItemElements(root) {
+    const found = [];
+    const seen = new Set();
+    const consider = (element) => {
+      if (!element || seen.has(element) || !visible(element)) return false;
+      const lines = itemLines(element);
+      if (lines.length < 2 || lines.length > 6) return false;
+      const parsed = MP.parseInboxItem(lines);
+      if (!parsed) return false;
+      seen.add(element);
+      found.push({ element, parsed });
+      return true;
+    };
+    for (const img of root.querySelectorAll("img, image")) {
+      const rect = img.getBoundingClientRect();
+      if (rect.width && (rect.width < 24 || rect.width > 140)) continue; // miniatura do anúncio (~60 px)
+      let node = img.parentElement;
+      for (let level = 0; node && level < 8; level += 1, node = node.parentElement) {
+        if (itemLines(node).length > 6) break; // chegou no contêiner da lista
+        if (consider(node)) break;
+      }
+    }
+    for (const element of root.querySelectorAll(MP.inbox.listItems)) consider(element);
+    // Só o mais interno de cada conversa (um item que contém outro item igual não conta duas vezes).
+    return found.filter((item) => !found.some((other) => other !== item && item.element.contains?.(other.element)));
+  }
+
   function collectItems(root) {
     const byKey = new Map();
-    for (const element of root.querySelectorAll(MP.inbox.listItems)) {
-      if (!visible(element)) continue;
-      const parsed = MP.parseInboxItem(itemLines(element));
-      if (!parsed) continue;
-      const link = element.matches?.("a") ? element : element.querySelector?.("a[href]");
+    for (const { element, parsed } of findItemElements(root)) {
+      const link = element.matches?.("a") ? element : element.querySelector?.("a[href]") || element.closest?.("a[href]");
       const href = link?.getAttribute("href") || "";
       const threadKey = MP.parseThreadKey(href) || MP.itemKey(parsed.contactName, parsed.listingTitle);
       if (byKey.has(threadKey)) continue;
@@ -126,36 +153,36 @@
     return [...byKey.values()];
   }
 
-  // Lista das conversas do Marketplace. 1º o caminho real (ícone do Messenger → "Marketplace", ~todas as conversas);
-  // sem ele, a página /marketplace/inbox. Passos e contagens vão para o popup.
+  // Lista das conversas do Marketplace: a página /marketplace/inbox (aba "Venda", confirmada pelo print do dono) rolada
+  // até o fim; sem itens, o caminho do Messenger → "Marketplace". Passos e contagens vão para o popup.
   async function listThreads() {
     const steps = [`aba em ${location.pathname}`];
     let threads = [];
-    const root = await openMarketplaceFromMessenger(steps);
-    if (root) {
-      await waitFor(() => collectItems(root).length || null, 10000, 800);
-      threads = await collectAll(root, steps, "painel Marketplace");
-    }
-    if (!threads.length && location.pathname.startsWith("/marketplace/inbox")) {
-      await waitFor(() => collectItems(document).length || null, 8000, 800);
+    if (location.pathname.startsWith("/marketplace/inbox")) {
+      await waitFor(() => collectItems(document).length || null, 15000, 800);
       threads = await collectAll(document, steps, "página /marketplace/inbox");
+    }
+    if (!threads.length) {
+      const root = await openMarketplaceFromMessenger(steps);
+      if (root) {
+        await waitFor(() => collectItems(root).length || null, 10000, 800);
+        threads = await collectAll(root, steps, "painel Marketplace");
+      }
     }
     return { threads: threads.slice(0, 40), checkpoint: pageCheckpoint(), url: location.href, steps };
   }
 
   // Abre a conversa clicando no item (quando não há link): a janela de chat abre na mesma página.
   async function openItem(threadKey) {
-    const root = document;
-    for (const element of root.querySelectorAll(MP.inbox.listItems)) {
-      if (!visible(element)) continue;
-      const parsed = MP.parseInboxItem(itemLines(element));
-      if (parsed && MP.itemKey(parsed.contactName, parsed.listingTitle) === threadKey) {
-        await clickElement(element);
-        await sleep(between(1500, 2500));
-        return { ok: true };
-      }
+    for (const { element, parsed } of findItemElements(document)) {
+      if (MP.itemKey(parsed.contactName, parsed.listingTitle) !== threadKey) continue;
+      const before = location.href;
+      await clickElement(element);
+      await sleep(between(1500, 2500));
+      // O clique pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/… (o background reinjeta).
+      return { ok: true, navigated: location.href !== before };
     }
-    return { ok: false, error: "Item da conversa não encontrado na lista." };
+    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(document).length} itens visíveis).` };
   }
 
   function bubbleAttachments(row) {

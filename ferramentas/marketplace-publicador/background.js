@@ -345,6 +345,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // A cada ~2 min (horário e liga/desliga vêm do CRM): abre uma aba própria na caixa de entrada do MARKETPLACE (nunca a
 // lista geral do Messenger), lê só as conversas que mudaram, manda ao CRM e envia as respostas que os corretores
 // escreveram (cliques/teclas reais, no máximo 3 por rodada e o limite por hora do CRM). Nunca responde sozinho.
+// Depois de um clique: se a aba trocou de endereço/está carregando, espera terminar (até 45 s).
+async function waitTabSettled(tabId, beforeUrl) {
+  const end = Date.now() + PAGE_LOAD_TIMEOUT_MS;
+  await sleep(1500);
+  while (Date.now() < end) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status === "complete" && (tab.url !== beforeUrl || Date.now() > end - PAGE_LOAD_TIMEOUT_MS + 3000)) return tab;
+    await sleep(700);
+  }
+  throw new Error(`O Facebook não terminou de abrir a conversa em ${PAGE_LOAD_TIMEOUT_MS / 1000} s.`);
+}
+
 // Injeta o leitor SÓ se a aba dedicada estiver no Facebook; senão leva a aba de volta ao Facebook antes.
 async function injectInbox(tabId, fallbackUrl = INBOX_URL) {
   let tab = await chrome.tabs.get(tabId);
@@ -369,12 +381,16 @@ async function readThread(tabId, thread) {
     await navigateAndWait(tabId, thread.threadUrl);
     await injectInbox(tabId);
   } else {
-    // Item sem link (painel do Messenger): abre a janela de chat clicando no item, na mesma página.
-    const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: thread.threadKey }, 30000);
+    // Item sem link: clica no item. Pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/….
+    const before = (await chrome.tabs.get(tabId)).url;
+    const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: thread.threadKey }, 30000).catch((error) => ({ ok: false, error: error.message }));
     if (!opened?.ok) return { read: { ok: false, error: opened?.error || "Não abriu a conversa." }, conversation: null };
+    await waitTabSettled(tabId, before);
+    await injectInbox(tabId); // ignorado se o leitor já estiver na página (mesmo documento)
   }
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
-  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "" }, thread.full ? 300000 : 30000);
+  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "" }, thread.full ? 300000 : 60000)
+    .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
 
@@ -396,8 +412,11 @@ async function sendOutbound(tabId, config, message) {
       // Conversa sem link (painel do Messenger): reabre a caixa do Marketplace e clica no item.
       const inbox = await readInbox(tabId);
       if (!(inbox?.threads || []).some((thread) => thread.threadKey === message.threadKey)) throw Object.assign(new Error("Conversa não encontrada na caixa do Marketplace."), { beforeSend: true });
+      const before = (await chrome.tabs.get(tabId)).url;
       const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 30000);
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
+      await waitTabSettled(tabId, before).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
+      await injectInbox(tabId);
     }
     outcome = await sendWithTimeout(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
   } catch (error) {

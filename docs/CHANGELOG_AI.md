@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: itens da página /marketplace/inbox e conversa que navega (extensão 1.8.4)
+- **Data:** 2026-10-20
+- **Área:** extensão (`inbox.js`, `background.js`).
+- **Alteração:** popup 1.8.3: "1 na caixa, 0 lida(s), Tempo esgotado". Print do dono: `/marketplace/inbox/` funciona (aba "Venda", ≥7 conversas, miniatura + "Nome · Anúncio" + prévia). O seletor pegava o contêiner da lista como se fosse uma conversa. Agora cada conversa é o menor bloco que contém a miniatura do anúncio (24–140 px) e a linha "Nome · Anúncio" (2–6 linhas; `findItemElements`), deduplicado, com a lista rolada até o fim; a página vem primeiro e o Messenger fica de reserva. Abrir conversa: o clique pode abrir a janela flutuante ou navegar para `/messages/t/…` — o background espera a aba assentar (`waitTabSettled`, 45 s), reinjeta o leitor e lê; timeout informa a URL e o que esperava.
+- **Verificação:** extensão 59 testes (fixture com 7 conversas da página).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace: injeção só na aba do Facebook e lista completa pelo Messenger (extensão 1.8.3)
 - **Data:** 2026-10-20
 - **Área:** extensão (`background.js`, `inbox.js`).

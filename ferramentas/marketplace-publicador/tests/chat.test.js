@@ -195,9 +195,12 @@ function fakeNode({ role = "", tag = "div", text = "", label = "", href = "", ch
       });
     },
     all() { return children.filter((c) => !c.isHidden()).flatMap((c) => [c, ...c.all()]); },
+    contains(other) { return node === other || node.all().includes(other); },
+    closest() { return null; },
     querySelectorAll(selector) { return node.all().filter((c) => c.matches(selector)); },
     querySelector(selector) { return node.querySelectorAll(selector)[0] || null; }
   };
+  for (const child of children) child.parentElement = node;
   return node;
 }
 
@@ -276,7 +279,7 @@ test("separador de hora da conversa", () => {
   assert.equal(MP.parseClockSeparator("Está sim! 12:23", now), null);
 });
 
-test("1.8.3: nunca injeta fora do Facebook (URL vazia/relativa abriria página da extensão) e lista pelo Messenger primeiro", () => {
+test("1.8.3/1.8.4: nunca injeta fora do Facebook e lista pela página /marketplace/inbox primeiro", () => {
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
   assert.match(bg, /if \(!String\(url \|\| ""\)\.startsWith\(FB_PREFIX\)\) return Promise\.reject/);
   assert.match(bg, /A aba dedicada não está no Facebook/);
@@ -284,6 +287,34 @@ test("1.8.3: nunca injeta fora do Facebook (URL vazia/relativa abriria página d
   assert.equal((bg.match(/chrome\.scripting\.executeScript\(\{ target: \{ tabId \}, files: \["selectors\.js", "inbox\.js"\] \}\)/g) || []).length, 1, "um único ponto de injeção do leitor (com checagem)");
   const inbox = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
   const list = inbox.slice(inbox.indexOf("async function listThreads("));
-  assert.ok(list.indexOf("openMarketplaceFromMessenger(steps)") < list.indexOf('startsWith("/marketplace/inbox")'), "Messenger → Marketplace primeiro");
+  // 1.8.4: a página /marketplace/inbox funciona (print do dono) e vem primeiro; Messenger é a reserva.
+  assert.ok(list.indexOf('startsWith("/marketplace/inbox")') < list.indexOf("openMarketplaceFromMessenger(steps)"));
   assert.match(inbox, /async function collectAll\(root, steps, label\)/);
+});
+
+test("página /marketplace/inbox (print do dono, 1.8.4): cada conversa é o bloco miniatura + 'Nome · Anúncio', nunca o contêiner", async () => {
+  const thumb = () => fakeNode({ tag: "img", rect: { left: 20, right: 80, top: 0, bottom: 60, width: 60, height: 60 } });
+  const item = (title, preview) => fakeNode({ children: [thumb(), fakeNode({ children: [fakeNode({ text: title }), fakeNode({ text: preview })] })] });
+  const items = [
+    item("Stephanie · 2 quartos 1 banheiro Apartamento", "Essas unidades são para…"),
+    item("Tânia · Casa com piscina e 3 suítes", "Você: Olá Tânia, bom dia…"),
+    item("Joao · Apartamento Centro", "Joao, esse imóvel está disponível para venda."),
+    item("Giovanna · 2 quartos 1 banheiro Apartamento", "Giovanna: … seu classificado: 2 quart…"),
+    item("Carla · Terreno Jardim", "Oi"),
+    item("Pedro · Casa Palmital", "Ainda disponível?"),
+    item("Rita · Apartamento Fragata", "Obrigada")
+  ];
+  const list = fakeNode({ role: "main", children: [fakeNode({ text: "Venda" }), fakeNode({ text: "Compra" }), ...items] });
+  const body = fakeNode({ children: [list] });
+  const doc = { body: { innerText: "" }, querySelectorAll: (sel) => body.querySelectorAll(sel), querySelector: (sel) => body.querySelector(sel) };
+  const listeners = [];
+  globalThis.document = doc;
+  globalThis.location = { href: "https://www.facebook.com/marketplace/inbox/", origin: "https://www.facebook.com", pathname: "/marketplace/inbox/" };
+  globalThis.chrome = { runtime: { onMessage: { addListener: (fn) => listeners.push(fn) }, sendMessage: async () => ({ ok: false }) } };
+  globalThis.__mpInboxLoaded = false;
+  new Function(readFileSync(new URL("../inbox.js", import.meta.url), "utf8"))();
+  const result = await new Promise((resolve) => listeners[0]({ type: "mp-inbox-list" }, {}, resolve));
+  assert.equal(result.threads.length, 7, result.steps.join(" | "));
+  assert.deepEqual(result.threads.slice(0, 2).map((t) => [t.contactName, t.listingTitle]), [["Stephanie", "2 quartos 1 banheiro Apartamento"], ["Tânia", "Casa com piscina e 3 suítes"]]);
+  assert.match(result.steps.join(" | "), /página \/marketplace\/inbox: 7 conversa\(s\)/);
 });
