@@ -1,7 +1,7 @@
 // Regras de negócio puras: dedupe da fila, regra dos 3 dias, DM de boas-vindas,
 // classificação de erros do Instagram e pausa automática.
 
-import { DIA, HORA, dentroDaJanela, proximaAbertura } from './tempo.js';
+import { DIA, HORA, MINUTO as MINUTO_REGRAS, dentroDaJanela, proximaAbertura } from './tempo.js';
 import { atrasoDmMs } from './agenda.js';
 
 export const MENSAGEM_PADRAO = [
@@ -139,49 +139,90 @@ export function dmPronta(registro, agora, cfg) {
 
 /**
  * Classifica uma resposta de erro do Instagram.
- * 'limite'  → bloqueio/limite temporário: pausa 24 h.
- * 'sessao'  → não logado: pausa até haver sessão.
+ * 'sessao'  → não logado / sessão inválida (require_login, login_required, 401).
+ *             Tem prioridade: o Instagram costuma mandar "Please wait a few minutes"
+ *             JUNTO com require_login quando a requisição chega sem sessão.
+ * 'limite'  → bloqueio/limite explícito: 429, feedback_required, challenge/checkpoint, spam.
+ * 'aguarde' → "Please wait a few minutes"/"try again later" SEM require_login: pode ser
+ *             passageiro; só vira pausa de 24 h se repetir (ver decidirPausa).
  * 'nao_encontrado' → perfil inexistente/indisponível.
- * 'mudanca_api' → endpoint mudou (404 HTML, JSON inesperado).
+ * 'mudanca_api' → endpoint mudou (404, HTML no lugar de JSON).
  * 'outro'.
  * Retorna null quando não é erro.
  */
 export function classificarErro({ status = 0, corpo = '' } = {}) {
   const texto = typeof corpo === 'string' ? corpo : JSON.stringify(corpo || {});
-  const t = texto.toLowerCase();
+  const t = texto.toLowerCase().replace(/\s+/g, ' ');
+  const sessao = t.includes('login_required') || /"require_login"\s*:\s*true/.test(t) || t.includes('not-logged-in');
+  if (status === 401 || sessao) return 'sessao';
   const limite = [
     'feedback_required',
     'challenge_required',
     'checkpoint_required',
-    'please wait a few minutes',
     'rate_limit_error',
-    '"spam":true',
-    'try again later',
+    'sentry_block',
     'action blocked',
     'temporarily blocked',
-    'sentry_block',
   ];
-  if (status === 429 || limite.some((k) => t.includes(k))) return 'limite';
-  if (status === 401 || t.includes('login_required') || t.includes('"require_login":true') || t.includes('not-logged-in')) return 'sessao';
+  if (status === 429 || /"spam"\s*:\s*true/.test(t) || limite.some((k) => t.includes(k))) return 'limite';
+  if (t.includes('please wait a few minutes') || t.includes('try again later')) return 'aguarde';
   if (status === 200 && t.trim().startsWith('<')) return 'mudanca_api'; // página HTML em vez de JSON
   if (status >= 200 && status < 300) {
     if (t.includes('"status":"fail"')) return 'outro';
     return null;
   }
-  if (status === 404 && t.includes('user not found')) return 'nao_encontrado';
+  if ((status === 404 || status === 400) && t.includes('user not found')) return 'nao_encontrado';
   if (status === 404) return 'mudanca_api';
-  if (status === 400 && t.includes('user not found')) return 'nao_encontrado';
   return 'outro';
 }
 
-/** Aplica a pausa automática de 24 h por limite/bloqueio. Retorna o estado alterado. */
+export const JANELA_ERROS_MS = 60 * MINUTO_REGRAS;
+export const ERROS_PARA_PAUSAR = 3;
+export const ESFRIAR_MS = 15 * MINUTO_REGRAS;
+
+/**
+ * Decide o que fazer depois de um erro do Instagram.
+ * - ehAcao: true para seguir / deixar de seguir / DM; false para leituras
+ *   (busca de origem, verificação de follow-back, checagem de amizade).
+ * - manual: true quando o dono clicou (busca de origem) → nunca pausa sozinho.
+ * - recentes: timestamps de erros de limite/aguarde anteriores (o atual é contado aqui).
+ * Retorna 'pausa24h' | 'esfriar' | 'sessao' | 'nenhuma'.
+ */
+export function decidirPausa({ tipo, ehAcao = false, manual = false, recentes = [], agora = Date.now() }) {
+  if (tipo === 'sessao') return manual ? 'nenhuma' : 'sessao';
+  if (tipo !== 'limite' && tipo !== 'aguarde') return 'nenhuma';
+  if (manual) return 'nenhuma';
+  const n = recentes.filter((t) => agora - t < JANELA_ERROS_MS).length + 1;
+  if (tipo === 'limite' && ehAcao) return 'pausa24h';
+  if (n >= ERROS_PARA_PAUSAR) return 'pausa24h';
+  return 'esfriar';
+}
+
+/** Trecho da resposta para diagnóstico, sem tokens/ids de sessão. */
+export function trechoSeguro(corpo, max = 220) {
+  let s = String(corpo || '').replace(/\s+/g, ' ').trim();
+  if (s.startsWith('<')) {
+    const titulo = s.match(/<title[^>]*>([^<]*)<\/title>/i);
+    s = `HTML${titulo ? ` (título: ${titulo[1].trim()})` : ''}`;
+  }
+  s = s
+    .replace(/("[^"]*(?:token|csrf|session|claim|cookie|nonce|password|senha)[^"]*"\s*:\s*)"[^"]*"/gi, '$1"***"')
+    .replace(/[A-Za-z0-9%:_\-]{28,}/g, '***');
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+/** Aplica a pausa decidida. Retorna o estado alterado. */
 export function aplicarPausaPorErro(estado, tipo, agora, detalhe = '') {
-  if (tipo === 'limite') {
+  if (tipo === 'limite' || tipo === 'pausa24h') {
     estado.pausaAte = Math.max(estado.pausaAte || 0, agora + PAUSA_POR_LIMITE_MS);
-    estado.alerta = { tipo, em: agora, texto: `O Instagram sinalizou limite/bloqueio (${detalhe || 'sem detalhe'}). Extensão pausada por 24 h.` };
+    estado.alerta = { tipo: 'limite', em: agora, texto: `O Instagram sinalizou limite/bloqueio (${detalhe || 'sem detalhe'}). Extensão pausada por 24 h.` };
+  } else if (tipo === 'esfriar') {
+    estado.esfriarAte = Math.max(estado.esfriarAte || 0, agora + ESFRIAR_MS);
+    estado.alerta = { tipo: 'aguarde', em: agora, texto: `O Instagram pediu para esperar (${detalhe || 'sem detalhe'}). Nova tentativa em 15 min; se repetir 3 vezes em 1 h, pausa 24 h.` };
   } else if (tipo === 'sessao') {
     estado.semSessao = true;
-    estado.alerta = { tipo, em: agora, texto: 'Sem sessão do Instagram neste Chrome. Entre em instagram.com; a extensão volta sozinha.' };
+    estado.sessaoRecheckEm = agora + 10 * MINUTO_REGRAS;
+    estado.alerta = { tipo: 'sessao', em: agora, texto: `Sem sessão válida do Instagram neste Chrome${detalhe ? ` (${detalhe})` : ''}. Entre em instagram.com; a extensão volta sozinha.` };
   }
   return estado;
 }
@@ -190,6 +231,7 @@ export function aplicarPausaPorErro(estado, tipo, agora, detalhe = '') {
 export function estaAtiva(estado, controle, agora) {
   if (controle && controle.pausado) return false;
   if (estado.pausaAte && agora < estado.pausaAte) return false;
+  if (estado.esfriarAte && agora < estado.esfriarAte) return false;
   if (estado.semSessao) return false;
   return true;
 }

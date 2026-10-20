@@ -1,7 +1,7 @@
 // Testes do módulo instagram-api.js com um executor FALSO (sem rede).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { criarApiInstagram, ErroInstagram, IG_APP_ID_WEB } from '../instagram-api.js';
+import { criarApiInstagram, ErroInstagram, IG_APP_ID_WEB, extrairIdDoHtml } from '../instagram-api.js';
 
 function apiCom(respostas) {
   const pedidos = [];
@@ -19,8 +19,11 @@ function apiCom(respostas) {
 test('cabeçalhos da API web e leitura do perfil', async () => {
   const { api, pedidos } = apiCom([{ status: 200, texto: '{"data":{"user":{"id":"123","username":"ref","is_private":false}},"status":"ok"}' }]);
   const p = await api.buscarPerfil('@Ref');
-  assert.deepEqual(p, { id: '123', username: 'ref', privado: false, seguidores: null });
+  assert.deepEqual(p, { id: '123', username: 'ref', privado: false, seguidores: null, via: 'web_profile_info' });
   const h = pedidos[0].cabecalhos;
+  assert.equal(h['x-instagram-ajax'], undefined, 'cabeçalho que o site não manda');
+  assert.ok(h['x-asbd-id']);
+  assert.equal(pedidos[0].referer, 'https://www.instagram.com/ref/');
   assert.equal(h['x-csrftoken'], 'tok');
   assert.equal(h['x-ig-app-id'], IG_APP_ID_WEB);
   assert.equal(h['x-requested-with'], 'XMLHttpRequest');
@@ -77,4 +80,37 @@ test('nome de usuário inválido é recusado sem chamar o Instagram', async () =
   const { api, pedidos } = apiCom([]);
   await assert.rejects(api.buscarPerfil('nome com espaço'));
   assert.equal(pedidos.length, 0);
+});
+
+test('perfil: se web_profile_info falhar, usa a pesquisa; depois a página do perfil', async () => {
+  const falha = { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","require_login":true,"status":"fail"}' };
+  const a = apiCom([falha, { status: 200, texto: '{"users":[{"user":{"pk":"9","username":"outra"}},{"user":{"pk":"42","username":"giovana_fernanda_mendes","is_private":false}}],"status":"ok"}' }]);
+  const p = await a.api.buscarPerfil('https://www.instagram.com/Giovana_Fernanda_Mendes/?hl=pt');
+  assert.equal(p.id, '42');
+  assert.equal(p.via, 'topsearch');
+  assert.match(a.pedidos[1].url, /web\/search\/topsearch\/\?context=blended&query=giovana_fernanda_mendes/);
+
+  const b = apiCom([falha, { status: 200, texto: '{"users":[],"status":"ok"}' }, { status: 200, texto: '<html>..."profilePage_777"...</html>' }]);
+  const p2 = await b.api.buscarPerfil('fulano.x');
+  assert.equal(p2.id, '777');
+  assert.equal(p2.via, 'pagina');
+  assert.deepEqual(b.pedidos[2].cabecalhos, {}, 'página HTML vai sem cabeçalhos de API');
+});
+
+test('perfil: se tudo falhar, o erro diz o tipo certo e mostra trecho da resposta', async () => {
+  const falha = { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","require_login":true,"status":"fail"}' };
+  const { api } = apiCom([falha, falha, { status: 302, texto: '' }]);
+  await assert.rejects(api.buscarPerfil('fulano'), (e) => {
+    assert.equal(e.tipo, 'sessao');
+    assert.match(e.message, /3 tentativas/);
+    assert.match(e.message, /Resposta: \{"message":"Please wait a few minutes/);
+    return true;
+  });
+});
+
+test('extrairIdDoHtml', () => {
+  assert.equal(extrairIdDoHtml('{"profilePage_123"}', 'a'), '123');
+  assert.equal(extrairIdDoHtml('{"id":"55","username":"jo.ao"}', 'jo.ao'), '55');
+  assert.equal(extrairIdDoHtml('{"id":"55","username":"joXao"}', 'jo.ao'), null);
+  assert.equal(extrairIdDoHtml('nada', 'a'), null);
 });

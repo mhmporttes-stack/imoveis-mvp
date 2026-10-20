@@ -8,6 +8,7 @@ import {
   MENSAGEM_PADRAO, STATUS, filtrarCandidatos, semFoto, elegivelParaUnfollow, escolherParaUnfollow,
   registrarFollowBack, ajustarParaJanela, dmPronta, classificarErro, aplicarPausaPorErro, estaAtiva, PAUSA_POR_LIMITE_MS,
 } from '../lib/regras.js';
+import { decidirPausa, trechoSeguro } from '../lib/regras.js';
 import { estadoInicial, normalizarEstado, virarDiaSeNecessario, gerarCsv, registrarHistorico } from '../lib/estado.js';
 
 const CFG = { inicioHora: 5, fimHora: 22 };
@@ -216,9 +217,13 @@ test('classificarErro reconhece limite, bloqueio, sessão e mudança de API', ()
   assert.equal(classificarErro({ status: 400, corpo: '{"message":"feedback_required","spam":true}' }), 'limite');
   assert.equal(classificarErro({ status: 400, corpo: '{"message":"challenge_required"}' }), 'limite');
   assert.equal(classificarErro({ status: 400, corpo: '{"message":"checkpoint_required"}' }), 'limite');
-  assert.equal(classificarErro({ status: 401, corpo: '{"message":"Please wait a few minutes before you try again."}' }), 'limite');
+  // Caso real do 1º uso: "Please wait" JUNTO com require_login é SESSÃO, não bloqueio.
+  assert.equal(classificarErro({ status: 400, corpo: '{"message":"Please wait a few minutes before you try again.","require_login":true,"status":"fail"}' }), 'sessao');
+  assert.equal(classificarErro({ status: 400, corpo: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }), 'aguarde');
+  assert.equal(classificarErro({ status: 400, corpo: '{"message": "x", "spam": true}' }), 'limite');
   assert.equal(classificarErro({ status: 200, corpo: '{"status":"ok","spam":false}' }), null);
   assert.equal(classificarErro({ status: 401, corpo: '{"message":"login_required"}' }), 'sessao');
+  assert.equal(classificarErro({ status: 400, corpo: '{"message":"login_required","spam":true}' }), 'sessao');
   assert.equal(classificarErro({ status: 404, corpo: '<html>' }), 'mudanca_api');
   assert.equal(classificarErro({ status: 200, corpo: '<!DOCTYPE html>' }), 'mudanca_api');
   assert.equal(classificarErro({ status: 404, corpo: '{"message":"User not found"}' }), 'nao_encontrado');
@@ -262,4 +267,33 @@ test('CSV com BOM, ";" e aspas escapadas', () => {
   assert.ok(csv.startsWith('﻿data_hora_sp;perfil;acao;resultado;origem\r\n'));
   assert.ok(csv.includes('20/10/2026 05:03:09;@fulano;seguir;"ok; ""teste""";@ref'));
   assert.equal(partesSP(T0).hora, 9);
+});
+
+test('decidirPausa: erro isolado em leitura não pausa 24 h; ação com limite pausa; repetição pausa', () => {
+  assert.equal(decidirPausa({ tipo: 'limite', manual: true }), 'nenhuma');
+  assert.equal(decidirPausa({ tipo: 'aguarde', manual: true }), 'nenhuma');
+  assert.equal(decidirPausa({ tipo: 'sessao', manual: true }), 'nenhuma');
+  assert.equal(decidirPausa({ tipo: 'aguarde', agora: T0 }), 'esfriar');
+  assert.equal(decidirPausa({ tipo: 'limite', agora: T0 }), 'esfriar');
+  assert.equal(decidirPausa({ tipo: 'aguarde', recentes: [T0 - 10 * MINUTO], agora: T0 }), 'esfriar');
+  assert.equal(decidirPausa({ tipo: 'aguarde', recentes: [T0 - 30 * MINUTO, T0 - 10 * MINUTO], agora: T0 }), 'pausa24h');
+  assert.equal(decidirPausa({ tipo: 'aguarde', recentes: [T0 - 3 * HORA, T0 - 2 * HORA], agora: T0 }), 'esfriar');
+  assert.equal(decidirPausa({ tipo: 'limite', ehAcao: true, agora: T0 }), 'pausa24h');
+  assert.equal(decidirPausa({ tipo: 'aguarde', ehAcao: true, agora: T0 }), 'esfriar');
+  assert.equal(decidirPausa({ tipo: 'sessao' }), 'sessao');
+  assert.equal(decidirPausa({ tipo: 'outro' }), 'nenhuma');
+});
+
+test('esfriar dura 15 min; trechoSeguro esconde tokens', () => {
+  const e = estadoInicial();
+  aplicarPausaPorErro(e, 'esfriar', T0, 'aguarde');
+  assert.equal(e.esfriarAte, T0 + 15 * MINUTO);
+  assert.equal(e.pausaAte, null);
+  assert.equal(estaAtiva(e, { pausado: false }, T0 + 5 * MINUTO), false);
+  assert.equal(estaAtiva(e, { pausado: false }, T0 + 15 * MINUTO), true);
+  const t = trechoSeguro('{"message":"Please wait","csrf_token":"abc123","claim":"hmac.AR3xyz","x":"AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"}');
+  assert.match(t, /Please wait/);
+  assert.ok(!t.includes('abc123') && !t.includes('AR3xyz') && !t.includes('AbCdEfGhIjKlMnOpQrStUvWxYz'));
+  assert.equal(trechoSeguro('<!DOCTYPE html><html><head><title>Instagram</title></head>'), 'HTML (título: Instagram)');
+  assert.ok(trechoSeguro('y '.repeat(300)).length <= 221);
 });

@@ -10,13 +10,17 @@
 // nome do endpoint na mensagem — ajuste a constante ENDPOINTS abaixo.
 // =====================================================================
 
-import { classificarErro } from './lib/regras.js';
+import { classificarErro, trechoSeguro } from './lib/regras.js';
 
 export const BASE = 'https://www.instagram.com';
 export const IG_APP_ID_WEB = '936619743392459';
+// x-asbd-id que o site web manda hoje (muda raramente; se o Instagram passar a recusar, atualize aqui).
+export const IG_ASBD_ID_WEB = '359341';
 
 export const ENDPOINTS = {
   perfil: (username) => `/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
+  pesquisa: (termo) => `/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(termo)}&include_reel=false`,
+  paginaPerfil: (username) => `/${encodeURIComponent(username)}/`,
   seguidores: (id, maxId, count = 25) =>
     `/api/v1/friendships/${id}/followers/?count=${count}&search_surface=follow_list_page${maxId ? `&max_id=${encodeURIComponent(maxId)}` : ''}`,
   seguir: (id) => `/api/v1/friendships/create/${id}/`,
@@ -63,56 +67,117 @@ function form(obj) {
  * `obterCsrf()` devolve o csrftoken atual (ou '').
  */
 export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
-  async function chamar(nome, caminho, { metodo = 'GET', corpo = null } = {}) {
+  /**
+   * Faz uma chamada. `referer` é o caminho da página "de onde" a chamada parte
+   * (ex.: '/fulano/'), como o site faz. `bruto: true` devolve o texto (HTML) sem
+   * converter para JSON.
+   */
+  async function chamar(nome, caminho, { metodo = 'GET', corpo = null, referer = '/', bruto = false } = {}) {
     const csrf = (await obterCsrf()) || '';
+    // Os mesmos cabeçalhos que o site web manda. x-csrftoken e x-ig-www-claim são
+    // completados DENTRO da aba (cookie e sessionStorage do próprio instagram.com).
     const cabecalhos = {
       'x-ig-app-id': IG_APP_ID_WEB,
+      'x-asbd-id': IG_ASBD_ID_WEB,
       'x-requested-with': 'XMLHttpRequest',
-      'x-asbd-id': '129477',
-      'x-instagram-ajax': '1',
-      accept: '*/*',
     };
     if (csrf) cabecalhos['x-csrftoken'] = csrf;
     if (metodo !== 'GET') cabecalhos['content-type'] = 'application/x-www-form-urlencoded';
+    if (bruto) {
+      // Página HTML: o navegador manda só os cabeçalhos normais de navegação.
+      for (const k of Object.keys(cabecalhos)) delete cabecalhos[k];
+    }
 
     let resp;
     try {
-      resp = await executar({ url: BASE + caminho, metodo, corpo, cabecalhos });
+      resp = await executar({ url: BASE + caminho, metodo, corpo, cabecalhos, referer: BASE + referer });
     } catch (e) {
       if (e instanceof ErroInstagram) throw e;
       throw new ErroInstagram('aba', `Falha ao executar ${nome} na aba do Instagram: ${e.message || e}`, { endpoint: nome });
     }
     const status = Number(resp && resp.status) || 0;
     const texto = String((resp && resp.texto) || '');
+    if (bruto) {
+      if (status >= 200 && status < 300) return texto;
+      const tipoB = classificarErro({ status, corpo: texto }) || 'outro';
+      throw new ErroInstagram(tipoB, `Erro do Instagram em ${nome} (HTTP ${status}) — resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
+    }
     const tipo = classificarErro({ status, corpo: texto });
     if (tipo) {
       const msgs = {
-        limite: `Instagram pediu para esperar / bloqueou a ação (${nome}, HTTP ${status}).`,
-        sessao: `Sem sessão logada no Instagram (${nome}).`,
+        limite: `Instagram sinalizou limite/bloqueio (${nome}, HTTP ${status}).`,
+        aguarde: `Instagram pediu para esperar alguns minutos (${nome}, HTTP ${status}).`,
+        sessao: `Instagram não reconheceu a sessão logada (${nome}, HTTP ${status}).`,
         nao_encontrado: `Perfil não encontrado (${nome}).`,
         mudanca_api: `O endpoint "${nome}" respondeu de forma inesperada (HTTP ${status}). O Instagram pode ter mudado a API — ajuste ENDPOINTS em instagram-api.js.`,
         outro: `Erro do Instagram em ${nome} (HTTP ${status}).`,
       };
-      throw new ErroInstagram(tipo, msgs[tipo] || msgs.outro, { status, endpoint: nome, corpo: texto });
+      throw new ErroInstagram(tipo, `${msgs[tipo] || msgs.outro} Resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
     }
     try {
       return JSON.parse(texto);
     } catch {
-      throw new ErroInstagram('mudanca_api', `Resposta de "${nome}" não é JSON (HTTP ${status}). O Instagram pode ter mudado a API.`, { status, endpoint: nome, corpo: texto });
+      throw new ErroInstagram('mudanca_api', `Resposta de "${nome}" não é JSON (HTTP ${status}). O Instagram pode ter mudado a API. Resposta: ${trechoSeguro(texto)}`, { status, endpoint: nome, corpo: texto });
     }
   }
 
   return {
     chamar,
 
-    /** id e dados básicos de um @perfil. */
+    /**
+     * id e dados básicos de um @perfil. Tenta, em ordem:
+     * 1) web_profile_info; 2) pesquisa (topsearch); 3) HTML da página do perfil.
+     * Se todos falharem, lança o erro mais informativo (com trecho da resposta).
+     */
     async buscarPerfil(username) {
-      const limpo = String(username || '').trim().replace(/^@/, '').toLowerCase();
+      const limpo = String(username || '')
+        .trim()
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+        .replace(/[?#].*$/, '')
+        .replace(/^@/, '')
+        .replace(/\/+$/, '')
+        .toLowerCase();
       if (!/^[a-z0-9._]{1,30}$/.test(limpo)) throw new ErroInstagram('outro', `@${limpo} não parece um nome de usuário válido.`);
-      const j = await chamar('web_profile_info', ENDPOINTS.perfil(limpo));
-      const u = j && j.data && j.data.user;
-      if (!u || !u.id) throw new ErroInstagram('nao_encontrado', `Perfil @${limpo} não encontrado ou indisponível.`, { endpoint: 'web_profile_info' });
-      return { id: String(u.id), username: u.username || limpo, privado: Boolean(u.is_private), seguidores: u.edge_followed_by ? u.edge_followed_by.count : null };
+      const referer = `/${limpo}/`;
+      const erros = [];
+
+      try {
+        const j = await chamar('web_profile_info', ENDPOINTS.perfil(limpo), { referer });
+        const u = j && j.data && j.data.user;
+        if (u && u.id) return { id: String(u.id), username: u.username || limpo, privado: Boolean(u.is_private), seguidores: u.edge_followed_by ? u.edge_followed_by.count : null, via: 'web_profile_info' };
+        erros.push(new ErroInstagram('nao_encontrado', `Perfil @${limpo} não encontrado (web_profile_info).`, { endpoint: 'web_profile_info' }));
+      } catch (e) {
+        if (!(e instanceof ErroInstagram)) throw e;
+        erros.push(e);
+      }
+
+      try {
+        const j = await chamar('web/search/topsearch', ENDPOINTS.pesquisa(limpo), { referer: '/' });
+        const achado = ((j && j.users) || []).map((x) => x.user || x).find((u) => String(u.username || '').toLowerCase() === limpo);
+        if (achado && (achado.pk || achado.pk_id || achado.id)) {
+          return { id: String(achado.pk || achado.pk_id || achado.id), username: achado.username, privado: Boolean(achado.is_private), seguidores: null, via: 'topsearch' };
+        }
+        erros.push(new ErroInstagram('nao_encontrado', `Perfil @${limpo} não apareceu na pesquisa (topsearch).`, { endpoint: 'web/search/topsearch' }));
+      } catch (e) {
+        if (!(e instanceof ErroInstagram)) throw e;
+        erros.push(e);
+      }
+
+      try {
+        const html = await chamar('página do perfil', ENDPOINTS.paginaPerfil(limpo), { bruto: true, referer: '/' });
+        const id = extrairIdDoHtml(html, limpo);
+        if (id) return { id, username: limpo, privado: /"is_private":true/.test(html), seguidores: null, via: 'pagina' };
+        erros.push(new ErroInstagram('nao_encontrado', `Não achei o id de @${limpo} na página do perfil.`, { endpoint: 'página do perfil' }));
+      } catch (e) {
+        if (!(e instanceof ErroInstagram)) throw e;
+        erros.push(e);
+      }
+
+      // Prioridade do erro a mostrar: sessão > limite > aguarde > não encontrado > o primeiro.
+      const ordem = ['sessao', 'limite', 'aguarde', 'nao_encontrado'];
+      const principal = ordem.map((t) => erros.find((e) => e.tipo === t)).find(Boolean) || erros[0];
+      const detalhes = erros.map((e) => `• ${e.message}`).join('\n');
+      throw new ErroInstagram(principal.tipo, `Não consegui obter o id de @${limpo} (3 tentativas):\n${detalhes}`, { status: principal.status, endpoint: principal.endpoint, corpo: principal.corpo });
     },
 
     /** Uma página de seguidores de `id`. Retorna { usuarios, proximo }. */
@@ -207,6 +272,21 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
   };
 }
 
+/** Procura o id numérico do perfil no HTML da página dele. */
+export function extrairIdDoHtml(html, username) {
+  const h = String(html || '');
+  const padroes = [
+    /"profilePage_(\d+)"/,
+    new RegExp(`"id":"(\\d+)","username":"${username.replace(/\./g, '\\.')}"`, 'i'),
+    new RegExp(`"username":"${username.replace(/\./g, '\\.')}"[^{}]{0,400}?"(?:id|pk)":"(\\d+)"`, 'i'),
+  ];
+  for (const p of padroes) {
+    const m = h.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 export function normalizarAmizade(st) {
   return {
     seguindo: Boolean(st.following),
@@ -221,21 +301,40 @@ export function normalizarAmizade(st) {
 // ---------------------------------------------------------------------
 
 /**
- * Função injetada na aba do instagram.com (precisa ser autossuficiente: é
- * serializada pelo chrome.scripting). Faz o fetch na mesma origem, com cookies.
+ * Função injetada na aba do instagram.com, no MESMO contexto da página (world
+ * 'MAIN'): o fetch sai da origem https://www.instagram.com, com os cookies da
+ * sessão (credentials: 'include'), como as chamadas do próprio site.
+ * Precisa ser autossuficiente (é serializada pelo chrome.scripting).
  */
-export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos) {
+export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos, referer) {
   const h = { ...cabecalhos };
-  if (!h['x-csrftoken']) {
+  const ehApi = Object.keys(h).length > 0;
+  if (ehApi) {
+    // csrftoken do cookie da própria página (mais atual que o lido pela extensão).
     const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     if (m) h['x-csrftoken'] = decodeURIComponent(m[1]);
+    // x-ig-www-claim: o site guarda no sessionStorage; se não houver, manda '0' como o site.
+    try {
+      const claim = sessionStorage.getItem('www-claim-v2');
+      h['x-ig-www-claim'] = claim || '0';
+    } catch {
+      h['x-ig-www-claim'] = '0';
+    }
   }
   try {
-    const r = await fetch(url, { method: metodo, headers: h, body: corpo || undefined, credentials: 'include', mode: 'same-origin', referrer: 'https://www.instagram.com/' });
+    const r = await fetch(url, {
+      method: metodo,
+      headers: h,
+      body: corpo || undefined,
+      credentials: 'include',
+      mode: 'same-origin',
+      referrer: referer || 'https://www.instagram.com/',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+    });
     const texto = await r.text();
-    return { status: r.status, texto: texto.slice(0, 2_000_000) };
+    return { status: r.status, texto: texto.slice(0, 2_000_000), origem: location.origin };
   } catch (e) {
-    return { status: 0, texto: `fetch falhou: ${e && e.message ? e.message : e}` };
+    return { status: 0, texto: `fetch falhou: ${e && e.message ? e.message : e}`, origem: location.origin };
   }
 }
 
@@ -263,7 +362,7 @@ export async function garantirAbaInstagram() {
   if (salvo) {
     try {
       const aba = await chrome.tabs.get(salvo);
-      if (aba && aba.url && aba.url.startsWith(BASE)) {
+      if (aba && aba.url && aba.url.startsWith(`${BASE}/`)) {
         await esperarCarregar(aba.id);
         return aba.id;
       }
@@ -284,14 +383,18 @@ export async function garantirAbaInstagram() {
 }
 
 /** Executor real: roda `requisicaoNaPagina` na aba do Instagram. */
-export async function executarNaAba({ url, metodo, corpo, cabecalhos }) {
+export async function executarNaAba({ url, metodo, corpo, cabecalhos, referer }) {
   const tabId = await garantirAbaInstagram();
   const [res] = await chrome.scripting.executeScript({
     target: { tabId },
+    world: 'MAIN',
     func: requisicaoNaPagina,
-    args: [url, metodo, corpo, cabecalhos],
+    args: [url, metodo, corpo, cabecalhos, referer || `${BASE}/`],
   });
   if (!res || res.result == null) throw new ErroInstagram('aba', 'A aba do Instagram não devolveu resposta (foi fechada ou recarregada?).');
+  if (res.result.origem && res.result.origem !== BASE) {
+    throw new ErroInstagram('aba', `A aba usada não está em ${BASE} (está em ${res.result.origem}). Abra o instagram.com e tente de novo.`);
+  }
   return res.result;
 }
 

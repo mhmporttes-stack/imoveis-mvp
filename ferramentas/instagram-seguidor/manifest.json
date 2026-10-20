@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Seguidor Instagram — Matheus Machado",
   "short_name": "Seguidor IG",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Uso pessoal: segue seguidores de um perfil de referência, deixa de seguir após 3 dias sem retorno e envia boas-vindas na DM.",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "alarms", "cookies", "notifications", "scripting", "tabs"],

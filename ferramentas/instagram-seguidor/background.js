@@ -13,6 +13,8 @@ import {
   ajustarParaJanela,
   dmPronta,
   aplicarPausaPorErro,
+  decidirPausa,
+  JANELA_ERROS_MS,
   estaAtiva,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico } from './lib/estado.js';
@@ -74,35 +76,52 @@ async function atualizarSelo(e, c) {
   let texto = '';
   let cor = '#2563eb';
   if (c.pausado) { texto = 'II'; cor = '#6b7280'; }
-  if (e.semSessao || (e.pausaAte && agora < e.pausaAte)) { texto = '!'; cor = '#dc2626'; }
+  if (e.semSessao || (e.pausaAte && agora < e.pausaAte) || (e.esfriarAte && agora < e.esfriarAte)) { texto = '!'; cor = '#dc2626'; }
   try {
     await chrome.action.setBadgeText({ text: texto });
     await chrome.action.setBadgeBackgroundColor({ color: cor });
   } catch { /* sem action em testes */ }
 }
 
-/** Trata erro do Instagram: pausa 24 h em limite/bloqueio, pausa sem sessão. Retorna o tipo. */
+const CONTEXTOS_DE_ACAO = new Set(['seguir', 'deixar de seguir', 'DM']);
+
+/**
+ * Trata erro do Instagram numa rotina AUTOMÁTICA. Usa decidirPausa:
+ * - limite explícito numa ação (seguir/deixar/DM) → pausa 24 h;
+ * - "aguarde"/limite em leitura → espera 15 min; 3 erros desses em 1 h → pausa 24 h;
+ * - sessão → pausa até o login voltar (sem 24 h).
+ * Retorna o tipo do erro.
+ */
 function tratarErro(e, err, contexto, username = '') {
   const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
   const msg = err && err.message ? err.message : String(err);
-  if (tipo === 'limite') {
-    aplicarPausaPorErro(e, 'limite', Date.now(), msg);
+  const agora = Date.now();
+  const decisao = decidirPausa({ tipo, ehAcao: CONTEXTOS_DE_ACAO.has(contexto), recentes: e.errosRecentes || [], agora });
+  if (tipo === 'limite' || tipo === 'aguarde') {
+    e.errosRecentes = [...(e.errosRecentes || []).filter((t) => agora - t < JANELA_ERROS_MS), agora];
+  }
+  if (decisao === 'pausa24h') {
+    aplicarPausaPorErro(e, 'pausa24h', agora, msg);
     log(e, { username, acao: contexto, resultado: `BLOQUEIO/LIMITE: ${msg} — pausado por 24 h` });
-    notificar('Instagram: limite/bloqueio', `A extensão pausou sozinha por 24 h. Motivo: ${msg}`);
-  } else if (tipo === 'sessao') {
-    aplicarPausaPorErro(e, 'sessao', Date.now());
-    log(e, { username, acao: contexto, resultado: 'Sem sessão do Instagram — pausado até entrar de novo' });
-    notificar('Instagram: sem sessão', 'Entre no instagram.com neste Chrome. A extensão volta sozinha.');
+    notificar('Instagram: limite/bloqueio', `A extensão pausou sozinha por 24 h. Motivo: ${msg.slice(0, 200)}`);
+  } else if (decisao === 'esfriar') {
+    aplicarPausaPorErro(e, 'esfriar', agora, msg);
+    log(e, { username, acao: contexto, resultado: `Instagram pediu para esperar: ${msg} — nova tentativa em 15 min` });
+  } else if (decisao === 'sessao') {
+    const jaEstava = e.semSessao;
+    aplicarPausaPorErro(e, 'sessao', agora, msg);
+    log(e, { username, acao: contexto, resultado: `Sessão não reconhecida pelo Instagram — pausado até entrar de novo (${msg})` });
+    if (!jaEstava) notificar('Instagram: sem sessão', 'O Instagram não reconheceu o login deste Chrome. Abra o instagram.com e entre de novo.');
   } else {
     log(e, { username, acao: contexto, resultado: `erro (${tipo}): ${msg}` });
     if (tipo === 'mudanca_api') {
-      e.alerta = { tipo, em: Date.now(), texto: msg };
+      e.alerta = { tipo, em: agora, texto: msg };
     }
   }
   return tipo;
 }
 
-const bloqueante = (tipo) => tipo === 'limite' || tipo === 'sessao';
+const bloqueante = (tipo) => tipo === 'limite' || tipo === 'aguarde' || tipo === 'sessao';
 
 /** Confere a sessão no navegador (cookies). Pausa/retoma sozinha. */
 async function checarSessao(e) {
@@ -116,7 +135,10 @@ async function checarSessao(e) {
     return false;
   }
   if (e.semSessao) {
+    // O Instagram recusou a sessão há pouco: espera um pouco antes de tentar de novo.
+    if (e.sessaoRecheckEm && Date.now() < e.sessaoRecheckEm) return false;
     e.semSessao = false;
+    e.sessaoRecheckEm = null;
     if (e.alerta && e.alerta.tipo === 'sessao') e.alerta = null;
     log(e, { acao: 'sessão', resultado: 'Sessão do Instagram encontrada — retomando' });
   }
@@ -209,7 +231,7 @@ async function processarDm(e, agora) {
       // O Instagram recusou: não saiu. Reagenda para depois da pausa.
       r.dmTentativaEm = null;
       tratarErro(e, err, 'DM', r.username);
-      const volta = Math.max(e.pausaAte || 0, Date.now());
+      const volta = Math.max(e.pausaAte || 0, e.esfriarAte || 0, Date.now());
       r.dmAgendadaPara = ajustarParaJanela(volta + atrasoDmMs(), volta, cfg);
       return tipo;
     }
@@ -407,8 +429,10 @@ async function agendarProximo(e, c) {
     proxima = { acao: 'Pausada manualmente', em: null };
   } else if (e.pausaAte && agora < e.pausaAte) {
     proxima = { acao: 'Fim da pausa automática (24 h)', em: e.pausaAte };
+  } else if (e.esfriarAte && agora < e.esfriarAte) {
+    proxima = { acao: 'Instagram pediu para esperar — nova tentativa', em: e.esfriarAte };
   } else if (e.semSessao) {
-    proxima = { acao: 'Aguardando login no instagram.com', em: null };
+    proxima = { acao: 'Aguardando login no instagram.com', em: e.sessaoRecheckEm && e.sessaoRecheckEm > agora ? e.sessaoRecheckEm : null };
   } else {
     const opcoes = [];
     if (e.agenda.follows[0]) opcoes.push({ acao: 'Seguir', em: e.agenda.follows[0] });
@@ -436,6 +460,10 @@ async function ciclo() {
   const agora = Date.now();
   prepararAgenda(e, agora);
 
+  if (e.esfriarAte && agora >= e.esfriarAte) {
+    e.esfriarAte = null;
+    if (e.alerta && e.alerta.tipo === 'aguarde') e.alerta = null;
+  }
   if (e.pausaAte && agora >= e.pausaAte) {
     e.pausaAte = null;
     if (e.alerta && e.alerta.tipo === 'limite') e.alerta = null;
@@ -474,18 +502,24 @@ async function buscarOrigem(username) {
   const e = await carregar();
   const c = await lerControle();
   const agora = Date.now();
-  if (e.pausaAte && agora < e.pausaAte) throw new Error(`Pausado por limite do Instagram até ${formatarSP(e.pausaAte)}.`);
-  if (!(await checarSessao(e))) { await salvar(e); throw new Error('Sem sessão: entre no instagram.com neste Chrome.'); }
+  if (e.pausaAte && agora < e.pausaAte) throw new Error(`Pausado por limite do Instagram até ${formatarSP(e.pausaAte)}. Use "Retomar agora" se quiser tentar mesmo assim.`);
+  const sessao = await lerSessao();
+  if (!sessao.logado) throw new Error('Sem sessão: entre no instagram.com neste Chrome e tente de novo.');
+  e.meuId = sessao.meuId;
 
   const cfg = e.config;
   let perfil;
   try {
     perfil = await api.buscarPerfil(username);
   } catch (err) {
-    tratarErro(e, err, 'buscar origem', String(username).replace(/^@/, ''));
+    // Busca de origem é ação MANUAL de leitura: um erro aqui nunca pausa a extensão.
+    // Só registra e devolve a mensagem (com trecho da resposta) para o dono tentar de novo.
+    const msg = mensagemErroBusca(err);
+    log(e, { username: String(username).replace(/^@/, ''), acao: 'buscar origem', resultado: `falhou: ${msg}` });
+    e.ultimaBusca = { em: Date.now(), origem: `@${String(username).replace(/^@/, '')}`, lidos: 0, adicionados: 0, pulados: {}, erro: msg };
     await agendarProximo(e, c);
     await salvar(e);
-    throw err;
+    throw new Error(msg);
   }
   const origem = `@${perfil.username}`;
   let maxId = null;
@@ -499,8 +533,7 @@ async function buscarOrigem(username) {
     try {
       pagina = await api.paginaSeguidores(perfil.id, maxId);
     } catch (err) {
-      tratarErro(e, err, 'buscar origem', perfil.username);
-      erro = err;
+      erro = new Error(mensagemErroBusca(err));
       break;
     }
     lidos += pagina.usuarios.length;
@@ -529,6 +562,18 @@ async function buscarOrigem(username) {
   return e.ultimaBusca;
 }
 
+function mensagemErroBusca(err) {
+  const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
+  const msg = err && err.message ? err.message : String(err);
+  const dica = {
+    sessao: ' → O Instagram não reconheceu o login: abra o instagram.com neste Chrome, confira se está logado e tente de novo.',
+    aguarde: ' → Espere alguns minutos e tente de novo (a extensão NÃO foi pausada).',
+    limite: ' → Espere alguns minutos e tente de novo (a extensão NÃO foi pausada).',
+    nao_encontrado: ' → Confira o @ digitado.',
+  }[tipo] || ' → Tente de novo em alguns minutos.';
+  return msg + dica;
+}
+
 function validarConfig(atual, nova) {
   const n = { ...atual };
   const inteiro = (v, min, max, padrao) => {
@@ -555,8 +600,22 @@ async function garantirAlarmes() {
   if (!(await chrome.alarms.get(ALARME_VIGIA))) chrome.alarms.create(ALARME_VIGIA, { periodInMinutes: 5 });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  serializar(async () => { await garantirAlarmes(); await ciclo(); }).catch((err) => console.error(err));
+chrome.runtime.onInstalled.addListener((detalhes) => {
+  serializar(async () => {
+    if (detalhes && detalhes.reason === 'update') {
+      // A versão 1.0.0 pausava 24 h por um erro isolado na BUSCA de origem
+      // (web_profile_info). Essa pausa não deveria ter acontecido: desfaz.
+      const e = await carregar();
+      if (e.pausaAte && e.alerta && /web_profile_info|buscar origem/.test(e.alerta.texto || '')) {
+        e.pausaAte = null;
+        e.alerta = null;
+        log(e, { acao: 'pausa', resultado: 'pausa de 24 h indevida (erro na busca de origem) desfeita na atualização' });
+        await salvar(e);
+      }
+    }
+    await garantirAlarmes();
+    await ciclo();
+  }).catch((err) => console.error(err));
 });
 chrome.runtime.onStartup.addListener(() => {
   serializar(async () => { await garantirAlarmes(); await ciclo(); }).catch((err) => console.error(err));
@@ -587,6 +646,9 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           const e = await carregar();
           if (e.pausaAte) log(e, { acao: 'pausa', resultado: 'pausa automática de 24 h cancelada pelo usuário' });
           e.pausaAte = null;
+          e.esfriarAte = null;
+          e.sessaoRecheckEm = null;
+          e.errosRecentes = [];
           e.alerta = null;
           log(e, { acao: 'pausa', resultado: 'retomada pelo usuário' });
           await salvar(e);

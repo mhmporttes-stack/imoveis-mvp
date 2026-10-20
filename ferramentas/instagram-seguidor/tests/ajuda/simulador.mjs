@@ -24,6 +24,8 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     dms: [], // { id, texto, em }
     chamadas: [], // { em, metodo, caminho }
     falharProximoSeguir: null, // ex.: { status: 400, texto: '{"message":"feedback_required"}' }
+    falharPerfil: null, // resposta forçada para web_profile_info
+    falharSeguidoresDeMim: 0, // quantas vezes a lista dos MEUS seguidores responde "aguarde"
     voltaSe,
     atrasoVolta,
   };
@@ -45,12 +47,18 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     const ok = (obj) => ({ status: 200, texto: JSON.stringify(obj) });
     const params = new URLSearchParams(corpo || '');
     let m;
+    if (caminho === '/api/v1/web/search/topsearch/') {
+      const q = u.searchParams.get('query');
+      return ok({ users: q === referencia ? [{ position: 0, user: { pk: '555', username: referencia, is_private: false } }] : [], status: 'ok' });
+    }
     if (caminho === '/api/v1/users/web_profile_info/') {
+      if (ig.falharPerfil) return ig.falharPerfil;
       if (u.searchParams.get('username') !== referencia) return { status: 404, texto: '{"message":"User not found","status":"fail"}' };
       return ok({ data: { user: { id: '555', username: referencia, is_private: false } }, status: 'ok' });
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/(\w+)\/followers\/$/))) {
       if (m[1] === meuId) {
+        if (ig.falharSeguidoresDeMim > 0) { ig.falharSeguidoresDeMim -= 1; return { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }; }
         const lista = [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([id]) => ({ pk: id, username: `x${id}` }));
         return ok({ users: lista, next_max_id: null, status: 'ok' });
       }
@@ -130,6 +138,7 @@ export function criarChromeFalso(ig, { logado = true } = {}) {
     scripting: {
       async executeScript({ args }) {
         const [url, metodo, corpo, cabecalhos] = args;
+        if (Object.keys(cabecalhos).length === 0) return [{ result: ig.responder({ url, metodo, corpo }) }]; // página HTML (sem cabeçalhos de API)
         if (!cabecalhos['x-csrftoken'] || cabecalhos['x-ig-app-id'] !== '936619743392459' || cabecalhos['x-requested-with'] !== 'XMLHttpRequest') {
           return [{ result: { status: 403, texto: '{"message":"cabecalhos faltando"}' } }];
         }

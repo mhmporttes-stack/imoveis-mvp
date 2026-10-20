@@ -34,8 +34,11 @@ export function estadoInicial() {
     agenda: { dia: null, follows: [], unfollows: [], limite: null, limiteUnfollow: null },
     contadores: { dia: null, seguidos: 0, deixados: 0, followBacks: 0, dms: 0 },
     historico: [], // [{ em, username, acao, resultado, origem }]
-    pausaAte: null,
+    pausaAte: null, // pausa automática de 24 h (limite/bloqueio)
+    esfriarAte: null, // espera curta (15 min) após "aguarde" do Instagram
+    errosRecentes: [], // horários de erros de limite/aguarde (janela de 1 h)
     semSessao: false,
+    sessaoRecheckEm: null,
     alerta: null,
     proxima: null, // { acao, em }
     ultimaBusca: null,

@@ -1,4 +1,4 @@
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
 import { gerarCsv } from './lib/estado.js';
 import { MENSAGEM_PADRAO, idsParaVerificarFollowBack } from './lib/regras.js';
@@ -16,6 +16,12 @@ async function render() {
   const alerta = textoAlerta(e);
   $('caixaAlerta').hidden = !alerta;
   $('textoAlerta').textContent = alerta;
+  const parada = estaParada(e, c);
+  $('btnRetomarAgora').hidden = !parada;
+  if (parada && !alerta) {
+    $('caixaAlerta').hidden = false;
+    $('textoAlerta').textContent = c.pausado ? 'Extensão pausada.' : 'Extensão parada.';
+  }
   $('proxima').textContent = textoProxima(e);
   const k = contadoresHoje(e);
   $('cSeguidos').textContent = `${k.seguidos}/${e.config.limiteDiario}`;
@@ -87,12 +93,8 @@ $('btnLimparFila').addEventListener('click', async () => {
   render();
 });
 $('btnPausar').addEventListener('click', async () => { await enviar('pausar'); render(); });
-$('btnRetomar').addEventListener('click', async () => {
-  const { e } = await lerTudo();
-  if (e.pausaAte && Date.now() < e.pausaAte && !confirm('O Instagram sinalizou limite/bloqueio. Retomar antes das 24 h aumenta o risco. Retomar mesmo assim?')) return;
-  await enviar('retomar');
-  render();
-});
+$('btnRetomar').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
+$('btnRetomarAgora').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnLimparAlerta').addEventListener('click', async () => { await enviar('limparAlerta'); render(); });
 $('filtro').addEventListener('input', render);
 

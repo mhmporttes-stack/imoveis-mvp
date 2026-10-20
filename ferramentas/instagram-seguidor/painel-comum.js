@@ -14,6 +14,7 @@ export function enviar(tipo, dados = {}) {
 /** { rotulo, classe } do status atual. */
 export function statusAtual(e, c, agora = Date.now()) {
   if (e.pausaAte && agora < e.pausaAte) return { rotulo: 'Pausada (limite IG)', classe: 'bloqueada' };
+  if (e.esfriarAte && agora < e.esfriarAte) return { rotulo: 'Esperando (IG)', classe: 'pausada' };
   if (e.semSessao) return { rotulo: 'Sem sessão', classe: 'bloqueada' };
   if (c.pausado) return { rotulo: 'Pausada', classe: 'pausada' };
   return { rotulo: 'Ligada', classe: 'ligada' };
@@ -29,9 +30,26 @@ export function contadoresHoje(e) {
   return e.contadores.dia === hoje ? e.contadores : { seguidos: 0, deixados: 0, followBacks: 0, dms: 0 };
 }
 
+/** Está parada por algum motivo que o dono pode desfazer com "Retomar agora"? */
+export function estaParada(e, c, agora = Date.now()) {
+  return Boolean(c.pausado || (e.pausaAte && agora < e.pausaAte) || (e.esfriarAte && agora < e.esfriarAte) || e.semSessao);
+}
+
+/** "Retomar agora" com confirmação. Devolve true se retomou. */
+export async function retomarAgora(e) {
+  const agora = Date.now();
+  let aviso = 'Retomar a extensão agora?';
+  if (e.pausaAte && agora < e.pausaAte) aviso = 'O Instagram sinalizou limite/bloqueio. Retomar antes das 24 h aumenta o risco para a conta. Retomar agora mesmo assim?';
+  else if (e.esfriarAte && agora < e.esfriarAte) aviso = 'O Instagram pediu para esperar alguns minutos. Retomar agora mesmo assim?';
+  if (!confirm(aviso)) return false;
+  await enviar('retomar');
+  return true;
+}
+
 export function textoAlerta(e) {
   if (!e.alerta) return '';
   let t = e.alerta.texto || '';
   if (e.pausaAte && Date.now() < e.pausaAte) t += ` Volta sozinha em ${formatarSP(e.pausaAte)}.`;
+  else if (e.esfriarAte && Date.now() < e.esfriarAte) t += ` Nova tentativa às ${formatarSP(e.esfriarAte).slice(11)}.`;
   return t;
 }

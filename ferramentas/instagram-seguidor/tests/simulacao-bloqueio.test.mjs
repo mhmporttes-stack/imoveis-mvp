@@ -63,3 +63,57 @@ test('sem sessão logada: pausa, avisa e volta sozinho com o login', { timeout: 
   assert.equal(e.meuId, '999');
   mock.timers.reset();
 });
+
+test('busca de origem com 400 + require_login NÃO pausa; plano B (pesquisa) acha o perfil', { timeout: 60_000 }, async () => {
+  const inicio = Date.parse('2026-10-20T11:00:00Z'); // 08:00 SP
+  const ig = criarInstagramFalso();
+  const cf = criarChromeFalso(ig);
+  const ext = await iniciarExtensao(cf, inicio);
+  ig.falharPerfil = { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","require_login":true,"status":"fail"}' };
+  const r = await ext.mensagem({ tipo: 'buscarOrigem', username: '@perfilref' });
+  assert.equal(r.ok, true, r.erro);
+  let e = ext.estado();
+  assert.equal(e.pausaAte, null);
+  assert.equal(e.esfriarAte, null);
+  assert.equal(e.semSessao, false);
+  assert.equal(e.fila.length, 108);
+  // Perfil que não existe em nenhum dos 3 métodos: erro com trecho, sem pausa
+  const r2 = await ext.mensagem({ tipo: 'buscarOrigem', username: 'naoexiste' });
+  assert.equal(r2.ok, false);
+  assert.match(r2.erro, /Resposta:/);
+  assert.match(r2.erro, /não foi pausada|tente de novo|confira/i);
+  e = ext.estado();
+  assert.equal(e.pausaAte, null);
+  assert.equal(cf.notificacoes.length, 0);
+  mock.timers.reset();
+});
+
+test('"aguarde" em leitura automática: espera 15 min; 3 vezes em 1 h → pausa 24 h', { timeout: 60_000 }, async () => {
+  const inicio = Date.parse('2026-10-20T11:00:00Z'); // 08:00 SP
+  const ig = criarInstagramFalso({ voltaSe: () => false });
+  const cf = criarChromeFalso(ig);
+  const ext = await iniciarExtensao(cf, inicio);
+  await ext.mensagem({ tipo: 'buscarOrigem', username: 'perfilref' });
+  await ext.avancarAte(inicio + 10 * MINUTO); // já seguiu alguém → passa a verificar follow-back
+  assert.ok(Object.keys(ext.estado().seguidos).length >= 1);
+
+  ig.falharSeguidoresDeMim = 1;
+  await ext.avancarAte(inicio + 13 * MINUTO);
+  let e = ext.estado();
+  assert.ok(e.esfriarAte, 'deveria esperar 15 min');
+  assert.equal(e.pausaAte, null);
+  assert.equal(cf.notificacoes.length, 0);
+
+  ig.falharSeguidoresDeMim = 2;
+  await ext.avancarAte(inicio + 55 * MINUTO);
+  e = ext.estado();
+  assert.ok(e.pausaAte, 'na 3ª vez em 1 h deveria pausar 24 h');
+  assert.equal(cf.notificacoes.length, 1);
+
+  // "Retomar agora" tira a pausa
+  await ext.mensagem({ tipo: 'retomar' });
+  e = ext.estado();
+  assert.equal(e.pausaAte, null);
+  assert.equal(e.esfriarAte, null);
+  mock.timers.reset();
+});
