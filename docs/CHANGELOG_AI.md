@@ -209,6 +209,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: trava, abertura e leitura da conversa (extensão 1.8.7–1.8.9)
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/` (background, inbox, popup, lib/chat-agenda) e `lib/marketplace-chat.js` (`syncMarketplaceConversations`).
+- **Caso real:** 1.8.6 ficava em "sincronizando" para sempre (worker MV3 encerrado no meio da rodada, trava sem dono); 1.8.7 listava 12 conversas mas não abria nenhuma (esperava a aba carregar após um clique que não navega); 1.8.8 gravou 2 conversas sem mensagens e sem distribuição e diagnósticos "sem_resposta_da_pagina" vazios.
+- **Alteração:** 1.8.7 trava `chatLock` com dono/batimento/prazo + Destravar + envio incremental + limite por rodada; 1.8.8 abre e lê na mesma página; 1.8.9 leitor chamado por `chrome.scripting.executeScript` (valor direto, exceção vira `{ok:false,error,stack}`), retrato anonimizado direto da página no diagnóstico (`kind=thread`, `stage=open_conversation`), 0 mensagens = falha (não vai ao CRM nem guarda prévia), prévias esquecidas uma vez ao atualizar de 1.8.6–1.8.8. Servidor: conversa já gravada sem mensagens (`last_message_at` nulo) é tratada como 1ª sincronização (horários + rota de conversa nova MKT-2 decisão 4) quando as mensagens chegarem.
+- **Verificação:** `node --test tests/*.test.js` da extensão (77), `tests/marketplace-chat-core.test.mjs`, `pnpm build`.
+- **Risco/observação:** conversa sem nenhuma mensagem do cliente continua NÃO distribuída (MKT-2 decisão 4 usa a última mensagem do cliente); mudar isso é decisão do dono. Seletores seguem PENDENTE DE VALIDAÇÃO no Chrome real.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-20 — Lista de documentos enviada sozinha quando o cliente pede no WhatsApp oficial (PRES-26)
 - **Data:** 2026-10-20
 - **Área:** WhatsApp oficial (webhook, Fluxos, palavra-chave), apresentação `/s/<token>` (PRES-17/PRES-25), notificações.

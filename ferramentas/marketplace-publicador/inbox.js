@@ -3,7 +3,7 @@
 // liga o chrome.debugger). Seletores em selectors.js (MP.inbox) — A CALIBRAR com a caixa real do dono.
 
 (function marketplaceInbox() {
-  if (globalThis.__mpInboxLoaded) return;
+  if (globalThis.__mpInboxLoaded && globalThis.__mpInbox) return;
   globalThis.__mpInboxLoaded = true;
   const MP = globalThis.MP;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -408,9 +408,12 @@
       rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
     }
     const listing = scope.querySelector?.(MP.listingLink) || document.querySelector(MP.listingLink);
-    const result = rows.length
-      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", messages: MP.buildMessages(threadKey, rows).slice(full ? -500 : -60), checkpoint: pageCheckpoint() }
-      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
+    // 1.8.9: linhas lidas mas nenhuma mensagem válida (tudo texto do sistema/vazio) é FALHA — antes ia ao CRM uma
+    // conversa sem mensagens e a prévia era guardada (o histórico nunca mais era lido).
+    const messages = rows.length ? MP.buildMessages(threadKey, rows).slice(full ? -500 : -60) : [];
+    const result = messages.length
+      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", messages, checkpoint: pageCheckpoint() }
+      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${rows.length} linha(s) lidas, todas descartadas; ${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
     await closeChatWindow(win); // não acumula janelas abertas
     return result;
   }
@@ -582,31 +585,33 @@
     };
   }
 
+  // 1.8.9: um único despachante. O background chama `globalThis.__mpInbox.handle(msg)` por
+  // chrome.scripting.executeScript (o valor volta direto; exceção vira { ok:false, error, stack } — nunca fica sem
+  // resposta). O listener de mensagem continua (testes e compatibilidade).
+  function handle(message) {
+    switch (message?.type) {
+      case "mp-inbox-list":
+        return listThreads().catch((error) => ({ threads: [], steps: [`erro ao listar: ${error.message}`], url: location.href, error: error.message, stack: String(error.stack || "").slice(0, 1500) }));
+      case "mp-inbox-diagnose":
+        return message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage);
+      case "mp-inbox-open":
+        return openItem(message.threadKey, message.contactName || "", Number(message.openWaitMs) || OPEN_WAIT_MS);
+      case "mp-inbox-open-read":
+        return openAndRead(message);
+      case "mp-inbox-read":
+        return readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0);
+      case "mp-inbox-send":
+        return sendText(message.text);
+      default:
+        return null;
+    }
+  }
+  const failure = (error) => ({ ok: false, error: String(error?.message || error), stack: String(error?.stack || "").slice(0, 1500) });
+  globalThis.__mpInbox = { handle: (message) => Promise.resolve().then(() => handle(message)).catch(failure) };
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type === "mp-inbox-list") {
-      listThreads().then(sendResponse, (error) => sendResponse({ threads: [], steps: [`erro ao listar: ${error.message}`], url: location.href }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-diagnose") {
-      (message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage)).then(sendResponse, (error) => sendResponse({ error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-open") {
-      openItem(message.threadKey, message.contactName || "").then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-open-read") {
-      openAndRead(message).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-read") {
-      readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-send") {
-      sendText(message.text).then(sendResponse);
-      return true;
-    }
-    return false;
+    if (!String(message?.type || "").startsWith("mp-inbox-")) return false;
+    globalThis.__mpInbox.handle(message).then(sendResponse);
+    return true;
   });
 })();

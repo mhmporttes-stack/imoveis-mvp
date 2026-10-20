@@ -258,3 +258,49 @@ test("inbox.js 1.8.8: conversa que não abre devolve diagnóstico open_conversat
   assert.match(bg, /postDiagnostic\(config, "thread", diagnostic\)/);
   assert.doesNotMatch(bg.slice(bg.indexOf("async function readThread"), bg.indexOf("function MP_PATH")), /waitTabSettled/, "não espera a aba carregar depois do clique");
 });
+
+// 1.8.9: leitor chamado por executeScript (valor direto, exceção vira objeto) e retrato direto da página.
+test("inbox.js 1.8.9: __mpInbox.handle devolve o resultado e transforma exceção em { ok:false, error, stack }", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá")]);
+  await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const ok = await globalThis.__mpInbox.handle({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+  assert.equal(ok.ok, true, ok.error);
+  globalThis.document = null; // página quebrada: o leitor lança
+  const broken = await globalThis.__mpInbox.handle({ type: "mp-inbox-read", threadKey: "n1" });
+  assert.equal(broken.ok, false);
+  assert.ok(broken.error);
+  assert.equal(typeof broken.stack, "string");
+});
+
+test("inbox.js 1.8.9: linhas lidas mas nenhuma mensagem válida é falha (não vai conversa vazia ao CRM)", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [outbound("mid.$s", "Você enviou uma foto.")]);
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  MP.inbox.systemTexts.push("Você enviou uma foto.");
+  try {
+    const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /nenhuma mensagem reconhecida \(1 linha\(s\) lidas, todas descartadas/);
+  } finally {
+    MP.inbox.systemTexts.pop();
+  }
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /!conversation\.messages\.length/);
+});
+
+test("background 1.8.9: executeScript no frame principal (ISOLATED) e retrato anonimizado direto da página", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /target: \{ tabId, allFrames: false \}, world: "ISOLATED", func: callInboxInPage/);
+  assert.doesNotMatch(bg, /sendWithTimeout\((tabId|tab\.id), \{ type: "mp-inbox-/, "leitor só por executeScript");
+  const source = bg.slice(bg.indexOf("function pageSnapshot()"), bg.indexOf("async function takeSnapshot"));
+  const pageSnapshot = new Function(`${source}; return pageSnapshot;`)();
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá, ainda está disponível?")]);
+  globalThis.document = fakeDocument(h("body", {}, h("div", { role: "main" }), h("div", { role: "dialog" }, win)));
+  globalThis.location = { href: "https://www.facebook.com/marketplace/t/123456789/", origin: "https://www.facebook.com", pathname: "/marketplace/t/123456789/" };
+  const snap = pageSnapshot();
+  assert.equal(snap.path, "/marketplace/t/:id/");
+  assert.deepEqual([snap.counts.logs, snap.counts.articles, snap.counts.messageIds, snap.counts.dialogs], [1, 1, 1, 1]);
+  assert.ok(snap.trees.length >= 1);
+  const json = JSON.stringify(snap);
+  assert.doesNotMatch(json, /Ana Teste|Casa 2 quartos|disponível|123456789/);
+  assert.match(json, /"r":"log"/);
+});

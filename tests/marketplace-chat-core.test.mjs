@@ -177,3 +177,10 @@ test("diagnóstico de estrutura: rota só com a chave da extensão; só tipos co
   assert.match(sql, /enable row level security/);
   assert.doesNotMatch(sql.replace(/--.*$/gm, ""), /\bdrop\b/i, "nenhum DROP fora dos comentários");
 });
+
+test("sync: conversa já gravada sem mensagens vale como 1ª sincronização (horários + rota de conversa nova)", () => {
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  assert.match(lib, /const firstContent = !existing \|\| !existing\.last_message_at;/);
+  assert.match(lib, /firstContent \? assignMessageTimes\(item\.messages/);
+  assert.match(lib, /if \(firstContent\) \{\s*const route = routeNewConversation/);
+});

@@ -46,6 +46,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   ensureAlarm();
   // Instalou/atualizou/recarregou (↻): nenhuma sincronização pode estar rodando — solta a trava e fecha a aba órfã.
   await releaseDeadChatLock("extensão recarregada/atualizada");
+  // 1.8.9: as versões 1.8.6–1.8.8 podiam guardar a prévia de conversa enviada SEM mensagens (o histórico nunca mais
+  // seria lido). Uma vez, ao atualizar delas, esquece as prévias: tudo é relido com histórico completo (o CRM
+  // ignora mensagem repetida pelo id).
+  if (details.reason === "update" && /^1\.8\.[678]$/.test(details.previousVersion || "")) await chrome.storage.local.remove("chatPreviews");
   // Atualização: refaz a contagem do dia pelo histórico (versão 1.1.0 contava falha e travava 1 h).
   if (details.reason === "update") await saveState(recomputeFromHistory(await loadState(), new Date()));
 });
@@ -382,10 +386,101 @@ async function injectInbox(tabId, fallbackUrl = INBOX_URL) {
 
 const INBOX_URL = "https://www.facebook.com/marketplace/inbox/";
 
+// 1.8.9: chamada ao leitor da página por chrome.scripting.executeScript (frame principal, mundo ISOLATED): reinjeta
+// selectors.js + inbox.js a cada chamada (documento novo depois de qualquer troca de URL recebe o leitor de novo; o
+// mesmo documento ignora) e recebe o valor DIRETO da função. Exceção na página vira { ok:false, error, stack };
+// página que navegou no meio vira erro do Chrome (nunca mais "sem resposta" mudo como no sendMessage da 1.8.8).
+async function callInboxInPage(message) {
+  try {
+    if (!globalThis.__mpInbox?.handle) return { ok: false, error: "Leitor da página não carregou (inbox.js).", stack: "" };
+    return await globalThis.__mpInbox.handle(message);
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error), stack: String(error?.stack || "").slice(0, 1500) };
+  }
+}
+
+async function pageCall(tabId, message, timeoutMs) {
+  await injectInbox(tabId);
+  const run = chrome.scripting.executeScript({ target: { tabId, allFrames: false }, world: "ISOLATED", func: callInboxInPage, args: [message] })
+    .then((results) => {
+      const result = results?.[0]?.result;
+      if (result === undefined || result === null) return { ok: false, error: `A página não devolveu resultado (${message.type}).`, noResult: true };
+      return result;
+    });
+  return withTimeout(run, timeoutMs, `página do Facebook (${message.type})`);
+}
+
+// Retrato anonimizado da página tirado DIRETO por executeScript (não depende do leitor responder): caminho da URL,
+// contagens e o esqueleto dos diálogos/painéis com role=log. Textos viram TXT(n); números longos de links viram :id.
+function pageSnapshot() {
+  const mask = (text) => {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+    if (!value) return "";
+    if (value === "·") return "·";
+    return `TXT(${value.length})`;
+  };
+  const path = (href) => {
+    try {
+      return new URL(href, location.origin).pathname.replace(/\d{4,}/g, ":id").slice(0, 120);
+    } catch {
+      return "";
+    }
+  };
+  const isVisible = (element) => {
+    const rect = element.getBoundingClientRect?.();
+    return Boolean(rect && rect.width > 0 && rect.height > 0);
+  };
+  const budget = { left: 1500 };
+  const tree = (element, depth) => {
+    if (!element || budget.left <= 0 || depth > 22) return null;
+    budget.left -= 1;
+    const node = { t: String(element.tagName || "").toLowerCase() };
+    const role = element.getAttribute?.("role");
+    if (role) node.r = role;
+    const label = element.getAttribute?.("aria-label");
+    if (label) node.a = mask(label);
+    const href = element.getAttribute?.("href");
+    if (href) node.h = path(href);
+    const data = [...(element.attributes || [])].map((attr) => attr.name).filter((name) => name.startsWith("data-"));
+    if (data.length) node.d = data.slice(0, 6);
+    if (!isVisible(element)) node.hid = 1;
+    const own = [...(element.childNodes || [])].filter((child) => child.nodeType === 3).map((child) => child.textContent).join(" ").trim();
+    if (own) node.x = mask(own);
+    const children = [...(element.children || [])].map((child) => tree(child, depth + 1)).filter(Boolean);
+    if (children.length) node.c = children;
+    return node;
+  };
+  const count = (selector) => document.querySelectorAll(selector).length;
+  const logs = [...document.querySelectorAll('[role="log"]')];
+  const roots = new Set([...document.querySelectorAll('[role="dialog"]')].slice(0, 4));
+  for (const log of logs.slice(0, 3)) {
+    let node = log;
+    for (let level = 0; node.parentElement && level < 6; level += 1) node = node.parentElement;
+    roots.add(node);
+  }
+  return {
+    path: path(location.href),
+    title: mask(document.title),
+    counts: { logs: logs.length, visibleLogs: logs.filter(isVisible).length, articles: count('[role="article"]'), messageIds: count("[data-message-id]"), dialogs: count('[role="dialog"]'), textboxes: count('[role="textbox"]'), main: count('[role="main"]'), iframes: count("iframe") },
+    readerLoaded: Boolean(globalThis.__mpInbox),
+    trees: [...roots].slice(0, 6).map((root) => tree(root, 0)),
+    truncated: budget.left <= 0
+  };
+}
+
+async function takeSnapshot(tabId) {
+  try {
+    const results = await withTimeout(chrome.scripting.executeScript({ target: { tabId, allFrames: false }, world: "ISOLATED", func: pageSnapshot }), 20000, "retrato da página");
+    return results?.[0]?.result || { error: "retrato vazio" };
+  } catch (error) {
+    return { error: String(error?.message || error) };
+  }
+}
+
 async function readInbox(tabId) {
   await navigateAndWait(tabId, INBOX_URL);
   await injectInbox(tabId);
-  return sendWithTimeout(tabId, { type: "mp-inbox-list" }, 120000);
+  return pageCall(tabId, { type: "mp-inbox-list" }, 120000);
 }
 
 const THREAD_PATH_RE = /\/(?:marketplace\/t|messages\/t|t)\//;
@@ -403,7 +498,7 @@ async function sendOpenDiagnostic(config, diagnostic) {
 
 // Lê a conversa numa página que já está nela (link direto, rota /t/ ou último recurso).
 function readOpenThread(tabId, thread, readMs) {
-  return sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
+  return pageCall(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
     .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
 }
 
@@ -422,7 +517,7 @@ async function readThread(tabId, thread, config) {
     const current = await chrome.tabs.get(tabId);
     if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
     await injectInbox(tabId);
-    read = await sendWithTimeout(tabId, { type: "mp-inbox-open-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs + 30000)
+    read = await pageCall(tabId, { type: "mp-inbox-open-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs + 30000)
       .catch((error) => ({ ok: false, lost: true, error: error.message }));
     if (!read?.ok) {
       const tab = await chrome.tabs.get(tabId).catch(() => ({}));
@@ -446,8 +541,22 @@ async function readThread(tabId, thread, config) {
         const retry = await readOpenThread(tabId, thread, readMs);
         read = retry.ok ? retry : { ...retry, error: `${read.error} | pelo endereço do item: ${retry.error}` };
       }
-      if (!read?.ok && !read?.checkpoint) read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, diagnostic || { stage: "open_conversation", result: read?.lost ? "sem_resposta_da_pagina" : "falhou", path: MP_PATH(tab.url) })}` };
+      if (!read?.ok) read = { ...read, openDiagnostic: diagnostic };
     }
+  }
+  // Falhou (não abriu, página sem resposta ou 0 mensagens): diagnóstico com o retrato tirado direto da página.
+  if (!read?.ok && !read?.checkpoint) {
+    const tab = await chrome.tabs.get(tabId).catch(() => ({}));
+    const payload = {
+      stage: "open_conversation",
+      result: read?.lost ? "sem_resposta_da_pagina" : read?.opened && !read.opened.ok ? "nao_abriu" : "sem_mensagens",
+      path: MP_PATH(tab.url),
+      error: String(read?.error || "").replace(thread.contactName || "\u0000", "NOME").slice(0, 500),
+      stack: String(read?.stack || "").slice(0, 1500),
+      opened: read?.openDiagnostic || read?.opened?.diagnostic || null,
+      snapshot: await takeSnapshot(tabId)
+    };
+    read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, payload)}` };
   }
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
@@ -481,12 +590,12 @@ async function sendOutbound(tabId, config, message) {
       if (!(inbox?.threads || []).some((thread) => thread.threadKey === message.threadKey)) throw Object.assign(new Error("Conversa não encontrada na caixa do Marketplace."), { beforeSend: true });
       const before = (await chrome.tabs.get(tabId)).url;
       // 1.8.8: o leitor espera na própria página (até 20 s) a janela/rota da conversa aparecer.
-      const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 60000);
+      const opened = await pageCall(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 60000);
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
       await waitTabSettled(tabId, before).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
       await injectInbox(tabId);
     }
-    outcome = await sendWithTimeout(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
+    outcome = await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
   } catch (error) {
     // Falhou antes de digitar (conversa não aberta): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
@@ -662,7 +771,8 @@ async function chatTick() {
         return { reason: (result = "chat_erro") };
       }
       summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : "falhou"}`;
-      if (!read?.ok || !conversation) {
+      // Sem mensagem nenhuma não vai ao CRM nem guarda a prévia (1.8.9): a próxima rodada tenta de novo.
+      if (!read?.ok || !conversation || !conversation.messages.length) {
         if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
         continue;
       }
@@ -735,15 +845,15 @@ async function sendDiagnostics(tabId, config, { navigate = true } = {}) {
     if (navigate) await navigateAndWait(tabId, INBOX_URL);
     await injectInbox(tabId);
     // 1.8.6: lista ancorada em role=main e nos clicáveis com miniatura (fecha janelas de chat antes).
-    const list = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "inbox_list" }, 60000);
+    const list = await pageCall(tabId, { type: "mp-inbox-diagnose", stage: "inbox_list" }, 60000);
     await postDiagnostic(config, "inbox_list", list);
     sent.push(`lista (${list?.counts?.withThumb ?? "?"} clicáveis com miniatura, ${list?.counts?.items ?? "?"} itens)`);
-    const page = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "inbox_page" }, 60000);
+    const page = await pageCall(tabId, { type: "mp-inbox-diagnose", stage: "inbox_page" }, 60000);
     await postDiagnostic(config, "inbox_page", page);
     sent.push(`página (${page?.counts?.dots ?? "?"} textos " · ")`);
     await navigateAndWait(tabId, INBOX_URL);
     await injectInbox(tabId);
-    const panel = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "messenger_panel" }, 90000);
+    const panel = await pageCall(tabId, { type: "mp-inbox-diagnose", stage: "messenger_panel" }, 90000);
     await postDiagnostic(config, "messenger_panel", panel);
     sent.push(`painel (${panel?.counts?.dots ?? "?"} textos " · ")`);
     await chrome.storage.local.set({ lastDiagnosticAt: new Date().toISOString() });
