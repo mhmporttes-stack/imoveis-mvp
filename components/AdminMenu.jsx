@@ -178,7 +178,9 @@ const ownerGroups = [
       { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
-      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" }
+      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
+      // Publicador do Facebook Marketplace (MKT-1, dono, 2026-10-20): só o admin geral.
+      { href: "/admin/marketplace", label: "Marketplace", key: "marketplace" }
     ]
   },
   {

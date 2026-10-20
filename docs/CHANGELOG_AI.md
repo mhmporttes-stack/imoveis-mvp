@@ -209,6 +209,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Publicador do Facebook Marketplace (MKT-1): fila no CRM + extensão do Chrome
+- **Data:** 2026-10-20
+- **Área:** Cadastros (nova tela Marketplace, só admin geral), API pública com chave, ferramenta fora do CRM.
+- **Alteração:** tabela `marketplace_listings` (migration `20261020120000_marketplace_listings.sql`, NÃO aplicada); tela `/admin/marketplace` (criar/editar pré-preenchido do imóvel/empreendimento com fotos públicas, preço e descrição com o link de simulação do admin; aprovar, tirar aprovação, cancelar; status/link/erro; gerar chave pessoal) e item "Marketplace" em CADASTROS do menu do admin geral; rotas `/api/admin/marketplace/**` (`requireGeneralAdminApi`) e `/api/marketplace/queue/next` + `/api/marketplace/queue/[id]/result` (Bearer `mkp_…` em hash no `crm_settings`, `checkPublicRateLimit`); regras puras em `lib/marketplace-core.mjs`, banco em `lib/marketplace-listings.js`. Extensão MV3 em `ferramentas/marketplace-publicador/` (agenda 15 min, 08–20 h SP, 3/dia, intervalo ≥ 1 h com variação, 2 tentativas, pausa 24 h em verificação, seletores em `selectors.js`, popup com histórico e Pausar).
+- **Motivo:** pedido do dono (2026-10-20): publicar imóveis no Marketplace automaticamente, só após aprovação por anúncio (BUSINESS_RULES MKT-1).
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (12) e `node --test ferramentas/marketplace-publicador/tests/*.test.js` (19); `pnpm build` limpo. Nada foi testado no Facebook real (sem conta no ambiente) — o preenchimento da tela do Facebook (`content.js`) é **A CONFIRMAR** no primeiro uso do dono.
+- **Docs:** `BUSINESS_RULES.md` (MKT-1), `PERMISSIONS.md` §6/§7, `DATABASE.md` §3.
+- **Arquivos afetados:** `supabase/migrations/20261020120000_marketplace_listings.sql`, `lib/marketplace-core.mjs`, `lib/marketplace-listings.js`, `app/admin/marketplace/page.jsx`, `components/marketplace/MarketplaceAdmin.jsx`, `components/AdminMenu.jsx`, `app/api/admin/marketplace/**`, `app/api/marketplace/queue/**`, `tests/marketplace-core.test.mjs`, `ferramentas/marketplace-publicador/**`.
+- **Risco/observação:** automação de publicação viola os termos do Facebook (risco aceito pelo dono). Fotos embutidas no cadastro (base64) não vão para o anúncio — só links https do CRM/Storage. Testes já falhando antes desta mudança, fora do escopo: `admin-presence-real-user`, `chat-reply-preview`, `client-card-whatsapp-chat`, `context-budget`, `official-whatsapp-links`, `prospecting-opt-out-natural`, `whatsapp-conversation-per-session`, `whatsapp-false-connection`, `whatsapp-service-lease`, `lib/financial-calculations.test.js`.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Desempenho, Fase 1 (ganhos rápidos): "Número não identificado", contadores do menu, pollers globais, Meta Diária da gestora, telas de erro
 - **Data:** 2026-10-20
 - **Área:** Chat/WhatsApp individual (WA-25, cron `scheduled-activities`), menu (contadores), layout do painel, Meta Diária (T-49), telas de erro.

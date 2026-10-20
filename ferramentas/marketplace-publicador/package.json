@@ -1,0 +1,9 @@
+{
+  "name": "marketplace-publicador",
+  "private": true,
+  "type": "module",
+  "description": "Extensão pessoal do Chrome do dono (publica no Facebook Marketplace os anúncios aprovados no CRM). Este arquivo só existe para o node --test tratar os .js como módulos; o Chrome o ignora.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}
