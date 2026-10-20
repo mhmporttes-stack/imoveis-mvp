@@ -283,6 +283,55 @@
     throw new StepError(currentStep, `Localização não confirmada: o campo precisa ficar "${listing.city}, ${listing.state}". ${notes.join(" | ")}`);
   }
 
+  // "Anunciar nos seus grupos": rola a lista (o Facebook carrega aos poucos), marca SÓ os grupos da lista do CRM com
+  // clique real e confere que ficaram marcados. Grupo não encontrado não bloqueia a publicação.
+  function groupRows() {
+    const boxes = [...document.querySelectorAll(MP.groups.checkbox)].filter(visible);
+    return boxes.map((box) => {
+      const row = box.closest('[role="listitem"], [role="option"], label, li') || box.parentElement?.parentElement || box;
+      const text = String(row.innerText || "");
+      const name = String(box.getAttribute("aria-label") || text).split("\n")[0].trim();
+      return { box, name, members: MP.parseMembers(text) };
+    }).filter((row) => row.name);
+  }
+
+  function isChecked(box) {
+    return box.getAttribute("aria-checked") === "true" || box.checked === true;
+  }
+
+  async function selectGroups(wanted = []) {
+    if (!wanted.length) return { selected: [], missing: [] };
+    const heading = [...document.querySelectorAll("span, h2, h3, div")].find((element) => element.childElementCount === 0 && visible(element) && MP.matchesAny(element.innerText, MP.groups.headings));
+    if (!heading) return { selected: [], missing: wanted, note: "seção de grupos não apareceu" };
+    progress("grupos");
+    heading.scrollIntoView({ block: "start" });
+    await sleep(between(600, 1200));
+    const selected = [];
+    const seen = new Set();
+    let missing = wanted;
+    // Rola até 8 vezes procurando os grupos que faltam (lista carregada aos poucos).
+    for (let round = 0; round < 8 && missing.length; round += 1) {
+      const rows = groupRows();
+      const { select } = MP.matchGroups(rows.map((row) => row.name), missing, MP.groups.max - selected.length);
+      for (const { index, name } of select) {
+        const key = MP.normalizeGroupName(name);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const { box, members } = rows[index];
+        if (!isChecked(box)) await humanClick(box);
+        await sleep(between(300, 700));
+        if (isChecked(box)) selected.push({ name, members });
+      }
+      missing = wanted.filter((name) => !seen.has(MP.normalizeGroupName(name)));
+      const last = rows[rows.length - 1]?.box;
+      if (!missing.length || !last) break;
+      last.scrollIntoView({ block: "end" });
+      await sleep(between(900, 1600));
+    }
+    // Não apareceu na lista (ex.: grupo que não aceita anúncio do Marketplace) = "não disponível"; não bloqueia.
+    return { selected, missing: wanted.filter((name) => !selected.some((item) => item.name === name)) };
+  }
+
   // Campos obrigatórios que ficaram vazios (para explicar o "Avançar" desabilitado).
   function emptyRequiredFields() {
     const names = { bedrooms: "Número de quartos", bathrooms: "Número de banheiros", price: "Preço", description: "Descrição do imóvel", propertyType: "Tipo de imóvel" };
@@ -365,6 +414,7 @@
 
   async function publish(listing, photos) {
     let clickedPublish = false;
+    let groupsResult = null;
     try {
       // Banheiros é obrigatório no Facebook e não tem padrão (dono, 2026-10-20): vazio = falha clara antes de preencher.
       if (!listing.bathrooms) throw new StepError("banheiros", "O anúncio está sem o número de banheiros. Preencha no CRM (Cadastros › Marketplace) e aprove de novo.");
@@ -407,6 +457,7 @@
         await ensureBoostOff();
       }
 
+      groupsResult = await selectGroups(listing.groups || []);
       progress("publicar");
       publishButton = publishButton || (await waitFor(() => findClickable(MP.buttons.publish), 10000));
       if (!publishButton) throw new StepError(currentStep, "Botão Publicar não encontrado.");
@@ -421,7 +472,7 @@
       if (MP.isCheckpoint(location.href, pageText())) throw new StepError(currentStep, "Depois de publicar, o Facebook mostrou verificação ou limite.", { checkpoint: true });
       const link = document.querySelector(MP.listingLink);
       const url = MP.cleanListingUrl(location.href) || (link ? MP.cleanListingUrl(link.href) : "");
-      return { ok: true, url, clickedPublish, step: currentStep };
+      return { ok: true, url, clickedPublish, step: currentStep, groups: groupsResult };
     } catch (error) {
       return { ok: false, clickedPublish, step: error.step || currentStep, error: error.message, checkpoint: Boolean(error.checkpoint) };
     }

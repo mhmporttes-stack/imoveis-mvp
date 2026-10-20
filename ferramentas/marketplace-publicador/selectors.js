@@ -102,6 +102,12 @@
     ],
     checkpointUrlParts: ["/checkpoint", "/login", "/two_step_verification"],
     listingLink: 'a[href*="/marketplace/item/"]',
+    // "Anunciar nos seus grupos" (dono, 2026-10-20): até 20 grupos; marca só os da lista do CRM.
+    groups: {
+      headings: ["Anunciar nos seus grupos", "Anunciar em grupos", "List in groups", "List in more places"],
+      checkbox: '[role="checkbox"], input[type="checkbox"]',
+      max: 20
+    },
     // --- Chat do Marketplace (MKT-2) — A CALIBRAR com prints da caixa real do dono ---
     // Só a caixa de entrada do MARKETPLACE é lida: nunca a lista geral do Messenger (conversas pessoais).
     inbox: {
@@ -261,6 +267,34 @@
         seen.set(key, ordinal + 1);
         return { externalId: MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal), direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: null };
       });
+  };
+
+  // Nome de grupo comparável: sem acento, caixa, pontuação e espaços repetidos.
+  MP.normalizeGroupName = function normalizeGroupName(name) {
+    return MP.normalize(name).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  };
+
+  // Nº de membros como o Facebook mostra na linha do grupo ("12 mil membros", "1,2 mil membros", "3.456 membros",
+  // "15K members"). Devolve o trecho de texto (para o dono acompanhar) ou "".
+  MP.parseMembers = function parseMembers(text) {
+    const match = String(text || "").replace(/\u00a0/g, " ").match(/(\d[\d.,]*\s*(?:mil|mi|k|m)?\s*(?:membros?|members?))/i);
+    return match ? match[1].replace(/\s+/g, " ").trim() : "";
+  };
+
+  // Quais grupos da tela marcar: só nome IGUAL (normalizado) a um da lista do CRM; até 20.
+  MP.matchGroups = function matchGroups(available = [], wanted = [], max = 20) {
+    const wantedKeys = new Map(wanted.map((name) => [MP.normalizeGroupName(name), name]).filter(([key]) => key));
+    const select = [];
+    const found = new Set();
+    available.forEach((name, index) => {
+      const key = MP.normalizeGroupName(name);
+      if (wantedKeys.has(key) && !found.has(key) && select.length < max) {
+        found.add(key);
+        select.push({ index, name: wantedKeys.get(key) });
+      }
+    });
+    const missing = [...wantedKeys.entries()].filter(([key]) => !found.has(key)).map(([, name]) => name);
+    return { select, missing };
   };
 
   root.MP = MP;

@@ -210,3 +210,57 @@ test("localização: nunca rua/avenida/bairro com o nome da cidade; só a CIDADE
   assert.match(content, /Localização não confirmada/);
   assert.match(content, /MP\.isConfirmedCity\(control\.value/);
 });
+
+// Lista do print do dono (2026-10-20): só os de Marília/imóveis/classificados entram.
+const GROUPS_ON_SCREEN = [
+  "CLÁSSIFICADOS DE VENDAS MARILIA-SP",
+  "Ecosport Clube Brasil",
+  "Venda e Troca de Casas Marília SP",
+  "Classificados Ivaiporã",
+  "Alugue e Compre imóveis Marilia SP",
+  "Imóveis São Carlos",
+  "VENDA EM MARILIA",
+  "Peças de veículos usadas",
+  "Desapegos Marília e região",
+  "Brechó Online"
+];
+const WANTED = ["CLÁSSIFICADOS DE VENDAS MARILIA-SP", "venda e troca de casas Marília sp", "Alugue e Compre imóveis Marilia SP", "VENDA EM MARILIA", "Desapegos Marília e região."];
+
+test("grupos: marca só os da lista do CRM (acento/caixa/pontuação), nunca outras cidades/temas", () => {
+  const { select, missing } = MP.matchGroups(GROUPS_ON_SCREEN, WANTED);
+  assert.deepEqual(select.map((item) => GROUPS_ON_SCREEN[item.index]), ["CLÁSSIFICADOS DE VENDAS MARILIA-SP", "Venda e Troca de Casas Marília SP", "Alugue e Compre imóveis Marilia SP", "VENDA EM MARILIA", "Desapegos Marília e região"]);
+  assert.deepEqual(missing, []);
+  for (const other of ["Ecosport Clube Brasil", "Classificados Ivaiporã", "Imóveis São Carlos", "Peças de veículos usadas", "Brechó Online"]) {
+    assert.ok(!select.some((item) => GROUPS_ON_SCREEN[item.index] === other), other);
+  }
+  const partial = MP.matchGroups(["VENDA EM MARILIA"], WANTED);
+  assert.equal(partial.select.length, 1);
+  assert.equal(partial.missing.length, 4, "grupo não encontrado não bloqueia: só vira 'não encontrado'");
+  assert.equal(MP.matchGroups(GROUPS_ON_SCREEN, WANTED, 2).select.length, 2, "respeita o limite");
+  // Nome parecido não é o mesmo grupo.
+  assert.equal(MP.matchGroups(["VENDA EM MARILIA E REGIÃO"], ["VENDA EM MARILIA"]).select.length, 0);
+});
+
+test("publicação: marca grupos antes de Publicar e manda o resultado ao CRM", () => {
+  const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
+  const body = content.slice(content.indexOf("async function publish("));
+  assert.ok(body.indexOf("selectGroups(listing.groups") < body.indexOf('progress("publicar")'));
+  assert.match(content, /groups: groupsResult/);
+  assert.match(content, /if \(isChecked\(box\)\) selected\.push\(\{ name, members \}\)/, "confere que ficou marcado e guarda os membros");
+});
+
+test("grupos: lê o nº de membros como o Facebook mostra", () => {
+  assert.equal(MP.parseMembers("VENDA EM MARILIA\n12 mil membros · 10+ publicações por dia"), "12 mil membros");
+  assert.equal(MP.parseMembers("Imoveis Marilia\n1,2 mil membros"), "1,2 mil membros");
+  assert.equal(MP.parseMembers("Grupo\n3.456 membros"), "3.456 membros");
+  assert.equal(MP.parseMembers("Group\n15K members"), "15K members");
+  assert.equal(MP.parseMembers("Sem contagem"), "");
+});
+
+test("lista completa do dono (15 grupos) bate com a tela, inclusive com hífen e pontuação diferentes", () => {
+  const wanted = ["Alugue e Compre imóveis Marilia SP", "venda e troca de casas Marília sp", "Imoveis - Marília e Região", "Imoveis Marilia", "VENDA E LOCAÇÃO, IMOVEIS EM MARILIA-SP", "Aluguel e Venda de Imóveis-Marilia", "Vende-se e Aluga-se Imóveis em Marília", "CLÁSSIFICADOS DE VENDAS MARILIA-SP", "Desapegos Marília e região.", "Marília compra e venda", "Classifacil - Classificados Marília", "Vende Tudo Marília - Compra, Venda e Troca", "Compra, Vende, Troca - Marília", "compras e vendas Marília.", "VENDA EM MARILIA"];
+  const screen = ["Imóveis - Marília e região", "VENDA E LOCAÇÃO IMÓVEIS EM MARÍLIA SP", "Ecosport Clube Brasil", "Compra Vende Troca Marília", "Classificados Ivaiporã"];
+  const { select, missing } = MP.matchGroups(screen, wanted);
+  assert.deepEqual(select.map((item) => screen[item.index]), ["Imóveis - Marília e região", "VENDA E LOCAÇÃO IMÓVEIS EM MARÍLIA SP", "Compra Vende Troca Marília"]);
+  assert.equal(missing.length, 12);
+});

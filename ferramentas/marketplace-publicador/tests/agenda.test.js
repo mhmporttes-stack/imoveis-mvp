@@ -141,3 +141,7 @@ test("popup: motivo com horário de liberação em São Paulo", () => {
   assert.equal(localWaitUntil(state, "fila_vazia"), null);
   assert.equal(recordCheckWithWait(initialState(), "intervalo_seguranca", at("10:00"), "2026-10-20T13:02:00Z").lastCheckWaitUntil, "2026-10-20T13:02:00Z");
 });
+
+test("resultado publicado leva os grupos marcados/não encontrados", () => {
+  assert.deepEqual(buildResultBody({ ok: true, url: "u", groups: { selected: ["VENDA EM MARILIA"], missing: ["X"] } }), { status: "published", url: "u", groups: { selected: ["VENDA EM MARILIA"], missing: ["X"] } });
+});

@@ -70,6 +70,40 @@ function formatDate(value) {
   return value ? dateTime.format(new Date(value)) : "—";
 }
 
+// Grupos marcados em "Anunciar nos seus grupos" (dono, 2026-10-20): um nome por linha, exatamente como no Facebook.
+function GroupsCard() {
+  const [text, setText] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    callApi("/api/admin/marketplace/groups").then((data) => setText((data.groups || []).join("\n"))).catch((error) => setMessage(error.message));
+  }, []);
+  async function save() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const data = await callApi("/api/admin/marketplace/groups", { method: "PUT", body: JSON.stringify({ groups: text.split("\n") }) });
+      setText(data.groups.join("\n"));
+      setMessage("Grupos salvos.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="space-y-3">
+      <h2 className="text-lg font-semibold text-navy">Grupos do Facebook</h2>
+      <p className="text-sm text-muted">Antes de publicar, a extensão marca em "Anunciar nos seus grupos" só os grupos desta lista (um por linha, o nome como aparece no Facebook; até 20). Grupo que não aparecer na tela (ex.: não aceita anúncio do Marketplace) fica como "não disponível" — a publicação segue. O anúncio mostra o nº de membros de cada grupo marcado.</p>
+      <textarea className={`${inputClasses} min-h-32 py-2`} value={text} onChange={(event) => setText(event.target.value)} />
+      <div className="flex items-center gap-3">
+        <Button variant="secondary" onClick={save} loading={busy}>Salvar grupos</Button>
+        {message ? <span className="text-sm text-muted">{message}</span> : null}
+      </div>
+    </Card>
+  );
+}
+
 export default function MarketplaceAdmin({ initialListings = [], ready = true, initialPublisher = {}, properties = [] }) {
   const [listings, setListings] = useState(initialListings);
   const [publisher, setPublisher] = useState(initialPublisher);
@@ -253,6 +287,8 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
         <Button variant="secondary" onClick={generateToken} loading={busy === "token"}>{publisher.tokenConfigured ? "Gerar chave nova" : "Gerar chave"}</Button>
       </Card>
 
+      <GroupsCard />
+
       <Card as="form" onSubmit={save} className="space-y-4">
         <h2 className="text-lg font-semibold text-navy">{editingId ? "Editar anúncio" : "Novo anúncio"}</h2>
         <Field label="Preencher a partir do imóvel/empreendimento do CRM" hint="Traz fotos, preço e descrição com o seu link de simulação.">
@@ -349,6 +385,12 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
               </p>
               <p className="text-sm text-ink"><strong>Como vai sair no Facebook:</strong> {facebookSummary(listing)}</p>
               {listing.marketplace_url ? <a className="text-sm font-medium text-brand underline" href={listing.marketplace_url} target="_blank" rel="noreferrer">Ver anúncio no Facebook</a> : null}
+              {listing.groups_result ? (
+                <p className="text-xs text-muted">
+                  Grupos marcados: {listing.groups_result.selected?.length ? listing.groups_result.selected.map((group) => (typeof group === "string" ? group : `${group.name}${group.members ? ` (${group.members})` : ""}`)).join(", ") : "nenhum"}
+                  {listing.groups_result.missing?.length ? ` · não disponíveis: ${listing.groups_result.missing.join(", ")}` : ""}
+                </p>
+              ) : null}
               {listing.error ? <p className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{listing.error}</p> : null}
               <div className="flex flex-wrap gap-2">
                 {editable && !(listing.status === "pending" && approved) ? (

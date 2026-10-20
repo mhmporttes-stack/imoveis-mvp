@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace: grupos do Facebook marcados na publicação (extensão 1.7.0)
+- **Data:** 2026-10-20
+- **Área:** tela Cadastros › Marketplace, fila (`/api/marketplace/queue/**`), extensão.
+- **Alteração:** pedido do dono (BUSINESS_RULES MKT-1, grupos). Lista de grupos em `crm_settings` `marketplace_groups` (padrão = os 15 grupos de Marília enviados pelo dono, em ordem de prioridade; extensão 1.7.1 grava também o nº de membros de cada grupo marcado e mostra "não disponível" para o que não apareceu), editável só pelo admin (`/api/admin/marketplace/groups`, `requireGeneralAdminApi`; card "Grupos do Facebook"). A fila entrega `groups` junto do anúncio; a extensão rola "Anunciar nos seus grupos", marca só nomes iguais (normalizados) com clique real, confere e devolve `{ selected, missing }`; o CRM guarda em `marketplace_listings.groups_result` (migration `20261020210000`, NÃO aplicada; sem ela o resultado é ignorado) e mostra no anúncio.
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (22) e extensão (46, inclui a lista do print com grupos de outras cidades/temas).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — MKT-2: conversa distribuída vira cliente sem telefone, aviso ao corretor e contador no menu
 - **Data:** 2026-10-20
 - **Área:** Chat do Marketplace, cadastro de clientes (`simulation_registrations`), roleta, menu.

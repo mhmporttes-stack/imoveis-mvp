@@ -81,7 +81,7 @@ export function startJob(state, listing, now = new Date()) {
 // Resultado do conteúdo (content.js) → corpo para o CRM. Só pede nova tentativa quando nada foi enviado ao
 // Facebook (falha ANTES de clicar em Publicar). Depois do clique, nunca: duplicaria o anúncio.
 export function buildResultBody(outcome = {}) {
-  if (outcome.ok) return { status: "published", url: outcome.url || "" };
+  if (outcome.ok) return { status: "published", url: outcome.url || "", ...(outcome.groups ? { groups: { selected: outcome.groups.selected || [], missing: outcome.groups.missing || [] } } : {}) };
   const step = outcome.step ? `Passo: ${outcome.step}. ` : "";
   const detail = outcome.error || "falha sem descrição";
   const prefix = outcome.checkpoint ? "Facebook pediu verificação/limite — extensão pausada 24 h. " : "";

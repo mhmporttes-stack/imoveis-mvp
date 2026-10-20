@@ -7,6 +7,8 @@ import {
   MarketplaceInputError,
   buildDraftFromProperty,
   sanitizeNeighborhood,
+  DEFAULT_MARKETPLACE_GROUPS,
+  normalizeGroupList,
   buildListingDescription,
   deriveRoomDetails,
   facebookSummary,
@@ -146,9 +148,9 @@ test("a extensão recebe só os campos do anúncio", () => {
 
 test("rotas: admin só com requireGeneralAdmin; fila só com a chave e limite", () => {
   const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-  for (const path of ["app/api/admin/marketplace/route.js", "app/api/admin/marketplace/[id]/route.js", "app/api/admin/marketplace/token/route.js", "app/api/admin/marketplace/draft/route.js"]) {
+  for (const path of ["app/api/admin/marketplace/route.js", "app/api/admin/marketplace/[id]/route.js", "app/api/admin/marketplace/token/route.js", "app/api/admin/marketplace/draft/route.js", "app/api/admin/marketplace/groups/route.js"]) {
     const source = read(path);
-    const handlers = source.match(/export async function (GET|POST|PATCH|DELETE)/g) || [];
+    const handlers = source.match(/export async function (GET|POST|PATCH|PUT|DELETE)/g) || [];
     assert.ok(handlers.length > 0, path);
     assert.equal((source.match(/await requireGeneralAdminApi\(request\)/g) || []).length, handlers.length, path);
   }
@@ -273,4 +275,15 @@ test("descrição no estilo da legenda: nunca '[object Object]' nem '#', com CTA
   const mixed = buildListingDescription({ name: "Casa", features: ["Quintal", { label: "Churrasqueira" }, { name: "Portão eletrônico" }, { icon: "x" }] });
   assert.match(mixed, /🌳 Quintal\n🍖 Churrasqueira\n✅ Portão eletrônico/);
   assert.doesNotMatch(mixed, /object|#/);
+});
+
+test("grupos: lista padrão do dono, sem repetidos, até 20; resultado guardado na publicação", () => {
+  assert.equal(DEFAULT_MARKETPLACE_GROUPS.length, 15);
+  assert.equal(DEFAULT_MARKETPLACE_GROUPS[0], "Alugue e Compre imóveis Marilia SP", "ordem de prioridade do dono");
+  assert.ok(DEFAULT_MARKETPLACE_GROUPS.every((name) => /mar[ií]lia/i.test(name)));
+  assert.deepEqual(normalizeGroupList(" VENDA EM MARILIA \nvenda em marília\n\nDesapegos Marília e região."), ["VENDA EM MARILIA", "Desapegos Marília e região."]);
+  assert.throws(() => normalizeGroupList(Array.from({ length: 21 }, (_, i) => `Grupo ${i}`)), /20/);
+  const patch = planResult({ status: "claimed", attempts: 1 }, { status: "published", url: "https://www.facebook.com/marketplace/item/1/", groups: { selected: [{ name: "VENDA EM MARILIA", members: "12 mil membros" }, "Imoveis Marilia"], missing: ["Outro"] } }, now);
+  assert.deepEqual(patch.groups_result, { selected: [{ name: "VENDA EM MARILIA", members: "12 mil membros" }, { name: "Imoveis Marilia", members: "" }], missing: ["Outro"] });
+  assert.equal("groups_result" in planResult({ status: "claimed", attempts: 1 }, { status: "published", url: "" }, now), false);
 });
