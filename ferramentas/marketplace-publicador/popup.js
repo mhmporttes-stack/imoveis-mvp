@@ -11,7 +11,9 @@ function line(label, value) {
   return p;
 }
 
-function render({ state, config, chatLast }) {
+const chatCounts = (c) => `${c.listed ?? 0} na caixa, ${c.read ?? 0} lida(s) e enviada(s) ao CRM, ${c.created ?? 0} nova(s) no CRM, ${c.newMessages ?? 0} mensagem(ns) nova(s), ${c.sent ?? 0} resposta(s) enviada(s)${c.pending ? `, ${c.pending} pendente(s)` : ""}`;
+
+function render({ state, config, chatLast, chatSkip, chatNow }) {
   const status = $("status");
   status.replaceChildren();
   const paused = state.manualPause || (state.pausedUntil && new Date(state.pausedUntil) > new Date());
@@ -20,16 +22,23 @@ function render({ state, config, chatLast }) {
   status.append(line("Hoje", `${todayCount(state)} de ${DAILY_LIMIT} publicações`));
   status.append(line("Próxima publicação a partir de", fmt(state.nextAllowedAt)));
   status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${describeCheck(state.lastCheckResult, state.lastCheckWaitUntil)}`));
-  // Diagnóstico do Chat do Marketplace (por que não chega): última sincronização, conversas, erro.
+  // Diagnóstico do Chat do Marketplace (1.8.7): o que está fazendo agora (etapa + há quanto tempo), a última rodada
+  // concluída (contagens/caminho/erro — rodada pulada não apaga mais) e a última verificação pulada.
+  if (chatNow) {
+    status.append(line(chatNow.alive ? "Chat — agora" : "Chat — trava parada", chatNow.step));
+    if (chatNow.progress) status.append(line("Chat — progresso", chatCounts(chatNow.progress)));
+    if (chatNow.progress?.error) status.append(line("Chat — erro nesta rodada", chatNow.progress.error));
+  }
   if (chatLast) {
     status.append(line("Chat — última sincronização", `${fmt(chatLast.at)} — ${REASON_LABELS[chatLast.result] || chatLast.result}`));
-    if (chatLast.result === "chat_sincronizado" || chatLast.result === "chat_erro") {
-      status.append(line("Chat — conversas", `${chatLast.listed ?? 0} na caixa, ${chatLast.read ?? 0} lida(s), ${chatLast.created ?? 0} nova(s) no CRM, ${chatLast.newMessages ?? 0} mensagem(ns) nova(s), ${chatLast.sent ?? 0} resposta(s) enviada(s)`));
-    }
+    if (chatLast.listed !== undefined) status.append(line("Chat — conversas", chatCounts(chatLast)));
     if (chatLast.steps) status.append(line("Chat — caminho", chatLast.steps));
     if (chatLast.error) status.append(line("Chat — erro", chatLast.error));
-  } else {
+  } else if (!chatNow) {
     status.append(line("Chat do Marketplace", "ainda não sincronizou (aguarde até 2 min com o Chrome aberto)"));
+  }
+  if (chatSkip && (!chatLast || new Date(chatSkip.at) > new Date(chatLast.at))) {
+    status.append(line("Chat — última verificação", `${fmt(chatSkip.at)} — ${REASON_LABELS[chatSkip.result] || chatSkip.result}${chatSkip.detail ? ` (${chatSkip.detail})` : ""}`));
   }
   if (!config.hasKey) status.append(line("Atenção", REASON_LABELS.sem_configuracao));
   $("pause").textContent = paused ? "Retomar" : "Pausar";
@@ -82,6 +91,21 @@ $("check").addEventListener("click", async () => {
 
 refresh();
 setInterval(refresh, 5000);
+
+// "Destravar sincronização" (1.8.7): solta a trava do chat e fecha a aba dela; a próxima rodada começa em até 2 min.
+$("unlock").addEventListener("click", async () => {
+  const feedback = $("feedback");
+  $("unlock").disabled = true;
+  try {
+    const result = await chrome.runtime.sendMessage({ type: "mp-chat-unlock" });
+    feedback.textContent = result?.error ? `Erro: ${result.error}` : result?.released ? `Destravado (estava em: ${result.step || "?"}). Nova rodada em até 2 min.` : "Não havia trava. Nova rodada em até 2 min.";
+  } catch (error) {
+    feedback.textContent = `Erro: ${error.message}`;
+  } finally {
+    $("unlock").disabled = false;
+    refresh();
+  }
+});
 
 // Diagnóstico de estrutura (1.8.5): esqueleto anonimizado da caixa do Marketplace → CRM (sem nomes nem mensagens).
 $("diagnose").addEventListener("click", async () => {

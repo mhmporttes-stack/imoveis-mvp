@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "../selectors.js";
-import { MAX_THREADS_PER_ROUND, decideChatTick, outboundResultBody, rememberPreviews, threadsToRead } from "../lib/chat-agenda.js";
+import { CHAT_LOCK_MAX_MS, CHAT_LOCK_TTL_MS, MAX_THREADS_PER_ROUND, chatLockAlive, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "../lib/chat-agenda.js";
 import { decideTick, initialState } from "../lib/agenda.js";
 import { fetchNextOutbound, postChatSync, postOutboundResult } from "../lib/crm-api.js";
 
@@ -18,7 +18,47 @@ test("chat: horário do CRM, liga/desliga, pausa e uma automação por vez", () 
   assert.equal(decideChatTick({ state: { ...initialState(), manualPause: true }, settings, now: at("10:00") }).reason, "pausado");
   assert.equal(decideChatTick({ state: { ...initialState(), running: { startedAt: at("09:58").toISOString() } }, settings, now: at("10:00") }).reason, "publicando");
   // E a publicação espera o chat terminar.
-  assert.equal(decideTick({ ...initialState(), chatRunning: at("09:59").toISOString() }, at("10:00")).reason, "chat_em_andamento");
+  assert.equal(decideTick(initialState(), at("10:00"), { chatBusy: true }).reason, "chat_em_andamento");
+  // A trava antiga (state.chatRunning, 1.8.6) não segura mais nada.
+  assert.notEqual(decideTick({ ...initialState(), chatRunning: at("09:59").toISOString() }, at("10:00")).reason, "chat_em_andamento");
+});
+
+test("1.8.7: trava do chat com dono e prazo — nunca fica presa", () => {
+  const settings = { syncEnabled: true, startHour: 7, endHour: 22 };
+  const now = at("10:00");
+  const lock = { token: "x", instance: "w1", startedAt: at("09:59").toISOString(), heartbeatAt: at("09:59").toISOString(), step: "lendo a caixa do Marketplace" };
+  // Viva: mesmo worker, batimento recente.
+  assert.equal(chatLockAlive(lock, { now, instance: "w1" }), true);
+  assert.equal(decideChatTick({ state: initialState(), settings, now, lock, instance: "w1" }).reason, "chat_em_andamento");
+  // Worker que criou a trava morreu (o Chrome encerrou o worker no meio da rodada): morta na hora.
+  assert.equal(chatLockAlive(lock, { now, instance: "w2" }), false);
+  assert.equal(decideChatTick({ state: initialState(), settings, now, lock, instance: "w2" }).action, "sync");
+  // Sem batimento há mais de 4 min: morta.
+  const silent = { ...lock, startedAt: at("09:50").toISOString(), heartbeatAt: new Date(now.getTime() - CHAT_LOCK_TTL_MS - 1000).toISOString() };
+  assert.equal(chatLockAlive(silent, { now, instance: "w1" }), false);
+  // Rodada longa demais no total: morta mesmo com batimento.
+  const tooLong = { ...lock, startedAt: new Date(now.getTime() - CHAT_LOCK_MAX_MS - 1000).toISOString(), heartbeatAt: now.toISOString() };
+  assert.equal(chatLockAlive(tooLong, { now, instance: "w1" }), false);
+  // Sem trava / trava vazia.
+  assert.equal(chatLockAlive(null, { now }), false);
+  assert.equal(chatLockAlive({}, { now }), false);
+  // Popup: etapa e há quanto tempo.
+  assert.match(describeChatLock({ ...lock, stepAt: at("09:59").toISOString() }, now), /^lendo a caixa do Marketplace há 60 s/);
+  assert.equal(describeChatLock(null, now), "");
+});
+
+test("1.8.7: background — trava em chatLock com finally, envio incremental, limite por rodada e Destravar", () => {
+  const source = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /chatRunning:\s*new Date/, "a trava antiga em state.chatRunning não pode voltar");
+  assert.match(source, /finally \{\s*round\.stop\(\);/);
+  assert.match(source, /if \(stored\?\.token === token\) await chrome\.storage\.local\.remove\("chatLock"\)/);
+  assert.match(source, /postChatSync\(config, \[conversation\]\)/, "cada conversa vai ao CRM logo depois de lida");
+  assert.match(source, /round\.elapsed\(\) > ROUND_BUDGET_MS/);
+  assert.match(source, /"mp-chat-unlock"/);
+  const popup = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
+  assert.match(popup, /id="unlock"[^>]*>Destravar sincronização</);
+  const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
+  assert.equal(manifest.version, "1.8.7");
 });
 
 test("lê só conversas que mudaram, no máximo 5 por rodada", () => {
@@ -27,6 +67,10 @@ test("lê só conversas que mudaram, no máximo 5 por rodada", () => {
   assert.deepEqual(threadsToRead(threads, known).map((t) => t.threadKey), ["t6", "t7"]);
   assert.deepEqual(threadsToRead([{ ...threads[0], unread: true }], known).map((t) => t.threadKey), ["t0"]);
   assert.equal(threadsToRead(threads, {}).length, MAX_THREADS_PER_ROUND);
+  // Conversas nunca vistas: histórico completo, no máximo 5 por rodada; as demais ficam para a próxima.
+  assert.ok(threadsToRead(threads, {}).every((t) => t.full));
+  const afterFirst = rememberPreviews({}, threadsToRead(threads, {}));
+  assert.deepEqual(threadsToRead(threads, afterFirst).map((t) => t.threadKey), ["t5", "t6", "t7"]);
 });
 
 test("retorno do envio: nova tentativa só se nada saiu", () => {

@@ -306,7 +306,9 @@
 
   // Mensagens da conversa aberta, com lado pela geometria. full=true (1ª vez que a conversa é vista): sobe até o
   // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
-  async function readThread(threadKey, full = false, contactName = "") {
+  // maxMs (1.8.7): prazo da leitura dado pelo background; a rolagem para antes dele e devolve o que juntou.
+  async function readThread(threadKey, full = false, contactName = "", maxMs = 0) {
+    const deadline = maxMs > 0 ? Date.now() + maxMs : Infinity;
     // Janela flutuante (caminho do Messenger) ou, se não houver, a área principal da página da conversa.
     const win = await waitFor(() => chatWindow(contactName) || chatWindow(), 15000);
     const scope = win || document;
@@ -323,7 +325,7 @@
     if (full) {
       const box = scroller(area);
       // Sobe até parar de carregar (máx. 60 voltas).
-      for (let i = 0, lastHeight = -1, still = 0; i < 60 && still < 3; i += 1) {
+      for (let i = 0, lastHeight = -1, still = 0; i < 60 && still < 3 && Date.now() < deadline - 60000; i += 1) {
         box.scrollTop = 0;
         await sleep(between(900, 1500));
         still = box.scrollHeight === lastHeight ? still + 1 : 0;
@@ -331,7 +333,7 @@
       }
       // Desce juntando as janelas.
       rows = readRows(scope, area, contactName);
-      for (let i = 0; i < 200 && box.scrollTop + box.clientHeight < box.scrollHeight - 5; i += 1) {
+      for (let i = 0; i < 200 && box.scrollTop + box.clientHeight < box.scrollHeight - 5 && Date.now() < deadline - 5000; i += 1) {
         box.scrollTop += Math.max(200, box.clientHeight * 0.8);
         await sleep(between(250, 450));
         rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
@@ -515,7 +517,7 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "mp-inbox-list") {
-      listThreads().then(sendResponse);
+      listThreads().then(sendResponse, (error) => sendResponse({ threads: [], steps: [`erro ao listar: ${error.message}`], url: location.href }));
       return true;
     }
     if (message?.type === "mp-inbox-diagnose") {
@@ -527,7 +529,7 @@
       return true;
     }
     if (message?.type === "mp-inbox-read") {
-      readThread(message.threadKey, message.full === true, message.contactName || "").then(sendResponse);
+      readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
       return true;
     }
     if (message?.type === "mp-inbox-send") {

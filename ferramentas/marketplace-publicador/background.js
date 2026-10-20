@@ -2,7 +2,7 @@
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
-import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, decideChatTick, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 
 const ALARM = "mp-tick";
@@ -14,7 +14,9 @@ const FB_ORIGIN = "https://www.facebook.com";
 
 async function loadState() {
   const { state } = await chrome.storage.local.get("state");
-  return { ...initialState(), ...(state || {}) };
+  // `chatRunning` era a trava do chat até a 1.8.6 (ficava presa); hoje a trava é `chatLock` — descarta a antiga.
+  const { chatRunning: _legacyChatLock, ...rest } = state || {};
+  return { ...initialState(), ...rest };
 }
 
 async function saveState(state) {
@@ -42,10 +44,15 @@ function ensureAlarm() {
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   ensureAlarm();
+  // Instalou/atualizou/recarregou (↻): nenhuma sincronização pode estar rodando — solta a trava e fecha a aba órfã.
+  await releaseDeadChatLock("extensão recarregada/atualizada");
   // Atualização: refaz a contagem do dia pelo histórico (versão 1.1.0 contava falha e travava 1 h).
   if (details.reason === "update") await saveState(recomputeFromHistory(await loadState(), new Date()));
 });
-chrome.runtime.onStartup.addListener(ensureAlarm);
+chrome.runtime.onStartup.addListener(async () => {
+  ensureAlarm();
+  await releaseDeadChatLock("Chrome reiniciado");
+});
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) tick("alarme").catch((error) => console.warn("[marketplace] tique falhou:", error));
   if (alarm.name === CHAT_ALARM) chatTick().catch((error) => console.warn("[marketplace] chat falhou:", error));
@@ -275,7 +282,7 @@ async function recoverInterruptedRun(state) {
 
 async function tick(origin, onDecision = () => {}) {
   let state = await recoverInterruptedRun(await loadState());
-  const decision = decideTick(state, new Date());
+  const decision = decideTick(state, new Date(), { chatBusy: await chatBusy() });
   if (decision.action !== "check") {
     const waitUntil = localWaitUntil(state, decision.reason);
     await saveState(recordCheck(state, decision.reason, new Date(), waitUntil));
@@ -326,9 +333,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === "mp-status") {
       const config = await loadConfig();
-      const { chatLast } = await chrome.storage.local.get("chatLast");
-      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, chatLast: chatLast || null };
+      const { chatLast, chatSkip, chatLock } = await chrome.storage.local.get(["chatLast", "chatSkip", "chatLock"]);
+      const now = new Date();
+      const alive = chatLockAlive(chatLock, { now, instance: WORKER_INSTANCE });
+      const chatNow = chatLock?.token ? { alive, step: describeChatLock(chatLock, now), progress: chatLock.progress || null } : null;
+      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow };
     }
+    if (message?.type === "mp-chat-unlock") return unlockChat();
     if (message?.type === "mp-pause") return { state: await saveState(setManualPause(await loadState(), message.paused)) };
     if (message?.type === "mp-diagnose") return diagnoseNow();
     if (message?.type === "mp-check-now") {
@@ -390,7 +401,9 @@ async function readThread(tabId, thread) {
     await injectInbox(tabId); // ignorado se o leitor já estiver na página (mesmo documento)
   }
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
-  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "" }, thread.full ? 300000 : 60000)
+  // maxMs: o leitor para de rolar antes do prazo e devolve o que juntou (1.8.7 — antes podia passar de 5 min).
+  const readMs = thread.full ? THREAD_READ_MS.full : THREAD_READ_MS.incremental;
+  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
     .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
@@ -429,33 +442,135 @@ async function sendOutbound(tabId, config, message) {
   return outcome;
 }
 
+// --- Trava da sincronização (1.8.7) -------------------------------------------------------------------------------
+// Regras em lib/chat-agenda.js (chatLockAlive). Cada worker tem uma identidade; trava de outro worker = morta
+// (o Chrome encerrou o worker no meio da rodada e o finally não rodou — causa do "sincronizando" eterno da 1.8.6).
+const WORKER_INSTANCE = crypto.randomUUID();
+const CHAT_HEARTBEAT_MS = 20 * 1000;
+const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 240 * 1000, thread: 120 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 200 * 1000 };
+const THREAD_READ_MS = { full: 210 * 1000, incremental: 60 * 1000 };
+
+class ChatLockLost extends Error {}
+
+async function loadChatLock() {
+  const { chatLock } = await chrome.storage.local.get("chatLock");
+  return chatLock || null;
+}
+
+async function chatBusy(now = new Date()) {
+  return chatLockAlive(await loadChatLock(), { now, instance: WORKER_INSTANCE });
+}
+
+// Fecha a aba e o depurador que uma rodada morta deixou para trás (o worker morreu antes do finally).
+async function closeOrphanTab(lock) {
+  if (!lock?.tabId) return;
+  attachedTabs.delete(lock.tabId);
+  await chrome.debugger.detach({ tabId: lock.tabId }).catch(() => {});
+  await chrome.tabs.remove(lock.tabId).catch(() => {});
+}
+
+async function releaseDeadChatLock(reason) {
+  const lock = await loadChatLock();
+  if (!lock) return;
+  await closeOrphanTab(lock);
+  await chrome.storage.local.remove("chatLock");
+  console.warn(`[marketplace] trava do chat solta (${reason}); etapa: ${lock.step || "?"}`);
+}
+
+// Botão "Destravar sincronização" do popup. A rodada viva (se houver) percebe na próxima etapa e para.
+async function unlockChat() {
+  const lock = await loadChatLock();
+  await closeOrphanTab(lock);
+  await chrome.storage.local.remove("chatLock");
+  await chrome.storage.local.set({ chatSkip: { at: new Date().toISOString(), result: "chat_destravado", detail: lock?.step ? `estava em: ${lock.step}` : "não havia trava" } });
+  return { ok: true, released: Boolean(lock), step: lock?.step || "" };
+}
+
+function withTimeout(promise, timeoutMs, label) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Etapa "${label}" passou de ${Math.round(timeoutMs / 1000)} s e foi abandonada.`)), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timer));
+}
+
+// Uma rodada dona da trava: batimento a cada 20 s (também mantém o worker vivo — toda chamada à API da extensão
+// zera o relógio de inatividade do MV3), etapa atual + progresso visíveis no popup, timeout por etapa.
+function createChatRound(token, startedAt) {
+  let current = { token, instance: WORKER_INSTANCE, startedAt, stepAt: startedAt, heartbeatAt: startedAt, step: "iniciando", tabId: null, progress: null };
+  let lost = false;
+  const write = async (patch) => {
+    if (lost) throw new ChatLockLost("A trava foi solta (Destravar ou rodada nova); esta rodada parou.");
+    const stored = await loadChatLock();
+    if (stored?.token !== token) {
+      lost = true;
+      throw new ChatLockLost("A trava foi solta (Destravar ou rodada nova); esta rodada parou.");
+    }
+    current = { ...current, ...patch, heartbeatAt: new Date().toISOString() };
+    await chrome.storage.local.set({ chatLock: current });
+  };
+  const timer = setInterval(() => write({}).catch(() => {}), CHAT_HEARTBEAT_MS);
+  return {
+    get lost() {
+      return lost;
+    },
+    elapsed: () => Date.now() - new Date(startedAt).getTime(),
+    set: (patch) => write(patch),
+    async step(label, run, timeoutMs, progress) {
+      await write({ step: label, stepAt: new Date().toISOString(), ...(progress ? { progress: { ...progress } } : {}) });
+      return withTimeout(Promise.resolve().then(run), timeoutMs, label);
+    },
+    stop() {
+      clearInterval(timer);
+    }
+  };
+}
+
 async function chatTick() {
   const { chatSettings, chatPreviews } = await chrome.storage.local.get(["chatSettings", "chatPreviews"]);
   const state = await loadState();
-  const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date() });
+  const previousLock = await loadChatLock();
+  const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date(), lock: previousLock, instance: WORKER_INSTANCE });
   if (decision.action !== "sync") {
-    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: decision.reason } });
+    // Rodada pulada vai para `chatSkip` — não apaga as contagens/caminho/erro da última rodada (`chatLast`).
+    await chrome.storage.local.set({ chatSkip: { at: new Date().toISOString(), result: decision.reason } });
     return decision;
   }
   const config = await loadConfig();
   if (!config.key) {
-    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: "sem_configuracao" } });
+    await chrome.storage.local.set({ chatSkip: { at: new Date().toISOString(), result: "sem_configuracao" } });
     return { reason: "sem_configuracao" };
   }
-  await saveState({ ...state, chatRunning: new Date().toISOString() });
-  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
-  await sleep(500);
-  // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
-  await attachDebugger(tab.id);
+  // Trava morta de uma rodada anterior: fecha a aba que ficou aberta e registra onde ela parou.
+  if (previousLock) await closeOrphanTab(previousLock);
+
+  const startedAt = new Date().toISOString();
+  const token = crypto.randomUUID();
+  await chrome.storage.local.set({ chatLock: { token, instance: WORKER_INSTANCE, startedAt, stepAt: startedAt, heartbeatAt: startedAt, step: "abrindo aba", tabId: null, progress: null } });
+  const round = createChatRound(token, startedAt);
   // Diagnóstico do popup: o que foi listado, lido, enviado e o erro (se houver).
-  const summary = { listed: 0, read: 0, sent: 0, failed: 0, created: 0, newMessages: 0, error: "", inboxUrl: "", steps: "" };
+  const summary = { listed: 0, read: 0, sent: 0, failed: 0, created: 0, newMessages: 0, pending: 0, error: "", inboxUrl: "", steps: "" };
+  if (previousLock?.step) summary.steps = `rodada anterior morreu em "${previousLock.step}" → `;
+  let result = "chat_erro";
+  let tab = null;
+  let previews = { ...(chatPreviews || {}) };
+  let settings = chatSettings || {};
   try {
-    const inbox = await readInbox(tab.id);
+    tab = await chrome.tabs.create({ url: "about:blank", active: false });
+    await round.set({ tabId: tab.id });
+    await sleep(500);
+    // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
+    await attachDebugger(tab.id);
+
+    const inbox = await round.step("lendo a caixa do Marketplace", () => readInbox(tab.id), STEP_TIMEOUT_MS.inbox, summary);
     summary.inboxUrl = inbox?.url || "";
-    summary.steps = (inbox?.steps || []).join(" → ");
+    summary.steps += (inbox?.steps || []).join(" → ");
     if (inbox?.checkpoint) {
       summary.error = "O Facebook pediu verificação/limite na caixa do Marketplace.";
-      return await pauseForCheckpoint("caixa do Marketplace");
+      await pauseForCheckpoint("caixa do Marketplace");
+      return { reason: (result = "chat_erro") };
     }
     const threads = inbox?.threads || [];
     summary.listed = threads.length;
@@ -464,45 +579,97 @@ async function chatTick() {
       // Envia sozinho o diagnóstico de estrutura (no máximo 1 por hora) para calibrar os seletores.
       const { lastDiagnosticAt } = await chrome.storage.local.get("lastDiagnosticAt");
       if (!lastDiagnosticAt || Date.now() - new Date(lastDiagnosticAt).getTime() > 60 * 60 * 1000) {
-        summary.error += ` Diagnóstico: ${await sendDiagnostics(tab.id, config, { navigate: true })}`;
+        summary.error += ` Diagnóstico: ${await round.step("enviando diagnóstico", () => sendDiagnostics(tab.id, config, { navigate: true }), STEP_TIMEOUT_MS.inbox, summary)}`;
       }
     }
-    const conversations = [];
-    for (const thread of threadsToRead(threads, chatPreviews || {})) {
-      const { read, conversation } = await readThread(tab.id, thread);
-      if (read?.checkpoint) return await pauseForCheckpoint("conversa do Marketplace");
-      if (read?.ok && conversation) conversations.push(conversation);
-      else if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
+
+    // Envio incremental: cada conversa lida vai ao CRM logo em seguida e a prévia é guardada na hora (se o worker
+    // morrer depois, a conversa já está no CRM e não é relida do zero).
+    const toRead = threadsToRead(threads, previews);
+    summary.pending = toRead.length;
+    let posted = 0;
+    for (const [index, thread] of toRead.entries()) {
+      if (round.elapsed() > ROUND_BUDGET_MS) {
+        summary.steps += ` → tempo da rodada esgotado; ${toRead.length - index} conversa(s) ficam para a próxima`;
+        result = "chat_parcial";
+        break;
+      }
+      const label = `lendo conversa ${index + 1}/${toRead.length} (${thread.contactName || "sem nome"}${thread.full ? ", histórico completo" : ""})`;
+      let outcome;
+      try {
+        outcome = await round.step(label, () => readThread(tab.id, thread), thread.full ? STEP_TIMEOUT_MS.threadFull : STEP_TIMEOUT_MS.thread, summary);
+      } catch (error) {
+        if (error instanceof ChatLockLost) throw error;
+        outcome = { read: { ok: false, error: error.message }, conversation: null };
+      }
+      const { read, conversation } = outcome;
+      if (read?.checkpoint) {
+        await pauseForCheckpoint("conversa do Marketplace");
+        return { reason: (result = "chat_erro") };
+      }
       summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : "falhou"}`;
+      if (!read?.ok || !conversation) {
+        if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
+        continue;
+      }
+      try {
+        const synced = await round.step(`enviando ao CRM: ${thread.contactName || "conversa"}`, () => postChatSync(config, [conversation]), STEP_TIMEOUT_MS.post, summary);
+        posted += 1;
+        summary.read += 1;
+        summary.created += synced.created || 0;
+        summary.newMessages += synced.newMessages || 0;
+        settings = synced.settings || settings;
+        previews = rememberPreviews(previews, [thread]);
+        await chrome.storage.local.set({ chatSettings: settings, chatPreviews: previews });
+        if (synced.settings?.syncEnabled === false) return { reason: (result = "chat_desligado") };
+      } catch (error) {
+        if (error instanceof ChatLockLost || error?.status === 401) throw error;
+        summary.error = `${thread.contactName}: não chegou ao CRM (${error.message})`;
+      }
     }
-    const synced = await postChatSync(config, conversations);
-    summary.read = conversations.length;
-    summary.created = synced.created || 0;
-    summary.newMessages = synced.newMessages || 0;
-    await chrome.storage.local.set({ chatSettings: synced.settings || chatSettings || {}, chatPreviews: rememberPreviews(chatPreviews || {}, threads.filter((thread) => conversations.some((item) => item.threadKey === thread.threadKey))) });
-    if (synced.settings?.syncEnabled === false) return { reason: "chat_desligado" };
+    // Nenhuma conversa enviada: uma chamada vazia busca a configuração e roda a fila/prazo da roleta no CRM.
+    if (!posted) {
+      const synced = await round.step("consultando o CRM", () => postChatSync(config, []), STEP_TIMEOUT_MS.post, summary);
+      settings = synced.settings || settings;
+      await chrome.storage.local.set({ chatSettings: settings });
+      if (synced.settings?.syncEnabled === false) return { reason: (result = "chat_desligado") };
+    }
 
     for (let i = 0; i < MAX_SENDS_PER_ROUND; i += 1) {
-      const next = await fetchNextOutbound(config);
+      if (round.elapsed() > ROUND_BUDGET_MS) {
+        result = "chat_parcial";
+        break;
+      }
+      const next = await round.step("buscando respostas a enviar", () => fetchNextOutbound(config), STEP_TIMEOUT_MS.outbox, summary);
       if (!next?.message) break;
-      const outcome = await sendOutbound(tab.id, config, next.message);
+      const outcome = await round.step(`enviando resposta ${i + 1}`, () => sendOutbound(tab.id, config, next.message), STEP_TIMEOUT_MS.send, summary);
       if (outcome.ok) summary.sent += 1;
       else summary.failed += 1;
-      if (outcome.checkpoint) return await pauseForCheckpoint("envio de mensagem");
+      if (outcome.checkpoint) {
+        await pauseForCheckpoint("envio de mensagem");
+        return { reason: (result = "chat_erro") };
+      }
       if (!outcome.ok) break; // não insiste na mesma rodada
       await sleep(4000 + Math.floor(Math.random() * 6000));
     }
-    return { reason: "chat_sincronizado", ...summary };
+    if (result !== "chat_parcial") result = threadsToRead(threads, previews).length ? "chat_parcial" : "chat_sincronizado";
+    return { reason: result, ...summary };
   } catch (error) {
     console.warn("[marketplace] sincronização do chat falhou:", error?.message || error);
     summary.error = error?.status === 401 ? "Chave recusada pelo CRM (gere outra no CRM)." : error?.message || String(error);
-    return { reason: "chat_erro", error: summary.error };
+    result = "chat_erro";
+    return { reason: result, error: summary.error };
   } finally {
-    await detachDebugger(tab.id);
-    await chrome.tabs.remove(tab.id).catch(() => {});
-    const latest = await loadState();
-    await saveState({ ...latest, chatRunning: null });
-    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: "chat_sincronizado", ...summary } });
+    round.stop();
+    if (tab) {
+      await detachDebugger(tab.id);
+      await chrome.tabs.remove(tab.id).catch(() => {});
+    }
+    // Só solta a trava se ainda for desta rodada (Destravar/rodada nova já podem ter trocado).
+    const stored = await loadChatLock().catch(() => null);
+    if (stored?.token === token) await chrome.storage.local.remove("chatLock");
+    summary.pending = Math.max(0, summary.pending - summary.read);
+    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), startedAt, result, ...summary } });
   }
 }
 

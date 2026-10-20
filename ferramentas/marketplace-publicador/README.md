@@ -49,6 +49,7 @@ Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador M
 - As respostas que os corretores escrevem no CRM saem pelo **seu perfil do Facebook**, sem prefixo, com a mesma faixa "está depurando" durante o envio. No máximo 3 por rodada e o limite por hora do CRM. Nada é respondido sozinho.
 - Para desligar: no CRM, Chat Marketplace → desmarque "Sincronizar conversas do Marketplace" (só o administrador geral vê essa opção). O botão **Pausar** do popup também para tudo.
 - Precisa do PC do escritório ligado e do Chrome aberto; atraso de ~1–2 min para chegar e para sair.
+- **1.8.7 — trava da sincronização:** cada conversa lida vai ao CRM logo em seguida (o progresso aparece no CRM durante a rodada). Conversa nova (histórico completo): até 5 por rodada; cada rodada tem ~4 min, o resto entra nas próximas. O popup mostra a etapa atual e há quanto tempo, além das contagens/caminho/erro da última rodada. Se o popup ficar parado em "sincronizando", toque em **Destravar sincronização** (a trava também se solta sozinha se a rodada morrer ou passar de 4 min sem sinal, e ao recarregar a extensão).
 
 ## Popup
 

@@ -57,14 +57,15 @@ export function nextIntervalMs(random = Math.random) {
 }
 
 // Decide se este "tique" (alarme de 15 min ou botão "Verificar agora") pode consultar a fila.
-export function decideTick(state, now = new Date()) {
+// chatBusy: a trava do Chat (chatLock, lib/chat-agenda.js) está viva — calculado pelo background (1.8.7).
+export function decideTick(state, now = new Date(), { chatBusy = false } = {}) {
   const s = { ...initialState(), ...(state || {}) };
   const t = now.getTime();
   if (s.manualPause) return { action: "skip", reason: "pausado" };
   if (s.pausedUntil && new Date(s.pausedUntil).getTime() > t) return { action: "skip", reason: "pausa_verificacao" };
   if (s.running && t - new Date(s.running.startedAt).getTime() < STALE_RUN_MS) return { action: "skip", reason: "em_andamento" };
   // Chat do Marketplace lendo/enviando agora: a publicação espera (uma automação no Facebook por vez).
-  if (s.chatRunning && t - new Date(s.chatRunning).getTime() < 10 * 60 * 1000) return { action: "skip", reason: "chat_em_andamento" };
+  if (chatBusy) return { action: "skip", reason: "chat_em_andamento" };
   if (!isWithinWindow(now)) return { action: "skip", reason: "fora_do_horario" };
   if (todayCount(s, now) >= DAILY_LIMIT) return { action: "skip", reason: "limite_diario" };
   if (todayAttempts(s, now) >= DAILY_ATTEMPT_LIMIT) return { action: "skip", reason: "limite_tentativas" };
@@ -173,6 +174,9 @@ export const REASON_LABELS = {
   intervalo_seguranca: "Aguardando intervalo de segurança",
   verificando: "Verificando…",
   chat_em_andamento: "Chat do Marketplace sincronizando — tenta de novo em instantes",
+  chat_sincronizando: "Sincronizando agora",
+  chat_parcial: "Sincronizou parte (o restante entra na próxima rodada)",
+  chat_destravado: "Sincronização destravada por você",
   chat_sincronizado: "Sincronizou",
   chat_erro: "Falhou",
   chat_desligado: "Sincronização do chat desligada no CRM",
