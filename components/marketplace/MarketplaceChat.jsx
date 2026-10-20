@@ -121,12 +121,10 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   async function addToCrm() {
     const name = window.prompt("Nome do cliente:", thread?.conversation?.contactName || "");
     if (!name) return;
-    const phone = window.prompt("WhatsApp do cliente (com DDD) — o Facebook não informa o telefone:");
-    if (!phone) return;
     try {
-      const result = await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/crm`, { method: "POST", body: JSON.stringify({ name, phone }) });
+      const result = await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/crm`, { method: "POST", body: JSON.stringify({ name }) });
       loadThread(selectedId);
-      window.alert(`Cliente adicionado ao CRM (${result.clientId.slice(0, 8)}).`);
+      window.alert(`Cliente adicionado ao CRM (${result.clientId.slice(0, 8)}). Preencha o WhatsApp no card do cliente quando conseguir.`);
     } catch (crmError) {
       setError(crmError.message);
     }

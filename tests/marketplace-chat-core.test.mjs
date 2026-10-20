@@ -60,13 +60,14 @@ test("liga a conversa ao anúncio do CRM pelo link do item ou pelo título", () 
   assert.equal(matchListing({ listingTitle: "Outro" }, listings), null);
 });
 
-test("roleta: sem resposta de ninguém em 10 min → redistribui; respondeu, virou cliente ou já girou 3x → não", () => {
+test("roleta: sem resposta de ninguém em 10 min → redistribui; respondeu ou já girou 3x → não", () => {
   const base = { assigned_user_id: "u1", assigned_at: ago(11), redistributions: 0, client_id: null, last_human_reply_at: null };
   assert.equal(shouldRedistribute(base, now), true);
   assert.equal(shouldRedistribute({ ...base, assigned_at: ago(5) }, now), false);
   assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(8) }, now), false);
   assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(20) }, now), true, "resposta antiga (de antes de receber) não segura");
-  assert.equal(shouldRedistribute({ ...base, client_id: "c1" }, now), false);
+  // Desde 2026-10-20 toda conversa distribuída já tem cliente: o cliente vai junto na redistribuição.
+  assert.equal(shouldRedistribute({ ...base, client_id: "c1" }, now), true);
   assert.equal(shouldRedistribute({ ...base, redistributions: MAX_REDISTRIBUTIONS }, now), false);
   assert.equal(shouldRedistribute({ ...base, assigned_user_id: null }, now), false);
 });
@@ -122,4 +123,23 @@ test("rotas: extensão só com a chave + limite; tela com requireAdminApi e esco
   assert.match(lib, /assignRoundRobinLead/, "mesma roleta do Chat");
   assert.match(lib, /canSeeConversation\(scopeFor\(auth\)/, "mesmo escopo do Chat");
   assert.doesNotMatch(lib, /sendWhatsapp|sendIndividualMessage/, "nunca envia por WhatsApp");
+});
+
+test("conversa distribuída vira cliente só com o nome (dono, 2026-10-20): banco aceita telefone vazio sem fundir clientes", () => {
+  const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const sql = read("supabase/migrations/20261020200000_marketplace_clients_without_phone.sql");
+  assert.match(sql, /phone_normalized = ''/);
+  assert.match(sql, /\^\\\+55\[0-9\]\{11\}\$/, "telefone preenchido continua com o formato de sempre");
+  assert.match(sql, /if coalesce\(btrim\(new\.phone_normalized\), ''\) = '' then\s+return new;/, "sem telefone não entra na ponte crm_clients (senão viraria um cliente só)");
+  assert.doesNotMatch(sql, /drop table|delete from|truncate/i);
+  const registrations = read("lib/simulation-registrations.js");
+  const fn = registrations.slice(registrations.indexOf("export async function createMarketplaceRegistration"), registrations.indexOf("export async function markRegistrationAutoSimulation"));
+  assert.match(fn, /CLIENT_STATUS\.AUTOMATED_SERVICE/);
+  assert.doesNotMatch(fn, /findMatchingRegistration/, "sem telefone não passa pelo dedupe por telefone");
+  const lib = read("lib/marketplace-chat.js");
+  assert.match(lib, /ensureClientForConversation\(conversation, brokerId\)/);
+  assert.match(lib, /addSystemTagToClient\(registration\.id, MARKETPLACE_TAG/);
+  assert.match(lib, /notification_type: "new_client"/);
+  assert.match(lib, /markClientOnHumanMessage\(conversation\.client_id/);
+  assert.match(lib, /responsible_user_id: brokerId/, "redistribuição leva o cliente junto");
 });

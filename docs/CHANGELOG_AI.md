@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — MKT-2: conversa distribuída vira cliente sem telefone, aviso ao corretor e contador no menu
+- **Data:** 2026-10-20
+- **Área:** Chat do Marketplace, cadastro de clientes (`simulation_registrations`), roleta, menu.
+- **Alteração:** decisões do dono (BUSINESS_RULES MKT-2). `createMarketplaceRegistration` (`lib/simulation-registrations.js`) cria o cliente só com o nome, telefone vazio, "Atendimento automático", origem `facebook_marketplace`, sem dedupe por telefone; etiqueta "Marketplace". `distribute` (`lib/marketplace-chat.js`) cria o cliente ao distribuir, avisa o corretor (`crm_notifications` `new_client`), grava `lead_distribution_history` e, na redistribuição/transferência, leva o cliente junto. Resposta enviada = contato humano (`markClientOnHumanMessage`). Contador de não lidas no menu (`/api/admin/marketplace-chat/unread`, `MarketplaceNavBadge`). "Adicionar ao CRM" agora só pede o nome. Migration `20261020200000_marketplace_clients_without_phone.sql` (NÃO aplicada): troca a CHECK de formato do telefone para aceitar vazio (remove e recria só a regra; nenhum dado muda) e faz a ponte `crm_clients`/`crm_attendances` ignorar cliente sem telefone.
+- **Análise de impacto (telefone vazio):** checagem do banco (corrigida na migration); ponte `crm_clients` por telefone (corrigida: senão todos os sem telefone virariam um só); dedupe por telefone (não usado na criação); automação de WhatsApp ("sem destinatário" → falha sem enviar), Disparo (linha inválida não envia), Meta Diária/Prospecção (trabalham com `prospecting_contacts`, que têm telefone), busca por telefone do Chat (candidatos vazios não casam). **A CONFIRMAR:** telas que mostram/abrem WhatsApp do card com telefone vazio; checks do banco que existam só em produção.
+- **Verificação:** `node --test tests/marketplace-chat-core.test.mjs` (10); build abaixo.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace: localização escolheu "Rua Marília, Vera Cruz - SP" — só a CIDADE, com confirmação (extensão 1.6.1)
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/` (`selectors.js`, `content.js`).

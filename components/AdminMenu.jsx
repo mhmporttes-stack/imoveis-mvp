@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import MarketplaceNavBadge from "@/components/marketplace/MarketplaceNavBadge";
 import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
@@ -29,7 +30,7 @@ export function isActiveItem(item, active) {
 }
 
 // Chat do Marketplace (MKT-2, dono, 2026-10-20): conversas do Facebook Marketplace, todos os perfis (escopo no servidor).
-const MARKETPLACE_CHAT_ITEM = { href: "/admin/chat/marketplace", label: "Chat Marketplace", key: "marketplace-chat" };
+const MARKETPLACE_CHAT_ITEM = { href: "/admin/chat/marketplace", label: "Chat Marketplace", key: "marketplace-chat", badge: "marketplace" };
 
 const clientItems = [
   { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
@@ -423,6 +424,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             >
               {item.label}
               {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
+              {item.badge === "marketplace" ? <MarketplaceNavBadge className="ml-1.5" /> : null}
             </ItemLink>
           );
         })}
