@@ -96,3 +96,33 @@ test("background: aba dedicada, navegação esperando carregar, reinjeção e ab
   assert.match(content, /progress\("clicou publicar"\)/);
   assert.ok(MP.matchesAny("+ Criar novo classificado", MP.createLink));
 });
+
+// Lista real de sugestões do print de 2026-10-20 (2ª tentativa).
+const REAL_SUGGESTIONS = [
+  "Barriga Verde, Rua Rio Grande do Sul, 155, Marília - SP, 17509-130, Brasil\nBarriga Verde, Rua Rio Grande do Sul, 155, Marília - SP, 17509-130, Brasil",
+  "17516-000 Marília, SP\nCidade",
+  "Marília\n139.230 número",
+  "Osasco, SP\nOsasco, SP · 15.642 número",
+  "Marília, SP\nCidade",
+  "Marília, SP\nCidade",
+  "Avenida Vitória Regia, 692, Marília - SP, 17532-046, Brasil\nEstr. Mun. Danilo Gonzáles 693 · Marília, SP · 232 número"
+];
+
+test("localização: escolhe 'Marília, SP · Cidade', não rua, CEP nem outra cidade", () => {
+  assert.equal(MP.pickLocationIndex(REAL_SUGGESTIONS), 4);
+  assert.equal(MP.pickLocationIndex(["Marília, SP\nMarília, SP · 1.576 número", "Osasco, SP\nCidade"]), 0);
+  assert.equal(MP.pickLocationIndex(["Marília\n139.230 número", "Osasco, SP\nCidade"]), 0);
+  assert.equal(MP.pickLocationIndex(["Osasco, SP\nCidade"]), -1);
+});
+
+test("bairro limpo também na extensão; nunca digita o bairro na localização", () => {
+  assert.equal(MP.cleanNeighborhood("Terra Verde · Marília/SP"), "Terra Verde");
+  const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
+  const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
+  assert.match(fill, /humanType\(control, listing\.city\)/);
+  assert.doesNotMatch(fill, /neighborhood/);
+  assert.match(fill, /ArrowDown/);
+  assert.match(fill, /locationChosen/);
+  assert.match(content, /fillText\("bathrooms", listing\.bathrooms \|\| 1\)/);
+  assert.match(content, /Campos vazios:/);
+});

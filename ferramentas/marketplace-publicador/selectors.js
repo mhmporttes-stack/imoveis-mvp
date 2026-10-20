@@ -137,6 +137,29 @@
     return MP.matchesAny(pageText, MP.checkpointTexts);
   };
 
+  // Sugestão de localização a escolher (formulário real, 2026-10-20: a lista mistura ruas, CEPs e cidades).
+  // Preferência: título "Marília, SP" com subtítulo "Cidade"; depois o 1º título "Marília, SP"; depois o 1º que
+  // comece com "Marília". -1 = nenhuma.
+  MP.pickLocationIndex = function pickLocationIndex(texts, city = "Marília", state = "SP") {
+    const lines = texts.map((text) => String(text || "").split("\n").map((line) => MP.normalize(line)).filter(Boolean));
+    const target = MP.normalize(`${city}, ${state}`);
+    const cityKey = MP.normalize(city);
+    let index = lines.findIndex((item) => item[0] === target && item.slice(1).some((line) => line === "cidade" || line === "city"));
+    if (index < 0) index = lines.findIndex((item) => item[0] === target);
+    if (index < 0) index = lines.findIndex((item) => (item[0] || "").startsWith(cityKey));
+    return index;
+  };
+
+  // Mesmo saneamento do CRM (lib/marketplace-core.mjs sanitizeNeighborhood) para anúncios gravados antes dele.
+  MP.cleanNeighborhood = function cleanNeighborhood(value, city = "Marília", state = "SP") {
+    const drop = [city, state, `${city} ${state}`, `${city}/${state}`, `${city}-${state}`].map(MP.normalize);
+    return String(value || "")
+      .split(/\s*[·•|—–,/]\s*|\s+-\s+/)
+      .map((part) => part.trim())
+      .filter((part) => part && !drop.includes(MP.normalize(part)))
+      .join(" ");
+  };
+
   MP.cleanListingUrl = function cleanListingUrl(href, base = "https://www.facebook.com") {
     try {
       const url = new URL(href, base);

@@ -7,7 +7,7 @@ import { isUuid } from "@/lib/short-links.mjs";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// PATCH { action: "approve" | "unapprove" | "cancel" } ou { listing: {...} } (edição; tira a aprovação se o conteúdo mudar).
+// PATCH { action: "approve" | "unapprove" | "cancel" | "mark_published", url? } ou { listing: {...} } (edição; tira a aprovação se o conteúdo mudar).
 export async function PATCH(request, { params }) {
   const auth = await requireGeneralAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -16,7 +16,7 @@ export async function PATCH(request, { params }) {
   try {
     const body = await request.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
-    const listing = body.action ? await applyMarketplaceAction(id, body.action, auth) : await updateMarketplaceListing(id, body.listing || {});
+    const listing = body.action ? await applyMarketplaceAction(id, body.action, auth, { url: body.url }) : await updateMarketplaceListing(id, body.listing || {});
     return NextResponse.json({ listing });
   } catch (error) {
     const status = error instanceof MarketplaceInputError ? 400 : 500;

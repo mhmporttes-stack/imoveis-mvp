@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   offerType: "sale",
   propertyType: "house",
   bedrooms: "",
-  bathrooms: "",
+  bathrooms: 1,
   areaM2: "",
   iptu: "",
   condoFee: "",
@@ -47,7 +47,7 @@ function fromListing(listing) {
     offerType: listing.offer_type,
     propertyType: listing.property_type,
     bedrooms: listing.bedrooms ?? "",
-    bathrooms: listing.bathrooms ?? "",
+    bathrooms: listing.bathrooms ?? 1,
     areaM2: listing.area_m2 ?? "",
     iptu: listing.iptu ?? "",
     condoFee: listing.condo_fee ?? "",
@@ -147,8 +147,13 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
       : `Aprovar a publicação de “${listing.title}” no Facebook Marketplace? A extensão vai publicar sozinha no seu perfil.`;
     if (action === "approve" && !window.confirm(approveText)) return;
     if (action === "cancel" && !window.confirm(`Cancelar “${listing.title}”?`)) return;
+    let url = "";
+    if (action === "mark_published") {
+      url = window.prompt(`Cole o link do anúncio “${listing.title}” no Facebook (https://www.facebook.com/marketplace/item/...). A extensão não vai mais tentar publicar este anúncio.`) || "";
+      if (!url.trim()) return;
+    }
     run(`${action}:${listing.id}`, async () => {
-      await callApi(`/api/admin/marketplace/${listing.id}`, { method: "PATCH", body: JSON.stringify({ action }) });
+      await callApi(`/api/admin/marketplace/${listing.id}`, { method: "PATCH", body: JSON.stringify({ action, url }) });
       await refresh();
     });
   }
@@ -255,7 +260,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
             </select>
           </Field>
           <Field label="Quartos" hint="O Facebook só deixa avançar com quartos e banheiros."><input className={inputClasses} inputMode="numeric" value={form.bedrooms} onChange={(event) => setField("bedrooms", event.target.value)} /></Field>
-          <Field label="Banheiros"><input className={inputClasses} inputMode="numeric" value={form.bathrooms} onChange={(event) => setField("bathrooms", event.target.value)} /></Field>
+          <Field label="Banheiros" required><input className={inputClasses} inputMode="numeric" value={form.bathrooms} onChange={(event) => setField("bathrooms", event.target.value)} /></Field>
           <Field label="Área (m²)"><input className={inputClasses} inputMode="decimal" value={form.areaM2} onChange={(event) => setField("areaM2", event.target.value)} /></Field>
           <Field label="IPTU (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.iptu} onChange={(event) => setField("iptu", event.target.value)} /></Field>
           <Field label="Condomínio (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.condoFee} onChange={(event) => setField("condoFee", event.target.value)} /></Field>
@@ -332,6 +337,9 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
                 ) : null}
                 {listing.status === "pending" && approved ? (
                   <Button size="sm" variant="secondary" onClick={() => act(listing, "unapprove")} loading={busy === `unapprove:${listing.id}`}>Tirar aprovação</Button>
+                ) : null}
+                {["pending", "claimed", "failed"].includes(listing.status) ? (
+                  <Button size="sm" variant="secondary" onClick={() => act(listing, "mark_published")} loading={busy === `mark_published:${listing.id}`}>Marcar como publicado manualmente</Button>
                 ) : null}
                 {editable ? <Button size="sm" variant="secondary" onClick={() => edit(listing)}>Editar</Button> : null}
                 {editable ? <Button size="sm" variant="danger-ghost" onClick={() => act(listing, "cancel")} loading={busy === `cancel:${listing.id}`}>Cancelar</Button> : null}

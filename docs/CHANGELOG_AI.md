@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): localização travada na 2ª tentativa real — extensão 1.3.0 + "publicado manualmente"
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/`, tela Cadastros › Marketplace.
+- **Alteração:** a 2ª tentativa real abriu o formulário e preencheu venda, tipo, quartos, preço e 10 fotos, mas parou na localização: digitou "Terra Verde · Marília/SP, Marília" (o bairro do imóvel vinha com cidade/UF grudados) e o clique na sugestão não pegou; "Número de banheiros" ficou vazio. Agora: a localização digita só a cidade, escolhe "Marília, SP · Cidade" (`MP.pickLocationIndex`, testado com a lista real), clica no centro do item com eventos de ponteiro e, se não pegar, usa ↓+Enter; confirma que o campo mudou. Bairro limpo (`sanitizeNeighborhood` no CRM, `MP.cleanNeighborhood` na extensão) e só na descrição. Banheiros obrigatório no anúncio (rascunho já vem com 1; extensão preenche 1 se vier vazio). "Avançar" desabilitado lista os campos vazios no erro. Novo botão "Marcar como publicado manualmente" (pede o link do Marketplace; ação `mark_published`, de aguardando/publicando/falhou → publicado) — a fila não pega mais o anúncio.
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (18) e extensão (28); `pnpm build` limpo.
+- **Arquivos afetados:** `lib/marketplace-core.mjs`, `lib/marketplace-listings.js`, `app/api/admin/marketplace/[id]/route.js`, `components/marketplace/MarketplaceAdmin.jsx`, `tests/marketplace-core.test.mjs`, `ferramentas/marketplace-publicador/{content,selectors}.js`, `manifest.json`, `tests/selectors.test.js`.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): 1ª publicação real falhou (aba fora do formulário) — extensão 1.2.0
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/`, fila do CRM.

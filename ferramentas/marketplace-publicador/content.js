@@ -172,28 +172,87 @@
     await humanClick(option);
   }
 
-  function locationSuggestion(city) {
-    const options = [...document.querySelectorAll('[role="option"], [role="listbox"] li')].filter(visible);
-    return options.find((element) => MP.matchesAny(element.innerText, [city])) || options[0] || null;
+  function locationOptions() {
+    const byRole = [...document.querySelectorAll('[role="option"]')].filter(visible);
+    if (byRole.length) return byRole;
+    return [...document.querySelectorAll('[role="listbox"] > *, [role="listbox"] li')].filter(visible);
   }
 
-  // Digita "Bairro, Marília" e escolhe a 1ª sugestão; sem sugestão, tenta só a cidade.
+  function clearInput(control) {
+    control.focus();
+    if (typeof control.select === "function") control.select();
+    document.execCommand("delete");
+    if ("value" in control && control.value) setNativeValue(control, "");
+  }
+
+  // Clique "de verdade" no centro do item (o Facebook escuta pointer/mouse no elemento que está por cima).
+  async function clickAtCenter(element) {
+    element.scrollIntoView({ block: "center" });
+    await sleep(between(200, 500));
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + Math.min(rect.height / 2, 20);
+    const target = document.elementFromPoint(x, y) || element;
+    for (const type of ["pointerover", "pointerenter", "mouseover", "pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+      const init = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0, buttons: type.endsWith("down") ? 1 : 0, pointerType: "mouse", isPrimary: true };
+      target.dispatchEvent(type.startsWith("pointer") ? new PointerEvent(type, init) : new MouseEvent(type, init));
+      await sleep(between(10, 40));
+    }
+    await sleep(between(600, 1200));
+  }
+
+  function locationChosen(control, city) {
+    const value = MP.normalize(control.value ?? control.innerText);
+    return value.startsWith(MP.normalize(city)) && !locationOptions().length;
+  }
+
+  function pressKey(control, key) {
+    for (const type of ["keydown", "keyup"]) control.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true, cancelable: true }));
+  }
+
+  // Digita só a cidade ("Marília") — nunca o bairro — e escolhe "Marília, SP · Cidade". Confirma que o campo mudou.
   async function fillLocation(listing) {
     const field = MP.fields.location;
     progress("localização");
     const control = await waitFor(() => findControl(field.labels) || [...document.querySelectorAll(field.fallback)].find(visible) || null, 8000);
     if (!control) throw new StepError(currentStep, "Campo de localização (ícone de pino) não encontrado.");
-    const attempts = listing.neighborhood ? [`${listing.neighborhood}, ${listing.city}`, listing.city] : [listing.city];
-    for (const text of attempts) {
-      if ("value" in control && control.value) setNativeValue(control, "");
-      await humanType(control, text);
-      const option = await waitFor(() => locationSuggestion(listing.city), 8000);
-      if (option) {
-        await humanClick(option);
-        return;
-      }
+    clearInput(control);
+    await humanType(control, listing.city);
+    const options = await waitFor(() => (locationOptions().length ? locationOptions() : null), 10000);
+    if (!options) throw new StepError(currentStep, `O Facebook não mostrou sugestões para "${listing.city}".`);
+    await sleep(between(800, 1500)); // a lista termina de carregar
+    const current = locationOptions();
+    const index = MP.pickLocationIndex(current.map((element) => element.innerText), listing.city, listing.state);
+
+    if (index >= 0) {
+      await clickAtCenter(current[index]);
+      if (locationChosen(control, listing.city)) return;
     }
-    throw new StepError(currentStep, `O Facebook não sugeriu "${listing.city}" na localização.`);
+    // Último recurso: teclado (↓ até a opção escolhida, ou a 1ª, e Enter).
+    control.focus();
+    for (let i = 0; i <= Math.max(0, index); i += 1) {
+      pressKey(control, "ArrowDown");
+      await sleep(between(150, 300));
+    }
+    pressKey(control, "Enter");
+    await sleep(between(800, 1400));
+    if (locationChosen(control, listing.city)) return;
+    throw new StepError(currentStep, `Não consegui escolher "${listing.city}, ${listing.state}" na localização (campo ficou "${control.value ?? ""}"; ${locationOptions().length} sugestões abertas).`);
+  }
+
+  // Campos obrigatórios que ficaram vazios (para explicar o "Avançar" desabilitado).
+  function emptyRequiredFields() {
+    const names = { bedrooms: "Número de quartos", bathrooms: "Número de banheiros", price: "Preço", description: "Descrição do imóvel", propertyType: "Tipo de imóvel" };
+    const empty = Object.entries(names).filter(([key]) => {
+      const control = findControl(MP.fields[key].labels);
+      if (!control) return true;
+      const value = control.value ?? control.innerText;
+      return !String(value || "").trim() || MP.matchesAny(value, MP.fields[key].labels, true);
+    }).map(([, label]) => label);
+    const location = findControl(MP.fields.location.labels) || [...document.querySelectorAll(MP.fields.location.fallback)].find(visible);
+    if (!location || !String(location.value || "").trim()) empty.push("Localização");
+    if (!document.querySelector('img[src^="blob:"], img[src*="scontent"]')) empty.push("Fotos (nenhuma miniatura visível)");
+    return empty;
   }
 
   // "Turbinar classificado após a publicação" fica SEMPRE desligado.
@@ -255,9 +314,11 @@
 
   function descriptionWithNeighborhood(listing) {
     const description = String(listing.description || "");
-    if (!listing.neighborhood || MP.normalize(description).includes(MP.normalize(listing.neighborhood))) return description;
-    return `Bairro ${listing.neighborhood} — ${listing.city}/${listing.state}\n\n${description}`;
+    const neighborhood = MP.cleanNeighborhood(listing.neighborhood, listing.city, listing.state);
+    if (!neighborhood || MP.normalize(description).includes(MP.normalize(neighborhood))) return description;
+    return `Bairro ${neighborhood} — ${listing.city}/${listing.state}\n\n${description}`;
   }
+
 
   async function publish(listing, photos) {
     let clickedPublish = false;
@@ -270,7 +331,7 @@
       await chooseOption("offerType", listing.offerType);
       await chooseOption("propertyType", listing.propertyType);
       await fillText("bedrooms", listing.bedrooms);
-      await fillText("bathrooms", listing.bathrooms);
+      await fillText("bathrooms", listing.bathrooms || 1); // obrigatório no Facebook
       await fillText("price", String(Math.round(listing.price)));
       await fillLocation(listing);
       await fillText("description", descriptionWithNeighborhood(listing));
@@ -291,7 +352,10 @@
         const nextAny = await waitFor(() => findClickable(MP.buttons.next, true, { includeDisabled: true }), 8000);
         if (!nextAny) break;
         const next = await waitFor(() => findClickable(MP.buttons.next), 15000);
-        if (!next) throw new StepError(currentStep, "\"Avançar\" continuou desabilitado — algum campo obrigatório ficou vazio ou inválido (confira quartos, banheiros, preço e localização).");
+        if (!next) {
+          const empty = emptyRequiredFields();
+          throw new StepError(currentStep, `"Avançar" continuou desabilitado. ${empty.length ? `Campos vazios: ${empty.join(", ")}.` : "Nenhum campo obrigatório parece vazio — confira a tela."}`);
+        }
         await humanClick(next);
         await sleep(between(2500, 4500));
         assertNoCheckpoint();

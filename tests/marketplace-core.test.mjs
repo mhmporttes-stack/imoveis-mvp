@@ -6,6 +6,7 @@ import {
   MARKETPLACE_MAX_ATTEMPTS,
   MarketplaceInputError,
   buildDraftFromProperty,
+  sanitizeNeighborhood,
   classifyPhotoSource,
   marketplacePhotoPath,
   claimPatch,
@@ -24,7 +25,7 @@ import {
 
 const HOSTS = ["abc.supabase.co", "www.matheusmachadoimoveis.com.br"];
 const PHOTO = "https://abc.supabase.co/storage/v1/object/public/properties/1.jpg";
-const valid = { title: "Casa 2 quartos no Jardim", price: "250.000,00", offerType: "sale", propertyType: "house", photoUrls: [PHOTO] };
+const valid = { title: "Casa 2 quartos no Jardim", price: "250.000,00", offerType: "sale", propertyType: "house", bathrooms: 1, photoUrls: [PHOTO] };
 const now = new Date("2026-10-20T15:00:00Z");
 
 test("preço brasileiro e numérico", () => {
@@ -190,4 +191,33 @@ test("rascunho usa as fotos importadas pelo servidor; imóvel sem foto é sinali
   const empty = buildDraftFromProperty({ id: "q", name: "Sem foto", photos: [] }, { importedPhotoUrls: [] });
   assert.equal(empty.totalPhotos, 0);
   assert.deepEqual(empty.photoUrls, []);
+});
+
+test("bairro sem cidade/UF/separadores (caso real 'Terra Verde · Marília/SP')", () => {
+  assert.equal(sanitizeNeighborhood("Terra Verde · Marília/SP"), "Terra Verde");
+  assert.equal(sanitizeNeighborhood("Jardim Cavallari, Marília - SP"), "Jardim Cavallari");
+  assert.equal(sanitizeNeighborhood("Marília/SP"), "");
+  assert.equal(sanitizeNeighborhood("Parque São Jorge"), "Parque São Jorge");
+  assert.equal(normalizeListingInput({ ...valid, neighborhood: "Terra Verde · Marília/SP" }, { allowedHosts: HOSTS }).neighborhood, "Terra Verde");
+  assert.equal(buildDraftFromProperty({ name: "Casa", region: "Terra Verde · Marília/SP", photos: [] }, { importedPhotoUrls: [] }).neighborhood, "Terra Verde");
+});
+
+test("banheiros obrigatório (mínimo 1); rascunho já vem com 1", () => {
+  assert.throws(() => normalizeListingInput({ ...valid, bathrooms: "" }, { allowedHosts: HOSTS }), /banheiros/);
+  assert.throws(() => normalizeListingInput({ ...valid, bathrooms: 0 }, { allowedHosts: HOSTS }), /banheiros/);
+  assert.equal(buildDraftFromProperty({ name: "Casa", photos: [] }, { importedPhotoUrls: [] }).bathrooms, 1);
+});
+
+test("marcar como publicado manualmente: exige link do Marketplace e tira da fila", () => {
+  const url = "https://www.facebook.com/marketplace/item/123456/";
+  for (const status of ["pending", "claimed", "failed"]) {
+    const patch = planAdminAction({ status }, "mark_published", { url, now });
+    assert.equal(patch.status, "published");
+    assert.equal(patch.marketplace_url, url);
+    assert.equal(isEligibleForClaim({ ...patch, approved_at: now.toISOString(), attempts: 0 }), false);
+  }
+  assert.throws(() => planAdminAction({ status: "pending" }, "mark_published", { url: "" }), /link/);
+  assert.throws(() => planAdminAction({ status: "pending" }, "mark_published", { url: "https://evil.com/marketplace/item/1" }), /link/);
+  assert.throws(() => planAdminAction({ status: "published" }, "mark_published", { url }), MarketplaceInputError);
+  assert.throws(() => planAdminAction({ status: "cancelled" }, "mark_published", { url }), MarketplaceInputError);
 });
