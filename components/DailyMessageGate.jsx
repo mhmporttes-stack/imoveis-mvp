@@ -55,9 +55,17 @@ export default function DailyMessageGate({ userId }) {
 
   useEffect(() => {
     checkPending();
-    const intervalId = setInterval(checkPending, POLL_INTERVAL_MS);
+    // Desempenho (2026-10-20): pausa com a aba/app oculto; ao voltar a ficar visível checa na hora.
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") checkPending();
+    }, POLL_INTERVAL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") checkPending();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (busyRetryRef.current) clearTimeout(busyRetryRef.current);
     };
   }, [checkPending]);

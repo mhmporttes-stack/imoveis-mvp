@@ -48,10 +48,19 @@ export default function NewClientSoundListener({ userId }) {
       }
     }
 
-    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
+    // Desempenho (2026-10-20): com a aba/app oculto não consulta; ao voltar a ficar visível checa na hora (o "since"
+    // do servidor garante que o cliente que chegou enquanto estava oculto é detectado nessa checagem).
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") poll();
+    }, POLL_INTERVAL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [userId]);
 

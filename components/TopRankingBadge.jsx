@@ -63,16 +63,22 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
     }
 
     load();
-    const interval = setInterval(load, REFRESH_MS);
+    // Desempenho (2026-10-20): pausa com a aba/app oculto; ao voltar a ficar visível atualiza na hora.
+    const loadIfVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const interval = setInterval(loadIfVisible, REFRESH_MS);
+    document.addEventListener("visibilitychange", loadIfVisible);
     // Atualiza na virada semanal sem esperar o intervalo normal de 5 min.
     const nextMonday = new Date();
     nextMonday.setUTCHours(3, 1, 0, 0);
     nextMonday.setUTCDate(nextMonday.getUTCDate() + ((8 - nextMonday.getUTCDay()) % 7));
     if (nextMonday.getTime() <= Date.now()) nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
-    const weeklyTimer = setTimeout(load, nextMonday.getTime() - Date.now() + 1000);
+    const weeklyTimer = setTimeout(loadIfVisible, nextMonday.getTime() - Date.now() + 1000);
     return () => {
       active = false;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", loadIfVisible);
       clearTimeout(weeklyTimer);
     };
   }, []);
