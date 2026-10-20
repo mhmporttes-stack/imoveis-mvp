@@ -53,7 +53,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // Espera a aba terminar de carregar DEPOIS de um comando de navegação (o listener é ligado antes do comando, então
 // o "complete" da página anterior não engana).
+const FB_PREFIX = "https://www.facebook.com/";
+
 function navigateAndWait(tabId, url, timeoutMs = PAGE_LOAD_TIMEOUT_MS) {
+  // Só endereço absoluto do Facebook: URL vazia/relativa faria a aba abrir uma página da própria extensão
+  // (chrome-extension://…), onde nada pode ser injetado (erro real do dono, 1.8.2).
+  if (!String(url || "").startsWith(FB_PREFIX)) return Promise.reject(new Error(`Endereço inválido para a aba do Facebook: "${url || "(vazio)"}".`));
   return new Promise((resolve, reject) => {
     let sawLoading = false;
     const timer = setTimeout(() => {
@@ -340,16 +345,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // A cada ~2 min (horário e liga/desliga vêm do CRM): abre uma aba própria na caixa de entrada do MARKETPLACE (nunca a
 // lista geral do Messenger), lê só as conversas que mudaram, manda ao CRM e envia as respostas que os corretores
 // escreveram (cliques/teclas reais, no máximo 3 por rodada e o limite por hora do CRM). Nunca responde sozinho.
-async function readInbox(tabId) {
-  await navigateAndWait(tabId, "https://www.facebook.com/marketplace/inbox/");
+// Injeta o leitor SÓ se a aba dedicada estiver no Facebook; senão leva a aba de volta ao Facebook antes.
+async function injectInbox(tabId, fallbackUrl = INBOX_URL) {
+  let tab = await chrome.tabs.get(tabId);
+  if (!String(tab.url || "").startsWith(FB_PREFIX)) {
+    await navigateAndWait(tabId, fallbackUrl);
+    tab = await chrome.tabs.get(tabId);
+  }
+  if (!String(tab.url || "").startsWith(FB_PREFIX)) throw new Error(`A aba dedicada não está no Facebook (${tab.url || "sem endereço"}).`);
   await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
-  return sendWithTimeout(tabId, { type: "mp-inbox-list" }, 30000);
+}
+
+const INBOX_URL = "https://www.facebook.com/marketplace/inbox/";
+
+async function readInbox(tabId) {
+  await navigateAndWait(tabId, INBOX_URL);
+  await injectInbox(tabId);
+  return sendWithTimeout(tabId, { type: "mp-inbox-list" }, 120000);
 }
 
 async function readThread(tabId, thread) {
-  if (thread.threadUrl) {
+  if (String(thread.threadUrl || "").startsWith(FB_PREFIX)) {
     await navigateAndWait(tabId, thread.threadUrl);
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+    await injectInbox(tabId);
   } else {
     // Item sem link (painel do Messenger): abre a janela de chat clicando no item, na mesma página.
     const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: thread.threadKey }, 30000);
@@ -371,9 +389,9 @@ async function sendOutbound(tabId, config, message) {
   try {
     await attachDebugger(tabId);
     await chrome.tabs.update(tabId, { active: true });
-    if (message.threadUrl) {
+    if (String(message.threadUrl || "").startsWith(FB_PREFIX)) {
       await navigateAndWait(tabId, message.threadUrl);
-      await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+      await injectInbox(tabId);
     } else {
       // Conversa sem link (painel do Messenger): reabre a caixa do Marketplace e clica no item.
       const inbox = await readInbox(tabId);
@@ -428,6 +446,7 @@ async function chatTick() {
       if (read?.checkpoint) return await pauseForCheckpoint("conversa do Marketplace");
       if (read?.ok && conversation) conversations.push(conversation);
       else if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
+      summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : "falhou"}`;
     }
     const synced = await postChatSync(config, conversations);
     summary.read = conversations.length;

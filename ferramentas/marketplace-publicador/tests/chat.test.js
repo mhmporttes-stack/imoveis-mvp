@@ -275,3 +275,15 @@ test("separador de hora da conversa", () => {
   assert.equal(MP.parseClockSeparator("Ontem 08:10", now), "2026-10-19T11:10:00.000Z");
   assert.equal(MP.parseClockSeparator("Está sim! 12:23", now), null);
 });
+
+test("1.8.3: nunca injeta fora do Facebook (URL vazia/relativa abriria página da extensão) e lista pelo Messenger primeiro", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /if \(!String\(url \|\| ""\)\.startsWith\(FB_PREFIX\)\) return Promise\.reject/);
+  assert.match(bg, /A aba dedicada não está no Facebook/);
+  assert.doesNotMatch(bg, /files: \["selectors\.js", "inbox\.js"\] \}\);\n\s+return sendWithTimeout\(tabId, \{ type: "mp-inbox-list"/, "injeção do leitor passa pela checagem");
+  assert.equal((bg.match(/chrome\.scripting\.executeScript\(\{ target: \{ tabId \}, files: \["selectors\.js", "inbox\.js"\] \}\)/g) || []).length, 1, "um único ponto de injeção do leitor (com checagem)");
+  const inbox = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  const list = inbox.slice(inbox.indexOf("async function listThreads("));
+  assert.ok(list.indexOf("openMarketplaceFromMessenger(steps)") < list.indexOf('startsWith("/marketplace/inbox")'), "Messenger → Marketplace primeiro");
+  assert.match(inbox, /async function collectAll\(root, steps, label\)/);
+});

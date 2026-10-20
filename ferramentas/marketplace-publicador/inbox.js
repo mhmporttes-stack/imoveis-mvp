@@ -82,7 +82,18 @@
     steps.push("abriu Messenger → Marketplace");
     // O painel que mostra "← Marketplace" (ou o diálogo aberto) é a raiz da lista.
     // Nunca a página inteira: só o painel que agora mostra "← Marketplace" (sem ele, não lê nada).
-    return [...document.querySelectorAll('[role="dialog"], [role="complementary"]')].find((element) => visible(element) && MP.matchesAny(itemLines(element)[0], MP.inbox.marketplaceEntryTexts)) || null;
+    const panel = [...document.querySelectorAll('[role="dialog"], [role="complementary"]')].find((element) => visible(element) && MP.matchesAny(itemLines(element)[0], MP.inbox.marketplaceEntryTexts));
+    if (panel) return panel;
+    // Painel sem role conhecido: sobe do título "Marketplace" até o bloco que contém os itens "Nome · Anúncio".
+    const header = await waitFor(() => [...document.querySelectorAll('[role="heading"], h1, h2, h3, span')].find((element) => visible(element) && MP.matchesAny(element.innerText, MP.inbox.marketplaceEntryTexts, true)) || null, 5000);
+    for (let node = header?.parentElement, level = 0; node && level < 10; node = node.parentElement, level += 1) {
+      if (collectItems(node).length) {
+        steps.push(`painel achado pelo título (nível ${level + 1})`);
+        return node;
+      }
+    }
+    steps.push("painel \"← Marketplace\" não encontrado depois do clique");
+    return null;
   }
 
   async function clickElement(element) {
@@ -95,20 +106,39 @@
 
   // Lista da caixa do Marketplace: 1º a página /marketplace/inbox; sem itens, o caminho do Messenger. Devolve também
   // os passos (diagnóstico do popup).
+  function scrollableIn(root) {
+    const all = [root, ...root.querySelectorAll("div")];
+    return all.find((node) => node.scrollHeight > node.clientHeight + 40) || null;
+  }
+
+  // Lê o painel inteiro: rola para baixo (a lista carrega mais com "esqueleto" cinza) juntando os itens, até parar.
+  async function collectAll(root, steps, label) {
+    const byKey = new Map(collectItems(root).map((item) => [item.threadKey, item]));
+    const box = scrollableIn(root);
+    for (let i = 0; box && i < 15; i += 1) {
+      const before = byKey.size;
+      box.scrollTop = box.scrollHeight;
+      await sleep(between(900, 1500));
+      for (const item of collectItems(root)) if (!byKey.has(item.threadKey)) byKey.set(item.threadKey, item);
+      if (byKey.size === before && box.scrollTop + box.clientHeight >= box.scrollHeight - 5) break;
+    }
+    steps.push(`${label}: ${byKey.size} conversa(s)`);
+    return [...byKey.values()];
+  }
+
+  // Lista das conversas do Marketplace. 1º o caminho real (ícone do Messenger → "Marketplace", ~todas as conversas);
+  // sem ele, a página /marketplace/inbox. Passos e contagens vão para o popup.
   async function listThreads() {
-    const steps = [];
-    // A página inteira só é lida quando é a caixa do Marketplace (nunca o feed nem o Messenger geral).
-    const onInbox = location.pathname.startsWith("/marketplace/inbox");
-    if (onInbox) await waitFor(() => collectItems(document).length || null, 12000, 800);
-    let threads = onInbox ? collectItems(document) : [];
-    steps.push(`página ${location.pathname}: ${threads.length} item(ns)`);
-    if (!threads.length) {
-      const root = await openMarketplaceFromMessenger(steps);
-      if (root) {
-        await waitFor(() => collectItems(root).length || null, 10000, 800);
-        threads = collectItems(root);
-        steps.push(`painel Marketplace: ${threads.length} item(ns)`);
-      }
+    const steps = [`aba em ${location.pathname}`];
+    let threads = [];
+    const root = await openMarketplaceFromMessenger(steps);
+    if (root) {
+      await waitFor(() => collectItems(root).length || null, 10000, 800);
+      threads = await collectAll(root, steps, "painel Marketplace");
+    }
+    if (!threads.length && location.pathname.startsWith("/marketplace/inbox")) {
+      await waitFor(() => collectItems(document).length || null, 8000, 800);
+      threads = await collectAll(document, steps, "página /marketplace/inbox");
     }
     return { threads: threads.slice(0, 40), checkpoint: pageCheckpoint(), url: location.href, steps };
   }

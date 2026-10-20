@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: injeção só na aba do Facebook e lista completa pelo Messenger (extensão 1.8.3)
+- **Data:** 2026-10-20
+- **Área:** extensão (`background.js`, `inbox.js`).
+- **Alteração:** popup 1.8.2 do dono: "1 na caixa, 0 lida(s)" + erro "Cannot access contents of url chrome-extension://…". Hipótese: a aba dedicada foi mandada a um endereço vazio/relativo (que o Chrome resolve como página da própria extensão) — **A CONFIRMAR** com o próximo popup. Agora `navigateAndWait` recusa qualquer endereço que não seja `https://www.facebook.com/…`, e o leitor só é injetado depois de conferir a URL da aba dedicada (`injectInbox`, ponto único; fora do Facebook volta para a caixa antes). A lista passa a vir primeiro do caminho real (Messenger → "Marketplace"), rolando o painel até carregar todos os itens (`collectAll`); painel sem role conhecido é achado subindo do título "Marketplace". Popup mostra o caminho com a contagem em cada etapa e o resultado por conversa.
+- **Verificação:** extensão 58 testes.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace: leitura e envio na janela de chat flutuante (extensão 1.8.2)
 - **Data:** 2026-10-20
 - **Área:** extensão (`inbox.js`, `selectors.js`, `background.js`).
