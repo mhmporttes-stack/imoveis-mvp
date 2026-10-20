@@ -159,22 +159,34 @@
     return MP.matchesAny(pageText, MP.checkpointTexts);
   };
 
-  // Sugestão de localização a escolher (formulário real, 2026-10-20: a lista mistura ruas, CEPs, outras cidades e
-  // várias "Marília, SP · Cidade"; o texto pode vir com espaço não separável e em spans aninhados).
-  // 1º: contém "marilia" + ("sp" ou "sao paulo") + "cidade"; 2º: contém "marilia" + ("sp"/"sao paulo") e NÃO é
-  // endereço (sem número/CEP); 3º: 1ª que começa com "marilia". -1 = nenhuma.
-  MP.pickLocationIndex = function pickLocationIndex(texts, city = "Marília", state = "SP") {
+  // Sugestão de localização a escolher (2026-10-20: a extensão chegou a escolher "Rua Marília, Vera Cruz - SP").
+  // SÓ a CIDADE: texto principal (1ª linha) exatamente "Marília" / "Marília, SP" / "Marília, São Paulo" (sem rua,
+  // avenida, bairro…) e o estado (SP/São Paulo) no principal ou no secundário. Preferência pela que diz "Cidade".
+  // Nenhuma serve → -1 (nunca escolhe "a primeira que aparecer").
+  const ADDRESS_PREFIX = /^(rua|r\.|av\.?|avenida|alameda|al\.|travessa|tv\.|estrada|rodovia|rod\.|praca|pca\.|bairro|jardim|jd\.?|vila|parque|residencial|condominio|chacara|sitio|fazenda|loteamento|conjunto|largo|viela)\b/;
+  MP.isCityOption = function isCityOption(text, city = "Marília", state = "SP") {
+    const lines = String(text || "").split("\n").map((line) => MP.normalize(line)).filter(Boolean);
+    const main = lines[0] || "";
     const cityKey = MP.normalize(city);
     const stateKeys = [MP.normalize(state), "sao paulo"];
-    const items = texts.map((text) => MP.normalize(text));
-    const hasCity = (text) => new RegExp(`(^|[^a-z])${cityKey}([^a-z]|$)`).test(text);
-    const hasState = (text) => stateKeys.some((key) => new RegExp(`(^|[^a-z])${key}([^a-z]|$)`).test(text));
-    const firstLine = (index) => MP.normalize(String(texts[index] || "").split("\n")[0]);
-    const isAddress = (index) => /\d/.test(firstLine(index));
-    let index = items.findIndex((text, i) => hasCity(text) && hasState(text) && /(^|[^a-z])(cidade|city)([^a-z]|$)/.test(text) && !isAddress(i));
-    if (index < 0) index = items.findIndex((text, i) => hasCity(text) && hasState(text) && !isAddress(i));
-    if (index < 0) index = items.findIndex((text) => text.startsWith(cityKey) && hasCity(text));
-    return index;
+    if (ADDRESS_PREFIX.test(main)) return false;
+    const mainOk = main === cityKey || stateKeys.some((key) => main === `${cityKey}, ${key}` || main === `${cityKey} - ${key}` || main === `${cityKey}/${key}`);
+    if (!mainOk) return false;
+    const rest = lines.join(" | ");
+    return stateKeys.some((key) => new RegExp(`(^|[^a-z])${key}([^a-z]|$)`).test(rest));
+  };
+
+  MP.pickLocationIndex = function pickLocationIndex(texts, city = "Marília", state = "SP") {
+    const cityOptions = texts.map((text, index) => ({ index, ok: MP.isCityOption(text, city, state), cidade: /(^|[^a-z])(cidade|city)([^a-z]|$)/.test(MP.normalize(text)) }));
+    const best = cityOptions.find((item) => item.ok && item.cidade) || cityOptions.find((item) => item.ok);
+    return best ? best.index : -1;
+  };
+
+  // Valor FINAL do campo depois de escolher: só "Marília, SP" ou "Marília, São Paulo" (", Brasil" opcional).
+  MP.isConfirmedCity = function isConfirmedCity(value, city = "Marília", state = "SP") {
+    const text = MP.normalize(value).replace(/,\s*brasil$/, "");
+    const cityKey = MP.normalize(city);
+    return [MP.normalize(state), "sao paulo"].some((key) => text === `${cityKey}, ${key}` || text === `${cityKey} - ${key}`);
   };
 
   // Diagnóstico de falha na localização: textos das 5 primeiras opções e um trecho do HTML da 1ª (sem atributos de

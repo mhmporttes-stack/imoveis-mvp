@@ -111,7 +111,8 @@ const REAL_SUGGESTIONS = [
 test("localização: escolhe 'Marília, SP · Cidade', não rua, CEP nem outra cidade", () => {
   assert.equal(MP.pickLocationIndex(REAL_SUGGESTIONS), 4);
   assert.equal(MP.pickLocationIndex(["Marília, SP\nMarília, SP · 1.576 número", "Osasco, SP\nCidade"]), 0);
-  assert.equal(MP.pickLocationIndex(["Marília\n139.230 número", "Osasco, SP\nCidade"]), 0);
+  // Sem o estado não dá para garantir que é a cidade de SP: não escolhe.
+  assert.equal(MP.pickLocationIndex(["Marília\n139.230 número", "Osasco, SP\nCidade"]), -1);
   assert.equal(MP.pickLocationIndex(["Osasco, SP\nCidade"]), -1);
 });
 
@@ -119,7 +120,7 @@ test("bairro limpo também na extensão; nunca digita o bairro na localização"
   assert.equal(MP.cleanNeighborhood("Terra Verde · Marília/SP"), "Terra Verde");
   const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
   const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
-  assert.match(fill, /for \(const char of String\(listing\.city\)\)/);
+  assert.match(fill, /for \(const typed of \[listing\.city, `\$\{listing\.city\}, \$\{listing\.state\}`\]\)/);
   assert.doesNotMatch(fill, /neighborhood/);
   assert.match(fill, /ArrowDown/);
   assert.match(fill, /locationChosen/);
@@ -151,8 +152,9 @@ test("localização (3ª tentativa real): acha a cidade com espaço não separá
   assert.equal(MP.pickLocationIndex(options.map((o) => o.innerText)), 3);
   assert.equal(MP.pickLocationIndex(["Rua X, 10, Marília - SP", "Marília, São Paulo\nCidade"]), 1);
   assert.equal(MP.pickLocationIndex(["Rua X, 10, Marília - SP", "Marília, São Paulo"]), 1);
-  assert.equal(MP.pickLocationIndex(["Marília​, SP Cidade"]), 0);
-  assert.equal(MP.pickLocationIndex(["Mariliana, PR\nCidade", "Marília\n139 número"]), 1);
+  assert.equal(MP.pickLocationIndex(["Marília\u200b,\u202fSP\nCidade"]), 0);
+  assert.equal(MP.pickLocationIndex(["Mariliana, PR\nCidade", "Marília\n139 número"]), -1);
+  assert.equal(MP.pickLocationIndex(["Mariliana, PR\nCidade", "Marília\nSão Paulo · 139 número"]), 1);
   assert.equal(MP.normalize("Marília, SP"), "marilia, sp");
 });
 
@@ -179,9 +181,32 @@ test("entrada confiável: depurador ligado na aba dedicada, desligado no fim; lo
   assert.match(bg, /recoverInterruptedRun/);
   const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
   const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
-  assert.match(fill, /trusted\("text"/);
+  assert.match(content, /if \(!\(await trusted\("text", \{ text: char \}\)\)\)/);
   assert.match(fill, /key\(control, "ArrowDown"\)/);
   assert.match(fill, /MP\.describeOptions/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
   assert.match(readme, /depurar este navegador/);
+});
+
+// Print do dono (2026-10-20): a extensão escolheu "Rua Marília, Vera Cruz - SP, Brasil".
+test("localização: nunca rua/avenida/bairro com o nome da cidade; só a CIDADE Marília, SP", () => {
+  const options = [
+    "Rua Marília, Vera Cruz - SP, Brasil\nRua Marília, Vera Cruz - SP, Brasil",
+    "Avenida Marília, 100, Tupã - SP",
+    "Bairro Marília, Assis - SP",
+    "Marília\n139.230 número",
+    "Marília, SP\nCidade"
+  ];
+  assert.equal(MP.pickLocationIndex(options), 4);
+  assert.equal(MP.pickLocationIndex(options.slice(0, 4)), -1, "sem a cidade na lista: não escolhe nada");
+  assert.equal(MP.isCityOption("Rua Marília, Vera Cruz - SP, Brasil"), false);
+  assert.equal(MP.isCityOption("Marília, São Paulo"), true);
+  assert.equal(MP.isCityOption("Marília\nSão Paulo, Brasil"), true);
+  assert.equal(MP.isConfirmedCity("Marília, SP"), true);
+  assert.equal(MP.isConfirmedCity("Marília, São Paulo, Brasil"), true);
+  assert.equal(MP.isConfirmedCity("Rua Marília, Vera Cruz - SP, Brasil"), false);
+  assert.equal(MP.isConfirmedCity("Marília"), false);
+  const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
+  assert.match(content, /Localização não confirmada/);
+  assert.match(content, /MP\.isConfirmedCity\(control\.value/);
 });

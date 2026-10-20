@@ -210,9 +210,9 @@
     if ("value" in control && control.value) setNativeValue(control, "");
   }
 
-  function locationChosen(control, city) {
-    const value = MP.normalize(control.value ?? control.innerText);
-    return value.includes(MP.normalize(city)) && !locationOptions().length;
+  // Só segue com a CIDADE confirmada no campo ("Marília, SP"/"Marília, São Paulo") e a lista fechada.
+  function locationChosen(control, listing) {
+    return MP.isConfirmedCity(control.value ?? control.innerText, listing.city, listing.state) && !locationOptions().length;
   }
 
   function pressKey(control, key) {
@@ -223,47 +223,64 @@
     if (!(await trusted("key", { key: name, ...options }))) pressKey(control, name);
   }
 
-  // Digita só a cidade ("Marília") com teclas reais, escolhe "Marília, SP · Cidade" com clique real e confirma que a
-  // lista fechou com a cidade no campo. Último recurso: ↓ até a opção + Enter (reais). Falhou → erro com as 5
-  // primeiras opções e um trecho do HTML da 1ª.
-  async function fillLocation(listing) {
-    const field = MP.fields.location;
-    progress("localização");
-    const control = await waitFor(() => findControl(field.labels) || [...document.querySelectorAll(field.fallback)].find(visible) || null, 8000);
-    if (!control) throw new StepError(currentStep, "Campo de localização (ícone de pino) não encontrado.");
+  async function clearLocation(control) {
     await humanClick(control);
     control.focus();
     await key(control, "a", { ctrl: true });
     await key(control, "Backspace");
     if ("value" in control && control.value) clearInput(control);
-    for (const char of String(listing.city)) {
+  }
+
+  async function typeLocation(text) {
+    for (const char of String(text)) {
       if (!(await trusted("text", { text: char }))) document.execCommand("insertText", false, char);
       await sleep(between(90, 220));
     }
-    const options = await waitFor(() => (locationOptions().length ? locationOptions() : null), 10000);
-    if (!options) throw new StepError(currentStep, `O Facebook não mostrou sugestões para "${listing.city}".`);
-    await sleep(between(1000, 1600)); // a lista termina de carregar
-    let current = locationOptions();
-    const index = MP.pickLocationIndex(current.map((element) => element.innerText || element.textContent || ""), listing.city, listing.state);
+  }
 
-    if (index >= 0) {
-      await humanClick(current[index]);
-      await sleep(between(600, 1000));
-      if (locationChosen(control, listing.city)) return;
-    }
-    current = locationOptions();
-    if (current.length) {
-      control.focus();
-      const target = Math.max(0, MP.pickLocationIndex(current.map((element) => element.innerText || element.textContent || ""), listing.city, listing.state));
-      for (let i = 0; i <= target; i += 1) {
-        await key(control, "ArrowDown");
-        await sleep(between(150, 300));
+  // Escolhe SÓ a cidade (nunca rua/bairro com o mesmo nome) e confere o valor final do campo. Tenta "Marília" e depois
+  // "Marília, SP"; sem "Marília, SP" confirmado no campo, ABORTA ("Localização não confirmada") — nunca publica com
+  // cidade errada. Erro leva as 5 primeiras sugestões e o valor do campo.
+  async function fillLocation(listing) {
+    const field = MP.fields.location;
+    progress("localização");
+    const control = await waitFor(() => findControl(field.labels) || [...document.querySelectorAll(field.fallback)].find(visible) || null, 8000);
+    if (!control) throw new StepError(currentStep, "Campo de localização (ícone de pino) não encontrado.");
+    const notes = [];
+    for (const typed of [listing.city, `${listing.city}, ${listing.state}`]) {
+      await clearLocation(control);
+      await typeLocation(typed);
+      const options = await waitFor(() => (locationOptions().length ? locationOptions() : null), 10000);
+      if (!options) {
+        notes.push(`"${typed}": sem sugestões`);
+        continue;
       }
-      await key(control, "Enter");
-      await sleep(between(800, 1400));
-      if (locationChosen(control, listing.city)) return;
+      await sleep(between(1000, 1600)); // a lista termina de carregar
+      const current = locationOptions();
+      const texts = current.map((element) => element.innerText || element.textContent || "");
+      const index = MP.pickLocationIndex(texts, listing.city, listing.state);
+      if (index < 0) {
+        notes.push(`"${typed}": nenhuma sugestão é a cidade. ${MP.describeOptions(current)}`);
+        continue;
+      }
+      await humanClick(current[index]);
+      await sleep(between(800, 1300));
+      if (locationChosen(control, listing)) return;
+      // Clique não pegou: teclado real até a mesma opção + Enter.
+      if (locationOptions().length) {
+        control.focus();
+        for (let i = 0; i <= index; i += 1) {
+          await key(control, "ArrowDown");
+          await sleep(between(150, 300));
+        }
+        await key(control, "Enter");
+        await sleep(between(800, 1400));
+        if (locationChosen(control, listing)) return;
+      }
+      notes.push(`"${typed}": campo ficou "${control.value ?? ""}" depois de escolher a opção ${index + 1}`);
     }
-    throw new StepError(currentStep, `Não consegui escolher "${listing.city}, ${listing.state}" (campo ficou "${control.value ?? ""}"; opção escolhida: ${index + 1}). ${MP.describeOptions(locationOptions().length ? locationOptions() : current)}`);
+    await clearLocation(control).catch(() => {});
+    throw new StepError(currentStep, `Localização não confirmada: o campo precisa ficar "${listing.city}, ${listing.state}". ${notes.join(" | ")}`);
   }
 
   // Campos obrigatórios que ficaram vazios (para explicar o "Avançar" desabilitado).

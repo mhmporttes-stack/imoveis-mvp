@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace: localização escolheu "Rua Marília, Vera Cruz - SP" — só a CIDADE, com confirmação (extensão 1.6.1)
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/` (`selectors.js`, `content.js`).
+- **Alteração:** a regra de escolha aceitava qualquer sugestão com "Marília" + "SP" sem número (2º critério) e a confirmação só via "marília" contido no campo. Agora `MP.isCityOption` exige texto principal exatamente "Marília" / "Marília, SP" / "Marília, São Paulo" (nunca rua/avenida/bairro…) e o estado na opção; sem a cidade na lista não escolhe nada. Depois de escolher, `MP.isConfirmedCity` lê o valor final do campo e só segue com "Marília, SP"/"Marília, São Paulo"; senão limpa e tenta "Marília, SP"; falhou → aborta com "Localização não confirmada" (nunca publica com cidade errada).
+- **Verificação:** extensão 43 testes (inclui a lista com "Rua Marília, Vera Cruz - SP").
+- **Risco/observação:** o anúncio publicado com a rua errada precisa ser corrigido no Facebook pelo dono; status na fila **A CONFIRMAR** no banco (`marketplace_listings`).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace dentro do CRM (MKT-2) — fases 1 e 2; extensão 1.6.0
 - **Data:** 2026-10-20
 - **Área:** nova tela `/admin/chat/marketplace` (menu "Chat Marketplace", todos os perfis), roleta, extensão `ferramentas/marketplace-publicador/`.
