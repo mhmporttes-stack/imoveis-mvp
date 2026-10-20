@@ -16,6 +16,12 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 4. Clique em **Carregar sem compactação** e escolha a pasta.
 5. Fixe o ícone da extensão na barra (ícone de quebra-cabeça › alfinete).
 
+## Atualizar para uma versão nova
+
+1. Descompacte o zip novo **por cima da mesma pasta** (substituindo os arquivos).
+2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
+3. A chave e as opções continuam salvas — não precisa configurar de novo.
+
 ## Configurar
 
 1. No CRM: **Cadastros › Marketplace › Gerar chave**. Copie a chave (`mkp_...`) — ela aparece uma vez só.
@@ -27,7 +33,8 @@ Gerar uma chave nova no CRM desliga a anterior — cole a nova nas Opções.
 ## Como funciona
 
 - A cada ~15 minutos (com o Chrome aberto e o computador ligado) a extensão pergunta ao CRM se há anúncio aprovado.
-- Se houver: abre uma aba em `facebook.com/marketplace/create`, escolhe "Imóveis para venda ou aluguel", baixa as fotos do CRM, envia, preenche venda/aluguel, tipo, quartos, banheiros, preço, localização (Marília/SP), descrição e área, publica, pega o link do anúncio e avisa o CRM (o status e o link aparecem na tela do CRM).
+- Se houver: abre o "Novo classificado de imóvel" (`facebook.com/marketplace/create/rental`; se não abrir direto, vai em "Escolha o tipo de classificado" e clica em "Imóvel residencial para venda ou locação"), baixa as fotos do CRM e envia, escolhe venda ou locação, tipo de imóvel, quartos, banheiros, preço, localização ("bairro, Marília" — 1ª sugestão; sem sugestão, só "Marília"), descrição e, se houver, metros quadrados, IPTU, condomínio e vagas. Deixa **"Turbinar classificado" desligado**, nunca clica em "Salvar rascunho" nem marca grupos, clica em Avançar e Publicar, pega o link do classificado e avisa o CRM (o status e o link aparecem na tela do CRM).
+- O formulário de imóvel do Facebook não tem campo "Título" (o Facebook monta o título pelos dados); o título fica só no CRM, para você se organizar.
 - Deu certo: a aba fecha e chega uma notificação. Deu errado: a aba fica aberta para você ver, chega uma notificação com o passo que falhou e o CRM marca "Falhou" com a descrição.
 - Tentativas: no máximo **2 por anúncio**, nunca em sequência (sempre respeitando o intervalo de 1 h). Se a falha foi **depois** de clicar em Publicar, não tenta de novo (evita anúncio duplicado) — confira no Facebook e, se não saiu, aprove de novo no CRM.
 

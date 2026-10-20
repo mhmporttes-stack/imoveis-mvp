@@ -38,6 +38,13 @@ test("normaliza o anúncio e exige foto do CRM", () => {
   assert.equal(record.city, "Marília");
   assert.equal(record.state, "SP");
   assert.deepEqual(record.photo_urls, [PHOTO]);
+  assert.equal(record.iptu, null);
+  const details = normalizeListingInput({ ...valid, iptu: "1.200,50", condoFee: "350", parkingSpaces: "2" }, { allowedHosts: HOSTS });
+  assert.equal(details.iptu, 1200.5);
+  assert.equal(details.condo_fee, 350);
+  assert.equal(details.parking_spaces, 2);
+  assert.throws(() => normalizeListingInput({ ...valid, parkingSpaces: "-1" }, { allowedHosts: HOSTS }), /Vagas/);
+  assert.throws(() => normalizeListingInput({ ...valid, iptu: "abc" }, { allowedHosts: HOSTS }), /IPTU/);
   assert.throws(() => normalizeListingInput({ ...valid, photoUrls: [] }, { allowedHosts: HOSTS }), MarketplaceInputError);
   assert.throws(() => normalizeListingInput({ ...valid, photoUrls: ["https://evil.com/x.jpg"] }, { allowedHosts: HOSTS }), /fora do armazenamento/);
   assert.throws(() => normalizeListingInput({ ...valid, photoUrls: ["http://abc.supabase.co/x.jpg"] }, { allowedHosts: HOSTS }), /fora do armazenamento/);
@@ -65,6 +72,7 @@ test("editar o conteúdo tira a aprovação; ações respeitam o estado", () => 
   const current = { ...normalizeListingInput(valid, { allowedHosts: HOSTS }) };
   assert.equal(contentChanged(current, { ...current }), false);
   assert.equal(contentChanged(current, { ...current, price: 1 }), true);
+  assert.equal(contentChanged(current, { ...current, parking_spaces: 1 }), true);
   const approve = planAdminAction({ status: "failed" }, "approve", { userId: "u1", now });
   assert.equal(approve.status, "pending");
   assert.equal(approve.attempts, 0);
@@ -125,7 +133,8 @@ test("chave: só Bearer mkp_", () => {
 
 test("a extensão recebe só os campos do anúncio", () => {
   const payload = toExtensionPayload({ id: "1", title: "T", price: "1000.00", offer_type: "sale", property_type: "house", city: "Marília", state: "SP", photo_urls: [PHOTO], attempts: 1, approved_by: "u1", created_by: "u1", error: "x" });
-  assert.deepEqual(Object.keys(payload).sort(), ["areaM2", "attempt", "bathrooms", "bedrooms", "city", "description", "id", "neighborhood", "offerType", "photoUrls", "price", "propertyType", "state", "title"]);
+  assert.deepEqual(Object.keys(payload).sort(), ["areaM2", "attempt", "bathrooms", "bedrooms", "city", "condoFee", "description", "id", "iptu", "neighborhood", "offerType", "parkingSpaces", "photoUrls", "price", "propertyType", "state", "title"]);
+  assert.equal(payload.iptu, null);
   assert.equal(payload.price, 1000);
 });
 

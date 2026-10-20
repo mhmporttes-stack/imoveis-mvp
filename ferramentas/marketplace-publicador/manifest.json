@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Publicador Marketplace — Matheus Machado Corretor de Imóveis",
   "short_name": "Publicador Marketplace",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Publica no Facebook Marketplace, pelo seu perfil, só os anúncios de imóveis que você aprovou no CRM.",
   "minimum_chrome_version": "116",
   "icons": { "48": "icones/icon-192-mm.png", "128": "icones/icon-192-mm.png" },

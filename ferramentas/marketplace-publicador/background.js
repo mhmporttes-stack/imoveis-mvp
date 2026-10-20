@@ -85,13 +85,14 @@ async function runPublication(listing) {
     return { ok: false, clickedPublish: false, step: "baixar fotos do CRM", error: error.message };
   }
 
-  const tab = await chrome.tabs.create({ url: `${FB_ORIGIN}/marketplace/create`, active: true });
+  // Formulário de imóvel direto; se não abrir, content.js volta para "Escolha o tipo de classificado" e clica no cartão.
+  const tab = await chrome.tabs.create({ url: `${FB_ORIGIN}/marketplace/create/rental`, active: true });
   try {
     await waitTabComplete(tab.id);
     await inject(tab.id);
     let outcome = await sendWithTimeout(tab.id, { type: "mp-publish", listing, photos }, PUBLISH_TIMEOUT_MS);
     if (outcome?.navigated) {
-      // O cartão da categoria não foi achado e a aba foi para o formulário direto: uma única continuação.
+      // O formulário direto não abriu e a aba foi para a escolha do tipo de classificado: uma única continuação.
       await waitTabComplete(tab.id);
       await inject(tab.id);
       outcome = await sendWithTimeout(tab.id, { type: "mp-publish", listing, photos }, PUBLISH_TIMEOUT_MS);
@@ -100,7 +101,7 @@ async function runPublication(listing) {
       await chrome.tabs.update(tab.id, { url: `${FB_ORIGIN}/marketplace/you/selling` });
       await waitTabComplete(tab.id);
       await inject(tab.id);
-      const found = await sendWithTimeout(tab.id, { type: "mp-find-url", title: listing.title }, 60000).catch(() => ({}));
+      const found = await sendWithTimeout(tab.id, { type: "mp-find-url", price: listing.price }, 60000).catch(() => ({}));
       outcome = { ...outcome, url: found?.url || "" };
     }
     if (!outcome?.ok) outcome = { ...outcome, screenshot: await screenshot(tab.windowId) };

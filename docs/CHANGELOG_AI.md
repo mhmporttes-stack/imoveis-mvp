@@ -209,6 +209,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): extensão calibrada ao formulário real do Facebook + IPTU/condomínio/vagas
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/` (v1.1.0) e tela Cadastros › Marketplace.
+- **Alteração:** a partir dos prints do formulário real do dono (Facebook Brasil): abre `/marketplace/create/rental` e, se não abrir, clica em "Imóvel residencial para venda ou locação"; combobox de venda/locação achado pelo valor que mostra (nunca escolhe a opção "venda ou locação"); localização "bairro, Marília" → 1ª sugestão (sem sugestão, só a cidade); campos opcionais Metros quadrados, IPTU, Condomínio e Vagas; "Turbinar classificado" sempre desligado; nunca clica "Salvar rascunho" nem marca grupos; espera "Avançar" habilitar (até 3 etapas) e clica Publicar. Sem campo Título no Facebook (título fica só no CRM). Link capturado em "Seus classificados" pelo preço, não pelo título. CRM: colunas `iptu`, `condo_fee`, `parking_spaces` (migration `20261020140000_marketplace_listings_details.sql`, NÃO aplicada — aplicar depois de `20261020120000`).
+- **Motivo:** calibração pedida pelo dono com o formulário real aberto na conta dele.
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (12) e extensão (23); `pnpm build` limpo. Publicação real no Facebook continua **A CONFIRMAR** no primeiro uso (textos das opções de venda/locação e de vagas não apareciam nos prints).
+- **Arquivos afetados:** `ferramentas/marketplace-publicador/{selectors,content,background}.js`, `README.md`, `manifest.json`, `tests/selectors.test.js`; `lib/marketplace-core.mjs`, `components/marketplace/MarketplaceAdmin.jsx`, `tests/marketplace-core.test.mjs`, migration nova.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Publicador do Facebook Marketplace (MKT-1): fila no CRM + extensão do Chrome
 - **Data:** 2026-10-20
 - **Área:** Cadastros (nova tela Marketplace, só admin geral), API pública com chave, ferramenta fora do CRM.

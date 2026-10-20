@@ -26,6 +26,9 @@ const EMPTY_FORM = {
   bedrooms: "",
   bathrooms: "",
   areaM2: "",
+  iptu: "",
+  condoFee: "",
+  parkingSpaces: "",
   city: "Marília",
   state: "SP",
   neighborhood: "",
@@ -43,6 +46,9 @@ function fromListing(listing) {
     bedrooms: listing.bedrooms ?? "",
     bathrooms: listing.bathrooms ?? "",
     areaM2: listing.area_m2 ?? "",
+    iptu: listing.iptu ?? "",
+    condoFee: listing.condo_fee ?? "",
+    parkingSpaces: listing.parking_spaces ?? "",
     city: listing.city || "Marília",
     state: listing.state || "SP",
     neighborhood: listing.neighborhood || "",
@@ -191,7 +197,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
           </select>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Título" required><input className={inputClasses} value={form.title} maxLength={100} onChange={(event) => setField("title", event.target.value)} /></Field>
+          <Field label="Título (só no CRM)" hint="O Facebook monta o título do classificado pelos dados do imóvel." required><input className={inputClasses} value={form.title} maxLength={100} onChange={(event) => setField("title", event.target.value)} /></Field>
           <Field label="Preço (R$)" required><input className={inputClasses} inputMode="decimal" value={form.price} onChange={(event) => setField("price", event.target.value)} /></Field>
           <Field label="Venda ou aluguel">
             <select className={inputClasses} value={form.offerType} onChange={(event) => setField("offerType", event.target.value)}>
@@ -203,10 +209,13 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
               {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
-          <Field label="Quartos"><input className={inputClasses} inputMode="numeric" value={form.bedrooms} onChange={(event) => setField("bedrooms", event.target.value)} /></Field>
+          <Field label="Quartos" hint="O Facebook só deixa avançar com quartos e banheiros."><input className={inputClasses} inputMode="numeric" value={form.bedrooms} onChange={(event) => setField("bedrooms", event.target.value)} /></Field>
           <Field label="Banheiros"><input className={inputClasses} inputMode="numeric" value={form.bathrooms} onChange={(event) => setField("bathrooms", event.target.value)} /></Field>
           <Field label="Área (m²)"><input className={inputClasses} inputMode="decimal" value={form.areaM2} onChange={(event) => setField("areaM2", event.target.value)} /></Field>
-          <Field label="Bairro"><input className={inputClasses} value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} /></Field>
+          <Field label="IPTU (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.iptu} onChange={(event) => setField("iptu", event.target.value)} /></Field>
+          <Field label="Condomínio (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.condoFee} onChange={(event) => setField("condoFee", event.target.value)} /></Field>
+          <Field label="Vagas de estacionamento (opcional)"><input className={inputClasses} inputMode="numeric" value={form.parkingSpaces} onChange={(event) => setField("parkingSpaces", event.target.value)} /></Field>
+          <Field label="Bairro" hint="A extensão procura “bairro, Marília” na localização do Facebook."><input className={inputClasses} value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} /></Field>
           <Field label="Cidade"><input className={inputClasses} value={form.city} onChange={(event) => setField("city", event.target.value)} /></Field>
           <Field label="UF"><input className={inputClasses} value={form.state} maxLength={2} onChange={(event) => setField("state", event.target.value)} /></Field>
         </div>

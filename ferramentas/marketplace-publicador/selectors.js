@@ -11,44 +11,76 @@
       createProperty: "https://www.facebook.com/marketplace/create/rental",
       selling: "https://www.facebook.com/marketplace/you/selling"
     },
+    // Tela "Escolha o tipo de classificado" (conferida no formulário real do dono, Brasil, 2026-10-20).
     categoryCard: [
+      "Imóvel residencial para venda ou locação",
       "Imóveis para venda ou aluguel",
-      "Propriedade à venda ou para alugar",
-      "Imóvel à venda ou para alugar",
-      "Casa para venda ou aluguel",
       "Property for sale or rent",
       "Home for sale or rent"
     ],
-    // kind: select (combobox do Facebook) | text | textarea | autocomplete
+    // Título do formulário de imóvel — se já está na tela, não precisa escolher o cartão.
+    formTitle: ["Novo classificado de imóvel", "New property listing"],
+    // kind: select (combobox do Facebook) | text | textarea | autocomplete | toggle
+    // O formulário de imóvel NÃO tem campo "Título" (o Facebook monta o título pelos dados).
     fields: {
+      // Sem rótulo: o combobox mostra o valor inicial "Imóvel residencial para venda ou locação" (padrão = locação,
+      // a prévia mostra "Preço/mês"). Achado pelo texto que ele exibe.
       offerType: {
         kind: "select",
-        labels: ["Para venda ou aluguel", "Venda ou aluguel", "À venda ou para alugar", "Home for sale or rent", "For sale or rent"],
-        options: { sale: ["À venda", "Venda", "Para venda", "For sale"], rent: ["Aluguel", "Para alugar", "For rent", "Rent"] }
+        labels: ["Imóvel residencial para venda ou", "Para venda ou locação", "Home for sale or rent"],
+        options: {
+          sale: ["Venda", "À venda", "Para venda", "Imóvel à venda", "Imóvel residencial à venda", "For sale"],
+          rent: ["Locação", "Aluguel", "Para locação", "Para alugar", "Imóvel para locação", "For rent", "Rent"]
+        },
+        // Nunca escolher a opção "venda OU locação" (é o próprio valor inicial).
+        excludeOptions: [" ou ", " or "]
       },
       propertyType: {
         kind: "select",
-        labels: ["Tipo de imóvel", "Tipo de propriedade", "Tipo de residência", "Property type", "Home type"],
+        labels: ["Tipo de imóvel", "Property type"],
         options: {
           house: ["Casa", "House"],
           apartment: ["Apartamento", "Apartment"],
-          townhouse: ["Casa geminada", "Sobrado", "Casa em condomínio", "Townhouse"],
+          townhouse: ["Sobrado", "Casa geminada", "Casa em condomínio", "Townhouse"],
           land: ["Terreno", "Lote", "Land"]
         }
       },
-      bedrooms: { kind: "text", labels: ["Número de quartos", "Quartos", "Number of bedrooms", "Bedrooms"] },
-      bathrooms: { kind: "text", labels: ["Número de banheiros", "Banheiros", "Number of bathrooms", "Bathrooms"] },
-      price: { kind: "text", labels: ["Preço", "Preço por mês", "Price", "Price per month"] },
-      location: { kind: "autocomplete", labels: ["Endereço do imóvel", "Endereço da propriedade", "Localização", "Endereço", "Property address", "Location"] },
-      description: { kind: "textarea", labels: ["Descrição do imóvel", "Descrição da propriedade", "Descrição", "Property description", "Description"] },
-      area: { kind: "text", labels: ["Metros quadrados", "Área em metros quadrados", "Área", "Square meters", "Square feet"] },
-      title: { kind: "text", labels: ["Título", "Title"], optional: true }
+      bedrooms: { kind: "text", labels: ["Número de quartos", "Number of bedrooms"] },
+      bathrooms: { kind: "text", labels: ["Número de banheiros", "Number of bathrooms"] },
+      price: { kind: "text", labels: ["Preço", "Price"] },
+      // Campo só com ícone de pino (sem rótulo visível): tenta aria-label/placeholder; senão, o input de autocomplete.
+      location: {
+        kind: "autocomplete",
+        labels: ["Localização do imóvel", "Localização", "Endereço", "Location"],
+        fallback: 'input[aria-autocomplete="list"], input[role="combobox"]'
+      },
+      description: { kind: "textarea", labels: ["Descrição do imóvel", "Property description", "Description"] },
+      // "Detalhes específicos (Opcional)": se não achar, segue sem eles.
+      area: { kind: "text", labels: ["Metros quadrados", "Square meters"], optional: true },
+      iptu: { kind: "text", labels: ["Imposto Predial e Territorial Urbano", "IPTU"], optional: true },
+      condoFee: { kind: "text", labels: ["Condomínio"], optional: true },
+      parkingSpaces: {
+        kind: "select",
+        labels: ["Vagas de estacionamento", "Parking spaces"],
+        optional: true,
+        // Valor → textos da opção (0..3 exatos; 4 ou mais).
+        optionsFor(count) {
+          const n = Number(count);
+          if (n >= 4) return ["4+", "4 ou mais", "Mais de 3", "4"];
+          if (n === 0) return ["0", "Nenhuma", "Nenhum", "None"];
+          return [String(n)];
+        }
+      },
+      // Toggle que SEMPRE fica desligado.
+      boost: { kind: "toggle", labels: ["Turbinar classificado após a publicação", "Turbinar classificado", "Boost listing"] }
     },
-    photoInput: 'input[type="file"][accept*="image"], input[type="file"]',
+    photoInput: 'input[type="file"][accept*="image"][multiple], input[type="file"][accept*="image"], input[type="file"]',
     optionRoles: '[role="option"], [role="menuitemradio"], [role="menuitem"], [role="radio"]',
     buttons: {
       next: ["Avançar", "Próximo", "Continuar", "Next", "Continue"],
-      publish: ["Publicar", "Publish", "Postar", "Post"]
+      publish: ["Publicar", "Publish"],
+      // Nunca clicar nestes (rascunho, turbinar, grupos extras).
+      forbidden: ["Salvar rascunho", "Save draft", "Turbinar", "Boost"]
     },
     // Textos que indicam verificação, bloqueio ou limite → pausa de 24 h.
     checkpointTexts: [
