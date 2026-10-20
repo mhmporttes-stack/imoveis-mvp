@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-20 — Pedido da lista de documentos respondido com o menu de boas-vindas
+- **Data:** 2026-10-20
+- **Sintoma:** cliente mandou ao oficial o texto pronto "…Pode me mandar a lista do meu caso? Código do atendimento: MM-…" e o robô respondeu "Boa tarde… Como podemos te ajudar?" com os botões Fazer simulação / Já sou cliente / Tenho uma dúvida.
+- **Área:** WhatsApp / Fluxos / Apresentação
+- **Impacto:** todo cliente que pede a lista (ou usa outro botão do link) e cuja conversa casa um Fluxo de primeira mensagem/qualquer mensagem; o corretor precisou mandar a lista à mão.
+- **Causa raiz:** o filtro pós-formulário (`filterFlowsForPostFormContact`) só conhecia a frase "preenchi meu cadastro" e cadastro por formulário nas últimas 24 h; mensagem com o código do atendimento (PRES-25) de cadastro mais antigo caía nos gatilhos automáticos de boas-vindas.
+- **Correção:** mensagem com código = cliente já cadastrado (só Fluxo de palavra-chave, sem resposta antiga por palavra-chave); pedido da lista com código não dispara Fluxo e é respondido pela lista automática (PRES-26).
+- **Arquivos/commit:** `lib/whatsapp-form-completion.mjs`, `lib/whatsapp-flows.js`, `lib/whatsapp-master.js`, `lib/documents-list-auto*.{js,mjs}`
+- **Prevenção/teste:** `tests/documents-list-auto.test.mjs` (texto exato do caso)
+- **Status:** Resolvido (aguarda deploy)
 ### 2026-10-20 — Cliente "clica em documentos e não prossegue" na apresentação /s/
 - **Data:** 2026-10-20
 - **Sintoma:** na cena "Documentos" ("…vamos montar a sua pasta…") só aparece "Rever a apresentação"; não há botão "Receber lista de documentos" (nem "Agendar atendimento" no "Próximo passo").

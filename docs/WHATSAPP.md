@@ -272,6 +272,7 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 - **Respostas por palavra-chave**: suprimidas (`shouldSuppressKeywordReply`; log `skipped_post_form_contact`).
 - **Fluxos**: se a mensagem é a do botão, **só** o fluxo dedicado (gatilho por palavra-chave “preenchi meu cadastro”/“receber a minha simulação/receber minha simulação”) pode rodar; se é só cadastro recente, gatilhos **automáticos** (`any_message`, `first_message`, `ad_referral`) não disparam e os de **palavra-chave** continuam valendo. Fluxos suprimidos vão para o log “Atividade” (`skipped`).
 - **Sessão viva encerrada pelo formulário (2026-10-12, Fase 2 do robô do Chat):** além de suprimir gatilhos, o envio do formulário encerra a sessão viva do Fluxo com o telefone (`end_reason = formulario_enviado`, §8).
+- **Mensagem com código do atendimento (PRES-26, dono 2026-10-20):** cliente já cadastrado — pedido da lista de documentos com código não dispara Fluxo nenhum (encerra a sessão viva; a lista sai sozinha por `lib/documents-list-auto.js`, depois do "pare" e antes dos Fluxos, texto + imagem pelo oficial com reserva `docs-list-auto:*`); outra mensagem com código só aceita Fluxo de palavra-chave e não recebe a resposta antiga por palavra-chave (`codedContact`).
 - Teste: `tests/whatsapp-form-completion.test.mjs`.
 
 ### 9-B. Lead patrocinado — Click to WhatsApp (`lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-referral.mjs`, migration `20260924210000`)
