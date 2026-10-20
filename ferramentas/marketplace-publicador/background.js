@@ -1,10 +1,12 @@
 // Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
-import { CHECK_EVERY_MINUTES, REASON_LABELS, buildResultBody, decideTick, finishJob, initialState, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
+import { CHECK_EVERY_MINUTES, REASON_LABELS, buildResultBody, decideTick, finishJob, initialState, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, postResult } from "./lib/crm-api.js";
 
 const ALARM = "mp-tick";
 const PUBLISH_TIMEOUT_MS = 12 * 60 * 1000;
+const PAGE_LOAD_TIMEOUT_MS = 45 * 1000;
+const FORM_WAIT_MS = 15 * 1000;
 const FB_ORIGIN = "https://www.facebook.com";
 
 async function loadState() {
@@ -32,32 +34,44 @@ function ensureAlarm() {
   });
 }
 
-chrome.runtime.onInstalled.addListener(ensureAlarm);
+chrome.runtime.onInstalled.addListener(async (details) => {
+  ensureAlarm();
+  // Atualização: refaz a contagem do dia pelo histórico (versão 1.1.0 contava falha e travava 1 h).
+  if (details.reason === "update") await saveState(recomputeFromHistory(await loadState(), new Date()));
+});
 chrome.runtime.onStartup.addListener(ensureAlarm);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) tick("alarme").catch((error) => console.warn("[marketplace] tique falhou:", error));
 });
 
-function waitTabComplete(tabId, timeoutMs = 60000) {
+// Espera a aba terminar de carregar DEPOIS de um comando de navegação (o listener é ligado antes do comando, então
+// o "complete" da página anterior não engana).
+function navigateAndWait(tabId, url, timeoutMs = PAGE_LOAD_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
+    let sawLoading = false;
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error("A página do Facebook não terminou de carregar."));
+      reject(new Error(`O Facebook não terminou de carregar em ${Math.round(timeoutMs / 1000)} s (${url}).`));
     }, timeoutMs);
-    function listener(id, info) {
-      if (id === tabId && info.status === "complete") {
+    function listener(id, info, tab) {
+      if (id !== tabId || String(tab?.url || "").startsWith("about:")) return;
+      if (info.status === "loading") sawLoading = true;
+      if (info.status === "complete" && sawLoading) {
         clearTimeout(timer);
         chrome.tabs.onUpdated.removeListener(listener);
         resolve();
       }
     }
     chrome.tabs.onUpdated.addListener(listener);
-    chrome.tabs.get(tabId).then((tab) => {
-      if (tab.status === "complete") listener(tabId, { status: "complete" });
-    }).catch(() => {});
+    chrome.tabs.update(tabId, { url }).catch((error) => {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(error);
+    });
   });
 }
 
+// Injeta selectors.js + content.js (content.js ignora a 2ª injeção no mesmo documento).
 async function inject(tabId) {
   await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "content.js"] });
 }
@@ -69,12 +83,68 @@ function sendWithTimeout(tabId, message, timeoutMs) {
   ]);
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Depois de um clique, a página pode trocar de documento (navegação completa) ou só de rota (SPA): espera um pouco,
+// reinjeta e confere de novo.
+async function probeAfterClick(tabId) {
+  await sleep(3000);
+  const tab = await chrome.tabs.get(tabId);
+  if (tab.status !== "complete") await sleep(5000);
+  await inject(tabId);
+  return sendWithTimeout(tabId, { type: "mp-probe", waitForFormMs: FORM_WAIT_MS }, FORM_WAIT_MS + 10000);
+}
+
+// Leva a aba dedicada até "Novo classificado de imóvel". Devolve { ok, trail } — trail = URL atingida em cada tentativa.
+async function openPropertyForm(tabId) {
+  const trail = [];
+  const note = (label, state) => trail.push(`${label}: ${state?.url || "?"}`);
+
+  // 1) URL direta do formulário de imóvel.
+  await navigateAndWait(tabId, `${FB_ORIGIN}/marketplace/create/rental`);
+  await inject(tabId);
+  let state = await sendWithTimeout(tabId, { type: "mp-probe", waitForFormMs: FORM_WAIT_MS }, FORM_WAIT_MS + 10000);
+  note("1 (create/rental)", state);
+  if (state.checkpoint) return { ok: false, checkpoint: true, trail };
+  if (state.isForm) return { ok: true, trail };
+
+  // 2) Escolha do tipo de classificado → cartão "Imóvel residencial para venda ou locação".
+  await navigateAndWait(tabId, `${FB_ORIGIN}/marketplace/create`);
+  await inject(tabId);
+  state = await sendWithTimeout(tabId, { type: "mp-probe" }, 15000);
+  if (state.hasCard) {
+    await sendWithTimeout(tabId, { type: "mp-click", target: "card" }, 20000);
+    state = await probeAfterClick(tabId);
+  }
+  note("2 (create + cartão)", state);
+  if (state.checkpoint) return { ok: false, checkpoint: true, trail };
+  if (state.isForm) return { ok: true, trail };
+
+  // 3) "+ Criar novo classificado" no menu lateral → cartão.
+  await navigateAndWait(tabId, `${FB_ORIGIN}/marketplace/`);
+  await inject(tabId);
+  await sendWithTimeout(tabId, { type: "mp-click", target: "create" }, 20000);
+  state = await probeAfterClick(tabId);
+  if (!state.isForm && state.hasCard) {
+    await sendWithTimeout(tabId, { type: "mp-click", target: "card" }, 20000);
+    state = await probeAfterClick(tabId);
+  }
+  note("3 (menu Criar novo classificado + cartão)", state);
+  return { ok: Boolean(state.isForm), checkpoint: Boolean(state.checkpoint), trail };
+}
+
 async function screenshot(windowId) {
   try {
     return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 45 });
   } catch {
     return ""; // sem permissão/aba não visível: fica só a descrição do passo
   }
+}
+
+// Clicou em Publicar? Pelo último passo informado pela página (para não repetir e duplicar o anúncio).
+async function reachedPublishClick() {
+  const step = (await loadState()).running?.step || "";
+  return step === "clicou publicar" || step === "confirmação";
 }
 
 async function runPublication(listing) {
@@ -85,34 +155,38 @@ async function runPublication(listing) {
     return { ok: false, clickedPublish: false, step: "baixar fotos do CRM", error: error.message };
   }
 
-  // Formulário de imóvel direto; se não abrir, content.js volta para "Escolha o tipo de classificado" e clica no cartão.
-  const tab = await chrome.tabs.create({ url: `${FB_ORIGIN}/marketplace/create/rental`, active: true });
+  // Aba NOVA e dedicada (nunca a aba em que você está navegando); fechada no final, com print em caso de falha.
+  const tab = await chrome.tabs.create({ url: "about:blank", active: true });
+  await sleep(500);
+  let outcome;
   try {
-    await waitTabComplete(tab.id);
-    await inject(tab.id);
-    let outcome = await sendWithTimeout(tab.id, { type: "mp-publish", listing, photos }, PUBLISH_TIMEOUT_MS);
-    if (outcome?.navigated) {
-      // O formulário direto não abriu e a aba foi para a escolha do tipo de classificado: uma única continuação.
-      await waitTabComplete(tab.id);
-      await inject(tab.id);
+    const form = await openPropertyForm(tab.id);
+    if (!form.ok) {
+      outcome = {
+        ok: false,
+        clickedPublish: false,
+        checkpoint: Boolean(form.checkpoint),
+        step: "abrir formulário de imóvel",
+        error: `${form.checkpoint ? "O Facebook mostrou verificação/limite. " : "O formulário \"Novo classificado de imóvel\" não abriu. "}Páginas atingidas — ${form.trail.join(" | ")}`
+      };
+    } else {
       outcome = await sendWithTimeout(tab.id, { type: "mp-publish", listing, photos }, PUBLISH_TIMEOUT_MS);
+      if (outcome?.ok && !outcome.url) {
+        await navigateAndWait(tab.id, `${FB_ORIGIN}/marketplace/you/selling`);
+        await inject(tab.id);
+        const found = await sendWithTimeout(tab.id, { type: "mp-find-url", price: listing.price }, 60000).catch(() => ({}));
+        outcome = { ...outcome, url: found?.url || "" };
+      }
+      outcome = outcome || { ok: false, clickedPublish: false, step: "página do Facebook", error: "Sem resposta da página." };
     }
-    if (outcome?.ok && !outcome.url) {
-      await chrome.tabs.update(tab.id, { url: `${FB_ORIGIN}/marketplace/you/selling` });
-      await waitTabComplete(tab.id);
-      await inject(tab.id);
-      const found = await sendWithTimeout(tab.id, { type: "mp-find-url", price: listing.price }, 60000).catch(() => ({}));
-      outcome = { ...outcome, url: found?.url || "" };
-    }
-    if (!outcome?.ok) outcome = { ...outcome, screenshot: await screenshot(tab.windowId) };
-    return outcome || { ok: false, clickedPublish: false, step: "página do Facebook", error: "Sem resposta da página." };
   } catch (error) {
     const current = await chrome.tabs.get(tab.id).catch(() => null);
     const checkpoint = current?.url ? /\/(checkpoint|login|two_step_verification)/.test(new URL(current.url).pathname) : false;
-    // Sem saber se clicou em Publicar: trata como clicado (não tenta de novo, evita anúncio duplicado).
-    return { ok: false, clickedPublish: true, checkpoint, step: "página do Facebook", error: error.message, screenshot: await screenshot(tab.windowId) };
+    outcome = { ok: false, clickedPublish: await reachedPublishClick(), checkpoint, step: (await loadState()).running?.step || "página do Facebook", error: `${error.message} (aba em ${current?.url || "?"})` };
   }
-  // Em caso de falha a aba fica aberta para você ver o que aconteceu; quando dá certo, tick() fecha.
+  if (!outcome.ok) outcome = { ...outcome, screenshot: await screenshot(tab.windowId) };
+  await chrome.tabs.remove(tab.id).catch(() => {});
+  return outcome;
 }
 
 async function tick(origin) {
@@ -145,8 +219,6 @@ async function tick(origin) {
   state = await saveState(finishJob(await loadState(), { ...outcome, error: `${outcome.error || ""}${reportError}` }, new Date()));
   if (outcome.ok) {
     notify("Anúncio publicado", `${listing.title}${outcome.url ? "" : " — confira o link no Facebook"}${reportError}`);
-    const tabs = await chrome.tabs.query({ url: `${FB_ORIGIN}/marketplace/*` });
-    for (const tab of tabs) if (tab.url?.includes("/marketplace/you/selling") || tab.url?.includes("/marketplace/item/")) chrome.tabs.remove(tab.id).catch(() => {});
   } else if (outcome.checkpoint) {
     notify("Marketplace pausado por 24 h", "O Facebook pediu verificação ou avisou de limite. Resolva no Facebook; nada mais será publicado até lá.");
   } else {

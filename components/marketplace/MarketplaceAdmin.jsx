@@ -142,7 +142,10 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
   }
 
   function act(listing, action) {
-    if (action === "approve" && !window.confirm(`Aprovar a publicação de “${listing.title}” no Facebook Marketplace? A extensão vai publicar sozinha no seu perfil.`)) return;
+    const approveText = listing.status === "failed"
+      ? `Tentar publicar “${listing.title}” de novo? Antes, confira em “Seus classificados” no Facebook que ele não saiu (para não duplicar). A extensão vai publicar sozinha no seu perfil.`
+      : `Aprovar a publicação de “${listing.title}” no Facebook Marketplace? A extensão vai publicar sozinha no seu perfil.`;
+    if (action === "approve" && !window.confirm(approveText)) return;
     if (action === "cancel" && !window.confirm(`Cancelar “${listing.title}”?`)) return;
     run(`${action}:${listing.id}`, async () => {
       await callApi(`/api/admin/marketplace/${listing.id}`, { method: "PATCH", body: JSON.stringify({ action }) });
@@ -325,7 +328,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
               {listing.error ? <p className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{listing.error}</p> : null}
               <div className="flex flex-wrap gap-2">
                 {editable && !(listing.status === "pending" && approved) ? (
-                  <Button size="sm" onClick={() => act(listing, "approve")} loading={busy === `approve:${listing.id}`}>Aprovado — publicar no Marketplace</Button>
+                  <Button size="sm" onClick={() => act(listing, "approve")} loading={busy === `approve:${listing.id}`}>{listing.status === "failed" ? "Tentar de novo" : "Aprovado — publicar no Marketplace"}</Button>
                 ) : null}
                 {listing.status === "pending" && approved ? (
                   <Button size="sm" variant="secondary" onClick={() => act(listing, "unapprove")} loading={busy === `unapprove:${listing.id}`}>Tirar aprovação</Button>

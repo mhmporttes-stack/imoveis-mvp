@@ -5,14 +5,18 @@ import {
   DAILY_LIMIT,
   MIN_INTERVAL_MS,
   buildResultBody,
+  DAILY_ATTEMPT_LIMIT,
   decideTick,
   finishJob,
   initialState,
   isWithinWindow,
   nextIntervalMs,
+  recomputeFromHistory,
+  retryDelayMs,
   saoPauloParts,
   setManualPause,
   startJob,
+  todayAttempts,
   todayCount
 } from "../lib/agenda.js";
 
@@ -65,12 +69,35 @@ test("depois de publicar, espera o intervalo antes da próxima", () => {
   assert.equal(decideTick(state, at("10:06")).action, "check");
 });
 
-test("falha também conta no dia e espera o intervalo (sem rajada)", () => {
-  const state = finishJob(startJob(initialState(), listing, at("09:00")), { ok: false, step: "fotos", error: "x" }, at("09:02"), () => 0);
-  assert.equal(todayCount(state, at("09:30")), 1);
-  assert.equal(decideTick(state, at("09:30")).reason, "intervalo");
+test("falha NÃO conta no limite do dia e tenta de novo em 15–20 min (não 1 h)", () => {
+  const state = finishJob(startJob(initialState(), listing, at("08:53")), { ok: false, step: "abrir formulário", error: "x" }, at("08:56"), () => 0);
+  assert.equal(todayCount(state, at("09:00")), 0);
+  assert.equal(todayAttempts(state, at("09:00")), 1);
+  assert.equal(decideTick(state, at("09:05")).reason, "intervalo");
+  assert.equal(decideTick(state, at("09:12")).action, "check");
   assert.equal(state.history[0].status, "failed");
-  assert.equal(state.history[0].step, "fotos");
+  assert.ok(retryDelayMs(() => 0) >= 15 * 60000 && retryDelayMs(() => 0.999) <= 20 * 60000);
+});
+
+test("freio contra rajada: no máximo 6 tentativas no dia", () => {
+  let state = initialState();
+  let now = at("08:00");
+  for (let i = 0; i < DAILY_ATTEMPT_LIMIT; i += 1) {
+    state = finishJob(startJob(state, listing, now), { ok: false, error: "x" }, now, () => 0);
+    now = new Date(now.getTime() + 21 * 60000);
+  }
+  assert.equal(decideTick(state, now).reason, "limite_tentativas");
+});
+
+test("atualização da extensão refaz o dia pelo histórico (falha da 1.1.0 deixa de contar)", () => {
+  const old = { ...initialState(), daily: { date: "2026-10-20", count: 1 }, nextAllowedAt: at("10:04").toISOString(), history: [{ at: at("08:53").toISOString(), status: "failed" }] };
+  const fixed = recomputeFromHistory(old, at("09:10"));
+  assert.equal(todayCount(fixed, at("09:10")), 0);
+  assert.equal(fixed.nextAllowedAt, null);
+  assert.equal(decideTick(fixed, at("09:10")).action, "check");
+  const withSuccess = recomputeFromHistory({ ...old, history: [{ at: at("09:00").toISOString(), status: "published" }] }, at("09:10"));
+  assert.equal(todayCount(withSuccess, at("09:10")), 1);
+  assert.equal(withSuccess.nextAllowedAt, at("10:00").toISOString());
 });
 
 test("checkpoint/limite do Facebook pausa por 24 h", () => {

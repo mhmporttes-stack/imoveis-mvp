@@ -92,11 +92,15 @@ test("só anúncio aprovado e com tentativas sobrando entra na fila", () => {
   assert.equal(claimPatch({ attempts: 1 }, now).attempts, 2);
 });
 
-test("limites do servidor: diário, intervalo e publicação em andamento", () => {
+test("limites do servidor: só publicação conta; 45 min entre publicações, 10 min entre tentativas", () => {
+  const ago = (min) => new Date(now.getTime() - min * 60000).toISOString();
   assert.equal(evaluateQueueGate({ now }).allowed, true);
   assert.equal(evaluateQueueGate({ now, publishedToday: MARKETPLACE_DAILY_LIMIT }).reason, "limite_diario");
-  assert.equal(evaluateQueueGate({ now, lastClaimAt: new Date(now.getTime() - 10 * 60000).toISOString() }).reason, "intervalo_minimo");
-  assert.equal(evaluateQueueGate({ now, lastClaimAt: new Date(now.getTime() - 60 * 60000).toISOString() }).allowed, true);
+  assert.equal(evaluateQueueGate({ now, lastPublishedAt: ago(30), lastClaimAt: ago(30) }).reason, "intervalo_minimo");
+  assert.equal(evaluateQueueGate({ now, lastPublishedAt: ago(60), lastClaimAt: ago(60) }).allowed, true);
+  // Falha às 8h53 não segura a nova tentativa por 1 h: só 10 min.
+  assert.equal(evaluateQueueGate({ now, lastClaimAt: ago(5) }).reason, "intervalo_tentativa");
+  assert.equal(evaluateQueueGate({ now, lastClaimAt: ago(16) }).allowed, true);
   assert.equal(evaluateQueueGate({ now, hasActiveClaim: true }).reason, "publicacao_em_andamento");
 });
 

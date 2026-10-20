@@ -18,6 +18,8 @@
       "Property for sale or rent",
       "Home for sale or rent"
     ],
+    // Link do menu lateral do Marketplace (último recurso para chegar à escolha do tipo).
+    createLink: ["Criar novo classificado", "Create new listing"],
     // Título do formulário de imóvel — se já está na tela, não precisa escolher o cartão.
     formTitle: ["Novo classificado de imóvel", "New property listing"],
     // kind: select (combobox do Facebook) | text | textarea | autocomplete | toggle

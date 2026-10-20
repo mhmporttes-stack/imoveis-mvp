@@ -80,3 +80,19 @@ test("content.js: sem título, turbinar desligado, ordem do formulário", () => 
   assert.ok(positions.every((position) => position > 0), "todos os passos presentes");
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, "na ordem do formulário");
 });
+
+test("background: aba dedicada, navegação esperando carregar, reinjeção e aba fechada no fim", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /chrome\.tabs\.create\(\{ url: "about:blank"/);
+  assert.doesNotMatch(bg, /chrome\.tabs\.query/, "nunca mexe nas abas do dono");
+  assert.match(bg, /PAGE_LOAD_TIMEOUT_MS = 45 \* 1000/);
+  assert.match(bg, /marketplace\/create\/rental/);
+  assert.match(bg, /target: "card"/);
+  assert.match(bg, /target: "create"/);
+  assert.match(bg, /Páginas atingidas/);
+  assert.match(bg, /chrome\.tabs\.remove\(tab\.id\)/);
+  const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
+  assert.doesNotMatch(content, /location\.assign/, "quem navega é o background");
+  assert.match(content, /progress\("clicou publicar"\)/);
+  assert.ok(MP.matchesAny("+ Criar novo classificado", MP.createLink));
+});

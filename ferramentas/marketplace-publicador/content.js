@@ -232,22 +232,25 @@
     return MP.matchesAny(pageText().slice(0, 3000), MP.formTitle);
   }
 
-  // Abre "Novo classificado de imóvel": se já está nele, segue; se está em "Escolha o tipo de classificado", clica no
-  // cartão "Imóvel residencial para venda ou locação"; senão, vai para a tela de escolha (uma vez).
-  async function openPropertyCategory() {
-    progress("categoria do imóvel");
-    if (await waitFor(() => isPropertyForm(), 6000)) return;
-    const card = await waitFor(() => findClickable(MP.categoryCard, false), 8000);
-    if (card) {
-      await humanClick(card);
-      if (await waitFor(() => isPropertyForm(), 10000)) return;
-      throw new StepError(currentStep, "Cliquei em \"Imóvel residencial para venda ou locação\" mas o formulário não abriu.");
-    }
-    if (location.pathname.replace(/\/$/, "") !== "/marketplace/create") {
-      location.assign(MP.urls.create);
-      throw new StepError(currentStep, "Formulário de imóvel não abriu direto; a aba foi para a escolha do tipo de classificado.", { navigated: true });
-    }
-    throw new StepError(currentStep, "Cartão \"Imóvel residencial para venda ou locação\" não encontrado.");
+  // A navegação até o formulário é feita pelo background (aba dedicada + chrome.tabs.update + reinjeção). Aqui só
+  // se confere a página e se clica no que ele pedir.
+  async function probe(waitForFormMs = 0) {
+    if (waitForFormMs) await waitFor(() => isPropertyForm(), waitForFormMs, 500);
+    return {
+      url: location.href,
+      isForm: isPropertyForm(),
+      hasCard: Boolean(findClickable(MP.categoryCard, false)),
+      hasCreateLink: Boolean(findClickable(MP.createLink, false)),
+      checkpoint: MP.isCheckpoint(location.href, pageText())
+    };
+  }
+
+  async function clickTarget(target) {
+    const texts = target === "card" ? MP.categoryCard : MP.createLink;
+    const element = await waitFor(() => findClickable(texts, false), 10000);
+    if (!element) return { clicked: false, url: location.href };
+    await humanClick(element);
+    return { clicked: true, url: location.href };
   }
 
   function descriptionWithNeighborhood(listing) {
@@ -261,8 +264,8 @@
     try {
       await sleep(between(2500, 4500));
       assertNoCheckpoint();
-      await openPropertyCategory();
-      assertNoCheckpoint();
+      progress("formulário de imóvel");
+      if (!isPropertyForm()) throw new StepError(currentStep, `A aba não está no formulário "Novo classificado de imóvel" (${location.href}).`);
       await uploadPhotos(photos);
       await chooseOption("offerType", listing.offerType);
       await chooseOption("propertyType", listing.propertyType);
@@ -300,6 +303,7 @@
       if (!publishButton) throw new StepError(currentStep, "Botão Publicar não encontrado.");
       await humanPause();
       clickedPublish = true;
+      progress("clicou publicar");
       await humanClick(publishButton);
 
       progress("confirmação");
@@ -310,7 +314,7 @@
       const url = MP.cleanListingUrl(location.href) || (link ? MP.cleanListingUrl(link.href) : "");
       return { ok: true, url, clickedPublish, step: currentStep };
     } catch (error) {
-      return { ok: false, clickedPublish, step: error.step || currentStep, error: error.message, checkpoint: Boolean(error.checkpoint), navigated: Boolean(error.navigated) };
+      return { ok: false, clickedPublish, step: error.step || currentStep, error: error.message, checkpoint: Boolean(error.checkpoint) };
     }
   }
 
@@ -333,6 +337,14 @@
     }
     if (message?.type === "mp-find-url") {
       findListingUrl(message.price).then(sendResponse);
+      return true;
+    }
+    if (message?.type === "mp-probe") {
+      probe(message.waitForFormMs || 0).then(sendResponse);
+      return true;
+    }
+    if (message?.type === "mp-click") {
+      clickTarget(message.target).then(sendResponse);
       return true;
     }
     if (message?.type === "mp-ping") {

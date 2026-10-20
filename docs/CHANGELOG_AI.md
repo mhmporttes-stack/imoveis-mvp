@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): 1ª publicação real falhou (aba fora do formulário) — extensão 1.2.0
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/`, fila do CRM.
+- **Alteração:** a 1ª publicação real ("Casa com piscina e 3 suítes", 08:53) terminou em "Tempo esgotado esperando a página do Facebook" com a aba nos resultados de pesquisa do Marketplace. Causa provável: a navegação era feita pelo próprio content script (`location.assign`) e o background esperava o "carregado" com uma checagem que aceitava o estado da página ANTERIOR, então mensagens iam para um documento que estava saindo. Agora o background navega a aba (nova, dedicada) com `chrome.tabs.update`, espera loading→complete (45 s), reinjeta e confere o formulário pelo texto "Novo classificado de imóvel" (15 s); fallback `/marketplace/create` + cartão e, por último, "+ Criar novo classificado" + cartão; o erro lista a URL atingida em cada tentativa; a aba é sempre fechada (print guardado na falha). Falha não conta no limite do dia nem abre o intervalo de 1 h (nova tentativa em 15–20 min; máx. 6 tentativas/dia); ao atualizar, a extensão refaz a contagem do dia pelo histórico. Timeout sem saber se clicou em Publicar usa o último passo informado (só "clicou publicar"/"confirmação" bloqueiam nova tentativa). CRM: intervalo do servidor passa a ser 45 min desde a última PUBLICAÇÃO + 10 min desde a última tentativa; anúncio "Falhou" mostra "Tentar de novo".
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (15) e extensão (26); `pnpm build` limpo. Abertura real do formulário continua **A CONFIRMAR** na próxima tentativa do dono.
+- **Arquivos afetados:** `ferramentas/marketplace-publicador/{background,content,selectors,manifest}.*`, `lib/agenda.js`, testes, `README.md`; `lib/marketplace-core.mjs`, `lib/marketplace-listings.js`, `components/marketplace/MarketplaceAdmin.jsx`, `tests/marketplace-core.test.mjs`, `docs/BUSINESS_RULES.md` (MKT-1).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): fotos do imóvel vêm sozinhas + galeria com envio do computador/celular
 - **Data:** 2026-10-20
 - **Área:** tela Cadastros › Marketplace, armazenamento de fotos de imóveis.
