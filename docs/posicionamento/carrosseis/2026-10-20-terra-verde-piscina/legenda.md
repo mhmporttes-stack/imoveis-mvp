@@ -6,7 +6,7 @@ Dados enviados pelo dono: Terra Verde; 3 suítes; sala ampla; cozinha; lavabo; �
 
 ## Site / CRM
 
-Pendente.
+**No site desde 2026-10-20:** `properties` id `0c3048e1-75ed-4a45-87fb-b3981c77679a`, publicado, contato proprietário salvo. Fotos provisórias no GitHub (commit 9ad4741). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/0c3048e1-75ed-4a45-87fb-b3981c77679a
 
 ## Legenda
 
