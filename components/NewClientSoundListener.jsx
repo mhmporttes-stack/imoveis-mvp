@@ -48,11 +48,10 @@ export default function NewClientSoundListener({ userId }) {
       }
     }
 
-    // Desempenho (2026-10-20): com a aba/app oculto não consulta; ao voltar a ficar visível checa na hora (o "since"
-    // do servidor garante que o cliente que chegou enquanto estava oculto é detectado nessa checagem).
-    const intervalId = setInterval(() => {
-      if (document.visibilityState === "visible") poll();
-    }, POLL_INTERVAL_MS);
+    // Continua consultando com a aba oculta (de propósito): o som avisa o corretor de cliente novo da roleta, que tem
+    // prazo curto de atendimento — pausar faria o aviso só tocar quando ele voltasse ao CRM. Ao voltar a ficar
+    // visível também checa na hora (2026-10-20).
+    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
     const onVisibility = () => {
       if (document.visibilityState === "visible") poll();
     };

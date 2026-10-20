@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 // Desempenho (2026-10-20): pollers globais do layout do painel pausam com a aba oculta e checam na hora ao voltar.
+// NewClientSoundListener fica de fora de propósito: o som de cliente novo precisa tocar com a aba oculta (prazo da roleta).
 const files = [
-  "components/NewClientSoundListener.jsx",
   "components/celebrations/BrokerCelebrationGate.jsx",
   "components/DailyMessageGate.jsx",
   "components/TopRankingBadge.jsx"
@@ -19,3 +19,8 @@ for (const file of files) {
     assert.doesNotMatch(source, /setInterval\((poll|checkPending|load), /);
   });
 }
+
+test("NewClientSoundListener continua consultando com a aba oculta", () => {
+  const source = readFileSync(new URL("../components/NewClientSoundListener.jsx", import.meta.url), "utf8");
+  assert.match(source, /setInterval\(poll, POLL_INTERVAL_MS\)/);
+});
