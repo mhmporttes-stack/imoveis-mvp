@@ -7,6 +7,9 @@ import {
   MarketplaceInputError,
   buildDraftFromProperty,
   sanitizeNeighborhood,
+  buildListingDescription,
+  deriveRoomDetails,
+  facebookSummary,
   classifyPhotoSource,
   marketplacePhotoPath,
   claimPatch,
@@ -198,10 +201,12 @@ test("bairro sem cidade/UF/separadores (caso real 'Terra Verde · Marília/SP')"
   assert.equal(buildDraftFromProperty({ name: "Casa", region: "Terra Verde · Marília/SP", photos: [] }, { importedPhotoUrls: [] }).neighborhood, "Terra Verde");
 });
 
-test("banheiros obrigatório (mínimo 1); rascunho já vem com 1", () => {
+test("banheiros obrigatório (mínimo 1) e SEM padrão: sem dado seguro o rascunho vem vazio (dono, 2026-10-20)", () => {
   assert.throws(() => normalizeListingInput({ ...valid, bathrooms: "" }, { allowedHosts: HOSTS }), /banheiros/);
   assert.throws(() => normalizeListingInput({ ...valid, bathrooms: 0 }, { allowedHosts: HOSTS }), /banheiros/);
-  assert.equal(buildDraftFromProperty({ name: "Casa", photos: [] }, { importedPhotoUrls: [] }).bathrooms, 1);
+  assert.equal(buildDraftFromProperty({ name: "Casa", photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
+  // Só suítes, sem saber dos banheiros sociais: não chuta.
+  assert.equal(buildDraftFromProperty({ name: "Casa", features: ["3 suítes"], photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
 });
 
 test("marcar como publicado manualmente: exige link do Marketplace e tira da fila", () => {
@@ -216,4 +221,56 @@ test("marcar como publicado manualmente: exige link do Marketplace e tira da fil
   assert.throws(() => planAdminAction({ status: "pending" }, "mark_published", { url: "https://evil.com/marketplace/item/1" }), /link/);
   assert.throws(() => planAdminAction({ status: "published" }, "mark_published", { url }), MarketplaceInputError);
   assert.throws(() => planAdminAction({ status: "cancelled" }, "mark_published", { url }), MarketplaceInputError);
+});
+
+// Caso real do 1º anúncio (2026-10-20): saiu "1 banheiro" e "Diferenciais: [object Object]".
+const REAL_HOUSE = {
+  id: "p1",
+  name: "Casa com piscina e 3 suítes",
+  type: "casa",
+  region: "Terra Verde · Marília/SP",
+  bedrooms: "3",
+  area: "250",
+  price: "870000",
+  salesText: "Casa pronta para morar #luxo #marilia",
+  features: [{ text: "3 suítes", icon: "bed" }, { text: "Banheiro de apoio", icon: "bath" }, { text: "Lavabo", icon: "bath" }, { text: "Piscina aquecida", icon: "pool" }, { text: "Suíte master com closet", icon: "bed" }, { text: "2 vagas de garagem", icon: "car" }],
+  photos: []
+};
+const LINK = "https://www.matheusmachadoimoveis.com.br/s/mhm";
+
+test("caso real: 3 suítes + apoio + lavabo → 4 banheiros no campo; lavabo só na descrição", () => {
+  assert.deepEqual(deriveRoomDetails(REAL_HOUSE), { suites: 3, social: 1, lavabo: true, bathrooms: 4, parkingSpaces: 2 });
+  const draft = buildDraftFromProperty(REAL_HOUSE, { simulationLink: LINK, importedPhotoUrls: [] });
+  assert.equal(draft.bathrooms, 4);
+  assert.equal(draft.bedrooms, 3);
+  assert.equal(draft.parkingSpaces, 2);
+  assert.match(draft.description, /3 suítes \+ 1 banheiro de apoio \(4 banheiros\)/);
+  assert.match(draft.description, /Lavabo/);
+  assert.match(draft.description, /2 vagas de garagem/);
+  assert.match(draft.description, /Suíte master com closet/);
+  assert.match(draft.description, /Piscina aquecida/);
+  assert.equal(facebookSummary({ ...draft, offerType: "sale", propertyType: draft.propertyType }), "À venda · Casa · 3 quartos · 4 banheiros · R$ 870.000 · Marília");
+});
+
+test("total explícito de banheiros vale; quartos pega o 1º número", () => {
+  assert.equal(deriveRoomDetails({ features: ["4 banheiros", "1 suíte"] }).bathrooms, 4);
+  assert.equal(deriveRoomDetails({ bedrooms: "2 quartos sendo 1 suíte", features: ["1 banheiro social"] }).bathrooms, 2);
+  assert.equal(buildDraftFromProperty({ name: "Casa", bedrooms: "3 quartos, 1 suíte", photos: [] }, { importedPhotoUrls: [] }).bedrooms, 3);
+  assert.match(facebookSummary({ offer_type: "sale", property_type: "house", bedrooms: 2, price: 1 }), /banheiros: FALTA/);
+});
+
+test("descrição no estilo da legenda: nunca '[object Object]' nem '#', com CTA e assinatura", () => {
+  const text = buildListingDescription(REAL_HOUSE, { simulationLink: LINK });
+  assert.doesNotMatch(text, /\[object Object\]/);
+  assert.doesNotMatch(text, /#/);
+  assert.match(text, /^🏡 Casa com piscina e 3 suítes à venda em Marília\/SP/);
+  assert.match(text, /📍 Terra Verde\n/);
+  assert.match(text, /💰 R\$ 870\.000/);
+  assert.ok(text.includes(LINK));
+  assert.match(text, /Matheus Machado Corretor de Imóveis/);
+  assert.doesNotMatch(text, /Matheus Machado Imóveis/);
+  // Diferenciais como texto, objeto { label } ou string.
+  const mixed = buildListingDescription({ name: "Casa", features: ["Quintal", { label: "Churrasqueira" }, { name: "Portão eletrônico" }, { icon: "x" }] });
+  assert.match(mixed, /🌳 Quintal\n🍖 Churrasqueira\n✅ Portão eletrônico/);
+  assert.doesNotMatch(mixed, /object|#/);
 });

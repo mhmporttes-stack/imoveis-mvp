@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): descrição no estilo da legenda do Instagram, banheiros corretos e resumo antes de aprovar
+- **Data:** 2026-10-20
+- **Área:** tela Cadastros › Marketplace (`lib/marketplace-core.mjs`), extensão.
+- **Alteração:** o 1º anúncio publicado saiu com "Diferenciais: [object Object]…" (diferenciais do cadastro são objetos `{ text, icon }`, `normalizePropertyFeatures`) e com 1 banheiro (padrão "1 se vazio" da 1.3.0) numa casa com 3 suítes + banheiro de apoio + lavabo. Agora `buildListingDescription` monta a descrição no estilo da legenda do Instagram do dono (`docs/posicionamento/ESTILO-CARROSSEL.md`), **sem hashtags**: gancho com 🏡, destaques com emojis (📍 bairro, 🛏️ quartos, 🛁 suítes + apoio, 🚻 lavabo, 🚗 vagas, 📐 área, 💰 preço, entrada, entrega), texto de venda, ✨ diferenciais reais, condições, CTA com o link da simulação e "Matheus Machado Corretor de Imóveis · Marília/SP · CRECI 323106-F"; só campos do cadastro, `#` removido. `deriveRoomDetails` lê nome/quartos/diferenciais: banheiros = total explícito ou suítes + sociais/apoio (lavabo fora); sem dado seguro o campo fica **vazio** e é obrigatório (dica "3 suítes + 1 apoio = 4"); vagas também derivadas. Quartos pega o 1º número (antes "3 quartos, 1 suíte" virava 31). Tela mostra "Como vai sair no Facebook: À venda · Casa · 3 quartos · 4 banheiros · R$ … · Marília" no formulário e em cada anúncio. Extensão: sem padrão de 1 banheiro — vazio falha com mensagem clara antes de preencher.
+- **Regra:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-20] anúncio detalhado e correto conforme o cadastro do imóvel (BUSINESS_RULES MKT-1).
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (21, inclui o caso real 3 suítes + apoio + lavabo → 4) e extensão (34); `pnpm build` limpo.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): localização com cliques/teclas reais (chrome.debugger) — extensão 1.5.0
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/`, tela Cadastros › Marketplace.

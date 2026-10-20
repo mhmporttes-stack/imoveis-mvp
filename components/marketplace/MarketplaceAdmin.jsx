@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { MARKETPLACE_MAX_PHOTOS, STATUS_LABELS } from "@/lib/marketplace-core.mjs";
+import { MARKETPLACE_MAX_PHOTOS, STATUS_LABELS, facebookSummary } from "@/lib/marketplace-core.mjs";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { compressForUpload, uploadPhoto } from "@/components/image-upload";
 
@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   offerType: "sale",
   propertyType: "house",
   bedrooms: "",
-  bathrooms: 1,
+  bathrooms: "",
   areaM2: "",
   iptu: "",
   condoFee: "",
@@ -47,7 +47,7 @@ function fromListing(listing) {
     offerType: listing.offer_type,
     propertyType: listing.property_type,
     bedrooms: listing.bedrooms ?? "",
-    bathrooms: listing.bathrooms ?? 1,
+    bathrooms: listing.bathrooms ?? "",
     areaM2: listing.area_m2 ?? "",
     iptu: listing.iptu ?? "",
     condoFee: listing.condo_fee ?? "",
@@ -277,7 +277,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
             </select>
           </Field>
           <Field label="Quartos" hint="O Facebook só deixa avançar com quartos e banheiros."><input className={inputClasses} inputMode="numeric" value={form.bedrooms} onChange={(event) => setField("bedrooms", event.target.value)} /></Field>
-          <Field label="Banheiros" required><input className={inputClasses} inputMode="numeric" value={form.bathrooms} onChange={(event) => setField("bathrooms", event.target.value)} /></Field>
+          <Field label="Banheiros" required hint="Suítes + banheiros sociais/de apoio (lavabo não conta). Ex.: 3 suítes + 1 apoio = 4."><input className={inputClasses} inputMode="numeric" value={form.bathrooms} onChange={(event) => setField("bathrooms", event.target.value)} /></Field>
           <Field label="Área (m²)"><input className={inputClasses} inputMode="decimal" value={form.areaM2} onChange={(event) => setField("areaM2", event.target.value)} /></Field>
           <Field label="IPTU (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.iptu} onChange={(event) => setField("iptu", event.target.value)} /></Field>
           <Field label="Condomínio (R$, opcional)"><input className={inputClasses} inputMode="decimal" value={form.condoFee} onChange={(event) => setField("condoFee", event.target.value)} /></Field>
@@ -287,6 +287,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
           <Field label="UF"><input className={inputClasses} value={form.state} maxLength={2} onChange={(event) => setField("state", event.target.value)} /></Field>
         </div>
         <Field label="Descrição"><textarea className={`${inputClasses} min-h-40 py-2`} value={form.description} onChange={(event) => setField("description", event.target.value)} /></Field>
+        <p className="rounded-control bg-info-soft px-3 py-2 text-sm text-info"><strong>Como vai sair no Facebook:</strong> {facebookSummary(form)}</p>
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-ink">Fotos <span className="text-muted">({form.photoUrls.length}/{MARKETPLACE_MAX_PHOTOS}) — a primeira é a capa; arraste ou use as setas para ordenar</span></p>
@@ -346,6 +347,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
                 {approved ? ` · aprovado ${formatDate(listing.approved_at)}` : ""}
                 {listing.published_at ? ` · publicado ${formatDate(listing.published_at)}` : ""} · tentativas {listing.attempts}
               </p>
+              <p className="text-sm text-ink"><strong>Como vai sair no Facebook:</strong> {facebookSummary(listing)}</p>
               {listing.marketplace_url ? <a className="text-sm font-medium text-brand underline" href={listing.marketplace_url} target="_blank" rel="noreferrer">Ver anúncio no Facebook</a> : null}
               {listing.error ? <p className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{listing.error}</p> : null}
               <div className="flex flex-wrap gap-2">

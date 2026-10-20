@@ -349,6 +349,8 @@
   async function publish(listing, photos) {
     let clickedPublish = false;
     try {
+      // Banheiros é obrigatório no Facebook e não tem padrão (dono, 2026-10-20): vazio = falha clara antes de preencher.
+      if (!listing.bathrooms) throw new StepError("banheiros", "O anúncio está sem o número de banheiros. Preencha no CRM (Cadastros › Marketplace) e aprove de novo.");
       await sleep(between(2500, 4500));
       assertNoCheckpoint();
       progress("formulário de imóvel");
@@ -357,7 +359,7 @@
       await chooseOption("offerType", listing.offerType);
       await chooseOption("propertyType", listing.propertyType);
       await fillText("bedrooms", listing.bedrooms);
-      await fillText("bathrooms", listing.bathrooms || 1); // obrigatório no Facebook
+      await fillText("bathrooms", listing.bathrooms);
       await fillText("price", String(Math.round(listing.price)));
       await fillLocation(listing);
       await fillText("description", descriptionWithNeighborhood(listing));

@@ -123,7 +123,8 @@ test("bairro limpo também na extensão; nunca digita o bairro na localização"
   assert.doesNotMatch(fill, /neighborhood/);
   assert.match(fill, /ArrowDown/);
   assert.match(fill, /locationChosen/);
-  assert.match(content, /fillText\("bathrooms", listing\.bathrooms \|\| 1\)/);
+  assert.doesNotMatch(content, /bathrooms \|\| 1/, "sem padrão de 1 banheiro (dono, 2026-10-20)");
+  assert.match(content, /if \(!listing\.bathrooms\) throw new StepError\("banheiros"/);
   assert.match(content, /Campos vazios:/);
 });
 
