@@ -129,8 +129,11 @@
       composer: '[role="textbox"][contenteditable="true"]',
       composerLabels: ["Mensagem", "Escreva uma mensagem", "Aa", "Message", "Write a message"],
       sendLabels: ["Pressione Enter para enviar", "Enviar", "Press enter to send", "Send"],
-      // Textos de sistema da conversa que não são mensagem do cliente.
-      systemTexts: ["Enviado", "Sent", "Entregue", "Delivered", "Digite uma mensagem"],
+      // Janela de chat flutuante (print do dono): container com o campo "Aa" + cabeçalho "Nome · Anúncio".
+      chatWindow: '[role="dialog"], [role="complementary"], [role="region"], [aria-label]',
+      closeLabels: ["Fechar chat", "Fechar", "Close chat", "Close"],
+      // Textos de sistema/faixa do anúncio que não são mensagem do cliente (interface mista pt/en).
+      systemTexts: ["Enviado", "Sent", "Entregue", "Delivered", "Digite uma mensagem", "Marketplace", "Mark as pending", "Marcar como pendente", "More options", "Mais opções", "Aa"],
       // Começo de linha de sistema ("Visto por João", "Você enviou uma foto").
       systemPrefixes: ["Visto por", "Seen by", "Você enviou", "You sent"]
     }
@@ -272,7 +275,7 @@
         const key = `${row.direction}|${MP.normalize(row.body)}`;
         const ordinal = seen.get(key) || 0;
         seen.set(key, ordinal + 1);
-        return { externalId: MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal), direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: null };
+        return { externalId: MP.messageExternalId(threadKey, row.direction, row.body || (row.attachments || []).map((a) => a.url).join(" "), ordinal), direction: row.direction, body: row.body || "", attachments: row.attachments || [], at: row.at || null };
       });
   };
 
@@ -343,6 +346,17 @@
     }
     const outbound = /^(você|voce|you)\s*:/i.test(preview);
     return { contactName, listingTitle, preview, previewDirection: outbound ? "outbound" : "inbound", timeLabel };
+  };
+
+  // Separador de hora centralizado ("12:23", "Hoje 12:23", "Ontem 08:10", "seg 14:00") → ISO (São Paulo) ou null.
+  MP.parseClockSeparator = function parseClockSeparator(text, now = new Date()) {
+    const value = MP.normalize(text);
+    const match = value.match(/^(?:(hoje|today|ontem|yesterday)\s+)?(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const dayMs = /ontem|yesterday/.test(match[1] || "") ? 86400000 : 0;
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now.getTime() - dayMs));
+    const at = new Date(`${day}T${match[2].padStart(2, "0")}:${match[3]}:00-03:00`);
+    return Number.isFinite(at.getTime()) ? at.toISOString() : null;
   };
 
   // Chave da conversa quando o item não tem link: estável por nome + anúncio.

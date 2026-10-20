@@ -356,7 +356,7 @@ async function readThread(tabId, thread) {
     if (!opened?.ok) return { read: { ok: false, error: opened?.error || "Não abriu a conversa." }, conversation: null };
   }
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
-  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true }, thread.full ? 300000 : 30000);
+  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "" }, thread.full ? 300000 : 30000);
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
 

@@ -173,14 +173,14 @@ test("item da caixa do Marketplace: nome, anúncio, prévia/remetente e hora", (
   assert.match(MP.itemKey("Stephanie", "2 quartos"), /^n[0-9a-f]+$/);
 });
 
-function fakeNode({ role = "", tag = "div", text = "", label = "", href = "", children = [], onClick = null, hidden = () => false } = {}) {
+function fakeNode({ role = "", tag = "div", text = "", label = "", href = "", children = [], onClick = null, hidden = () => false, rect = null, dir = "" } = {}) {
   const node = {
     tag, role, children, href,
     get innerText() { return text || children.filter((c) => !c.isHidden()).map((c) => c.innerText).join("\n"); },
     innerHTML: "",
     isHidden: hidden,
     getAttribute: (name) => (name === "aria-label" ? label || null : name === "href" ? href || null : name === "role" ? role || null : null),
-    getBoundingClientRect: () => (hidden() ? { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } : { left: 0, right: 300, top: 0, bottom: 40, width: 300, height: 40 }),
+    getBoundingClientRect: () => (hidden() ? { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } : rect || { left: 0, right: 300, top: 0, bottom: 40, width: 300, height: 40 }),
     scrollIntoView() {},
     click() { onClick?.(); },
     matches(selector) {
@@ -189,6 +189,7 @@ function fakeNode({ role = "", tag = "div", text = "", label = "", href = "", ch
         const roleMatch = part.match(/\[role="([^"]+)"\]/);
         if (roleMatch) return role === roleMatch[1] && (!part.startsWith("a") || tag === "a");
         if (part === "a[href]") return tag === "a" && Boolean(href);
+        if (part === 'div[dir="auto"]') return tag === "div" && dir === "auto";
         if (part === "[aria-label]") return Boolean(label);
         return part === tag;
       });
@@ -237,4 +238,40 @@ test("conversa criptografada sem mensagens: erro claro do PIN", () => {
   const code = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
   assert.match(code, /Restaure o histórico com o PIN do Messenger/);
   assert.ok(MP.matchesAny("O histórico de conversa está faltando. Insira seu PIN para restaurar", MP.inbox.pinTexts));
+});
+
+test("janela de chat flutuante (print do dono): lê as bolhas com lado e hora, ignora nome/faixa do anúncio e fecha a janela", async () => {
+  const state = { open: true };
+  const bubble = (text, left, right) => fakeNode({ role: "row", children: [fakeNode({ dir: "auto", text, rect: { left, right, top: 0, bottom: 20, width: right - left, height: 20 } })] });
+  const win = fakeNode({ role: "dialog", label: "Stephanie", rect: { left: 0, right: 330, top: 0, bottom: 450, width: 330, height: 450 }, hidden: () => !state.open, children: [
+    fakeNode({ text: "Stephanie · 2 quartos 1 ba…" }),
+    fakeNode({ role: "button", label: "Fechar chat", onClick: () => { state.open = false; } }),
+    fakeNode({ text: "Marketplace\nR$870 - 2 quartos 1 banheiro Apartamento\nMark as pending\nMore options" }),
+    bubble("12:23", 140, 190),
+    bubble("Stephanie", 40, 110),
+    bubble("Oi, ainda está disponível?", 40, 200),
+    bubble("Está sim! Quer agendar uma visita?", 160, 320),
+    fakeNode({ role: "textbox", label: "Aa" })
+  ] });
+  // O campo "Aa" precisa casar com [role="textbox"][contenteditable="true"] (fakeNode compara só o role).
+  const body = fakeNode({ children: [win] });
+  const doc = { body: { innerText: "" }, querySelectorAll: (sel) => body.querySelectorAll(sel), querySelector: (sel) => body.querySelector(sel) };
+  const listeners = [];
+  globalThis.document = doc;
+  globalThis.location = { href: "https://www.facebook.com/", origin: "https://www.facebook.com", pathname: "/" };
+  globalThis.chrome = { runtime: { onMessage: { addListener: (fn) => listeners.push(fn) }, sendMessage: async () => ({ ok: false }) } };
+  globalThis.__mpInboxLoaded = false;
+  new Function(readFileSync(new URL("../inbox.js", import.meta.url), "utf8"))();
+  const result = await new Promise((resolve) => listeners[0]({ type: "mp-inbox-read", threadKey: "n1", contactName: "Stephanie" }, {}, resolve));
+  assert.equal(result.ok, true, result.error);
+  assert.deepEqual(result.messages.map((m) => [m.direction, m.body]), [["inbound", "Oi, ainda está disponível?"], ["outbound", "Está sim! Quer agendar uma visita?"]]);
+  assert.ok(result.messages.every((m) => /T15:23:00\.000Z$/.test(m.at)), "hora do separador 12:23 (São Paulo)");
+  assert.equal(state.open, false, "fecha a janela depois de ler");
+});
+
+test("separador de hora da conversa", () => {
+  const now = new Date("2026-10-20T18:00:00Z");
+  assert.equal(MP.parseClockSeparator("12:23", now), "2026-10-20T15:23:00.000Z");
+  assert.equal(MP.parseClockSeparator("Ontem 08:10", now), "2026-10-19T11:10:00.000Z");
+  assert.equal(MP.parseClockSeparator("Está sim! 12:23", now), null);
 });

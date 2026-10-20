@@ -135,18 +135,50 @@
       .slice(0, 5);
   }
 
-  function visibleRows(area) {
+  // Janela de chat flutuante aberta (a menor que tem o campo "Aa"); com `name`, a que mostra esse nome no cabeçalho.
+  function chatWindow(name = "") {
+    const key = MP.normalize(name);
+    const candidates = [...document.querySelectorAll(MP.inbox.chatWindow)]
+      .filter((element) => visible(element) && element.querySelector?.(MP.inbox.composer))
+      .filter((element) => !key || MP.normalize(itemLines(element)[0] || "").includes(key));
+    const area = (element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width * rect.height;
+    };
+    return candidates.sort((a, b) => area(a) - area(b))[0] || null;
+  }
+
+  // Bolhas visíveis: linhas [role=row] ou, sem elas, cada bloco de texto. Lado pela geometria (direita = nossa);
+  // separador de hora centralizado ("12:23") vale para as mensagens seguintes; nome do cliente acima do grupo e faixa
+  // do anúncio são ignorados.
+  function visibleRows(area, contactName = "") {
     const areaRect = area.getBoundingClientRect();
+    const center = (areaRect.left + areaRect.right) / 2;
+    const nameKey = MP.normalize(contactName);
     const rows = [];
-    for (const row of area.querySelectorAll(MP.inbox.messageRows)) {
-      const textNode = [...row.querySelectorAll(MP.inbox.messageText)].find((node) => node.innerText?.trim());
-      const body = textNode ? textNode.innerText.trim() : "";
-      const attachments = bubbleAttachments(row);
+    let currentAt = null;
+    const units = [...area.querySelectorAll(MP.inbox.messageRows)];
+    const nodes = units.length ? units : [...area.querySelectorAll(MP.inbox.messageText)];
+    for (const row of nodes) {
+      const textNode = units.length ? [...row.querySelectorAll(MP.inbox.messageText)].find((node) => node.innerText?.trim()) : row;
+      const body = textNode ? String(textNode.innerText || "").trim() : "";
+      const rect = (textNode || row).getBoundingClientRect();
+      const clock = body && MP.parseClockSeparator(body);
+      if (clock && Math.abs((rect.left + rect.right) / 2 - center) < areaRect.width * 0.15) {
+        currentAt = clock;
+        continue;
+      }
+      if (nameKey && MP.normalize(body) === nameKey) continue; // nome do cliente acima do grupo
+      const attachments = units.length ? bubbleAttachments(row) : [];
       if (!body && !attachments.length) continue;
-      const bubble = (textNode || row).getBoundingClientRect();
-      rows.push({ direction: MP.directionFromGeometry(bubble, areaRect), body, attachments });
+      rows.push({ direction: MP.directionFromGeometry(rect, areaRect), body, attachments, at: currentAt });
     }
     return rows;
+  }
+
+  async function closeChatWindow(win) {
+    const button = win && [...win.querySelectorAll('[role="button"], [aria-label]')].find((element) => visible(element) && MP.matchesAny(element.getAttribute?.("aria-label"), MP.inbox.closeLabels, true));
+    if (button) await clickElement(button);
   }
 
   function scroller(area) {
@@ -160,15 +192,19 @@
 
   // Mensagens da conversa aberta, com lado pela geometria. full=true (1ª vez que a conversa é vista): sobe até o
   // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
-  async function readThread(threadKey, full = false) {
-    const area = await waitFor(() => document.querySelector(MP.inbox.messageArea), 15000);
-    const bodyText = document.body ? document.body.innerText.slice(0, 20000) : "";
-    if (MP.matchesAny(bodyText, MP.inbox.pinTexts) && (!area || !visibleRows(area).length)) {
+  async function readThread(threadKey, full = false, contactName = "") {
+    // Janela flutuante (caminho do Messenger) ou, se não houver, a área principal da página da conversa.
+    const win = await waitFor(() => chatWindow(contactName) || chatWindow(), 15000);
+    const scope = win || document;
+    const area = win ? scroller(win.querySelector(MP.inbox.messageRows)?.parentElement || win) : document.querySelector(MP.inbox.messageArea);
+    const bodyText = String(scope.innerText || document.body?.innerText || "").slice(0, 20000);
+    if (MP.matchesAny(bodyText, MP.inbox.pinTexts) && (!area || !visibleRows(area, contactName).length)) {
+      await closeChatWindow(win);
       return { ok: false, error: "Restaure o histórico com o PIN do Messenger (a conversa está criptografada e sem mensagens).", checkpoint: pageCheckpoint() };
     }
-    if (!area) return { ok: false, error: `Área de mensagens não encontrada (${location.pathname}; diálogos: ${document.querySelectorAll('[role="dialog"]').length}).`, checkpoint: pageCheckpoint() };
+    if (!area) return { ok: false, error: `Janela/área de mensagens não encontrada (${location.pathname}; janelas com campo "Aa": ${document.querySelectorAll(MP.inbox.composer).length}).`, checkpoint: pageCheckpoint() };
     await sleep(between(1200, 2200));
-    let rows = visibleRows(area);
+    let rows = visibleRows(area, contactName);
     if (full) {
       const box = scroller(area);
       // Sobe até parar de carregar (máx. 60 voltas).
@@ -179,22 +215,20 @@
         lastHeight = box.scrollHeight;
       }
       // Desce juntando as janelas.
-      rows = visibleRows(area);
+      rows = visibleRows(area, contactName);
       for (let i = 0; i < 200 && box.scrollTop + box.clientHeight < box.scrollHeight - 5; i += 1) {
         box.scrollTop += Math.max(200, box.clientHeight * 0.8);
         await sleep(between(250, 450));
-        rows = MP.mergeRowWindows(rows, visibleRows(area));
+        rows = MP.mergeRowWindows(rows, visibleRows(area, contactName));
       }
-      rows = MP.mergeRowWindows(rows, visibleRows(area));
+      rows = MP.mergeRowWindows(rows, visibleRows(area, contactName));
     }
-    const listing = document.querySelector(MP.listingLink);
-    if (!rows.length) return { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.messageRows).length} linhas na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
-    return {
-      ok: true,
-      listingUrl: listing ? MP.cleanListingUrl(listing.href) : "",
-      messages: full ? MP.buildMessages(threadKey, rows).slice(-500) : MP.buildMessages(threadKey, rows).slice(-60),
-      checkpoint: pageCheckpoint()
-    };
+    const listing = scope.querySelector?.(MP.listingLink) || document.querySelector(MP.listingLink);
+    const result = rows.length
+      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href) : "", messages: MP.buildMessages(threadKey, rows).slice(full ? -500 : -60), checkpoint: pageCheckpoint() }
+      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
+    await closeChatWindow(win); // não acumula janelas abertas
+    return result;
   }
 
   async function trusted(action, payload = {}) {
@@ -205,8 +239,8 @@
     }
   }
 
-  function lastOutboundTexts(count = 3) {
-    const area = document.querySelector(MP.inbox.messageArea);
+  function lastOutboundTexts(count = 3, win = null) {
+    const area = win || document.querySelector(MP.inbox.messageArea);
     if (!area) return [];
     const areaRect = area.getBoundingClientRect();
     return [...area.querySelectorAll(MP.inbox.messageText)]
@@ -218,7 +252,9 @@
   // Envia UMA resposta. sentAttempted=true a partir do Enter (o background não tenta de novo depois disso).
   async function sendText(text) {
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
-    const composer = await waitFor(() => [...document.querySelectorAll(MP.inbox.composer)].find((element) => visible(element) && (MP.matchesAny(element.getAttribute("aria-label"), MP.inbox.composerLabels) || MP.matchesAny(element.getAttribute("aria-placeholder"), MP.inbox.composerLabels) || true)), 15000);
+    // Campo "Aa" da janela de chat aberta (ou da página da conversa).
+    const win = await waitFor(() => chatWindow(), 15000);
+    const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
     if (!composer) return { ok: false, sentAttempted: false, error: "Campo de mensagem não encontrado." };
     composer.scrollIntoView({ block: "center" });
     await sleep(between(300, 600));
@@ -232,14 +268,15 @@
       await sleep(between(80, 260));
     }
     await sleep(between(400, 900));
-    const before = lastOutboundTexts().join("|");
+    const before = lastOutboundTexts(3, win).join("|");
     if (!(await trusted("key", { key: "Enter" }))) return { ok: false, sentAttempted: false, error: "Depurador desligado: não envio com eventos simulados." };
     const target = MP.normalize(flat);
     const confirmed = await waitFor(() => {
-      const after = lastOutboundTexts();
+      const after = lastOutboundTexts(3, win);
       return after.join("|") !== before && after.some((item) => item === target || item.includes(target.slice(0, 40)));
     }, 15000, 700);
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: true, error: "O Facebook mostrou verificação/limite depois do envio." };
+    await closeChatWindow(win); // não acumula janelas abertas
     return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
   }
 
@@ -253,7 +290,7 @@
       return true;
     }
     if (message?.type === "mp-inbox-read") {
-      readThread(message.threadKey, message.full === true).then(sendResponse);
+      readThread(message.threadKey, message.full === true, message.contactName || "").then(sendResponse);
       return true;
     }
     if (message?.type === "mp-inbox-send") {

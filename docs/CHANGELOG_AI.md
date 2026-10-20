@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: leitura e envio na janela de chat flutuante (extensão 1.8.2)
+- **Data:** 2026-10-20
+- **Área:** extensão (`inbox.js`, `selectors.js`, `background.js`).
+- **Alteração:** pelo print da conversa aberta (janela flutuante no canto do facebook.com, interface pt/en): a leitura usa a menor janela com o campo "Aa" e o nome no cabeçalho; lado da bolha pela geometria (direita = nossa); separador de hora centralizado ("12:23", "Ontem 08:10") vira `message_at` das mensagens seguintes (`MP.parseClockSeparator`); nome do cliente acima do grupo e a faixa do anúncio ("Marketplace", "Mark as pending", "More options") ignorados; envio digita no "Aa" da janela e aperta Enter (teclas reais); a janela é fechada ("Fechar chat"/"Close chat") depois de ler e de enviar.
+- **Verificação:** extensão 57 testes (fixture da janela do print).
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace: caixa lida pelo caminho real do Messenger (extensão 1.8.1)
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/` (`selectors.js`, `inbox.js`, `background.js`, `popup.js`).
