@@ -404,12 +404,10 @@ test("sem cadastro vinculado (registration_id nulo): grava só o compromisso; se
   assert.equal(journey.length, 0);
 });
 
-test("sem responsável ativo com WhatsApp válido: sem status e sem agenda; link do oficial (o botão também não aparece no cliente)", async () => {
+test("sem responsável ativo: sem status e sem agenda; link do oficial (o botão também não aparece no cliente)", async () => {
   const cases = [
     { name: "sem responsável", registration: { responsible_user_id: null } },
     { name: "responsável inativo", broker: { status: "inactive" } },
-    { name: "telefone vazio", broker: { phone: "" } },
-    { name: "telefone inválido", broker: { phone: "123" } },
     { name: "responsável inexistente", registration: { responsible_user_id: "u-que-nao-existe" } }
   ];
   for (const item of cases) {
@@ -421,6 +419,20 @@ test("sem responsável ativo com WhatsApp válido: sem status e sem agenda; link
     assert.equal(db.tables.simulation_registrations[0].status, item.registration?.status || "in_service", item.name);
     assert.equal(history.length, 0, item.name);
     assert.equal(db.tables.simulation_presentations[0].docs_forecast_count, 1, item.name);
+  }
+});
+
+// Incidente 2026-10-20: o contato vai ao número OFICIAL (PRES-25); responsável ativo SEM telefone pessoal (o dono) também
+// recebe status e atividade — antes o botão sumia para todos os clientes dele.
+test("responsável ativo sem telefone pessoal (vazio ou inválido): status, agenda e link do oficial normalmente", async () => {
+  for (const phone of ["", null, "123"]) {
+    const db = createFakeDb(seedWorld({ broker: { phone } }));
+    const { result, history } = await confirm(db);
+    assert.equal(result.kind, "ok", String(phone));
+    assert.ok(result.url.startsWith("https://wa.me/5514991056706?text="), String(phone));
+    assert.equal(db.tables.calendar_activities.length, 1, String(phone));
+    assert.equal(db.tables.simulation_registrations[0].status, "documentation_pending", String(phone));
+    assert.equal(history.length, 1, String(phone));
   }
 });
 
@@ -487,10 +499,10 @@ test("página pública e prévia só repassam o booleano ao player; o DTO nunca 
   assert.match(preview, /preview canReceiveList=\{dto\.podeReceberLista === true\}/);
   const lib = stripComments(read("lib/simulation-presentation.js"));
   const canReceive = /export async function loadReceiveListContact[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
-  assert.match(canReceive, /const ready = contact\.state === RECEIVE_CONTACT_STATE\.READY;/);
+  assert.match(canReceive, /const ready = isPresentationContactReady\(/);
   assert.match(canReceive, /return \{ ready, firstName: ready \? firstNameOf\(data\?\.name \|\| ""\) : "" \};/);
-  assert.match(canReceive, /resolveReceiveSimulationContact/); // mesma regra do "Receber minha simulação" (responsável ativo + telefone válido)
-  assert.ok(!/return[^;]*(phone|digits)/i.test(canReceive.replace(/whatsappDigits: toWhatsAppDigits\(data\.phone\)/, "")));
+  // Incidente 2026-10-20 (PRES-25): o contato vai ao número OFICIAL; o telefone pessoal do responsável nem é lido.
+  assert.ok(!/phone|digits/i.test(canReceive));
 });
 
 // ---------- player / folha ----------
@@ -707,6 +719,27 @@ test("prepareDocumentsList: bloqueia arquivado/não contactar, avisa sem simula�
   for (const status of Object.values(CLIENT_STATUS).filter((value) => !["archived", "do_not_contact"].includes(value))) {
     assert.equal((await prepareDocumentsList({ client: client(status), findSimulation: simulation, ensurePresentation: ensure })).kind, "ok", status);
   }
+});
+
+// Dono, 2026-10-20: "Copiar texto" na ficha = a MESMA lista personalizada (buildDocumentItemsFor), só formatada.
+test("prepareDocumentsList: listText é a lista personalizada do cadastro em texto (mesma fonte da apresentação)", async () => {
+  const { buildDocumentItemsFor, formatDocumentItemsText } = await import("../lib/simulation-presentation-documents.mjs");
+  const registration = { primaryIncomeType: "registered_employment", primaryMaritalStatus: "married", hasChildrenUnder18: false, pis: "123", oldestBirthDate: "1990-01-01", simulationType: "individual" };
+  const result = await prepareDocumentsList({
+    client: { id: "r1", fullName: "Camile Souza", status: "completed" },
+    findSimulation: async () => ({ id: "s1", registration }),
+    ensurePresentation: async () => ({ schemaReady: true, presentation: { token: TOKEN } })
+  });
+  assert.equal(result.kind, "ok");
+  assert.equal(result.listText, formatDocumentItemsText(buildDocumentItemsFor(registration), { intro: result.message }));
+  assert.ok(result.listText.startsWith("Olá, Camile! Segue a lista de documentos"));
+  assert.match(result.listText, /\*COMPROVANTE DE ESTADO CIVIL\*\nCertidão de casamento/);
+  assert.match(result.listText, /Os 2 últimos holerites \(sem férias\)/);
+  assert.doesNotMatch(result.listText, /PIS|DEPENDENTES/); // PIS já cadastrado e sem filhos: fora, como na imagem
+  // ficha: botão "Copiar texto" usa o listText e não registra envio
+  const sheet = read("components/clients/ClientSheet.jsx");
+  assert.match(sheet, /navigator\.clipboard\.writeText\(target\?\.listText \|\| ""\)/);
+  assert.match(sheet, /data-documents-list-copy=""/);
 });
 
 test("jornada: os dois eventos novos têm rótulo e categoria na timeline", () => {

@@ -209,6 +209,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Apresentação: "Receber lista de documentos" sem exigir telefone pessoal do responsável + "Copiar texto" na ficha
+- **Data:** 2026-10-20
+- **Área:** Apresentação `/s/<token>` (PRES-17/PRES-22/PRES-24/PRES-25), ficha do cliente (botão "Enviar lista de documentos").
+- **Problema:** cliente do dono chegou à cena "Documentos" e "não prosseguia": o botão não existia porque `podeReceberLista` exigia `admin_users.phone` válido do responsável (o dono não tem). Desde a PRES-25 o contato vai ao número oficial; o telefone pessoal não é usado nesse caminho.
+- **Alteração:** (1) `isPresentationContactReady` (`lib/receive-simulation-contact.mjs`) = responsável ativo; usado em `loadReceiveListContact` (`lib/simulation-presentation.js`; vale também para "Agendar atendimento" e "Falar com meu corretor" da Estratégia, que usam a mesma condição), em `confirmDocumentsForecast` (status → Aguardando documentação + atividade) e em `loadAppointmentContext` (`lib/client-appointments.js`; o telefone pessoal, se houver, continua só no texto do .ics). `resolveReceiveSimulationContact` fica para quem ainda o usa (`getReceiveSimulationContact`). (2) Pedido do dono: o diálogo "Enviar lista de documentos" da ficha ganhou **"Copiar texto"** — a mesma lista personalizada (`buildDocumentItemsFor`, formatada por `formatDocumentItemsText` em `lib/simulation-presentation-documents.mjs`; nenhuma exigência nova), disponível mesmo quando o envio pelo Chat está bloqueado (cliente que nunca escreveu). Copiar não registra envio nem muda status. Rota `POST /api/admin/clients/[id]/lista-documentos` devolve também `listText` (mesmo guard `requireAdminApi` + escopo `getSimulationRegistration(id, auth)`).
+- **Docs:** `docs/BUSINESS_RULES.md` PRES-17 (nota), `docs/INCIDENTES.md`.
+- **Verificação:** `node --test` documents-forecast (41), receive-simulation-contact, client-appointments, simulation-presentation*, payment-strategy, document-regression; `pnpm build` ok.
+- **Risco/observação:** o "Copiar texto" permite colar a lista no WhatsApp do aparelho mesmo sem restrição validada (regra de 2026-10-14 vale para o envio pelo CRM); foi pedido explícito do dono.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Chat do Marketplace: itens da página /marketplace/inbox e conversa que navega (extensão 1.8.4)
 - **Data:** 2026-10-20
 - **Área:** extensão (`inbox.js`, `background.js`).

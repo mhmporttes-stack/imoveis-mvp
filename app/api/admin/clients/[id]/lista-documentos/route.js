@@ -91,6 +91,8 @@ export async function POST(request, { params }) {
     return NextResponse.json(
       {
         message: result.message,
+        // Lista personalizada em texto para o botão "Copiar texto" (dono, 2026-10-20); sempre disponível, mesmo sem canal.
+        listText: result.listText || "",
         link: result.link,
         imageUrl: result.imageUrl,
         channel: channel.type,

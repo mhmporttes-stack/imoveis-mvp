@@ -823,7 +823,7 @@ export function useClientList({
       } else {
         decision = decideClientWhatsapp(client, value, { chatReady: data.chatReady === true, chatReason: data.chatReason });
       }
-      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision });
+      setDocsListTarget({ client, message: data.message, listText: data.listText || "", link: data.link, imageUrl: data.imageUrl, decision });
     });
   }
 

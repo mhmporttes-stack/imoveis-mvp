@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-20 — Cliente "clica em documentos e não prossegue" na apresentação /s/
+- **Data:** 2026-10-20
+- **Sintoma:** na cena "Documentos" ("…vamos montar a sua pasta…") só aparece "Rever a apresentação"; não há botão "Receber lista de documentos" (nem "Agendar atendimento" no "Próximo passo").
+- **Área:** Apresentação da simulação (PRES-17/PRES-22/PRES-25)
+- **Impacto:** todos os clientes cujo responsável não tem telefone no cadastro de usuário — hoje só o dono (28 apresentações ativas). Caso relatado: cliente do dono que abriu o link às 12h36 e tocou 3× em "Ver o que preciso para avançar".
+- **Causa raiz:** o botão (`podeReceberLista`) ainda exigia o WhatsApp PESSOAL do responsável (`resolveReceiveSimulationContact`, regra do tempo em que o cliente ia ao WhatsApp do corretor). Desde 2026-10-09/18 o contato vai ao número OFICIAL (`buildBrokerWhatsappUrl`), então o telefone pessoal não era usado, mas continuava escondendo o botão.
+- **Correção:** `isPresentationContactReady` (`lib/receive-simulation-contact.mjs`): basta responsável ATIVO — usado no DTO (`lib/simulation-presentation.js`), na confirmação (`lib/documents-forecast-store.mjs`, status/agenda) e no agendamento (`lib/client-appointments.js`). Botão volta sozinho no mesmo link (sem reenviar).
+- **Arquivos/commit:** ver `git log` de 2026-10-20 ("Apresentação: botão da lista de documentos…").
+- **Prevenção/teste:** `tests/documents-forecast.test.mjs` (responsável sem telefone recebe status/agenda), `tests/receive-simulation-contact.test.mjs`. Diagnóstico: `simulation_presentation_events` (toques sem `lista` na cena 8) + `admin_users.phone` do responsável.
+- **Status:** Corrigido
+
 ### 2026-10-19 — Corretor manda mensagem pelo WhatsApp Web e o cliente volta para a fila mesmo assim
 - **Data:** 2026-10-19
 - **Sintoma:** "ele clica no WhatsApp, abre o WhatsApp Web, envia a mensagem, mas ela não aparece no Chat e o cliente vai para outro corretor".

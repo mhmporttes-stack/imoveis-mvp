@@ -755,6 +755,20 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
   const titleId = useId();
   const [imageFile, setImageFile] = useState(null);
   const [imageState, setImageState] = useState("idle"); // idle | loading | ready | error | done
+  const [copyState, setCopyState] = useState("idle"); // idle | done | error
+
+  useEffect(() => { setCopyState("idle"); }, [target]);
+
+  // "Copiar texto" (dono, 2026-10-20): a mesma lista personalizada, em texto, para o corretor colar onde precisar. Copiar
+  // não é enviar: nada é registrado na jornada nem muda o status.
+  async function copyListText() {
+    try {
+      await navigator.clipboard.writeText(target?.listText || "");
+      setCopyState("done");
+    } catch {
+      setCopyState("error");
+    }
+  }
 
   // Busca a imagem ao abrir (envio manual): no iPhone o menu de compartilhar
   // só abre se for chamado logo no toque, sem esperar a rede.
@@ -823,8 +837,11 @@ function DocumentsListDialog({ target, onCancel, onConfirm }) {
               {viaOfficial ? "A imagem da lista, com essa mensagem como legenda, será enviada pelo número oficial, no Chat do CRM." : "A imagem da lista, com essa mensagem como legenda, será enviada pelo seu WhatsApp, no Chat do CRM."}
             </p>
           )}
+          {copyState === "done" ? <p role="status" className="mt-2 text-xs font-semibold text-success" data-documents-list-copied="">Lista copiada. Cole na conversa do cliente.</p> : null}
+          {copyState === "error" ? <p role="alert" className="mt-2 text-xs text-danger">Não foi possível copiar. Tente de novo.</p> : null}
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+            {target.listText ? <Button variant="secondary" onClick={copyListText} data-documents-list-copy="">Copiar texto</Button> : null}
             {blocked ? null : <Button onClick={onConfirm}>{external ? "Abrir no WhatsApp" : "Enviar pelo Chat"}</Button>}
           </div>
         </div>
