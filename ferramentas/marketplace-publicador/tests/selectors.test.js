@@ -119,7 +119,7 @@ test("bairro limpo também na extensão; nunca digita o bairro na localização"
   assert.equal(MP.cleanNeighborhood("Terra Verde · Marília/SP"), "Terra Verde");
   const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
   const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
-  assert.match(fill, /humanType\(control, listing\.city\)/);
+  assert.match(fill, /for \(const char of String\(listing\.city\)\)/);
   assert.doesNotMatch(fill, /neighborhood/);
   assert.match(fill, /ArrowDown/);
   assert.match(fill, /locationChosen/);
@@ -134,4 +134,53 @@ test("Verificar agora responde na hora (antes de publicar) e o popup mostra o mo
   const popup = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
   assert.match(popup, /REASON_LABELS\.verificando/);
   assert.match(popup, /describeCheck\(result\?\.reason, result\?\.waitUntil\)/);
+});
+
+// "DOM falso": objetos com innerText/outerHTML como os do Facebook (espaço não separável, spans aninhados).
+const fakeOption = (text, html = `<div role="option" class="x1" data-id="9"><span><span>${text}</span></span></div>`) => ({ innerText: text, textContent: text.replace(/\n/g, ""), outerHTML: html });
+
+test("localização (3ª tentativa real): acha a cidade com espaço não separável, 'São Paulo' e texto quebrado", () => {
+  const options = [
+    fakeOption("Barriga Verde, Rua Rio Grande do Sul, 155, Marília - SP, 17509-130, Brasil"),
+    fakeOption("17516-000 Marília, SP\nCidade"),
+    fakeOption("Marília\n139.230 número"),
+    fakeOption("Marília, SP\nCidade"),
+    fakeOption("Marília, São Paulo\nCidade")
+  ];
+  assert.equal(MP.pickLocationIndex(options.map((o) => o.innerText)), 3);
+  assert.equal(MP.pickLocationIndex(["Rua X, 10, Marília - SP", "Marília, São Paulo\nCidade"]), 1);
+  assert.equal(MP.pickLocationIndex(["Rua X, 10, Marília - SP", "Marília, São Paulo"]), 1);
+  assert.equal(MP.pickLocationIndex(["Marília​, SP Cidade"]), 0);
+  assert.equal(MP.pickLocationIndex(["Mariliana, PR\nCidade", "Marília\n139 número"]), 1);
+  assert.equal(MP.normalize("Marília, SP"), "marilia, sp");
+});
+
+test("diagnóstico: 5 primeiras opções e HTML da 1ª sem atributos", () => {
+  const text = MP.describeOptions(Array.from({ length: 7 }, (_, i) => fakeOption(`Opção ${i + 1}\nCidade`)));
+  assert.match(text, /^7 sugestões\. Primeiras: 1\) Opção 1 Cidade \| 2\)/);
+  assert.match(text, /5\) Opção 5/);
+  assert.doesNotMatch(text, /6\) Opção 6/);
+  assert.match(text, /HTML da 1ª: <div role="option"><span><span>/);
+  assert.doesNotMatch(text, /class=|data-id/);
+  assert.equal(MP.describeOptions([]), "0 sugestões. Primeiras: nenhuma.");
+});
+
+test("entrada confiável: depurador ligado na aba dedicada, desligado no fim; localização usa cliques/teclas reais", () => {
+  const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
+  assert.ok(manifest.permissions.includes("debugger"));
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /chrome\.debugger\.attach\(\{ tabId \}, "1\.3"\)/);
+  assert.match(bg, /Input\.dispatchMouseEvent/);
+  assert.match(bg, /Input\.dispatchKeyEvent/);
+  assert.match(bg, /Input\.insertText/);
+  const run = bg.slice(bg.indexOf("async function runPublication("));
+  assert.ok(run.indexOf("detachDebugger(tab.id)") < run.indexOf("chrome.tabs.remove(tab.id)"));
+  assert.match(bg, /recoverInterruptedRun/);
+  const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
+  const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
+  assert.match(fill, /trusted\("text"/);
+  assert.match(fill, /key\(control, "ArrowDown"\)/);
+  assert.match(fill, /MP\.describeOptions/);
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  assert.match(readme, /depurar este navegador/);
 });

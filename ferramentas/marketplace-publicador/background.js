@@ -1,6 +1,6 @@
 // Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
-import { CHECK_EVERY_MINUTES, REASON_LABELS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
+import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, postResult } from "./lib/crm-api.js";
 
 const ALARM = "mp-tick";
@@ -133,6 +133,64 @@ async function openPropertyForm(tabId) {
   return { ok: Boolean(state.isForm), checkpoint: Boolean(state.checkpoint), trail };
 }
 
+// --- Entrada CONFIÁVEL (chrome.debugger / CDP) ----------------------------------------------------------------
+// O autocomplete de localização do Facebook ignora eventos sintéticos (isTrusted=false). Durante a publicação a aba
+// dedicada fica com o depurador ligado (o Chrome mostra a faixa "está depurando este navegador") e o content script
+// pede cliques/teclas reais por mensagem. Desligado ao fim, sempre.
+const attachedTabs = new Set();
+const KEYS = {
+  ArrowDown: { code: "ArrowDown", windowsVirtualKeyCode: 40 },
+  Enter: { code: "Enter", windowsVirtualKeyCode: 13, text: "\r" },
+  Backspace: { code: "Backspace", windowsVirtualKeyCode: 8 },
+  Escape: { code: "Escape", windowsVirtualKeyCode: 27 },
+  a: { code: "KeyA", windowsVirtualKeyCode: 65 }
+};
+
+async function attachDebugger(tabId) {
+  try {
+    await chrome.debugger.attach({ tabId }, "1.3");
+    attachedTabs.add(tabId);
+  } catch (error) {
+    console.warn("[marketplace] depurador não ligou (segue com eventos comuns):", error?.message || error);
+  }
+}
+
+async function detachDebugger(tabId) {
+  if (!attachedTabs.has(tabId)) return;
+  attachedTabs.delete(tabId);
+  await chrome.debugger.detach({ tabId }).catch(() => {});
+}
+
+function cdp(tabId, method, params) {
+  return chrome.debugger.sendCommand({ tabId }, method, params);
+}
+
+async function trustedInput(tabId, message) {
+  if (!attachedTabs.has(tabId)) return { ok: false, reason: "sem_depurador" };
+  if (message.action === "click") {
+    const base = { x: Math.round(message.x), y: Math.round(message.y), button: "left", clickCount: 1 };
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x: base.x, y: base.y });
+    await sleep(60 + Math.floor(Math.random() * 120));
+    await cdp(tabId, "Input.dispatchMouseEvent", { ...base, type: "mousePressed" });
+    await sleep(40 + Math.floor(Math.random() * 80));
+    await cdp(tabId, "Input.dispatchMouseEvent", { ...base, type: "mouseReleased" });
+    return { ok: true };
+  }
+  if (message.action === "key") {
+    const key = KEYS[message.key];
+    if (!key) return { ok: false, reason: "tecla_desconhecida" };
+    const modifiers = message.ctrl ? 2 : 0;
+    await cdp(tabId, "Input.dispatchKeyEvent", { type: key.text ? "keyDown" : "rawKeyDown", key: message.key, modifiers, ...key });
+    await cdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", key: message.key, modifiers, code: key.code, windowsVirtualKeyCode: key.windowsVirtualKeyCode });
+    return { ok: true };
+  }
+  if (message.action === "text") {
+    await cdp(tabId, "Input.insertText", { text: String(message.text || "") });
+    return { ok: true };
+  }
+  return { ok: false, reason: "acao_desconhecida" };
+}
+
 async function screenshot(windowId) {
   try {
     return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 45 });
@@ -158,6 +216,7 @@ async function runPublication(listing) {
   // Aba NOVA e dedicada (nunca a aba em que você está navegando); fechada no final, com print em caso de falha.
   const tab = await chrome.tabs.create({ url: "about:blank", active: true });
   await sleep(500);
+  await attachDebugger(tab.id);
   let outcome;
   try {
     const form = await openPropertyForm(tab.id);
@@ -185,13 +244,24 @@ async function runPublication(listing) {
     outcome = { ok: false, clickedPublish: await reachedPublishClick(), checkpoint, step: (await loadState()).running?.step || "página do Facebook", error: `${error.message} (aba em ${current?.url || "?"})` };
   }
   if (!outcome.ok) outcome = { ...outcome, screenshot: await screenshot(tab.windowId) };
+  await detachDebugger(tab.id);
   await chrome.tabs.remove(tab.id).catch(() => {});
   return outcome;
 }
 
 // onDecision: avisa o popup assim que se sabe o resultado da verificação (antes de publicar, que leva minutos).
+// Publicação interrompida (Chrome fechado/extensão reiniciada no meio): avisa o CRM para o anúncio não ficar
+// "Publicando" até vencer as 2 h. Só pede nova tentativa se não chegou a clicar em Publicar.
+async function recoverInterruptedRun(state) {
+  if (!state.running || Date.now() - new Date(state.running.startedAt).getTime() < STALE_RUN_MS) return state;
+  const clicked = ["clicou publicar", "confirmação"].includes(state.running.step);
+  const outcome = { ok: false, clickedPublish: clicked, step: state.running.step || "?", error: "A publicação foi interrompida (Chrome ou extensão reiniciou no meio)." };
+  await postResult(await loadConfig(), state.running.listingId, buildResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno da publicação interrompida falhou:", error?.message || error));
+  return saveState(finishJob(state, outcome, new Date()));
+}
+
 async function tick(origin, onDecision = () => {}) {
-  let state = await loadState();
+  let state = await recoverInterruptedRun(await loadState());
   const decision = decideTick(state, new Date());
   if (decision.action !== "check") {
     const waitUntil = localWaitUntil(state, decision.reason);
@@ -233,8 +303,9 @@ async function tick(origin, onDecision = () => {}) {
 }
 
 // Mensagens do popup/opções e progresso da aba.
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
+    if (message?.type === "mp-trusted") return sender.tab?.id ? trustedInput(sender.tab.id, message) : { ok: false, reason: "sem_aba" };
     if (message?.type === "mp-progress") {
       const state = await loadState();
       if (state.running) await saveState({ ...state, running: { ...state.running, step: message.step } });

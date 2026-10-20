@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): localização com cliques/teclas reais (chrome.debugger) — extensão 1.5.0
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/`, tela Cadastros › Marketplace.
+- **Alteração:** a 3ª tentativa real parou de novo na localização ("campo ficou Marília; 20 sugestões abertas"): nem o clique nem o teclado sintéticos selecionaram — hipótese: o autocomplete do Facebook ignora eventos com `isTrusted=false` (**A CONFIRMAR** na próxima tentativa). Agora a aba dedicada liga `chrome.debugger` (permissão `debugger`; faixa "está depurando" explicada no README) e todo clique da extensão, a digitação da cidade e ↓/Enter da localização vão por CDP (`Input.dispatchMouseEvent`/`dispatchKeyEvent`/`insertText`), com coordenadas vindas do content script; sem depurador, cai nos eventos comuns. Escolha da opção mais tolerante (NFKC, espaço não separável, "São Paulo", spans, descarta endereço com número). Falha grava as 5 primeiras opções + trecho do HTML da 1ª (sem atributos) no erro do CRM e no histórico (1000 caracteres). Depurador sempre desligado antes de fechar a aba. Publicação interrompida (> 20 min sem fim) é devolvida ao CRM na próxima verificação. Tela do CRM confere a cada 15 s enquanto houver anúncio "Publicando" (antes só atualizava recarregando).
+- **Verificação:** extensão (34 testes, com opções falsas do DOM) e `tests/marketplace-core.test.mjs` (18); `pnpm build` limpo.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): sem intervalo de segurança (decisão do dono) — extensão 1.4.0
 - **Data:** 2026-10-20
 - **Área:** fila do CRM e agenda da extensão.

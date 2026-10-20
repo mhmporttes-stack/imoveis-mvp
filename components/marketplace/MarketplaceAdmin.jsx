@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -81,6 +81,23 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
   const [token, setToken] = useState("");
   const [photoStatus, setPhotoStatus] = useState("");
   const drag = useDragReorder((from, to) => setForm((current) => ({ ...current, photoUrls: moveItem(current.photoUrls, from, to) })));
+
+  // Enquanto algum anúncio está "Publicando", a tela confere a cada 15 s (a extensão devolve o resultado ao CRM,
+  // mas a página não sabia; o dono via "Publicando" mesmo depois da aba fechar).
+  const hasClaimed = listings.some((listing) => listing.status === "claimed");
+  useEffect(() => {
+    if (!hasClaimed) return undefined;
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      callApi("/api/admin/marketplace")
+        .then((data) => {
+          setListings(data.listings || []);
+          setPublisher(data.publisher || {});
+        })
+        .catch(() => {}); // próxima volta tenta de novo; erro de rede não deve tomar a tela
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [hasClaimed]);
 
   function setField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));

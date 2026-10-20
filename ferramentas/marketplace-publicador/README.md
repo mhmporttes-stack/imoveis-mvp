@@ -39,6 +39,10 @@ Gerar uma chave nova no CRM desliga a anterior — cole a nova nas Opções.
 - Abre sempre uma **aba nova só para isso** (nunca mexe na aba em que você está) e fecha no final. Se o formulário não abrir direto, passa pela escolha do tipo de classificado e, por último, pelo "+ Criar novo classificado" do menu; o erro mostra as páginas atingidas.
 - Limites: só publicação **bem-sucedida** conta nas 3 do dia (entre uma publicação e a próxima, 2–5 min). Depois de uma falha, tenta de novo em 15–20 min (no máximo **2 tentativas por anúncio** e 6 tentativas no dia). Se a falha foi **depois** de clicar em Publicar, não tenta de novo (evita anúncio duplicado) — confira no Facebook e, se não saiu, toque em **"Tentar de novo"** no CRM.
 
+## Faixa "está depurando este navegador" (normal)
+
+Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador Marketplace começou a depurar este navegador"**. É normal: a extensão usa esse modo para clicar e digitar como uma pessoa (o campo de localização do Facebook ignora cliques automáticos comuns). A faixa some quando a publicação termina e a aba fecha. **Não clique em "Cancelar"** na faixa durante a publicação (a extensão volta para o modo comum e a localização pode falhar).
+
 ## Popup
 
 Mostra a situação (ativo, pausado, publicando), quantas publicações hoje, quando pode publicar de novo, a última verificação e o histórico. **Pausar** para tudo até você tocar em **Retomar** (Retomar também encerra a pausa de 24 h depois de você resolver a verificação no Facebook). **Verificar agora** respeita as mesmas regras de horário e limite.

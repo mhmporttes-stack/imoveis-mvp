@@ -95,7 +95,7 @@ export function finishJob(state, outcome = {}, now = new Date(), random = Math.r
     status: outcome.ok ? "published" : "failed",
     url: outcome.url || "",
     step: outcome.step || "",
-    error: outcome.ok ? "" : String(outcome.error || "").slice(0, 300),
+    error: outcome.ok ? "" : String(outcome.error || "").slice(0, 1000),
     screenshot: outcome.screenshot || ""
   };
   const { dateKey } = saoPauloParts(now);

@@ -99,7 +99,32 @@
     );
   }
 
+  // Entrada confiável pelo background (chrome.debugger). Devolve false se o depurador não estiver ligado.
+  async function trusted(action, payload = {}) {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: "mp-trusted", action, ...payload });
+      return Boolean(result?.ok);
+    } catch {
+      return false;
+    }
+  }
+
+  async function trustedClick(element) {
+    element.scrollIntoView({ block: "center", behavior: "auto" });
+    await sleep(between(250, 500));
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + Math.min(rect.height / 2, 18);
+    return trusted("click", { x, y });
+  }
+
+  // Clique: real (depurador) quando disponível; senão, eventos sintéticos de sempre.
   async function humanClick(element) {
+    if (await trustedClick(element)) {
+      await sleep(between(400, 1000));
+      return;
+    }
     element.scrollIntoView({ block: "center", behavior: "smooth" });
     await sleep(between(250, 700));
     for (const type of ["pointerover", "pointerdown", "mousedown", "pointerup", "mouseup"]) {
@@ -185,59 +210,60 @@
     if ("value" in control && control.value) setNativeValue(control, "");
   }
 
-  // Clique "de verdade" no centro do item (o Facebook escuta pointer/mouse no elemento que está por cima).
-  async function clickAtCenter(element) {
-    element.scrollIntoView({ block: "center" });
-    await sleep(between(200, 500));
-    const rect = element.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + Math.min(rect.height / 2, 20);
-    const target = document.elementFromPoint(x, y) || element;
-    for (const type of ["pointerover", "pointerenter", "mouseover", "pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-      const init = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0, buttons: type.endsWith("down") ? 1 : 0, pointerType: "mouse", isPrimary: true };
-      target.dispatchEvent(type.startsWith("pointer") ? new PointerEvent(type, init) : new MouseEvent(type, init));
-      await sleep(between(10, 40));
-    }
-    await sleep(between(600, 1200));
-  }
-
   function locationChosen(control, city) {
     const value = MP.normalize(control.value ?? control.innerText);
-    return value.startsWith(MP.normalize(city)) && !locationOptions().length;
+    return value.includes(MP.normalize(city)) && !locationOptions().length;
   }
 
   function pressKey(control, key) {
     for (const type of ["keydown", "keyup"]) control.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true, cancelable: true }));
   }
 
-  // Digita só a cidade ("Marília") — nunca o bairro — e escolhe "Marília, SP · Cidade". Confirma que o campo mudou.
+  async function key(control, name, options = {}) {
+    if (!(await trusted("key", { key: name, ...options }))) pressKey(control, name);
+  }
+
+  // Digita só a cidade ("Marília") com teclas reais, escolhe "Marília, SP · Cidade" com clique real e confirma que a
+  // lista fechou com a cidade no campo. Último recurso: ↓ até a opção + Enter (reais). Falhou → erro com as 5
+  // primeiras opções e um trecho do HTML da 1ª.
   async function fillLocation(listing) {
     const field = MP.fields.location;
     progress("localização");
     const control = await waitFor(() => findControl(field.labels) || [...document.querySelectorAll(field.fallback)].find(visible) || null, 8000);
     if (!control) throw new StepError(currentStep, "Campo de localização (ícone de pino) não encontrado.");
-    clearInput(control);
-    await humanType(control, listing.city);
+    await humanClick(control);
+    control.focus();
+    await key(control, "a", { ctrl: true });
+    await key(control, "Backspace");
+    if ("value" in control && control.value) clearInput(control);
+    for (const char of String(listing.city)) {
+      if (!(await trusted("text", { text: char }))) document.execCommand("insertText", false, char);
+      await sleep(between(90, 220));
+    }
     const options = await waitFor(() => (locationOptions().length ? locationOptions() : null), 10000);
     if (!options) throw new StepError(currentStep, `O Facebook não mostrou sugestões para "${listing.city}".`);
-    await sleep(between(800, 1500)); // a lista termina de carregar
-    const current = locationOptions();
-    const index = MP.pickLocationIndex(current.map((element) => element.innerText), listing.city, listing.state);
+    await sleep(between(1000, 1600)); // a lista termina de carregar
+    let current = locationOptions();
+    const index = MP.pickLocationIndex(current.map((element) => element.innerText || element.textContent || ""), listing.city, listing.state);
 
     if (index >= 0) {
-      await clickAtCenter(current[index]);
+      await humanClick(current[index]);
+      await sleep(between(600, 1000));
       if (locationChosen(control, listing.city)) return;
     }
-    // Último recurso: teclado (↓ até a opção escolhida, ou a 1ª, e Enter).
-    control.focus();
-    for (let i = 0; i <= Math.max(0, index); i += 1) {
-      pressKey(control, "ArrowDown");
-      await sleep(between(150, 300));
+    current = locationOptions();
+    if (current.length) {
+      control.focus();
+      const target = Math.max(0, MP.pickLocationIndex(current.map((element) => element.innerText || element.textContent || ""), listing.city, listing.state));
+      for (let i = 0; i <= target; i += 1) {
+        await key(control, "ArrowDown");
+        await sleep(between(150, 300));
+      }
+      await key(control, "Enter");
+      await sleep(between(800, 1400));
+      if (locationChosen(control, listing.city)) return;
     }
-    pressKey(control, "Enter");
-    await sleep(between(800, 1400));
-    if (locationChosen(control, listing.city)) return;
-    throw new StepError(currentStep, `Não consegui escolher "${listing.city}, ${listing.state}" na localização (campo ficou "${control.value ?? ""}"; ${locationOptions().length} sugestões abertas).`);
+    throw new StepError(currentStep, `Não consegui escolher "${listing.city}, ${listing.state}" (campo ficou "${control.value ?? ""}"; opção escolhida: ${index + 1}). ${MP.describeOptions(locationOptions().length ? locationOptions() : current)}`);
   }
 
   // Campos obrigatórios que ficaram vazios (para explicar o "Avançar" desabilitado).

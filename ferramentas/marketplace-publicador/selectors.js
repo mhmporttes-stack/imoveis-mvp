@@ -107,6 +107,9 @@
   // Comparação sem acento, sem caixa e com espaços normalizados.
   MP.normalize = function normalize(text) {
     return String(text || "")
+      .normalize("NFKC")
+      .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+      .replace(/[\u00A0\u202F\u2007]/g, " ")
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "")
       .replace(/[’']/g, "'")
@@ -137,17 +140,31 @@
     return MP.matchesAny(pageText, MP.checkpointTexts);
   };
 
-  // Sugestão de localização a escolher (formulário real, 2026-10-20: a lista mistura ruas, CEPs e cidades).
-  // Preferência: título "Marília, SP" com subtítulo "Cidade"; depois o 1º título "Marília, SP"; depois o 1º que
-  // comece com "Marília". -1 = nenhuma.
+  // Sugestão de localização a escolher (formulário real, 2026-10-20: a lista mistura ruas, CEPs, outras cidades e
+  // várias "Marília, SP · Cidade"; o texto pode vir com espaço não separável e em spans aninhados).
+  // 1º: contém "marilia" + ("sp" ou "sao paulo") + "cidade"; 2º: contém "marilia" + ("sp"/"sao paulo") e NÃO é
+  // endereço (sem número/CEP); 3º: 1ª que começa com "marilia". -1 = nenhuma.
   MP.pickLocationIndex = function pickLocationIndex(texts, city = "Marília", state = "SP") {
-    const lines = texts.map((text) => String(text || "").split("\n").map((line) => MP.normalize(line)).filter(Boolean));
-    const target = MP.normalize(`${city}, ${state}`);
     const cityKey = MP.normalize(city);
-    let index = lines.findIndex((item) => item[0] === target && item.slice(1).some((line) => line === "cidade" || line === "city"));
-    if (index < 0) index = lines.findIndex((item) => item[0] === target);
-    if (index < 0) index = lines.findIndex((item) => (item[0] || "").startsWith(cityKey));
+    const stateKeys = [MP.normalize(state), "sao paulo"];
+    const items = texts.map((text) => MP.normalize(text));
+    const hasCity = (text) => new RegExp(`(^|[^a-z])${cityKey}([^a-z]|$)`).test(text);
+    const hasState = (text) => stateKeys.some((key) => new RegExp(`(^|[^a-z])${key}([^a-z]|$)`).test(text));
+    const firstLine = (index) => MP.normalize(String(texts[index] || "").split("\n")[0]);
+    const isAddress = (index) => /\d/.test(firstLine(index));
+    let index = items.findIndex((text, i) => hasCity(text) && hasState(text) && /(^|[^a-z])(cidade|city)([^a-z]|$)/.test(text) && !isAddress(i));
+    if (index < 0) index = items.findIndex((text, i) => hasCity(text) && hasState(text) && !isAddress(i));
+    if (index < 0) index = items.findIndex((text) => text.startsWith(cityKey) && hasCity(text));
     return index;
+  };
+
+  // Diagnóstico de falha na localização: textos das 5 primeiras opções e um trecho do HTML da 1ª (sem atributos de
+  // dados; nomes de lugar não são dado pessoal).
+  MP.describeOptions = function describeOptions(options) {
+    const list = [...(options || [])];
+    const texts = list.slice(0, 5).map((option, index) => `${index + 1}) ${String(option.innerText || option.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80)}`);
+    const html = list[0] ? String(list[0].outerHTML || "").replace(/\s(class|style|data-[\w-]+|id|href|src)="[^"]*"/g, "").replace(/\s+/g, " ").slice(0, 300) : "";
+    return `${list.length} sugestões. Primeiras: ${texts.join(" | ") || "nenhuma"}.${html ? ` HTML da 1ª: ${html}` : ""}`;
   };
 
   // Mesmo saneamento do CRM (lib/marketplace-core.mjs sanitizeNeighborhood) para anúncios gravados antes dele.
