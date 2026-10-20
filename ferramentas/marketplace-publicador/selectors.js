@@ -269,6 +269,49 @@
       });
   };
 
+  // Hora da última atividade a partir do rótulo da caixa de entrada ("agora", "5 min", "2 h", "3 d", "1 sem", "14:32",
+  // "ontem"). Devolve ISO ou null (desconhecido). `now` para teste.
+  MP.parseRelativeTime = function parseRelativeTime(label, now = new Date()) {
+    const text = MP.normalize(label);
+    if (!text) return null;
+    const ms = { min: 60000, h: 3600000, d: 86400000, sem: 604800000 };
+    if (/(^|\s)(agora|now|agora mesmo)(\s|$)/.test(text)) return now.toISOString();
+    let match = text.match(/(^|[^\d])(\d{1,2})\s*(min|m)\b/);
+    if (match) return new Date(now.getTime() - Number(match[2]) * ms.min).toISOString();
+    match = text.match(/(^|[^\d])(\d{1,2})\s*(h|hr|hrs|horas?)\b/);
+    if (match) return new Date(now.getTime() - Number(match[2]) * ms.h).toISOString();
+    match = text.match(/(^|[^\d])(\d{1,3})\s*(d|dias?)\b/);
+    if (match) return new Date(now.getTime() - Number(match[2]) * ms.d).toISOString();
+    match = text.match(/(^|[^\d])(\d{1,2})\s*(sem|semanas?|w)\b/);
+    if (match) return new Date(now.getTime() - Number(match[2]) * ms.sem).toISOString();
+    if (/(^|\s)(ontem|yesterday)(\s|$)/.test(text)) return new Date(now.getTime() - ms.d).toISOString();
+    match = text.match(/(^|\s)(\d{1,2}):(\d{2})(\s|$)/);
+    if (match) {
+      // Hora de hoje (fuso de São Paulo, -03:00).
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+      const at = new Date(`${day}T${match[2].padStart(2, "0")}:${match[3]}:00-03:00`);
+      return Number.isFinite(at.getTime()) && at.getTime() <= now.getTime() + 60000 ? at.toISOString() : null;
+    }
+    return null;
+  };
+
+  // Junta "janelas" de mensagens lidas enquanto rola a conversa (o Messenger só mantém parte na tela): acrescenta a
+  // janela nova ao que já foi coletado, sem repetir a parte que se sobrepõe. Chave = direção + texto.
+  MP.mergeRowWindows = function mergeRowWindows(collected = [], windowRows = []) {
+    const key = (row) => `${row.direction}|${MP.normalize(row.body)}|${(row.attachments || []).map((a) => a.url).join(",")}`;
+    const tail = collected.map(key);
+    const head = windowRows.map(key);
+    let overlap = 0;
+    for (let size = Math.min(tail.length, head.length); size > 0; size -= 1) {
+      let same = true;
+      for (let i = 0; i < size; i += 1) {
+        if (tail[tail.length - size + i] !== head[i]) { same = false; break; }
+      }
+      if (same) { overlap = size; break; }
+    }
+    return [...collected, ...windowRows.slice(overlap)];
+  };
+
   // Nome de grupo comparável: sem acento, caixa, pontuação e espaços repetidos.
   MP.normalizeGroupName = function normalizeGroupName(name) {
     return MP.normalize(name).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();

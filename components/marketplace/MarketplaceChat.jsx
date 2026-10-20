@@ -36,7 +36,7 @@ function Avatar({ name, photo }) {
   );
 }
 
-function SettingsCard() {
+function SettingsCard({ team = [] }) {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -61,6 +61,14 @@ function SettingsCard() {
       </label>
       <label className="inline-flex items-center gap-1 text-muted">até
         <input type="number" min={1} max={60} className="w-16 rounded-control border border-line px-2 py-1" value={settings.maxSendsPerHour} onChange={(event) => save({ ...settings, maxSendsPerHour: Number(event.target.value) })} /> envios por hora
+      </label>
+      <label className="inline-flex flex-wrap items-center gap-1 text-muted">Conversas novas com mensagem do dia
+        <input type="date" className="rounded-control border border-line px-2 py-1" value={settings.firstSyncDate || ""} onChange={(event) => save({ ...settings, firstSyncDate: event.target.value })} />
+        vão direto para
+        <select className="rounded-control border border-line px-2 py-1" value={settings.firstSyncAssigneeId || ""} onChange={(event) => save({ ...settings, firstSyncAssigneeId: event.target.value })}>
+          <option value="">ninguém (roleta)</option>
+          {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+        </select>
       </label>
       {message ? <span className="text-muted">{message}</span> : null}
     </Card>
@@ -150,7 +158,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
         </div>
         <Button variant="secondary" size="sm" href="/admin/chat">Chat do WhatsApp</Button>
       </header>
-      {canEditSettings ? <SettingsCard /> : null}
+      {canEditSettings ? <SettingsCard team={team} /> : null}
       {!list.ready ? <Card className="bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
       {error ? <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
 

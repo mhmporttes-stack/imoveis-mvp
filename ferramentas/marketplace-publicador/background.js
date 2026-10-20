@@ -348,8 +348,9 @@ async function readInbox(tabId) {
 async function readThread(tabId, thread) {
   await navigateAndWait(tabId, thread.threadUrl);
   await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
-  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey }, 30000);
-  return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", messages: read?.messages || [] } };
+  // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
+  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true }, thread.full ? 300000 : 30000);
+  return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
 
 async function pauseForCheckpoint(where) {
@@ -384,15 +385,25 @@ async function chatTick() {
     return decision;
   }
   const config = await loadConfig();
-  if (!config.key) return { reason: "sem_configuracao" };
+  if (!config.key) {
+    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: "sem_configuracao" } });
+    return { reason: "sem_configuracao" };
+  }
   await saveState({ ...state, chatRunning: new Date().toISOString() });
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
   await sleep(500);
-  const summary = { read: 0, sent: 0, failed: 0 };
+  // Diagnóstico do popup: o que foi listado, lido, enviado e o erro (se houver).
+  const summary = { listed: 0, read: 0, sent: 0, failed: 0, created: 0, newMessages: 0, error: "", inboxUrl: "" };
   try {
     const inbox = await readInbox(tab.id);
-    if (inbox?.checkpoint) return await pauseForCheckpoint("caixa do Marketplace");
+    summary.inboxUrl = inbox?.url || "";
+    if (inbox?.checkpoint) {
+      summary.error = "O Facebook pediu verificação/limite na caixa do Marketplace.";
+      return await pauseForCheckpoint("caixa do Marketplace");
+    }
     const threads = inbox?.threads || [];
+    summary.listed = threads.length;
+    if (!threads.length) summary.error = "Nenhuma conversa encontrada na caixa do Marketplace (seletores a calibrar ou caixa vazia).";
     const conversations = [];
     for (const thread of threadsToRead(threads, chatPreviews || {})) {
       const { read, conversation } = await readThread(tab.id, thread);
@@ -401,6 +412,8 @@ async function chatTick() {
     }
     const synced = await postChatSync(config, conversations);
     summary.read = conversations.length;
+    summary.created = synced.created || 0;
+    summary.newMessages = synced.newMessages || 0;
     await chrome.storage.local.set({ chatSettings: synced.settings || chatSettings || {}, chatPreviews: rememberPreviews(chatPreviews || {}, threads.filter((thread) => conversations.some((item) => item.threadKey === thread.threadKey))) });
     if (synced.settings?.syncEnabled === false) return { reason: "chat_desligado" };
 
@@ -417,12 +430,13 @@ async function chatTick() {
     return { reason: "chat_sincronizado", ...summary };
   } catch (error) {
     console.warn("[marketplace] sincronização do chat falhou:", error?.message || error);
-    return { reason: "chat_erro", error: error?.message || String(error) };
+    summary.error = error?.status === 401 ? "Chave recusada pelo CRM (gere outra no CRM)." : error?.message || String(error);
+    return { reason: "chat_erro", error: summary.error };
   } finally {
     await detachDebugger(tab.id);
     await chrome.tabs.remove(tab.id).catch(() => {});
     const latest = await loadState();
     await saveState({ ...latest, chatRunning: null });
-    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: `${summary.read} conversa(s) lida(s), ${summary.sent} enviada(s)${summary.failed ? `, ${summary.failed} falha(s)` : ""}` } });
+    await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: "chat_sincronizado", ...summary } });
   }
 }

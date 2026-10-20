@@ -209,6 +209,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — MKT-2: histórico completo na 1ª leitura, atribuição do dia (Jennyfer) e diagnóstico no popup (extensão 1.8.0)
+- **Data:** 2026-10-20
+- **Área:** Chat do Marketplace (CRM + extensão).
+- **Alteração:** banco sem nenhuma conversa (`marketplace_conversations` = 0) apesar de mensagem recebida pelo dono — causa **A CONFIRMAR** (extensão antiga, seletores da caixa sem calibrar ou erro na sincronização); o popup agora mostra última sincronização, conversas na caixa/lidas/novas no CRM, mensagens novas, respostas enviadas e o erro. Conversa nunca vista é lida inteira (sobe até o início e junta as janelas, `MP.mergeRowWindows`; até 500 mensagens; dedupe por id externo); hora da última atividade pelo rótulo da caixa (`MP.parseRelativeTime`) e horários em ordem (`assignMessageTimes`). Conversa nova: `routeNewConversation` — atribuição do dia configurável pelo admin (padrão 2026-10-20 → Jennyfer Zorzato, `assignDirect`: vira cliente, etiqueta, aviso, histórico), senão 24 h → roleta, senão admin; conversa antiga retomada pelo cliente entra na roleta.
+- **Verificação:** `node --test tests/marketplace-chat-core.test.mjs` (12) e extensão (52); `pnpm build` limpo.
+- **Risco/observação:** mensagens repetidas com o mesmo texto ("ok") podem ser perdidas/duplicadas entre leitura completa e incremental (id por texto + ordem); seletores da caixa seguem dependendo dos prints do dono.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace: grupos do Facebook marcados na publicação (extensão 1.7.0)
 - **Data:** 2026-10-20
 - **Área:** tela Cadastros › Marketplace, fila (`/api/marketplace/queue/**`), extensão.

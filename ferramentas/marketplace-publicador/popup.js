@@ -20,7 +20,16 @@ function render({ state, config, chatLast }) {
   status.append(line("Hoje", `${todayCount(state)} de ${DAILY_LIMIT} publicações`));
   status.append(line("Próxima publicação a partir de", fmt(state.nextAllowedAt)));
   status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${describeCheck(state.lastCheckResult, state.lastCheckWaitUntil)}`));
-  if (chatLast) status.append(line("Chat do Marketplace", `${fmt(chatLast.at)} — ${REASON_LABELS[chatLast.result] || chatLast.result}`));
+  // Diagnóstico do Chat do Marketplace (por que não chega): última sincronização, conversas, erro.
+  if (chatLast) {
+    status.append(line("Chat — última sincronização", `${fmt(chatLast.at)} — ${REASON_LABELS[chatLast.result] || chatLast.result}`));
+    if (chatLast.result === "chat_sincronizado" || chatLast.result === "chat_erro") {
+      status.append(line("Chat — conversas", `${chatLast.listed ?? 0} na caixa, ${chatLast.read ?? 0} lida(s), ${chatLast.created ?? 0} nova(s) no CRM, ${chatLast.newMessages ?? 0} mensagem(ns) nova(s), ${chatLast.sent ?? 0} resposta(s) enviada(s)`));
+    }
+    if (chatLast.error) status.append(line("Chat — erro", chatLast.error));
+  } else {
+    status.append(line("Chat do Marketplace", "ainda não sincronizou (aguarde até 2 min com o Chrome aberto)"));
+  }
   if (!config.hasKey) status.append(line("Atenção", REASON_LABELS.sem_configuracao));
   $("pause").textContent = paused ? "Retomar" : "Pausar";
   $("pause").dataset.paused = paused ? "1" : "";

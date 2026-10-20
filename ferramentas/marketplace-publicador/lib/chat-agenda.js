@@ -23,8 +23,12 @@ export function decideChatTick({ state = {}, settings = {}, now = new Date() } =
 
 // Lê só as conversas que mudaram desde a última leitura (prévia diferente ou marcada como não lida), as mais novas
 // primeiro (a lista já vem nessa ordem), no máximo 5 por rodada.
+// Conversa nunca vista (sem prévia guardada) → full: importa o histórico inteiro (dono, 2026-10-20).
 export function threadsToRead(threads = [], known = {}) {
-  return threads.filter((thread) => thread.unread || known[thread.threadKey] !== thread.preview).slice(0, MAX_THREADS_PER_ROUND);
+  return threads
+    .filter((thread) => thread.unread || known[thread.threadKey] !== thread.preview)
+    .slice(0, MAX_THREADS_PER_ROUND)
+    .map((thread) => ({ ...thread, full: !(thread.threadKey in known) }));
 }
 
 export function rememberPreviews(known = {}, threads = []) {

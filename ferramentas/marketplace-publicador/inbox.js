@@ -44,6 +44,8 @@
         contactName: (lines[0] || "").split(" · ")[0],
         listingTitle: (lines[0] || "").split(" · ").slice(1).join(" · ") || lines[1] || "",
         preview: lines[lines.length - 1] || "",
+        // Rótulo de tempo da linha ("2 h", "14:32", "3 d") → hora aproximada da última atividade.
+        lastActivityAt: lines.map((line) => MP.parseRelativeTime(line.split(" · ").pop())).find(Boolean) || null,
         unread: /font-weight:\s*(6|7|8|9)00|bold/i.test(link.innerHTML.slice(0, 2000)),
         contactPhotoUrl: photo?.getAttribute("src") || photo?.getAttribute("xlink:href") || ""
       });
@@ -58,11 +60,7 @@
       .slice(0, 5);
   }
 
-  // Mensagens visíveis da conversa aberta (as mais recentes), com lado pela geometria.
-  async function readThread(threadKey) {
-    const area = await waitFor(() => document.querySelector(MP.inbox.messageArea), 15000);
-    if (!area) return { ok: false, error: "Área de mensagens não encontrada.", checkpoint: pageCheckpoint() };
-    await sleep(between(1200, 2200));
+  function visibleRows(area) {
     const areaRect = area.getBoundingClientRect();
     const rows = [];
     for (const row of area.querySelectorAll(MP.inbox.messageRows)) {
@@ -73,11 +71,48 @@
       const bubble = (textNode || row).getBoundingClientRect();
       rows.push({ direction: MP.directionFromGeometry(bubble, areaRect), body, attachments });
     }
+    return rows;
+  }
+
+  function scroller(area) {
+    let node = area;
+    while (node && node !== document.body) {
+      if (node.scrollHeight > node.clientHeight + 20) return node;
+      node = node.parentElement;
+    }
+    return area;
+  }
+
+  // Mensagens da conversa aberta, com lado pela geometria. full=true (1ª vez que a conversa é vista): sobe até o
+  // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
+  async function readThread(threadKey, full = false) {
+    const area = await waitFor(() => document.querySelector(MP.inbox.messageArea), 15000);
+    if (!area) return { ok: false, error: "Área de mensagens não encontrada.", checkpoint: pageCheckpoint() };
+    await sleep(between(1200, 2200));
+    let rows = visibleRows(area);
+    if (full) {
+      const box = scroller(area);
+      // Sobe até parar de carregar (máx. 60 voltas).
+      for (let i = 0, lastHeight = -1, still = 0; i < 60 && still < 3; i += 1) {
+        box.scrollTop = 0;
+        await sleep(between(900, 1500));
+        still = box.scrollHeight === lastHeight ? still + 1 : 0;
+        lastHeight = box.scrollHeight;
+      }
+      // Desce juntando as janelas.
+      rows = visibleRows(area);
+      for (let i = 0; i < 200 && box.scrollTop + box.clientHeight < box.scrollHeight - 5; i += 1) {
+        box.scrollTop += Math.max(200, box.clientHeight * 0.8);
+        await sleep(between(250, 450));
+        rows = MP.mergeRowWindows(rows, visibleRows(area));
+      }
+      rows = MP.mergeRowWindows(rows, visibleRows(area));
+    }
     const listing = document.querySelector(MP.listingLink);
     return {
       ok: true,
       listingUrl: listing ? MP.cleanListingUrl(listing.href) : "",
-      messages: MP.buildMessages(threadKey, rows).slice(-60),
+      messages: full ? MP.buildMessages(threadKey, rows).slice(-500) : MP.buildMessages(threadKey, rows).slice(-60),
       checkpoint: pageCheckpoint()
     };
   }
@@ -134,7 +169,7 @@
       return true;
     }
     if (message?.type === "mp-inbox-read") {
-      readThread(message.threadKey).then(sendResponse);
+      readThread(message.threadKey, message.full === true).then(sendResponse);
       return true;
     }
     if (message?.type === "mp-inbox-send") {

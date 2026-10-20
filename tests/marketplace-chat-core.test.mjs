@@ -12,15 +12,17 @@ import {
   planOutboundResult,
   shouldRedistribute,
   toOutboxPayload,
-  validateOutboundText
+  validateOutboundText,
+  routeNewConversation,
+  assignMessageTimes
 } from "../lib/marketplace-chat-core.mjs";
 
 const now = new Date("2026-10-20T15:00:00Z");
 const ago = (min) => new Date(now.getTime() - min * 60000).toISOString();
 
 test("configuração: padrão 07–22h, ligado, 20 envios/h; valores inválidos voltam ao padrão", () => {
-  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20 });
-  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999 }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20 });
+  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstSyncAssigneeId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec", firstSyncDate: "2026-10-20" });
+  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstSyncAssigneeId: "", firstSyncDate: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstSyncAssigneeId: "", firstSyncDate: "" });
 });
 
 test("sincronização: valida conversa e mensagens; descarta o que não é do Marketplace/https", () => {
@@ -142,4 +144,23 @@ test("conversa distribuída vira cliente só com o nome (dono, 2026-10-20): banc
   assert.match(lib, /notification_type: "new_client"/);
   assert.match(lib, /markClientOnHumanMessage\(conversation\.client_id/);
   assert.match(lib, /responsible_user_id: brokerId/, "redistribuição leva o cliente junto");
+});
+
+test("1ª sincronização (dono, 2026-10-20): conversa com mensagem de hoje → Jennyfer; últimas 24 h → roleta; mais antiga → admin", () => {
+  const settings = normalizeChatSettings({});
+  const now10h = new Date("2026-10-20T13:00:00Z"); // 10h em São Paulo
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-20T11:00:00Z", now: now10h, settings }), { kind: "assignee", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-19T20:00:00Z", now: now10h, settings }), { kind: "roulette" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-12T20:00:00Z", now: now10h, settings }), { kind: "admin" });
+  // Só vale na data configurada.
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-21T13:00:00Z", now: new Date("2026-10-21T14:00:00Z"), settings }), { kind: "roulette" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-20T11:00:00Z", now: now10h, settings: { ...settings, firstSyncAssigneeId: "" } }), { kind: "roulette" });
+});
+
+test("histórico importado ganha horários em ordem até a última atividade", () => {
+  const timed = assignMessageTimes([{ body: "a" }, { body: "b" }, { body: "c", at: "2026-10-20T10:00:00.000Z" }], "2026-10-20T12:00:00Z");
+  assert.deepEqual(timed.map((m) => m.at), ["2026-10-20T11:59:58.000Z", "2026-10-20T11:59:59.000Z", "2026-10-20T10:00:00.000Z"]);
+  const [first] = normalizeSyncPayload({ conversations: [{ threadKey: "1", lastActivityAt: "2026-10-20T12:00:00Z", messages: Array.from({ length: 600 }, (_, i) => ({ externalId: `h:${i}`, direction: "inbound", body: `m${i}` })) }] });
+  assert.equal(first.messages.length, 500, "histórico até 500 mensagens por conversa");
+  assert.equal(first.lastActivityAt, "2026-10-20T12:00:00.000Z");
 });

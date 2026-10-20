@@ -173,6 +173,8 @@ export const REASON_LABELS = {
   intervalo_seguranca: "Aguardando intervalo de segurança",
   verificando: "Verificando…",
   chat_em_andamento: "Chat do Marketplace sincronizando — tenta de novo em instantes",
+  chat_sincronizado: "Sincronizou",
+  chat_erro: "Falhou",
   chat_desligado: "Sincronização do chat desligada no CRM",
   chat_fora_do_horario: "Chat fora do horário configurado",
   publicando: "Publicando agora — acompanhe pela aba do Facebook",

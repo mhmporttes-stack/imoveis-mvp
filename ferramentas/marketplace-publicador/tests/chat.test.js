@@ -128,3 +128,37 @@ test("inbox.js nunca envia com evento simulado (sem depurador = não envia)", ()
   assert.match(code, /MP\.inbox\.threadLinks/);
   assert.doesNotMatch(code, /messages\/t\/["'`]\s*\)/, "não abre a lista geral do Messenger");
 });
+
+test("1ª vez que vê a conversa: lê o histórico inteiro (full); depois só incremental", () => {
+  const threads = [{ threadKey: "a", preview: "oi", unread: false }, { threadKey: "b", preview: "novo", unread: false }];
+  const read = threadsToRead(threads, { a: "antigo" });
+  assert.deepEqual(read.map((t) => [t.threadKey, t.full]), [["a", false], ["b", true]]);
+});
+
+test("hora da última atividade pelo rótulo da caixa", () => {
+  const now = new Date("2026-10-20T15:00:00Z");
+  assert.equal(MP.parseRelativeTime("agora", now), now.toISOString());
+  assert.equal(MP.parseRelativeTime("5 min", now), "2026-10-20T14:55:00.000Z");
+  assert.equal(MP.parseRelativeTime("2 h", now), "2026-10-20T13:00:00.000Z");
+  assert.equal(MP.parseRelativeTime("3 d", now), "2026-10-17T15:00:00.000Z");
+  assert.equal(MP.parseRelativeTime("1 sem", now), "2026-10-13T15:00:00.000Z");
+  assert.equal(MP.parseRelativeTime("10:32", now), "2026-10-20T13:32:00.000Z");
+  assert.equal(MP.parseRelativeTime("Ana Souza", now), null);
+});
+
+test("junta as janelas da rolagem sem repetir a sobreposição", () => {
+  const r = (direction, body) => ({ direction, body, attachments: [] });
+  const merged = MP.mergeRowWindows([r("inbound", "Oi"), r("outbound", "Olá"), r("inbound", "Tem garagem?")], [r("outbound", "Olá"), r("inbound", "Tem garagem?"), r("outbound", "Tem sim"), r("inbound", "ok")]);
+  assert.deepEqual(merged.map((m) => m.body), ["Oi", "Olá", "Tem garagem?", "Tem sim", "ok"]);
+  assert.deepEqual(MP.mergeRowWindows([], [r("inbound", "a")]).map((m) => m.body), ["a"]);
+});
+
+test("popup mostra o diagnóstico do chat (última sincronização, conversas, erro)", () => {
+  const popup = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+  assert.match(popup, /Chat — última sincronização/);
+  assert.match(popup, /Chat — conversas/);
+  assert.match(popup, /Chat — erro/);
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /full: thread\.full === true/);
+  assert.match(bg, /lastActivityAt: thread\.lastActivityAt/);
+});
