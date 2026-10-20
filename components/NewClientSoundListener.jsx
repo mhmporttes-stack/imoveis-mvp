@@ -48,10 +48,18 @@ export default function NewClientSoundListener({ userId }) {
       }
     }
 
+    // Continua consultando com a aba oculta (de propósito): o som avisa o corretor de cliente novo da roleta, que tem
+    // prazo curto de atendimento — pausar faria o aviso só tocar quando ele voltasse ao CRM. Ao voltar a ficar
+    // visível também checa na hora (2026-10-20).
     const intervalId = setInterval(poll, POLL_INTERVAL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [userId]);
 

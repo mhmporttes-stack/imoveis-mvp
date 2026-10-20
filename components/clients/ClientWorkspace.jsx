@@ -21,7 +21,7 @@ import { useChatHidden } from "@/components/WhatsappAccessProvider";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
-import ClientSheet from "./ClientSheet";
+import ClientSheet, { DocumentsListDialog } from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
 import { PAGE_SIZE_OPTIONS, datePresetRange, formatDateRangeLabel } from "./client-format";
 import { useClientList } from "./useClientList";
@@ -294,6 +294,13 @@ export default function ClientWorkspace(props) {
         canReturnAssignedProspecting={canReturnAssignedProspecting}
         isOwner={isOwner}
         responsibleName={openClient ? responsibleNameOf(openClient) : ""}
+      />
+
+      {/* Prévia da "Lista de documentos": aberta pelo card ou pela ficha (fica aqui para funcionar com a ficha fechada). */}
+      <DocumentsListDialog
+        target={list.docsListTarget}
+        onCancel={list.cancelDocumentsList}
+        onConfirm={list.confirmDocumentsList}
       />
 
       {confirmElement}

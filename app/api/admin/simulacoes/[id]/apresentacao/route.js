@@ -15,11 +15,14 @@ import { logClientJourneyEvent, resolveActorSnapshot } from "@/lib/client-journe
 import { readPaymentStrategy } from "@/lib/payment-strategy";
 import { findOpenOfficialConversationId } from "@/lib/whatsapp-chat";
 import {
+  PRESENTATION_LINK_COPIED_EVENT,
+  PRESENTATION_LINK_COPIED_JOURNEY_TEXT,
   PRESENTATION_SENT_EVENT,
   PRESENTATION_SENT_JOURNEY_TEXT,
   buildPresentationSendMessage,
   canSendPresentationTo
 } from "@/lib/simulation-presentation-send.mjs";
+import { loadPresentationSendState } from "@/lib/simulation-sent-evidence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +32,8 @@ export const dynamic = "force-dynamic";
 // próprios clientes; associado os do corretor vinculado). Nada daqui é público.
 //   GET  → estado do link + métricas discretas
 //   POST → { action: "enviar-preparar" } (get-or-create + mensagem com o link; não envia) / { action: "enviar-registrar" } (jornada)
+//   POST → { action: "copiar-registrar" } (dono, 2026-10-19): "Copiar link" fica na jornada como COPIADO (presentation_link_copied),
+//          nunca como enviado — não conta como envio (FUN-13) nem como atendimento (FUN-15f)
 //   POST → { action: "generate" } (idempotente: devolve o mesmo link) ou { action: "regenerate" } (revoga e cria novo)
 //   POST → { action: "aprovacao" } — RECUSADO (409): a "Apresentação de aprovação" liga sozinha quando o cliente está em
 //          "Cliente aprovado" ou etapa posterior (REGRA OFICIAL — dono, 2026-10-19; substitui a chave manual do PRES-21).
@@ -70,9 +75,20 @@ async function stateBody(simulation, result, request) {
     console.error("[apresentacao] nao foi possivel ler a estrategia de pagamento:", error?.message || error);
     return null;
   }) : null;
+  // Linha "envio não registrado" do painel (dono, 2026-10-19): só faz sentido com link já aberto pelo cliente. Falha de leitura
+  // não derruba o painel (a linha só não aparece) e fica no log.
+  const sendState = presentation?.firstOpenedAt && simulation.registrationId
+    ? await loadPresentationSendState(simulation.registrationId).catch((error) => {
+      console.error("[apresentacao] nao foi possivel ler a prova de envio:", error?.message || error);
+      return null;
+    })
+    : null;
   return {
     schemaReady: true,
     ready: sceneCount > 0,
+    // Sem permissão de contato (arquivado / Não contactar): o "Enviar simulação" do painel fica desativado.
+    canContact: canSendPresentationTo(simulation.registration),
+    sendState,
     sceneCount,
     // Apresentação de aprovação automática (dono, 2026-10-19): ligada pela etapa atual do cliente, sem chave manual.
     approvalEnabled: isApprovalPresentation(simulation),
@@ -115,7 +131,7 @@ export async function POST(request, { params }) {
   } catch {
     payload = {};
   }
-  const action = ["regenerate", "enviar-preparar", "enviar-registrar", "aprovacao"].includes(payload?.action) ? payload.action : "generate";
+  const action = ["regenerate", "enviar-preparar", "enviar-registrar", "copiar-registrar", "aprovacao"].includes(payload?.action) ? payload.action : "generate";
 
   try {
     const { simulation, auth } = loaded;
@@ -162,6 +178,19 @@ export async function POST(request, { params }) {
         })(),
         { headers: { "Cache-Control": "no-store" } }
       );
+    }
+
+    if (action === "copiar-registrar") {
+      const copiedAt = new Date().toISOString();
+      if (simulation.registrationId) {
+        await logClientJourneyEvent({
+          clientId: simulation.registrationId,
+          eventType: PRESENTATION_LINK_COPIED_EVENT,
+          actor: resolveActorSnapshot(auth),
+          details: { text: PRESENTATION_LINK_COPIED_JOURNEY_TEXT }
+        });
+      }
+      return NextResponse.json({ ok: true, copiedAt, recorded: Boolean(simulation.registrationId) }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (action === "aprovacao") {

@@ -791,14 +791,13 @@ export function useClientList({
 
   // "Enviar lista de documentos" (round 4): o servidor monta texto + link da lista PERSONALIZADA; a mensagem só sai depois que o
   // corretor confirma a prévia (nunca sozinha). Não muda o status do cliente.
-  async function prepareDocumentsList(client) {
+  // Dono, 2026-10-20: o botão nunca some; sem canal de envio a prévia abre só com "Copiar texto" + o motivo do bloqueio.
+  // `accessBlocked`: acesso ao WhatsApp bloqueado para o usuário (WhatsappAccessProvider) → nunca envia, só copia.
+  async function prepareDocumentsList(client, { accessBlocked = false } = {}) {
     const registrationId = client.registration?.id;
     const value = client.registration?.phoneNormalized || client.registration?.phone;
     if (!registrationId) return;
-    if (!toWhatsAppDigits(value)) {
-      notify("Este cliente não tem um WhatsApp válido. Corrija o telefone no cadastro.", "danger");
-      return;
-    }
+    const phoneValid = Boolean(toWhatsAppDigits(value));
     await withBusy(client, async () => {
       const response = await fetch(`/api/admin/clients/${registrationId}/lista-documentos`, {
         method: "POST",
@@ -813,7 +812,11 @@ export function useClientList({
       // Canal decidido pelo SERVIDOR (dono, 2026-10-14): oficial (janela aberta) → WhatsApp do corretor no Chat →
       // WhatsApp do aparelho só com restrição validada → senão não envia.
       let decision;
-      if ((data.channel === "official" || data.channel === "individual") && data.conversationId) {
+      if (accessBlocked) {
+        decision = { action: "blocked", reason: "access_blocked" };
+      } else if (!phoneValid) {
+        decision = { action: "blocked", reason: "no_phone" };
+      } else if ((data.channel === "official" || data.channel === "individual") && data.conversationId) {
         decision = { action: "chat", channel: data.channel, conversationId: data.conversationId };
       } else if (data.channel === "external") {
         const url = buildExternalWhatsappUrl(value, readCardDevice());
@@ -823,7 +826,7 @@ export function useClientList({
       } else {
         decision = decideClientWhatsapp(client, value, { chatReady: data.chatReady === true, chatReason: data.chatReason });
       }
-      setDocsListTarget({ client, message: data.message, link: data.link, imageUrl: data.imageUrl, decision });
+      setDocsListTarget({ client, message: data.message, listText: data.listText || "", link: data.link, imageUrl: data.imageUrl, decision });
     });
   }
 
@@ -889,6 +892,25 @@ export function useClientList({
     });
   }
 
+  // "Recebi documentos por fora" (dono, 2026-10-19): só um evento na linha do tempo — não conta como atendimento nem como
+  // ponto. `undo` desfaz logo depois de marcar (a tela oferece por 10 s). Devolve true quando gravou.
+  async function setDocumentReceivedOffline(client, { undo = false } = {}) {
+    return withBusy(client, async () => {
+      const response = await fetch("/api/admin/client-documents/received-offline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: client.id, undo })
+      }).catch(() => null);
+      const data = response ? await response.json().catch(() => ({})) : {};
+      if (!response?.ok) {
+        notify(data.error || "Não foi possível marcar agora. Tente de novo.", "danger");
+        return false;
+      }
+      setItems((current) => current.map((item) => (item.id === client.id && item.documentsOffline ? { ...item, documentsOffline: { receivedAt: data.receivedAt || "" } } : item)));
+      return true;
+    });
+  }
+
   async function copyBrokerSimulationLink() {
     try {
       await navigator.clipboard.writeText(brokerSimulationLink);
@@ -909,6 +931,6 @@ export function useClientList({
     handleProspectingAction, confirmStatusReason, cancelStatusReason: () => setReasonTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
-    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
+    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, setDocumentReceivedOffline, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
   };
 }

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel do Seguidor</title>
+  <link rel="stylesheet" href="painel.css">
+  <style>
+    main { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 760px) { .colunas { grid-template-columns: 1fr; } }
+    .grade4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .rolagem { max-height: 520px; overflow: auto; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="linha entre" style="margin-bottom:12px">
+    <h1>Seguidor Instagram — painel</h1>
+    <span id="status" class="pilula ligada">…</span>
+  </div>
+
+  <div id="caixaAlerta" class="cartao alerta" hidden>
+    <div class="linha entre">
+      <strong>Atenção</strong>
+      <button id="btnLimparAlerta" class="secundario">Ocultar aviso</button>
+    </div>
+    <div id="textoAlerta" style="white-space:pre-line;word-break:break-word"></div>
+    <button id="btnRetomarAgora" class="perigo" style="margin-top:8px" hidden>Retomar agora</button>
+  </div>
+
+  <div class="cartao">
+    <div class="linha entre">
+      <div><div class="suave">Próxima ação</div><div id="proxima">—</div></div>
+      <div class="linha">
+        <button id="btnPausar" class="secundario">Pausar</button>
+        <button id="btnRetomar">Retomar</button>
+      </div>
+    </div>
+    <div class="grade4" style="margin-top:10px">
+      <div><div class="num" id="cSeguidos">0</div><div class="suave">seguidos hoje</div></div>
+      <div><div class="num" id="cDeixados">0</div><div class="suave">deixados de seguir</div></div>
+      <div><div class="num" id="cFollowBacks">0</div><div class="suave">follow-backs</div></div>
+      <div><div class="num" id="cDms">0</div><div class="suave">DMs enviadas</div></div>
+    </div>
+    <div class="suave" style="margin-top:8px">
+      Fila: <strong id="tamFila">0</strong> · origem atual: <span id="origemAtual">—</span> ·
+      seguidos pela extensão aguardando retorno: <strong id="aguardando">0</strong> ·
+      janela: 05:00–22:00 (São Paulo)
+    </div>
+  </div>
+
+  <div class="cartao">
+    <h2>Perfil de referência e descartes</h2>
+    <div id="infoOrigem" style="white-space:pre-line;word-break:break-word">Nenhuma busca ainda — use o popup para buscar um @perfil público.</div>
+    <div class="suave" id="infoUltimaBusca" style="margin-top:6px;white-space:pre-line;word-break:break-word"></div>
+  </div>
+
+  <div class="colunas">
+    <div class="cartao">
+      <h2>Configuração</h2>
+      <label class="campo"><span>Limite diário de SEGUIR</span><input type="number" id="limiteDiario" min="0" max="50"></label>
+      <label class="campo"><span>Máximo diário de DEIXAR DE SEGUIR</span><input type="number" id="limiteUnfollowDiario" min="0" max="30"></label>
+      <label class="campo"><span>Deixar de seguir depois de (dias sem seguir de volta)</span><input type="number" id="diasParaUnfollow" min="1" max="30"></label>
+      <label class="campo"><span>Máximo de perfis lidos por busca de origem</span><input type="number" id="maxBusca" min="25" max="2000"></label>
+      <label class="opcao"><input type="checkbox" id="pularPrivados"> Pular perfis privados</label>
+      <label class="opcao"><input type="checkbox" id="pularSemFoto"> Pular contas sem foto</label>
+      <label class="opcao"><input type="checkbox" id="dmAtiva"> Enviar DM de boas-vindas no follow-back</label>
+      <div class="linha" style="margin-top:8px">
+        <button id="btnSalvar">Salvar</button>
+        <span class="suave" id="salvoMsg"></span>
+      </div>
+    </div>
+    <div class="cartao">
+      <h2>Mensagem de boas-vindas (DM)</h2>
+      <textarea id="mensagem"></textarea>
+      <div class="linha" style="margin-top:8px">
+        <button id="btnRestaurarMsg" class="secundario">Restaurar texto original</button>
+        <span class="suave">Enviada uma única vez por pessoa, 1–3 min após seguir de volta.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cartao">
+    <div class="linha entre" style="margin-bottom:8px">
+      <h2 style="margin:0">Histórico</h2>
+      <div class="linha">
+        <input type="text" id="filtro" placeholder="filtrar por @ ou ação" style="width:220px">
+        <button id="btnCsv">Exportar CSV</button>
+        <button id="btnLimparFila" class="perigo">Limpar fila</button>
+      </div>
+    </div>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>Data (SP)</th><th>Perfil</th><th>Ação</th><th>Resultado</th><th>Origem</th></tr></thead>
+        <tbody id="historico"></tbody>
+      </table>
+    </div>
+    <div class="suave" style="margin-top:6px">Mostrando os 300 mais recentes; o CSV traz tudo (até 3000 linhas).</div>
+  </div>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>

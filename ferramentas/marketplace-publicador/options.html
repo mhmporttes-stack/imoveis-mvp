@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Opções — Publicador Marketplace</title>
+  <link rel="stylesheet" href="painel.css" />
+</head>
+<body class="pagina">
+  <h1>Publicador do Marketplace</h1>
+  <p class="aviso">Publica sozinho no seu perfil do Facebook <strong>só</strong> os anúncios que você aprovou no CRM (Cadastros › Marketplace). Até 3 por dia, das 08:00 às 20:00, um de cada vez. O Chrome precisa estar aberto e o computador ligado.</p>
+  <form id="form">
+    <label>Endereço do CRM
+      <input id="baseUrl" type="url" required placeholder="https://www.matheusmachadoimoveis.com.br" />
+    </label>
+    <label>Chave pessoal (gerada no CRM, em Cadastros › Marketplace)
+      <input id="key" type="password" autocomplete="off" placeholder="mkp_..." />
+    </label>
+    <small>Deixe a chave em branco para manter a atual.</small>
+    <label class="linha"><input id="prints" type="checkbox" /> Guardar print da tela quando uma publicação falhar (só neste computador)</label>
+    <button type="submit">Salvar</button>
+    <p id="msg" role="status"></p>
+  </form>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

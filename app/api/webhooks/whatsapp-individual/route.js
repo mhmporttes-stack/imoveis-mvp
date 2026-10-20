@@ -6,6 +6,7 @@ import { ensureDailyGoalAutoEnabledOnConnect, redistributeBrokerQueueOnReconnect
 import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
 import { listRecentConnectEvents } from "@/lib/whatsapp-session-telemetry";
+import { UNDECRYPTED_WEBHOOK_TYPE, undecryptedOwnMessageEvent } from "@/lib/whatsapp-undecrypted-core.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,6 +123,15 @@ export async function POST(request) {
         prospecting: results.prospecting.ok ? results.prospecting.value : { error: true },
         chat: results.chat.ok ? results.chat.value : { error: true }
       }, { status: failed ? 500 : 200 });
+    }
+
+    // Saída do corretor que a sessão do CRM não conseguiu decifrar (dono, 2026-10-19): é prova de envio — entra no Chat com
+    // texto fixo e conta como contato humano (registerHumanContact) pelo mesmo caminho da mensagem do celular. Só o Chat:
+    // mensagem do próprio corretor nunca é resposta da Prospecção.
+    if (payload.type === UNDECRYPTED_WEBHOOK_TYPE) {
+      const decision = undecryptedOwnMessageEvent(payload);
+      if (decision.skip) return NextResponse.json({ ok: true, skipped: decision.skip });
+      return NextResponse.json({ ok: true, chat: await projectIndividualInboundMessage({ ...decision.event, userId, sessionSlot }) });
     }
 
     // Grupo (2026-10-11): só para a aba "Grupos" do dono — nunca passa pela Prospecção nem pelo Chat de clientes.

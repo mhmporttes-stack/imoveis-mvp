@@ -6,7 +6,7 @@ Dados enviados pelo dono: Rua Genuide Martins, 17 – Terra Verde; 2 dormitório
 
 ## Site / CRM
 
-Pendente (ver resposta ao dono).
+**No site desde 2026-10-19:** `properties` id `d04efeb9-d61f-4dc5-b9a4-b3f21e419fd6`, publicado, contato salvo (corretor parceiro, sem telefone). Fotos **provisórias** apontando para `ig/*.jpg` no GitHub (commit bc70744), porque a chave de armazenamento não valia nesta sessão; mover para `property-media` quando possível. Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/d04efeb9-d61f-4dc5-b9a4-b3f21e419fd6
 
 ## Legenda
 

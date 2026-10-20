@@ -24,7 +24,8 @@ test("todos os envios do Chat (texto, mídia, atalhos, modelos) passam pela trav
 });
 
 test("conversa sem mensagem do cliente: aviso, envio pelo app do celular e link para o cliente chamar", () => {
-  assert.match(chat, /awaitingCustomer = !\(anyInbound \|\| \[\]\)\.length;/);
+  // Exceção (dono, 2026-10-19): cliente recebido pela distribuição tem a 1ª mensagem pelo Chat (tests/distribution-first-message.test.mjs).
+  assert.match(chat, /awaitingCustomer = !\(anyInbound \|\| \[\]\)\.length && !\(await distributionFirstMessageAllowed\(conversation, awaitingOwner\)\);/);
   assert.match(chat, /archivedReadOnly, awaitingCustomer, brokerWhatsapp, individualSendDisabled[,}]/);
   const ui = readFileSync(path.join(root, "components/WhatsappChat.jsx"), "utf8");
   assert.match(ui, /conversation\.awaitingCustomer === true/);

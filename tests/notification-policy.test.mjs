@@ -9,8 +9,9 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 test("só cliente novo, atividade agendada, transferência de clientes e teste são permitidos; o resto é negado", () => {
   // whatsapp_connection: exceção do dono (2026-10-10, WA-20) — push da queda do PRÓPRIO WhatsApp, só ao corretor dono.
   // official_chat_assigned: exceção do dono (2026-10-18, PRES-25) — conversa do oficial atribuída pelo código do atendimento.
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
-  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned"]) assert.equal(isNotificationAllowed(kind), true, kind);
+  // documents_list_auto: exceção do dono (2026-10-20) — lista de documentos pedida no oficial (enviada sozinha ou pendente).
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
+  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
 
@@ -59,4 +60,6 @@ test("sino: avisos de cliente novo usam o tipo permitido; Roleta parou/Documenta
   const exception = read("supabase/migrations/20261018150000_crm_notifications_official_chat_assigned.sql");
   assert.ok(exception.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned')"));
   assert.ok(exception.includes("set search_path = public, extensions"));
+  const listAuto = read("supabase/migrations/20261020240000_crm_notifications_documents_list_auto.sql");
+  assert.ok(listAuto.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned', 'documents_list_auto')"));
 });

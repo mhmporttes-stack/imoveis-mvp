@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import PresentationPlayer from "@/components/presentation/PresentationPlayer";
-import { PRESENTATION_UPDATING_REASON, resolvePublicPresentation } from "@/lib/simulation-presentation";
+import { PRESENTATION_UPDATING_REASON, isPanelSessionViewer, resolvePublicPresentation } from "@/lib/simulation-presentation";
 import { isClientAppointmentsReady } from "@/lib/client-appointments";
 import { buildShareMetadata, shareFirstName } from "@/lib/simulation-presentation-share.mjs";
 import { PRESENTATION_VIEWPORT } from "@/lib/presentation-viewport.mjs";
@@ -31,8 +31,13 @@ export default async function PresentationPage({ params }) {
   if (!dto && reason === PRESENTATION_UPDATING_REASON) return <PresentationUpdating />;
   if (!dto) notFound();
   // "Agendar atendimento" (PRES-22): mesma condição do "Receber lista de documentos" + tabela de agendamentos já criada.
-  const canSchedule = dto.podeReceberLista === true && (await isClientAppointmentsReady());
-  return <PresentationPlayer scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} canSchedule={canSchedule} strategy={dto.estrategia || null} />;
+  // Métrica "equipe" (lote A, 2026-10-19): o servidor desta página confere se quem abre tem sessão do painel. Vai como prop
+  // separada (nunca no DTO) e só marca os eventos de abertura/toque.
+  const [canSchedule, teamViewer] = await Promise.all([
+    dto.podeReceberLista === true ? isClientAppointmentsReady() : false,
+    isPanelSessionViewer()
+  ]);
+  return <PresentationPlayer teamViewer={teamViewer === true} scenes={dto.scenes} branch={dto.branch} token={token} canReceiveList={dto.podeReceberLista === true} canSchedule={canSchedule} attendantName={dto.atendentePrimeiroNome || ""} strategy={dto.estrategia || null} />;
 }
 
 function PresentationUpdating() {

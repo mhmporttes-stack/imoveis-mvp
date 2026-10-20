@@ -39,6 +39,37 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-20 — Pedido da lista de documentos respondido com o menu de boas-vindas
+- **Data:** 2026-10-20
+- **Sintoma:** cliente mandou ao oficial o texto pronto "…Pode me mandar a lista do meu caso? Código do atendimento: MM-…" e o robô respondeu "Boa tarde… Como podemos te ajudar?" com os botões Fazer simulação / Já sou cliente / Tenho uma dúvida.
+- **Área:** WhatsApp / Fluxos / Apresentação
+- **Impacto:** todo cliente que pede a lista (ou usa outro botão do link) e cuja conversa casa um Fluxo de primeira mensagem/qualquer mensagem; o corretor precisou mandar a lista à mão.
+- **Causa raiz:** o filtro pós-formulário (`filterFlowsForPostFormContact`) só conhecia a frase "preenchi meu cadastro" e cadastro por formulário nas últimas 24 h; mensagem com o código do atendimento (PRES-25) de cadastro mais antigo caía nos gatilhos automáticos de boas-vindas.
+- **Correção:** mensagem com código = cliente já cadastrado (só Fluxo de palavra-chave, sem resposta antiga por palavra-chave); pedido da lista com código não dispara Fluxo e é respondido pela lista automática (PRES-26).
+- **Arquivos/commit:** `lib/whatsapp-form-completion.mjs`, `lib/whatsapp-flows.js`, `lib/whatsapp-master.js`, `lib/documents-list-auto*.{js,mjs}`
+- **Prevenção/teste:** `tests/documents-list-auto.test.mjs` (texto exato do caso)
+- **Status:** Resolvido (aguarda deploy)
+### 2026-10-20 — Cliente "clica em documentos e não prossegue" na apresentação /s/
+- **Data:** 2026-10-20
+- **Sintoma:** na cena "Documentos" ("…vamos montar a sua pasta…") só aparece "Rever a apresentação"; não há botão "Receber lista de documentos" (nem "Agendar atendimento" no "Próximo passo").
+- **Área:** Apresentação da simulação (PRES-17/PRES-22/PRES-25)
+- **Impacto:** todos os clientes cujo responsável não tem telefone no cadastro de usuário — hoje só o dono (28 apresentações ativas). Caso relatado: cliente do dono que abriu o link às 12h36 e tocou 3× em "Ver o que preciso para avançar".
+- **Causa raiz:** o botão (`podeReceberLista`) ainda exigia o WhatsApp PESSOAL do responsável (`resolveReceiveSimulationContact`, regra do tempo em que o cliente ia ao WhatsApp do corretor). Desde 2026-10-09/18 o contato vai ao número OFICIAL (`buildBrokerWhatsappUrl`), então o telefone pessoal não era usado, mas continuava escondendo o botão.
+- **Correção:** `isPresentationContactReady` (`lib/receive-simulation-contact.mjs`): basta responsável ATIVO — usado no DTO (`lib/simulation-presentation.js`), na confirmação (`lib/documents-forecast-store.mjs`, status/agenda) e no agendamento (`lib/client-appointments.js`). Botão volta sozinho no mesmo link (sem reenviar).
+- **Arquivos/commit:** ver `git log` de 2026-10-20 ("Apresentação: botão da lista de documentos…").
+- **Prevenção/teste:** `tests/documents-forecast.test.mjs` (responsável sem telefone recebe status/agenda), `tests/receive-simulation-contact.test.mjs`. Diagnóstico: `simulation_presentation_events` (toques sem `lista` na cena 8) + `admin_users.phone` do responsável.
+- **Status:** Corrigido
+
+### 2026-10-19 — Corretor manda mensagem pelo WhatsApp Web e o cliente volta para a fila mesmo assim
+- **Data:** 2026-10-19
+- **Sintoma:** "ele clica no WhatsApp, abre o WhatsApp Web, envia a mensagem, mas ela não aparece no Chat e o cliente vai para outro corretor".
+- **Área:** WhatsApp individual / Roleta (FUN-15l)
+- **Impacto:** 1 corretor; 5 clientes da fila de reativação com Chat aberto no prazo e devolvidos sem mensagem registrada.
+- **Causa raiz:** (1) pela sessão pessoal o Chat só responde (proteção de 2026-10-05): cliente que nunca escreveu → botão de enviar pelo celular/Web; (2) a sessão do CRM não decifrava as cópias das mensagens enviadas pelo celular dele (`diag_decrypt_fail` from_me), então o envio não virava contato humano.
+- **Correção:** CRM aceita o evento `undecrypted_message` e o conta como contato; restrição aberta tira da roleta. Pendentes: o microsserviço emitir o evento e a decisão do dono sobre a 1ª mensagem pelo Chat — ver `CHANGELOG_AI.md` (2026-10-19).
+- **Arquivos/commit:** `lib/whatsapp-undecrypted-core.mjs`, `lib/whatsapp-individual-inbound.js`, `app/api/webhooks/whatsapp-individual/route.js` — ver `git log` de 2026-10-19
+- **Prevenção/teste:** `tests/whatsapp-undecrypted.test.mjs`. Diagnóstico: `admin_presence_activity` (kind `grace`) + `whatsapp_conversations` criadas na sessão × `lead_distribution_history`.
+- **Status:** Diagnosticado, correção parcial (serviço pendente)
 ### 2026-10-19 — Corretor recebe cliente e o WhatsApp diz que ele não tem acesso
 - **Data:** 2026-10-19
 - **Sintoma:** "o corretor está recebendo clientes e, ao clicar no WhatsApp do card, aparece que ele não tem acesso ao cliente — mesmo dentro do prazo".

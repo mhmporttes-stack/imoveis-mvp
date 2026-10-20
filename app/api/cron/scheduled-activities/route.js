@@ -121,9 +121,14 @@ export async function GET(request) {
     }
 
     // WhatsApp pessoal: sem card de cliente -> Particular; ganhou card -> volta (WA-26, dono 2026-10-10).
+    // "Número não identificado" em bloco próprio: falha dela (ex.: marca em crm_settings) não pula o Particular automático.
     try {
       const { reconcileLidPlaceholders } = await import("@/lib/whatsapp-individual-inbound");
       await reconcileLidPlaceholders();
+    } catch (lidError) {
+      console.error("Falha ao reconciliar as conversas \"Número não identificado\".", lidError);
+    }
+    try {
       await reconcileAutoPrivateConversations();
     } catch (autoPrivateError) {
       console.error("Falha ao reconciliar o Particular automático.", autoPrivateError);

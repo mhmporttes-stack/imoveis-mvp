@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
+import MarketplaceNavBadge from "@/components/marketplace/MarketplaceNavBadge";
 import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
@@ -27,6 +28,9 @@ function buttonClass(isActive, compact = false) {
 export function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
 }
+
+// Chat do Marketplace (MKT-2, dono, 2026-10-20): conversas do Facebook Marketplace, todos os perfis (escopo no servidor).
+const MARKETPLACE_CHAT_ITEM = { href: "/admin/chat/marketplace", label: "Chat Marketplace", key: "marketplace-chat", badge: "marketplace" };
 
 const clientItems = [
   { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
@@ -89,7 +93,7 @@ const brokerGroups = [
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, MARKETPLACE_CHAT_ITEM, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
   },
   {
     key: "cadastros",
@@ -163,6 +167,7 @@ const ownerGroups = [
     items: [
       { href: "/admin/simulacoes", label: "Clientes", key: "simulations", activeKeys: ["registrations"] },
       { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" },
+      MARKETPLACE_CHAT_ITEM,
       { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" },
       { href: "/admin/calendario", label: "Agenda", key: "calendar" }
     ]
@@ -178,7 +183,9 @@ const ownerGroups = [
       { href: "/admin/captacoes", label: "Captações", key: "captacoes" },
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
-      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" }
+      { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
+      // Publicador do Facebook Marketplace (MKT-1, dono, 2026-10-20): só o admin geral.
+      { href: "/admin/marketplace", label: "Marketplace", key: "marketplace" }
     ]
   },
   {
@@ -417,6 +424,7 @@ export default function AdminMenu({ active = "properties", isAdmin = false, isBr
             >
               {item.label}
               {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
+              {item.badge === "marketplace" ? <MarketplaceNavBadge className="ml-1.5" /> : null}
             </ItemLink>
           );
         })}

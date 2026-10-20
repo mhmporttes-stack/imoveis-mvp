@@ -3,8 +3,8 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
-import { notifyChatEvent, notifyGroupEvent, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestConnectEvents, requestLidCandidates } from "./webhook.js";
-import { extractChatEvent, extractTextMessage, isLidJid, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
+import { notifyChatEvent, notifyGroupEvent, notifyUndecryptedOwnMessage, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestConnectEvents, requestLidCandidates } from "./webhook.js";
+import { extractChatEvent, extractTextMessage, extractUndecryptedOwnEvent, isLidJid, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { FORBIDDEN_LIMIT_CODE, configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler, NEEDS_ATTENTION_PREFIX } from "./session-lifecycle.js";
@@ -672,6 +672,9 @@ async function deliverLiveMessage(userId, msg, lidMap = lidMapFor(userId)) {
   try {
     // Texto, mídia, resposta citada, reação, edição e "apagar para todos"
     // — do cliente e do que o corretor faz pelo app do celular (fromMe).
+    // Saída do corretor que não decifrou (2026-10-19): vai ao CRM como prova de envio (contato humano), sem texto.
+    const undecrypted = extractUndecryptedOwnEvent(msg, lidMap);
+    if (undecrypted) return await notifyUndecryptedOwnMessage(userId, undecrypted);
     const event = extractChatEvent(msg, lidMap);
     if (!event) return;
     if (event.group) return await deliverGroupMessage(userId, msg, event);

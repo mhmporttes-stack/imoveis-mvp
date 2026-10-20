@@ -26,3 +26,13 @@ test("responsável sem telefone, telefone inválido, inativo ou não encontrado 
     assert.equal(result.phone, undefined);
   }
 });
+
+// Incidente 2026-10-20: contato da apresentação vai ao número OFICIAL (PRES-25) — basta responsável ATIVO, sem telefone.
+test("isPresentationContactReady: responsável ativo basta (com ou sem telefone); sem responsável, inativo ou inexistente não", async () => {
+  const { isPresentationContactReady } = await import("../lib/receive-simulation-contact.mjs");
+  assert.equal(isPresentationContactReady({ responsibleUserId: "u1", broker: { status: "active" } }), true);
+  assert.equal(isPresentationContactReady({ responsibleUserId: "u1", broker: { status: "active", whatsappDigits: "" } }), true);
+  assert.equal(isPresentationContactReady({ responsibleUserId: "", broker: { status: "active" } }), false);
+  assert.equal(isPresentationContactReady({ responsibleUserId: "u1", broker: { status: "inactive" } }), false);
+  assert.equal(isPresentationContactReady({ responsibleUserId: "u1", broker: null }), false);
+});

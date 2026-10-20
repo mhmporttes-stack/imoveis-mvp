@@ -18,7 +18,7 @@ function messageFor(status, serverMessage) {
   return serverMessage || "Não foi possível concluir agora. Tente de novo em instantes.";
 }
 
-export default function ForecastSheet({ token = "", preview = false, onClose }) {
+export default function ForecastSheet({ token = "", preview = false, attendantName = "", onClose }) {
   const closeRef = useRef(null);
   const [now, setNow] = useState(() => new Date());
   const days = useMemo(() => forecastWindow(now).map((iso) => describeForecastDate(iso)), [now]);
@@ -99,7 +99,9 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
         </header>
         <div className={styles.sheetBody} tabIndex={0}>
           <fieldset className={styles.fcGroup} disabled={busy}>
-            <legend className={styles.fcQuestion}>Quando você acredita que conseguirá enviar toda a documentação para validarmos a sua aprovação? <span className={styles.fcRequired}>(obrigatório)</span></legend>
+            {/* textos revistos pelo dono em 2026-10-19 (PRES-17): sem "toda a documentação", com a ajuda de que a data muda depois */}
+            <legend className={styles.fcQuestion}>Quando você acha que consegue juntar os documentos? <span className={styles.fcRequired}>(obrigatório)</span></legend>
+            <p className={styles.fcHelp}>Se precisar, dá para mudar a data depois.</p>
             <div className={`${styles.fcDays} ${missing === "date" ? styles.fcMissing : ""}`} role="group" aria-label="Dia previsto para enviar os documentos" aria-required="true" aria-invalid={missing === "date"}>
               {days.map((day, index) => {
                 const selected = date === day.iso;
@@ -146,6 +148,10 @@ export default function ForecastSheet({ token = "", preview = false, onClose }) 
           ) : null}
 
           <div className={styles.fcFoot}>
+            {/* dono, 2026-10-19: diz para onde a pessoa vai e quem responde (só o 1º nome do responsável, nunca telefone) */}
+            <p className={styles.fcHelp}>
+              Vamos abrir o WhatsApp oficial da Matheus Machado Corretor de Imóveis. A mensagem já vai pronta, com o código do seu atendimento, e quem te responde é {attendantName || "o seu corretor"}.
+            </p>
             <button type="button" className={`${styles.fcSubmit} ${ready ? "" : styles.fcSubmitOff}`} onClick={submit} disabled={disabledByPreview || busy} aria-disabled={!ready} data-fc-submit="">
               <MessageCircle aria-hidden="true" />
               Receber lista de documentos necessários

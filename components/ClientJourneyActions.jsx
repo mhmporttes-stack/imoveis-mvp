@@ -49,14 +49,14 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", status_reason: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao", responsible_assigned: "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
   "prospecting:returned": "atividades", "prospecting:do_not_contact": "status", "prospecting:bulk_assigned": "atribuicao",
   "prospecting:daily_goal_attempt": "atividades", "prospecting:daily_goal_converted": "atividades", "prospecting:daily_goal_round_ended": "atividades",
   document_batch_uploaded: "atividades", document_batch_analyzed: "atividades", document_batch_analysis_failed: "atividades",
-  document_checklist_corrected: "atividades", document_deleted: "atividades", document_sent_to_cca: "atividades",
+  document_checklist_corrected: "atividades", document_deleted: "atividades", document_sent_to_cca: "atividades", document_received_offline: "atividades", document_received_offline_undone: "atividades",
   cca_reassigned: "atividades"
 };
 
@@ -163,6 +163,12 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "LISTA DE DOCUMENTOS ENVIADA", description: ["Lista de documentos enviada"] };
     case "presentation_sent":
       return { title: "APRESENTAÇÃO DA SIMULAÇÃO ENVIADA", description: ["Apresentação da simulação enviada"] };
+    case "document_received_offline":
+      return { title: "1º DOCUMENTO RECEBIDO POR FORA", description: [d.text || "1º documento recebido fora do CRM"] };
+    case "document_received_offline_undone":
+      return { title: "MARCA DE DOCUMENTO POR FORA DESFEITA", description: [d.text || "Marca desfeita"] };
+    case "presentation_link_copied":
+      return { title: "LINK DA APRESENTAÇÃO COPIADO", description: [d.text || "Link da apresentação copiado (envio não confirmado)"] };
     case "presentation_approval_on":
       return { title: "APRESENTAÇÃO DE APROVAÇÃO ATIVADA", description: ["O link da apresentação passou a mostrar o crédito aprovado"] };
     case "presentation_approval_off":

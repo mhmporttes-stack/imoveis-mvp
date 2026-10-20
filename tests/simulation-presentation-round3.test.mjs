@@ -247,7 +247,7 @@ test("botão dos imóveis: IMÓVEL SUGERIDO (1) · IMÓVEIS SUGERIDOS (2+) · se
   const player = read("components/presentation/PresentationPlayer.jsx");
   assert.match(player, /const propertiesLabel = propertiesButtonLabel\(propertyCount\)/);
   assert.match(player, /\{propertiesLabel \? \(/); // só aparece quando há imóvel
-  assert.match(player, />\s*VALIDAR SIMULAÇÃO\s*</);
+  assert.match(player, />\s*VER O QUE PRECISO PARA AVANÇAR\s*</); // PRES-12 (dono, 2026-10-19): antigo VALIDAR SIMULAÇÃO
   assert.match(player, /label="Baixar apresentação"/);
   assert.ok(!/Falar com meu corretor|wa\.me/i.test(code("components/presentation/PresentationPlayer.jsx")));
 });

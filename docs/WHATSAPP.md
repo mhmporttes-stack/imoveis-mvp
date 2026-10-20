@@ -147,6 +147,10 @@ Sintoma: mensagem enviada pelo Chat/automação (sai pelo `/send` do microsservi
 - **Atualização 2026-10-19 (reincidência):** o id é escolhido antes do envio e fica "em andamento" — o pedido de reenvio e o `getMessage` esperam o `sendMessage` terminar (até 20 s; o Baileys grava as chaves no banco depois de mandar, e o pedido do celular chegava antes → `send_retry_missing`). Pedido do **próprio celular** (fora de grupo) é sempre reenviado à mão só ao aparelho que pediu, com sessão nova (`kind` `manual_own_device`) — o reenvio do Baileys nesse caso ("para todos", sem forçar sessão com o celular) não fazia a mensagem aparecer. Cache: **6 h** (era 30 min). O Baileys continua reenviando também (inofensivo).
 - Testes: `tests/whatsapp-send-retry.test.mjs`. **Publicação:** junto com o §1-G, depois das 18h (o deploy no Railway reconecta todos os números).
 
+## 1-I. Saída do corretor não decifrada vira contato humano (2026-10-19) — **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-19]**
+
+Mensagem que o corretor manda pelo celular/WhatsApp Web e que a sessão do CRM não decifra chega como stub (`messageStubType` CIPHERTEXT = 2, `key.fromMe`, sem conteúdo). O microsserviço (`extractUndecryptedOwnEvent`, `src/message-extract.js`; ligado em `deliverLiveMessage`, `src/sessions.js`) manda ao webhook `{ type: "undecrypted_message", from, fromMe: true, waMessageId, remoteJid, at }` — telefone por `resolveChatPhone` (LID pelo mapa/candidatos, como os demais eventos), **sem texto**; grupo, broadcast, status e mensagem do contato ficam de fora. O CRM grava como saída do corretor com texto fixo e contato humano (`lib/whatsapp-undecrypted-core.mjs`); se a mesma mensagem chegar decifrada depois, completa a linha pelo `waMessageId` (não duplica). Testes: `tests/whatsapp-undecrypted-service.test.mjs` (serviço) e `tests/whatsapp-undecrypted.test.mjs` (CRM). Publicação no Railway reconecta todos os números.
+
 ## 1-B. Alerta "WhatsApp precisa de atenção" (2026-10-04) — **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]**
 
 Definição `whatsapp_session_attention` em `crm_alert_definitions` (Importante, ligável em Automações › Alertas; migration `20261004120000`). Detecção em `applyIndividualSessionStatus` (webhook de status do microsserviço — nada no Railway), regras puras em `lib/whatsapp-session-attention-core.mjs`, testes `tests/whatsapp-session-attention.test.mjs`. Decide pelo `error` do evento recebido, não pelo `last_error` antigo.
@@ -268,6 +272,7 @@ O cliente que **acabou de preencher o formulário** já tem cadastro e corretor,
 - **Respostas por palavra-chave**: suprimidas (`shouldSuppressKeywordReply`; log `skipped_post_form_contact`).
 - **Fluxos**: se a mensagem é a do botão, **só** o fluxo dedicado (gatilho por palavra-chave “preenchi meu cadastro”/“receber a minha simulação/receber minha simulação”) pode rodar; se é só cadastro recente, gatilhos **automáticos** (`any_message`, `first_message`, `ad_referral`) não disparam e os de **palavra-chave** continuam valendo. Fluxos suprimidos vão para o log “Atividade” (`skipped`).
 - **Sessão viva encerrada pelo formulário (2026-10-12, Fase 2 do robô do Chat):** além de suprimir gatilhos, o envio do formulário encerra a sessão viva do Fluxo com o telefone (`end_reason = formulario_enviado`, §8).
+- **Mensagem com código do atendimento (PRES-26, dono 2026-10-20):** cliente já cadastrado — pedido da lista de documentos com código não dispara Fluxo nenhum (encerra a sessão viva; a lista sai sozinha por `lib/documents-list-auto.js`, depois do "pare" e antes dos Fluxos, texto + imagem pelo oficial com reserva `docs-list-auto:*`); outra mensagem com código só aceita Fluxo de palavra-chave e não recebe a resposta antiga por palavra-chave (`codedContact`).
 - Teste: `tests/whatsapp-form-completion.test.mjs`.
 
 ### 9-B. Lead patrocinado — Click to WhatsApp (`lib/whatsapp-sponsored-lead.js`, `lib/whatsapp-referral.mjs`, migration `20260924210000`)
@@ -336,6 +341,10 @@ Quem chega por **anúncio da Meta** (`referral.source_type = ad`; sem `source_ty
 | Fluxo | uma sessão viva por telefone; cooldown por fluxo/telefone; lock de sessão (60 s) |
 | Contador de não lidas | RPC atômica (`whatsapp_chat_apply_inbound`) |
 | Mensagem automática no WhatsApp pessoal (Meta Diária/"Disparar"/descadastro) | índice único (`session_user_id`, `metadata->>wa_message_id`) — envio e eco gravam a mesma linha uma vez |
+
+## 13-A. Chat do Marketplace (MKT-2, 2026-10-20) — fora do WhatsApp
+
+Conversas do Facebook Marketplace ficam em tabelas próprias (`marketplace_conversations`/`marketplace_messages`), **não** em `whatsapp_conversations`: nenhum gatilho, Fluxo, lembrete, resposta automática ou envio do WhatsApp é acionado por elas. Tela `/admin/chat/marketplace` (menu "Chat Marketplace"), mesmo escopo do Chat, mesma roleta. Detalhes: `docs/BUSINESS_RULES.md` MKT-2.
 
 ## 14. Riscos conhecidos e pontos a confirmar
 

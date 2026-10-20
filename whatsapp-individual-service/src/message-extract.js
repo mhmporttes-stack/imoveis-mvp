@@ -284,3 +284,27 @@ export function quotedPreviewOf(contextInfo) {
     return "";
   }
 }
+
+// Saída do corretor que a sessão do CRM NÃO conseguiu decifrar (dono, 2026-10-19): Baileys entrega um stub
+// (messageStubType CIPHERTEXT = 2, sem conteúdo). É prova de envio pelo celular/WhatsApp Web -> evento
+// `undecrypted_message` ao CRM (contato humano; lib/whatsapp-undecrypted-core.mjs). Sem texto. Só 1:1 e só fromMe:
+// grupo, broadcast, status e mensagem do contato nunca. Se a mesma mensagem chegar decifrada depois, o CRM completa
+// a linha pelo waMessageId (não duplica).
+export const UNDECRYPTED_STUB_TYPE = 2;
+export function extractUndecryptedOwnEvent(msg, lidMap = new Map()) {
+  if (!msg || Number(msg.messageStubType) !== UNDECRYPTED_STUB_TYPE) return null;
+  if (msg.key?.fromMe !== true) return null;
+  const waMessageId = String(msg.key?.id || "");
+  if (!waMessageId) return null;
+  const remoteJid = String(msg.key?.remoteJid || "");
+  if (groupKeyFromJid(remoteJid) || /@(g\.us|broadcast|newsletter)$/i.test(remoteJid)) return null;
+  const from = resolveChatPhone(msg, lidMap);
+  if (!from) return null;
+  return {
+    from,
+    fromMe: true,
+    waMessageId,
+    remoteJid,
+    at: new Date((messageTimestampSeconds(msg) || Math.floor(Date.now() / 1000)) * 1000).toISOString()
+  };
+}

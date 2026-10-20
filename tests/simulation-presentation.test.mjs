@@ -18,6 +18,7 @@ import {
   isPresentationSchemaMissing,
   isPresentationToken,
   parsePresentationEvent,
+  TOUCH_TARGETS,
   safeImageUrl,
   sceneDurationMs
 } from "../lib/simulation-presentation-core.mjs";
@@ -438,14 +439,21 @@ test("painel do CRM: mostra 'Recurso ainda não ativado no banco' e não quebra 
 
 // ---------- evento ----------
 test("evento: allowlist estrita do corpo", () => {
-  assert.deepEqual(EVENT_TYPES, ["abriu", "cena", "concluiu"]);
-  assert.deepEqual(parsePresentationEvent({ tipo: "abriu", nova: true }), { tipo: "abriu", cena: null, nova: true });
-  assert.deepEqual(parsePresentationEvent({ tipo: "abriu" }), { tipo: "abriu", cena: null, nova: false });
-  assert.deepEqual(parsePresentationEvent({ tipo: "cena", cena: 3 }), { tipo: "cena", cena: 3, nova: false });
-  assert.deepEqual(parsePresentationEvent({ tipo: "concluiu", cena: 7 }), { tipo: "concluiu", cena: 7, nova: false });
+  assert.deepEqual(EVENT_TYPES, ["abriu", "cena", "concluiu", "toque"]);
+  assert.deepEqual(parsePresentationEvent({ tipo: "abriu", nova: true }), { tipo: "abriu", cena: null, nova: true, equipe: false });
+  assert.deepEqual(parsePresentationEvent({ tipo: "abriu" }), { tipo: "abriu", cena: null, nova: false, equipe: false });
+  assert.deepEqual(parsePresentationEvent({ tipo: "abriu", nova: true, equipe: true }), { tipo: "abriu", cena: null, nova: true, equipe: true });
+  assert.deepEqual(parsePresentationEvent({ tipo: "cena", cena: 3 }), { tipo: "cena", cena: 3, nova: false, equipe: false });
+  assert.deepEqual(parsePresentationEvent({ tipo: "concluiu", cena: 7 }), { tipo: "concluiu", cena: 7, nova: false, equipe: false });
+  // toque (lote A, 2026-10-19): alvo da lista fechada + cena exata obrigatórios
+  assert.deepEqual(TOUCH_TARGETS, ["estrategia", "agendar", "imoveis", "lista", "validar", "baixar"]);
+  assert.deepEqual(parsePresentationEvent({ tipo: "toque", alvo: "validar", cena: 5 }), { tipo: "toque", cena: 5, nova: false, equipe: false, alvo: "validar" });
+  assert.deepEqual(parsePresentationEvent({ tipo: "toque", alvo: "baixar", cena: 5, equipe: true }).equipe, true);
   for (const bad of [
     null, [], "x", 5, {}, { tipo: "apagar" }, { tipo: "cena" }, { tipo: "cena", cena: 0 }, { tipo: "cena", cena: 33 }, { tipo: "cena", cena: 2.5 },
-    { tipo: "cena", cena: "2" }, { tipo: "abriu", ip: "1.2.3.4" }, { tipo: "abriu", nome: "x" }, { tipo: "abriu", nova: "sim" }, { tipo: "concluiu" }
+    { tipo: "cena", cena: "2" }, { tipo: "abriu", ip: "1.2.3.4" }, { tipo: "abriu", nome: "x" }, { tipo: "abriu", nova: "sim" }, { tipo: "concluiu" },
+    { tipo: "toque", cena: 5 }, { tipo: "toque", alvo: "validar" }, { tipo: "toque", alvo: "whatsapp", cena: 5 }, { tipo: "cena", cena: 2, alvo: "validar" },
+    { tipo: "abriu", equipe: "sim" }, { tipo: "toque", alvo: "lista", cena: 7, userAgent: "x" }
   ]) assert.equal(parsePresentationEvent(bad), null, JSON.stringify(bad));
   // `nova` só vale para "abriu"
   assert.equal(parsePresentationEvent({ tipo: "cena", cena: 2, nova: true }).nova, false);

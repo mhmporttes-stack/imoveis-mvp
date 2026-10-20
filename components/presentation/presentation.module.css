@@ -406,6 +406,11 @@
   .scene[data-scene="proximo"] .actions { margin-top: calc(var(--u) * 14); gap: calc(var(--u) * 8); }
   .scene[data-scene="proximo"] .cta, .scene[data-scene="proximo"] .ghostBtn { min-height: 44px; }
 }
+/* PRES-12 (dono, 2026-10-19): nota curta logo abaixo do único botão cheio e "Baixar apresentação" como link de texto (alvo ≥ 44 px) */
+.ctaNote { margin: calc(var(--u) * -2) 0 calc(var(--u) * 4); font-size: max(13px, calc(var(--u) * 14)); line-height: 1.35; color: var(--muted); text-align: center; text-wrap: balance; }
+.scene[data-scene="proximo"] .textBtn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: max(14px, calc(var(--u) * 15)); }
+.scene[data-scene="proximo"] .textBtn svg { width: 17px; height: 17px; flex: none; }
+.scene[data-scene="proximo"] .textBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 .textBtn { min-height: 56px; padding: 0 calc(var(--u) * 16); border: 0; background: transparent; color: var(--fg); opacity: 0.92; font-size: max(15px, calc(var(--u) * 16)); font-weight: 680; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .cta:hover { box-shadow: 0 calc(var(--u) * 14) calc(var(--u) * 32) rgba(2, 12, 24, 0.36); transform: translateY(-1px); }
@@ -609,6 +614,9 @@
 .fcMissing { border-radius: calc(var(--u) * 18); outline: 2px solid #b3261e; outline-offset: 4px; }
 .fcNote { margin: 0; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.45; color: #3a5878; text-align: center; }
 .fcError { color: #b3261e; font-weight: 700; }
+/* dono, 2026-10-19: ajuda curta abaixo da pergunta e o aviso de para onde a pessoa vai (acima do botão final) */
+.fcHelp { margin: 0; font-size: max(14px, calc(var(--u) * 15)); line-height: 1.45; color: #3a5878; text-wrap: pretty; }
+.fcQuestion + .fcHelp { margin: calc(var(--u) * -6) 0 calc(var(--u) * 14); }
 .fcLink { color: var(--blue); font-weight: 700; text-decoration: underline; }
 /* PRES-22 — folha "Agendar atendimento": reaproveita o calendário/botões da folha de documentos (fc*) */
 .apKinds { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--u) * 10); }

@@ -118,15 +118,17 @@ test("agenda: campos da atividade (título, tipo 'documentos', observação, cri
   const fields = buildForecastActivity({ clientId: "c1", responsibleUserId: "u1", data: "2026-10-07", periodo: "manha" });
   assert.deepEqual(fields, {
     client_id: "c1", responsible_user_id: "u1", title: "Cliente previu enviar documentos", activity_type: "documentos",
-    scheduled_at: "2026-10-07T12:00:00.000Z", note: "Previsão de envio: manhã", priority: null, status: "pending", created_by: null
+    scheduled_at: "2026-10-07T12:00:00.000Z", note: "Previsão de envio: manhã\nMensagem sugerida: Oi, tudo bem? Hoje é o dia que você tinha previsto para os documentos. Se já tiver alguns, pode me mandar que eu vou conferindo. Se precisar de mais uns dias, tudo bem, é só me dizer.", priority: null, status: "pending", created_by: null
   });
+  // T6 (dono, 2026-10-19): a observação leva a mensagem do dia combinado, com o 1º nome do cliente quando há
+  assert.equal(buildForecastActivity({ clientId: "c1", responsibleUserId: "u1", data: "2026-10-07", periodo: "manha", clientName: "Maria da Silva" }).note, "Previsão de envio: manhã\nMensagem sugerida: Oi, Maria, tudo bem? Hoje é o dia que você tinha previsto para os documentos. Se já tiver alguns, pode me mandar que eu vou conferindo. Se precisar de mais uns dias, tudo bem, é só me dizer.");
   assert.equal(buildForecastActivity({ clientId: "c1", responsibleUserId: "", data: "2026-10-07", periodo: "manha" }), null);
 });
 
 // ---------- mensagem pronta ----------
 test("mensagem do cliente ao corretor: texto exato, só o primeiro nome, sem dado sensível", () => {
   const text = buildForecastMessage({ fullName: "Maria da Silva Souza", data: "2026-10-07", periodo: "manha" });
-  assert.equal(text, "Olá! Aqui é Maria. Vi minha simulação e acredito que consigo enviar toda a documentação até 07/10, no período da manhã. Pode me mandar a lista de documentos?");
+  assert.equal(text, "Olá! Aqui é Maria. Vi minha simulação e acho que consigo enviar os documentos até 07/10, no período da manhã. Pode me mandar a lista do meu caso?");
   assert.ok(!/Silva|Souza/.test(text));
   assert.match(buildForecastMessage({ fullName: "Ana", data: "2026-11-02", periodo: "noite" }), /até 02\/11, no período da noite\./);
   assert.match(buildForecastMessage({ fullName: "Ana", data: "2026-11-02", periodo: "tarde" }), /no período da tarde\./);
@@ -254,7 +256,7 @@ test("confirmação: grava o compromisso, muda o status, cria a atividade e devo
   const db = createFakeDb(seedWorld());
   const { result, history, journey } = await confirm(db);
   assert.equal(result.kind, "ok");
-  const expectedText = "Olá! Aqui é Maria. Vi minha simulação e acredito que consigo enviar toda a documentação até 07/10, no período da manhã. Pode me mandar a lista de documentos?";
+  const expectedText = "Olá! Aqui é Maria. Vi minha simulação e acho que consigo enviar os documentos até 07/10, no período da manhã. Pode me mandar a lista do meu caso?";
   // Dono, 2026-10-09/18: número OFICIAL; a conversa é entregue ao responsável pelo código (aqui o id "r1" não é uuid: sem código).
   assert.equal(result.url, `https://wa.me/5514991056706?text=${encodeURIComponent(expectedText)}`);
 
@@ -297,7 +299,7 @@ test("segunda confirmação (data/período novos) ATUALIZA a mesma atividade: nu
   assert.equal(second.result.kind, "ok");
   assert.equal(db.tables.calendar_activities.length, 1);
   assert.equal(db.tables.calendar_activities[0].scheduled_at, "2026-10-09T22:00:00.000Z");
-  assert.equal(db.tables.calendar_activities[0].note, "Previsão de envio: noite");
+  assert.equal(db.tables.calendar_activities[0].note, "Previsão de envio: noite\nMensagem sugerida: Oi, Maria, tudo bem? Hoje é o dia que você tinha previsto para os documentos. Se já tiver alguns, pode me mandar que eu vou conferindo. Se precisar de mais uns dias, tudo bem, é só me dizer.");
   assert.equal(db.tables.calendar_activities[0].notified_at, null);
   assert.equal(second.history.length, 0); // já estava em "Aguardando documentação"
   assert.equal(db.tables.simulation_presentations[0].docs_forecast_count, 2);
@@ -402,12 +404,10 @@ test("sem cadastro vinculado (registration_id nulo): grava só o compromisso; se
   assert.equal(journey.length, 0);
 });
 
-test("sem responsável ativo com WhatsApp válido: sem status e sem agenda; link do oficial (o botão também não aparece no cliente)", async () => {
+test("sem responsável ativo: sem status e sem agenda; link do oficial (o botão também não aparece no cliente)", async () => {
   const cases = [
     { name: "sem responsável", registration: { responsible_user_id: null } },
     { name: "responsável inativo", broker: { status: "inactive" } },
-    { name: "telefone vazio", broker: { phone: "" } },
-    { name: "telefone inválido", broker: { phone: "123" } },
     { name: "responsável inexistente", registration: { responsible_user_id: "u-que-nao-existe" } }
   ];
   for (const item of cases) {
@@ -419,6 +419,20 @@ test("sem responsável ativo com WhatsApp válido: sem status e sem agenda; link
     assert.equal(db.tables.simulation_registrations[0].status, item.registration?.status || "in_service", item.name);
     assert.equal(history.length, 0, item.name);
     assert.equal(db.tables.simulation_presentations[0].docs_forecast_count, 1, item.name);
+  }
+});
+
+// Incidente 2026-10-20: o contato vai ao número OFICIAL (PRES-25); responsável ativo SEM telefone pessoal (o dono) também
+// recebe status e atividade — antes o botão sumia para todos os clientes dele.
+test("responsável ativo sem telefone pessoal (vazio ou inválido): status, agenda e link do oficial normalmente", async () => {
+  for (const phone of ["", null, "123"]) {
+    const db = createFakeDb(seedWorld({ broker: { phone } }));
+    const { result, history } = await confirm(db);
+    assert.equal(result.kind, "ok", String(phone));
+    assert.ok(result.url.startsWith("https://wa.me/5514991056706?text="), String(phone));
+    assert.equal(db.tables.calendar_activities.length, 1, String(phone));
+    assert.equal(db.tables.simulation_registrations[0].status, "documentation_pending", String(phone));
+    assert.equal(history.length, 1, String(phone));
   }
 });
 
@@ -454,7 +468,7 @@ test("upsertForecastActivity: cria uma vez e depois só atualiza", async () => {
 });
 
 // ---------- DTO público: só um booleano ----------
-test("DTO público: ganha SÓ o booleano podeReceberLista; nenhum telefone, wa.me ou dado do corretor sai no HTML/JSON", () => {
+test("DTO público: ganha o booleano podeReceberLista e (2026-10-19) só o 1º nome do responsável; nenhum telefone ou wa.me sai no HTML/JSON", () => {
   const simulation = {
     clientName: "Maria da Silva", simulationDate: "2026-10-01",
     simulationModels: { novo: { financingValue: 200000, subsidyValue: 20000, firstInstallment: 1000, lastInstallment: 900 }, usado: { financingValue: 200000, subsidyValue: 20000, firstInstallment: 1000, lastInstallment: 900 } },
@@ -467,7 +481,11 @@ test("DTO público: ganha SÓ o booleano podeReceberLista; nenhum telefone, wa.m
   assert.equal(withReceiveListFlag(base, false).podeReceberLista, false);
   assert.equal(withReceiveListFlag(base, "yes").podeReceberLista, false); // só `true` liga
   // `estrategia` (PRES-24) só entra com financiamento + taxa + prazo, e por outro acréscimo (withPaymentStrategy)
-  assert.deepEqual(Object.keys(dto).sort(), PUBLIC_DTO_FIELDS.filter((key) => key !== "estrategia").sort());
+  assert.deepEqual(Object.keys(dto).sort(), PUBLIC_DTO_FIELDS.filter((key) => key !== "estrategia" && key !== "atendentePrimeiroNome").sort());
+  // 1º nome do responsável (dono, 2026-10-19: "quem te responde é {1º nome}"): só o primeiro nome e só com contato pronto
+  assert.equal(withReceiveListFlag(base, true, "Jennyfer Souza Lima").atendentePrimeiroNome, "Jennyfer");
+  assert.equal("atendentePrimeiroNome" in withReceiveListFlag(base, false, "Jennyfer Souza"), false);
+  assert.equal("atendentePrimeiroNome" in withReceiveListFlag(base, true, ""), false);
   const json = JSON.stringify(dto);
   for (const forbidden of ["14999887766", "wa.me", "whatsapp", "5514", "responsibleUserId", "u1", "phone"]) assert.ok(!json.toLowerCase().includes(forbidden.toLowerCase()), forbidden);
   assert.equal(withReceiveListFlag(null, true), null);
@@ -480,10 +498,11 @@ test("página pública e prévia só repassam o booleano ao player; o DTO nunca 
   const preview = stripComments(read("app/admin/simulacoes/[id]/apresentacao/page.jsx"));
   assert.match(preview, /preview canReceiveList=\{dto\.podeReceberLista === true\}/);
   const lib = stripComments(read("lib/simulation-presentation.js"));
-  const canReceive = /export async function canReceiveDocumentsList[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
-  assert.match(canReceive, /return contact\.state === RECEIVE_CONTACT_STATE\.READY;/);
-  assert.match(canReceive, /resolveReceiveSimulationContact/); // mesma regra do "Receber minha simulação" (responsável ativo + telefone válido)
-  assert.ok(!/return[^;]*(phone|digits)/i.test(canReceive.replace(/whatsappDigits: toWhatsAppDigits\(data\.phone\)/, "")));
+  const canReceive = /export async function loadReceiveListContact[\s\S]*?\n}\n/.exec(lib)?.[0] || "";
+  assert.match(canReceive, /const ready = isPresentationContactReady\(/);
+  assert.match(canReceive, /return \{ ready, firstName: ready \? firstNameOf\(data\?\.name \|\| ""\) : "" \};/);
+  // Incidente 2026-10-20 (PRES-25): o contato vai ao número OFICIAL; o telefone pessoal do responsável nem é lido.
+  assert.ok(!/phone|digits/i.test(canReceive));
 });
 
 // ---------- player / folha ----------
@@ -507,7 +526,10 @@ function submit0(code) { return /const submit = useCallback\(async \(\) => \{[\s
 test("folha da previsão: pergunta, calendário de 10 dias, período em 3 botões, botão final e estados", () => {
   const sheet = read("components/presentation/ForecastSheet.jsx");
   const code = stripComments(sheet);
-  assert.match(code, /Quando você acredita que conseguirá enviar toda a documentação para validarmos a sua aprovação\?/);
+  assert.match(code, /Quando você acha que consegue juntar os documentos\?/); // dono, 2026-10-19 (sem "toda a documentação")
+  assert.match(code, /Se precisar, dá para mudar a data depois\./);
+  assert.match(code, /Vamos abrir o WhatsApp oficial da Matheus Machado Corretor de Imóveis\. A mensagem já vai pronta, com o código do seu atendimento, e quem te responde é \{attendantName \|\| "o seu corretor"\}\./);
+  assert.ok(!/toda a documentação/.test(code));
   assert.match(code, /forecastWindow\(now\)/); // os mesmos 10 dias que o servidor aceita
   assert.match(code, /FORECAST_PERIODS\.map/);
   assert.match(code, /Receber lista de documentos necessários/);
@@ -592,9 +614,20 @@ test("ficha: botão 'Enviar lista de documentos' com guarda de escopo, bloqueio 
   const sheet = stripComments(read("components/clients/ClientSheet.jsx"));
   assert.match(sheet, /Enviar lista de documentos/);
   assert.match(sheet, /\[CLIENT_STATUS\.ARCHIVED, CLIENT_STATUS\.DO_NOT_CONTACT\]\.includes\(client\.status\)/);
-  assert.match(sheet, /list\.prepareDocumentsList\(client\)/);
-  assert.match(sheet, /<DocumentsListDialog/);
+  assert.match(sheet, /list\.prepareDocumentsList\(client, \{ accessBlocked: whatsappBlocked \}\)/);
+  assert.match(sheet, /export function DocumentsListDialog/);
   assert.match(sheet, /Cancelar/);
+  // Dono, 2026-10-20: o botão nunca some (nem com WhatsApp bloqueado) e também existe no card; a prévia fica no Workspace
+  // para abrir com a ficha fechada, e sem canal mostra só "Copiar texto" + motivo.
+  assert.doesNotMatch(sheet, /whatsappBlocked \? null : <Button variant="secondary"[^\n]*prepareDocumentsList/);
+  const card = stripComments(read("components/clients/ClientCard.jsx"));
+  assert.match(card, /list\.prepareDocumentsList\(client, \{ accessBlocked: whatsappBlocked \}\)/);
+  assert.match(card, /data-card-documents-list=""/);
+  const workspace = stripComments(read("components/clients/ClientWorkspace.jsx"));
+  assert.match(workspace, /<DocumentsListDialog/);
+  const hook = stripComments(read("components/clients/useClientList.js"));
+  assert.match(hook, /decision = \{ action: "blocked", reason: "access_blocked" \}/);
+  assert.match(hook, /decision = \{ action: "blocked", reason: "no_phone" \}/);
 });
 
 test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela abre dentro do clique; nunca muda o status", () => {
@@ -697,6 +730,27 @@ test("prepareDocumentsList: bloqueia arquivado/não contactar, avisa sem simula�
   for (const status of Object.values(CLIENT_STATUS).filter((value) => !["archived", "do_not_contact"].includes(value))) {
     assert.equal((await prepareDocumentsList({ client: client(status), findSimulation: simulation, ensurePresentation: ensure })).kind, "ok", status);
   }
+});
+
+// Dono, 2026-10-20: "Copiar texto" na ficha = a MESMA lista personalizada (buildDocumentItemsFor), só formatada.
+test("prepareDocumentsList: listText é a lista personalizada do cadastro em texto (mesma fonte da apresentação)", async () => {
+  const { buildDocumentItemsFor, formatDocumentItemsText } = await import("../lib/simulation-presentation-documents.mjs");
+  const registration = { primaryIncomeType: "registered_employment", primaryMaritalStatus: "married", hasChildrenUnder18: false, pis: "123", oldestBirthDate: "1990-01-01", simulationType: "individual" };
+  const result = await prepareDocumentsList({
+    client: { id: "r1", fullName: "Camile Souza", status: "completed" },
+    findSimulation: async () => ({ id: "s1", registration }),
+    ensurePresentation: async () => ({ schemaReady: true, presentation: { token: TOKEN } })
+  });
+  assert.equal(result.kind, "ok");
+  assert.equal(result.listText, formatDocumentItemsText(buildDocumentItemsFor(registration), { intro: result.message }));
+  assert.ok(result.listText.startsWith("Olá, Camile! Segue a lista de documentos"));
+  assert.match(result.listText, /\*COMPROVANTE DE ESTADO CIVIL\*\nCertidão de casamento/);
+  assert.match(result.listText, /Os 2 últimos holerites \(sem férias\)/);
+  assert.doesNotMatch(result.listText, /PIS|DEPENDENTES/); // PIS já cadastrado e sem filhos: fora, como na imagem
+  // ficha: botão "Copiar texto" usa o listText e não registra envio
+  const sheet = read("components/clients/ClientSheet.jsx");
+  assert.match(sheet, /navigator\.clipboard\.writeText\(target\?\.listText \|\| ""\)/);
+  assert.match(sheet, /data-documents-list-copy=""/);
 });
 
 test("jornada: os dois eventos novos têm rótulo e categoria na timeline", () => {
