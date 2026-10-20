@@ -86,13 +86,12 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
   let ownGoal = null;
   let ownGoalError = "";
 
-  if (viewer === "manager" && !ownGoalHidden && canLoadDailyGoal()) {
-    try {
-      ownGoal = await getBrokerDailyGoal(auth);
-    } catch (loadError) {
-      ownGoalError = formatDailyGoalError(loadError);
-    }
-  }
+  // Desempenho (2026-10-20): as duas cargas rodam juntas. Não dependem uma da outra: o que getBrokerDailyGoal grava
+  // (fechar o dia anterior, reconciliar e gerar a cota) é só da PRÓPRIA gestora, e a visão da equipe nunca a inclui
+  // (filterProfilesForScope tira selfId) nem gera cota de ninguém. Cada uma continua com o seu próprio erro.
+  const loadOwnGoal = viewer === "manager" && !ownGoalHidden && canLoadDailyGoal()
+    ? getBrokerDailyGoal(auth).then((goal) => { ownGoal = goal; }, (loadError) => { ownGoalError = formatDailyGoalError(loadError); })
+    : null;
 
   if (canLoadDailyGoal()) {
     try {
@@ -103,6 +102,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
   } else {
     error = "Configure o Supabase para carregar a Meta Diária.";
   }
+  await loadOwnGoal;
 
   return (
     <main className="min-h-screen bg-mist py-14">

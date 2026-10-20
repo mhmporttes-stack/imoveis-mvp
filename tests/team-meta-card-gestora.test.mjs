@@ -11,7 +11,9 @@ const m1 = resolveTeamMetaScope({ isManager: true, profileId: "M1", managedUserI
 test("T-49: o card próprio usa getBrokerDailyGoal(auth) — só o perfil da sessão, sem id externo", () => {
   const page = src("app/admin/meta-diaria/page.jsx");
   assert.match(page, /viewer === "manager" && !ownGoalHidden && canLoadDailyGoal\(\)/);
-  assert.match(page, /ownGoal = await getBrokerDailyGoal\(auth\)/);
+  // 2026-10-20: carregado junto com a visão da equipe (Promise em paralelo), mesmo chamado só com a sessão.
+  assert.match(page, /getBrokerDailyGoal\(auth\)\.then\(\(goal\) => \{ ownGoal = goal; \}/);
+  assert.match(page, /await loadOwnGoal;/);
   assert.doesNotMatch(page, /getBrokerDailyGoal\((?!auth\))/);
   const lib = src("lib/daily-goal.js");
   assert.match(lib, /export async function getBrokerDailyGoal\(auth\) \{\n  const brokerId = requireBrokerId\(auth\);/);
