@@ -154,6 +154,7 @@ const KEYS = {
 };
 
 async function attachDebugger(tabId) {
+  if (attachedTabs.has(tabId)) return;
   try {
     await chrome.debugger.attach({ tabId }, "1.3");
     attachedTabs.add(tabId);
@@ -346,8 +347,14 @@ async function readInbox(tabId) {
 }
 
 async function readThread(tabId, thread) {
-  await navigateAndWait(tabId, thread.threadUrl);
-  await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+  if (thread.threadUrl) {
+    await navigateAndWait(tabId, thread.threadUrl);
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+  } else {
+    // Item sem link (painel do Messenger): abre a janela de chat clicando no item, na mesma página.
+    const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: thread.threadKey }, 30000);
+    if (!opened?.ok) return { read: { ok: false, error: opened?.error || "Não abriu a conversa." }, conversation: null };
+  }
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
   const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true }, thread.full ? 300000 : 30000);
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
@@ -364,14 +371,22 @@ async function sendOutbound(tabId, config, message) {
   try {
     await attachDebugger(tabId);
     await chrome.tabs.update(tabId, { active: true });
-    await navigateAndWait(tabId, message.threadUrl || `https://www.facebook.com/messages/t/${message.threadKey}`);
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+    if (message.threadUrl) {
+      await navigateAndWait(tabId, message.threadUrl);
+      await chrome.scripting.executeScript({ target: { tabId }, files: ["selectors.js", "inbox.js"] });
+    } else {
+      // Conversa sem link (painel do Messenger): reabre a caixa do Marketplace e clica no item.
+      const inbox = await readInbox(tabId);
+      if (!(inbox?.threads || []).some((thread) => thread.threadKey === message.threadKey)) throw Object.assign(new Error("Conversa não encontrada na caixa do Marketplace."), { beforeSend: true });
+      const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 30000);
+      if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
+    }
     outcome = await sendWithTimeout(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
   } catch (error) {
-    outcome = { ok: false, sentAttempted: true, error: error.message }; // sem saber se saiu: não reenvia
-  } finally {
-    await detachDebugger(tabId);
+    // Falhou antes de digitar (conversa não aberta): pode tentar de novo; senão, sem saber se saiu, não reenvia.
+    outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
   }
+  // O depurador fica ligado até o fim da rodada (desligado no finally do chatTick).
   await postOutboundResult(config, message.id, outboundResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno do envio falhou:", error?.message || error));
   return outcome;
 }
@@ -392,11 +407,14 @@ async function chatTick() {
   await saveState({ ...state, chatRunning: new Date().toISOString() });
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
   await sleep(500);
+  // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
+  await attachDebugger(tab.id);
   // Diagnóstico do popup: o que foi listado, lido, enviado e o erro (se houver).
-  const summary = { listed: 0, read: 0, sent: 0, failed: 0, created: 0, newMessages: 0, error: "", inboxUrl: "" };
+  const summary = { listed: 0, read: 0, sent: 0, failed: 0, created: 0, newMessages: 0, error: "", inboxUrl: "", steps: "" };
   try {
     const inbox = await readInbox(tab.id);
     summary.inboxUrl = inbox?.url || "";
+    summary.steps = (inbox?.steps || []).join(" → ");
     if (inbox?.checkpoint) {
       summary.error = "O Facebook pediu verificação/limite na caixa do Marketplace.";
       return await pauseForCheckpoint("caixa do Marketplace");
@@ -408,7 +426,8 @@ async function chatTick() {
     for (const thread of threadsToRead(threads, chatPreviews || {})) {
       const { read, conversation } = await readThread(tab.id, thread);
       if (read?.checkpoint) return await pauseForCheckpoint("conversa do Marketplace");
-      if (read?.ok) conversations.push(conversation);
+      if (read?.ok && conversation) conversations.push(conversation);
+      else if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
     }
     const synced = await postChatSync(config, conversations);
     summary.read = conversations.length;

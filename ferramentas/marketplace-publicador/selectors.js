@@ -114,8 +114,15 @@
       url: "https://www.facebook.com/marketplace/inbox/",
       // Links das conversas listadas na caixa do Marketplace.
       threadLinks: 'a[href*="/marketplace/t/"], a[href*="/messages/t/"], a[href*="/t/"][role="link"]',
-      // Área das mensagens dentro da conversa e cada linha/bolha.
-      messageArea: '[role="main"] [role="grid"], [role="main"] [aria-label*="Mensagens"], [role="main"] [aria-label*="Messages"], [role="main"]',
+      // Itens de lista (com ou sem link): cada um é "Nome · Título do anúncio" + prévia + hora (prints do dono, 2026-10-20).
+      listItems: '[role="row"], [role="listitem"], [role="gridcell"], a[role="link"], [role="link"], [role="button"]',
+      // Caminho real visto pelo dono: ícone do Messenger no topo → painel "Conversas" → item fixo "Marketplace".
+      messengerButtonLabels: ["Messenger", "Mensagens", "Messages", "Chats"],
+      marketplaceEntryTexts: ["Marketplace"],
+      // Aviso de criptografia de ponta a ponta sem o histórico (pede o PIN do Messenger).
+      pinTexts: ["Insira seu PIN", "histórico de conversa está faltando", "restaurar o histórico", "Enter your PIN", "chat history is missing", "restore your chat history"],
+      // Área das mensagens dentro da conversa (página ou janela de chat) e cada linha/bolha.
+      messageArea: '[role="main"] [role="grid"], [role="main"] [aria-label*="Mensagens"], [role="main"] [aria-label*="Messages"], [role="dialog"] [role="grid"], [role="dialog"] [aria-label*="Mensagens"], [role="complementary"] [role="grid"], [role="main"]',
       messageRows: '[role="row"], [data-testid="message-container"]',
       messageText: 'div[dir="auto"]',
       // Campo de escrever e botão enviar.
@@ -310,6 +317,37 @@
       if (same) { overlap = size; break; }
     }
     return [...collected, ...windowRows.slice(overlap)];
+  };
+
+  // Item da caixa do Marketplace em linhas de texto → dados. 1ª linha "Nome · Título do anúncio"; prévia "Você: …"
+  // (nossa) ou "Nome: …" (do cliente); hora relativa ("6 min", "1h", "15h") em linha própria ou no fim da prévia.
+  // null = não é um item de conversa do Marketplace (ex.: conversa pessoal sem " · ").
+  MP.parseInboxItem = function parseInboxItem(lines = []) {
+    const clean = lines.map((line) => String(line || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const first = clean[0] || "";
+    const sep = first.indexOf(" · ");
+    if (sep <= 0) return null;
+    const contactName = first.slice(0, sep).trim();
+    const listingTitle = first.slice(sep + 3).trim();
+    let timeLabel = "";
+    let preview = "";
+    for (const line of clean.slice(1)) {
+      const parts = line.split(" · ").map((part) => part.trim()).filter(Boolean);
+      const last = parts[parts.length - 1] || "";
+      if (MP.parseRelativeTime(last) && last.length <= 12) {
+        timeLabel = last;
+        if (parts.length > 1 && !preview) preview = parts.slice(0, -1).join(" · ");
+      } else if (!preview && !/^\d+\s+nova/i.test(line)) {
+        preview = line;
+      }
+    }
+    const outbound = /^(você|voce|you)\s*:/i.test(preview);
+    return { contactName, listingTitle, preview, previewDirection: outbound ? "outbound" : "inbound", timeLabel };
+  };
+
+  // Chave da conversa quando o item não tem link: estável por nome + anúncio.
+  MP.itemKey = function itemKey(contactName, listingTitle) {
+    return MP.messageExternalId("item", "k", `${contactName}|${listingTitle}`).replace(/^h:/, "n");
   };
 
   // Nome de grupo comparável: sem acento, caixa, pontuação e espaços repetidos.

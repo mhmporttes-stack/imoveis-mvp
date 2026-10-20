@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: caixa lida pelo caminho real do Messenger (extensão 1.8.1)
+- **Data:** 2026-10-20
+- **Área:** extensão `ferramentas/marketplace-publicador/` (`selectors.js`, `inbox.js`, `background.js`, `popup.js`).
+- **Alteração:** popup 1.8.0 mostrou "0 na caixa" (seletores procuravam links `/marketplace/t/`). Pelos prints do dono: a extensão lê a página `/marketplace/inbox` (só se a URL for de fato a caixa) e, sem itens, segue o caminho real — ícone do Messenger → painel "Conversas" → item fixo "Marketplace" → lista "← Marketplace". Só itens "Nome · Título do anúncio" entram (`MP.parseInboxItem`; conversas pessoais nunca são lidas; a página inteira só é lida em `/marketplace/inbox`). Prévia "Você:" = nossa; hora relativa ("6 min", "1h"). Item sem link: chave estável nome+anúncio (`MP.itemKey`) e a conversa abre clicando no item (`mp-inbox-open`), também para enviar respostas. Conversa criptografada sem mensagens → "Restaure o histórico com o PIN do Messenger". Depurador ligado na rodada inteira (cliques reais). Popup mostra também o caminho percorrido.
+- **Verificação:** extensão 55 testes (fixture montada pela descrição dos prints). Leitura da conversa aberta **A CONFIRMAR** com o print da conversa.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — MKT-2: histórico completo na 1ª leitura, atribuição do dia (Jennyfer) e diagnóstico no popup (extensão 1.8.0)
 - **Data:** 2026-10-20
 - **Área:** Chat do Marketplace (CRM + extensão).

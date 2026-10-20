@@ -28,29 +28,104 @@
     return MP.isCheckpoint(location.href, document.body ? document.body.innerText.slice(0, 20000) : "");
   }
 
-  // Lista da caixa do Marketplace: uma entrada por conversa (link), com nome, foto, anúncio e prévia.
-  async function listThreads() {
-    await waitFor(() => document.querySelector(MP.inbox.threadLinks), 15000);
+  function itemLines(element) {
+    return String(element.innerText || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  }
+
+  // Lê os itens "Nome · Anúncio" dentro de `root` (a página da caixa ou o painel "← Marketplace"). Só itens nesse
+  // formato entram: conversas pessoais (sem " · anúncio") nunca são lidas.
+  function collectItems(root) {
     const byKey = new Map();
-    for (const link of document.querySelectorAll(MP.inbox.threadLinks)) {
-      const threadKey = MP.parseThreadKey(link.getAttribute("href") || "");
-      if (!threadKey || byKey.has(threadKey) || !visible(link)) continue;
-      const lines = String(link.innerText || "").split("\n").map((line) => line.trim()).filter(Boolean);
-      const photo = link.querySelector("img, image");
+    for (const element of root.querySelectorAll(MP.inbox.listItems)) {
+      if (!visible(element)) continue;
+      const parsed = MP.parseInboxItem(itemLines(element));
+      if (!parsed) continue;
+      const link = element.matches?.("a") ? element : element.querySelector?.("a[href]");
+      const href = link?.getAttribute("href") || "";
+      const threadKey = MP.parseThreadKey(href) || MP.itemKey(parsed.contactName, parsed.listingTitle);
+      if (byKey.has(threadKey)) continue;
+      const photo = element.querySelector?.("img, image");
+      const label = `${element.getAttribute?.("aria-label") || ""}`;
       byKey.set(threadKey, {
         threadKey,
-        threadUrl: new URL(link.getAttribute("href"), location.origin).toString(),
-        // Na caixa do Marketplace a 1ª linha costuma ser "Nome · Título do anúncio"; a última, a prévia.
-        contactName: (lines[0] || "").split(" · ")[0],
-        listingTitle: (lines[0] || "").split(" · ").slice(1).join(" · ") || lines[1] || "",
-        preview: lines[lines.length - 1] || "",
-        // Rótulo de tempo da linha ("2 h", "14:32", "3 d") → hora aproximada da última atividade.
-        lastActivityAt: lines.map((line) => MP.parseRelativeTime(line.split(" · ").pop())).find(Boolean) || null,
-        unread: /font-weight:\s*(6|7|8|9)00|bold/i.test(link.innerHTML.slice(0, 2000)),
-        contactPhotoUrl: photo?.getAttribute("src") || photo?.getAttribute("xlink:href") || ""
+        threadUrl: MP.parseThreadKey(href) ? new URL(href, location.origin).toString() : "",
+        contactName: parsed.contactName,
+        listingTitle: parsed.listingTitle,
+        preview: parsed.preview,
+        lastActivityAt: MP.parseRelativeTime(parsed.timeLabel) || null,
+        unread: /n[ãa]o lida|unread/i.test(label) || /font-weight:\s*(6|7|8|9)00|bold/i.test(String(element.innerHTML || "").slice(0, 2000)),
+        contactPhotoUrl: photo?.getAttribute?.("src") || photo?.getAttribute?.("xlink:href") || ""
       });
     }
-    return { threads: [...byKey.values()].slice(0, 40), checkpoint: pageCheckpoint(), url: location.href };
+    return [...byKey.values()];
+  }
+
+  function findByText(selector, texts, root = document) {
+    return [...root.querySelectorAll(selector)].find((element) => visible(element) && (MP.matchesAny(element.getAttribute?.("aria-label"), texts, true) || MP.matchesAny(itemLines(element)[0], texts, true))) || null;
+  }
+
+  // Caminho do print do dono: ícone do Messenger → painel "Conversas" → item fixo "Marketplace" → "← Marketplace".
+  async function openMarketplaceFromMessenger(steps) {
+    const button = findByText('[role="button"], a, [aria-label]', MP.inbox.messengerButtonLabels);
+    if (!button) {
+      steps.push("ícone do Messenger não encontrado");
+      return null;
+    }
+    await clickElement(button);
+    const entry = await waitFor(() => findByText(MP.inbox.listItems, MP.inbox.marketplaceEntryTexts), 10000);
+    if (!entry) {
+      steps.push("painel de conversas sem o item Marketplace");
+      return null;
+    }
+    await clickElement(entry);
+    await sleep(between(1500, 2500));
+    steps.push("abriu Messenger → Marketplace");
+    // O painel que mostra "← Marketplace" (ou o diálogo aberto) é a raiz da lista.
+    // Nunca a página inteira: só o painel que agora mostra "← Marketplace" (sem ele, não lê nada).
+    return [...document.querySelectorAll('[role="dialog"], [role="complementary"]')].find((element) => visible(element) && MP.matchesAny(itemLines(element)[0], MP.inbox.marketplaceEntryTexts)) || null;
+  }
+
+  async function clickElement(element) {
+    element.scrollIntoView?.({ block: "center" });
+    await sleep(between(200, 400));
+    const rect = element.getBoundingClientRect();
+    if (!(await trusted("click", { x: rect.left + rect.width / 2, y: rect.top + Math.min(rect.height / 2, 18) }))) element.click?.();
+    await sleep(between(600, 1200));
+  }
+
+  // Lista da caixa do Marketplace: 1º a página /marketplace/inbox; sem itens, o caminho do Messenger. Devolve também
+  // os passos (diagnóstico do popup).
+  async function listThreads() {
+    const steps = [];
+    // A página inteira só é lida quando é a caixa do Marketplace (nunca o feed nem o Messenger geral).
+    const onInbox = location.pathname.startsWith("/marketplace/inbox");
+    if (onInbox) await waitFor(() => collectItems(document).length || null, 12000, 800);
+    let threads = onInbox ? collectItems(document) : [];
+    steps.push(`página ${location.pathname}: ${threads.length} item(ns)`);
+    if (!threads.length) {
+      const root = await openMarketplaceFromMessenger(steps);
+      if (root) {
+        await waitFor(() => collectItems(root).length || null, 10000, 800);
+        threads = collectItems(root);
+        steps.push(`painel Marketplace: ${threads.length} item(ns)`);
+      }
+    }
+    return { threads: threads.slice(0, 40), checkpoint: pageCheckpoint(), url: location.href, steps };
+  }
+
+  // Abre a conversa clicando no item (quando não há link): a janela de chat abre na mesma página.
+  async function openItem(threadKey) {
+    const root = document;
+    for (const element of root.querySelectorAll(MP.inbox.listItems)) {
+      if (!visible(element)) continue;
+      const parsed = MP.parseInboxItem(itemLines(element));
+      if (parsed && MP.itemKey(parsed.contactName, parsed.listingTitle) === threadKey) {
+        await clickElement(element);
+        await sleep(between(1500, 2500));
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: "Item da conversa não encontrado na lista." };
   }
 
   function bubbleAttachments(row) {
@@ -87,7 +162,11 @@
   // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
   async function readThread(threadKey, full = false) {
     const area = await waitFor(() => document.querySelector(MP.inbox.messageArea), 15000);
-    if (!area) return { ok: false, error: "Área de mensagens não encontrada.", checkpoint: pageCheckpoint() };
+    const bodyText = document.body ? document.body.innerText.slice(0, 20000) : "";
+    if (MP.matchesAny(bodyText, MP.inbox.pinTexts) && (!area || !visibleRows(area).length)) {
+      return { ok: false, error: "Restaure o histórico com o PIN do Messenger (a conversa está criptografada e sem mensagens).", checkpoint: pageCheckpoint() };
+    }
+    if (!area) return { ok: false, error: `Área de mensagens não encontrada (${location.pathname}; diálogos: ${document.querySelectorAll('[role="dialog"]').length}).`, checkpoint: pageCheckpoint() };
     await sleep(between(1200, 2200));
     let rows = visibleRows(area);
     if (full) {
@@ -109,6 +188,7 @@
       rows = MP.mergeRowWindows(rows, visibleRows(area));
     }
     const listing = document.querySelector(MP.listingLink);
+    if (!rows.length) return { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.messageRows).length} linhas na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
     return {
       ok: true,
       listingUrl: listing ? MP.cleanListingUrl(listing.href) : "",
@@ -166,6 +246,10 @@
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "mp-inbox-list") {
       listThreads().then(sendResponse);
+      return true;
+    }
+    if (message?.type === "mp-inbox-open") {
+      openItem(message.threadKey).then(sendResponse);
       return true;
     }
     if (message?.type === "mp-inbox-read") {

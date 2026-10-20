@@ -82,7 +82,7 @@ function el({ tag = "div", text = "", href = "", attrs = {}, rect = { left: 0, r
 async function loadInbox(doc) {
   const listeners = [];
   globalThis.document = doc;
-  globalThis.location = { href: "https://www.facebook.com/marketplace/inbox/", origin: "https://www.facebook.com" };
+  globalThis.location = { href: "https://www.facebook.com/marketplace/inbox/", origin: "https://www.facebook.com", pathname: "/marketplace/inbox/" };
   globalThis.chrome = { runtime: { onMessage: { addListener: (fn) => listeners.push(fn) }, sendMessage: async () => ({ ok: false }) } };
   globalThis.__mpInboxLoaded = false;
   const code = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
@@ -92,11 +92,11 @@ async function loadInbox(doc) {
 
 test("inbox.js (DOM falso): lista só as conversas da caixa do Marketplace", async () => {
   const links = [
-    el({ tag: "a", href: "/marketplace/t/111/", text: "Ana Souza · Casa com piscina\nAinda está disponível?", attrs: { match: ['a[href*="/marketplace/t/"]'] }, html: '<span style="font-weight: 700">Ana</span>' }),
-    el({ tag: "a", href: "/marketplace/t/111/", text: "duplicado", attrs: { match: ['a[href*="/marketplace/t/"]'] } }),
-    el({ tag: "a", href: "/marketplace/t/222/", text: "Bruno · Apartamento Centro\nObrigado", attrs: { match: ['a[href*="/marketplace/t/"]'] } })
+    el({ tag: "a", href: "/marketplace/t/111/", text: "Ana Souza · Casa com piscina\nAinda está disponível?", attrs: { match: ['a[role="link"]'] }, html: '<span style="font-weight: 700">Ana</span>' }),
+    el({ tag: "a", href: "/marketplace/t/111/", text: "duplicado", attrs: { match: ['a[role="link"]'] } }),
+    el({ tag: "a", href: "/marketplace/t/222/", text: "Bruno · Apartamento Centro\nObrigado", attrs: { match: ['a[role="link"]'] } })
   ];
-  const doc = { body: { innerText: "Caixa de entrada do Marketplace" }, querySelector: (sel) => (sel.includes("/marketplace/t/") ? links[0] : null), querySelectorAll: (sel) => (sel.includes("/marketplace/t/") ? links : []) };
+  const doc = { body: { innerText: "Caixa de entrada do Marketplace" }, querySelector: (sel) => (sel.includes('a[role="link"]') ? links[0] : null), querySelectorAll: (sel) => (sel.includes('a[role="link"]') ? links : []) };
   const send = await loadInbox(doc);
   const result = await send({ type: "mp-inbox-list" });
   assert.equal(result.checkpoint, false);
@@ -125,7 +125,7 @@ test("inbox.js (DOM falso): lê as mensagens com o lado certo", async () => {
 test("inbox.js nunca envia com evento simulado (sem depurador = não envia)", () => {
   const code = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
   assert.match(code, /Depurador desligado: não envio com eventos simulados/);
-  assert.match(code, /MP\.inbox\.threadLinks/);
+  assert.match(code, /MP\.inbox\.listItems/);
   assert.doesNotMatch(code, /messages\/t\/["'`]\s*\)/, "não abre a lista geral do Messenger");
 });
 
@@ -161,4 +161,80 @@ test("popup mostra o diagnóstico do chat (última sincronização, conversas, e
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
   assert.match(bg, /full: thread\.full === true/);
   assert.match(bg, /lastActivityAt: thread\.lastActivityAt/);
+});
+
+// --- Caminho real (prints do dono, 2026-10-20): Messenger → "Marketplace" → "Nome · Anúncio" ----------------------
+test("item da caixa do Marketplace: nome, anúncio, prévia/remetente e hora", () => {
+  assert.deepEqual(MP.parseInboxItem(["Stephanie · 2 quartos 1 banheiro Apar…", "Stephanie: Essas unidades são para… · 6 min"]), { contactName: "Stephanie", listingTitle: "2 quartos 1 banheiro Apar…", preview: "Stephanie: Essas unidades são para…", previewDirection: "inbound", timeLabel: "6 min" });
+  assert.deepEqual(MP.parseInboxItem(["Tânia · Casa com piscina", "Você: Olá Tânia, bom dia…", "1h"]), { contactName: "Tânia", listingTitle: "Casa com piscina", preview: "Você: Olá Tânia, bom dia…", previewDirection: "outbound", timeLabel: "1h" });
+  assert.equal(MP.parseInboxItem(["Ana Paula", "Oi, tudo bem? · 2 h"]), null, "conversa pessoal nunca é item do Marketplace");
+  assert.equal(MP.parseInboxItem(["Marketplace", "1 nova mensagem · 6 min"]), null, "a entrada 'Marketplace' não é conversa");
+  assert.equal(MP.itemKey("Stephanie", "2 quartos"), MP.itemKey("Stephanie", "2 quartos"));
+  assert.match(MP.itemKey("Stephanie", "2 quartos"), /^n[0-9a-f]+$/);
+});
+
+function fakeNode({ role = "", tag = "div", text = "", label = "", href = "", children = [], onClick = null, hidden = () => false } = {}) {
+  const node = {
+    tag, role, children, href,
+    get innerText() { return text || children.filter((c) => !c.isHidden()).map((c) => c.innerText).join("\n"); },
+    innerHTML: "",
+    isHidden: hidden,
+    getAttribute: (name) => (name === "aria-label" ? label || null : name === "href" ? href || null : name === "role" ? role || null : null),
+    getBoundingClientRect: () => (hidden() ? { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } : { left: 0, right: 300, top: 0, bottom: 40, width: 300, height: 40 }),
+    scrollIntoView() {},
+    click() { onClick?.(); },
+    matches(selector) {
+      return selector.split(",").some((raw) => {
+        const part = raw.trim().split(/\s+/).pop();
+        const roleMatch = part.match(/\[role="([^"]+)"\]/);
+        if (roleMatch) return role === roleMatch[1] && (!part.startsWith("a") || tag === "a");
+        if (part === "a[href]") return tag === "a" && Boolean(href);
+        if (part === "[aria-label]") return Boolean(label);
+        return part === tag;
+      });
+    },
+    all() { return children.filter((c) => !c.isHidden()).flatMap((c) => [c, ...c.all()]); },
+    querySelectorAll(selector) { return node.all().filter((c) => c.matches(selector)); },
+    querySelector(selector) { return node.querySelectorAll(selector)[0] || null; }
+  };
+  return node;
+}
+
+test("inbox.js (fixture do print): abre Messenger → Marketplace e lê SÓ as conversas do Marketplace", async () => {
+  const state = { popover: false, marketplace: false };
+  const items = [
+    fakeNode({ role: "row", text: "Stephanie · 2 quartos 1 banheiro Apar…\nStephanie: Essas unidades são para… · 6 min" }),
+    fakeNode({ role: "row", text: "Tânia · Casa com piscina\nVocê: Olá Tânia, bom dia… · 1h" })
+  ];
+  const marketplacePanel = fakeNode({ role: "dialog", children: [fakeNode({ text: "Marketplace" }), ...items], hidden: () => !state.marketplace });
+  const popover = fakeNode({ role: "dialog", hidden: () => !state.popover || state.marketplace, children: [
+    fakeNode({ text: "Conversas" }),
+    fakeNode({ text: "O histórico de conversa está faltando — Insira seu PIN para restaurar" }),
+    fakeNode({ role: "row", text: "Marketplace\n1 nova mensagem · 6 min", onClick: () => { state.marketplace = true; } }),
+    fakeNode({ role: "row", text: "Ana Paula\nOi, tudo bem? · 2 h" }),
+    fakeNode({ role: "row", text: "Adriana · Grupo família\nAdriana: oi · 3 h", hidden: () => true })
+  ] });
+  const messengerButton = fakeNode({ role: "button", label: "Messenger", onClick: () => { state.popover = true; } });
+  const body = fakeNode({ children: [messengerButton, popover, marketplacePanel] });
+  const doc = { body: { innerText: "" }, querySelectorAll: (sel) => body.querySelectorAll(sel), querySelector: (sel) => body.querySelector(sel) };
+  const listeners = [];
+  globalThis.document = doc;
+  globalThis.location = { href: "https://www.facebook.com/", origin: "https://www.facebook.com", pathname: "/" };
+  globalThis.chrome = { runtime: { onMessage: { addListener: (fn) => listeners.push(fn) }, sendMessage: async () => ({ ok: false }) } };
+  globalThis.__mpInboxLoaded = false;
+  new Function(readFileSync(new URL("../inbox.js", import.meta.url), "utf8"))();
+  const result = await new Promise((resolve) => listeners[0]({ type: "mp-inbox-list" }, {}, resolve));
+  assert.deepEqual(result.threads.map((t) => [t.contactName, t.listingTitle, t.preview]), [
+    ["Stephanie", "2 quartos 1 banheiro Apar…", "Stephanie: Essas unidades são para…"],
+    ["Tânia", "Casa com piscina", "Você: Olá Tânia, bom dia…"]
+  ]);
+  assert.ok(result.threads.every((t) => /^n[0-9a-f]+$/.test(t.threadKey) && t.threadUrl === ""));
+  assert.match(result.steps.join(" | "), /abriu Messenger → Marketplace/);
+  assert.ok(!result.threads.some((t) => /Ana Paula|Adriana/.test(t.contactName)), "conversas pessoais nunca entram");
+});
+
+test("conversa criptografada sem mensagens: erro claro do PIN", () => {
+  const code = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  assert.match(code, /Restaure o histórico com o PIN do Messenger/);
+  assert.ok(MP.matchesAny("O histórico de conversa está faltando. Insira seu PIN para restaurar", MP.inbox.pinTexts));
 });

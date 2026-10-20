@@ -26,6 +26,7 @@ function render({ state, config, chatLast }) {
     if (chatLast.result === "chat_sincronizado" || chatLast.result === "chat_erro") {
       status.append(line("Chat — conversas", `${chatLast.listed ?? 0} na caixa, ${chatLast.read ?? 0} lida(s), ${chatLast.created ?? 0} nova(s) no CRM, ${chatLast.newMessages ?? 0} mensagem(ns) nova(s), ${chatLast.sent ?? 0} resposta(s) enviada(s)`));
     }
+    if (chatLast.steps) status.append(line("Chat — caminho", chatLast.steps));
     if (chatLast.error) status.append(line("Chat — erro", chatLast.error));
   } else {
     status.append(line("Chat do Marketplace", "ainda não sincronizou (aguarde até 2 min com o Chrome aberto)"));
