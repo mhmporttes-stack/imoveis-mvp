@@ -199,26 +199,93 @@
     return { threads: threads.slice(0, 40), checkpoint: pageCheckpoint(), url: location.href, steps };
   }
 
-  // Abre a conversa clicando no item (quando não há link): a janela de chat abre na mesma página. A lista carrega aos
-  // poucos: rola até achar o item.
-  async function openItem(threadKey) {
+  // Abre a conversa clicando no item (quando não há link). 1.8.8: o clique NÃO recarrega a página — abre a janela
+  // de chat flutuante na mesma página ou só troca a rota (pushState para /marketplace/t/ ou /messages/t/). Por isso
+  // espera AQUI, no DOM (até 20 s), o painel da conversa: div[role=log] num painel cujo cabeçalho
+  // ([role=button][aria-label] ou h2) tem o nome do item clicado; ou a rota de conversa com um role=log visível.
+  // (A 1.8.7 esperava o "complete" da aba / reinjetava e esgotava o tempo em todas as conversas — caso real do dono.)
+  const OPEN_WAIT_MS = 20000;
+  const THREAD_PATH = /\/(?:marketplace\/t|messages\/t|t)\//;
+
+  function namedPane(contactName) {
+    const key = MP.normalize(contactName);
+    // Sem nome (envio de resposta sem o nome do contato): qualquer painel de conversa visível.
+    return MP.chatPanes(document).find((pane) => visible(pane) && pane.querySelector?.('[role="log"]')
+      && (!key || [...pane.querySelectorAll('[role="button"][aria-label], h2, [role="heading"]')].some((node) => MP.normalize(node.getAttribute?.("aria-label") || node.textContent).includes(key)))) || null;
+  }
+
+  function threadRouteWithLog() {
+    if (!THREAD_PATH.test(location.pathname)) return null;
+    return [...document.querySelectorAll('[role="log"]')].find(visible) || null;
+  }
+
+  function itemHrefOf(element) {
+    const links = [element, ...(element.querySelectorAll?.("a[href]") || [])].filter((node) => node.getAttribute?.("href"));
+    const outer = element.closest?.("a[href]");
+    if (outer) links.push(outer);
+    const href = links.map((node) => node.getAttribute("href")).find((value) => value && !value.startsWith("#"));
+    try {
+      return href ? new URL(href, location.origin).toString() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  // Esqueleto anonimizado do que estava na tela quando a conversa não abriu (calibração; sem nomes nem mensagens).
+  function openDiagnostic({ before, clicked, waitedMs, stage }) {
+    const budget = { left: 1200 };
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')].slice(0, 8).map((dialog) => ({
+      visible: visible(dialog),
+      logs: dialog.querySelectorAll('[role="log"]').length,
+      textboxes: dialog.querySelectorAll('[role="textbox"]').length,
+      headers: [...dialog.querySelectorAll('[role="button"][aria-label], h2')].slice(0, 8).map((node) => MP.skeletonText(node.getAttribute?.("aria-label") || node.textContent))
+    }));
+    const panes = MP.chatPanes(document);
+    return {
+      stage: "open_conversation",
+      result: stage,
+      path: MP.skeletonPath(location.href),
+      before: MP.skeletonPath(before),
+      waitedMs,
+      clicked: clicked ? { item: skeleton(clicked.element, 0, { left: 150 }), href: MP.skeletonPath(clicked.href) } : null,
+      counts: { dialogs: dialogs.length, logs: document.querySelectorAll('[role="log"]').length, panes: panes.length, visiblePanes: panes.filter(visible).length, textboxes: document.querySelectorAll('[role="textbox"]').length },
+      dialogs,
+      panes: panes.slice(0, 3).map((pane) => skeleton(pane, 0, budget)),
+      truncated: budget.left <= 0
+    };
+  }
+
+  async function openItem(threadKey, contactName = "", waitMs = OPEN_WAIT_MS) {
     await closeOpenChats();
     const root = listRoot();
     const box = scrollableIn(root);
+    const before = location.href;
     for (let i = 0; i < 20; i += 1) {
       const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
       if (item) {
-        const before = location.href;
+        const itemHref = itemHrefOf(item.element);
         await clickElement(item.element);
-        await sleep(between(1500, 2500));
-        // O clique pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/… (o background reinjeta).
-        return { ok: true, navigated: location.href !== before };
+        const startedAt = Date.now();
+        const found = await waitFor(() => (namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null), waitMs, 400);
+        if (found) return { ok: true, opened: found, navigated: location.href !== before, url: location.href };
+        return { ok: false, itemHref, error: `A conversa não abriu em ${Math.round(waitMs / 1000)} s depois do clique (aba em ${MP.skeletonPath(location.href)}).`, diagnostic: openDiagnostic({ before, clicked: { element: item.element, href: itemHref }, waitedMs: Date.now() - startedAt, stage: "sem_painel" }) };
       }
       if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 5) break;
       box.scrollTop += Math.max(300, box.clientHeight * 0.8);
       await sleep(between(900, 1500));
     }
-    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(root).length} itens visíveis).` };
+    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(root).length} itens visíveis).`, diagnostic: openDiagnostic({ before, clicked: null, waitedMs: 0, stage: "item_nao_encontrado" }) };
+  }
+
+  // Abre e lê no MESMO contexto da página (sem esperar carregamento da aba nem reinjetar).
+  async function openAndRead(message) {
+    const startedAt = Date.now();
+    const opened = await openItem(message.threadKey, message.contactName || "", Number(message.openWaitMs) || OPEN_WAIT_MS);
+    if (!opened.ok) return { ok: false, opened, error: opened.error };
+    // O prazo vale para abrir + ler: a leitura fica com o que sobrou (mínimo 20 s).
+    const maxMs = Number(message.maxMs) || 0;
+    const read = await readThread(message.threadKey, message.full === true, message.contactName || "", maxMs ? Math.max(20000, maxMs - (Date.now() - startedAt)) : 0);
+    return { ...read, opened };
   }
 
   function bubbleAttachments(row) {
@@ -525,7 +592,11 @@
       return true;
     }
     if (message?.type === "mp-inbox-open") {
-      openItem(message.threadKey).then(sendResponse);
+      openItem(message.threadKey, message.contactName || "").then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
+      return true;
+    }
+    if (message?.type === "mp-inbox-open-read") {
+      openAndRead(message).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
       return true;
     }
     if (message?.type === "mp-inbox-read") {

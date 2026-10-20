@@ -388,24 +388,77 @@ async function readInbox(tabId) {
   return sendWithTimeout(tabId, { type: "mp-inbox-list" }, 120000);
 }
 
-async function readThread(tabId, thread) {
-  if (String(thread.threadUrl || "").startsWith(FB_PREFIX)) {
-    await navigateAndWait(tabId, thread.threadUrl);
-    await injectInbox(tabId);
-  } else {
-    // Item sem link: clica no item. Pode abrir a janela flutuante (mesma página) ou navegar para /messages/t/….
-    const before = (await chrome.tabs.get(tabId)).url;
-    const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: thread.threadKey }, 30000).catch((error) => ({ ok: false, error: error.message }));
-    if (!opened?.ok) return { read: { ok: false, error: opened?.error || "Não abriu a conversa." }, conversation: null };
-    await waitTabSettled(tabId, before);
-    await injectInbox(tabId); // ignorado se o leitor já estiver na página (mesmo documento)
-  }
+const THREAD_PATH_RE = /\/(?:marketplace\/t|messages\/t|t)\//;
+const OPEN_DIAGNOSTIC_EVERY_MS = 30 * 60 * 1000;
+
+// Conversa não abriu: manda o esqueleto anonimizado (URL, diálogos, o que foi clicado) para calibrar, no máximo 1 a
+// cada 30 min. Vai como kind "thread" (já aceito pelo CRM) com stage "open_conversation" — sem depender de deploy.
+async function sendOpenDiagnostic(config, diagnostic) {
+  if (!diagnostic || !config?.key) return "";
+  const { lastOpenDiagnosticAt } = await chrome.storage.local.get("lastOpenDiagnosticAt");
+  if (lastOpenDiagnosticAt && Date.now() - new Date(lastOpenDiagnosticAt).getTime() < OPEN_DIAGNOSTIC_EVERY_MS) return "";
+  await chrome.storage.local.set({ lastOpenDiagnosticAt: new Date().toISOString() });
+  return postDiagnostic(config, "thread", diagnostic).then(() => " (diagnóstico open_conversation enviado)", (error) => ` (diagnóstico falhou: ${error.message})`);
+}
+
+// Lê a conversa numa página que já está nela (link direto, rota /t/ ou último recurso).
+function readOpenThread(tabId, thread, readMs) {
+  return sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
+    .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
+}
+
+async function readThread(tabId, thread, config) {
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
   // maxMs: o leitor para de rolar antes do prazo e devolve o que juntou (1.8.7 — antes podia passar de 5 min).
   const readMs = thread.full ? THREAD_READ_MS.full : THREAD_READ_MS.incremental;
-  const read = await sendWithTimeout(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
-    .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
+  let read;
+  if (String(thread.threadUrl || "").startsWith(FB_PREFIX)) {
+    await navigateAndWait(tabId, thread.threadUrl);
+    await injectInbox(tabId);
+    read = await readOpenThread(tabId, thread, readMs);
+  } else {
+    // Item sem link (1.8.8): a aba volta para a lista (a conversa anterior pode ter trocado a rota), clica e lê NA
+    // MESMA PÁGINA — o clique abre a janela flutuante ou faz pushState; nada de esperar "complete" nem reinjetar.
+    const current = await chrome.tabs.get(tabId);
+    if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
+    await injectInbox(tabId);
+    read = await sendWithTimeout(tabId, { type: "mp-inbox-open-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs + 30000)
+      .catch((error) => ({ ok: false, lost: true, error: error.message }));
+    if (!read?.ok) {
+      const tab = await chrome.tabs.get(tabId).catch(() => ({}));
+      const path = (() => {
+        try {
+          return new URL(tab.url || "").pathname;
+        } catch {
+          return "";
+        }
+      })();
+      const itemHref = read?.opened?.itemHref || "";
+      const diagnostic = read?.opened?.diagnostic || null;
+      if (read?.lost && THREAD_PATH_RE.test(path)) {
+        // O clique trocou o documento (o leitor sumiu) mas a aba está na conversa: lê lá mesmo.
+        await injectInbox(tabId);
+        read = await readOpenThread(tabId, thread, readMs);
+      } else if (!read?.checkpoint && itemHref.startsWith(FB_PREFIX) && !new URL(itemHref).pathname.startsWith("/marketplace/inbox")) {
+        // Último recurso: abre o endereço do item.
+        await navigateAndWait(tabId, itemHref);
+        await injectInbox(tabId);
+        const retry = await readOpenThread(tabId, thread, readMs);
+        read = retry.ok ? retry : { ...retry, error: `${read.error} | pelo endereço do item: ${retry.error}` };
+      }
+      if (!read?.ok && !read?.checkpoint) read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, diagnostic || { stage: "open_conversation", result: read?.lost ? "sem_resposta_da_pagina" : "falhou", path: MP_PATH(tab.url) })}` };
+    }
+  }
   return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
+}
+
+// Caminho anonimizado (mesma regra de MP.skeletonPath, que só existe na página).
+function MP_PATH(href) {
+  try {
+    return new URL(href || "").pathname.replace(/\d{4,}/g, ":id").slice(0, 120);
+  } catch {
+    return "";
+  }
 }
 
 async function pauseForCheckpoint(where) {
@@ -427,7 +480,8 @@ async function sendOutbound(tabId, config, message) {
       const inbox = await readInbox(tabId);
       if (!(inbox?.threads || []).some((thread) => thread.threadKey === message.threadKey)) throw Object.assign(new Error("Conversa não encontrada na caixa do Marketplace."), { beforeSend: true });
       const before = (await chrome.tabs.get(tabId)).url;
-      const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 30000);
+      // 1.8.8: o leitor espera na própria página (até 20 s) a janela/rota da conversa aparecer.
+      const opened = await sendWithTimeout(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 60000);
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
       await waitTabSettled(tabId, before).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
       await injectInbox(tabId);
@@ -447,7 +501,7 @@ async function sendOutbound(tabId, config, message) {
 // (o Chrome encerrou o worker no meio da rodada e o finally não rodou — causa do "sincronizando" eterno da 1.8.6).
 const WORKER_INSTANCE = crypto.randomUUID();
 const CHAT_HEARTBEAT_MS = 20 * 1000;
-const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 240 * 1000, thread: 120 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 200 * 1000 };
+const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 300 * 1000, thread: 150 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 200 * 1000 };
 const THREAD_READ_MS = { full: 210 * 1000, incremental: 60 * 1000 };
 
 class ChatLockLost extends Error {}
@@ -597,7 +651,7 @@ async function chatTick() {
       const label = `lendo conversa ${index + 1}/${toRead.length} (${thread.contactName || "sem nome"}${thread.full ? ", histórico completo" : ""})`;
       let outcome;
       try {
-        outcome = await round.step(label, () => readThread(tab.id, thread), thread.full ? STEP_TIMEOUT_MS.threadFull : STEP_TIMEOUT_MS.thread, summary);
+        outcome = await round.step(label, () => readThread(tab.id, thread, config), thread.full ? STEP_TIMEOUT_MS.threadFull : STEP_TIMEOUT_MS.thread, summary);
       } catch (error) {
         if (error instanceof ChatLockLost) throw error;
         outcome = { read: { ok: false, error: error.message }, conversation: null };

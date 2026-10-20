@@ -220,3 +220,41 @@ test("inbox.js (estrutura real): diagnóstico inbox_list anonimizado", async () 
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
   assert.match(bg, /postDiagnostic\(config, "inbox_list", list\)/);
 });
+
+// 1.8.8: o clique no item NÃO navega — abre a janela flutuante na mesma página (caso real do dono: "Tempo esgotado
+// esperando a página do Facebook" em todas as conversas). Abre e lê no mesmo contexto, sem esperar a aba carregar.
+test("inbox.js 1.8.8: abre a conversa pelo clique na mesma página e lê o role=log da janela com o nome", async () => {
+  const item = listItem({ name: "Ana Teste", title: "Casa 2 quartos", preview: "Ainda está disponível?" });
+  const main = h("div", { role: "main" }, item);
+  const body = h("body", {}, main);
+  // Outra janela já aberta (de outro contato) não pode ser confundida.
+  item.onClick = () => {
+    body.append(chatWindow("Bruno Teste", "Apartamento", [inbound("mid.$zz", "Bruno Teste", "Outra conversa")]));
+    body.append(chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá, ainda está disponível?"), outbound("mid.$ccc", "Sim! Posso te ligar?")]));
+  };
+  const send = await loadInbox(fakeDocument(body));
+  const threadKey = MP.itemKey("Ana Teste", "Casa 2 quartos");
+  const result = await send({ type: "mp-inbox-open-read", threadKey, contactName: "Ana Teste", full: false, maxMs: 60000 });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.opened.opened, "painel");
+  assert.equal(result.opened.navigated, false);
+  assert.deepEqual(result.messages.map((m) => [m.externalId, m.direction]), [["fb:mid.$aaa", "inbound"], ["fb:mid.$ccc", "outbound"]]);
+});
+
+test("inbox.js 1.8.8: conversa que não abre devolve diagnóstico open_conversation anonimizado", async () => {
+  const item = listItem({ name: "Ana Teste", title: "Casa 2 quartos", preview: "Ainda está disponível?" });
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }, item))));
+  const result = await send({ type: "mp-inbox-open-read", threadKey: MP.itemKey("Ana Teste", "Casa 2 quartos"), contactName: "Ana Teste", openWaitMs: 800 });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /não abriu em 1 s depois do clique/);
+  const diagnostic = result.opened.diagnostic;
+  assert.equal(diagnostic.stage, "open_conversation");
+  assert.equal(diagnostic.result, "sem_painel");
+  assert.equal(diagnostic.path, "/marketplace/inbox/");
+  assert.ok(diagnostic.clicked.item);
+  assert.doesNotMatch(JSON.stringify(diagnostic), /Ana Teste|Casa 2 quartos|disponível/);
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /type: "mp-inbox-open-read"/);
+  assert.match(bg, /postDiagnostic\(config, "thread", diagnostic\)/);
+  assert.doesNotMatch(bg.slice(bg.indexOf("async function readThread"), bg.indexOf("function MP_PATH")), /waitTabSettled/, "não espera a aba carregar depois do clique");
+});
