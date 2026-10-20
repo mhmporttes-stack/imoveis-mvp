@@ -19,7 +19,7 @@ function apiCom(respostas) {
 test('cabeçalhos da API web e leitura do perfil', async () => {
   const { api, pedidos } = apiCom([{ status: 200, texto: '{"data":{"user":{"id":"123","username":"ref","is_private":false}},"status":"ok"}' }]);
   const p = await api.buscarPerfil('@Ref');
-  assert.deepEqual(p, { id: '123', username: 'ref', privado: false, seguidores: null, via: 'web_profile_info' });
+  assert.deepEqual(p, { id: '123', username: 'ref', privado: false, sigoEsse: undefined, seguidores: null, via: 'web_profile_info' });
   const h = pedidos[0].cabecalhos;
   assert.equal(h['x-instagram-ajax'], undefined, 'cabeçalho que o site não manda');
   assert.ok(h['x-asbd-id']);

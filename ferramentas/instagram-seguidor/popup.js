@@ -1,3 +1,4 @@
+import { resumoBusca } from './lib/estado.js';
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora } from './painel-comum.js';
 
 const $ = (id) => document.getElementById(id);
@@ -28,7 +29,7 @@ async function render() {
   $('btnPausar').disabled = c.pausado;
   if (e.ultimaBusca && !$('resultadoBusca').dataset.ocupado) {
     const b = e.ultimaBusca;
-    $('resultadoBusca').textContent = `Última busca (${b.origem}): ${b.lidos} lidos, ${b.adicionados} adicionados à fila${b.erro ? ` — ${b.erro}` : ''}.`;
+    $('resultadoBusca').textContent = `Última busca ${resumoBusca(b)}`;
   }
 }
 
@@ -40,9 +41,7 @@ $('btnBuscar').addEventListener('click', async () => {
   $('resultadoBusca').textContent = 'Buscando seguidores… (pode levar alguns minutos; pode fechar esta janela)';
   try {
     const r = await enviar('buscarOrigem', { username });
-    $('resultadoBusca').textContent = r.ok
-      ? `${r.resultado.lidos} lidos, ${r.resultado.adicionados} adicionados à fila.${r.resultado.erro ? ` Interrompido: ${r.resultado.erro}` : ''}`
-      : `Erro: ${r.erro}`;
+    $('resultadoBusca').textContent = r.ok ? resumoBusca(r.resultado) : `Erro: ${r.erro}`;
   } catch (err) {
     $('resultadoBusca').textContent = `Erro: ${err.message}`;
   } finally {

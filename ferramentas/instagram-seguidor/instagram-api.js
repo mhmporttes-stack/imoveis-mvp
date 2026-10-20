@@ -21,8 +21,12 @@ export const ENDPOINTS = {
   perfil: (username) => `/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
   pesquisa: (termo) => `/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(termo)}&include_reel=false`,
   paginaPerfil: (username) => `/${encodeURIComponent(username)}/`,
-  seguidores: (id, maxId, count = 25) =>
+  // Mesmo formato do site: 1ª página com count=12, as seguintes com max_id.
+  seguidores: (id, maxId, count = 12) =>
     `/api/v1/friendships/${id}/followers/?count=${count}&search_surface=follow_list_page${maxId ? `&max_id=${encodeURIComponent(maxId)}` : ''}`,
+  // Plano B (GraphQL antigo do site). Pode deixar de existir; usado só se o v1 vier vazio.
+  seguidoresGraphql: (id, depois, n = 24) =>
+    `/graphql/query/?query_hash=c76146de99bb02f6415203be841dd25a&variables=${encodeURIComponent(JSON.stringify({ id: String(id), include_reel: false, fetch_mutual: false, first: n, ...(depois ? { after: depois } : {}) }))}`,
   seguir: (id) => `/api/v1/friendships/create/${id}/`,
   deixarDeSeguir: (id) => `/api/v1/friendships/destroy/${id}/`,
   amizade: (id) => `/api/v1/friendships/show/${id}/`,
@@ -144,7 +148,16 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
       try {
         const j = await chamar('web_profile_info', ENDPOINTS.perfil(limpo), { referer });
         const u = j && j.data && j.data.user;
-        if (u && u.id) return { id: String(u.id), username: u.username || limpo, privado: Boolean(u.is_private), seguidores: u.edge_followed_by ? u.edge_followed_by.count : null, via: 'web_profile_info' };
+        if (u && u.id) {
+          return {
+            id: String(u.id),
+            username: u.username || limpo,
+            privado: Boolean(u.is_private),
+            sigoEsse: u.followed_by_viewer === undefined ? undefined : Boolean(u.followed_by_viewer),
+            seguidores: u.edge_followed_by ? u.edge_followed_by.count : null,
+            via: 'web_profile_info',
+          };
+        }
         erros.push(new ErroInstagram('nao_encontrado', `Perfil @${limpo} não encontrado (web_profile_info).`, { endpoint: 'web_profile_info' }));
       } catch (e) {
         if (!(e instanceof ErroInstagram)) throw e;
@@ -181,10 +194,34 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
     },
 
     /** Uma página de seguidores de `id`. Retorna { usuarios, proximo }. */
+    /**
+     * Uma página de seguidores de `id`: { usuarios, proximo, via, trecho }.
+     * `trecho` = parte da resposta (sem tokens) para explicar uma lista vazia.
+     */
     async paginaSeguidores(id, maxId = null) {
-      const j = await chamar('friendships/followers', ENDPOINTS.seguidores(id, maxId));
-      if (!Array.isArray(j.users)) throw new ErroInstagram('mudanca_api', 'Lista de seguidores veio sem o campo "users" — o Instagram pode ter mudado a API.', { endpoint: 'friendships/followers' });
-      return { usuarios: j.users, proximo: j.next_max_id || null };
+      const j = await chamar('friendships/followers', ENDPOINTS.seguidores(id, maxId), { referer: '/' });
+      if (!Array.isArray(j.users)) {
+        throw new ErroInstagram('mudanca_api', `Lista de seguidores veio sem o campo "users" — o Instagram pode ter mudado a API. Resposta: ${trechoSeguro(JSON.stringify(j))}`, { endpoint: 'friendships/followers' });
+      }
+      return { usuarios: j.users, proximo: j.next_max_id ? String(j.next_max_id) : null, via: 'v1', trecho: trechoSeguro(JSON.stringify(j)) };
+    },
+
+    /** Plano B: seguidores pelo GraphQL do site. Mesmo formato de paginaSeguidores. */
+    async paginaSeguidoresGraphql(id, depois = null) {
+      const j = await chamar('graphql seguidores', ENDPOINTS.seguidoresGraphql(id, depois), { referer: '/' });
+      const edge = j && j.data && j.data.user && j.data.user.edge_followed_by;
+      if (!edge || !Array.isArray(edge.edges)) {
+        throw new ErroInstagram('mudanca_api', `GraphQL de seguidores respondeu sem a lista. Resposta: ${trechoSeguro(JSON.stringify(j))}`, { endpoint: 'graphql seguidores' });
+      }
+      const usuarios = edge.edges.map(({ node: n }) => ({
+        pk: String(n.id),
+        username: n.username,
+        is_private: Boolean(n.is_private),
+        profile_pic_url: n.profile_pic_url,
+        friendship_status: { following: Boolean(n.followed_by_viewer), followed_by: Boolean(n.follows_viewer) },
+      }));
+      const pi = edge.page_info || {};
+      return { usuarios, proximo: pi.has_next_page && pi.end_cursor ? pi.end_cursor : null, via: 'graphql', trecho: trechoSeguro(JSON.stringify(j)) };
     },
 
     /** Status de amizade com UM perfil: { seguindo, meSegue, pedidoPendente, privado }. */

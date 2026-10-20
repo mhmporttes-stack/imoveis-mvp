@@ -16,8 +16,10 @@ import {
   decidirPausa,
   JANELA_ERROS_MS,
   estaAtiva,
+  precisaReabastecer,
+  alvoFila,
 } from './lib/regras.js';
-import { normalizarEstado, virarDiaSeNecessario, registrarHistorico } from './lib/estado.js';
+import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
 
 const api = criarApiChrome();
 
@@ -26,6 +28,7 @@ const ALARME_VERIFICAR = 'verificar'; // checagem de follow-back (a cada 2 min)
 const ALARME_VIGIA = 'vigia'; // rede de segurança (a cada 5 min): virada de dia, abertura da janela etc.
 const VARREDURA_COMPLETA_MS = 30 * MINUTO; // show_many em todos os seguidos, de 30 em 30 min
 const INTERVALO_MIN_ENTRE_DMS = 60 * 1000;
+const INTERVALO_REABASTECER_MS = 20 * MINUTO;
 
 // ---------------------------------------------------------------- utilidades
 
@@ -474,7 +477,8 @@ async function ciclo() {
   if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config)) {
     let r = await processarDm(e, agora);
     if (!bloqueante(r)) r = await processarSeguir(e, Date.now());
-    if (!bloqueante(r)) await processarDeixarDeSeguir(e, Date.now());
+    if (!bloqueante(r)) r = await processarDeixarDeSeguir(e, Date.now());
+    if (!bloqueante(r)) await reabastecerFila(e, Date.now());
   } else if (!dentroDaJanela(agora, e.config)) {
     // Fora da janela: DMs pendentes vão para a próxima abertura + 1–3 min.
     for (const r of Object.values(e.seguidos)) {
@@ -522,20 +526,54 @@ async function buscarOrigem(username) {
     throw new Error(msg);
   }
   const origem = `@${perfil.username}`;
+  const registrarFalha = async (msg) => {
+    e.ultimaBusca = { em: Date.now(), origem, lidos: 0, adicionados: 0, pulados: {}, erro: msg };
+    log(e, { username: perfil.username, acao: 'buscar origem', resultado: `falhou: ${msg}`, origem });
+    await agendarProximo(e, c);
+    await salvar(e);
+    throw new Error(msg);
+  };
+
+  // Perfil privado que eu não sigo: o Instagram não mostra os seguidores.
+  if (perfil.privado && perfil.sigoEsse === false) {
+    await registrarFalha(`${origem} é um perfil PRIVADO — o Instagram não mostra os seguidores dele para quem não o segue. Escolha um perfil público.`);
+  }
+
+  let modo = 'v1';
   let maxId = null;
   let lidos = 0;
   let adicionados = 0;
+  let paginas = 0;
   const pulados = {};
   let erro = null;
   while (lidos < cfg.maxBusca) {
     await pausaHumana();
     let pagina;
     try {
-      pagina = await api.paginaSeguidores(perfil.id, maxId);
+      pagina = modo === 'v1' ? await api.paginaSeguidores(perfil.id, maxId) : await api.paginaSeguidoresGraphql(perfil.id, maxId);
     } catch (err) {
-      erro = new Error(mensagemErroBusca(err));
+      if (paginas === 0 && modo === 'v1' && !bloqueante(err.tipo)) {
+        // v1 falhou logo na 1ª página: tenta o GraphQL do site.
+        log(e, { username: perfil.username, acao: 'buscar origem', resultado: `lista v1 falhou (${err.message}) — tentando GraphQL`, origem });
+        modo = 'graphql';
+        continue;
+      }
+      erro = new Error(`${perfil.privado ? `${origem} é um perfil PRIVADO — escolha um perfil público. ` : ''}${mensagemErroBusca(err)}`);
       break;
     }
+    if (paginas === 0 && pagina.usuarios.length === 0) {
+      if (modo === 'v1') {
+        log(e, { username: perfil.username, acao: 'buscar origem', resultado: `lista v1 veio vazia (${pagina.trecho}) — tentando GraphQL`, origem });
+        e.trechoV1 = pagina.trecho;
+        modo = 'graphql';
+        continue;
+      }
+      const total = perfil.seguidores != null ? ` (o perfil tem ${perfil.seguidores} seguidores)` : '';
+      const dica = perfil.privado ? ' É um perfil PRIVADO: escolha um perfil público.' : '';
+      erro = new Error(`O Instagram não devolveu nenhum seguidor de ${origem}${total}.${dica} Resposta v1: ${e.trechoV1 || '—'} | GraphQL: ${pagina.trecho}`);
+      break;
+    }
+    paginas += 1;
     lidos += pagina.usuarios.length;
     const { aceitos, pulados: p } = filtrarCandidatos(pagina.usuarios, {
       meuId: e.meuId,
@@ -550,16 +588,70 @@ async function buscarOrigem(username) {
     e.fila.push(...aceitos);
     adicionados += aceitos.length;
     for (const [k, v] of Object.entries(p)) pulados[k] = (pulados[k] || 0) + v;
-    if (!pagina.proximo || !pagina.usuarios.length) break;
+    if (!pagina.proximo || !pagina.usuarios.length) { maxId = null; break; }
     maxId = pagina.proximo;
   }
+  delete e.trechoV1;
   e.origemAtual = origem;
-  e.ultimaBusca = { em: Date.now(), origem, lidos, adicionados, pulados, erro: erro ? erro.message : null };
-  const resumoPulados = Object.entries(pulados).map(([k, v]) => `${k}: ${v}`).join(', ') || 'nenhum';
-  log(e, { username: perfil.username, acao: 'buscar origem', resultado: `${lidos} lidos, ${adicionados} na fila (pulados — ${resumoPulados})${erro ? ` — interrompido: ${erro.message}` : ''}`, origem });
+  e.ultimaBusca = { em: Date.now(), origem, lidos, adicionados, pulados, via: modo, erro: erro ? erro.message : null };
+  // Guarda onde a lista parou, para reabastecer a fila sozinha depois (mesmo perfil).
+  e.cursorOrigem = paginas > 0
+    ? { id: perfil.id, username: perfil.username, origem, modo, proximo: maxId, esgotado: !maxId, totais: { lidos, adicionados, pulados: { ...pulados } } }
+    : null;
+  log(e, { username: perfil.username, acao: 'buscar origem', resultado: resumoBusca(e.ultimaBusca), origem });
   await agendarProximo(e, c);
   await salvar(e);
   return e.ultimaBusca;
+}
+
+/**
+ * Fila curta (menos que o limite do dia + margem): continua a lista de seguidores do
+ * MESMO perfil de referência, devagar — no máximo 3 páginas por vez, com atraso humano
+ * entre elas e de 20 em 20 min — até ter fila para ~3 dias.
+ */
+async function reabastecerFila(e, agora) {
+  const cfg = e.config;
+  const cur = e.cursorOrigem;
+  if (!cur || cur.esgotado || !cur.proximo) return 'ok';
+  if (!precisaReabastecer(e.fila.length, cfg.limiteDiario)) return 'ok';
+  if (e.ultimoReabastecimentoEm && agora - e.ultimoReabastecimentoEm < INTERVALO_REABASTECER_MS) return 'ok';
+  e.ultimoReabastecimentoEm = agora;
+
+  const alvo = alvoFila(cfg.limiteDiario);
+  let lidos = 0;
+  let adicionados = 0;
+  const pulados = {};
+  for (let i = 0; i < 3 && e.fila.length < alvo && cur.proximo; i += 1) {
+    await pausaHumana();
+    let pagina;
+    try {
+      pagina = cur.modo === 'graphql' ? await api.paginaSeguidoresGraphql(cur.id, cur.proximo) : await api.paginaSeguidores(cur.id, cur.proximo);
+    } catch (err) {
+      const tipo = tratarErro(e, err, 'reabastecer fila', cur.username);
+      if (bloqueante(tipo)) return tipo;
+      break;
+    }
+    lidos += pagina.usuarios.length;
+    const { aceitos, pulados: p } = filtrarCandidatos(pagina.usuarios, {
+      meuId: e.meuId, fila: e.fila, vistos: e.vistos, seguidos: e.seguidos,
+      pularPrivados: cfg.pularPrivados, pularSemFoto: cfg.pularSemFoto, origem: cur.origem, agora: Date.now(),
+    });
+    e.fila.push(...aceitos);
+    adicionados += aceitos.length;
+    for (const [k, v] of Object.entries(p)) pulados[k] = (pulados[k] || 0) + v;
+    cur.proximo = pagina.usuarios.length ? pagina.proximo : null;
+  }
+  if (!cur.proximo) cur.esgotado = true;
+  cur.totais.lidos += lidos;
+  cur.totais.adicionados += adicionados;
+  for (const [k, v] of Object.entries(pulados)) cur.totais.pulados[k] = (cur.totais.pulados[k] || 0) + v;
+  log(e, {
+    username: cur.username,
+    acao: 'reabastecer fila',
+    resultado: `${resumoBusca({ origem: cur.origem, lidos, adicionados, pulados })} — fila agora ${e.fila.length}${cur.esgotado ? ' (lista deste perfil acabou: escolha outro perfil de referência)' : ''}`,
+    origem: cur.origem,
+  });
+  return 'ok';
 }
 
 function mensagemErroBusca(err) {

@@ -1,6 +1,6 @@
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
-import { gerarCsv } from './lib/estado.js';
+import { gerarCsv, resumoBusca } from './lib/estado.js';
 import { MENSAGEM_PADRAO, idsParaVerificarFollowBack } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
@@ -32,6 +32,13 @@ async function render() {
   $('origemAtual').textContent = e.origemAtual || '—';
   $('aguardando').textContent = idsParaVerificarFollowBack(e.seguidos).length;
   $('btnPausar').disabled = c.pausado;
+
+  const cur = e.cursorOrigem;
+  if (cur) {
+    const situacao = cur.esgotado ? 'lista deste perfil acabou — escolha outro perfil' : 'reabastece a fila sozinho quando ficar curta';
+    $('infoOrigem').textContent = `Total desde a busca — ${resumoBusca({ origem: cur.origem, ...cur.totais })}\nSituação: ${situacao}.`;
+  }
+  $('infoUltimaBusca').textContent = e.ultimaBusca ? `Última busca manual (${formatarSP(e.ultimaBusca.em)}): ${resumoBusca(e.ultimaBusca)}` : '';
 
   if (!configCarregada) {
     for (const k2 of CAMPOS_NUM) $(k2).value = e.config[k2];

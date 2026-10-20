@@ -8,7 +8,8 @@ import {
   MENSAGEM_PADRAO, STATUS, filtrarCandidatos, semFoto, elegivelParaUnfollow, escolherParaUnfollow,
   registrarFollowBack, ajustarParaJanela, dmPronta, classificarErro, aplicarPausaPorErro, estaAtiva, PAUSA_POR_LIMITE_MS,
 } from '../lib/regras.js';
-import { decidirPausa, trechoSeguro } from '../lib/regras.js';
+import { decidirPausa, trechoSeguro, precisaReabastecer, alvoFila } from '../lib/regras.js';
+import { resumoBusca } from '../lib/estado.js';
 import { estadoInicial, normalizarEstado, virarDiaSeNecessario, gerarCsv, registrarHistorico } from '../lib/estado.js';
 
 const CFG = { inicioHora: 5, fimHora: 22 };
@@ -296,4 +297,18 @@ test('esfriar dura 15 min; trechoSeguro esconde tokens', () => {
   assert.ok(!t.includes('abc123') && !t.includes('AR3xyz') && !t.includes('AbCdEfGhIjKlMnOpQrStUvWxYz'));
   assert.equal(trechoSeguro('<!DOCTYPE html><html><head><title>Instagram</title></head>'), 'HTML (título: Instagram)');
   assert.ok(trechoSeguro('y '.repeat(300)).length <= 221);
+});
+
+test('resumoBusca mostra lidos, adicionados e descartes por motivo', () => {
+  const t = resumoBusca({ origem: '@ref', lidos: 50, adicionados: 10, pulados: { privado: 30, ja_relacionado: 4, ja_na_fila: 6 }, erro: null });
+  assert.equal(t, '@ref: 50 lidos, 10 adicionados à fila; descartados — privados 30, já na fila/repetidos 6, já me seguem ou já sigo 4');
+  assert.match(resumoBusca({ origem: '@ref', lidos: 0, adicionados: 0, pulados: {}, erro: 'vazio' }), /0 lidos.*\n⚠ vazio/s);
+});
+
+test('reabastecer: fila < limite + 5 precisa; alvo ~3 dias', () => {
+  assert.equal(precisaReabastecer(19, 15), true);
+  assert.equal(precisaReabastecer(20, 15), false);
+  assert.equal(precisaReabastecer(0, 0), false);
+  assert.equal(alvoFila(15), 45);
+  assert.equal(alvoFila(1), 6);
 });

@@ -86,3 +86,28 @@ export function gerarCsv(historico) {
   }
   return '﻿' + linhas.map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
 }
+
+const ROTULOS_PULADOS = {
+  privado: 'privados',
+  sem_foto: 'sem foto',
+  ja_seguido_antes: 'já seguidos antes',
+  ja_avaliado: 'já avaliados antes',
+  ja_na_fila: 'já na fila/repetidos',
+  ja_relacionado: 'já me seguem ou já sigo',
+  eu_mesmo: 'eu mesmo',
+  sem_id: 'sem id',
+};
+
+/** Texto do resultado da busca: "lidos X, adicionados Y; descartados — privados 3, ...". */
+export function resumoBusca(b) {
+  if (!b) return '';
+  const descartes = Object.entries(b.pulados || {})
+    .sort((x, y) => y[1] - x[1])
+    .map(([k, v]) => `${ROTULOS_PULADOS[k] || k} ${v}`)
+    .join(', ');
+  let t = `${b.origem || ''}: ${b.lidos} lidos, ${b.adicionados} adicionados à fila`;
+  if (descartes) t += `; descartados — ${descartes}`;
+  if (b.via === 'graphql') t += ' (lista obtida pelo plano B/GraphQL)';
+  if (b.erro) t += `.\n⚠ ${b.erro}`;
+  return t;
+}

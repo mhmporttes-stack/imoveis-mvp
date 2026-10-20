@@ -235,3 +235,16 @@ export function estaAtiva(estado, controle, agora) {
   if (estado.semSessao) return false;
   return true;
 }
+
+/** Margem de segurança da fila (perfis descartados na hora de seguir). */
+export const MARGEM_FILA = 5;
+
+/** A fila está curta para o dia? (menos que o limite diário + margem) */
+export function precisaReabastecer(tamanhoFila, limiteDiario) {
+  return limiteDiario > 0 && tamanhoFila < limiteDiario + MARGEM_FILA;
+}
+
+/** Tamanho de fila desejado ao reabastecer: ~3 dias de "seguir". */
+export function alvoFila(limiteDiario) {
+  return Math.max(limiteDiario * 3, limiteDiario + MARGEM_FILA);
+}

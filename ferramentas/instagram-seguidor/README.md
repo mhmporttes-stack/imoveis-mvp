@@ -14,6 +14,7 @@ Automatizar seguir, deixar de seguir e mandar DM **viola os Termos de Uso do Ins
 
 ## Configurar
 - **Popup** (ícone da extensão): digite um `@perfil de referência` e clique em **Buscar**. A extensão lê quem segue esse perfil (até 200 por busca) e monta a fila. Ela tira repetidos, quem você já seguiu antes, quem já te segue e perfis privados (opção ligada por padrão). Você pode trocar a referência quando quiser, e cada perfil da fila guarda de onde veio.
+- Use um perfil **público**. Perfil privado não mostra os seguidores, e a extensão avisa isso. Quando a fila fica curta (menos que o limite do dia + 5), a extensão continua a lista do **mesmo** perfil sozinha, devagar: até 3 páginas de cada vez, de 20 em 20 min, só dentro da janela, até ter fila para uns 3 dias. O painel mostra quantos foram lidos e quantos foram descartados por motivo (privados, já me seguem, já seguidos antes…).
 - **Painel** (botão "Painel" ou clique com o botão direito no ícone → Opções): limites diários, pular privados ou sem foto, ligar/desligar a DM, editar o texto da DM, ver o histórico e **Exportar CSV**.
 
 ## Como funciona

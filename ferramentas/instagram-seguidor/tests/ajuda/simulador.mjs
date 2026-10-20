@@ -25,6 +25,10 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     chamadas: [], // { em, metodo, caminho }
     falharProximoSeguir: null, // ex.: { status: 400, texto: '{"message":"feedback_required"}' }
     falharPerfil: null, // resposta forçada para web_profile_info
+    perfilPrivado: false, // perfil de referência privado
+    sigoReferencia: false, // eu sigo o perfil de referência
+    v1Vazio: false, // friendships/{id}/followers devolve users: []
+    graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
     falharSeguidoresDeMim: 0, // quantas vezes a lista dos MEUS seguidores responde "aguarde"
     voltaSe,
     atrasoVolta,
@@ -54,7 +58,21 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     if (caminho === '/api/v1/users/web_profile_info/') {
       if (ig.falharPerfil) return ig.falharPerfil;
       if (u.searchParams.get('username') !== referencia) return { status: 404, texto: '{"message":"User not found","status":"fail"}' };
-      return ok({ data: { user: { id: '555', username: referencia, is_private: false } }, status: 'ok' });
+      return ok({ data: { user: { id: '555', username: referencia, is_private: ig.perfilPrivado, followed_by_viewer: ig.sigoReferencia, edge_followed_by: { count: usuarios.length } } }, status: 'ok' });
+    }
+    if (caminho === '/graphql/query/') {
+      const vars = JSON.parse(u.searchParams.get('variables'));
+      const inicio = Number(vars.after || 0);
+      const pagina = ig.graphqlVazio ? [] : usuarios.slice(inicio, inicio + vars.first);
+      const fim = inicio + vars.first;
+      return ok({
+        data: { user: { edge_followed_by: {
+          count: usuarios.length,
+          page_info: { has_next_page: !ig.graphqlVazio && fim < usuarios.length, end_cursor: String(fim) },
+          edges: pagina.map((x) => ({ node: { id: x.pk, username: x.username, is_private: x.is_private, profile_pic_url: x.profile_pic_url, followed_by_viewer: false, follows_viewer: false } })),
+        } } },
+        status: 'ok',
+      });
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/(\w+)\/followers\/$/))) {
       if (m[1] === meuId) {
@@ -62,9 +80,11 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
         const lista = [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([id]) => ({ pk: id, username: `x${id}` }));
         return ok({ users: lista, next_max_id: null, status: 'ok' });
       }
+      if (ig.v1Vazio) return ok({ users: [], big_list: false, page_size: 12, status: 'ok' });
       const inicio = Number(u.searchParams.get('max_id') || 0);
-      const pagina = usuarios.slice(inicio, inicio + 25);
-      return ok({ users: pagina, next_max_id: inicio + 25 < usuarios.length ? String(inicio + 25) : null, status: 'ok' });
+      const n = Number(u.searchParams.get('count') || 12);
+      const pagina = usuarios.slice(inicio, inicio + n);
+      return ok({ users: pagina, next_max_id: inicio + n < usuarios.length ? String(inicio + n) : null, status: 'ok' });
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/show\/(\w+)\/$/))) {
       const usr = usuarios.find((x) => x.pk === m[1]);
