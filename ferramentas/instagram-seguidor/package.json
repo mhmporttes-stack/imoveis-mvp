@@ -1,0 +1,9 @@
+{
+  "name": "instagram-seguidor",
+  "private": true,
+  "type": "module",
+  "description": "Extensão pessoal do Chrome (fora do CRM). Este arquivo só existe para o node --test tratar os .js como módulos.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

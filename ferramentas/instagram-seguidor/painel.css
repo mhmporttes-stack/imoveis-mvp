@@ -1,0 +1,51 @@
+:root {
+  --fundo: #0b1220;
+  --cartao: #121b2e;
+  --borda: #24324d;
+  --texto: #e6ebf5;
+  --suave: #93a1bb;
+  --azul: #2f6bff;
+  --verde: #22c55e;
+  --amarelo: #f59e0b;
+  --vermelho: #ef4444;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1 { font-size: 16px; margin: 0; }
+h2 { font-size: 14px; margin: 0 0 8px; color: var(--suave); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.linha { display: flex; gap: 8px; align-items: center; }
+.entre { justify-content: space-between; }
+.suave { color: var(--suave); font-size: 12px; }
+.pilula { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pilula.ligada { background: rgba(34,197,94,.15); color: var(--verde); }
+.pilula.pausada { background: rgba(245,158,11,.15); color: var(--amarelo); }
+.pilula.bloqueada { background: rgba(239,68,68,.15); color: var(--vermelho); }
+.grade { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.num { font-size: 20px; font-weight: 700; }
+.alerta { border-color: var(--vermelho); background: rgba(239,68,68,.12); }
+input[type=text], input[type=number], textarea {
+  width: 100%; background: #0e1626; color: var(--texto); border: 1px solid var(--borda);
+  border-radius: 8px; padding: 8px; font: inherit;
+}
+textarea { min-height: 220px; resize: vertical; }
+button {
+  background: var(--azul); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+button.secundario { background: transparent; border: 1px solid var(--borda); color: var(--texto); }
+button.perigo { background: var(--vermelho); }
+button:disabled { opacity: .5; cursor: wait; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+th { color: var(--suave); font-weight: 600; }
+label.opcao { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.campo { margin: 8px 0; }
+.campo > span { display: block; color: var(--suave); font-size: 12px; margin-bottom: 4px; }
+a { color: #8fb0ff; }
