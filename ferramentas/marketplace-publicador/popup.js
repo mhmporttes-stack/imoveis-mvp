@@ -82,3 +82,18 @@ $("check").addEventListener("click", async () => {
 
 refresh();
 setInterval(refresh, 5000);
+
+// Diagnóstico de estrutura (1.8.5): esqueleto anonimizado da caixa do Marketplace → CRM (sem nomes nem mensagens).
+$("diagnose").addEventListener("click", async () => {
+  const feedback = $("feedback");
+  $("diagnose").disabled = true;
+  feedback.textContent = "Gerando diagnóstico (até 2 min)…";
+  try {
+    const result = await chrome.runtime.sendMessage({ type: "mp-diagnose" });
+    feedback.textContent = result?.error ? `Erro: ${result.error}` : `Diagnóstico ${result.result}`;
+  } catch (error) {
+    feedback.textContent = `Erro: ${error.message}`;
+  } finally {
+    $("diagnose").disabled = false;
+  }
+});

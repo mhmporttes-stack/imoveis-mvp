@@ -164,3 +164,16 @@ test("histórico importado ganha horários em ordem até a última atividade", (
   assert.equal(first.messages.length, 500, "histórico até 500 mensagens por conversa");
   assert.equal(first.lastActivityAt, "2026-10-20T12:00:00.000Z");
 });
+
+test("diagnóstico de estrutura: rota só com a chave da extensão; só tipos conhecidos e tamanho limitado", () => {
+  const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const route = read("app/api/marketplace/diagnostic/route.js");
+  assert.ok(route.indexOf("rejectExtensionRequest(request") < route.indexOf("try {"));
+  const lib = read("lib/marketplace-chat.js");
+  assert.match(lib, /DIAGNOSTIC_KINDS = new Set\(\["inbox_page", "messenger_panel", "thread"\]\)/);
+  assert.match(lib, /DIAGNOSTIC_MAX_BYTES/);
+  const sql = read("supabase/migrations/20261020230000_marketplace_diagnostics.sql");
+  assert.match(sql, /create table if not exists public\.marketplace_diagnostics/);
+  assert.match(sql, /enable row level security/);
+  assert.doesNotMatch(sql.replace(/--.*$/gm, ""), /\bdrop\b/i, "nenhum DROP fora dos comentários");
+});

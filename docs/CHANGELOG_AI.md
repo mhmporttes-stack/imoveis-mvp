@@ -209,6 +209,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Chat do Marketplace: diagnóstico de estrutura anonimizado (extensão 1.8.5)
+- **Data:** 2026-10-20
+- **Área:** extensão (`inbox.js`, `selectors.js`, `background.js`, `popup`), rota `POST /api/marketplace/diagnostic` (chave `mkp_` + limite por IP), tabela `marketplace_diagnostics` (migration `20261020230000`, NÃO aplicada).
+- **Alteração:** popup 1.8.4: 0 conversas na página e painel "← Marketplace" não encontrado. Para parar de adivinhar seletores: botão "Enviar diagnóstico" no popup e envio automático (máx. 1/hora) quando a leitura acha 0. Na aba dedicada, gera o esqueleto da região das conversas (ancestral comum dos textos com " · ", senão `role=main`, senão body; até 3.000 nós, profundidade 25): tag, role, aria-label mascarado, tabindex, caminho do link com ids → `:id`, nomes de `data-*`, tamanho das imagens e texto próprio mascarado (`NOME · ANUNCIO`, `Você: TEXTO`, horários e palavras da interface mantidos, resto `TXT(n)`) — nunca nome, mensagem nem classe. Faz o mesmo no painel Messenger → "Marketplace". Grava `{ kind, payload }` (até 600 KB).
+- **Verificação:** extensão 61 testes (inclui DOM falso que confere que nome, mensagem, classe e id não vazam) e CRM `tests/marketplace-chat-core.test.mjs`.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Apresentação: "Receber lista de documentos" sem exigir telefone pessoal do responsável + "Copiar texto" na ficha
 - **Data:** 2026-10-20
 - **Área:** Apresentação `/s/<token>` (PRES-17/PRES-22/PRES-24/PRES-25), ficha do cliente (botão "Enviar lista de documentos").

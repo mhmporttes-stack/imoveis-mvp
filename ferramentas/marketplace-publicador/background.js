@@ -1,7 +1,7 @@
 // Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
-import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postOutboundResult, postResult } from "./lib/crm-api.js";
+import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
 import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, decideChatTick, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 
@@ -330,6 +330,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, chatLast: chatLast || null };
     }
     if (message?.type === "mp-pause") return { state: await saveState(setManualPause(await loadState(), message.paused)) };
+    if (message?.type === "mp-diagnose") return diagnoseNow();
     if (message?.type === "mp-check-now") {
       // Responde ao popup assim que a decisão sai; a publicação (se houver) continua em segundo plano.
       return new Promise((resolve) => {
@@ -458,7 +459,14 @@ async function chatTick() {
     }
     const threads = inbox?.threads || [];
     summary.listed = threads.length;
-    if (!threads.length) summary.error = "Nenhuma conversa encontrada na caixa do Marketplace (seletores a calibrar ou caixa vazia).";
+    if (!threads.length) {
+      summary.error = "Nenhuma conversa encontrada na caixa do Marketplace (seletores a calibrar ou caixa vazia).";
+      // Envia sozinho o diagnóstico de estrutura (no máximo 1 por hora) para calibrar os seletores.
+      const { lastDiagnosticAt } = await chrome.storage.local.get("lastDiagnosticAt");
+      if (!lastDiagnosticAt || Date.now() - new Date(lastDiagnosticAt).getTime() > 60 * 60 * 1000) {
+        summary.error += ` Diagnóstico: ${await sendDiagnostics(tab.id, config, { navigate: false })}`;
+      }
+    }
     const conversations = [];
     for (const thread of threadsToRead(threads, chatPreviews || {})) {
       const { read, conversation } = await readThread(tab.id, thread);
@@ -495,5 +503,43 @@ async function chatTick() {
     const latest = await loadState();
     await saveState({ ...latest, chatRunning: null });
     await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), result: "chat_sincronizado", ...summary } });
+  }
+}
+
+// --- Diagnóstico de estrutura (1.8.5) -------------------------------------------------------------------------------
+// Na aba dedicada: esqueleto da página /marketplace/inbox e do painel Messenger → "Marketplace", enviados ao CRM.
+async function sendDiagnostics(tabId, config, { navigate = true } = {}) {
+  const sent = [];
+  try {
+    if (navigate) await navigateAndWait(tabId, INBOX_URL);
+    await injectInbox(tabId);
+    const page = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "inbox_page" }, 60000);
+    await postDiagnostic(config, "inbox_page", page);
+    sent.push(`página (${page?.counts?.dots ?? "?"} textos " · ")`);
+    await navigateAndWait(tabId, INBOX_URL);
+    await injectInbox(tabId);
+    const panel = await sendWithTimeout(tabId, { type: "mp-inbox-diagnose", stage: "messenger_panel" }, 90000);
+    await postDiagnostic(config, "messenger_panel", panel);
+    sent.push(`painel (${panel?.counts?.dots ?? "?"} textos " · ")`);
+    await chrome.storage.local.set({ lastDiagnosticAt: new Date().toISOString() });
+    return `enviado: ${sent.join(", ")}`;
+  } catch (error) {
+    return `falhou${sent.length ? ` depois de ${sent.join(", ")}` : ""}: ${error.message}`;
+  }
+}
+
+async function diagnoseNow() {
+  const config = await loadConfig();
+  if (!config.key) return { error: "Configure a chave nas opções." };
+  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  await sleep(500);
+  await attachDebugger(tab.id);
+  try {
+    const result = await sendDiagnostics(tab.id, config);
+    await chrome.storage.local.set({ lastDiagnostic: { at: new Date().toISOString(), result } });
+    return { result };
+  } finally {
+    await detachDebugger(tab.id);
+    await chrome.tabs.remove(tab.id).catch(() => {});
   }
 }

@@ -337,9 +337,80 @@
     return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
   }
 
+  // --- Diagnóstico de estrutura (1.8.5) ---------------------------------------------------------------------------
+  // Esqueleto do DOM da região da lista: tag, role, aria-label mascarado, tabindex, caminho do link, nomes de data-*,
+  // texto próprio mascarado (MP.skeletonText) e filhos. Nunca classes, nomes ou mensagens reais.
+  function ownText(element) {
+    return [...(element.childNodes || [])].filter((node) => node.nodeType === 3).map((node) => node.textContent).join(" ").trim();
+  }
+
+  function skeleton(element, depth, budget) {
+    if (!element || budget.left <= 0 || depth > 25) return null;
+    budget.left -= 1;
+    const node = { t: String(element.tagName || "").toLowerCase() };
+    const role = element.getAttribute?.("role");
+    const label = element.getAttribute?.("aria-label");
+    const tabindex = element.getAttribute?.("tabindex");
+    const href = element.getAttribute?.("href");
+    if (role) node.r = role;
+    if (label) node.a = MP.skeletonText(label);
+    if (tabindex !== null && tabindex !== undefined) node.ti = tabindex;
+    if (href) node.h = MP.skeletonPath(href);
+    const dataNames = [...(element.attributes || [])].map((attr) => attr.name).filter((name) => name.startsWith("data-"));
+    if (dataNames.length) node.d = dataNames;
+    const text = MP.skeletonText(ownText(element));
+    if (text) node.x = text;
+    if (node.t === "img" || node.t === "image") {
+      const rect = element.getBoundingClientRect?.();
+      if (rect) node.wh = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    }
+    const children = [];
+    for (const child of element.children || []) {
+      const built = skeleton(child, depth + 1, budget);
+      if (built) children.push(built);
+      if (budget.left <= 0) break;
+    }
+    if (children.length) node.c = children;
+    return node;
+  }
+
+  // Raiz: ancestral comum dos textos com " · " (as conversas); sem eles, role="main"; senão o body.
+  function diagnosticRoot() {
+    const holders = [...document.querySelectorAll("span, div, a")].filter((element) => ownText(element).includes(" · ")).slice(0, 20);
+    if (holders.length >= 2) {
+      let root = holders[0];
+      while (root && !holders.every((holder) => root.contains(holder))) root = root.parentElement;
+      if (root) return { root, how: `ancestral de ${holders.length} textos " · "` };
+    }
+    const main = document.querySelector('[role="main"]');
+    return main ? { root: main, how: holders.length ? "role=main (1 texto · )" : "role=main (nenhum texto · )" } : { root: document.body, how: "body" };
+  }
+
+  async function diagnose(stage) {
+    const steps = [];
+    if (stage === "messenger_panel") await openMarketplaceFromMessenger(steps);
+    // Espera a lista renderizar (aparece texto com " · ") até 15 s.
+    await waitFor(() => [...document.querySelectorAll("span, div, a")].some((element) => ownText(element).includes(" · ")) || null, 15000, 700);
+    const { root, how } = diagnosticRoot();
+    const budget = { left: 3000 };
+    return {
+      stage,
+      path: MP.skeletonPath(location.href),
+      how,
+      steps,
+      counts: { dots: [...document.querySelectorAll("span, div, a")].filter((element) => ownText(element).includes(" · ")).length, imgs: document.querySelectorAll("img").length, dialogs: document.querySelectorAll('[role="dialog"]').length, textboxes: document.querySelectorAll('[role="textbox"]').length },
+      tree: skeleton(root, 0, budget),
+      truncated: budget.left <= 0
+    };
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "mp-inbox-list") {
       listThreads().then(sendResponse);
+      return true;
+    }
+    if (message?.type === "mp-inbox-diagnose") {
+      diagnose(message.stage).then(sendResponse, (error) => sendResponse({ error: error.message }));
       return true;
     }
     if (message?.type === "mp-inbox-open") {

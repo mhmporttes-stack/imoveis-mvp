@@ -359,6 +359,32 @@
     return Number.isFinite(at.getTime()) ? at.toISOString() : null;
   };
 
+  // --- Diagnóstico de estrutura (só metadados; nunca nome/mensagem real) ---------------------------------------------
+  // Palavras da interface que podem ficar (ajudam a calibrar e não são dado pessoal).
+  MP.UI_WORDS = ["Marketplace", "Venda", "Compra", "Vendendo", "Comprando", "Tudo", "Não lidas", "Grupos", "Conversas", "Chats", "Mensagens", "Messenger", "Aa", "Mark as pending", "Marcar como pendente", "More options", "Mais opções", "Seus classificados", "Caixa de entrada", "Inbox", "Selling", "Buying", "Ver tudo", "See all", "Configurações", "Settings"];
+
+  // Texto próprio de um nó → marcador. " · " → NOME · ANUNCIO; "Você:" → Você: TEXTO; hora/tempo relativo e palavras
+  // da interface ficam; o resto vira TXT(tamanho).
+  MP.skeletonText = function skeletonText(text) {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+    if (!value) return "";
+    if (value.includes(" · ")) return "NOME · ANUNCIO";
+    if (/^(você|voce|you)\s*:/i.test(value)) return "Você: TEXTO";
+    if (value.length <= 12 && (MP.parseRelativeTime(value) || /^\d{1,2}:\d{2}$/.test(value))) return value;
+    if (MP.UI_WORDS.some((word) => MP.normalize(word) === MP.normalize(value))) return value;
+    return `TXT(${value.length})`;
+  };
+
+  // Caminho do link sem domínio, sem parâmetros e com números longos trocados por :id.
+  MP.skeletonPath = function skeletonPath(href) {
+    try {
+      const url = new URL(href, "https://www.facebook.com");
+      return url.pathname.replace(/\d{4,}/g, ":id").slice(0, 120);
+    } catch {
+      return "";
+    }
+  };
+
   // Chave da conversa quando o item não tem link: estável por nome + anúncio.
   MP.itemKey = function itemKey(contactName, listingTitle) {
     return MP.messageExternalId("item", "k", `${contactName}|${listingTitle}`).replace(/^h:/, "n");

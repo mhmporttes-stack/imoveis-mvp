@@ -71,6 +71,11 @@ export function postChatSync(config, conversations, fetchImpl = fetch) {
   return callCrm(config, "/api/marketplace/chat/sync", { method: "POST", body: JSON.stringify({ conversations }) }, fetchImpl);
 }
 
+// Esqueleto anonimizado da página (calibração dos seletores; sem nomes nem mensagens).
+export function postDiagnostic(config, kind, payload, fetchImpl = fetch) {
+  return callCrm(config, "/api/marketplace/diagnostic", { method: "POST", body: JSON.stringify({ kind, payload }) }, fetchImpl);
+}
+
 export function fetchNextOutbound(config, fetchImpl = fetch) {
   return callCrm(config, "/api/marketplace/chat/outbox/next", { method: "GET" }, fetchImpl);
 }

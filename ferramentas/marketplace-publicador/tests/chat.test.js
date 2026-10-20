@@ -318,3 +318,53 @@ test("página /marketplace/inbox (print do dono, 1.8.4): cada conversa é o bloc
   assert.deepEqual(result.threads.slice(0, 2).map((t) => [t.contactName, t.listingTitle]), [["Stephanie", "2 quartos 1 banheiro Apartamento"], ["Tânia", "Casa com piscina e 3 suítes"]]);
   assert.match(result.steps.join(" | "), /página \/marketplace\/inbox: 7 conversa\(s\)/);
 });
+
+// --- 1.8.5: diagnóstico de estrutura (só metadados) ----------------------------------------------------------------
+test("máscara de texto do diagnóstico: nunca nome ou mensagem real", () => {
+  assert.equal(MP.skeletonText("Stephanie · 2 quartos 1 banheiro Apartamento"), "NOME · ANUNCIO");
+  assert.equal(MP.skeletonText("Você: Olá Tânia, bom dia"), "Você: TEXTO");
+  assert.equal(MP.skeletonText("Joao, esse imóvel está disponível para venda."), "TXT(45)");
+  assert.equal(MP.skeletonText("2h"), "2h");
+  assert.equal(MP.skeletonText("12:23"), "12:23");
+  assert.equal(MP.skeletonText("Venda"), "Venda");
+  assert.equal(MP.skeletonText("Giovanna"), "TXT(8)");
+  assert.equal(MP.skeletonPath("/messages/t/1234567890123/?ref=x"), "/messages/t/:id/");
+});
+
+function domEl(tag, { attrs = {}, text = "", children = [] } = {}) {
+  const node = {
+    tagName: tag.toUpperCase(),
+    attributes: Object.entries(attrs).map(([name, value]) => ({ name, value })),
+    getAttribute: (name) => (name in attrs ? attrs[name] : null),
+    childNodes: [...(text ? [{ nodeType: 3, textContent: text }] : []), ...children],
+    children,
+    getBoundingClientRect: () => ({ left: 0, right: 60, top: 0, bottom: 60, width: 60, height: 60 }),
+    contains(other) { return node === other || children.some((child) => child.contains(other)); }
+  };
+  for (const child of children) child.parentElement = node;
+  node.all = () => children.flatMap((child) => [child, ...child.all()]);
+  node.querySelectorAll = (sel) => node.all().filter((el) => sel.split(",").map((s) => s.trim()).some((s) => s === el.tagName.toLowerCase() || (s === '[role="main"]' && el.getAttribute("role") === "main") || (s === '[role="dialog"]' && el.getAttribute("role") === "dialog") || (s === '[role="textbox"]' && el.getAttribute("role") === "textbox")));
+  node.querySelector = (sel) => node.querySelectorAll(sel)[0] || null;
+  return node;
+}
+
+test("diagnóstico (DOM falso): esqueleto da lista sem nenhum nome/mensagem/classe", async () => {
+  const item = (title, preview) => domEl("div", { attrs: { role: "button", tabindex: "0", class: "x1abc" }, children: [domEl("img"), domEl("span", { text: title }), domEl("span", { text: preview }), domEl("a", { attrs: { href: "/messages/t/123456789/" } })] });
+  const main = domEl("div", { attrs: { role: "main" }, children: [domEl("span", { text: "Venda" }), item("Stephanie · 2 quartos", "Essas unidades são para"), item("Tânia · Casa com piscina", "Você: Olá Tânia")] });
+  const body = domEl("body", { children: [main] });
+  const doc = { body, querySelectorAll: (sel) => body.querySelectorAll(sel), querySelector: (sel) => body.querySelector(sel) };
+  const listeners = [];
+  globalThis.document = doc;
+  globalThis.location = { href: "https://www.facebook.com/marketplace/inbox/", origin: "https://www.facebook.com", pathname: "/marketplace/inbox/" };
+  globalThis.chrome = { runtime: { onMessage: { addListener: (fn) => listeners.push(fn) }, sendMessage: async () => ({ ok: false }) } };
+  globalThis.__mpInboxLoaded = false;
+  new Function(readFileSync(new URL("../inbox.js", import.meta.url), "utf8"))();
+  const result = await new Promise((resolve) => listeners.find((fn) => fn.length >= 3)({ type: "mp-inbox-diagnose", stage: "inbox_page" }, {}, resolve));
+  const json = JSON.stringify(result);
+  assert.match(json, /NOME · ANUNCIO/);
+  assert.match(json, /Você: TEXTO/);
+  assert.match(json, /\/messages\/t\/:id\//);
+  for (const leak of ["Stephanie", "Tânia", "Essas unidades", "Casa com piscina", "x1abc", "123456789"]) assert.ok(!json.includes(leak), `vazou: ${leak}`);
+  assert.equal(result.counts.dots, 2);
+  assert.match(result.how, /ancestral de 2 textos/);
+});
