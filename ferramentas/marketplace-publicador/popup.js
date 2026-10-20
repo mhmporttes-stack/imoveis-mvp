@@ -1,4 +1,4 @@
-import { DAILY_LIMIT, REASON_LABELS, todayCount } from "./lib/agenda.js";
+import { DAILY_LIMIT, REASON_LABELS, describeCheck, todayCount } from "./lib/agenda.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—");
@@ -19,7 +19,7 @@ function render({ state, config }) {
   if (state.pauseReason && !state.manualPause && paused) status.append(line("Motivo", state.pauseReason));
   status.append(line("Hoje", `${todayCount(state)} de ${DAILY_LIMIT} publicações`));
   status.append(line("Próxima publicação a partir de", fmt(state.nextAllowedAt)));
-  status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${REASON_LABELS[state.lastCheckResult] || state.lastCheckResult || "—"}`));
+  status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${describeCheck(state.lastCheckResult, state.lastCheckWaitUntil)}`));
   if (!config.hasKey) status.append(line("Atenção", REASON_LABELS.sem_configuracao));
   $("pause").textContent = paused ? "Retomar" : "Pausar";
   $("pause").dataset.paused = paused ? "1" : "";
@@ -53,9 +53,20 @@ $("pause").addEventListener("click", async () => {
   await chrome.runtime.sendMessage({ type: "mp-pause", paused: !$("pause").dataset.paused });
   refresh();
 });
-$("check").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "mp-check-now" }).catch(() => {});
-  setTimeout(refresh, 1500);
+// Retorno visível na hora: "Verificando…" e depois o motivo (fila vazia, pausado, intervalo até HH:MM, publicando…).
+$("check").addEventListener("click", async () => {
+  const feedback = $("feedback");
+  $("check").disabled = true;
+  feedback.textContent = REASON_LABELS.verificando;
+  try {
+    const result = await chrome.runtime.sendMessage({ type: "mp-check-now" });
+    feedback.textContent = result?.error && !result.reason ? `Erro: ${result.error}` : `${describeCheck(result?.reason, result?.waitUntil)}${result?.title ? `: “${result.title}”` : ""}`;
+  } catch (error) {
+    feedback.textContent = `Erro: ${error.message}`;
+  } finally {
+    $("check").disabled = false;
+    refresh();
+  }
 });
 
 refresh();

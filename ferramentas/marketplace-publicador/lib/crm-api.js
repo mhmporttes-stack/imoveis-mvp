@@ -26,7 +26,7 @@ export async function fetchNextListing({ baseUrl, key }, fetchImpl = fetch) {
   if (response.status === 401) return { listing: null, reason: "chave_invalida" };
   if (!response.ok) return { listing: null, reason: "erro_crm" };
   const data = await response.json().catch(() => ({}));
-  return data.listing ? { listing: data.listing } : { listing: null, reason: data.reason || "fila_vazia" };
+  return data.listing ? { listing: data.listing } : { listing: null, reason: data.reason || "fila_vazia", waitUntil: data.wait_until || null };
 }
 
 export async function postResult({ baseUrl, key }, listingId, body, fetchImpl = fetch) {

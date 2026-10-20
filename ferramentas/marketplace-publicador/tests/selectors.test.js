@@ -126,3 +126,12 @@ test("bairro limpo também na extensão; nunca digita o bairro na localização"
   assert.match(content, /fillText\("bathrooms", listing\.bathrooms \|\| 1\)/);
   assert.match(content, /Campos vazios:/);
 });
+
+test("Verificar agora responde na hora (antes de publicar) e o popup mostra o motivo", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /tick\("manual", resolve\)/);
+  assert.match(bg, /onDecision\(\{ reason: "publicando"/);
+  const popup = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+  assert.match(popup, /REASON_LABELS\.verificando/);
+  assert.match(popup, /describeCheck\(result\?\.reason, result\?\.waitUntil\)/);
+});

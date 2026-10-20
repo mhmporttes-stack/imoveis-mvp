@@ -1,6 +1,7 @@
 // Agenda, limites e estados do publicador — lógica pura (sem chrome.*), testada em tests/agenda.test.js.
 // Regras: verifica a fila a cada ~15 min, só das 08:00 às 20:00 (São Paulo); no máximo 3 publicações BEM-SUCEDIDAS
-// por dia (falha não conta); intervalo mínimo de 1 h só entre publicações bem-sucedidas (60–80 min, com variação);
+// por dia (falha não conta); entre uma publicação e a próxima só 2–5 min (decisão do dono, 2026-10-20: sem o
+// intervalo de 1 h — "sempre que eu enviar o imóvel, ele já posta");
 // depois de uma falha, nova tentativa em 15–20 min; no máximo 6 tentativas no dia (freio contra rajada);
 // checkpoint/verificação/limite do Facebook → pausa de 24 h; pausa manual pelo popup.
 
@@ -9,8 +10,8 @@ export const CHECK_EVERY_MINUTES = 15;
 export const WINDOW_START_HOUR = 8;
 export const WINDOW_END_HOUR = 20;
 export const DAILY_LIMIT = 3;
-export const MIN_INTERVAL_MS = 60 * 60 * 1000;
-export const INTERVAL_JITTER_MS = 20 * 60 * 1000;
+export const MIN_INTERVAL_MS = 2 * 60 * 1000;
+export const INTERVAL_JITTER_MS = 3 * 60 * 1000;
 export const RETRY_AFTER_FAILURE_MS = 15 * 60 * 1000;
 export const RETRY_JITTER_MS = 5 * 60 * 1000;
 export const DAILY_ATTEMPT_LIMIT = 6;
@@ -50,7 +51,7 @@ export function retryDelayMs(random = Math.random) {
   return RETRY_AFTER_FAILURE_MS + Math.floor(Math.max(0, Math.min(1, random())) * RETRY_JITTER_MS);
 }
 
-// Intervalo até a próxima publicação: nunca menos de 1 h.
+// Intervalo até a próxima publicação: 2–5 min (só para não rajar).
 export function nextIntervalMs(random = Math.random) {
   return MIN_INTERVAL_MS + Math.floor(Math.max(0, Math.min(1, random())) * INTERVAL_JITTER_MS);
 }
@@ -136,8 +137,23 @@ export function recomputeFromHistory(state, now = new Date()) {
   };
 }
 
-export function recordCheck(state, result, now = new Date()) {
-  return { ...initialState(), ...(state || {}), lastCheckAt: now.toISOString(), lastCheckResult: result };
+export function recordCheck(state, result, now = new Date(), waitUntil = null) {
+  return { ...initialState(), ...(state || {}), lastCheckAt: now.toISOString(), lastCheckResult: result, lastCheckWaitUntil: waitUntil || null };
+}
+
+// Até quando um bloqueio LOCAL segura a próxima tentativa (para mostrar "até HH:MM").
+export function localWaitUntil(state, reason) {
+  if (reason === "intervalo") return state?.nextAllowedAt || null;
+  if (reason === "pausa_verificacao") return state?.pausedUntil || null;
+  return null;
+}
+
+// Texto curto para o popup: motivo + horário de liberação (São Paulo), quando houver.
+export function describeCheck(reason, waitUntil = null) {
+  const label = REASON_LABELS[reason] || reason || "—";
+  if (!waitUntil) return label;
+  const time = new Date(waitUntil).toLocaleTimeString("pt-BR", { timeZone: TIME_ZONE, hour: "2-digit", minute: "2-digit" });
+  return `${label} até ${time}`;
 }
 
 export const REASON_LABELS = {
@@ -148,10 +164,15 @@ export const REASON_LABELS = {
   limite_diario: "Limite de 3 publicações hoje atingido",
   limite_tentativas: "Muitas tentativas hoje — volta amanhã",
   intervalo_tentativa: "CRM: aguardando alguns minutos desde a última tentativa",
-  intervalo: "Aguardando o intervalo (1 h depois de publicar; 15–20 min depois de falha)",
+  intervalo: "Aguardando o intervalo (2–5 min depois de publicar; 15–20 min depois de falha)",
   fila_vazia: "Nenhum anúncio aprovado na fila",
   publicacao_em_andamento: "CRM: já há uma publicação em andamento",
   intervalo_minimo: "CRM: aguardando intervalo mínimo",
+  intervalo_seguranca: "Aguardando intervalo de segurança",
+  verificando: "Verificando…",
+  publicando: "Publicando agora — acompanhe pela aba do Facebook",
+  publicado: "Publicado",
+  falhou: "Falhou — veja o histórico",
   sem_configuracao: "Configure a URL do CRM e a chave nas opções",
   chave_invalida: "Chave recusada pelo CRM — gere outra no CRM",
   erro_crm: "CRM indisponível — tenta de novo no próximo ciclo"

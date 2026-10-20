@@ -21,3 +21,4 @@ li.erro { color: var(--danger); }
 a { color: var(--brand); }
 .rodape { margin-top: 10px; color: var(--muted); }
 img.print { display: block; width: 100%; margin-top: 4px; border: 1px solid var(--line); border-radius: 6px; }
+.feedback { margin: 8px 0 0; font-weight: 600; color: var(--navy); min-height: 1em; }

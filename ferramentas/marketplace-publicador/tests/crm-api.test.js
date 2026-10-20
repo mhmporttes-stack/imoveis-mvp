@@ -50,3 +50,9 @@ test("fotos: só https, converte para base64", async () => {
   await assert.rejects(downloadPhotos(["http://x/a.png"], fetchImpl), /https/);
   await assert.rejects(downloadPhotos(["https://x/a.png"], fakeFetch(() => ({ ok: false, status: 404 }))), /404/);
 });
+
+test("fila bloqueada pelo CRM devolve motivo e até quando", async () => {
+  const result = await fetchNextListing({ key: "mkp_x" }, fakeFetch(() => json(200, { listing: null, reason: "intervalo_seguranca", wait_until: "2026-10-20T13:02:00.000Z" })));
+  assert.equal(result.reason, "intervalo_seguranca");
+  assert.equal(result.waitUntil, "2026-10-20T13:02:00.000Z");
+});

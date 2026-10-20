@@ -212,7 +212,7 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
         <h1 className="text-[28px] font-semibold text-navy">Facebook Marketplace</h1>
         <p className="text-sm text-muted">
           A extensão do Chrome no seu computador publica sozinha, no seu perfil do Facebook, só os anúncios que você aprovar aqui
-          (até 3 por dia, com pelo menos 1 hora entre eles). Editar um anúncio tira a aprovação.
+          (até 3 por dia, um de cada vez). Editar um anúncio tira a aprovação.
         </p>
       </header>
 

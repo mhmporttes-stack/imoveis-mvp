@@ -209,6 +209,19 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-20 — Marketplace (MKT-1): sem intervalo de segurança (decisão do dono) — extensão 1.4.0
+- **Data:** 2026-10-20
+- **Área:** fila do CRM e agenda da extensão.
+- **Alteração:** por decisão do dono, `evaluateQueueGate` deixa de ter trava de tempo (saem 45 min após publicação e 15 min após tentativa); ficam 1 por vez, 3 publicações/dia e 2 tentativas por anúncio. Extensão: intervalo após publicar passa de 60–80 min para 2–5 min; após falha continua 15–20 min; feedback do "Verificar agora" (1.3.1) mantido. `wait_until` continua no contrato (null). BUSINESS_RULES MKT-1 atualizado com a etiqueta do dono.
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (18) e extensão (31); `pnpm build` limpo.
+- **Autor:** Claude Code (crm-editor)
+### 2026-10-20 — Marketplace (MKT-1): "Verificar agora" mostra o motivo; trava do servidor de 15 min após tentativa — extensão 1.3.1
+- **Data:** 2026-10-20
+- **Área:** fila do CRM (`/api/marketplace/queue/next`) e popup da extensão.
+- **Alteração:** o dono clicava "Verificar agora" e nada aparecia, com o anúncio aprovado na fila: o servidor recusava pelo intervalo de segurança, sem a extensão mostrar o motivo. `evaluateQueueGate` agora devolve `reason: "intervalo_seguranca"` + `wait_until` (45 min após a última publicação bem-sucedida — inclusive a marcada à mão — e 15 min após a última tentativa, antes 10). A extensão grava motivo e horário e o popup mostra na hora "Verificando…" e depois "Aguardando intervalo de segurança até HH:MM", "Nenhum anúncio aprovado na fila", pausado, fora do horário ou "Publicando agora" (o background responde assim que decide, sem esperar a publicação).
+- **Risco/observação:** desde a 1.2.0 (deploy 12:13 UTC) o servidor já não segurava 45 min após uma falha; a trava até ~13:02 UTC provavelmente veio de um `published_at` ≈12:17 (anúncio marcado como publicado à mão?) — **A CONFIRMAR** no banco.
+- **Verificação:** `node --test tests/marketplace-core.test.mjs` (18) e extensão (31); `pnpm build` limpo.
+- **Autor:** Claude Code (crm-editor)
 ### 2026-10-20 — Marketplace (MKT-1): localização travada na 2ª tentativa real — extensão 1.3.0 + "publicado manualmente"
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/`, tela Cadastros › Marketplace.

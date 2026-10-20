@@ -32,10 +32,11 @@ test("janela 08:00–20:00 no horário de São Paulo", () => {
   assert.equal(saoPauloParts(new Date("2026-10-21T02:30:00Z")).dateKey, "2026-10-20");
 });
 
-test("intervalo entre publicações nunca é menor que 1 h", () => {
+test("intervalo entre publicações: 2–5 min (dono, 2026-10-20)", () => {
   assert.equal(nextIntervalMs(() => 0), MIN_INTERVAL_MS);
   assert.ok(nextIntervalMs(() => 0.999) > MIN_INTERVAL_MS);
-  assert.ok(nextIntervalMs(() => 0.999) <= MIN_INTERVAL_MS + 20 * 60000);
+  assert.ok(nextIntervalMs(() => 0.999) <= 5 * 60000);
+  assert.equal(MIN_INTERVAL_MS, 2 * 60000);
 });
 
 test("tique: fora do horário, pausa manual, pausa de verificação, em andamento", () => {
@@ -65,8 +66,8 @@ test("máximo de 3 por dia, zera no dia seguinte", () => {
 
 test("depois de publicar, espera o intervalo antes da próxima", () => {
   const state = finishJob(startJob(initialState(), listing, at("09:00")), { ok: true }, at("09:05"), () => 0);
-  assert.equal(decideTick(state, at("09:45")).reason, "intervalo");
-  assert.equal(decideTick(state, at("10:06")).action, "check");
+  assert.equal(decideTick(state, at("09:06")).reason, "intervalo");
+  assert.equal(decideTick(state, at("09:08")).action, "check");
 });
 
 test("falha NÃO conta no limite do dia e tenta de novo em 15–20 min (não 1 h)", () => {
@@ -97,7 +98,7 @@ test("atualização da extensão refaz o dia pelo histórico (falha da 1.1.0 dei
   assert.equal(decideTick(fixed, at("09:10")).action, "check");
   const withSuccess = recomputeFromHistory({ ...old, history: [{ at: at("09:00").toISOString(), status: "published" }] }, at("09:10"));
   assert.equal(todayCount(withSuccess, at("09:10")), 1);
-  assert.equal(withSuccess.nextAllowedAt, at("10:00").toISOString());
+  assert.equal(withSuccess.nextAllowedAt, null); // 09:00 + 2 min já passou às 09:10
 });
 
 test("checkpoint/limite do Facebook pausa por 24 h", () => {
@@ -125,4 +126,18 @@ test("histórico guarda no máximo 30 itens e print só nos 5 mais recentes", ()
   assert.equal(state.history.length, 30);
   assert.equal(state.history.filter((item) => item.screenshot).length, 5);
   assert.equal(state.history[0].title, "T34");
+});
+
+import { describeCheck, localWaitUntil, recordCheck as recordCheckWithWait } from "../lib/agenda.js";
+
+test("popup: motivo com horário de liberação em São Paulo", () => {
+  assert.equal(describeCheck("intervalo_seguranca", "2026-10-20T13:02:00Z"), "Aguardando intervalo de segurança até 10:02");
+  assert.equal(describeCheck("fila_vazia"), "Nenhum anúncio aprovado na fila");
+  assert.equal(describeCheck("pausado"), "Pausado por você");
+  assert.equal(describeCheck("fora_do_horario"), "Fora do horário (08:00–20:00)");
+  const state = { ...initialState(), nextAllowedAt: "2026-10-20T13:30:00Z", pausedUntil: "2026-10-21T12:00:00Z" };
+  assert.equal(localWaitUntil(state, "intervalo"), "2026-10-20T13:30:00Z");
+  assert.equal(localWaitUntil(state, "pausa_verificacao"), "2026-10-21T12:00:00Z");
+  assert.equal(localWaitUntil(state, "fila_vazia"), null);
+  assert.equal(recordCheckWithWait(initialState(), "intervalo_seguranca", at("10:00"), "2026-10-20T13:02:00Z").lastCheckWaitUntil, "2026-10-20T13:02:00Z");
 });

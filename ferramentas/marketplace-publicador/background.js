@@ -1,6 +1,6 @@
 // Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
-import { CHECK_EVERY_MINUTES, REASON_LABELS, buildResultBody, decideTick, finishJob, initialState, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
+import { CHECK_EVERY_MINUTES, REASON_LABELS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, postResult } from "./lib/crm-api.js";
 
 const ALARM = "mp-tick";
@@ -189,23 +189,28 @@ async function runPublication(listing) {
   return outcome;
 }
 
-async function tick(origin) {
+// onDecision: avisa o popup assim que se sabe o resultado da verificação (antes de publicar, que leva minutos).
+async function tick(origin, onDecision = () => {}) {
   let state = await loadState();
   const decision = decideTick(state, new Date());
   if (decision.action !== "check") {
-    await saveState(recordCheck(state, decision.reason));
-    return { reason: decision.reason };
+    const waitUntil = localWaitUntil(state, decision.reason);
+    await saveState(recordCheck(state, decision.reason, new Date(), waitUntil));
+    onDecision({ reason: decision.reason, waitUntil });
+    return { reason: decision.reason, waitUntil };
   }
 
   const config = await loadConfig();
   const next = await fetchNextListing(config);
   if (!next.listing) {
-    await saveState(recordCheck(state, next.reason));
+    await saveState(recordCheck(state, next.reason, new Date(), next.waitUntil));
     if (next.reason === "chave_invalida") notify("Publicador do Marketplace", REASON_LABELS.chave_invalida);
-    return { reason: next.reason };
+    onDecision({ reason: next.reason, waitUntil: next.waitUntil || null });
+    return { reason: next.reason, waitUntil: next.waitUntil || null };
   }
 
   const listing = next.listing;
+  onDecision({ reason: "publicando", title: listing.title });
   state = await saveState(startJob(recordCheck(state, `publicando (${origin})`), listing, new Date()));
   const outcome = await runPublication(listing);
   const body = buildResultBody(outcome);
@@ -240,7 +245,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) } };
     }
     if (message?.type === "mp-pause") return { state: await saveState(setManualPause(await loadState(), message.paused)) };
-    if (message?.type === "mp-check-now") return tick("manual");
+    if (message?.type === "mp-check-now") {
+      // Responde ao popup assim que a decisão sai; a publicação (se houver) continua em segundo plano.
+      return new Promise((resolve) => {
+        tick("manual", resolve).then(resolve, (error) => resolve({ reason: "erro_crm", error: error.message }));
+      });
+    }
     return { ok: false };
   })().then(sendResponse, (error) => sendResponse({ error: error.message }));
   return true;

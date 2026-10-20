@@ -5,7 +5,7 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 ## Aviso de risco (leia antes)
 
 - Publicar por automação **não é permitido pelos termos do Facebook**. O Facebook pode pedir verificação, limitar publicações ou bloquear a conta. Você decidiu aceitar esse risco (volume baixo).
-- Para reduzir o risco a extensão: publica no máximo **3 anúncios por dia**, só das **08:00 às 20:00** (horário de Brasília), com pelo menos **1 hora** entre um e outro (com variação aleatória), digita em ritmo humano e **pausa 24 h** se o Facebook mostrar verificação, bloqueio ou aviso de limite.
+- Para reduzir o risco a extensão: publica no máximo **3 anúncios por dia**, só das **08:00 às 20:00** (horário de Brasília), com 2 a 5 minutos entre um e outro, digita em ritmo humano e **pausa 24 h** se o Facebook mostrar verificação, bloqueio ou aviso de limite.
 - Nada é publicado sem o seu "sim": o anúncio só entra na fila quando você toca em **"Aprovado — publicar no Marketplace"** no CRM. Se editar o anúncio depois, a aprovação cai e precisa aprovar de novo.
 
 ## Instalar (Carregar sem compactação)
@@ -37,7 +37,7 @@ Gerar uma chave nova no CRM desliga a anterior — cole a nova nas Opções.
 - O formulário de imóvel do Facebook não tem campo "Título" (o Facebook monta o título pelos dados); o título fica só no CRM, para você se organizar.
 - Deu certo: a aba fecha e chega uma notificação. Deu errado: a aba fica aberta para você ver, chega uma notificação com o passo que falhou e o CRM marca "Falhou" com a descrição.
 - Abre sempre uma **aba nova só para isso** (nunca mexe na aba em que você está) e fecha no final. Se o formulário não abrir direto, passa pela escolha do tipo de classificado e, por último, pelo "+ Criar novo classificado" do menu; o erro mostra as páginas atingidas.
-- Limites: só publicação **bem-sucedida** conta nas 3 do dia e abre o intervalo de 1 h. Depois de uma falha, tenta de novo em 15–20 min (no máximo **2 tentativas por anúncio** e 6 tentativas no dia). Se a falha foi **depois** de clicar em Publicar, não tenta de novo (evita anúncio duplicado) — confira no Facebook e, se não saiu, toque em **"Tentar de novo"** no CRM.
+- Limites: só publicação **bem-sucedida** conta nas 3 do dia (entre uma publicação e a próxima, 2–5 min). Depois de uma falha, tenta de novo em 15–20 min (no máximo **2 tentativas por anúncio** e 6 tentativas no dia). Se a falha foi **depois** de clicar em Publicar, não tenta de novo (evita anúncio duplicado) — confira no Facebook e, se não saiu, toque em **"Tentar de novo"** no CRM.
 
 ## Popup
 
