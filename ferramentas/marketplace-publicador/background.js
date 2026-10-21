@@ -185,8 +185,9 @@ async function detachDebugger(tabId) {
   await chrome.debugger.detach({ tabId }).catch(() => {});
 }
 
+// Com prazo (1.8.10): comando ao depurador numa aba oculta pode não voltar nunca.
 function cdp(tabId, method, params) {
-  return chrome.debugger.sendCommand({ tabId }, method, params);
+  return withTimeout(chrome.debugger.sendCommand({ tabId }, method, params), 8000, `depurador (${method})`);
 }
 
 async function trustedInput(tabId, message) {
@@ -502,6 +503,80 @@ function readOpenThread(tabId, thread, readMs) {
     .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
 }
 
+// --- Abrir conversa sem link (1.8.10) ------------------------------------------------------------------------------
+// Diagnóstico real de 21/10: depois do clique, nada (sem diálogo, sem rota, 0 role=log) — o clique era sintético
+// ou caía no botão de menu interno, e a aba oculta tem timers e pintura seguros pelo Chrome. Agora: a aba fica
+// visível só enquanto abre e lê a conversa (depois o foco volta para a aba anterior), o clique é de verdade
+// (chrome.debugger) na linha do NOME, e a espera roda aqui no background (a cada 0,5 s), não na página.
+async function focusTab(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  const window = await chrome.windows.get(tab.windowId).catch(() => ({}));
+  const info = { wasActive: Boolean(tab.active), windowState: window.state || "?" };
+  if (tab.active) return { info, restore: async () => {} };
+  const [previous] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
+  await chrome.tabs.update(tabId, { active: true });
+  await sleep(600);
+  return { info, restore: async () => { if (previous?.id && previous.id !== tabId) await chrome.tabs.update(previous.id, { active: true }).catch(() => {}); } };
+}
+
+async function trustedClick(tabId, x, y) {
+  await attachDebugger(tabId);
+  if (!attachedTabs.has(tabId)) return { ok: false, reason: "depurador não ligou (DevTools aberto nesta aba?)" };
+  try {
+    return await withTimeout(trustedInput(tabId, { action: "click", x, y }), 15000, "clique confiável");
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+}
+
+async function waitOpened(tabId, contactName, beforeUrl, iframesBefore, timeoutMs = 20000) {
+  const end = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < end) {
+    const tab = await chrome.tabs.get(tabId).catch(() => ({}));
+    if (tab.url && tab.url !== beforeUrl && THREAD_PATH_RE.test(MP_PATH(tab.url))) {
+      if (tab.status === "complete") return { found: "rota", path: MP_PATH(tab.url) };
+    }
+    last = await pageCall(tabId, { type: "mp-inbox-open-state", contactName }, 5000).catch((error) => ({ error: error.message }));
+    if (last?.found) return last;
+    if (Number(last?.iframes || 0) > Number(iframesBefore || 0)) return { ...last, found: "iframe" };
+    await sleep(500);
+  }
+  return { ...(last || {}), found: null };
+}
+
+async function openAndReadByClick(tabId, thread, readMs) {
+  const current = await chrome.tabs.get(tabId);
+  if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
+  const focus = await focusTab(tabId);
+  try {
+    const prep = await pageCall(tabId, { type: "mp-inbox-prepare-open", threadKey: thread.threadKey, contactName: thread.contactName || "" }, 60000)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!prep?.ok) return { ok: false, error: prep?.error || "Não preparou o clique.", stack: prep?.stack || "", opened: { ok: false, focus: focus.info } };
+    const startedAt = Date.now();
+    const click = await trustedClick(tabId, prep.x, prep.y);
+    let state = await waitOpened(tabId, thread.contactName || "", prep.before, prep.iframes);
+    const waitedMs = Date.now() - startedAt;
+    const how = `clique ${click.ok ? "confiável" : `sem depurador (${click.reason})`} na linha ${prep.by}${prep.hitOk === false ? ", ponto fora do item ou sobre o botão de menu" : ""}`;
+    let read;
+    if (state.found) {
+      read = await readOpenThread(tabId, thread, readMs);
+    } else if (prep.threadId) {
+      // Último recurso: endereço da conversa revelado por um atributo do item; só lê se a janela tiver o nome.
+      await navigateAndWait(tabId, `${FB_ORIGIN}/messages/t/${prep.threadId}/`);
+      state = await waitOpened(tabId, thread.contactName || "", "", 0, 15000);
+      read = state.found === "painel" ? await readOpenThread(tabId, thread, readMs) : { ok: false, error: `A conversa não abriu nem pelo endereço /messages/t/:id (${how}).` };
+    } else {
+      read = { ok: false, error: `A conversa não abriu em ${Math.round(waitedMs / 1000)} s depois do ${how} (aba em ${state.path || "?"}).` };
+    }
+    if (read.ok) return { ...read, opened: { ok: true, how, found: state.found } };
+    const diagnostic = await pageCall(tabId, { type: "mp-inbox-open-diagnostic", before: prep.before, waitedMs, stage: state.found ? "abriu_sem_mensagens" : "sem_painel" }, 15000).catch((error) => ({ error: error.message }));
+    return { ...read, opened: { ok: Boolean(state.found), focus: focus.info, click, point: { by: prep.by, hitOk: prep.hitOk, innerButtons: prep.innerButtons }, attrNames: prep.attrNames, hasThreadId: Boolean(prep.threadId), state, diagnostic } };
+  } finally {
+    await focus.restore();
+  }
+}
+
 async function readThread(tabId, thread, config) {
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
   // maxMs: o leitor para de rolar antes do prazo e devolve o que juntou (1.8.7 — antes podia passar de 5 min).
@@ -512,37 +587,7 @@ async function readThread(tabId, thread, config) {
     await injectInbox(tabId);
     read = await readOpenThread(tabId, thread, readMs);
   } else {
-    // Item sem link (1.8.8): a aba volta para a lista (a conversa anterior pode ter trocado a rota), clica e lê NA
-    // MESMA PÁGINA — o clique abre a janela flutuante ou faz pushState; nada de esperar "complete" nem reinjetar.
-    const current = await chrome.tabs.get(tabId);
-    if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
-    await injectInbox(tabId);
-    read = await pageCall(tabId, { type: "mp-inbox-open-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs + 30000)
-      .catch((error) => ({ ok: false, lost: true, error: error.message }));
-    if (!read?.ok) {
-      const tab = await chrome.tabs.get(tabId).catch(() => ({}));
-      const path = (() => {
-        try {
-          return new URL(tab.url || "").pathname;
-        } catch {
-          return "";
-        }
-      })();
-      const itemHref = read?.opened?.itemHref || "";
-      const diagnostic = read?.opened?.diagnostic || null;
-      if (read?.lost && THREAD_PATH_RE.test(path)) {
-        // O clique trocou o documento (o leitor sumiu) mas a aba está na conversa: lê lá mesmo.
-        await injectInbox(tabId);
-        read = await readOpenThread(tabId, thread, readMs);
-      } else if (!read?.checkpoint && itemHref.startsWith(FB_PREFIX) && !new URL(itemHref).pathname.startsWith("/marketplace/inbox")) {
-        // Último recurso: abre o endereço do item.
-        await navigateAndWait(tabId, itemHref);
-        await injectInbox(tabId);
-        const retry = await readOpenThread(tabId, thread, readMs);
-        read = retry.ok ? retry : { ...retry, error: `${read.error} | pelo endereço do item: ${retry.error}` };
-      }
-      if (!read?.ok) read = { ...read, openDiagnostic: diagnostic };
-    }
+    read = await openAndReadByClick(tabId, thread, readMs);
   }
   // Falhou (não abriu, página sem resposta ou 0 mensagens): diagnóstico com o retrato tirado direto da página.
   if (!read?.ok && !read?.checkpoint) {
@@ -550,10 +595,12 @@ async function readThread(tabId, thread, config) {
     const payload = {
       stage: "open_conversation",
       result: read?.lost ? "sem_resposta_da_pagina" : read?.opened && !read.opened.ok ? "nao_abriu" : "sem_mensagens",
+      version: chrome.runtime.getManifest().version,
       path: MP_PATH(tab.url),
       error: String(read?.error || "").replace(thread.contactName || "\u0000", "NOME").slice(0, 500),
       stack: String(read?.stack || "").slice(0, 1500),
-      opened: read?.openDiagnostic || read?.opened?.diagnostic || null,
+      opened: read?.opened ? { ...read.opened, diagnostic: undefined } : null,
+      openedPage: read?.opened?.diagnostic || null,
       snapshot: await takeSnapshot(tabId)
     };
     read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, payload)}` };

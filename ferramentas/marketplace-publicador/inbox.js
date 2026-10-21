@@ -255,6 +255,77 @@
     };
   }
 
+  // 1.8.10: ponto do clique = linha do NOME do contato. O centro do item pode cair no botão interno de menu da
+  // conversa (div[role=button] dentro do item — diagnóstico real de 21/10), e o Facebook ignora clique sintético:
+  // o clique de verdade é feito pelo background (chrome.debugger) neste ponto.
+  function nameClickPoint(element, contactName = "") {
+    const key = MP.normalize(contactName);
+    const innerButtons = [...element.querySelectorAll('[role="button"]')].filter((button) => button !== element);
+    const insideInner = (node) => innerButtons.some((button) => button.contains(node));
+    const leaves = [];
+    const walk = (node, depth) => {
+      if (depth > 40) return;
+      for (const child of node.children || []) {
+        if (/^(svg|script|style)$/i.test(child.tagName || "")) continue;
+        const own = [...(child.childNodes || [])].filter((item) => item.nodeType === 3).map((item) => item.textContent).join(" ").replace(/\s+/g, " ").trim();
+        if (own && !insideInner(child)) leaves.push({ element: child, text: own });
+        walk(child, depth + 1);
+      }
+    };
+    walk(element, 0);
+    const nameLeaf = (key && leaves.find((leaf) => MP.normalize(leaf.text).startsWith(key))) || leaves.find((leaf) => leaf.text !== "·" && MP.normalize(leaf.text).length > 1) || null;
+    const rect = (nameLeaf?.element || element).getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width / 2, 30));
+    const y = Math.round(rect.top + rect.height / 2);
+    const hit = typeof document.elementFromPoint === "function" ? document.elementFromPoint(x, y) : null;
+    return { x, y, by: nameLeaf ? (key && MP.normalize(nameLeaf.text).startsWith(key) ? "nome" : "1o texto") : "item", hitOk: hit ? element.contains(hit) && !insideInner(hit) : null, innerButtons: innerButtons.length };
+  }
+
+  // Atributos do item (só NOMES para o diagnóstico) e um id de conversa, se algum data-*/aria-controls/href revelar.
+  function itemAttributes(element) {
+    const names = new Set();
+    let threadId = "";
+    const nodes = [element, ...element.querySelectorAll("*")].slice(0, 300);
+    for (let up = element.parentElement, level = 0; up && level < 3; up = up.parentElement, level += 1) nodes.push(up);
+    for (const node of nodes) {
+      for (const attr of node.attributes || []) {
+        const name = attr.name;
+        if (name.startsWith("data-") || ["aria-controls", "aria-describedby", "aria-labelledby", "aria-owns", "id", "href"].includes(name)) names.add(name);
+        if (!threadId && (name.startsWith("data-") || name === "aria-controls" || name === "href")) threadId = MP.parseThreadKey(String(attr.value || "")) || "";
+      }
+    }
+    return { names: [...names].slice(0, 40), threadId: /^\d{6,}$/.test(threadId) ? threadId : "" };
+  }
+
+  let pendingItem = null;
+
+  // Prepara o clique (1.8.10): fecha janelas, acha o item, rola até ele e devolve o ponto — o background clica.
+  async function prepareOpen(threadKey, contactName = "") {
+    await closeOpenChats();
+    const root = listRoot();
+    const box = scrollableIn(root);
+    for (let i = 0; i < 20; i += 1) {
+      const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
+      if (item) {
+        item.element.scrollIntoView?.({ block: "center" });
+        await sleep(between(300, 500));
+        const attrs = itemAttributes(item.element);
+        pendingItem = { element: item.element, href: itemHrefOf(item.element) };
+        return { ok: true, ...nameClickPoint(item.element, contactName), before: location.href, itemHref: pendingItem.href, attrNames: attrs.names, threadId: attrs.threadId, iframes: document.querySelectorAll("iframe").length };
+      }
+      if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 5) break;
+      box.scrollTop += Math.max(300, box.clientHeight * 0.8);
+      await sleep(between(900, 1500));
+    }
+    pendingItem = null;
+    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(root).length} itens visíveis).` };
+  }
+
+  // Checagem instantânea (o background repete a cada 0,5 s — sem depender de timer da aba, que o Chrome segura).
+  function openState(contactName = "") {
+    return { found: namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null, path: MP.skeletonPath(location.href), iframes: document.querySelectorAll("iframe").length, dialogs: document.querySelectorAll('[role="dialog"]').length, logs: document.querySelectorAll('[role="log"]').length };
+  }
+
   async function openItem(threadKey, contactName = "", waitMs = OPEN_WAIT_MS) {
     await closeOpenChats();
     const root = listRoot();
@@ -264,7 +335,11 @@
       const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
       if (item) {
         const itemHref = itemHrefOf(item.element);
-        await clickElement(item.element);
+        item.element.scrollIntoView?.({ block: "center" });
+        await sleep(between(200, 400));
+        const point = nameClickPoint(item.element, contactName);
+        if (!(await trusted("click", { x: point.x, y: point.y }))) item.element.click?.();
+        await sleep(between(600, 1200));
         const startedAt = Date.now();
         const found = await waitFor(() => (namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null), waitMs, 400);
         if (found) return { ok: true, opened: found, navigated: location.href !== before, url: location.href };
@@ -596,6 +671,12 @@
         return message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage);
       case "mp-inbox-open":
         return openItem(message.threadKey, message.contactName || "", Number(message.openWaitMs) || OPEN_WAIT_MS);
+      case "mp-inbox-prepare-open":
+        return prepareOpen(message.threadKey, message.contactName || "");
+      case "mp-inbox-open-state":
+        return openState(message.contactName || "");
+      case "mp-inbox-open-diagnostic":
+        return { ...openDiagnostic({ before: message.before || "", clicked: pendingItem, waitedMs: Number(message.waitedMs) || 0, stage: message.stage || "sem_painel" }), attrNames: pendingItem ? itemAttributes(pendingItem.element).names : [] };
       case "mp-inbox-open-read":
         return openAndRead(message);
       case "mp-inbox-read":

@@ -254,7 +254,7 @@ test("inbox.js 1.8.8: conversa que não abre devolve diagnóstico open_conversat
   assert.ok(diagnostic.clicked.item);
   assert.doesNotMatch(JSON.stringify(diagnostic), /Ana Teste|Casa 2 quartos|disponível/);
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
-  assert.match(bg, /type: "mp-inbox-open-read"/);
+  assert.match(bg, /type: "mp-inbox-prepare-open"/);
   assert.match(bg, /postDiagnostic\(config, "thread", diagnostic\)/);
   assert.doesNotMatch(bg.slice(bg.indexOf("async function readThread"), bg.indexOf("function MP_PATH")), /waitTabSettled/, "não espera a aba carregar depois do clique");
 });
@@ -303,4 +303,39 @@ test("background 1.8.9: executeScript no frame principal (ISOLATED) e retrato an
   const json = JSON.stringify(snap);
   assert.doesNotMatch(json, /Ana Teste|Casa 2 quartos|disponível|123456789/);
   assert.match(json, /"r":"log"/);
+});
+
+// 1.8.10: diagnóstico real — clique sem efeito (sintético ou no botão de menu dentro do item).
+test("inbox.js 1.8.10: prepara o clique na linha do NOME, fora do botão de menu interno, e informa os atributos", async () => {
+  const item = h("div", { role: "button", tabindex: "0", "data-testid": "mwthreadlist-item" },
+    h("svg", {}, h("image", { width: "60", height: "60" })),
+    h("div", {}, h("span", {}, h("span", {}, "Ana Teste"), h("span", {}, " · "), h("span", {}, "Casa 2 quartos")), h("span", {}, "Ainda está disponível?")),
+    h("div", { role: "button", tabindex: "0", "aria-label": "Mais opções da conversa" }, h("span", {}, "Mais"))
+  );
+  item.append(h("img", { src: "https://scontent.example/thumb.jpg" }));
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }, item))));
+  const threadKey = MP.itemKey("Ana Teste", "Casa 2 quartos");
+  const prep = await send({ type: "mp-inbox-prepare-open", threadKey, contactName: "Ana Teste" });
+  assert.equal(prep.ok, true, prep.error);
+  assert.equal(prep.by, "nome");
+  assert.equal(prep.innerButtons, 1);
+  assert.ok(Number.isFinite(prep.x) && Number.isFinite(prep.y));
+  assert.ok(prep.attrNames.includes("data-testid"));
+  assert.equal(prep.threadId, "");
+  const state = await send({ type: "mp-inbox-open-state", contactName: "Ana Teste" });
+  assert.deepEqual([state.found, state.path, state.logs], [null, "/marketplace/inbox/", 0]);
+  const diag = await send({ type: "mp-inbox-open-diagnostic", before: "https://www.facebook.com/marketplace/inbox/", waitedMs: 20000 });
+  assert.ok(diag.attrNames.includes("data-testid"));
+  assert.doesNotMatch(JSON.stringify(diag), /Ana Teste|Casa 2 quartos|disponível/);
+});
+
+test("background 1.8.10: clique confiável pelo depurador, aba visível só durante a conversa, espera no background", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  const flow = bg.slice(bg.indexOf("async function openAndReadByClick"), bg.indexOf("async function readThread"));
+  assert.match(flow, /const focus = await focusTab\(tabId\);/);
+  assert.match(flow, /await trustedClick\(tabId, prep\.x, prep\.y\)/);
+  assert.match(flow, /finally \{\s*await focus\.restore\(\);/);
+  assert.match(bg, /withTimeout\(chrome\.debugger\.sendCommand/);
+  // Último recurso pelo endereço só lê se a janela aberta tiver o nome do contato (nunca outra conversa).
+  assert.match(flow, /state\.found === "painel" \? await readOpenThread/);
 });

@@ -84,7 +84,11 @@ test("content.js: sem título, turbinar desligado, ordem do formulário", () => 
 test("background: aba dedicada, navegação esperando carregar, reinjeção e aba fechada no fim", () => {
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
   assert.match(bg, /chrome\.tabs\.create\(\{ url: "about:blank"/);
-  assert.doesNotMatch(bg, /chrome\.tabs\.query/, "nunca mexe nas abas do dono");
+  // Nunca mexe nas abas do dono. Única exceção (1.8.10, focusTab): saber qual aba estava ativa para devolver o
+  // foco a ela depois de mostrar a aba dedicada durante a abertura de uma conversa.
+  const queries = bg.match(/chrome\.tabs\.query\([^)]*\)/g) || [];
+  assert.deepEqual(queries, ["chrome.tabs.query({ active: true, windowId: tab.windowId })"], "nunca mexe nas abas do dono");
+  assert.match(bg, /if \(previous\?\.id && previous\.id !== tabId\) await chrome\.tabs\.update\(previous\.id, \{ active: true \}\)/);
   assert.match(bg, /PAGE_LOAD_TIMEOUT_MS = 45 \* 1000/);
   assert.match(bg, /marketplace\/create\/rental/);
   assert.match(bg, /target: "card"/);
