@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-21 — Atalho "Chat Marketplace" no cabeçalho de Clientes
+- **Área:** Clientes / Marketplace
+- **Alteração:** novo ícone (SVG próprio: balão com raio em zigue-zague, traço igual aos demais, sem cores da Meta) à direita do Chat na fila de atalhos do computador, link para `/admin/chat/marketplace`, contador verde = o mesmo do menu "Chat Marketplace" (`/api/admin/marketplace-chat/unread`, `requireAdminApi` + escopo de `countMarketplaceUnread`). Todos os perfis. Contador extraído para o hook `useMarketplaceUnreadCount` (fonte única menu + atalho). Celular inalterado.
+- **Motivo:** pedido do dono.
+- **Arquivos afetados:** `components/marketplace/MarketplaceChatShortcut.jsx` (novo), `components/marketplace/MarketplaceNavBadge.jsx`, `components/clients/ClientWorkspace.jsx`.
+- **Risco/observação:** menu e atalho consultam o contador cada um a cada 60 s (leitura leve). Não aparece quando o atalho do Chat some (só o Chat é escondido no modo lista impressa).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-19 — Prova de envio do link em conversa Particular (lote A item 6)
 - **Área:** Clientes / WhatsApp
 - **Alteração:** `loadSimulationSentEvidence` passa a procurar, quando as provas de sempre não bastam, o token exato dos links de apresentação do cliente nas mensagens de saída do WhatsApp pessoal do responsável/equipe (`session_user_id`), devolvendo só sim/não (`tokenLinkSent`). Vale para a trava "Simulação enviada" (FUN-13), a ROL-4c e a linha do painel. `docs/BUSINESS_RULES.md` FUN-13.
