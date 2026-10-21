@@ -44,6 +44,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-21 — App (celular): Chat Marketplace na barra inferior e ícones menores
+- **Área:** Navegação do celular (`AdminBottomNav`) / Marketplace
+- **Alteração:** no app o único atalho do Chat é a barra inferior; nela entrou o **Chat Marketplace** logo à direita do Chat, em todos os perfis (6 colunas; mesma chave `marketplace-chat` do menu, então sai do "Mais"; contador = `useMarketplaceUnreadCount`; o Chat deixa de ficar ativo em `/admin/chat/marketplace`). Ícones da barra 22px → 20px (ladrilho 28×48 → 24×40) e rótulos 11px → 10px, para caber em 360px; rótulo "Market" abaixo de 390px e "Marketplace" a partir de 390px (leitor de tela: "Chat Marketplace"). O ícone é o mesmo do atalho do computador (`MarketplaceChatIcon` exportado, aceita `strokeWidth`). Computador inalterado (a barra é `md:hidden`).
+- **Motivo:** pedido do dono ("diminua o tamanho dos ícones no app e adicione ele ao lado do chat também").
+- **Arquivos afetados:** `components/AdminBottomNav.jsx`, `components/marketplace/MarketplaceChatShortcut.jsx`, `tests/caixa-simulator.test.mjs`, `.claude/skills/design-crm/references/sistema-visual.md` §4.1, `docs/pwa-admin.md`.
+- **Risco/observação:** em 360px o rótulo "Desempenho" (admin geral) fica no limite da coluna e pode cortar com reticências. A barra fica montada (oculta) também no computador, então o contador do Marketplace é consultado mais uma vez a cada 60 s (leitura leve).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-21 — Atalho "Chat Marketplace" no cabeçalho de Clientes
 - **Área:** Clientes / Marketplace
 - **Alteração:** novo ícone (SVG próprio: balão com raio em zigue-zague, traço igual aos demais, sem cores da Meta) à direita do Chat na fila de atalhos do computador, link para `/admin/chat/marketplace`, contador verde = o mesmo do menu "Chat Marketplace" (`/api/admin/marketplace-chat/unread`, `requireAdminApi` + escopo de `countMarketplaceUnread`). Todos os perfis. Contador extraído para o hook `useMarketplaceUnreadCount` (fonte única menu + atalho). Celular inalterado.
@@ -217,6 +225,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-21 — Chat do Marketplace: mensagem limpa a partir do rótulo do Facebook + renormalização do já gravado
+- **Data:** 2026-10-21
+- **Área:** `lib/marketplace-chat-core.mjs` (`normalizeFacebookMessage`, `parseFacebookWhen`, `normalizeSyncPayload`), `lib/marketplace-chat.js` (`renormalizeMarketplaceMessages`, `sender_name`), rota nova `app/api/cron/marketplace-messages-renormalize` (só acionamento manual, auth de cron, `?apply=1`), extensão `inbox.js` (avatar fora dos anexos).
+- **Alteração:** texto/hora/direção saem do aria-label ("Pressione Enter, Mensagem enviada <quando> por <quem>: <texto>", e inglês); "Você"/"You" = nossa; descarta aviso do Facebook, balão vazio e avatar; ordena pela hora real. Renormalização só de mensagens lidas do Facebook (`external_id`), idempotente, recalcula `last_message_at`/`last_inbound_at`/prévia/não lidas.
+- **Verificação:** `tests/marketplace-chat-core.test.mjs` com as strings do caso; `pnpm build`.
+- **Risco/observação:** avatar reconhecido por heurística de URL (`t39.30808-1`, `s32x32`…) e foto igual à do contato. Dados antigos só mudam quando a rota for acionada com `apply=1`. Ver `docs/INCIDENTES.md`.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-21 — Marketplace: 1ª carga hoje→Eduardo/ontem→Jennyfer/anteriores fora, lista "todas" para o admin, broadcast do Realtime (extensão 1.8.11)
 - **Data:** 2026-10-21
 - **Área:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `app/api/admin/marketplace-chat/conversations`, `components/marketplace/MarketplaceChat.jsx`, extensão (`lib/chat-agenda.js`, `background.js`, `selectors.js`), `lib/whatsapp-chat.js`/`lib/supervision-messages.js`/`lib/crm-alerts.js`.

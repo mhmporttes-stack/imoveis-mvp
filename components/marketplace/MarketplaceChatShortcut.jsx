@@ -19,9 +19,10 @@ export default function MarketplaceChatShortcut() {
 
 // Desenho próprio no traço dos ícones lucide (24px, stroke 2, pontas arredondadas, cor do texto): balão arredondado com
 // um raio em zigue-zague dentro. Lembra o Messenger sem copiar o logotipo da Meta (sem cores nem gradiente da marca).
-function MarketplaceChatIcon({ className = "" }) {
+// Exportado para a barra inferior do celular (AdminBottomNav), que passa o strokeWidth como faz com os ícones lucide.
+export function MarketplaceChatIcon({ className = "", strokeWidth = 2 }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
       {/* Mesmo contorno do balão do Chat (lucide MessageCircle) para ter exatamente o mesmo tamanho (dono, 2026-10-21:
           "o tamanho está menor, ficou feio"); só o raio dentro diferencia. */}
       <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />

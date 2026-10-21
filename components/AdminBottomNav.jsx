@@ -16,6 +16,8 @@ import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
+import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 
@@ -35,7 +37,10 @@ const DESTINATIONS = {
   dailyGoal: { key: "daily-goal", href: "/admin/meta-diaria", label: "Meta", Icon: Target, match: (path) => path === "/admin/meta-diaria" },
   caixaSimulator: { key: "caixa-simulator", href: "/admin/simulador-caixa", label: "Simulador", Icon: Calculator, match: (path) => path.startsWith("/admin/simulador-caixa") },
   clients: { key: "simulations", href: "/admin/simulacoes", label: "Clientes", Icon: Users, match: (path) => path.startsWith("/admin/simulacoes") },
-  chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") },
+  chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") && !path.startsWith("/admin/chat/marketplace") },
+  // Chat Marketplace (dono, 2026-10-21: "adicione ele ao lado do chat também"): todos os perfis, logo à direita do Chat.
+  // Mesma chave do item do menu (MARKETPLACE_CHAT_ITEM), então some do "Mais". Rótulo curto abaixo de 390px (6 colunas).
+  marketplaceChat: { key: "marketplace-chat", href: "/admin/chat/marketplace", label: "Chat Marketplace", shortLabel: "Market", mediumLabel: "Marketplace", Icon: MarketplaceChatIcon, match: (path) => path.startsWith("/admin/chat/marketplace") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
   online: { key: "online", href: "/admin/desempenho/online", label: "Online", Icon: UserCheck, match: (path) => path.startsWith("/admin/desempenho/online") },
   performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
@@ -44,17 +49,23 @@ const DESTINATIONS = {
 // Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
 // Corretor/associado (dono, 2026-10-19): "Simulador Caixa" no lugar da Meta Diária; gestor mantém a Meta.
 function destinationsFor({ isAdmin, isManager }) {
-  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance];
-  if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
-  return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
+  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.performance];
+  if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
+  return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
 }
 
 function badgeFor(key, counts) {
   if (key === "chat") return counts.chat || 0;
+  if (key === "marketplace-chat") return counts.marketplace || 0;
   if (key === "calendar") return counts.agenda || 0;
   if (key === "simulations") return (counts.newAttendances || 0) + (counts.awaitingSimulation || 0) + (counts.prospectingReplies || 0);
   return 0;
 }
+
+// Ícones da barra (dono, 2026-10-21: "diminua o tamanho dos ícones no app"): 20px num ladrilho de 24×40 (eram 22px em
+// 28×48), para caber o Chat Marketplace como 6ª coluna em 360px. A área de toque continua a coluna inteira (56px de altura).
+const NAV_PILL = "flex h-6 w-10 items-center justify-center rounded-full";
+const NAV_ICON = "h-5 w-5";
 
 function isEditableTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
@@ -71,7 +82,10 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const chatHidden = useLiveChatHidden(chatHiddenProp);
   const routerPath = usePathname() || "";
   const pathname = currentPath || routerPath;
-  const counts = useCrmBadgeCounts();
+  const crmCounts = useCrmBadgeCounts();
+  // Contador do Chat Marketplace: mesma fonte do menu e do atalho do computador (MKT-2).
+  const marketplaceUnread = useMarketplaceUnreadCount();
+  const counts = { ...crmCounts, marketplace: marketplaceUnread };
   const [moreOpen, setMoreOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const navRef = useRef(null);
@@ -208,16 +222,24 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                   {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "relative flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
+                    "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium leading-4 tracking-normal",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
                     active ? "text-navy" : "text-muted"
                   )}
                 >
-                  <span className={cx("relative flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150", active && "admin-nav-current bg-info-soft")}>
-                    <item.Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
+                  <span className={cx(NAV_PILL, "relative transition-colors duration-150", active && "admin-nav-current bg-info-soft")}>
+                    <item.Icon className={NAV_ICON} strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
                     <CountBadge count={badge} className="absolute -right-0.5 -top-1.5 ring-2 ring-white" label={`${badge} pendentes em ${item.label}`} />
                   </span>
-                  <span className={active ? "font-semibold" : undefined}>{item.label}</span>
+                  {item.shortLabel ? (
+                    <span className={cx("max-w-full truncate", active && "font-semibold")}>
+                      <span className="sr-only">{item.label}</span>
+                      <span className="min-[390px]:hidden" aria-hidden="true">{item.shortLabel}</span>
+                      <span className="max-[389px]:hidden" aria-hidden="true">{item.mediumLabel}</span>
+                    </span>
+                  ) : (
+                    <span className={cx("max-w-full truncate", active && "font-semibold")}>{item.label}</span>
+                  )}
                 </ItemLink>
               </li>
             );
@@ -229,13 +251,13 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
               aria-haspopup="dialog"
               aria-expanded={moreOpen}
               className={cx(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium leading-4 tracking-normal",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
                 !activeKey ? "text-navy" : "text-muted"
               )}
             >
-              <span className={cx("flex h-7 w-12 items-center justify-center rounded-full", !activeKey && "bg-info-soft")}>
-                <Ellipsis className="h-[22px] w-[22px]" aria-hidden="true" />
+              <span className={cx(NAV_PILL, !activeKey && "bg-info-soft")}>
+                <Ellipsis className={NAV_ICON} aria-hidden="true" />
               </span>
               <span className={!activeKey ? "font-semibold" : undefined}>Mais</span>
             </button>
