@@ -137,7 +137,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
       {/* Ações do dia a dia */}
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
-      <footer className="mt-auto flex items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
+      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
         {whatsappBlocked ? null : <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
         </Button>}
@@ -149,7 +149,9 @@ export default function ClientCard({ client, activities, responsibleName, respon
             "Copiar texto" + motivo quando o envio está bloqueado). Arquivado/Não contactar: o servidor recusa (409). */}
         {registration.id && ![CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status) ? (
           <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
-            <ListChecks className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Lista de documentos</span><span className="sm:hidden">Lista</span>
+            {/* Rótulo curto em todas as larguras: com "Lista de documentos" o rodapé estourava a largura do card e o
+                botão "…" ficava por cima do WhatsApp (dono, 2026-10-21). O nome completo fica no title. */}
+            <ListChecks className="h-4 w-4" aria-hidden="true" /> Lista
           </Button>
         ) : null}
         <Menu
