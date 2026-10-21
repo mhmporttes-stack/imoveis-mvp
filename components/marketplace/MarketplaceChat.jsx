@@ -66,29 +66,8 @@ function SettingsCard({ team = [] }) {
       <label className="inline-flex items-center gap-1 text-muted">até
         <input type="number" min={1} max={60} className="w-16 rounded-control border border-line px-2 py-1" value={settings.maxSendsPerHour} onChange={(event) => save({ ...settings, maxSendsPerHour: Number(event.target.value) })} /> envios por hora
       </label>
-      {/* 1ª carga (dono, 2026-10-21): pares dia → pessoa e "não importar anteriores a". Dia = última mensagem do cliente. */}
-      <div className="flex w-full flex-col gap-1 text-muted">
-        <span className="font-medium text-ink">1ª carga — conversas pela data da última mensagem do cliente</span>
-        {(settings.firstLoadRules || []).map((rule, index) => (
-          <span key={`${rule.date}-${index}`} className="inline-flex flex-wrap items-center gap-1">
-            do dia
-            <input type="date" className="rounded-control border border-line px-2 py-1" value={rule.date} onChange={(event) => save({ ...settings, firstLoadRules: settings.firstLoadRules.map((item, i) => (i === index ? { ...item, date: event.target.value } : item)) })} />
-            vão direto para
-            <select className="rounded-control border border-line px-2 py-1" value={rule.userId} onChange={(event) => save({ ...settings, firstLoadRules: settings.firstLoadRules.map((item, i) => (i === index ? { ...item, userId: event.target.value } : item)) })}>
-              {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-            </select>
-            <button type="button" className="text-danger underline" onClick={() => save({ ...settings, firstLoadRules: settings.firstLoadRules.filter((_, i) => i !== index) })}>remover</button>
-          </span>
-        ))}
-        {team.length ? (
-          <button type="button" className="self-start text-navy underline" onClick={() => save({ ...settings, firstLoadRules: [...(settings.firstLoadRules || []), { date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), userId: team[0].id }] })}>+ adicionar dia</button>
-        ) : null}
-        <span className="inline-flex flex-wrap items-center gap-1">
-          não importar conversas anteriores a
-          <input type="date" className="rounded-control border border-line px-2 py-1" value={settings.firstLoadIgnoreBefore || ""} onChange={(event) => save({ ...settings, firstLoadIgnoreBefore: event.target.value })} />
-          (vazio = importa todas)
-        </span>
-      </div>
+      {/* 1ª carga (dono, 2026-10-21): pares dia → pessoa e "não importar anteriores a" continuam valendo pelo que está
+          salvo em crm_settings (lib/marketplace-chat.js), mas não aparecem na tela — dono: "isso não precisa ficar visível". */}
       {message ? <span className="text-muted">{message}</span> : null}
     </Card>
   );
