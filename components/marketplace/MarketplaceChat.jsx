@@ -14,6 +14,10 @@ import MessengerBadge from "@/components/marketplace/MessengerBadge";
 const LIST_REFRESH_MS = 20000;
 const THREAD_REFRESH_MS = 10000;
 const time = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+// Seletor da lista (dono, 2026-10-21): Todos / um corretor / Roleta. O servidor decide o que existe para cada perfil
+// (`filters`) e aplica o escopo. Na lista, o nome do corretor (1º nome) no lugar da etiqueta; sem corretor = "Roleta".
+const ROULETTE = "__roleta";
+const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "";
 const STATUS_TEXT = { queued: "Na fila de envio", sending: "Enviando…", sent: "Enviada", failed: "Falhou" };
 
 async function callApi(url, options = {}) {
@@ -62,21 +66,38 @@ function SettingsCard({ team = [] }) {
       <label className="inline-flex items-center gap-1 text-muted">até
         <input type="number" min={1} max={60} className="w-16 rounded-control border border-line px-2 py-1" value={settings.maxSendsPerHour} onChange={(event) => save({ ...settings, maxSendsPerHour: Number(event.target.value) })} /> envios por hora
       </label>
-      <label className="inline-flex flex-wrap items-center gap-1 text-muted">Conversas novas com mensagem do dia
-        <input type="date" className="rounded-control border border-line px-2 py-1" value={settings.firstSyncDate || ""} onChange={(event) => save({ ...settings, firstSyncDate: event.target.value })} />
-        vão direto para
-        <select className="rounded-control border border-line px-2 py-1" value={settings.firstSyncAssigneeId || ""} onChange={(event) => save({ ...settings, firstSyncAssigneeId: event.target.value })}>
-          <option value="">ninguém (roleta)</option>
-          {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-        </select>
-      </label>
+      {/* 1ª carga (dono, 2026-10-21): pares dia → pessoa e "não importar anteriores a". Dia = última mensagem do cliente. */}
+      <div className="flex w-full flex-col gap-1 text-muted">
+        <span className="font-medium text-ink">1ª carga — conversas pela data da última mensagem do cliente</span>
+        {(settings.firstLoadRules || []).map((rule, index) => (
+          <span key={`${rule.date}-${index}`} className="inline-flex flex-wrap items-center gap-1">
+            do dia
+            <input type="date" className="rounded-control border border-line px-2 py-1" value={rule.date} onChange={(event) => save({ ...settings, firstLoadRules: settings.firstLoadRules.map((item, i) => (i === index ? { ...item, date: event.target.value } : item)) })} />
+            vão direto para
+            <select className="rounded-control border border-line px-2 py-1" value={rule.userId} onChange={(event) => save({ ...settings, firstLoadRules: settings.firstLoadRules.map((item, i) => (i === index ? { ...item, userId: event.target.value } : item)) })}>
+              {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+            </select>
+            <button type="button" className="text-danger underline" onClick={() => save({ ...settings, firstLoadRules: settings.firstLoadRules.filter((_, i) => i !== index) })}>remover</button>
+          </span>
+        ))}
+        {team.length ? (
+          <button type="button" className="self-start text-navy underline" onClick={() => save({ ...settings, firstLoadRules: [...(settings.firstLoadRules || []), { date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), userId: team[0].id }] })}>+ adicionar dia</button>
+        ) : null}
+        <span className="inline-flex flex-wrap items-center gap-1">
+          não importar conversas anteriores a
+          <input type="date" className="rounded-control border border-line px-2 py-1" value={settings.firstLoadIgnoreBefore || ""} onChange={(event) => save({ ...settings, firstLoadIgnoreBefore: event.target.value })} />
+          (vazio = importa todas)
+        </span>
+      </div>
       {message ? <span className="text-muted">{message}</span> : null}
     </Card>
   );
 }
 
 export default function MarketplaceChat({ canEditSettings = false, canAssign = false, team = [] }) {
-  const [list, setList] = useState({ ready: true, conversations: [] });
+  const [list, setList] = useState({ ready: true, conversations: [], filters: [] });
+  const [view, setView] = useState("all");
+  const [brokerId, setBrokerId] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [thread, setThread] = useState(null);
   const [text, setText] = useState("");
@@ -85,8 +106,10 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const endRef = useRef(null);
 
   const loadList = useCallback(() => {
-    callApi("/api/admin/marketplace-chat/conversations").then(setList).catch((loadError) => setError(loadError.message));
-  }, []);
+    const params = new URLSearchParams({ view });
+    if (brokerId) params.set("brokerId", brokerId);
+    callApi(`/api/admin/marketplace-chat/conversations?${params}`).then(setList).catch((loadError) => setError(loadError.message));
+  }, [view, brokerId]);
   const loadThread = useCallback((id) => {
     if (!id) return;
     callApi(`/api/admin/marketplace-chat/conversations/${id}`).then(setThread).catch((loadError) => setError(loadError.message));
@@ -164,6 +187,21 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
 
       <div className="grid gap-3 md:grid-cols-[320px,1fr]">
         <Card padding="none" className={`overflow-hidden ${selectedId ? "hidden md:block" : ""}`}>
+          {list.filters?.length ? (
+            <div className="border-b border-line p-2">
+              <select className="w-full rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
+                value={brokerId || (view === "unassigned" ? ROULETTE : "")}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setView(value === ROULETTE ? "unassigned" : "all");
+                  setBrokerId(value && value !== ROULETTE ? value : "");
+                }}>
+                <option value="">Todos</option>
+                {list.filters.includes("unassigned") ? <option value={ROULETTE}>Roleta (aguardando atendimento)</option> : null}
+                {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              </select>
+            </div>
+          ) : null}
           {!list.conversations.length ? <p className="p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
           <ul className="max-h-[70vh] divide-y divide-line overflow-y-auto">
             {list.conversations.map((item) => (
@@ -173,7 +211,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="truncate font-semibold text-navy">{item.contactName}</span>
-                      <Badge tone="info">Marketplace</Badge>
+                      <Badge tone={item.assignedName ? "info" : "warning"}>{firstName(item.assignedName) || "Roleta"}</Badge>
                     </span>
                     <span className="block truncate text-xs text-muted">{item.listingTitle || "Anúncio não identificado"}</span>
                     <span className="block truncate text-sm text-ink">{item.lastMessagePreview}</span>

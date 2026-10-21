@@ -217,6 +217,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-21 — Marketplace: 1ª carga hoje→Eduardo/ontem→Jennyfer/anteriores fora, lista "todas" para o admin, broadcast do Realtime (extensão 1.8.11)
+- **Data:** 2026-10-21
+- **Área:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `app/api/admin/marketplace-chat/conversations`, `components/marketplace/MarketplaceChat.jsx`, extensão (`lib/chat-agenda.js`, `background.js`, `selectors.js`), `lib/whatsapp-chat.js`/`lib/supervision-messages.js`/`lib/crm-alerts.js`.
+- **Pedido do dono:** "os clientes de hoje são do Eduardo, os de ontem da Jhenifer, os anteriores não carregue" + "para mim devem aparecer a opção todos os chats".
+- **Alteração:** (1) configuração `firstLoadRules` (pares dia → pessoa) + `firstLoadIgnoreBefore` substitui `firstSyncAssigneeId/firstSyncDate`; `routeNewConversation` usa a data da última mensagem do cliente: par → `assignDirect`; anterior → "ignore" (não grava conversa nem mensagens); data desconhecida → admin. Vale também para a fila de espera (Tânia → Eduardo na próxima sincronização) e para conversa já gravada vazia. (2) Extensão 1.8.11 pula pela data da lista ("Ontem", "2 d", "1 sem", "12 de out", "1 a") e guarda a prévia. (3) Lista: seletor Todos/corretor/Roleta (`?view=all|unassigned&brokerId=`), 1º nome do corretor na etiqueta (sem corretor = "Roleta"); admin todas por padrão; escopo `buildChatScope`/`allowedBrokerFilter`. (5) Contador do Chat Marketplace (menu/atalho) = número de conversas não lidas, não soma de mensagens (`countMarketplaceUnread`). (4) Broadcast do Realtime (Chat do WhatsApp, supervisão, alertas — não era do Marketplace) usava `NEXT_PUBLIC_SUPABASE_URL` com "/rest/v1" → 404; agora `normalizeSupabaseUrl`.
+- **Docs:** `docs/BUSINESS_RULES.md` MKT-2c/MKT-2d, `.claude/rules/roleta-prospeccao-campanhas.md`.
+- **Verificação:** `tests/marketplace-chat-core.test.mjs`, `tests/supabase-broadcast-url.test.mjs`, `tests/whatsapp-chat-scope.test.mjs`, extensão `node --test tests/*.test.js`, `pnpm build`.
+- **Risco/observação:** com o broadcast corrigido, as telas do Chat/supervisão/alertas passam a receber o aviso em tempo real (antes só o polling). `tests/whatsapp-conversation-per-session.test.mjs` "botão WhatsApp do card…" já falhava antes desta mudança.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-20 — Chat do Marketplace: trava, abertura e leitura da conversa (extensão 1.8.7–1.8.9)
 - **Data:** 2026-10-20
 - **Área:** extensão `ferramentas/marketplace-publicador/` (background, inbox, popup, lib/chat-agenda) e `lib/marketplace-chat.js` (`syncMarketplaceConversations`).

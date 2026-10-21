@@ -68,6 +68,22 @@ export function threadsToRead(threads = [], known = {}) {
     .slice(0, MAX_THREADS_PER_ROUND);
 }
 
+// 1ª carga (dono, 2026-10-21: "os anteriores não carregue"): conversa cuja última atividade na lista (hora/data
+// relativa da caixa: "18:34" = hoje, "Ontem"/"1 d" = ontem…) é anterior a ignoreBefore (dia, São Paulo) nem é aberta.
+// A última atividade é >= a última mensagem do cliente, então nada recente é pulado. Sem data reconhecida → lê
+// (o CRM decide). As ignoradas têm a prévia guardada: só voltam se aparecer mensagem nova.
+export function splitIgnored(threads = [], ignoreBefore = "") {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ignoreBefore || ""))) return { keep: threads, ignored: [] };
+  const keep = [];
+  const ignored = [];
+  for (const thread of threads) {
+    const at = thread.lastActivityAt ? new Date(thread.lastActivityAt) : null;
+    if (at && Number.isFinite(at.getTime()) && saoPauloParts(at).dateKey < ignoreBefore) ignored.push(thread);
+    else keep.push(thread);
+  }
+  return { keep, ignored };
+}
+
 export function rememberPreviews(known = {}, threads = []) {
   const next = { ...known };
   for (const thread of threads) next[thread.threadKey] = thread.preview;

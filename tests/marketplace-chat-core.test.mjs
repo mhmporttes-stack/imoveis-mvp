@@ -21,8 +21,12 @@ const now = new Date("2026-10-20T15:00:00Z");
 const ago = (min) => new Date(now.getTime() - min * 60000).toISOString();
 
 test("configuração: padrão 07–22h, ligado, 20 envios/h; valores inválidos voltam ao padrão", () => {
-  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstSyncAssigneeId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec", firstSyncDate: "2026-10-20" });
-  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstSyncAssigneeId: "", firstSyncDate: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstSyncAssigneeId: "", firstSyncDate: "" });
+  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstLoadRules: [{ date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }], firstLoadIgnoreBefore: "2026-10-20" });
+  // Configuração antiga (um dia só) gravada no banco: passa a valer a regra nova da 1ª carga.
+  assert.equal(normalizeChatSettings({ firstSyncAssigneeId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec", firstSyncDate: "2026-10-20" }).firstLoadRules.length, 2);
+  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstLoadRules: [{ date: "x", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-01", userId: "nao-uuid" }], firstLoadIgnoreBefore: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstLoadRules: [], firstLoadIgnoreBefore: "" });
+  // Um par por dia, mais recentes primeiro.
+  assert.deepEqual(normalizeChatSettings({ firstLoadRules: [{ date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }, { date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }] }).firstLoadRules.map((rule) => rule.date), ["2026-10-21", "2026-10-20"]);
 });
 
 test("sincronização: valida conversa e mensagens; descarta o que não é do Marketplace/https", () => {
@@ -146,15 +150,33 @@ test("conversa distribuída vira cliente só com o nome (dono, 2026-10-20): banc
   assert.match(lib, /responsible_user_id: brokerId/, "redistribuição leva o cliente junto");
 });
 
-test("1ª sincronização (dono, 2026-10-20): conversa com mensagem de hoje → Jennyfer; últimas 24 h → roleta; mais antiga → admin", () => {
+test("1ª carga (REGRA OFICIAL — dono, 2026-10-21): hoje → Eduardo, ontem → Jennyfer, anteriores não importa", () => {
   const settings = normalizeChatSettings({});
-  const now10h = new Date("2026-10-20T13:00:00Z"); // 10h em São Paulo
-  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-20T11:00:00Z", now: now10h, settings }), { kind: "assignee", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" });
-  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-19T20:00:00Z", now: now10h, settings }), { kind: "roulette" });
-  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-12T20:00:00Z", now: now10h, settings }), { kind: "admin" });
-  // Só vale na data configurada.
-  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-21T13:00:00Z", now: new Date("2026-10-21T14:00:00Z"), settings }), { kind: "roulette" });
-  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-20T11:00:00Z", now: now10h, settings: { ...settings, firstSyncAssigneeId: "" } }), { kind: "roulette" });
+  const now = new Date("2026-10-21T15:00:00Z"); // 12h em São Paulo
+  // Tânia: última mensagem do cliente hoje 10:28 → Eduardo.
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-21T13:28:00Z", now, settings }), { kind: "assignee", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" });
+  // Ontem (inclusive 23h de São Paulo, que já é 21/10 em UTC) → Jennyfer.
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-21T02:30:00Z", now, settings }), { kind: "assignee", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" });
+  // Anterior a 20/10 → não importa.
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-19T20:00:00Z", now, settings }), { kind: "ignore" });
+  // Data desconhecida → fica com o admin (nunca atribui no escuro).
+  assert.deepEqual(routeNewConversation({ lastActivityAt: null, now, settings }), { kind: "admin", reason: "sem_data" });
+  // Dia sem par e sem 1ª carga: regra antiga (24 h → roleta; mais antiga → admin).
+  const plain = normalizeChatSettings({ firstLoadRules: [], firstLoadIgnoreBefore: "" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-22T13:00:00Z", now: new Date("2026-10-22T14:00:00Z"), settings }), { kind: "roulette" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: "2026-10-12T20:00:00Z", now, settings: plain }), { kind: "admin" });
+  assert.deepEqual(routeNewConversation({ lastActivityAt: null, now, settings: plain }), { kind: "roulette" });
+});
+
+test("1ª carga no servidor: ignora antes de gravar, vale para a fila de espera e usa a última mensagem do cliente", () => {
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  const sync = lib.slice(lib.indexOf("export async function syncMarketplaceConversations"), lib.indexOf("// --- Fila de saída"));
+  assert.ok(sync.indexOf('route.kind === "ignore"') < sync.indexOf(".insert({"), "ignorada não cria conversa");
+  assert.match(sync, /find\(\(message\) => message\.direction === "inbound"\)/);
+  const queue = lib.slice(lib.indexOf("export async function processMarketplaceDistribution"), lib.indexOf("// --- Sincronização"));
+  assert.match(queue, /route\.kind === "assignee"\) \{\s*await assignDirect/);
+  assert.match(queue, /waiting_distribution_at: null/);
+  assert.doesNotMatch(lib, /\.delete\(/, "nada de conversa é apagado");
 });
 
 test("histórico importado ganha horários em ordem até a última atividade", () => {
@@ -182,5 +204,30 @@ test("sync: conversa já gravada sem mensagens vale como 1ª sincronização (ho
   const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
   assert.match(lib, /const firstContent = !existing \|\| !existing\.last_message_at;/);
   assert.match(lib, /firstContent \? assignMessageTimes\(item\.messages/);
-  assert.match(lib, /if \(firstContent\) \{\s*const route = routeNewConversation/);
+  assert.match(lib, /if \(firstContent\) \{[\s\S]{0,400}route = routeNewConversation/);
+  assert.match(lib, /if \(firstContent\) \{\s*if \(route\.kind === "assignee"\) await assignDirect/);
+});
+
+test("lista do Chat do Marketplace (dono, 2026-10-21): admin vê todas por padrão; seletor Todos/corretor/Roleta só restringe dentro do escopo do Chat", () => {
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  const list = lib.slice(lib.indexOf("export async function listMarketplaceConversations"), lib.indexOf("export async function getMarketplaceConversation"));
+  assert.match(list, /const scope = scopeFor\(auth\);/);
+  assert.match(list, /allowedBrokerFilter\(scope, brokerId\)/, "mesmo critério do Chat do WhatsApp");
+  assert.match(list, /if \(!scope\.all\) query = query\.in\("assigned_user_id", scope\.ids\);/);
+  assert.match(list, /view = "all"/, "padrão = todas");
+  assert.match(lib, /export const MARKETPLACE_LIST_VIEWS = \["all", "unassigned"\];/);
+  assert.match(list, /scope\.all \? MARKETPLACE_LIST_VIEWS : scope\.supervisor \? \["all"\] : \[\]/, "Roleta só para o admin geral");
+  assert.match(list, /if \(filterId\) query = query\.eq\("assigned_user_id", filterId\);/);
+  assert.match(list, /safeView === "unassigned"\) query = query\.is\("assigned_user_id", null\)/);
+  const route = readFileSync(new URL("../app/api/admin/marketplace-chat/conversations/route.js", import.meta.url), "utf8");
+  assert.match(route, /requireAdminApi\(request\)/);
+  assert.match(route, /view: params\.get\("view"\) \|\| "all", brokerId: params\.get\("brokerId"\) \|\| ""/);
+});
+
+test("contador do Chat Marketplace = número de conversas não lidas (como o do WhatsApp), não soma de mensagens", () => {
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  const fn = lib.slice(lib.indexOf("export async function countMarketplaceUnread"), lib.indexOf("// --- Diagnóstico de estrutura"));
+  assert.match(fn, /select\("id", \{ count: "exact", head: true \}\)\.gt\("unread_count", 0\)/);
+  assert.match(fn, /if \(!scope\.all\) query = query\.in\("assigned_user_id", scope\.ids\);/);
+  assert.doesNotMatch(fn, /reduce\(/);
 });

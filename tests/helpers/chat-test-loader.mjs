@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const REAL_JS = new Set(["phone-utils.js", "client-status.js"]);
+const REAL_JS = new Set(["phone-utils.js", "client-status.js", "supabase-url.js"]);
 
 function findFile(target) {
   for (const candidate of [target, `${target}.js`, `${target}.mjs`, `${target}.jsx`]) {

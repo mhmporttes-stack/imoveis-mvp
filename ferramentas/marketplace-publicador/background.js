@@ -2,7 +2,7 @@
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
-import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 
 const ALARM = "mp-tick";
@@ -795,7 +795,15 @@ async function chatTick() {
 
     // Envio incremental: cada conversa lida vai ao CRM logo em seguida e a prévia é guardada na hora (se o worker
     // morrer depois, a conversa já está no CRM e não é relida do zero).
-    const toRead = threadsToRead(threads, previews);
+    // 1ª carga: conversas anteriores ao dia configurado no CRM nem são abertas (prévia guardada = não relê).
+    const { keep, ignored } = splitIgnored(threads, settings.firstLoadIgnoreBefore);
+    if (ignored.length) {
+      summary.ignored = ignored.length;
+      summary.steps += ` → ${ignored.length} conversa(s) anteriores a ${settings.firstLoadIgnoreBefore} ignorada(s)`;
+      previews = rememberPreviews(previews, ignored);
+      await chrome.storage.local.set({ chatPreviews: previews });
+    }
+    const toRead = threadsToRead(keep, previews);
     summary.pending = toRead.length;
     let posted = 0;
     for (const [index, thread] of toRead.entries()) {
@@ -863,7 +871,7 @@ async function chatTick() {
       if (!outcome.ok) break; // não insiste na mesma rodada
       await sleep(4000 + Math.floor(Math.random() * 6000));
     }
-    if (result !== "chat_parcial") result = threadsToRead(threads, previews).length ? "chat_parcial" : "chat_sincronizado";
+    if (result !== "chat_parcial") result = threadsToRead(keep, previews).length ? "chat_parcial" : "chat_sincronizado";
     return { reason: result, ...summary };
   } catch (error) {
     console.warn("[marketplace] sincronização do chat falhou:", error?.message || error);

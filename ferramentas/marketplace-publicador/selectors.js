@@ -317,6 +317,25 @@
     match = text.match(/(^|[^\d])(\d{1,2})\s*(sem|semanas?|w)\b/);
     if (match) return new Date(now.getTime() - Number(match[2]) * ms.sem).toISOString();
     if (/(^|\s)(ontem|yesterday)(\s|$)/.test(text)) return new Date(now.getTime() - ms.d).toISOString();
+    // 1.8.11: anos ("1 a") e datas ("12/10", "12 de out") — para a regra da 1ª carga pular conversas antigas.
+    match = text.match(/(^|[^\d])(\d{1,2})\s*(a|ano|anos|y|yr)\b/);
+    if (match) return new Date(now.getTime() - Number(match[2]) * 365 * ms.d).toISOString();
+    const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    const monthsEn = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    let day = 0;
+    let month = -1;
+    let year = 0;
+    match = text.match(/(^|\s)(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(\s|$)/);
+    if (match) [day, month, year] = [Number(match[2]), Number(match[3]) - 1, Number(match[4] || 0)];
+    match = !match && text.match(/(^|\s)(\d{1,2})\s*(?:de\s*)?([a-z]{3})[a-z.]*(?:\s*(?:de\s*)?(\d{4}))?/);
+    if (match) [day, month, year] = [Number(match[2]), Math.max(months.indexOf(match[3]), monthsEn.indexOf(match[3])), Number(match[4] || 0)];
+    if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+      let fullYear = year ? (year < 100 ? 2000 + year : year) : Number(today.slice(0, 4));
+      let at = new Date(`${fullYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T12:00:00-03:00`);
+      if (!year && at.getTime() > now.getTime() + ms.d) at = new Date(`${fullYear - 1}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T12:00:00-03:00`);
+      if (Number.isFinite(at.getTime())) return at.toISOString();
+    }
     match = text.match(/(^|\s)(\d{1,2}):(\d{2})(\s|$)/);
     if (match) {
       // Hora de hoje (fuso de São Paulo, -03:00).

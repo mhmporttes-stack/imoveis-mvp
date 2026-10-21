@@ -58,7 +58,7 @@ test("1.8.7: background — trava em chatLock com finally, envio incremental, li
   const popup = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
   assert.match(popup, /id="unlock"[^>]*>Destravar sincronização</);
   const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
-  assert.equal(manifest.version, "1.8.10");
+  assert.equal(manifest.version, "1.8.11");
 });
 
 test("lê só conversas que mudaram, no máximo 5 por rodada", () => {
@@ -411,4 +411,27 @@ test("diagnóstico (DOM falso): esqueleto da lista sem nenhum nome/mensagem/clas
   for (const leak of ["Stephanie", "Tânia", "Essas unidades", "Casa com piscina", "x1abc", "123456789"]) assert.ok(!json.includes(leak), `vazou: ${leak}`);
   assert.equal(result.counts.dots, 2);
   assert.match(result.how, /ancestral de 2 textos/);
+});
+
+test("1ª carga (dono, 2026-10-21): conversa anterior ao dia configurado nem é aberta; sem data → lê", async () => {
+  const { splitIgnored } = await import("../lib/chat-agenda.js");
+  const now = new Date("2026-10-21T15:00:00-03:00");
+  const label = (text) => MP.parseRelativeTime(text, now);
+  const threads = [
+    { threadKey: "hoje", lastActivityAt: label("10:28") },
+    { threadKey: "ontem", lastActivityAt: label("Ontem") },
+    { threadKey: "1d", lastActivityAt: label("1 d") },
+    { threadKey: "2d", lastActivityAt: label("2 d") },
+    { threadKey: "sem", lastActivityAt: label("1 sem") },
+    { threadKey: "data", lastActivityAt: label("12 de out") },
+    { threadKey: "ano", lastActivityAt: label("1 a") },
+    { threadKey: "sem-data", lastActivityAt: label("???") }
+  ];
+  const { keep, ignored } = splitIgnored(threads, "2026-10-20");
+  assert.deepEqual(keep.map((t) => t.threadKey), ["hoje", "ontem", "1d", "sem-data"]);
+  assert.deepEqual(ignored.map((t) => t.threadKey), ["2d", "sem", "data", "ano"]);
+  assert.equal(splitIgnored(threads, "").ignored.length, 0);
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /splitIgnored\(threads, settings\.firstLoadIgnoreBefore\)/);
+  assert.match(bg, /previews = rememberPreviews\(previews, ignored\)/);
 });
