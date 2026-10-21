@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-21 — Conversa do Marketplace com "Pressione Enter, Mensagem enviada … por …" e foto do cliente como anexo
+- **Data:** 2026-10-21
+- **Sintoma:** no Chat Marketplace (Rafael/Tânia) cada mensagem aparecia como "Pressione Enter, Mensagem enviada 10:18 por Você: …", mensagens nossas como do cliente, a foto de perfil como anexo, balões vazios "por Rafael", "Rafael está aguardando a sua resposta." como mensagem do cliente e mensagens de 28/09 depois das de hoje. Também: conversas gravadas sem mensagem (upsert batia num índice único parcial, 42P10 — corrigido em 7b4b373).
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** todas as conversas importadas até 21/10 (Rafael 11, Tânia 9 mensagens).
+- **Causa raiz:** o leitor usa o aria-label do balão (texto de acessibilidade do Facebook) como corpo; direção vinha de marcadores visuais; imagem ≥ 80 px de origem do avatar passava como anexo; hora era inventada a partir da última atividade.
+- **Correção:** `normalizeFacebookMessage`/`parseFacebookWhen` (`lib/marketplace-chat-core.mjs`) extraem texto, hora e QUEM ("Você"/"You" = nossa) na sincronização; avatar e avisos descartados; ordem pela hora real. Já gravado: `renormalizeMarketplaceMessages` (rota manual `/api/cron/marketplace-messages-renormalize`, `?apply=1`). Extensão 1.8.11 não pega avatar como anexo.
+- **Arquivos/commit:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `app/api/cron/marketplace-messages-renormalize/route.js`, `ferramentas/marketplace-publicador/inbox.js`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (strings exatas do caso)
+- **Status:** Resolvido no código; dados antigos dependem do acionamento da rota com `apply=1`
 ### 2026-10-20 — Pedido da lista de documentos respondido com o menu de boas-vindas
 - **Data:** 2026-10-20
 - **Sintoma:** cliente mandou ao oficial o texto pronto "…Pode me mandar a lista do meu caso? Código do atendimento: MM-…" e o robô respondeu "Boa tarde… Como podemos te ajudar?" com os botões Fazer simulação / Já sou cliente / Tenho uma dúvida.

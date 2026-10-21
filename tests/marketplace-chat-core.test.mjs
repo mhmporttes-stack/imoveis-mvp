@@ -9,6 +9,8 @@ import {
   messagePreview,
   normalizeChatSettings,
   normalizeSyncPayload,
+  normalizeFacebookMessage,
+  parseFacebookWhen,
   planOutboundResult,
   shouldRedistribute,
   toOutboxPayload,
@@ -176,7 +178,10 @@ test("1ª carga no servidor: ignora antes de gravar, vale para a fila de espera 
   const queue = lib.slice(lib.indexOf("export async function processMarketplaceDistribution"), lib.indexOf("// --- Sincronização"));
   assert.match(queue, /route\.kind === "assignee"\) \{\s*await assignDirect/);
   assert.match(queue, /waiting_distribution_at: null/);
-  assert.doesNotMatch(lib, /\.delete\(/, "nada de conversa é apagado");
+  assert.doesNotMatch(lib, /from\(CONVERSATIONS\)\.delete\(/, "nenhuma conversa é apagada");
+  // Única exclusão: mensagem LIDA do Facebook descartável na renormalização (nunca resposta escrita no CRM).
+  assert.equal((lib.match(/\.delete\(\)/g) || []).length, 1);
+  assert.match(lib, /from\(MESSAGES\)\.delete\(\)\.in\("id", deletes\)\.not\("external_id", "is", null\)/);
 });
 
 test("histórico importado ganha horários em ordem até a última atividade", () => {
@@ -230,4 +235,57 @@ test("contador do Chat Marketplace = número de conversas não lidas (como o do 
   assert.match(fn, /select\("id", \{ count: "exact", head: true \}\)\.gt\("unread_count", 0\)/);
   assert.match(fn, /if \(!scope\.all\) query = query\.in\("assigned_user_id", scope\.ids\);/);
   assert.doesNotMatch(fn, /reduce\(/);
+});
+
+// Rótulos REAIS do Facebook (conversa do Rafael, 2026-10-21 — nome fictício mantido como no caso).
+test("mensagem do Facebook: texto, hora e direção saem do aria-label; avatar, balão vazio e aviso do Facebook saem", () => {
+  const now = new Date("2026-10-21T15:00:00-03:00");
+  const avatar = { type: "image", url: "https://scontent.fpoa1-1.fna.fbcdn.net/v/t39.30808-1/123_n.jpg?stp=cp0_dst-jpg_s32x32&_nc_cat=1" };
+  const own = normalizeFacebookMessage({ body: "Pressione Enter, Mensagem enviada 10:18 por Você: Bom dia Rafael, tudo bem?", direction: "inbound", attachments: [avatar] }, { now });
+  assert.deepEqual(own, { body: "Bom dia Rafael, tudo bem?", direction: "outbound", at: "2026-10-21T13:18:00.000Z", senderName: "", attachments: [] });
+  const client = normalizeFacebookMessage({ body: "Pressione Enter, Mensagem enviada 28 de setembro de 2026 14:25 por Rafael: Oi, esse item está disponível?", direction: "outbound" }, { now });
+  assert.deepEqual(client, { body: "Oi, esse item está disponível?", direction: "inbound", at: "2026-09-28T17:25:00.000Z", senderName: "Rafael", attachments: [] });
+  // "por Você" às 10:19 que tinha virado mensagem do cliente.
+  assert.equal(normalizeFacebookMessage({ body: "Pressione Enter, Mensagem enviada 10:19 por Você: Posso te ligar?", direction: "inbound" }, { now }).direction, "outbound");
+  // Inglês, texto com dois-pontos.
+  assert.deepEqual(normalizeFacebookMessage({ body: "Press Enter, Message sent September 28, 2026 2:25 PM by You: Hi: there", direction: "inbound" }, { now }).body, "Hi: there");
+  // Só "por Rafael" (era o avatar) → descarta.
+  assert.equal(normalizeFacebookMessage({ body: "Pressione Enter, Mensagem enviada 10:19 por Rafael", direction: "inbound", attachments: [avatar] }, { now }), null);
+  assert.equal(normalizeFacebookMessage({ body: "Pressione Enter, Mensagem enviada 10:19 por Rafael: ", direction: "inbound" }, { now }), null);
+  // Aviso do Facebook → descarta.
+  assert.equal(normalizeFacebookMessage({ body: "Rafael está aguardando a sua resposta.", direction: "inbound" }, { now }), null);
+  // Foto de verdade dentro do balão continua; foto igual à do contato não.
+  const photo = { type: "image", url: "https://scontent.x/v/t39.1997-6/456_n.jpg" };
+  assert.deepEqual(normalizeFacebookMessage({ body: "", direction: "inbound", attachments: [photo, { type: "image", url: "https://x/me.jpg" }] }, { contactPhotoUrl: "https://x/me.jpg", now }).attachments, [photo]);
+  // Datas relativas.
+  assert.equal(parseFacebookWhen("ontem 14:25", now), "2026-10-20T17:25:00.000Z");
+  assert.equal(parseFacebookWhen("segunda-feira 09:00", now), "2026-10-19T12:00:00.000Z");
+  assert.equal(parseFacebookWhen("28 de set. 14:25", now), "2026-09-28T17:25:00.000Z");
+  assert.equal(parseFacebookWhen("sem hora", now), null);
+});
+
+test("sincronização: mensagens normalizadas e na ordem real (28/09 antes de hoje)", () => {
+  const now = new Date("2026-10-21T15:00:00-03:00");
+  const [item] = normalizeSyncPayload({ conversations: [{ threadKey: "n1", contactName: "Rafael", messages: [
+    { externalId: "fb:2", direction: "inbound", body: "Pressione Enter, Mensagem enviada 10:18 por Você: Bom dia Rafael, tudo bem?" },
+    { externalId: "fb:1", direction: "outbound", body: "Pressione Enter, Mensagem enviada 28 de setembro de 2026 14:25 por Rafael: Oi, esse item está disponível?" },
+    { externalId: "fb:3", direction: "inbound", body: "Rafael está aguardando a sua resposta." }
+  ] }] }, now);
+  assert.deepEqual(item.messages.map((m) => [m.externalId, m.direction, m.body, m.senderName]), [
+    ["fb:1", "inbound", "Oi, esse item está disponível?", "Rafael"],
+    ["fb:2", "outbound", "Bom dia Rafael, tudo bem?", ""]
+  ]);
+});
+
+test("renormalização do que já foi gravado: só mensagens lidas do Facebook, idempotente, recalcula a conversa; rota manual com auth de cron", () => {
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  const fn = lib.slice(lib.indexOf("export async function renormalizeMarketplaceMessages"), lib.indexOf("// --- Diagnóstico de estrutura"));
+  assert.match(fn, /apply = false/, "padrão só conta");
+  assert.match(fn, /if \(!row\.external_id\) \{\s*kept\.push\(row\);\s*continue;/, "resposta do CRM nunca é tocada");
+  assert.match(fn, /if \(!updates\.length && !deletes\.length\) continue;/, "idempotente");
+  assert.match(fn, /last_inbound_at: lastInbound\?\.message_at/);
+  assert.match(fn, /unread_count: Number\(conversation\.unread_count \|\| 0\) > 0 \? pendingInbound : 0/);
+  const route = readFileSync(new URL("../app/api/cron/marketplace-messages-renormalize/route.js", import.meta.url), "utf8");
+  assert.match(route, /SUPABASE_CRON_TOKEN_HASH/);
+  assert.match(route, /searchParams\.get\("apply"\) === "1"/);
 });

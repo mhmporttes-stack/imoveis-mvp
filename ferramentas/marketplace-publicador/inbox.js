@@ -363,9 +363,15 @@
     return { ...read, opened };
   }
 
+  // Só anexos de verdade (1.8.11): nunca o avatar do remetente (≤ 40 px na tela, ou dentro do link do perfil).
   function bubbleAttachments(row) {
     return [...row.querySelectorAll("img")]
       .filter((img) => (img.naturalWidth || img.width || 0) >= 80 && /^https:/.test(img.src))
+      .filter((img) => {
+        const rect = img.getBoundingClientRect?.();
+        if (rect && rect.width > 0 && rect.width <= 40) return false;
+        return !img.closest?.('a[href*="/marketplace/profile/"], a[href*="/profile.php"]');
+      })
       .map((img) => ({ type: "image", url: img.src, name: "" }))
       .slice(0, 5);
   }
