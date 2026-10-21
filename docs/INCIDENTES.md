@@ -579,3 +579,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Sintoma:** no Chat a barra inferior ficava alta com faixa branca embaixo (ou cortada pela metade); nas outras telas, normal.
 - **Causa raiz (medida no aparelho: tela 956, `innerHeight` 894, safe-area do topo 62):** com a página do Chat SEM rolagem (`html` 100% + `overflow: hidden`), o iOS encolhe a janela do app pela altura da barra de status; os 62 pt de baixo ficam fora do app. Telas que rolam não têm o defeito.
 - **Correção:** `html.chat-app-mode` com `min-height: calc(100% + env(safe-area-inset-top))` e `overflow-y: auto` (`app/globals.css`). Rede de segurança em `components/AdminBottomNav.jsx` (`--mm-fixed-drop`) mede o fim visível e desce a barra se o iOS voltar a encurtar o fixo.
+
+## 2026-10-21 — Chat do Marketplace: conversas chegam sem nenhuma mensagem
+
+- **Sintoma:** a extensão abria e lia as conversas do Marketplace, mas o popup mostrava "não chegou ao CRM (Não foi possível sincronizar.)"; `marketplace_conversations` com linhas e `marketplace_messages` vazia.
+- **Causa raiz:** o upsert de mensagens (`lib/marketplace-chat.js`, `onConflict: "conversation_id,external_id"`) falhava no Postgres com "there is no unique or exclusion constraint matching the ON CONFLICT specification" (PostgREST 400): o único índice único era parcial (`where external_id is not null`), e ON CONFLICT só casa com índice parcial quando recebe o mesmo predicado.
+- **Correção:** índice único completo `marketplace_messages_conversation_external_key` (migration `20261021223000_marketplace_messages_external_unique_full.sql`); NULLs seguem distintos. Achado pelos logs do Postgres (`query_logs`), não pela extensão.
