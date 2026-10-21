@@ -22,8 +22,10 @@ export default function MarketplaceChatShortcut() {
 function MarketplaceChatIcon({ className = "" }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
-      <path d="M12 3c-5 0-9 3.7-9 8.3 0 2.5 1.2 4.7 3 6.2V21l3.1-1.7c.9.2 1.9.4 2.9.4 5 0 9-3.7 9-8.4S17 3 12 3z" />
-      <path d="m7.5 13.5 3-3.2 2.5 2.2 3.5-3.5" />
+      {/* Mesmo contorno do balão do Chat (lucide MessageCircle) para ter exatamente o mesmo tamanho (dono, 2026-10-21:
+          "o tamanho está menor, ficou feio"); só o raio dentro diferencia. */}
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      <path d="m7.5 13.5 3-3.5 2.5 2.5 3.5-3.5" />
     </svg>
   );
 }
