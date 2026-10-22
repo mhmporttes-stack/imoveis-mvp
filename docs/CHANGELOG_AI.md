@@ -240,6 +240,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+
+### 2026-10-22 — Card do cliente: sem a linha Financiamento/Subsídio e "Recebi documentos por fora" no menu "…"
+- **Data:** 2026-10-22
+- **Área:** `components/clients/ClientCard.jsx` (só apresentação).
+- **Pedido do dono:** tirar do card a linha "Financiamento · Subsídio" sob o poder de compra e o botão "Recebi documentos por fora".
+- **Alteração:** simulação feita mostra só "Poder de compra R$ …" (o detalhe segue na ficha/Simulação; a estimativa automática não mudou). DOC-7: a ação existia só no card; foi para o menu "…" do card (item "Recebi documentos por fora", mesma condição `client.documentsOffline` sem marca, mesma confirmação [Marcar] [Cancelar], mesmo `list.setDocumentReceivedOffline`); a etiqueta "1º documento recebido por fora · dd/mm" e o "Desfazer" (10 s) passaram para a linha de selos. Regra, eventos e servidor iguais. A CONFIRMAR: `docs/BUSINESS_RULES.md` DOC-7 ainda diz "ação discreta com contorno no card" — ajustar o texto para "menu … do card".
+- **Verificação:** `tests/document-received-offline.test.mjs` e demais testes que citam ClientCard sem falha nova (as mesmas 4 de `client-card-whatsapp-chat`); `pnpm build`.
+- **Autor:** Claude Code (designer-crm)
 ### 2026-10-22 — WA-19b: decisões do dono (links de campanha bloqueados; arquivado bloqueado fora do Particular automático)
 - **Data:** 2026-10-22
 - **Área:** `lib/whatsapp-private-eligibility-core.mjs` (motivo `link`), `lib/whatsapp-private-eligibility.js` (novo, leitura em lote), `lib/whatsapp-chat.js` (usa a leitura única), `lib/whatsapp-auto-private.js` (exceção WA-26a), `tests/whatsapp-private-eligibility.test.mjs`.

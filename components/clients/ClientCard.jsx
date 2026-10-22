@@ -59,6 +59,9 @@ export default function ClientCard({ client, activities, responsibleName, respon
   const tags = Array.isArray(client.tags) ? client.tags : [];
   const agenda = buildAgenda(client, activities);
   const lastContact = client.lastWhatsappContactAt ? formatAgo(client.lastWhatsappContactAt) : "";
+  // DOC-7: a ação "Recebi documentos por fora" saiu do corpo do card para o menu "…" (dono, 2026-10-22); a etiqueta
+  // "1º documento recebido por fora · dd/mm" e o "Desfazer" (10 s) ficam na linha de selos.
+  const offline = useDocumentsOfflineMark({ client, list, confirmAction });
 
   return (
     <article
@@ -114,6 +117,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
             <Badge tone="info">Patrocinado · {formatMoneyBR(client.sponsoredCost.amount)}</Badge>
           </span>
         ) : null}
+        {client.documentsOffline ? <DocumentsOfflineAction offline={offline} busy={busy} /> : null}
       </div>
 
       {/* Corpo: simulação e contato (contato, cadastro e tags na mesma linha) */}
@@ -138,7 +142,6 @@ export default function ClientCard({ client, activities, responsibleName, respon
           ) : null}
           {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : <TagsLine tags={tags} onEdit={() => onOpen("tags")} />}
         </div>
-        {client.documentsOffline ? <DocumentsOfflineAction client={client} busy={busy} list={list} confirmAction={confirmAction} /> : null}
       </div>
 
       <ProspectingStrip client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
@@ -172,6 +175,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
           className="ml-auto"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
+            { label: OFFLINE_ACTION_LABEL, icon: FileText, hidden: !client.documentsOffline || Boolean(offline.receivedAt) || busy, onSelect: offline.mark },
             { label: "Empreendimentos", icon: ExternalLink, hidden: basicMode, onSelect: () => list.openSimulation(client) },
             { label: "Agendar", icon: CalendarPlus, onSelect: () => onOpen("agenda") },
             { label: "Ficha completa", icon: ChevronRight, onSelect: () => onOpen() },
@@ -372,11 +376,9 @@ function AgendaIcon({ agenda, busy, onOpen }) {
 // só se faltar espaço. Mesma informação de antes.
 function SimulationLine({ client }) {
   if (client.completed && client.summary) {
-    const components = client.summary.components || [];
     return (
       <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-ink-2">
         <span>Poder de compra <span className="ml-1 text-base font-bold leading-5 tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span></span>
-        {components.length ? <DetailText>{components.join(" · ")}</DetailText> : null}
       </p>
     );
   }
@@ -424,7 +426,7 @@ function formatDayMonth(value) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(date);
 }
 
-function DocumentsOfflineAction({ client, busy, list, confirmAction }) {
+function useDocumentsOfflineMark({ client, list, confirmAction }) {
   const receivedAt = client.documentsOffline?.receivedAt || "";
   const [undoUntil, setUndoUntil] = useState(0);
   useEffect(() => {
@@ -442,26 +444,23 @@ function DocumentsOfflineAction({ client, busy, list, confirmAction }) {
     setUndoUntil(0);
     await list.setDocumentReceivedOffline(client, { undo: true });
   }
+  return { receivedAt, undoUntil, mark, undo };
+}
 
-  if (receivedAt) {
-    return (
-      <p className="flex flex-wrap items-center gap-2 text-xs" data-documents-offline="marked">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 font-medium text-ink-2">
-          <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
-          {offlineMarkLabel(receivedAt, formatDayMonth)}
-        </span>
-        {undoUntil ? (
-          <button type="button" onClick={undo} disabled={busy} className="inline-flex min-h-touch items-center rounded-chip px-1 font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50">
-            Desfazer
-          </button>
-        ) : null}
-      </p>
-    );
-  }
+function DocumentsOfflineAction({ offline, busy }) {
+  if (!offline.receivedAt) return null;
   return (
-    <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={mark} disabled={busy} data-documents-offline="action">
-      <FileText className="h-4 w-4" aria-hidden="true" /> {OFFLINE_ACTION_LABEL}
-    </Button>
+    <span className="inline-flex flex-wrap items-center gap-1.5 text-xs" data-documents-offline="marked">
+      <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line px-2 font-medium text-ink-2">
+        <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+        {offlineMarkLabel(offline.receivedAt, formatDayMonth)}
+      </span>
+      {offline.undoUntil ? (
+        <button type="button" onClick={offline.undo} disabled={busy} className="relative inline-flex h-6 items-center rounded-chip px-1 font-semibold text-brand after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50">
+          Desfazer
+        </button>
+      ) : null}
+    </span>
   );
 }
 
