@@ -122,3 +122,9 @@ test("pronúncia brasileira do nome: Henry vira Rênri só na voz", () => {
   assert.equal(body.previous_text, "Rênri");
   assert.equal(body.next_text, "Rênri");
 });
+
+test("voz: números concordam com palavra feminina (21 prospecções → vinte e uma)", () => {
+  assert.equal(pronounceForSpeech("fez 21 prospecções e 1 simulação, com 81 pontos"), "fez vinte e uma prospecções e uma simulação, com 81 pontos");
+  assert.equal(pronounceForSpeech("2 pessoas, 12 vendas, 200 visitas, 3 clientes"), "duas pessoas, 12 vendas, duzentas visitas, 3 clientes");
+  assert.equal(pronounceForSpeech("R$ 1.200,00 e 104% da meta"), "R$ 1.200,00 e 104% da meta");
+});
