@@ -159,6 +159,9 @@ test("elogio: prompt com as regras do dono e memória dos últimos elogios", () 
   assert.match(prompt, /ROUPA e ACESSÓRIOS/);
   assert.match(prompt, /NUNCA comente corpo, peso, rosto, pele, idade, cabelo/);
   assert.match(prompt, /nunca faça crítica/);
+  assert.match(prompt, /DISCRETA/);
+  assert.match(prompt, /até 14 palavras/);
+  assert.match(prompt, /sem exagero/);
   assert.match(prompt, /PULAR/);
   assert.match(prompt, /Elogio número 9/);
   assert.doesNotMatch(prompt, /Elogio número 2\b/);

@@ -167,3 +167,16 @@ test("celular: ícone acima da barra inferior e cena com safe-area", () => {
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /typeof body\?\.mobileWake === "boolean"/);
 });
+
+test("interrupção: nome no meio da frase misturada com a voz do Henry corta a fala", () => {
+  const speech = "Bom dia, Matheus. Hoje entraram dois leads e a equipe está on-line";
+  const mixed = detectBargeIn("hoje entraram dois leads e a equipe henry", speech);
+  assert.equal(mixed.interrupt, true);
+  const withQuestion = detectBargeIn("dois leads e a equipe henry e ontem", speech);
+  assert.equal(withQuestion.interrupt, true);
+  assert.equal(withQuestion.question, "e ontem");
+  assert.equal(detectBargeIn("e a equipe esta on line para", speech).interrupt, true);
+  // palavra que está na própria fala do Henry não interrompe
+  assert.equal(detectBargeIn("a equipe esta on line", speech).interrupt, false);
+  assert.equal(detectBargeIn("vou para a reuniao", "Você vai para a reunião às dez").interrupt, false);
+});

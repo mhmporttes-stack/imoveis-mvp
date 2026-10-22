@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Henry: interrupção pelo nome no meio da frase e elogio mais discreto
+- **Data:** 2026-10-22
+- **Área:** Integrações/Henry
+- **Alteração:** (1) `detectBargeIn` também olha as últimas 6 palavras do reconhecimento: nome forte ("Henry"…) ou palavra de parada que não está na fala atual do Henry interrompe, e o que vem depois do nome vira a pergunta. (2) Prompt do elogio: até 14 palavras, discreto, sem superlativos; frase aceita até 140 caracteres.
+- **Motivo:** dono — "não para de falar quando falo o nome dele e o elogio ficou exagerado". Causa: com o Henry falando, o reconhecimento do Chrome junta a voz dele com a do dono na mesma frase, e a palavra de chamada só valia no começo.
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-core.mjs`, `tests/henry-voice-conversation.test.mjs`, `tests/henry-voice.test.mjs`.
+- **Risco/observação:** palavras que estão na própria fala do Henry não interrompem (filtro de eco); testar no uso real.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry: nome dito do jeito brasileiro ("Rênri")
 - **Data:** 2026-10-22
 - **Área:** Integrações/Henry
