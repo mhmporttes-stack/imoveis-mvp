@@ -26,11 +26,17 @@ import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
+import { isSpotifyOpenUrl } from "@/lib/henry-spotify-core.mjs";
+import { readSpotifyStatus } from "@/lib/henry-spotify";
 
 // Navegação devolvida ao navegador: só tela da lista fechada ou ficha de cliente (id no formato do banco).
 function navigationPayload(navigate) {
   if (!navigate?.path || !isAllowedHenryNavigation(navigate.path)) return null;
   return { path: navigate.path, label: navigate.label, key: navigate.key || "", ...(isHenryClientId(navigate.clientId) ? { clientId: navigate.clientId } : {}) };
+}
+// Link externo devolvido ao navegador: só a busca do Spotify Web (fallback sem as variáveis do Spotify).
+function openUrlPayload(url) {
+  return isSpotifyOpenUrl(url) ? url : null;
 }
 import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, checkHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
@@ -75,7 +81,12 @@ export async function GET(request) {
         })
       ]);
     }
+    // Spotify (tela "Voz e personalidade"): só com ?vozes=1, como a lista de vozes.
+    const spotify = new URL(request.url).searchParams.get("vozes") === "1"
+      ? await readSpotifyStatus().catch(() => ({ configured: true, connected: false, account: "", error: "Não consegui ler a conexão do Spotify agora." }))
+      : null;
     return NextResponse.json({
+      spotify,
       enabled,
       vision,
       webSearch,
@@ -128,7 +139,7 @@ export async function PUT(request) {
 // Modo conversa em linhas (NDJSON), aberto LOGO ao receber o pedido (sem silêncio enquanto ele pensa):
 //   { progress, topic, label, broker? } — evento inicial e um por ferramenta chamada (narração e cena de busca);
 //   { narration: { text, audio } }     — frase curta com o nome do corretor, na voz do Henry (sintetizada na hora);
-//   { reply, navigate, detail, scene } — resposta (texto falado + detalhe da tela, quando houver + cena da resposta);
+//   { reply, navigate, openUrl, detail, scene } — resposta (texto falado + detalhe da tela, quando houver + cena da resposta);
 //   { part, text, audio|null } por parte → { done: true }. audio null = o navegador fala a parte.
 //   { error } — falhou depois de aberto (a tela mostra a frase).
 // Se o navegador cancelar (o dono interrompeu), as escritas seguintes falham em silêncio e o fluxo termina.
@@ -157,7 +168,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, detail: answer.detail || null, scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -283,7 +294,7 @@ export async function POST(request) {
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision, webSearch });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

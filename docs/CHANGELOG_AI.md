@@ -401,6 +401,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry controla o Spotify do dono
+- **Pedido do dono:** Spotify (Premium) no Henry, só para ele.
+- **O que mudou:** ferramenta `spotify` (tocar por busca, pausar, continuar, próxima, anterior, volume, o que está tocando); OAuth Authorization Code em `/api/admin/henry/spotify/connect` (GET conecta, DELETE desconecta) e `/api/admin/henry/spotify/callback` (`requireAdminApi` + `assertOwnerAdmin` + fora de "Alterar conta"; `state` anti-CSRF em cookie HttpOnly); refresh token só no servidor em `crm_settings` `henry_spotify` (cifrado quando `CRM_SECRETS_ENCRYPTION_KEY` existe), renovação automática; botão Conectar/Desconectar no cartão do Henry; sem as variáveis, abre a busca no Spotify Web (campo `openUrl` novo na resposta do Henry, só `open.spotify.com/search`).
+- **Variáveis novas:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` (opcional `SPOTIFY_REDIRECT_URI`) — o dono cadastra na Vercel.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 (Spotify), `docs/PERMISSIONS.md` (rotas novas), `.env.example`.
+- **Arquivos:** `lib/henry-spotify-core.mjs` (novo), `lib/henry-spotify.js` (novo), rotas `app/api/admin/henry/spotify/*` (novas), `lib/henry-voice.js`, `lib/henry-voice-narration.mjs`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-spotify.test.mjs` (novo), `tests/henry-voice-conversation.test.mjs`.
+- **Risco/observação:** sem teste real contra o Spotify (A CONFIRMAR depois de conectar). Abrir aba nova depois da resposta pode ser bloqueado pelo navegador (o link fica na tela).
+
 ### 2026-10-22 — Henry: cenas por tipo de resposta, texto sem card, erro de créditos da ElevenLabs e saudação de amigo
 - **Pedidos do dono:** cenas diferentes por tipo de pergunta (manter a do corretor); texto sem card na tela; "os créditos acabaram" em vez de erro de chave; saudação curta como amigo, sem oferecer menu.
 - **O que mudou:** servidor escolhe a cena pelas ferramentas usadas (`pickHenryAnswerScene`) e manda `scene` no NDJSON/JSON de `/api/admin/henry` (campo novo, compatível); componente novo `components/henry/HenryAnswerScenes.jsx` (contadores, barras período x anterior, ficha, globo, nota, ondas); `HenryDetailPanel` e a transcrição sem fundo, com sombra; 401 `quota_exceeded` da ElevenLabs vira "Os créditos da ElevenLabs acabaram." (TTS, STT, vozes, saldo); regra de saudação/papo no prompt fixo.

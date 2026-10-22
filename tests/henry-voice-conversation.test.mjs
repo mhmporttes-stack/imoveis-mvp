@@ -137,7 +137,7 @@ test("rota: fala em partes só com o mesmo texto já liberado pela barreira", ()
   assert.match(route, /body\?\.stream === true && body\?\.voice !== false\) return answerStream\(/);
   // A voz fala em partes exatamente a resposta já liberada pela barreira (answer.reply sai de safeHenryReply).
   assert.match(route, /splitForSpeech\(answer\.reply\)/);
-  assert.match(route, /send\(\{ reply: answer\.reply, navigate, detail/);
+  assert.match(route, /send\(\{ reply: answer\.reply, navigate, openUrl: openUrlPayload\(answer\.openUrl\), detail/);
   // Interrupção do navegador: AbortController no pedido.
   const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(client, /new AbortController\(\)/);

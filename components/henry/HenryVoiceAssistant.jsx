@@ -743,7 +743,7 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null) => {
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
       const answerScene = normalizeHenryScene(rawScene);
@@ -754,6 +754,15 @@ export default function HenryVoiceAssistant() {
       if (shouldMinimizeForNavigation(navigate)) {
         setExpanded(false);
         setNavRequest({ ...navigate, id: Date.now() });
+      }
+      // Spotify sem conexão (fallback): abre a busca no Spotify Web numa aba nova. Se o navegador bloquear, o link fica no
+      // detalhe da tela (o servidor só manda open.spotify.com).
+      if (typeof openUrl === "string" && /^https:\/\/open\.spotify\.com\//.test(openUrl)) {
+        try {
+          window.open(openUrl, "_blank", "noopener,noreferrer");
+        } catch {
+          // bloqueado: o link continua no detalhe
+        }
       }
       beginSpeech(reply);
     };
@@ -790,7 +799,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -821,7 +830,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();

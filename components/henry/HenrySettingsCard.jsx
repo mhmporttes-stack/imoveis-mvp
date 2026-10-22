@@ -34,7 +34,8 @@ export default function HenrySettingsCard() {
             elevenSubscription: data?.elevenSubscription || null,
             elevenSubscriptionError: data?.elevenSubscriptionError || "",
             style: data?.style || null,
-            options: data?.options || null
+            options: data?.options || null,
+            spotify: data?.spotify || null
           })
       )
       .catch(() => alive && setState((current) => ({ ...current, loaded: true })));
@@ -151,6 +152,7 @@ export default function HenrySettingsCard() {
           onSaved={(style) => setState((current) => ({ ...current, style }))}
         />
       ) : null}
+      {state.spotify ? <HenrySpotifySection status={state.spotify} onChange={(spotify) => setState((current) => ({ ...current, spotify }))} /> : null}
       {error ? <p className="mt-3 text-sm font-bold text-red-700">{error}</p> : null}
     </section>
   );
@@ -328,6 +330,69 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         </button>
         {message.text ? <p className={`text-sm font-bold ${message.tone === "error" ? "text-red-700" : "text-emerald-700"}`}>{message.text}</p> : null}
       </div>
+    </div>
+  );
+}
+
+// Spotify do Henry (HENRY-1, só o dono): Conectar leva à autorização do Spotify (rota /api/admin/henry/spotify/connect, que
+// volta para cá com ?spotify=conectado|negado|erro); Desconectar apaga o acesso guardado no servidor.
+const SPOTIFY_RETURN_MESSAGES = {
+  conectado: { tone: "ok", text: "Spotify conectado." },
+  negado: { tone: "error", text: "Conexão com o Spotify cancelada." },
+  erro: { tone: "error", text: "Não foi possível conectar o Spotify. Tente de novo." }
+};
+
+function HenrySpotifySection({ status, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState({ tone: "", text: "" });
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("spotify");
+    if (SPOTIFY_RETURN_MESSAGES[result]) setMessage(SPOTIFY_RETURN_MESSAGES[result]);
+  }, []);
+
+  const disconnect = async () => {
+    setBusy(true);
+    setMessage({ tone: "", text: "" });
+    try {
+      const response = await fetch("/api/admin/henry/spotify/connect", { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Não foi possível desconectar.");
+      onChange({ ...status, connected: false, account: "" });
+      setMessage({ tone: "ok", text: "Spotify desconectado." });
+    } catch (disconnectError) {
+      setMessage({ tone: "error", text: disconnectError?.message || "Não foi possível desconectar." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+      <div className="max-w-2xl">
+        <p className="text-sm font-black text-navy">Spotify</p>
+        <p className="mt-1 text-sm text-muted">
+          “Henry, toca…”, pausar, continuar, próxima, anterior, volume e “que música é essa?” no seu Spotify Premium, no aparelho em que ele estiver aberto.
+        </p>
+        <p className={`mt-2 text-sm font-bold ${status.connected ? "text-emerald-700" : "text-muted"}`} role="status">
+          {!status.configured
+            ? "Não configurado: cadastre SPOTIFY_CLIENT_ID e SPOTIFY_CLIENT_SECRET na Vercel. Até lá, o Henry abre a busca no Spotify do navegador."
+            : status.connected
+              ? `Conectado${status.account ? ` (${status.account})` : ""}.`
+              : status.error || "Não conectado."}
+        </p>
+        {message.text ? <p className={`mt-1 text-sm font-bold ${message.tone === "error" ? "text-red-700" : "text-emerald-700"}`}>{message.text}</p> : null}
+      </div>
+      {status.configured ? (
+        status.connected ? (
+          <button type="button" onClick={disconnect} disabled={busy} className="rounded-control border border-line px-5 py-2.5 text-sm font-bold text-navy disabled:opacity-60">
+            {busy ? "Desconectando…" : "Desconectar"}
+          </button>
+        ) : (
+          <a href="/api/admin/henry/spotify/connect" className="rounded-control bg-navy px-5 py-2.5 text-sm font-bold text-white">
+            Conectar
+          </a>
+        )
+      ) : null}
     </div>
   );
 }
