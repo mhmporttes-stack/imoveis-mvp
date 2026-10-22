@@ -126,8 +126,8 @@ function eventTitleAndDescription(event, context = {}) {
     case "distribution:assigned":
       // Cliente que esperava um corretor on-line e a roleta entregou depois (não é a 1ª atribuição).
       if (d.fromWaitingQueue) return { title: "DISTRIBUÍDO PELA ROLETA", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: primeiro corretor on-line depois da espera"] };
-      if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor on-line — fica com o dono até a roleta entregar ao primeiro corretor on-line"] };
-      if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor on-line)", "Motivo: aguardando a roleta entregar ao primeiro corretor on-line"] };
+      if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor liberado na roleta — fica com o dono até a roleta entregar ao primeiro corretor liberado"] };
+      if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor liberado)", "Motivo: aguardando a roleta entregar ao primeiro corretor liberado"] };
       return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName}`, "Motivo: Distribuição automática"] };
     case "distribution:auto_transferred":
       return { title: "TRANSFERÊNCIA AUTOMÁTICA", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, d.reason ? `Motivo: ${d.reason}` : "Motivo: Prazo de atendimento excedido"] };

@@ -392,7 +392,9 @@ export function useClientList({
         return;
       }
       patchClientRegistration(client.id, { responsibleUserId: data.toUserId }, { refreshAfter: true });
-      notify(data.waiting ? "Devolvido à roleta: nenhum corretor on-line, aguardando o próximo." : `Devolvido à roleta: foi para ${data.toName || "o próximo corretor"}.`);
+      // "Liberado" = on-line + WhatsApp conectado + veio à imobiliária + 10 min desde o último cliente (ROL-2/2d/2f/2h);
+      // dizer só "on-line" confundia o dono (2026-10-22: "fala que não tem nenhum corretor online, mas tem o Gabriel, a Bruna e a Carol").
+      notify(data.waiting ? "Devolvido à roleta: nenhum corretor liberado agora (on-line há menos de 5 min, WhatsApp conectado e 10 min desde o último cliente). Vai para o próximo que liberar." : `Devolvido à roleta: foi para ${data.toName || "o próximo corretor"}.`);
     });
   }
 
