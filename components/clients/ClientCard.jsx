@@ -283,7 +283,7 @@ function ResponsibleControl({ client, name, responsibleName, busy, list, confirm
   return (
     <span className="relative inline-flex h-6 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
       <UserRound className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-      <span className="truncate">{responsibleName}</span>
+      <span className="truncate" title={responsibleName}>{responsibleName}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
       <select
         aria-label={`Responsável por ${name}: ${responsibleName}. Trocar responsável`}

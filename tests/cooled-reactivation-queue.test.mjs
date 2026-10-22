@@ -116,7 +116,7 @@ test("só mensagem humana real conta como contato", () => {
 test("fim da fila: devolvido entra com a hora da devolução e vai depois dos que já esperavam", () => {
   const src = read("lib/cooled-clients-reactivation.js");
   assert.match(src, /reactivation_queued_at: queuedAt/);
-  assert.match(src, /queue\.sort\(\(a, b\) => Date\.parse\(a\.queuedAt/);
+  assert.match(src, /queue\.sort\(\(a, b\) => compareReactivationQueue\(\{ queuedAt: a\.queuedAt/);
   // Enquanto espera, fica com o dono e marcado na fila de espera (FUN-11).
   assert.equal(queuedCaseStillWaiting({ clientResponsibleId: OWNER, ownerId: OWNER, pendingDistributionAt: iso(T0) }), true);
   assert.equal(queuedCaseStillWaiting({ clientResponsibleId: "carol", ownerId: OWNER, pendingDistributionAt: iso(T0) }), false);

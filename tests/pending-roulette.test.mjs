@@ -29,7 +29,7 @@ test("transferência explícita encerra a fila de espera e a roleta usa o filtro
   const registrations = read("lib/simulation-registrations.js");
   assert.ok(registrations.includes("if (nextResponsibleUserId) record.pending_distribution_at = null;"));
   const lead = read("lib/lead-distribution.js");
-  assert.ok(lead.includes("pendingRouletteRowsToDeliver(candidates, ownerId)"));
+  assert.ok(lead.includes("planWaitingQueue(candidates, { ownerId, availableAfterByContact, limit })"));
   assert.ok(lead.includes("responsible_user_id\")") || lead.includes("prospecting_contact_id, responsible_user_id"));
 });
 

@@ -75,7 +75,8 @@ export default function ClientWorkspace(props) {
   const openClient = list.items.find((item) => item.id === openClientId) || null;
   // Na fila de espera da roleta o cliente fica guardado com o dono (FUN-11), mas a etiqueta mostra "Roleta" (dono,
   // 2026-10-22: "quando eu colocar devolver para a roleta ... deve ficar roleta").
-  const responsibleNameOf = (client) => (client.registration?.pendingDistributionAt ? "Roleta" : "")
+  // Posição na fila (dono, 2026-10-22): "Roleta · 3º na fila", calculada no servidor (lib/pending-roulette-core.mjs).
+  const responsibleNameOf = (client) => (client.registration?.pendingDistributionAt ? (client.rouletteQueue?.label || "Roleta") : "")
     || list.responsibleProfileMap.get(client.registration?.responsibleUserId || "")?.name
     || client.lastAdminLabel
     || (client.registration?.pendingDistributionAt ? "Aguardando distribuição" : "Sem corretor");
@@ -447,6 +448,7 @@ function FiltersSheet({ open, onClose, list, canManage }) {
             <label htmlFor={ids.responsible} className="text-sm font-medium text-ink">Corretor responsável</label>
             <select id={ids.responsible} className={cx(inputClasses, "mt-1.5")} value={filters.responsibleUserId} onChange={(event) => list.updateFilters({ responsibleUserId: event.target.value })}>
               <option value="all">Todos os corretores</option>
+              <option value="roulette">Roleta</option>
               {list.responsibleProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
               <option value="unassigned">Sem corretor</option>
             </select>
@@ -538,7 +540,7 @@ function buildChips(filters, list) {
   const chips = [];
   if (filters.responsibleUserId !== "all") {
     const label = filters.responsibleUserId === "unassigned" ? "Sem corretor" : (list.responsibleProfileMap.get(filters.responsibleUserId)?.name || "Corretor selecionado");
-    chips.push({ key: "responsibleUserId", label: `Corretor: ${label}`, onRemove: () => list.updateFilters({ responsibleUserId: "all" }) });
+    chips.push({ key: "responsibleUserId", label: filters.responsibleUserId === "roulette" ? "Roleta" : `Corretor: ${label}`, onRemove: () => list.updateFilters({ responsibleUserId: "all" }) });
   }
   if (filters.tagId !== "all") {
     const label = list.localTags.find((tag) => tag.id === filters.tagId)?.name || "Tag selecionada";

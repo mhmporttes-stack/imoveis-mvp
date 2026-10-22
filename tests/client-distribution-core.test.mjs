@@ -115,7 +115,8 @@ test("12: link pessoal, canal direto e contato em bloqueio de 30 dias (available
   const now = new Date("2026-10-03T12:00:00Z");
   assert.equal(isRouletteEligibleClient({ status: CLIENT_STATUS.PENDING, available_after: "2026-10-20T00:00:00Z" }, now), false);
   assert.equal(isRouletteEligibleClient({ status: CLIENT_STATUS.PENDING, available_after: "2026-10-01T00:00:00Z" }, now), true);
-  assert.match(read("lib/lead-distribution.js"), /isRouletteEligibleClient\(/, "a fila de espera da roleta usa a elegibilidade");
+  assert.match(read("lib/pending-roulette-core.mjs"), /isRouletteEligibleClient\(/, "a fila de espera da roleta usa a elegibilidade (planWaitingQueue)");
+  assert.match(read("lib/lead-distribution.js"), /planWaitingQueue\(candidates/, "o entregador usa a régua única");
 });
 
 test("12: Não contactar mantém o responsável (CLI-9) — a devolução à fila não o atinge", () => {
