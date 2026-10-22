@@ -126,7 +126,7 @@ A capa publicada no Marketplace é **a mesma capa do Instagram, só que sem a fo
 - Logo do MCMV para fundo claro: `assets/mcmv-logo-cor.png`.
 
 ## Fila de postagem (dono, 2026-10-15)
-Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
+**Imóvel (dono, 2026-10-22): não perguntar — publicar direto** em Instagram, site/CRM e Marketplace (skill `/publicar-imovel`). Para os demais posts (carrossel de conteúdo), depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
 
 ## Acervo de fotos do dono (já recortadas, prontas para usar)
 **Usar sempre a versão em alta de `assets/boneco-3d/realista-hd/`** (mesmos nomes, 2160×2700; dono, 2026-10-19: as originais de 1080 px deixavam o rosto "lavado" ao ampliar). Feita com o modelo 4xNomosWebPhoto (ESRGAN, HuggingFace `nesaorg/4xNomosWebPhoto_esrgan_fp32_opset17`, ampliado 4× e reduzido para 2×). Foto nova do acervo → gerar também a versão `realista-hd/`. Entrega no Instagram: JPG 1080×1350 (`exportar-instagram.py`).

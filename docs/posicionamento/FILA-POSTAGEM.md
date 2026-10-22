@@ -1,7 +1,8 @@
 # Fila de postagem (posts prontos e ainda não publicados)
 
 Regra do dono (2026-10-15):
-- Depois de entregar a legenda de qualquer post, **perguntar sempre: "Vai postar agora?"**.
+- **Imóvel (dono, 2026-10-22):** publicar direto em Instagram, site/CRM e Marketplace, sem perguntar (skill `/publicar-imovel`).
+- Depois de entregar a legenda de qualquer outro post, **perguntar sempre: "Vai postar agora?"**.
   - Respondeu **não** → o post entra nesta fila como **não publicado**.
   - Respondeu **sim** → sai da fila (ou nem entra) e passa para "Publicados".
 - Quando o dono perguntar **"o que tenho para postar?"**, entregar a lista agrupada por tipo:
