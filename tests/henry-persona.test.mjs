@@ -70,10 +70,10 @@ test("prompt: assistente pessoal, jeito de amigo e TODAS as travas (somente cons
   assert.match(lib, /stylePrompt: buildHenryStylePrompt\(style\)/);
 });
 
-test("tom amigo na voz: ElevenLabs mais expressiva (estabilidade ~0,3, estilo ~0,45, speaker boost); velocidade da tela mantida", () => {
+test("tom amigo na voz: ElevenLabs mais expressiva (estabilidade ~0,26, estilo ~0,6, speaker boost); velocidade da tela mantida", () => {
   const friend = elevenLabsVoiceSettings({ tone: "descontraido", speed: "rapido" });
-  assert.ok(friend.stability >= 0.3 && friend.stability <= 0.35);
-  assert.ok(friend.style >= 0.4 && friend.style <= 0.5);
+  assert.ok(friend.stability >= 0.25 && friend.stability <= 0.3);
+  assert.ok(friend.style >= 0.55 && friend.style <= 0.65);
   assert.equal(friend.use_speaker_boost, true);
   assert.equal(friend.speed, 1.1);
   assert.deepEqual(elevenLabsVoiceSettings({}), elevenLabsVoiceSettings({ tone: "descontraido" })); // sem tom = amigo
@@ -179,7 +179,7 @@ test("memória do dia: virada do dia zera, limite de 40 trocas e 200 caracteres,
   assert.match(summary, /vocês já falaram de/);
   assert.deepEqual(modelHistoryFromDay([]), { history: [], summary: "" });
   // Gravada DEPOIS da resposta (background), só texto.
-  assert.match(lib, /function rememberExchange\(auth, question, reply\) \{\n  if \(!question && !reply\) return;\n  background\(/);
+  assert.match(lib, /function rememberExchange\(auth, question, reply, plan = null\) \{\n  if \(!question && !reply\) return;\n  background\(/);
 });
 
 test("comandos de memória: lembrar, esquecer lembrete e esquecer a conversa de hoje", () => {

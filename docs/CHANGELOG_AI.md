@@ -401,6 +401,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry mais expressivo: vocabulário de 900+ expressões, piadas e nada repetido no mesmo dia
+- **Pedido do dono:** "mais expressivo, com um vocabulário muito, mas muito maior, para não repetir [...] pelo menos no mesmo dia"; "algumas piadas, um pouco de brincadeira, respostas irônicas, mais risadas, um tom descontraído, leve". Modelo continua o Haiku (Sonnet não aprovado); voz continua `eleven_flash_v2_5` (v3 não aprovado).
+- **O que mudou:** banco novo `lib/henry-voice-lexicon.mjs` (912 expressões por categoria/tom + 54 piadas); repertório de 20–30 itens sorteado por resposta conforme o contexto, sem o que já foi usado hoje; uso detectado na resposta e gravado em `henry_day_memory.lexicon` (`recordDayLexicon`, `lib/henry-memory-core.mjs`); estrutura da resposta (`pickDayHint`, 30 dicas) não repete no dia; piada no máximo 1 vez por dia e 1 a cada 3–4 respostas; guia de estilo longo na parte fixa do prompt (cache); voz "Amigo" estabilidade 0,26/estilo 0,6; risada "haha" → "rárá" só na voz.
+- **Custo extra estimado:** ~US$ 0,0001 a 0,0003 por resposta (≈ 500 tokens a mais sem cache por chamada + ~1.200 tokens do guia lidos do cache a 10%).
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-3 (Vocabulário grande e humor).
+- **Arquivos:** `lib/henry-voice-lexicon.mjs` (novo), `lib/henry-voice-persona.mjs`, `lib/henry-memory-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-providers.mjs`, `tests/henry-lexicon.test.mjs` (novo), `tests/henry-persona.test.mjs`.
+- **Risco/observação:** grafia da risada e ajuste de voz sem teste de ouvido na ElevenLabs (PENDENTE DE VALIDAÇÃO).
+
 ### 2026-10-22 — Henry responde só o que foi perguntado e para de falar quando o dono fala
 - **Pedidos do dono:** "quando eu pergunto uma informação, ele passa outras que não são relevantes"; "quando eu falo, ele não para de falar".
 - **O que mudou:** prompt "responda SÓ o que foi perguntado, em 1 frase" (relatórios continuam completos); `consultar_corretor` com `metrica` (o modelo recebe só aquele número; o detalhe completo segue na tela). Enquanto ele fala (computador), qualquer frase do dono com 3+ palavras e menos de 40% de sobreposição com a fala dele interrompe e vira a nova pergunta (`detectSpeechBargeIn`), confirmada pelo medidor do microfone (~300 ms); nome e "para" continuam; celular segue tocar para interromper. Card do corretor recebe `position` (selo do ranking) quando a pergunta envolve ranking/pontos.
