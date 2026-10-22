@@ -11,8 +11,9 @@ const SAMPLE_TURNS = [
   { role: "assistant", text: "Ana e Bruno já bateram a meta; a equipe está em 72%." }
 ];
 
-export default function HenryDemo({ mode = "speaking", expanded = true }) {
+export default function HenryDemo({ mode = "speaking", expanded = true, capturing = false }) {
   const [muted, setMuted] = useState(false);
+  const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
   const [open, setOpen] = useState(expanded);
   const getSignal = useCallback(() => {
@@ -34,6 +35,9 @@ export default function HenryDemo({ mode = "speaking", expanded = true }) {
       showKeyboard={keyboard}
       onToggleKeyboard={() => setKeyboard((value) => !value)}
       onSubmitTyped={(event) => event.preventDefault()}
+      vision={vision}
+      capturing={capturing}
+      onToggleVision={() => setVision((value) => !value)}
     />
   );
 }

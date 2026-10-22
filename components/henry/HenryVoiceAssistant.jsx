@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { detectWakeWord, isAllowedHenryPath, looksLikeEcho, HENRY_HISTORY_TURNS } from "@/lib/henry-voice-core.mjs";
+import { detectWakeWord, isAllowedHenryPath, isVisualQuestion, looksLikeEcho, HENRY_HISTORY_TURNS } from "@/lib/henry-voice-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
+import { captureWebcamFrame } from "./webcam-capture";
 
 // Assistente de voz "Henry" (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md HENRY-1). Montado no layout do painel só
 // para o DONO (conta real, fora de "Alterar conta"); a rota /api/admin/henry confere de novo. Só no computador (≥ 768px).
@@ -63,6 +64,9 @@ export default function HenryVoiceAssistant() {
   const expandedRef = useRef(false);
   const [sleeping, setSleeping] = useState(false);
   const [showKeyboard, setShowKeyboard] = useState(false);
+  const [vision, setVision] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const visionRef = useRef(false);
 
   const updatePhase = useCallback((value) => {
     phaseRef.current = value;
@@ -88,7 +92,12 @@ export default function HenryVoiceAssistant() {
     setMuted(window.localStorage.getItem(MUTE_KEY) === "1");
     fetch("/api/admin/henry", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { enabled: false }))
-      .then((data) => alive && setEnabled(Boolean(data?.enabled)))
+      .then((data) => {
+        if (!alive) return;
+        setEnabled(Boolean(data?.enabled));
+        visionRef.current = data?.vision === true;
+        setVision(data?.vision === true);
+      })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
     return () => {
@@ -257,11 +266,19 @@ export default function HenryVoiceAssistant() {
     setTurns(nextTurns);
     updatePhase("thinking");
     try {
+      // Visão (HENRY-2): 1 quadro da webcam só no "bom dia" ou em pergunta visual, com a visão ligada. Falhou → sem imagem.
+      let image = null;
+      if (visionRef.current && (mode === "report" || isVisualQuestion(question))) {
+        setCapturing(true);
+        image = await captureWebcamFrame();
+        setCapturing(false);
+      }
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, question, history })
+        body: JSON.stringify(image ? { mode, question, history, image } : { mode, question, history })
       });
+      image = null;
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não consegui responder agora.");
       const withReply = [...turnsRef.current, { role: "assistant", text: data.reply }];
@@ -270,10 +287,25 @@ export default function HenryVoiceAssistant() {
       if (data.navigate?.path && isAllowedHenryPath(data.navigate.path)) router.push(data.navigate.path);
       await playReply(data.reply, data.audio);
     } catch (error) {
+      setCapturing(false);
       updatePhase("idle");
       setNotice(error?.message || "Não consegui responder agora.");
     }
   }, [playReply, router, stopSpeaking, updatePhase]);
+
+  // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
+  const toggleVision = useCallback(async () => {
+    const next = !visionRef.current;
+    try {
+      const response = await fetch("/api/admin/henry", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vision: next }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Não foi possível mudar a visão.");
+      visionRef.current = Boolean(data.vision);
+      setVision(Boolean(data.vision));
+    } catch (error) {
+      setNotice(error?.message || "Não foi possível mudar a visão.");
+    }
+  }, []);
   askRef.current = ask;
 
   // Frase final reconhecida → só age se começar pelo nome (ou na janela de continuação). O resto é descartado aqui.
@@ -382,7 +414,9 @@ export default function HenryVoiceAssistant() {
 
   if (!active) return null;
 
-  const status = !supported
+  const status = capturing
+    ? "Olhando pela câmera…"
+    : !supported
     ? "Este navegador não reconhece voz — use o Chrome ou digite"
     : micState === "blocked"
       ? "Microfone bloqueado — libere no cadeado da barra de endereço"
@@ -425,6 +459,9 @@ export default function HenryVoiceAssistant() {
       onTyped={setTyped}
       onSubmitTyped={submitTyped}
       busy={phase === "thinking"}
+      vision={vision}
+      capturing={capturing}
+      onToggleVision={toggleVision}
     />
   );
 }

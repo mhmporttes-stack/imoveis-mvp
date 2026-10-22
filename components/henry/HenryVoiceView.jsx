@@ -42,6 +42,9 @@ export default function HenryVoiceView({
   onTyped,
   onSubmitTyped,
   busy = false,
+  vision = false,
+  capturing = false,
+  onToggleVision,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded);
@@ -65,6 +68,7 @@ export default function HenryVoiceView({
           title={`Henry — ${status}`}
         >
           <HenryOrb size={56} fibers={18} points={44} alpha={0.45} lineWidth={0.7} getSignal={getSignal} sleep={sleeping} />
+          {capturing ? <CaptureDot className="absolute right-1 top-1" /> : null}
         </button>
       </div>
     );
@@ -126,6 +130,14 @@ export default function HenryVoiceView({
           </form>
         ) : null}
         <div className="flex items-center gap-2">
+          {onToggleVision ? (
+            <span className="relative">
+              <RoundButton onClick={onToggleVision} label={vision ? "Visão ligada: a câmera só abre no “bom dia” e em “o que é isso?” (clique para desligar)" : "Ligar a visão pela câmera"} dark active={vision}>
+                <CameraIcon off={!vision} />
+              </RoundButton>
+              {capturing ? <CaptureDot className="absolute -right-0.5 -top-0.5" /> : null}
+            </span>
+          ) : null}
           <RoundButton onClick={onToggleKeyboard} label={showKeyboard ? "Esconder o teclado" : "Digitar a pergunta"} dark active={showKeyboard}>
             <KeyboardIcon />
           </RoundButton>
@@ -157,6 +169,26 @@ function MicIcon({ off }) {
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="3" width="6" height="11" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+      {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
+  );
+}
+
+// Indicador "câmera capturando agora" (pulso dourado da paleta do Henry; some quando a câmera desliga).
+function CaptureDot({ className = "" }) {
+  return (
+    <span className={`flex h-3 w-3 ${className}`} aria-label="Câmera capturando" role="status">
+      <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full opacity-75 motion-reduce:animate-none" style={{ background: "#F3DCA6" }} />
+      <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: "#F3DCA6" }} />
+    </span>
+  );
+}
+
+function CameraIcon({ off }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" />
+      <circle cx="12" cy="13" r="3.5" />
       {off ? <path d="M4 4l16 16" /> : null}
     </svg>
   );

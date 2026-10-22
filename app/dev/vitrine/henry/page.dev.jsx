@@ -10,7 +10,7 @@ export default async function HenryVitrine({ searchParams }) {
   const icon = params?.tela === "icone";
   return (
     <main className={icon ? "min-h-screen bg-mist p-10" : "min-h-screen"}>
-      <HenryDemo mode={mode} expanded={!icon} />
+      <HenryDemo mode={mode} expanded={!icon} capturing={params?.camera === "1"} />
     </main>
   );
 }

@@ -322,6 +322,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry fase 2: visão pela webcam (elogio no "bom dia" e "o que é isso?") + relatório com o resumo do dono (HENRY-2)
+- **Data:** 2026-10-22
+- **Área:** Henry (assistente de voz do dono) · Integrações (Anthropic com imagem) · Permissões
+- **Alteração:** com a "Visão (webcam)" ligada (nasce DESLIGADA; cartão em `/admin/alexa` e botão de câmera na tela cheia), o "Bom dia, Henry" tira 1 quadro da webcam (abre, espera ~800 ms, 768 px JPEG q 0,7, fecha na hora) e o Haiku 5.5 devolve UMA frase de elogio só de roupa/acessórios, chamando de "Matheus", antes do relatório; perguntas com intenção visual ("o que é isso?", "olha isso") mandam a imagem junto. O relatório do dia passou a usar o resumo ampliado do dono (INI-5, `getPainelInicioDono`), com a frase do Início como reserva.
+- **Motivo:** pedido do dono ("No Bom Dia Henry… elogiar a cor da camisa, o relógio… com um tom carismático" e "Henry, o que é isso?").
+- **Arquivos afetados:** `lib/henry-voice-core.mjs` (`isVisualQuestion`, `shouldUseHenryImage`, `parseHenryImage`, `buildComplimentPrompt`, `parseComplimentReply`, `rememberCompliment`, `composeHenryDailyReport` com resumo do dono e elogio), `lib/henry-voice.js`, `app/api/admin/henry/route.js` (PUT `vision`, corpo ≤ 900 mil → 413), `components/henry/webcam-capture.js` (novo), `HenryVoiceAssistant.jsx`, `HenryVoiceView.jsx`, `HenrySettingsCard.jsx`, vitrine.
+- **Banco:** sem migration. `crm_settings` `henry_voice_assistant.vision`; `crm_settings` `henry_voice_compliments` `{recent:[até 7 textos]}` (só texto, nunca imagem). `ai_usage_log` origem nova `henry_voice_vision` (só tokens/custo).
+- **Docs:** `BUSINESS_RULES.md` HENRY-2 (+ HENRY-1 relatório), `PERMISSIONS.md` §6, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** a imagem é processada pela Anthropic (não fica no CRM). Barreira do elogio conservadora (na dúvida, pula sem falar). Custo estimado por "bom dia" com imagem: ~US$ 0,0002 de visão (~1.000 tokens de entrada no Haiku 5.5) + a voz do relatório (~US$ 0,008). Nenhuma chamada paga real feita no teste.
+- **Verificação:** `node --test tests/henry-voice.test.mjs` (18/18) + suítes Alexa/Início (160/160 no total), `pnpm build` ok; print da vitrine com o indicador de câmera.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Assistente de voz Henry (ex-"Bank") no computador do dono (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Painel (layout) · Alexa e Henry (`/admin/alexa`) · Integrações (Anthropic, OpenAI TTS) · Permissões
