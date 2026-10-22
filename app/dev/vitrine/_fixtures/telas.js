@@ -84,9 +84,9 @@ export const extras = {
     { id: "g2", name: "Cliente sem resposta", description: "Retomada depois de 3 dias.", kind: "attendance", enabled: false, nodeCount: 6, publishedVersion: 1, hasUnpublishedChanges: true }
   ] },
   imoveis: { properties: [
-    { id: "i1", code: "COD4358", name: "Casa 2 dormitórios — Jardim Sul", location: "Marília/SP", price: 235000, isPublished: true, isDevelopment: false },
-    { id: "i2", code: "COD4360", name: "Apartamento 2 dormitórios — Centro", location: "Marília/SP", price: 199000, isPublished: false, isDevelopment: false },
-    { id: "i3", code: "EMP0012", name: "Residencial Demo", location: "Marília/SP", price: 210000, isPublished: true, isDevelopment: true }
+    { id: "i1", code: "4358", name: "Casa 2 dormitórios — Jardim Sul", location: "Marília/SP", price: "R$ 235.000", isPublished: true, isDevelopment: false },
+    { id: "i2", code: "4360", name: "Apartamento 2 dormitórios — Centro", location: "Marília/SP", price: "R$ 199.000", isPublished: false, isDevelopment: false },
+    { id: "i3", code: "0012", name: "Residencial Demo", location: "Marília/SP", price: "R$ 210.000", isPublished: true, isDevelopment: true }
   ] }
 };
 
