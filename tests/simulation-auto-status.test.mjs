@@ -191,3 +191,24 @@ test("/s/<token> de simulação automática aguardando conferência: aviso amig�
   assert.match(lib, /PRESENTATION_UPDATING_REASON = "simulacao_automatica_nao_conferida"/);
   assert.match(lib, /export async function getPublicPresentation\(token, options = \{\}\) \{\n  return \(await resolvePublicPresentation\(token, options\)\)\.dto;/);
 });
+
+// Incidente 2026-10-22: rascunho vazio criado ao abrir "Simulação"/"Valores" na lista (created_by = e-mail de quem abriu)
+// 0,3 s antes do formulário do site bloqueava a simulação automática em silêncio. Mesma régua do "Refazer".
+import { automaticSimulationCanReplace } from "../lib/simulation-status-lock-core.mjs";
+
+test("SIM-AUTO: site substitui rascunho vazio (inclusive de pessoa), nunca simulação com valor salva por pessoa", () => {
+  assert.equal(automaticSimulationCanReplace(null), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "dono@exemplo.com", financing_value: null, subsidy_value: "0.00" }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "Cadastro do site", financing_value: 0, subsidy_value: 0 }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: AUTOMATIC_SIMULATION_SOURCE, financing_value: "167779.22", subsidy_value: "12086.00" }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "corretor@exemplo.com", financing_value: "150000.00", subsidy_value: 0 }), false);
+  assert.equal(automaticSimulationCanReplace({ created_by: "corretor@exemplo.com", financing_value: 0, subsidy_value: "5000" }), false);
+  const sims = readFileSync(new URL("../lib/simulations.js", import.meta.url), "utf8");
+  const site = sims.slice(sims.indexOf("export async function saveSiteSimulationFromRegistration"), sims.indexOf("async function latestRegistrationSimulationRow"));
+  assert.match(site, /automaticSimulationCanReplace\(existing\)/);
+  const redo = sims.slice(sims.indexOf("export async function redoAutomaticSimulation"));
+  assert.match(redo, /const manual = !automaticSimulationCanReplace\(existing\);/);
+  // Pulo nunca é silencioso: a rota registra o motivo (sem dado pessoal).
+  const route = readFileSync(new URL("../app/api/simulation-registrations/route.js", import.meta.url), "utf8");
+  assert.match(route, /if \(saved\.skipped\) console\.warn\("Site automatic simulation skipped:"/);
+});

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Simulação automática do site não preencheu; precisou clicar em "Refazer simulação automática"
+- **Data:** 2026-10-22
+- **Sintoma:** cliente preencheu o formulário do site e a ficha ficou sem valores; só apareceram depois de "Refazer simulação automática".
+- **Área:** Clientes / SIM-AUTO
+- **Impacto:** 1 cliente desde o início da SIM-AUTO (19/10), já resolvido pelo Refazer. Não foi publicação do dia (nenhum commit do período toca o caminho).
+- **Causa raiz:** corrida. O cliente entrou pelo "Atendimento Rápido" (só nome e WhatsApp); o dono abriu "Simulação"/"Valores" na lista, o que cria um rascunho vazio em `simulations` com o e-mail dele (`ensureSimulationId`, `components/clients/useClientList.js`). 0,3 s depois chegou o formulário completo; `saveSiteSimulationFromRegistration` só substituía linha automática ou a vazia "Cadastro do site" — o rascunho vazio de pessoa contou como "simulação do corretor" e a automática foi pulada **sem log**. O "Refazer" já tratava rascunho vazio como substituível (por isso funcionou).
+- **Correção:** régua única `automaticSimulationCanReplace` (`lib/simulation-status-lock-core.mjs`) = não é simulação real (`hasRealSimulationValues`), usada pelo site e pelo "Refazer"; pulo agora registra `Site automatic simulation skipped: manual_simulation <id>` no log.
+- **Arquivos/commit:** `lib/simulations.js`, `lib/simulation-status-lock-core.mjs`, `app/api/simulation-registrations/route.js` — commit (ver `git log` 2026-10-22 "SIM-AUTO: rascunho vazio")
+- **Prevenção/teste:** `tests/simulation-auto-status.test.mjs` (rascunho vazio de pessoa é substituído; simulação com valor nunca). Risco residual: se a tela do Gerador desse rascunho continuar aberta e for editada, o autosave dela pode gravar por cima da automática (mesmo risco que o "Refazer" já tinha).
+- **Status:** Resolvido
+
 ### 2026-10-22 — Extensão do Marketplace "fica a todo momento abrindo novas guias"
 - **Data:** 2026-10-22
 - **Sintoma:** "ela fica a todo momento abrindo novas guias; às vezes estou numa página e ela abre outra".

@@ -47,6 +47,8 @@ export async function POST(request) {
     // Falha aqui nunca derruba o cadastro (mesmo tratamento da simulação vazia de antes).
     try {
       const saved = await saveSiteSimulationFromRegistration(registration);
+      // Sem dado pessoal no log: só o id do cadastro e o motivo.
+      if (saved.skipped) console.warn("Site automatic simulation skipped:", saved.skipped, registration.id);
       if (saved.automatic && saved.simulation?.id) {
         await markRegistrationAutoSimulation(registration.id);
         const snapshot = buildAutoSnapshot(registration, saved.estimate, saved.referenceDate);

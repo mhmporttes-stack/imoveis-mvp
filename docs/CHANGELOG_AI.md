@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — SIM-AUTO: rascunho vazio não bloqueia mais a simulação automática do site
+- **Data:** 2026-10-22
+- **Área:** Clientes / SIM-AUTO
+- **Alteração:** `saveSiteSimulationFromRegistration` passa a substituir qualquer linha que não seja simulação real (automática, "Cadastro do site" vazia ou rascunho vazio criado ao abrir "Simulação"/"Valores" na lista). Régua única `automaticSimulationCanReplace` (`lib/simulation-status-lock-core.mjs`), também usada pelo "Refazer" (antes era uma cópia da mesma conta). Pulo por simulação com valor gera `console.warn` com motivo + id do cadastro.
+- **Motivo:** bug em produção (dono): cliente do Atendimento Rápido preencheu o formulário 0,3 s depois de o dono abrir a simulação dele; a automática foi pulada em silêncio. Causa em `docs/INCIDENTES.md` 2026-10-22. Não foi deploy do dia (98ae79f/40fcac4 não tocam o caminho).
+- **Arquivos afetados:** `lib/simulations.js`, `lib/simulation-status-lock-core.mjs`, `app/api/simulation-registrations/route.js`, `tests/simulation-auto-status.test.mjs`, `docs/BUSINESS_RULES.md` (SIM-AUTO), `docs/INCIDENTES.md`.
+- **Risco/observação:** simulação com valor salva por pessoa continua intocada pelo site. Gerador aberto sobre o rascunho e editado depois pode gravar por cima da automática (autosave) — mesmo risco que o "Refazer" já tinha, não corrigido. Clientes afetados desde 19/10: só 1, já resolvido pelo Refazer.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry no celular: voz pelo alto-falante (microfone desligado enquanto fala)
 - **Data:** 2026-10-22
 - **Área:** Integrações/Henry
