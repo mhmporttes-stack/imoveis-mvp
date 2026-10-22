@@ -9,6 +9,7 @@ import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatSho
 // menu lateral do computador e para a barra inferior / folha "Mais" do celular (visual novo, dono, 2026-10-22).
 // Só apresentação — destinos, ordem e permissões vêm do próprio menu.
 export const ADMIN_NAV_ICONS = {
+  inicio: House,
   "daily-goal": Target,
   "daily-goal-admin": Target,
   simulations: Users,

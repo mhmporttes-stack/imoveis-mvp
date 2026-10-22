@@ -295,6 +295,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Tela "Início" (resumo do dia) para todos os perfis (INI-1)
+- **Data:** 2026-10-22
+- **Área:** `app/admin/inicio/page.jsx` (nova, `requireAdminPage`), `lib/painel-inicio.js` + `lib/painel-inicio-core.mjs` (novos), `components/inicio/PainelInicio.jsx` (novo), `components/AdminMenu.jsx` (item "Início" primeiro em todos os perfis; `PATH_KEYS`), `components/admin-nav-icons.js` (casa), `components/AdminTopBar.jsx` (subtítulo), `lib/crm-pending-counts.js` (contadores extraídos de `/api/admin/crm-badge-counts`, rota passa a chamá-lo, resposta igual), `components/crm-pending-items.js` (lista do balão "Pendências", usada pelo `CrmBreakdown` e pelo Início), `lib/whatsapp-chat.js` (`getChatSummary(auth, { includeOldestAwaiting })` opcional — resposta da API inalterada; `getChatResponseTimes` novo), vitrine (`tela=inicio`), `tests/painel-inicio.test.mjs`.
+- **Alteração:** pedido do dono (trazer o "Início" do protótipo). KPIs (leads hoje com origem, tempo de resposta pela MET-6 em mediana, simulações a conferir, aguardando documentos, aprovados e vendas do mês), frase do resumo sem IA com o cliente de espera mais antiga e botões reais, funil do mês (mesma conta do Desempenho, por streaming) e pendências. Página de entrada do painel não mudou.
+- **Risco/observação:** fora do Início por falta de fonte confiável: "Simulações enviadas", VGV, variações "+27%" e pontos/posição do corretor (INI-3). O ícone de casa do Início é o mesmo glifo do item "Imóveis" (já existente) — trocar o de Imóveis é decisão visual à parte. O funil do mês do admin é a consulta pesada do Desempenho (chega depois do resto da tela).
+- **Docs:** `BUSINESS_RULES.md` §19 (INI-1..3), `PERMISSIONS.md` §7.
+- **Verificação:** `node --test tests/painel-inicio.test.mjs` (9/9), suíte completa sem falha nova (falhas idênticas às do HEAD anterior), `pnpm build` (rota `/admin/inicio`), vitrine 390/1440 claro/escuro (admin e corretor). Sem dado real: o container não tem acesso ao painel logado — conferir em produção.
+
 ### 2026-10-22 — Roleta: bloqueados de 30 dias não seguram mais a fila de espera (ROL-2b)
 - **Data:** 2026-10-22
 - **Área:** `lib/pending-roulette-core.mjs` (`planWaitingQueue`: bloqueio de 30 dias fora do lote; rótulo `stalled` = "travado atrás de link pessoal/canal direto"), `lib/lead-distribution.js` (`reassignPendingRouletteLeads` lê a fila inteira, até 1000, e busca `available_after` em blocos de 150), `tests/roulette-queue-position.test.mjs`.

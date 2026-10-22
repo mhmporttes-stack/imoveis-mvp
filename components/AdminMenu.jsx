@@ -14,7 +14,7 @@ import { CountBadge } from "@/components/ui/Badge";
 import { cx } from "@/components/ui/cx";
 import { withAcademyMenuGroup } from "@/lib/academy-menu.mjs";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
-import { CalendarDays, CircleDot, MessageCircle, MessageSquareReply, UserRoundPlus } from "lucide-react";
+import { crmPendingItems } from "@/components/crm-pending-items";
 
 export function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
@@ -27,6 +27,9 @@ const clientItems = [
   { href: "/admin/simulacoes", label: "Lista de clientes", key: "simulations", activeKeys: ["registrations"] },
   { href: "/admin/calendario", label: "Calendário", key: "calendar" }
 ];
+
+// Início (dono, 2026-10-22 — INI-1): resumo do dia, PRIMEIRO item do menu de todos os perfis (entra em getAdminMenuGroups).
+const HOME_ITEM = { href: "/admin/inicio", label: "Início", key: "inicio" };
 
 // Manual do CRM: todos os perfis (a visibilidade do conteúdo é filtrada no servidor).
 const manualGroup = {
@@ -218,7 +221,9 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
   const hidden = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
   const filtered = hidden.size ? groups.map((group) => ({ ...group, items: group.items.filter((item) => !hidden.has(item.key)) })) : groups;
   // "Simulador Caixa" (dono, 2026-10-19): todos os perfis, no grupo de clientes (CRM / CLIENTES).
-  const visible = filtered.map((group) => (CAIXA_SIMULATOR_GROUPS.has(group.key) ? { ...group, items: [...group.items, CAIXA_SIMULATOR_ITEM] } : group));
+  const withSimulator = filtered.map((group) => (CAIXA_SIMULATOR_GROUPS.has(group.key) ? { ...group, items: [...group.items, CAIXA_SIMULATOR_ITEM] } : group));
+  // "Início" (dono, 2026-10-22): primeiro item do primeiro grupo, em todos os perfis (menu lateral, barra do celular e "Mais").
+  const visible = withSimulator.map((group, index) => (index === 0 ? { ...group, items: [HOME_ITEM, ...group.items] } : group));
   // Chave da Academia desligada (padrão): devolve exatamente os mesmos grupos de sempre.
   return withAcademyMenuGroup(visible, academiaEnabled);
 }
@@ -226,6 +231,7 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
 // Chave da tela atual a partir do caminho (o menu agora vive no layout e não recebe mais `active` de cada página).
 // Mesmos valores que as páginas passavam ao AdminSectionNav — os `activeKeys` dos itens continuam valendo.
 const PATH_KEYS = [
+  ["/admin/inicio", "inicio"],
   ["/admin/chat/marketplace", "marketplace-chat"],
   ["/admin/chat", "chat"],
   ["/admin/simulacoes", "simulations"],
@@ -283,13 +289,7 @@ export function findActiveMenuItem(groups, active) {
 
 // Lista "Pendências" (o antigo balão do grupo CRM/CLIENTES): agora abre pelo atalho do cabeçalho (AdminTopBar).
 export function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false, className = "" }) {
-  const items = [
-    { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
-    { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
-    { label: "Novos atendimentos", count: counts.newAttendances, href: "/admin/simulacoes?needsFirstContact=1", Icon: UserRoundPlus },
-    { label: "Aguardando simulação", count: counts.awaitingSimulation, href: "/admin/simulacoes?status=pending", Icon: CircleDot },
-    { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
-  ].filter((item) => item.count > 0 && !(hideChat && item.label === "Chat"));
+  const items = crmPendingItems(counts, { hideChat });
 
   return (
     <div className={cx("absolute top-full z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card border border-line bg-white p-3 text-left shadow-float", alignLeft ? "left-0" : "right-0", className)}>

@@ -31,6 +31,7 @@ const EXTRA_TITLES = {
 
 // Subtítulo curto por tela (descrição do que a tela é, sem números nem regras).
 const SUBTITLES = {
+  inicio: "Tudo o que precisa da sua atenção hoje",
   simulations: "Seus clientes, do primeiro contato à venda",
   chat: "Conversas do WhatsApp",
   "marketplace-chat": "Conversas do Facebook Marketplace",

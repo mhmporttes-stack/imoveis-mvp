@@ -56,11 +56,33 @@ import NotificationHistoryButton from "@/components/alerts/NotificationHistoryBu
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import Cenas from "./Cenas";
+import PainelInicio, { InicioFunil, InicioFunilCarregando, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
+import * as inicio from "../_fixtures/inicio";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  inicio: {
+    // Início (INI-1, dono, 2026-10-22). ?variante=vazio (dia sem pendências) | carregando (mês ainda chegando).
+    path: "/admin/inicio",
+    titulo: "Início (resumo do dia)",
+    active: "inicio",
+    rotas: [],
+    render: (perfil, variante) => {
+      const { data, month } = inicio.dataFor(perfil, variante);
+      const loading = variante === "carregando";
+      return (
+        <main className="min-h-screen bg-mist pb-14 pt-3 md:pt-6">
+          <PainelInicio
+            data={data}
+            monthKpis={loading ? <InicioKpisMesCarregando /> : <InicioKpisMes month={month} />}
+            funnel={loading ? <InicioFunilCarregando /> : <InicioFunil month={month} />}
+          />
+        </main>
+      );
+    }
+  },
   cenas: {
     // Cenas do visual novo (?variante=mensagem|mensagem-longa|reconhecimento:gatilho:animação|meta).
     path: "/admin/meta-diaria",
