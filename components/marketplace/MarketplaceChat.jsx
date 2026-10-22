@@ -40,7 +40,9 @@ function Avatar({ name, photo }) {
   );
 }
 
-function SettingsCard({ team = [] }) {
+// Exportado para a tela de configuração do Marketplace (/admin/marketplace) — dono, 2026-10-22: "deixe essa configuração
+// de sincronização na aba de configuração, deixando mais espaço ali" (no Chat).
+export function SettingsCard() {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -156,7 +158,6 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
       {/* Sem título, explicação nem botão "Chat do WhatsApp" no topo (dono, 2026-10-22: "remova todos esses textos");
           o título fica só para leitores de tela. */}
       <h1 className="sr-only">Chat do Marketplace</h1>
-      {canEditSettings ? <SettingsCard team={team} /> : null}
       {!list.ready ? <Card className="bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
       {error ? <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
 

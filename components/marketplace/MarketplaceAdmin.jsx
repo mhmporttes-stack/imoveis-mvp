@@ -9,6 +9,7 @@ import Field, { inputClasses } from "@/components/ui/Field";
 import { MARKETPLACE_MAX_PHOTOS, STATUS_LABELS, facebookSummary } from "@/lib/marketplace-core.mjs";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { compressForUpload, uploadPhoto } from "@/components/image-upload";
+import { SettingsCard as ChatSyncSettingsCard } from "@/components/marketplace/MarketplaceChat";
 
 // Publicador do Facebook Marketplace (MKT-1). Toda regra (aprovação, fila, limites) fica no servidor
 // (lib/marketplace-core.mjs); a tela só mostra e chama /api/admin/marketplace/**.
@@ -288,6 +289,8 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
       </Card>
 
       <GroupsCard />
+      {/* Sincronização do Chat do Marketplace (antes no topo do Chat; dono, 2026-10-22). */}
+      <ChatSyncSettingsCard />
 
       <Card as="form" onSubmit={save} className="space-y-4">
         <h2 className="text-lg font-semibold text-navy">{editingId ? "Editar anúncio" : "Novo anúncio"}</h2>
