@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Extensão do Marketplace 1.9.0: "Manter acordado"
+- **Data:** 2026-10-22
+- **Área:** `ferramentas/marketplace-publicador/` (`background.js`, `lib/keep-awake.js` novo, `manter-acordado.html` novo, `options.*`, `popup.js`, `manifest.json`, `README.md`, `tests/keep-awake.test.js`). Nada muda no CRM.
+- **Causa:** a extensão ficou ~11 h sem contatar o CRM (`crm_settings.marketplace_publisher_seen` parou em 2026-10-22T00:59Z) com o PC ligado; suspeita do dono: Chrome/computador hibernando por inatividade.
+- **Pedido do dono:** "a cada 1 minuto a extensão abre uma guia nova e fecha em seguida, para o Chrome não hibernar".
+- **Alteração:** alarme `mp-keep-awake` de 1 min (acorda o service worker) abre aba interna em segundo plano (`active: false`) e fecha em ~2 s — nunca durante publicação (`state.running`) ou rodada do chat (`chatBusy`), nem sem janela normal aberta; `chrome.power.requestKeepAwake("system")` (permissão `power`, sem aviso no Chrome) segura o computador acordado, solto por Pausar ou pela opção; `autoDiscardable: false` nas abas da publicação, do chat e do diagnóstico. Opção nas Opções (ligada por padrão, chave `keepAwake` no storage local) e linha no popup.
+- **Verificação:** `node --test tests/*.test.js` da extensão (85/85); `tests/marketplace*.test.mjs` + `tests/brand-assets.test.mjs` (56/56). Zip: `ferramentas/marketplace-publicador.zip`.
+- **Risco/observação:** não verificado num Chrome real neste ambiente (container sem navegador) — confirmar com o dono que `marketplace_publisher_seen` deixa de ter buracos longos. Não impede suspensão manual/tampa fechada/política de energia do Windows.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-22 — Marketplace segue a roleta, inclusive o prazo de resposta (MKT-2e)
 - **Área:** Chat Marketplace / Roleta / Automações / Banco
 - **Alteração:** regra do dono "O cliente novo do Marketplace deve seguir as mesmas regras da roleta… Se ele não responder a tempo, o cliente é transferido novamente." Prazo = regra "REDISTRIBUIÇÃO DE LEADS" do banco (`getRouletteRedistributionDeadlineMs`, novo export de `lib/crm-automations.js`, junto com `countActiveRoundRobinBrokers`/`notifyRoundRobinStalled`). Vencido sem resposta enviada → próximo corretor liberado (nunca quem perdeu), cliente vai junto por `updateSimulationRegistration` + `lead_distribution_history`; ninguém liberado → fila de espera com o dono (`lost_by_user_id`); volta completa em 24 h → para e avisa o dono. Saiu o teto fixo de 3 trocas e o "ninguém livre = fica com quem está". `last_human_reply_at` passou a ser gravado só quando a resposta sai (resultado da extensão) ou aparece escrita no Facebook; a fila de saída só segura o prazo. Origem da atribuição gravada (`roulette`/`first_load`/`manual`/`reply`/`roulette_stalled`); existentes = 1ª carga. Job `runMarketplaceRedistributionJob` no cron `scheduled-activities`; a sincronização da extensão só entrega a fila de espera. Monitor `checkMarketplaceRedistributionStalled` no cron `whatsapp-flows` (sinal em `crm_settings.marketplace_redistribution_job`, alerta Importante aos admins gerais após 10 min sem sucesso).

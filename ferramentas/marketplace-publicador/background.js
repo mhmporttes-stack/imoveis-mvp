@@ -1,9 +1,10 @@
-// Service worker da extensão. Agenda (alarme de 15 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
+// Service worker da extensão. Agenda (alarme de 15 min), manter acordado (alarme de 1 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
 import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
+import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
 
 const ALARM = "mp-tick";
 const CHAT_ALARM = "mp-chat";
@@ -40,12 +41,16 @@ function ensureAlarm() {
   chrome.alarms.get(CHAT_ALARM, (alarm) => {
     if (!alarm) chrome.alarms.create(CHAT_ALARM, { delayInMinutes: 1, periodInMinutes: CHAT_EVERY_MINUTES });
   });
+  chrome.alarms.get(KEEP_AWAKE_ALARM, (alarm) => {
+    if (!alarm) chrome.alarms.create(KEEP_AWAKE_ALARM, { delayInMinutes: KEEP_AWAKE_EVERY_MINUTES, periodInMinutes: KEEP_AWAKE_EVERY_MINUTES });
+  });
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   ensureAlarm();
   // Instalou/atualizou/recarregou (↻): nenhuma sincronização pode estar rodando — solta a trava e fecha a aba órfã.
   await releaseDeadChatLock("extensão recarregada/atualizada");
+  await applyPower();
   // 1.8.9: as versões 1.8.6–1.8.8 podiam guardar a prévia de conversa enviada SEM mensagens (o histórico nunca mais
   // seria lido). Uma vez, ao atualizar delas, esquece as prévias: tudo é relido com histórico completo (o CRM
   // ignora mensagem repetida pelo id).
@@ -56,11 +61,52 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.runtime.onStartup.addListener(async () => {
   ensureAlarm();
   await releaseDeadChatLock("Chrome reiniciado");
+  await applyPower();
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) tick("alarme").catch((error) => console.warn("[marketplace] tique falhou:", error));
   if (alarm.name === CHAT_ALARM) chatTick().catch((error) => console.warn("[marketplace] chat falhou:", error));
+  if (alarm.name === KEEP_AWAKE_ALARM) keepAwakeTick().catch((error) => console.warn("[marketplace] manter acordado falhou:", error));
 });
+// Opção "Manter acordado" mudou nas Opções: aplica na hora (sem esperar o próximo minuto).
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.keepAwake) applyPower().catch(() => {});
+});
+
+// --- Manter acordado (1.9.0) -------------------------------------------------------------------------------------
+// Regras em lib/keep-awake.js. chrome.power "system" impede o computador de dormir (a tela ainda pode apagar) enquanto
+// a opção estiver ligada e a extensão não estiver em Pausar; o alarme de 1 min também acorda o service worker.
+async function applyPower() {
+  const [{ keepAwake }, state] = await Promise.all([chrome.storage.local.get("keepAwake"), loadState()]);
+  if (shouldHoldPower(keepAwake, state)) chrome.power.requestKeepAwake("system");
+  else chrome.power.releaseKeepAwake();
+  return { keepAwake, state };
+}
+
+// Aba própria da extensão não pode ser descartada pelo Chrome por inatividade (publicação, chat, diagnóstico).
+async function protectTab(tabId) {
+  await chrome.tabs.update(tabId, { autoDiscardable: false }).catch((error) => console.warn("[marketplace] autoDiscardable falhou:", error?.message || error));
+}
+
+// Pedido literal do dono: a cada 1 min abre uma aba em segundo plano (nunca ativa, nunca na aba do usuário) e fecha em ~2 s.
+async function keepAwakeTick() {
+  const { keepAwake, state } = await applyPower();
+  const { pulseTabId } = await chrome.storage.session.get("pulseTabId");
+  const previousPulseOpen = pulseTabId ? Boolean(await chrome.tabs.get(pulseTabId).catch(() => null)) : false;
+  const windows = await chrome.windows.getAll({ windowTypes: ["normal"] }).catch(() => []);
+  const decision = decidePulse(keepAwake, state, { chatBusy: await chatBusy(), hasNormalWindow: windows.length > 0, previousPulseOpen });
+  if (!decision.pulse) {
+    // Aba de um minuto anterior que ficou (worker morreu antes de fechar): fecha agora.
+    if (previousPulseOpen && decision.reason === "aba_anterior_aberta") await chrome.tabs.remove(pulseTabId).catch(() => {});
+    return decision;
+  }
+  const tab = await chrome.tabs.create({ active: false, url: chrome.runtime.getURL(PULSE_PAGE) });
+  await chrome.storage.session.set({ pulseTabId: tab.id });
+  await sleep(PULSE_TAB_CLOSE_MS);
+  await chrome.tabs.remove(tab.id).catch(() => {});
+  await chrome.storage.session.remove("pulseTabId");
+  return decision;
+}
 
 // Espera a aba terminar de carregar DEPOIS de um comando de navegação (o listener é ligado antes do comando, então
 // o "complete" da página anterior não engana).
@@ -240,6 +286,7 @@ async function runPublication(listing) {
 
   // Aba NOVA e dedicada (nunca a aba em que você está navegando); fechada no final, com print em caso de falha.
   const tab = await chrome.tabs.create({ url: "about:blank", active: true });
+  await protectTab(tab.id);
   await sleep(500);
   await attachDebugger(tab.id);
   let outcome;
@@ -342,10 +389,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const now = new Date();
       const alive = chatLockAlive(chatLock, { now, instance: WORKER_INSTANCE });
       const chatNow = chatLock?.token ? { alive, step: describeChatLock(chatLock, now), progress: chatLock.progress || null } : null;
-      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow };
+      const { keepAwake } = await chrome.storage.local.get("keepAwake");
+      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, keepAwake: keepAwake !== false, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow };
     }
     if (message?.type === "mp-chat-unlock") return unlockChat();
-    if (message?.type === "mp-pause") return { state: await saveState(setManualPause(await loadState(), message.paused)) };
+    if (message?.type === "mp-pause") {
+      const state = await saveState(setManualPause(await loadState(), message.paused));
+      await applyPower(); // Pausar solta o "manter acordado"; Retomar volta a segurar.
+      return { state };
+    }
     if (message?.type === "mp-diagnose") return diagnoseNow();
     if (message?.type === "mp-check-now") {
       // Responde ao popup assim que a decisão sai; a publicação (se houver) continua em segundo plano.
@@ -770,6 +822,7 @@ async function chatTick() {
   try {
     tab = await chrome.tabs.create({ url: "about:blank", active: false });
     await round.set({ tabId: tab.id });
+    await protectTab(tab.id);
     await sleep(500);
     // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
     await attachDebugger(tab.id);
@@ -922,6 +975,7 @@ async function diagnoseNow() {
   const config = await loadConfig();
   if (!config.key) return { error: "Configure a chave nas opções." };
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  await protectTab(tab.id);
   await sleep(500);
   await attachDebugger(tab.id);
   try {

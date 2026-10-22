@@ -7,6 +7,8 @@ async function load() {
   $("baseUrl").value = config?.baseUrl || DEFAULT_CRM_URL;
   $("key").placeholder = config?.key ? "Chave salva (••••)" : "mkp_...";
   $("prints").checked = await chrome.permissions.contains({ origins: ["<all_urls>"] });
+  const { keepAwake } = await chrome.storage.local.get("keepAwake");
+  $("keepAwake").checked = keepAwake !== false; // ligado por padrão
 }
 
 $("form").addEventListener("submit", async (event) => {
@@ -23,7 +25,7 @@ $("form").addEventListener("submit", async (event) => {
     if ($("prints").checked) await chrome.permissions.request({ origins: ["<all_urls>"] });
     else await chrome.permissions.remove({ origins: ["<all_urls>"] }).catch(() => {});
     const { config } = await chrome.storage.local.get("config");
-    await chrome.storage.local.set({ config: { baseUrl, key: typedKey || config?.key || "" } });
+    await chrome.storage.local.set({ config: { baseUrl, key: typedKey || config?.key || "" }, keepAwake: $("keepAwake").checked });
     $("key").value = "";
     msg.textContent = "Salvo.";
     await load();

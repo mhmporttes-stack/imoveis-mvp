@@ -13,7 +13,7 @@ function line(label, value) {
 
 const chatCounts = (c) => `${c.listed ?? 0} na caixa, ${c.read ?? 0} lida(s) e enviada(s) ao CRM, ${c.created ?? 0} nova(s) no CRM, ${c.newMessages ?? 0} mensagem(ns) nova(s), ${c.sent ?? 0} resposta(s) enviada(s)${c.pending ? `, ${c.pending} pendente(s)` : ""}`;
 
-function render({ state, config, chatLast, chatSkip, chatNow }) {
+function render({ state, config, keepAwake, chatLast, chatSkip, chatNow }) {
   const status = $("status");
   status.replaceChildren();
   const paused = state.manualPause || (state.pausedUntil && new Date(state.pausedUntil) > new Date());
@@ -41,6 +41,7 @@ function render({ state, config, chatLast, chatSkip, chatNow }) {
     status.append(line("Chat — última verificação", `${fmt(chatSkip.at)} — ${REASON_LABELS[chatSkip.result] || chatSkip.result}${chatSkip.detail ? ` (${chatSkip.detail})` : ""}`));
   }
   if (!config.hasKey) status.append(line("Atenção", REASON_LABELS.sem_configuracao));
+  status.append(line("Manter acordado", keepAwake === false ? "desligado (Opções)" : state.manualPause ? "solto enquanto pausado" : "ligado"));
   $("pause").textContent = paused ? "Retomar" : "Pausar";
   $("pause").dataset.paused = paused ? "1" : "";
 

@@ -21,6 +21,7 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 1. Descompacte o zip novo **por cima da mesma pasta** (substituindo os arquivos).
 2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
 3. A chave e as opções continuam salvas — não precisa configurar de novo.
+4. **Versão 1.9.0:** confira se o cartão da extensão mostra "1.9.0". Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
 
 ## Configurar
 
@@ -54,6 +55,15 @@ Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador M
 - **1.8.8 — abrir conversa:** o clique no item abre a janela de chat na mesma página (não recarrega); a extensão espera ali mesmo (até 20 s) a janela com o nome do contato e lê sem esperar a aba carregar. Se não abrir, tenta o endereço do item e manda sozinha um diagnóstico anonimizado ("open_conversation", no máximo 1 a cada 30 min).
 - **1.8.7 — trava da sincronização:** cada conversa lida vai ao CRM logo em seguida (o progresso aparece no CRM durante a rodada). Conversa nova (histórico completo): até 5 por rodada; cada rodada tem ~4 min, o resto entra nas próximas. O popup mostra a etapa atual e há quanto tempo, além das contagens/caminho/erro da última rodada. Se o popup ficar parado em "sincronizando", toque em **Destravar sincronização** (a trava também se solta sozinha se a rodada morrer ou passar de 4 min sem sinal, e ao recarregar a extensão).
 
+## Manter acordado (versão 1.9.0)
+
+Motivo: em 22/10/2026 a extensão ficou ~11 h sem falar com o CRM com o PC ligado (Chrome/computador "dormindo").
+
+- **A cada 1 minuto** a extensão acorda sozinha (alarme do Chrome), abre uma aba **em segundo plano** (nunca vira a aba ativa, nunca mexe na aba em que você está) com o título "mantendo o Chrome acordado" e fecha em ~2 s. Não faz isso enquanto publica um anúncio ou sincroniza o chat, nem quando não há janela do Chrome aberta (para não abrir janela nova na sua frente).
+- **O que de fato impede a suspensão:** a extensão pede ao Chrome para o **computador não dormir** (`chrome.power`, modo "system" — a tela ainda pode apagar normalmente) e marca as abas que ela mesma abre (publicação, chat, diagnóstico) para o Chrome **não descartá-las** por inatividade (`autoDiscardable: false`). A aba que abre e fecha sozinha é o pedido original; o que segura mesmo é isso.
+- **Desligar:** Opções › desmarque "Manter o Chrome e o computador acordados". O botão **Pausar** do popup também solta (Retomar volta a segurar). O popup mostra "Manter acordado: ligado/desligado".
+- Não impede o computador de dormir se você mandar suspender, fechar a tampa do notebook ou desligar; e precisa do Chrome aberto. Se o Windows tiver "Economia de energia" agressiva, confira também lá.
+
 ## Popup
 
 Mostra a situação (ativo, pausado, publicando), quantas publicações hoje, quando pode publicar de novo, a última verificação e o histórico. **Pausar** para tudo até você tocar em **Retomar** (Retomar também encerra a pausa de 24 h depois de você resolver a verificação no Facebook). **Verificar agora** respeita as mesmas regras de horário e limite.
@@ -64,5 +74,5 @@ Os textos e rótulos que a extensão procura ficam todos em `selectors.js` (pt-B
 
 ## Para desenvolvedores
 
-- Lógica pura testada: `lib/agenda.js` (horário, limites, intervalo, pausa, histórico) e `lib/crm-api.js` (fila e retorno). Testes: `node --test tests/*.test.js` (nesta pasta).
+- Lógica pura testada: `lib/agenda.js` (horário, limites, intervalo, pausa, histórico), `lib/crm-api.js` (fila e retorno) e `lib/keep-awake.js` (manter acordado). Testes: `node --test tests/*.test.js` (nesta pasta).
 - CRM: rotas `GET /api/marketplace/queue/next` e `POST /api/marketplace/queue/<id>/result`, chave no header `Authorization: Bearer mkp_...`. A extensão recebe só os campos do anúncio.
