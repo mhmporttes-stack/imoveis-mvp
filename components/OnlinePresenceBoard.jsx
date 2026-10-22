@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, History, Laptop, Smartphone } from "lucide-react";
+import { Building2, Disc3, History, Laptop, Smartphone } from "lucide-react";
+import { tabClasses } from "@/components/ui/Tabs";
 import Avatar from "@/components/Avatar";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { formatRelativeActivityText } from "@/lib/admin-presence-core.mjs";
@@ -15,9 +16,11 @@ import { nextSundayKey } from "@/lib/office-presence-core.mjs";
 const POLL_INTERVAL_MS = 20000;
 
 const STATUS_META = {
-  online: { emoji: "🟢", label: "Online", dot: "bg-emerald-500", chip: "border-emerald-100 bg-emerald-50 text-emerald-700" },
-  away: { emoji: "🟡", label: "Ausente", dot: "bg-amber-500", chip: "border-amber-100 bg-amber-50 text-amber-700" },
-  offline: { emoji: "⚫", label: "Offline", dot: "bg-slate-400", chip: "border-slate-200 bg-slate-50 text-slate-600" }
+  online: { label: "Online", dot: "bg-success-strong", chip: "bg-success-soft text-success" },
+  away: { label: "Ausente", dot: "bg-warning-strong", chip: "bg-warning-soft text-warning" },
+  offline: { label: "Offline", dot: "bg-faint", chip: "bg-neutral-soft text-muted" },
+  // Visual novo (dono, 2026-10-22): o vermelho chama "Desconectado" (on-line, mas sem WhatsApp conectado).
+  disconnected: { label: "Desconectado", dot: "bg-danger-strong", chip: "bg-danger-soft text-danger" }
 };
 
 export default function OnlinePresenceBoard({ initialPresence, initialError = "", renderId = "" }) {
@@ -93,16 +96,20 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
   return (
     <div className="container-page grid gap-5">
       {error ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-bold text-red-700">{error}</div>
+        <div className="rounded-card border border-danger-line bg-danger-soft p-5 text-sm font-bold text-danger">{error}</div>
       ) : null}
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
-        <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
-        <h3 className="mt-2 text-2xl font-extrabold text-navy">Presença no CRM</h3>
+      {members.length ? <PresenceKpis members={members} /> : null}
 
-        <div className="mt-6 space-y-3">
+      <section aria-labelledby="online-equipe" className="rounded-panel border border-line bg-white p-4 sm:p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 id="online-equipe" className="text-[15px] font-extrabold text-ink">Presença no CRM</h3>
+          <span className="text-xs text-muted">toque nos ícones para ver o histórico</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]">
           {!members.length ? (
-            <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Nenhum corretor na sua equipe.</p>
+            <p className="rounded-control bg-surface-2 p-4 text-sm font-semibold text-muted">Nenhum corretor na sua equipe.</p>
           ) : (
             members.map((member) => (
               <MemberRow
@@ -122,13 +129,39 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
             ))
           )}
         </div>
-      </article>
+      </section>
 
       <HoursReport />
 
       {/* Configuração da presença na imobiliária: no fim da página (dono, 2026-10-14). */}
       <OfficeNetworkPanel />
     </div>
+  );
+}
+
+// Indicadores do topo (visual novo): contagem dos cards abaixo, pelo mesmo status do card.
+function PresenceKpis({ members }) {
+  const counts = { online: 0, disconnected: 0, away: 0, offline: 0 };
+  for (const member of members) {
+    const meta = cardStatus(member);
+    const key = Object.keys(STATUS_META).find((name) => STATUS_META[name] === meta) || "offline";
+    counts[key] += 1;
+  }
+  const items = [
+    { key: "online", label: "Online", tone: "text-success" },
+    { key: "disconnected", label: "Desconectado", tone: "text-danger" },
+    { key: "away", label: "Ausente", tone: "text-warning" },
+    { key: "offline", label: "Offline", tone: "text-muted" }
+  ];
+  return (
+    <section aria-label="Indicadores da equipe" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.key} className="rounded-card border border-line bg-white p-4">
+          <p className="text-xs font-semibold text-muted">{item.label}</p>
+          <p className={`mt-1 text-2xl font-extrabold tabular-nums ${item.tone}`}>{counts[item.key]}</p>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -236,10 +269,10 @@ function HoursReport() {
   const contactsAvailable = report?.contactsAvailable !== false;
 
   return (
-    <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
-      <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Horas no CRM</p>
-      <h3 className="mt-2 text-2xl font-extrabold text-navy">Quanto tempo cada corretor trabalhou</h3>
-      <p className="mt-2 text-sm font-bold text-slate-500">
+    <article className="rounded-panel border border-line bg-white p-4 sm:p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">Horas no CRM</p>
+      <h3 className="mt-1 text-[15px] font-extrabold text-ink">Quanto tempo cada corretor trabalhou</h3>
+      <p className="mt-2 text-sm font-bold text-muted">
         Conta só o tempo com interação real no CRM (clique, digitação, rolagem, toque). Sem interagir por 5 minutos o tempo online pausa e vira ausente.
       </p>
 
@@ -249,9 +282,9 @@ function HoursReport() {
             key={option.value}
             type="button"
             onClick={() => setPeriod(option.value)}
-            className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
-              period === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
-            }`}
+            role="tab"
+            aria-selected={period === option.value}
+            className={tabClasses(period === option.value)}
           >
             {option.label}
           </button>
@@ -260,41 +293,41 @@ function HoursReport() {
 
       {period === "custom" ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-extrabold text-navy">
+          <label className="text-sm font-extrabold text-ink">
             Início
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand" />
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-control border border-line px-4 text-sm text-ink outline-none focus:border-brand" />
           </label>
-          <label className="text-sm font-extrabold text-navy">
+          <label className="text-sm font-extrabold text-ink">
             Final
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-2xl border border-navy/15 px-4 text-sm text-navy outline-none focus:border-brand" />
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-control border border-line px-4 text-sm text-ink outline-none focus:border-brand" />
           </label>
         </div>
       ) : null}
 
-      {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</p> : null}
+      {error ? <p className="mt-4 rounded-control border border-danger-line bg-danger-soft p-4 text-sm font-bold text-danger">{error}</p> : null}
 
       {report && !report.ready ? (
-        <p className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
+        <p className="mt-4 rounded-control bg-warning-soft p-4 text-sm font-bold text-warning">
           O histórico de horas ainda não foi ativado no banco de dados (falta criar a tabela de atividade). Assim que for criada, os números começam a aparecer aqui conforme a equipe usa o CRM.
         </p>
       ) : null}
 
       {period === "custom" && (!startDate || !endDate) ? (
-        <p className="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Escolha a data de início e a final para ver as horas.</p>
+        <p className="mt-4 rounded-control bg-accent-soft p-4 text-sm font-bold text-ink-2">Escolha a data de início e a final para ver as horas.</p>
       ) : null}
 
       {report?.ready ? (
         <>
-          <p className="mt-5 text-sm font-extrabold text-navy">{formatRangeLabel(report.range)}</p>
+          <p className="mt-5 text-sm font-extrabold text-ink">{formatRangeLabel(report.range)}</p>
           {!contactsAvailable ? (
-            <p className="mt-2 text-xs font-bold text-amber-700">Não foi possível carregar os contatos agora.</p>
+            <p className="mt-2 text-xs font-bold text-warning">Não foi possível carregar os contatos agora.</p>
           ) : null}
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-emerald-700">
+            <div className="rounded-control border border-success-line bg-success-soft px-4 py-3 text-success">
               <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamActive)}</p>
               <p className="text-[11px] font-bold uppercase tracking-wide">Online (equipe)</p>
             </div>
-            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-700">
+            <div className="rounded-control border border-warning-line bg-warning-soft px-4 py-3 text-warning">
               <p className="text-xl font-black sm:text-2xl">{formatMinutes(teamAway)}</p>
               <p className="text-[11px] font-bold uppercase tracking-wide">Ausente (equipe)</p>
             </div>
@@ -302,7 +335,7 @@ function HoursReport() {
 
           <div className={`mt-5 space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
             {members.map((member) => (
-              <div key={member.id} className="rounded-2xl border border-navy/10">
+              <div key={member.id} className="rounded-control border border-line">
                 <button
                   type="button"
                   onClick={() => setExpandedId((current) => (current === member.id ? "" : member.id))}
@@ -312,28 +345,28 @@ function HoursReport() {
                   <span className="flex min-w-0 items-center gap-3">
                     <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
                     <span className="min-w-0">
-                      <span className="block truncate font-extrabold text-navy">{member.name}</span>
-                      <span className="block text-xs font-bold text-slate-500">
+                      <span className="block truncate font-extrabold text-ink">{member.name}</span>
+                      <span className="block text-xs font-bold text-muted">
                         {member.daysWithPresence} {member.daysWithPresence === 1 ? "dia" : "dias"} com atividade
                         {multiDay ? ` · média ${formatMinutes(member.averageActiveMinutesPerDay)}/dia` : ""}
                       </span>
                     </span>
                   </span>
                   <span className="flex flex-wrap items-center gap-2 text-sm font-black">
-                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-700">Online {formatMinutes(member.activeMinutes)}</span>
-                    <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-700">Ausente {formatMinutes(member.awayMinutes)}</span>
+                    <span className="rounded-full border border-success-line bg-success-soft px-3 py-1 text-success">Online {formatMinutes(member.activeMinutes)}</span>
+                    <span className="rounded-full border border-warning-line bg-warning-soft px-3 py-1 text-warning">Ausente {formatMinutes(member.awayMinutes)}</span>
                     {contactsAvailable ? (
-                      <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-brand">{formatContacts(member.contacts, member.manualContacts, member.autoContacts)}</span>
+                      <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1 text-accent-text">{formatContacts(member.contacts, member.manualContacts, member.autoContacts)}</span>
                     ) : null}
                   </span>
                 </button>
 
                 {expandedId === member.id ? (
-                  <div className="border-t border-navy/10 bg-blue-50/30 p-4">
+                  <div className="border-t border-line bg-surface-2 p-4">
                     {member.days.length ? (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[640px] text-left text-sm">
-                          <thead className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                          <thead className="text-[11px] font-extrabold uppercase tracking-wide text-muted">
                             <tr>
                               <th className="pb-2">Dia</th>
                               <th className="pb-2">Primeiro</th>
@@ -345,14 +378,14 @@ function HoursReport() {
                               <th className="pb-2">Automáticos</th>
                             </tr>
                           </thead>
-                          <tbody className="font-bold text-navy">
+                          <tbody className="font-bold text-ink">
                             {member.days.map((day) => (
-                              <tr key={day.date} className="border-t border-navy/10">
+                              <tr key={day.date} className="border-t border-line">
                                 <td className="py-2">{formatDayLabel(day.date)}</td>
                                 <td className="py-2">{day.firstAt ? TIME_FORMATTER.format(new Date(day.firstAt)) : "—"}</td>
                                 <td className="py-2">{day.lastAt ? TIME_FORMATTER.format(new Date(day.lastAt)) : "—"}</td>
-                                <td className="py-2 text-emerald-700">{formatMinutes(day.activeMinutes)}</td>
-                                <td className="py-2 text-amber-700">{formatMinutes(day.awayMinutes)}</td>
+                                <td className="py-2 text-success">{formatMinutes(day.activeMinutes)}</td>
+                                <td className="py-2 text-warning">{formatMinutes(day.awayMinutes)}</td>
                                 <td className="py-2">{contactsAvailable ? day.contacts : "—"}</td>
                                 <td className="py-2">{contactsAvailable ? day.manualContacts : "—"}</td>
                                 <td className="py-2">{contactsAvailable ? day.autoContacts : "—"}</td>
@@ -362,13 +395,13 @@ function HoursReport() {
                         </table>
                       </div>
                     ) : (
-                      <p className="text-sm font-bold text-slate-500">Sem atividade registrada neste período.</p>
+                      <p className="text-sm font-bold text-muted">Sem atividade registrada neste período.</p>
                     )}
                   </div>
                 ) : null}
               </div>
             ))}
-            {!members.length ? <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Nenhum corretor na sua equipe.</p> : null}
+            {!members.length ? <p className="rounded-control bg-accent-soft p-4 text-sm font-bold text-ink-2">Nenhum corretor na sua equipe.</p> : null}
           </div>
         </>
       ) : null}
@@ -376,44 +409,91 @@ function HoursReport() {
   );
 }
 
+// Status do card (visual novo, dono, 2026-10-22): vermelho chama "Desconectado" — on-line no CRM, mas sem nenhum
+// número do WhatsApp conectado. Os demais seguem a presença (Online · Ausente · Offline).
+function cardStatus(member) {
+  const numbers = member.whatsapp || [];
+  if (member.status === "online" && numbers.length && !numbers.some((icon) => icon.connected)) return STATUS_META.disconnected;
+  return STATUS_META[member.status] || STATUS_META.offline;
+}
+
+// Ícone da roleta: só lê o que a tela já recebe (presença, WhatsApp ativo, presença na imobiliária); quem decide de
+// verdade quem recebe lead é o banco (ROL-2, ROL-2d/2e/2f). Por isso o rótulo fala em "condições", não em "na roleta".
+function rouletteConditions(member) {
+  const office = member.office || null;
+  const numbers = member.whatsapp || [];
+  const lines = [
+    { ok: member.status === "online", text: member.status === "online" ? "On-line no CRM agora" : "Não está on-line no CRM agora" },
+    { ok: numbers.some((icon) => icon.connected && icon.state !== "idle"), text: numbers.some((icon) => icon.connected && icon.state !== "idle") ? "WhatsApp conectado e ativo" : numbers.some((icon) => icon.connected) ? "WhatsApp sem mensagens há 4 h (ocioso)" : "WhatsApp desconectado" }
+  ];
+  if (office?.ruleEnabled) {
+    const here = office.active && !office.absence;
+    lines.push({ ok: here, text: office.absence ? "Marcado como ausente" : here ? "Veio à imobiliária (vale até 9h do dia seguinte)" : "Não veio à imobiliária" });
+  }
+  return { ok: lines.every((line) => line.ok), lines };
+}
+
+const ICON_BUTTON = "relative grid h-[38px] w-[38px] place-items-center rounded-[11px] border bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+const iconTone = (open) => (open ? "border-accent shadow-[0_0_0_3px_rgb(var(--mm-accent,27_127_176)/0.15)]" : "border-line hover:border-accent-line");
+
 function MemberRow({ member, goalPercent = null, onOfficeReleased, onOfficeChanged }) {
-  const meta = STATUS_META[member.status] || STATUS_META.offline;
-  // Qual histórico está aberto: "presence" (entrou/saiu) ou "whatsapp" (conectou/desconectou).
+  const meta = cardStatus(member);
+  // Qual histórico está aberto: "office", "presence" (entrou/saiu), "whatsapp" (conectou/desconectou) ou "roulette".
   const [historyOpen, setHistoryOpen] = useState("");
   const toggle = (kind) => setHistoryOpen((value) => (value === kind ? "" : kind));
+  const roulette = rouletteConditions(member);
   return (
-    <div className="rounded-2xl border border-navy/10 p-3 transition hover:border-brand sm:p-4">
-      {/* Celular (dono, 2026-10-14): ícones numa linha própria embaixo do nome — numa linha só a fileira estourava a tela. */}
-      <div className="flex items-start gap-3">
+    <article className={`rounded-card border bg-white p-3.5 transition-colors sm:p-4 ${historyOpen ? "border-accent" : "border-line"}`}>
+      <div className="flex items-center gap-3">
         <span className="relative shrink-0">
           <GoalRing percent={goalPercent}>
-            <Avatar name={member.name} photoUrl={member.photoUrl} size={40} />
+            <Avatar name={member.name} photoUrl={member.photoUrl} size={44} />
           </GoalRing>
-          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`} aria-hidden="true" />
+          <span className={`absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-white ${meta.dot}`} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate font-extrabold text-navy">{firstName(member.name)}</p>
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black ${meta.chip}`}>
-              {meta.emoji} {meta.label}
-            </span>
-          </div>
-          <p className="truncate text-[11px] font-bold text-slate-500">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
-          <div className="mt-2 flex items-center gap-1.5">
-            {member.office ? <OfficeButton office={member.office} open={historyOpen === "office"} onClick={() => toggle("office")} /> : null}
-            {member.office?.absence ? <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-black text-slate-600">Ausente</span> : null}
-            {(member.whatsapp || []).map((icon, index) => (
-              <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
-            ))}
-            <DeviceButton device={member.device} online={member.status === "online"} open={historyOpen === "presence"} onClick={() => toggle("presence")} />
-            <span className="ml-auto min-w-0 truncate text-right text-[11px] font-bold text-slate-400">{formatLastAccess(member.lastActivityAt)}</span>
-          </div>
+          <p className="truncate text-[15px] font-extrabold text-ink">{firstName(member.name)}</p>
+          <p className="truncate text-xs text-muted">{formatRelativeActivityText(member.status, member.lastActivityAt)}</p>
         </div>
+        <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold ${meta.chip}`}>{meta.label}</span>
+      </div>
+      {/* Só ícones (dono, 2026-10-22): prédio, aparelho, WhatsApp Nº 1/Nº 2 e roleta. Tocar abre o histórico/ações. */}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {member.office ? <OfficeButton office={member.office} open={historyOpen === "office"} onClick={() => toggle("office")} /> : null}
+        <DeviceButton device={member.device} online={member.status === "online"} open={historyOpen === "presence"} onClick={() => toggle("presence")} />
+        {(member.whatsapp || []).map((icon, index) => (
+          <WhatsappStatusButton key={`${icon.slot ?? "off"}-${index}`} icon={icon} open={historyOpen === "whatsapp"} onClick={() => toggle("whatsapp")} />
+        ))}
+        <button
+          type="button"
+          onClick={() => toggle("roulette")}
+          aria-expanded={historyOpen === "roulette"}
+          title={roulette.ok ? "Condições da roleta atendidas agora" : "Condições da roleta não atendidas agora"}
+          aria-label={`${roulette.ok ? "Condições da roleta atendidas agora" : "Condições da roleta não atendidas agora"}. Ver detalhes`}
+          className={`${ICON_BUTTON} ${iconTone(historyOpen === "roulette")} ${roulette.ok ? "text-success" : "text-faint"}`}
+        >
+          <Disc3 size={19} strokeWidth={1.9} aria-hidden="true" />
+        </button>
+        <span className="ml-auto min-w-0 truncate text-right text-[11px] font-semibold text-faint">{formatLastAccess(member.lastActivityAt)}</span>
       </div>
       {historyOpen === "presence" ? <PresenceHistory userId={member.id} /> : null}
       {historyOpen === "whatsapp" ? <WhatsappHistory userId={member.id} /> : null}
       {historyOpen === "office" ? <OfficeDetail member={member} onReleased={onOfficeReleased} onChanged={onOfficeChanged} /> : null}
-    </div>
+      {historyOpen === "roulette" ? (
+        <div className="mt-3 rounded-control border border-line bg-surface-2 px-3 py-2.5 text-sm">
+          <p className="flex items-baseline justify-between gap-2"><b className="text-[13px] text-ink">Roleta</b><span className="text-[11px] text-muted">condições de agora</span></p>
+          <ul className="mt-1">
+            {roulette.lines.map((line) => (
+              <li key={line.text} className="flex items-center gap-2.5 border-t border-line py-1.5 text-xs text-ink first:border-t-0">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${line.ok ? "bg-success-strong" : "bg-danger-strong"}`} aria-hidden="true" />
+                {line.text}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[11px] text-muted">Quem recebe o lead é decidido pela roleta (distribuição ligada para o corretor e intervalo entre recebimentos).</p>
+        </div>
+      ) : null}
+    </article>
   );
 }
 
@@ -440,7 +520,8 @@ function OfficeButton({ office, open, onClick }) {
   // e saiu = prédio cinza com um pontinho verde (segue na roleta até 9h); não veio = cinza. Só visual: a roleta usa office.active.
   // "Marcar ausente" (dono, 2026-10-17): cinza, sem pontinho, mesmo com o Wi-Fi detectando.
   const label = office.absence ? `Ausente${office.absence.markedByName ? ` (marcado por ${firstName(office.absence.markedByName)})` : ""}` : office.here ? "Na imobiliária agora" : office.active ? "Não está na imobiliária agora (segue na roleta até 9h)" : "Não veio à imobiliária";
-  const tone = office.here ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600" : "border-navy/10 bg-mist text-slate-400 hover:border-brand";
+  // Visual novo (dono, 2026-10-22): só o ícone — prédio VERDE = no Wi-Fi agora; CINZA com bolinha verde = veio hoje; CINZA = não veio/ausente.
+  const tone = office.here && !office.absence ? "text-success" : "text-faint";
   return (
     <button
       type="button"
@@ -448,10 +529,10 @@ function OfficeButton({ office, open, onClick }) {
       aria-expanded={open}
       title={label}
       aria-label={`${label}. Ver detalhes`}
-      className={`relative grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : tone}`}
+      className={`${ICON_BUTTON} ${iconTone(open)} ${tone}`}
     >
-      <Building2 size={15} strokeWidth={2.4} aria-hidden="true" />
-      {office.active && !office.here ? <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" /> : null}
+      <Building2 size={19} strokeWidth={1.9} aria-hidden="true" />
+      {office.active && !office.here && !office.absence ? <span aria-hidden="true" className="absolute right-[3px] top-[3px] h-2 w-2 rounded-full bg-success-strong ring-2 ring-white" /> : null}
     </button>
   );
 }
@@ -486,34 +567,34 @@ function OfficeDetail({ member, onReleased, onChanged }) {
   }
   if (office.absence) {
     return (
-      <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
+      <div className="mt-3 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-semibold text-slate-600">
+          <p className="font-semibold text-ink-2">
             Ausente até {ABSENT_UNTIL.format(new Date(Date.parse(office.absence.absentUntil) - 1))}
             {office.absence.markedByName ? ` (marcado por ${firstName(office.absence.markedByName)})` : ""}{office.ruleEnabled ? ": fora da roleta." : "."}
-            {office.wifiDetectedWhileAbsent ? <span className="mt-0.5 block text-xs text-slate-500">O Wi-Fi da imobiliária está detectando o aparelho, mas não conta como presença.</span> : null}
+            {office.wifiDetectedWhileAbsent ? <span className="mt-0.5 block text-xs text-muted">O Wi-Fi da imobiliária está detectando o aparelho, mas não conta como presença.</span> : null}
           </p>
-          <button type="button" onClick={() => absenceAction("clear-absent")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+          <button type="button" onClick={() => absenceAction("clear-absent")} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
             {busy === "clear" ? "Desfazendo…" : "Desfazer"}
           </button>
         </div>
-        {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
+        {error ? <p className="mt-1 text-xs font-semibold text-danger">{error}</p> : null}
       </div>
     );
   }
   const absentButtons = (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-navy/10 pt-2">
-      <p className="w-full text-xs font-semibold text-slate-600">Marcar ausente (não conta presença mesmo com o Wi-Fi):</p>
-      <button type="button" onClick={() => absenceAction("mark-absent", todayKey)} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line pt-2">
+      <p className="w-full text-xs font-semibold text-ink-2">Marcar ausente (não conta presença mesmo com o Wi-Fi):</p>
+      <button type="button" onClick={() => absenceAction("mark-absent", todayKey)} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
         {busy === todayKey ? "Salvando…" : "Hoje"}
       </button>
       {sundayKey !== todayKey ? (
-        <button type="button" onClick={() => absenceAction("mark-absent", sundayKey)} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+        <button type="button" onClick={() => absenceAction("mark-absent", sundayKey)} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
           {busy === sundayKey ? "Salvando…" : "Até domingo"}
         </button>
       ) : null}
-      <input type="date" value={absentDate} min={todayKey} onChange={(event) => setAbsentDate(event.target.value)} aria-label="Ausente até a data" className="rounded-full border border-navy/20 bg-white px-3 py-1 text-xs font-bold text-navy" />
-      <button type="button" onClick={() => absenceAction("mark-absent", absentDate)} disabled={Boolean(busy) || !absentDate} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+      <input type="date" value={absentDate} min={todayKey} onChange={(event) => setAbsentDate(event.target.value)} aria-label="Ausente até a data" className="rounded-full border border-line bg-white px-3 py-1 text-xs font-bold text-ink" />
+      <button type="button" onClick={() => absenceAction("mark-absent", absentDate)} disabled={Boolean(busy) || !absentDate} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
         {busy && busy === absentDate ? "Salvando…" : "Até a data"}
       </button>
     </div>
@@ -545,40 +626,40 @@ function OfficeDetail({ member, onReleased, onChanged }) {
   // hoje) e a pessoa ainda não registrou a de hoje: dono/gestora marcam sem esperar a chegada anterior vencer.
   const manualButtons = (
     <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-navy/20 bg-white px-3 py-1.5 text-xs font-bold text-navy disabled:opacity-60">
+      <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
         {busy === "arrived" ? "Salvando…" : "Chegou e não conectou"}
       </button>
-      <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+      <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-on-accent disabled:opacity-60">
         {busy === "external" ? "Liberando…" : "Liberar hoje"}
       </button>
     </div>
   );
   return (
-    <div className="mt-3 rounded-xl border border-navy/10 bg-mist px-3 py-2.5 text-sm">
+    <div className="mt-3 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm">
       {office.active ? (
         <>
-          <p className="font-semibold text-navy">
+          <p className="font-semibold text-ink">
             {office.firstSeenAt ? `Chegou ${arrivedToday ? "" : `${arrivalDay} `}às ${OFFICE_TIME.format(new Date(office.firstSeenAt))}, ${how}. ` : ""}
             Na roleta até {OFFICE_UNTIL.format(new Date(office.validUntil))}.
-            <span className={`mt-0.5 block text-xs ${office.here ? "text-emerald-700" : "text-slate-500"}`}>
+            <span className={`mt-0.5 block text-xs ${office.here ? "text-success" : "text-muted"}`}>
               {office.here ? "Está no Wi-Fi da imobiliária agora." : office.lastWifiSeenAt ? `Não está na imobiliária agora (último sinal no Wi-Fi ${lastWifiDay === "hoje" ? "" : `${lastWifiDay} `}às ${OFFICE_TIME.format(new Date(office.lastWifiSeenAt))}).` : "Não está no Wi-Fi da imobiliária agora."}
             </span>
           </p>
           {!arrivedToday && !office.here ? (
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-navy/10 pt-2">
-              <p className="text-xs font-semibold text-slate-600">Hoje ainda não registrou a chegada.</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2">
+              <p className="text-xs font-semibold text-ink-2">Hoje ainda não registrou a chegada.</p>
               {manualButtons}
             </div>
           ) : null}
         </>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-semibold text-slate-600">{office.ruleEnabled ? "Não veio à imobiliária: fora da roleta." : "Ainda não veio à imobiliária hoje."}</p>
+          <p className="font-semibold text-ink-2">{office.ruleEnabled ? "Não veio à imobiliária: fora da roleta." : "Ainda não veio à imobiliária hoje."}</p>
           {manualButtons}
         </div>
       )}
       {absentButtons}
-      {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
+      {error ? <p className="mt-1 text-xs font-semibold text-danger">{error}</p> : null}
     </div>
   );
 }
@@ -619,12 +700,12 @@ function OfficeNetworkPanel() {
 
   if (!panel) return null;
   return (
-    <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+    <article className="rounded-panel border border-line bg-white p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Roleta</p>
-          <h3 className="mt-2 text-xl font-extrabold text-navy">Presença na imobiliária</h3>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">Roleta</p>
+          <h3 className="mt-1 text-[15px] font-extrabold text-ink">Presença na imobiliária</h3>
+          <p className="mt-1 text-sm text-ink-2">
             {panel.enabled
               ? "Ligada: só recebe lead quem veio à imobiliária (até 9h do dia seguinte; sábado vale até segunda)."
               : "Desligada: a roleta segue as regras de sempre."}
@@ -635,38 +716,38 @@ function OfficeNetworkPanel() {
             type="button"
             disabled={busy}
             onClick={() => act({ action: "set-enabled", enabled: !panel.enabled })}
-            className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${panel.enabled ? "border border-navy/15 bg-white text-navy" : "bg-navy text-white"}`}
+            className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${panel.enabled ? "border border-line bg-white text-ink" : "bg-accent text-on-accent"}`}
           >
             {panel.enabled ? "Desligar regra" : "Ligar regra"}
           </button>
         ) : null}
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-mist px-4 py-3 text-sm">
-        <p className="font-semibold text-navy">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-control bg-surface-2 px-4 py-3 text-sm">
+        <p className="font-semibold text-ink">
           {panel.networks.length ? `${panel.networks.length} ${panel.networks.length === 1 ? "rede cadastrada" : "redes cadastradas"}` : "Nenhuma rede cadastrada"}
           {" · "}
           {panel.currentMatches ? "este aparelho está na rede da imobiliária" : "este aparelho não está numa rede cadastrada"}
         </p>
         {!panel.currentMatches ? (
-          <button type="button" disabled={busy} onClick={() => act({ action: "mark-network" })} className="rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={() => act({ action: "mark-network" })} className="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-on-accent disabled:opacity-60">
             Esta é a rede da imobiliária
           </button>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-slate-500">Toque em “Esta é a rede da imobiliária” só quando estiver conectado ao Wi-Fi de lá. Se a operadora trocar a internet, marque de novo.</p>
+      <p className="mt-2 text-xs text-muted">Toque em “Esta é a rede da imobiliária” só quando estiver conectado ao Wi-Fi de lá. Se a operadora trocar a internet, marque de novo.</p>
       {panel.canToggle && panel.networks.length ? (
-        <ul className="mt-2 space-y-1 text-xs text-slate-500">
+        <ul className="mt-2 space-y-1 text-xs text-muted">
           {panel.networks.map((network) => (
             <li key={network.key} className="flex items-center justify-between gap-2">
               <span className="truncate">{network.key}</span>
-              <button type="button" disabled={busy} onClick={() => act({ action: "remove-network", key: network.key })} className="font-semibold text-red-700 disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => act({ action: "remove-network", key: network.key })} className="font-semibold text-danger disabled:opacity-60">
                 Remover
               </button>
             </li>
           ))}
         </ul>
       ) : null}
-      {error ? <p className="mt-2 text-sm font-semibold text-red-700">{error}</p> : null}
+      {error ? <p className="mt-2 text-sm font-semibold text-danger">{error}</p> : null}
     </article>
   );
 }
@@ -688,8 +769,8 @@ function GoalRing({ percent, children }) {
   return (
     <span className="relative grid h-12 w-12 place-items-center" title={`Meta Diária: ${Math.round(Number(percent))}%`} aria-label={`Meta Diária ${Math.round(Number(percent))}%`}>
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
-        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" className="text-navy/10" />
-        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - value / 100)} className={done ? "text-emerald-500" : "text-brand"} style={{ transition: "stroke-dashoffset 600ms ease" }} />
+        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" className="text-ink/10" />
+        <circle cx="24" cy="24" r={radius} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - value / 100)} className={done ? "text-success-strong" : "text-accent"} style={{ transition: "stroke-dashoffset 600ms ease" }} />
       </svg>
       {children}
     </span>
@@ -709,19 +790,20 @@ function DeviceButton({ device, online = false, open, onClick }) {
       aria-expanded={open}
       title={`${label} — ver entradas e saídas de hoje`}
       aria-label={`${label}. Ver entradas e saídas de hoje`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy text-white" : online ? "border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-brand" : "border-navy/10 bg-mist text-navy hover:border-brand hover:text-brand"}`}
+      className={`${ICON_BUTTON} ${iconTone(open)} ${online ? "text-success" : "text-ink-2"}`}
     >
-      <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
+      <Icon size={19} strokeWidth={1.9} aria-hidden="true" />
     </button>
   );
 }
 
-// WhatsApp do corretor: verde = número conectado (um ícone por número conectado); cinza = nenhum conectado.
+// WhatsApp do corretor: verde = número conectado (um ícone por número, com o Nº embaixo); laranja = ocioso (ROL-2e);
+// vermelho = desconectado (visual novo, dono, 2026-10-22).
 function WhatsappStatusButton({ icon, open, onClick }) {
   const idle = icon.connected && icon.state === "idle";
   const name = icon.slot === 2 ? "Número 2" : "Número 1";
   const label = !icon.connected ? "WhatsApp desconectado" : idle ? `WhatsApp ${name} sem mensagens há 4 h (fora da roleta, reconectar)` : `WhatsApp ${name} conectado`;
-  const tone = !icon.connected ? "text-slate-400" : idle ? "text-orange-500" : "text-emerald-600";
+  const tone = !icon.connected ? "text-danger" : idle ? "text-orange-500" : "text-success";
   return (
     <button
       type="button"
@@ -729,9 +811,10 @@ function WhatsappStatusButton({ icon, open, onClick }) {
       aria-expanded={open}
       title={`${label} — ver conexões`}
       aria-label={`${label}. Ver histórico de conexão`}
-      className={`grid h-7 w-7 place-items-center rounded-full border transition ${open ? "border-navy bg-navy" : "border-navy/10 bg-mist hover:border-brand"} ${open ? "text-white" : tone}`}
+      className={`${ICON_BUTTON} ${iconTone(open)} ${tone}`}
     >
-      <WhatsappGlyph className="h-4 w-4" />
+      <WhatsappGlyph className="h-[19px] w-[19px]" />
+      {icon.slot ? <span aria-hidden="true" className="absolute bottom-[2px] right-[4px] text-[9px] font-extrabold leading-none">{icon.slot}</span> : null}
     </button>
   );
 }
@@ -770,8 +853,8 @@ function WhatsappHistory({ userId }) {
   const slotName = (slot) => state.labels?.[slot] || (slot === 2 ? "Número 2" : "Número 1");
 
   return (
-    <div className="mt-3 border-t border-navy/10 pt-3">
-      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700"><WhatsappGlyph className="h-3.5 w-3.5" /> Conexões do WhatsApp</p>
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-success"><WhatsappGlyph className="h-3.5 w-3.5" /> Conexões do WhatsApp</p>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Dia do histórico do WhatsApp">
         {days.map((option) => (
           <button
@@ -779,24 +862,24 @@ function WhatsappHistory({ userId }) {
             type="button"
             aria-pressed={day === option.key}
             onClick={() => setDay(option.key)}
-            className={`rounded-full px-3 py-1 text-xs font-black transition ${day === option.key ? "bg-navy text-white" : "border border-navy/10 bg-mist text-navy hover:text-brand"}`}
+            className={tabClasses(day === option.key, "sm")}
           >
             {option.label}
           </button>
         ))}
       </div>
-      {state.loading ? <p className="mt-2 text-sm font-bold text-slate-500">Carregando…</p> : null}
-      {state.error ? <p className="mt-2 text-sm font-bold text-red-700">{state.error}</p> : null}
-      {!state.loading && !state.error && !state.periods.length ? <p className="mt-2 text-sm font-bold text-slate-500">WhatsApp desconectado o dia todo.</p> : null}
+      {state.loading ? <p className="mt-2 text-sm font-bold text-muted">Carregando…</p> : null}
+      {state.error ? <p className="mt-2 text-sm font-bold text-danger">{state.error}</p> : null}
+      {!state.loading && !state.error && !state.periods.length ? <p className="mt-2 text-sm font-bold text-muted">WhatsApp desconectado o dia todo.</p> : null}
       {!state.loading && state.periods.length ? (
         <>
-          <p className="mt-2 text-xs font-bold text-slate-500">{formatSessionMinutes(totalMinutes)} conectado no total</p>
+          <p className="mt-2 text-xs font-bold text-muted">{formatSessionMinutes(totalMinutes)} conectado no total</p>
           <ul className="mt-1.5 space-y-1.5">
             {[...state.periods].reverse().map((period) => (
-              <li key={`${period.slot}-${period.start}`} className="flex items-center gap-2 text-sm font-bold text-navy">
-                <WhatsappGlyph className={`h-4 w-4 shrink-0 ${period.end ? "text-slate-400" : "text-emerald-600"}`} />
+              <li key={`${period.slot}-${period.start}`} className="flex items-center gap-2 text-sm font-bold text-ink">
+                <WhatsappGlyph className={`h-4 w-4 shrink-0 ${period.end ? "text-faint" : "text-success"}`} />
                 <span className="tabular-nums">{TIME_FORMATTER.format(new Date(period.start))} – {period.end ? TIME_FORMATTER.format(new Date(period.end)) : "agora"}</span>
-                <span className="text-slate-500">· {slotName(period.slot)} · {formatSessionMinutes(period.minutes)}</span>
+                <span className="text-muted">· {slotName(period.slot)} · {formatSessionMinutes(period.minutes)}</span>
               </li>
             ))}
           </ul>
@@ -834,7 +917,7 @@ function PresenceHistory({ userId }) {
   const totalMinutes = state.sessions.reduce((sum, session) => sum + (session.minutes || 0), 0);
 
   return (
-    <div className="mt-3 border-t border-navy/10 pt-3">
+    <div className="mt-3 border-t border-line pt-3">
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Dia do histórico">
         {days.map((option) => (
           <button
@@ -842,27 +925,27 @@ function PresenceHistory({ userId }) {
             type="button"
             aria-pressed={day === option.key}
             onClick={() => setDay(option.key)}
-            className={`rounded-full px-3 py-1 text-xs font-black transition ${day === option.key ? "bg-navy text-white" : "border border-navy/10 bg-mist text-navy hover:text-brand"}`}
+            className={tabClasses(day === option.key, "sm")}
           >
             {option.label}
           </button>
         ))}
       </div>
-      {state.loading ? <p className="mt-2 text-sm font-bold text-slate-500">Carregando…</p> : null}
-      {state.error ? <p className="mt-2 text-sm font-bold text-red-700">{state.error}</p> : null}
-      {!state.loading && !state.error && !state.sessions.length ? <p className="mt-2 text-sm font-bold text-slate-500">Sem acesso neste dia.</p> : null}
+      {state.loading ? <p className="mt-2 text-sm font-bold text-muted">Carregando…</p> : null}
+      {state.error ? <p className="mt-2 text-sm font-bold text-danger">{state.error}</p> : null}
+      {!state.loading && !state.error && !state.sessions.length ? <p className="mt-2 text-sm font-bold text-muted">Sem acesso neste dia.</p> : null}
       {!state.loading && state.sessions.length ? (
         <>
-          <p className="mt-2 text-xs font-bold text-slate-500">{state.sessions.length} acesso{state.sessions.length === 1 ? "" : "s"} · {formatSessionMinutes(totalMinutes)} no total</p>
+          <p className="mt-2 text-xs font-bold text-muted">{state.sessions.length} acesso{state.sessions.length === 1 ? "" : "s"} · {formatSessionMinutes(totalMinutes)} no total</p>
           <ul className="mt-1.5 space-y-1.5">
             {[...state.sessions].reverse().map((session) => {
               const Icon = session.device === "mobile" ? Smartphone : session.device === "desktop" ? Laptop : History;
               const deviceLabel = session.device === "mobile" ? "Celular" : session.device === "desktop" ? "Computador" : "Aparelho não identificado";
               return (
-                <li key={session.start} className="flex items-center gap-2 text-sm font-bold text-navy">
-                  <Icon size={15} strokeWidth={2.4} className="shrink-0 text-brand" aria-hidden="true" />
+                <li key={session.start} className="flex items-center gap-2 text-sm font-bold text-ink">
+                  <Icon size={15} strokeWidth={2.4} className="shrink-0 text-accent-text" aria-hidden="true" />
                   <span className="tabular-nums">{TIME_FORMATTER.format(new Date(session.start))} – {TIME_FORMATTER.format(new Date(session.end))}</span>
-                  <span className="text-slate-500">· {deviceLabel} · {formatSessionMinutes(session.minutes)}</span>
+                  <span className="text-muted">· {deviceLabel} · {formatSessionMinutes(session.minutes)}</span>
                 </li>
               );
             })}
