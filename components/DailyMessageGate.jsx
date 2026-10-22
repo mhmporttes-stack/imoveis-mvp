@@ -28,7 +28,8 @@ function hasBlockingUi() {
 // qualquer usuário autenticado do CRM, inclusive quem não tem acesso a
 // Gestão > Automações (lá só se configura/dispara; aqui é onde a
 // experiência é efetivamente exibida para o destinatário certo).
-export default function DailyMessageGate({ userId }) {
+// userName (opcional): primeiro nome na saudação da cena ("Bom dia, Ana:"); sem ele a cena diz só "Bom dia!".
+export default function DailyMessageGate({ userId, userName = "" }) {
   const [pending, setPending] = useState(null);
   const busyRetryRef = useRef(null);
   const pathname = usePathname();
@@ -93,5 +94,5 @@ export default function DailyMessageGate({ userId }) {
   }
 
   if (!pending) return null;
-  return <DailyMessageExperience card={pending.card} font={pending.card.font} onComplete={handleComplete} />;
+  return <DailyMessageExperience card={pending.card} font={pending.card.font} userName={userName} onComplete={handleComplete} />;
 }
