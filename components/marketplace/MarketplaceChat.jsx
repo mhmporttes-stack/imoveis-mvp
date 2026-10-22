@@ -153,13 +153,9 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const conversation = thread?.conversation;
   return (
     <section className="container-page space-y-3">
-      <header className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-[22px] font-semibold text-navy">Chat do Marketplace</h1>
-          <p className="text-sm text-muted">Conversas do Facebook Marketplace. Sincroniza com o PC do escritório ligado (Chrome aberto); atraso de ~1–2 min para chegar e para sair. As respostas saem pelo perfil do Facebook do Matheus.</p>
-        </div>
-        <Button variant="secondary" size="sm" href="/admin/chat">Chat do WhatsApp</Button>
-      </header>
+      {/* Sem título, explicação nem botão "Chat do WhatsApp" no topo (dono, 2026-10-22: "remova todos esses textos");
+          o título fica só para leitores de tela. */}
+      <h1 className="sr-only">Chat do Marketplace</h1>
       {canEditSettings ? <SettingsCard team={team} /> : null}
       {!list.ready ? <Card className="bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
       {error ? <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
