@@ -21,8 +21,28 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 1. Descompacte o zip novo **por cima da mesma pasta** (substituindo os arquivos).
 2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
 3. A chave e as opções continuam salvas — não precisa configurar de novo.
-4. **Versão 1.9.3:** confira se o cartão da extensão mostra "1.9.3" — e, no CRM, Chat Marketplace mostra "Extensão 1.9.3: última leitura…". Na 1.9.3: se o Chrome não estiver mostrando a aba do Facebook (tela desligada/bloqueada, janela minimizada ou coberta), a extensão não tenta abrir conversa (o Facebook não abre assim) e deixa para a próxima rodada; conversa que falhou espera 4 → 8 → 15 → 30 min antes de nova tentativa (antes era a cada 2 min); a leitura do histórico para sozinha antes do prazo (não perde mais o que leu). Sem permissão nova.
-5. Desde a 1.9.2 o envio das respostas abre a conversa pelo endereço direto (guardado na leitura), espera até 45 s, mostra a aba do Facebook por alguns instantes durante o envio e confere a mensagem na conversa antes de dar como enviada; falha antes de digitar é tentada de novo pelo CRM (até 3 vezes). Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
+4. **Versão 1.9.4:** confira se o cartão da extensão mostra "1.9.4" e, no CRM, Chat Marketplace mostra "Extensão 1.9.4: última leitura…". A partir dela a extensão trabalha numa **janela pequena só dela** (veja "Janela de trabalho" abaixo) e não abre mais abas na sua janela.
+5. Desde a 1.9.3: se o Chrome não estiver mostrando a aba do Facebook (tela desligada/bloqueada, janela minimizada ou coberta), a extensão não tenta abrir conversa (o Facebook não abre assim) e deixa para a próxima rodada; conversa que falhou espera 4 → 8 → 15 → 30 min antes de nova tentativa (antes era a cada 2 min); a leitura do histórico para sozinha antes do prazo (não perde mais o que leu). Sem permissão nova.
+6. Desde a 1.9.2 o envio das respostas abre a conversa pelo endereço direto (guardado na leitura), espera até 45 s, mostra a aba do Facebook por alguns instantes durante o envio e confere a mensagem na conversa antes de dar como enviada; falha antes de digitar é tentada de novo pelo CRM (até 3 vezes). Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
+
+## Janela de trabalho (versão 1.9.4)
+
+Pedido do dono em 22/10/2026: "ela fica a todo momento abrindo novas guias".
+
+- A extensão abre **uma janela pequena só dela** (cerca de 520 × 760), com **uma aba do Facebook** que é reaproveitada sempre: leitura e resposta do Chat, publicação de anúncio, diagnóstico e o "Manter acordado". Ela **nunca** abre aba na janela em que você trabalha e **nunca** puxa o foco. Se você fechar essa janela, ela reabre sozinha (sem foco) na próxima rodada.
+- No popup: **"Abrir janela de trabalho"** traz a janela para a frente, e a linha **"Janela de trabalho"** diz se a extensão consegue trabalhar agora (visível / oculta / minimizada).
+- **Minimizada não trabalha.** O Chrome para de desenhar a janela minimizada e o Facebook não abre conversa. A extensão espera e tenta de novo quando a janela voltar.
+- **Atrás de outras janelas trabalha**, desde que o Chrome seja aberto pelo atalho abaixo. Sem ele, o Windows avisa o Chrome que a janela está coberta e o Chrome a trata como minimizada. Com o atalho ela também continua com a tela apagada ou bloqueada.
+
+### Atalho do Chrome (uma vez só)
+
+1. Feche o Chrome por completo: todas as janelas e, se houver o ícone do Chrome perto do relógio, botão direito › **Sair**.
+2. Botão direito no atalho do Chrome que você usa (área de trabalho; na barra de tarefas: botão direito no Chrome › botão direito em "Google Chrome") › **Propriedades**.
+3. No campo **Destino**, depois de `chrome.exe"`, acrescente um espaço e cole:
+   `--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows`
+4. **OK**. Abra o Chrome sempre por esse atalho. No popup, a linha "Janela de trabalho" deve dizer **visível** mesmo com a janela atrás das outras.
+
+Não existe mais opção em `chrome://flags` para isso no Windows (confirmado no código do Chromium em 22/10/2026: o recurso `CalculateNativeWinOcclusion` só se desliga pela linha de comando). Se o Chrome for aberto por outro caminho (link, outro atalho, reinício automático depois de atualizar), vale o comportamento normal até abrir de novo pelo atalho.
 
 ## Configurar
 
@@ -60,7 +80,7 @@ Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador M
 
 Motivo: em 22/10/2026 a extensão ficou ~11 h sem falar com o CRM com o PC ligado (Chrome/computador "dormindo").
 
-- **A cada 1 minuto** a extensão acorda sozinha (alarme do Chrome), abre uma aba **em segundo plano** (nunca vira a aba ativa, nunca mexe na aba em que você está) com o título "mantendo o Chrome acordado" e fecha em ~2 s. Não faz isso enquanto publica um anúncio ou sincroniza o chat, nem quando não há janela do Chrome aberta (para não abrir janela nova na sua frente).
+- **A cada 1 minuto** a extensão acorda sozinha (alarme do Chrome), abre uma aba **em segundo plano** (nunca vira a aba ativa, nunca mexe na aba em que você está) com o título "mantendo o Chrome acordado" e fecha em ~2 s. Não faz isso enquanto publica um anúncio ou sincroniza o chat, nem quando não há janela do Chrome aberta (para não abrir janela nova na sua frente). **Desde a 1.9.4 essa aba abre dentro da janela de trabalho da extensão, nunca na sua janela.**
 - **O que de fato impede a suspensão:** a extensão pede ao Chrome para o **computador não dormir** (`chrome.power`, modo "system" — a tela ainda pode apagar normalmente) e marca as abas que ela mesma abre (publicação, chat, diagnóstico) para o Chrome **não descartá-las** por inatividade (`autoDiscardable: false`). A aba que abre e fecha sozinha é o pedido original; o que segura mesmo é isso.
 - **Desligar:** Opções › desmarque "Manter o Chrome e o computador acordados". O botão **Pausar** do popup também solta (Retomar volta a segurar). O popup mostra "Manter acordado: ligado/desligado".
 - Não impede o computador de dormir se você mandar suspender, fechar a tampa do notebook ou desligar; e precisa do Chrome aberto. Se o Windows tiver "Economia de energia" agressiva, confira também lá.

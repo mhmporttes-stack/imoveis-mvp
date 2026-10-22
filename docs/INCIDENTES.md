@@ -40,6 +40,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Extensão do Marketplace "fica a todo momento abrindo novas guias"
+- **Data:** 2026-10-22
+- **Sintoma:** "ela fica a todo momento abrindo novas guias; às vezes estou numa página e ela abre outra".
+- **Área:** extensão do Chrome (Marketplace)
+- **Causa raiz:** a extensão criava abas na janela em que o dono estava: o "Manter acordado" (1.9.0) abria e fechava uma aba a cada 1 min; cada rodada do chat (a cada 2 min) criava e fechava sua aba; a publicação abria uma aba ATIVA; e, para abrir uma conversa, a aba do Facebook virava a ativa por alguns segundos (o Facebook não abre conversa em aba oculta).
+- **Correção:** extensão 1.9.4 — janela de trabalho própria, pequena, criada sem foco, com uma aba reutilizada; tudo acontece dentro dela; foco só pelo botão do popup. Para trabalhar atrás de outras janelas: atalho do Chrome com `--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows` (README). Minimizada não trabalha.
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{background,popup}.js`, `lib/work-window.js` — ver `git log` (2026-10-22, "1.9.4").
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/work-window.test.js` (todo `tabs.create` com `windowId` da janela de trabalho; um único `focused: true`).
+- **Status:** Corrigido no código; falta o dono instalar a 1.9.4 e criar o atalho.
+
 ### 2026-10-22 — Extensão do Marketplace: "A conversa não abriu em 25 s depois do clique", "passou de 210 s e foi abandonada"
 - **Data:** 2026-10-22
 - **Sintoma:** o dono recebeu avisos de erro da extensão; `marketplace_diagnostics` (kind `thread`, `open_conversation`) com uma falha a cada ~30 min desde 20/10: "A conversa não abriu em 20–26 s depois do clique (confiável) na linha nome" (`nao_abriu`/`sem_painel`), "Etapa 'página do Facebook (mp-inbox-read)' passou de 210 s e foi abandonada" e, até 21/10 à tarde, "Etapa 'mp-inbox-open-read' passou de 240 s". Respostas do Chat Marketplace "não enviadas" (aviso Importante, 1 por mensagem) com "A conversa não abriu…" e "Conversa não encontrada na caixa do Marketplace".

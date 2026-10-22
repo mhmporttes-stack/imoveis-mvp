@@ -338,6 +338,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Extensão do Marketplace 1.9.4: janela de trabalho própria (sem abrir abas na janela do dono)
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace / publicação · extensão do Chrome (`ferramentas/marketplace-publicador`)
+- **Alteração:** toda a automação no Facebook roda numa janela pequena só da extensão (520×760), criada sem foco (`focused:false`) e com UMA aba reutilizada (`chrome.storage.local.workWindow`; depois de reiniciar o Chrome, readota a janela estreita com 1 aba do Facebook — `lib/work-window.js`). A rodada do chat e o diagnóstico usam essa aba e não a fecham mais; a publicação e a aba do "Manter acordado" (a cada 1 min) abrem DENTRO dessa janela; sem janela de trabalho, o pulso não abre aba. Na instalação/início, fecha abas "manter acordado" que sobraram (só pelo endereço da extensão). Popup: botão "Abrir janela de trabalho" (único `focused:true`) e indicador visível/oculta/minimizada (`document.visibilityState` lido na página), com o passo a passo do atalho. Mantém tudo da 1.9.3 (não clica com a página oculta, esperas, nova tentativa espaçada).
+- **Motivo:** dono, 2026-10-22: "ela fica a todo momento abrindo novas guias; às vezes estou numa página e ela abre outra".
+- **Pesquisa (código do Chromium, 22/10/2026):** a oclusão nativa do Windows (`features::kCalculateNativeWinOcclusion`, ligada por padrão) marca como oculta a janela coberta e TODAS com tela desligada ou bloqueada (`native_window_occlusion_tracker_win.cc`); não há mais entrada em `chrome://flags` no Windows; desliga-se com `--disable-features=CalculateNativeWinOcclusion` (mais `--disable-backgrounding-occluded-windows`) no atalho. Minimizada continua oculta sempre.
+- **Arquivos afetados:** `ferramentas/marketplace-publicador/{manifest.json,background.js,popup.html,popup.js,painel.css,README.md,lib/work-window.js,tests/work-window.test.js,tests/chat.test.js,tests/selectors.test.js}`, `ferramentas/marketplace-publicador.zip`.
+- **Banco/CRM:** nada.
+- **Risco/observação:** a janela de trabalho fica aberta o tempo todo (o dono pode deixá-la atrás das outras, mas não minimizada). Se o dono fechar, reabre sozinha sem foco na rodada seguinte. Sem testar no Chrome real (sem acesso ao PC do dono).
+- **Verificação:** `node --test tests/*.test.js` da extensão (94/94).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry no celular (app): tocar para falar, cena cheia com safe-area e áudio do iOS (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Henry · PWA/layout do celular

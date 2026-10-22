@@ -83,11 +83,12 @@ test("content.js: sem título, turbinar desligado, ordem do formulário", () => 
 
 test("background: aba dedicada, navegação esperando carregar, reinjeção e aba fechada no fim", () => {
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
-  assert.match(bg, /chrome\.tabs\.create\(\{ url: "about:blank"/);
-  // Nunca mexe nas abas do dono. Única exceção (1.8.10, focusTab): saber qual aba estava ativa para devolver o
-  // foco a ela depois de mostrar a aba dedicada durante a abertura de uma conversa.
+  // 1.9.4: a aba da publicação nasce dentro da janela de trabalho da extensão.
+  assert.match(bg, /chrome\.tabs\.create\(\{ windowId: work\.windowId, url: "about:blank"/);
+  // Nunca mexe nas abas do dono. Exceções: focusTab (aba ativa da própria janela de trabalho), a aba da janela de
+  // trabalho recém-criada e as abas "manter acordado" que sobraram (só pelo endereço da própria extensão).
   const queries = bg.match(/chrome\.tabs\.query\([^)]*\)/g) || [];
-  assert.deepEqual(queries, ["chrome.tabs.query({ active: true, windowId: tab.windowId })"], "nunca mexe nas abas do dono");
+  assert.deepEqual(queries, ["chrome.tabs.query({ windowId: win.id })", "chrome.tabs.query({ url: chrome.runtime.getURL(PULSE_PAGE)", "chrome.tabs.query({ active: true, windowId: tab.windowId })"], "nunca mexe nas abas do dono");
   assert.match(bg, /if \(previous\?\.id && previous\.id !== tabId\) await chrome\.tabs\.update\(previous\.id, \{ active: true \}\)/);
   assert.match(bg, /PAGE_LOAD_TIMEOUT_MS = 45 \* 1000/);
   assert.match(bg, /marketplace\/create\/rental/);

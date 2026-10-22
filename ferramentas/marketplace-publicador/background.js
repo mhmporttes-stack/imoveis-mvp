@@ -5,6 +5,7 @@ import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, p
 import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
+import { WORK_WINDOW_SIZE, describeWorkView, findWorkWindow } from "./lib/work-window.js";
 
 const ALARM = "mp-tick";
 const CHAT_ALARM = "mp-chat";
@@ -52,6 +53,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   ensureAlarm();
   // Instalou/atualizou/recarregou (↻): nenhuma sincronização pode estar rodando — solta a trava e fecha a aba órfã.
   await releaseDeadChatLock("extensão recarregada/atualizada");
+  await closeLeftoverPulseTabs();
   await applyPower();
   // 1.8.9: as versões 1.8.6–1.8.8 podiam guardar a prévia de conversa enviada SEM mensagens (o histórico nunca mais
   // seria lido). Uma vez, ao atualizar delas, esquece as prévias: tudo é relido com histórico completo (o CRM
@@ -63,6 +65,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.runtime.onStartup.addListener(async () => {
   ensureAlarm();
   await releaseDeadChatLock("Chrome reiniciado");
+  await closeLeftoverPulseTabs();
   await applyPower();
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -90,19 +93,78 @@ async function protectTab(tabId) {
   await chrome.tabs.update(tabId, { autoDiscardable: false }).catch((error) => console.warn("[marketplace] autoDiscardable falhou:", error?.message || error));
 }
 
-// Pedido literal do dono: a cada 1 min abre uma aba em segundo plano (nunca ativa, nunca na aba do usuário) e fecha em ~2 s.
+// --- Janela de trabalho (1.9.4) ------------------------------------------------------------------------------------
+// Pedido do dono (2026-10-22): "ela fica a todo momento abrindo novas guias; às vezes estou numa página e ela abre
+// outra". Tudo o que a extensão faz no Facebook acontece numa janela PEQUENA só dela, com UMA aba reutilizada (guardada
+// em chrome.storage.local.workWindow e recuperada depois de reiniciar o Chrome — regra em lib/work-window.js). Nunca
+// cria aba na janela do dono e nunca dá foco: a janela nasce sem foco (focused:false) e só vem para a frente pelo botão
+// "Abrir janela de trabalho" do popup. Minimizada o Facebook não abre conversa (a extensão espera, 1.9.3).
+let workTabPending = null;
+
+async function getWorkTab({ create = true } = {}) {
+  if (workTabPending) return workTabPending;
+  workTabPending = (async () => {
+    const { workWindow } = await chrome.storage.local.get("workWindow");
+    const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }).catch(() => []);
+    const found = findWorkWindow(windows, workWindow);
+    if (found) {
+      if (found.windowId !== workWindow?.windowId || found.tabId !== workWindow?.tabId) await chrome.storage.local.set({ workWindow: { windowId: found.windowId, tabId: found.tabId } });
+      return chrome.tabs.get(found.tabId);
+    }
+    if (!create) return null;
+    const win = await chrome.windows.create({ url: INBOX_URL, type: "normal", focused: false, ...WORK_WINDOW_SIZE });
+    const tab = win.tabs?.[0] || (await chrome.tabs.query({ windowId: win.id }))[0];
+    await chrome.storage.local.set({ workWindow: { windowId: win.id, tabId: tab.id } });
+    await protectTab(tab.id);
+    return tab;
+  })().finally(() => {
+    workTabPending = null;
+  });
+  return workTabPending;
+}
+
+async function isWorkTab(tabId) {
+  const { workWindow } = await chrome.storage.local.get("workWindow");
+  return Boolean(tabId && workWindow?.tabId === tabId);
+}
+
+// Botão do popup (pedido explícito do dono): única vez em que a extensão traz a janela de trabalho para a frente.
+async function openWorkWindow() {
+  const tab = await getWorkTab();
+  await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
+  await chrome.tabs.update(tab.id, { active: true });
+  return { ok: true };
+}
+
+// Indicador do popup: a janela existe? está minimizada? a página do Facebook está visível para o Chrome?
+async function workView() {
+  const tab = await getWorkTab({ create: false }).catch(() => null);
+  if (!tab) return describeWorkView({ exists: false });
+  const window = await chrome.windows.get(tab.windowId).catch(() => ({}));
+  const view = String(tab.url || "").startsWith(FB_PREFIX) ? await pageVisibility(tab.id) : { visibility: "?" };
+  return describeWorkView({ exists: true, windowState: window.state, visibility: view.visibility });
+}
+
+// Abas "manter acordado" que ficaram de uma versão anterior / worker morto (só as da extensão, pelo endereço).
+async function closeLeftoverPulseTabs() {
+  const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL(PULSE_PAGE) }).catch(() => []);
+  for (const tab of tabs) await chrome.tabs.remove(tab.id).catch(() => {});
+}
+
+// Pedido literal do dono (1.9.0): a cada 1 min abre uma aba em segundo plano e fecha em ~2 s. 1.9.4: dentro da janela
+// de trabalho (nunca na janela do dono); sem janela de trabalho, não abre (a rodada do chat a recria em até 2 min).
 async function keepAwakeTick() {
   const { keepAwake, state } = await applyPower();
   const { pulseTabId } = await chrome.storage.session.get("pulseTabId");
   const previousPulseOpen = pulseTabId ? Boolean(await chrome.tabs.get(pulseTabId).catch(() => null)) : false;
-  const windows = await chrome.windows.getAll({ windowTypes: ["normal"] }).catch(() => []);
-  const decision = decidePulse(keepAwake, state, { chatBusy: await chatBusy(), hasNormalWindow: windows.length > 0, previousPulseOpen });
+  const work = await getWorkTab({ create: false }).catch(() => null);
+  const decision = decidePulse(keepAwake, state, { chatBusy: await chatBusy(), hasNormalWindow: Boolean(work), previousPulseOpen });
   if (!decision.pulse) {
     // Aba de um minuto anterior que ficou (worker morreu antes de fechar): fecha agora.
     if (previousPulseOpen && decision.reason === "aba_anterior_aberta") await chrome.tabs.remove(pulseTabId).catch(() => {});
     return decision;
   }
-  const tab = await chrome.tabs.create({ active: false, url: chrome.runtime.getURL(PULSE_PAGE) });
+  const tab = await chrome.tabs.create({ windowId: work.windowId, active: false, url: chrome.runtime.getURL(PULSE_PAGE) });
   await chrome.storage.session.set({ pulseTabId: tab.id });
   await sleep(PULSE_TAB_CLOSE_MS);
   await chrome.tabs.remove(tab.id).catch(() => {});
@@ -286,8 +348,10 @@ async function runPublication(listing) {
     return { ok: false, clickedPublish: false, step: "baixar fotos do CRM", error: error.message };
   }
 
-  // Aba NOVA e dedicada (nunca a aba em que você está navegando); fechada no final, com print em caso de falha.
-  const tab = await chrome.tabs.create({ url: "about:blank", active: true });
+  // Aba NOVA e dedicada, dentro da janela de trabalho (1.9.4 — nunca na janela do dono, que não recebe foco); fechada
+  // no final, com print em caso de falha. Ativa só dentro da janela de trabalho (o print é da aba visível dela).
+  const work = await getWorkTab();
+  const tab = await chrome.tabs.create({ windowId: work.windowId, url: "about:blank", active: true });
   await protectTab(tab.id);
   await sleep(500);
   await attachDebugger(tab.id);
@@ -401,6 +465,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, keepAwake: keepAwake !== false, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow };
     }
     if (message?.type === "mp-chat-unlock") return unlockChat();
+    if (message?.type === "mp-work-open") return openWorkWindow();
+    if (message?.type === "mp-work-view") return workView();
     if (message?.type === "mp-pause") {
       const state = await saveState(setManualPause(await loadState(), message.paused));
       await applyPower(); // Pausar solta o "manter acordado"; Retomar volta a segurar.
@@ -593,7 +659,7 @@ async function pageVisibility(tabId) {
 }
 
 function hiddenTabMessage(focus = {}) {
-  const where = focus.windowState === "minimized" ? "janela do Chrome minimizada" : "tela desligada/bloqueada ou janela do Chrome coberta por outro programa";
+  const where = focus.windowState === "minimized" ? "janela de trabalho minimizada" : "janela de trabalho coberta por outra janela ou tela desligada/bloqueada — veja no popup o atalho do Chrome que resolve";
   return `O Chrome não está mostrando a aba do Facebook (${where}); assim o Facebook não abre a conversa. Fica para a próxima rodada.`;
 }
 
@@ -746,11 +812,11 @@ async function sendOutbound(tabId, config, message) {
   return outcome;
 }
 
-// Aba da rodada fechada no meio (erro real "No tab with id"): abre outra antes do envio.
+// Aba da rodada fechada no meio (erro real "No tab with id"): pega/recria a aba da janela de trabalho antes do envio.
 async function ensureRoundTab(tab, round) {
   const alive = tab?.id ? await chrome.tabs.get(tab.id).catch(() => null) : null;
   if (alive) return alive;
-  const fresh = await chrome.tabs.create({ url: "about:blank", active: false });
+  const fresh = await getWorkTab();
   await round.set({ tabId: fresh.id }).catch(() => {});
   await sleep(500);
   await attachDebugger(fresh.id);
@@ -782,7 +848,8 @@ async function closeOrphanTab(lock) {
   if (!lock?.tabId) return;
   attachedTabs.delete(lock.tabId);
   await chrome.debugger.detach({ tabId: lock.tabId }).catch(() => {});
-  await chrome.tabs.remove(lock.tabId).catch(() => {});
+  // A aba da janela de trabalho (1.9.4) fica: é reutilizada. Só fecha aba de rodada de versão anterior.
+  if (!(await isWorkTab(lock.tabId))) await chrome.tabs.remove(lock.tabId).catch(() => {});
 }
 
 async function releaseDeadChatLock(reason) {
@@ -874,10 +941,10 @@ async function chatTick() {
   let previews = { ...(chatPreviews || {}) };
   let settings = chatSettings || {};
   try {
-    tab = await chrome.tabs.create({ url: "about:blank", active: false });
+    // 1.9.4: a aba da janela de trabalho (reutilizada), nunca aba nova na janela do dono.
+    tab = await getWorkTab();
     await round.set({ tabId: tab.id });
     await protectTab(tab.id);
-    await sleep(500);
     // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
     await attachDebugger(tab.id);
 
@@ -1001,10 +1068,8 @@ async function chatTick() {
     return { reason: result, error: summary.error };
   } finally {
     round.stop();
-    if (tab) {
-      await detachDebugger(tab.id);
-      await chrome.tabs.remove(tab.id).catch(() => {});
-    }
+    // A aba de trabalho fica aberta para a próxima rodada (1.9.4); só o depurador é desligado.
+    if (tab) await detachDebugger(tab.id);
     // Só solta a trava se ainda for desta rodada (Destravar/rodada nova já podem ter trocado).
     const stored = await loadChatLock().catch(() => null);
     if (stored?.token === token) await chrome.storage.local.remove("chatLock");
@@ -1042,9 +1107,8 @@ async function sendDiagnostics(tabId, config, { navigate = true } = {}) {
 async function diagnoseNow() {
   const config = await loadConfig();
   if (!config.key) return { error: "Configure a chave nas opções." };
-  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
-  await protectTab(tab.id);
-  await sleep(500);
+  if (await chatBusy()) return { error: "Sincronização em andamento; tente de novo em 2 min." };
+  const tab = await getWorkTab();
   await attachDebugger(tab.id);
   try {
     const result = await sendDiagnostics(tab.id, config);
@@ -1052,6 +1116,5 @@ async function diagnoseNow() {
     return { result };
   } finally {
     await detachDebugger(tab.id);
-    await chrome.tabs.remove(tab.id).catch(() => {});
   }
 }

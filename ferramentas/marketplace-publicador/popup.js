@@ -90,8 +90,32 @@ $("check").addEventListener("click", async () => {
   }
 });
 
+// Janela de trabalho (1.9.4): visível/oculta como o Chrome a vê (lido na página do Facebook) e botão para abri-la.
+async function refreshWork() {
+  try {
+    const view = await chrome.runtime.sendMessage({ type: "mp-work-view" });
+    $("work-text").textContent = view?.text || view?.error || "—";
+    $("work").dataset.ok = view?.ok ? "1" : "";
+  } catch (error) {
+    $("work-text").textContent = `Erro: ${error.message}`;
+  }
+}
+
+$("work-open").addEventListener("click", async () => {
+  $("work-open").disabled = true;
+  try {
+    const result = await chrome.runtime.sendMessage({ type: "mp-work-open" });
+    if (result?.error) $("feedback").textContent = `Erro: ${result.error}`;
+  } finally {
+    $("work-open").disabled = false;
+    refreshWork();
+  }
+});
+
 refresh();
+refreshWork();
 setInterval(refresh, 5000);
+setInterval(refreshWork, 5000);
 
 // "Destravar sincronização" (1.8.7): solta a trava do chat e fecha a aba dela; a próxima rodada começa em até 2 min.
 $("unlock").addEventListener("click", async () => {
