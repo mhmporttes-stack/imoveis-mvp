@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
+import { useSceneHeld } from "./SceneGate";
 
 // Container + item reutilizáveis para uma lista/grid que entra em sequência
 // (stagger) — usar StaggerContainer envolvendo vários StaggerItem. Pensado
@@ -11,13 +12,15 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 // entre eles).
 export function StaggerContainer({ children, className = "", staggerChildren = 0.06, delayChildren = 0.1, as = "div", ...rest }) {
   const reducedMotion = usePrefersReducedMotion();
+  const held = useSceneHeld();
   const MotionTag = motion[as] || motion.div;
 
+  // held: dentro de um SceneGate com a Cena 2 ainda tocando — os itens esperam ela terminar para entrar.
   return (
     <MotionTag
       className={className}
       initial="hidden"
-      animate="visible"
+      animate={held ? "hidden" : "visible"}
       variants={{ visible: { transition: reducedMotion ? { duration: 0 } : { staggerChildren, delayChildren } } }}
       {...rest}
     >

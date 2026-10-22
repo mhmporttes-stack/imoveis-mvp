@@ -9,7 +9,7 @@ import scene from "@/components/scenes/scenes.module.css";
 // (IntersectionObserver) e de novo só quando `replayKey` muda (ex.: outro período carregado). Com "reduzir movimento"
 // devolve "still" (tudo aparece direto). Sem IntersectionObserver: toca já.
 // Fases: "wait" (escondido esperando) → "play" (tocando/tocou) | "still" (sem movimento).
-// Mesma linha da entrada por rolagem do painel (scroll-reveal.js: o bloco entra ao passar de 55% da altura da tela):
+// Mesma linha da entrada por rolagem do painel (scroll-reveal.js: o bloco entra ao passar de 90% da altura da tela):
 // a cena de dentro não toca enquanto o bloco que a contém ainda está escondido. Dentro de um bloco que entra por
 // rolagem, use delayMs (~300 ms) para a cena começar quando o bloco já está quase no lugar.
 export const SCENE_ROOT_MARGIN = REVEAL_ROOT_MARGIN;

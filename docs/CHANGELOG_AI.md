@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Velocidade, etapa 2 (frente): fontes, entrada por rolagem, Meta Diária, service worker e fades
+- **Data:** 2026-10-22
+- **Área:** Frontend/PWA (painel inteiro)
+- **Alteração:** (1) as 5 fontes da Mensagem do dia (`components/DailyMessageExperience.jsx`) com `preload: false` — o login e toda tela do painel pré-carregavam ~174 KB de fontes; agora só a Manrope (1 link de preload em `/admin/login`, medido com `next start`); a cena espera a fonte escolhida chegar (`document.fonts.load`, teto 2,5 s) antes de começar, para ficar idêntica. (2) `components/motion/scroll-reveal.js`: sem `filter: blur` (fica deslizar + escala + opacidade, 1,1 s), varredura linear (300 cards: 90 001 → ~300 chamadas `contains`), mutação processa só os nós novos, linha de entrada de 55% para 90% da tela (`useSceneInView` segue a mesma linha). (3) Meta Diária: `SceneGate` monta o painel junto com a Cena 2 (invisível) e só segura o início da Cena 3 (`useSceneHeld` em `RevealCard`, `StaggerContainer`, `MetaRing`); as 3 cenas iguais. (4) `public/sw.js`: `/_next/static/*` num cache sem versão (`painel-matheus-next-static`, máx. 600 entradas) que sobrevive às publicações; o resto continua limpo a cada deploy; o aviso de nova versão não muda (sw.js continua mudando de bytes a cada build). (5) Decisão B do dono: movimento com as durações atuais, opacidade em 0,4 s (`--mm-motion-fade`) nas cenas de `app/globals.css` (abas, conversa, mensagem nova, menu da mensagem, indicador da navegação, fundo dos Sheets; o fade do papel de parede do Chat 2,34 s → 0,4 s). Opcional: anel pulsante do Campeão/Melhor do dia com disco em pseudo-elemento (transform/opacity) no lugar do box-shadow animado.
+- **Motivo:** etapa 2 de velocidade aprovada pelo dono em 22/10/2026 ("sem remover nenhuma função… todas as cenas mantidas").
+- **Arquivos afetados:** `components/DailyMessageExperience.jsx`, `components/motion/scroll-reveal.js`, `components/motion/SceneGate.jsx`, `components/motion/RevealCard.jsx`, `components/motion/StaggerReveal.jsx`, `components/scenes/MetaRing.jsx`, `components/scenes/useSceneInView.js`, `public/sw.js`, `app/globals.css`, `tests/scroll-reveal-linear.test.mjs`, `tests/sw-next-static-cache.test.mjs`, `docs/pwa-admin.md`.
+- **Risco/observação:** sem login no ambiente do agente — cenas não vistas em aparelho real (A CONFIRMAR no celular do dono, sobretudo a Meta Diária vindo pelo ícone e a Mensagem do dia com fonte não padrão). Mutação só com nós novos: um bloco que já existia baixo (≤ 24 px) e cresce só por texto não ganha mais a entrada (continua visível). Com a linha em 90%, as cenas de Desempenho começam mais cedo na rolagem. `--mm-motion-backdrop` ficou sem uso (mantida).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-22 — Painel pré-carrega Clientes, a barra e todo o menu (celular e computador)
 - **Data:** 2026-10-22
 - **Área:** Infra/PWA (navegação do painel)

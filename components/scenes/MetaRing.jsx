@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
+import { useSceneHeld } from "@/components/motion/SceneGate";
 import scene from "@/components/scenes/scenes.module.css";
 
 // Anel da Meta Diária com a foto do corretor (visual novo, 2026-10-22). Na PRIMEIRA vez que aparece, o anel sobe
@@ -55,7 +56,9 @@ function useStartWhenVisible(ref, enabled, delayMs) {
 export default function MetaRing({ percent = 0, name = "", photoUrl = "", size = 160, playOnView = false, delayMs = 0, label = "Meta diária" }) {
   const reduced = usePrefersReducedMotion();
   const rootRef = useRef(null);
-  const started = useStartWhenVisible(rootRef, playOnView, delayMs);
+  // Dentro de um SceneGate (Meta Diária), o anel espera a Cena 2 terminar antes de começar a subir.
+  const held = useSceneHeld();
+  const started = useStartWhenVisible(rootRef, playOnView, delayMs) && !held;
   const real = Math.max(0, Math.round(Number(percent) || 0));
   const ringTarget = Math.min(100, real);
   const value = useMotionValue(0);

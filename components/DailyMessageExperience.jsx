@@ -8,14 +8,16 @@ import scene from "@/components/scenes/scenes.module.css";
 import styles from "./DailyMessageExperience.module.css";
 
 // next/font/google exige import estático — as 5 fontes permitidas pela
-// configuração administrativa (item 23) são todas carregadas aqui; a
-// escolha em tempo real só troca qual variável CSS é aplicada, sem
-// requisição extra além das já feitas pelo build.
-const playfairDisplay = Playfair_Display({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
-const cormorantGaramond = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
-const libreBaskerville = Libre_Baskerville({ subsets: ["latin"], weight: ["400", "700"], display: "swap", variable: "--font-daily-message" });
-const lora = Lora({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
-const cinzel = Cinzel({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
+// configuração administrativa (item 23) são declaradas aqui; a escolha em
+// tempo real só troca qual variável CSS é aplicada.
+// Velocidade (2026-10-22): preload:false — este módulo entra em TODA tela do painel (DailyMessageGate no layout,
+// inclusive o login), e o preload fazia o navegador baixar as 5 fontes (~174 KB) sempre. Agora só a fonte escolhida
+// é baixada, quando a cena abre; a cena espera a fonte carregar (FONT_WAIT_MS no máximo) para ficar idêntica.
+const playfairDisplay = Playfair_Display({ subsets: ["latin"], preload: false, weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
+const cormorantGaramond = Cormorant_Garamond({ subsets: ["latin"], preload: false, weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
+const libreBaskerville = Libre_Baskerville({ subsets: ["latin"], preload: false, weight: ["400", "700"], display: "swap", variable: "--font-daily-message" });
+const lora = Lora({ subsets: ["latin"], preload: false, weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
+const cinzel = Cinzel({ subsets: ["latin"], preload: false, weight: ["500", "600", "700"], display: "swap", variable: "--font-daily-message" });
 
 const FONT_CLASS = {
   playfair_display: playfairDisplay.variable,
@@ -24,6 +26,16 @@ const FONT_CLASS = {
   lora: lora.variable,
   cinzel: cinzel.variable
 };
+const FONT_FAMILY = {
+  playfair_display: playfairDisplay.style.fontFamily,
+  cormorant_garamond: cormorantGaramond.style.fontFamily,
+  libre_baskerville: libreBaskerville.style.fontFamily,
+  lora: lora.style.fontFamily,
+  cinzel: cinzel.style.fontFamily
+};
+// Teto de espera pela fonte da frase: rede lenta não pode prender o usuário fora do CRM; passado o teto a cena abre
+// com a fonte de reserva (Georgia) e troca quando a fonte chegar (display: swap), como antes.
+const FONT_WAIT_MS = 2500;
 
 // Tempos da cena (aprovados no protótipo de 2026-10-22): a saudação começa a ser digitada aos 0,6 s e as letras da
 // frase começam a voar junto com ela, 22 ms entre uma e outra; cada uma é soldada 560 ms depois de cravar.
@@ -67,6 +79,9 @@ export default function DailyMessageExperience({ card, font = DEFAULT_FONT, onCo
   const [ready, setReady] = useState(false);
   const [closing, setClosing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const useUiFont = !FONT_CLASS[font] || font === DEFAULT_FONT;
+  const fontFamily = useUiFont ? "" : FONT_FAMILY[font];
+  const [fontReady, setFontReady] = useState(!fontFamily);
 
   const layout = useMemo(() => weldLayout(card?.mainText, { start: FLY_START_MS, step: FLY_STEP_MS, lag: WELD_LAG_MS }), [card?.mainText]);
   const greeting = useMemo(() => {
@@ -75,13 +90,25 @@ export default function DailyMessageExperience({ card, font = DEFAULT_FONT, onCo
   }, [userName]);
   const still = reduced || skipped;
 
+  // Fonte sem preload: só monta a cena depois que a fonte escolhida chega, para as animações começarem já com ela.
+  useEffect(() => {
+    if (!fontFamily || typeof document === "undefined" || !document.fonts?.load) { setFontReady(true); return undefined; }
+    let alive = true;
+    setFontReady(false);
+    const done = () => { if (alive) setFontReady(true); };
+    const timer = setTimeout(done, FONT_WAIT_MS);
+    document.fonts.load(`700 1em ${fontFamily}`, card?.mainText || "").then(done, done);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [fontFamily, card?.mainText]);
+
   // O botão só fica clicável quando a frase terminou de ser soldada (ou se a animação foi pulada).
   useEffect(() => {
+    if (!fontReady) return undefined;
     setSkipped(false);
     setReady(false);
     const timer = setTimeout(() => setReady(true), layout.end + 200);
     return () => clearTimeout(timer);
-  }, [card?.id, layout.end]);
+  }, [card?.id, layout.end, fontReady]);
 
   function handleStart() {
     if (submitting) return;
@@ -90,8 +117,7 @@ export default function DailyMessageExperience({ card, font = DEFAULT_FONT, onCo
     setTimeout(() => onComplete?.(), 500);
   }
 
-  if (!card) return null;
-  const useUiFont = !FONT_CLASS[font] || font === DEFAULT_FONT;
+  if (!card || !fontReady) return null;
   const fontVariable = useUiFont ? "" : FONT_CLASS[font];
   const isBiblical = card.type === "biblical";
   const timing = {

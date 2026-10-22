@@ -33,6 +33,8 @@ Somente recursos estáticos seguros são armazenados, como:
 - arquivos estáticos do Next.js;
 - página offline sem dados privados.
 
+Desde 2026-10-22 (velocidade, etapa 2), os arquivos de `/_next/static/*` (hash do conteúdo no nome) ficam no cache sem versão `painel-matheus-next-static` (máx. 600 entradas, os mais antigos saem), que sobrevive às publicações; os demais ficam em `painel-matheus-v4-<build>-static`, apagado a cada deploy. Trava: `tests/sw-next-static-cache.test.mjs`.
+
 ## Pré-carregamento do painel (AdminWarmup)
 
 Dono, 2026-10-22: botões do app prontos antes do toque, Clientes primeiro. `components/AdminWarmup.jsx` (montado em `app/admin/layout.jsx`) roda no celular e no computador, 2 s depois que o painel abre, um item por vez com o navegador ocioso e o app visível:
