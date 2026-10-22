@@ -250,6 +250,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+
+### 2026-10-22 — Marketplace (MKT-2e): resposta escrita pelo CRM segura o cliente mesmo com envio falho
+- **Data:** 2026-10-22
+- **Área:** `lib/marketplace-chat.js` (`pendingRepliesByConversation` → `humanRepliesByConversation`, sem filtro de status), `lib/marketplace-chat-core.mjs` (`shouldRedistribute`: `pendingReplySince` → `humanReplySince`), `tests/marketplace-chat-core.test.mjs`.
+- **Caso real:** conversa entregue pela roleta a um corretor; ele respondeu pelo Chat do Marketplace às 08:38, o envio pela extensão falhou (`failed`) e o job MKT-2e redistribuiu às 11:08 (mensagem só saiu às 11:12, reprocessada).
+- **Alteração:** regra oficial do dono ("quando o corretor responder, ele tem que ser fidelizado a esse corretor"): resposta humana outbound com `sender_user_id`, `created_at >= assigned_at`, em qualquer status, segura o prazo; interna (MKT-2i) não conta. Nada mais da roleta mudou. Nenhum dado alterado no banco (devolução da conversa ao corretor original fica a critério do dono).
+- **Docs:** `BUSINESS_RULES.md` MKT-2e, `.claude/rules/roleta-prospeccao-campanhas.md` MKT-2e, `INCIDENTES.md`.
+- **Verificação:** `node --test tests/marketplace*.test.mjs`, `pnpm build`.
 ### 2026-10-22 — Trava "primeira mensagem = simulação": texto certo quando a simulação já está feita
 - **Data:** 2026-10-22
 - **Área:** `lib/simulation-first-core.mjs` (`SIMULATION_FIRST_DONE_MESSAGE`, `isSimulationFirstDone`, `simulationFirstMessageFor`), `lib/whatsapp-chat.js` (`simulationFirstState` devolve `{ status, done }`, `assertSimulationFirst`, conversa expõe `simulationFirstDone`), `components/WhatsappChat.jsx` (aviso âmbar).

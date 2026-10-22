@@ -80,10 +80,26 @@ test("MKT-2e prazo vencido: só conversa da roleta, prazo da regra da roleta, re
   assert.equal(shouldRedistribute(base, now, { deadlineMs: null }), false, "regra da roleta desligada = ninguém troca");
   assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(8) }, now, { deadlineMs }), false, "respondeu depois de receber");
   assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(20) }, now, { deadlineMs }), true, "resposta de antes de receber não segura");
-  assert.equal(shouldRedistribute(base, now, { deadlineMs, pendingReplySince: ago(3) }), false, "resposta escrita, ainda na fila de saída");
-  assert.equal(shouldRedistribute(base, now, { deadlineMs, pendingReplySince: ago(30) }), true, "fila de saída de antes de receber não segura");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs, humanReplySince: ago(3) }), false, "resposta escrita pelo CRM depois de receber segura");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs, humanReplySince: ago(30) }), true, "resposta de antes de receber não segura");
   assert.equal(shouldRedistribute({ ...base, assigned_user_id: null }, now, { deadlineMs }), false);
   assert.equal(shouldRedistribute({ ...base, redistributions: 7 }, now, { deadlineMs }), true, "sem teto fixo: vale a trava da volta completa");
+});
+
+test("MKT-2e resposta humana escrita pelo CRM segura em qualquer status, mesmo com envio falho (dono, 2026-10-22)", () => {
+  const deadlineMs = 10 * 60000;
+  const conversation = { assigned_user_id: "gabriel", assigned_at: ago(160), assignment_source: ASSIGNMENT_SOURCE.ROULETTE, last_human_reply_at: null };
+  const messages = [
+    { direction: "outbound", sender_user_id: "gabriel", status: "failed", created_at: ago(150) },
+    { direction: "internal", sender_user_id: "gestora", status: null, created_at: ago(140) },
+    { direction: "outbound", sender_user_id: "gabriel", status: "sent", created_at: ago(200) }
+  ];
+  // Mesmo critério da consulta humanRepliesByConversation (lib/marketplace-chat.js): outbound + sender_user_id, sem filtro de status.
+  const latestHumanReply = (rows) => rows.filter((row) => row.direction === "outbound" && row.sender_user_id)
+    .map((row) => row.created_at).sort((a, b) => b.localeCompare(a))[0] || null;
+  assert.equal(shouldRedistribute(conversation, now, { deadlineMs, humanReplySince: latestHumanReply(messages) }), false, "falhou no envio: segura (caso Gustavo/Gabriel)");
+  assert.equal(shouldRedistribute(conversation, now, { deadlineMs, humanReplySince: latestHumanReply([messages[1]]) }), true, "só mensagem interna não segura");
+  assert.equal(shouldRedistribute(conversation, now, { deadlineMs, humanReplySince: latestHumanReply([messages[2]]) }), true, "resposta anterior ao assigned_at não segura");
 });
 
 test("MKT-2e 1ª carga, transferência manual e quem respondeu assumiu ficam fora do prazo", () => {

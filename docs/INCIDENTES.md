@@ -39,6 +39,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-22 — Cliente do Marketplace transferido mesmo com o corretor tendo respondido
+- **Data:** 2026-10-22
+- **Sintoma:** conversa do Marketplace recebida pela roleta foi redistribuída para outra corretora, embora o corretor tivesse respondido pelo Chat do Marketplace dentro do prazo.
+- **Área:** Roleta / Marketplace (MKT-2e)
+- **Impacto:** corretor perde o cliente que já atendeu sempre que o envio pela extensão falha; caso real: corretor respondeu às 08:38, envio falhou, a redistribuição rodou às 11:08 e a mensagem só saiu às 11:12 após reprocessar.
+- **Causa raiz:** o prazo só era segurado por `last_human_reply_at` (resposta já enviada) ou por mensagem na fila (`queued`/`sending`); `pendingRepliesByConversation` ignorava status `failed`, então a resposta escrita com envio falho não contava.
+- **Correção:** qualquer resposta humana escrita pelo CRM depois da entrega (outbound com `sender_user_id`, qualquer status) segura o cliente (`humanRepliesByConversation` + `shouldRedistribute({ humanReplySince })`); mensagem interna continua não contando. Decisão do dono 2026-10-22. Nenhum dado alterado (devolver o cliente ao corretor é decisão do dono).
+- **Arquivos/commit:** `lib/marketplace-chat.js`, `lib/marketplace-chat-core.mjs` — ver `git log` (2026-10-22, "fidelizado")
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (envio falho segura; interna não segura; resposta anterior à entrega não segura).
+- **Status:** Resolvido
 ### 2026-10-22 — Resposta do corretor no Chat Marketplace "Falhou — A conversa não abriu em 20 s depois do clique"
 - **Data:** 2026-10-22
 - **Sintoma:** resposta do Gabriel Ribeiro ficou "Falhou — A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/)"; outras com "Não confirmei a mensagem na conversa" e "No tab with id". Corretores não têm acesso ao Facebook.
