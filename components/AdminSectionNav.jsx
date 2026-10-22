@@ -24,6 +24,13 @@ export default async function AdminSectionNav({ active = "properties" }) {
   let brokerSummary = null;
   let unreadNotifications = 0;
 
+  // Visual novo (dono, 2026-10-22): o menu saiu daqui — é o menu lateral do layout (AdminMenu, com a mesma lista de
+  // getAdminMenuGroups e o Chat que some no modo lista impressa, PRO-15). Sobra só o bloco do gestor (sub-barra de
+  // Desempenho e links pessoais); para os outros perfis nada é desenhado — por isso sai ANTES de qualquer leitura
+  // (velocidade, dono 2026-10-22: o corretor/associado lia a carteira inteira a cada tela só para descartar). O
+  // retorno automático da Prospecção, que pegava carona nessa leitura, roda no cron scheduled-activities.
+  if (!isManager || isAdmin) return null;
+
   if (admin.ok && isBroker && !isAdmin) {
     try {
       const [registrations, unread] = await Promise.all([
@@ -36,12 +43,6 @@ export default async function AdminSectionNav({ active = "properties" }) {
       brokerSummary = null;
     }
   }
-
-  // Visual novo (dono, 2026-10-22): o menu saiu daqui — é o menu lateral do layout (AdminMenu, com a mesma lista de
-  // getAdminMenuGroups e o Chat que some no modo lista impressa, PRO-15). Sobra só o bloco do gestor (sub-barra de
-  // Desempenho e links pessoais); para os outros perfis nada é desenhado. A leitura de clientes do corretor
-  // acima continua igual (listSimulationRegistrations também dispara o retorno automático da Prospecção).
-  if (!isManager || isAdmin) return null;
 
   return (
     <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>

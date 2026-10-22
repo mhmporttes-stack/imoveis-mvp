@@ -16,6 +16,7 @@ import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
 import { reconcileExpectedReceiptActivities } from "@/lib/financial";
 import { runCooledClientsFlow } from "@/lib/cooled-clients";
+import { runProspectingAutoReturnJob } from "@/lib/prospecting-auto-return";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,6 +135,16 @@ export async function GET(request) {
       console.error("Falha ao reconciliar o Particular automático.", autoPrivateError);
     }
 
+    // Retorno automático de 7 dias da Prospecção (dono, 2026-10-22: saiu das leituras de tela, pode atrasar até 2 min).
+    // Antes da rede de segurança abaixo, que entrega ao dono no mesmo ciclo quem foi devolvido (FUN-11). Com trava.
+    let prospectingAutoReturn = null;
+    try {
+      prospectingAutoReturn = await runProspectingAutoReturnJob();
+    } catch (autoReturnError) {
+      console.error("Falha no retorno automático da Prospecção.", autoReturnError);
+      prospectingAutoReturn = { error: autoReturnError?.message || "Falha no retorno automático." };
+    }
+
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
     // primeiro corretor on-line quem ficou sem responsável porque, na hora
     // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
@@ -221,6 +232,7 @@ export async function GET(request) {
       automations,
       expectedReceipts,
       sponsoredLeads,
+      prospectingAutoReturn,
       pendingRouletteAssignment,
       cooledReactivation,
       marketplaceRedistribution,
