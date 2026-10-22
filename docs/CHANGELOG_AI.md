@@ -53,6 +53,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** simulação com valor salva por pessoa continua intocada pelo site. Gerador aberto sobre o rascunho e editado depois pode gravar por cima da automática (autosave) — mesmo risco que o "Refazer" já tinha, não corrigido. Clientes afetados desde 19/10: só 1, já resolvido pelo Refazer.
 - **Autor:** Claude Code
 
+### 2026-10-22 — Henry no iPhone: voz pelo AudioContext e sessão de áudio "playback"
+- **Data:** 2026-10-22
+- **Área:** Integrações/Henry
+- **Alteração:** no celular a voz toca pelo AudioContext destravado no toque (decodeAudioData), com `navigator.audioSession.type = "playback"` ao falar (alto-falante, ignora a chave de silencioso) e "play-and-record" ao voltar a ouvir; o elemento <audio> fica de reserva e, se recusado, toca no próximo toque (esse toque não interrompe a fala).
+- **Motivo:** dono (print do iPhone) — resposta escrita e "Clique ou aperte uma tecla para liberar o som", sem áudio.
+- **Arquivos afetados:** `components/henry/HenryVoiceAssistant.jsx`.
+- **Risco/observação:** `audioSession` só existe no Safari 16.4+; nos outros, segue o caminho do AudioContext/elemento. Confirmar no iPhone do dono.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry no celular: voz pelo alto-falante (microfone desligado enquanto fala)
 - **Data:** 2026-10-22
 - **Área:** Integrações/Henry

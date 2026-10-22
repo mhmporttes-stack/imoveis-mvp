@@ -98,6 +98,8 @@ export default function HenryVoiceAssistant() {
   const [inConversation, setInConversation] = useState(false);
   const conversationRef = useRef({ active: false, lastAt: 0, historyStart: 0 });
   const abortRef = useRef(null); // pedido em andamento (cancelado ao interromper)
+  const webSourceRef = useRef(null); // voz tocando pelo AudioContext (celular)
+  const soundRetryRef = useRef(false); // esperando o toque que libera o som (esse toque não interrompe a fala)
   const requestIdRef = useRef(0);
   const ackTimerRef = useRef(null);
   const lastAckRef = useRef("");
@@ -323,6 +325,15 @@ export default function HenryVoiceAssistant() {
       audio.onerror = null;
       if (!audio.paused) audio.pause();
     }
+    try {
+      if (webSourceRef.current) {
+        webSourceRef.current.onended = null;
+        webSourceRef.current.stop();
+      }
+    } catch {
+      // já terminou
+    }
+    webSourceRef.current = null;
     if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
     if (phaseRef.current === "speaking") listenAgain();
   }, [cancelAck, listenAgain]);
@@ -360,9 +371,48 @@ export default function HenryVoiceAssistant() {
     return element;
   }, []);
 
+  // iPhone (Safari 16.4+): "playback" manda a voz para o alto-falante e ignora a chave de silencioso; para ouvir de novo
+  // volta para "play-and-record". Dono, 2026-10-22: no app a resposta aparecia escrita e não saía som.
+  const setAudioSession = useCallback((type) => {
+    try {
+      if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type;
+    } catch {
+      // navegador sem a API
+    }
+  }, []);
+
+  // Celular: toca a voz pelo AudioContext destravado no toque (o elemento <audio> é recusado pelo iOS depois do
+  // reconhecimento de voz). Devolve false se não deu para tocar assim (contexto suspenso/sem suporte).
+  const playClipWebAudio = useCallback(async (clip, onEnded) => {
+    const context = audioCtxRef.current;
+    if (!context || context.state !== "running" || !clip?.audio?.base64) return false;
+    try {
+      const binary = atob(clip.audio.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      const buffer = await context.decodeAudioData(bytes.buffer);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.onended = onEnded;
+      webSourceRef.current = source;
+      source.start();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Toque que abre o Henry no celular: destrava o áudio (elemento único + voz do navegador) dentro do gesto.
   const unlockAudio = useCallback(() => {
     ensureAudioContext();
+    const context = audioCtxRef.current;
+    if (context) {
+      const source = context.createBufferSource(); // 1 amostra de silêncio: destrava o contexto no iOS
+      source.buffer = context.createBuffer(1, 1, 22050);
+      source.connect(context.destination);
+      source.start(0);
+    }
     const element = getAudioElement();
     if (element.paused && !element.src) {
       element.src = silentWavDataUri();
@@ -394,7 +444,20 @@ export default function HenryVoiceAssistant() {
       speakBrowser(clip.text, advance);
       return;
     }
-    // UM elemento de áudio reaproveitado por todas as partes (o Safari do iOS só deixa tocar o elemento destravado no toque).
+    if (!desktopRef.current) {
+      setAudioSession("playback");
+      playClipWebAudio(clip, advance).then((played) => {
+        if (played || speechQueueRef.current !== queue) return;
+        playWithElement(clip, queue, advance);
+      });
+      return;
+    }
+    playWithElement(clip, queue, advance);
+  };
+
+  // UM elemento de áudio reaproveitado por todas as partes (o Safari do iOS só deixa tocar o elemento destravado no toque).
+  // Recusado: guarda a parte e toca no próximo toque/tecla (dentro do gesto), em vez de cair na voz do navegador muda.
+  const playWithElement = (clip, queue, advance) => {
     const element = getAudioElement();
     meterActiveRef.current = Boolean(element.dataset.metered);
     element.onended = advance;
@@ -402,8 +465,21 @@ export default function HenryVoiceAssistant() {
     element.src = `data:${clip.audio.contentType || "audio/mpeg"};base64,${clip.audio.base64}`;
     element.play().catch(() => {
       if (speechQueueRef.current !== queue) return;
-      setNotice("Clique ou aperte uma tecla na página para liberar o som do Henry.");
-      speakBrowser(clip.text, advance);
+      setNotice(desktopRef.current ? "Clique ou aperte uma tecla na página para liberar o som do Henry." : "Toque na tela para ouvir o Henry.");
+      soundRetryRef.current = true;
+      const retry = () => {
+        window.setTimeout(() => {
+          soundRetryRef.current = false;
+        }, 600);
+        window.removeEventListener("pointerdown", retry, true);
+        window.removeEventListener("keydown", retry, true);
+        if (speechQueueRef.current !== queue) return;
+        ensureAudioContext();
+        setNotice("");
+        element.play().catch(() => speakBrowser(clip.text, advance));
+      };
+      window.addEventListener("pointerdown", retry, true);
+      window.addEventListener("keydown", retry, true);
     });
   };
 
@@ -711,9 +787,12 @@ export default function HenryVoiceAssistant() {
       stopListeningRef.current?.();
       stopMicMeter();
     } else if (phase === "armed" && sessionOpenRef.current) {
+      setAudioSession("play-and-record");
       startListeningRef.current?.();
+    } else if (phase === "idle") {
+      setAudioSession("auto");
     }
-  }, [phase, desktop, stopMicMeter]);
+  }, [phase, desktop, stopMicMeter, setAudioSession]);
 
   // Celular: abrir a cena ou estar em conversa mantém a escuta; fechou e a conversa acabou → para de ouvir (bateria).
   useEffect(() => {
@@ -826,7 +905,9 @@ export default function HenryVoiceAssistant() {
       onExpand={openScene}
       onMinimize={() => setExpanded(false)}
       speaking={phase === "speaking"}
-      onInterrupt={interrupt}
+      onInterrupt={() => {
+        if (!soundRetryRef.current) interrupt();
+      }}
       mobile={!desktop}
       tapToTalk={listenMode === "tap"}
       status={status}
