@@ -40,6 +40,39 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry no celular "só responde se eu escrever" / "trava quando paro de falar"
+- **Data:** 2026-10-22
+- **Sintoma:** no app instalado no iPhone o Henry não respondia à voz (só ao texto); em outros momentos mostrava "ouvindo" e travava quando o dono parava de falar.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; voz no celular inutilizável.
+- **Causa raiz:** o `webkitSpeechRecognition` não existe ou falha no modo standalone do iPhone; quando existe, às vezes entrega só resultados parciais e o `isFinal` nunca chega — a frase nunca era tratada.
+- **Correção:** gravação + ElevenLabs Speech to Text no celular (`henryCaptureMode`); parcial parado por 1,2 s vira final (`forceInterimFinal`).
+- **Arquivos/commit:** `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice-conversation.mjs`, `lib/henry-voice-providers.mjs`, `app/api/admin/henry/route.js` — commit (ver `git log` 2026-10-22 "Henry: tocar para falar")
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs`, `tests/henry-voice-providers.test.mjs`. Risco residual: chave da ElevenLabs sem "Fala para Texto" → aviso na tela.
+- **Status:** Monitorando
+
+### 2026-10-22 — Henry ignorou pergunta com a tela cheia aberta ("Ouvi: … — diga 'Henry'")
+- **Data:** 2026-10-22
+- **Sintoma:** "Henry, quantos por cento falta para bater a meta de hoje" — status "Ouvi: 'Quantos por cento…' — diga 'Henry'" e nenhuma resposta.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; perguntas perdidas no computador.
+- **Causa raiz:** o Chrome corta a primeira palavra depois de uma pausa; a palavra de chamada só valia no começo da frase e a tela cheia não contava como chamada.
+- **Correção:** tela cheia aberta = já chamando (`classifyOpenSceneUtterance`); nome forte em qualquer posição (`detectWakeWord`, `anywhere`); status diz quando a frase foi ignorada.
+- **Arquivos/commit:** `lib/henry-voice-core.mjs`, `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`
+- **Prevenção/teste:** `tests/henry-voice.test.mjs`, `tests/henry-voice-conversation.test.mjs`.
+- **Status:** Resolvido
+
+### 2026-10-22 — Henry "não tenho acesso à câmera" com a visão ligada
+- **Data:** 2026-10-22
+- **Sintoma:** "eu estou com ou sem boné?" → "essa eu não sei responder"; "vc tem acesso à câmera?" → "não tenho".
+- **Área:** Henry / Visão (HENRY-2)
+- **Impacto:** só o dono.
+- **Causa raiz:** `isVisualQuestion` não reconhecia perguntas sobre o próprio dono (sem captura de imagem) e o prompt não dizia ao modelo que a visão estava ligada.
+- **Correção:** `isVisualQuestion` ampliada; `buildHenryVisionNote` manda o estado da visão a cada pedido.
+- **Arquivos/commit:** `lib/henry-voice-core.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`
+- **Prevenção/teste:** `tests/henry-voice.test.mjs`.
+- **Status:** Resolvido
+
 ### 2026-10-22 — Simulação automática do site não preencheu; precisou clicar em "Refazer simulação automática"
 - **Data:** 2026-10-22
 - **Sintoma:** cliente preencheu o formulário do site e a ficha ficou sem valores; só apareceram depois de "Refazer simulação automática".

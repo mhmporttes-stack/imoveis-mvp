@@ -39,7 +39,7 @@ test("palavra de chamada: só o nome espera a pergunta", () => {
 });
 
 test("palavra de chamada: conversa comum nunca chama", () => {
-  for (const phrase of ["Henrique mandou os documentos", "o Henrique ligou", "Henrique.", "liga pro henry amanhã", "dia henry", "o banco aprovou", "", "quantos clientes temos hoje"]) {
+  for (const phrase of ["Henrique mandou os documentos", "o Henrique ligou", "Henrique.", "o banco aprovou", "", "quantos clientes temos hoje", "o rene mandou"]) {
     assert.equal(detectWakeWord(phrase).called, false, phrase);
   }
 });
@@ -198,4 +198,78 @@ test("rota: corpo limitado e imagem só pela regra única", () => {
   assert.doesNotMatch(source, /console\.[a-z]+\([^)]*image/);
   const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
   assert.doesNotMatch(lib, /console\.[a-z]+\([^)]*(image|data\))/);
+});
+
+test("velocidade: cache curto de leitura (mesma chave = uma leitura; falha sai do cache; vence no prazo)", async () => {
+  const { createHenryReadCache } = await import("../lib/henry-voice-core.mjs");
+  let clock = 0;
+  let calls = 0;
+  const cache = createHenryReadCache({ ttlMs: 45000, now: () => clock });
+  const loader = async () => {
+    calls += 1;
+    return calls;
+  };
+  assert.equal(await cache.read("a", loader), 1);
+  assert.equal(await cache.read("a", loader), 1); // pedidos seguidos: uma leitura só
+  clock = 44999;
+  assert.equal(await cache.read("a", loader), 1);
+  clock = 45000;
+  assert.equal(await cache.read("a", loader), 2); // venceu
+  const failing = cache.read("b", async () => {
+    throw new Error("falhou");
+  });
+  await assert.rejects(failing);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await cache.read("b", async () => "ok"), "ok"); // falha não fica no cache
+});
+
+test("velocidade: resposta sem esperar gravações e sem confirmação; relatório e Início juntos", () => {
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.doesNotMatch(lib, /await recordAiUsage/);
+  assert.match(lib, /getPainelInicioDono\(auth, inicioPromise\)/);
+  assert.match(lib, /withTimeout\(buildCompliment\(auth, image, style\), COMPLIMENT_TIMEOUT_MS\)/);
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  assert.match(route, /mode === "warm"/);
+});
+
+test("palavra de chamada: nome forte em qualquer posição chama; a pergunta é o resto (dono, 2026-10-22)", () => {
+  const end = detectWakeWord("quantos por cento falta para bater a meta de hoje henry");
+  assert.equal(end.called, true);
+  assert.equal(end.kind, "question");
+  assert.equal(end.question, "quantos por cento falta para bater a meta de hoje");
+  assert.equal(detectWakeWord("Quantos leads hoje, Henry?").question, "Quantos leads hoje");
+  assert.equal(detectWakeWord("e aí quantos leads enri").question, "e aí quantos leads");
+  assert.equal(detectWakeWord("o henrique ligou").called, false); // fraco só depois de saudação
+  assert.equal(detectWakeWord("tudo bem, Henry").kind, "wake");
+});
+
+test("visão: perguntas sobre o próprio dono e o que está à vista abrem a câmera (dono, 2026-10-22)", async () => {
+  const { isVisualQuestion: visual } = await import("../lib/henry-voice-core.mjs");
+  for (const phrase of ["eu estou com ou sem boné?", "vc tem acesso à câmera, esqueceu?", "que cor é minha camisa", "como estou?", "você me vê?", "está me vendo?", "o que eu tenho na mão", "estou usando óculos?", "repara no meu relógio", "que roupa estou usando"]) {
+    assert.equal(visual(phrase), true, phrase);
+  }
+  for (const phrase of ["como estou na meta?", "estou com 3 clientes atrasados?", "olha a meta da equipe", "quantos leads hoje?"]) {
+    assert.equal(visual(phrase), false, phrase);
+  }
+  // Digitado passa pela mesma função (ask → isVisualQuestion) e o servidor confere de novo (shouldUseHenryImage).
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(src, /visionRef\.current && \(mode === "report" \|\| isVisualQuestion\(question\)\)/);
+});
+
+test("visão: estado da câmera vai ao modelo em cada pedido", async () => {
+  const { buildHenryVisionNote, VISION_ON_NO_IMAGE_REPLY } = await import("../lib/henry-voice-core.mjs");
+  const withImage = buildHenryVisionNote({ vision: true, withImage: true });
+  assert.match(withImage, /LIGADA/);
+  assert.match(withImage, /Não comente corpo, rosto, pele nem idade/);
+  const noImage = buildHenryVisionNote({ vision: true, withImage: false });
+  assert.match(noImage, /SÓ quando uma imagem vem junto/);
+  assert.ok(noImage.includes(VISION_ON_NO_IMAGE_REPLY));
+  assert.match(noImage, /Nunca diga que não tem acesso à câmera/);
+  const off = buildHenryVisionNote({ vision: false });
+  assert.match(off, /DESLIGADA/);
+  assert.match(off, /botão da câmera/);
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(lib, /buildHenryVisionNote\(\{ vision, withImage \}\)/);
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  assert.match(route, /answerHenry\(auth, \{[^}]*vision \}\)/);
 });

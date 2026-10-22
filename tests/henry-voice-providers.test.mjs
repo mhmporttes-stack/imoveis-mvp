@@ -4,7 +4,13 @@ import { readFileSync } from "node:fs";
 import {
   ELEVENLABS_DEFAULT_MODEL,
   ELEVENLABS_SPEED,
+  ELEVENLABS_STT_PERMISSION_MESSAGE,
+  HENRY_AUDIO_MAX_BASE64,
   buildElevenLabsSpeechRequest,
+  buildElevenLabsTranscriptionRequest,
+  estimateElevenLabsSttCostUsd,
+  parseElevenLabsTranscript,
+  parseHenryAudio,
   pronounceForSpeech,
   chooseHenryVoiceProvider,
   describeElevenLabsError,
@@ -127,4 +133,44 @@ test("voz: números concordam com palavra feminina (21 prospecções → vinte e
   assert.equal(pronounceForSpeech("fez 21 prospecções e 1 simulação, com 81 pontos"), "fez vinte e uma prospecções e uma simulação, com 81 pontos");
   assert.equal(pronounceForSpeech("2 pessoas, 12 vendas, 200 visitas, 3 clientes"), "duas pessoas, 12 vendas, duzentas visitas, 3 clientes");
   assert.equal(pronounceForSpeech("R$ 1.200,00 e 104% da meta"), "R$ 1.200,00 e 104% da meta");
+});
+
+test("fala para texto: pedido ao Scribe da ElevenLabs em português", () => {
+  const data = "A".repeat(400);
+  const audio = parseHenryAudio(`data:audio/mp4;base64,${data}`);
+  assert.deepEqual(audio, { mediaType: "audio/mp4", data });
+  assert.equal(parseHenryAudio(`data:audio/webm;codecs=opus;base64,${data}`).mediaType, "audio/webm");
+  assert.equal(parseHenryAudio(`data:image/jpeg;base64,${data}`), null);
+  assert.equal(parseHenryAudio(`data:audio/mp4;base64,AAAA`), null); // curto demais
+  assert.equal(parseHenryAudio(`data:audio/mp4;base64,${"A".repeat(HENRY_AUDIO_MAX_BASE64 + 4)}`), null);
+  assert.equal(parseHenryAudio(`data:audio/mp4;base64,${data}<script>`), null);
+  const request = buildElevenLabsTranscriptionRequest({ audio });
+  assert.equal(request.url, "https://api.elevenlabs.io/v1/speech-to-text");
+  assert.deepEqual(request.fields, { model_id: "scribe_v2", language_code: "por", tag_audio_events: "false" });
+  assert.equal(request.fileName, "fala.m4a");
+  assert.equal(buildElevenLabsTranscriptionRequest({ audio: { mediaType: "audio/webm", data } }).fileName, "fala.webm");
+  assert.throws(() => buildElevenLabsTranscriptionRequest({ audio: { mediaType: "video/mp4", data } }));
+  assert.equal(parseElevenLabsTranscript({ text: "  quantos   leads hoje?  " }), "quantos leads hoje?");
+  assert.equal(parseElevenLabsTranscript({}), "");
+  assert.ok(Math.abs(estimateElevenLabsSttCostUsd(3600) - 0.22) < 1e-9);
+});
+
+test("fala para texto: 401/403 viram a frase de liberar a permissão", () => {
+  assert.equal(describeElevenLabsError(401, "stt"), "Libere 'Fala para Texto' na chave da ElevenLabs.");
+  assert.equal(describeElevenLabsError(403, "stt"), ELEVENLABS_STT_PERMISSION_MESSAGE);
+  assert.match(describeElevenLabsError(429, "stt"), /429/);
+  assert.match(describeElevenLabsError(403, "tts"), /Text to Speech/); // os demais seguem como antes
+});
+
+test("fala para texto: áudio nunca é gravado nem logado; custo em henry_voice_stt", () => {
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  const fn = lib.slice(lib.indexOf("export async function transcribeHenryAudio"));
+  assert.match(fn, /feature: "henry_voice_stt"/);
+  assert.doesNotMatch(fn, /console\.[a-z]+\([^)]*audio\.data/);
+  assert.doesNotMatch(fn, /getSupabaseAdminClient|writeSettingRow|\.storage/);
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  const transcribe = route.slice(route.indexOf('body?.mode === "transcribe"'), route.indexOf('const mode = body?.mode === "report"'));
+  assert.match(transcribe, /checkPublicRateLimit\(`henry:/); // mesmo limite de taxa
+  assert.match(transcribe, /parseHenryAudio/);
+  assert.ok(route.indexOf("requireHenryOwner(request)") < route.indexOf('body?.mode === "transcribe"'));
 });

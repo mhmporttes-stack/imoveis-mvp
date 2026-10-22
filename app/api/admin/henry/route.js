@@ -13,12 +13,14 @@ import {
   readHenrySettings,
   setHenrySettings,
   synthesizeHenrySample,
-  synthesizeHenrySpeech
+  synthesizeHenrySpeech,
+  transcribeHenryAudio,
+  warmHenryReport
 } from "@/lib/henry-voice";
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
-import { HENRY_PROVIDER_LABELS } from "@/lib/henry-voice-providers.mjs";
+import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, parseHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -139,6 +141,8 @@ function speechStream(auth, reply, navigate, style) {
 // Pergunta → resposta (texto + tela da lista fechada + voz). Nada é gravado além do custo em "Gastos de IA".
 // Visão (HENRY-2): o corpo pode trazer `image` (1 quadro JPEG da webcam). Só é usada com a visão LIGADA e no "bom dia" ou
 // em pergunta com intenção visual; nunca é gravada nem logada. Corpo limitado (MAX_BODY_CHARS).
+// Tocar para falar no celular: { mode: "transcribe", audio } (data URL, ≤ 20 s) → { text } pela ElevenLabs; o áudio nunca
+// é gravado nem logado. { mode: "warm" } pré-aquece os números do relatório (cache curto, nenhuma chamada paga).
 const MAX_BODY_CHARS = 900_000;
 
 export async function POST(request) {
@@ -177,9 +181,29 @@ export async function POST(request) {
     const allowed = await claimHenryDevice(auth, deviceId).catch(() => true);
     return NextResponse.json({ ok: true, allowed });
   }
-  // Outro aparelho está conversando com o Henry agora: este fica calado (o mesmo pedido ouvido pelos dois).
-  if (deviceId && !(await claimHenryDevice(auth, deviceId).catch(() => true))) {
-    return NextResponse.json({ skipped: "other_device" });
+  if (body?.mode === "warm") {
+    try {
+      const { enabled } = await readHenrySettings();
+      if (enabled) await warmHenryReport(auth);
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      console.warn(`[henry] pré-aquecimento falhou (${error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Não foi possível pré-carregar o relatório." }, { status: 502 });
+    }
+  }
+  if (body?.mode === "transcribe") {
+    const audio = parseHenryAudio(body?.audio);
+    if (!audio) return NextResponse.json({ error: "Áudio inválido ou longo demais." }, { status: 400 });
+    const durationMs = Math.min(HENRY_AUDIO_MAX_MS + 2000, Math.max(0, Number(body?.durationMs) || 0));
+    try {
+      const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);
+      if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
+      if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
+      const text = await transcribeHenryAudio(auth, audio, { durationMs });
+      return NextResponse.json({ text });
+    } catch (error) {
+      return NextResponse.json({ error: error?.status ? error.message : "Não consegui entender o áudio agora. Tente de novo." }, { status: error?.status || 502 });
+    }
   }
   const mode = body?.mode === "report" ? "report" : "question";
   const question = typeof body?.question === "string" ? body.question.trim() : "";
@@ -187,13 +211,18 @@ export async function POST(request) {
   if (question.length > HENRY_MAX_QUESTION_LENGTH) return NextResponse.json({ error: "Pergunta longa demais." }, { status: 400 });
 
   try {
-    const { enabled, vision, style } = await readHenrySettings();
+    // Aparelho, configuração e limite de taxa ao mesmo tempo (eram três idas ao banco em fila).
+    const [allowedDevice, { enabled, vision, style }, allowedRate] = await Promise.all([
+      deviceId ? claimHenryDevice(auth, deviceId).catch(() => true) : true,
+      readHenrySettings(),
+      checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })
+    ]);
+    // Outro aparelho está conversando com o Henry agora: este fica calado (o mesmo pedido ouvido pelos dois).
+    if (!allowedDevice) return NextResponse.json({ skipped: "other_device" });
     if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
-    if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
-      return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
-    }
+    if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style });
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision });
     const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
     // Modo conversa: `stream` = resposta em linhas (NDJSON) — o texto sai na hora e a voz vai em partes (1ª frase primeiro,
     // geradas em paralelo), para começar a falar antes. Mesmo texto, mesma barreira (safeHenryReply já aplicada).

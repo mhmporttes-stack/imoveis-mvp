@@ -67,6 +67,9 @@ export default function HenryVoiceView({
   speaking = false,
   onInterrupt,
   tapToTalk = false,
+  recordMode = false, // celular sem reconhecimento de voz: tocar no anel/microfone grava; tocar de novo envia
+  recording = false,
+  onTalk,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
@@ -166,7 +169,8 @@ export default function HenryVoiceView({
       aria-label="Assistente Henry"
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
-        if (mobile && speaking) onInterrupt?.(); // celular: o microfone fica desligado enquanto ele fala; tocar na tela corta
+        if (recording) onTalk?.(); // gravando: tocar na tela envia
+        else if (mobile && speaking) onInterrupt?.(); // celular: o microfone fica desligado enquanto ele fala; tocar na tela corta
         else onMinimize?.(); // clique fora (no fundo) minimiza
       }}
       // Celular: arrastar para baixo (> 90 px) minimiza; o "voltar" do aparelho também (HenryVoiceAssistant).
@@ -204,7 +208,13 @@ export default function HenryVoiceView({
       </button>
 
       <div className={mobile ? "-translate-y-[14vh]" : ""}>
-        <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+        {onTalk ? (
+          <button type="button" onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+          </button>
+        ) : (
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+        )}
       </div>
 
       <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
@@ -217,7 +227,7 @@ export default function HenryVoiceView({
             ))
           ) : (
             <p className="text-white/55">
-              {tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
+              {recordMode ? "Toque no anel e fale: “quantos clientes aguardam resposta?”" : tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
             </p>
           )}
           {notice ? <p className="font-bold text-amber-200">{notice}</p> : null}
@@ -249,8 +259,8 @@ export default function HenryVoiceView({
           <RoundButton onClick={onToggleKeyboard} label={showKeyboard ? "Esconder o teclado" : "Digitar a pergunta"} dark active={showKeyboard}>
             <KeyboardIcon />
           </RoundButton>
-          <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
-            <MicIcon off={micOff} />
+          <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar") : micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
+            <MicIcon off={micOff && !recordMode} />
           </RoundButton>
         </div>
       </div>

@@ -2,8 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  ACK_PHRASES,
   CONVERSATION_IDLE_MS,
+  INTERIM_FINAL_MS,
+  RECORD_MAX_MS,
+  RECORD_NO_SPEECH_MS,
+  RECORD_SILENCE_MS,
+  classifyOpenSceneUtterance,
+  classifyTapUtterance,
+  emptyInterimState,
+  forceInterimFinal,
+  henryCaptureMode,
+  isInterimDue,
+  pickRecorderMimeType,
+  recordingDecision,
+  takeFinalResult,
+  trackInterim,
   acceptFollowUp,
   conversationHistory,
   detectBargeIn,
@@ -13,7 +26,6 @@ import {
   isEchoOf,
   isStopCommand,
   nextRestartDelay,
-  pickAcknowledgement,
   splitForSpeech
 } from "../lib/henry-voice-conversation.mjs";
 import { HENRY_HISTORY_TURNS, sanitizeHistory } from "../lib/henry-voice-core.mjs";
@@ -74,9 +86,7 @@ test("memória: só as trocas do modo conversa atual, no máximo ~6", () => {
   assert.equal(sanitizeHistory([...turns, { role: "user", text: "agora" }]).length <= HENRY_HISTORY_TURNS, true);
 });
 
-test("ritmo: confirmação variada, fala em partes e religar com espera crescente", () => {
-  assert.notEqual(pickAcknowledgement("Deixa eu ver…", () => 0), "Deixa eu ver…");
-  assert.ok(ACK_PHRASES.includes(pickAcknowledgement("", () => 0.99)));
+test("ritmo: fala em partes e religar com espera crescente", () => {
   assert.deepEqual(splitForSpeech("Hoje entraram 4 leads no CRM. A Carol atendeu 2 e o Bruno 1."), ["Hoje entraram 4 leads no CRM.", "A Carol atendeu 2 e o Bruno 1."]);
   assert.deepEqual(splitForSpeech("Sim. Pode."), ["Sim. Pode."]); // primeira frase curta demais: uma parte só
   assert.deepEqual(splitForSpeech(""), []);
@@ -189,4 +199,83 @@ test("um aparelho por vez: quem falou primeiro segura a conversa por 25 s", asyn
   assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now - DEVICE_HOLD_MS - 1 }, deviceId: "b", now }).allowed, true);
   assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now - 5000 }, deviceId: "a", now }).allowed, true);
   assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now }, deviceId: "", now }).allowed, true);
+});
+
+test("sem confirmação falada enquanto pensa (dono, 2026-10-22): só o anel em pensando", () => {
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /pickAcknowledgement|ACK_DELAY_MS|ackTimerRef/);
+});
+
+test("rede de segurança: parcial parado por ~1,2 s vira final, uma vez", () => {
+  let state = trackInterim(emptyInterimState(), { index: 0, text: "Henry quantos leads hoje", now: 1000 });
+  assert.equal(isInterimDue(state, 1000 + INTERIM_FINAL_MS - 1), false);
+  const forced = forceInterimFinal(state, 1000 + INTERIM_FINAL_MS);
+  assert.equal(forced.text, "Henry quantos leads hoje");
+  assert.equal(forceInterimFinal(forced.state, 9999).text, ""); // não repete
+  // O final atrasado do mesmo trecho é ignorado.
+  assert.equal(takeFinalResult(forced.state, { index: 0, text: "Henry, quantos leads hoje?" }).text, "");
+  // iPhone acumula no mesmo resultado: só o que veio depois conta.
+  state = trackInterim(forced.state, { index: 0, text: "Henry quantos leads hoje e ontem", now: 5000 });
+  assert.equal(state.text, "e ontem");
+  // Outro resultado (índice novo) conta inteiro.
+  assert.equal(takeFinalResult(forced.state, { index: 1, text: "e da Carol" }).text, "e da Carol");
+});
+
+test("rede de segurança: final de verdade cancela o parcial pendente", () => {
+  const state = trackInterim(emptyInterimState(), { index: 0, text: "bom dia Henry", now: 0 });
+  const taken = takeFinalResult(state, { index: 0, text: "bom dia Henry" });
+  assert.equal(taken.text, "bom dia Henry");
+  assert.equal(isInterimDue(taken.state, 60000), false);
+  assert.equal(forceInterimFinal(taken.state, 60000).text, "");
+  // Resultado novo antes do prazo empurra o prazo (parcial atualizado = relógio zerado).
+  const later = trackInterim(state, { index: 0, text: "bom dia Henry tudo bem", now: 1000 });
+  assert.equal(isInterimDue(later, 1000 + INTERIM_FINAL_MS - 1), false);
+});
+
+test("tocar para falar: gravação no celular sem reconhecimento ou no app do iPhone; computador segue o Chrome", () => {
+  assert.equal(henryCaptureMode({ desktop: true, hasRecognition: true, hasRecorder: true }), "recognition");
+  assert.equal(henryCaptureMode({ desktop: true, hasRecognition: false, hasRecorder: true }), "none");
+  assert.equal(henryCaptureMode({ desktop: false, hasRecognition: false, hasRecorder: true }), "record");
+  assert.equal(henryCaptureMode({ desktop: false, hasRecognition: true, hasRecorder: true }), "recognition");
+  assert.equal(henryCaptureMode({ desktop: false, hasRecognition: true, hasRecorder: true, recognitionFailed: true }), "record");
+  assert.equal(henryCaptureMode({ desktop: false, hasRecognition: true, hasRecorder: true, iosStandalone: true }), "record");
+  assert.equal(henryCaptureMode({ desktop: false, hasRecognition: false, hasRecorder: false }), "none");
+  // iPhone grava audio/mp4; Chrome/Android, webm.
+  assert.equal(pickRecorderMimeType((type) => type === "audio/mp4"), "audio/mp4");
+  assert.equal(pickRecorderMimeType((type) => type.startsWith("audio/webm")), "audio/webm;codecs=opus");
+  assert.equal(pickRecorderMimeType(() => false), "");
+  assert.equal(pickRecorderMimeType(undefined), "");
+});
+
+test("tocar para falar: para sozinho com silêncio, descarta sem voz e corta em 20 s", () => {
+  const base = { startedAt: 0, hasMeter: true };
+  assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS - 1 }), null);
+  assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS }), "send");
+  assert.equal(recordingDecision({ ...base, heardVoice: false, now: RECORD_NO_SPEECH_MS }), "discard");
+  assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: RECORD_MAX_MS, now: RECORD_MAX_MS }), "send");
+  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: 15000 }), null); // sem medidor: só toque ou 20 s
+  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: RECORD_MAX_MS }), "send");
+});
+
+test("tocar para falar: o toque já é o chamado (saudação sozinha = relatório)", () => {
+  assert.deepEqual(classifyTapUtterance("Bom dia"), { kind: "report", question: "" });
+  assert.deepEqual(classifyTapUtterance("boa tarde, tudo bem?"), { kind: "report", question: "" });
+  assert.deepEqual(classifyTapUtterance("Bom dia, Henry"), { kind: "report", question: "" });
+  assert.deepEqual(classifyTapUtterance("Henry, quantos leads hoje?"), { kind: "question", question: "quantos leads hoje?" });
+  assert.deepEqual(classifyTapUtterance("Quantos clientes aguardam resposta?"), { kind: "question", question: "Quantos clientes aguardam resposta?" });
+  assert.equal(classifyTapUtterance("Henry").kind, "wake");
+  assert.equal(classifyTapUtterance("  ").kind, "empty");
+  assert.equal(classifyTapUtterance("bom dia, quantos leads hoje?").kind, "question");
+});
+
+test("tela cheia aberta: frase sem o nome vira pedido; eco, ruído e parada não", () => {
+  const spoken = ["Hoje entraram 6 leads e 3 clientes aguardam resposta."];
+  assert.deepEqual(classifyOpenSceneUtterance("Quantos por cento falta para bater a meta de hoje", spoken), { kind: "question", question: "Quantos por cento falta para bater a meta de hoje" });
+  assert.equal(classifyOpenSceneUtterance("bom dia", spoken).kind, "report");
+  assert.equal(classifyOpenSceneUtterance("3 clientes aguardam resposta", spoken).kind, "ignore"); // eco da fala dele
+  assert.equal(classifyOpenSceneUtterance("hum", spoken).kind, "ignore");
+  assert.equal(classifyOpenSceneUtterance("pode parar", spoken).kind, "ignore");
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(src, /if \(expandedRef\.current\) \{\s*const intent = classifyOpenSceneUtterance/);
+  assert.match(src, /\(diga “Henry” antes\)/);
 });
