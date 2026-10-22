@@ -392,6 +392,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry minimizado: o nome no parcial vale, janela de conversa de 40 s e reconhecimento estável
+- **Pedido do dono:** "o Henry minimizado não está funcionando direito. Mesmo com o microfone ligado, ele interage como se estivesse escutando, mas não responde."
+- **O que mudou:** parcial com "Henry" arma o trecho (a final sem o nome vale); o reconhecimento só é recriado quando liga/desliga (handlers por ref); janela de conversa ~40 s (era 20 s) depois de qualquer pergunta, também no computador; minimizado mostra o que foi ignorado. Regra da escuta mantida (HENRY-1, "Modo conversa"; janela agora ~40 s).
+- **Docs:** `docs/INCIDENTES.md`.
+- **Arquivos:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx`, `tests/henry-voice-conversation.test.mjs`.
+
 ### 2026-10-22 — Henry: relatório semanal/mensal e períodos longos, narração na voz dele enquanto pensa e cena de busca com o corretor
 - **Pedido do dono:** "ele não consegue puxar dados longos como dos últimos 30 dias… se eu disser que quero o relatório semanal ou mensal, ele tem que puxar"; "remova os silêncios… ele continua falando"; "a tela atrás dele deve mostrar dados um pouco transparentes… cardzinho com a foto do corretor conectado a ele".
 - **O que mudou:** ferramentas `relatorio_periodo`, `consultar_corretor`, `buscar_cliente` (somente leitura; mesmas funções do Desempenho/Meta/Início; detalhe em lista na tela, voz em 3–5 frases); stream NDJSON aberto na hora com eventos de progresso, `{ narration }` com o nome do corretor e `{ error }`; frases de espera (24) sintetizadas uma vez por voz e tocadas na mesma fila da resposta; cena de busca (dados fictícios transparentes, scanner e card do corretor, painel de detalhe); `maxDuration` da rota 45 → 60 s; `max_tokens` 700 só no modo relatório.

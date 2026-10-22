@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry minimizado "escuta, mas não responde"
+- **Data:** 2026-10-22
+- **Sintoma:** com o Henry minimizado e o microfone ligado, o anel reagia à voz mas a pergunta não era respondida.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; perguntas por voz perdidas com o ícone minimizado.
+- **Causa raiz:** minimizado exige o nome, e o Chrome corta a 1ª palavra ("Henry") da frase FINAL (sobretudo logo depois de reiniciar o reconhecimento) — o parcial tinha o nome, a final não. Somado: o reconhecimento era recriado quando a identidade de um handler mudava (deps do efeito), o que aborta a sessão e perde palavras; e a janela de conversa (20 s) só abria por chamada falada.
+- **Correção:** o parcial "arma" o trecho (`named` em `trackInterim`/`takeFinalResult`/`forceInterimFinal`; `classifyArmedUtterance`); handlers por ref e deps estáveis (`active, supported, muted, recordMode, listenMode`); janela de conversa de ~40 s depois de qualquer pergunta/resposta; minimizado mostra "Ouvi: … (diga 'Henry' antes)" no balão e na dica.
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx` — commit "Henry minimizado: o nome no parcial vale…"
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (armar pelo parcial, janela de 40 s, deps estáveis).
+- **Status:** Monitorando
+
 ### 2026-10-22 — Henry no iPhone: "Áudio inválido ou longo demais." e toque no Henry abre "Copiar / Pesquisar / Traduzir"
 - **Data:** 2026-10-22
 - **Sintoma:** no app do iPhone, tocar para falar devolvia "Áudio inválido ou longo demais."; tocar no anel selecionava a animação (realce azul com alças) e abria o menu do sistema.

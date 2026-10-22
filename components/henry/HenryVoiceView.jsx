@@ -88,6 +88,7 @@ export default function HenryVoiceView({
   recordMode = false, // celular sem reconhecimento de voz: tocar no anel/microfone grava; tocar de novo envia
   recording = false,
   onTalk,
+  heardHint = "", // minimizado: "Ouvi: … (diga 'Henry' antes)" — o que foi ignorado, para o dono ver
   searching = false, // pensando/buscando: "dados" transparentes atrás do anel (HenrySearchScene)
   sceneTopic = "geral",
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
@@ -155,6 +156,11 @@ export default function HenryVoiceView({
     const box = engaged ? ICON_BIG : ICON_SMALL;
     return (
       <div className={`${fixed ? "pointer-events-none fixed bottom-5 right-5 z-[65]" : "relative"} flex items-end gap-2`} style={HENRY_NO_SELECT} data-henry-assistant>
+        {!engaged && heardHint ? (
+          <p className="mb-2 max-w-[260px] rounded-2xl px-3 py-2 text-[11px] leading-snug text-white/70 shadow-float ring-1 ring-white/10" style={{ background: BACKDROP }} aria-live="polite">
+            {heardHint}
+          </p>
+        ) : null}
         {engaged && caption ? (
           <p
             className="mb-2 max-w-[260px] rounded-2xl px-3 py-2 text-[12px] leading-snug shadow-float ring-1 ring-white/10 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] overflow-hidden"
@@ -177,7 +183,7 @@ export default function HenryVoiceView({
             className="pointer-events-auto absolute bottom-0 right-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out hover:ring-white/30 motion-reduce:transition-none"
             style={{ background: BACKDROP, width: ICON_BIG, height: ICON_BIG, transform: `scale(${box / ICON_BIG})`, transformOrigin: "bottom right" }}
             aria-label={`Abrir o Henry. ${status}`}
-            title={`Henry — ${status}`}
+            title={`Henry — ${heardHint || status}`}
           >
             <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
             {capturing ? <CaptureDot className="absolute right-3 top-3" /> : null}

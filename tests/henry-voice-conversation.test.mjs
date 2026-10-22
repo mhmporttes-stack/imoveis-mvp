@@ -50,16 +50,16 @@ test("interrupção: nome ou parada cortam; a própria voz (eco) não", () => {
   assert.equal(detectBargeIn("o Henrique mandou os documentos", "").interrupt, false);
 });
 
-test("saída do modo conversa: frases de despedida e silêncio de ~20 s", () => {
+test("saída do modo conversa: frases de despedida e silêncio de ~40 s", () => {
   for (const phrase of ["obrigado, Henry", "Obrigada", "valeu Henry", "pode parar", "tchau", "tchau, Henry", "era só isso", "ok, obrigado"]) {
     assert.equal(isConversationEnd(phrase), true, phrase);
   }
   for (const phrase of ["obrigado por avisar a Carol amanhã", "quantos leads hoje?", "", "e ontem?"]) {
     assert.equal(isConversationEnd(phrase), false, phrase);
   }
-  assert.equal(CONVERSATION_IDLE_MS, 20000);
-  assert.equal(isConversationExpired(1000, 1000 + 19999), false);
-  assert.equal(isConversationExpired(1000, 1000 + 20000), true);
+  assert.equal(CONVERSATION_IDLE_MS, 40000);
+  assert.equal(isConversationExpired(1000, 1000 + 39999), false);
+  assert.equal(isConversationExpired(1000, 1000 + 40000), true);
   assert.equal(isConversationExpired(0, 5), true);
 });
 
@@ -281,4 +281,40 @@ test("tela cheia aberta: frase sem o nome vira pedido; eco, ruído e parada não
   const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(src, /if \(expandedRef\.current\) \{\s*const intent = classifyOpenSceneUtterance/);
   assert.match(src, /\(diga “Henry” antes\)/);
+});
+
+// --- Minimizado "escuta, mas não responde" (dono, 2026-10-22) -----------------------------------------------------------
+import { classifyArmedUtterance, mentionsHenry } from "../lib/henry-voice-conversation.mjs";
+
+test("armar pelo parcial: o nome no parcial vale mesmo se a final vier sem ele", () => {
+  let state = trackInterim(emptyInterimState(), { index: 0, text: "Henry quantos por cento", now: 0 });
+  assert.equal(state.named, true);
+  state = trackInterim(state, { index: 0, text: "quantos por cento falta para bater a meta", now: 300 }); // parcial seguinte já sem o nome
+  assert.equal(state.named, true);
+  const taken = takeFinalResult(state, { index: 0, text: "Quantos por cento falta para bater a meta de hoje" });
+  assert.equal(taken.named, true);
+  assert.deepEqual(classifyArmedUtterance(taken.text), { kind: "question", question: "Quantos por cento falta para bater a meta de hoje" });
+  // Rede de segurança (parcial vira final) também leva o "armado".
+  const forced = forceInterimFinal(trackInterim(emptyInterimState(), { index: 2, text: "Henry e os leads de ontem", now: 0 }), INTERIM_FINAL_MS);
+  assert.equal(forced.named, true);
+  // Trecho novo (outro índice) sem o nome não herda.
+  const other = takeFinalResult(trackInterim(state, { index: 1, text: "conversa da sala", now: 500 }), { index: 1, text: "conversa da sala" });
+  assert.equal(other.named, false);
+  // Armado: saudação sozinha → relatório; ruído e eco → nada.
+  assert.equal(classifyArmedUtterance("bom dia").kind, "report");
+  assert.equal(classifyArmedUtterance("hum").kind, "");
+  assert.equal(classifyArmedUtterance("Hoje entraram 4 leads", ["Hoje entraram 4 leads."]).kind, "");
+  assert.equal(mentionsHenry("e aí henri tudo bem"), true);
+  assert.equal(mentionsHenry("o Henrique mandou"), false); // nome comum de cliente não arma
+});
+
+test("janela de conversa: ~40 s depois de qualquer resposta; reconhecimento não é recriado a cada render", () => {
+  assert.equal(isConversationExpired(Date.now() - 39000), false);
+  assert.equal(isConversationExpired(Date.now() - 41000), true);
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(src, /\}, \[active, supported, muted, recordMode, listenMode\]\);/); // deps estáveis
+  assert.match(src, /handleFinalRef\.current\(text, \{ armed: named \}\)/);
+  assert.match(src, /startConversation\(\); \/\/ depois de qualquer resposta/);
+  const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
+  assert.match(view, /heardHint \|\| status/); // minimizado mostra o que foi ignorado
 });

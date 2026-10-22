@@ -8,6 +8,7 @@ import {
   RECORD_MIN_MS,
   RECORD_VOICE_LEVEL,
   acceptFollowUp,
+  classifyArmedUtterance,
   classifyOpenSceneUtterance,
   classifyTapUtterance,
   emptyInterimState,
@@ -41,7 +42,7 @@ import { captureWebcamFrame } from "./webcam-capture";
 // A conversa continua ao trocar de tela (o layout não desmonta). Alt+B liga/desliga o microfone (mudo).
 // Sempre ativo (dono, 2026-10-22): a escuta liga sozinha ao abrir o painel; o som de saída é destravado no primeiro clique
 // ou tecla em qualquer lugar. Chamado/em conversa → o ícone do canto dobra de tamanho com legenda; clique → tela cheia.
-// Modo conversa (dono, 2026-10-22): depois da 1ª chamada ele segue ouvindo sem o nome até ~20 s de silêncio ou
+// Modo conversa (dono, 2026-10-22): depois da 1ª chamada ele segue ouvindo sem o nome até ~40 s de silêncio ou
 // "obrigado, Henry"/"pode parar"/"tchau"; falando ou pensando, só o nome e "para/espera/pera/chega" valem (corta na hora e
 // cancela o pedido). Memória das últimas ~6 trocas só nesta página (zerada ao sair do modo conversa). Regras puras em
 // lib/henry-voice-conversation.mjs.
@@ -687,6 +688,7 @@ export default function HenryVoiceAssistant() {
     turnsRef.current = nextTurns;
     setTurns(nextTurns);
     updatePhase("thinking");
+    startConversation(); // depois de qualquer resposta, ~40 s em que frases sem o nome valem (também no computador)
     waitRef.current = { id, startedAt: Date.now(), replied: false, topic: mode === "report" ? "relatorio" : "geral", lastAt: 0, names: [] };
     setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [] });
     touchConversation();
@@ -776,7 +778,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, router, stopSpeaking, touchConversation, updatePhase]);
+  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, router, startConversation, stopSpeaking, touchConversation, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {
@@ -952,7 +954,9 @@ export default function HenryVoiceAssistant() {
   // ruído) vira pergunta. Falando/pensando, só o nome e as palavras de parada valem. O resto é descartado aqui.
   // Devolve true quando a frase foi aceita (virou pedido, parada ou fim de conversa) — o status mostra "Ouvi: …" e, só
   // quando foi ignorada, "(diga 'Henry' antes)". Tela cheia aberta = já está chamando (sem o nome; dono, 2026-10-22).
-  const handleFinal = useCallback((raw) => {
+  // armed = o parcial deste trecho trouxe o nome e a final veio sem ele (o Chrome corta o "Henry" da final, principalmente
+  // logo depois de reiniciar): vale como chamada (dono, 2026-10-22: minimizado "escuta, mas não responde").
+  const handleFinal = useCallback((raw, { armed = false } = {}) => {
     const text = String(raw || "").trim();
     if (!text) return false;
     const conversation = conversationRef.current;
@@ -981,6 +985,15 @@ export default function HenryVoiceAssistant() {
       else listenAgain();
       return true;
     }
+    if (armed && !isEchoOf(text, spoken)) {
+      const intent = classifyArmedUtterance(text, spoken);
+      if (intent.kind) {
+        startConversation({ sound: intent.kind === "wake" });
+        if (intent.kind === "wake") listenAgain();
+        else ask(intent.kind, intent.question);
+        return true;
+      }
+    }
     if (expandedRef.current) {
       const intent = classifyOpenSceneUtterance(text, spoken);
       if (intent.kind === "report" || intent.kind === "question") {
@@ -1006,7 +1019,7 @@ export default function HenryVoiceAssistant() {
     return false;
   }, [currentSpeech, endConversation, interrupt, listenAgain, startConversation]);
 
-  // Fim do modo conversa por silêncio (~20 s sem troca; nunca no meio de uma resposta).
+  // Fim do modo conversa por silêncio (~40 s sem troca; nunca no meio de uma resposta).
   useEffect(() => {
     if (!inConversation) return undefined;
     const timer = window.setInterval(() => {
@@ -1018,7 +1031,14 @@ export default function HenryVoiceAssistant() {
   }, [inConversation, endConversation]);
 
   // --- Escuta contínua --------------------------------------------------------------------------------------------
+  // Handlers por ref: o reconhecimento NÃO é recriado quando a identidade de uma função muda (recriar aborta a sessão e
+  // perde palavras — o "Henry" do começo da frase). Só liga/desliga com active/supported/muted/recordMode/listenMode.
+  const handleFinalRef = useRef(handleFinal);
+  handleFinalRef.current = handleFinal;
+  const recognitionHandlersRef = useRef({});
+  recognitionHandlersRef.current = { markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer };
   useEffect(() => {
+    const { startMicMeter, stopMicMeter } = recognitionHandlersRef.current;
     const Recognition = getRecognitionClass();
     shouldListenRef.current = Boolean(active && supported && !muted && Recognition && !recordMode);
     if (!shouldListenRef.current) {
@@ -1037,8 +1057,8 @@ export default function HenryVoiceAssistant() {
     // Rede de segurança: parcial sem resultado novo por ~1,2 s vira frase final (o isFinal às vezes nunca chega).
     let interim = emptyInterimState();
     let interimTimer = null;
-    const deliverFinal = (text) => {
-      const accepted = handleFinal(text);
+    const deliverFinal = (text, named = false) => {
+      const accepted = handleFinalRef.current(text, { armed: named });
       setHeard({ text: text.trim().slice(0, 80), at: Date.now(), accepted });
     };
     const recognition = new Recognition();
@@ -1078,25 +1098,26 @@ export default function HenryVoiceAssistant() {
         const result = event.results[index];
         const text = result[0]?.transcript || "";
         lastHeardRef.current = Date.now(); // alguém falando perto: o anel passa a "ouvindo" (nada é enviado)
-        markActivity();
+        const handlers = recognitionHandlersRef.current;
+        handlers.markActivity();
         if (result.isFinal) {
           // Final atrasado de um trecho que a rede de segurança já usou → só o que sobrar (normalmente nada).
           const taken = takeFinalResult(interim, { index, text });
           interim = taken.state;
-          if (taken.text) deliverFinal(taken.text);
+          if (taken.text) deliverFinal(taken.text, taken.named);
           continue;
         }
         interim = trackInterim(interim, { index, text, now: Date.now() });
-        if (detectWakeWord(text).called) warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
-        if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, currentSpeech()).interrupt) {
-          interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
+        if (detectWakeWord(text).called) handlers.warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
+        if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, handlers.currentSpeech()).interrupt) {
+          handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
         }
       }
       if (interim.text) {
         interimTimer = window.setTimeout(() => {
           const forced = forceInterimFinal(interim);
           interim = forced.state;
-          if (forced.text) deliverFinal(forced.text);
+          if (forced.text) deliverFinal(forced.text, forced.named);
         }, INTERIM_FINAL_MS);
       }
     };
@@ -1147,7 +1168,7 @@ export default function HenryVoiceAssistant() {
       recognition.onend = null;
       recognition.abort();
     };
-  }, [active, supported, muted, recordMode, listenMode, handleFinal, markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer]);
+  }, [active, supported, muted, recordMode, listenMode]);
 
   // Celular, meia via: fala do Henry → microfone e medidor desligados (o som vai para o alto-falante); acabou de falar e a
   // conversa segue → volta a ouvir. Para interromper no celular: tocar na tela (onInterrupt).
@@ -1299,6 +1320,7 @@ export default function HenryVoiceAssistant() {
       tapToTalk={listenMode === "tap"}
       status={status}
       engaged={inConversation || phase !== "idle"}
+      heardHint={!heard.accepted && heard.text && Date.now() - heard.at < 8000 ? `Ouvi: “${heard.text}” (diga “Henry” antes)` : ""}
       inConversation={inConversation}
       caption={captionFor(phase, turns)}
       turns={turns}
