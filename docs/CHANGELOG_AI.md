@@ -338,6 +338,19 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry: voz natural pela ElevenLabs (integração nova) e voz do navegador melhorada (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Henry · Integrações externas (ElevenLabs, nova)
+- **Alteração:** ordem de voz ElevenLabs → OpenAI → navegador; ElevenLabs com `eleven_flash_v2_5`, endpoint de streaming, `voice_settings` naturais e `speed`; fala em partes com continuidade; lista de vozes da conta na tela "Voz e personalidade" (com amostra e destaque de quem fala português), voz escolhida salva no estilo; tela mostra o provedor ativo e o aviso quando cai no navegador; reserva do navegador escolhe a melhor voz pt-BR, ritmo 1,05, uma frase por vez.
+- **Motivo:** decisão do dono ("usar a ElevenLabs como voz principal") depois de "voz horrível, pausada, robotizada". Achado: nenhuma linha `henry_voice_tts` em `ai_usage_log` em 14 dias — `OPENAI_API_KEY` não está configurada em produção; o Henry sempre usou a voz do navegador.
+- **Arquivos afetados:** `lib/henry-voice-providers.mjs` (novo), `lib/henry-voice.js`, `lib/henry-voice-style.mjs` (`elevenVoice`, ritmos do navegador), `app/api/admin/henry/route.js` (GET `provider`/`providerLabel`, `?vozes=1` lista as vozes), `components/henry/HenrySettingsCard.jsx`, `HenryVoiceAssistant.jsx`, `.env.example`, `tests/henry-voice-providers.test.mjs` (novo).
+- **Banco:** sem migration (`crm_settings` `henry_voice_assistant.style.elevenVoice`).
+- **Variáveis:** `ELEVENLABS_API_KEY` (necessária para a voz natural; só servidor), `ELEVENLABS_VOICE_ID` e `ELEVENLABS_MODEL` (opcionais).
+- **Docs:** `BUSINESS_RULES.md` HENRY-1, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** faixa de `speed` não documentada pela ElevenLabs (usamos 0,92–1,10). O "Eleven v4" não foi adotado: a doc só o oferece pela API de diálogo/websocket. Nenhuma chamada paga real feita no teste (sem chave no ambiente).
+- **Verificação:** `node --test tests/henry-voice*.test.mjs` (45/45), `pnpm build`.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Apresentação da simulação: visual escuro, abertura 3D com a chave de ouro e nova Estratégia com amortização (PRES-27)
 - **Data:** 2026-10-22
 - **Área:** Apresentação interativa da simulação (`/s/<token>` e prévia do CRM)

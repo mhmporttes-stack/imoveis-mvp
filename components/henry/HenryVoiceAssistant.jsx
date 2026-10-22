@@ -16,6 +16,7 @@ import {
   nextRestartDelay,
   pickAcknowledgement
 } from "@/lib/henry-voice-conversation.mjs";
+import { pickBestBrowserVoice, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import { captureWebcamFrame } from "./webcam-capture";
 
@@ -276,14 +277,22 @@ export default function HenryVoiceAssistant() {
       onDone?.();
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-BR";
-    utterance.rate = browserRateRef.current;
-    const voice = synth.getVoices().find((item) => item.lang?.toLowerCase().startsWith("pt-br"));
-    if (voice) utterance.voice = voice;
-    utterance.onend = () => onDone?.();
-    utterance.onerror = () => onDone?.();
-    synth.speak(utterance);
+    // Reserva sem voz do servidor: a melhor voz pt-BR do navegador ("Natural"/"Online"/Google) e uma frase por utterance,
+    // todas enfileiradas de uma vez (sem pausa longa entre elas; o Chrome corta falas longas).
+    const voice = pickBestBrowserVoice(synth.getVoices());
+    const sentences = splitSentences(text);
+    sentences.forEach((sentence, index) => {
+      const utterance = new SpeechSynthesisUtterance(sentence);
+      utterance.lang = voice?.lang || "pt-BR";
+      utterance.rate = browserRateRef.current;
+      if (voice) utterance.voice = voice;
+      if (index === sentences.length - 1) {
+        utterance.onend = () => onDone?.();
+        utterance.onerror = () => onDone?.();
+      }
+      synth.speak(utterance);
+    });
+    if (!sentences.length) onDone?.();
   }, []);
 
   // Corta a voz na hora (áudio do servidor e voz do navegador) e esvazia a fila.

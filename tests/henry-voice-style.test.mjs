@@ -28,12 +28,12 @@ test("vozes: as 13 da documentação oficial do gpt-4o-mini-tts, nenhuma inventa
 
 test("padrões: nada salvo = comportamento de antes (voz do env, profissional, ritmo ágil, Matheus)", () => {
   const style = resolveHenryStyle(undefined, { defaultVoice: "ash" });
-  assert.deepEqual(style, { voice: "ash", tone: "profissional", speed: "normal", details: "", address: "" });
+  assert.deepEqual(style, { voice: "ash", elevenVoice: "", tone: "profissional", speed: "normal", details: "", address: "" });
   assert.equal(resolveHenryStyle({}, {}).voice, "ash");
   assert.equal(resolveHenryStyle({}, { defaultVoice: "coral" }).voice, "coral");
   assert.equal(buildHenryTtsInstructions(style), BEFORE);
   assert.equal(henryAddressName(style), "Matheus");
-  assert.equal(henryBrowserRate(style), 1);
+  assert.equal(henryBrowserRate(style), 1.05); // voz do navegador um pouco mais ágil (a 1,0 soava pausada)
   assert.equal(henrySampleText(style), "Bom dia, Matheus. Eu sou o Henry, seu assistente.");
 });
 

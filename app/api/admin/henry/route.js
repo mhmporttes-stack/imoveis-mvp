@@ -4,7 +4,9 @@ import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
   henryDefaultVoice,
+  henryVoiceProvider,
   isHenryVoiceConfigured,
+  listElevenLabsVoices,
   previewHenryStyle,
   readHenrySettings,
   setHenrySettings,
@@ -14,6 +16,7 @@ import {
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
+import { HENRY_PROVIDER_LABELS } from "@/lib/henry-voice-providers.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,13 +38,28 @@ export async function GET(request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const { enabled, vision, style } = await readHenrySettings();
+    const provider = henryVoiceProvider();
+    // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
+    let elevenVoices = null;
+    let elevenVoicesError = "";
+    if (provider === "elevenlabs" && new URL(request.url).searchParams.get("vozes") === "1") {
+      elevenVoices = await listElevenLabsVoices().catch((error) => {
+        console.warn(`[henry] lista de vozes da ElevenLabs falhou: ${error?.message || "erro"}.`);
+        elevenVoicesError = "Não consegui listar as vozes da ElevenLabs agora.";
+        return [];
+      });
+    }
     return NextResponse.json({
       enabled,
       vision,
       serverVoice: isHenryVoiceConfigured(),
+      provider,
+      providerLabel: HENRY_PROVIDER_LABELS[provider],
       style,
       browserRate: henryBrowserRate(style),
-      options: henryStyleOptions({ defaultVoice: henryDefaultVoice() })
+      options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
+      elevenVoices,
+      elevenVoicesError
     });
   } catch (error) {
     console.error("[henry] falha ao ler a configuração:", error?.message || error);
@@ -90,7 +108,7 @@ function speechStream(auth, reply, navigate, style) {
         }
       };
       send({ reply, navigate });
-      const audios = parts.map((text) => synthesizeHenrySpeech(auth, text, style));
+      const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
       for (let index = 0; index < parts.length; index += 1) {
         send({ part: index, text: parts[index], audio: await audios[index] });
       }
