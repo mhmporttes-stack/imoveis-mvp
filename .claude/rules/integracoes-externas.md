@@ -28,6 +28,9 @@ paths:
   - "lib/alexa*"
   - "lib/primeiro-acesso*"
   - "app/api/admin/alexa/**"
+  - "lib/henry-voice*"
+  - "app/api/admin/henry/**"
+  - "components/henry/**"
 ---
 
 # Integrações externas
@@ -122,6 +125,10 @@ Desde 2026-10-01 o `scheduled-activities` também roda, no máximo 1 vez por dia
 Toda fala espontânea passa pelas travas de `lib/alexa-service.js` (Alexa ativa, evento/rotina ligada, "Quando pode falar", intervalo mínimo via `claimSpeakingSlot`); só contagens e primeiros nomes (`containsSensitiveContent`); logs só com motivo. Voz: `lib/alexa-voice.js`. Rotinas: "Chegada ao escritório" (`lib/alexa-arrival.js`) e "Bom dia no primeiro acesso" (`lib/alexa-bom-dia.js`).
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Bom dia no primeiro acesso.** No primeiro acesso do dia do dono (conta real, fora de "Alterar conta"; outros perfis nada muda) o painel abre no Início e a Alexa fala, disparada pelo servidor, o resumo com os MESMOS números do Início (`getPainelInicio` — nunca outra conta). **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — a confirmar]** 1x/dia pela chave única de `admin_first_access_days`; se a chegada ao escritório já falou hoje, só o bom dia; termina convidando a abrir a skill ("Alexa, abrir central"). Detalhe: `docs/BUSINESS_RULES.md` INI-4.
+
+## Assistente de voz Henry (Anthropic + OpenAI TTS)
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Henry (ex-"Bank").** Assistente de voz no computador, só do dono (conta real, fora de "Alterar conta"), mãos livres com palavra de chamada ("bom dia, Henry" → relatório do dia), **somente leitura** (nenhuma ação de escrita nesta fase), abre telas só da lista fechada `HENRY_NAV_TARGETS`. Regras puras em `lib/henry-voice-core.mjs` (palavra de chamada, eco, lista de telas, elegibilidade, barreira da fala = `isSafeToSpeak` da Alexa); servidor em `lib/henry-voice.js` (Claude Haiku 5.5 por fetch direto, ferramentas reaproveitam o roteador da Alexa V2 e o Início — **não crie outra definição de métrica para o Henry**; voz OpenAI `gpt-4o-mini-tts` com queda para a voz do navegador); rota `app/api/admin/henry`. Variáveis: `ANTHROPIC_API_KEY`, `ANTHROPIC_HENRY_MODEL` (opcional), `OPENAI_API_KEY`, `OPENAI_TTS_MODEL`/`OPENAI_TTS_VOICE` (opcionais). Custo em `ai_usage_log` (`henry_voice_assistant`, `henry_voice_tts`). Nunca grave áudio nem a fala; logs só com motivo. Ação de escrita por voz só com nova decisão do dono e confirmação na tela. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
 
 ## Push
 

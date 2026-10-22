@@ -3,6 +3,7 @@ import AdminMenu from "@/components/AdminMenu";
 import AdminTopBar from "@/components/AdminTopBar";
 import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import AdminWarmup from "@/components/AdminWarmup";
+import HenryVoiceAssistant from "@/components/henry/HenryVoiceAssistant";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
@@ -118,6 +119,13 @@ export default async function AdminLayout({ children }) {
       ) : null}
       {/* Entrada dos blocos por rolagem (visual novo): respeita "reduzir movimento"; o Chat fica de fora. */}
       {auth.ok ? <AdminScrollReveal /> : null}
+      {/* Assistente de voz "Henry" (HENRY-1, dono 2026-10-22): só o dono, conta real, fora de "Alterar conta"; a rota
+          /api/admin/henry confere de novo e o componente só aparece no computador (>= 768px). */}
+      {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? (
+        <HideInFinanceiroApp>
+          <HenryVoiceAssistant />
+        </HideInFinanceiroApp>
+      ) : null}
       <SceneTransitionRoot>{children}</SceneTransitionRoot>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}

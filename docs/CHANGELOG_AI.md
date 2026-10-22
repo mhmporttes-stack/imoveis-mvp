@@ -313,6 +313,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Assistente de voz Henry (ex-"Bank") no computador do dono (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Painel (layout) · Alexa e Henry (`/admin/alexa`) · Integrações (Anthropic, OpenAI TTS) · Permissões
+- **Alteração:** ícone do Henry no canto (só o dono, conta real, fora de "Alterar conta", ≥ 768px), anel de filamentos em canvas animado pelo áudio real (ocioso/ouvindo/pensando/falando; pausa com a aba oculta e minimizado ocioso > 30 s); clique abre a tela cheia (anel grande, conversa no canto inferior direito, botões teclado e microfone), Esc minimiza. Mãos livres: escuta contínua no Chrome (Web Speech API pt-BR), só o que vem depois de "Henry" (variações do reconhecedor; "Henrique" só depois de saudação) vira pergunta. "Bom dia, Henry" = relatório do dia (frase do Início + leads + documentos). Perguntas: Claude Haiku 5.5 com ferramentas SOMENTE LEITURA (catálogo da Alexa V2, Início, clientes esfriados, saúde dos WhatsApps) + abrir tela de lista fechada. Voz OpenAI `gpt-4o-mini-tts` (padrão `ash`), com queda para a voz do navegador; "Henry" fala por cima → interrompe. Liga/desliga no `/admin/alexa` (nasce ligado).
+- **Motivo:** pedido do dono ("Um ícone de voz no canto, pequeno; se eu clicar em cima ele se expande para a tela cheia…"); nome trocado de "Bank" para "Henry" e visual pela referência em vídeo enviada por ele.
+- **Arquivos afetados:** `lib/henry-voice-core.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/*` (novos); `app/admin/layout.jsx`, `app/admin/alexa/page.jsx` (montagem); vitrine `app/dev/vitrine/henry` (só `next dev`); `.env.example`.
+- **Banco:** sem migration. `crm_settings` id `henry_voice_assistant` (`{disabled:true}` = desligado); custo em `ai_usage_log` (`henry_voice_assistant`, `henry_voice_tts`).
+- **Docs:** `BUSINESS_RULES.md` §20 HENRY-1, `PERMISSIONS.md` §6, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** o reconhecimento de fala do Chrome manda o áudio ao Google enquanto o microfone está ligado (mudo = Alt+B). "Gastos de IA" não separa por origem. O relatório usa a frase do Início; o resumo ampliado do dono (INI-5, entrou em paralelo) ainda não é usado pelo Henry. Nenhuma chamada paga real foi feita no teste (sem chaves neste ambiente).
+- **Verificação:** `node --test tests/henry-voice.test.mjs` (11/11), suítes da Alexa/Início, `pnpm build` ok; prints da vitrine (tela cheia falando/ocioso, ícone).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Início do dono: equipe, "Atenções" e resumo mais completo (INI-5)
 - **Data:** 2026-10-22
 - **Área:** Início · Alexa · Chat (leitura) · Agenda (leitura) · Marketplace (leitura)
