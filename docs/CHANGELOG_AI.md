@@ -338,6 +338,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Apresentação da simulação: visual escuro, abertura 3D com a chave de ouro e nova Estratégia com amortização (PRES-27)
+- **Data:** 2026-10-22
+- **Área:** Apresentação interativa da simulação (`/s/<token>` e prévia do CRM)
+- **Alteração:** porte do protótipo aprovado pelo dono ("pode publicar a apresentação"): (1) todas as cenas e folhas no escuro (paleta #07111F/#4FC3E0/#1E9BFF + dourado); (2) abertura 3D em WebGL (three.js 0.186, import dinâmico só no navegador; pepitas de ouro em redemoinho formam a chave com o "M" oficial; fallback = abertura anterior em SVG sem WebGL/erro/movimento reduzido; dispose ao sair); (3) título com o nome em caixa alta dourado, traço e frase em 21 px; abertura passa de 4,6 s para 7,6 s; (4) "R$" e valor na mesma linha na diferença novo × usado; (5) Estratégia: "Você economiza", "Quando você quita", gráfico "Projeção de quitação" de baixo para cima com vermelho (sem) × dourado (com), curvas suaves, área dourada, bolinha e "N anos a menos" entre as linhas, desenho guiado pela rolagem que termina quando o gráfico entra inteiro (ajuste do dono no mesmo dia).
+- **Motivo:** pedido do dono (protótipo aprovado; "o branco de repente cansa os olhos").
+- **Arquivos afetados:** `components/presentation/{PresentationPlayer.jsx,OpeningKey3D.jsx,opening-key-3d.mjs,StrategySheet.jsx,StrategyBalanceChart.jsx,presentation.module.css}`, `lib/simulation-presentation-core.mjs` (só a duração da abertura), `package.json`/`pnpm-lock.yaml` (three), `tests/strategy-sheet-layout.test.mjs`, `tests/simulation-presentation-round2.test.mjs`.
+- **Banco:** nada.
+- **Docs:** `docs/BUSINESS_RULES.md` PRES-27.
+- **Risco/observação:** three.js fica num pedaço separado, baixado só quando a abertura aparece (ver peso no relatório da tarefa). Em celular sem WebGL ou com "reduzir movimento" a abertura é a anterior. **DECISÃO NECESSÁRIA (dono):** o protótipo mostrava a logo da Caixa BRANCA sobre o fundo escuro; a produção mantém a logo colorida sobre o rodapé que clareia (regra PRES-14). Trocar exige a decisão do dono.
+- **Verificação:** `node --test` da apresentação/estratégia (todos passam); `pnpm build` limpo; revisão visual na vitrine `app/dev/vitrine/apresentacao` em 390×844 (Chromium + SwiftShader para WebGL), sem rolagem lateral; fallback conferido com WebGL desligado e com movimento reduzido.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Extensão do Marketplace 1.9.3: página oculta, esperas pelo relógio da extensão, nova tentativa espaçada, versão no CRM
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace · extensão do Chrome (`ferramentas/marketplace-publicador`) · sinal da extensão (MKT-2g)

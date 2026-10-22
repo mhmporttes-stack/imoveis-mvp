@@ -4,7 +4,7 @@
    painel de marca à direita; o resto continua igual. Projeto-base retrato: 390x780 => --u = 1px.
    --cw = largura útil do texto (usada para ajustar o tamanho dos números grandes). */
 .root {
-  --navy: #071b31;
+  --navy: #07111F;
   --navy-2: #0d3b66;
   --blue: #1769d1;
   --sky: #9cc3f5;
@@ -37,18 +37,19 @@
   outline: none;
   z-index: 60;
 }
+/* paleta escura do visual aprovado pelo dono em 2026-10-22 (protótipo): navy #07111F, ciano #4FC3E0, azul #1E9BFF, ouro da chave */
 .root[data-theme="dark"] {
-  --bg: var(--navy);
-  --fg: #ffffff;
-  --muted: rgba(255, 255, 255, 0.8);
-  --accent: var(--sky);
-  --line: rgba(255, 255, 255, 0.24);
-  --bar-track: rgba(255, 255, 255, 0.22);
-  --bar-fill: #ffffff;
-  --art: rgba(156, 195, 245, 0.17);
-  --panel: rgba(255, 255, 255, 0.035);
-  --panel-line: rgba(156, 195, 245, 0.14);
-  --btn-line: rgba(255, 255, 255, 0.55);
+  --bg: #07111F;
+  --fg: #E6EDF6;
+  --muted: #9DB0C8;
+  --accent: #4FC3E0;
+  --line: #1A3150;
+  --bar-track: rgba(255, 255, 255, 0.18);
+  --bar-fill: #E6EDF6;
+  --art: rgba(79, 195, 224, 0.14);
+  --panel: rgba(13, 27, 46, 0.85);
+  --panel-line: #1A3150;
+  --btn-line: #4FC3E0;
 }
 .root[data-theme="light"] {
   --bg: #ffffff;
@@ -918,66 +919,47 @@ a.fcSubmit { text-decoration: none; }
 .stHighlight { display: grid; gap: 4px; margin: calc(var(--u) * 10) 0 calc(var(--u) * 22); padding: calc(var(--u) * 16); border-radius: calc(var(--u) * 16); background: linear-gradient(150deg, var(--navy-2), var(--blue)); color: #fff; text-align: center; font-size: max(15px, calc(var(--u) * 16)); line-height: 1.4; }
 .stHighlight strong { font-size: max(21px, calc(var(--u) * 24)); font-weight: 820; line-height: 1.2; }
 .stHighlight span { color: rgba(255, 255, 255, 0.88); }
-/* Gráfico do saldo devedor (redesenho 2026-10-18): sem amortização VERMELHO tracejado, com amortização VERDE, faixa verde entre as
-   duas = juros que você deixa de pagar; eixo do saldo (R$ abreviado) numa calha à esquerda e anos embaixo, em HTML (texto ≥ 12px
-   em 320 px); linhas num SVG esticado com traço que não escala. Desenha da esquerda para a direita quando entra na tela. */
+/* Gráfico "Projeção de quitação" (visual aprovado pelo dono em 2026-10-22, com o ajuste do mesmo dia): de baixo para cima
+   (quanto já foi quitado), SEM amortização em vermelho e COM amortização em dourado, curvas suaves, área dourada entre elas,
+   bolinha dourada quando a dourada bate no topo e "N anos a menos" entre as linhas. As linhas se desenham conforme a folha
+   rola e TERMINAM quando o gráfico entra inteiro na tela (linha do tempo do próprio gráfico: --stplot); sem esse recurso no
+   navegador, por tempo. Textos em HTML (≥ 12px) sobre o SVG (quadro 340×170, escala uniforme). */
 .stChart { margin: 0 0 calc(var(--u) * 22); }
 .stSrOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.stPlotWrap { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; padding: 0 8px 0 0; container-type: inline-size; }
-.stYAxis { position: relative; grid-column: 1; grid-row: 2; }
-.stYSizer { display: block; visibility: hidden; height: 0; overflow: hidden; padding-right: 8px; font-size: 12px; font-weight: 400; white-space: nowrap; }
-.stYAxis span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
-.stPlot { position: relative; grid-column: 2; grid-row: 2; height: clamp(228px, 74cqi, 300px); min-width: 0; }
-.stPlotSvg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
-.stGrid { stroke: #e3ebf5; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.stAxis { stroke: #9fb4cf; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-/* as duas linhas IGUAIS (dono, 2026-10-19): mesma espessura, sólidas, mesma curva — só a cor muda */
-.stPathSem, .stPathCom { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.stPathSem { stroke: #b42318; }
-.stPathCom { stroke: #067647; }
-.stDot { position: absolute; z-index: 2; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2.5px solid #fff; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.14); }
-.stDotSem { background: #b42318; --ring: rgba(180, 35, 24, 0.28); }
-.stDotCom { background: #067647; --ring: rgba(6, 118, 71, 0.3); }
-/* "N anos a menos" dentro da faixa verde (posição calculada no componente para não encostar nas linhas) */
-.stGap { position: absolute; z-index: 1; margin: 0; display: grid; justify-items: center; line-height: 1.08; font-weight: 850; letter-spacing: -0.01em; color: #054f31; text-align: center; white-space: nowrap; pointer-events: none; text-shadow: 0 0 6px rgba(255, 255, 255, 0.9); }
-.stGapBeside { justify-items: end; text-align: right; }
-.stGap .stGapSoft { font-weight: 700; font-size: 0.82em; color: #067647; }
-.stGapOut { margin: calc(var(--u) * 8) 0 0; font-size: max(17px, calc(var(--u) * 19)); font-weight: 850; color: #054f31; text-align: center; overflow-wrap: anywhere; }
-/* pontas (dono, 2026-10-19): só os anos ("11 anos"), pequenos, numa pílula clara na cor da linha, centrados na bolinha */
-.stAnnot { display: flex; align-items: flex-end; gap: 6px; grid-column: 2; grid-row: 1; min-width: 0; min-height: 34px; padding-bottom: 10px; }
-.stPayoff { position: relative; flex: none; margin-left: clamp(0px, calc(var(--x) - 30px), calc(100% - 146px)); padding: 3px 9px; border-radius: 999px; background: #e7f7ef; color: #05603a; font-size: 12.5px; font-weight: 650; line-height: 1.2; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; box-sizing: border-box; }
-.stPayoffEnd { margin-left: auto; margin-right: -4px; }
-.stPayoffSem { background: #fdeceb; color: #912018; }
-.stXAxis { position: relative; grid-column: 2; grid-row: 3; height: 24px; }
-.stXAxis span { position: absolute; top: 7px; transform: translateX(-50%); font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; color: #3a5878; white-space: nowrap; }
-.stXAxis .stXStart { transform: none; }
-.stXAxis .stXEnd { transform: none; font-weight: 700; }
-@container (max-width: 330px) { .stXAxis .stXMinor { display: none; } }
-/* cena (dono, 2026-10-19, 2ª rodada): 1º a linha vermelha sobe (2,4 s), 2º a verde (2,4 s, começando quando a vermelha
-   termina), depois a faixa verde e "N anos a menos"; rótulo e bolinha de cada linha entram/pulsam quando a linha chega nela
-   (--d, relógio calculado no componente). A cena recomeça do zero quando o resultado muda (o componente remonta o gráfico). */
-.stDraw { animation: stReveal 2.4s ease-in-out both; }
-.stDrawCom { animation-delay: var(--d, 2.4s); }
-.stBand { animation: stFadeIn 0.6s ease-out both; animation-delay: var(--d, 4.8s); }
-.stDot { animation: stPulse 0.9s ease-out both; }
-.stPayoff, .stGap { animation: stFadeUp 0.5s ease-out both; }
-.stIntro .stDot, .stIntro .stPayoff, .stIntro .stGap { animation-delay: var(--d, 0s); }
-@keyframes stFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes stReveal { from { clip-path: inset(-20% 100% -20% -2%); } to { clip-path: inset(-20% -2% -20% -2%); } }
-@keyframes stFadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@keyframes stPulse {
-  0% { opacity: 0; transform: scale(0.4); box-shadow: 0 0 0 0 var(--ring); }
-  18% { opacity: 1; transform: scale(1); }
-  50% { transform: scale(1.9); box-shadow: 0 0 0 7px var(--ring); }
-  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 1px rgba(11, 58, 110, 0.14); }
+.stPlotWrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); margin-top: calc(var(--u) * 6); view-timeline-name: --stplot; }
+.stPlot { min-width: 0; }
+.stPlotSvg { display: block; width: 100%; height: auto; overflow: visible; }
+.stGridTop { stroke: #13253B; stroke-width: 1; stroke-dasharray: 3 4; }
+.stGrid { stroke: #13253B; stroke-width: 1; }
+.stAxis { stroke: #1A3150; stroke-width: 1.2; }
+.stBand { fill: rgba(232, 184, 92, 0.22); }
+.stPathSem, .stPathCom { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.stPathSem { stroke: #F0716A; stroke-width: 2.5; }
+.stPathCom { stroke: #E8B85C; stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(232, 184, 92, 0.45)); }
+.stDot { fill: #F3DCA6; stroke: #E8B85C; stroke-width: 2; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 10px #E8B85C); }
+.stGap { position: absolute; z-index: 1; margin: 0; transform: translate(-50%, -50%); font-size: 13px; line-height: 1.1; font-weight: 800; white-space: nowrap; color: #F6DFA8; text-shadow: 0 1px 6px rgba(7, 17, 31, 0.9); pointer-events: none; }
+.stXAxis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; color: #9DB0C8; }
+/* desenho: pathLength=1 → o traço vai de 0 a 1. Fallback por tempo (abre a folha e desenha); com animation-timeline,
+   guiado pela rolagem: vermelha de entry 0% a 80%, dourada de 20% a 100%, bolinha e textos de 85% a 100% */
+.stDraw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 2s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both; }
+.stDrawCom { animation-delay: 1.2s; }
+.stBand, .stGap { animation: stFadeIn 0.8s ease 2.6s both; }
+.stDot { animation: stPopIn 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 2.4s both; }
+@supports (animation-timeline: view()) {
+  .stDraw { animation: stDraw linear both; animation-timeline: --stplot; animation-range: entry 0% entry 80%; }
+  .stDrawCom { animation-range: entry 20% entry 100%; }
+  .stBand, .stGap { animation: stFadeIn linear both; animation-timeline: --stplot; animation-range: entry 85% entry 100%; }
+  .stDot { animation: stPopIn linear both; animation-timeline: --stplot; animation-range: entry 85% entry 100%; }
 }
-.stWaiting .stDraw, .stWaiting .stBand, .stWaiting .stDot, .stWaiting .stPayoff, .stWaiting .stGap { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .stDraw, .stBand, .stDot, .stPayoff, .stGap { animation: none; } }
-.stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 16); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: max(13px, calc(var(--u) * 14)); color: #2f4d6e; }
+@keyframes stDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes stFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes stPopIn { 0% { opacity: 0; transform: scale(0); } 70% { opacity: 1; transform: scale(1.4); } 100% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .stDraw, .stBand, .stDot, .stGap { animation: none; } }
+.stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 14); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.35; color: #9DB0C8; }
 .stLegend li { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
-.stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: #b42318; }
-.stKeyCom { background: #067647; }
-.stKeyBand { height: 12px; border-radius: 3px; background: linear-gradient(180deg, rgba(6, 118, 71, 0.32), rgba(6, 118, 71, 0.12)); }
+.stKeySem, .stKeyCom, .stKeyBand { flex: none; display: inline-block; width: 18px; height: 3px; border-radius: 2px; background: #F0716A; }
+.stKeyCom { background: #E8B85C; }
+.stKeyBand { width: 14px; height: 10px; border-radius: 3px; background: rgba(232, 184, 92, 0.32); }
 /* PRES-24 — largura da folha da Estratégia no celular (dono, 2026-10-18, INCIDENTES.md): NADA passa de 100% da largura a
    320–430 px, antes e depois do resultado aparecer. A folha é item de um flex em LINHA (.sheetBackdrop): sem min-width: 0 ela
    não encolhe abaixo da largura mínima do conteúdo e, se algum texto/campo não quebrar, fica mais larga que a tela e o
@@ -996,3 +978,142 @@ a.fcSubmit { text-decoration: none; }
 .stCompare { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
 .stYears { font-size: clamp(19px, calc(var(--u) * 23), 42px); }
 .stHighlight strong { font-size: clamp(19px, calc(var(--u) * 24), 44px); }
+
+/* ======================================================================================================
+   VISUAL ESCURO (protótipo aprovado pelo dono em 2026-10-22: "pode publicar a apresentação"). Tudo no fundo escuro — nenhuma
+   cena nem folha branca —, paleta navy #07111F, ciano #4FC3E0, azul #1E9BFF e o dourado da chave. Só cores, bordas, raios e a
+   abertura nova; tamanhos, encaixe na tela (fitScene) e comportamento continuam os de antes.
+   ====================================================================================================== */
+.halo {
+  background:
+    radial-gradient(60% 40% at 50% 38%, rgba(79, 195, 224, 0.14), rgba(79, 195, 224, 0) 68%),
+    radial-gradient(90% 52% at 50% -8%, rgba(30, 155, 255, 0.2), rgba(30, 155, 255, 0) 70%);
+  animation: haloGlow 5s ease-in-out infinite;
+}
+@keyframes haloGlow { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+.brandMark { background: transparent; padding: 0; }
+.brandText span { color: var(--muted); }
+.iconBtn { border: 1px solid var(--line); background: var(--panel); }
+
+/* abertura 3D: a caixa reserva o espaço acima do título; o canvas sai dela (protótipo: 390×500, 60 px abaixo do topo) */
+.openStage { position: relative; height: calc(var(--u) * 300); margin: 0 auto; }
+.open3d { position: absolute; z-index: 0; left: 50%; top: calc(var(--u) * -120); width: var(--fw); height: calc(var(--u) * 500); transform: translateX(-50%); pointer-events: none; }
+.open3d::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--u) * 120); background: linear-gradient(180deg, rgba(7, 17, 31, 0), #07111F); pointer-events: none; }
+.open3dCanvas { display: block; width: 100%; height: 100%; }
+.open3dFallback { width: min(100%, calc(var(--u) * 360)); margin: 0 auto; padding-top: calc(var(--u) * 10); }
+.openingInner .openText { z-index: 1; }
+.openTitle { margin: calc(var(--u) * 6) 0 0; font-weight: 800; }
+.openName {
+  display: block; margin: 0 auto; max-width: 100%;
+  font-size: min(calc(var(--u) * 42), calc(var(--cw) / (var(--len, 8) * 0.8 + 0.4)));
+  line-height: 1.05; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  background: linear-gradient(180deg, #FFF3D6 0%, #F0C470 45%, #B9862E 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 24px rgba(232, 184, 92, 0.25));
+}
+.openRule { display: block; width: calc(var(--u) * 56); height: 2px; margin: calc(var(--u) * 14) auto 0; border-radius: 2px; background: linear-gradient(90deg, transparent, #E8B85C, transparent); transform-origin: center; animation: grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0ms) both; }
+.openRest { display: block; max-width: calc(var(--u) * 290); margin: calc(var(--u) * 14) auto 0; font-size: max(19px, calc(var(--u) * 21)); line-height: 1.35; font-weight: 600; letter-spacing: -0.005em; color: #E6EDF6; text-wrap: balance; }
+.openLead { margin-top: calc(var(--u) * 14); font-size: max(15px, calc(var(--u) * 16)); line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .openRule { animation: none; } }
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .openStage { position: absolute; left: 51%; right: calc(var(--u) * 26); top: calc(var(--u) * 26); bottom: calc(var(--u) * 26); height: auto; margin: 0; }
+  .open3d { left: 0; right: 0; top: 0; bottom: 0; width: auto; height: auto; transform: none; }
+  .open3dFallback { display: grid; place-items: center; height: 100%; width: min(90%, calc(var(--u) * 760)); padding: 0; }
+  .openName, .openRule, .openRest { margin-left: 0; }
+  .openRule { transform-origin: left center; }
+}
+
+/* botões: cheio = ciano com texto escuro; contorno = ciano; raio 14 (protótipo) */
+.cta, .ghostBtn { border-radius: 14px; }
+.cta { background: #4FC3E0; color: #04121F; border-color: #4FC3E0; box-shadow: 0 10px 30px -10px #4FC3E0; }
+.ghostBtn { background: transparent; color: var(--fg); border-color: #4FC3E0; }
+.textBtn { color: var(--muted); }
+@media (hover: hover) and (pointer: fine) {
+  .cta:hover { box-shadow: 0 14px 34px -10px #4FC3E0; }
+  .ghostBtn:not(:disabled):hover { background: rgba(79, 195, 224, 0.12); border-color: #4FC3E0; }
+  .textBtn:hover { color: var(--fg); }
+}
+
+/* cartões e destaques das cenas */
+.plus span { border-color: rgba(79, 195, 224, 0.5); background: rgba(79, 195, 224, 0.14); color: #E6EDF6; box-shadow: 0 0 calc(var(--u) * 16) rgba(79, 195, 224, 0.35); }
+.rowTotal, .diffTotal, .valHero { background: rgba(79, 195, 224, 0.14); border: 1px solid #4FC3E0; box-shadow: none; color: var(--fg); }
+.rowTotal .rowLabel, .valHero .rowLabel, .diffTotalLabel { color: var(--fg); }
+.statRate { background: var(--panel); border-color: var(--line); }
+.duoTag, .cmpName { color: #4FC3E0; }
+.duoTag { background: rgba(79, 195, 224, 0.14); border-color: transparent; }
+.bigNumber { text-shadow: 0 0 30px rgba(79, 195, 224, 0.14); }
+/* diferença entre imóvel novo e usado: "R$" e o valor sempre na mesma linha */
+.diffValue, .diffTotalValue, .valRow > strong, .cmpVal, .statValue, .rowValue { white-space: nowrap; }
+.photoShade { background: linear-gradient(to bottom, rgba(7, 17, 31, 0.55) 0%, rgba(7, 17, 31, 0) 30%, rgba(7, 17, 31, 0.35) 55%, #07111F 100%); }
+.propReason { background: rgba(7, 17, 31, 0.72); border-color: rgba(79, 195, 224, 0.35); box-shadow: none; }
+.propReasonHead, .photoText .eyebrow { color: #7FD8EC; }
+.counter, .tapHint > span { background: rgba(7, 17, 31, 0.72); border-color: rgba(79, 195, 224, 0.35); }
+.benefits li::before { background: #4FC3E0; }
+.valEntry { background: var(--panel); border-color: var(--line); }
+.valEntryHead .rowLabel, .valRow.valTotal > span { color: #7FD8EC; }
+.valFree { background: rgba(61, 213, 152, 0.12); color: #E6EDF6; border: 1px solid rgba(61, 213, 152, 0.45); box-shadow: none; }
+.valFree small { color: #C9D6E6; }
+.valFreeIcon { background: #3DD598; color: #04121F; }
+.valStamp, .apStamp { background: linear-gradient(160deg, #0F2A47, #07111F); outline-color: #4FC3E0; box-shadow: 0 0 0 calc(var(--u) * 9) rgba(79, 195, 224, 0.12), 0 calc(var(--u) * 18) calc(var(--u) * 40) rgba(2, 6, 12, 0.6), 0 0 calc(var(--u) * 46) rgba(79, 195, 224, 0.35); }
+.valStamp > span, .apStamp span { color: #C9D6E6; }
+.photoFallback { background: radial-gradient(70% 70% at 50% 42%, rgba(30, 155, 255, 0.35), rgba(13, 27, 46, 0.95) 60%, #07111F 100%); }
+
+/* folhas (lista de documentos, agendar, estratégia): escuras como as cenas */
+.sheetBackdrop { background: rgba(2, 6, 12, 0.7); }
+.sheet { background: #0D1B2E; color: #E6EDF6; border-top: 1px solid #1F4268; box-shadow: 0 -10px 40px rgba(2, 6, 12, 0.6); }
+.sheetHead { border-bottom-color: #1A3150; }
+.sheetTitle, .fcQuestion, .stToggleText strong, .stBase dd, .stYears, .apDoneWhen strong, .docTitle { color: #E6EDF6; }
+.sheetClose { background: #0B1828; border: 1px solid #1A3150; color: #E6EDF6; }
+.sheetIntro, .docDesc, .docLines, .fcNote, .fcHelp, .fcWeek, .fcMonth, .stHelp, .stToggleText span, .stBase dt, .stField, .stLine, .stColTitle, .apPartLabel, .apDoneWhen, .stLabel { color: #9DB0C8; }
+.docGroup { color: #7FD8EC; border-bottom-color: #4FC3E0; }
+.docCheck { border-color: #4FC3E0; color: #4FC3E0; background: rgba(79, 195, 224, 0.1); }
+.docObs, .fcLink { color: #7FD8EC; }
+.fcDay, .fcPeriod, .apSlot { border: 1px solid #1A3150; background: #0B1828; color: #E6EDF6; }
+.fcOn { background: rgba(79, 195, 224, 0.16); border-color: #4FC3E0; color: #E6EDF6; }
+.fcOn .fcWeek, .fcOn .fcMonth { color: #C9D6E6; }
+.fcSubmit { background: #4FC3E0; color: #04121F; border-radius: 14px; }
+.fcRequired, .fcError { color: #F0716A; }
+.fcMissing { outline-color: #F0716A; }
+.apInfo { background: #0B1828; border: 1px solid #1A3150; color: #C9D6E6; }
+.apInfo svg { color: #4FC3E0; }
+.apSlotOff { border-color: #13253B; background: #0A1626; color: #5A6B82; }
+.apText { color: #7FD8EC; }
+.apSecondary { background: transparent; border: 1.5px solid #4FC3E0; color: #E6EDF6; border-radius: 14px; }
+.apInput, .stMoney, .stSelect { border: 1px solid #1A3150; background: #0B1828; color: #E6EDF6; }
+.fcDay:focus-visible, .fcPeriod:focus-visible, .fcSubmit:focus-visible, .fcLink:focus-visible, .apSlot:focus-visible, .apText:focus-visible, .apSecondary:focus-visible, .stCheck:focus-visible { outline-color: #4FC3E0; }
+.stMoney:focus-within, .apInput:focus, .stSelect:focus { outline-color: #4FC3E0; }
+
+/* Estratégia com amortização (protótipo): cada bloco sobe devagar ao rolar; ouro = com amortização, vermelho = sem */
+.stLabel { color: #7FD8EC; font-size: max(11px, calc(var(--u) * 11.5)); font-weight: 800; letter-spacing: 0.12em; }
+.stBase > div { background: #0B1828; border-color: #1A3150; }
+.stBase > .stBaseMain { background: #0B1828; border-color: #1A3150; }
+.stBaseMain dt { color: #9DB0C8; }
+.stBaseMain dd { color: #E6EDF6; }
+.stOption { border: 1px solid #1A3150; background: #0B1828; }
+.stOptionOn { border-color: #4FC3E0; background: rgba(79, 195, 224, 0.1); }
+.stCheck { accent-color: #4FC3E0; }
+.stHighlight { margin: calc(var(--u) * 4) 0 calc(var(--u) * 20); padding: calc(var(--u) * 18) calc(var(--u) * 16); border-radius: 18px; background: radial-gradient(120% 140% at 50% 0%, rgba(232, 184, 92, 0.18), rgba(11, 24, 40, 0.9) 60%); border: 1px solid rgba(232, 184, 92, 0.45); color: #F6DFA8; }
+.stHighlight strong { font-size: clamp(26px, calc(var(--u) * 32), 44px); font-weight: 800; color: #F6DFA8; white-space: nowrap; }
+.stHighlight .stSaveLabel { font-size: max(11px, calc(var(--u) * 11.5)); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #E8B85C; }
+.stHighlight .stSaveSub { font-size: max(14px, calc(var(--u) * 14)); font-weight: 700; color: #E8B85C; }
+.stHighlight .stSaveText { margin-top: 6px; font-size: max(13px, calc(var(--u) * 13.5)); line-height: 1.5; color: #C9D6E6; }
+.stWhen { margin: 0 0 calc(var(--u) * 14); }
+.stWhenRow { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: max(12px, calc(var(--u) * 12.5)); color: #9DB0C8; }
+.stWhenRow b { white-space: nowrap; color: #C9D6E6; }
+.stWhenRowCom { margin-top: calc(var(--u) * 12); }
+.stWhenRowCom b { color: #F6DFA8; }
+.stWhenBar { display: block; height: 10px; margin-top: 6px; border-radius: 99px; background: #13253B; overflow: hidden; }
+.stWhenSem { background: #F0716A; }
+.stWhenFill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #C8891F, #F3DCA6); transform-origin: left center; animation: grow 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both; }
+.stCol { border: 1px solid #1A3150; background: #0B1828; }
+.stCol .stColTitle { color: #F0716A; }
+.stColOn { border-color: rgba(232, 184, 92, 0.55); background: rgba(232, 184, 92, 0.08); }
+.stColOn .stColTitle { color: #E8B85C; }
+.stReveal { animation: stRevealUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@supports (animation-timeline: view()) {
+  .stReveal { animation: stRevealUp linear both; animation-timeline: view(); animation-range: entry 0% entry 85%; }
+  .stWhenFill { animation: grow linear both; animation-timeline: view(); animation-range: entry 40% cover 50%; }
+}
+@keyframes stRevealUp { from { opacity: 0; transform: translateY(42px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .stReveal, .stWhenFill { animation: none; } }
+.stSheet .fcFoot { margin-top: calc(var(--u) * 6); }
+.stReveal > .stCompare { margin-bottom: calc(var(--u) * 22); }

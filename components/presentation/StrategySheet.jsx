@@ -193,6 +193,7 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
 
   if (!strategy || !comparison) return null;
   const { sem, com } = comparison;
+  const saving = active && comparison.economiaJuros > 0;
 
   return (
     <div className={styles.sheetBackdrop} data-no-nav="" data-sheet="" onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
@@ -204,73 +205,95 @@ export default function StrategySheet({ strategy, token = "", preview = false, p
           </button>
         </header>
         <div className={styles.sheetBody} tabIndex={0}>
-          <p className={styles.stLabel}>Sua simulação</p>
-          <dl className={styles.stBase}>
-            <div className={styles.stBaseMain}><dt>Valor financiado</dt><dd>{formatBRL(strategy.financiamento)}</dd></div>
-            {rate ? <div><dt>Taxa de juros</dt><dd>{rate}</dd></div> : null}
-            <div><dt>Prazo</dt><dd>{strategy.prazoMeses} meses</dd></div>
-            <div><dt>Sistema</dt><dd>{SYSTEM_LABEL[strategy.sistema]}</dd></div>
-            {strategy.parcela > 0 ? <div><dt>{strategy.sistema === "sac" ? "Primeira parcela" : "Parcela"}</dt><dd>{formatBRL(strategy.parcela)}</dd></div> : null}
-          </dl>
-
-          <p className={styles.stLabel}>Use dinheiro extra para quitar antes</p>
-          <p className={styles.stHelp}>Cada valor abate o saldo devedor e reduz o prazo: a parcela segue o mesmo sistema, e você termina antes.</p>
-          <div className={styles.stOptions}>
-            {options.map(({ key, label, hint, auto }) => {
-              const option = choices[key];
-              const inputId = `st-${key}`;
-              return (
-                <div key={key} className={`${styles.stOption} ${option.ativo ? styles.stOptionOn : ""}`}>
-                  <label className={styles.stToggleRow}>
-                    <input type="checkbox" className={styles.stCheck} checked={option.ativo} onChange={(event) => setOption(key, { ativo: event.target.checked })} disabled={busy} data-st-toggle={key} />
-                    <span className={styles.stToggleText}>
-                      <strong>{label}</strong>
-                      <span>{auto ? hint(automaticOptionValue(strategy, key)) : hint}</span>
-                    </span>
-                  </label>
-                  {option.ativo && !auto ? (
-                    <div className={styles.stFields}>
-                      <label className={styles.stField} htmlFor={inputId}>
-                        <span>Valor</span>
-                        <span className={styles.stMoney}>
-                          <input id={inputId} type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target)} onFocus={(event) => placeCaret(event.target)} disabled={busy} data-st-value={key} />
-                        </span>
-                      </label>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+          {/* Visual aprovado pelo dono em 2026-10-22 (protótipo "ESTRATÉGIA COM AMORTIZAÇÃO"): cada bloco sobe devagar ao rolar
+              (stReveal; CSS animation-timeline: view() com fallback por tempo) e o ouro = com amortização (sem verde). */}
+          <div className={styles.stReveal}>
+            <p className={styles.stLabel}>Sua simulação</p>
+            <dl className={styles.stBase}>
+              <div className={styles.stBaseMain}><dt>Valor financiado</dt><dd>{formatBRL(strategy.financiamento)}</dd></div>
+              {rate ? <div><dt>Taxa de juros</dt><dd>{rate}</dd></div> : null}
+              <div><dt>Prazo</dt><dd>{strategy.prazoMeses} meses</dd></div>
+              <div><dt>Sistema</dt><dd>{SYSTEM_LABEL[strategy.sistema]}</dd></div>
+              {strategy.parcela > 0 ? <div><dt>{strategy.sistema === "sac" ? "Primeira parcela" : "Parcela"}</dt><dd>{formatBRL(strategy.parcela)}</dd></div> : null}
+            </dl>
           </div>
 
-          <div className={styles.stCompare} aria-live="polite">
-            <div className={styles.stCol}>
-              <span className={styles.stColTitle}>Sem amortização</span>
-              <strong className={styles.stYears}>{formatDuration(sem.months)}</strong>
-              <span className={styles.stLine}>{sem.months} parcelas</span>
-              <span className={styles.stLine}>{formatBRL(sem.totalInterest)} de juros</span>
-            </div>
-            <div className={`${styles.stCol} ${styles.stColOn}`}>
-              <span className={styles.stColTitle}>Com amortização</span>
-              <strong className={styles.stYears}>{formatDuration(com.months)}</strong>
-              <span className={styles.stLine}>{com.months} parcelas</span>
-              <span className={styles.stLine}>{formatBRL(com.totalInterest)} de juros</span>
+          <div className={styles.stReveal}>
+            <p className={styles.stLabel}>Use dinheiro extra para quitar antes</p>
+            <p className={styles.stHelp}>Cada valor abate o saldo devedor e reduz o prazo: a parcela segue o mesmo sistema, e você termina antes.</p>
+            <div className={styles.stOptions}>
+              {options.map(({ key, label, hint, auto }) => {
+                const option = choices[key];
+                const inputId = `st-${key}`;
+                return (
+                  <div key={key} className={`${styles.stOption} ${option.ativo ? styles.stOptionOn : ""}`}>
+                    <label className={styles.stToggleRow}>
+                      <input type="checkbox" className={styles.stCheck} checked={option.ativo} onChange={(event) => setOption(key, { ativo: event.target.checked })} disabled={busy} data-st-toggle={key} />
+                      <span className={styles.stToggleText}>
+                        <strong>{label}</strong>
+                        <span>{auto ? hint(automaticOptionValue(strategy, key)) : hint}</span>
+                      </span>
+                    </label>
+                    {option.ativo && !auto ? (
+                      <div className={styles.stFields}>
+                        <label className={styles.stField} htmlFor={inputId}>
+                          <span>Valor</span>
+                          <span className={styles.stMoney}>
+                            <input id={inputId} type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={texts[key]} onChange={(event) => setAmount(key, event.target)} onFocus={(event) => placeCaret(event.target)} disabled={busy} data-st-value={key} />
+                          </span>
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div className={styles.stHighlight} role="status">
-            {active && comparison.economiaJuros > 0 ? (
+
+          {/* VOCÊ ECONOMIZA: a economia de juros em destaque, número em ouro */}
+          <div className={`${styles.stHighlight} ${styles.stReveal}`} role="status">
+            <span className={styles.stSaveLabel}>Você economiza</span>
+            {saving ? (
               <>
-                <strong>{formatBRL(comparison.economiaJuros)} a menos de juros</strong>
-                <span>{headline || `${formatDuration(comparison.mesesAMenos)} a menos de financiamento`}</span>
+                <strong>{formatBRL(comparison.economiaJuros)}</strong>
+                <span className={styles.stSaveSub}>a menos de juros</span>
+                <span className={styles.stSaveText}>{headline || `${formatDuration(comparison.mesesAMenos)} a menos de financiamento`}</span>
               </>
             ) : (
-              <span>Ligue uma opção e informe o valor para ver quanto você economiza.</span>
+              <span className={styles.stSaveText}>Ligue uma opção e informe o valor para ver quanto você economiza.</span>
             )}
           </div>
 
-          <StrategyBalanceChart comparison={comparison} showStrategy={active} />
+          {/* QUANDO VOCÊ QUITA: barras comparando os prazos (com amortização = fração do prazo sem amortização) */}
+          <div className={styles.stReveal}>
+            <p className={styles.stLabel}>Quando você quita</p>
+            <div className={styles.stWhen} aria-hidden="true">
+              <p className={styles.stWhenRow}><span>Sem amortização</span><b>{formatDuration(sem.months)}</b></p>
+              <span className={`${styles.stWhenBar} ${styles.stWhenSem}`} />
+              <p className={`${styles.stWhenRow} ${styles.stWhenRowCom}`}><span>Com amortização</span><b>{formatDuration(active ? com.months : sem.months)}</b></p>
+              <span className={styles.stWhenBar}><i className={styles.stWhenFill} style={{ width: `${Math.round(((active ? com.months : sem.months) / Math.max(1, sem.months)) * 1000) / 10}%` }} /></span>
+            </div>
+            <div className={styles.stCompare} aria-live="polite">
+              <div className={styles.stCol}>
+                <span className={styles.stColTitle}>Sem amortização</span>
+                <strong className={`${styles.stYears} ${styles.sr}`}>{formatDuration(sem.months)}</strong>
+                <span className={styles.stLine}>{sem.months} parcelas</span>
+                <span className={styles.stLine}>{formatBRL(sem.totalInterest)} de juros</span>
+              </div>
+              <div className={`${styles.stCol} ${styles.stColOn}`}>
+                <span className={styles.stColTitle}>Com amortização</span>
+                <strong className={`${styles.stYears} ${styles.sr}`}>{formatDuration(com.months)}</strong>
+                <span className={styles.stLine}>{com.months} parcelas</span>
+                <span className={styles.stLine}>{formatBRL(com.totalInterest)} de juros</span>
+              </div>
+            </div>
+          </div>
 
-          <div className={styles.fcFoot}>
+          <div className={styles.stReveal}>
+            <StrategyBalanceChart comparison={comparison} showStrategy={active} />
+          </div>
+
+          <div className={`${styles.fcFoot} ${styles.stReveal}`}>
             {pdfUrl ? (
               <button type="button" className={styles.apSecondary} onClick={downloadPdf} disabled={busy} data-st-pdf="">
                 <Download aria-hidden="true" />

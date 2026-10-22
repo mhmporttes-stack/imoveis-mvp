@@ -262,7 +262,31 @@ test("escala: palco com altura total e unidade --u; sem coluna fixa estreita", (
 test("ponto de extensão da animação de abertura: componente isolado com durationMs e reducedMotion", () => {
   const source = read("components/presentation/OpeningAnimation.jsx");
   assert.match(source, /export default function OpeningAnimation\(\{ durationMs = OPENING_ANIMATION_DEFAULT_MS, reducedMotion = false \}\)/);
-  assert.match(read("components/presentation/PresentationPlayer.jsx"), /<OpeningAnimation reducedMotion=\{reduced\} \/>/);
+  // abertura 3D (dono, 2026-10-22): o player usa OpeningKey3D; a abertura anterior continua como fallback (sem WebGL/movimento reduzido)
+  assert.match(read("components/presentation/PresentationPlayer.jsx"), /<OpeningKey3D reduced=\{reduced\} still=\{still\} \/>/);
+  assert.match(read("components/presentation/OpeningKey3D.jsx"), /<OpeningAnimation reducedMotion=\{reduced\} \/>/);
+});
+
+test("abertura 3D (dono, 2026-10-22): three.js só por import dinâmico, fallback, dispose e pixelRatio ≤ 2", () => {
+  const player = read("components/presentation/PresentationPlayer.jsx");
+  const box = read("components/presentation/OpeningKey3D.jsx");
+  const scene = read("components/presentation/opening-key-3d.mjs");
+  // a three.js nunca entra no pacote da página: só o módulo da cena a importa, e ele é carregado por import()
+  assert.doesNotMatch(player + box, /from "three"/);
+  assert.match(box, /import\("\.\/opening-key-3d\.mjs"\)/);
+  assert.match(scene, /from "three"/);
+  // fallback: sem WebGL, falha no import ou contexto perdido → abertura anterior
+  assert.match(box, /webglAvailable\(\)/);
+  assert.match(box, /\.catch\(\(\) => \{[\s\S]*?setMode\("fallback"\)/);
+  assert.match(box, /webglcontextlost/);
+  // sair da cena: para o loop e libera tudo
+  assert.match(box, /stop\?\.\(\)/);
+  assert.match(scene, /cancelAnimationFrame\(raf\)/);
+  assert.match(scene, /renderer\.dispose\(\)/);
+  assert.match(scene, /setPixelRatio\(Math\.min\(2, /);
+  // título: nome em caixa alta sem vírgula + frase; leitor de tela ouve a frase inteira
+  assert.match(player, /aria-label=\{title\}/);
+  assert.match(player, /toLocaleUpperCase\("pt-BR"\)/);
 });
 
 test("documentos: o painel é rolável, fecha (botão e Escape) e não navega a apresentação", () => {

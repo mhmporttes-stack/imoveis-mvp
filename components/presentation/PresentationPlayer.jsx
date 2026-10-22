@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Download, House, MessageCircle, Pause, Play, TrendingDown } from "lucide-react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { formatBRL, splitBRL } from "@/lib/simulation-presentation-format.mjs";
@@ -31,7 +31,7 @@ import AppointmentSheet from "./AppointmentSheet";
 import ForecastSheet from "./ForecastSheet";
 import StrategySheet from "./StrategySheet";
 import { STRATEGY_NAME_CAPS } from "@/lib/payment-strategy-core.mjs";
-import OpeningAnimation from "./OpeningAnimation";
+import OpeningKey3D from "./OpeningKey3D";
 import { ArchBackdrop, FolderArt, PowerRings, QuoteMark, StepArrow } from "./SceneArt";
 import styles from "./presentation.module.css";
 
@@ -42,7 +42,9 @@ import styles from "./presentation.module.css";
 // A logo da Caixa (a mesma do formulário público) fica no rodapé FIXO de todas as cenas, DIRETO sobre o fundo (sem pílula/caixa).
 // Os imóveis sugeridos (`branch`) são um ramo OPCIONAL fora do roteiro (`scenes`): abertos pelo botão do "Próximo passo".
 
-const DARK_SCENES = new Set(["abertura", "poder", "formacao", "imovel", "valores", "proximo", "validar", "aprovado", "aprovValores"]);
+// Tudo no fundo escuro (dono, 2026-10-22, protótipo aprovado: "o cliente vê à noite; o branco de repente cansa os olhos").
+// Antes parcelas, diferença e documentos eram claras.
+const DARK_SCENES = new Set(["abertura", "poder", "formacao", "parcelas", "diferenca", "imovel", "valores", "proximo", "validar", "documentos", "aprovado", "aprovValores"]);
 const theme = (scene) => (DARK_SCENES.has(scene?.id) ? "dark" : "light");
 const SESSION_KEY = (token) => `mm-apresentacao-${token.slice(0, 8)}`;
 const CAIXA_LOGO = "/assets/caixa-logo-transparent.png";
@@ -123,29 +125,25 @@ function Count({ value, reduced, duration = 1700, delay = 350, className = "" })
   );
 }
 
-/** Texto que se revela palavra por palavra (só opacity e transform). O texto lido é o mesmo. */
-function RevealWords({ text, start = 0, step = 55 }) {
-  const words = text.split(" ");
-  return words.map((word, i) => (
-    <Fragment key={`${i}-${word}`}>
-      <span className={styles.word} style={{ "--d": `${start + i * step}ms` }}>{word}</span>
-      {i < words.length - 1 ? " " : null}
-    </Fragment>
-  ));
-}
-
-function SceneAbertura({ scene, reduced }) {
+// Abertura (visual aprovado pelo dono em 2026-10-22): chave de ouro 3D com o "M" oficial (OpeningKey3D; sem WebGL ou com
+// movimento reduzido, a abertura anterior) e o título em dois níveis — o NOME em caixa alta, sem vírgula, no mesmo ouro da
+// chave, um traço fino dourado e a frase menor. Os elementos entram em sequência depois que a chave se forma. Leitor de tela
+// ouve a frase inteira (aria-label); as partes visuais são blocos (display: block), então nenhuma palavra gruda na outra.
+const OPENING_TEXT_AT = 3700; // ms: a chave já se formou (protótipo: wordStart da abertura "3D")
+function SceneAbertura({ scene, reduced, still = false }) {
   const title = scene.firstName ? `${scene.firstName}, sua simulação de financiamento está pronta` : "Sua simulação de financiamento está pronta";
+  const name = String(scene.firstName || "").trim().toLocaleUpperCase("pt-BR");
+  const at = (ms) => ({ "--d": reduced ? "0ms" : `${OPENING_TEXT_AT + ms}ms` });
   return (
     <div className={`${styles.sceneInner} ${styles.openingInner}`}>
-      <div className={styles.openArt}>
-        <OpeningAnimation reducedMotion={reduced} />
-      </div>
+      <OpeningKey3D reduced={reduced} still={still} />
       <div className={styles.openText}>
-        <h1 className={`${styles.title} ${styles.titleHero}`}>
-          {reduced ? title : <RevealWords text={title} start={1000} />}
+        <h1 className={styles.openTitle} aria-label={title}>
+          {name ? <span aria-hidden="true" className={`${styles.openName} ${styles.rise}`} style={{ ...at(0), "--len": name.length }}>{name}</span> : null}
+          {name ? <span aria-hidden="true" className={styles.openRule} style={at(300)} /> : null}
+          <span aria-hidden="true" className={`${styles.openRest} ${styles.rise}`} style={at(name ? 450 : 0)}>Sua simulação de financiamento está pronta</span>
         </h1>
-        <p className={`${styles.lead} ${styles.rise}`} style={{ "--d": reduced ? "0ms" : "1500ms" }}>Você já está um passo mais próximo da compra do seu imóvel</p>
+        <p className={`${styles.lead} ${styles.openLead} ${styles.rise}`} style={at(1100)}>Você já está um passo mais próximo da compra do seu imóvel</p>
       </div>
     </div>
   );
@@ -790,7 +788,7 @@ function fitScene(sceneEl) {
 
 function renderScene(scene, ctx) {
   switch (scene.id) {
-    case "abertura": return <SceneAbertura scene={scene} reduced={ctx.reduced} />;
+    case "abertura": return <SceneAbertura scene={scene} reduced={ctx.reduced} still={ctx.leaving} />;
     case "poder": return <ScenePoder scene={scene} reduced={ctx.reduced} />;
     case "formacao": return <SceneFormacao scene={scene} reduced={ctx.reduced} />;
     case "parcelas": return <SceneParcelas scene={scene} />;
@@ -1113,7 +1111,7 @@ export default function PresentationPlayer({ scenes, branch = [], token = "", pr
         <div className={styles.stage} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = null; }}>
           {leavingScene && !inBranch ? (
             <div key={`leave-${leaving}`} data-scene={leavingScene.id} className={`${styles.scene} ${styles.leave} ${leavingScene.id === "imovel" ? styles.photoScene : ""}`} aria-hidden="true">
-              {renderScene(leavingScene, { ...ctx, reduced: true })}
+              {renderScene(leavingScene, { ...ctx, reduced: true, leaving: true })}
             </div>
           ) : null}
           <div ref={sceneRef} key={inBranch ? `branch-${branchIndex}` : `scene-${state.index}`} data-scene={current.id} className={`${styles.scene} ${styles.enter} ${inBranch ? "" : dir} ${current.id === "imovel" ? styles.photoScene : ""}`}>
