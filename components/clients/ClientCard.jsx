@@ -66,6 +66,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
   return (
     <article
       aria-labelledby={`card-${client.id}`}
+      data-henry-client-id={client.id}
       className={cx(
         "flex min-w-0 flex-col rounded-card border bg-white transition-[border-color,box-shadow] duration-150",
         selected ? "border-brand ring-1 ring-brand" : "border-line hover:border-navy/20",

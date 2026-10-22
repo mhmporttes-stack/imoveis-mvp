@@ -58,6 +58,17 @@ export default function ClientWorkspace(props) {
     if (params.get("prospectingReplies") === "1") setRepliesOpen(true);
   }, []);
 
+  // Henry (navegação guiada, só o dono): "abre o cliente Fulano" com a lista já aberta — o cursor dele "clica" no card e
+  // a ficha abre por aqui (o ?clientId= da URL só é lido ao montar a tela).
+  useEffect(() => {
+    const onHenryOpen = (event) => {
+      const clientId = String(event?.detail?.clientId || "");
+      if (clientId) openFicha(clientId);
+    };
+    window.addEventListener("mm:henry-open-client", onHenryOpen);
+    return () => window.removeEventListener("mm:henry-open-client", onHenryOpen);
+  }, []);
+
   const openClient = list.items.find((item) => item.id === openClientId) || null;
   // Na fila de espera da roleta o cliente fica guardado com o dono (FUN-11), mas a etiqueta mostra "Roleta" (dono,
   // 2026-10-22: "quando eu colocar devolver para a roleta ... deve ficar roleta").

@@ -1,42 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import AnimatedNumber from "@/components/motion/AnimatedNumber";
+import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
+import styles from "./HenrySearchScene.module.css";
 
-// Cena de busca do Henry (pedido do dono, 2026-10-22: "quando ele procurar arquivos ou informações no CRM, a tela atrás
-// dele deve mostrar dados um pouco transparentes; quando falar de um corretor, vem uma cena como se ele buscasse o
-// corretor e, quando encontra, aparece um cardzinho com a foto do corretor conectado a ele").
-//   HenryDataScene  — camadas TRANSPARENTES (~12%) de "painel do CRM" passando atrás do anel: números, linhas de lista,
-//                     mini gráficos e etapas do funil, conforme o assunto do evento de progresso. Dados FICTÍCIOS gerados
-//                     aqui (nenhum dado real, nenhum nome de cliente). Some com fade quando ele começa a responder.
-//   HenryBrokerCards — "scanner" entre cards desfocados enquanto procura; achou → card com a FOTO (photo_url do painel),
-//                     o primeiro nome e 1–2 números, ligado ao anel por uma linha de luz animada. Até 3 cards.
+// Cena de busca do Henry. Pedido original do dono (2026-10-22): dados transparentes atrás do anel e, para corretor, um
+// "scanner" e o cardzinho com a foto ligado ao anel. Redesenho no mesmo dia ("a cena ficou muito pobre, quero algo bem
+// mais elaborado"): ambiente de busca em camadas, nível "HUD de assistente de IA", sem poluir.
+//   HenryDataScene   — grade em perspectiva (chão), partículas puxadas das bordas para o anel (canvas leve), painéis
+//                      holográficos em perspectiva com cartões do assunto pedido (funil, ranking, clientes, relatório,
+//                      meta, WhatsApp, web) e varredura de luz. Fases: entrada (desfocado → nítido) → busca (destaque
+//                      passando de cartão em cartão) → achou (um cartão vem para frente e é absorvido pelo anel, que pulsa;
+//                      os outros desfocam) → saída suave. Números FICTÍCIOS e sempre em movimento enquanto busca (nunca
+//                      param num valor que pareça um resultado real); rótulos genéricos, nenhum nome de cliente.
+//   HenryBrokerCards — carrossel de silhuetas passando rápido com a mira travando no corretor; achou → card premium
+//                      (borda dourado/ciano, foto do painel, primeiro nome, 1–2 números contando, posição se vier) ligado
+//                      ao anel por um feixe curvo com partículas. Até 3, em arco à direita do anel (celular: acima dele).
 //   HenryDetailPanel — o detalhe completo da resposta (relatório/corretor/cliente) em lista, na tela (a voz só resume).
-// Paleta do Henry: navy #07111F, ciano #4FC3E0, dourado suave #F3DCA6. CSS puro (sem biblioteca), pausa com a aba oculta,
-// prefers-reduced-motion = parado.
+// Paleta do Henry: navy #07111F, ciano #4FC3E0, azul #1E9BFF, dourado #E8B85C. Estilos em HenrySearchScene.module.css.
+// Aba oculta = tudo pausado (CSS, ticker e canvas); prefers-reduced-motion = versão parada.
 
 const ACCENT = "#4FC3E0";
-const GOLD = "#F3DCA6";
+const GOLD = "#E8B85C";
 
+// Só o giro do indicador do ícone pequeno (HenryIconSearchHint) continua global.
 const CSS = `
-@keyframes henry-data-rise { from { transform: translateY(0); } to { transform: translateY(-50%); } }
-@keyframes henry-data-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-14px, 8px); } }
-@keyframes henry-scan { 0% { left: -12%; } 100% { left: 100%; } }
-@keyframes henry-flow { to { stroke-dashoffset: -40; } }
-@keyframes henry-card-in { from { opacity: 0; transform: translateX(-12px) scale(0.96); } to { opacity: 1; transform: none; } }
-@keyframes henry-card-in-up { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes henry-spin { to { transform: rotate(360deg); } }
-.henry-data-col { animation: henry-data-rise linear infinite; }
-.henry-data-chart { animation: henry-data-drift ease-in-out infinite; }
-.henry-scan-beam { animation: henry-scan 1.6s ease-in-out infinite alternate; }
-.henry-flow { animation: henry-flow 1.2s linear infinite; }
-.henry-card { animation: henry-card-in 420ms cubic-bezier(.2,.8,.2,1) both; }
-.henry-card-up { animation: henry-card-in-up 420ms cubic-bezier(.2,.8,.2,1) both; }
 .henry-spin { animation: henry-spin 2.4s linear infinite; }
-.henry-paused .henry-data-col, .henry-paused .henry-data-chart, .henry-paused .henry-scan-beam, .henry-paused .henry-flow, .henry-paused .henry-spin { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) {
-  .henry-data-col, .henry-data-chart, .henry-scan-beam, .henry-flow, .henry-spin { animation: none !important; }
-  .henry-card, .henry-card-up { animation: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { .henry-spin { animation: none !important; } }
 `;
 
 export function HenrySceneStyles() {
@@ -55,7 +47,29 @@ export function useTabHidden() {
   return hidden;
 }
 
-// Gerador determinístico (mesmo assunto = mesma "tela"), só para números de enfeite.
+function useViewportWidth() {
+  const [width, setWidth] = useState(1280);
+  useEffect(() => {
+    const sync = () => setWidth(window.innerWidth);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+  return width;
+}
+
+// Relógio da cena: avança enquanto busca (destaque, números e páginas mudam a cada passo).
+function useTicker(running, ms = 950) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!running) return undefined;
+    const id = setInterval(() => setTick((value) => value + 1), ms);
+    return () => clearInterval(id);
+  }, [running, ms]);
+  return tick;
+}
+
+// Gerador determinístico (mesmo assunto = mesma "tela"), só para enfeite.
 function seeded(seed) {
   let value = seed % 2147483647 || 1;
   return () => {
@@ -63,84 +77,460 @@ function seeded(seed) {
     return value / 2147483647;
   };
 }
+// Número de enfeite que muda a cada passo (não para num valor: não é resultado).
+function churn(base, spread, tick, salt = 0) {
+  return base + ((tick * 7919 + salt * 104729 + salt * salt * 31) % Math.max(1, spread));
+}
 
-const STAGES = ["Prospecção", "Atendimento", "Simulação", "Documentação", "Aprovação", "Aprovados", "Reunião", "Venda"];
-const STATUS = ["Em atendimento", "Simulação enviada", "Aguardando documentação", "Aguardando aprovação", "Tentando contato"];
+const STAGES = ["Atendimento", "Simulação", "Documentação", "Aprovação", "Venda"];
+const STATUS = ["Em atendimento", "Simulação enviada", "Aguardando docs", "Em aprovação", "Tentando contato", "Reunião marcada"];
 const TOPIC_SEED = { geral: 11, relatorio: 23, funil: 37, ranking: 41, clientes: 53, corretor: 67, meta: 79, whatsapp: 97, internet: 101 };
-const SITES = ["noticias", "clima", "portal", "guia", "mapa", "jornal", "consulta", "agenda"];
+const RANKING = { left: ["rank", "bars", "line"], right: ["ring", "table"], mobile: ["rank", "ring"] };
+const REPORT = { left: ["line", "funnel", "bars"], right: ["rank", "ring"], mobile: ["line", "funnel"] };
+const LAYOUTS = {
+  funil: { left: ["funnel", "bars", "line"], right: ["table", "ring"], mobile: ["funnel", "line"] },
+  ranking: RANKING,
+  corretor: RANKING,
+  clientes: { left: ["table", "funnel", "line"], right: ["bars", "ring"], mobile: ["table", "funnel"] },
+  relatorio: REPORT,
+  geral: REPORT,
+  meta: { left: ["ring", "rank", "bars"], right: ["line", "table"], mobile: ["ring", "rank"] },
+  whatsapp: { left: ["status", "line", "bars"], right: ["table", "ring"], mobile: ["status", "line"] },
+  internet: { left: ["query", "pages"], right: ["pages"], mobile: ["query", "pages"] }
+};
+const TITLES = {
+  funnel: () => "Funil",
+  bars: (topic) => ({ funil: "Entradas por dia", ranking: "Pontos na semana", corretor: "Pontos na semana", clientes: "Atendimentos", meta: "Atividades", whatsapp: "Mensagens" })[topic] || "Leads por dia",
+  line: (topic) => ({ whatsapp: "Respostas", meta: "Ritmo da equipe", ranking: "Evolução", corretor: "Evolução" })[topic] || "Tendência do período",
+  table: (topic) => (topic === "whatsapp" ? "Conversas" : "Clientes"),
+  ring: (topic) => (topic === "meta" || topic === "ranking" || topic === "corretor" ? "Meta Diária" : "Conversão"),
+  rank: () => "Ranking",
+  status: () => "WhatsApp",
+  query: () => "Pesquisa na web",
+  pages: () => "Páginas"
+};
 
-// Linhas de "painel" por assunto (fictícias: contagens, barras e rótulos genéricos; nenhum nome real).
-function linesFor(topic, column, random) {
-  const lines = [];
-  for (let index = 0; index < 16; index += 1) {
-    const n = Math.round(random() * 180) + 2;
-    const pct = Math.round(random() * 100);
-    const bar = "▮".repeat(1 + Math.round(random() * 7)) + "▯".repeat(Math.round(random() * 3));
-    const kind = topic === "relatorio" || topic === "geral" ? ["funil", "ranking", "clientes", "meta"][(index + column) % 4] : topic;
-    if (kind === "funil") lines.push({ text: `${STAGES[(index + column) % STAGES.length]}`, value: String(n), bar: pct });
-    else if (kind === "ranking" || kind === "corretor") lines.push({ text: `${(index % 9) + 1}º  ●●●●`, value: `${n * 2} pts`, bar: pct });
-    else if (kind === "clientes") lines.push({ text: `Cliente ••••  ${STATUS[(index + column) % STATUS.length]}`, value: `${Math.round(random() * 12)}d`, bar: null });
-    else if (kind === "meta") lines.push({ text: `Meta ${bar}`, value: `${pct}%`, bar: null });
-    else if (kind === "internet") lines.push({ text: `▤  www.${SITES[(index + column) % SITES.length]}••••.com.br`, value: `${Math.round(random() * 9) + 1} min`, bar: pct });
-    else if (kind === "whatsapp") lines.push({ text: `Número ${(index % 2) + 1}  ●  ${random() > 0.2 ? "conectado" : "reconectando"}`, value: "", bar: null });
-    else lines.push({ text: `Registro ${1000 + Math.round(random() * 8999)}`, value: String(n), bar: pct });
-  }
-  return lines;
+function sparkPath(random, width = 200, height = 46) {
+  const points = Array.from({ length: 10 }, (_, index) => [Math.round((index / 9) * width), Math.round(height - 6 - random() * (height - 14) * (0.35 + index / 14))]);
+  const line = points.map(([x, y], index) => `${index ? "L" : "M"}${x} ${y}`).join(" ");
+  return { line, area: `${line} L${width} ${height} L0 ${height} Z`, end: points[points.length - 1] };
 }
 
-function sparkPoints(random, width = 120, height = 36) {
-  return Array.from({ length: 9 }, (_, index) => `${Math.round((index / 8) * width)},${Math.round(height - 4 - random() * (height - 8))}`).join(" ");
-}
-
-export function HenryDataScene({ active = false, topic = "geral", mobile = false }) {
-  const hidden = useTabHidden();
-  const columns = mobile ? 3 : 5;
-  const data = useMemo(() => {
-    const random = seeded(TOPIC_SEED[topic] || 7);
-    return {
-      columns: Array.from({ length: columns }, (_, column) => ({ lines: linesFor(topic, column, random), speed: 26 + Math.round(random() * 18), offset: Math.round(random() * 10) })),
-      charts: Array.from({ length: mobile ? 2 : 4 }, () => ({ points: sparkPoints(random), bars: Array.from({ length: 6 }, () => 6 + Math.round(random() * 26)), x: Math.round(random() * 80) + 5, y: Math.round(random() * 70) + 10, speed: 7 + Math.round(random() * 6) }))
-    };
-  }, [topic, columns, mobile]);
+function CardHead({ title, value }) {
   return (
-    <div
-      aria-hidden="true"
-      data-henry-data-scene={active ? topic : "off"}
-      className={`pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-700 ease-out motion-reduce:transition-none ${hidden ? "henry-paused" : ""}`}
-      style={{ opacity: active ? 1 : 0, maskImage: "radial-gradient(ellipse 62% 70% at 50% 48%, transparent 0%, transparent 22%, #000 48%, #000 66%, transparent 92%)", WebkitMaskImage: "radial-gradient(ellipse 62% 70% at 50% 48%, transparent 0%, transparent 22%, #000 48%, #000 66%, transparent 92%)" }}
-    >
-      <div className="absolute inset-0 flex justify-between gap-6 px-6 font-mono text-[11px] leading-[22px] md:px-10 md:text-[12px]" style={{ opacity: 0.1, color: "#CFE9F3" }}>
-        {data.columns.map((column, index) => (
-          <div key={index} className="relative h-full w-full overflow-hidden" style={{ marginTop: `${column.offset}vh` }}>
-            <div className="henry-data-col" style={{ animationDuration: `${column.speed}s` }}>
-              {[...column.lines, ...column.lines].map((line, lineIndex) => (
-                <div key={lineIndex} className="flex items-center gap-2 whitespace-nowrap">
-                  <span className="truncate">{line.text}</span>
-                  {line.bar != null ? <span className="inline-block h-[5px] rounded-full" style={{ width: `${Math.max(8, line.bar * 0.5)}px`, background: lineIndex % 3 ? ACCENT : GOLD }} /> : null}
-                  <span className="ml-auto tabular-nums" style={{ color: lineIndex % 4 ? undefined : GOLD }}>{line.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      {data.charts.map((chart, index) => (
-        <svg
-          key={index}
-          viewBox="0 0 120 36"
-          className="henry-data-chart absolute h-12 w-32 md:h-14 md:w-40"
-          style={{ left: `${chart.x}%`, top: `${chart.y}%`, opacity: 0.12, animationDuration: `${chart.speed}s` }}
-        >
-          {index % 2 ? (
-            chart.bars.map((height, barIndex) => <rect key={barIndex} x={barIndex * 20 + 2} y={36 - height} width="12" height={height} rx="2" fill={barIndex === 5 ? GOLD : ACCENT} />)
-          ) : (
-            <polyline points={chart.points} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-          )}
-        </svg>
-      ))}
+    <div className={styles.cardHead}>
+      <span className={styles.live} />
+      <span>{title}</span>
+      {value != null ? <span className={styles.headValue}>{value}</span> : null}
     </div>
   );
 }
+
+function CardBody({ kind, topic, seed, tick, mobile, gradientId }) {
+  const data = useMemo(() => {
+    const random = seeded(seed);
+    return { spark: sparkPath(random), bases: Array.from({ length: 12 }, () => random()) };
+  }, [seed]);
+  const { bases } = data;
+  if (kind === "line") {
+    return (
+      <>
+        <CardHead title={TITLES.line(topic)} />
+        <p className={styles.bigNumber}>
+          {churn(120 + Math.round(bases[0] * 80), 60, tick, seed)}
+          <span className={styles.unit}>{topic === "whatsapp" ? "respostas" : topic === "meta" ? "atividades" : "leads"}</span>
+        </p>
+        <svg viewBox="0 0 200 46" preserveAspectRatio="none" className={styles.spark} aria-hidden="true">
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={ACCENT} stopOpacity="0.35" />
+              <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={data.spark.area} fill={`url(#${gradientId})`} className={styles.sparkArea} />
+          <path d={data.spark.line} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" pathLength="1" className={styles.sparkLine} vectorEffect="non-scaling-stroke" />
+        </svg>
+      </>
+    );
+  }
+  if (kind === "bars") {
+    const count = mobile ? 7 : 9;
+    return (
+      <>
+        <CardHead title={TITLES.bars(topic)} />
+        <div className={styles.bars}>
+          {Array.from({ length: count }, (_, index) => {
+            const height = 0.25 + ((bases[index % 12] * 0.6 + ((tick + index) % 4) * 0.08) % 0.75);
+            return <span key={index} className={styles.bar} data-gold={index === count - 1 ? "1" : undefined} style={{ "--h": height.toFixed(2), "--bd": `${index * 45}ms` }} />;
+          })}
+        </div>
+      </>
+    );
+  }
+  if (kind === "funnel") {
+    const stages = mobile ? STAGES.slice(0, 3) : STAGES;
+    return (
+      <>
+        <CardHead title={TITLES.funnel()} />
+        <div className={styles.rows}>
+          {stages.map((stage, index) => {
+            const width = Math.max(0.12, 1 - index * 0.19 - bases[index] * 0.08 + ((tick + index) % 3) * 0.03);
+            return (
+              <div key={stage} className={styles.row}>
+                <span className={styles.rowLabel}>{stage}</span>
+                <span className={styles.rowValue}>{churn(Math.round(90 / (index + 1)), 14, tick, index + seed)}</span>
+                <span className={styles.track}>
+                  <span className={styles.fill} style={{ "--w": width.toFixed(2), "--bd": `${index * 70}ms` }} />
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+  }
+  if (kind === "rank") {
+    const rows = mobile ? 3 : 5;
+    return (
+      <>
+        <CardHead title={TITLES.rank()} />
+        <div className={styles.rows}>
+          {Array.from({ length: rows }, (_, index) => (
+            <div key={index} className={styles.row}>
+              <span className={styles.rowLabel}>
+                <span className={styles.rankPos}>{index + 1}º</span>
+                <span className={styles.mask}>{"●".repeat(4 + ((index + seed) % 3))}</span>
+              </span>
+              <span className={styles.rowValue}>{churn(420 - index * 55, 30, tick, index)} pts</span>
+              <span className={styles.track}>
+                <span className={styles.fill} data-gold={index === 0 ? "1" : undefined} style={{ "--w": (0.95 - index * 0.15).toFixed(2), "--bd": `${index * 70}ms` }} />
+              </span>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+  if (kind === "table" || kind === "status") {
+    const rows = Array.from({ length: 8 }, (_, index) =>
+      kind === "status" || topic === "whatsapp"
+        ? { label: `Número ${(index % 2) + 1}`, value: (index + seed) % 5 ? "conectado" : "reconectando", tone: (index + seed) % 5 ? "cyan" : "gold" }
+        : { label: "Cliente ••••", value: STATUS[(index + seed) % STATUS.length], tone: ["cyan", "blue", "gold"][index % 3] }
+    );
+    return (
+      <>
+        <CardHead title={kind === "status" ? TITLES.status() : TITLES.table(topic)} value={kind === "status" ? null : `${churn(30, 40, tick, seed)}`} />
+        <div className={styles.tableWin}>
+          <div className={styles.tableRoll} style={{ animationDuration: `${8 + (seed % 4)}s` }}>
+            {[...rows, ...rows].map((row, index) => (
+              <div key={index} className={styles.tableRow}>
+                <span className={styles.dot} data-tone={row.tone} />
+                <span className={styles.rowLabel}>{row.label}</span>
+                <span className={styles.rowLabel} style={{ color: "rgba(215,238,246,0.6)" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (kind === "ring") {
+    const percent = churn(52, 40, tick, seed);
+    const circumference = 1;
+    return (
+      <>
+        <CardHead title={TITLES.ring(topic)} />
+        <div className={styles.ringWrap}>
+          <svg viewBox="0 0 64 64" className={styles.ringSvg} aria-hidden="true">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(79,195,224,0.14)" strokeWidth="6" />
+            <circle cx="32" cy="32" r="26" fill="none" stroke={GOLD} strokeWidth="6" strokeLinecap="round" pathLength="1" className={styles.ringArc} style={{ strokeDashoffset: circumference - percent / 100 }} />
+          </svg>
+          <div>
+            <p className={styles.bigNumber} style={{ marginTop: 0 }}>
+              {percent}
+              <span className={styles.unit}>%</span>
+            </p>
+            {!mobile ? <p className={styles.unit} style={{ marginLeft: 0 }}>da equipe agora</p> : null}
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (kind === "query") {
+    return (
+      <>
+        <CardHead title={TITLES.query()} />
+        <div className={styles.query}>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke={ACCENT} strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="M16 16l4 4" />
+          </svg>
+          <span>Pesquisando</span>
+          <span className={styles.typing}>
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+        {!mobile ? (
+          <div className={styles.rows}>
+            {["Fontes encontradas", "Lendo agora"].map((label, index) => (
+              <div key={label} className={styles.row}>
+                <span className={styles.rowLabel}>{label}</span>
+                <span className={styles.rowValue}>{index ? (tick % 3) + 1 : Math.min(9, 3 + (tick % 7))}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </>
+    );
+  }
+  // pages: páginas genéricas folheando (título + barras de texto; nenhum site real).
+  const total = 4;
+  return (
+    <>
+      <CardHead title={TITLES.pages()} value={`${(tick % total) + 1}/${total}`} />
+      <div className={styles.pages}>
+        {Array.from({ length: total }, (_, index) => {
+          const position = (((index - tick) % total) + total) % total;
+          const pos = position === total - 1 ? -1 : position;
+          return (
+            <div key={index} className={styles.page} data-pos={pos}>
+              <div className={styles.pageTitle} style={{ width: `${48 + ((index * 17 + seed) % 30)}%` }} />
+              <div className={styles.pageUrl} />
+              {Array.from({ length: mobile ? 3 : 7 }, (_, line) => (
+                <div key={line} className={styles.pageLine} style={{ width: `${64 + ((line * 23 + index * 11) % 34)}%` }} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// Partículas/feixes puxados das bordas para o anel (canvas 2D leve, só enquanto busca e com a aba visível).
+function HenryParticles({ running, mobile, orbSize, burst }) {
+  const ref = useRef(null);
+  const burstRef = useRef(burst);
+  burstRef.current = burst;
+  useEffect(() => {
+    if (!running) return undefined;
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return undefined;
+    let width = 0;
+    let height = 0;
+    const resize = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    const max = mobile ? 26 : 60;
+    const colors = ["79,195,224", "79,195,224", "30,155,255", "232,184,92"];
+    const parts = [];
+    const spawn = () => {
+      const side = Math.floor(Math.random() * 4);
+      const t = Math.random();
+      const x = side === 0 ? t * width : side === 1 ? width + 10 : side === 2 ? t * width : -10;
+      const y = side === 0 ? -10 : side === 1 ? t * height : side === 2 ? height + 10 : t * height;
+      parts.push({ x, y, speed: 30 + Math.random() * 50, spin: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35), color: colors[Math.floor(Math.random() * colors.length)], age: 0 });
+    };
+    let last = performance.now();
+    let raf = 0;
+    const frame = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const cx = width / 2;
+      const cy = height / 2 - (mobile ? window.innerHeight * 0.14 : 0);
+      const ring = orbSize * 0.33;
+      const bursting = burstRef.current;
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      if (parts.length < (bursting ? max * 1.5 : max) && Math.random() < (bursting ? 0.95 : 0.4)) spawn();
+      for (let index = parts.length - 1; index >= 0; index -= 1) {
+        const p = parts[index];
+        const dx = cx - p.x;
+        const dy = cy - p.y;
+        const distance = Math.hypot(dx, dy) || 1;
+        p.age += dt;
+        p.speed += dt * (bursting ? 620 : 150);
+        const ux = dx / distance;
+        const uy = dy / distance;
+        // componente tangencial: entra em espiral, como se o anel puxasse
+        const swirl = p.spin * Math.min(1, distance / (ring * 3));
+        const vx = ux - uy * swirl;
+        const vy = uy + ux * swirl;
+        const norm = Math.hypot(vx, vy) || 1;
+        const step = p.speed * dt;
+        p.x += (vx / norm) * step;
+        p.y += (vy / norm) * step;
+        if (distance < ring * 1.04) {
+          parts.splice(index, 1);
+          continue;
+        }
+        const tail = Math.min(70, 6 + p.speed * 0.14);
+        const alpha = Math.min(1, p.age * 2) * Math.min(1, (distance - ring) / (ring * 0.9)) * 0.75;
+        const tx = p.x - (vx / norm) * tail;
+        const ty = p.y - (vy / norm) * tail;
+        const gradient = ctx.createLinearGradient(tx, ty, p.x, p.y);
+        gradient.addColorStop(0, `rgba(${p.color},0)`);
+        gradient.addColorStop(1, `rgba(${p.color},${alpha.toFixed(3)})`);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(${p.color},${(alpha * 0.9).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      ctx.clearRect(0, 0, width, height);
+    };
+  }, [running, mobile, orbSize]);
+  return <canvas ref={ref} className={styles.particles} aria-hidden="true" />;
+}
+
+// Fases: off → enter (700 ms) → search → [busca termina] found (1,1 s) → exit (0,6 s) → off.
+function useScenePhase(active, reduced) {
+  const [phase, setPhase] = useState(active ? "enter" : "off");
+  useEffect(() => {
+    if (active) {
+      setPhase(reduced ? "search" : "enter");
+      if (reduced) return undefined;
+      const id = setTimeout(() => setPhase("search"), 700);
+      return () => clearTimeout(id);
+    }
+    setPhase((current) => (current === "off" ? "off" : reduced ? "exit" : "found"));
+    return undefined;
+  }, [active, reduced]);
+  useEffect(() => {
+    if (phase !== "found" && phase !== "exit") return undefined;
+    const id = setTimeout(() => setPhase(phase === "found" ? "exit" : "off"), phase === "found" ? 1100 : 650);
+    return () => clearTimeout(id);
+  }, [phase]);
+  return phase;
+}
+
+export function HenryDataScene({ active = false, topic = "geral", mobile = false, orbSize = 520, hasBrokers = false }) {
+  const hidden = useTabHidden();
+  const reduced = usePrefersReducedMotion();
+  const viewport = useViewportWidth();
+  const phase = useScenePhase(active, reduced);
+  const [shownTopic, setShownTopic] = useState(topic);
+  useEffect(() => {
+    if (active) setShownTopic(topic);
+  }, [active, topic]);
+  const searching = phase === "enter" || phase === "search";
+  const tick = useTicker(searching && !hidden && !reduced);
+  const layout = LAYOUTS[shownTopic] || LAYOUTS.geral;
+  const seedBase = TOPIC_SEED[shownTopic] || 7;
+  const ringOuter = Math.round(orbSize * 0.37);
+  const wingWidth = Math.min(276, Math.round(viewport / 2 - ringOuter - 56));
+  const showWings = !mobile && wingWidth >= 190;
+  // Celular: faixa acima do anel (os corretores ficam abaixo dele). Computador: asa esquerda + direita (a direita cede
+  // o lugar ao arco de corretores).
+  const wings = mobile
+    ? [{ key: "top", kinds: layout.mobile }]
+    : showWings
+      ? [{ key: "left", kinds: layout.left }, ...(hasBrokers ? [] : [{ key: "right", kinds: layout.right }])]
+      : [];
+  const cards = wings.flatMap((wing) => wing.kinds.map((kind, index) => ({ wing: wing.key, kind, index })));
+  const lit = cards.length ? tick % cards.length : -1;
+  const litRef = useRef(lit);
+  if (searching) litRef.current = lit;
+  const chosen = litRef.current;
+  const cardRefs = useRef([]);
+  const sceneRef = useRef(null);
+  const gradientBase = useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  // Achou: o cartão escolhido voa até o centro do anel (deslocamento medido na hora).
+  useLayoutEffect(() => {
+    if (phase !== "found") return;
+    const element = cardRefs.current[chosen];
+    const scene = sceneRef.current;
+    if (!element || !scene) return;
+    const box = element.getBoundingClientRect();
+    const area = scene.getBoundingClientRect();
+    const cx = area.left + area.width / 2;
+    const cy = area.top + area.height / 2 - (mobile ? window.innerHeight * 0.14 : 0);
+    element.style.setProperty("--dx", `${Math.round(cx - (box.left + box.width / 2))}px`);
+    element.style.setProperty("--dy", `${Math.round(cy - (box.top + box.height / 2))}px`);
+  }, [phase, chosen, mobile]);
+
+  if (phase === "off" && !active) {
+    return <div aria-hidden="true" data-henry-data-scene="off" className={styles.scene} data-phase="off" />;
+  }
+  const centerTop = mobile ? "calc(50% - 14vh)" : "50%";
+  const wingStyle = (key) => {
+    if (key === "top") return { top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, transform: "rotateX(16deg)" };
+    if (key === "left") return { right: `calc(50% + ${ringOuter + 20}px)`, width: wingWidth, top: "50%", transform: "translateY(-52%) rotateY(20deg)", transformOrigin: "100% 50%" };
+    return { left: `calc(50% + ${ringOuter + 20}px)`, width: wingWidth, top: `calc(50% - ${Math.round(Math.min(orbSize * 0.5, 300))}px)`, transform: "rotateY(-20deg)", transformOrigin: "0% 50%" };
+  };
+  let cardIndex = -1;
+  return (
+    <div
+      ref={sceneRef}
+      aria-hidden="true"
+      data-henry-data-scene={active ? shownTopic : "off"}
+      data-phase={phase}
+      className={`${styles.scene} ${mobile ? styles.mobile : ""} ${hidden ? styles.paused : ""}`}
+    >
+      <div className={styles.floor}>
+        <div className={styles.floorGrid} />
+      </div>
+      <div className={styles.horizon} />
+      {!reduced ? <HenryParticles running={phase !== "exit" && phase !== "off" && !hidden} mobile={mobile} orbSize={orbSize} burst={phase === "found"} /> : null}
+      <div className={styles.stage}>
+        {wings.map((wing) => (
+          <div key={wing.key} className={`${styles.wing} ${wing.key === "top" ? styles.wingTop : ""}`} style={wingStyle(wing.key)}>
+            {wing.kinds.map((kind) => {
+              cardIndex += 1;
+              const index = cardIndex;
+              return (
+                <div
+                  key={`${shownTopic}-${wing.key}-${index}`}
+                  ref={(element) => {
+                    cardRefs.current[index] = element;
+                  }}
+                  className={styles.card}
+                  data-lit={phase === "search" && index === lit ? "1" : undefined}
+                  data-chosen={index === chosen ? "1" : undefined}
+                  style={{ "--delay": `${index * 80}ms` }}
+                >
+                  <CardBody kind={kind} topic={shownTopic} seed={seedBase + index * 13} tick={tick} mobile={mobile} gradientId={`${gradientBase}-g${index}`} />
+                  {!reduced ? <span className={styles.scan} style={{ "--scan-delay": `${index * 0.7}s` }} /> : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      {phase === "found" ? (
+        <>
+          <span className={styles.pulse} style={{ left: "50%", top: centerTop, width: orbSize * 0.66, height: orbSize * 0.66, animationDelay: "380ms" }} />
+          <span className={styles.pulse} data-second="1" style={{ left: "50%", top: centerTop, width: orbSize * 0.66, height: orbSize * 0.66, animationDelay: "600ms" }} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// ======================= corretores =======================
 
 function initialOf(name) {
   return String(name || "?").trim().charAt(0).toUpperCase() || "?";
@@ -159,108 +549,170 @@ function BrokerAvatar({ broker, size = 44 }) {
   );
 }
 
-function BrokerCard({ broker, mobile }) {
+function Silhouette() {
   return (
-    <div
-      className={`${mobile ? "henry-card-up w-[104px] flex-col text-center" : "henry-card w-[210px]"} flex items-center gap-3 rounded-2xl px-3 py-2.5 backdrop-blur-md`}
-      style={{ background: "rgba(10, 28, 50, 0.78)", boxShadow: `0 0 0 1px rgba(79,195,224,0.35), 0 10px 30px rgba(0,0,0,0.35), 0 0 24px rgba(79,195,224,0.18)` }}
-      data-henry-broker-card={broker.id}
-    >
-      <BrokerAvatar broker={broker} size={mobile ? 40 : 44} />
-      <div className="min-w-0">
-        <p className="truncate text-[13px] font-bold text-white">{broker.firstName}</p>
-        {broker.stats?.length ? (
-          <p className={`mt-0.5 flex ${mobile ? "flex-col" : "flex-wrap gap-x-2"} text-[11px] text-white/70`}>
-            {broker.stats.map((stat) => (
-              <span key={stat.label}>
-                <span className="font-bold tabular-nums" style={{ color: GOLD }}>{stat.value}</span> {stat.label}
-              </span>
-            ))}
-          </p>
-        ) : (
-          <p className="mt-0.5 text-[11px]" style={{ color: ACCENT }}>{broker.found ? "encontrado" : "procurando…"}</p>
-        )}
-      </div>
-    </div>
+    <svg viewBox="0 0 56 76" width="100%" height="100%" aria-hidden="true">
+      <circle cx="28" cy="30" r="11" fill="#24507A" />
+      <path d="M8 76c2-16 10-24 20-24s18 8 20 24z" fill="#1B3B5E" />
+    </svg>
   );
 }
 
-// "Scanner": cards desfocados passando e um feixe de luz varrendo, enquanto ele procura o corretor.
-function BrokerScanner({ mobile }) {
+function BrokerPhoto({ broker, className }) {
+  const [failed, setFailed] = useState(false);
+  if (broker.photoUrl && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={broker.photoUrl} alt="" className={className} onError={() => setFailed(true)} draggable={false} />;
+  }
+  return <span className={`${className} ${styles.initial}`}>{initialOf(broker.firstName)}</span>;
+}
+
+// Procurando: silhuetas passando rápido; a fita desacelera e a mira trava no corretor (foto ainda levemente desfocada).
+function BrokerScanner({ broker, mobile, compact }) {
+  const tile = mobile ? 50 : 56;
+  const width = compact ? 112 : mobile ? 236 : 252;
+  const target = 6;
+  const land = Math.round(width / 2 - (12 + target * (tile + 12) + tile / 2));
   return (
-    <div className={`relative overflow-hidden rounded-2xl ${mobile ? "h-[86px] w-[260px]" : "h-[92px] w-[230px]"}`} style={{ background: "rgba(10, 28, 50, 0.35)", boxShadow: "0 0 0 1px rgba(79,195,224,0.18)" }} data-henry-broker-scanner>
-      <div className="flex h-full items-center gap-3 px-3" style={{ filter: "blur(3px)", opacity: 0.55 }}>
-        {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="flex w-12 shrink-0 flex-col items-center gap-1.5">
-            <span className="h-9 w-9 rounded-full" style={{ background: index % 2 ? "#1B3B5E" : "#24507A" }} />
-            <span className="h-1.5 w-10 rounded-full bg-white/30" />
-            <span className="h-1.5 w-7 rounded-full bg-white/20" />
-          </div>
+    <div className={styles.scanner} style={{ width }} data-henry-broker-scanner>
+      <div className={styles.strip} style={{ "--land": `${land}px` }}>
+        {Array.from({ length: 9 }, (_, index) => (
+          <span key={index} className={styles.tile} data-target={index === target ? "1" : undefined}>
+            {index === target && broker?.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={broker.photoUrl} alt="" draggable={false} />
+            ) : (
+              <Silhouette />
+            )}
+          </span>
         ))}
       </div>
-      <span className="henry-scan-beam absolute top-0 h-full w-[12%]" style={{ background: `linear-gradient(90deg, transparent, ${ACCENT}AA, transparent)`, boxShadow: `0 0 18px ${ACCENT}` }} />
+      <span className={styles.reticle}>
+        <i />
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className={styles.scanBeamV} style={{ "--scan-w": `${width}px` }} />
+      {!compact ? <span className={styles.scanLabel}>Procurando corretor</span> : null}
     </div>
   );
 }
 
-// Cards ao lado do anel (computador) ou logo abaixo (celular), ligados a ele por linhas de luz.
-export function HenryBrokerCards({ brokers = [], orbSize = 400, mobile = false }) {
-  const hidden = useTabHidden();
-  const list = brokers.slice(-3);
-  if (!list.length) return null;
-  const searching = list.some((broker) => !broker.found);
-  const found = list.filter((broker) => broker.found);
-  if (mobile) {
-    const top = Math.round(orbSize * 0.86);
-    return (
-      <div className={`pointer-events-none absolute left-1/2 flex -translate-x-1/2 flex-col items-center ${hidden ? "henry-paused" : ""}`} style={{ top }} data-henry-brokers>
-        <svg width="240" height="28" viewBox="0 0 240 28" className="overflow-visible" aria-hidden="true">
-          {(found.length ? found : [null]).map((_, index, all) => {
-            const x = all.length === 1 ? 120 : 120 + (index - (all.length - 1) / 2) * 112;
-            return <path key={index} d={`M120 0 C120 14 ${x} 10 ${x} 28`} fill="none" stroke={ACCENT} strokeWidth="1.5" strokeDasharray="6 6" className="henry-flow" opacity="0.85" />;
-          })}
-        </svg>
-        <div className="flex gap-2">
-          {found.map((broker) => <BrokerCard key={broker.id} broker={broker} mobile />)}
-          {searching && !found.length ? <BrokerScanner mobile /> : null}
+function parseStat(value) {
+  const match = /^(\d{1,7})(\D{0,6})$/.exec(String(value || "").trim());
+  return match ? { number: Number(match[1]), suffix: match[2] } : null;
+}
+
+function PremiumCard({ broker, mobile, delay = 0 }) {
+  const positionStat = (broker.stats || []).find((stat) => /posi|lugar|ranking/i.test(stat.label));
+  const position = broker.position || (positionStat ? String(positionStat.value).replace(/\D/g, "") : "");
+  const stats = (broker.stats || []).filter((stat) => stat !== positionStat).slice(0, 2);
+  return (
+    <div className={styles.premium} style={{ "--delay": `${delay}ms` }} data-henry-broker-card={broker.id}>
+      <div className={styles.premiumInner}>
+        <span className={styles.sheen} />
+        <span className={styles.photoWrap}>
+          <BrokerPhoto broker={broker} className={styles.photo} />
+          {position ? <span className={styles.badge}>{position}º</span> : null}
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <p className={styles.name}>{broker.firstName}</p>
+          {stats.length ? (
+            <div className={styles.stats}>
+              {stats.map((stat) => {
+                const parsed = parseStat(stat.value);
+                return (
+                  <span key={stat.label} className={styles.stat}>
+                    <span className={styles.statValue}>
+                      {parsed ? <AnimatedNumber value={parsed.number} duration={1.1} format={(n) => `${Math.round(n)}${parsed.suffix}`} /> : stat.value}
+                    </span>
+                    <span className={styles.statLabel}>{stat.label}</span>
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={styles.found}>encontrado</p>
+          )}
         </div>
       </div>
-    );
-  }
-  const cardHeight = 80;
-  const gap = 12;
-  const items = [...found.map((broker) => ({ kind: "card", broker })), ...(searching ? [{ kind: "scanner" }] : [])];
-  const total = items.reduce((sum, item) => sum + (item.kind === "card" ? cardHeight : 92), 0) + gap * Math.max(0, items.length - 1);
-  const left = Math.round(orbSize * 0.82);
-  const centerY = orbSize / 2;
-  let cursor = centerY - total / 2;
-  const placed = items.map((item) => {
-    const height = item.kind === "card" ? cardHeight : 92;
-    const y = cursor;
-    cursor += height + gap;
-    return { ...item, y, mid: y + height / 2 };
+    </div>
+  );
+}
+
+const ARC_ANGLES = { 1: [0], 2: [-24, 16], 3: [-46, -12, 22] };
+
+// Cards em arco à direita do anel (computador) ou acima dele (celular), ligados por feixes de luz curvos.
+export function HenryBrokerCards({ brokers = [], orbSize = 400, mobile = false }) {
+  const hidden = useTabHidden();
+  const reduced = usePrefersReducedMotion();
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const list = brokers.slice(-3);
+  if (!list.length) return null;
+  const found = list.filter((broker) => broker.found);
+  const searchingBroker = [...list].reverse().find((broker) => !broker.found) || null;
+  const items = [...found.map((broker) => ({ kind: "card", broker })), ...(searchingBroker ? [{ kind: "scanner", broker: searchingBroker }] : [])].slice(-3);
+  const size = orbSize;
+  const c = size / 2;
+  const ring = size * 0.33;
+  const placed = items.map((item, index) => {
+    if (mobile) {
+      const compact = item.kind === "scanner" && items.length > 1;
+      // Celular: abaixo do anel (acima fica o cabeçalho; a transcrição começa mais abaixo).
+      const spread = items.length === 1 ? [0] : items.length === 2 ? [-62, 62] : [-120, 0, 120];
+      const x = c + spread[index];
+      const y = c + ring + 20;
+      const angle = Math.atan2(y - c, x - c);
+      const start = [c + ring * Math.cos(angle), c + ring * Math.sin(angle)];
+      return { ...item, compact, x, y, start, control: [x, (start[1] + y) / 2 - 4] };
+    }
+    const angle = ((ARC_ANGLES[items.length] || ARC_ANGLES[3])[index] * Math.PI) / 180;
+    const radius = size * 0.5 + 34;
+    const x = c + radius * Math.cos(angle);
+    const y = c + radius * Math.sin(angle);
+    const start = [c + ring * Math.cos(angle), c + ring * Math.sin(angle)];
+    const mid = (ring + radius) / 2;
+    const control = [c + mid * Math.cos(angle) - Math.sin(angle) * 34, c + mid * Math.sin(angle) + Math.cos(angle) * 34];
+    return { ...item, x, y, start, control };
   });
   return (
-    <div className={`pointer-events-none absolute top-0 ${hidden ? "henry-paused" : ""}`} style={{ left, width: 320, height: orbSize }} data-henry-brokers>
-      <svg className="absolute left-0 top-0 overflow-visible" width="90" height={orbSize} aria-hidden="true">
+    <div className={`${styles.brokers} ${mobile ? styles.mobileB : ""} ${hidden ? styles.paused : ""}`} style={{ width: size, height: size }} data-henry-brokers aria-hidden="true">
+      <svg className={styles.beams} width={size} height={size} aria-hidden="true">
         <defs>
-          <linearGradient id="henry-link" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.2" />
-            <stop offset="70%" stopColor={ACCENT} stopOpacity="0.95" />
-            <stop offset="100%" stopColor={GOLD} stopOpacity="0.95" />
+          <linearGradient id={`${uid}-beam`} gradientUnits="userSpaceOnUse" x1={mobile ? c : c + ring} y1={mobile ? c + ring : c} x2={mobile ? c : size} y2={mobile ? c + ring + 24 : c}>
+            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.15" />
+            <stop offset="55%" stopColor={ACCENT} stopOpacity="0.9" />
+            <stop offset="100%" stopColor={GOLD} stopOpacity="1" />
           </linearGradient>
         </defs>
-        {placed.map((item, index) => (
-          <g key={index}>
-            <path d={`M0 ${centerY} C40 ${centerY} 44 ${item.mid} 86 ${item.mid}`} fill="none" stroke="url(#henry-link)" strokeWidth="1.6" opacity="0.5" />
-            <path d={`M0 ${centerY} C40 ${centerY} 44 ${item.mid} 86 ${item.mid}`} fill="none" stroke={GOLD} strokeWidth="2" strokeDasharray="4 16" strokeLinecap="round" className="henry-flow" />
-            <circle cx="86" cy={item.mid} r="3" fill={GOLD} />
-          </g>
-        ))}
+        {placed.map((item, index) => {
+          const d = `M${item.start[0].toFixed(1)} ${item.start[1].toFixed(1)} Q${item.control[0].toFixed(1)} ${item.control[1].toFixed(1)} ${item.x.toFixed(1)} ${item.y.toFixed(1)}`;
+          const isCard = item.kind === "card";
+          return (
+            <g key={`${item.kind}-${item.broker.id}`}>
+              <path d={d} fill="none" stroke={isCard ? `url(#${uid}-beam)` : ACCENT} strokeWidth={isCard ? 6 : 3} opacity="0.16" strokeLinecap="round" />
+              <path d={d} fill="none" stroke={isCard ? `url(#${uid}-beam)` : ACCENT} strokeWidth="1.4" pathLength="1" className={styles.beamDraw} style={{ animationDelay: `${index * 90}ms` }} opacity={isCard ? 0.95 : 0.5} />
+              {!reduced ? <path d={d} fill="none" stroke={isCard ? GOLD : ACCENT} strokeWidth="2" strokeDasharray="3 9" strokeLinecap="round" className={styles.beamFlow} opacity={isCard ? 0.9 : 0.6} /> : null}
+              {!reduced && !hidden && isCard
+                ? [0, 0.55].map((begin) => (
+                    <circle key={begin} r="2.6" fill="#fff" opacity="0.95" style={{ filter: `drop-shadow(0 0 4px ${GOLD})` }}>
+                      <animateMotion dur="1.4s" begin={`${begin}s`} repeatCount="indefinite" path={d} />
+                    </circle>
+                  ))
+                : null}
+              <circle cx={item.x} cy={item.y} r="3.2" fill={isCard ? GOLD : ACCENT} />
+            </g>
+          );
+        })}
       </svg>
-      {placed.map((item) => (
-        <div key={item.kind === "card" ? item.broker.id : "scanner"} className="absolute" style={{ left: 90, top: item.y }}>
-          {item.kind === "card" ? <BrokerCard broker={item.broker} /> : <BrokerScanner />}
+      {placed.map((item, index) => (
+        <div
+          key={`${item.kind}-${item.broker.id}`}
+          className={`${styles.slot} ${mobile ? styles.slotTop : ""}`}
+          style={{ left: mobile ? item.x : item.x + 4, top: item.y }}
+        >
+          {item.kind === "card" ? <PremiumCard broker={item.broker} mobile={mobile} delay={index * 90} /> : <BrokerScanner broker={item.broker} mobile={mobile} compact={item.compact} />}
         </div>
       ))}
     </div>

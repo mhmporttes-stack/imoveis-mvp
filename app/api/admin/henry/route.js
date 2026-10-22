@@ -25,6 +25,13 @@ import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseH
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
+import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
+
+// Navegação devolvida ao navegador: só tela da lista fechada ou ficha de cliente (id no formato do banco).
+function navigationPayload(navigate) {
+  if (!navigate?.path || !isAllowedHenryNavigation(navigate.path)) return null;
+  return { path: navigate.path, label: navigate.label, key: navigate.key || "", ...(isHenryClientId(navigate.clientId) ? { clientId: navigate.clientId } : {}) };
+}
 import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, checkHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
 export const runtime = "nodejs";
@@ -149,7 +156,7 @@ function answerStream(auth, request, style) {
             if (say) pending.push(synthesizeHenryShort(auth, say, style).then((audio) => audio && send({ narration: { text: say, audio } })).catch(() => {}));
           }
         });
-        const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
+        const navigate = navigationPayload(answer.navigate);
         send({ reply: answer.reply, navigate, detail: answer.detail || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
@@ -274,7 +281,7 @@ export async function POST(request) {
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
     if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, vision, webSearch }, style);
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision, webSearch });
-    const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
+    const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
     return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, memoryCleared: answer.memoryCleared === true, audio });
   } catch (error) {

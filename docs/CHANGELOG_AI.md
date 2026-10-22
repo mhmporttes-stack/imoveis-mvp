@@ -392,6 +392,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry: navegação guiada (minimiza, cursor mostra o caminho), ficha de cliente por voz e ícone que dobra minimizado
+- **Pedido do dono:** "dobre de tamanho, mesmo minimizado"; "quando ele for abrir uma tela… ou um card de cliente, quero que ele minimize"; "mostrar um mouse diferente simulando ele clicando".
+- **O que mudou:** ícone cresce já ao ouvir o nome no parcial (e gravando); toda navegação minimiza e passa pelo cursor do Henry (menu → clique → tela → card → clique); ferramenta `abrir_cliente` (vários = pergunta qual); aceite de sugestão ("sim/abre/pode"); atributos `data-henry-target` no menu lateral e na barra inferior e `data-henry-client-id` no card; `ClientWorkspace` abre a ficha pelo evento `mm:henry-open-client`.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1, `.claude/rules/integracoes-externas.md`.
+- **Arquivos:** `lib/henry-navigation-core.mjs`, `components/henry/HenryCursor.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-reports.js`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js`, `components/AdminMenu.jsx`, `components/AdminBottomNav.jsx`, `components/clients/ClientCard.jsx`, `components/clients/ClientWorkspace.jsx`, vitrine, `tests/henry-navigation.test.mjs`.
+
 ### 2026-10-22 — Henry assistente pessoal: jeito de amigo, vocabulário variado, memória do dia, lembretes e pesquisa na internet
 - **Pedidos do dono:** "ele é meu assistente pessoal… dê acesso a navegador para ele pesquisar"; "formal demais… como se ele fosse um amigo batendo um papo"; "ele fala sempre a mesma coisa"; "deixar a memória dele no dia".
 - **O que mudou:** prompt novo (fixo com cache + variável com data/hora de Brasília, lembretes, resumo do dia, aberturas proibidas e dica sorteada); tom padrão "Amigo (descontraído)" (voz ElevenLabs mais expressiva); relatório do dia reescrito pelo modelo com trava de números e reserva sorteada (sem "Segue o relatório"); bancos de 20+ frases (aberturas, "pode falar", despedidas na voz dele); memória do dia em `crm_settings` `henry_day_memory` (volta ao abrir/recarregar; "esquece a conversa de hoje"); lembretes `henry_notes`; pesquisa na internet (`web_search_20250305`, 3 buscas, fontes na tela, custo `henry_web_search`, liga/desliga no cartão — nasce ligada).

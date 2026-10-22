@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { detectWakeWord, isAllowedHenryPath, isVisualQuestion } from "@/lib/henry-voice-core.mjs";
+import { detectWakeWord, isVisualQuestion } from "@/lib/henry-voice-core.mjs";
+import { shouldMinimizeForNavigation } from "@/lib/henry-navigation-core.mjs";
 import {
   INTERIM_FINAL_MS,
   RECORD_MIN_MS,
@@ -34,6 +35,7 @@ import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/
 import { pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import HenryVoiceView from "./HenryVoiceView";
+import HenryCursor from "./HenryCursor";
 import { captureWebcamFrame } from "./webcam-capture";
 
 // Assistente de voz "Henry" (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md HENRY-1). Montado no layout do painel só
@@ -157,6 +159,15 @@ export default function HenryVoiceAssistant() {
   const recentPhrasesRef = useRef([]);
   const narratingTextRef = useRef("");
   const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [] });
+  const [navRequest, setNavRequest] = useState(null);
+  // Ouviu "Henry" no parcial: o ícone já dobra de tamanho, mesmo minimizado (dono, 2026-10-22), antes da frase terminar.
+  const [calling, setCalling] = useState(false);
+  const callingTimerRef = useRef(null);
+  const markCalling = useCallback(() => {
+    setCalling(true);
+    window.clearTimeout(callingTimerRef.current);
+    callingTimerRef.current = window.setTimeout(() => setCalling(false), 6000);
+  }, []);
   // "Pode falar…" variado (sorteado a cada vez que ele passa a esperar a pergunta, sem repetir os últimos 5).
   const [listenPrompt, setListenPrompt] = useState(HENRY_LISTEN_PROMPTS[0]);
   const listenPromptsRef = useRef([]);
@@ -732,7 +743,11 @@ export default function HenryVoiceAssistant() {
       const withReply = [...turnsRef.current, detail ? { role: "assistant", text: reply, detail } : { role: "assistant", text: reply }];
       turnsRef.current = withReply;
       setTurns(withReply);
-      if (navigate?.path && isAllowedHenryPath(navigate.path)) router.push(navigate.path);
+      // Navegação guiada: minimiza a tela cheia e o cursor do Henry mostra o caminho (HenryCursor faz a navegação).
+      if (shouldMinimizeForNavigation(navigate)) {
+        setExpanded(false);
+        setNavRequest({ ...navigate, id: Date.now() });
+      }
       beginSpeech(reply);
     };
     try {
@@ -1076,7 +1091,7 @@ export default function HenryVoiceAssistant() {
   const handleFinalRef = useRef(handleFinal);
   handleFinalRef.current = handleFinal;
   const recognitionHandlersRef = useRef({});
-  recognitionHandlersRef.current = { markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer };
+  recognitionHandlersRef.current = { markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer, markCalling };
   useEffect(() => {
     const { startMicMeter, stopMicMeter } = recognitionHandlersRef.current;
     const Recognition = getRecognitionClass();
@@ -1148,7 +1163,10 @@ export default function HenryVoiceAssistant() {
           continue;
         }
         interim = trackInterim(interim, { index, text, now: Date.now() });
-        if (detectWakeWord(text).called) handlers.warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
+        if (detectWakeWord(text).called) {
+          handlers.warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
+          handlers.markCalling(); // e o ícone já cresce
+        }
         if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, handlers.currentSpeech()).interrupt) {
           handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
         }
@@ -1348,6 +1366,7 @@ export default function HenryVoiceAssistant() {
   };
 
   return (
+    <>
     <HenryVoiceView
       expanded={expanded}
       onExpand={openScene}
@@ -1359,7 +1378,7 @@ export default function HenryVoiceAssistant() {
       mobile={!desktop}
       tapToTalk={listenMode === "tap"}
       status={status}
-      engaged={inConversation || phase !== "idle"}
+      engaged={inConversation || phase !== "idle" || recording || calling}
       heardHint={!heard.accepted && heard.text && Date.now() - heard.at < 8000 ? `Ouvi: “${heard.text}” (diga “Henry” antes)` : ""}
       inConversation={inConversation}
       caption={captionFor(phase, turns)}
@@ -1385,5 +1404,7 @@ export default function HenryVoiceAssistant() {
       sceneTopic={scene.topic}
       brokers={phase === "thinking" || phase === "speaking" ? scene.brokers : []}
     />
+    <HenryCursor request={navRequest} mobile={!desktop} />
+    </>
   );
 }

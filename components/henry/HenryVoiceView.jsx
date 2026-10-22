@@ -225,7 +225,7 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
-      <HenryDataScene active={searching} topic={sceneTopic} mobile={mobile} />
+      <HenryDataScene active={searching} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
       {!mobile ? <HenryDetailPanel detail={detail} /> : null}
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">

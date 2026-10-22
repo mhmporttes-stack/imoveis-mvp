@@ -383,6 +383,7 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
                       <ItemLink
                         href={item.href}
                         {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
+                        data-henry-target={item.href.split("?")[0]}
                         aria-current={isCurrent ? "page" : undefined}
                         title={item.label}
                         className={cx(

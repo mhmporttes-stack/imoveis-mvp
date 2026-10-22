@@ -217,6 +217,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                 <ItemLink
                   href={item.href}
                   {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
+                  data-henry-target={item.href.split("?")[0]}
                   aria-current={active ? "page" : undefined}
                   className={cx(
                     "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",

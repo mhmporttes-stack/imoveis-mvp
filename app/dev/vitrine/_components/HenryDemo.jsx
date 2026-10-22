@@ -13,7 +13,10 @@ const SAMPLE_TURNS = [
 
 // Cena de busca (dono, 2026-10-22): "buscando" = dados transparentes atrás do anel; "procurando corretor" = scanner;
 // "achou corretor" = card com foto ligado ao anel; "relatório" = detalhe em lista na tela. Números e pessoas FICTÍCIOS.
-const AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#24507A"/><circle cx="32" cy="25" r="12" fill="#F3DCA6"/><path d="M10 60c3-13 12-19 22-19s19 6 22 19z" fill="#F3DCA6"/></svg>')}`;
+const avatar = (bg, skin, hair) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${bg}"/><path d="M14 27c0-12 8-19 18-19s18 7 18 19c-3-5-9-8-18-8s-15 3-18 8z" fill="${hair}"/><circle cx="32" cy="27" r="11" fill="${skin}"/><path d="M10 64c3-13 12-19 22-19s19 6 22 19z" fill="#1E9BFF" opacity="0.85"/></svg>`)}`;
+const AVATAR = avatar("#24507A", "#F3DCA6", "#3B2A1E");
+const AVATAR_2 = avatar("#1B3B5E", "#D9A877", "#1A1410");
 const SAMPLE_DETAIL = {
   title: "Relatório mensal",
   subtitle: "Últimos 30 dias (23/09 a 22/10)",
@@ -26,7 +29,15 @@ const SAMPLE_DETAIL = {
   ]
 };
 
-export default function HenryDemo({ mode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio" }) {
+export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2 }) {
+  // "achou" (redesenho da cena, 2026-10-22): busca 2,6 s → resposta 3,4 s, em ciclo, para ver entrada/busca/achou/saída.
+  const [cycleSearching, setCycleSearching] = useState(true);
+  useEffect(() => {
+    if (scene !== "achou") return undefined;
+    const id = setTimeout(() => setCycleSearching((value) => !value), cycleSearching ? 2600 : 3400);
+    return () => clearTimeout(id);
+  }, [scene, cycleSearching]);
+  const mode = scene === "achou" ? (cycleSearching ? "thinking" : "speaking") : initialMode;
   const [muted, setMuted] = useState(false);
   const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
@@ -40,14 +51,16 @@ export default function HenryDemo({ mode = "speaking", expanded = true, capturin
     return { mode, level: 0 };
   }, [mode]);
   const engaged = mode !== "idle";
+  const allBrokers = [
+    { id: "b1", firstName: "Ana", photoUrl: AVATAR, stats: [{ label: "pontos", value: "412" }, { label: "meta", value: "104%" }], position: 1, found: true },
+    { id: "b2", firstName: "Bruno", photoUrl: "", stats: [{ label: "pontos", value: "377" }, { label: "vendas", value: "2" }], position: 2, found: true },
+    { id: "b3", firstName: "Carla", photoUrl: AVATAR_2, stats: [{ label: "pontos", value: "301" }, { label: "meta", value: "88%" }], found: true }
+  ];
   const brokers =
     scene === "procurando"
-      ? [{ id: "b1", firstName: "Ana", photoUrl: "", stats: [], found: false }]
+      ? [{ id: "b1", firstName: "Ana", photoUrl: AVATAR, stats: [], found: false }]
       : scene === "corretor"
-        ? [
-            { id: "b1", firstName: "Ana", photoUrl: AVATAR, stats: [{ label: "pontos", value: "412" }, { label: "meta", value: "104%" }], found: true },
-            { id: "b2", firstName: "Bruno", photoUrl: "", stats: [{ label: "pontos", value: "377" }, { label: "vendas", value: "2" }], found: true }
-          ]
+        ? allBrokers.slice(0, Math.max(1, Math.min(3, brokerCount)))
         : [];
   const turns = scene === "relatorio" ? [...SAMPLE_TURNS.slice(0, 2), { role: "user", text: "Henry, quero o relatório mensal" }, { role: "assistant", text: "Nos últimos 30 dias entraram 214 leads, 128 de anúncio. Os detalhes estão na tela.", detail: SAMPLE_DETAIL }] : SAMPLE_TURNS;
   // Celular (< 768 px, ex.: 390×844): mesma apresentação do app, tocar para falar.
