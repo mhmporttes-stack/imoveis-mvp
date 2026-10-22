@@ -29,6 +29,8 @@ export default function HenrySettingsCard() {
             providerLabel: data?.providerLabel || "voz do navegador",
             elevenVoices: Array.isArray(data?.elevenVoices) ? data.elevenVoices : null,
             elevenVoicesError: data?.elevenVoicesError || "",
+            elevenSubscription: data?.elevenSubscription || null,
+            elevenSubscriptionError: data?.elevenSubscriptionError || "",
             style: data?.style || null,
             options: data?.options || null
           })
@@ -107,6 +109,8 @@ export default function HenrySettingsCard() {
           providerLabel={state.providerLabel}
           elevenVoices={state.elevenVoices}
           elevenVoicesError={state.elevenVoicesError}
+          elevenSubscription={state.elevenSubscription}
+          elevenSubscriptionError={state.elevenSubscriptionError}
           onSaved={(style) => setState((current) => ({ ...current, style }))}
         />
       ) : null}
@@ -129,7 +133,7 @@ function changedFields(form, saved) {
 
 // "Voz e personalidade" (HENRY-1): voz, tom, velocidade, detalhes do jeito de falar e como tratar o dono. Valida e
 // sanitiza no servidor (PUT /api/admin/henry, Zod). "Ouvir amostra" = frase curta paga, com o que está na tela.
-function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "browser", providerLabel = "", elevenVoices = null, elevenVoicesError = "", onSaved }) {
+function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "browser", providerLabel = "", elevenVoices = null, elevenVoicesError = "", elevenSubscription = null, elevenSubscriptionError = "", onSaved }) {
   const [form, setForm] = useState(() => ({ ...saved }));
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ tone: "", text: "" });
@@ -164,6 +168,8 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       if (!response.ok) throw new Error(data?.error || "Não consegui tocar a amostra.");
       audioRef.current?.pause();
       window.speechSynthesis?.cancel();
+      // Voz do servidor falhou (ex.: chave sem permissão): mostra o motivo e toca com a voz do navegador.
+      if (data.voiceError) setMessage({ tone: "error", text: `${data.voiceError} Tocando com a voz do navegador.` });
       if (data.audio?.base64) {
         audioRef.current = new Audio(`data:${data.audio.contentType || "audio/mpeg"};base64,${data.audio.base64}`);
         await audioRef.current.play();
@@ -195,6 +201,12 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         {provider === "browser" ? " Voz do navegador: configure ELEVENLABS_API_KEY na Vercel para a voz natural." : ""}
         {provider === "openai" ? " Para a voz mais natural, configure ELEVENLABS_API_KEY na Vercel." : ""}
       </p>
+      {provider === "elevenlabs" && (elevenSubscription || elevenSubscriptionError) ? (
+        <p className={`mt-1 text-sm ${elevenSubscriptionError ? "font-bold text-red-700" : "text-muted"}`}>
+          {elevenSubscriptionError ||
+            `Saldo da ElevenLabs: ${elevenSubscription.remaining.toLocaleString("pt-BR")} de ${elevenSubscription.limit.toLocaleString("pt-BR")} caracteres neste ciclo.`}
+        </p>
+      ) : null}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="flex items-end gap-2">
           {provider === "elevenlabs" ? (

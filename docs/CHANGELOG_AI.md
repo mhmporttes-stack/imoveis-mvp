@@ -338,6 +338,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry/ElevenLabs: saldo de caracteres e erros de permissão claros (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Henry · ElevenLabs
+- **Alteração:** a tela "Voz e personalidade" mostra o saldo de caracteres (`GET /v1/user/subscription`) e, quando a ElevenLabs responde 401/403/429 (chave sem permissão, recusada ou sem saldo), uma frase clara — na lista de vozes, no saldo e no "Ouvir amostra" (que então toca com a voz do navegador e diz por quê).
+- **Motivo:** o dono criou a chave com permissões Text to Speech = Acesso, Vozes = Ler, Modelos = Acesso, Usuário = Acesso; o código só usa TTS/stream, `GET /v2/voices` e `GET /v1/user/subscription` (teste trava a lista de endpoints).
+- **Arquivos afetados:** `lib/henry-voice-providers.mjs` (`describeElevenLabsError`, `parseElevenLabsSubscription`), `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-voice-providers.test.mjs`.
+- **Docs:** `BUSINESS_RULES.md` HENRY-1.
+- **Verificação:** `node --test tests/henry-voice*.test.mjs` (46/46), `pnpm build`.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry: voz natural pela ElevenLabs (integração nova) e voz do navegador melhorada (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Henry · Integrações externas (ElevenLabs, nova)

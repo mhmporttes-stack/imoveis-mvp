@@ -7,6 +7,7 @@ import {
   henryVoiceProvider,
   isHenryVoiceConfigured,
   listElevenLabsVoices,
+  readElevenLabsSubscription,
   previewHenryStyle,
   readHenrySettings,
   setHenrySettings,
@@ -40,14 +41,24 @@ export async function GET(request) {
     const { enabled, vision, style } = await readHenrySettings();
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
+    // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
     let elevenVoices = null;
     let elevenVoicesError = "";
+    let elevenSubscription = null;
+    let elevenSubscriptionError = "";
     if (provider === "elevenlabs" && new URL(request.url).searchParams.get("vozes") === "1") {
-      elevenVoices = await listElevenLabsVoices().catch((error) => {
-        console.warn(`[henry] lista de vozes da ElevenLabs falhou: ${error?.message || "erro"}.`);
-        elevenVoicesError = "Não consegui listar as vozes da ElevenLabs agora.";
-        return [];
-      });
+      [elevenVoices, elevenSubscription] = await Promise.all([
+        listElevenLabsVoices().catch((error) => {
+          console.warn(`[henry] lista de vozes da ElevenLabs falhou: ${error?.status || "erro"}.`);
+          elevenVoicesError = error?.status ? error.message : "Não consegui listar as vozes da ElevenLabs agora.";
+          return [];
+        }),
+        readElevenLabsSubscription().catch((error) => {
+          console.warn(`[henry] saldo da ElevenLabs falhou: ${error?.status || "erro"}.`);
+          elevenSubscriptionError = error?.status ? error.message : "Não consegui ler o saldo da ElevenLabs agora.";
+          return null;
+        })
+      ]);
     }
     return NextResponse.json({
       enabled,
@@ -59,7 +70,9 @@ export async function GET(request) {
       browserRate: henryBrowserRate(style),
       options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
       elevenVoices,
-      elevenVoicesError
+      elevenVoicesError,
+      elevenSubscription,
+      elevenSubscriptionError
     });
   } catch (error) {
     console.error("[henry] falha ao ler a configuração:", error?.message || error);
@@ -149,7 +162,7 @@ export async function POST(request) {
       const { style: saved } = await readHenrySettings();
       const style = previewHenryStyle(saved, parsed.patch);
       const sample = await synthesizeHenrySample(auth, style);
-      return NextResponse.json({ text: sample.text, audio: sample.audio, browserRate: henryBrowserRate(style) });
+      return NextResponse.json({ text: sample.text, audio: sample.audio, voiceError: sample.voiceError, browserRate: henryBrowserRate(style) });
     } catch (error) {
       console.warn(`[henry] amostra falhou: ${error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
       return NextResponse.json({ error: "Não consegui tocar a amostra agora." }, { status: 502 });

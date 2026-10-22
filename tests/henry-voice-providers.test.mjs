@@ -6,7 +6,9 @@ import {
   ELEVENLABS_SPEED,
   buildElevenLabsSpeechRequest,
   chooseHenryVoiceProvider,
+  describeElevenLabsError,
   elevenLabsVoiceSettings,
+  parseElevenLabsSubscription,
   estimateElevenLabsCostUsd,
   henryProviderChain,
   isElevenLabsVoiceId,
@@ -84,6 +86,21 @@ test("reserva do navegador: melhor voz pt-BR e uma frase por vez", () => {
   assert.equal(pickBestBrowserVoice([{ name: "Google US English", lang: "en-US" }]), null);
   assert.deepEqual(splitSentences("Bom dia, Matheus. Hoje entraram 4 leads! E aí?  Tudo certo"), ["Bom dia, Matheus.", "Hoje entraram 4 leads!", "E aí?", "Tudo certo"]);
   assert.deepEqual(splitSentences(""), []);
+});
+
+test("erros de permissão claros e saldo de caracteres", () => {
+  assert.match(describeElevenLabsError(401, "tts"), /401.*ELEVENLABS_API_KEY/);
+  assert.match(describeElevenLabsError(403, "voices"), /permissão "Vozes \(ler\)" \(403\)/);
+  assert.match(describeElevenLabsError(403, "user"), /"Usuário"/);
+  assert.match(describeElevenLabsError(429), /saldo/);
+  assert.deepEqual(parseElevenLabsSubscription({ character_count: 1200, character_limit: 30000, tier: "starter" }), { used: 1200, limit: 30000, remaining: 28800, tier: "starter" });
+  assert.equal(parseElevenLabsSubscription({}), null);
+  // Só os endpoints liberados na chave do dono: TTS/stream, vozes e assinatura do usuário.
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  const endpoints = [...lib.matchAll(/\$\{ELEVENLABS_API\}(\/v\d\/[a-z/_-]+)/g)].map((match) => match[1]).sort();
+  assert.deepEqual(endpoints, ["/v1/user/subscription", "/v2/voices"]);
+  const core = readFileSync(new URL("../lib/henry-voice-providers.mjs", import.meta.url), "utf8");
+  assert.match(core, /\$\{ELEVENLABS_API\}\/v1\/text-to-speech\/\$\{voiceId\}\/stream/);
 });
 
 test("servidor: chave só no servidor, falhas registradas e queda para o próximo provedor", () => {
