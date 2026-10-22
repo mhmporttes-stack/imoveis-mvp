@@ -6,7 +6,7 @@ import PainelInicio, { InicioFunil, InicioFunilCarregando, InicioFunilErro, Inic
 export const dynamic = "force-dynamic";
 
 // Início (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md INI-1): resumo do dia de cada perfil, com os números
-// reais no escopo dele (lib/painel-inicio.js). Não é a página de entrada do painel (o redirect atual não mudou).
+// reais no escopo dele (lib/painel-inicio.js). Não é a página de entrada do painel (o redirect atual não mudou), exceto no primeiro acesso do dia do dono (INI-4, components/FirstAccessGate.jsx).
 // O mês (funil, aprovados e vendas) é a mesma conta pesada do Desempenho: chega em seguida (streaming), sem segurar o resto.
 
 // Uma única carga do mês, compartilhada pelos dois blocos que a mostram.

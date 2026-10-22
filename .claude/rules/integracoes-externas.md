@@ -25,6 +25,9 @@ paths:
   - "app/api/analyze/**"
   - "whatsapp-individual-service/**"
   - ".env.example"
+  - "lib/alexa*"
+  - "lib/primeiro-acesso*"
+  - "app/api/admin/alexa/**"
 ---
 
 # Integrações externas
@@ -113,6 +116,12 @@ Desde 2026-10-01 o `scheduled-activities` também roda, no máximo 1 vez por dia
 `lib/google-contacts.js` (+ `google-contacts-config*.js`/`.mjs`, OAuth por corretor, tokens cifrados com `lib/secrets-crypto.js`): salva o cliente na agenda do Google do corretor antes do envio automático da Meta Diária. Best-effort e isolado do WhatsApp individual — erro aqui nunca derruba a sessão nem o envio.
 
 **[REGRA OFICIAL DE NEGÓCIO — definida pelo dono em 2026-10-01] Nome do contato no Google.** O contato é salvo no Google Contacts do corretor como `Cliente {nome completo do cliente}` (ex.: CRM "Fabiane Silva" → Google "Cliente Fabiane Silva"), sem nunca repetir o prefixo. O prefixo existe **só no Google**: nome do cliente no CRM e no banco não mudam; telefone, identificação do contato existente (corretor + telefone) e o fluxo de disparo continuam iguais. Implementação: `lib/google-contacts-name.mjs` (`buildGoogleContactName`), usado em `ensureClientInBrokerContacts`. Detalhes: `docs/BUSINESS_RULES.md` MD-9. **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-10] Limite de tentativas:** erro passageiro do Google (ex.: 502) é tentado no máximo 3 vezes por item/contato; na 4ª o envio sai SEM sincronizar, com `skip_reason = google_contacts_ignorado_apos_3_falhas` (`processClaimedItem`, `lib/daily-goal-auto.js`; regra pura em `lib/daily-goal-protection-core.mjs`). Detalhe: `docs/BUSINESS_RULES.md` MD-15.
+
+## Alexa (Voice Monkey + skill "Central")
+
+Toda fala espontânea passa pelas travas de `lib/alexa-service.js` (Alexa ativa, evento/rotina ligada, "Quando pode falar", intervalo mínimo via `claimSpeakingSlot`); só contagens e primeiros nomes (`containsSensitiveContent`); logs só com motivo. Voz: `lib/alexa-voice.js`. Rotinas: "Chegada ao escritório" (`lib/alexa-arrival.js`) e "Bom dia no primeiro acesso" (`lib/alexa-bom-dia.js`).
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Bom dia no primeiro acesso.** No primeiro acesso do dia do dono (conta real, fora de "Alterar conta"; outros perfis nada muda) o painel abre no Início e a Alexa fala, disparada pelo servidor, o resumo com os MESMOS números do Início (`getPainelInicio` — nunca outra conta). **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — a confirmar]** 1x/dia pela chave única de `admin_first_access_days`; se a chegada ao escritório já falou hoje, só o bom dia; termina convidando a abrir a skill ("Alexa, abrir central"). Detalhe: `docs/BUSINESS_RULES.md` INI-4.
 
 ## Push
 

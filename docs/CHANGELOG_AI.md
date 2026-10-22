@@ -313,6 +313,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Primeiro acesso do dia do dono: abre o Início e a Alexa dá o bom dia (INI-4)
+- **Data:** 2026-10-22
+- **Área:** Alexa · Início · Banco · Permissões
+- **Alteração:** no primeiro acesso do dia do dono (conta real, fora de "Alterar conta"; outros perfis nada muda) o painel vai para `/admin/inicio` e o servidor dispara (com `after()`, depois da resposta) a fala "Bom dia, Machado." + resumo com os números de `getPainelInicio` (leads de hoje por origem, aguardando resposta + mais urgente, simulações a conferir, atividades atrasadas, aguardando documentos) e a pergunta "Quer os detalhes? É só dizer: Alexa, abrir central.". Nova rotina "Bom dia no primeiro acesso" (`first_access`) em `/admin/alexa` com liga/desliga, dias/horário, "Ver bom dia agora" e "Testar bom dia". 1x/dia pela PK de `admin_first_access_days`; se a chegada ao escritório já falou hoje, só o bom dia.
+- **Motivo:** pedido do dono ("Toda vez que eu entrar pela primeira vez no sistema, a tela que vai abrir é a de Início. Então eu quero um bom dia, um resumo do dia...").
+- **Arquivos afetados:** `supabase/migrations/20261022230000_admin_first_access_days.sql` (nova, aditiva — **NÃO aplicada em produção**), `lib/primeiro-acesso.js` + `lib/primeiro-acesso-core.mjs`, `lib/alexa-bom-dia.js` + `lib/alexa-bom-dia-core.mjs` (novos), `lib/alexa-config-core.mjs` (rotina `first_access`), `lib/painel-inicio.js` (`assistant.urgent.waitingMinutes`), `app/api/admin/primeiro-acesso/route.js` (`requireAdminApi`), `app/api/admin/alexa/bom-dia/route.js` (`requireGeneralAdminApi`), `components/FirstAccessGate.jsx`, `app/admin/layout.jsx` (monta o gate só para o dono), `app/admin/inicio/page.jsx` (comentário), `app/admin/alexa/page.jsx`, `components/alexa/AlexaSettings.jsx`, `tests/alexa-bom-dia.test.mjs`.
+- **Docs:** `BUSINESS_RULES.md` INI-1 (exceção) e INI-4, `PERMISSIONS.md`, `DATABASE.md`, `.claude/rules/integracoes-externas.md` (seção Alexa + `paths`).
+- **Risco/observação:** Sem a migration o CRM abre como antes (log `[primeiro-acesso] ... (42P01/PGRST205)`), sem Início automático nem fala. Decisões técnicas a confirmar com o dono: tratamento "Machado" (não "Matheus"); redirect no navegador (a tela anterior aparece por um instante); link direto com `?`/`#` não conta como primeiro acesso; fora da janela/intervalo não fala e não tenta de novo no dia; "atividades de hoje" não entram (o Início só mostra as atrasadas); a invocação "central" precisa estar importada no Console da Alexa (A CONFIRMAR).
+- **Verificação:** `node --test tests/alexa-bom-dia.test.mjs` (15/15) + suíte Alexa/Início; suíte completa sem falha nova (falhas pré-existentes iguais às do HEAD); `pnpm build`. Sem fala real nem gravação em produção.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Desempenho: cenas de entrada no funil, no histórico e nos cards da Visão geral
 - **Data:** 2026-10-22
 - **Área:** Desempenho (só apresentação) · cenas do visual novo

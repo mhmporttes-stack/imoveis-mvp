@@ -12,6 +12,7 @@ import NotificationHistoryButton from "@/components/alerts/NotificationHistoryBu
 import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
 import DailyMessageGate from "@/components/DailyMessageGate";
+import FirstAccessGate from "@/components/FirstAccessGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import OfficePresenceNotice from "@/components/OfficePresenceNotice";
 import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
@@ -57,6 +58,9 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {/* App "Financeiro" da tela inicial: sem mensagens/celebrações/alertas do painel por cima (só o Financeiro). */}
       <HideInFinanceiroApp>
+      {/* Primeiro acesso do dia do DONO (INI-4, 2026-10-22): abre o Início e a Alexa fala o bom dia (servidor). Só a conta
+          real do dono, fora de "Alterar conta"; a rota confere de novo. Outros perfis: nada muda. */}
+      {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? <FirstAccessGate /> : null}
       {auth.ok ? <DailyMessageGate userId={auth.profile?.id} userName={auth.profile?.name || ""} /> : null}
       {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} userName={auth.profile?.name || ""} userPhotoUrl={auth.profile?.photoUrl || ""} /> : null}
       {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}

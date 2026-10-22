@@ -27,12 +27,24 @@ const REASONS = {
   fora_do_horario: "está fora do horário permitido"
 };
 
+// Resultado da fala do bom dia no primeiro acesso (motivos de lib/alexa-bom-dia.js).
+const BRIEFING_STATUS = {
+  ok: "falou",
+  alexa_inativa: "não falou: Alexa desativada",
+  rotina_inativa: "não falou: rotina desligada",
+  dia_nao_permitido: "não falou: dia não permitido",
+  fora_do_horario: "não falou: fora do horário",
+  intervalo_minimo: "não falou: outra fala muito recente",
+  frase_invalida: "não falou: texto inválido",
+  erro: "não falou: erro"
+};
+
 function formatDateTime(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 }
 
-export default function AlexaSettings({ initialSettings, initialMeta, env, events, routines, initialArrival }) {
+export default function AlexaSettings({ initialSettings, initialMeta, env, events, routines, initialArrival, initialFirstAccess }) {
   const [settings, setSettings] = useState(initialSettings);
   const [saved, setSaved] = useState(initialSettings);
   const [meta, setMeta] = useState(initialMeta);
@@ -44,6 +56,7 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
   const [newToken, setNewToken] = useState("");
   const [preview, setPreview] = useState("");
   const [routineBusy, setRoutineBusy] = useState("");
+  const [briefing, setBriefing] = useState("");
 
   const dirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(saved), [settings, saved]);
   const envReady = env.voiceEnabledEnv && env.tokenConfigured && env.deviceConfigured;
@@ -91,6 +104,29 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
       } else if (action === "speak") {
         notify("Resumo enviado ao Echo Dot.");
       }
+    } catch {
+      notify("Não foi possível concluir. Verifique a conexão.", "danger");
+    } finally {
+      setRoutineBusy("");
+    }
+  }
+
+  // "Bom dia no primeiro acesso" (INI-4): "preview" só monta o texto; "speak" fala agora (ignora o 1 vez por dia).
+  async function briefingAction(action) {
+    setRoutineBusy(`briefing-${action}`);
+    try {
+      const response = await fetch("/api/admin/alexa/bom-dia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (data.text) setBriefing(data.text);
+      if (!response.ok) {
+        notify(data.error || "Não foi possível concluir.", "danger");
+        return;
+      }
+      if (action === "speak") notify("Bom dia enviado ao Echo Dot.");
     } catch {
       notify("Não foi possível concluir. Verifique a conexão.", "danger");
     } finally {
@@ -325,15 +361,18 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
         <h2 className="text-base font-semibold text-ink">Rotinas</h2>
         {routines.map((routine) => {
           const config = settings.routines[routine.key];
+          const isArrival = routine.key === "arrival";
           return (
             <Card key={routine.key} className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <h3 className="text-base font-semibold text-ink">{routine.label}</h3>
                   <p className="text-sm text-muted">{routine.description}</p>
-                  <Badge tone={arrival?.tokenConfigured ? "success" : "warning"} dot>
-                    {arrival?.tokenConfigured ? "Chave do iPhone gerada" : "Falta gerar a chave do iPhone"}
-                  </Badge>
+                  {isArrival ? (
+                    <Badge tone={arrival?.tokenConfigured ? "success" : "warning"} dot>
+                      {arrival?.tokenConfigured ? "Chave do iPhone gerada" : "Falta gerar a chave do iPhone"}
+                    </Badge>
+                  ) : null}
                 </div>
                 <Switch checked={config.enabled} onChange={(value) => patchRoutine(routine.key, { enabled: value })} label={`${routine.label} ligada`} />
               </div>
@@ -361,7 +400,8 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className={cx("grid gap-4", isArrival ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+                {isArrival ? (
                 <Field label="Atraso após a chegada (minutos)" hint="Tempo entre conectar no Wi-Fi e a Alexa falar.">
                   <input
                     type="number"
@@ -373,14 +413,42 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
                     onChange={(event) => patchRoutine(routine.key, { delayMinutes: numberValue(event.target.value) })}
                   />
                 </Field>
-                <Field label="Aceitar chegada a partir de" hint="Horário de Brasília.">
+                ) : null}
+                <Field label={isArrival ? "Aceitar chegada a partir de" : "Falar a partir de"} hint="Horário de Brasília.">
                   <input type="time" className={inputClasses} value={config.startTime} onChange={(event) => patchRoutine(routine.key, { startTime: event.target.value })} />
                 </Field>
-                <Field label="Aceitar chegada até" hint="Fora dessa faixa a chegada é ignorada.">
+                <Field label={isArrival ? "Aceitar chegada até" : "Falar até"} hint={isArrival ? "Fora dessa faixa a chegada é ignorada." : "Fora dessa faixa o primeiro acesso não fala (o Início abre do mesmo jeito)."}>
                   <input type="time" className={inputClasses} value={config.endTime} onChange={(event) => patchRoutine(routine.key, { endTime: event.target.value })} />
                 </Field>
               </div>
 
+              {!isArrival ? (
+                <div className="space-y-3 border-t border-line pt-4">
+                  <p className="text-xs text-muted">
+                    Só o primeiro acesso do dia do dono (na conta dele, fora de &quot;Alterar conta&quot;) abre a tela Início e faz a Alexa falar, no máximo 1 vez por dia.
+                    Se a rotina de chegada já falou o resumo hoje, a Alexa só dá o bom dia. Vale também a regra geral de dias, horário e intervalo da Alexa.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="ghost" loading={routineBusy === "briefing-preview"} onClick={() => briefingAction("preview")}>Ver bom dia agora</Button>
+                    <Button type="button" variant="secondary" loading={routineBusy === "briefing-speak"} onClick={() => briefingAction("speak")}>
+                      <Mic className="h-4 w-4" aria-hidden="true" /> Testar bom dia
+                    </Button>
+                  </div>
+                  {briefing ? (
+                    <div className="rounded-control border border-line bg-white p-3">
+                      <p className="text-xs font-medium text-muted">Bom dia montado com os dados de agora</p>
+                      <p className="mt-1 text-sm text-ink">{briefing}</p>
+                    </div>
+                  ) : null}
+                  <dl className="grid gap-x-6 gap-y-1 text-xs text-muted sm:grid-cols-2">
+                    <div className="flex gap-1"><dt>Último primeiro acesso:</dt><dd>{initialFirstAccess?.lastAccessAt ? formatDateTime(initialFirstAccess.lastAccessAt) : initialFirstAccess?.ready === false ? "indisponível (migration pendente?)" : "nenhum ainda"}</dd></div>
+                    <div className="flex gap-1"><dt>Fala nesse dia:</dt><dd>{initialFirstAccess?.alexaStatus ? `${BRIEFING_STATUS[initialFirstAccess.alexaStatus] || `não falou (${initialFirstAccess.alexaStatus})`}${initialFirstAccess.alexaAt ? ` às ${formatDateTime(initialFirstAccess.alexaAt)}` : ""}` : "—"}</dd></div>
+                  </dl>
+                </div>
+              ) : null}
+
+              {isArrival ? (
+              <>
               <p className="text-xs text-muted">
                 No máximo 1 resumo por dia: novas conexões ou oscilações do Wi-Fi no mesmo dia são ignoradas, e no dia seguinte a rotina libera sozinha.
                 Vale também a regra geral de dias, horário e intervalo da Alexa.
@@ -429,6 +497,8 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
                   {arrival?.pendingRunAt ? <div className="flex gap-1"><dt>Falará às:</dt><dd>{formatDateTime(arrival.pendingRunAt)}</dd></div> : null}
                 </dl>
               </div>
+              </>
+              ) : null}
             </Card>
           );
         })}
