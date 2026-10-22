@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Card do cliente na fila da roleta mostra "Roleta"
+- **Data:** 2026-10-22
+- **Área:** Clientes
+- **Alteração:** cliente na fila de espera da roleta (`pending_distribution_at` preenchido, guardado com o dono pela FUN-11) mostra "Roleta" na etiqueta do responsável do card e da ficha, sem a foto do dono. Só exibição; o responsável gravado não muda.
+- **Motivo:** pedido do dono ("quando eu colocar devolver para a roleta ... não deve ficar Matheus Machado, deve ficar roleta").
+- **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`
+- **Risco/observação:** filtro por corretor continua pelo responsável real (o dono). 218 clientes estavam na fila em 22/10. Testes de clientes passam; build ok.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Extensão do Marketplace 1.9.0: "Manter acordado"
 - **Data:** 2026-10-22
 - **Área:** `ferramentas/marketplace-publicador/` (`background.js`, `lib/keep-awake.js` novo, `manter-acordado.html` novo, `options.*`, `popup.js`, `manifest.json`, `README.md`, `tests/keep-awake.test.js`). Nada muda no CRM.

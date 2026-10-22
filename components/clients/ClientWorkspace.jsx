@@ -73,10 +73,13 @@ export default function ClientWorkspace(props) {
   }, []);
 
   const openClient = list.items.find((item) => item.id === openClientId) || null;
-  const responsibleNameOf = (client) => list.responsibleProfileMap.get(client.registration?.responsibleUserId || "")?.name
+  // Na fila de espera da roleta o cliente fica guardado com o dono (FUN-11), mas a etiqueta mostra "Roleta" (dono,
+  // 2026-10-22: "quando eu colocar devolver para a roleta ... deve ficar roleta").
+  const responsibleNameOf = (client) => (client.registration?.pendingDistributionAt ? "Roleta" : "")
+    || list.responsibleProfileMap.get(client.registration?.responsibleUserId || "")?.name
     || client.lastAdminLabel
     || (client.registration?.pendingDistributionAt ? "Aguardando distribuição" : "Sem corretor");
-  const responsibleProfileOf = (client) => list.responsibleProfileMap.get(client.registration?.responsibleUserId || "") || null;
+  const responsibleProfileOf = (client) => (client.registration?.pendingDistributionAt ? null : list.responsibleProfileMap.get(client.registration?.responsibleUserId || "") || null);
 
   const { filters } = list;
   const extraFilterCount = [filters.responsibleUserId !== "all", filters.tagId !== "all", filters.staleContactOnly, filters.noFutureActivityOnly, Boolean(filters.dateFrom || filters.dateTo)].filter(Boolean).length;
