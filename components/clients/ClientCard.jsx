@@ -5,7 +5,6 @@ import {
   Calculator,
   CalendarClock,
   CalendarPlus,
-  Check,
   ChevronDown,
   ChevronRight,
   ExternalLink,
@@ -13,13 +12,11 @@ import {
   ListChecks,
   MessageCircle,
   MoreHorizontal,
-  Pencil,
   Phone,
   Tag as TagIcon,
   Trash2,
   TriangleAlert,
-  UserRound,
-  X
+  UserRound
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -31,7 +28,7 @@ import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simula
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
-import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
+import { clientPhone, formatAgo, getUrgencySignal, initialsOf } from "./client-format";
 import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITLE, OFFLINE_UNDO_MS, offlineMarkLabel } from "@/lib/document-received-offline-core.mjs";
 
 // Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
@@ -42,7 +39,6 @@ import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITL
 // situação da simulação, contato, novo formulário, tags e as ações do dia a
 // dia. A ficha fica para o secundário (cadastro completo, CCA, aviso de
 // progresso, histórico).
-const MAX_ACTIVITIES = 2;
 const MAX_TAGS = 4;
 
 export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
@@ -72,7 +68,14 @@ export default function ClientCard({ client, activities, responsibleName, respon
       <header className="flex items-start gap-2.5 px-3.5 pt-3 sm:px-4">
         <ResponsibleAvatar responsibleProfile={responsibleProfile} />
         <div className="min-w-0 flex-1">
-          <h2 id={`card-${client.id}`} className="flex min-w-0 items-baseline gap-2">
+          <h2 id={`card-${client.id}`} className="flex min-w-0 items-center gap-1.5">
+            {/* Pedido do dono (2026-10-22, card menor): agenda e "sem contato há +3 dias" viraram ícones antes do nome. */}
+            <AgendaIcon agenda={agenda} busy={busy} onOpen={onOpen} />
+            {urgency?.key === "stale" ? (
+              <span role="img" aria-label="Sem contato há mais de 3 dias" title="Sem contato há mais de 3 dias" className="inline-flex shrink-0 text-danger">
+                <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+              </span>
+            ) : null}
             <button type="button" onClick={() => onOpen()} className="truncate text-left text-[15px] font-semibold leading-5 text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
               {name}
             </button>
@@ -97,7 +100,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
       <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-2 sm:px-4">
         <StatusControl client={client} name={name} busy={busy} list={list} confirmAction={confirmAction} />
         {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
-        {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
+        {urgency && urgency.key !== "stale" ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
         {registration.lastFormSubmittedAt ? <Badge tone="info">Novo formulário {formatAgo(registration.lastFormSubmittedAt)}</Badge> : null}
         {client.sponsoredCost ? (
           <span title={client.sponsoredCost.adSpend ? `Custo estimado: gasto do anúncio de origem (${formatMoneyBR(client.sponsoredCost.adSpend)}) dividido entre os ${client.sponsoredCost.adClients} cliente(s) do CRM que vieram dele.` : "Investimento em anúncio para trazer este cliente."}>
@@ -106,11 +109,10 @@ export default function ClientCard({ client, activities, responsibleName, respon
         ) : null}
       </div>
 
-      {/* Corpo: agenda, simulação e contato */}
+      {/* Corpo: simulação e contato (contato, cadastro e tags na mesma linha) */}
       <div className="mt-2.5 space-y-2 px-3.5 sm:px-4">
-        <AgendaBlock client={client} agenda={agenda} busy={busy} list={list} onOpen={onOpen} />
         <SimulationLine client={client} />
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
           {lastContact
             ? <span>Último contato <span className="font-medium text-ink">{lastContact}</span></span>
             : <span className="font-medium text-warning">Sem contato</span>}
@@ -125,9 +127,8 @@ export default function ClientCard({ client, activities, responsibleName, respon
               </span>
             </>
           ) : null}
-          {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : null}
-        </p>
-        {tags.length ? <TagsLine tags={tags} onEdit={() => onOpen("tags")} /> : null}
+          {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : <TagsLine tags={tags} onEdit={() => onOpen("tags")} />}
+        </div>
         {client.documentsOffline ? <DocumentsOfflineAction client={client} busy={busy} list={list} confirmAction={confirmAction} /> : null}
       </div>
 
@@ -318,62 +319,40 @@ function buildAgenda(client, activities) {
     .map((item) => ({ ...item, overdue: item.time < now }));
 }
 
-function AgendaBlock({ client, agenda, busy, list, onOpen }) {
-  if (!agenda.length) {
-    return (
-      <p className="flex items-center gap-2 text-[13px] text-ink-2">
-        <CalendarPlus className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
-        Nenhuma atividade agendada
-      </p>
-    );
-  }
-  const visible = agenda.slice(0, MAX_ACTIVITIES);
-  const hidden = agenda.length - visible.length;
-  return (
-    <ul className="space-y-1" aria-label="Próximas atividades">
-      {visible.map((item) => (
-        <li key={item.key} className={cx("flex items-center gap-2 rounded-control py-0.5 pl-2.5 pr-0.5", item.overdue ? "bg-danger-soft" : "bg-mist")}>
-          <CalendarClock className={cx("h-4 w-4 shrink-0", item.overdue ? "text-danger" : "text-brand")} aria-hidden="true" />
-          <p className="flex min-w-0 flex-1 items-baseline gap-1 text-[13px] leading-5" title={item.note || undefined}>
-            <span className={cx("shrink-0 font-semibold tabular-nums", item.overdue ? "text-danger" : "text-ink")}>{item.overdue ? "Atrasada · " : ""}{formatWhen(item.at)}</span>
-            {item.note ? <span className="min-w-0 truncate text-ink-2">· {item.note}</span> : null}
-          </p>
-          {item.main ? (
-            <>
-              <SmallAction label="Concluir atividade" onClick={() => list.completeClientSchedule(client)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
-              <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>
-            </>
-          ) : (
-            <>
-              <SmallAction label="Concluir atividade" onClick={() => list.completeClientActivity(client, item.id)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
-              <SmallAction label="Cancelar atividade" tone="danger" onClick={() => list.cancelClientActivity(client, item.id)} disabled={busy}><X className="h-4 w-4" /></SmallAction>
-            </>
-          )}
-        </li>
-      ))}
-      {hidden > 0 ? (
-        <li>
-          <button type="button" onClick={() => onOpen("agenda")} className="px-1 text-[13px] font-semibold text-brand hover:underline">+{hidden} {hidden === 1 ? "atividade" : "atividades"}</button>
-        </li>
-      ) : null}
-    </ul>
-  );
+// Ícone de agenda antes do nome: cinza = nada agendado, verde = atividade futura, vermelho = atrasada. O texto da
+// atividade (data + observação) fica no title/aria-label; concluir/cancelar/editar seguem na ficha (aba Agenda).
+function formatActivityStamp(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date).replace(",", "");
 }
 
-function SmallAction({ label, onClick, disabled, tone, children }) {
+function AgendaIcon({ agenda, busy, onOpen }) {
+  const first = agenda[0];
+  const overdueCount = agenda.filter((item) => item.overdue).length;
+  const extra = agenda.length > 1 ? ` (+${agenda.length - 1} ${agenda.length === 2 ? "atividade" : "atividades"})` : "";
+  const describe = (item) => [formatActivityStamp(item.at), item.note].filter(Boolean).join(" · ");
+  const state = !first ? "none" : overdueCount ? "overdue" : "scheduled";
+  const label = state === "none"
+    ? "Nenhuma atividade agendada. Agendar"
+    : state === "overdue"
+      ? `Atividade atrasada: ${describe(agenda.find((item) => item.overdue))}${extra}`
+      : `Atividade agendada: ${describe(first)}${extra}`;
+  const Icon = state === "none" ? CalendarPlus : CalendarClock;
   return (
     <button
       type="button"
+      onClick={() => onOpen("agenda")}
+      disabled={busy}
       aria-label={label}
       title={label}
-      onClick={onClick}
-      disabled={disabled}
+      data-agenda-state={state}
       className={cx(
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-chip transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50",
-        tone === "danger" ? "text-danger hover:bg-white" : "text-ink-2 hover:bg-white hover:text-ink"
+        "relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-chip transition-colors after:absolute after:-inset-2.5 after:content-[''] hover:bg-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50",
+        state === "overdue" ? "text-danger" : state === "scheduled" ? "text-success" : "text-ink-2"
       )}
     >
-      {children}
+      <Icon className="h-4 w-4" aria-hidden="true" />
     </button>
   );
 }
@@ -483,7 +462,8 @@ function AddTagButton({ onClick }) {
 function TagsLine({ tags, onEdit }) {
   const visible = tags.slice(0, MAX_TAGS);
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <>
+      <span aria-hidden="true" className="text-faint">·</span>
       {visible.map((tag) => (
         <span key={tag.id} className="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-xs font-medium text-ink">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color || "#0D4F8B" }} aria-hidden="true" />
@@ -494,7 +474,7 @@ function TagsLine({ tags, onEdit }) {
       <button type="button" onClick={onEdit} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Tags
       </button>
-    </div>
+    </>
   );
 }
 

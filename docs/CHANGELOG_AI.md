@@ -232,6 +232,23 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+
+### 2026-10-22 — Card do cliente menor: agenda e "sem contato +3 dias" viram ícones antes do nome
+- **Data:** 2026-10-22
+- **Área:** `components/clients/ClientCard.jsx` (só apresentação).
+- **Pedido do dono:** reduzir o tamanho do card da Lista de clientes.
+- **Alteração:** selo "Sem contato há +3 dias" → triângulo vermelho (`text-danger`) antes do nome, mesma condição (`getUrgencySignal` = `stale`). Bloco de agenda em texto → ícone de calendário antes do nome: cinza (`text-ink-2`) sem atividade, verde (`text-success`) agendada, vermelho (`text-danger`) atrasada; clique abre a ficha na Agenda (área de toque ~44 px); data/hora + observação (+N atividades) no title/aria-label. Concluir/cancelar/editar atividade saíram do card e seguem na ficha. "Último contato/Sem contato", "Cadastro", preferência de contato e tags na mesma linha com quebra natural. Demais selos (incl. "Atividade atrasada"/"Aguardando ação"), rodapé e ficha sem mudança.
+- **Verificação:** testes que citam ClientCard (falhas de `client-card-whatsapp-chat` iguais às do HEAD: 4); `pnpm build`. Sem render: a vitrine não tem o card e o container não tem navegador.
+- **Autor:** Claude Code (designer-crm)
+### 2026-10-22 — Particular bloqueado para cliente do número oficial, link do Matheus, roleta e Marketplace (WA-19b)
+- **Data:** 2026-10-22
+- **Área:** `lib/whatsapp-private-eligibility-core.mjs` (novo, regra pura), `lib/whatsapp-chat.js` (`loadPrivateBlockReason`, `setChatConversationPrivate`, `getChatConversation` → `privateBlocked`), `components/WhatsappChat.jsx` (botão Particular desligado com o motivo), `tests/whatsapp-private-eligibility.test.mjs`.
+- **Pedido do dono:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] "Um cliente que teve início/entrou no CRM pelo número oficial, link meu ou da roleta, ou pelo chat do Marketplace não deve ter opção de ser colocado em conversa particular."
+- **Alteração:** marcar Particular é recusado no servidor (409 `PRIVATE_NOT_ALLOWED`) para todos os perfis quando a conversa é do oficial ou a ORIGEM DE ENTRADA do cliente (`acquisition_context`) é oficial, link do dono, roleta ou Marketplace; o Chat desliga o botão e mostra o motivo. Tirar de Particular e o Particular automático (WA-26/26a) inalterados. Docs: `.claude/rules/integracoes-externas.md`, `docs/BUSINESS_RULES.md` WA-19b.
+- **Verificação:** `node --test tests/whatsapp-private-eligibility.test.mjs` (casos por origem) + testes de Particular; `pnpm build`. Falhas pré-existentes (iguais no HEAD anterior): admin-presence-real-user, chat-reply-preview, client-card-whatsapp-chat, context-budget, official-whatsapp-links, prospecting-opt-out-natural, whatsapp-conversation-per-session, whatsapp-false-connection.
+- **Risco/observação:** nenhum dado de produção foi alterado; conversas dessas origens que já estão em Particular continuam lá (contagem por SQL de leitura, decisão do dono pendente). A CONFIRMAR: campanha com corretor fixo, "Adicionar ao CRM" a partir do oficial e WA-26a para essas origens.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-21 — Chat do Marketplace: mensagem limpa a partir do rótulo do Facebook + renormalização do já gravado
 - **Data:** 2026-10-21
 - **Área:** `lib/marketplace-chat-core.mjs` (`normalizeFacebookMessage`, `parseFacebookWhen`, `normalizeSyncPayload`), `lib/marketplace-chat.js` (`renormalizeMarketplaceMessages`, `sender_name`), rota nova `app/api/cron/marketplace-messages-renormalize` (só acionamento manual, auth de cron, `?apply=1`), extensão `inbox.js` (avatar fora dos anexos).
