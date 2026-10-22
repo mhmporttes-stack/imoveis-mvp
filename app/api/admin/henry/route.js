@@ -20,7 +20,7 @@ import {
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
-import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, parseHenryAudio } from "@/lib/henry-voice-providers.mjs";
+import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, checkHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,9 +141,10 @@ function speechStream(auth, reply, navigate, style) {
 // Pergunta → resposta (texto + tela da lista fechada + voz). Nada é gravado além do custo em "Gastos de IA".
 // Visão (HENRY-2): o corpo pode trazer `image` (1 quadro JPEG da webcam). Só é usada com a visão LIGADA e no "bom dia" ou
 // em pergunta com intenção visual; nunca é gravada nem logada. Corpo limitado (MAX_BODY_CHARS).
-// Tocar para falar no celular: { mode: "transcribe", audio } (data URL, ≤ 20 s) → { text } pela ElevenLabs; o áudio nunca
+// Tocar para falar no celular: { mode: "transcribe", audio } (data URL, ≤ 20 s; tipos do iPhone aceitos por checkHenryAudio) → { text } pela ElevenLabs; o áudio nunca
 // é gravado nem logado. { mode: "warm" } pré-aquece os números do relatório (cache curto, nenhuma chamada paga).
-const MAX_BODY_CHARS = 900_000;
+// Cobre 20 s de gravação do iPhone em base64 (HENRY_AUDIO_MAX_BASE64 = 2 milhões) + o JSON; abaixo do teto da Vercel (4,5 MB).
+const MAX_BODY_CHARS = 2_200_000;
 
 export async function POST(request) {
   const auth = await requireHenryOwner(request);
@@ -192,8 +193,12 @@ export async function POST(request) {
     }
   }
   if (body?.mode === "transcribe") {
-    const audio = parseHenryAudio(body?.audio);
-    if (!audio) return NextResponse.json({ error: "Áudio inválido ou longo demais." }, { status: 400 });
+    const checked = checkHenryAudio(body?.audio);
+    if (!checked.audio) {
+      console.warn(`[henry] gravação recusada (${checked.reason}).`);
+      return NextResponse.json({ error: checked.error }, { status: checked.reason === "too_long" ? 413 : 400 });
+    }
+    const audio = checked.audio;
     const durationMs = Math.min(HENRY_AUDIO_MAX_MS + 2000, Math.max(0, Number(body?.durationMs) || 0));
     try {
       const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);

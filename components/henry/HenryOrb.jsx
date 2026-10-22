@@ -172,5 +172,5 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
     };
   }, [size, fibers, points, alpha, lineWidth, glow, sleep]);
 
-  return <canvas ref={canvasRef} aria-hidden="true" className={className} style={{ width: size, height: size }} />;
+  return <canvas ref={canvasRef} aria-hidden="true" className={className} style={{ width: size, height: size, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", pointerEvents: "none" }} />;
 }

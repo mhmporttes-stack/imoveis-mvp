@@ -6,6 +6,7 @@ import {
   ELEVENLABS_SPEED,
   ELEVENLABS_STT_PERMISSION_MESSAGE,
   HENRY_AUDIO_MAX_BASE64,
+  checkHenryAudio,
   buildElevenLabsSpeechRequest,
   buildElevenLabsTranscriptionRequest,
   estimateElevenLabsSttCostUsd,
@@ -171,6 +172,64 @@ test("fala para texto: áudio nunca é gravado nem logado; custo em henry_voice_
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   const transcribe = route.slice(route.indexOf('body?.mode === "transcribe"'), route.indexOf('const mode = body?.mode === "report"'));
   assert.match(transcribe, /checkPublicRateLimit\(`henry:/); // mesmo limite de taxa
-  assert.match(transcribe, /parseHenryAudio/);
+  assert.match(transcribe, /checkHenryAudio/);
   assert.ok(route.indexOf("requireHenryOwner(request)") < route.indexOf('body?.mode === "transcribe"'));
+});
+
+// Print do iPhone do dono (2026-10-22, 17:37): "Áudio inválido ou longo demais." ao tocar para falar no app.
+test("gravação do iPhone: audio/mp4 de 300–600 KB, tipo com aspas, sem tipo ou video/mp4 é aceita", async () => {
+  const toDataUrl = async (blob) => `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString("base64")}`;
+  for (const size of [300_000, 500_000, 640_000]) {
+    const blob = new Blob([new Uint8Array(size).fill(7)], { type: "audio/mp4" });
+    const checked = checkHenryAudio(await toDataUrl(blob));
+    assert.equal(checked.audio?.mediaType, "audio/mp4", `tamanho ${size}`);
+  }
+  const data = Buffer.from(new Uint8Array(400_000).fill(3)).toString("base64");
+  assert.equal(checkHenryAudio(`data:audio/mp4; codecs="mp4a.40.2";base64,${data}`).audio?.mediaType, "audio/mp4");
+  assert.equal(checkHenryAudio(`data:;base64,${data}`).audio?.mediaType, "audio/mp4"); // Blob sem tipo
+  assert.equal(checkHenryAudio(`data:application/octet-stream;base64,${data}`).audio?.mediaType, "audio/mp4");
+  assert.equal(checkHenryAudio(`data:video/mp4;base64,${data}`).audio?.mediaType, "audio/mp4");
+  assert.equal(checkHenryAudio(`data:audio/x-m4a;base64,${data}`).audio?.mediaType, "audio/x-m4a");
+  assert.equal(checkHenryAudio(`data:audio/aac;base64,${data}`).audio?.mediaType, "audio/aac");
+  // 20 s do iPhone a ~256 kbps (~640 KB) cabem no corpo da rota.
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  const bodyLimit = Number(route.match(/const MAX_BODY_CHARS = ([\d_]+)/)[1].replace(/_/g, ""));
+  assert.ok(bodyLimit > HENRY_AUDIO_MAX_BASE64 + 1000);
+  assert.ok(HENRY_AUDIO_MAX_BASE64 > Math.ceil((640_000 * 4) / 3));
+});
+
+test("gravação recusada: a mensagem diz o motivo certo ('longo demais' só quando é longo)", () => {
+  const data = "A".repeat(4000);
+  assert.equal(checkHenryAudio(`data:audio/mp4;base64,${"A".repeat(HENRY_AUDIO_MAX_BASE64 + 4)}`).reason, "too_long");
+  assert.match(checkHenryAudio(`data:audio/mp4;base64,${"A".repeat(HENRY_AUDIO_MAX_BASE64 + 4)}`).error, /longa demais/);
+  assert.equal(checkHenryAudio(`data:image/jpeg;base64,${data}`).reason, "type");
+  assert.equal(checkHenryAudio(`data:audio/mp4;base64,AAAA`).reason, "too_short");
+  assert.equal(checkHenryAudio(`data:audio/mp4;base64,${data}<script>`).reason, "format");
+  assert.equal(checkHenryAudio(null).reason, "format");
+  for (const reason of ["type", "too_short", "format"]) {
+    const sample = { type: `data:image/jpeg;base64,${data}`, too_short: "data:audio/mp4;base64,AAAA", format: "x" }[reason];
+    assert.doesNotMatch(checkHenryAudio(sample).error, /longo|longa/);
+  }
+});
+
+test("toque no Henry no iPhone: sem seleção, menu ou lupa; o campo de digitação continua selecionável", () => {
+  const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
+  for (const rule of ['userSelect: "none"', 'WebkitUserSelect: "none"', 'WebkitTouchCallout: "none"', 'WebkitTapHighlightColor: "transparent"', 'touchAction: "manipulation"']) assert.ok(view.includes(rule), rule);
+  assert.ok((view.match(/HENRY_NO_SELECT/g) || []).length >= 4); // ícone (celular e computador) e tela cheia
+  assert.ok((view.match(/onPointerDown/g) || []).length >= 4);
+  assert.match(view, /style=\{TYPING_SELECT\}/);
+  const orb = readFileSync(new URL("../components/henry/HenryOrb.jsx", import.meta.url), "utf8");
+  assert.match(orb, /WebkitTouchCallout: "none"/);
+});
+
+test("texto visível: 'Henry' no lugar de 'anel' (dono, 2026-10-22)", () => {
+  for (const file of ["../components/henry/HenryVoiceView.jsx", "../components/henry/HenryVoiceAssistant.jsx", "../components/henry/HenrySettingsCard.jsx"]) {
+    const code = readFileSync(new URL(file, import.meta.url), "utf8")
+      .split("\n")
+      .filter((line) => !/^\s*\/\//.test(line))
+      .map((line) => line.replace(/\/\/.*$/, ""))
+      .join("\n");
+    const strings = code.match(/"[^"\n]*"|`[^`]*`|>[^<>{}\n]+</g) || [];
+    assert.deepEqual(strings.filter((text) => /\banel\b/i.test(text)), [], file);
+  }
 });

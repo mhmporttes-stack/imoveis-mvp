@@ -21,6 +21,23 @@ const MOBILE_SMALL = 52;
 const MOBILE_BIG = 88;
 const MOBILE_BOTTOM = "calc(0.75rem + max(env(safe-area-inset-bottom), var(--admin-bottom-nav-space, 0px)))";
 
+// iPhone (dono, 2026-10-22): tocar no Henry abria "Copiar / Pesquisar / Traduzir" e selecionava a área da animação. Nada
+// do Henry é selecionável nem abre o menu/lupa do toque longo; só o campo de digitação continua selecionável.
+export const HENRY_NO_SELECT = Object.freeze({
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
+  WebkitTapHighlightColor: "transparent",
+  touchAction: "manipulation"
+});
+const TYPING_SELECT = Object.freeze({ userSelect: "text", WebkitUserSelect: "text", WebkitTouchCallout: "default" });
+
+// Toque (não mouse): sem seleção nem lupa. preventDefault no pointerdown não cancela o clique (o clique é que abre/grava,
+// dentro do gesto que libera o som no iOS); no touchstart cancelaria — por isso não é usado lá.
+export function preventTouchSelection(event) {
+  if (event.pointerType && event.pointerType !== "mouse" && event.cancelable) event.preventDefault();
+}
+
 function useFullscreenOrbSize(active, mobile) {
   const [size, setSize] = useState(520);
   useEffect(() => {
@@ -85,12 +102,13 @@ export default function HenryVoiceView({
     return (
       <div
         className={`${fixed ? "pointer-events-none fixed left-3 z-[35]" : "relative"} flex items-end gap-2 md:hidden`}
-        style={fixed ? { bottom: MOBILE_BOTTOM } : undefined}
+        style={fixed ? { ...HENRY_NO_SELECT, bottom: MOBILE_BOTTOM } : HENRY_NO_SELECT}
         data-henry-assistant
       >
         <div className="relative transition-[width,height] duration-300 ease-out motion-reduce:transition-none" style={{ width: box, height: box }}>
           <button
             type="button"
+            onPointerDown={preventTouchSelection}
             onClick={onExpand}
             className="pointer-events-auto absolute bottom-0 left-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out motion-reduce:transition-none"
             style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
@@ -126,7 +144,7 @@ export default function HenryVoiceView({
     // Wrapper sem cliques (pointer-events-none): só o ícone e o botão de mudo recebem clique; a legenda nunca tapa nada.
     const box = engaged ? ICON_BIG : ICON_SMALL;
     return (
-      <div className={`${fixed ? "pointer-events-none fixed bottom-5 right-5 z-[65]" : "relative"} flex items-end gap-2`} data-henry-assistant>
+      <div className={`${fixed ? "pointer-events-none fixed bottom-5 right-5 z-[65]" : "relative"} flex items-end gap-2`} style={HENRY_NO_SELECT} data-henry-assistant>
         {engaged && caption ? (
           <p
             className="mb-2 max-w-[260px] rounded-2xl px-3 py-2 text-[12px] leading-snug shadow-float ring-1 ring-white/10 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] overflow-hidden"
@@ -144,6 +162,7 @@ export default function HenryVoiceView({
         <div className="relative transition-[width,height] duration-300 ease-out motion-reduce:transition-none" style={{ width: box, height: box }}>
           <button
             type="button"
+            onPointerDown={preventTouchSelection}
             onClick={onExpand}
             className="pointer-events-auto absolute bottom-0 right-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out hover:ring-white/30 motion-reduce:transition-none"
             style={{ background: BACKDROP, width: ICON_BIG, height: ICON_BIG, transform: `scale(${box / ICON_BIG})`, transformOrigin: "bottom right" }}
@@ -163,10 +182,13 @@ export default function HenryVoiceView({
   return (
     <div
       className={`${fixed ? "fixed inset-0 z-[70]" : "relative h-[640px] w-full"} flex items-center justify-center overflow-hidden text-white`}
-      style={{ background: `radial-gradient(ellipse at 50% 45%, #0C1E36 0%, ${BACKDROP} 62%)` }}
+      style={{ ...HENRY_NO_SELECT, background: `radial-gradient(ellipse at 50% 45%, #0C1E36 0%, ${BACKDROP} 62%)` }}
       role="dialog"
       aria-modal="true"
       aria-label="Assistente Henry"
+      onPointerDown={(event) => {
+        if (!(event.target instanceof HTMLInputElement)) preventTouchSelection(event);
+      }}
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
         if (recording) onTalk?.(); // gravando: tocar na tela envia
@@ -209,7 +231,7 @@ export default function HenryVoiceView({
 
       <div className={mobile ? "-translate-y-[14vh]" : ""}>
         {onTalk ? (
-          <button type="button" onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
+          <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
             <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
           </button>
         ) : (
@@ -227,7 +249,7 @@ export default function HenryVoiceView({
             ))
           ) : (
             <p className="text-white/55">
-              {recordMode ? "Toque no anel e fale: “quantos clientes aguardam resposta?”" : tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
+              {recordMode ? "Toque no Henry e fale: “quantos clientes aguardam resposta?”" : tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
             </p>
           )}
           {notice ? <p className="font-bold text-amber-200">{notice}</p> : null}
@@ -240,6 +262,7 @@ export default function HenryVoiceView({
               onChange={(event) => onTyped?.(event.target.value)}
               maxLength={500}
               placeholder="Digite a pergunta…"
+              style={TYPING_SELECT}
               className="h-11 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-base text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none md:h-9 md:text-sm"
             />
             <button type="submit" disabled={busy} className="h-9 rounded-full bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20 disabled:opacity-50">
@@ -276,7 +299,7 @@ function RoundButton({ onClick, label, children, small = false, dark = false, ac
       : "border border-white/15 bg-white/5 text-white/60"
     : "border border-line bg-white text-navy shadow-float hover:text-brand";
   return (
-    <button type="button" onClick={onClick} className={`${base} flex items-center justify-center rounded-full transition ${tone}`} aria-label={label} title={label}>
+    <button type="button" onPointerDown={preventTouchSelection} onClick={onClick} className={`${base} flex items-center justify-center rounded-full transition ${tone}`} aria-label={label} title={label}>
       {children}
     </button>
   );

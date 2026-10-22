@@ -71,7 +71,7 @@ export default function HenrySettingsCard() {
           <p className="text-base font-black text-navy">Assistente de voz Henry (computador e celular)</p>
           <p className="mt-1 text-sm text-muted">
             Ícone no canto do painel, só para você. No computador, diga “bom dia, Henry” para o relatório do dia ou “Henry, …” com a pergunta. No
-            celular, toque no anel e fale. Só consulta — não envia nem altera nada. Alt+B deixa no mudo. O navegador pede o microfone uma vez.
+            celular, toque no Henry e fale. Só consulta — não envia nem altera nada. Alt+B deixa no mudo. O navegador pede o microfone uma vez.
             {state.serverVoice ? "" : " Voz do servidor não configurada: o Henry fala com a voz do navegador."}
           </p>
         </div>
@@ -105,7 +105,7 @@ export default function HenrySettingsCard() {
         <div className="max-w-2xl">
           <p className="text-sm font-black text-navy">Celular: ouvir “Henry” com o app aberto</p>
           <p className="mt-1 text-sm text-muted">
-            Desligado (recomendado): no celular você toca no anel para falar. Ligado: com o app aberto e na tela, ele fica ouvindo o nome como no
+            Desligado (recomendado): no celular você toca no Henry para falar. Ligado: com o app aberto e na tela, ele fica ouvindo o nome como no
             computador — gasta mais bateria e alguns celulares param de ouvir sozinhos.
           </p>
         </div>

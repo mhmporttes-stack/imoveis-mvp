@@ -392,6 +392,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry no iPhone: gravação aceita, toque sem seleção e "Henry" no lugar de "anel"
+- **Pedido do dono (print do iPhone, 17:37):** "Áudio inválido ou longo demais." ao tocar para falar; tocar no Henry abria "Copiar / Pesquisar / Traduzir"; "troque a palavra anel por Henry".
+- **O que mudou:** validação única `checkHenryAudio` (aceita os tipos do iPhone, teto de ~1,5 MB de áudio, mensagem pelo motivo; a rota sobe o corpo máximo para 2,2 milhões de caracteres); ícone, cena e animação sem seleção/menu de toque longo; textos visíveis "Toque no Henry…". Nada muda no servidor além da validação.
+- **Docs:** `docs/INCIDENTES.md`.
+- **Arquivos:** `lib/henry-voice-providers.mjs`, `app/api/admin/henry/route.js`, `components/henry/*.jsx`, `tests/henry-voice-providers.test.mjs`.
+
 ### 2026-10-22 — Henry: tocar para falar por gravação no celular (ElevenLabs Speech to Text), mais rápido, tela cheia sem o nome, rede de segurança do reconhecimento e visão ampliada
 - **Pedidos do dono:** "no celular só responde se eu escrever"; "ele fica pensando por muito tempo"; "escuta, porém trava quando paro de falar"; "Deixa eu ver…" numa voz diferente; com a tela cheia aberta, "Quantos por cento falta para bater a meta de hoje" foi ignorada (o Chrome cortou o nome); "eu estou com ou sem boné?" → "não sei"; "vc tem acesso à câmera?" → "não tenho".
 - **O que mudou:** (1) celular sem reconhecimento de voz/iPhone no app instalado/reconhecimento com erro → grava (MediaRecorder) e o servidor transcreve na ElevenLabs (`POST /api/admin/henry` `{ mode: "transcribe" }`, Scribe `scribe_v2`, `por`; áudio só em memória; `henry_voice_stt`; 401/403 → "Libere 'Fala para Texto' na chave da ElevenLabs."); (2) velocidade: Início + resumo do dono em paralelo (`getPainelInicioDono` aceita o Início como promessa — os outros chamadores não mudam), cache de 45 s das leituras (`createHenryReadCache`), pré-aquecimento `{ mode: "warm" }`, elogio com prazo de 3,5 s, gravações depois da resposta (`after`), checagens da rota em paralelo, `max_tokens` 300; (3) confirmação falada removida; (4) parcial parado por 1,2 s vira final (uma vez); (5) tela cheia aberta = já chamando; nome forte em qualquer posição chama; status "Ouvi: …"/"(diga 'Henry' antes)"; (6) `isVisualQuestion` ampliada (fala e digitado) e estado da visão no prompt de cada pedido (`buildHenryVisionNote`).

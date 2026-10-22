@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry no iPhone: "Áudio inválido ou longo demais." e toque no Henry abre "Copiar / Pesquisar / Traduzir"
+- **Data:** 2026-10-22
+- **Sintoma:** no app do iPhone, tocar para falar devolvia "Áudio inválido ou longo demais."; tocar no anel selecionava a animação (realce azul com alças) e abria o menu do sistema.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; voz no celular inutilizável.
+- **Causa raiz:** (1) a validação só aceitava `data:audio/<tipo>;base64,` sem espaço/aspas e no máximo 800 mil caracteres; o Safari rotula a gravação como `audio/mp4; codecs="mp4a.40.2"` (ou sem tipo / `video/mp4`) e ignora o `audioBitsPerSecond`, podendo passar de 800 mil caracteres em 20 s; a mesma frase servia para os dois casos. (2) Faltavam `user-select`/`-webkit-touch-callout` no ícone, na cena e na animação.
+- **Correção:** `checkHenryAudio` (`lib/henry-voice-providers.mjs`) aceita tipo com parâmetros, sem tipo e `video/mp4` (como `audio/mp4`), teto de 2 milhões de caracteres (corpo da rota 2,2 milhões) e devolve o motivo certo ("longa demais" só quando é longa); o navegador manda só o tipo base. Ícone/cena/canvas sem seleção nem menu do toque longo (`HENRY_NO_SELECT`, `preventTouchSelection` no pointerdown); campo de digitação continua selecionável. Texto "anel" → "Henry".
+- **Arquivos/commit:** `lib/henry-voice-providers.mjs`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenryOrb.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx` — commit "Henry no iPhone: gravação aceita…"
+- **Prevenção/teste:** `tests/henry-voice-providers.test.mjs` (Blob audio/mp4 de 300–640 KB, tipo com aspas, sem tipo, motivo da recusa, estilos anti-seleção, texto sem "anel").
+- **Status:** Monitorando (confirmar no iPhone do dono)
+
 ### 2026-10-22 — Henry no celular "só responde se eu escrever" / "trava quando paro de falar"
 - **Data:** 2026-10-22
 - **Sintoma:** no app instalado no iPhone o Henry não respondia à voz (só ao texto); em outros momentos mostrava "ouvindo" e travava quando o dono parava de falar.

@@ -691,12 +691,14 @@ export default function HenryVoiceAssistant() {
     if (micAnalyserRef.current === session.analyser) micAnalyserRef.current = null;
     setRecording(false);
     const durationMs = Date.now() - session.startedAt;
-    const type = session.recorder?.mimeType || session.chunks[0]?.type || "audio/mp4";
+    // Só o tipo base (o iPhone manda 'audio/mp4; codecs="mp4a.40.2"' ou nada): o servidor confere o formato de novo.
+    const rawType = session.recorder?.mimeType || session.chunks[0]?.type || "";
+    const type = String(rawType).split(";")[0].trim().toLowerCase() || "audio/mp4";
     const blob = session.chunks.length ? new Blob(session.chunks, { type }) : null;
     session.chunks = [];
     if (session.discard || !blob || !blob.size || durationMs < RECORD_MIN_MS) {
       updatePhase("idle");
-      if (session.discard === "silence") setNotice("Não ouvi nada. Toque no anel e fale.");
+      if (session.discard === "silence") setNotice("Não ouvi nada. Toque no Henry e fale.");
       return;
     }
     const id = requestIdRef.current + 1;
@@ -721,7 +723,7 @@ export default function HenryVoiceAssistant() {
       else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
       else {
         updatePhase("idle");
-        setNotice(intent.kind === "wake" ? "Pode perguntar: toque no anel e fale." : "Não entendi. Toque no anel e fale de novo.");
+        setNotice(intent.kind === "wake" ? "Pode perguntar: toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
       }
     } catch (error) {
       if (error?.name === "AbortError" || requestIdRef.current !== id) return;
@@ -1134,7 +1136,7 @@ export default function HenryVoiceAssistant() {
           ? "Pensando…"
           : phase === "speaking"
             ? "Falando… toque na tela para interromper"
-            : "Toque no anel para falar"
+            : "Toque no Henry para falar"
     : !supported
     ? "Este navegador não reconhece voz — use o Chrome ou digite"
     : micState === "blocked"
@@ -1152,7 +1154,7 @@ export default function HenryVoiceAssistant() {
               : micState === "listening"
                 ? heard.text && Date.now() - heard.at < 8000 ? heard.accepted ? `Ouvi: “${heard.text}”` : `Ouvi: “${heard.text}” (diga “Henry” antes)` : expanded ? "Ouvindo — pode falar" : "Ouvindo — diga “Henry”"
                 : listenMode === "tap"
-                  ? "Toque no anel para falar"
+                  ? "Toque no Henry para falar"
                   : "Ligando o microfone…";
   const submitTyped = (event) => {
     event.preventDefault();
