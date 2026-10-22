@@ -134,8 +134,10 @@ test("anel e ícone: limites de desempenho e movimento reduzido", () => {
 
 test("rota: fala em partes só com o mesmo texto já liberado pela barreira", () => {
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(route, /body\?\.stream === true && body\?\.voice !== false\) return speechStream\(auth, answer\.reply, navigate, style\)/);
-  assert.match(route, /splitForSpeech\(reply\)/);
+  assert.match(route, /body\?\.stream === true && body\?\.voice !== false\) return answerStream\(/);
+  // A voz fala em partes exatamente a resposta já liberada pela barreira (answer.reply sai de safeHenryReply).
+  assert.match(route, /splitForSpeech\(answer\.reply\)/);
+  assert.match(route, /send\(\{ reply: answer\.reply, navigate, detail/);
   // Interrupção do navegador: AbortController no pedido.
   const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(client, /new AbortController\(\)/);
@@ -201,9 +203,10 @@ test("um aparelho por vez: quem falou primeiro segura a conversa por 25 s", asyn
   assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now }, deviceId: "", now }).allowed, true);
 });
 
-test("sem confirmação falada enquanto pensa (dono, 2026-10-22): só o anel em pensando", () => {
+test("enquanto pensa: nada de confirmação na voz do navegador (o antigo 'Deixa eu ver…'); só as frases de espera na voz do Henry", () => {
   const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(src, /pickAcknowledgement|ACK_DELAY_MS|ackTimerRef/);
+  assert.match(src, /pickWaitPhrase/);
 });
 
 test("rede de segurança: parcial parado por ~1,2 s vira final, uma vez", () => {

@@ -392,6 +392,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry: relatório semanal/mensal e períodos longos, narração na voz dele enquanto pensa e cena de busca com o corretor
+- **Pedido do dono:** "ele não consegue puxar dados longos como dos últimos 30 dias… se eu disser que quero o relatório semanal ou mensal, ele tem que puxar"; "remova os silêncios… ele continua falando"; "a tela atrás dele deve mostrar dados um pouco transparentes… cardzinho com a foto do corretor conectado a ele".
+- **O que mudou:** ferramentas `relatorio_periodo`, `consultar_corretor`, `buscar_cliente` (somente leitura; mesmas funções do Desempenho/Meta/Início; detalhe em lista na tela, voz em 3–5 frases); stream NDJSON aberto na hora com eventos de progresso, `{ narration }` com o nome do corretor e `{ error }`; frases de espera (24) sintetizadas uma vez por voz e tocadas na mesma fila da resposta; cena de busca (dados fictícios transparentes, scanner e card do corretor, painel de detalhe); `maxDuration` da rota 45 → 60 s; `max_tokens` 700 só no modo relatório.
+- **Custo:** frases de espera ≈ 800 caracteres por voz/estilo a cada 6 h por instância (ElevenLabs Flash ≈ US$ 0,04–0,08 por carga); frase com nome ≈ 25 caracteres, guardada.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1, `.claude/rules/integracoes-externas.md`.
+- **Arquivos:** `lib/henry-reports-core.mjs`, `lib/henry-reports.js`, `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenrySearchScene.jsx`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenryVoiceAssistant.jsx`, vitrine `app/dev/vitrine/henry`, testes `tests/henry-reports.test.mjs`.
+- **Risco/observação:** relatório de 90 dias é calculado na hora (até 25 s por fonte; o que passar vira "indisponível"). "Semanal" = últimos 7 dias e "mensal" = últimos 30 dias por padrão — a confirmar com o dono.
+
 ### 2026-10-22 — Henry no iPhone: gravação aceita, toque sem seleção e "Henry" no lugar de "anel"
 - **Pedido do dono (print do iPhone, 17:37):** "Áudio inválido ou longo demais." ao tocar para falar; tocar no Henry abria "Copiar / Pesquisar / Traduzir"; "troque a palavra anel por Henry".
 - **O que mudou:** validação única `checkHenryAudio` (aceita os tipos do iPhone, teto de ~1,5 MB de áudio, mensagem pelo motivo; a rota sobe o corpo máximo para 2,2 milhões de caracteres); ícone, cena e animação sem seleção/menu de toque longo; textos visíveis "Toque no Henry…". Nada muda no servidor além da validação.

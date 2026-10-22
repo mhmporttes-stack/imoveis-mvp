@@ -4,6 +4,9 @@ import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
   claimHenryDevice,
+  getHenryNarration,
+  henryNarrationVoiceKey,
+  synthesizeHenryShort,
   henryDefaultVoice,
   henryVoiceProvider,
   isHenryVoiceConfigured,
@@ -20,11 +23,12 @@ import {
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
+import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, checkHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 45;
+export const maxDuration = 60; // relatório de período longo (ex.: 90 dias) calculado na hora
 
 // Assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1). Só o DONO, na conta real, fora de "Alterar conta" — os
 // outros perfis recebem 403 (o componente nem é montado para eles; a barreira é esta rota). SOMENTE LEITURA.
@@ -71,6 +75,7 @@ export async function GET(request) {
       provider,
       providerLabel: HENRY_PROVIDER_LABELS[provider],
       style,
+      narrationKey: henryNarrationVoiceKey(style), // frases de espera: o navegador reaproveita as da sessão com a mesma chave
       browserRate: henryBrowserRate(style),
       options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
       elevenVoices,
@@ -109,10 +114,14 @@ export async function PUT(request) {
   }
 }
 
-// Linhas: { reply, navigate } → { part, text, audio|null } por parte → { done: true }. audio null = o navegador fala a parte.
+// Modo conversa em linhas (NDJSON), aberto LOGO ao receber o pedido (sem silêncio enquanto ele pensa):
+//   { progress, topic, label, broker? } — evento inicial e um por ferramenta chamada (narração e cena de busca);
+//   { narration: { text, audio } }     — frase curta com o nome do corretor, na voz do Henry (sintetizada na hora);
+//   { reply, navigate, detail }        — resposta (texto falado + detalhe da tela, quando houver);
+//   { part, text, audio|null } por parte → { done: true }. audio null = o navegador fala a parte.
+//   { error } — falhou depois de aberto (a tela mostra a frase).
 // Se o navegador cancelar (o dono interrompeu), as escritas seguintes falham em silêncio e o fluxo termina.
-function speechStream(auth, reply, navigate, style) {
-  const parts = splitForSpeech(reply);
+function answerStream(auth, request, style) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -125,12 +134,30 @@ function speechStream(auth, reply, navigate, style) {
           open = false;
         }
       };
-      send({ reply, navigate });
-      const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
-      for (let index = 0; index < parts.length; index += 1) {
-        send({ part: index, text: parts[index], audio: await audios[index] });
+      const pending = [];
+      send(henryInitialProgress(request.mode));
+      try {
+        const answer = await answerHenry(auth, {
+          ...request,
+          style,
+          onProgress: ({ say, ...event }) => {
+            send(event);
+            if (say) pending.push(synthesizeHenryShort(auth, say, style).then((audio) => audio && send({ narration: { text: say, audio } })).catch(() => {}));
+          }
+        });
+        const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
+        send({ reply: answer.reply, navigate, detail: answer.detail || null });
+        const parts = splitForSpeech(answer.reply);
+        const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
+        for (let index = 0; index < parts.length; index += 1) {
+          send({ part: index, text: parts[index], audio: await audios[index] });
+        }
+        send({ done: true });
+      } catch (error) {
+        console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
+        send({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." });
       }
-      send({ done: true });
+      await Promise.allSettled(pending);
       if (open) controller.close();
     },
     cancel() {}
@@ -192,6 +219,18 @@ export async function POST(request) {
       return NextResponse.json({ error: "Não foi possível pré-carregar o relatório." }, { status: 502 });
     }
   }
+  // Frases de espera na voz do Henry (narração): conjunto fixo sintetizado uma vez por voz+estilo e guardado em cache
+  // (servidor 6 h; o navegador guarda na sessão pela voiceKey). Sem voz do servidor → lista vazia (fica em silêncio).
+  if (body?.mode === "narration") {
+    try {
+      const { enabled, style } = await readHenrySettings();
+      if (!enabled) return NextResponse.json({ voiceKey: "", phrases: [] });
+      return NextResponse.json(await getHenryNarration(auth, style));
+    } catch (error) {
+      console.warn(`[henry] frases de espera indisponíveis (${error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Frases de espera indisponíveis agora." }, { status: 502 });
+    }
+  }
   if (body?.mode === "transcribe") {
     const checked = checkHenryAudio(body?.audio);
     if (!checked.audio) {
@@ -227,13 +266,13 @@ export async function POST(request) {
     if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
     if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
+    // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
+    // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, vision }, style);
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision });
     const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
-    // Modo conversa: `stream` = resposta em linhas (NDJSON) — o texto sai na hora e a voz vai em partes (1ª frase primeiro,
-    // geradas em paralelo), para começar a falar antes. Mesmo texto, mesma barreira (safeHenryReply já aplicada).
-    if (body?.stream === true && body?.voice !== false) return speechStream(auth, answer.reply, navigate, style);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

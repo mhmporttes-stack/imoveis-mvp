@@ -30,6 +30,7 @@ import {
   nextRestartDelay
 } from "@/lib/henry-voice-conversation.mjs";
 import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
+import { pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import { captureWebcamFrame } from "./webcam-capture";
 
@@ -47,7 +48,9 @@ import { captureWebcamFrame } from "./webcam-capture";
 // Celular sem reconhecimento de voz (app instalado no iPhone) ou com reconhecimento que falhou: TOCAR PARA FALAR por
 // gravação — toque no anel/microfone grava (MediaRecorder), para no toque ou sozinho com ~1,2 s de silêncio (máx. 20 s),
 // o servidor transcreve (ElevenLabs Scribe) e o texto segue o caminho normal. O áudio não fica guardado em lugar nenhum.
-// Enquanto pensa não há confirmação falada (dono, 2026-10-22): só o anel em "pensando".
+// Sem silêncio enquanto pensa (dono, 2026-10-22): frases de espera curtas NA VOZ DO HENRY (cache da sessão, mesma fila e
+// mesmo elemento de áudio da resposta), depois de ~0,8 s, no máximo 1 a cada ~2,5 s, sem repetir as últimas 5; a resposta
+// entra quando a frase atual termina. Sem voz do servidor: silêncio (nunca a voz do navegador). A cena mostra a busca.
 
 const MUTE_KEY = "mm_henry_muted";
 const IDLE_SLEEP_MS = 30000;
@@ -145,6 +148,13 @@ export default function HenryVoiceAssistant() {
   const [iosStandalone, setIosStandalone] = useState(false);
   const speechQueueRef = useRef({ clips: [], playing: false, done: true });
   const mutedRef = useRef(false);
+  // Narração e cena de busca: frases da sessão (voz do Henry), espera do pedido atual e o que a cena mostra.
+  const narrationKeyRef = useRef("");
+  const narrationRef = useRef({ key: "", phrases: [], loading: false });
+  const waitRef = useRef({ id: 0, startedAt: 0, replied: true, topic: "geral", lastAt: 0, names: [] });
+  const recentPhrasesRef = useRef([]);
+  const narratingTextRef = useRef("");
+  const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [] });
 
   const updatePhase = useCallback((value) => {
     phaseRef.current = value;
@@ -178,6 +188,7 @@ export default function HenryVoiceAssistant() {
         visionRef.current = data?.vision === true;
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
+        narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
         setMobileWake(data?.mobileWake === true);
       })
       .catch(() => alive && setEnabled(false))
@@ -210,6 +221,45 @@ export default function HenryVoiceAssistant() {
   useEffect(() => {
     if (active) warmServer();
   }, [active, warmServer]);
+
+  // Frases de espera na voz do Henry: da sessão do navegador (mesma voz/estilo = mesma chave) ou do servidor (cache dele).
+  const loadNarration = useCallback(() => {
+    const key = narrationKeyRef.current;
+    const state = narrationRef.current;
+    if (!key || state.loading || state.key === key) return;
+    const storageKey = `mm-henry-narration:${key}`;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
+      if (Array.isArray(saved?.phrases) && saved.phrases.length) {
+        narrationRef.current = { key, phrases: saved.phrases, loading: false };
+        return;
+      }
+    } catch {
+      // sessão sem espaço ou JSON velho: busca de novo
+    }
+    narrationRef.current = { ...state, loading: true };
+    fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "narration" }) })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const phrases = Array.isArray(data?.phrases) ? data.phrases.filter((phrase) => phrase?.id && phrase?.audio?.base64) : [];
+        narrationRef.current = { key: phrases.length ? data.voiceKey || key : "", phrases, loading: false };
+        if (phrases.length) {
+          try {
+            window.sessionStorage.setItem(storageKey, JSON.stringify({ phrases }));
+          } catch {
+            // sem espaço na sessão: fica só na memória da página
+          }
+        }
+      })
+      .catch(() => {
+        narrationRef.current = { key: "", phrases: [], loading: false };
+      });
+  }, []);
+  useEffect(() => {
+    if (!active) return undefined;
+    const timer = window.setTimeout(loadNarration, 1500); // depois do pré-aquecimento: não disputa a abertura do painel
+    return () => window.clearTimeout(timer);
+  }, [active, loadNarration]);
 
   // --- Áudio (WebAudio): nível do microfone e da voz para animar o orbe ---------------------------------------------
   const ensureAudioContext = useCallback(() => {
@@ -376,6 +426,7 @@ export default function HenryVoiceAssistant() {
   // Corta a voz na hora (áudio do servidor e voz do navegador) e esvazia a fila.
   const stopSpeaking = useCallback(() => {
     speechQueueRef.current = { clips: [], playing: false, done: true };
+    narratingTextRef.current = "";
     const audio = audioRef.current;
     if (audio) {
       audio.onended = null;
@@ -492,9 +543,15 @@ export default function HenryVoiceAssistant() {
       return;
     }
     queue.playing = true;
+    queue.narrating = Boolean(clip.narration);
+    narratingTextRef.current = clip.narration ? clip.text : "";
     const advance = () => {
       if (speechQueueRef.current === queue) playNextRef.current();
     };
+    if (clip.narration && !clip.audio?.base64) {
+      advance(); // frase de espera só na voz do Henry; sem áudio, nada
+      return;
+    }
     if (!clip.audio?.base64) {
       meterActiveRef.current = false; // voz do navegador: o anel usa o pulso simulado
       speakBrowser(clip.text, advance);
@@ -521,6 +578,10 @@ export default function HenryVoiceAssistant() {
     element.src = `data:${clip.audio.contentType || "audio/mpeg"};base64,${clip.audio.base64}`;
     element.play().catch(() => {
       if (speechQueueRef.current !== queue) return;
+      if (clip.narration) {
+        advance(); // som ainda bloqueado: pula a frase de espera (a resposta pede o toque, se precisar)
+        return;
+      }
       setNotice(desktopRef.current ? "Clique ou aperte uma tecla na página para liberar o som do Henry." : "Toque na tela para ouvir o Henry.");
       soundRetryRef.current = true;
       const retry = () => {
@@ -542,7 +603,14 @@ export default function HenryVoiceAssistant() {
   const beginSpeech = useCallback((text) => {
     if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
     lastReplyRef.current = text;
-    speechQueueRef.current = { clips: [], playing: false, done: false };
+    const queue = speechQueueRef.current;
+    if (queue.playing && queue.narrating) {
+      // Frase de espera tocando: termina a frase (nunca corta no meio de uma palavra) e a resposta entra logo depois.
+      queue.clips = [];
+      queue.done = false;
+    } else {
+      speechQueueRef.current = { clips: [], playing: false, done: false };
+    }
     updatePhase("speaking");
   }, [updatePhase]);
 
@@ -557,6 +625,51 @@ export default function HenryVoiceAssistant() {
     queue.done = true;
     if (!queue.playing) playNextRef.current();
   }, []);
+
+  // --- Cena de busca e narração ------------------------------------------------------------------------------------
+  // Evento de progresso do servidor → assunto da cena, legenda e cards de corretor (até 3; o achado ganha os números).
+  const applyProgress = useCallback((message) => {
+    const topic = typeof message.topic === "string" ? message.topic : "geral";
+    waitRef.current = { ...waitRef.current, topic };
+    setScene((current) => {
+      let brokers = current.brokers;
+      const broker = message.broker;
+      if (broker?.id) {
+        const card = {
+          id: String(broker.id),
+          firstName: String(broker.firstName || "").slice(0, 30),
+          photoUrl: typeof broker.photoUrl === "string" && /^https:\/\//.test(broker.photoUrl) ? broker.photoUrl : "",
+          stats: Array.isArray(broker.stats) ? broker.stats.slice(0, 2).map((stat) => ({ label: String(stat?.label || ""), value: String(stat?.value || "") })) : [],
+          found: message.progress === "corretor_achado"
+        };
+        const others = brokers.filter((item) => item.id !== card.id);
+        const previous = brokers.find((item) => item.id === card.id);
+        brokers = [...others, previous && !card.found ? previous : { ...previous, ...card, stats: card.stats.length ? card.stats : previous?.stats || [] }].slice(-3);
+      }
+      return { topic, label: String(message.label || "").slice(0, 80), brokers };
+    });
+  }, []);
+
+  // Enquanto pensa: frase de espera na voz do Henry quando a regra deixa (shouldNarrate); primeiro a frase com o nome do
+  // corretor, se veio; depois as do assunto, sem repetir as últimas 5.
+  useEffect(() => {
+    if (phase !== "thinking") return undefined;
+    const timer = window.setInterval(() => {
+      const wait = waitRef.current;
+      const queue = speechQueueRef.current;
+      const { phrases } = narrationRef.current;
+      const name = wait.names.find((item) => !recentPhrasesRef.current.includes(item.id));
+      const hasAudio = Boolean(name) || phrases.length > 0;
+      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio })) return;
+      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: recentPhrasesRef.current });
+      if (!choice?.audio?.base64) return;
+      waitRef.current = { ...wait, lastAt: Date.now(), names: name ? wait.names.filter((item) => item !== name) : wait.names };
+      recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
+      queue.clips.push({ audio: choice.audio, text: choice.text, narration: true });
+      if (!queue.playing) playNextRef.current();
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [phase]);
 
   // --- Pergunta ao servidor ---------------------------------------------------------------------------------------
   // Interrompe o que estiver em andamento (pedido e voz) e faz a nova pergunta. Memória: só as trocas do modo conversa
@@ -573,10 +686,13 @@ export default function HenryVoiceAssistant() {
     const nextTurns = [...turnsRef.current, { role: "user", text: shown || question }];
     turnsRef.current = nextTurns;
     setTurns(nextTurns);
-    updatePhase("thinking"); // sem confirmação falada: só o anel em "pensando" (dono, 2026-10-22)
+    updatePhase("thinking");
+    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: mode === "report" ? "relatorio" : "geral", lastAt: 0, names: [] };
+    setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [] });
     touchConversation();
-    const onReply = (reply, navigate) => {
-      const withReply = [...turnsRef.current, { role: "assistant", text: reply }];
+    const onReply = (reply, navigate, detail = null) => {
+      if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
+      const withReply = [...turnsRef.current, detail ? { role: "assistant", text: reply, detail } : { role: "assistant", text: reply }];
       turnsRef.current = withReply;
       setTurns(withReply);
       if (navigate?.path && isAllowedHenryPath(navigate.path)) router.push(navigate.path);
@@ -614,7 +730,7 @@ export default function HenryVoiceAssistant() {
           updatePhase("idle");
           return;
         }
-        onReply(data.reply || "", data.navigate);
+        onReply(data.reply || "", data.navigate, data.detail || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -643,9 +759,12 @@ export default function HenryVoiceAssistant() {
           } catch {
             continue;
           }
-          if (typeof message?.reply === "string") onReply(message.reply, message.navigate);
+          if (typeof message?.reply === "string") onReply(message.reply, message.navigate, message.detail || null);
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();
+          else if (typeof message?.progress === "string") applyProgress(message);
+          else if (message?.narration?.audio?.base64 && waitRef.current.id === id) waitRef.current.names.push({ id: `n:${message.narration.text}`, text: message.narration.text, audio: message.narration.audio });
+          else if (typeof message?.error === "string") throw new Error(message.error);
         }
       }
       if (requestIdRef.current === id && !speechQueueRef.current.done) endSpeech();
@@ -657,7 +776,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, router, stopSpeaking, touchConversation, updatePhase]);
+  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, router, stopSpeaking, touchConversation, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {
@@ -820,7 +939,8 @@ export default function HenryVoiceAssistant() {
   useEffect(() => () => recordRef.current && stopRecording("cancel"), [stopRecording]);
 
   // O que o Henry está falando agora (filtro de eco da interrupção).
-  const currentSpeech = useCallback(() => (phaseRef.current === "thinking" ? "" : lastReplyRef.current), []);
+  // Pensando: a frase de espera que está tocando (o "só um instante" dele nunca interrompe a si mesmo).
+  const currentSpeech = useCallback(() => (phaseRef.current === "thinking" ? narratingTextRef.current : lastReplyRef.current), []);
 
   // Interrupção: corta a voz e cancela o pedido (chamado já no resultado parcial, para parar em menos de 0,5 s).
   const interrupt = useCallback(() => {
@@ -1133,7 +1253,7 @@ export default function HenryVoiceAssistant() {
       ? recording
         ? "Ouvindo… toque de novo para enviar"
         : phase === "thinking"
-          ? "Pensando…"
+          ? scene.label || "Pensando…"
           : phase === "speaking"
             ? "Falando… toque na tela para interromper"
             : "Toque no Henry para falar"
@@ -1144,7 +1264,7 @@ export default function HenryVoiceAssistant() {
       : muted
         ? "Mudo (Alt+B para ligar)"
         : phase === "thinking"
-          ? "Pensando…"
+          ? scene.label || "Pensando…"
           : phase === "speaking"
             ? desktop ? "Falando… diga “Henry” para interromper" : "Falando… toque na tela para interromper"
             : phase === "armed"
@@ -1199,6 +1319,9 @@ export default function HenryVoiceAssistant() {
       vision={vision}
       capturing={capturing}
       onToggleVision={toggleVision}
+      searching={phase === "thinking" && !capturing}
+      sceneTopic={scene.topic}
+      brokers={phase === "thinking" || phase === "speaking" ? scene.brokers : []}
     />
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import HenryOrb from "./HenryOrb";
+import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
 // uma referência em vídeo ("nesse perfil… no meu estilo"): fundo azul-marinho profundo, anel de filamentos no centro,
@@ -87,6 +88,9 @@ export default function HenryVoiceView({
   recordMode = false, // celular sem reconhecimento de voz: tocar no anel/microfone grava; tocar de novo envia
   recording = false,
   onTalk,
+  searching = false, // pensando/buscando: "dados" transparentes atrás do anel (HenrySearchScene)
+  sceneTopic = "geral",
+  brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
@@ -95,6 +99,10 @@ export default function HenryVoiceView({
   useEffect(() => {
     if (expanded && showKeyboard) inputRef.current?.focus();
   }, [expanded, showKeyboard]);
+
+  const foundBroker = [...brokers].reverse().find((broker) => broker.found) || null;
+  const lastAssistant = [...turns].reverse().find((turn) => turn?.role === "assistant");
+  const detail = !searching && lastAssistant?.detail ? lastAssistant.detail : null;
 
   if (!expanded && mobile) {
     // Celular: toque no anel = abre a cena já ouvindo. Mudo só aparece com "Ouvir 'Henry' com o app aberto" (tapToTalk falso).
@@ -117,6 +125,8 @@ export default function HenryVoiceView({
             <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
             {inConversation ? <ConversationDot /> : null}
           </button>
+          <HenrySceneStyles />
+          <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
         </div>
         {!tapToTalk ? (
           <span className="pointer-events-auto mb-1.5">
@@ -173,6 +183,8 @@ export default function HenryVoiceView({
             {capturing ? <CaptureDot className="absolute right-3 top-3" /> : null}
             {inConversation ? <ConversationDot /> : null}
           </button>
+          <HenrySceneStyles />
+          <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
         </div>
       </div>
     );
@@ -206,6 +218,9 @@ export default function HenryVoiceView({
         if (mobile && start != null && end != null && end - start > 90 && !(event.target instanceof HTMLInputElement)) onMinimize?.();
       }}
     >
+      <HenrySceneStyles />
+      <HenryDataScene active={searching} topic={sceneTopic} mobile={mobile} />
+      {!mobile ? <HenryDetailPanel detail={detail} /> : null}
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
           Henry
@@ -229,7 +244,7 @@ export default function HenryVoiceView({
         </svg>
       </button>
 
-      <div className={mobile ? "-translate-y-[14vh]" : ""}>
+      <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
             <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
@@ -237,10 +252,12 @@ export default function HenryVoiceView({
         ) : (
           <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
         )}
+        <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
       </div>
 
       <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
         <div className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]">
+          {mobile ? <HenryDetailPanel detail={detail} mobile /> : null}
           {recent.length ? (
             recent.map((turn, index) => (
               <p key={`${turns.length - recent.length + index}`} className={turn.role === "user" ? "text-white/80" : ""} style={turn.role === "user" ? undefined : { color: ACCENT }}>
