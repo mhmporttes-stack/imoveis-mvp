@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getPwaHome } from "@/components/pwaHome";
+
+// Velocidade (etapa 3, 2026-10-22): o cliente do Supabase (~50 KB) carrega depois da tela de login pintar, não antes.
+const loadSupabaseBrowserClient = () => import("@/lib/supabase-browser").then((mod) => mod.getSupabaseBrowserClient());
 
 // Etapa do código no login do dono (verificação em duas etapas, regra do dono 2026-10-08). A senha já foi aceita;
 // o painel só libera depois que /api/admin/two-factor/verify confere o código no servidor.
@@ -51,7 +53,7 @@ export default function AdminTwoFactorChallenge({ email = "", nextPath = "" }) {
 
   async function useAnotherAccount() {
     await fetch("/api/admin/session", { method: "DELETE" });
-    await getSupabaseBrowserClient()?.auth.signOut();
+    await (await loadSupabaseBrowserClient())?.auth.signOut();
     router.refresh();
   }
 

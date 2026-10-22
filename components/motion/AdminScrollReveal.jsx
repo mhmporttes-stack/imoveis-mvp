@@ -19,12 +19,20 @@ export default function AdminScrollReveal({ rootId = ROOT_ID }) {
     let stop = () => {};
     let tries = 0;
     let timer = 0;
+    let loadingTries = 0;
     const start = () => {
       if (getActiveSnapshot() && tries++ < 12) {
         timer = window.setTimeout(start, 250);
         return;
       }
-      stop = revealOnScroll(document.getElementById(rootId));
+      const root = document.getElementById(rootId);
+      // Esqueleto da troca de tela (components/AdminRouteLoading.jsx) ainda no lugar: espera a tela de verdade chegar,
+      // para a primeira varredura (a entrada em cascata) acontecer nela, como antes do esqueleto existir.
+      if (root?.querySelector("[data-admin-route-loading]") && loadingTries++ < 300) {
+        timer = window.setTimeout(start, 100);
+        return;
+      }
+      stop = revealOnScroll(root);
     };
     const frame = window.requestAnimationFrame(start);
     return () => {

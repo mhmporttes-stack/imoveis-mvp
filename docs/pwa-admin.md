@@ -35,6 +35,12 @@ Somente recursos estáticos seguros são armazenados, como:
 
 Desde 2026-10-22 (velocidade, etapa 2), os arquivos de `/_next/static/*` (hash do conteúdo no nome) ficam no cache sem versão `painel-matheus-next-static` (máx. 600 entradas, os mais antigos saem), que sobrevive às publicações; os demais ficam em `painel-matheus-v4-<build>-static`, apagado a cada deploy. Trava: `tests/sw-next-static-cache.test.mjs`.
 
+## Velocidade, etapa 3 (2026-10-22)
+
+- Troca de tela: `loading.jsx` com `components/AdminRouteLoading.jsx` em cada seção de `app/admin`, menos Meta Diária, `/admin/simulacoes` (cenas), Chat e Alexa. Não criar `app/admin/loading.jsx` (cobriria os destinos das cenas). Trava: `tests/painel-velocidade-etapa3.test.mjs`.
+- Avisos globais (Mensagem do Dia, Celebração, Supervisão, Central de Alertas): `components/DeferredPanelGates.jsx` (`next/dynamic` + ocioso).
+- Login e redefinir senha: código em `app/painel-acesso/` (layout leve); `proxy.js` reescreve `/admin/login` e `/admin/reset-password` para lá — a URL vista pelo usuário, pelo `usePathname` e pelo service worker continua `/admin/...`.
+
 ## Pré-carregamento do painel (AdminWarmup)
 
 Dono, 2026-10-22: botões do app prontos antes do toque, Clientes primeiro. `components/AdminWarmup.jsx` (montado em `app/admin/layout.jsx`) roda no celular e no computador, 2 s depois que o painel abre, um item por vez com o navegador ocioso e o app visível:

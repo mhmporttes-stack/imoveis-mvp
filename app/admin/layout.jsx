@@ -8,21 +8,18 @@ import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
 import AdminViewAsBanner from "@/components/AdminViewAsBanner";
-import AlertCenterGate from "@/components/alerts/AlertCenterGate";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
-import BrokerCelebrationGate from "@/components/celebrations/BrokerCelebrationGate";
-import DailyMessageGate from "@/components/DailyMessageGate";
+import DeferredPanelGates from "@/components/DeferredPanelGates";
 import FirstAccessGate from "@/components/FirstAccessGate";
 import NewClientSoundListener from "@/components/NewClientSoundListener";
 import OfficePresenceNotice from "@/components/OfficePresenceNotice";
-import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import TopRankingBadge from "@/components/TopRankingBadge";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import HideInFinanceiroApp from "@/components/HideInFinanceiroApp";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
-import { Manrope } from "next/font/google";
+import { ADMIN_FONT_CSS } from "@/components/admin-font";
 import Link from "next/link";
 import { getAdminFromCookies, isOwnerAdminEmail } from "@/lib/admin-auth";
 import { resolvePresenceProfileId } from "@/lib/admin-presence-core.mjs";
@@ -36,13 +33,7 @@ import { printedListModeAppliesTo } from "@/lib/whatsapp-manual-disconnect-core.
 
 export const dynamic = "force-dynamic";
 
-// Tipografia oficial do painel (escolha do dono em 2026-10-01, depois do
-// comparativo Manrope × Inter). Carregada só nas rotas /admin — o site
-// público continua com a pilha padrão de --font-ui (app/globals.css). A regra
-// fica no :root (e não num wrapper) para valer também em modais renderizados
-// por portal direto no <body>.
-const manrope = Manrope({ subsets: ["latin"], display: "swap" });
-const ADMIN_FONT_CSS = `:root{--font-ui:${manrope.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;}`;
+// Tipografia oficial do painel: components/admin-font.js (a mesma das telas de entrada, app/painel-acesso).
 
 export default async function AdminLayout({ children }) {
   const auth = await getAdminFromCookies();
@@ -62,11 +53,17 @@ export default async function AdminLayout({ children }) {
       {/* Primeiro acesso do dia do DONO (INI-4, 2026-10-22): abre o Início e a Alexa fala o bom dia (servidor). Só a conta
           real do dono, fora de "Alterar conta"; a rota confere de novo. Outros perfis: nada muda. */}
       {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? <FirstAccessGate /> : null}
-      {auth.ok ? <DailyMessageGate userId={auth.profile?.id} userName={auth.profile?.name || ""} /> : null}
-      {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} userName={auth.profile?.name || ""} userPhotoUrl={auth.profile?.photoUrl || ""} /> : null}
-      {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}
-      {/* Central de Alertas (Informativo/Importante) — fora de "Alterar conta", como a Supervisão. */}
-      {auth.ok && !auth.accountSwitchMode ? <AlertCenterGate userId={auth.profile?.id} /> : null}
+      {/* Mensagem do Dia, Celebração, Supervisão e Central de Alertas: carregados quando a tela fica ociosa
+          (components/DeferredPanelGates.jsx — velocidade, etapa 3). Mesmas condições de sempre: Supervisão e Central de
+          Alertas (Informativo/Importante) ficam fora de "Alterar conta". */}
+      {auth.ok ? (
+        <DeferredPanelGates
+          daily={{ userId: auth.profile?.id, userName: auth.profile?.name || "" }}
+          celebration={{ userId: auth.profile?.id, userName: auth.profile?.name || "", userPhotoUrl: auth.profile?.photoUrl || "" }}
+          supervision={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
+          alerts={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
+        />
+      ) : null}
       </HideInFinanceiroApp>
       {/* O provider envolve o cabeçalho, o menu lateral e a barra inferior: o modo lista impressa (PRO-15) é relido no
           cliente e o Chat volta sozinho quando o WhatsApp reconecta, sem fechar o app (components/WhatsappAccessProvider.jsx). */}

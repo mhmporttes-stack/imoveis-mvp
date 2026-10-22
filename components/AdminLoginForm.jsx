@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getPwaHome } from "@/components/pwaHome";
+
+// Velocidade (etapa 3, 2026-10-22): o cliente do Supabase (~50 KB) carrega depois da tela de login pintar, não antes.
+const loadSupabaseBrowserClient = () => import("@/lib/supabase-browser").then((mod) => mod.getSupabaseBrowserClient());
 
 const errorMessages = {
   unauthorized: "Acesso nao autorizado. Entre com o e-mail administrador cadastrado.",
@@ -33,11 +35,16 @@ export default function AdminLoginForm({ initialError = "", nextPath = "" }) {
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Já deixa o cliente carregado (depois da pintura) para o "Entrar" não esperar o download.
+  useEffect(() => {
+    loadSupabaseBrowserClient().catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!initialError) return;
 
     fetch("/api/admin/session", { method: "DELETE" });
-    getSupabaseBrowserClient()?.auth.signOut();
+    loadSupabaseBrowserClient().then((client) => client?.auth.signOut());
   }, [initialError]);
 
   async function handleSubmit(event) {
@@ -47,7 +54,7 @@ export default function AdminLoginForm({ initialError = "", nextPath = "" }) {
     setLoading(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const supabase = await loadSupabaseBrowserClient();
       if (!supabase) {
         setError("Supabase nao configurado. Verifique as variaveis de ambiente.");
         return;
@@ -118,7 +125,7 @@ export default function AdminLoginForm({ initialError = "", nextPath = "" }) {
     setResetLoading(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const supabase = await loadSupabaseBrowserClient();
       if (!supabase) {
         setError("Supabase nao configurado. Verifique as variaveis de ambiente.");
         return;
