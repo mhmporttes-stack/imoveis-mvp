@@ -71,6 +71,9 @@ export default function HenryVoiceAssistant() {
   const [turns, setTurns] = useState([]);
   const [typed, setTyped] = useState("");
   const [notice, setNotice] = useState("");
+  // Última frase que o reconhecimento entendeu (só na tela, por alguns segundos; nada é gravado) — ajuda a ver por que o
+  // nome não foi reconhecido (dono, 2026-10-22: "Ouvindo", mas não reage).
+  const [heard, setHeard] = useState({ text: "", at: 0 });
 
   const recognitionRef = useRef(null);
   const shouldListenRef = useRef(false);
@@ -653,7 +656,10 @@ export default function HenryVoiceAssistant() {
         const text = result[0]?.transcript || "";
         lastHeardRef.current = Date.now(); // alguém falando perto: o anel passa a "ouvindo" (nada é enviado)
         markActivity();
-        if (result.isFinal) handleFinal(text);
+        if (result.isFinal) {
+          setHeard({ text: text.trim().slice(0, 80), at: Date.now() });
+          handleFinal(text);
+        }
         else if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, currentSpeech()).interrupt) {
           interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
         }
@@ -800,7 +806,7 @@ export default function HenryVoiceAssistant() {
                 ? "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)"
                 : "Pode falar…"
               : micState === "listening"
-                ? "Ouvindo — diga “Henry”"
+                ? heard.text && Date.now() - heard.at < 8000 ? `Ouvi: “${heard.text}” — diga “Henry”` : "Ouvindo — diga “Henry”"
                 : listenMode === "tap"
                   ? "Toque no anel para falar"
                   : "Ligando o microfone…";
