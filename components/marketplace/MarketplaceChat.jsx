@@ -154,10 +154,11 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
 
   const conversation = thread?.conversation;
   return (
-    <section className="container-page space-y-3">
-      {/* Sem título, explicação nem botão "Chat do WhatsApp" no topo (dono, 2026-10-22: "remova todos esses textos");
-          o título fica só para leitores de tela. */}
-      <h1 className="sr-only">Chat do Marketplace</h1>
+    <>
+    <h1 id="marketplace-chat-title" className="sr-only">Chat do Marketplace</h1>
+    <section className="container-page space-y-3" aria-labelledby="marketplace-chat-title">
+      {/* Sem título, explicação nem botão "Chat do WhatsApp" no topo (dono, 2026-10-22: "remova todos esses textos").
+          O título só para leitores de tela fica FORA do space-y (senão o primeiro bloco ganha margem e sobra espaço). */}
       {!list.ready ? <Card className="bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
       {error ? <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
 
@@ -263,5 +264,6 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
         )}
       </div>
     </section>
+    </>
   );
 }

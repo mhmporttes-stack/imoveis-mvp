@@ -14,7 +14,7 @@ export default async function MarketplaceChatPage() {
   const team = canAssign ? (await listVisibleTeamProfiles(auth)).map((profile) => ({ id: profile.id, name: profile.name })) : [];
 
   return (
-    <main className="bg-mist py-6">
+    <main className="bg-mist pb-6 pt-3 md:pt-6">
       <AdminSectionNav active="marketplace-chat" />
       <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} team={team} />
     </main>
